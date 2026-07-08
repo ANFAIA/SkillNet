@@ -6,6 +6,7 @@
   </p>
   <p align="center">
     <a href="https://anfaia.org"><img src="https://img.shields.io/badge/ANFAIA-Grants_2026-blue?style=flat-square" alt="ANFAIA 2026"></a>
+    <a href="https://skillnet-docs.vercel.app/"><img src="https://img.shields.io/badge/docs-website-blue?style=flat-square" alt="Docs"></a>
     <img src="https://img.shields.io/badge/license-Apache_2.0-green?style=flat-square" alt="License">
     <img src="https://img.shields.io/badge/status-in_development-orange?style=flat-square" alt="Status">
     <img src="https://img.shields.io/badge/open_source-brightgreen?style=flat-square" alt="Open Source">
