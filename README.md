@@ -36,6 +36,45 @@ SkillNet takes a company's internal knowledge · manuals, processes, documentati
 - **Adaptive** · Content and pace tailored to each individual
 - **Accessible** · Designed for any user profile, including neurodiversity
 
+## How it works
+
+```mermaid
+graph LR
+    docs["Internal docs"] --> agents["Agent teams<br/>Ingestion · Tutoring · Content"]
+    agents --> knowledge["Knowledge layer"]
+    knowledge --> ui["Interface generation<br/>Static · Declarative · Generative"]
+    ui --> learner["Learner"]
+    learner -->|progress| knowledge
+```
+
+## What's being explored
+
+The project is in its research phase. These are the areas currently under investigation and how they connect to SkillNet:
+
+| Area | Why it matters for SkillNet | Status |
+|------|----------------------------|--------|
+| **[Semantic Boundaries](docs/research/semantic-boundaries/)** | How to control who accesses what knowledge in a multi-tenant training platform | Content-only classification hits a hard ceiling. Exploring structural access control. |
+| **[Generative UI](docs/research/generative-ui/)** | Personalized training content needs interfaces generated on the fly for each learner | Built UIDL for Level 2 generation. Exploring Level 3 and latency solutions. |
+| **[Multi-Agent Coordination](docs/research/multi-agent-coordination/)** | A platform with multiple agents serving multiple users needs governance | Discovered mandate-based authority model. Defining protocols. |
+| **[Post-Markdown](docs/research/post-markdown/)** | Agents need to consume documentation efficiently to generate training content | Built mcp-md-reader (90% token savings). Exploring what comes after Markdown. |
+
+See [`docs/research/`](docs/research/) for detailed write-ups on each topic.
+
+## Repository structure
+
+```
+skillnet/
+├── docs/
+│   ├── design/                    Architecture and technical decisions
+│   └── research/                  Investigation by topic
+├── apps/
+│   └── skillnet-web/              Main application (in development)
+├── packages/
+│   ├── mcp-md-reader/             Intelligent markdown reading for LLM agents
+│   └── mcp-ui-renderer/           Compact DSL for generating standalone HTML pages
+└── assets/
+```
+
 ## Tech stack
 
 <p>
