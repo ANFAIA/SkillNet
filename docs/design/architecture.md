@@ -27,9 +27,9 @@ Takes raw company documentation and transforms it into structured knowledge the 
 - **Input:** Markdown, PDFs, internal wikis, process documents
 - **Output:** Structured knowledge units indexed for retrieval
 
-**(open)** Chunking strategy. How documents get split into retrievable units — by section, by semantic boundary, by fixed size, or something adaptive.
+**(deferred)** Chunking strategy. RAG conditional approach is documented (small docs go whole, large docs get chunked). The specific chunking method (semantic by sections with fixed fallback) will be decided when the ingestion pipeline is built.
 
-**(open)** Update flow. When source documents change, how does the knowledge layer stay current? Full re-ingestion vs incremental updates.
+**(deferred)** Update flow. When source documents change, how does the knowledge layer stay current? Full re-ingestion vs incremental updates.
 
 ### 2. Knowledge layer
 
@@ -37,8 +37,7 @@ The system's memory. Stores structured knowledge and makes it available to agent
 
 | Component | Role |
 |-----------|------|
-| **PostgreSQL** | Persistent storage for structured data: users, courses, progress, organization config |
-| **Vector store** | Embeddings of knowledge units for semantic retrieval (RAG) |
+| **PostgreSQL + pgvector** | Single database for all data: relational (users, courses, progress) and vector (embeddings). One backup, one connection, transactional joins between content and vectors. |
 | **Access control** | Determines what knowledge is visible to whom |
 
 **What we know from research:**
@@ -46,7 +45,7 @@ The system's memory. Stores structured knowledge and makes it available to agent
 - Content-based classification of access levels caps at 78% accuracy ([semantic boundaries research](../research/semantic-boundaries/)). Privacy is a human decision, not a content property. The system must enforce organizational access decisions, not guess them.
 - Compartment-based access (need-to-know) is the most promising model. An agent is booted with only the compartments its task requires. Control happens at boot (what it can see) and at the boundary (what it can emit), not inside the agent.
 
-**(open)** Vector store choice. pgvector inside PostgreSQL vs a dedicated store (Qdrant, Weaviate, etc.).
+**Vector store: pgvector.** Embeddings live inside PostgreSQL as a `vector` column. One database for everything — relational queries and semantic search in the same transaction. At MVP scale (dozens of documents, hundreds of employees), pgvector is more than sufficient. If the system ever needs to handle millions of vectors at thousands of QPS, embeddings can migrate to a dedicated store without touching the relational schema.
 
 **(open)** Knowledge graph. Whether relationships between knowledge units need explicit graph structure or if vector proximity + metadata is sufficient. The G-SPEC paper suggests 68% of security gains come from graph structure.
 
@@ -87,17 +86,27 @@ Most of SkillNet is Level 1 and 2. Level 3 applies only where content, context, 
 
 - [UIDL renderer](../../packages/mcp-ui-renderer/) — Level 2 implementation. 76% token savings vs equivalent HTML.
 
-**(open)** Level 3 latency. Generation takes 20-30s per page. Two approaches being explored: two-agent generation (fast skeleton + background content) and pre-built waiting experiences. Neither is implemented.
+**Level 3 latency: deferred.** The approach for handling generation wait times (skeleton + SSE streaming, pre-generation, or waiting screen) will be decided when the generation pipeline is built. SSE infrastructure will already be in place from the tutor chat.
 
-**(open)** Frontend architecture. React is in the stack, but the component structure, routing, and state management are not defined. How do Levels 1, 2, and 3 coexist in the same application?
+**Frontend architecture: single SPA.** One React app with React Router. Level 1 (static) are regular React components. Level 2 (declarative) uses a renderer component that takes a compact spec and paints it — the specific format (UIDL or otherwise) is not locked. Level 3 (generative) injects agent-generated HTML into an isolated container (shadow DOM or iframe) to prevent CSS conflicts. The user doesn't know which level they're seeing — navigation is the same everywhere.
+
+**Routing: fixed routes with dynamic content.** Every screen has a predictable URL (`/dashboard`, `/courses/:id`, `/courses/:id/module/:mid/lesson/:lid`, `/admin/users`, `/settings`). URLs are shareable and browser back/forward works. When Level 3 generates content, it renders inside the fixed route — the URL doesn't change, only what's inside.
+
+**State management: React Query (TanStack Query).** Server state (courses, progress, skills, exercises) is fetched and cached by React Query — the backend is the single source of truth. Local UI state (sidebar open, filter active, modal visible) uses plain `useState`. No global store needed. If a case arises later, Zustand can be added in minutes.
 
 ### 5. API
 
 FastAPI serves as the interface between frontend and backend.
 
-**(open)** API design. Endpoints, authentication scheme, real-time communication (WebSockets for streaming agent responses vs SSE vs polling).
+**API style: pragmatic REST.** Standard CRUD for data resources (`GET/POST/PUT/DELETE /api/v1/courses`) plus explicit action endpoints for operations (`POST /courses/{id}/generate`, `POST /courses/{id}/publish`, `POST /exercises/{id}/attempt`). No GraphQL, no pure REST. Routes say what they do.
 
-**(open)** Multi-tenancy. How organizations are isolated at the API level — separate databases, shared database with row-level security, or schema-per-tenant.
+**(open)** API contract details. Specific endpoints, request/response schemas, versioning.
+
+**Authentication: session cookies via fastapi-users.** Login sends email + password, backend creates a session in PostgreSQL and returns an `httpOnly` cookie (7-day expiry). The browser sends the cookie automatically on every request — no token management in frontend code. Each device gets its own independent session. Account creation is admin-only by default (the admin creates employees from the panel); self-registration can be enabled per deployment as a config flag. Built on fastapi-users `CookieTransport`.
+
+**Real-time: SSE (Server-Sent Events).** Agent responses stream token-by-token via `StreamingResponse` in FastAPI. Unidirectional (server → client). The user sends a question as a regular POST, then opens an SSE connection to receive the streamed response. Standard for LLM streaming (ChatGPT, Claude). No WebSocket infrastructure needed.
+
+**Multi-tenancy: not applicable.** SkillNet is self-hosted — one instance per company, one database, one Docker Compose. The `organizations` table exists for data scoping but has a single row per deployment. If SaaS becomes a future need (post-beca), the schema already scopes by `org_id`, so row-level security can be added without restructuring.
 
 ### 6. Infrastructure
 
@@ -107,7 +116,7 @@ FastAPI serves as the interface between frontend and backend.
 | **Database** | PostgreSQL |
 | **No vendor lock-in** | Core functionality must work without any specific cloud provider |
 
-**(open)** LLM provider strategy. Which models, how to abstract provider switching, cost management at scale.
+**LLM provider: user's choice.** SkillNet doesn't lock into any provider. The user configures their own API key and endpoint. Any OpenAI-compatible API works out of the box (OpenAI, DeepSeek, Groq, Together, local via Ollama/LM Studio, etc.). The backend talks to a single interface — base URL + API key + model name — set in environment variables. No provider-specific code in business logic.
 
 **(open)** Background processing. Ingestion and content generation are long-running tasks. Queue system (Celery, Dramatiq, etc.) vs LangGraph's built-in persistence.
 
@@ -141,20 +150,23 @@ Learner completes exercise ──→ Progress recorded
               adjusts to level              adjusts to learner
 ```
 
-**(open)** What signals drive adaptation. Completion rate, scores, time spent, interaction patterns, or a combination. How quickly the system should react to new signals.
+**(deferred)** Adaptation signals. What data drives personalization (scores only, scores + time, full behavioral patterns). The data model already captures scores and timestamps in `exercise_attempts`, so any approach can be implemented later without schema changes. Will be decided when there is real user data to analyze.
 
 ---
 
-## What's decided vs what's open
+## What's decided vs what's deferred
 
-| Decided | Open |
-|---------|------|
-| LangGraph for agent orchestration | Agent communication patterns |
-| PostgreSQL for persistence | Vector store choice |
-| FastAPI for the API | API contract and auth |
-| React for frontend | Frontend architecture |
-| Docker for deployment | LLM provider strategy |
-| Compartment-based access control | Runtime mandate implementation |
-| UIDL for Level 2 UI generation | Level 3 latency solutions |
-| Mandate model for agent authority | Formal mandate representation |
-| Self-hostable, no vendor lock-in | Multi-tenancy approach |
+| Decided | Deferred |
+|---------|----------|
+| PostgreSQL + pgvector (single DB) | Agent communication patterns |
+| FastAPI, pragmatic REST | Mandate implementation |
+| Session cookies + fastapi-users | Background processing |
+| SSE for real-time streaming | Knowledge graph structure |
+| React SPA, React Router, fixed routes | Chunking strategy |
+| React Query for state management | Level 3 latency |
+| LangGraph for agent orchestration | Adaptation signals |
+| Compartment-based access control | |
+| Mandate model for agent authority | |
+| Self-hosted, one instance per company | |
+| LLM provider agnostic (OpenAI-compatible API) | |
+| Data model defined ([data-model.md](data-model.md)) | |
