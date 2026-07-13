@@ -50,14 +50,15 @@ The observation: **a code tool pointed at documentation quietly stops being dete
 
 ## What Was Built
 
-An MCP server (`@anfaia/md-reader-mcp`) that parses Markdown headings into a tree and serves sections on demand:
+An MCP server (`@anfaia/md-reader-mcp`, v1.4.1) that parses Markdown headings into a tree and serves sections on demand:
 
+- `md_find`: query-driven front door — matches headings, tags and filenames across the vault, returns ranked sections. Deterministic (no embeddings, no LLM). Structural navigation, complement to full-text search.
 - `md_tree`: heading tree with token counts (~50 tokens for a 3,000-token file)
 - `md_section`: one section by name (fuzzy match)
 - `md_frontmatter`: YAML frontmatter only
 - `md_vault_index`: full vault graph with BFS traversal
 
-**Workflow:** `md_tree` first to see structure, then `md_section` for what you need.
+**Workflow:** `md_find` first with what you're looking for → it returns matching sections ranked. Then `md_section` to read the one you picked. `md_tree` when you need one file's full structure, `md_vault_index` to explore links between notes.
 
 Source: [`packages/mcp-md-reader/`](../../../packages/mcp-md-reader/)
 
@@ -88,7 +89,7 @@ MEMORY (how agents store state)
 
 CONSUMPTION (how agents READ files) <-- THE GAP WE FILLED
   0/6 agents expose heading structure
-  OUR CONTRIBUTION: mcp-md-reader
+  OUR CONTRIBUTION: mcp-md-reader (v1.4.1, 5 tools)
 ```
 
 ## References
