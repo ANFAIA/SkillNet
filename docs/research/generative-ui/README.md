@@ -80,7 +80,7 @@ table "Pending Exercises"
 
 This spec is ~360 tokens. The renderer expands it to a complete standalone HTML page with Chart.js charts, styled tables, metric cards, and responsive layout (~2,400 tokens of HTML). The agent never generates HTML; it never deals with CSS or JavaScript.
 
-**Implementation:** [`packages/mcp-ui-renderer/`](../../../packages/mcp-ui-renderer/), an MCP server and CLI tool. Available as a tool for any MCP-compatible agent.
+**Implementation:** [github.com/JoseEstevez520/uidl](https://github.com/JoseEstevez520/uidl), an MCP server and CLI tool. Available as a tool for any MCP-compatible agent. v1.2.0 adds a brand/theme system: a JSON preset (~8 properties: colors, font, logo, radius, footer) that the renderer applies without changing the UIDL spec. The LLM writes the same compact format; the organization's brand is applied at render time.
 
 | Metric | UIDL | Equivalent raw HTML |
 |--------|------|---------------------|
