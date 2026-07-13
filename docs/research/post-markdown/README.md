@@ -40,6 +40,14 @@ The observation: **the complexity of these systems is itself a problem.** Every 
 
 This doesn't mean Mem0 or Cognee are wrong. They solve real problems. But the bet here is that the long-term direction is making the consumption layer intelligent rather than building ever-larger systems around dumb readers.
 
+## The landscape: code graphs pointed at docs
+
+A parallel wave promises to "turn your repo — or any folder — into a knowledge graph you can query": [Graphify](https://github.com/Graphify-Labs/graphify), [Microsoft GraphRAG](https://github.com/microsoft/graphrag), code property graphs ([Joern](https://github.com/joernio/joern)), [Sourcegraph SCIP](https://sourcegraph.com/blog/announcing-scip). The pitch is general — point it at anything — and people increasingly point it at documentation.
+
+But look at what they are built on: tree-sitter, ASTs, call graphs, import resolution. These are **code-analysis engines.** Their power comes from structure that only code has — a function *calls* another, a file *imports* another: explicit, unambiguous, machine-extractable relations. Prose has none of that. So when these tools ingest docs they cannot parse relations, they **infer** them with an LLM. Same name, different tool: on code it is deterministic, local and free; on docs it is LLM inference — paid per file, non-deterministic between runs, and it tends to flatten a whole document into a single node, losing its sections.
+
+The observation: **a code tool pointed at documentation quietly stops being deterministic.** The "any folder" pitch hides that the docs path is a bolt-on. And it reinforces the same conclusion as above — docs already carry their own structure (headings, links, frontmatter). The win is to navigate that structure natively and deterministically, not to borrow a code-graph tool and pay an LLM to fake the structure prose lacks.
+
 ## What Was Built
 
 An MCP server (`@anfaia/md-reader-mcp`) that parses Markdown headings into a tree and serves sections on demand:
@@ -99,3 +107,9 @@ CONSUMPTION (how agents READ files) <-- THE GAP WE FILLED
 - [mcp-server-markdown](https://github.com/ofershap/mcp-server-markdown): list_headings + extract_section
 - [mq: jq for Markdown](https://mqlang.org/): query language for Markdown, Rust
 - [library-mcp](https://lethain.com/library-mcp/): Markdown knowledge base navigation
+
+### Code-graph tools (built for code, often pointed at docs)
+- [Graphify](https://github.com/Graphify-Labs/graphify): tree-sitter code graph; documentation goes through the model API
+- [Microsoft GraphRAG](https://github.com/microsoft/graphrag): LLM entity/relation extraction over a corpus
+- [Joern](https://github.com/joernio/joern): code property graphs (data/control flow)
+- [Sourcegraph SCIP](https://sourcegraph.com/blog/announcing-scip): precise, compiler-accurate code navigation
