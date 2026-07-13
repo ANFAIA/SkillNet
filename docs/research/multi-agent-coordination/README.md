@@ -223,3 +223,9 @@ It works for one user. It does not scale to teams.
 7. Do compartments map to work units or knowledge sources?
 8. How is aggregation handled, specifically when pieces A and B are individually innocuous but reveal something sensitive combined?
 9. What format should traces take?
+
+---
+
+## Deep dive
+
+- [Communication between agents](agent-communication.md) · when my agent talks to my neighbor's, what may cross · making the boundary deterministic rather than an advisory norm, across the protocol, the traceability, and the workspace.
