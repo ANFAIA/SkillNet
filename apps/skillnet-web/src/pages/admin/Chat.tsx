@@ -62,7 +62,7 @@ export function AdminChat() {
             className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
           >
             <div
-              className={`max-w-[70%] px-4 py-3 text-sm leading-relaxed ${
+              className={`max-w-[85%] md:max-w-[70%] px-3 md:px-4 py-3 text-sm leading-relaxed ${
                 msg.sender === 'user'
                   ? 'bg-primary text-white rounded-xl rounded-br-sm'
                   : 'bg-bg-muted text-text rounded-xl rounded-bl-sm'

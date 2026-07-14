@@ -36,7 +36,7 @@ export function Content() {
 
   return (
     <div>
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h2 className="text-xl font-semibold text-text">Contenido</h2>
           <p className="text-sm text-text-secondary mt-1">{adminCourses.length} cursos en total</p>
@@ -54,16 +54,16 @@ export function Content() {
       </div>
 
       {/* Stats row */}
-      <div className="flex gap-4 mt-4">
-        <div className="border border-border rounded-lg px-4 py-3 flex-1">
+      <div className="grid grid-cols-3 gap-2 sm:gap-4 mt-4">
+        <div className="border border-border rounded-lg px-3 sm:px-4 py-3">
           <p className="text-xs text-text-muted">Publicados</p>
           <p className="text-lg font-semibold text-text">{published.length}</p>
         </div>
-        <div className="border border-border rounded-lg px-4 py-3 flex-1">
+        <div className="border border-border rounded-lg px-3 sm:px-4 py-3">
           <p className="text-xs text-text-muted">Borradores</p>
           <p className="text-lg font-semibold text-text">{drafts.length}</p>
         </div>
-        <div className="border border-border rounded-lg px-4 py-3 flex-1">
+        <div className="border border-border rounded-lg px-3 sm:px-4 py-3">
           <p className="text-xs text-text-muted">Archivados</p>
           <p className="text-lg font-semibold text-text">{archived.length}</p>
         </div>
@@ -84,7 +84,7 @@ export function Content() {
                     <span className="text-sm font-medium text-text truncate">{course.title}</span>
                     <Badge variant={status.variant} badgeStyle="plain">{status.label}</Badge>
                   </div>
-                  <div className="flex items-center gap-4 mt-1 text-xs text-text-muted">
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-0.5 mt-1 text-xs text-text-muted">
                     <span>{course.modules} modulos</span>
                     <span>{course.exercises} ejercicios</span>
                     {course.assignedCount > 0 && (

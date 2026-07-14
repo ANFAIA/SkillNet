@@ -22,7 +22,7 @@ export function MyCourses() {
       <h2 className="text-xl font-semibold text-text mb-6">Mis Cursos</h2>
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-6 border-b border-border">
+      <div className="flex gap-1 mb-6 border-b border-border overflow-x-auto">
         {tabs.map((tab) => (
           <button
             key={tab.key}

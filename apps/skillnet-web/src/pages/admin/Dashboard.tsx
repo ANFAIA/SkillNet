@@ -122,12 +122,12 @@ export function Dashboard() {
                 key={i}
                 className="flex items-center justify-between py-3 border-b border-border last:border-b-0"
               >
-                <div className="min-w-0">
-                  <p className="text-sm text-text">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm text-text truncate">
                     <span className="font-medium">{activity.employee}</span>
                     {' '}{activity.action}
                   </p>
-                  <p className="text-xs text-text-muted mt-0.5">{activity.course}</p>
+                  <p className="text-xs text-text-muted mt-0.5 truncate">{activity.course}</p>
                 </div>
                 <span className="text-xs text-text-muted shrink-0 ml-4">{activity.time}</span>
               </div>
@@ -170,7 +170,7 @@ export function Dashboard() {
               ))}
             </tbody>
           </table>
-          <div className="flex items-center gap-4 mt-3 text-xs text-text-muted">
+          <div className="flex flex-wrap items-center gap-3 sm:gap-4 mt-3 text-xs text-text-muted">
             <span className="flex items-center gap-1.5"><span className="inline-block w-3 h-3 rounded bg-skill-high" /> Alto</span>
             <span className="flex items-center gap-1.5"><span className="inline-block w-3 h-3 rounded bg-skill-medium" /> Medio</span>
             <span className="flex items-center gap-1.5"><span className="inline-block w-3 h-3 rounded bg-skill-low" /> Bajo</span>

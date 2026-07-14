@@ -117,7 +117,7 @@ export function Dashboard() {
           <div className="space-y-0">
             {activity.map((item) => (
               <div key={item.id} className="flex items-center justify-between py-2.5 border-b border-border last:border-b-0">
-                <span className="text-sm text-text">{item.text}</span>
+                <span className="text-sm text-text truncate min-w-0">{item.text}</span>
                 <span className="text-xs text-text-muted shrink-0 ml-4">{item.time}</span>
               </div>
             ))}

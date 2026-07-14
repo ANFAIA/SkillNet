@@ -32,7 +32,7 @@ function AppLayoutInner() {
       >
         <Header title={title} />
 
-        <main className="flex-1 mt-[50px] bg-bg md:rounded-tl-xl overflow-y-auto">
+        <main className="flex-1 mt-[50px] bg-bg md:rounded-tl-xl overflow-y-auto overflow-x-hidden">
           <AnimatePresence mode="wait">
             <motion.div
               key={location.pathname}

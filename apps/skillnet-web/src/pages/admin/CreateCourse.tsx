@@ -61,11 +61,11 @@ function CheckIcon() {
 
 function StepIndicator({ current, total }: { current: number; total: number }) {
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-1 sm:gap-2">
       {Array.from({ length: total }).map((_, i) => (
-        <div key={i} className="flex items-center gap-2">
+        <div key={i} className="flex items-center gap-1 sm:gap-2">
           <div
-            className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium transition-colors ${
+            className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center text-xs font-medium transition-colors shrink-0 ${
               i < current
                 ? 'bg-accent text-white'
                 : i === current
@@ -77,7 +77,7 @@ function StepIndicator({ current, total }: { current: number; total: number }) {
           </div>
           {i < total - 1 && (
             <div
-              className={`w-8 h-px transition-colors ${
+              className={`w-4 sm:w-8 h-px transition-colors ${
                 i < current ? 'bg-accent' : 'bg-border'
               }`}
             />
@@ -253,8 +253,8 @@ function StepReview() {
       <div className="mt-5 space-y-3">
         {modules.map((mod, i) => (
           <Card key={i}>
-            <div className="flex items-center justify-between">
-              <CardTitle>Modulo {i + 1}: {mod.title}</CardTitle>
+            <div className="flex items-center justify-between gap-2">
+              <CardTitle className="truncate min-w-0">Modulo {i + 1}: {mod.title}</CardTitle>
               <Badge variant="accent" badgeStyle="plain">{mod.exercises.length} ejercicios</Badge>
             </div>
             <ul className="mt-2 space-y-1">
