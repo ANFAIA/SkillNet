@@ -107,7 +107,7 @@ function StepSource({
     <div>
       <h3 className="text-base font-medium text-text">Elige el origen del curso</h3>
       <p className="text-sm text-text-secondary mt-1">Selecciona como quieres crear el contenido</p>
-      <div className="grid grid-cols-3 gap-4 mt-5">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-5">
         {sources.map((s) => (
           <Card
             key={s.key}
@@ -293,7 +293,7 @@ function StepAssign() {
       <h3 className="text-base font-medium text-text">Asignar a empleados</h3>
       <p className="text-sm text-text-secondary mt-1">Selecciona quienes tomaran este curso</p>
 
-      <div className="mt-5 grid grid-cols-2 gap-4">
+      <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-text mb-2">Empleados</label>
           <div className="border border-border rounded-lg max-h-64 overflow-y-auto">
@@ -428,7 +428,7 @@ export function CreateCourse() {
 
   return (
     <div>
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-semibold text-text">Crear Curso</h2>
           <p className="text-sm text-text-secondary mt-1">{stepLabels[step]}</p>

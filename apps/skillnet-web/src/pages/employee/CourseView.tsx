@@ -147,9 +147,9 @@ export function CourseView() {
         <ProgressBar value={course.progress} variant="auto" size="lg" showLabel />
       </div>
 
-      <div className="flex gap-6">
+      <div className="flex flex-col lg:flex-row gap-6">
         {/* Sidebar - Module list */}
-        <div className="w-72 shrink-0">
+        <div className="w-full lg:w-72 lg:shrink-0">
           <Card className="p-0 overflow-hidden">
             {course.modules.map((mod) => {
               const isExpanded = expandedModules.has(mod.id)

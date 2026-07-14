@@ -2,6 +2,7 @@ import { Outlet, useLocation } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Sidebar } from './Sidebar'
 import { Header } from './Header'
+import { SidebarProvider, useSidebar } from '../../contexts/SidebarContext'
 
 const pageTitles: Record<string, string> = {
   '/empleado': 'Inicio',
@@ -15,18 +16,23 @@ function getTitle(pathname: string): string {
   return pageTitles[pathname] ?? 'SkillNet'
 }
 
-export function AppLayout() {
+function AppLayoutInner() {
   const location = useLocation()
   const title = getTitle(location.pathname)
+  const { collapsed } = useSidebar()
 
   return (
     <div className="flex min-h-screen bg-primary">
       <Sidebar />
 
-      <div className="flex-1 ml-[248px] flex flex-col">
+      <div
+        className={`flex-1 flex flex-col transition-[margin-left] duration-300 ease-in-out ml-0 md:ml-16 ${
+          !collapsed ? 'lg:ml-[248px]' : ''
+        }`}
+      >
         <Header title={title} />
 
-        <main className="flex-1 mt-[50px] bg-bg rounded-tl-xl overflow-y-auto">
+        <main className="flex-1 mt-[50px] bg-bg md:rounded-tl-xl overflow-y-auto">
           <AnimatePresence mode="wait">
             <motion.div
               key={location.pathname}
@@ -34,7 +40,7 @@ export function AppLayout() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="p-6"
+              className="p-4 md:p-6"
             >
               <Outlet />
             </motion.div>
@@ -42,5 +48,13 @@ export function AppLayout() {
         </main>
       </div>
     </div>
+  )
+}
+
+export function AppLayout() {
+  return (
+    <SidebarProvider>
+      <AppLayoutInner />
+    </SidebarProvider>
   )
 }

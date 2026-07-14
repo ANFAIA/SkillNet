@@ -63,7 +63,7 @@ export function Dashboard() {
       <p className="text-sm text-text-secondary mt-1">Vista general del equipo y formacion</p>
 
       {/* Metric cards */}
-      <div className="grid grid-cols-4 gap-4 mt-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
         <MetricCard
           value="12"
           label="Empleados"
@@ -90,7 +90,7 @@ export function Dashboard() {
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-4 mt-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
         {/* Alerts */}
         <Card>
           <CardTitle>Alertas</CardTitle>
