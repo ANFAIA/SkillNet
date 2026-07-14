@@ -15,21 +15,32 @@
   --color-border: #e2e8f0;
   --color-border-strong: #cbd5e1;
 
-  /* Primary */
-  --color-primary: #2563eb;
-  --color-primary-hover: #1d4ed8;
-  --color-primary-subtle: #eff6ff;
+  /* Primary — brand blue (spider) */
+  --color-primary: #3661A5;
+  --color-primary-hover: #2B4F8A;
+  --color-primary-subtle: #EBF0F7;
+
+  /* Accent — brand green (web) */
+  --color-accent: #4BA862;
+  --color-accent-hover: #3D8C51;
+  --color-accent-subtle: #EDF7EF;
 
   /* Status */
-  --color-success: #16a34a;
+  --color-success: #4BA862;
   --color-warning: #d97706;
   --color-danger: #dc2626;
 
   /* Skill levels */
-  --color-skill-high: #16a34a;
+  --color-skill-high: #4BA862;
   --color-skill-medium: #d97706;
   --color-skill-low: #dc2626;
   --color-skill-none: #e2e8f0;
+
+  /* Metric / decorative palette */
+  --color-metric-blue: #3661A5;
+  --color-metric-green: #4BA862;
+  --color-metric-orange: #d97706;
+  --color-metric-purple: #7c3aed;
 
   /* Font */
   --font-sans: 'Inter', -apple-system, system-ui, sans-serif;
