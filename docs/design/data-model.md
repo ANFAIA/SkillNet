@@ -7,12 +7,17 @@
 ## Overview
 
 ```
-organizations ─┬── users
-               ├── documents ──── document_chunks (pgvector)
+organizations ─┬── users ──┬── user_sessions
+               │           └── chat_sessions ── chat_messages
+               ├── documents ──── document_chunks (pgvector + tsvector)
                ├── skills ────── skill_categories
-               └── courses ──┬── modules ──┬── lessons ── exercises
-                             │             └── skill_checkpoints
-                             └── manuals
+               ├── courses ──┬── modules ──┬── lessons ── exercises
+               │             │             └── skill_checkpoints
+               │             └── manuals
+               ├── background_jobs
+               ├── api_keys
+               ├── webhooks ──── webhook_deliveries
+               └── audit_log
 
 enrollments ─── exercise_attempts
 user_skills
@@ -79,18 +84,21 @@ The frontend reads these to adapt rendering. The backend never uses them for log
 CREATE TYPE document_status AS ENUM ('pending', 'processing', 'ready', 'error');
 
 CREATE TABLE documents (
-    id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    org_id        uuid NOT NULL REFERENCES organizations(id),
-    uploaded_by   uuid NOT NULL REFERENCES users(id),
-    title         text NOT NULL,
-    storage_path  text NOT NULL,
-    file_type     text NOT NULL,
-    page_count    int,
-    size_bytes    bigint,
-    status        document_status NOT NULL DEFAULT 'pending',
-    error_message text,
-    created_at    timestamptz NOT NULL DEFAULT now(),
-    updated_at    timestamptz NOT NULL DEFAULT now()
+    id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    org_id          uuid NOT NULL REFERENCES organizations(id),
+    uploaded_by     uuid REFERENCES users(id) ON DELETE SET NULL,
+    title           text NOT NULL,
+    storage_path    text NOT NULL,
+    file_type       text NOT NULL,
+    page_count      int,
+    size_bytes      bigint,
+    full_text       text,
+    embedding_model text,
+    embedding_dim   int,
+    status          document_status NOT NULL DEFAULT 'pending',
+    error_message   text,
+    created_at      timestamptz NOT NULL DEFAULT now(),
+    updated_at      timestamptz NOT NULL DEFAULT now()
 );
 ```
 
@@ -98,18 +106,22 @@ CREATE TABLE documents (
 
 ```sql
 CREATE TABLE document_chunks (
-    id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    document_id   uuid NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
-    content       text NOT NULL,
-    embedding     vector(384),
-    chunk_index   int NOT NULL,
-    metadata      jsonb NOT NULL DEFAULT '{}',
-    created_at    timestamptz NOT NULL DEFAULT now()
+    id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    document_id    uuid NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+    content        text NOT NULL,
+    embedding      vector(384) NOT NULL,
+    chunk_index    int NOT NULL,
+    search_vector  tsvector GENERATED ALWAYS AS (to_tsvector('spanish', content)) STORED,
+    metadata       jsonb NOT NULL DEFAULT '{}',
+    created_at     timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (document_id, chunk_index)
 );
 
 CREATE INDEX idx_chunks_embedding ON document_chunks
     USING ivfflat (embedding vector_cosine_ops)
     WITH (lists = 10);
+
+CREATE INDEX idx_chunks_search ON document_chunks USING gin(search_vector);
 ```
 
 `metadata` holds position info from the source document:
@@ -165,7 +177,7 @@ CREATE TYPE content_status AS ENUM ('draft', 'published', 'archived');
 CREATE TABLE courses (
     id                  uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     org_id              uuid NOT NULL REFERENCES organizations(id),
-    created_by          uuid NOT NULL REFERENCES users(id),
+    created_by          uuid REFERENCES users(id) ON DELETE SET NULL,
     source_document_id  uuid REFERENCES documents(id),
     title               text NOT NULL,
     description         text,
@@ -326,9 +338,9 @@ CREATE TYPE enrollment_status AS ENUM ('assigned', 'in_progress', 'completed');
 
 CREATE TABLE enrollments (
     id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id       uuid NOT NULL REFERENCES users(id),
+    user_id       uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     course_id     uuid NOT NULL REFERENCES courses(id),
-    assigned_by   uuid REFERENCES users(id),
+    assigned_by   uuid REFERENCES users(id) ON DELETE SET NULL,
     status        enrollment_status NOT NULL DEFAULT 'assigned',
     deadline      date,
     started_at    timestamptz,
@@ -344,7 +356,7 @@ CREATE TABLE enrollments (
 ```sql
 CREATE TABLE exercise_attempts (
     id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id       uuid NOT NULL REFERENCES users(id),
+    user_id       uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     exercise_id   uuid NOT NULL REFERENCES exercises(id),
     answer        jsonb NOT NULL,
     score         real NOT NULL CHECK (score >= 0 AND score <= 1),
@@ -361,7 +373,7 @@ Multiple attempts per exercise allowed. The latest attempt is the current state.
 ```sql
 CREATE TABLE user_skills (
     id                uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id           uuid NOT NULL REFERENCES users(id),
+    user_id           uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     skill_id          uuid NOT NULL REFERENCES skills(id),
     level             skill_level NOT NULL DEFAULT 'low',
     source            text NOT NULL DEFAULT 'checkpoint',
@@ -380,7 +392,7 @@ Level never decreases from checkpoints. Admin can override to any level.
 ```sql
 CREATE TABLE spaced_repetition (
     id               uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id          uuid NOT NULL REFERENCES users(id),
+    user_id          uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     exercise_id      uuid NOT NULL REFERENCES exercises(id),
     half_life_days   real NOT NULL DEFAULT 7.0,
     review_count     int NOT NULL DEFAULT 0,
@@ -409,17 +421,20 @@ CREATE TYPE generation_step AS ENUM (
 );
 
 CREATE TABLE generation_jobs (
-    id                  uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    org_id              uuid NOT NULL REFERENCES organizations(id),
-    triggered_by        uuid NOT NULL REFERENCES users(id),
-    source_document_id  uuid REFERENCES documents(id),
-    output_type         generation_output NOT NULL,
-    status              generation_step NOT NULL DEFAULT 'pending',
-    result_course_id    uuid REFERENCES courses(id),
-    result_manual_id    uuid REFERENCES manuals(id),
-    error_message       text,
-    created_at          timestamptz NOT NULL DEFAULT now(),
-    updated_at          timestamptz NOT NULL DEFAULT now()
+    id                    uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    org_id                uuid NOT NULL REFERENCES organizations(id),
+    triggered_by          uuid NOT NULL REFERENCES users(id),
+    source_document_id    uuid REFERENCES documents(id),
+    output_type           generation_output NOT NULL,
+    status                generation_step NOT NULL DEFAULT 'pending',
+    langgraph_thread_id   text,
+    progress              jsonb NOT NULL DEFAULT '{}',
+    result_course_id      uuid REFERENCES courses(id),
+    result_manual_id      uuid REFERENCES manuals(id),
+    error_message         text,
+    cancelled_at          timestamptz,
+    created_at            timestamptz NOT NULL DEFAULT now(),
+    updated_at            timestamptz NOT NULL DEFAULT now()
 );
 ```
 
@@ -430,11 +445,146 @@ Post-course survey: 3 questions that generate a revision report for the course c
 ```sql
 CREATE TABLE course_feedback (
     id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id     uuid NOT NULL REFERENCES users(id),
+    user_id     uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     course_id   uuid NOT NULL REFERENCES courses(id),
     responses   jsonb NOT NULL,
     created_at  timestamptz NOT NULL DEFAULT now(),
     UNIQUE (user_id, course_id)
+);
+```
+
+### User sessions (auth tokens)
+
+```sql
+CREATE TABLE user_sessions (
+    id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id     uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token_hash  text NOT NULL,
+    ip_address  text,
+    user_agent  text,
+    expires_at  timestamptz NOT NULL,
+    created_at  timestamptz NOT NULL DEFAULT now()
+);
+```
+
+### Audit log
+
+```sql
+CREATE TABLE audit_log (
+    id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    org_id       uuid NOT NULL REFERENCES organizations(id),
+    actor_id     uuid NOT NULL REFERENCES users(id),
+    action       text NOT NULL,
+    target_type  text,
+    target_id    uuid,
+    detail       jsonb DEFAULT '{}',
+    created_at   timestamptz NOT NULL DEFAULT now()
+);
+```
+
+### Background jobs
+
+```sql
+CREATE TABLE background_jobs (
+    id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    org_id         uuid NOT NULL REFERENCES organizations(id),
+    type           text NOT NULL CHECK (type IN (
+                       'document_ingestion',
+                       'spaced_repetition_recalc',
+                       'bulk_user_import',
+                       'bulk_course_assign'
+                   )),
+    status         text NOT NULL DEFAULT 'pending',
+    payload        jsonb DEFAULT '{}',
+    result         jsonb,
+    error_message  text,
+    attempt_count  int DEFAULT 0,
+    max_attempts   int DEFAULT 3,
+    scheduled_at   timestamptz DEFAULT now(),
+    started_at     timestamptz,
+    completed_at   timestamptz,
+    locked_by      text,
+    locked_at      timestamptz,
+    created_at     timestamptz NOT NULL DEFAULT now(),
+    updated_at     timestamptz NOT NULL DEFAULT now()
+);
+```
+
+### Chat sessions
+
+```sql
+CREATE TABLE chat_sessions (
+    id                    uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id               uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    org_id                uuid NOT NULL REFERENCES organizations(id),
+    agent_type            text NOT NULL CHECK (agent_type IN ('tutor', 'admin')),
+    title                 text,
+    summary               text,
+    summary_covers_until  int DEFAULT 0,
+    course_id             uuid REFERENCES courses(id),
+    is_active             boolean DEFAULT true,
+    created_at            timestamptz NOT NULL DEFAULT now(),
+    updated_at            timestamptz NOT NULL DEFAULT now()
+);
+```
+
+### Chat messages
+
+```sql
+CREATE TABLE chat_messages (
+    id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    session_id  uuid NOT NULL REFERENCES chat_sessions(id) ON DELETE CASCADE,
+    role        text NOT NULL CHECK (role IN ('user', 'assistant', 'system')),
+    content     text NOT NULL,
+    metadata    jsonb DEFAULT '{}',
+    created_at  timestamptz NOT NULL DEFAULT now()
+);
+```
+
+### API keys
+
+```sql
+CREATE TABLE api_keys (
+    id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    org_id        uuid NOT NULL REFERENCES organizations(id),
+    created_by    uuid NOT NULL REFERENCES users(id),
+    name          text NOT NULL,
+    key_hash      text NOT NULL,
+    scopes        text[] NOT NULL,
+    is_active     boolean DEFAULT true,
+    last_used_at  timestamptz,
+    created_at    timestamptz NOT NULL DEFAULT now()
+);
+```
+
+### Webhooks
+
+```sql
+CREATE TABLE webhooks (
+    id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    org_id         uuid NOT NULL REFERENCES organizations(id),
+    url            text NOT NULL,
+    events         text[] NOT NULL,
+    secret         text NOT NULL,
+    is_active      boolean DEFAULT true,
+    failure_count  int DEFAULT 0,
+    created_at     timestamptz NOT NULL DEFAULT now()
+);
+```
+
+### Webhook deliveries
+
+```sql
+CREATE TABLE webhook_deliveries (
+    id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    webhook_id     uuid NOT NULL REFERENCES webhooks(id) ON DELETE CASCADE,
+    event          text NOT NULL,
+    payload        jsonb NOT NULL,
+    status         text NOT NULL DEFAULT 'pending',
+    response_code  int,
+    attempt_count  int DEFAULT 0,
+    next_retry_at  timestamptz,
+    created_at     timestamptz NOT NULL DEFAULT now()
 );
 ```
 
@@ -536,6 +686,58 @@ CREATE INDEX idx_sr_next_review ON spaced_repetition(user_id, next_review_at);
 -- User skills for matrix queries
 CREATE INDEX idx_user_skills_user ON user_skills(user_id);
 CREATE INDEX idx_user_skills_skill ON user_skills(skill_id);
+
+-- User sessions
+CREATE INDEX idx_user_sessions_user ON user_sessions(user_id);
+CREATE INDEX idx_user_sessions_token ON user_sessions(token_hash);
+CREATE INDEX idx_user_sessions_expires ON user_sessions(expires_at);
+
+-- Audit log
+CREATE INDEX idx_audit_log_org ON audit_log(org_id);
+CREATE INDEX idx_audit_log_actor ON audit_log(actor_id);
+CREATE INDEX idx_audit_log_target ON audit_log(target_type, target_id);
+CREATE INDEX idx_audit_log_created ON audit_log(created_at);
+
+-- Background jobs
+CREATE INDEX idx_background_jobs_org ON background_jobs(org_id);
+CREATE INDEX idx_background_jobs_status ON background_jobs(status);
+CREATE INDEX idx_background_jobs_scheduled ON background_jobs(scheduled_at);
+
+-- Chat sessions and messages
+CREATE INDEX idx_chat_sessions_user ON chat_sessions(user_id);
+CREATE INDEX idx_chat_sessions_org ON chat_sessions(org_id);
+CREATE INDEX idx_chat_messages_session ON chat_messages(session_id);
+
+-- API keys
+CREATE INDEX idx_api_keys_org ON api_keys(org_id);
+CREATE INDEX idx_api_keys_hash ON api_keys(key_hash);
+
+-- Webhooks and deliveries
+CREATE INDEX idx_webhooks_org ON webhooks(org_id);
+CREATE INDEX idx_webhook_deliveries_webhook ON webhook_deliveries(webhook_id);
+CREATE INDEX idx_webhook_deliveries_status ON webhook_deliveries(status);
+```
+
+### LLM usage log
+
+Operational logging for token usage tracking and cost analysis. Not a core domain table — exists for observability.
+
+```sql
+CREATE TABLE llm_usage_log (
+    id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    org_id      uuid NOT NULL REFERENCES organizations(id),
+    user_id     uuid REFERENCES users(id),
+    job_id      uuid REFERENCES generation_jobs(id),
+    use_case    text NOT NULL,
+    model       text NOT NULL,
+    tokens_in   int NOT NULL,
+    tokens_out  int NOT NULL,
+    duration_ms int NOT NULL,
+    created_at  timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_llm_usage_log_org ON llm_usage_log(org_id, created_at);
+CREATE INDEX idx_llm_usage_log_user ON llm_usage_log(user_id, created_at);
 ```
 
 ---
@@ -551,6 +753,7 @@ CREATE EXTENSION IF NOT EXISTS vector;       -- pgvector
 
 ## Notes
 
+- **27 tables total** across core domain, learning tracking, content generation, chat, and platform infrastructure. See the overview diagram for the full hierarchy.
 - **UUID primary keys** everywhere. No auto-increment integers. Clean for distributed systems and API exposure.
 - **`org_id` on all top-level tables.** Even with single-tenant deployment, this keeps queries explicit and makes future multi-tenancy possible without schema changes.
 - **`jsonb` for flexible fields.** Exercise content, accessibility flags, organization settings, document chunk metadata. Avoids schema changes when adding new exercise types or config options.
