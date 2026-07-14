@@ -21,6 +21,7 @@
 | [security.md](security.md) | Auth, agent compartments, GDPR, API security, secrets |
 | [mcp-external-api.md](mcp-external-api.md) | MCP Server, external REST API, webhooks, integrations |
 | [frontend-backend-integration.md](frontend-backend-integration.md) | TanStack Query, SSE, Level 2/3 UI, file upload |
+| [snml-spec.md](snml-spec.md) | SNML content format — Markdown + interactive components, dual render (doc/web) |
 
 ---
 
