@@ -34,7 +34,7 @@ export function Header({ title }: HeaderProps) {
       </button>
 
       {/* Desktop toggle */}
-      <div className="hidden md:flex items-center gap-3">
+      <div className="hidden md:flex items-center gap-3 -ml-2">
         <button
           type="button"
           onClick={toggleCollapsed}
