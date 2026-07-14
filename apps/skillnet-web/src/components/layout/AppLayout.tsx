@@ -26,8 +26,8 @@ function AppLayoutInner() {
       <Sidebar />
 
       <div
-        className={`flex-1 flex flex-col min-w-0 transition-[margin-left] duration-300 ease-in-out ml-0 md:ml-16 ${
-          !collapsed ? 'lg:ml-[248px]' : ''
+        className={`flex-1 flex flex-col min-w-0 transition-[margin-left] duration-300 ease-in-out ml-0 ${
+          collapsed ? 'md:ml-16' : 'md:ml-[248px]'
         }`}
       >
         <Header title={title} />

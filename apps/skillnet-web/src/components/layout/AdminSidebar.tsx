@@ -65,24 +65,6 @@ const navItems: NavItem[] = [
   },
 ]
 
-function ChevronIcon({ collapsed }: { collapsed: boolean }) {
-  return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={`transition-transform duration-300 ${collapsed ? 'rotate-180' : ''}`}
-    >
-      <polyline points="15 18 9 12 15 6" />
-    </svg>
-  )
-}
-
 function SpiderIcon() {
   return (
     <svg width="60" height="60" viewBox="0 0 576 512" fill="currentColor" className="absolute -bottom-2 -right-2 text-white/[0.04]">
@@ -96,35 +78,50 @@ function AdminSidebarContent({ collapsed }: { collapsed: boolean }) {
 
   return (
     <>
-      {/* Toggle — appears on hover, Notion-style */}
+      {/* Logo + Title */}
+      <div className="flex flex-col items-center py-5 gap-1">
+        <img
+          src="/logo.png"
+          alt="SkillNet"
+          className="drop-shadow-lg transition-all duration-300 ease-in-out"
+          style={{ width: collapsed ? 32 : 40, height: collapsed ? 32 : 40 }}
+        />
+        <span
+          className={`text-white text-sm font-semibold tracking-wide transition-all duration-300 ease-in-out overflow-hidden whitespace-nowrap ${
+            collapsed ? 'max-h-0 opacity-0 mt-0' : 'max-h-6 opacity-100 mt-0'
+          }`}
+        >
+          SkillNet
+        </span>
+      </div>
+
+      {/* Toggle arrow */}
       <button
         type="button"
         onClick={toggleCollapsed}
-        className="absolute top-5 right-3 z-30 text-white/0 hover:text-white/60 transition-all duration-200 text-xs font-medium hidden md:block group-hover/sidebar:text-white/40"
+        className="mx-auto mb-4 w-6 h-6 flex items-center justify-center text-white/40 hover:text-white/80 transition-colors hidden md:flex"
         aria-label={collapsed ? 'Expandir sidebar' : 'Colapsar sidebar'}
       >
-        {collapsed ? '››' : '‹‹'}
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform duration-300 ${collapsed ? 'rotate-180' : ''}`}>
+          <polyline points="11 17 6 12 11 7" />
+          <polyline points="18 17 13 12 18 7" />
+        </svg>
       </button>
 
-      {/* Logo */}
-      <div className={`flex flex-col items-center py-5 gap-1 ${collapsed ? 'px-0' : ''}`}>
-        <img src="/logo.png" alt="SkillNet" className={`drop-shadow-lg transition-all duration-300 ${collapsed ? 'w-8 h-8' : 'w-10 h-10'}`} />
-        {!collapsed && (
-          <span className="text-white text-sm font-semibold tracking-wide">SkillNet</span>
-        )}
+      {/* Role label — always rendered, transitions opacity/size */}
+      <div
+        className={`transition-all duration-300 ease-in-out overflow-hidden ${
+          collapsed ? 'flex justify-center mt-2 mb-4 px-0' : 'px-10 mt-2 mb-4'
+        }`}
+      >
+        <span
+          className={`uppercase tracking-wider font-medium transition-all duration-300 ease-in-out ${
+            collapsed ? 'text-[10px] text-white/50' : 'text-xs text-white/50'
+          }`}
+        >
+          {collapsed ? 'ADM' : 'Admin'}
+        </span>
       </div>
-
-      {/* Role label */}
-      {!collapsed && (
-        <div className="px-10 mt-2 mb-4">
-          <span className="text-xs text-white/50 uppercase tracking-wider font-medium">Admin</span>
-        </div>
-      )}
-      {collapsed && (
-        <div className="flex justify-center mt-2 mb-4">
-          <span className="text-[10px] text-white/50 uppercase tracking-wider font-medium">ADM</span>
-        </div>
-      )}
 
       {/* Nav */}
       <nav className="flex-1 flex flex-col gap-1">
@@ -135,51 +132,55 @@ function AdminSidebarContent({ collapsed }: { collapsed: boolean }) {
             end={item.to === '/admin'}
             onClick={closeMobile}
             className={({ isActive }) =>
-              `flex items-center h-10 text-sm font-medium transition-colors ${
+              `flex items-center h-10 text-sm font-medium overflow-hidden transition-all duration-300 ease-in-out ${
                 collapsed
-                  ? 'justify-center mx-2 px-0 rounded-lg'
-                  : 'gap-3 ml-10 pl-4 pr-4'
+                  ? 'mx-2 px-0 justify-center rounded-lg'
+                  : 'ml-10 pl-4 pr-4 rounded-l-xl'
               } ${
                 isActive
-                  ? collapsed
-                    ? 'bg-white text-primary rounded-lg'
-                    : 'bg-white text-primary rounded-l-xl'
+                  ? 'bg-white text-primary'
                   : 'text-white/80 hover:text-white'
               }`
             }
             title={collapsed ? item.label : undefined}
           >
             <span className="shrink-0">{item.icon}</span>
-            {!collapsed && item.label}
+            <span
+              className={`transition-all duration-300 ease-in-out overflow-hidden whitespace-nowrap ${
+                collapsed ? 'max-w-0 opacity-0 ml-0' : 'max-w-[160px] opacity-100 ml-3'
+              }`}
+            >
+              {item.label}
+            </span>
           </NavLink>
         ))}
       </nav>
 
-      {/* Help link */}
-      {collapsed ? (
-        <NavLink
-          to="/admin/chat"
-          onClick={closeMobile}
-          className="mx-2 mb-5 p-2 rounded-lg flex items-center justify-center text-white/60 hover:text-white transition-colors"
-          title="Abrir chat"
+      {/* Help card — always rendered, CSS controls visibility */}
+      <NavLink
+        to="/admin/chat"
+        onClick={closeMobile}
+        className={`block group relative overflow-hidden transition-all duration-300 ease-in-out ${
+          collapsed
+            ? 'mx-2 mb-5 p-2 rounded-lg'
+            : 'mx-4 mb-5 p-5 rounded-2xl bg-[#162844] hover:bg-[#1C3254]'
+        }`}
+        title={collapsed ? 'Abrir chat' : undefined}
+      >
+        <SpiderIcon />
+        <div
+          className={`transition-all duration-300 ease-in-out overflow-hidden ${
+            collapsed ? 'max-h-0 opacity-0' : 'max-h-40 opacity-100'
+          }`}
         >
-          <SpiderIcon />
-        </NavLink>
-      ) : (
-        <NavLink
-          to="/admin/chat"
-          onClick={closeMobile}
-          className="mx-4 mb-5 p-5 rounded-2xl block group bg-[#162844] hover:bg-[#1C3254] transition-colors relative overflow-hidden"
-        >
-          <SpiderIcon />
           <p className="text-white/90 text-sm font-semibold mb-1.5 relative">¿Necesitas ayuda?</p>
           <p className="text-white/45 text-xs leading-relaxed mb-4 relative">Pregunta al asistente sobre la plataforma</p>
           <span className="inline-flex items-center gap-1.5 text-xs font-medium text-white/70 group-hover:text-white transition-colors relative">
             Abrir chat
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="transition-transform group-hover:translate-x-1"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
           </span>
-        </NavLink>
-      )}
+        </div>
+      </NavLink>
     </>
   )
 }
