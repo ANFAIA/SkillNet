@@ -140,9 +140,9 @@ export function CourseView() {
     <div>
       {/* Course header */}
       <div className="mb-6">
-        <div className="flex items-center gap-3 mb-2">
+        <div className="flex items-center gap-3 mb-2 min-w-0">
           <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: course.color }} />
-          <h2 className="text-xl font-semibold text-text">{course.title}</h2>
+          <h2 className="text-xl font-semibold text-text truncate">{course.title}</h2>
         </div>
         <ProgressBar value={course.progress} variant="auto" size="lg" showLabel />
       </div>

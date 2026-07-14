@@ -26,7 +26,7 @@ export function SkillMap() {
       </div>
 
       {/* Legend */}
-      <div className="flex items-center gap-6 mb-6">
+      <div className="flex flex-wrap items-center gap-4 sm:gap-6 mb-6">
         {(['low', 'medium', 'high', 'expert'] as const).map((level) => (
           <div key={level} className="flex items-center gap-2">
             <SkillBars level={level} />
