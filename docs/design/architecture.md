@@ -1,6 +1,26 @@
 # Architecture
 
-> **Status: Draft.** This document captures what is known so far. Sections marked with **(open)** have no decision yet.
+> **Status: v1 complete.** All sections have detailed specification documents linked below.
+
+## Document index
+
+| Document | What it covers |
+|----------|----------------|
+| [architecture.md](architecture.md) | System overview, layers, cross-cutting concerns, decided vs deferred |
+| [data-model.md](data-model.md) | PostgreSQL schema — 15+ tables, indexes, key queries |
+| [screens.md](screens.md) | 20 screen specs with routes, sections, data, states, actions |
+| [design-system.md](design-system.md) | Visual tokens, component patterns, anti-patterns |
+| [product.md](product.md) | What SkillNet is, roles, content types |
+| [content-generation.md](content-generation.md) | LangGraph generation pipeline, 7 agent roles, RAG integration |
+| [chat-agents.md](chat-agents.md) | Tutor and admin chat agents, PageIndex pattern, RAG decision tree |
+| [rag-retrieval.md](rag-retrieval.md) | Document ingestion, chunking, hybrid search, reranking, embeddings |
+| [backend-api.md](backend-api.md) | FastAPI project layout, 73 endpoints, dependency injection |
+| [llm-integration.md](llm-integration.md) | Provider abstraction, streaming, prompt management, cost tracking |
+| [background-processing.md](background-processing.md) | LangGraph persistence + PostgreSQL job runner, lifecycle flows |
+| [docker-deployment.md](docker-deployment.md) | Docker Compose services, Dockerfiles, dev/prod, first-run |
+| [security.md](security.md) | Auth, agent compartments, GDPR, API security, secrets |
+| [mcp-external-api.md](mcp-external-api.md) | MCP Server, external REST API, webhooks, integrations |
+| [frontend-backend-integration.md](frontend-backend-integration.md) | TanStack Query, SSE, Level 2/3 UI, file upload |
 
 ---
 
@@ -118,7 +138,7 @@ FastAPI serves as the interface between frontend and backend.
 
 **LLM provider: user's choice.** SkillNet doesn't lock into any provider. The user configures their own API key and endpoint. Any OpenAI-compatible API works out of the box (OpenAI, DeepSeek, Groq, Together, local via Ollama/LM Studio, etc.). The backend talks to a single interface — base URL + API key + model name — set in environment variables. No provider-specific code in business logic.
 
-**(open)** Background processing. Ingestion and content generation are long-running tasks. Queue system (Celery, Dramatiq, etc.) vs LangGraph's built-in persistence.
+**Background processing: hybrid.** LangGraph persistence for the generation pipeline (already a graph, built-in checkpointing, interrupt/resume) + PostgreSQL-backed job runner for everything else (zero new dependencies, `SELECT FOR UPDATE SKIP LOCKED`). No Redis needed for MVP. Full design in [background-processing.md](background-processing.md).
 
 ---
 
@@ -158,15 +178,20 @@ Learner completes exercise ──→ Progress recorded
 
 | Decided | Deferred |
 |---------|----------|
-| PostgreSQL + pgvector (single DB) | Agent communication patterns |
-| FastAPI, pragmatic REST | Mandate implementation |
-| Session cookies + fastapi-users | Background processing |
-| SSE for real-time streaming | Knowledge graph structure |
-| React SPA, React Router, fixed routes | Chunking strategy |
-| React Query for state management | Level 3 latency |
-| LangGraph for agent orchestration | Adaptation signals |
+| PostgreSQL + pgvector (single DB) | Knowledge graph structure |
+| FastAPI, pragmatic REST | Adaptation signals |
+| Session cookies + fastapi-users | |
+| SSE for real-time streaming | |
+| React SPA, React Router, fixed routes | |
+| React Query for state management | |
+| LangGraph for agent orchestration | |
 | Compartment-based access control | |
 | Mandate model for agent authority | |
 | Self-hosted, one instance per company | |
 | LLM provider agnostic (OpenAI-compatible API) | |
 | Data model defined ([data-model.md](data-model.md)) | |
+| Agent communication patterns (see [content-generation.md](content-generation.md), [chat-agents.md](chat-agents.md)) | |
+| Background processing (see [background-processing.md](background-processing.md)) | |
+| Mandate implementation (see [security.md](security.md)) | |
+| Chunking strategy (see [rag-retrieval.md](rag-retrieval.md)) | |
+| Level 3 latency (see [frontend-backend-integration.md](frontend-backend-integration.md)) | |
