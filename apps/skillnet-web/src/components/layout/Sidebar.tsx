@@ -80,14 +80,14 @@ function SidebarContent({ collapsed }: { collapsed: boolean }) {
 
   return (
     <>
-      {/* Toggle button */}
+      {/* Toggle — appears on hover, Notion-style */}
       <button
         type="button"
         onClick={toggleCollapsed}
-        className="absolute top-4 right-[-12px] z-30 w-6 h-6 rounded-full bg-primary border-2 border-white/20 flex items-center justify-center text-white hover:bg-primary-hover transition-colors hidden md:flex"
+        className="absolute top-5 right-3 z-30 text-white/0 hover:text-white/60 transition-all duration-200 text-xs font-medium hidden md:block group-hover/sidebar:text-white/40"
         aria-label={collapsed ? 'Expandir sidebar' : 'Colapsar sidebar'}
       >
-        <ChevronIcon collapsed={collapsed} />
+        {collapsed ? '›› ' : '‹‹'}
       </button>
 
       {/* Logo */}
@@ -163,7 +163,7 @@ export function Sidebar() {
     <>
       {/* Desktop / Tablet sidebar */}
       <aside
-        className={`fixed left-0 top-0 bottom-0 frame-surface flex-col z-20 transition-[width] duration-300 ease-in-out hidden md:flex ${
+        className={`group/sidebar fixed left-0 top-0 bottom-0 frame-surface flex-col z-20 transition-[width] duration-300 ease-in-out hidden md:flex ${
           collapsed ? 'w-16' : 'w-[248px]'
         }`}
       >
