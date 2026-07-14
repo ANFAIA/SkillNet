@@ -19,8 +19,8 @@ export function Header({ title }: HeaderProps) {
 
   return (
     <header
-      className={`fixed top-0 right-0 h-[50px] frame-surface flex items-center justify-between px-4 md:px-6 z-10 transition-[left] duration-300 ease-in-out left-0 md:left-16 ${
-        !collapsed ? 'lg:left-[248px]' : ''
+      className={`fixed top-0 right-0 h-[50px] frame-surface flex items-center justify-between px-4 md:px-6 z-10 transition-[left] duration-300 ease-in-out left-0 ${
+        collapsed ? 'md:left-16' : 'md:left-[248px]'
       }`}
     >
       {/* Mobile hamburger */}
