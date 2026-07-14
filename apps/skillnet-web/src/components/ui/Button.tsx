@@ -18,7 +18,7 @@ const variantClasses: Record<ButtonVariant, string> = {
   accent:
     'bg-accent hover:bg-accent-hover text-white',
   danger:
-    'bg-danger hover:bg-red-800 text-white',
+    'bg-danger hover:bg-danger/90 text-white',
 }
 
 const sizeClasses: Record<ButtonSize, string> = {

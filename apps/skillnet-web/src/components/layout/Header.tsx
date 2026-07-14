@@ -1,0 +1,21 @@
+interface HeaderProps {
+  title: string
+}
+
+export function Header({ title }: HeaderProps) {
+  return (
+    <header className="fixed top-0 left-[248px] right-0 h-[50px] bg-primary flex items-center justify-between px-6 z-10">
+      <h1 className="text-white text-base font-medium">{title}</h1>
+      <button
+        type="button"
+        className="w-8 h-8 rounded-full border border-white/30 flex items-center justify-center text-white hover:border-white/60 transition-colors"
+        aria-label="Usuario"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+          <circle cx="12" cy="7" r="4" />
+        </svg>
+      </button>
+    </header>
+  )
+}
