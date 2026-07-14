@@ -43,18 +43,23 @@ Defined as CSS custom properties in `src/styles/index.css`:
   --color-border: #e2e8f0;            /* slate-200 */
   --color-border-strong: #cbd5e1;     /* slate-300 */
 
-  /* Primary (actions, links, active states) */
-  --color-primary: #2563eb;           /* blue-600 */
-  --color-primary-hover: #1d4ed8;     /* blue-700 */
-  --color-primary-subtle: #eff6ff;    /* blue-50 */
+  /* Primary — brand blue (spider) */
+  --color-primary: #3661A5;
+  --color-primary-hover: #2B4F8A;
+  --color-primary-subtle: #EBF0F7;
+
+  /* Accent — brand green (web) */
+  --color-accent: #4BA862;
+  --color-accent-hover: #3D8C51;
+  --color-accent-subtle: #EDF7EF;
 
   /* Status */
-  --color-success: #16a34a;           /* green-600 */
+  --color-success: #4BA862;           /* brand green */
   --color-warning: #d97706;           /* amber-600 */
   --color-danger: #dc2626;            /* red-600 */
 
   /* Skill levels */
-  --color-skill-high: #16a34a;        /* green-600 */
+  --color-skill-high: #4BA862;        /* brand green */
   --color-skill-medium: #d97706;      /* amber-600 */
   --color-skill-low: #dc2626;         /* red-600 */
   --color-skill-none: #e2e8f0;        /* slate-200 */
