@@ -78,35 +78,21 @@ function AdminSidebarContent({ collapsed }: { collapsed: boolean }) {
 
   return (
     <>
-      {/* Logo row + toggle (Spotify style) */}
-      <div className={`flex items-center justify-between px-4 py-4 transition-all duration-300 ${collapsed ? 'px-2 justify-center' : ''}`}>
-        <div className="flex items-center gap-2 min-w-0">
-          <img
-            src="/logo.png"
-            alt="SkillNet"
-            className="drop-shadow-lg flex-shrink-0 transition-all duration-300 ease-in-out"
-            style={{ width: collapsed ? 28 : 32, height: collapsed ? 28 : 32 }}
-          />
-          <span
-            className={`text-white text-sm font-semibold tracking-wide transition-all duration-300 ease-in-out overflow-hidden whitespace-nowrap ${
-              collapsed ? 'max-w-0 opacity-0' : 'max-w-[120px] opacity-100'
-            }`}
-          >
-            SkillNet
-          </span>
-        </div>
-        <button
-          type="button"
-          onClick={toggleCollapsed}
-          className={`flex-shrink-0 w-5 h-5 flex items-center justify-center text-white/40 hover:text-white/80 hover:bg-white/10 rounded transition-all duration-200 hidden md:flex ${
-            collapsed ? 'absolute right-2 top-5' : ''
+      {/* Logo */}
+      <div className="flex flex-col items-center py-5 gap-1">
+        <img
+          src="/logo.png"
+          alt="SkillNet"
+          className="drop-shadow-lg transition-all duration-300 ease-in-out"
+          style={{ width: collapsed ? 32 : 40, height: collapsed ? 32 : 40 }}
+        />
+        <span
+          className={`text-white text-sm font-semibold tracking-wide transition-all duration-300 ease-in-out overflow-hidden whitespace-nowrap ${
+            collapsed ? 'max-w-0 max-h-0 opacity-0' : 'max-w-[120px] max-h-6 opacity-100'
           }`}
-          aria-label={collapsed ? 'Expandir sidebar' : 'Colapsar sidebar'}
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform duration-300 ${collapsed ? 'rotate-180' : ''}`}>
-            <polyline points="15 18 9 12 15 6" />
-          </svg>
-        </button>
+          SkillNet
+        </span>
       </div>
 
       {/* Role label — always rendered, transitions opacity/size */}
@@ -157,30 +143,32 @@ function AdminSidebarContent({ collapsed }: { collapsed: boolean }) {
         ))}
       </nav>
 
-      {/* Help card — always rendered, CSS controls visibility */}
+      {/* Help card */}
       <NavLink
         to="/admin/chat"
         onClick={closeMobile}
         className={`block group relative overflow-hidden transition-all duration-300 ease-in-out ${
           collapsed
-            ? 'mx-2 mb-5 p-2 rounded-lg'
+            ? 'mx-2 mb-5 p-2 rounded-lg flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/5'
             : 'mx-4 mb-5 p-5 rounded-2xl bg-[#162844] hover:bg-[#1C3254]'
         }`}
         title={collapsed ? 'Abrir chat' : undefined}
       >
-        <SpiderIcon />
-        <div
-          className={`transition-all duration-300 ease-in-out overflow-hidden ${
-            collapsed ? 'max-h-0 opacity-0' : 'max-h-40 opacity-100'
-          }`}
-        >
-          <p className="text-white/90 text-sm font-semibold mb-1.5 relative">¿Necesitas ayuda?</p>
-          <p className="text-white/45 text-xs leading-relaxed mb-4 relative">Pregunta al asistente sobre la plataforma</p>
-          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-white/70 group-hover:text-white transition-colors relative">
-            Abrir chat
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="transition-transform group-hover:translate-x-1"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
-          </span>
-        </div>
+        {collapsed ? (
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+          </svg>
+        ) : (
+          <>
+            <SpiderIcon />
+            <p className="text-white/90 text-sm font-semibold mb-1.5 relative">¿Necesitas ayuda?</p>
+            <p className="text-white/45 text-xs leading-relaxed mb-4 relative">Pregunta al asistente sobre la plataforma</p>
+            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-white/70 group-hover:text-white transition-colors relative">
+              Abrir chat
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="transition-transform group-hover:translate-x-1"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+            </span>
+          </>
+        )}
       </NavLink>
     </>
   )

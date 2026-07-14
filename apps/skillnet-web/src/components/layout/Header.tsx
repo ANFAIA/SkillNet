@@ -15,7 +15,7 @@ function HamburgerIcon() {
 }
 
 export function Header({ title }: HeaderProps) {
-  const { collapsed, setMobileOpen } = useSidebar()
+  const { collapsed, toggleCollapsed, setMobileOpen } = useSidebar()
 
   return (
     <header
@@ -33,7 +33,22 @@ export function Header({ title }: HeaderProps) {
         <HamburgerIcon />
       </button>
 
-      <h1 className="text-white text-base font-medium md:text-left text-center flex-1 md:flex-none">{title}</h1>
+      {/* Desktop toggle */}
+      <div className="hidden md:flex items-center gap-3">
+        <button
+          type="button"
+          onClick={toggleCollapsed}
+          className="w-6 h-6 flex items-center justify-center text-white/40 hover:text-white/80 hover:bg-white/10 rounded transition-all duration-200"
+          aria-label={collapsed ? 'Expandir sidebar' : 'Colapsar sidebar'}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform duration-300 ${collapsed ? 'rotate-180' : ''}`}>
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+        </button>
+        <h1 className="text-white text-base font-medium">{title}</h1>
+      </div>
+
+      <h1 className="text-white text-base font-medium text-center flex-1 md:hidden">{title}</h1>
 
       <button
         type="button"
