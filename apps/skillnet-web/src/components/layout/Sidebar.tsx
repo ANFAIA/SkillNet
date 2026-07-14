@@ -78,6 +78,23 @@ export function Sidebar() {
           </NavLink>
         ))}
       </nav>
+
+      {/* Help card */}
+      <div className="mx-5 mb-5 p-4 rounded-xl bg-white/10 border border-white/10">
+        <div className="flex items-center gap-2 mb-2">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/90">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+          </svg>
+          <span className="text-white/90 text-xs font-semibold">¿Tienes dudas?</span>
+        </div>
+        <p className="text-white/50 text-[11px] leading-relaxed mb-3">Pregunta al tutor IA sobre cualquier tema del curso.</p>
+        <NavLink
+          to="/empleado/chat"
+          className="block text-center text-xs font-medium py-1.5 rounded-lg bg-white/15 text-white hover:bg-white/25 transition-colors"
+        >
+          Abrir chat
+        </NavLink>
+      </div>
     </aside>
   )
 }

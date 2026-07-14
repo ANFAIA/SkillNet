@@ -10,6 +10,7 @@ import { Dashboard as AdminDashboard } from './pages/admin/Dashboard'
 import { Employees } from './pages/admin/Employees'
 import { Content } from './pages/admin/Content'
 import { CreateCourse } from './pages/admin/CreateCourse'
+import { AdminChat } from './pages/admin/Chat'
 
 function App() {
   return (
@@ -27,6 +28,7 @@ function App() {
           <Route path="empleados" element={<Employees />} />
           <Route path="contenido" element={<Content />} />
           <Route path="crear-curso" element={<CreateCourse />} />
+          <Route path="chat" element={<AdminChat />} />
         </Route>
         <Route path="*" element={<Navigate to="/empleado" replace />} />
       </Routes>
