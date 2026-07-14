@@ -41,9 +41,9 @@ export function SkillMap() {
             <CardTitle className="mb-4">{category}</CardTitle>
             <div className="space-y-4">
               {categorySkills.map((skill) => (
-                <div key={skill.name} className="flex items-center justify-between">
-                  <span className="text-sm text-text">{skill.name}</span>
-                  <div className="flex items-center gap-3">
+                <div key={skill.name} className="flex items-center justify-between gap-2 min-w-0">
+                  <span className="text-sm text-text truncate min-w-0">{skill.name}</span>
+                  <div className="flex items-center gap-3 shrink-0">
                     <SkillBars level={skill.level} />
                     <span className="text-xs text-text-secondary w-20">{levelLabels[skill.level]}</span>
                   </div>

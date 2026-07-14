@@ -46,9 +46,9 @@ function EmployeeDetail({ employee, onBack }: { employee: Employee; onBack: () =
           <CardTitle>Skills</CardTitle>
           <div className="mt-3 space-y-3">
             {employee.skills.map((skill) => (
-              <div key={skill.name} className="flex items-center gap-3">
-                <span className="text-sm text-text w-28">{skill.name}</span>
-                <div className="flex-1 h-1.5 bg-bg-muted rounded-full overflow-hidden">
+              <div key={skill.name} className="flex items-center gap-3 min-w-0">
+                <span className="text-sm text-text w-20 sm:w-28 shrink-0 truncate">{skill.name}</span>
+                <div className="flex-1 h-1.5 bg-bg-muted rounded-full overflow-hidden min-w-0">
                   <div
                     className="h-full rounded-full transition-all duration-300"
                     style={{
@@ -117,6 +117,7 @@ export function Employees() {
 
       {/* Table (desktop) */}
       <Card className="mt-4 p-0 overflow-hidden hidden md:block">
+        <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border bg-bg-subtle">
@@ -154,6 +155,7 @@ export function Employees() {
             ))}
           </tbody>
         </table>
+        </div>
         {filtered.length === 0 && (
           <div className="py-8 text-center text-sm text-text-muted">
             No se encontraron empleados

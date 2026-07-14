@@ -18,11 +18,9 @@ const colorClasses: Record<MetricColor, string> = {
 function CobwebSvg() {
   return (
     <svg
-      width="90"
-      height="90"
       viewBox="0 0 90 90"
       fill="none"
-      className="absolute top-0 right-0"
+      className="absolute top-0 right-0 w-16 h-16 sm:w-20 sm:h-20 lg:w-[90px] lg:h-[90px]"
       style={{ opacity: 0.18 }}
       aria-hidden="true"
     >
@@ -44,15 +42,15 @@ function CobwebSvg() {
 export function MetricCard({ value, label, icon, color, className = '' }: MetricCardProps) {
   return (
     <div
-      className={`relative overflow-hidden rounded-xl p-5 ${colorClasses[color]} ${className}`}
+      className={`relative overflow-hidden rounded-xl p-5 min-w-0 ${colorClasses[color]} ${className}`}
     >
       <CobwebSvg />
-      <div className="relative z-10">
+      <div className="relative z-10 min-w-0">
         <div className="mb-3 text-white/80">
           {icon}
         </div>
-        <p className="text-2xl font-semibold text-white">{value}</p>
-        <p className="text-sm text-white/80 mt-0.5">{label}</p>
+        <p className="text-xl sm:text-2xl font-semibold text-white truncate">{value}</p>
+        <p className="text-sm text-white/80 mt-0.5 truncate">{label}</p>
       </div>
     </div>
   )

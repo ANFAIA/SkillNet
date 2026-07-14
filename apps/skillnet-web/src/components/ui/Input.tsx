@@ -12,7 +12,7 @@ export function Input({
   ...props
 }: InputProps) {
   return (
-    <div className="space-y-1">
+    <div className="space-y-1 max-w-full">
       {label && (
         <label className="block text-sm font-medium text-text">
           {label}

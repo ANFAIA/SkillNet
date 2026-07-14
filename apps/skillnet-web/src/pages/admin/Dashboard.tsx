@@ -105,7 +105,7 @@ export function Dashboard() {
                     {alert.type === 'warning' ? 'Aviso' : alert.type === 'danger' ? 'Critico' : 'Info'}
                   </Badge>
                 </div>
-                <p className="text-sm text-text-secondary leading-snug">
+                <p className="text-sm text-text-secondary leading-snug break-words min-w-0">
                   {alert.message}
                 </p>
               </div>
@@ -154,7 +154,7 @@ export function Dashboard() {
             <tbody>
               {skillMatrixData.map((entry) => (
                 <tr key={entry.employeeName} className="border-b border-border last:border-b-0">
-                  <td className="py-2.5 pr-4 text-text font-medium">{entry.employeeName}</td>
+                  <td className="py-2.5 pr-4 text-text font-medium whitespace-nowrap">{entry.employeeName}</td>
                   {skillColumns.map((skill) => {
                     const level = entry.skills[skill] ?? 'none'
                     return (
