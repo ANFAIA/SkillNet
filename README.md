@@ -99,8 +99,8 @@ skillnet/
 ```bash
 # Frontend (React dashboard with mock data)
 cd apps/skillnet-web
-npm install
-npm run dev
+pnpm install
+pnpm dev
 ```
 
 ## Ethics
