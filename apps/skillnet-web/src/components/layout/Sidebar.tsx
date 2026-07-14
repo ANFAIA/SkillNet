@@ -62,35 +62,36 @@ function SidebarContent({ collapsed }: { collapsed: boolean }) {
 
   return (
     <>
-      {/* Logo + Title */}
-      <div className="flex flex-col items-center py-5 gap-1">
-        <img
-          src="/logo.png"
-          alt="SkillNet"
-          className="drop-shadow-lg transition-all duration-300 ease-in-out"
-          style={{ width: collapsed ? 32 : 40, height: collapsed ? 32 : 40 }}
-        />
-        <span
-          className={`text-white text-sm font-semibold tracking-wide transition-all duration-300 ease-in-out overflow-hidden whitespace-nowrap ${
-            collapsed ? 'max-h-0 opacity-0 mt-0' : 'max-h-6 opacity-100 mt-0'
+      {/* Logo row + toggle (Spotify style) */}
+      <div className={`flex items-center justify-between px-4 py-4 transition-all duration-300 ${collapsed ? 'px-2 justify-center' : ''}`}>
+        <div className="flex items-center gap-2 min-w-0">
+          <img
+            src="/logo.png"
+            alt="SkillNet"
+            className="drop-shadow-lg flex-shrink-0 transition-all duration-300 ease-in-out"
+            style={{ width: collapsed ? 28 : 32, height: collapsed ? 28 : 32 }}
+          />
+          <span
+            className={`text-white text-sm font-semibold tracking-wide transition-all duration-300 ease-in-out overflow-hidden whitespace-nowrap ${
+              collapsed ? 'max-w-0 opacity-0' : 'max-w-[120px] opacity-100'
+            }`}
+          >
+            SkillNet
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={toggleCollapsed}
+          className={`flex-shrink-0 w-5 h-5 flex items-center justify-center text-white/40 hover:text-white/80 hover:bg-white/10 rounded transition-all duration-200 hidden md:flex ${
+            collapsed ? 'absolute right-2 top-5' : ''
           }`}
+          aria-label={collapsed ? 'Expandir sidebar' : 'Colapsar sidebar'}
         >
-          SkillNet
-        </span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform duration-300 ${collapsed ? 'rotate-180' : ''}`}>
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+        </button>
       </div>
-
-      {/* Toggle arrow */}
-      <button
-        type="button"
-        onClick={toggleCollapsed}
-        className="mx-auto mb-4 w-6 h-6 flex items-center justify-center text-white/40 hover:text-white/80 transition-colors hidden md:flex"
-        aria-label={collapsed ? 'Expandir sidebar' : 'Colapsar sidebar'}
-      >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform duration-300 ${collapsed ? 'rotate-180' : ''}`}>
-          <polyline points="11 17 6 12 11 7" />
-          <polyline points="18 17 13 12 18 7" />
-        </svg>
-      </button>
 
       {/* Nav */}
       <nav className="flex-1 mt-6 flex flex-col gap-1">
