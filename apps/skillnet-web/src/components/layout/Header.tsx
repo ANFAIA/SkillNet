@@ -4,7 +4,7 @@ interface HeaderProps {
 
 export function Header({ title }: HeaderProps) {
   return (
-    <header className="fixed top-0 left-[248px] right-0 h-[50px] bg-primary flex items-center justify-between px-6 z-10">
+    <header className="fixed top-0 left-[248px] right-0 h-[50px] frame-surface flex items-center justify-between px-6 z-10">
       <h1 className="text-white text-base font-medium">{title}</h1>
       <button
         type="button"
