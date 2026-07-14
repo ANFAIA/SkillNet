@@ -49,7 +49,7 @@ const navItems: NavItem[] = [
 
 export function Sidebar() {
   return (
-    <aside className="fixed left-0 top-0 bottom-0 w-[248px] bg-primary flex flex-col z-20">
+    <aside className="fixed left-0 top-0 bottom-0 w-[248px] frame-surface flex flex-col z-20">
       {/* Logo */}
       <div className="flex flex-col items-center py-5 gap-2">
         <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center p-1">
