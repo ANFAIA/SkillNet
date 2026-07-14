@@ -112,33 +112,22 @@ function SidebarContent({ collapsed }: { collapsed: boolean }) {
         ))}
       </nav>
 
-      {/* Help card */}
-      <NavLink
-        to="/empleado/chat"
-        onClick={closeMobile}
-        className={`block group relative overflow-hidden transition-all duration-300 ease-in-out ${
-          collapsed
-            ? 'mx-2 mb-5 p-2 rounded-lg flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/5'
-            : 'mx-4 mb-5 p-5 rounded-2xl bg-[#162844] hover:bg-[#1C3254]'
-        }`}
-        title={collapsed ? 'Abrir chat' : undefined}
-      >
-        {collapsed ? (
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-          </svg>
-        ) : (
-          <>
-            <SpiderIcon />
-            <p className="text-white/90 text-sm font-semibold mb-1.5 relative">¿Tienes dudas?</p>
-            <p className="text-white/45 text-xs leading-relaxed mb-4 relative">Pregunta al tutor sobre cualquier tema del curso</p>
-            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-white/70 group-hover:text-white transition-colors relative">
-              Abrir chat
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="transition-transform group-hover:translate-x-1"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
-            </span>
-          </>
-        )}
-      </NavLink>
+      {/* Help card — only when expanded */}
+      {!collapsed && (
+        <NavLink
+          to="/empleado/chat"
+          onClick={closeMobile}
+          className="mx-4 mb-5 p-5 rounded-2xl block group bg-[#162844] hover:bg-[#1C3254] transition-colors relative overflow-hidden"
+        >
+          <SpiderIcon />
+          <p className="text-white/90 text-sm font-semibold mb-1.5 relative">¿Tienes dudas?</p>
+          <p className="text-white/45 text-xs leading-relaxed mb-4 relative">Pregunta al tutor sobre cualquier tema del curso</p>
+          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-white/70 group-hover:text-white transition-colors relative">
+            Abrir chat
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="transition-transform group-hover:translate-x-1"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+          </span>
+        </NavLink>
+      )}
     </>
   )
 }
