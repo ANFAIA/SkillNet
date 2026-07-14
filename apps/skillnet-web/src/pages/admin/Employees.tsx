@@ -31,7 +31,7 @@ function EmployeeDetail({ employee, onBack }: { employee: Employee; onBack: () =
           <SkillBars level={employee.averageLevel} />
         </div>
 
-        <div className="grid grid-cols-2 gap-4 mt-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-5">
           <div className="border border-border rounded-lg p-4">
             <p className="text-sm text-text-secondary">Cursos asignados</p>
             <p className="text-2xl font-semibold text-text mt-1">{employee.coursesAssigned}</p>
@@ -93,7 +93,7 @@ export function Employees() {
 
   return (
     <div>
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h2 className="text-xl font-semibold text-text">Empleados</h2>
           <p className="text-sm text-text-secondary mt-1">{employees.length} miembros del equipo</p>
@@ -115,8 +115,8 @@ export function Employees() {
         />
       </div>
 
-      {/* Table */}
-      <Card className="mt-4 p-0 overflow-hidden">
+      {/* Table (desktop) */}
+      <Card className="mt-4 p-0 overflow-hidden hidden md:block">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border bg-bg-subtle">
@@ -160,6 +160,37 @@ export function Employees() {
           </div>
         )}
       </Card>
+
+      {/* Card list (mobile) */}
+      <div className="mt-4 space-y-3 md:hidden">
+        {filtered.map((emp) => (
+          <Card
+            key={emp.id}
+            variant="interactive"
+            onClick={() => setSelectedEmployee(emp)}
+          >
+            <div className="flex items-start justify-between">
+              <div className="min-w-0">
+                <p className="font-medium text-text">{emp.name}</p>
+                <p className="text-sm text-text-secondary mt-0.5">{emp.role}</p>
+              </div>
+              <SkillBars level={emp.averageLevel} />
+            </div>
+            <div className="flex items-center justify-between mt-3">
+              <Badge variant="primary" badgeStyle="plain">{emp.department}</Badge>
+              <span className="text-sm text-text-secondary">
+                <span className="text-text">{emp.coursesCompleted}</span>
+                <span className="text-text-muted">/{emp.coursesAssigned} cursos</span>
+              </span>
+            </div>
+          </Card>
+        ))}
+        {filtered.length === 0 && (
+          <div className="py-8 text-center text-sm text-text-muted">
+            No se encontraron empleados
+          </div>
+        )}
+      </div>
     </div>
   )
 }

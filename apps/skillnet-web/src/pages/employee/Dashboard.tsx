@@ -50,7 +50,7 @@ export function Dashboard() {
       </div>
 
       {/* Metric Cards */}
-      <div className="grid grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <MetricCard
           value={String(user.activeCourses)}
           label="Cursos activos"
@@ -77,7 +77,7 @@ export function Dashboard() {
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Cursos en progreso */}
         <Card>
           <CardTitle className="mb-2">Cursos en progreso</CardTitle>
@@ -112,7 +112,7 @@ export function Dashboard() {
         </Card>
 
         {/* Actividad reciente */}
-        <Card className="col-span-2">
+        <Card className="lg:col-span-2">
           <CardTitle className="mb-3">Actividad reciente</CardTitle>
           <div className="space-y-0">
             {activity.map((item) => (
