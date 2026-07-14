@@ -23,10 +23,10 @@ function EmployeeDetail({ employee, onBack }: { employee: Employee; onBack: () =
         Volver a la lista
       </button>
       <Card>
-        <div className="flex items-start justify-between">
-          <div>
-            <h3 className="text-lg font-semibold text-text">{employee.name}</h3>
-            <p className="text-sm text-text-secondary">{employee.role} -- {employee.department}</p>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h3 className="text-lg font-semibold text-text truncate">{employee.name}</h3>
+            <p className="text-sm text-text-secondary truncate">{employee.role} -- {employee.department}</p>
           </div>
           <SkillBars level={employee.averageLevel} />
         </div>
