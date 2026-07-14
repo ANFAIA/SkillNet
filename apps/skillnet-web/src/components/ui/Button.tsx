@@ -38,7 +38,7 @@ export function Button({
   return (
     <button
       className={`
-        inline-flex items-center justify-center font-medium rounded-lg
+        inline-flex items-center justify-center font-medium rounded-lg max-w-full
         transition-colors duration-150 cursor-pointer
         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-1
         disabled:opacity-50 disabled:cursor-not-allowed
