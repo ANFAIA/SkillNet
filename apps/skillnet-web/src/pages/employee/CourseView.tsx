@@ -60,7 +60,7 @@ function ExerciseBlock({ exercise }: { exercise: Exercise }) {
                 disabled={submitted}
                 className="accent-primary"
               />
-              <span className="text-sm text-text">{option}</span>
+              <span className="text-sm text-text break-words min-w-0">{option}</span>
             </label>
           )
         })}
@@ -160,7 +160,7 @@ export function CourseView() {
                     onClick={() => toggleModule(mod.id)}
                     className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-text hover:bg-bg-subtle transition-colors border-b border-border"
                   >
-                    <span className="text-left">{mod.title}</span>
+                    <span className="text-left truncate min-w-0">{mod.title}</span>
                     <ChevronDown open={isExpanded} />
                   </button>
                   {isExpanded && (

@@ -28,7 +28,7 @@ export function MyCourses() {
             key={tab.key}
             type="button"
             onClick={() => setActiveTab(tab.key)}
-            className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+            className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px whitespace-nowrap shrink-0 ${
               activeTab === tab.key
                 ? 'border-primary text-primary'
                 : 'border-transparent text-text-secondary hover:text-text'

@@ -8,9 +8,9 @@ export interface CardProps extends HTMLAttributes<HTMLDivElement> {
 
 const variantClasses: Record<CardVariant, string> = {
   default:
-    'border border-border bg-bg rounded-xl p-5',
+    'border border-border bg-bg rounded-xl p-5 min-w-0 w-full',
   interactive:
-    'border border-border bg-bg rounded-xl p-5 hover:border-primary transition-colors cursor-pointer',
+    'border border-border bg-bg rounded-xl p-5 min-w-0 w-full hover:border-primary transition-colors cursor-pointer',
 }
 
 export function Card({

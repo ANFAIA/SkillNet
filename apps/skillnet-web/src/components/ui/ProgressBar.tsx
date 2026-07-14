@@ -39,7 +39,7 @@ export function ProgressBar({
   const barColor = color ? undefined : (variant === 'auto' ? getAutoColor(clamped) : variantClasses[variant])
 
   return (
-    <div className={className}>
+    <div className={`max-w-full ${className}`}>
       {showLabel && (
         <div className="flex justify-between items-center mb-1">
           <span className="text-xs text-text-secondary">{clamped}%</span>

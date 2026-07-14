@@ -48,10 +48,10 @@ export function Badge({
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 text-xs font-medium ${variantTextClasses[variant]} ${className}`}
+      className={`inline-flex items-center gap-1.5 text-xs font-medium max-w-full ${variantTextClasses[variant]} ${className}`}
     >
       <SpiderIcon />
-      {children}
+      <span className="truncate">{children}</span>
     </span>
   )
 }

@@ -75,14 +75,14 @@ export function Content() {
           const status = statusConfig[course.status]
           return (
             <Card key={course.id}>
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-4 min-w-0">
                 <div className="text-text-muted shrink-0">
                   <BookIcon />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-text truncate">{course.title}</span>
-                    <Badge variant={status.variant} badgeStyle="plain">{status.label}</Badge>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-sm font-medium text-text truncate min-w-0">{course.title}</span>
+                    <Badge variant={status.variant} badgeStyle="plain" className="shrink-0">{status.label}</Badge>
                   </div>
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-0.5 mt-1 text-xs text-text-muted">
                     <span>{course.modules} modulos</span>
