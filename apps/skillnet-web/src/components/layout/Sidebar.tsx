@@ -51,11 +51,11 @@ export function Sidebar() {
   return (
     <aside className="fixed left-0 top-0 bottom-0 w-[248px] bg-primary flex flex-col z-20">
       {/* Logo */}
-      <div className="flex items-center gap-3 px-10 h-[50px]">
-        <div className="w-7 h-7 bg-white rounded-lg flex items-center justify-center">
-          <span className="text-primary text-sm font-bold leading-none">S</span>
+      <div className="flex flex-col items-center py-5 gap-2">
+        <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center p-1">
+          <img src="/logo.png" alt="SkillNet" className="w-full h-full object-contain" />
         </div>
-        <span className="text-white text-base font-semibold">SkillNet</span>
+        <span className="text-white text-sm font-semibold">SkillNet</span>
       </div>
 
       {/* Nav */}
