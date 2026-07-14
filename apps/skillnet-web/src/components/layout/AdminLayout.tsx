@@ -21,7 +21,7 @@ function AdminLayoutInner() {
   const { collapsed } = useSidebar()
 
   return (
-    <div className="flex min-h-screen bg-primary overflow-x-hidden">
+    <div className="flex min-h-screen overflow-x-hidden">
       <AdminSidebar />
 
       <div
