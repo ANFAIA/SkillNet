@@ -55,7 +55,9 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: #2D5490;
+  background:
+    linear-gradient(170deg, #4171B5 0%, #2D5490 40%, #1E3D6E 100%);
+  background-attachment: fixed;
 }
 
 /* L-frame gradient + cobweb texture */
