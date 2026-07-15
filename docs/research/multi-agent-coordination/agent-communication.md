@@ -59,3 +59,7 @@ The closed, single-owner case barely needs any of this · a folder and a habit u
 - **Over-classification** · a cautious union drifts toward marking everything maximally restricted. When it is safe to lower a label again is unresolved.
 
 See the [coordination notes](README.md) for the surrounding model · mandates, boundary customs, and the five protocols.
+
+## Concrete implementation
+
+[DBP (Data Boundary Protocol)](https://github.com/JoseEstevez520/DBP) is a reference implementation of these ideas. It provides deterministic boundary checks, label-based compartment access, heritage (label union on derived data), an immutable audit trace, and R7 escalation for human-in-the-loop overrides. Implemented in Python with 292 tests, a 16-agent deployment system, and performance benchmarks (>50K checks/sec).
