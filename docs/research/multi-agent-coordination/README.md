@@ -120,7 +120,7 @@ Five protocols cover the full governance surface, listed in implementation prior
 
 ### Protocol 1: Sharing. What Crosses Between Agents and People
 
-**Priority: CRITICAL. Current state: Nothing exists.**
+**Priority: CRITICAL. Current state: Hard layer exists (DBP). Soft layer remains open.**
 
 The boundary between compartments is an adaptive filter:
 
@@ -139,6 +139,8 @@ The boundary between compartments is an adaptive filter:
 Hard layer (scanner):       Deterministic filter by labels -> fast, free, reliable
 Soft layer (customs agent): Agent that reviews what passes -> detects aggregation, nuance
 ```
+
+**Implementation:** [DBP (Data Boundary Protocol)](https://github.com/JoseEstevez520/DBP) provides the hard layer: deterministic label + clearance checks at the boundary, with automatic heritage for derived data. The soft layer (customs agent) and multi-user governance remain open.
 
 ### Protocol 2: Knowledge. What Each Agent Knows
 
