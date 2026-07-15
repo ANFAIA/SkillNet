@@ -212,6 +212,8 @@ It works for one user. It does not scale to teams.
 
 [agentvcs](https://github.com/EvolvingAgentsLabs/agentvcs) (Apache-2.0) explores versioning for autonomous agents. It covers the single-user single-agent case; the multi-user coordination problem described here is a different layer.
 
+[DBP (Data Boundary Protocol)](https://github.com/JoseEstevez520/DBP) (Apache-2.0) implements the deterministic boundary model explored in this research. It provides label-based compartments, set-inclusion boundary checks, heritage, immutable audit traces, and escalation for human override. See the [agent communication doc](agent-communication.md) for the conceptual model and the DBP repo for the reference implementation.
+
 ## Open Questions
 
 1. How should mandates be formally represented? Tuple, graph, or contract?
