@@ -6,11 +6,12 @@
 
 | Document | What it covers |
 |----------|----------------|
+| [vision.md](vision.md) | Philosophical foundation — why SkillNet is built this way |
 | [architecture.md](architecture.md) | System overview, layers, cross-cutting concerns, decided vs deferred |
 | [data-model.md](data-model.md) | PostgreSQL schema — 15+ tables, indexes, key queries |
 | [screens.md](screens.md) | 20 screen specs with routes, sections, data, states, actions |
 | [design-system.md](design-system.md) | Visual tokens, component patterns, anti-patterns |
-| [product.md](product.md) | What SkillNet is, roles, content types |
+| [product.md](product.md) | What SkillNet is, roles, content types, adaptation, learning loop |
 | [content-generation.md](content-generation.md) | LangGraph generation pipeline, 7 agent roles, RAG integration |
 | [chat-agents.md](chat-agents.md) | Tutor and admin chat agents, PageIndex pattern, RAG decision tree |
 | [rag-retrieval.md](rag-retrieval.md) | Document ingestion, chunking, hybrid search, reranking, embeddings |

@@ -1833,3 +1833,58 @@ class ContentGenerationConfig(BaseSettings):
 | **Publish creates draft, not published** | The `publish` node writes to DB with `status=draft`. The admin publishes the course separately via `POST /courses/{id}/publish` after their final review. This separates "generation complete" from "visible to employees". |
 | **Single-module regeneration** | The admin should not have to regenerate an entire course because one module is bad. Targeted regeneration saves time and LLM costs. |
 | **Manual generated after course** | The manual uses the course outline for structural alignment but follows the source document's organization. Generating it after the course ensures consistency. |
+
+---
+
+## 12. Adaptive Regeneration (Phase 2+)
+
+The pipeline described above generates content **once**. Phase 2 introduces data-driven regeneration based on real employee performance.
+
+### 12.1 The Problem
+
+A course is generated from documents by agents who have never seen a real employee struggle with the content. The first version is a best guess. After 50+ employees take the course, the system has real data about what works and what doesn't.
+
+### 12.2 Signals
+
+| Signal | Source | Threshold |
+|--------|--------|-----------|
+| Module pass rate | `exercise_attempts` JOIN `lessons` JOIN `modules` | < 60% pass rate across 10+ attempts |
+| Average attempts per exercise | `exercise_attempts` GROUP BY `exercise_id` | > 2.5 attempts average |
+| Tutor question volume | `chat_messages` filtered by `course_id` | > 5 questions on same topic in 7 days |
+| Completion drop-off | `enrollments` status = 'abandoned' at specific module | > 30% abandon at same module |
+| Time to complete | `exercise_attempts.created_at` delta | 2x longer than median for same course |
+
+### 12.3 Regeneration Flow
+
+When thresholds are exceeded:
+
+```
+System detects weak module
+    |
+    v
+Flag course for review (admin notification)
+    |
+    v
+Admin reviews: accept regeneration, manual edit, or dismiss
+    |
+    v
+If accepted: trigger regeneration pipeline for that module only
+    |
+    v
+New module replaces old one. Active enrollments continue from where they left off.
+```
+
+The regeneration uses the **same pipeline** as initial generation (Section 2), but with additional context:
+
+- The quality report from the failed module (what went wrong)
+- Real employee questions from the tutor chat (what confused people)
+- Exercise attempt data (which specific questions were missed)
+
+This gives the regeneration agents information the initial generation agents didn't have.
+
+### 12.4 Implementation Notes
+
+- **No schema changes needed.** All signals come from existing tables: `exercise_attempts`, `chat_messages`, `enrollments`, `lessons`, `modules`.
+- **Single-module regeneration** already exists (Section 7.3). The adaptive flow reuses it.
+- **Version tracking** on modules (add `version` column to `modules` table) lets the system track which version each employee is on.
+- **Opt-in for MVP.** Adaptive regeneration is disabled by default. Admins enable it per course when they have enough data.
