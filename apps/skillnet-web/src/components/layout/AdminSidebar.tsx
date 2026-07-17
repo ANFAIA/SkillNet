@@ -1,17 +1,20 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, useMatch } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useSidebar } from '../../contexts/SidebarContext'
+import { useRef, useLayoutEffect, useState } from 'react'
 
 interface NavItem {
   label: string
   to: string
   icon: React.ReactNode
+  end?: boolean
 }
 
 const navItems: NavItem[] = [
   {
     label: 'Inicio',
     to: '/admin',
+    end: true,
     icon: (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <rect x="3" y="3" width="7" height="7" />
@@ -73,8 +76,46 @@ function SpiderIcon() {
   )
 }
 
+function ActivePill({ activeIndex, collapsed }: { activeIndex: number; collapsed: boolean }) {
+  const navRef = useRef<HTMLDivElement>(null)
+  const itemRefs = useRef<(HTMLAnchorElement | null)[]>([])
+  const [pos, setPos] = useState<{ top: number; height: number } | null>(null)
+
+  useLayoutEffect(() => {
+    const nav = navRef.current
+    const item = itemRefs.current[activeIndex]
+    if (!nav || !item) return
+
+    const navRect = nav.getBoundingClientRect()
+    const itemRect = item.getBoundingClientRect()
+
+    setPos({
+      top: itemRect.top - navRect.top,
+      height: itemRect.height,
+    })
+  }, [activeIndex, collapsed])
+
+  if (pos === null) return null
+
+  const radiusClass = collapsed ? 'rounded-lg' : 'rounded-l-xl'
+  const leftClass = collapsed ? 'left-2 right-2' : 'left-10 right-4'
+
+  return (
+    <motion.div
+      className={`absolute bg-white ${leftClass} ${radiusClass} pointer-events-none`}
+      animate={{ top: pos.top, height: pos.height }}
+      initial={false}
+      transition={{ type: 'spring', stiffness: 500, damping: 35, mass: 0.5 }}
+    />
+  )
+}
+
 function AdminSidebarContent({ collapsed }: { collapsed: boolean }) {
-  const { toggleCollapsed, closeMobile } = useSidebar()
+  const { closeMobile } = useSidebar()
+
+  const activeIndex = navItems.findIndex((item) =>
+    item.end ? useMatch(item.to) : useMatch({ path: item.to, end: false }),
+  )
 
   return (
     <>
@@ -111,21 +152,25 @@ function AdminSidebarContent({ collapsed }: { collapsed: boolean }) {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 flex flex-col gap-1">
-        {navItems.map((item) => (
+      <nav className="flex-1 flex flex-col gap-1 relative">
+        <ActivePill activeIndex={activeIndex} collapsed={collapsed} />
+        {navItems.map((item, index) => (
           <NavLink
             key={item.to}
             to={item.to}
-            end={item.to === '/admin'}
+            end={item.end}
+            ref={(el) => {
+              itemRefs.current[index] = el
+            }}
             onClick={closeMobile}
             className={({ isActive }) =>
-              `flex items-center h-10 text-sm font-medium overflow-hidden transition-all duration-300 ease-in-out ${
+              `relative z-10 flex items-center h-10 text-sm font-medium overflow-hidden transition-colors duration-200 ${
                 collapsed
                   ? 'mx-2 px-0 justify-center rounded-lg'
                   : 'ml-10 pl-4 pr-4 rounded-l-xl'
               } ${
                 isActive
-                  ? 'bg-white text-primary'
+                  ? 'text-primary'
                   : 'text-white/80 hover:text-white'
               }`
             }
