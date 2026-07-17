@@ -93,7 +93,7 @@ First make it work, then optimize. The concept is validated with free, slow mode
 ## Future Decisions
 
 - [ ] Base model for LoRA (Llama 3.1 8B, Qwen3 8B, Gemma 4)
-- [ ] Hosting for fine-tuned model (Together AI, Fireworks, Modal, Groq Enterprise)
+- [x] Hosting for fine-tuned model — see [LoRA Serving Options](./lora-serving-options.md)
 - [ ] Dataset size (500, 1,000, 2,000 pairs)
 - [ ] Priority languages (French, German, Portuguese, Chinese)
 - [ ] Cache: duration, invalidation strategy
