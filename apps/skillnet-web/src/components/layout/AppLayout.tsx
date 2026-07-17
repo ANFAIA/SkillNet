@@ -4,21 +4,8 @@ import { Sidebar } from './Sidebar'
 import { Header } from './Header'
 import { SidebarProvider, useSidebar } from '../../contexts/SidebarContext'
 
-const pageTitles: Record<string, string> = {
-  '/empleado': 'Inicio',
-  '/empleado/cursos': 'Mis Cursos',
-  '/empleado/skillmap': 'Skill Map',
-  '/empleado/chat': 'Chat',
-}
-
-function getTitle(pathname: string): string {
-  if (pathname.startsWith('/empleado/curso/')) return 'Curso'
-  return pageTitles[pathname] ?? 'SkillNet'
-}
-
 function AppLayoutInner() {
   const location = useLocation()
-  const title = getTitle(location.pathname)
   const { collapsed } = useSidebar()
 
   return (
@@ -30,7 +17,7 @@ function AppLayoutInner() {
           collapsed ? 'md:ml-16' : 'md:ml-[248px]'
         }`}
       >
-        <Header title={title} />
+        <Header />
 
         <main className="flex-1 mt-[50px] bg-bg md:rounded-tl-xl overflow-y-auto overflow-x-hidden">
           <AnimatePresence mode="wait">

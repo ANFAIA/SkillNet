@@ -4,20 +4,8 @@ import { AdminSidebar } from './AdminSidebar'
 import { Header } from './Header'
 import { SidebarProvider, useSidebar } from '../../contexts/SidebarContext'
 
-const pageTitles: Record<string, string> = {
-  '/admin': 'Panel de Empresa',
-  '/admin/empleados': 'Empleados',
-  '/admin/contenido': 'Contenido',
-  '/admin/crear-curso': 'Crear Curso',
-}
-
-function getTitle(pathname: string): string {
-  return pageTitles[pathname] ?? 'Admin'
-}
-
 function AdminLayoutInner() {
   const location = useLocation()
-  const title = getTitle(location.pathname)
   const { collapsed } = useSidebar()
 
   return (
@@ -29,7 +17,7 @@ function AdminLayoutInner() {
           collapsed ? 'md:ml-16' : 'md:ml-[248px]'
         }`}
       >
-        <Header title={title} />
+        <Header />
 
         <main className="flex-1 mt-[50px] bg-bg md:rounded-tl-xl overflow-y-auto overflow-x-hidden">
           <AnimatePresence mode="wait">

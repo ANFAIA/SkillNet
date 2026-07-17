@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { motion, AnimatePresence } from 'framer-motion'
+import { AnimatePresence, motion } from 'framer-motion'
 import { useSidebar } from '../../contexts/SidebarContext'
 
 interface NavItem {
@@ -58,7 +58,7 @@ function SpiderIcon() {
 }
 
 function SidebarContent({ collapsed }: { collapsed: boolean }) {
-  const { toggleCollapsed, closeMobile } = useSidebar()
+  const { closeMobile } = useSidebar()
 
   return (
     <>
@@ -88,7 +88,7 @@ function SidebarContent({ collapsed }: { collapsed: boolean }) {
             end={item.to === '/empleado'}
             onClick={closeMobile}
             className={({ isActive }) =>
-              `flex items-center h-10 text-sm font-medium overflow-hidden transition-all duration-300 ease-in-out ${
+              `flex items-center h-10 text-sm font-medium overflow-hidden transition-colors duration-200 ${
                 collapsed
                   ? 'mx-2 px-0 justify-center rounded-lg'
                   : 'ml-10 pl-4 pr-4 rounded-l-xl'
