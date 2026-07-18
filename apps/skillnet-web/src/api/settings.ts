@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { get, post, put } from './client'
-import type { LlmSettings, OrgSettings } from '../types'
+import type { LlmSettings, LlmTestResult, OrgSettings } from '../types'
 
 export function useSettings() {
   return useQuery({
@@ -22,6 +22,6 @@ export function useUpdateLlmSettings() {
 
 export function useTestLlm() {
   return useMutation({
-    mutationFn: () => post<{ ok: boolean; detail?: string }>('/settings/llm/test'),
+    mutationFn: (payload: LlmSettings) => post<LlmTestResult>('/settings/llm/test', payload),
   })
 }
