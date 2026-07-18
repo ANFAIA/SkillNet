@@ -40,6 +40,18 @@ SYSTEM_PROMPT = (
     "- Responde en el mismo idioma que la pregunta."
 )
 
+ADMIN_SYSTEM_PROMPT = (
+    "Eres el asistente del administrador de una plataforma de formacion interna. "
+    "Respondes en espanol, de forma concisa y profesional.\n"
+    "Reglas estrictas:\n"
+    "- Responde basandote en la documentacion de la organizacion proporcionada "
+    "como contexto.\n"
+    "- Cita la fuente usando [Fuente N] cuando uses el contexto.\n"
+    "- Si la informacion no esta en el contexto, dilo con claridad en lugar de "
+    "inventar datos.\n"
+    "- Responde en el mismo idioma que la pregunta."
+)
+
 
 def _build_user_turn(context_block: str, question: str) -> str:
     context = context_block or "(No hay contexto disponible.)"
@@ -103,6 +115,43 @@ class ChatService:
         session_id: uuid.UUID | None,
         context: dict | None,
     ) -> AsyncIterator[str]:
+        async for event in self._stream(
+            user,
+            message,
+            session_id,
+            context,
+            agent_type="tutor",
+            system_prompt=SYSTEM_PROMPT,
+        ):
+            yield event
+
+    async def stream_admin(
+        self,
+        user: User,
+        message: str,
+        session_id: uuid.UUID | None,
+        context: dict | None,
+    ) -> AsyncIterator[str]:
+        async for event in self._stream(
+            user,
+            message,
+            session_id,
+            context,
+            agent_type="admin",
+            system_prompt=ADMIN_SYSTEM_PROMPT,
+        ):
+            yield event
+
+    async def _stream(
+        self,
+        user: User,
+        message: str,
+        session_id: uuid.UUID | None,
+        context: dict | None,
+        *,
+        agent_type: str,
+        system_prompt: str,
+    ) -> AsyncIterator[str]:
         citations: list[dict] = []
         parts: list[str] = []
         session: ChatSession | None = None
@@ -111,7 +160,7 @@ class ChatService:
             return
         try:
             session = await self._load_or_create_session(
-                user, message, session_id, context
+                user, message, session_id, context, agent_type=agent_type
             )
 
             # Fetch prior turns for memory BEFORE persisting the current message.
@@ -131,7 +180,9 @@ class ChatService:
                 document_ids=_context_document_ids(context),
             )
 
-            messages = self._build_messages(history, context_block, message)
+            messages = self._build_messages(
+                history, context_block, message, system_prompt
+            )
 
             async for piece in self.tutor_llm.stream(messages):
                 parts.append(piece)
@@ -161,6 +212,8 @@ class ChatService:
         message: str,
         session_id: uuid.UUID | None,
         context: dict | None,
+        *,
+        agent_type: str,
     ) -> ChatSession:
         if session_id is not None:
             session = await self.repo.get_owned_session(session_id, user.id)
@@ -172,7 +225,7 @@ class ChatService:
             user_id=user.id,
             org_id=user.org_id,
             title=title,
-            agent_type="tutor",
+            agent_type=agent_type,
             course_id=_context_course_id(context),
         )
 
@@ -181,9 +234,10 @@ class ChatService:
         history: Sequence[ChatMessage],
         context_block: str,
         question: str,
+        system_prompt: str,
     ) -> list[dict[str, str]]:
         messages: list[dict[str, str]] = [
-            {"role": "system", "content": SYSTEM_PROMPT}
+            {"role": "system", "content": system_prompt}
         ]
         for msg in history:
             if msg.role in ("user", "assistant"):

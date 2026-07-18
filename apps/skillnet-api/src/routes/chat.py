@@ -7,9 +7,9 @@ import uuid
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 
-from src.deps.auth import CurrentUser, EmployeeUser
+from src.deps.auth import AdminUser, CurrentUser, EmployeeUser
 from src.deps.db import DBSession
-from src.deps.llm import EmbeddingDep, TutorLLMDep
+from src.deps.llm import EmbeddingDep, LLMDep, TutorLLMDep
 from src.schemas.chat import ChatMessageRead, ChatRequest, ChatSessionRead
 from src.services.chat_service import ChatService
 
@@ -32,6 +32,23 @@ async def chat(
 ) -> StreamingResponse:
     service = ChatService(db, tutor_llm, embeddings)
     stream = service.stream_tutor(
+        user, request.message, request.session_id, request.context
+    )
+    return StreamingResponse(
+        stream, media_type="text/event-stream", headers=_SSE_HEADERS
+    )
+
+
+@router.post("/admin")
+async def admin_chat(
+    request: ChatRequest,
+    user: AdminUser,
+    db: DBSession,
+    llm: LLMDep,
+    embeddings: EmbeddingDep,
+) -> StreamingResponse:
+    service = ChatService(db, llm, embeddings)
+    stream = service.stream_admin(
         user, request.message, request.session_id, request.context
     )
     return StreamingResponse(
