@@ -159,6 +159,19 @@ Follow `docs/design/design-system.md` strictly. Key rules:
 - Visual hierarchy through spacing and weight, not color and decoration
 - Consistent border radius, shadows, and spacing across all components
 
+## Motion & Animations
+
+Read `docs/design/motion-system.md` for the complete spec — it explains what we want, why, and has a prioritized backlog with context for each task.
+
+**Key files:**
+- `src/lib/motion.ts` — centralized presets (easing curves, durations, springs, variants). Import from here, never hardcode animation values inline
+- `docs/design/motion-system.md` — full spec, research findings, and what needs to be done
+- `src/pages/dev/MotionDemo.tsx` — interactive demo of all patterns at `/dev/motion`, use as visual reference
+
+**What we're going for:** The app should feel like a native iOS app — transitions that flow, elements that morph into each other, physical feedback when you tap things. Not a website that loads pages.
+
+**The L-frame layout:** The sidebar + header are blue (`frame-surface`) and the main content is white with `rounded-tl-xl`. The active nav item has a white pill that bleeds into the main content (no gap on the right edge). This fusion between the nav pill and the content area is a signature visual effect — the AdminSidebar currently breaks it with `right-4`, and the employee Sidebar has no animated pill at all.
+
 ## Mock data
 
 During development without backend, use mock data files:

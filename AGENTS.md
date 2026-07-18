@@ -105,3 +105,4 @@ pnpm lint             # oxlint
 - Data model: `docs/design/data-model.md`
 - Architecture: `docs/design/architecture.md`
 - Design system: `docs/design/design-system.md`
+- Motion system: `docs/design/motion-system.md` (animation spec, research findings, prioritized backlog)
