@@ -32,7 +32,7 @@ function Bubble({ message }: { message: ChatMessage }) {
 }
 
 export function AdminChat() {
-  const { messages, sendMessage, cancel, isStreaming } = useChat('/chat')
+  const { messages, sendMessage, cancel, isStreaming } = useChat('/chat/admin')
   const [input, setInput] = useState('')
   const endRef = useRef<HTMLDivElement>(null)
 

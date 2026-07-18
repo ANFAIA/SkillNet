@@ -248,12 +248,23 @@ export interface GenerationProgress {
 // --- Settings ---
 
 export interface LlmSettings {
-  base_url: string
-  api_key: string
   model: string
+  base_url?: string
+  api_key?: string
 }
 
 export interface OrgSettings {
-  llm?: Partial<LlmSettings>
-  [key: string]: unknown
+  name: string
+  slug: string
+  self_registration_enabled: boolean
+  llm_configured: boolean
+  llm_model?: string | null
+  embedding_model?: string | null
+  llm_base_url?: string | null
+}
+
+export interface LlmTestResult {
+  ok: boolean
+  detail?: string | null
+  model?: string | null
 }
