@@ -22,6 +22,7 @@ from src.routes import (
     exercises,
     generation_jobs,
     health,
+    settings as settings_routes,
     users,
 )
 
@@ -106,6 +107,7 @@ def create_app() -> FastAPI:
     app.include_router(enrollments.router, prefix=prefix)
     app.include_router(generation_jobs.router, prefix=prefix)
     app.include_router(chat.router, prefix=prefix, tags=["Chat"])
+    app.include_router(settings_routes.router, prefix=prefix)
 
     return app
 
