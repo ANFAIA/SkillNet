@@ -15,6 +15,7 @@ import { Content } from './pages/admin/Content'
 import { CreateCourse } from './pages/admin/CreateCourse'
 import { AdminChat } from './pages/admin/Chat'
 import { Settings as AdminSettings } from './pages/admin/Settings'
+import { MotionDemo } from './pages/dev/MotionDemo'
 
 const HOME_BY_ROLE = {
   admin: '/admin',
@@ -66,6 +67,7 @@ function App() {
           <Route path="ajustes" element={<AdminSettings />} />
         </Route>
 
+        <Route path="/dev/motion" element={<MotionDemo />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
