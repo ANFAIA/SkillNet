@@ -1,0 +1,63 @@
+VDSL/1
+theme dark-tech
+canvas 1920x1080
+
+scene "Intro" 5s cut
+  text "Lección: Arrays en JavaScript" display center word-stagger 0-3.5s
+  label "PROGRAMACIÓN PARA PRINCIPIANTES" center 1.8s
+
+scene "El problema" 7s crossfade
+  text "Tienes 3 notas de examenes:" body upper-left typewriter 0-2s
+  text "nota1, nota2, nota3..." body upper-left typewriter 2-3.5s
+  text "¿Y si fueran 300?" hero center word-stagger 3.5-5.5s
+  label "NECESITAMOS UNA LISTA" center 4.5s
+
+scene "Que es un array" 8s crossfade
+  text "Un array es una lista ordenada" display center word-stagger 0-3s
+  code "let notas = [7, 8, 9, 6, 10];" typewriter 0-3.5s
+  label "CORCHETES = ARRAY" center 3.8s
+
+scene "Indices" 8s push-right
+  text "Cada elemento tiene una posicion" display center fade 0-2s
+  text "Primer elemento = índice 0" body center word-stagger 2-4s
+  text "Segundo elemento = índice 1" body center word-stagger 3-5s
+  text "Tercer elemento = índice 2" body center word-stagger 4-6s
+  label "ÍNDICE EMPIEZA EN 0" center 5.5s
+
+scene "Acceder" 7s crossfade
+  text "Para acceder a un elemento:" body upper-left typewriter 0-2s
+  code "notas[0] → 7" typewriter 2-4.5s
+  code "notas[2] → 9" typewriter 3-5s
+  text "notas[0] es el primer elemento" body center fade 4.5-7s
+
+scene "Recorrer un array" 9s blur-crossfade
+  text "Podemos recorrerlo con un bucle" display center word-stagger 0-2.5s
+  step-sequence 3-9s
+    "1. Inicio" "let i = 0"
+    "2. Condicion" "i < notas.length"
+    "3. Acceso" "notas[i]"
+    "4. Incremento" "i++"
+
+scene "Metodos utiles" 10s crossfade
+  text "Metodos que todo array necesita" display center word-stagger 0-2.5s
+  triptych 3-10s stagger
+    "push()" "Añade al final"
+    "pop()" "Quita del final"
+    "length" "Cuantos tiene"
+
+scene "Push" 6s push-right
+  text "Añadir un elemento al final:" body upper-left typewriter 0-2s
+  code "let nums = [1, 2, 3];" typewriter 0-2.5s
+  code "nums.push(4);" typewriter 2.5-4s
+  label "AHORA: [1, 2, 3, 4]" center 4.5s
+
+scene "Comparacion" 8s crossfade
+  text "Array vs Variables sueltas" display center word-stagger 0-2s
+  comparison 2.5-8s split-tilt
+    left "Variables sueltas" "nota1, nota2, nota3…" badge "Caos" red
+    right "Array" "notas[0], notas[1]…" badge "Ordenado" green
+
+scene "Cierre" 6s crossfade
+  text "Los arrays son la base" display center word-stagger 0-2.5s
+  text "Dominalos y dominaras los datos." body center fade 2.5-4s
+  byline "VDSL — Video Description Language" bottom-right 4.5s

@@ -1,0 +1,37 @@
+VDSL/1
+theme cobalt-grid
+canvas 1920x1080
+
+scene "Bar chart" 7s cut
+  label "DATA CHARTS — BARS" center 0.4s
+  viz 0.6-7s fade
+    type: chart
+    kind: bar
+    suffix: "%"
+    data:
+      - label: "Q1" value: 32
+      - label: "Q2" value: 58 color: green
+      - label: "Q3" value: 44
+      - label: "Q4" value: 76 color: purple
+
+scene "Line chart" 7s crossfade
+  label "DATA CHARTS — LINE" center 0.4s
+  viz 0.6-7s fade
+    type: chart
+    kind: line
+    color: blue
+    data:
+      - label: "Mon" value: 12
+      - label: "Tue" value: 30
+      - label: "Wed" value: 22
+      - label: "Thu" value: 48
+      - label: "Fri" value: 63
+
+scene "Counter" 7s crossfade
+  label "DATA CHARTS — COUNTER" center 0.4s
+  viz 0.6-7s scale-in
+    type: chart
+    kind: counter
+    value: 1284
+    prefix: "$"
+    label: "Monthly recurring revenue"

@@ -72,7 +72,8 @@ skillnet/
 │   └── skillnet-web/              Main application (in development)
 ├── packages/
 │   ├── mcp-md-reader/             Intelligent markdown reading for LLM agents
-│   └── mcp-ui-renderer/           Compact DSL for generating standalone HTML pages
+│   ├── mcp-ui-renderer/           A2TL-Web — compact DSL for generating standalone HTML pages
+│   └── a2tl-video/                A2TL-Video — compact DSL for generating explainer videos
 └── assets/
 ```
 
