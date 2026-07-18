@@ -1,0 +1,24 @@
+# SkillNet — Development overrides.
+# Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+# Adds hot reload, debug logging, exposed db/api ports.
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+      target: builder
+    command: ["uv", "run", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    working_dir: /app
+    environment:
+      LOG_LEVEL: debug
+      ENVIRONMENT: development
+      COOKIE_SECURE: "false"
+    volumes:
+      - ./apps/skillnet-api:/app
+    ports:
+      - "8000:8000"
+
+  db:
+    ports:
+      - "5432:5432"

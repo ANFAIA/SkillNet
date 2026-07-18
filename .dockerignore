@@ -1,0 +1,27 @@
+# Python
+**/.venv
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.ruff_cache
+**/.mypy_cache
+
+# Node
+**/node_modules
+**/dist
+**/.storybook-out
+
+# Local data / secrets
+.env
+**/uploads
+**/backups
+
+# VCS / editor
+.git
+.gitignore
+**/.DS_Store
+
+# Docs & assets not needed in images
+docs
+assets
+README.md
