@@ -10,6 +10,7 @@ from src.deps.db import DBSession
 from src.repositories.user_repo import UserRepository
 from src.schemas.common import PaginatedResponse
 from src.schemas.user import (
+    EmployeeCreated,
     UserAdminUpdate,
     UserCreateRequest,
     UserRead,
@@ -51,16 +52,22 @@ async def list_users(
     )
 
 
-@router.post("", response_model=UserRead, status_code=201)
+@router.post("", response_model=EmployeeCreated, status_code=201)
 async def create_user(
     admin: AdminUser, db: DBSession, body: UserCreateRequest
-) -> UserRead:
+) -> EmployeeCreated:
     service = _service(db)
-    user = await service.create_employee(
-        org_id=admin.org_id, email=body.email, full_name=body.full_name
+    user, temporary_password = await service.create_employee(
+        org_id=admin.org_id,
+        email=body.email,
+        full_name=body.full_name,
+        password=body.password,
     )
     await db.commit()
-    return UserRead.model_validate(user)
+    return EmployeeCreated(
+        **UserRead.model_validate(user).model_dump(),
+        temporary_password=temporary_password,
+    )
 
 
 @router.get("/me", response_model=UserRead)
