@@ -1,0 +1,28 @@
+// smoke.vdsl — smoke-test for the compiler
+VDSL/1
+theme cobalt-grid
+canvas 1920x1080
+
+scene "Intro" 5s cut
+  text "Hello, World!" display center word-stagger 0-4s
+  byline "Made with VDSL" bottom-center 4-5s
+
+scene "Tech Stack" 6s fade
+  text "Built with Remotion" hero center typewriter 0-3s
+  text-cycle center body
+    "React" 0-2s glow
+    "TypeScript" 2-4s underline
+    "Remotion" 4-6s hero
+  label "v0.1" bottom-center 0-6s
+
+scene "Card Demo" 4s cut
+  card center fade 0-4s
+    formula "E = mc²"
+    arrow right
+    result "Energy"
+
+scene "Viz" 5s dissolve
+  viz 0-5s none
+    type: node-graph
+    nodes: "A,B,C"
+    edges: "A-B,B-C"

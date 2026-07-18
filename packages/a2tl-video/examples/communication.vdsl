@@ -1,0 +1,97 @@
+VDSL/1
+theme cobalt-grid
+canvas 1920x1080
+
+scene "El repartidor" 5s cut
+  text "El agente de tu repartidor le pregunta a tu asistente —" body upper-left typewriter 0-1.8s
+  text "¿saldo bancario?" hero center word-stagger 1.8-5s
+  label "AGENTE → AGENTE" center 2.8s
+
+scene "Normas blandas" 8s crossfade
+  text-cycle center display
+    "instrucción de prompt" 0-2s underline
+    "Una sugerencia — no un muro" 2-4s strike
+    "Los protocolos resuelven identidad" 4-6.5s dim
+    "normas blandas" 6.5-8s hero
+
+scene "Tres pilares" 7s blur-crossfade
+  text "etiquetas sobre los datos" display center word-stagger 0-2.5s
+  label "VERIFICADAS EN LA PUERTA — NO DENTRO DEL AGENTE" center 0.8s
+  text "Tres pilares:" display-italic center fade 2.5-3.5s
+  triptych 3.5-7s stagger
+    "PROTOCOLO"
+    "TRAZABILIDAD"
+    "ESPACIO DE TRABAJO"
+
+// Level 3: visualización rica del protocolo
+scene "Protocolo" 11s push-right
+  code "data.compartment ∈ recipient.allowed → PASS" typewriter 0-3s
+    shrink 0.6 move-top 3s
+  label "EN LA FRONTERA" center 3.2s
+  viz 4.5-11s split-tilt
+    type: boundary-sim
+    cases:
+      - packet: "Dato A" label: A
+        recipient: "Jose" access: [A, B]
+        result: pass
+      - packet: "Dato B" label: B
+        recipient: "Pepito" access: [A]
+        result: block
+
+// Level 3: log de trazas con formato visual rico
+scene "Trazabilidad" 9s push-right
+  text "Si cruzó — hay un registro." display-italic center fade 0-2s
+  text "Si no hay registro — no cruzó." display-italic center fade 2-3s
+  viz 3.2-9s slide-left
+    type: trace-log
+    columns: pieza etiqueta dirección
+    entries:
+      - "dato_A" "A" "→ Jose"
+      - "dato_B" "B" "→ Jose"
+      - "dato_C" "A" "→ David"
+    badge: "FRONTERA" position: right
+
+// Level 3: diagrama de workspace animado
+scene "Espacio de trabajo" 9s push-right
+  viz 0.5-9s build-up
+    type: workspace
+    shared: "COMPARTIDO"
+    zones:
+      - side: left label: "PRIVADO A" tag: "etiqueta: A"
+      - side: right label: "PRIVADO B" tag: "etiqueta: B"
+
+// Level 3: flow diagram de los tres momentos
+scene "Tres momentos" 11s blur-crossfade
+  text "TRES MOMENTOS" display center fade 0-1.5s
+  viz 1.5-8s stagger
+    type: flow-diagram
+    steps:
+      - label: "Arranque" desc: "el agente nace solo con lo que necesita" icon: 1 color: blue
+      - label: "Trabajo" desc: "procesa libremente" icon: 2 color: purple
+      - label: "Aduana" desc: "lo que sale se verifica" icon: 3 color: amber
+    connectors: arrow
+  text "Está en la frontera." hero center word-stagger 8-11s
+
+// Level 3: visualización de herencia de datos
+scene "Datos derivados" 8s crossfade
+  viz 0-5s scale-in
+    type: node-graph
+    nodes:
+      - id: a label: "A" size: lg color: blue x: 30 y: 50
+      - id: b label: "B" size: lg color: amber x: 70 y: 50
+      - id: result label: "A ∪ B" size: xl color: ink x: 50 y: 80
+    edges:
+      - from: a to: result style: dashed animate: draw
+      - from: b to: result style: dashed animate: draw
+    annotation: "hereda ambas etiquetas"
+  text "Solo agentes con acceso a A y B" body center fade 5s
+
+scene "La capa que falta" 6s crossfade
+  viz 0-2.5s stagger
+    type: protocol-compare
+    protocols:
+      - name: "A2A" auth: yes data: no
+      - name: "MCP" auth: yes data: no
+  text "La capa que falta" display center word-stagger 2.5-4.5s
+  text "qué datos pueden fluir" body center fade 3.3s
+  byline "ANFAIA / SkillNet" bottom-right 4.8s

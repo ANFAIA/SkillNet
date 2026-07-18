@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A2TL-Video embebido — demo</title>
+<style>
+  body { margin: 0; font-family: system-ui, sans-serif; background: #f7f7f8; color: #1a1a2e; }
+  .page { max-width: 900px; margin: 0 auto; padding: 48px 24px 96px; }
+  h1 { font-size: 34px; letter-spacing: -0.02em; margin: 0 0 8px; }
+  p.lead { color: #555; font-size: 17px; line-height: 1.6; margin: 0 0 32px; }
+  .card { background: #fff; border: 1px solid #e5e5ea; border-radius: 16px; padding: 20px; box-shadow: 0 8px 30px rgba(0,0,0,0.06); }
+  code { background: #eee; padding: 2px 6px; border-radius: 5px; font-size: 14px; }
+  .after { margin-top: 32px; color: #555; line-height: 1.6; }
+</style>
+</head>
+<body>
+  <div class="page">
+    <h1>Un vídeo generado con A2TL-Video, dentro de esta página</h1>
+    <p class="lead">Esto es una web normal. El vídeo de abajo está embebido con una sola etiqueta
+      <code>&lt;vdsl-player&gt;</code>. Se reproduce al instante en el navegador, sin renderizar MP4.</p>
+
+    <div class="card">
+      <vdsl-player src="../communication.html" ratio="16/9" autoplay></vdsl-player>
+    </div>
+
+    <p class="after">Para meterlo en tu web: incluye <code>vdsl-player.js</code> y escribe
+      <code>&lt;vdsl-player src="mi-video.html"&gt;&lt;/vdsl-player&gt;</code>.
+      El <code>src</code> lo genera el backend con la IA; el frontend solo lo embebe.</p>
+  </div>
+  <script src="vdsl-player.js"></script>
+</body>
+</html>

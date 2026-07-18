@@ -1,0 +1,20 @@
+VDSL/1
+theme cobalt-grid
+canvas 1920x1080
+
+scene "Iconos" 8s crossfade
+  label "ICON LIBRARY" upper-left 0-8s
+  icon "shield" upper-left 0.5-8s green
+  icon "rocket" upper-right 1.5-8s purple
+  icon "sparkles" bottom-right 2.5-8s amber
+  icon "definitely-not-an-icon" bottom-center 3.5-8s
+  text "Recursos que llenan la escena" body center fade 4.5-8s
+
+scene "Pipeline" 8s crossfade
+  label "FLOW" upper-left 0-8s
+  viz 0.5-8s fade
+    type: flow-diagram
+    steps:
+      - label: "Cifrado" desc: "los datos salen sellados" icon: lock color: blue
+      - label: "Servidor" desc: "se procesan en tu nube" icon: server color: purple
+      - label: "Verificado" desc: "todo lo que sale se comprueba" icon: check color: green

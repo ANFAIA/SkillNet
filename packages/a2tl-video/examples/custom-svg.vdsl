@@ -1,0 +1,15 @@
+VDSL/1
+theme cobalt-grid
+canvas 1920x1080
+
+scene "Custom SVG" 5s cut
+  label "LEVEL-3 ESCAPE HATCH" upper-left 0-5s
+  viz 0-5s fade
+    type: custom
+    """
+    <svg viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg">
+      <rect x="40" y="40" width="720" height="320" rx="24" fill="#1b3a8f" opacity="0.18"/>
+      <circle cx="400" cy="190" r="120" fill="#3B82F6" data-animate="scale-in"/>
+      <text x="400" y="205" text-anchor="middle" font-family="sans-serif" font-size="48" font-weight="700" fill="#ffffff" data-animate="slide-up" data-delay="0.6">CUSTOM</text>
+    </svg>
+    """

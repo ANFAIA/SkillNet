@@ -1,0 +1,11 @@
+// palette-demo.vdsl — reskin the whole video from the header (palette + font)
+VDSL/1
+theme dark-tech
+palette bg:#0d0f1a ink:#ff4d6d
+font display:"Georgia"
+canvas 1920x1080
+
+scene "Marca" 6s cut
+  label "PALETTE INLINE" upper-left 0-6s
+  text "Tu marca en 2 líneas" hero center word-stagger 0-3s
+  text "cambia bg, ink y la fuente — y muta todo" body center fade 3-6s

@@ -1,0 +1,17 @@
+VDSL/1
+theme dark-tech
+canvas 1920x1080
+
+scene "Hello" 4s cut
+  text "Hello, VDSL" hero center word-stagger 0-3s
+  label "your first video" center 1.5s
+
+scene "How it works" 6s crossfade
+  step-sequence 0.5-6s
+    "1. WRITE" "describe your video in ~100 lines"
+    "2. COMPILE" "VDSL generates Remotion components"
+    "3. RENDER" "get a professional MP4"
+
+scene "Done" 3s blur-crossfade
+  text "That's it." display center fade 0-3s
+  byline "Made with VDSL" bottom-right 1s

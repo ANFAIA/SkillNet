@@ -1,0 +1,19 @@
+node_modules/
+dist/
+*.mp4
+render/node_modules/
+render/out.mp4
+renders/
+*.mp4
+.DS_Store
+
+# Generated player demos (produced by `vdsl play`)
+/*.html
+# Orchestration / working notes (not product)
+ORCHESTRATION.md
+PLAN.md
+FUTURE.md
+# Screenshot harness (dev-only; gen-icons.js is kept)
+tools/shoot.js
+tools/shoot-embed.js
+*.jsx
