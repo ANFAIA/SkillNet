@@ -1,4 +1,4 @@
-// parser.ts — UIDL v1 parser (UIDL text → JSON spec)
+// parser.ts — A2TL-Web parser (UIDL/1 text → JSON spec)
 
 export interface UIDLSpec {
   version: number;
