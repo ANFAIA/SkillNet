@@ -22,7 +22,7 @@ This path is not closed. There will probably be something after Markdown eventua
 
 ### The token problem with HTML
 
-In parallel, a trend emerged: people started using HTML to visualize their ideas, because it is more expressive than Markdown. Dashboards, charts, interactive pages. But generating HTML through an AI agent is expensive. A single page costs 2,000-8,000 output tokens and takes 20-30 seconds to generate. This is the problem explored in [generative-ui](../generative-ui/), where we built UIDL as a compact alternative.
+In parallel, a trend emerged: people started using HTML to visualize their ideas, because it is more expressive than Markdown. Dashboards, charts, interactive pages. But generating HTML through an AI agent is expensive. A single page costs 2,000-8,000 output tokens and takes 20-30 seconds to generate. This is the problem explored in [generative-ui](../generative-ui/), where we built A2TL-Web as a compact alternative.
 
 ### Smarter readers
 

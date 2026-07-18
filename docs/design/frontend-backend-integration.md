@@ -906,7 +906,7 @@ The backend (or agent) emits a compact spec describing *what* to show. The front
 
 #### Spec format
 
-The backend returns the spec as a JSON structure (not raw UIDL text). The JSON format is the transport layer; the UIDL text format exists for the LLM authoring side.
+The backend returns the spec as a JSON structure (not raw A2TL-Web text). The JSON format is the transport layer; the A2TL-Web text format exists for the LLM authoring side.
 
 ```json
 {

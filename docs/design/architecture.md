@@ -99,18 +99,18 @@ How content reaches the learner. Three generation levels, used where appropriate
 | Level | How | When to use |
 |-------|-----|-------------|
 | **1 — Static** | Pre-built React components, agent sends data | Login, settings, navigation, admin screens |
-| **2 — Declarative** | Agent emits a compact spec (UIDL), renderer expands to HTML | Dashboards, course listings, reports, progress views |
+| **2 — Declarative** | Agent emits a compact spec (A2TL-Web), renderer expands to HTML | Dashboards, course listings, reports, progress views |
 | **3 — Generative** | Agent writes full HTML/CSS/JS | Personalized lessons, adaptive tutoring, agent responses |
 
 Most of SkillNet is Level 1 and 2. Level 3 applies only where content, context, and user variability are all high — the moments where pre-designed screens aren't feasible.
 
 **What exists:**
 
-- [UIDL renderer](../../packages/mcp-ui-renderer/) — Level 2 implementation. 76% token savings vs equivalent HTML.
+- [A2TL-Web renderer](../../packages/mcp-ui-renderer/) — Level 2 implementation. 76% token savings vs equivalent HTML.
 
 **Level 3 latency: deferred.** The approach for handling generation wait times (skeleton + SSE streaming, pre-generation, or waiting screen) will be decided when the generation pipeline is built. SSE infrastructure will already be in place from the tutor chat.
 
-**Frontend architecture: single SPA.** One React app with React Router. Level 1 (static) are regular React components. Level 2 (declarative) uses a renderer component that takes a compact spec and paints it — the specific format (UIDL or otherwise) is not locked. Level 3 (generative) injects agent-generated HTML into an isolated container (shadow DOM or iframe) to prevent CSS conflicts. The user doesn't know which level they're seeing — navigation is the same everywhere.
+**Frontend architecture: single SPA.** One React app with React Router. Level 1 (static) are regular React components. Level 2 (declarative) uses a renderer component that takes a compact spec and paints it — the specific format (A2TL-Web or otherwise) is not locked. Level 3 (generative) injects agent-generated HTML into an isolated container (shadow DOM or iframe) to prevent CSS conflicts. The user doesn't know which level they're seeing — navigation is the same everywhere.
 
 **Routing: fixed routes with dynamic content.** Every screen has a predictable URL (`/dashboard`, `/courses/:id`, `/courses/:id/module/:mid/lesson/:lid`, `/admin/users`, `/settings`). URLs are shareable and browser back/forward works. When Level 3 generates content, it renders inside the fixed route — the URL doesn't change, only what's inside.
 

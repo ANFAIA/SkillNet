@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 /**
- * uidl CLI — render UIDL specs to standalone HTML pages.
+ * a2tl-web CLI — render A2TL-Web specs to standalone HTML pages.
+ * Part of the A2TL family (Agent to Transformation Language).
  *
  * Usage:
- *   npx uidl render input.uidl                  → output/input.html + open
- *   npx uidl render input.uidl -o my-page.html  → my-page.html
- *   npx uidl render input.uidl --no-open        → don't open browser
- *   cat spec.uidl | npx uidl render -            → stdin
+ *   npx a2tl-web render input.uidl                  → output/input.html + open
+ *   npx a2tl-web render input.uidl -o my-page.html  → my-page.html
+ *   npx a2tl-web render input.uidl --no-open        → don't open browser
+ *   cat spec.uidl | npx a2tl-web render -            → stdin
  */
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
@@ -24,20 +25,21 @@ function openInBrowser(filePath: string): void {
 
 function printUsage(): void {
   console.log(`
-uidl — render UIDL specs to standalone HTML pages
+a2tl-web — render A2TL-Web specs to standalone HTML pages
+Part of the A2TL family (Agent to Transformation Language).
 
 Usage:
-  uidl render <file.uidl>              Render and open in browser
-  uidl render <file.uidl> -o out.html  Render to specific file
-  uidl render <file.uidl> --no-open    Render without opening
-  uidl render -                        Read from stdin
+  a2tl-web render <file.uidl>              Render and open in browser
+  a2tl-web render <file.uidl> -o out.html  Render to specific file
+  a2tl-web render <file.uidl> --no-open    Render without opening
+  a2tl-web render -                        Read from stdin
 
 Options:
   -o, --output <file>    Output file path
   --no-open              Don't open in browser
   -h, --help             Show this help
 
-Example UIDL spec:
+Example A2TL-Web spec:
   UIDL/1
   theme dark
   h1 "My Dashboard"
@@ -58,13 +60,13 @@ if (args.length === 0 || args.includes('-h') || args.includes('--help')) {
 }
 
 if (args[0] !== 'render') {
-  console.error(`Unknown command: ${args[0]}. Use "uidl render <file>".`);
+  console.error(`Unknown command: ${args[0]}. Use "a2tl-web render <file>".`);
   process.exit(1);
 }
 
 // Parse args
 const inputFile = args[1];
-if (!inputFile) { console.error('Missing input file. Use "uidl render <file.uidl>".'); process.exit(1); }
+if (!inputFile) { console.error('Missing input file. Use "a2tl-web render <file.uidl>".'); process.exit(1); }
 
 let outputFile: string | null = null;
 let shouldOpen = true;

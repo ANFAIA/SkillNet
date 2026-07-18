@@ -51,9 +51,9 @@ When the combination of variables produces millions of possible screens (50 comp
 
 But most of the platform doesn't need it. Login, settings, and profile screens are Level 1. Dashboards and course listings are Level 2. Level 3 applies specifically to personalized lessons, adaptive tutoring, and agent responses: the moments where the content truly must be generated for that person in that context.
 
-## What we built: UIDL
+## What we built: A2TL-Web
 
-The core discovery: you can get **76% of the token savings** by having the agent describe *what* to show instead of *how* to render it. We built **UIDL (UI Description Language)**, a compact format where the agent writes a spec and a deterministic renderer expands it to full HTML.
+The core discovery: you can get **76% of the token savings** by having the agent describe *what* to show instead of *how* to render it. We built **A2TL-Web (Agent to Transformation Language — Web)**, a compact format where the agent writes a spec and a deterministic renderer expands it to full HTML.
 
 ```
 UIDL/1
@@ -80,26 +80,26 @@ table "Pending Exercises"
 
 This spec is ~360 tokens. The renderer expands it to a complete standalone HTML page with Chart.js charts, styled tables, metric cards, and responsive layout (~2,400 tokens of HTML). The agent never generates HTML; it never deals with CSS or JavaScript.
 
-**Implementation:** [github.com/JoseEstevez520/uidl](https://github.com/JoseEstevez520/uidl), an MCP server and CLI tool. Available as a tool for any MCP-compatible agent. v1.2.0 adds a brand/theme system: a JSON preset (~8 properties: colors, font, logo, radius, footer) that the renderer applies without changing the UIDL spec. The LLM writes the same compact format; the organization's brand is applied at render time.
+**Implementation:** [github.com/JoseEstevez520/a2tl-web](https://github.com/JoseEstevez520/a2tl-web), an MCP server and CLI tool. Available as a tool for any MCP-compatible agent. v1.2.0 adds a brand/theme system: a JSON preset (~8 properties: colors, font, logo, radius, footer) that the renderer applies without changing the spec. The LLM writes the same compact format; the organization's brand is applied at render time.
 
-| Metric | UIDL | Equivalent raw HTML |
-|--------|------|---------------------|
+| Metric | A2TL-Web | Equivalent raw HTML |
+|--------|----------|---------------------|
 | Tokens | ~360 | ~1,471 |
 | Bytes | 1,327 | 9,992 |
 | Lines | 40 | 180+ |
 | **Savings** | **76%** fewer tokens | |
 
-UIDL operates at Level 2: the agent writes a compact spec, and a local renderer expands it deterministically. This means no LLM is involved in the rendering step. Level 3 (where the agent generates the full HTML) is a different approach with different trade-offs that we still want to explore.
+A2TL-Web operates at Level 2: the agent writes a compact spec, and a local renderer expands it deterministically. This means no LLM is involved in the rendering step. Level 3 (where the agent generates the full HTML) is a different approach with different trade-offs that we still want to explore.
 
-### What UIDL does not solve
+### What A2TL-Web does not solve
 
 No complex interactivity (filters, forms, state management). No nested layouts. Limited to Chart.js chart types. Static HTML output, no real-time updates. For those, you need a component registry (Level 1) or full generation (Level 3).
 
-However, the renderer is extensible. Organizations can register custom components in their renderer without changing the UIDL spec format. This means the spec stays compact and stable while each deployment can support domain-specific elements. See [extending the renderer](https://github.com/JoseEstevez520/uidl/blob/main/docs/extending.md) for details.
+However, the renderer is extensible. Organizations can register custom components in their renderer without changing the spec format. This means the spec stays compact and stable while each deployment can support domain-specific elements. See [extending the renderer](https://github.com/JoseEstevez520/a2tl-web/blob/main/docs/extending.md) for details.
 
-### Experimental: applying the same idea to video (VDSL)
+### Experimental: applying the same idea to video (A2TL-Video)
 
-The same principle — agent describes *what*, renderer decides *how* — was applied experimentally to explainer videos. [VDSL (Video Description Language)](https://github.com/JoseEstevez520/vdsl) is a compact format inspired by Remotion where ~100 lines produce a 74-second video. The agent writes ~400 tokens instead of ~1,800 (Remotion JSX) or ~8,000 (HTML+GSAP).
+The same principle — agent describes *what*, renderer decides *how* — was applied experimentally to explainer videos. [A2TL-Video (Agent to Transformation Language — Video)](https://github.com/JoseEstevez520/a2tl-video) is a compact format inspired by Remotion where ~100 lines produce a 74-second video. The agent writes ~400 tokens instead of ~1,800 (Remotion JSX) or ~8,000 (HTML+GSAP).
 
 ```
 VDSL/1
@@ -119,11 +119,13 @@ scene "The Solution" 8s blur-crossfade
 
 The pipeline compiles `.vdsl` to either a self-contained HTML player (instant playback, no dependencies) or MP4 via Remotion. It includes 17 built-in components, 4 themes, a `<vdsl-player>` web component for embedding, and inline palette/font overrides. Early-stage — the web renderer still has positioning and timing bugs, and MP4 rendering is too slow (2-3 min for 74s) for interactive use.
 
+> **Note:** The GitHub repo may still be at `github.com/JoseEstevez520/vdsl` until the rename to `a2tl-video` is complete.
+
 ## Five prototypes compared
 
 We built five prototypes at different levels and measured them head-to-head on the same dataset. The key findings:
 
-1. **Level 2 (UIDL) is 7.3x more token-efficient than Level 3** for the same content
+1. **Level 2 (A2TL-Web) is 7.3x more token-efficient than Level 3** for the same content
 2. **Level 3 latency (23s) is prohibitive** for interactive use
 3. **A vault-to-page pipeline (no LLM) is the most efficient**: 0 tokens, 310ms, functional HTML
 4. **A bidirectional loop works** (agent generates → user interacts → agent regenerates) but costs ~3,500 tokens per cycle
@@ -140,7 +142,7 @@ Generative UI is still early. The main players shipping it in production (July 2
 - **Vercel.** [v0](https://v0.dev) generates React + Tailwind from prompts. The [AI SDK](https://ai-sdk.dev/docs/ai-sdk-ui/generative-user-interfaces) streams React Server Components.
 - **CopilotKit.** [AG-UI](https://docs.ag-ui.com/) is an event-based protocol for bidirectional agent-to-frontend communication. Complements A2UI (AG-UI transports A2UI payloads).
 
-All of these work at Level 3 (full HTML/CSS/JS generation) or Level 1 (component registries). UIDL is a Level 2 tool we built to solve a specific problem: generating structured content (dashboards, reports, summaries) without the cost and latency of full generation. It is not an alternative to Level 3. We still want to explore Level 3 for the scenarios where free-form generation is needed.
+All of these work at Level 3 (full HTML/CSS/JS generation) or Level 1 (component registries). A2TL-Web is a Level 2 tool we built to solve a specific problem: generating structured content (dashboards, reports, summaries) without the cost and latency of full generation. It is not an alternative to Level 3. We still want to explore Level 3 for the scenarios where free-form generation is needed.
 
 ## A key insight
 
@@ -162,7 +164,7 @@ Two approaches we're exploring:
 
 Both approaches share the same idea: use the waiting time productively instead of trying to eliminate it. Give the user something meaningful while the heavy generation runs behind the scenes.
 
-A separate direction is emerging for UIDL itself: positioning it as a consumption standard rather than a growing DSL. The idea follows the post-Markdown thesis -- don't change the format, make the reader smarter. The UIDL spec stays minimal and stable; the renderer is the extension point, not the spec. Each organization extends their own renderer to support whatever components they need (domain-specific charts, interactive widgets, custom cards) while the agent keeps writing the same compact format. This keeps the LLM-facing surface small and predictable, and pushes complexity to the deterministic side of the system where it's easier to control.
+A separate direction is emerging for A2TL-Web itself: positioning it as a consumption standard rather than a growing DSL. The idea follows the post-Markdown thesis -- don't change the format, make the reader smarter. The spec stays minimal and stable; the renderer is the extension point, not the spec. Each organization extends their own renderer to support whatever components they need (domain-specific charts, interactive widgets, custom cards) while the agent keeps writing the same compact format. This keeps the LLM-facing surface small and predictable, and pushes complexity to the deterministic side of the system where it's easier to control.
 
 ## Open questions
 
