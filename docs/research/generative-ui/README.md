@@ -117,9 +117,7 @@ scene "The Solution" 8s blur-crossfade
       - label: "Check" desc: "verify at the gate" icon: shield color: green
 ```
 
-The pipeline compiles `.vdsl` to either a self-contained HTML player (instant playback, no dependencies) or MP4 via Remotion. It includes 17 built-in components, 4 themes, a `<vdsl-player>` web component for embedding, and inline palette/font overrides. Early-stage — the web renderer still has positioning and timing bugs, and MP4 rendering is too slow (2-3 min for 74s) for interactive use.
-
-> **Note:** The GitHub repo may still be at `github.com/JoseEstevez520/vdsl` until the rename to `a2tl-video` is complete.
+The pipeline compiles `.vdsl` to either a self-contained HTML player (instant playback, no dependencies) or MP4 via Remotion. It includes 17 built-in components, 4 themes, a `<vdsl-player>` web component for embedding, and inline palette/font overrides. The idea is simple: agents shouldn't need to know HTML, CSS, animation libraries, or video frameworks. They describe *what* to show, and the renderer takes care of everything else.
 
 ## Five prototypes compared
 
