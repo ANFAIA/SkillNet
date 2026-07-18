@@ -69,7 +69,10 @@ skillnet/
 │   ├── design/                    Architecture and technical decisions
 │   └── research/                  Investigation by topic
 ├── apps/
-│   └── skillnet-web/              Main application (in development)
+│   ├── skillnet-api/              FastAPI backend (v1) — auth, CRUD, RAG, LangGraph generation, chat
+│   └── skillnet-web/              React SPA frontend
+├── docker/                        Dockerfiles + nginx config
+├── docker-compose.yml             Production stack (db + api + web)
 ├── packages/
 │   ├── mcp-md-reader/             Intelligent markdown reading for LLM agents
 │   └── mcp-ui-renderer/           Compact DSL for generating standalone HTML pages
@@ -96,12 +99,49 @@ skillnet/
 
 ## Quick start
 
+### Full stack with Docker (recommended)
+
+Runs the three services — `db` (PostgreSQL + pgvector), `api` (FastAPI), and
+`web` (React + nginx). The API runs its database migrations automatically on
+startup and, if `ADMIN_EMAIL` / `ADMIN_PASSWORD` are set, seeds an admin account.
+
 ```bash
-# Frontend (React dashboard with mock data)
+cp .env.example .env
+# Edit .env: set SECRET_KEY (>=32 chars), POSTGRES_PASSWORD, your LLM_* provider,
+# and ADMIN_EMAIL / ADMIN_PASSWORD for the first admin account.
+docker compose up -d --build
+# Open http://localhost:3000 and log in as the admin.
+```
+
+The bundled nginx proxies `/api` to the backend, so the whole app is served
+same-origin on a single port. Any litellm-supported provider works — set
+`LLM_MODEL` to e.g. `anthropic/claude-sonnet-4-20250514`, `deepseek/deepseek-chat`,
+or `ollama/llama3.1` (with `LLM_BASE_URL` for OpenAI-compatible / local endpoints).
+
+### Local development
+
+```bash
+# Backend (needs a reachable PostgreSQL+pgvector, e.g. `docker compose up -d db`)
+cd apps/skillnet-api
+uv sync
+uv run uvicorn src.main:app --reload      # http://localhost:8000  (docs at /api/docs in DEBUG)
+uv run pytest                              # unit tests
+uv run ruff check src tests
+
+# Frontend (Vite dev server proxies /api to localhost:8000)
 cd apps/skillnet-web
 pnpm install
-pnpm dev
+pnpm dev                                   # http://localhost:5173
 ```
+
+### End-to-end flow
+
+Admin uploads a document → creates a course from it → triggers generation (the
+LangGraph pipeline extracts themes, designs structure, writes modules/lessons in
+Markdown and exercises, self-reviews, and publishes a draft) → publishes the
+course → invites an employee and assigns the course. The employee logs in, works
+through the Markdown lessons and exercises, and asks the tutor chatbot questions
+answered from the source material via RAG.
 
 ## Ethics
 
