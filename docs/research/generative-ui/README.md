@@ -97,6 +97,28 @@ No complex interactivity (filters, forms, state management). No nested layouts. 
 
 However, the renderer is extensible. Organizations can register custom components in their renderer without changing the UIDL spec format. This means the spec stays compact and stable while each deployment can support domain-specific elements. See [extending the renderer](https://github.com/JoseEstevez520/uidl/blob/main/docs/extending.md) for details.
 
+### Experimental: applying the same idea to video (VDSL)
+
+The same principle — agent describes *what*, renderer decides *how* — was applied experimentally to explainer videos. [VDSL (Video Description Language)](https://github.com/JoseEstevez520/vdsl) is a compact format inspired by Remotion where ~100 lines produce a 74-second video. The agent writes ~400 tokens instead of ~1,800 (Remotion JSX) or ~8,000 (HTML+GSAP).
+
+```
+VDSL/1
+theme dark-tech
+canvas 1920x1080
+
+scene "The Problem" 6s crossfade
+  text "Your data has no walls." hero center word-stagger 0-4s
+
+scene "The Solution" 8s blur-crossfade
+  viz 0.5-8s build-up
+    type: flow-diagram
+    steps:
+      - label: "Label" desc: "tag your data" icon: tag color: blue
+      - label: "Check" desc: "verify at the gate" icon: shield color: green
+```
+
+The pipeline compiles `.vdsl` to either a self-contained HTML player (instant playback, no dependencies) or MP4 via Remotion. It includes 17 built-in components, 4 themes, a `<vdsl-player>` web component for embedding, and inline palette/font overrides. Early-stage — the web renderer still has positioning and timing bugs, and MP4 rendering is too slow (2-3 min for 74s) for interactive use.
+
 ## Five prototypes compared
 
 We built five prototypes at different levels and measured them head-to-head on the same dataset. The key findings:
