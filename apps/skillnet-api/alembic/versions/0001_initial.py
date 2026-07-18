@@ -17,6 +17,8 @@ from alembic import op
 from pgvector.sqlalchemy import Vector
 from sqlalchemy.dialects import postgresql
 
+from src.config import settings
+
 revision: str = "0001"
 down_revision: str | None = None
 branch_labels: str | Sequence[str] | None = None
@@ -228,7 +230,7 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("content", sa.Text(), nullable=False),
-        sa.Column("embedding", Vector(384), nullable=False),
+        sa.Column("embedding", Vector(settings.EMBEDDING_DIMENSIONS), nullable=False),
         sa.Column("chunk_index", sa.Integer(), nullable=False),
         sa.Column(
             "metadata",
