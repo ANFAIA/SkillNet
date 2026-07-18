@@ -14,6 +14,7 @@ import { Employees } from './pages/admin/Employees'
 import { Content } from './pages/admin/Content'
 import { CreateCourse } from './pages/admin/CreateCourse'
 import { AdminChat } from './pages/admin/Chat'
+import { Settings as AdminSettings } from './pages/admin/Settings'
 
 const HOME_BY_ROLE = {
   admin: '/admin',
@@ -62,6 +63,7 @@ function App() {
           <Route path="contenido" element={<Content />} />
           <Route path="crear-curso" element={<CreateCourse />} />
           <Route path="chat" element={<AdminChat />} />
+          <Route path="ajustes" element={<AdminSettings />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />
