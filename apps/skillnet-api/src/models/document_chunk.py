@@ -10,6 +10,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from src.config import settings
 from src.models.base import Base
 
 if TYPE_CHECKING:
@@ -31,7 +32,9 @@ class DocumentChunk(Base):
         ForeignKey("documents.id", ondelete="CASCADE"), nullable=False
     )
     content: Mapped[str] = mapped_column(Text, nullable=False)
-    embedding: Mapped[list[float]] = mapped_column(Vector(384), nullable=False)
+    embedding: Mapped[list[float]] = mapped_column(
+        Vector(settings.EMBEDDING_DIMENSIONS), nullable=False
+    )
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
     # `metadata` is reserved on declarative classes, so map the column explicitly.
     chunk_metadata: Mapped[dict] = mapped_column(
