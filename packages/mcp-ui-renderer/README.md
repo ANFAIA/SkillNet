@@ -1,25 +1,29 @@
-# UIDL — compact DSL for generating HTML pages
+# A2TL-Web — compact format for AI-generated web pages
 
 Write ~450 tokens, get a complete standalone HTML page with charts, tables, metrics, and dark theme. **4x fewer tokens than raw HTML.**
+
+**A2TL-Web** is part of the **A2TL** family (**A**gent **t**o **T**ransformation **L**anguage) — compact formats where AI agents describe *what* to show and a renderer decides *how*. Siblings:
+- **a2tl-web** (this package) — generates web pages
+- **a2tl-video** — generates videos
 
 ## Why
 
 Generative content is the next bottleneck. As AI agents move from answering questions to building interfaces — dashboards, reports, onboarding pages — they hit a wall: raw HTML is expensive to generate. Thousands of tokens go to boilerplate CSS, repeated `<div>` structures, and inline scripts the agent doesn't reason about.
 
-UIDL flips this. The agent writes a compact spec describing *what* to render, and a local renderer expands it to full standalone HTML instantly. The agent focuses on content and structure; the renderer handles presentation.
+A2TL-Web flips this. The agent writes a compact spec describing *what* to render, and a local renderer expands it to full standalone HTML instantly. The agent focuses on content and structure; the renderer handles presentation.
 
 ```
-┌────────────┬──────────────┬───────┐
-│            │ Raw HTML     │ UIDL  │
-├────────────┼──────────────┼───────┤
-│ Bytes      │ 6,160        │ 1,541 │
-├────────────┼──────────────┼───────┤
-│ Lines      │ 83           │ 43    │
-├────────────┼──────────────┼───────┤
-│ Tokens (~) │ ~1,760       │ ~440  │
-├────────────┼──────────────┼───────┤
-│ Ratio      │ 100%         │ 25%   │
-└────────────┴──────────────┴───────┘
+┌────────────┬──────────────┬───────────┐
+│            │ Raw HTML     │ A2TL-Web  │
+├────────────┼──────────────┼───────────┤
+│ Bytes      │ 6,160        │ 1,541     │
+├────────────┼──────────────┼───────────┤
+│ Lines      │ 83           │ 43        │
+├────────────┼──────────────┼───────────┤
+│ Tokens (~) │ ~1,760       │ ~440      │
+├────────────┼──────────────┼───────────┤
+│ Ratio      │ 100%         │ 25%       │
+└────────────┴──────────────┴───────────┘
 ```
 
 This matters because generative UI is becoming a core agent capability — not a novelty. Every token saved on the write side compounds: faster generation, lower API costs, and more room in the context window for the agent to reason about what it's actually building.
@@ -34,14 +38,14 @@ This matters because generative UI is becoming a core agent capability — not a
 npm install   # install dependencies
 npm run build # compile TypeScript
 
-# CLI: render a UIDL file
+# CLI: render an A2TL-Web file
 node dist/cli.js render examples/dashboard.uidl
 
 # MCP server: use from Claude Code or any MCP client
 node dist/index.js
 ```
 
-## UIDL format
+## A2TL-Web format
 
 ```
 UIDL/1
@@ -113,7 +117,7 @@ Add to your Claude Code settings:
 ```json
 {
   "mcpServers": {
-    "uidl": {
+    "a2tl-web": {
       "command": "node",
       "args": ["path/to/dist/index.js"]
     }
@@ -139,10 +143,10 @@ const html = renderHTML(spec);
 
 ## Real-world example
 
-A SkillNet training dashboard for a new employee — 40 lines of UIDL generates a full page:
+A SkillNet training dashboard for a new employee — 40 lines of A2TL-Web generates a full page:
 
-| Metric | UIDL | HTML | Savings |
-|--------|------|------|---------|
+| Metric | A2TL-Web | HTML | Savings |
+|--------|----------|------|---------|
 | Tokens | ~379 | ~2,855 | 87% |
 | Bytes | 1,327 | 9,992 | 87% |
 | Lines | 40 | 180+ | 78% |

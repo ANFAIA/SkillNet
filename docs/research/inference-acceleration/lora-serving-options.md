@@ -2,7 +2,7 @@
 
 ## Context
 
-SkillNet needs to generate UI (UIDL/JSON) using a trained LoRA. The goal is to serve the LoRA faster than a local RTX 4060 (~20-50 tok/s) without managing complex infrastructure.
+SkillNet needs to generate UI (A2TL-Web/JSON) using a trained LoRA. The goal is to serve the LoRA faster than a local RTX 4060 (~20-50 tok/s) without managing complex infrastructure.
 
 **Multi-LoRA is not needed.** Only a single hosted LoRA is required.
 
@@ -67,7 +67,7 @@ Modal L4 24/7: ~$580/month, but much cheaper per hour.
 
 ## Next Steps
 
-- Define the SkillNet UIDL/JSON format.
+- Define the SkillNet A2TL-Web/JSON format.
 - Generate 100-200 training examples.
 - Train a test LoRA on Fireworks/Together.
 - Measure speed and quality against local RTX 4060.
