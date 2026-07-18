@@ -33,11 +33,15 @@ export function useUser(id: string) {
   })
 }
 
+export interface EmployeeCreated extends User {
+  temporary_password?: string | null
+}
+
 export function useCreateUser() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (payload: { email: string; full_name: string }) =>
-      post<User>('/users', payload),
+    mutationFn: (payload: { email: string; full_name: string; password?: string }) =>
+      post<EmployeeCreated>('/users', payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] })
     },

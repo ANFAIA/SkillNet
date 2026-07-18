@@ -51,20 +51,33 @@ class UserService:
         return user
 
     async def create_employee(
-        self, *, org_id: uuid.UUID, email: str, full_name: str
-    ) -> User:
+        self,
+        *,
+        org_id: uuid.UUID,
+        email: str,
+        full_name: str,
+        password: str | None = None,
+    ) -> tuple[User, str | None]:
+        """Create an employee. Returns the user and, when the password was
+        auto-generated, its plaintext value (so the admin can share it)."""
         if await self.repo.get_by_email(org_id, email) is not None:
             raise ConflictError("A user with this email already exists", field="email")
-        hashed_password = _password_helper.hash(secrets.token_urlsafe(16))
-        return await self.repo.create(
+        generated: str | None = None
+        if password:
+            raw_password = password
+        else:
+            raw_password = secrets.token_urlsafe(9)
+            generated = raw_password
+        user = await self.repo.create(
             org_id=org_id,
             email=email,
             full_name=full_name,
-            hashed_password=hashed_password,
+            hashed_password=_password_helper.hash(raw_password),
             role=UserRole.EMPLOYEE,
             learning_profile=LearningProfile.STANDARD,
             is_active=True,
         )
+        return user, generated
 
     async def update_user(
         self,
