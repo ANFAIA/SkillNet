@@ -1,0 +1,25 @@
+# Secrets & local config
+.env
+*.local
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Node
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Data
+apps/skillnet-api/uploads/
+backups/
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
