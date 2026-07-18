@@ -38,6 +38,10 @@ skillnet/
 └── assets/
 ```
 
+## Current phase: v1
+
+**Read `docs/design/v1-scope.md` FIRST.** It defines what v1 is, what it isn't, and overrides other docs where they contradict. All other design docs cover the full product (v1 + v2 + future) — v1-scope.md has priority.
+
 ## Architecture (key decisions)
 
 Full details in `docs/design/architecture.md`. Summary:
@@ -48,7 +52,7 @@ Full details in `docs/design/architecture.md`. Summary:
 - **Frontend:** Single SPA with React Router. Fixed routes, dynamic content. TanStack Query for server state, `useState` for UI state
 - **Real-time:** SSE for streaming agent responses. `StreamingResponse` in FastAPI
 - **Self-hosted:** One instance per company. `organizations` table scopes data but has one row per deployment
-- **LLM:** Provider-agnostic. User sets `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL` in env vars. Any OpenAI-compatible API works
+- **LLM:** Provider-agnostic via litellm. User sets `LLM_MODEL` (e.g. `anthropic/claude-sonnet-4-20250514`, `deepseek/deepseek-chat`, `ollama/llama3`) in env vars. Any provider litellm supports works
 
 ## Commands
 
@@ -91,11 +95,12 @@ pnpm lint             # oxlint
 - **DO NOT** modify `docs/research/` — these are completed investigations
 - **DO NOT** add dependencies without checking if the existing stack covers the need
 - **DO NOT** use AI-slop patterns: gratuitous gradients, rounded-2xl on everything, pastel icon backgrounds on every card, decorative animations. Follow `docs/design/design-system.md`
-- **DO NOT** hardcode LLM provider logic. All LLM calls go through the OpenAI-compatible interface
+- **DO NOT** hardcode LLM provider logic. All LLM calls go through litellm
 - **DO NOT** add authentication logic in frontend. Session cookies are handled by the browser automatically
 
 ## Key references
 
+- **v1 scope & decisions: `docs/design/v1-scope.md`** (READ FIRST — overrides other docs)
 - Screen specs: `docs/design/screens.md`
 - Data model: `docs/design/data-model.md`
 - Architecture: `docs/design/architecture.md`
