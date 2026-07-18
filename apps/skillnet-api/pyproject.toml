@@ -1,0 +1,49 @@
+[project]
+name = "skillnet-api"
+version = "0.1.0"
+description = "SkillNet FastAPI backend"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+    "sqlalchemy[asyncio]>=2.0",
+    "asyncpg",
+    "greenlet",
+    "alembic",
+    "pgvector",
+    "pydantic>=2",
+    "pydantic-settings",
+    "fastapi-users[sqlalchemy]",
+    "python-multipart",
+    "litellm<1.92",
+    "langgraph",
+    "tiktoken",
+    "pypdf",
+    "python-docx",
+    "tenacity",
+    "httpx",
+]
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+    "ruff",
+    "aiosqlite",
+    "mypy",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+markers = ["integration"]
