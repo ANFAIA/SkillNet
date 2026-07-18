@@ -1,0 +1,61 @@
+import { useState } from 'react'
+import { Button } from '../ui'
+import { useSubmitAttempt } from '../../api/exercises'
+import { ExerciseResult } from './ExerciseResult'
+import type { Exercise, TrueFalseContent } from '../../types'
+
+export function TrueFalseExercise({ exercise }: { exercise: Exercise }) {
+  const content = exercise.content as TrueFalseContent
+  const [answer, setAnswer] = useState<boolean | null>(null)
+  const submit = useSubmitAttempt()
+  const result = submit.data
+  const done = !!result
+
+  const options: { label: string; value: boolean }[] = [
+    { label: 'Verdadero', value: true },
+    { label: 'Falso', value: false },
+  ]
+
+  return (
+    <div>
+      <p className="text-sm text-text mb-4">{content.statement}</p>
+
+      <div className="flex gap-2">
+        {options.map((opt) => (
+          <button
+            key={opt.label}
+            type="button"
+            disabled={done}
+            onClick={() => !done && setAnswer(opt.value)}
+            className={`flex-1 p-3 text-sm font-medium border rounded-lg transition-colors ${
+              answer === opt.value
+                ? 'border-primary bg-primary-subtle text-primary'
+                : 'border-border text-text hover:bg-bg-subtle'
+            } disabled:cursor-default`}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+
+      {!done && (
+        <Button
+          size="sm"
+          className="mt-4"
+          disabled={answer === null || submit.isPending}
+          onClick={() =>
+            answer !== null &&
+            submit.mutate({ exerciseId: exercise.id, answer: { answer } })
+          }
+        >
+          {submit.isPending ? 'Comprobando...' : 'Comprobar'}
+        </Button>
+      )}
+
+      {submit.isError && (
+        <p className="mt-3 text-sm text-danger">No se pudo enviar la respuesta.</p>
+      )}
+      {result && <ExerciseResult result={result} />}
+    </div>
+  )
+}

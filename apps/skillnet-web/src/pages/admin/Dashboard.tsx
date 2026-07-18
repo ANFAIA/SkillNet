@@ -1,4 +1,6 @@
 import { Card, CardTitle, MetricCard, Badge } from '../../components/ui'
+// v1-static: admin dashboard widgets (stats, alerts, skill matrix, team activity)
+// have NO backend endpoints in v1. Kept on mock data until those APIs exist.
 import { alerts, skillMatrixData, recentActivity } from '../../data/adminMockData'
 
 const skillColors: Record<string, string> = {

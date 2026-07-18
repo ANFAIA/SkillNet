@@ -1,6 +1,7 @@
-import { NavLink, useMatch } from 'react-router-dom'
+import { NavLink, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useSidebar } from '../../contexts/SidebarContext'
+import type { RefObject } from 'react'
 import { useRef, useLayoutEffect, useState } from 'react'
 
 interface NavItem {
@@ -76,9 +77,17 @@ function SpiderIcon() {
   )
 }
 
-function ActivePill({ activeIndex, collapsed }: { activeIndex: number; collapsed: boolean }) {
-  const navRef = useRef<HTMLDivElement>(null)
-  const itemRefs = useRef<(HTMLAnchorElement | null)[]>([])
+function ActivePill({
+  activeIndex,
+  collapsed,
+  navRef,
+  itemRefs,
+}: {
+  activeIndex: number
+  collapsed: boolean
+  navRef: RefObject<HTMLElement | null>
+  itemRefs: RefObject<(HTMLAnchorElement | null)[]>
+}) {
   const [pos, setPos] = useState<{ top: number; height: number } | null>(null)
 
   useLayoutEffect(() => {
@@ -93,7 +102,7 @@ function ActivePill({ activeIndex, collapsed }: { activeIndex: number; collapsed
       top: itemRect.top - navRect.top,
       height: itemRect.height,
     })
-  }, [activeIndex, collapsed])
+  }, [activeIndex, collapsed, navRef, itemRefs])
 
   if (pos === null) return null
 
@@ -112,9 +121,12 @@ function ActivePill({ activeIndex, collapsed }: { activeIndex: number; collapsed
 
 function AdminSidebarContent({ collapsed }: { collapsed: boolean }) {
   const { closeMobile } = useSidebar()
+  const { pathname } = useLocation()
+  const navRef = useRef<HTMLElement>(null)
+  const itemRefs = useRef<(HTMLAnchorElement | null)[]>([])
 
   const activeIndex = navItems.findIndex((item) =>
-    item.end ? useMatch(item.to) : useMatch({ path: item.to, end: false }),
+    item.end ? pathname === item.to : pathname === item.to || pathname.startsWith(`${item.to}/`),
   )
 
   return (
@@ -152,8 +164,8 @@ function AdminSidebarContent({ collapsed }: { collapsed: boolean }) {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 flex flex-col gap-1 relative">
-        <ActivePill activeIndex={activeIndex} collapsed={collapsed} />
+      <nav ref={navRef} className="flex-1 flex flex-col gap-1 relative">
+        <ActivePill activeIndex={activeIndex} collapsed={collapsed} navRef={navRef} itemRefs={itemRefs} />
         {navItems.map((item, index) => (
           <NavLink
             key={item.to}

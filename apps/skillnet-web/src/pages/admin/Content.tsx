@@ -1,12 +1,17 @@
 import { useNavigate } from 'react-router-dom'
-import { Card, Badge, Button } from '../../components/ui'
-import { adminCourses } from '../../data/adminMockData'
-import type { AdminCourse } from '../../data/adminMockData'
+import { Card, Badge, Button, EmptyState, SkeletonCard } from '../../components/ui'
+import { useCourses } from '../../api/courses'
+import { ApiError } from '../../api/client'
+import type { CourseStatus } from '../../types'
 
-const statusConfig: Record<AdminCourse['status'], { label: string; variant: 'accent' | 'warning' | 'primary' }> = {
+const statusConfig: Record<string, { label: string; variant: 'accent' | 'warning' | 'primary' }> = {
   published: { label: 'Publicado', variant: 'accent' },
   draft: { label: 'Borrador', variant: 'warning' },
   archived: { label: 'Archivado', variant: 'primary' },
+}
+
+function statusOf(status: CourseStatus) {
+  return statusConfig[status] ?? { label: status, variant: 'primary' as const }
 }
 
 function BookIcon() {
@@ -29,23 +34,21 @@ function PlusIcon() {
 
 export function Content() {
   const navigate = useNavigate()
+  const { data, isLoading, error } = useCourses()
 
-  const published = adminCourses.filter(c => c.status === 'published')
-  const drafts = adminCourses.filter(c => c.status === 'draft')
-  const archived = adminCourses.filter(c => c.status === 'archived')
+  const courses = data?.items ?? []
+  const published = courses.filter((c) => c.status === 'published')
+  const drafts = courses.filter((c) => c.status === 'draft')
+  const archived = courses.filter((c) => c.status === 'archived')
 
   return (
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h2 className="text-xl font-semibold text-text">Contenido</h2>
-          <p className="text-sm text-text-secondary mt-1">{adminCourses.length} cursos en total</p>
+          <p className="text-sm text-text-secondary mt-1">{courses.length} cursos en total</p>
         </div>
-        <Button
-          variant="primary"
-          size="md"
-          onClick={() => navigate('/admin/crear-curso')}
-        >
+        <Button variant="primary" size="md" onClick={() => navigate('/admin/crear-curso')}>
           <span className="flex items-center gap-1.5">
             <PlusIcon />
             Crear nuevo
@@ -53,7 +56,6 @@ export function Content() {
         </Button>
       </div>
 
-      {/* Stats row */}
       <div className="grid grid-cols-3 gap-2 sm:gap-4 mt-4">
         <div className="border border-border rounded-lg px-3 sm:px-4 py-3">
           <p className="text-xs text-text-muted">Publicados</p>
@@ -69,34 +71,55 @@ export function Content() {
         </div>
       </div>
 
-      {/* Course list */}
       <div className="mt-4 space-y-2">
-        {adminCourses.map((course) => {
-          const status = statusConfig[course.status]
-          return (
-            <Card key={course.id}>
-              <div className="flex items-center gap-4 min-w-0">
-                <div className="text-text-muted shrink-0">
-                  <BookIcon />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="text-sm font-medium text-text truncate min-w-0">{course.title}</span>
-                    <Badge variant={status.variant} badgeStyle="plain" className="shrink-0">{status.label}</Badge>
+        {isLoading ? (
+          <>
+            <SkeletonCard />
+            <SkeletonCard />
+            <SkeletonCard />
+          </>
+        ) : error ? (
+          <Card>
+            <EmptyState
+              title="No se pudieron cargar los cursos"
+              description={error instanceof ApiError ? error.body.detail : 'Intentalo de nuevo'}
+            />
+          </Card>
+        ) : courses.length === 0 ? (
+          <Card>
+            <EmptyState
+              title="Aun no hay cursos"
+              description="Crea tu primer curso a partir de un documento"
+              action={{ label: 'Crear curso', onClick: () => navigate('/admin/crear-curso') }}
+            />
+          </Card>
+        ) : (
+          courses.map((course) => {
+            const status = statusOf(course.status)
+            return (
+              <Card key={course.id}>
+                <div className="flex items-center gap-4 min-w-0">
+                  <div className="text-text-muted shrink-0">
+                    <BookIcon />
                   </div>
-                  <div className="flex flex-wrap items-center gap-x-4 gap-y-0.5 mt-1 text-xs text-text-muted">
-                    <span>{course.modules} modulos</span>
-                    <span>{course.exercises} ejercicios</span>
-                    {course.assignedCount > 0 && (
-                      <span>{course.assignedCount} asignados</span>
-                    )}
-                    <span>Actualizado: {course.updatedAt}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-sm font-medium text-text truncate min-w-0">{course.title}</span>
+                      <Badge variant={status.variant} badgeStyle="plain" className="shrink-0">
+                        {status.label}
+                      </Badge>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-0.5 mt-1 text-xs text-text-muted">
+                      <span>{course.module_count} modulos</span>
+                      {course.outcome && <span className="truncate max-w-xs">{course.outcome}</span>}
+                      <span>Creado: {new Date(course.created_at).toLocaleDateString()}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </Card>
-          )
-        })}
+              </Card>
+            )
+          })
+        )}
       </div>
     </div>
   )
