@@ -1,19 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import type { FormEvent } from 'react'
 import { Button } from '../../components/ui'
-
-interface ChatMessage {
-  id: string
-  sender: 'user' | 'bot'
-  text: string
-}
-
-const initialMessages: ChatMessage[] = [
-  {
-    id: 'a1',
-    sender: 'bot',
-    text: 'Hola. Soy el asistente de administracion de SkillNet. Puedo ayudarte con la gestion de cursos, empleados, habilidades y la plataforma en general. ¿En que puedo ayudarte?',
-  },
-]
+import { useChat } from '../../api/chat'
+import type { ChatMessage } from '../../types'
 
 function SendIcon() {
   return (
@@ -24,27 +13,39 @@ function SendIcon() {
   )
 }
 
+function Bubble({ message }: { message: ChatMessage }) {
+  const isUser = message.role === 'user'
+  return (
+    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
+      <div
+        className={`max-w-[85%] md:max-w-[70%] px-3 md:px-4 py-3 text-sm leading-relaxed ${
+          isUser ? 'bg-primary text-white rounded-xl rounded-br-sm' : 'bg-bg-muted text-text rounded-xl rounded-bl-sm'
+        }`}
+      >
+        <p className="whitespace-pre-line break-words">
+          {message.content}
+          {message.isStreaming && !message.content && <span className="text-text-muted">Escribiendo...</span>}
+        </p>
+      </div>
+    </div>
+  )
+}
+
 export function AdminChat() {
-  const [messages, setMessages] = useState<ChatMessage[]>(initialMessages)
+  const { messages, sendMessage, cancel, isStreaming } = useChat('/chat')
   const [input, setInput] = useState('')
+  const endRef = useRef<HTMLDivElement>(null)
 
-  function handleSend() {
+  useEffect(() => cancel, [cancel])
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages])
+
+  function handleSubmit(e: FormEvent) {
+    e.preventDefault()
     const text = input.trim()
-    if (!text) return
-
-    const userMessage: ChatMessage = {
-      id: `msg-${Date.now()}`,
-      sender: 'user',
-      text,
-    }
-
-    const botMessage: ChatMessage = {
-      id: `msg-${Date.now()}-bot`,
-      sender: 'bot',
-      text: 'Estoy procesando tu consulta. Esta funcionalidad estara disponible proximamente con conexion al sistema de IA.',
-    }
-
-    setMessages((prev) => [...prev, userMessage, botMessage])
+    if (!text || isStreaming) return
+    void sendMessage(text)
     setInput('')
   }
 
@@ -56,42 +57,35 @@ export function AdminChat() {
       </div>
 
       <div className="flex-1 overflow-y-auto space-y-4 pb-4">
-        {messages.map((msg) => (
-          <div
-            key={msg.id}
-            className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-          >
-            <div
-              className={`max-w-[85%] md:max-w-[70%] px-3 md:px-4 py-3 text-sm leading-relaxed ${
-                msg.sender === 'user'
-                  ? 'bg-primary text-white rounded-xl rounded-br-sm'
-                  : 'bg-bg-muted text-text rounded-xl rounded-bl-sm'
-              }`}
-            >
-              <p className="whitespace-pre-line">{msg.text}</p>
-            </div>
+        {messages.length === 0 && (
+          <div className="text-center py-12 px-4">
+            <p className="text-sm font-medium text-text">¿En que puedo ayudarte?</p>
+            <p className="text-sm text-text-secondary mt-1">Gestion de cursos, empleados y la plataforma.</p>
           </div>
+        )}
+        {messages.map((msg) => (
+          <Bubble key={msg.id} message={msg} />
         ))}
+        <div ref={endRef} />
       </div>
 
-      <div className="flex gap-2 pt-4 border-t border-border">
+      <form onSubmit={handleSubmit} className="flex gap-2 pt-4 border-t border-border">
         <input
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault()
-              handleSend()
-            }
-          }}
           placeholder="Escribe tu consulta..."
-          className="flex-1 px-3 py-2 text-sm text-text border border-border rounded-lg bg-bg placeholder:text-text-muted focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-colors"
+          disabled={isStreaming}
+          className="flex-1 px-3 py-2 text-sm text-text border border-border rounded-lg bg-bg placeholder:text-text-muted focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-colors disabled:opacity-50"
         />
-        <Button size="md" onClick={handleSend} disabled={!input.trim()}>
-          <SendIcon />
-        </Button>
-      </div>
+        {isStreaming ? (
+          <Button type="button" variant="secondary" size="md" onClick={cancel}>Detener</Button>
+        ) : (
+          <Button type="submit" size="md" disabled={!input.trim()}>
+            <SendIcon />
+          </Button>
+        )}
+      </form>
     </div>
   )
 }

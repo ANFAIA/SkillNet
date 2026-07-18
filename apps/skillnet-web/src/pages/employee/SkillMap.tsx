@@ -1,4 +1,6 @@
 import { Card, CardTitle, SkillBars } from '../../components/ui'
+// v1-static: skills/SkillMap have NO backend endpoint yet. This page intentionally
+// renders static mock data until a skills API exists (out of v1 scope).
 import { skills } from '../../data/mockData'
 
 export function SkillMap() {

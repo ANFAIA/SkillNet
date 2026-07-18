@@ -1,27 +1,51 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Card, CardTitle, CourseItem, EmptyState } from '../../components/ui'
-import { courses } from '../../data/mockData'
+import { Card, CardTitle, CourseItem, EmptyState, SkeletonRow } from '../../components/ui'
+import { useEnrollments } from '../../api/enrollments'
+import { ApiError } from '../../api/client'
+import type { EnrollmentRead } from '../../types'
 
-type Tab = 'in-progress' | 'completed' | 'pending'
+type Tab = 'in_progress' | 'completed' | 'not_started'
 
 const tabs: { key: Tab; label: string }[] = [
-  { key: 'in-progress', label: 'En progreso' },
+  { key: 'in_progress', label: 'En progreso' },
   { key: 'completed', label: 'Completados' },
-  { key: 'pending', label: 'Pendientes' },
+  { key: 'not_started', label: 'Pendientes' },
 ]
 
-export function MyCourses() {
-  const [activeTab, setActiveTab] = useState<Tab>('in-progress')
-  const navigate = useNavigate()
+const statusLabel: Record<string, string> = {
+  not_started: 'Pendiente',
+  in_progress: 'En progreso',
+  completed: 'Completado',
+  overdue: 'Atrasado',
+}
 
-  const filtered = courses.filter((c) => c.status === activeTab)
+function subtitleFor(e: EnrollmentRead): string {
+  const label = statusLabel[e.status] ?? e.status
+  if (e.deadline) {
+    return `${label} · Fecha limite ${new Date(e.deadline).toLocaleDateString()}`
+  }
+  return label
+}
+
+export function MyCourses() {
+  const [activeTab, setActiveTab] = useState<Tab>('in_progress')
+  const navigate = useNavigate()
+  const { data, isLoading, error } = useEnrollments()
+
+  const items = data?.items ?? []
+  const filtered = items.filter((e) =>
+    activeTab === 'completed'
+      ? e.status === 'completed'
+      : activeTab === 'in_progress'
+        ? e.status === 'in_progress' || e.status === 'overdue'
+        : e.status === 'not_started',
+  )
 
   return (
     <div>
       <h2 className="text-xl font-semibold text-text mb-6">Mis Cursos</h2>
 
-      {/* Tabs */}
       <div className="flex gap-1 mb-6 border-b border-border overflow-x-auto">
         {tabs.map((tab) => (
           <button
@@ -39,27 +63,37 @@ export function MyCourses() {
         ))}
       </div>
 
-      {/* Course list */}
       <Card>
-        {filtered.length === 0 ? (
+        {isLoading ? (
+          <div className="space-y-1">
+            <SkeletonRow />
+            <SkeletonRow />
+            <SkeletonRow />
+          </div>
+        ) : error ? (
+          <EmptyState
+            title="No se pudieron cargar los cursos"
+            description={
+              error instanceof ApiError ? error.body.detail : 'Comprueba tu conexion e intentalo de nuevo'
+            }
+          />
+        ) : filtered.length === 0 ? (
           <EmptyState
             title="No hay cursos en esta categoria"
             description="Los cursos apareceran aqui cuando esten disponibles"
           />
         ) : (
           <>
-            <CardTitle className="mb-2">
-              {tabs.find((t) => t.key === activeTab)?.label}
-            </CardTitle>
+            <CardTitle className="mb-2">{tabs.find((t) => t.key === activeTab)?.label}</CardTitle>
             <div>
-              {filtered.map((course) => (
+              {filtered.map((e) => (
                 <CourseItem
-                  key={course.id}
-                  title={course.title}
-                  subtitle={course.subtitle}
-                  progress={course.progress}
-                  color={course.color}
-                  onClick={() => navigate(`/empleado/curso/${course.id}`)}
+                  key={e.id}
+                  title={e.course_title}
+                  subtitle={subtitleFor(e)}
+                  progress={e.progress ?? 0}
+                  color="var(--color-primary)"
+                  onClick={() => navigate(`/empleado/curso/${e.course_id}`)}
                 />
               ))}
             </div>

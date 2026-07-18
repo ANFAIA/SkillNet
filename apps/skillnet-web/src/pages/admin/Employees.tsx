@@ -1,7 +1,10 @@
 import { useState } from 'react'
-import { Card, CardTitle, SkillBars, Badge, Button } from '../../components/ui'
-import { employees } from '../../data/adminMockData'
-import type { Employee } from '../../data/adminMockData'
+import { Card, CardTitle, Badge, Button, Input, EmptyState, SkeletonRow } from '../../components/ui'
+import { useUsers, useCreateUser } from '../../api/users'
+import { useCourses } from '../../api/courses'
+import { useEnrollments, useAssignCourse } from '../../api/enrollments'
+import { ApiError } from '../../api/client'
+import type { User } from '../../types'
 
 function SearchIcon() {
   return (
@@ -12,60 +15,128 @@ function SearchIcon() {
   )
 }
 
-function EmployeeDetail({ employee, onBack }: { employee: Employee; onBack: () => void }) {
+function CreateEmployeeForm({ onDone }: { onDone: () => void }) {
+  const create = useCreateUser()
+  const [email, setEmail] = useState('')
+  const [fullName, setFullName] = useState('')
+
+  function submit() {
+    if (!email.trim() || !fullName.trim() || create.isPending) return
+    create.mutate(
+      { email: email.trim(), full_name: fullName.trim() },
+      { onSuccess: onDone },
+    )
+  }
+
+  return (
+    <Card className="mt-4">
+      <CardTitle className="mb-3">Nuevo empleado</CardTitle>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Input label="Nombre completo" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Ej: Laura Martinez" />
+        <Input label="Correo" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="laura@empresa.com" />
+      </div>
+      {create.isError && (
+        <p className="text-sm text-danger mt-2">
+          {create.error instanceof ApiError ? create.error.body.detail : 'No se pudo crear el empleado'}
+        </p>
+      )}
+      <div className="flex gap-2 mt-4">
+        <Button size="sm" onClick={submit} disabled={create.isPending || !email.trim() || !fullName.trim()}>
+          {create.isPending ? 'Creando...' : 'Crear empleado'}
+        </Button>
+        <Button size="sm" variant="ghost" onClick={onDone}>Cancelar</Button>
+      </div>
+    </Card>
+  )
+}
+
+function AssignCourseForm({ user }: { user: User }) {
+  const { data: courseData } = useCourses({ status: 'published' })
+  const assign = useAssignCourse()
+  const [courseId, setCourseId] = useState('')
+  const [deadline, setDeadline] = useState('')
+  const courses = courseData?.items ?? []
+
+  function submit() {
+    if (!courseId || assign.isPending) return
+    assign.mutate(
+      { user_ids: [user.id], course_id: courseId, deadline: deadline || undefined },
+      {
+        onSuccess: () => {
+          setCourseId('')
+          setDeadline('')
+        },
+      },
+    )
+  }
+
+  return (
+    <div className="mt-3 space-y-3">
+      <div>
+        <label className="block text-sm font-medium text-text mb-1">Curso</label>
+        <select
+          value={courseId}
+          onChange={(e) => setCourseId(e.target.value)}
+          className="w-full px-3 py-2 text-sm text-text border border-border rounded-lg bg-bg focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-colors"
+        >
+          <option value="">Selecciona un curso</option>
+          {courses.map((c) => (
+            <option key={c.id} value={c.id}>{c.title}</option>
+          ))}
+        </select>
+      </div>
+      <Input label="Fecha limite (opcional)" type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
+      {assign.isError && (
+        <p className="text-sm text-danger">
+          {assign.error instanceof ApiError ? assign.error.body.detail : 'No se pudo asignar el curso'}
+        </p>
+      )}
+      {assign.isSuccess && <p className="text-sm text-accent">Curso asignado correctamente.</p>}
+      <Button size="sm" onClick={submit} disabled={!courseId || assign.isPending}>
+        {assign.isPending ? 'Asignando...' : 'Asignar curso'}
+      </Button>
+    </div>
+  )
+}
+
+function EmployeeDetail({ employee, onBack }: { employee: User; onBack: () => void }) {
+  const { data: enrollmentData, isLoading } = useEnrollments({ user_id: employee.id })
+  const enrollments = enrollmentData?.items ?? []
+
   return (
     <div>
-      <button
-        type="button"
-        onClick={onBack}
-        className="text-sm text-primary hover:underline cursor-pointer mb-4"
-      >
+      <button type="button" onClick={onBack} className="text-sm text-primary hover:underline cursor-pointer mb-4">
         Volver a la lista
       </button>
       <Card>
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h3 className="text-lg font-semibold text-text truncate">{employee.name}</h3>
-            <p className="text-sm text-text-secondary truncate">{employee.role} -- {employee.department}</p>
-          </div>
-          <SkillBars level={employee.averageLevel} />
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-5">
-          <div className="border border-border rounded-lg p-4">
-            <p className="text-sm text-text-secondary">Cursos asignados</p>
-            <p className="text-2xl font-semibold text-text mt-1">{employee.coursesAssigned}</p>
-          </div>
-          <div className="border border-border rounded-lg p-4">
-            <p className="text-sm text-text-secondary">Cursos completados</p>
-            <p className="text-2xl font-semibold text-text mt-1">{employee.coursesCompleted}</p>
-          </div>
+        <div className="min-w-0">
+          <h3 className="text-lg font-semibold text-text truncate">{employee.full_name}</h3>
+          <p className="text-sm text-text-secondary truncate">{employee.email}</p>
         </div>
 
         <div className="mt-5">
-          <CardTitle>Skills</CardTitle>
-          <div className="mt-3 space-y-3">
-            {employee.skills.map((skill) => (
-              <div key={skill.name} className="flex items-center gap-3 min-w-0">
-                <span className="text-sm text-text w-20 sm:w-28 shrink-0 truncate">{skill.name}</span>
-                <div className="flex-1 h-1.5 bg-bg-muted rounded-full overflow-hidden min-w-0">
-                  <div
-                    className="h-full rounded-full transition-all duration-300"
-                    style={{
-                      width: `${skill.score}%`,
-                      backgroundColor:
-                        skill.level === 'expert' ? 'var(--color-primary)' :
-                        skill.level === 'high' ? 'var(--color-skill-high)' :
-                        skill.level === 'medium' ? 'var(--color-skill-medium)' :
-                        'var(--color-skill-low)',
-                    }}
-                  />
-                </div>
-                <span className="text-xs text-text-muted w-8 text-right">{skill.score}</span>
-                <SkillBars level={skill.level} />
+          <CardTitle>Cursos asignados</CardTitle>
+          <div className="mt-3">
+            {isLoading ? (
+              <SkeletonRow />
+            ) : enrollments.length === 0 ? (
+              <p className="text-sm text-text-muted">Sin cursos asignados.</p>
+            ) : (
+              <div className="space-y-0">
+                {enrollments.map((e) => (
+                  <div key={e.id} className="flex items-center justify-between py-2.5 border-b border-border last:border-b-0">
+                    <span className="text-sm text-text truncate min-w-0">{e.course_title}</span>
+                    <span className="text-xs text-text-muted shrink-0 ml-4">{e.progress ?? 0}%</span>
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
           </div>
+        </div>
+
+        <div className="mt-5 border-t border-border pt-5">
+          <CardTitle>Asignar nuevo curso</CardTitle>
+          <AssignCourseForm user={employee} />
         </div>
       </Card>
     </div>
@@ -74,21 +145,14 @@ function EmployeeDetail({ employee, onBack }: { employee: Employee; onBack: () =
 
 export function Employees() {
   const [search, setSearch] = useState('')
-  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null)
+  const [selected, setSelected] = useState<User | null>(null)
+  const [creating, setCreating] = useState(false)
+  const { data, isLoading, error } = useUsers({ role: 'employee', search: search || undefined })
 
-  const filtered = employees.filter((emp) =>
-    emp.name.toLowerCase().includes(search.toLowerCase()) ||
-    emp.role.toLowerCase().includes(search.toLowerCase()) ||
-    emp.department.toLowerCase().includes(search.toLowerCase())
-  )
+  const employees = data?.items ?? []
 
-  if (selectedEmployee) {
-    return (
-      <EmployeeDetail
-        employee={selectedEmployee}
-        onBack={() => setSelectedEmployee(null)}
-      />
-    )
+  if (selected) {
+    return <EmployeeDetail employee={selected} onBack={() => setSelected(null)} />
   }
 
   return (
@@ -96,102 +160,81 @@ export function Employees() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h2 className="text-xl font-semibold text-text">Empleados</h2>
-          <p className="text-sm text-text-secondary mt-1">{employees.length} miembros del equipo</p>
+          <p className="text-sm text-text-secondary mt-1">{data?.total ?? employees.length} miembros del equipo</p>
         </div>
-        <Button variant="primary" size="md">Agregar empleado</Button>
+        <Button variant="primary" size="md" onClick={() => setCreating((v) => !v)}>
+          {creating ? 'Cerrar' : 'Agregar empleado'}
+        </Button>
       </div>
 
-      {/* Search */}
+      {creating && <CreateEmployeeForm onDone={() => setCreating(false)} />}
+
       <div className="relative mt-4">
         <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-text-muted">
           <SearchIcon />
         </div>
         <input
           type="text"
-          placeholder="Buscar por nombre, rol o departamento..."
+          placeholder="Buscar por nombre o correo..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="w-full pl-9 pr-3 py-2 text-sm text-text border border-border rounded-lg bg-bg placeholder:text-text-muted focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-colors"
         />
       </div>
 
-      {/* Table (desktop) */}
       <Card className="mt-4 p-0 overflow-hidden hidden md:block">
-        <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border bg-bg-subtle">
-              <th className="text-left py-3 px-5 font-medium text-text-secondary">Nombre</th>
-              <th className="text-left py-3 px-4 font-medium text-text-secondary">Rol</th>
-              <th className="text-center py-3 px-4 font-medium text-text-secondary">Cursos</th>
-              <th className="text-center py-3 px-4 font-medium text-text-secondary">Nivel</th>
-              <th className="text-left py-3 px-4 font-medium text-text-secondary">Departamento</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((emp) => (
-              <tr
-                key={emp.id}
-                className="border-b border-border last:border-b-0 hover:bg-bg-subtle transition-colors cursor-pointer"
-                onClick={() => setSelectedEmployee(emp)}
-              >
-                <td className="py-3 px-5">
-                  <span className="font-medium text-text">{emp.name}</span>
-                </td>
-                <td className="py-3 px-4 text-text-secondary">{emp.role}</td>
-                <td className="py-3 px-4 text-center">
-                  <span className="text-text">{emp.coursesCompleted}</span>
-                  <span className="text-text-muted">/{emp.coursesAssigned}</span>
-                </td>
-                <td className="py-3 px-4">
-                  <div className="flex justify-center">
-                    <SkillBars level={emp.averageLevel} />
-                  </div>
-                </td>
-                <td className="py-3 px-4">
-                  <Badge variant="primary" badgeStyle="plain">{emp.department}</Badge>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        </div>
-        {filtered.length === 0 && (
-          <div className="py-8 text-center text-sm text-text-muted">
-            No se encontraron empleados
+        {isLoading ? (
+          <div className="p-4 space-y-1">
+            <SkeletonRow />
+            <SkeletonRow />
+            <SkeletonRow />
+          </div>
+        ) : error ? (
+          <EmptyState title="No se pudieron cargar los empleados" />
+        ) : employees.length === 0 ? (
+          <EmptyState title="No se encontraron empleados" description="Agrega tu primer empleado" />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border bg-bg-subtle">
+                  <th className="text-left py-3 px-5 font-medium text-text-secondary">Nombre</th>
+                  <th className="text-left py-3 px-4 font-medium text-text-secondary">Correo</th>
+                  <th className="text-left py-3 px-4 font-medium text-text-secondary">Rol</th>
+                </tr>
+              </thead>
+              <tbody>
+                {employees.map((emp) => (
+                  <tr
+                    key={emp.id}
+                    className="border-b border-border last:border-b-0 hover:bg-bg-subtle transition-colors cursor-pointer"
+                    onClick={() => setSelected(emp)}
+                  >
+                    <td className="py-3 px-5"><span className="font-medium text-text">{emp.full_name}</span></td>
+                    <td className="py-3 px-4 text-text-secondary">{emp.email}</td>
+                    <td className="py-3 px-4">
+                      <Badge variant="primary" badgeStyle="plain">{emp.role === 'admin' ? 'Admin' : 'Empleado'}</Badge>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </Card>
 
-      {/* Card list (mobile) */}
       <div className="mt-4 space-y-3 md:hidden">
-        {filtered.map((emp) => (
-          <Card
-            key={emp.id}
-            variant="interactive"
-            onClick={() => setSelectedEmployee(emp)}
-          >
-            <div className="flex items-start justify-between">
+        {!isLoading && !error && employees.map((emp) => (
+          <Card key={emp.id} variant="interactive" onClick={() => setSelected(emp)}>
+            <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <p className="font-medium text-text">{emp.name}</p>
-                <p className="text-sm text-text-secondary mt-0.5">{emp.role}</p>
+                <p className="font-medium text-text truncate">{emp.full_name}</p>
+                <p className="text-sm text-text-secondary mt-0.5 truncate">{emp.email}</p>
               </div>
-              <SkillBars level={emp.averageLevel} />
-            </div>
-            <div className="flex items-center justify-between mt-3">
-              <Badge variant="primary" badgeStyle="plain">{emp.department}</Badge>
-              <span className="text-sm text-text-secondary">
-                <span className="text-text">{emp.coursesCompleted}</span>
-                <span className="text-text-muted">/{emp.coursesAssigned} cursos</span>
-              </span>
+              <Badge variant="primary" badgeStyle="plain">{emp.role === 'admin' ? 'Admin' : 'Empleado'}</Badge>
             </div>
           </Card>
         ))}
-        {filtered.length === 0 && (
-          <div className="py-8 text-center text-sm text-text-muted">
-            No se encontraron empleados
-          </div>
-        )}
       </div>
     </div>
   )
