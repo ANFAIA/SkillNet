@@ -263,8 +263,13 @@ Small colored dot. Not a full colored cell background.
 
 ---
 
+## Motion & Animations
+
+See [`motion-system.md`](motion-system.md) for the complete animation specification — easing curves, timing, patterns (morph modals, blur transitions, staggered lists, micro-interactions).
+
+---
+
 ## What this system does NOT define
 
-- Animations and transitions (use sparingly, only for functional feedback like button hover)
 - Dark mode (not planned)
 - Marketing pages (this is for the app only)
