@@ -1,6 +1,9 @@
 import { useNavigate } from 'react-router-dom'
-import { Card, CardTitle, MetricCard, CourseItem, SkillBars } from '../../components/ui'
-import { user, courses, skills, activity } from '../../data/mockData'
+import { Card, CardTitle, MetricCard, CourseItem, SkillBars, EmptyState, SkeletonRow } from '../../components/ui'
+import { useMe } from '../../api/auth'
+import { useEnrollments } from '../../api/enrollments'
+// v1-static: skills have no backend yet (see task scope). Kept as mock preview.
+import { skills } from '../../data/mockData'
 
 function BookIcon() {
   return (
@@ -19,10 +22,11 @@ function CheckIcon() {
   )
 }
 
-function FlameIcon() {
+function ClockIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" />
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12 6 12 12 16 14" />
     </svg>
   )
 }
@@ -38,64 +42,68 @@ function TrendUpIcon() {
 
 export function Dashboard() {
   const navigate = useNavigate()
-  const inProgress = courses.filter((c) => c.status === 'in-progress')
+  const { data: me } = useMe()
+  const { data: enrollmentData, isLoading, error } = useEnrollments()
+
+  const enrollments = enrollmentData?.items ?? []
+  const active = enrollments.filter((e) => e.status === 'in_progress' || e.status === 'overdue')
+  const completed = enrollments.filter((e) => e.status === 'completed')
+  const pending = enrollments.filter((e) => e.status === 'not_started')
+  const scored = completed.filter((e) => e.score !== null)
+  const avgScore = scored.length
+    ? Math.round(scored.reduce((acc, e) => acc + (e.score ?? 0), 0) / scored.length)
+    : 0
+
   const dashboardSkills = skills.slice(0, 4)
+  const firstName = me?.full_name?.split(' ')[0] ?? ''
 
   return (
     <div>
-      {/* Greeting */}
       <div className="mb-6">
-        <h2 className="text-xl font-semibold text-text">Hola, {user.name}</h2>
+        <h2 className="text-xl font-semibold text-text">Hola{firstName ? `, ${firstName}` : ''}</h2>
         <p className="text-sm text-text-secondary mt-0.5">Lo que toca hoy</p>
       </div>
 
-      {/* Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <MetricCard
-          value={String(user.activeCourses)}
-          label="Cursos activos"
-          icon={<BookIcon />}
-          color="blue"
-        />
-        <MetricCard
-          value={String(user.completedCourses)}
-          label="Completados"
-          icon={<CheckIcon />}
-          color="green"
-        />
-        <MetricCard
-          value={`${user.streak} dias`}
-          label="Racha"
-          icon={<FlameIcon />}
-          color="orange"
-        />
-        <MetricCard
-          value={String(user.level)}
-          label="Nivel"
-          icon={<TrendUpIcon />}
-          color="purple"
-        />
+        <MetricCard value={String(active.length)} label="Cursos activos" icon={<BookIcon />} color="blue" />
+        <MetricCard value={String(completed.length)} label="Completados" icon={<CheckIcon />} color="green" />
+        <MetricCard value={String(pending.length)} label="Pendientes" icon={<ClockIcon />} color="orange" />
+        <MetricCard value={`${avgScore}`} label="Nota media" icon={<TrendUpIcon />} color="purple" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Cursos en progreso */}
         <Card>
           <CardTitle className="mb-2">Cursos en progreso</CardTitle>
-          <div>
-            {inProgress.map((course) => (
-              <CourseItem
-                key={course.id}
-                title={course.title}
-                subtitle={course.subtitle}
-                progress={course.progress}
-                color={course.color}
-                onClick={() => navigate(`/empleado/curso/${course.id}`)}
-              />
-            ))}
-          </div>
+          {isLoading ? (
+            <div className="space-y-1">
+              <SkeletonRow />
+              <SkeletonRow />
+            </div>
+          ) : error ? (
+            <EmptyState title="No se pudieron cargar tus cursos" />
+          ) : active.length === 0 ? (
+            <EmptyState
+              title="No tienes cursos en progreso"
+              description="Empieza un curso desde Mis Cursos"
+              action={{ label: 'Ver mis cursos', onClick: () => navigate('/empleado/cursos') }}
+            />
+          ) : (
+            <div>
+              {active.map((e) => (
+                <CourseItem
+                  key={e.id}
+                  title={e.course_title}
+                  subtitle={e.deadline ? `Fecha limite ${new Date(e.deadline).toLocaleDateString()}` : 'En progreso'}
+                  progress={e.progress ?? 0}
+                  color="var(--color-primary)"
+                  onClick={() => navigate(`/empleado/curso/${e.course_id}`)}
+                />
+              ))}
+            </div>
+          )}
         </Card>
 
-        {/* Skill Map preview */}
+        {/* v1-static: Skill Map preview — skills have no backend endpoint yet. */}
         <Card>
           <CardTitle className="mb-4">Mi Skill Map</CardTitle>
           <div className="space-y-3">
@@ -106,19 +114,6 @@ export function Dashboard() {
                   <SkillBars level={skill.level} />
                   <span className="text-xs text-text-secondary capitalize w-14">{skill.level}</span>
                 </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-
-        {/* Actividad reciente */}
-        <Card className="lg:col-span-2">
-          <CardTitle className="mb-3">Actividad reciente</CardTitle>
-          <div className="space-y-0">
-            {activity.map((item) => (
-              <div key={item.id} className="flex items-center justify-between py-2.5 border-b border-border last:border-b-0">
-                <span className="text-sm text-text truncate min-w-0">{item.text}</span>
-                <span className="text-xs text-text-muted shrink-0 ml-4">{item.time}</span>
               </div>
             ))}
           </div>

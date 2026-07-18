@@ -13,6 +13,9 @@ export type { CourseItemProps } from './CourseItem'
 export { EmptyState } from './EmptyState'
 export type { EmptyStateProps } from './EmptyState'
 
+export { FileUploadZone } from './FileUploadZone'
+export type { FileUploadZoneProps } from './FileUploadZone'
+
 export { Input } from './Input'
 export type { InputProps } from './Input'
 
