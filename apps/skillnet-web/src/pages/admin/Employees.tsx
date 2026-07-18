@@ -19,12 +19,36 @@ function CreateEmployeeForm({ onDone }: { onDone: () => void }) {
   const create = useCreateUser()
   const [email, setEmail] = useState('')
   const [fullName, setFullName] = useState('')
+  const [password, setPassword] = useState('')
+
+  const created = create.data
+  const passwordTooShort = password.length > 0 && password.length < 8
 
   function submit() {
-    if (!email.trim() || !fullName.trim() || create.isPending) return
-    create.mutate(
-      { email: email.trim(), full_name: fullName.trim() },
-      { onSuccess: onDone },
+    if (!email.trim() || !fullName.trim() || passwordTooShort || create.isPending) return
+    create.mutate({
+      email: email.trim(),
+      full_name: fullName.trim(),
+      password: password.trim() || undefined,
+    })
+  }
+
+  if (created) {
+    const shownPassword = created.temporary_password ?? password
+    return (
+      <Card className="mt-4">
+        <CardTitle className="mb-2">Empleado creado</CardTitle>
+        <p className="text-sm text-text-secondary mb-3">
+          Comparte estas credenciales con {created.full_name}. La contraseña no se volvera a mostrar.
+        </p>
+        <div className="rounded-lg border border-border bg-bg-subtle p-3 text-sm space-y-1">
+          <div><span className="text-text-muted">Correo:</span> <span className="font-medium text-text">{created.email}</span></div>
+          <div><span className="text-text-muted">Contraseña:</span> <span className="font-mono font-medium text-text">{shownPassword}</span></div>
+        </div>
+        <div className="flex gap-2 mt-4">
+          <Button size="sm" onClick={onDone}>Listo</Button>
+        </div>
+      </Card>
     )
   }
 
@@ -34,14 +58,24 @@ function CreateEmployeeForm({ onDone }: { onDone: () => void }) {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Input label="Nombre completo" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Ej: Laura Martinez" />
         <Input label="Correo" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="laura@empresa.com" />
+        <Input
+          label="Contraseña (opcional)"
+          type="text"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="Se genera una si la dejas vacia"
+        />
       </div>
+      {passwordTooShort && (
+        <p className="text-sm text-danger mt-2">La contraseña debe tener al menos 8 caracteres.</p>
+      )}
       {create.isError && (
         <p className="text-sm text-danger mt-2">
           {create.error instanceof ApiError ? create.error.body.detail : 'No se pudo crear el empleado'}
         </p>
       )}
       <div className="flex gap-2 mt-4">
-        <Button size="sm" onClick={submit} disabled={create.isPending || !email.trim() || !fullName.trim()}>
+        <Button size="sm" onClick={submit} disabled={create.isPending || !email.trim() || !fullName.trim() || passwordTooShort}>
           {create.isPending ? 'Creando...' : 'Crear empleado'}
         </Button>
         <Button size="sm" variant="ghost" onClick={onDone}>Cancelar</Button>
