@@ -99,7 +99,7 @@ However, the renderer is extensible. Organizations can register custom component
 
 ### Experimental: applying the same idea to video (A2TL-Video)
 
-The same principle — agent describes *what*, renderer decides *how* — was applied experimentally to explainer videos. [A2TL-Video (Agent to Transformation Language — Video)](https://github.com/JoseEstevez520/a2tl-video) is a compact format inspired by Remotion where ~100 lines produce a 74-second video. The agent writes ~400 tokens instead of ~1,800 (Remotion JSX) or ~8,000 (HTML+GSAP).
+The same principle — agent describes *what*, renderer decides *how* — was applied experimentally to explainer videos. [A2TL-Video (Agent to Transformation Language — Video)](https://github.com/JoseEstevez520/a2tl-video) is a compact format inspired by Remotion where 98 lines / 1,173 tokens produce a 74-second video — 48% fewer tokens than equivalent Remotion JSX (2,257 tokens) and 94% fewer than the HTML player output (21,305 tokens). Measured with tiktoken.
 
 ```
 VDSL/1
