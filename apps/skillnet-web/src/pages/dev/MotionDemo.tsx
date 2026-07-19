@@ -81,7 +81,7 @@ function PageTransitionDemo() {
           </div>
           <div>
             <p className="font-medium mb-1">Ahora:</p>
-            <code className="block bg-bg-muted rounded p-2">opacity: 0, blur: 8px, scale: 0.98, duration: 0.5</code>
+            <code className="block bg-bg-muted rounded p-2">opacity: 0, blur: 6px, duration: 0.3, curva firma</code>
           </div>
         </div>
       </details>
@@ -528,7 +528,7 @@ function ComparisonDemo() {
                 className="absolute inset-0 flex items-center justify-center"
                 {...pageTransition}
               >
-                <p className="text-sm text-text-secondary">blur + scale, 0.5s, curva firma</p>
+                <p className="text-sm text-text-secondary">blur + fade, 0.3s, curva firma</p>
               </motion.div>
             </AnimatePresence>
           </div>
