@@ -6,6 +6,9 @@ import { LessonContent } from '../../components/courses/LessonContent'
 import { ExerciseRenderer } from '../../components/exercises/ExerciseRenderer'
 import { useCourse } from '../../api/courses'
 import { useEnrollments } from '../../api/enrollments'
+import { slideVariants, staggerContainer, staggerItem, duration, ease, transition } from '../../lib/motion'
+
+const lessonSlide = slideVariants(48)
 
 function ChevronDown({ open }: { open: boolean }) {
   return (
@@ -28,6 +31,7 @@ export function CourseView() {
 
   const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set())
   const [activeLessonId, setActiveLessonId] = useState<string>('')
+  const [direction, setDirection] = useState<1 | -1>(1)
 
   // Initialize expansion / active lesson once the course loads.
   useEffect(() => {
@@ -76,9 +80,19 @@ export function CourseView() {
     })
   }
 
+  // Switch lesson with a directional transition — forward slides in from the
+  // right, going back slides in from the left.
+  function selectLesson(lessonId: string) {
+    if (lessonId === activeLessonId) return
+    const targetIndex = allLessons.findIndex((l) => l.id === lessonId)
+    setDirection(targetIndex >= currentIndex ? 1 : -1)
+    setActiveLessonId(lessonId)
+  }
+
   function goToNext() {
     if (currentIndex < 0 || currentIndex >= allLessons.length - 1) return
     const nextLesson = allLessons[currentIndex + 1]
+    setDirection(1)
     setActiveLessonId(nextLesson.id)
     const parentModule = course!.modules.find((m) => m.lessons.some((l) => l.id === nextLesson.id))
     if (parentModule) setExpandedModules((prev) => new Set(prev).add(parentModule.id))
@@ -119,12 +133,13 @@ export function CourseView() {
                       <ChevronDown open={isExpanded} />
                     </button>
                     {isExpanded && (
-                      <div>
+                      <motion.div initial="hidden" animate="visible" variants={staggerContainer}>
                         {mod.lessons.map((lesson) => (
-                          <button
+                          <motion.button
                             key={lesson.id}
                             type="button"
-                            onClick={() => setActiveLessonId(lesson.id)}
+                            variants={staggerItem}
+                            onClick={() => selectLesson(lesson.id)}
                             className={`w-full text-left px-6 py-2.5 text-sm transition-colors border-b border-border last:border-b-0 ${
                               activeLessonId === lesson.id
                                 ? 'bg-primary-subtle text-primary font-medium'
@@ -132,9 +147,9 @@ export function CourseView() {
                             }`}
                           >
                             {lesson.title}
-                          </button>
+                          </motion.button>
                         ))}
-                      </div>
+                      </motion.div>
                     )}
                   </div>
                 )
@@ -144,14 +159,20 @@ export function CourseView() {
         </div>
 
         <div className="flex-1 min-w-0">
-          <AnimatePresence mode="wait">
+          <AnimatePresence mode="wait" custom={direction} initial={false}>
             {activeLesson && (
               <motion.div
                 key={activeLesson.id}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.2 }}
+                custom={direction}
+                variants={lessonSlide}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={{
+                  x: direction > 0 ? transition.pushIn : transition.pushOut,
+                  opacity: { duration: duration.normal, ease: ease.base },
+                  filter: { duration: duration.normal, ease: ease.base },
+                }}
               >
                 <Card>
                   <h3 className="text-base font-medium text-text mb-4">{activeLesson.title}</h3>

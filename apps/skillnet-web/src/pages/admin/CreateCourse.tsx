@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
+import { ease, duration } from '../../lib/motion'
 import { Card, CardTitle, Button, Input, Badge, EmptyState, FileUploadZone, ProgressBar } from '../../components/ui'
 import { GenerationProgress } from '../../components/generation/GenerationProgress'
 import { useUploadDocument, useProcessDocument } from '../../api/documents'
@@ -84,8 +85,14 @@ function StepSource({ selected, onSelect }: { selected: SourceType; onSelect: (s
         {sources.map((s) => (
           <Card
             key={s.key}
-            variant={s.disabled ? 'default' : 'interactive'}
-            className={`${selected === s.key ? 'border-primary bg-primary-subtle' : ''} ${s.disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+            variant="default"
+            className={`transition-colors ${
+              s.disabled
+                ? 'opacity-50 cursor-not-allowed'
+                : selected === s.key
+                  ? 'border-primary bg-primary-subtle cursor-pointer'
+                  : 'cursor-pointer hover:border-primary'
+            }`}
             onClick={() => !s.disabled && onSelect(s.key)}
           >
             <div className="text-text-secondary mb-3">{s.icon}</div>
@@ -243,10 +250,22 @@ function StepAssign({ selected, onToggle, deadline, onDeadline }: {
   )
 }
 
+// Wizard step slide — blur + signature curve, with iOS-style asymmetry:
+// entering a step is deliberate (slow, snapIn), leaving is quick (fast, snapOut).
 const slideVariants = {
-  enter: (dir: Direction) => ({ x: dir > 0 ? 200 : -200, opacity: 0 }),
-  center: { x: 0, opacity: 1 },
-  exit: (dir: Direction) => ({ x: dir > 0 ? -200 : 200, opacity: 0 }),
+  enter: (dir: Direction) => ({ x: dir > 0 ? 200 : -200, opacity: 0, filter: 'blur(6px)' }),
+  center: {
+    x: 0,
+    opacity: 1,
+    filter: 'blur(0px)',
+    transition: { duration: 0.4, ease: ease.snapIn },
+  },
+  exit: (dir: Direction) => ({
+    x: dir > 0 ? -200 : 200,
+    opacity: 0,
+    filter: 'blur(6px)',
+    transition: { duration: duration.fast, ease: ease.snapOut },
+  }),
 }
 
 export function CreateCourse() {
@@ -414,7 +433,7 @@ export function CreateCourse() {
 
       <div className="mt-6 overflow-hidden">
         <AnimatePresence mode="wait" custom={direction}>
-          <motion.div key={step} custom={direction} variants={slideVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.2, ease: 'easeOut' }}>
+          <motion.div key={step} custom={direction} variants={slideVariants} initial="enter" animate="center" exit="exit">
             {renderStep()}
           </motion.div>
         </AnimatePresence>

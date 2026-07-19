@@ -1,9 +1,10 @@
-import type { ButtonHTMLAttributes } from 'react'
+import { motion, type HTMLMotionProps } from 'framer-motion'
+import { transition } from '../../lib/motion'
 
 type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'accent' | 'danger'
 type ButtonSize = 'sm' | 'md' | 'lg'
 
-export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+export interface ButtonProps extends HTMLMotionProps<'button'> {
   variant?: ButtonVariant
   size?: ButtonSize
 }
@@ -36,7 +37,7 @@ export function Button({
   ...props
 }: ButtonProps) {
   return (
-    <button
+    <motion.button
       className={`
         inline-flex items-center justify-center font-medium rounded-lg max-w-full
         transition-colors duration-150 cursor-pointer
@@ -47,9 +48,12 @@ export function Button({
         ${className}
       `}
       disabled={disabled}
+      whileHover={disabled ? undefined : { scale: 1.03 }}
+      whileTap={disabled ? undefined : { scale: 0.97 }}
+      transition={transition.micro}
       {...props}
     >
       {children}
-    </button>
+    </motion.button>
   )
 }
