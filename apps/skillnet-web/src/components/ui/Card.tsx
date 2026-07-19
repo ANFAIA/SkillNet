@@ -1,8 +1,9 @@
-import type { HTMLAttributes } from 'react'
+import { motion, type HTMLMotionProps } from 'framer-motion'
+import { spring, duration, ease } from '../../lib/motion'
 
 type CardVariant = 'default' | 'interactive'
 
-export interface CardProps extends HTMLAttributes<HTMLDivElement> {
+export interface CardProps extends HTMLMotionProps<'div'> {
   variant?: CardVariant
 }
 
@@ -19,13 +20,20 @@ export function Card({
   children,
   ...props
 }: CardProps) {
+  const interactive = variant === 'interactive'
+
   return (
-    <div
+    <motion.div
       className={`${variantClasses[variant]} ${className}`}
+      whileHover={interactive ? { scale: 1.02, boxShadow: '0 8px 32px -8px rgba(0,0,0,0.12)' } : undefined}
+      transition={{
+        scale: spring.default,
+        boxShadow: { duration: duration.normal, ease: ease.base },
+      }}
       {...props}
     >
       {children}
-    </div>
+    </motion.div>
   )
 }
 

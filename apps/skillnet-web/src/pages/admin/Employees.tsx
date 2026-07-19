@@ -1,9 +1,11 @@
 import { useState } from 'react'
-import { Card, CardTitle, Badge, Button, Input, EmptyState, SkeletonRow } from '../../components/ui'
+import { motion } from 'framer-motion'
+import { Card, CardTitle, Badge, Button, Input, EmptyState, SkeletonRow, Modal } from '../../components/ui'
 import { useUsers, useCreateUser } from '../../api/users'
 import { useCourses } from '../../api/courses'
 import { useEnrollments, useAssignCourse } from '../../api/enrollments'
 import { ApiError } from '../../api/client'
+import { staggerContainer, staggerItem } from '../../lib/motion'
 import type { User } from '../../types'
 
 function SearchIcon() {
@@ -36,7 +38,7 @@ function CreateEmployeeForm({ onDone }: { onDone: () => void }) {
   if (created) {
     const shownPassword = created.temporary_password ?? password
     return (
-      <Card className="mt-4">
+      <div>
         <CardTitle className="mb-2">Empleado creado</CardTitle>
         <p className="text-sm text-text-secondary mb-3">
           Comparte estas credenciales con {created.full_name}. La contraseña no se volvera a mostrar.
@@ -48,12 +50,12 @@ function CreateEmployeeForm({ onDone }: { onDone: () => void }) {
         <div className="flex gap-2 mt-4">
           <Button size="sm" onClick={onDone}>Listo</Button>
         </div>
-      </Card>
+      </div>
     )
   }
 
   return (
-    <Card className="mt-4">
+    <div>
       <CardTitle className="mb-3">Nuevo empleado</CardTitle>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Input label="Nombre completo" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Ej: Laura Martinez" />
@@ -80,7 +82,7 @@ function CreateEmployeeForm({ onDone }: { onDone: () => void }) {
         </Button>
         <Button size="sm" variant="ghost" onClick={onDone}>Cancelar</Button>
       </div>
-    </Card>
+    </div>
   )
 }
 
@@ -133,46 +135,41 @@ function AssignCourseForm({ user }: { user: User }) {
   )
 }
 
-function EmployeeDetail({ employee, onBack }: { employee: User; onBack: () => void }) {
+function EmployeeDetail({ employee }: { employee: User }) {
   const { data: enrollmentData, isLoading } = useEnrollments({ user_id: employee.id })
   const enrollments = enrollmentData?.items ?? []
 
   return (
     <div>
-      <button type="button" onClick={onBack} className="text-sm text-primary hover:underline cursor-pointer mb-4">
-        Volver a la lista
-      </button>
-      <Card>
-        <div className="min-w-0">
-          <h3 className="text-lg font-semibold text-text truncate">{employee.full_name}</h3>
-          <p className="text-sm text-text-secondary truncate">{employee.email}</p>
-        </div>
+      <div className="min-w-0 pr-8">
+        <h3 className="text-lg font-semibold text-text truncate">{employee.full_name}</h3>
+        <p className="text-sm text-text-secondary truncate">{employee.email}</p>
+      </div>
 
-        <div className="mt-5">
-          <CardTitle>Cursos asignados</CardTitle>
-          <div className="mt-3">
-            {isLoading ? (
-              <SkeletonRow />
-            ) : enrollments.length === 0 ? (
-              <p className="text-sm text-text-muted">Sin cursos asignados.</p>
-            ) : (
-              <div className="space-y-0">
-                {enrollments.map((e) => (
-                  <div key={e.id} className="flex items-center justify-between py-2.5 border-b border-border last:border-b-0">
-                    <span className="text-sm text-text truncate min-w-0">{e.course_title}</span>
-                    <span className="text-xs text-text-muted shrink-0 ml-4">{e.progress ?? 0}%</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+      <div className="mt-6">
+        <CardTitle>Cursos asignados</CardTitle>
+        <div className="mt-3">
+          {isLoading ? (
+            <SkeletonRow />
+          ) : enrollments.length === 0 ? (
+            <p className="text-sm text-text-muted">Sin cursos asignados.</p>
+          ) : (
+            <div className="space-y-0">
+              {enrollments.map((e) => (
+                <div key={e.id} className="flex items-center justify-between py-2.5 border-b border-border last:border-b-0">
+                  <span className="text-sm text-text truncate min-w-0">{e.course_title}</span>
+                  <span className="text-xs text-text-muted shrink-0 ml-4">{e.progress ?? 0}%</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
+      </div>
 
-        <div className="mt-5 border-t border-border pt-5">
-          <CardTitle>Asignar nuevo curso</CardTitle>
-          <AssignCourseForm user={employee} />
-        </div>
-      </Card>
+      <div className="mt-5 border-t border-border pt-5">
+        <CardTitle>Asignar nuevo curso</CardTitle>
+        <AssignCourseForm user={employee} />
+      </div>
     </div>
   )
 }
@@ -181,13 +178,16 @@ export function Employees() {
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<User | null>(null)
   const [creating, setCreating] = useState(false)
+  const [createOrigin, setCreateOrigin] = useState<DOMRect | null>(null)
+  const [detailOrigin, setDetailOrigin] = useState<DOMRect | null>(null)
   const { data, isLoading, error } = useUsers({ role: 'employee', search: search || undefined })
 
-  const employees = data?.items ?? []
-
-  if (selected) {
-    return <EmployeeDetail employee={selected} onBack={() => setSelected(null)} />
+  function openDetail(emp: User, e: { currentTarget: Element }) {
+    setDetailOrigin(e.currentTarget.getBoundingClientRect())
+    setSelected(emp)
   }
+
+  const employees = data?.items ?? []
 
   return (
     <div>
@@ -196,12 +196,17 @@ export function Employees() {
           <h2 className="text-xl font-semibold text-text">Empleados</h2>
           <p className="text-sm text-text-secondary mt-1">{data?.total ?? employees.length} miembros del equipo</p>
         </div>
-        <Button variant="primary" size="md" onClick={() => setCreating((v) => !v)}>
-          {creating ? 'Cerrar' : 'Agregar empleado'}
+        <Button
+          variant="primary"
+          size="md"
+          onClick={(e) => {
+            setCreateOrigin(e.currentTarget.getBoundingClientRect())
+            setCreating(true)
+          }}
+        >
+          Agregar empleado
         </Button>
       </div>
-
-      {creating && <CreateEmployeeForm onDone={() => setCreating(false)} />}
 
       <div className="relative mt-4">
         <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-text-muted">
@@ -216,6 +221,7 @@ export function Employees() {
         />
       </div>
 
+      {/* Desktop table */}
       <Card className="mt-4 p-0 overflow-hidden hidden md:block">
         {isLoading ? (
           <div className="p-4 space-y-1">
@@ -237,39 +243,53 @@ export function Employees() {
                   <th className="text-left py-3 px-4 font-medium text-text-secondary">Rol</th>
                 </tr>
               </thead>
-              <tbody>
+              <motion.tbody initial="hidden" animate="visible" variants={staggerContainer}>
                 {employees.map((emp) => (
-                  <tr
+                  <motion.tr
                     key={emp.id}
+                    variants={staggerItem}
                     className="border-b border-border last:border-b-0 hover:bg-bg-subtle transition-colors cursor-pointer"
-                    onClick={() => setSelected(emp)}
+                    onClick={(e) => openDetail(emp, e)}
                   >
                     <td className="py-3 px-5"><span className="font-medium text-text">{emp.full_name}</span></td>
                     <td className="py-3 px-4 text-text-secondary">{emp.email}</td>
                     <td className="py-3 px-4">
                       <Badge variant="primary" badgeStyle="plain">{emp.role === 'admin' ? 'Admin' : 'Empleado'}</Badge>
                     </td>
-                  </tr>
+                  </motion.tr>
                 ))}
-              </tbody>
+              </motion.tbody>
             </table>
           </div>
         )}
       </Card>
 
-      <div className="mt-4 space-y-3 md:hidden">
+      {/* Mobile cards */}
+      <motion.div className="mt-4 space-y-3 md:hidden" initial="hidden" animate="visible" variants={staggerContainer}>
         {!isLoading && !error && employees.map((emp) => (
-          <Card key={emp.id} variant="interactive" onClick={() => setSelected(emp)}>
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <p className="font-medium text-text truncate">{emp.full_name}</p>
-                <p className="text-sm text-text-secondary mt-0.5 truncate">{emp.email}</p>
+          <motion.div key={emp.id} variants={staggerItem}>
+            <Card variant="interactive" onClick={(e) => openDetail(emp, e)}>
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="font-medium text-text truncate">{emp.full_name}</p>
+                  <p className="text-sm text-text-secondary mt-0.5 truncate">{emp.email}</p>
+                </div>
+                <Badge variant="primary" badgeStyle="plain">{emp.role === 'admin' ? 'Admin' : 'Empleado'}</Badge>
               </div>
-              <Badge variant="primary" badgeStyle="plain">{emp.role === 'admin' ? 'Admin' : 'Empleado'}</Badge>
-            </div>
-          </Card>
+            </Card>
+          </motion.div>
         ))}
-      </div>
+      </motion.div>
+
+      {/* Create-employee modal */}
+      <Modal open={creating} onClose={() => setCreating(false)} size="lg" origin={createOrigin}>
+        <CreateEmployeeForm onDone={() => setCreating(false)} />
+      </Modal>
+
+      {/* Employee-detail modal */}
+      <Modal open={!!selected} onClose={() => setSelected(null)} size="md" origin={detailOrigin}>
+        {selected && <EmployeeDetail employee={selected} />}
+      </Modal>
     </div>
   )
 }

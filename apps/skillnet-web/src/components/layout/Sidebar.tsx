@@ -1,17 +1,21 @@
 import { NavLink } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useSidebar } from '../../contexts/SidebarContext'
+import { NavPill } from './NavPill'
+import { backdrop, sidebarSlide } from '../../lib/motion'
 
 interface NavItem {
   label: string
   to: string
   icon: React.ReactNode
+  end?: boolean
 }
 
 const navItems: NavItem[] = [
   {
     label: 'Inicio',
     to: '/empleado',
+    end: true,
     icon: (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
@@ -57,7 +61,7 @@ function SpiderIcon() {
   )
 }
 
-function SidebarContent({ collapsed }: { collapsed: boolean }) {
+function SidebarContent({ collapsed, pillId }: { collapsed: boolean; pillId: string }) {
   const { closeMobile } = useSidebar()
 
   return (
@@ -85,29 +89,34 @@ function SidebarContent({ collapsed }: { collapsed: boolean }) {
           <NavLink
             key={item.to}
             to={item.to}
-            end={item.to === '/empleado'}
+            end={item.end}
             onClick={closeMobile}
             className={({ isActive }) =>
-              `flex items-center h-10 text-sm font-medium overflow-hidden transition-colors duration-200 ${
+              `relative flex items-center h-10 text-sm font-medium overflow-hidden transition-colors duration-200 ${
                 collapsed
                   ? 'mx-2 px-0 justify-center rounded-lg'
                   : 'ml-10 pl-4 pr-4 rounded-l-xl'
               } ${
                 isActive
-                  ? 'bg-white text-primary'
+                  ? 'text-primary'
                   : 'text-white/80 hover:text-white'
               }`
             }
             title={collapsed ? item.label : undefined}
           >
-            <span className="shrink-0">{item.icon}</span>
-            <span
-              className={`transition-all duration-300 ease-in-out overflow-hidden whitespace-nowrap ${
-                collapsed ? 'max-w-0 opacity-0 ml-0' : 'max-w-[160px] opacity-100 ml-3'
-              }`}
-            >
-              {item.label}
-            </span>
+            {({ isActive }) => (
+              <>
+                {isActive && <NavPill layoutId={pillId} collapsed={collapsed} />}
+                <span className="relative z-10 shrink-0">{item.icon}</span>
+                <span
+                  className={`relative z-10 transition-all duration-300 ease-in-out overflow-hidden whitespace-nowrap ${
+                    collapsed ? 'max-w-0 opacity-0 ml-0' : 'max-w-[160px] opacity-100 ml-3'
+                  }`}
+                >
+                  {item.label}
+                </span>
+              </>
+            )}
           </NavLink>
         ))}
       </nav>
@@ -143,31 +152,25 @@ export function Sidebar() {
           collapsed ? 'w-16' : 'w-[248px]'
         }`}
       >
-        <SidebarContent collapsed={collapsed} />
+        <SidebarContent collapsed={collapsed} pillId="employee-nav-pill" />
       </aside>
 
       {/* Mobile overlay */}
       <AnimatePresence>
         {mobileOpen && (
           <>
-            {/* Backdrop */}
+            {/* Backdrop — frosted glass, not heavy black */}
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="fixed inset-0 bg-black/50 z-30 md:hidden"
+              {...backdrop}
+              className="fixed inset-0 bg-black/10 backdrop-blur-sm z-30 md:hidden"
               onClick={closeMobile}
             />
-            {/* Slide-in sidebar */}
+            {/* Slide-in sidebar — spring physics */}
             <motion.aside
-              initial={{ x: '-100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '-100%' }}
-              transition={{ duration: 0.3, ease: 'easeOut' }}
+              {...sidebarSlide}
               className="fixed left-0 top-0 bottom-0 w-[248px] frame-surface flex flex-col z-40 md:hidden"
             >
-              <SidebarContent collapsed={false} />
+              <SidebarContent collapsed={false} pillId="employee-nav-pill-mobile" />
             </motion.aside>
           </>
         )}
