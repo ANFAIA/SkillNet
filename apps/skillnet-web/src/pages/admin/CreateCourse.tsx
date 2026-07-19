@@ -432,7 +432,7 @@ export function CreateCourse() {
       </div>
 
       <div className="mt-6 overflow-hidden">
-        <AnimatePresence mode="wait" custom={direction}>
+        <AnimatePresence mode="wait" custom={direction} initial={false}>
           <motion.div key={step} custom={direction} variants={slideVariants} initial="enter" animate="center" exit="exit">
             {renderStep()}
           </motion.div>

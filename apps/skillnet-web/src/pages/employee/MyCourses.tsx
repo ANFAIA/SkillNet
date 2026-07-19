@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { motion } from 'framer-motion'
+import { motion, LayoutGroup } from 'framer-motion'
 import { Card, CardTitle, CourseItem, EmptyState, SkeletonRow } from '../../components/ui'
 import { useEnrollments } from '../../api/enrollments'
 import { ApiError } from '../../api/client'
-import { staggerContainer, staggerItem } from '../../lib/motion'
+import { staggerContainer, staggerItem, spring } from '../../lib/motion'
 import type { EnrollmentRead } from '../../types'
 
 type Tab = 'in_progress' | 'completed' | 'not_started'
@@ -48,22 +48,32 @@ export function MyCourses() {
     <div>
       <h2 className="text-xl font-semibold text-text mb-6">Mis Cursos</h2>
 
-      <div className="flex gap-1 mb-6 border-b border-border overflow-x-auto">
-        {tabs.map((tab) => (
-          <button
-            key={tab.key}
-            type="button"
-            onClick={() => setActiveTab(tab.key)}
-            className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px whitespace-nowrap shrink-0 ${
-              activeTab === tab.key
-                ? 'border-primary text-primary'
-                : 'border-transparent text-text-secondary hover:text-text'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      <LayoutGroup>
+        <div className="flex gap-1 mb-6 border-b border-border">
+          {tabs.map((tab) => {
+            const active = activeTab === tab.key
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setActiveTab(tab.key)}
+                className={`relative px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${
+                  active ? 'text-primary' : 'text-text-secondary hover:text-text'
+                }`}
+              >
+                {tab.label}
+                {active && (
+                  <motion.span
+                    layoutId="mycourses-tab-underline"
+                    className="absolute left-3 right-3 -bottom-px h-0.5 rounded-full bg-primary"
+                    transition={spring.stiff}
+                  />
+                )}
+              </button>
+            )
+          })}
+        </div>
+      </LayoutGroup>
 
       <Card>
         {isLoading ? (
