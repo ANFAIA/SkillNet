@@ -131,8 +131,11 @@ async def create_course(
     admin: AdminUser, db: DBSession, body: CourseCreate
 ) -> CourseRead:
     service = _service(db)
+    payload = body.model_dump(exclude={"document_ids"})
+    if body.source_document_id is None and body.document_ids:
+        payload["source_document_id"] = body.document_ids[0]
     course = await service.create(
-        org_id=admin.org_id, created_by=admin.id, **body.model_dump()
+        org_id=admin.org_id, created_by=admin.id, **payload
     )
     await db.commit()
     return _summary(course, 0)
@@ -191,6 +194,26 @@ async def generate_course(
         uuid.UUID(str(raw_source)) if raw_source else course.source_document_id
     )
     output_type = payload.get("output_type") or "course_and_manual"
+
+    if source_document_id is None:
+        raise ValidationError(
+            "A source document is required. "
+            "Create the course with document_ids or provide source_document_id in the body.",
+        )
+
+    from src.models.document import Document
+    from sqlalchemy import select
+    result = await db.execute(
+        select(Document).where(Document.id == source_document_id)
+    )
+    doc = result.scalar_one_or_none()
+    if doc is None:
+        raise NotFoundError("documents", str(source_document_id))
+    if doc.status != "ready":
+        raise ValidationError(
+            f"Document status is '{doc.status}', must be 'ready'. "
+            "Process the document first via POST /documents/{id}/process."
+        )
 
     generation = GenerationService(GenerationJobRepository(db))
     job = await generation.create_and_start(

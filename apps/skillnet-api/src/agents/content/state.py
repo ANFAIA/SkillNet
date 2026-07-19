@@ -22,7 +22,7 @@ class GenerationState(TypedDict, total=False):
 
     # --- RAG decisions ---
     rag_mode: Literal["full_text", "chunked"]
-    full_texts: dict | None
+    full_texts: dict
 
     # --- Extraction ---
     extracted_themes: list[dict]

@@ -52,7 +52,6 @@ Para cada tema proporciona:
 - title: nombre legible del tema
 - bloom_level: uno de [remember, understand, apply, analyze, evaluate, create]
 - summary: descripcion de 1-2 frases de lo que cubre el tema
-- chunk_ids: (solo si se proporcionan ids) los ids de los fragmentos mas relevantes
 
 Reglas:
 - Apunta a 4-8 temas por curso. Los subtemas mas granulares seran lecciones, no temas.
@@ -62,8 +61,7 @@ Reglas:
 - Toda afirmacion factual debe poder rastrearse al material de origen.
 
 Responde en JSON valido con la forma:
-{"themes": [{"key": str, "title": str, "bloom_level": str, "summary": str,
-             "chunk_ids": [str, ...]}]}
+{"themes": [{"key": str, "title": str, "bloom_level": str, "summary": str}]}
 """
 
 
@@ -88,7 +86,7 @@ Reglas:
 Responde en JSON valido con la forma:
 {"title": str, "description": str, "outcome": str,
  "modules": [{"title": str, "summary": str, "position": int,
-              "themes": [str, ...], "chunk_ids": [str, ...],
+              "themes": [str, ...],
               "lessons": [{"title": str, "position": int,
                            "content_type": "theory|example|exercise|summary"}]}]}
 """
@@ -175,15 +173,8 @@ Devuelve el modulo corregido en el MISMO formato JSON que la entrada:
 """ + _EXERCISE_SHAPES
 
 
-def build_extraction_prompt(context: str, *, include_chunk_ids: bool) -> str:
-    """User prompt for the theme extractor."""
-    instruction = (
-        "Incluye en cada tema los chunk_ids de los fragmentos mas relevantes."
-        if include_chunk_ids
-        else "No hay fragmentos indexados; omite el campo chunk_ids o dejalo vacio."
-    )
+def build_extraction_prompt(context: str) -> str:
     return (
-        f"{instruction}\n\n"
         "Analiza el siguiente material de origen y extrae los temas clave.\n\n"
         "=== MATERIAL DE ORIGEN ===\n"
         f"{context}"

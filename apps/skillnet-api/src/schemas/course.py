@@ -50,6 +50,7 @@ class CourseCreate(BaseModel):
     description: str | None = None
     outcome: str | None = None
     source_document_id: uuid.UUID | None = None
+    document_ids: list[uuid.UUID] | None = None
 
 
 class CourseUpdate(BaseModel):

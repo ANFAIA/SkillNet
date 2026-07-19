@@ -55,7 +55,7 @@ MAX_CONCURRENT_MODULES = 3
 GEN_TEMPERATURE = 0.3
 REVIEW_TEMPERATURE = 0.1
 GEN_MAX_TOKENS = 4096
-SEMANTIC_TOP_K = 3
+SEMANTIC_TOP_K = 15
 FULL_TEXT_PAGE_THRESHOLD = 5
 _CHARS_PER_PAGE = 2000
 
@@ -113,13 +113,6 @@ def _estimate_pages(doc: Document) -> int:
     return max(1, len(doc.full_text or "") // _CHARS_PER_PAGE)
 
 
-def _chunk_overview(chunks: list[DocumentChunk]) -> str:
-    lines = []
-    for chunk in chunks:
-        heading = (chunk.chunk_metadata or {}).get("heading", "")
-        snippet = (chunk.content or "")[:200].replace("\n", " ")
-        lines.append(f"[chunk_id={chunk.id}] {heading}: {snippet}")
-    return "\n".join(lines)
 
 
 def _assemble_chunk_text(chunks: list[DocumentChunk]) -> str:
@@ -132,17 +125,6 @@ def _themes_list(parsed: Any) -> list[dict]:
     if isinstance(parsed, list):
         return parsed
     return []
-
-
-async def _load_chunks_by_ids(db: Any, ids: list[uuid.UUID]) -> list[DocumentChunk]:
-    if not ids:
-        return []
-    query = (
-        select(DocumentChunk)
-        .where(DocumentChunk.id.in_(ids))
-        .order_by(DocumentChunk.document_id, DocumentChunk.chunk_index)
-    )
-    return list((await db.execute(query)).scalars().all())
 
 
 # --------------------------------------------------------------------------- #
@@ -160,14 +142,14 @@ async def prepare_context(state: GenerationState) -> dict:
     total_pages = sum(_estimate_pages(doc) for doc in documents)
     single = len(documents) == 1
 
+    full_texts: dict[str, str] = {
+        str(doc.id): (doc.full_text or "") for doc in documents
+    }
+
     if single and total_pages <= FULL_TEXT_PAGE_THRESHOLD:
         rag_mode = "full_text"
-        full_texts: dict[str, str] | None = {
-            str(doc.id): (doc.full_text or "") for doc in documents
-        }
     else:
         rag_mode = "chunked"
-        full_texts = None
 
     source_metadata = {
         "total_pages": total_pages,
@@ -195,16 +177,14 @@ async def extract_themes(state: GenerationState) -> dict:
     org_id = uuid.UUID(state["org_id"])
     llm = await _make_llm(org_id)
 
-    if state.get("rag_mode") == "full_text":
-        context = "\n\n".join((state.get("full_texts") or {}).values())
-        prompt = build_extraction_prompt(context, include_chunk_ids=False)
-    else:
+    context = "\n\n".join((state.get("full_texts") or {}).values())
+    if not context.strip():
         doc_ids = _uuids(state.get("source_document_ids"))
         async with async_session_factory() as db:
             repo = DocumentChunkRepository(db)
             chunks = list(await repo.list_for_documents_ordered(doc_ids))
-        context = _chunk_overview(chunks)
-        prompt = build_extraction_prompt(context, include_chunk_ids=True)
+        context = _assemble_chunk_text(chunks) if chunks else ""
+    prompt = build_extraction_prompt(context)
 
     response = await llm.complete(
         THEME_EXTRACTOR_SYSTEM,
@@ -254,16 +234,18 @@ async def design_structure(state: GenerationState) -> dict:
 async def _module_context(
     state: GenerationState, spec: dict, embeddings: EmbeddingService | None
 ) -> str:
-    if state.get("rag_mode") == "full_text":
-        return "\n\n".join((state.get("full_texts") or {}).values())
+    context = "\n\n".join((state.get("full_texts") or {}).values())
+    if context.strip():
+        return context
 
     org_id = uuid.UUID(state["org_id"])
     doc_ids = _uuids(state.get("source_document_ids"))
     items: dict[uuid.UUID, dict] = {}
 
     async with async_session_factory() as db:
-        primary = await _load_chunks_by_ids(db, _uuids(spec.get("chunk_ids")))
-        for chunk in primary:
+        repo = DocumentChunkRepository(db)
+        all_chunks = list(await repo.list_for_documents_ordered(doc_ids))
+        for chunk in all_chunks:
             items[chunk.id] = {
                 "doc": str(chunk.document_id),
                 "idx": chunk.chunk_index,
@@ -274,7 +256,6 @@ async def _module_context(
         if embeddings is not None and query_text:
             try:
                 vector = await embeddings.embed_query(query_text)
-                repo = DocumentChunkRepository(db)
                 hits = await repo.similarity_search(
                     org_id=org_id,
                     query_embedding=vector,
@@ -304,9 +285,12 @@ async def generate_modules(state: GenerationState) -> dict:
     total = len(modules)
 
     llm = await _make_llm(org_id)
+    has_full_text = any(
+        v.strip() for v in (state.get("full_texts") or {}).values()
+    )
     embeddings = (
         await _make_embeddings(org_id)
-        if state.get("rag_mode") == "chunked"
+        if not has_full_text
         else None
     )
 
@@ -366,13 +350,12 @@ async def generate_modules(state: GenerationState) -> dict:
 # Node 5: review_quality (independent — reloads source from DB)
 # --------------------------------------------------------------------------- #
 async def _load_source_context(state: GenerationState) -> str:
+    full_texts = state.get("full_texts") or {}
+    context = "\n\n".join(full_texts.values())
+    if context.strip():
+        return context
     doc_ids = _uuids(state.get("source_document_ids"))
     async with async_session_factory() as db:
-        if state.get("rag_mode") == "full_text":
-            result = await db.execute(
-                select(Document).where(Document.id.in_(doc_ids))
-            )
-            return "\n\n".join((doc.full_text or "") for doc in result.scalars().all())
         repo = DocumentChunkRepository(db)
         chunks = list(await repo.list_for_documents_ordered(doc_ids))
         return _assemble_chunk_text(chunks)
