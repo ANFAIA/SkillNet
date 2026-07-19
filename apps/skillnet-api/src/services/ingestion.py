@@ -21,7 +21,6 @@ from src.services.document_parser import parse_document
 
 logger = get_logger(__name__)
 
-_FULL_TEXT_MAX_PAGES = 3
 _ERROR_MESSAGE_MAX = 500
 
 
@@ -44,42 +43,45 @@ async def ingest_document(document_id: uuid.UUID | str) -> None:
             doc.page_count = page_count
             doc.full_text = full_text
 
-            if page_count <= _FULL_TEXT_MAX_PAGES:
-                doc.status = DocumentStatus.READY
-                await session.commit()
-                logger.info("Ingested document %s as full_text (%d pages)", doc_id, page_count)
-                return
-
             chunks = chunk_sections(sections, doc.title)
-            if not chunks:
-                doc.status = DocumentStatus.READY
-                await session.commit()
-                logger.info("Ingested document %s: no chunks produced", doc_id)
-                return
 
-            org = await session.get(Organization, doc.org_id)
-            org_settings = dict(org.settings) if org and org.settings else {}
-            config = resolve_embedding_config(org_settings)
-            embedder = EmbeddingService(config)
+            if chunks:
+                try:
+                    org = await session.get(Organization, doc.org_id)
+                    org_settings = dict(org.settings) if org and org.settings else {}
+                    config = resolve_embedding_config(org_settings)
+                    embedder = EmbeddingService(config)
 
-            vectors = await embedder.embed_texts([c.content for c in chunks])
+                    vectors = await embedder.embed_texts(
+                        [c.content for c in chunks], prefix="passage: "
+                    )
 
-            repo = DocumentChunkRepository(session)
-            await repo.delete_for_document(doc_id)
-            for chunk, vector in zip(chunks, vectors, strict=True):
-                await repo.add_chunk(
-                    document_id=doc_id,
-                    content=chunk.content,
-                    embedding=vector,
-                    chunk_index=chunk.chunk_index,
-                    chunk_metadata=chunk.metadata,
-                )
+                    repo = DocumentChunkRepository(session)
+                    await repo.delete_for_document(doc_id)
+                    for chunk, vector in zip(chunks, vectors, strict=True):
+                        await repo.add_chunk(
+                            document_id=doc_id,
+                            content=chunk.content,
+                            embedding=vector,
+                            chunk_index=chunk.chunk_index,
+                            chunk_metadata=chunk.metadata,
+                        )
 
-            doc.embedding_model = config.model
-            doc.embedding_dim = config.dimensions
+                    doc.embedding_model = config.model
+                    doc.embedding_dim = config.dimensions
+                    logger.info(
+                        "Ingested document %s: %d chunks embedded",
+                        doc_id, len(chunks),
+                    )
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning(
+                        "Embedding unavailable for document %s: %s. "
+                        "Storing full_text only (chunks will not be retrievable via RAG).",
+                        doc_id, exc,
+                    )
+
             doc.status = DocumentStatus.READY
             await session.commit()
-            logger.info("Ingested document %s: %d chunks embedded", doc_id, len(chunks))
 
         except Exception as exc:  # noqa: BLE001 - background task must not raise
             logger.error("Ingestion failed for document %s: %s", doc_id, exc, exc_info=True)

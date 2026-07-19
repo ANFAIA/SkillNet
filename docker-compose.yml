@@ -53,11 +53,29 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      ollama:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8000/health').raise_for_status()"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 30s
+
+  # ── Local Embeddings (Ollama, dev only) ────────────────────
+  ollama:
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama:/root/.ollama
+    command: serve
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list 2>/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
       start_period: 30s
 
   # ── Frontend (nginx + React SPA) ───────────────────────────
@@ -77,3 +95,4 @@ volumes:
     driver: local
   uploads:
     driver: local
+  ollama:

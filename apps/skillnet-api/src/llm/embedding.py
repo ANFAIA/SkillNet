@@ -68,6 +68,7 @@ class EmbeddingService:
         if not config.model:
             raise LLMError("No embedding model configured.")
         self._config = config
+        self._is_e5 = "e5" in config.model.lower()
 
     @property
     def dimensions(self) -> int:
@@ -85,10 +86,12 @@ class EmbeddingService:
     async def _aembedding(self, texts: list[str]) -> Any:
         return await litellm.aembedding(**self._kwargs(texts))
 
-    async def embed_texts(self, texts: list[str]) -> list[list[float]]:
+    async def embed_texts(self, texts: list[str], *, prefix: str = "") -> list[list[float]]:
         """Embed many texts (batched). Preserves input order."""
         if not texts:
             return []
+        if self._is_e5 and prefix:
+            texts = [f"{prefix}{t}" for t in texts]
         vectors: list[list[float]] = []
         for start in range(0, len(texts), _BATCH_SIZE):
             batch = texts[start : start + _BATCH_SIZE]
@@ -101,6 +104,5 @@ class EmbeddingService:
         return vectors
 
     async def embed_query(self, text: str) -> list[float]:
-        """Embed a single query string."""
-        result = await self.embed_texts([text])
+        result = await self.embed_texts([text], prefix="query: ")
         return result[0]
