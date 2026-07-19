@@ -53,8 +53,8 @@ export const spring = {
 
 // ── Reusable transition presets ──────────────────────────────
 export const transition = {
-  /** Page/route transitions */
-  page: { duration: duration.medium, ease: ease.base },
+  /** Page/route transitions — quick blur-in, no scale (keeps nav snappy) */
+  page: { duration: duration.normal, ease: ease.base },
   /** Content swap within a page (lesson switch, tab change) */
   content: { duration: duration.normal, ease: ease.base },
   /** Layout morph (layoutId transitions) */
@@ -69,11 +69,15 @@ export const transition = {
 
 // ── Reusable animation states ────────────────────────────────
 
-/** Page transition: blur + scale entrance */
+/**
+ * Page transition: quick blur-in (no scale). The scale read as "too much" on
+ * every route change; blur alone keeps the iOS depth-of-field feel while staying
+ * snappy and not competing with the sliding nav pill.
+ */
 export const pageTransition = {
-  initial: { opacity: 0, filter: 'blur(8px)', scale: 0.98 },
-  animate: { opacity: 1, filter: 'blur(0px)', scale: 1 },
-  exit: { opacity: 0, filter: 'blur(8px)', scale: 0.98 },
+  initial: { opacity: 0, filter: 'blur(6px)' },
+  animate: { opacity: 1, filter: 'blur(0px)' },
+  exit: { opacity: 0, filter: 'blur(6px)' },
   transition: transition.page,
 } as const
 

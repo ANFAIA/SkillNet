@@ -10,16 +10,11 @@ export interface ButtonProps extends HTMLMotionProps<'button'> {
 }
 
 const variantClasses: Record<ButtonVariant, string> = {
-  primary:
-    'bg-primary hover:bg-primary-hover text-white',
-  secondary:
-    'border border-border hover:bg-bg-muted text-text',
-  ghost:
-    'hover:bg-bg-muted text-text-secondary',
-  accent:
-    'bg-accent hover:bg-accent-hover text-white',
-  danger:
-    'bg-danger hover:bg-danger/90 text-white',
+  primary: 'bg-primary hover:bg-primary-hover text-white',
+  secondary: 'border border-border hover:bg-bg-muted text-text',
+  ghost: 'hover:bg-bg-muted text-text-secondary',
+  accent: 'bg-accent hover:bg-accent-hover text-white',
+  danger: 'bg-danger hover:bg-danger/90 text-white',
 }
 
 const sizeClasses: Record<ButtonSize, string> = {
@@ -48,7 +43,7 @@ export function Button({
         ${className}
       `}
       disabled={disabled}
-      whileHover={disabled ? undefined : { scale: 1.03 }}
+      whileHover={disabled ? undefined : { scale: 1.02 }}
       whileTap={disabled ? undefined : { scale: 0.97 }}
       transition={transition.micro}
       {...props}
