@@ -22,6 +22,9 @@ export type { InputProps } from './Input'
 export { MetricCard } from './MetricCard'
 export type { MetricCardProps } from './MetricCard'
 
+export { Modal } from './Modal'
+export type { ModalProps } from './Modal'
+
 export { ProgressBar } from './ProgressBar'
 export type { ProgressBarProps } from './ProgressBar'
 

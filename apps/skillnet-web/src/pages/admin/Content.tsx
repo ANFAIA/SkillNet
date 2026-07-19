@@ -1,7 +1,9 @@
 import { useNavigate } from 'react-router-dom'
+import { motion } from 'framer-motion'
 import { Card, Badge, Button, EmptyState, SkeletonCard } from '../../components/ui'
 import { useCourses } from '../../api/courses'
 import { ApiError } from '../../api/client'
+import { staggerContainer, staggerItem } from '../../lib/motion'
 import type { CourseStatus } from '../../types'
 
 const statusConfig: Record<string, { label: string; variant: 'accent' | 'warning' | 'primary' }> = {
@@ -94,10 +96,11 @@ export function Content() {
             />
           </Card>
         ) : (
-          courses.map((course) => {
+          <motion.div className="space-y-2" initial="hidden" animate="visible" variants={staggerContainer}>
+          {courses.map((course) => {
             const status = statusOf(course.status)
             return (
-              <Card key={course.id}>
+              <Card key={course.id} variants={staggerItem}>
                 <div className="flex items-center gap-4 min-w-0">
                   <div className="text-text-muted shrink-0">
                     <BookIcon />
@@ -118,7 +121,8 @@ export function Content() {
                 </div>
               </Card>
             )
-          })
+          })}
+          </motion.div>
         )}
       </div>
     </div>

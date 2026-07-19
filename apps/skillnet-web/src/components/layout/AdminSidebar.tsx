@@ -1,8 +1,8 @@
-import { NavLink, useLocation } from 'react-router-dom'
+import { NavLink } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useSidebar } from '../../contexts/SidebarContext'
-import type { RefObject } from 'react'
-import { useRef, useLayoutEffect, useState } from 'react'
+import { NavPill } from './NavPill'
+import { backdrop, sidebarSlide } from '../../lib/motion'
 
 interface NavItem {
   label: string
@@ -87,57 +87,8 @@ function SpiderIcon() {
   )
 }
 
-function ActivePill({
-  activeIndex,
-  collapsed,
-  navRef,
-  itemRefs,
-}: {
-  activeIndex: number
-  collapsed: boolean
-  navRef: RefObject<HTMLElement | null>
-  itemRefs: RefObject<(HTMLAnchorElement | null)[]>
-}) {
-  const [pos, setPos] = useState<{ top: number; height: number } | null>(null)
-
-  useLayoutEffect(() => {
-    const nav = navRef.current
-    const item = itemRefs.current[activeIndex]
-    if (!nav || !item) return
-
-    const navRect = nav.getBoundingClientRect()
-    const itemRect = item.getBoundingClientRect()
-
-    setPos({
-      top: itemRect.top - navRect.top,
-      height: itemRect.height,
-    })
-  }, [activeIndex, collapsed, navRef, itemRefs])
-
-  if (pos === null) return null
-
-  const radiusClass = collapsed ? 'rounded-lg' : 'rounded-l-xl'
-  const leftClass = collapsed ? 'left-2 right-2' : 'left-10 right-4'
-
-  return (
-    <motion.div
-      className={`absolute bg-white ${leftClass} ${radiusClass} pointer-events-none`}
-      animate={{ top: pos.top, height: pos.height }}
-      initial={false}
-      transition={{ type: 'spring', stiffness: 500, damping: 35, mass: 0.5 }}
-    />
-  )
-}
-
-function AdminSidebarContent({ collapsed }: { collapsed: boolean }) {
+function AdminSidebarContent({ collapsed, pillId }: { collapsed: boolean; pillId: string }) {
   const { closeMobile } = useSidebar()
-  const { pathname } = useLocation()
-  const navRef = useRef<HTMLElement>(null)
-  const itemRefs = useRef<(HTMLAnchorElement | null)[]>([])
-
-  const activeIndex = navItems.findIndex((item) =>
-    item.end ? pathname === item.to : pathname === item.to || pathname.startsWith(`${item.to}/`),
-  )
 
   return (
     <>
@@ -174,19 +125,15 @@ function AdminSidebarContent({ collapsed }: { collapsed: boolean }) {
       </div>
 
       {/* Nav */}
-      <nav ref={navRef} className="flex-1 flex flex-col gap-1 relative">
-        <ActivePill activeIndex={activeIndex} collapsed={collapsed} navRef={navRef} itemRefs={itemRefs} />
-        {navItems.map((item, index) => (
+      <nav className="flex-1 flex flex-col gap-1">
+        {navItems.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
             end={item.end}
-            ref={(el) => {
-              itemRefs.current[index] = el
-            }}
             onClick={closeMobile}
             className={({ isActive }) =>
-              `relative z-10 flex items-center h-10 text-sm font-medium overflow-hidden transition-colors duration-200 ${
+              `relative flex items-center h-10 text-sm font-medium overflow-hidden transition-colors duration-200 ${
                 collapsed
                   ? 'mx-2 px-0 justify-center rounded-lg'
                   : 'ml-10 pl-4 pr-4 rounded-l-xl'
@@ -198,14 +145,19 @@ function AdminSidebarContent({ collapsed }: { collapsed: boolean }) {
             }
             title={collapsed ? item.label : undefined}
           >
-            <span className="shrink-0">{item.icon}</span>
-            <span
-              className={`transition-all duration-300 ease-in-out overflow-hidden whitespace-nowrap ${
-                collapsed ? 'max-w-0 opacity-0 ml-0' : 'max-w-[160px] opacity-100 ml-3'
-              }`}
-            >
-              {item.label}
-            </span>
+            {({ isActive }) => (
+              <>
+                {isActive && <NavPill layoutId={pillId} collapsed={collapsed} />}
+                <span className="relative z-10 shrink-0">{item.icon}</span>
+                <span
+                  className={`relative z-10 transition-all duration-300 ease-in-out overflow-hidden whitespace-nowrap ${
+                    collapsed ? 'max-w-0 opacity-0 ml-0' : 'max-w-[160px] opacity-100 ml-3'
+                  }`}
+                >
+                  {item.label}
+                </span>
+              </>
+            )}
           </NavLink>
         ))}
       </nav>
@@ -241,31 +193,25 @@ export function AdminSidebar() {
           collapsed ? 'w-16' : 'w-[248px]'
         }`}
       >
-        <AdminSidebarContent collapsed={collapsed} />
+        <AdminSidebarContent collapsed={collapsed} pillId="admin-nav-pill" />
       </aside>
 
       {/* Mobile overlay */}
       <AnimatePresence>
         {mobileOpen && (
           <>
-            {/* Backdrop */}
+            {/* Backdrop — frosted glass, not heavy black */}
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="fixed inset-0 bg-black/50 z-30 md:hidden"
+              {...backdrop}
+              className="fixed inset-0 bg-black/10 backdrop-blur-sm z-30 md:hidden"
               onClick={closeMobile}
             />
-            {/* Slide-in sidebar */}
+            {/* Slide-in sidebar — spring physics */}
             <motion.aside
-              initial={{ x: '-100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '-100%' }}
-              transition={{ duration: 0.3, ease: 'easeOut' }}
+              {...sidebarSlide}
               className="fixed left-0 top-0 bottom-0 w-[248px] frame-surface flex flex-col z-40 md:hidden"
             >
-              <AdminSidebarContent collapsed={false} />
+              <AdminSidebarContent collapsed={false} pillId="admin-nav-pill-mobile" />
             </motion.aside>
           </>
         )}

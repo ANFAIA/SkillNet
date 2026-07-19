@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { motion } from 'framer-motion'
 import { Card, CardTitle, CourseItem, EmptyState, SkeletonRow } from '../../components/ui'
 import { useEnrollments } from '../../api/enrollments'
 import { ApiError } from '../../api/client'
+import { staggerContainer, staggerItem } from '../../lib/motion'
 import type { EnrollmentRead } from '../../types'
 
 type Tab = 'in_progress' | 'completed' | 'not_started'
@@ -85,18 +87,19 @@ export function MyCourses() {
         ) : (
           <>
             <CardTitle className="mb-2">{tabs.find((t) => t.key === activeTab)?.label}</CardTitle>
-            <div>
+            <motion.div key={activeTab} initial="hidden" animate="visible" variants={staggerContainer}>
               {filtered.map((e) => (
-                <CourseItem
-                  key={e.id}
-                  title={e.course_title}
-                  subtitle={subtitleFor(e)}
-                  progress={e.progress ?? 0}
-                  color="var(--color-primary)"
-                  onClick={() => navigate(`/empleado/curso/${e.course_id}`)}
-                />
+                <motion.div key={e.id} variants={staggerItem}>
+                  <CourseItem
+                    title={e.course_title}
+                    subtitle={subtitleFor(e)}
+                    progress={e.progress ?? 0}
+                    color="var(--color-primary)"
+                    onClick={() => navigate(`/empleado/curso/${e.course_id}`)}
+                  />
+                </motion.div>
               ))}
-            </div>
+            </motion.div>
           </>
         )}
       </Card>
