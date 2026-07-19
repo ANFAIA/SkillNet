@@ -10,11 +10,14 @@ RUN corepack enable
 WORKDIR /build
 
 # Lockfile + manifest first for caching.
-COPY apps/skillnet-web/package.json apps/skillnet-web/pnpm-lock.yaml ./
+COPY apps/skillnet-web/package.json apps/skillnet-web/pnpm-lock.yaml apps/skillnet-web/pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 
 # Source, then production build.
-COPY apps/skillnet-web/ ./
+COPY apps/skillnet-web/index.html apps/skillnet-web/vite.config.ts ./
+COPY apps/skillnet-web/tsconfig.json apps/skillnet-web/tsconfig.app.json apps/skillnet-web/tsconfig.node.json ./
+COPY apps/skillnet-web/src ./src
+COPY apps/skillnet-web/public ./public
 RUN pnpm run build
 
 # ── Stage 2: Serve with nginx ────────────────────────────────────────

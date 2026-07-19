@@ -10,6 +10,7 @@ __all__ = [
     "EmployeeCreated",
     "UserAdminUpdate",
     "UserSelfUpdate",
+    "ResetPasswordRequest",
 ]
 
 
@@ -36,3 +37,7 @@ class UserAdminUpdate(BaseModel):
 class UserSelfUpdate(BaseModel):
     full_name: str | None = None
     learning_profile: str | None = None
+
+
+class ResetPasswordRequest(BaseModel):
+    new_password: str = Field(min_length=6)

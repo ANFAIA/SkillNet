@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { del, get, post, put } from './client'
-import type { CourseDetail, CourseRead, Paginated } from '../types'
+import type { CourseDetail, CourseRead, Exercise, Lesson, Paginated } from '../types'
 
 export interface CourseFilters {
   status?: string
@@ -96,6 +96,38 @@ export function useArchiveCourse() {
     mutationFn: (courseId: string) => post<CourseRead>(`/courses/${courseId}/archive`),
     onSuccess: (_data, courseId) => {
       queryClient.invalidateQueries({ queryKey: ['courses', courseId] })
+      queryClient.invalidateQueries({ queryKey: ['courses'] })
+    },
+  })
+}
+
+export function useUpdateLesson() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      lessonId,
+      payload,
+    }: {
+      lessonId: string
+      payload: { title?: string; content?: string }
+    }) => put<Lesson>(`/lessons/${lessonId}`, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['courses'] })
+    },
+  })
+}
+
+export function useUpdateExercise() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      exerciseId,
+      payload,
+    }: {
+      exerciseId: string
+      payload: { content?: Record<string, unknown> }
+    }) => put<Exercise>(`/exercises/${exerciseId}`, payload),
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['courses'] })
     },
   })

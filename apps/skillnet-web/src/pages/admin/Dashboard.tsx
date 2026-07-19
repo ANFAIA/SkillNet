@@ -1,20 +1,6 @@
-import { Card, CardTitle, MetricCard, Badge } from '../../components/ui'
-// v1-static: admin dashboard widgets (stats, alerts, skill matrix, team activity)
-// have NO backend endpoints in v1. Kept on mock data until those APIs exist.
-import { alerts, skillMatrixData, recentActivity } from '../../data/adminMockData'
-
-const skillColors: Record<string, string> = {
-  high: 'bg-skill-high',
-  medium: 'bg-skill-medium',
-  low: 'bg-skill-low',
-  none: 'bg-skill-none',
-}
-
-const alertVariant: Record<string, 'warning' | 'danger' | 'primary'> = {
-  warning: 'warning',
-  danger: 'danger',
-  info: 'primary',
-}
+import { useStats } from '../../api/stats'
+import { Card, CardTitle, MetricCard, Skeleton } from '../../components/ui'
+import type { RecentActivityItem } from '../../types'
 
 function UsersIcon() {
   return (
@@ -46,19 +32,93 @@ function TargetIcon() {
   )
 }
 
-function AlertIcon() {
+function ChartIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-      <line x1="12" y1="9" x2="12" y2="13" />
-      <line x1="12" y1="17" x2="12.01" y2="17" />
+      <line x1="18" y1="20" x2="18" y2="10" />
+      <line x1="12" y1="20" x2="12" y2="4" />
+      <line x1="6" y1="20" x2="6" y2="14" />
     </svg>
   )
 }
 
-const skillColumns = ['React', 'TypeScript', 'SQL', 'Docker'] as const
+function MetricCardSkeleton() {
+  return <Skeleton className="h-[108px] rounded-xl" />
+}
+
+function ActivitySkeleton() {
+  return (
+    <div className="space-y-0">
+      {Array.from({ length: 5 }).map((_, i) => (
+        <div key={i} className="flex items-center justify-between py-3 border-b border-border last:border-b-0">
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-3.5 w-3/5" />
+            <Skeleton className="h-3 w-2/5" />
+          </div>
+          <Skeleton className="h-3 w-14 ml-4" />
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function formatActivityLabel(item: RecentActivityItem): { employee: string; action: string; detail: string } {
+  switch (item.type) {
+    case 'enrollment_completed':
+      return {
+        employee: item.user_name ?? 'Usuario',
+        action: 'completo curso',
+        detail: item.course_title ?? '',
+      }
+    case 'course_published':
+      return {
+        employee: 'Sistema',
+        action: 'publico curso',
+        detail: item.course_title ?? '',
+      }
+    case 'user_created':
+      return {
+        employee: item.user_name ?? 'Nuevo empleado',
+        action: 'se registro',
+        detail: '',
+      }
+    default:
+      return {
+        employee: item.user_name ?? '',
+        action: item.type,
+        detail: item.course_title ?? '',
+      }
+  }
+}
+
+function formatRelativeTime(isoDate: string): string {
+  const diff = Date.now() - new Date(isoDate).getTime()
+  const minutes = Math.floor(diff / 60_000)
+  if (minutes < 1) return 'ahora'
+  if (minutes < 60) return `hace ${minutes}m`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `hace ${hours}h`
+  const days = Math.floor(hours / 24)
+  return `hace ${days}d`
+}
 
 export function Dashboard() {
+  const { data: stats, isLoading, isError } = useStats()
+
+  if (isError) {
+    return (
+      <div>
+        <h2 className="text-xl font-semibold text-text">Panel de Empresa</h2>
+        <p className="text-sm text-text-secondary mt-1">Vista general del equipo y formacion</p>
+        <Card className="mt-6">
+          <p className="text-sm text-red-500">
+            Error al cargar las estadisticas. Intenta recargar la pagina.
+          </p>
+        </Card>
+      </div>
+    )
+  }
+
   return (
     <div>
       <h2 className="text-xl font-semibold text-text">Panel de Empresa</h2>
@@ -66,120 +126,112 @@ export function Dashboard() {
 
       {/* Metric cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
-        <MetricCard
-          value="12"
-          label="Empleados"
-          icon={<UsersIcon />}
-          color="blue"
-        />
-        <MetricCard
-          value="5"
-          label="Cursos activos"
-          icon={<BookIcon />}
-          color="green"
-        />
-        <MetricCard
-          value="18"
-          label="Skills registradas"
-          icon={<TargetIcon />}
-          color="purple"
-        />
-        <MetricCard
-          value="3"
-          label="Alertas"
-          icon={<AlertIcon />}
-          color="orange"
-        />
+        {isLoading ? (
+          <>
+            <MetricCardSkeleton />
+            <MetricCardSkeleton />
+            <MetricCardSkeleton />
+            <MetricCardSkeleton />
+          </>
+        ) : (
+          <>
+            <MetricCard
+              value={`${stats!.active_employees}/${stats!.total_employees}`}
+              label="Empleados activos"
+              icon={<UsersIcon />}
+              color="blue"
+            />
+            <MetricCard
+              value={String(stats!.published_courses)}
+              label="Cursos publicados"
+              icon={<BookIcon />}
+              color="green"
+            />
+            <MetricCard
+              value={String(stats!.total_enrollments)}
+              label="Inscripciones"
+              icon={<TargetIcon />}
+              color="purple"
+            />
+            <MetricCard
+              value={stats!.avg_score != null ? `${Math.round(stats!.avg_score * 100)}%` : '--'}
+              label="Puntuacion media"
+              icon={<ChartIcon />}
+              color="orange"
+            />
+          </>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
-        {/* Alerts */}
+        {/* Enrollment summary */}
         <Card>
-          <CardTitle>Alertas</CardTitle>
-          <div className="mt-3 space-y-0">
-            {alerts.map((alert) => (
-              <div
-                key={alert.id}
-                className="flex items-start gap-3 py-3 border-b border-border last:border-b-0"
-              >
-                <div className="shrink-0 mt-0.5">
-                  <Badge variant={alertVariant[alert.type]} badgeStyle="plain">
-                    {alert.type === 'warning' ? 'Aviso' : alert.type === 'danger' ? 'Critico' : 'Info'}
-                  </Badge>
-                </div>
-                <p className="text-sm text-text-secondary leading-snug break-words min-w-0">
-                  {alert.message}
-                </p>
+          <CardTitle>Inscripciones</CardTitle>
+          {isLoading ? (
+            <div className="mt-3 space-y-3">
+              <Skeleton className="h-3.5 w-full" />
+              <Skeleton className="h-3.5 w-4/5" />
+              <Skeleton className="h-3.5 w-3/5" />
+            </div>
+          ) : (
+            <div className="mt-3 space-y-0">
+              <div className="flex items-center justify-between py-3 border-b border-border">
+                <span className="text-sm text-text-secondary">Completadas</span>
+                <span className="text-sm font-medium text-text">{stats!.completed_enrollments}</span>
               </div>
-            ))}
-          </div>
+              <div className="flex items-center justify-between py-3 border-b border-border">
+                <span className="text-sm text-text-secondary">En progreso</span>
+                <span className="text-sm font-medium text-text">{stats!.in_progress_enrollments}</span>
+              </div>
+              <div className="flex items-center justify-between py-3 border-b border-border">
+                <span className="text-sm text-text-secondary">Total cursos</span>
+                <span className="text-sm font-medium text-text">{stats!.total_courses}</span>
+              </div>
+              <div className="flex items-center justify-between py-3">
+                <span className="text-sm text-text-secondary">Borradores</span>
+                <span className="text-sm font-medium text-text">{stats!.draft_courses}</span>
+              </div>
+            </div>
+          )}
         </Card>
 
-        {/* Activity */}
+        {/* Recent activity */}
         <Card>
-          <CardTitle>Actividad del equipo</CardTitle>
-          <div className="mt-3 space-y-0">
-            {recentActivity.map((activity, i) => (
-              <div
-                key={i}
-                className="flex items-center justify-between py-3 border-b border-border last:border-b-0"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm text-text truncate">
-                    <span className="font-medium">{activity.employee}</span>
-                    {' '}{activity.action}
-                  </p>
-                  <p className="text-xs text-text-muted mt-0.5 truncate">{activity.course}</p>
-                </div>
-                <span className="text-xs text-text-muted shrink-0 ml-4">{activity.time}</span>
-              </div>
-            ))}
-          </div>
+          <CardTitle>Actividad reciente</CardTitle>
+          {isLoading ? (
+            <div className="mt-3">
+              <ActivitySkeleton />
+            </div>
+          ) : stats!.recent_activity.length === 0 ? (
+            <p className="mt-3 text-sm text-text-muted">Sin actividad reciente.</p>
+          ) : (
+            <div className="mt-3 space-y-0">
+              {stats!.recent_activity.map((activity, i) => {
+                const { employee, action, detail } = formatActivityLabel(activity)
+                return (
+                  <div
+                    key={i}
+                    className="flex items-center justify-between py-3 border-b border-border last:border-b-0"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm text-text truncate">
+                        <span className="font-medium">{employee}</span>
+                        {' '}{action}
+                      </p>
+                      {detail && (
+                        <p className="text-xs text-text-muted mt-0.5 truncate">{detail}</p>
+                      )}
+                    </div>
+                    <span className="text-xs text-text-muted shrink-0 ml-4">
+                      {formatRelativeTime(activity.at)}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </Card>
       </div>
-
-      {/* Skill Matrix */}
-      <Card className="mt-4">
-        <CardTitle>Skill Matrix</CardTitle>
-        <div className="mt-3 overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border">
-                <th className="text-left py-2 pr-4 font-medium text-text-secondary">Empleado</th>
-                {skillColumns.map((skill) => (
-                  <th key={skill} className="text-center py-2 px-3 font-medium text-text-secondary">
-                    {skill}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {skillMatrixData.map((entry) => (
-                <tr key={entry.employeeName} className="border-b border-border last:border-b-0">
-                  <td className="py-2.5 pr-4 text-text font-medium whitespace-nowrap">{entry.employeeName}</td>
-                  {skillColumns.map((skill) => {
-                    const level = entry.skills[skill] ?? 'none'
-                    return (
-                      <td key={skill} className="text-center py-2.5 px-3">
-                        <span
-                          className={`inline-block w-6 h-6 rounded ${skillColors[level]}`}
-                          title={level}
-                        />
-                      </td>
-                    )
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <div className="flex flex-wrap items-center gap-3 sm:gap-4 mt-3 text-xs text-text-muted">
-            <span className="flex items-center gap-1.5"><span className="inline-block w-3 h-3 rounded bg-skill-high" /> Alto</span>
-            <span className="flex items-center gap-1.5"><span className="inline-block w-3 h-3 rounded bg-skill-medium" /> Medio</span>
-            <span className="flex items-center gap-1.5"><span className="inline-block w-3 h-3 rounded bg-skill-low" /> Bajo</span>
-            <span className="flex items-center gap-1.5"><span className="inline-block w-3 h-3 rounded bg-skill-none" /> Sin datos</span>
-          </div>
-        </div>
-      </Card>
     </div>
   )
 }

@@ -6,7 +6,7 @@ from collections.abc import Sequence
 
 from fastapi_users.password import PasswordHelper
 
-from src.core.exceptions import ConflictError, NotFoundError, ValidationError
+from src.core.exceptions import ConflictError, ForbiddenError, NotFoundError, ValidationError
 from src.models import LearningProfile, User, UserRole
 from src.repositories.user_repo import UserRepository
 
@@ -99,6 +99,21 @@ class UserService:
         if not changes:
             return user
         return await self.repo.update(user, **changes)
+
+    async def reset_password(
+        self,
+        *,
+        user_id: uuid.UUID,
+        org_id: uuid.UUID,
+        admin_id: uuid.UUID,
+        new_password: str,
+    ) -> User:
+        if user_id == admin_id:
+            raise ForbiddenError("Cannot reset your own password through this endpoint")
+        user = await self.get_user(user_id, org_id)
+        return await self.repo.update(
+            user, hashed_password=_password_helper.hash(new_password)
+        )
 
     async def update_self(
         self,

@@ -5,12 +5,12 @@ import { ease, duration } from '../../lib/motion'
 import { Card, CardTitle, Button, Input, Badge, EmptyState, FileUploadZone, ProgressBar } from '../../components/ui'
 import { GenerationProgress } from '../../components/generation/GenerationProgress'
 import { useUploadDocument, useProcessDocument } from '../../api/documents'
-import { useCreateCourse, useGenerateContent, usePublishCourse, useCourse } from '../../api/courses'
+import { useCreateCourse, useGenerateContent, usePublishCourse, useCourse, useUpdateLesson, useUpdateExercise } from '../../api/courses'
 import { useGenerationProgress, useGenerationJobStatus, jobToProgress } from '../../api/generation'
 import { useUsers } from '../../api/users'
 import { useAssignCourse } from '../../api/enrollments'
 import { ApiError } from '../../api/client'
-import type { GenerationProgress as GenProgress, User } from '../../types'
+import type { GenerationProgress as GenProgress, User, Lesson, Exercise } from '../../types'
 
 type SourceType = 'documentos' | 'cero' | 'catalogo' | null
 type Direction = 1 | -1
@@ -44,6 +44,34 @@ function CheckIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <polyline points="20 6 9 17 4 12" />
+    </svg>
+  )
+}
+function PencilIcon({ size = 14 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+    </svg>
+  )
+}
+function XIcon({ size = 14 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  )
+}
+function SaveIcon({ size = 14 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  )
+}
+function ChevronIcon({ open }: { open: boolean }) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform ${open ? 'rotate-90' : ''}`}>
+      <polyline points="9 18 15 12 9 6" />
     </svg>
   )
 }
@@ -161,6 +189,176 @@ function StepContent({
   )
 }
 
+// --- Inline editable lesson ---
+function EditableLesson({ lesson }: { lesson: Lesson }) {
+  const [editingTitle, setEditingTitle] = useState(false)
+  const [editingContent, setEditingContent] = useState(false)
+  const [titleDraft, setTitleDraft] = useState(lesson.title)
+  const [contentDraft, setContentDraft] = useState(lesson.content)
+  const [expanded, setExpanded] = useState(false)
+  const updateLesson = useUpdateLesson()
+
+  function saveTitle() {
+    if (titleDraft.trim() && titleDraft !== lesson.title) {
+      updateLesson.mutate({ lessonId: lesson.id, payload: { title: titleDraft.trim() } })
+    }
+    setEditingTitle(false)
+  }
+
+  function cancelTitle() {
+    setTitleDraft(lesson.title)
+    setEditingTitle(false)
+  }
+
+  function saveContent() {
+    if (contentDraft !== lesson.content) {
+      updateLesson.mutate({ lessonId: lesson.id, payload: { content: contentDraft } })
+    }
+    setEditingContent(false)
+  }
+
+  function cancelContent() {
+    setContentDraft(lesson.content)
+    setEditingContent(false)
+  }
+
+  return (
+    <li className="text-sm border border-border rounded-lg p-3">
+      <div className="flex items-center gap-2">
+        <button type="button" onClick={() => setExpanded(!expanded)} className="text-text-muted hover:text-text shrink-0">
+          <ChevronIcon open={expanded} />
+        </button>
+        {editingTitle ? (
+          <div className="flex items-center gap-1.5 flex-1 min-w-0">
+            <input
+              className="flex-1 min-w-0 text-sm border border-border rounded px-2 py-1 bg-bg text-text focus:outline-none focus:border-primary"
+              value={titleDraft}
+              onChange={(e) => setTitleDraft(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') saveTitle(); if (e.key === 'Escape') cancelTitle() }}
+              autoFocus
+            />
+            <button type="button" onClick={saveTitle} className="text-accent hover:text-accent/80 p-0.5" title="Guardar"><SaveIcon /></button>
+            <button type="button" onClick={cancelTitle} className="text-text-muted hover:text-text p-0.5" title="Cancelar"><XIcon /></button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1.5 flex-1 min-w-0 group">
+            <span className="text-text-secondary truncate min-w-0">{lesson.title}</span>
+            <button type="button" onClick={() => { setTitleDraft(lesson.title); setEditingTitle(true) }} className="text-text-muted hover:text-primary opacity-0 group-hover:opacity-100 transition-opacity p-0.5 shrink-0" title="Editar titulo">
+              <PencilIcon />
+            </button>
+          </div>
+        )}
+      </div>
+
+      {expanded && (
+        <div className="mt-3 ml-6">
+          <div className="mb-2">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs font-medium text-text-muted uppercase tracking-wide">Contenido</span>
+              {!editingContent && (
+                <button type="button" onClick={() => { setContentDraft(lesson.content); setEditingContent(true) }} className="text-text-muted hover:text-primary p-0.5" title="Editar contenido">
+                  <PencilIcon />
+                </button>
+              )}
+            </div>
+            {editingContent ? (
+              <div>
+                <textarea
+                  className="w-full text-sm border border-border rounded px-3 py-2 bg-bg text-text focus:outline-none focus:border-primary font-mono min-h-[120px] resize-y"
+                  value={contentDraft}
+                  onChange={(e) => setContentDraft(e.target.value)}
+                  rows={8}
+                />
+                <div className="flex items-center gap-2 mt-1.5">
+                  <Button size="sm" variant="primary" onClick={saveContent} disabled={updateLesson.isPending}>
+                    {updateLesson.isPending ? 'Guardando...' : 'Guardar'}
+                  </Button>
+                  <Button size="sm" variant="secondary" onClick={cancelContent}>Cancelar</Button>
+                </div>
+              </div>
+            ) : (
+              <pre className="text-xs text-text-secondary bg-bg-subtle rounded p-2 whitespace-pre-wrap max-h-40 overflow-y-auto">{lesson.content.slice(0, 500)}{lesson.content.length > 500 ? '...' : ''}</pre>
+            )}
+          </div>
+
+          {lesson.exercises.length > 0 && (
+            <div>
+              <span className="text-xs font-medium text-text-muted uppercase tracking-wide">Ejercicios ({lesson.exercises.length})</span>
+              <div className="mt-1 space-y-2">
+                {lesson.exercises.map((ex) => (
+                  <EditableExercise key={ex.id} exercise={ex} />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </li>
+  )
+}
+
+// --- Inline editable exercise ---
+function EditableExercise({ exercise }: { exercise: Exercise }) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(() => JSON.stringify(exercise.content, null, 2))
+  const updateExercise = useUpdateExercise()
+
+  function save() {
+    try {
+      const parsed = JSON.parse(draft)
+      updateExercise.mutate({ exerciseId: exercise.id, payload: { content: parsed } })
+      setEditing(false)
+    } catch {
+      // invalid JSON, don't save
+    }
+  }
+
+  function cancel() {
+    setDraft(JSON.stringify(exercise.content, null, 2))
+    setEditing(false)
+  }
+
+  const label = exercise.type.replace(/_/g, ' ')
+
+  return (
+    <div className="border border-border/50 rounded p-2 bg-bg-subtle">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <Badge variant="primary" badgeStyle="plain">{label}</Badge>
+          <span className="text-xs text-text-muted truncate min-w-0">
+            {(exercise.content as unknown as Record<string, unknown>).question as string
+              ?? (exercise.content as unknown as Record<string, unknown>).statement as string
+              ?? (exercise.content as unknown as Record<string, unknown>).instruction as string
+              ?? (exercise.content as unknown as Record<string, unknown>).context as string
+              ?? ''}
+          </span>
+        </div>
+        {!editing && (
+          <button type="button" onClick={() => { setDraft(JSON.stringify(exercise.content, null, 2)); setEditing(true) }} className="text-text-muted hover:text-primary p-0.5 shrink-0" title="Editar ejercicio">
+            <PencilIcon />
+          </button>
+        )}
+      </div>
+      {editing && (
+        <div className="mt-2">
+          <textarea
+            className="w-full text-xs border border-border rounded px-3 py-2 bg-bg text-text focus:outline-none focus:border-primary font-mono min-h-[100px] resize-y"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            rows={6}
+          />
+          <div className="flex items-center gap-2 mt-1.5">
+            <Button size="sm" variant="primary" onClick={save} disabled={updateExercise.isPending}>
+              {updateExercise.isPending ? 'Guardando...' : 'Guardar'}
+            </Button>
+            <Button size="sm" variant="secondary" onClick={cancel}>Cancelar</Button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // --- Step 3: Review ---
 function StepReview({ courseId, onPublish, publishing, published }: { courseId: string; onPublish: () => void; publishing: boolean; published: boolean }) {
   const { data: course, isLoading } = useCourse(courseId)
@@ -174,7 +372,7 @@ function StepReview({ courseId, onPublish, publishing, published }: { courseId: 
     <div>
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h3 className="text-base font-medium text-text">Revisa el contenido generado</h3>
+          <h3 className="text-base font-medium text-text">Revisa y edita el contenido generado</h3>
           <p className="text-sm text-text-secondary mt-1">{course.modules.length} modulos · {totalLessons} lecciones</p>
         </div>
         <Button size="sm" variant="accent" onClick={onPublish} disabled={publishing || published}>
@@ -189,12 +387,9 @@ function StepReview({ courseId, onPublish, publishing, published }: { courseId: 
               <CardTitle className="truncate min-w-0">Modulo {i + 1}: {mod.title}</CardTitle>
               <Badge variant="accent" badgeStyle="plain">{mod.lessons.length} lecciones</Badge>
             </div>
-            <ul className="mt-2 space-y-1">
+            <ul className="mt-3 space-y-2">
               {mod.lessons.map((l) => (
-                <li key={l.id} className="text-sm text-text-secondary flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-border shrink-0" />
-                  {l.title}
-                </li>
+                <EditableLesson key={l.id} lesson={l} />
               ))}
             </ul>
           </Card>

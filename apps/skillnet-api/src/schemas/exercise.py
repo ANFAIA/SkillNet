@@ -43,6 +43,10 @@ class AttemptResult(BaseModel):
     explanation: str | None = None
 
 
+class ExerciseUpdate(BaseModel):
+    content: dict | None = None
+
+
 class AttemptRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

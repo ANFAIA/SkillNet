@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Card, CardTitle, Badge, Button, Input, EmptyState, SkeletonRow, Modal } from '../../components/ui'
-import { useUsers, useCreateUser } from '../../api/users'
+import { useUsers, useCreateUser, useResetPassword } from '../../api/users'
 import { useCourses } from '../../api/courses'
 import { useEnrollments, useAssignCourse } from '../../api/enrollments'
 import { ApiError } from '../../api/client'
@@ -135,15 +135,79 @@ function AssignCourseForm({ user }: { user: User }) {
   )
 }
 
-function EmployeeDetail({ employee }: { employee: User }) {
-  const { data: enrollmentData, isLoading } = useEnrollments({ user_id: employee.id })
-  const enrollments = enrollmentData?.items ?? []
+function ResetPasswordForm({ employee, onDone }: { employee: User; onDone: () => void }) {
+  const [password, setPassword] = useState('')
+  const reset = useResetPassword()
+  const tooShort = password.length > 0 && password.length < 6
+
+  function submit() {
+    if (!password.trim() || tooShort || reset.isPending) return
+    reset.mutate(
+      { userId: employee.id, newPassword: password.trim() },
+      { onSuccess: () => setPassword('') },
+    )
+  }
+
+  if (reset.isSuccess) {
+    return (
+      <div>
+        <CardTitle className="mb-2">Contraseña actualizada</CardTitle>
+        <p className="text-sm text-text-secondary">
+          La contraseña de {employee.full_name} fue cambiada correctamente.
+        </p>
+        <div className="flex justify-end mt-4">
+          <Button size="sm" onClick={onDone}>Cerrar</Button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div>
-      <div className="min-w-0 pr-8">
-        <h3 className="text-lg font-semibold text-text truncate">{employee.full_name}</h3>
-        <p className="text-sm text-text-secondary truncate">{employee.email}</p>
+      <CardTitle className="mb-3">Restablecer contraseña</CardTitle>
+      <p className="text-sm text-text-secondary mb-3">
+        Nueva contraseña para {employee.full_name}
+      </p>
+      <Input
+        label="Nueva contraseña"
+        type="text"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        placeholder="Minimo 6 caracteres"
+      />
+      {tooShort && (
+        <p className="text-sm text-danger mt-2">La contraseña debe tener al menos 6 caracteres.</p>
+      )}
+      {reset.isError && (
+        <p className="text-sm text-danger mt-2">
+          {reset.error instanceof ApiError ? reset.error.body.detail : 'No se pudo restablecer la contraseña'}
+        </p>
+      )}
+      <div className="flex gap-2 mt-4 justify-end">
+        <Button size="sm" variant="ghost" onClick={onDone}>Cancelar</Button>
+        <Button size="sm" onClick={submit} disabled={reset.isPending || !password.trim() || tooShort}>
+          {reset.isPending ? 'Guardando...' : 'Restablecer'}
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+function EmployeeDetail({ employee }: { employee: User }) {
+  const { data: enrollmentData, isLoading } = useEnrollments({ user_id: employee.id })
+  const enrollments = enrollmentData?.items ?? []
+  const [showResetPw, setShowResetPw] = useState(false)
+
+  return (
+    <div>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 pr-8">
+          <h3 className="text-lg font-semibold text-text truncate">{employee.full_name}</h3>
+          <p className="text-sm text-text-secondary truncate">{employee.email}</p>
+        </div>
+        <Button size="sm" variant="ghost" onClick={() => setShowResetPw(true)}>
+          Restablecer contraseña
+        </Button>
       </div>
 
       <div className="mt-6">
@@ -170,6 +234,12 @@ function EmployeeDetail({ employee }: { employee: User }) {
         <CardTitle>Asignar nuevo curso</CardTitle>
         <AssignCourseForm user={employee} />
       </div>
+
+      {showResetPw && (
+        <Modal open={showResetPw} onClose={() => setShowResetPw(false)} size="sm">
+          <ResetPasswordForm employee={employee} onDone={() => setShowResetPw(false)} />
+        </Modal>
+      )}
     </div>
   )
 }

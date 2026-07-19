@@ -143,7 +143,7 @@ export interface AttemptResult {
 export interface AttemptRead extends AttemptResult {
   id: string
   exercise_id: string
-  created_at: string
+  attempted_at: string
 }
 
 // Type-specific answer payloads (sent as { answer }).
@@ -204,6 +204,7 @@ export interface ChatMessage {
 export interface ChatSessionRead {
   id: string
   title: string | null
+  agent_type: string
   created_at: string
   updated_at: string
 }
@@ -212,8 +213,8 @@ export interface ChatMessageRead {
   id: string
   role: 'user' | 'assistant'
   content: string
-  citations?: Citation[]
   created_at: string
+  metadata?: Record<string, unknown>
 }
 
 // --- Generation jobs ---
@@ -231,7 +232,7 @@ export interface GenerationJob {
   id: string
   status: GenerationStep
   output_type: string
-  progress: number | null
+  progress: Record<string, unknown>
   result_course_id: string | null
   error_message: string | null
   created_at: string
@@ -267,4 +268,26 @@ export interface LlmTestResult {
   ok: boolean
   detail?: string | null
   model?: string | null
+}
+
+// --- Dashboard Stats ---
+
+export interface RecentActivityItem {
+  type: string
+  user_name: string | null
+  course_title: string | null
+  at: string
+}
+
+export interface StatsResponse {
+  total_employees: number
+  active_employees: number
+  total_courses: number
+  published_courses: number
+  draft_courses: number
+  total_enrollments: number
+  completed_enrollments: number
+  in_progress_enrollments: number
+  avg_score: number | null
+  recent_activity: RecentActivityItem[]
 }

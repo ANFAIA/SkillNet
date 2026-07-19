@@ -11,6 +11,7 @@ from src.repositories.user_repo import UserRepository
 from src.schemas.common import PaginatedResponse
 from src.schemas.user import (
     EmployeeCreated,
+    ResetPasswordRequest,
     UserAdminUpdate,
     UserCreateRequest,
     UserRead,
@@ -110,3 +111,21 @@ async def update_user(
     )
     await db.commit()
     return UserRead.model_validate(user)
+
+
+@router.post("/{user_id}/reset-password")
+async def reset_password(
+    admin: AdminUser,
+    db: DBSession,
+    user_id: uuid.UUID,
+    body: ResetPasswordRequest,
+) -> dict:
+    service = _service(db)
+    await service.reset_password(
+        user_id=user_id,
+        org_id=admin.org_id,
+        admin_id=admin.id,
+        new_password=body.new_password,
+    )
+    await db.commit()
+    return {"ok": True}

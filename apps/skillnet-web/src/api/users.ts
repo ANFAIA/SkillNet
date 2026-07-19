@@ -58,3 +58,10 @@ export function useUpdateProfile() {
     },
   })
 }
+
+export function useResetPassword() {
+  return useMutation({
+    mutationFn: ({ userId, newPassword }: { userId: string; newPassword: string }) =>
+      post<{ ok: boolean }>(`/users/${userId}/reset-password`, { new_password: newPassword }),
+  })
+}

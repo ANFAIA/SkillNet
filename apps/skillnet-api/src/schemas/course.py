@@ -56,3 +56,8 @@ class CourseUpdate(BaseModel):
     title: str | None = None
     description: str | None = None
     outcome: str | None = None
+
+
+class LessonUpdate(BaseModel):
+    title: str | None = None
+    content: str | None = None
