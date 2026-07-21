@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Button, Card, EmptyState, Skeleton, SkeletonText } from '../../components/ui'
+import { Button, Badge, Card, EmptyState, Input, Skeleton, SkeletonText } from '../../components/ui'
 import { LessonContent } from '../../components/courses/LessonContent'
 import { ExerciseRenderer } from '../../components/exercises/ExerciseRenderer'
-import { useCourse } from '../../api/courses'
+import { useCourse, useUpdateCourse, usePublishCourse, useArchiveCourse } from '../../api/courses'
 import { slideVariants, staggerContainer, staggerItem, duration, ease, transition } from '../../lib/motion'
 
 const lessonSlide = slideVariants(48)
@@ -21,14 +21,29 @@ function ChevronDown({ open }: { open: boolean }) {
   )
 }
 
+const statusConfig: Record<string, { label: string; variant: 'accent' | 'warning' | 'primary' }> = {
+  published: { label: 'Publicado', variant: 'accent' },
+  draft: { label: 'Borrador', variant: 'warning' },
+  archived: { label: 'Archivado', variant: 'primary' },
+}
+
 export function CoursePreview() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { data: course, isLoading, error } = useCourse(id)
 
+  const updateCourse = useUpdateCourse()
+  const publishCourse = usePublishCourse()
+  const archiveCourse = useArchiveCourse()
+
   const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set())
   const [activeLessonId, setActiveLessonId] = useState<string>('')
   const [direction, setDirection] = useState<1 | -1>(1)
+
+  const [editing, setEditing] = useState(false)
+  const [editTitle, setEditTitle] = useState('')
+  const [editDescription, setEditDescription] = useState('')
+  const [editOutcome, setEditOutcome] = useState('')
 
   const initializedRef = useRef(false)
   useEffect(() => {
@@ -65,6 +80,28 @@ export function CoursePreview() {
     )
   }
 
+  const status = statusConfig[course.status] ?? { label: course.status, variant: 'primary' as const }
+
+  function startEditing() {
+    if (!course) return
+    setEditTitle(course.title)
+    setEditDescription(course.description ?? '')
+    setEditOutcome(course.outcome ?? '')
+    setEditing(true)
+  }
+
+  function cancelEditing() {
+    setEditing(false)
+  }
+
+  function saveEditing() {
+    if (!id) return
+    updateCourse.mutate(
+      { id, payload: { title: editTitle, description: editDescription, outcome: editOutcome } },
+      { onSuccess: () => setEditing(false) },
+    )
+  }
+
   const allLessons = (course.modules ?? []).flatMap((m) => m.lessons ?? [])
   const currentIndex = allLessons.findIndex((l) => l.id === activeLessonId)
   const activeLesson = allLessons[currentIndex]
@@ -97,16 +134,91 @@ export function CoursePreview() {
             ← Contenido
           </Button>
         </div>
-        <div className="flex items-center gap-3 mb-2 min-w-0">
-          <span className="w-3 h-3 rounded-full shrink-0 bg-primary" />
-          <h2 className="text-xl font-semibold text-text truncate">{course.title}</h2>
-          <span className="text-xs px-2 py-0.5 rounded bg-bg-subtle text-text-muted border border-border">
-            Vista previa
-          </span>
-        </div>
-        <p className="text-sm text-text-secondary">
-          {course.modules.length} modulos · {allLessons.length} lecciones
-        </p>
+
+        {editing ? (
+          <div className="space-y-3">
+            <Input
+              label="Titulo"
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+            />
+            <div className="space-y-1">
+              <label className="block text-sm font-medium text-text">Descripcion</label>
+              <textarea
+                className="w-full px-3 py-2 text-sm text-text border border-border rounded-lg bg-bg placeholder:text-text-muted focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-colors duration-150 min-h-[80px] resize-y"
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+              />
+            </div>
+            <Input
+              label="Objetivo de aprendizaje"
+              value={editOutcome}
+              onChange={(e) => setEditOutcome(e.target.value)}
+            />
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                onClick={saveEditing}
+                disabled={updateCourse.isPending || !editTitle.trim()}
+              >
+                {updateCourse.isPending ? 'Guardando...' : 'Guardar'}
+              </Button>
+              <Button variant="ghost" size="sm" onClick={cancelEditing} disabled={updateCourse.isPending}>
+                Cancelar
+              </Button>
+              {updateCourse.isError && (
+                <span className="text-xs text-danger">Error al guardar</span>
+              )}
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center gap-3 mb-2 min-w-0">
+              <span className="w-3 h-3 rounded-full shrink-0 bg-primary" />
+              <h2 className="text-xl font-semibold text-text truncate">{course.title}</h2>
+              <Badge variant={status.variant} badgeStyle="plain" className="shrink-0">
+                {status.label}
+              </Badge>
+            </div>
+            {course.description && (
+              <p className="text-sm text-text-secondary mb-1">{course.description}</p>
+            )}
+            {course.outcome && (
+              <p className="text-sm text-text-muted mb-1">Objetivo: {course.outcome}</p>
+            )}
+            <p className="text-sm text-text-secondary">
+              {course.modules.length} modulos · {allLessons.length} lecciones
+            </p>
+            <div className="flex items-center gap-2 mt-3">
+              <Button variant="secondary" size="sm" onClick={startEditing}>
+                Editar
+              </Button>
+              {course.status === 'draft' && (
+                <Button
+                  variant="accent"
+                  size="sm"
+                  onClick={() => id && publishCourse.mutate(id)}
+                  disabled={publishCourse.isPending}
+                >
+                  {publishCourse.isPending ? 'Publicando...' : 'Publicar'}
+                </Button>
+              )}
+              {course.status === 'published' && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => id && archiveCourse.mutate(id)}
+                  disabled={archiveCourse.isPending}
+                >
+                  {archiveCourse.isPending ? 'Archivando...' : 'Archivar'}
+                </Button>
+              )}
+              {(publishCourse.isError || archiveCourse.isError) && (
+                <span className="text-xs text-danger">Error al cambiar estado</span>
+              )}
+            </div>
+          </>
+        )}
       </div>
 
       <div className="flex flex-col lg:flex-row gap-6">
