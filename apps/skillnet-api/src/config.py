@@ -45,6 +45,9 @@ class Settings(BaseSettings):
     ADMIN_PASSWORD: str | None = None
     ORG_NAME: str | None = None
 
+    # Agent-to-agent internal API key (auto-provisioned on startup)
+    A2A_INTERNAL_API_KEY: str | None = None
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     @field_validator("SECRET_KEY")
