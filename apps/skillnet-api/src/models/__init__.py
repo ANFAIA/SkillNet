@@ -6,6 +6,7 @@ from src.models.base import Base, TimestampMixin, UUIDMixin
 from src.models.chat_message import ChatMessage
 from src.models.chat_session import ChatSession
 from src.models.course import ContentStatus, Course
+from src.models.course_skill import CourseSkill
 from src.models.document import Document, DocumentStatus
 from src.models.document_chunk import DocumentChunk
 from src.models.enrollment import Enrollment, EnrollmentStatus
@@ -40,6 +41,7 @@ __all__ = [
     "DocumentChunk",
     "Course",
     "ContentStatus",
+    "CourseSkill",
     "Module",
     "Lesson",
     "LessonProgress",
