@@ -48,6 +48,7 @@ services:
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
       ORG_NAME: ${ORG_NAME:-SkillNet}
+      A2A_INTERNAL_API_KEY: ${A2A_INTERNAL_API_KEY:-}
     volumes:
       - uploads:/data/uploads
     depends_on:
@@ -77,6 +78,28 @@ services:
       timeout: 5s
       retries: 10
       start_period: 30s
+
+  # ── A2A Agent Server (optional) ─────────────────────────────
+  a2a:
+    build:
+      context: .
+      dockerfile: docker/a2a.Dockerfile
+    restart: unless-stopped
+    profiles: [a2a]
+    ports:
+      - "${A2A_PORT:-5000}:5000"
+    environment:
+      API_URL: http://api:8000
+      SKILLNET_API_KEY: ${A2A_INTERNAL_API_KEY:-}
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL: ${A2A_LLM_MODEL:-gpt-4o-mini}
+      A2A_PORT: "5000"
+      A2A_AUTH_KEY: ${A2A_AUTH_KEY:-}
+      A2A_AGENT_URL: ${A2A_AGENT_URL:-http://localhost:5000}
+    depends_on:
+      api:
+        condition: service_healthy
 
   # ── Frontend (nginx + React SPA) ───────────────────────────
   web:
