@@ -99,24 +99,47 @@ skillnet/
 
 ## Quick start
 
-### Full stack with Docker (recommended)
-
-Runs the three services — `db` (PostgreSQL + pgvector), `api` (FastAPI), and
-`web` (React + nginx). The API runs its database migrations automatically on
-startup and, if `ADMIN_EMAIL` / `ADMIN_PASSWORD` are set, seeds an admin account.
+### 1. Clone and configure
 
 ```bash
+git clone https://github.com/ANFAIA/SkillNet.git
+cd SkillNet
 cp .env.example .env
-# Edit .env: set SECRET_KEY (>=32 chars), POSTGRES_PASSWORD, your LLM_* provider,
-# and ADMIN_EMAIL / ADMIN_PASSWORD for the first admin account.
-docker compose up -d --build
-# Open http://localhost:3000 and log in as the admin.
 ```
 
-The bundled nginx proxies `/api` to the backend, so the whole app is served
-same-origin on a single port. Any litellm-supported provider works — set
-`LLM_MODEL` to e.g. `anthropic/claude-sonnet-4-20250514`, `deepseek/deepseek-chat`,
-or `ollama/llama3.1` (with `LLM_BASE_URL` for OpenAI-compatible / local endpoints).
+Edit `.env` — you only need to set 3 things:
+
+- `SECRET_KEY` — generate with `python -c "import secrets; print(secrets.token_urlsafe(32))"`
+- `POSTGRES_PASSWORD` — any strong password
+- `LLM_API_KEY` + `LLM_MODEL` — your AI provider (e.g. `anthropic/claude-sonnet-4-20250514`, `deepseek/deepseek-chat`, `ollama/llama3.1`)
+
+### 2. Start
+
+```bash
+docker compose up -d --build
+```
+
+### 3. Open
+
+Open [http://localhost:3000](http://localhost:3000) and log in with the admin account you configured in `.env`.
+
+Upload a document, generate a course, create employees, and start training.
+
+### Want to try it out first?
+
+Load demo data (employee account + 16 skills across 4 categories) with one command:
+
+```bash
+docker compose exec api python -m src.seed_demo
+```
+
+This creates:
+
+| Role | Email | Password |
+|------|-------|----------|
+| Employee | `empleado@demo.skillnet.dev` | `demo1234` |
+
+The admin account uses whatever you set in `.env`. Demo data is optional — your real installation starts clean.
 
 ### Local development
 
@@ -136,10 +159,10 @@ pnpm dev                                   # http://localhost:5173
 
 ### End-to-end flow
 
-Admin uploads a document → creates a course from it → triggers generation (the
+Admin uploads a document — creates a course from it — triggers generation (the
 LangGraph pipeline extracts themes, designs structure, writes modules/lessons in
-Markdown and exercises, self-reviews, and publishes a draft) → publishes the
-course → invites an employee and assigns the course. The employee logs in, works
+Markdown and exercises, self-reviews, and publishes a draft) — publishes the
+course — invites an employee and assigns the course. The employee logs in, works
 through the Markdown lessons and exercises, and asks the tutor chatbot questions
 answered from the source material via RAG.
 
