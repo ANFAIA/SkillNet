@@ -38,6 +38,7 @@ from src.llm.prompts import (
 )
 from src.models import (
     Course,
+    CourseSkill,
     Document,
     DocumentChunk,
     Exercise,
@@ -469,8 +470,8 @@ async def refine_content(state: GenerationState) -> dict:
 # --------------------------------------------------------------------------- #
 async def _auto_create_skills(
     db: Any, org_id: uuid.UUID, state: GenerationState
-) -> None:
-    """Create Skill records from extracted themes if they don't already exist.
+) -> list[uuid.UUID]:
+    """Create Skill records from extracted themes and return their IDs.
 
     Maps each theme's name to a skill. Themes are the concepts the LLM
     identified in the source document — they naturally correspond to the
@@ -478,9 +479,10 @@ async def _auto_create_skills(
     """
     themes = state.get("extracted_themes") or []
     if not themes:
-        return
+        return []
 
     repo = SkillRepository(db)
+    skill_ids: list[uuid.UUID] = []
 
     for theme in themes:
         name = theme.get("name") or theme.get("title") or ""
@@ -490,13 +492,17 @@ async def _auto_create_skills(
 
         existing = await repo.get_by_name(org_id, name)
         if existing is not None:
+            skill_ids.append(existing.id)
             continue
 
         description = theme.get("description") or theme.get("summary") or ""
-        db.add(Skill(org_id=org_id, name=name, description=description[:500]))
+        skill = Skill(org_id=org_id, name=name, description=description[:500])
+        db.add(skill)
+        await db.flush()
+        skill_ids.append(skill.id)
 
-    await db.flush()
     logger.info("Auto-created skills from %d themes for org %s", len(themes), org_id)
+    return skill_ids
 
 
 # --------------------------------------------------------------------------- #
@@ -536,8 +542,11 @@ async def publish(state: GenerationState) -> dict:
             course.status = "draft"
             await db.flush()
 
-        # Auto-create skills from themes extracted earlier in the pipeline.
-        await _auto_create_skills(db, org_id, state)
+        # Auto-create skills from themes and link them to the course.
+        skill_ids = await _auto_create_skills(db, org_id, state)
+        for skill_id in skill_ids:
+            db.add(CourseSkill(course_id=course.id, skill_id=skill_id))
+        await db.flush()
 
         for mod_position, gen_module in enumerate(
             state.get("generated_modules", []), start=1
