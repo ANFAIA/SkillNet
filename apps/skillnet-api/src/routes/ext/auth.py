@@ -25,7 +25,7 @@ async def _get_api_key(
     if api_key is None or not api_key.is_active:
         raise ForbiddenError("Invalid or inactive API key")
     # Update last_used_at
-    api_key.last_used_at = datetime.now(timezone.utc)
+    api_key.last_used_at = datetime.utcnow()
     await db.flush()
     return api_key
 
