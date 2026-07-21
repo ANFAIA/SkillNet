@@ -15,7 +15,11 @@ export function DialogueExercise({ exercise }: { exercise: Exercise }) {
   const [input, setInput] = useState('')
   const submit = useSubmitAttempt()
   const result = submit.data
-  const done = !!result
+  const done = result?.passed ?? false
+
+  function retry() {
+    submit.reset()
+  }
 
   function addTurn() {
     const text = input.trim()
@@ -77,7 +81,7 @@ export function DialogueExercise({ exercise }: { exercise: Exercise }) {
       {submit.isError && (
         <p className="mt-3 text-sm text-danger">No se pudo enviar la respuesta.</p>
       )}
-      {result && <ExerciseResult result={result} />}
+      {result && <ExerciseResult result={result} onRetry={!result.passed ? retry : undefined} />}
     </div>
   )
 }

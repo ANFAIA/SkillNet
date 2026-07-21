@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Button } from '../ui'
-import { useSubmitAttempt } from '../../api/exercises'
+import { useSubmitAttempt, useCorrectExercise } from '../../api/exercises'
 import { ExerciseResult } from './ExerciseResult'
 import type { Exercise, TrueFalseContent } from '../../types'
 
@@ -8,8 +8,23 @@ export function TrueFalseExercise({ exercise }: { exercise: Exercise }) {
   const content = exercise.content as TrueFalseContent
   const [answer, setAnswer] = useState<boolean | null>(null)
   const submit = useSubmitAttempt()
-  const result = submit.data
-  const done = !!result
+  const correctMut = useCorrectExercise()
+  const result = correctMut.data ?? submit.data
+  const done = result?.passed ?? false
+
+  function retry() {
+    submit.reset()
+    correctMut.reset()
+  }
+
+  function correct() {
+    correctMut.mutate(exercise.id, {
+      onSuccess: (data) => {
+        const val = data.correct_answer?.answer as boolean | undefined
+        if (val != null) setAnswer(val)
+      },
+    })
+  }
 
   const options: { label: string; value: boolean }[] = [
     { label: 'Verdadero', value: true },
@@ -55,7 +70,7 @@ export function TrueFalseExercise({ exercise }: { exercise: Exercise }) {
       {submit.isError && (
         <p className="mt-3 text-sm text-danger">No se pudo enviar la respuesta.</p>
       )}
-      {result && <ExerciseResult result={result} />}
+      {result && <ExerciseResult result={result} onRetry={!result.passed ? retry : undefined} onCorrect={!result.passed ? correct : undefined} />}
     </div>
   )
 }

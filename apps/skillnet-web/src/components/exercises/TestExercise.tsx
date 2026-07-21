@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Button } from '../ui'
-import { useSubmitAttempt } from '../../api/exercises'
+import { useSubmitAttempt, useCorrectExercise } from '../../api/exercises'
 import { ExerciseResult } from './ExerciseResult'
 import type { Exercise, TestContent } from '../../types'
 
@@ -8,15 +8,30 @@ export function TestExercise({ exercise }: { exercise: Exercise }) {
   const content = exercise.content as TestContent
   const [selected, setSelected] = useState<number | null>(null)
   const submit = useSubmitAttempt()
-  const result = submit.data
-  const done = !!result
+  const correctMut = useCorrectExercise()
+  const result = correctMut.data ?? submit.data
+  const done = result?.passed ?? false
+
+  function retry() {
+    submit.reset()
+    correctMut.reset()
+  }
+
+  function correct() {
+    correctMut.mutate(exercise.id, {
+      onSuccess: (data) => {
+        const idx = data.correct_answer?.selected as number | undefined
+        if (idx != null) setSelected(idx)
+      },
+    })
+  }
 
   return (
     <div>
       <p className="text-sm text-text mb-4">{content.question}</p>
 
       <div className="space-y-2">
-        {content.options.map((option, idx) => (
+        {(content.options ?? []).map((option, idx) => (
           <label
             key={idx}
             className={`flex items-center gap-3 p-3 border rounded-lg transition-colors ${
@@ -53,7 +68,7 @@ export function TestExercise({ exercise }: { exercise: Exercise }) {
       {submit.isError && (
         <p className="mt-3 text-sm text-danger">No se pudo enviar la respuesta.</p>
       )}
-      {result && <ExerciseResult result={result} />}
+      {result && <ExerciseResult result={result} onRetry={!result.passed ? retry : undefined} onCorrect={!result.passed ? correct : undefined} />}
     </div>
   )
 }

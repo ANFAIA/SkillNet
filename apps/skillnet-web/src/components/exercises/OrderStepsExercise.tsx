@@ -1,14 +1,29 @@
 import { useState } from 'react'
 import { Button } from '../ui'
-import { useSubmitAttempt } from '../../api/exercises'
+import { useSubmitAttempt, useCorrectExercise } from '../../api/exercises'
 import { ExerciseResult } from './ExerciseResult'
 import type { Exercise, OrderStepsContent } from '../../types'
 
 export function OrderStepsExercise({ exercise }: { exercise: Exercise }) {
   const content = exercise.content as OrderStepsContent
   const submit = useSubmitAttempt()
-  const result = submit.data
-  const done = !!result
+  const correctMut = useCorrectExercise()
+  const result = correctMut.data ?? submit.data
+  const done = result?.passed ?? false
+
+  function retry() {
+    submit.reset()
+    correctMut.reset()
+  }
+
+  function correct() {
+    correctMut.mutate(exercise.id, {
+      onSuccess: (data) => {
+        const order = data.correct_answer?.order as number[] | undefined
+        if (order) setOrder(order)
+      },
+    })
+  }
 
   // Track the original index of each step; user reorders the arrangement.
   const [order, setOrder] = useState<number[]>(() => content.steps.map((_, i) => i))
@@ -28,7 +43,7 @@ export function OrderStepsExercise({ exercise }: { exercise: Exercise }) {
       <p className="text-sm text-text mb-4">{content.instruction}</p>
 
       <ol className="space-y-2">
-        {order.map((originalIdx, pos) => (
+        {(order ?? []).map((originalIdx, pos) => (
           <li
             key={originalIdx}
             className="flex items-center gap-3 p-3 border border-border rounded-lg"
@@ -75,7 +90,7 @@ export function OrderStepsExercise({ exercise }: { exercise: Exercise }) {
       {submit.isError && (
         <p className="mt-3 text-sm text-danger">No se pudo enviar la respuesta.</p>
       )}
-      {result && <ExerciseResult result={result} />}
+      {result && <ExerciseResult result={result} onRetry={!result.passed ? retry : undefined} onCorrect={!result.passed ? correct : undefined} />}
     </div>
   )
 }

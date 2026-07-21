@@ -68,22 +68,26 @@ export type ExerciseType =
 export interface TestContent {
   question: string
   options: string[]
+  correct: number
   explanation?: string
 }
 
 export interface TrueFalseContent {
   statement: string
+  correct: boolean
   explanation?: string
 }
 
 export interface FillBlankContent {
   template: string
+  blanks: string[]
   explanation?: string
 }
 
 export interface OrderStepsContent {
   instruction: string
   steps: string[]
+  correct_order: number[]
   explanation?: string
 }
 
@@ -140,6 +144,10 @@ export interface AttemptResult {
   explanation: string
 }
 
+export interface CorrectResult extends AttemptResult {
+  correct_answer: Record<string, unknown>
+}
+
 export interface AttemptRead extends AttemptResult {
   id: string
   exercise_id: string
@@ -161,6 +169,23 @@ export type ExerciseAnswer =
   | OrderStepsAnswer
   | PracticalCaseAnswer
   | DialogueAnswer
+
+// --- Course Progress ---
+
+export interface LessonProgress {
+  lesson_id: string
+  completed: boolean
+  locked: boolean
+  exercises_pending: number
+  exercises_total: number
+  exercises_passed: number
+}
+
+export interface CourseProgress {
+  lessons: LessonProgress[]
+  can_complete: boolean
+  progress_percent: number
+}
 
 // --- Enrollments ---
 

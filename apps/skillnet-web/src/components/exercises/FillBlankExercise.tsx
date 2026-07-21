@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Button } from '../ui'
-import { useSubmitAttempt } from '../../api/exercises'
+import { useSubmitAttempt, useCorrectExercise } from '../../api/exercises'
 import { ExerciseResult } from './ExerciseResult'
 import type { Exercise, FillBlankContent } from '../../types'
 
@@ -10,8 +10,23 @@ const BLANK_RE = /_{2,}|\{\{.*?\}\}/g
 export function FillBlankExercise({ exercise }: { exercise: Exercise }) {
   const content = exercise.content as FillBlankContent
   const submit = useSubmitAttempt()
-  const result = submit.data
-  const done = !!result
+  const correctMut = useCorrectExercise()
+  const result = correctMut.data ?? submit.data
+  const done = result?.passed ?? false
+
+  function retry() {
+    submit.reset()
+    correctMut.reset()
+  }
+
+  function correct() {
+    correctMut.mutate(exercise.id, {
+      onSuccess: (data) => {
+        const blanks = data.correct_answer?.answers as string[] | undefined
+        if (blanks) setAnswers(blanks)
+      },
+    })
+  }
 
   const segments = useMemo(() => content.template.split(BLANK_RE), [content.template])
   const blankCount = Math.max(0, segments.length - 1)
@@ -57,7 +72,7 @@ export function FillBlankExercise({ exercise }: { exercise: Exercise }) {
       {submit.isError && (
         <p className="mt-3 text-sm text-danger">No se pudo enviar la respuesta.</p>
       )}
-      {result && <ExerciseResult result={result} />}
+      {result && <ExerciseResult result={result} onRetry={!result.passed ? retry : undefined} onCorrect={!result.passed ? correct : undefined} />}
     </div>
   )
 }

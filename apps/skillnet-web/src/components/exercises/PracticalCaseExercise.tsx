@@ -9,7 +9,11 @@ export function PracticalCaseExercise({ exercise }: { exercise: Exercise }) {
   const [response, setResponse] = useState('')
   const submit = useSubmitAttempt()
   const result = submit.data
-  const done = !!result
+  const done = result?.passed ?? false
+
+  function retry() {
+    submit.reset()
+  }
 
   return (
     <div>
@@ -43,7 +47,7 @@ export function PracticalCaseExercise({ exercise }: { exercise: Exercise }) {
       {submit.isError && (
         <p className="mt-3 text-sm text-danger">No se pudo enviar la respuesta.</p>
       )}
-      {result && <ExerciseResult result={result} />}
+      {result && <ExerciseResult result={result} onRetry={!result.passed ? retry : undefined} />}
     </div>
   )
 }
