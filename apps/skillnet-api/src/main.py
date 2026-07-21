@@ -9,7 +9,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from src.config import settings
-from src.core.bootstrap import ensure_organization, maybe_create_admin, run_migrations
+from src.core.bootstrap import (
+    ensure_organization,
+    maybe_create_a2a_api_key,
+    maybe_create_admin,
+    run_migrations,
+)
 from src.core.exceptions import AppError
 from src.core.logging import configure_logging, get_logger
 from src.deps.db import async_session_factory, engine
@@ -27,6 +32,7 @@ from src.routes import (
     stats,
     users,
 )
+from src.routes.ext import skills as ext_skills
 
 configure_logging(settings.LOG_LEVEL)
 logger = get_logger(__name__)
@@ -43,8 +49,9 @@ async def lifespan(app: FastAPI):
 
     try:
         async with async_session_factory() as session:
-            await ensure_organization(session)
+            org = await ensure_organization(session)
             await maybe_create_admin(session)
+            await maybe_create_a2a_api_key(session, org)
     except Exception as exc:  # noqa: BLE001
         logger.error("Bootstrap (org/admin) failed: %s", exc)
 
@@ -112,6 +119,10 @@ def create_app() -> FastAPI:
     app.include_router(chat.router, prefix=prefix, tags=["Chat"])
     app.include_router(stats.router, prefix=prefix)
     app.include_router(settings_routes.router, prefix=prefix)
+
+    ext_prefix = "/ext/v1"
+    app.include_router(ext_skills.router, prefix=ext_prefix)
+    app.include_router(ext_skills.user_router, prefix=ext_prefix)
 
     return app
 
