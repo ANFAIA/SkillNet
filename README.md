@@ -141,6 +141,10 @@ This creates:
 
 The admin account uses whatever you set in `.env`. Demo data is optional — your real installation starts clean.
 
+### API documentation
+
+Set `DEBUG=true` and `ENVIRONMENT=development` in your `.env` to enable Swagger docs at [http://localhost:3000/api/docs](http://localhost:3000/api/docs).
+
 ### Local development
 
 ```bash

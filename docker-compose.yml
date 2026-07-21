@@ -54,8 +54,6 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      ollama:
-        condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8000/health').raise_for_status()"]
       interval: 10s
@@ -63,12 +61,11 @@ services:
       retries: 5
       start_period: 30s
 
-  # ── Local Embeddings (Ollama, dev only) ────────────────────
+  # ── Local Embeddings (optional — enable with: docker compose --profile ollama up)
   ollama:
     image: ollama/ollama:latest
     restart: unless-stopped
-    ports:
-      - "11434:11434"
+    profiles: [ollama]
     volumes:
       - ollama:/root/.ollama
     command: serve
