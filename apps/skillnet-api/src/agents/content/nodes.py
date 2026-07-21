@@ -46,9 +46,11 @@ from src.models import (
     Lesson,
     Module,
     Organization,
+    Skill,
 )
 from src.repositories.document_chunk_repo import DocumentChunkRepository
 from src.repositories.generation_job_repo import GenerationJobRepository
+from src.repositories.skill_repo import SkillRepository
 
 logger = get_logger(__name__)
 
@@ -463,6 +465,41 @@ async def refine_content(state: GenerationState) -> dict:
 
 
 # --------------------------------------------------------------------------- #
+# Helper: auto-create skills from extracted themes
+# --------------------------------------------------------------------------- #
+async def _auto_create_skills(
+    db: Any, org_id: uuid.UUID, state: GenerationState
+) -> None:
+    """Create Skill records from extracted themes if they don't already exist.
+
+    Maps each theme's name to a skill. Themes are the concepts the LLM
+    identified in the source document — they naturally correspond to the
+    skills the generated course will teach.
+    """
+    themes = state.get("extracted_themes") or []
+    if not themes:
+        return
+
+    repo = SkillRepository(db)
+
+    for theme in themes:
+        name = theme.get("name") or theme.get("title") or ""
+        name = name.strip().lower().replace(" ", "_")[:100]
+        if not name:
+            continue
+
+        existing = await repo.get_by_name(org_id, name)
+        if existing is not None:
+            continue
+
+        description = theme.get("description") or theme.get("summary") or ""
+        db.add(Skill(org_id=org_id, name=name, description=description[:500]))
+
+    await db.flush()
+    logger.info("Auto-created skills from %d themes for org %s", len(themes), org_id)
+
+
+# --------------------------------------------------------------------------- #
 # Node 7: publish
 # --------------------------------------------------------------------------- #
 @node_error_wrapper("publish")
@@ -498,6 +535,9 @@ async def publish(state: GenerationState) -> dict:
             course.outcome = outline.get("outcome")
             course.status = "draft"
             await db.flush()
+
+        # Auto-create skills from themes extracted earlier in the pipeline.
+        await _auto_create_skills(db, org_id, state)
 
         for mod_position, gen_module in enumerate(
             state.get("generated_modules", []), start=1
