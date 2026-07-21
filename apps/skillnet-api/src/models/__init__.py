@@ -1,6 +1,7 @@
 """ORM models. Importing this package registers every table on Base.metadata."""
 
 from src.models.access_token import AccessToken
+from src.models.api_key import ApiKey
 from src.models.base import Base, TimestampMixin, UUIDMixin
 from src.models.chat_message import ChatMessage
 from src.models.chat_session import ChatSession
@@ -19,13 +20,17 @@ from src.models.lesson import Lesson
 from src.models.lesson_progress import LessonProgress
 from src.models.module import Module
 from src.models.organization import Organization
+from src.models.skill import Skill
+from src.models.skill_category import SkillCategory
 from src.models.user import LearningProfile, User, UserRole
+from src.models.user_skill import SkillLevel, UserSkill
 
 __all__ = [
     "Base",
     "UUIDMixin",
     "TimestampMixin",
     "AccessToken",
+    "ApiKey",
     "Organization",
     "User",
     "UserRole",
@@ -46,6 +51,10 @@ __all__ = [
     "GenerationJob",
     "GenerationOutput",
     "GenerationStep",
+    "Skill",
+    "SkillCategory",
+    "SkillLevel",
+    "UserSkill",
     "ChatSession",
     "ChatMessage",
 ]
