@@ -17,6 +17,7 @@ const tabs: { key: Tab; label: string }[] = [
 
 const statusLabel: Record<string, string> = {
   not_started: 'Pendiente',
+  assigned: 'Pendiente',
   in_progress: 'En progreso',
   completed: 'Completado',
   overdue: 'Atrasado',
@@ -41,7 +42,7 @@ export function MyCourses() {
       ? e.status === 'completed'
       : activeTab === 'in_progress'
         ? e.status === 'in_progress' || e.status === 'overdue'
-        : e.status === 'not_started',
+        : e.status === 'not_started' || e.status === 'assigned',
   )
 
   return (
@@ -86,7 +87,11 @@ export function MyCourses() {
           <EmptyState
             title="No se pudieron cargar los cursos"
             description={
-              error instanceof ApiError ? error.body.detail : 'Comprueba tu conexion e intentalo de nuevo'
+              error instanceof ApiError
+                ? error.body?.detail ?? 'Error del servidor'
+                : error instanceof Error
+                  ? error.message
+                  : 'Comprueba tu conexion e intentalo de nuevo'
             }
           />
         ) : filtered.length === 0 ? (
@@ -103,7 +108,7 @@ export function MyCourses() {
                   <CourseItem
                     title={e.course_title}
                     subtitle={subtitleFor(e)}
-                    progress={e.progress ?? 0}
+                    progress={Math.round((e.progress ?? 0) * 100)}
                     color="var(--color-primary)"
                     onClick={() => navigate(`/empleado/curso/${e.course_id}`)}
                   />

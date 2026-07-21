@@ -48,7 +48,7 @@ export function Dashboard() {
   const enrollments = enrollmentData?.items ?? []
   const active = enrollments.filter((e) => e.status === 'in_progress' || e.status === 'overdue')
   const completed = enrollments.filter((e) => e.status === 'completed')
-  const pending = enrollments.filter((e) => e.status === 'not_started')
+  const pending = enrollments.filter((e) => e.status === 'not_started' || e.status === 'assigned')
   const scored = completed.filter((e) => e.score !== null)
   const avgScore = scored.length
     ? Math.round(scored.reduce((acc, e) => acc + (e.score ?? 0), 0) / scored.length)
@@ -94,7 +94,7 @@ export function Dashboard() {
                   key={e.id}
                   title={e.course_title}
                   subtitle={e.deadline ? `Fecha limite ${new Date(e.deadline).toLocaleDateString()}` : 'En progreso'}
-                  progress={e.progress ?? 0}
+                  progress={Math.round((e.progress ?? 0) * 100)}
                   color="var(--color-primary)"
                   onClick={() => navigate(`/empleado/curso/${e.course_id}`)}
                 />

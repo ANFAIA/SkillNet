@@ -11,7 +11,9 @@ from src.deps.db import DBSession
 from src.models import Course, ContentStatus, UserRole
 from src.repositories.course_repo import CourseRepository
 from src.repositories.enrollment_repo import EnrollmentRepository
+from src.repositories.exercise_repo import ExerciseRepository
 from src.repositories.generation_job_repo import GenerationJobRepository
+from src.repositories.lesson_progress_repo import LessonProgressRepository
 from src.schemas.common import PaginatedResponse
 from src.schemas.course import (
     CourseCreate,
@@ -157,6 +159,108 @@ async def get_course(
         if enrollment is None:
             raise ForbiddenError("You are not enrolled in this course")
     return _detail(course, strip=strip)
+
+
+@router.get("/{course_id}/progress")
+async def get_course_progress(
+    user: CurrentUser, db: DBSession, course_id: uuid.UUID
+) -> dict:
+    """Return the full progression state for the current user in a course.
+
+    Each lesson reports its lock status, exercise counts, and completion.
+    A lesson is locked when the previous lesson (ordered by module.position,
+    lesson.position) has not been completed.
+    """
+    course_repo = CourseRepository(db)
+    course = await course_repo.get_detail(course_id, user.org_id)
+    if course is None:
+        raise NotFoundError("courses", str(course_id))
+
+    # Employees must be enrolled.
+    if user.role == UserRole.EMPLOYEE:
+        enrollment_repo = EnrollmentRepository(db)
+        enrollment = await enrollment_repo.get_by_user_and_course(user.id, course_id)
+        if enrollment is None:
+            raise ForbiddenError("You are not enrolled in this course")
+
+    # Build ordered list of lessons across all modules.
+    ordered_lessons = sorted(
+        [
+            (module, lesson)
+            for module in course.modules
+            for lesson in module.lessons
+        ],
+        key=lambda pair: (pair[0].position, pair[1].position),
+    )
+
+    if not ordered_lessons:
+        return {
+            "lessons": [],
+            "can_complete": True,
+            "total_lessons": 0,
+            "completed_lessons": 0,
+            "progress_percent": 100,
+        }
+
+    # Batch-fetch completion and exercise data.
+    all_lesson_ids = [lesson.id for _, lesson in ordered_lessons]
+    all_exercise_ids = [
+        ex.id for _, lesson in ordered_lessons for ex in lesson.exercises
+    ]
+
+    progress_repo = LessonProgressRepository(db)
+    visited = await progress_repo.completed_lesson_ids(
+        user_id=user.id, lesson_ids=all_lesson_ids
+    )
+
+    exercise_repo = ExerciseRepository(db)
+    passed = await exercise_repo.passed_exercise_ids(
+        user_id=user.id, exercise_ids=all_exercise_ids
+    )
+
+    # Determine completion per lesson (visited + all exercises passed).
+    def is_completed(lesson) -> bool:
+        if lesson.id not in visited:
+            return False
+        lesson_ex_ids = [ex.id for ex in lesson.exercises]
+        return all(eid in passed for eid in lesson_ex_ids)
+
+    lessons_out = []
+    completed_count = 0
+    for idx, (module, lesson) in enumerate(ordered_lessons):
+        completed = is_completed(lesson)
+        if completed:
+            completed_count += 1
+
+        # First lesson is always unlocked; others require previous completed.
+        locked = False
+        if idx > 0:
+            prev_lesson = ordered_lessons[idx - 1][1]
+            locked = not is_completed(prev_lesson)
+
+        lesson_ex_ids = [ex.id for ex in lesson.exercises]
+        exercises_passed = sum(1 for eid in lesson_ex_ids if eid in passed)
+
+        lessons_out.append({
+            "lesson_id": str(lesson.id),
+            "module_id": str(module.id),
+            "position": idx + 1,
+            "completed": completed,
+            "locked": locked,
+            "exercises_pending": len(lesson_ex_ids) - exercises_passed,
+            "exercises_total": len(lesson_ex_ids),
+            "exercises_passed": exercises_passed,
+        })
+
+    total = len(ordered_lessons)
+    progress_pct = int((completed_count / total) * 100) if total else 100
+    return {
+        "lessons": lessons_out,
+        "can_complete": completed_count == total,
+        "total_lessons": total,
+        "completed_lessons": completed_count,
+        "progress_percent": progress_pct,
+    }
 
 
 @router.put("/{course_id}", response_model=CourseRead)

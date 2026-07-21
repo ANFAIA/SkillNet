@@ -42,7 +42,7 @@ export function ProgressBar({
     <div className={`max-w-full ${className}`}>
       {showLabel && (
         <div className="flex justify-between items-center mb-1">
-          <span className="text-xs text-text-secondary">{clamped}%</span>
+          <span className="text-xs text-text-secondary">{Math.round(clamped)}%</span>
         </div>
       )}
       <div className={`bg-bg-muted rounded-full overflow-hidden ${sizeClasses[size]}`}>

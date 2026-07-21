@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { del, get, post, put } from './client'
-import type { CourseDetail, CourseRead, Exercise, Lesson, Paginated } from '../types'
+import type { CourseDetail, CourseProgress, CourseRead, Exercise, Lesson, Paginated } from '../types'
 
 export interface CourseFilters {
   status?: string
@@ -128,6 +128,28 @@ export function useUpdateExercise() {
       payload: { content?: Record<string, unknown> }
     }) => put<Exercise>(`/exercises/${exerciseId}`, payload),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['courses'] })
+    },
+  })
+}
+
+export function useCourseProgress(courseId: string | undefined) {
+  return useQuery({
+    queryKey: ['courses', courseId, 'progress'],
+    queryFn: () => get<CourseProgress>(`/courses/${courseId}/progress`),
+    enabled: !!courseId,
+  })
+}
+
+export function useCompleteLesson() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (lessonId: string) =>
+      post<{ completed: boolean; progress?: number; reason?: string }>(
+        `/lessons/${lessonId}/complete`,
+      ),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['enrollments'] })
       queryClient.invalidateQueries({ queryKey: ['courses'] })
     },
   })

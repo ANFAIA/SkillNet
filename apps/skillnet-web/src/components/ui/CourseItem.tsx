@@ -45,7 +45,7 @@ export function CourseItem({
         <p className="text-xs text-text-muted mt-0.5 ml-4">{subtitle}</p>
         <div className="flex items-center gap-2 mt-2 ml-4">
           <ProgressBar value={clamped} color={color} size="sm" className="flex-1" />
-          <span className="text-xs font-medium text-text-secondary shrink-0">{clamped}%</span>
+          <span className="text-xs font-medium text-text-secondary shrink-0">{Math.round(clamped)}%</span>
         </div>
       </div>
     </div>

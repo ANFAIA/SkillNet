@@ -44,3 +44,14 @@ export function useAssignCourse() {
     },
   })
 }
+
+export function useCompleteEnrollment() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (enrollmentId: string) =>
+      post<EnrollmentRead>(`/enrollments/${enrollmentId}/complete`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['enrollments'] })
+    },
+  })
+}

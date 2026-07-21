@@ -43,6 +43,13 @@ class AttemptResult(BaseModel):
     explanation: str | None = None
 
 
+class CorrectResult(AttemptResult):
+    """Returned by the /correct endpoint — includes the right answer so the UI
+    can display it without ever having received the answer keys."""
+
+    correct_answer: Any = None
+
+
 class ExerciseUpdate(BaseModel):
     content: dict | None = None
 

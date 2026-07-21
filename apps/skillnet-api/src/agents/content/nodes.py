@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 import uuid
 from typing import Any
 
@@ -115,8 +116,21 @@ def _estimate_pages(doc: Document) -> int:
 
 
 
+# Pattern that matches the "[Documento: ...] [Seccion: ...]" prefix added by the
+# chunker.  These prefixes are useful for RAG chat (source attribution) but must
+# be stripped from the generation pipeline so the LLM does not bake citation
+# artifacts into the course content shown to end users.
+_CHUNK_PREFIX_RE = re.compile(
+    r"^\[Documento:\s*[^\]]*\]\s*\[Seccion:\s*[^\]]*\]\s*", re.MULTILINE
+)
+
+
+def _strip_chunk_prefix(text: str) -> str:
+    return _CHUNK_PREFIX_RE.sub("", text).lstrip()
+
+
 def _assemble_chunk_text(chunks: list[DocumentChunk]) -> str:
-    return "\n\n".join(chunk.content for chunk in chunks)
+    return "\n\n".join(_strip_chunk_prefix(chunk.content) for chunk in chunks)
 
 
 def _themes_list(parsed: Any) -> list[dict]:
@@ -273,7 +287,7 @@ async def _module_context(
                 logger.warning("Semantic supplement skipped (embedding unavailable)")
 
     ordered = sorted(items.values(), key=lambda it: (it["doc"], it["idx"]))
-    return "\n\n".join(it["content"] for it in ordered)
+    return "\n\n".join(_strip_chunk_prefix(it["content"]) for it in ordered)
 
 
 @node_error_wrapper("generate_modules")

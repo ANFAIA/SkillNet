@@ -2,13 +2,14 @@
 
 import uuid
 from collections.abc import Sequence
-from datetime import date
+from datetime import date, datetime, timezone
 
-from src.core.exceptions import ConflictError, NotFoundError
+from src.core.exceptions import ConflictError, ForbiddenError, NotFoundError
 from src.models import Enrollment, EnrollmentStatus
 from src.repositories.course_repo import CourseRepository
 from src.repositories.enrollment_repo import EnrollmentRepository
 from src.repositories.exercise_repo import ExerciseRepository
+from src.repositories.lesson_progress_repo import LessonProgressRepository
 
 
 class EnrollmentService:
@@ -17,10 +18,14 @@ class EnrollmentService:
         enrollment_repo: EnrollmentRepository,
         course_repo: CourseRepository,
         exercise_repo: ExerciseRepository,
+        lesson_progress_repo: LessonProgressRepository | None = None,
     ) -> None:
         self.enrollment_repo = enrollment_repo
         self.course_repo = course_repo
         self.exercise_repo = exercise_repo
+        self.lesson_progress_repo = lesson_progress_repo or LessonProgressRepository(
+            enrollment_repo.session
+        )
 
     async def assign(
         self,
@@ -84,31 +89,83 @@ class EnrollmentService:
     async def compute_progress(
         self, *, enrollment: Enrollment, org_id: uuid.UUID
     ) -> float | None:
-        """Fraction of modules where every exercise has a passing attempt."""
+        """Fraction of lessons completed.
+
+        A lesson is "completed" when:
+        - it has been visited (a ``LessonProgress`` row exists), AND
+        - all its exercises (if any) have a passing attempt.
+
+        Progress = completed_lessons / total_lessons.
+        """
         course = await self.course_repo.get_detail(enrollment.course_id, org_id)
         if course is None or not course.modules:
-            return 0.0
+            return 1.0
 
-        exercise_ids: list[uuid.UUID] = [
-            exercise.id
+        all_lessons = [
+            lesson
             for module in course.modules
             for lesson in module.lessons
+        ]
+        if not all_lessons:
+            return 1.0
+
+        # Gather all lesson & exercise ids for batch queries.
+        all_lesson_ids = [lesson.id for lesson in all_lessons]
+        all_exercise_ids = [
+            exercise.id
+            for lesson in all_lessons
             for exercise in lesson.exercises
         ]
+
+        visited = await self.lesson_progress_repo.completed_lesson_ids(
+            user_id=enrollment.user_id, lesson_ids=all_lesson_ids
+        )
         passed = await self.exercise_repo.passed_exercise_ids(
-            user_id=enrollment.user_id, exercise_ids=exercise_ids
+            user_id=enrollment.user_id, exercise_ids=all_exercise_ids
         )
 
         completed = 0
-        for module in course.modules:
-            module_exercise_ids = [
-                exercise.id
-                for lesson in module.lessons
-                for exercise in lesson.exercises
-            ]
-            if all(eid in passed for eid in module_exercise_ids):
+        for lesson in all_lessons:
+            if lesson.id not in visited:
+                continue
+            lesson_exercise_ids = [ex.id for ex in lesson.exercises]
+            if all(eid in passed for eid in lesson_exercise_ids):
                 completed += 1
-        return completed / len(course.modules)
+
+        return completed / len(all_lessons)
+
+    async def complete(
+        self, *, enrollment_id: uuid.UUID, org_id: uuid.UUID, user_id: uuid.UUID
+    ) -> tuple[Enrollment, float]:
+        """Mark an enrollment as completed, compute and store the final score.
+
+        Returns the updated enrollment and its progress value.
+        """
+        enrollment = await self.get_scoped(
+            enrollment_id=enrollment_id, org_id=org_id
+        )
+        if enrollment.user_id != user_id:
+            raise ForbiddenError("You can only complete your own enrollments")
+
+        if enrollment.status == EnrollmentStatus.COMPLETED:
+            progress = await self.compute_progress(
+                enrollment=enrollment, org_id=org_id
+            )
+            return enrollment, progress or 0.0
+
+        progress = await self.compute_progress(
+            enrollment=enrollment, org_id=org_id
+        )
+        if progress is None or progress < 1.0:
+            raise ConflictError(
+                "Cannot complete enrollment: not all lessons are finished. "
+                f"Current progress: {int((progress or 0) * 100)}%"
+            )
+        enrollment.status = EnrollmentStatus.COMPLETED
+        enrollment.completed_at = datetime.now(timezone.utc)
+        enrollment.score = progress
+        await self.enrollment_repo.session.flush()
+        return enrollment, progress or 0.0
 
     async def delete(self, *, enrollment_id: uuid.UUID, org_id: uuid.UUID) -> None:
         enrollment = await self.get_scoped(

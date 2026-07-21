@@ -42,7 +42,15 @@ async function api<T>(path: string, options?: RequestInit): Promise<T> {
   // 204 No Content (e.g. DELETE responses)
   if (res.status === 204) return undefined as T
 
-  return res.json() as Promise<T>
+  // Guard against non-JSON success responses (e.g. nginx serving HTML for an
+  // SPA route that should have been proxied to the API).
+  try {
+    return (await res.json()) as T
+  } catch {
+    throw new ApiError(res.status, {
+      detail: 'La respuesta del servidor no es valida (no es JSON)',
+    })
+  }
 }
 
 export const get = <T>(path: string) => api<T>(path)

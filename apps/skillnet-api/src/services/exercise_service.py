@@ -1,14 +1,16 @@
 """Exercise grading (pure) and attempt submission (DB-bound)."""
 
 import uuid
+from datetime import datetime, timezone
 from typing import Any
 
 from src.core.exceptions import ForbiddenError, NotFoundError, ValidationError
 from src.llm.client import LLMService
-from src.models import ExerciseAttempt, User, UserRole
+from src.models import Enrollment, EnrollmentStatus, ExerciseAttempt, User, UserRole
+from src.repositories.course_repo import CourseRepository
 from src.repositories.enrollment_repo import EnrollmentRepository
 from src.repositories.exercise_repo import ExerciseRepository
-from src.schemas.exercise import AttemptResult
+from src.schemas.exercise import AttemptResult, CorrectResult
 
 _OPEN_TYPES = {"practical_case", "dialogue"}
 
@@ -55,6 +57,19 @@ _DETERMINISTIC = {
 }
 
 
+def _build_correct_answer(exercise_type: str, content: dict) -> dict:
+    """Build the answer payload that would score 1.0 for a deterministic exercise."""
+    if exercise_type == "test":
+        return {"selected": content.get("correct")}
+    if exercise_type == "true_false":
+        return {"answer": content.get("correct")}
+    if exercise_type == "fill_blank":
+        return {"answers": content.get("blanks") or []}
+    if exercise_type == "order_steps":
+        return {"order": content.get("correct_order") or []}
+    raise ValidationError(f"Cannot auto-correct exercise type: {exercise_type}")
+
+
 def grade(exercise_type: str, content: dict, answer: Any) -> AttemptResult:
     """Grade an answer. Pure and importable without any DB or LLM dependency."""
     explanation = content.get("explanation")
@@ -86,9 +101,11 @@ class ExerciseService:
         self,
         exercise_repo: ExerciseRepository,
         enrollment_repo: EnrollmentRepository,
+        course_repo: CourseRepository,
     ) -> None:
         self.exercise_repo = exercise_repo
         self.enrollment_repo = enrollment_repo
+        self.course_repo = course_repo
 
     async def submit_attempt(
         self,
@@ -111,6 +128,11 @@ class ExerciseService:
         if enrollment is None:
             raise ForbiddenError("You are not enrolled in this course")
 
+        # Transition assigned -> in_progress on first interaction.
+        if enrollment.status == EnrollmentStatus.ASSIGNED:
+            enrollment.status = EnrollmentStatus.IN_PROGRESS
+            enrollment.started_at = datetime.now(timezone.utc)
+
         exercise_type = exercise.type.value
         if exercise_type in _OPEN_TYPES and llm is not None:
             from src.services.llm_grading import grade_open_answer
@@ -121,7 +143,33 @@ class ExerciseService:
         else:
             result = grade(exercise_type, exercise.content, answer)
         await self._persist(user.id, exercise_id, answer, result)
+
+        # Recompute progress and mark completed if all modules are done.
+        await self._update_enrollment_progress(enrollment, user.org_id)
+
         return result
+
+    async def _update_enrollment_progress(
+        self, enrollment: Enrollment, org_id: uuid.UUID
+    ) -> None:
+        """Recompute progress from passed exercises; complete if 100%."""
+        from src.services.enrollment_service import EnrollmentService
+
+        svc = EnrollmentService(
+            self.enrollment_repo, self.course_repo, self.exercise_repo
+        )
+        progress = await svc.compute_progress(
+            enrollment=enrollment, org_id=org_id
+        )
+        if (
+            progress is not None
+            and progress >= 1.0
+            and enrollment.status != EnrollmentStatus.COMPLETED
+        ):
+            enrollment.status = EnrollmentStatus.COMPLETED
+            enrollment.completed_at = datetime.now(timezone.utc)
+            enrollment.score = progress
+        await self.exercise_repo.session.flush()
 
     async def _persist(
         self,
@@ -140,6 +188,39 @@ class ExerciseService:
         )
         self.exercise_repo.session.add(attempt)
         await self.exercise_repo.session.flush()
+
+    async def correct_exercise(
+        self,
+        *,
+        user: User,
+        exercise_id: uuid.UUID,
+    ) -> CorrectResult:
+        """Submit the known-correct answer on behalf of the user and return
+        the result together with the correct answer so the UI can display it."""
+        exercise = await self.exercise_repo.get_with_course(exercise_id)
+        if exercise is None:
+            raise NotFoundError("exercises", str(exercise_id))
+        course = exercise.lesson.module.course
+        if course.org_id != user.org_id:
+            raise NotFoundError("exercises", str(exercise_id))
+
+        exercise_type = exercise.type.value
+        if exercise_type not in _DETERMINISTIC:
+            raise ValidationError(
+                f"Cannot auto-correct exercise type: {exercise_type}"
+            )
+
+        correct_answer = _build_correct_answer(exercise_type, exercise.content)
+        result = await self.submit_attempt(
+            user=user, exercise_id=exercise_id, answer=correct_answer
+        )
+        return CorrectResult(
+            score=result.score,
+            passed=result.passed,
+            feedback=result.feedback,
+            explanation=result.explanation,
+            correct_answer=correct_answer,
+        )
 
     async def list_attempts(
         self, *, requester: User, exercise_id: uuid.UUID, user_id: uuid.UUID | None

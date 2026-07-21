@@ -4,7 +4,7 @@ import uuid
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 
 from src.models import Lesson, Module
 from src.repositories.base import BaseRepository
@@ -21,6 +21,18 @@ class LessonRepository(BaseRepository[Lesson]):
             .where(Lesson.id == id)
             .options(
                 joinedload(Lesson.module).joinedload(Module.course)
+            )
+        )
+        return (await self.session.execute(query)).unique().scalar_one_or_none()
+
+    async def get_with_course_and_exercises(self, id: uuid.UUID) -> Lesson | None:
+        """Load lesson with module -> course AND exercises (for completion checks)."""
+        query = (
+            select(Lesson)
+            .where(Lesson.id == id)
+            .options(
+                joinedload(Lesson.module).joinedload(Module.course),
+                selectinload(Lesson.exercises),
             )
         )
         return (await self.session.execute(query)).unique().scalar_one_or_none()

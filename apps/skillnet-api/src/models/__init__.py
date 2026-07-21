@@ -16,6 +16,7 @@ from src.models.generation_job import (
     GenerationStep,
 )
 from src.models.lesson import Lesson
+from src.models.lesson_progress import LessonProgress
 from src.models.module import Module
 from src.models.organization import Organization
 from src.models.user import LearningProfile, User, UserRole
@@ -36,6 +37,7 @@ __all__ = [
     "ContentStatus",
     "Module",
     "Lesson",
+    "LessonProgress",
     "Exercise",
     "ExerciseType",
     "Enrollment",

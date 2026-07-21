@@ -10,16 +10,17 @@ from src.deps.auth import AdminUser, CurrentUser, EmployeeUser
 from src.deps.db import DBSession
 from src.deps.llm import OptionalLLMDep
 from src.models import ContentStatus
+from src.repositories.course_repo import CourseRepository
 from src.repositories.enrollment_repo import EnrollmentRepository
 from src.repositories.exercise_repo import ExerciseRepository
-from src.schemas.exercise import AttemptRead, AttemptRequest, AttemptResult, ExerciseRead, ExerciseUpdate
+from src.schemas.exercise import AttemptRead, AttemptRequest, AttemptResult, CorrectResult, ExerciseRead, ExerciseUpdate
 from src.services.exercise_service import ExerciseService
 
 router = APIRouter(prefix="/exercises", tags=["Exercises"])
 
 
 def _service(db: DBSession) -> ExerciseService:
-    return ExerciseService(ExerciseRepository(db), EnrollmentRepository(db))
+    return ExerciseService(ExerciseRepository(db), EnrollmentRepository(db), CourseRepository(db))
 
 
 @router.put("/{exercise_id}", response_model=ExerciseRead)
@@ -62,6 +63,20 @@ async def attempt_exercise(
     service = _service(db)
     result = await service.submit_attempt(
         user=employee, exercise_id=exercise_id, answer=body.answer, llm=llm
+    )
+    await db.commit()
+    return result
+
+
+@router.post("/{exercise_id}/correct", response_model=CorrectResult)
+async def correct_exercise(
+    employee: EmployeeUser,
+    db: DBSession,
+    exercise_id: uuid.UUID,
+) -> CorrectResult:
+    service = _service(db)
+    result = await service.correct_exercise(
+        user=employee, exercise_id=exercise_id
     )
     await db.commit()
     return result

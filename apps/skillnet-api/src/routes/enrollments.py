@@ -120,6 +120,18 @@ async def get_enrollment(
     return _read(enrollment, progress)
 
 
+@router.post("/{enrollment_id}/complete", response_model=EnrollmentRead)
+async def complete_enrollment(
+    user: CurrentUser, db: DBSession, enrollment_id: uuid.UUID
+) -> EnrollmentRead:
+    service = _service(db)
+    enrollment, progress = await service.complete(
+        enrollment_id=enrollment_id, org_id=user.org_id, user_id=user.id
+    )
+    await db.commit()
+    return _read(enrollment, progress)
+
+
 @router.delete("/{enrollment_id}", status_code=204)
 async def delete_enrollment(
     admin: AdminUser, db: DBSession, enrollment_id: uuid.UUID

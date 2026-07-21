@@ -102,18 +102,20 @@ Reglas:
 2. Lecciones de ejemplo: presenta escenarios reales del material de origen, usando la
    terminologia y los procedimientos propios de la empresa.
 3. Lecciones de ejercicio: crea ejercicios que evaluen la aplicacion practica. Cada
-   ejercicio de tipo cerrado debe incluir su campo "explanation" citando la fuente.
+   ejercicio de tipo cerrado debe incluir su campo "explanation" con una justificacion
+   clara basada en el contenido.
 4. El contenido debe estar fundamentado en el material de origen. NO anadas informacion
    que no este en las fuentes.
-5. Incluye marcadores de cita [Fuente: titulo_documento, seccion, pag. N] para cada
-   afirmacion factual.
+5. NO incluyas marcadores de cita, referencias a fuentes ni etiquetas como
+   "[Fuente: ...]", "[Documento: ...]", "[Seccion: ...]" o similares en el contenido
+   de las lecciones ni en los ejercicios. El contenido del curso debe leerse como
+   material educativo independiente, sin revelar la procedencia interna del texto.
 6. Escribe en el mismo idioma que el material de origen.
 7. Formatea el contenido de las lecciones como Markdown.
 
 """ + _EXERCISE_SHAPES + """
 Responde en JSON valido con la forma:
-{"lessons": [{"title": str, "position": int, "content": "<markdown>",
-              "citations": [{"document_title": str, "section": str, "page": int}]}],
+{"lessons": [{"title": str, "position": int, "content": "<markdown>"}],
  "exercises": [{"type": str, "content": {...}, "position": int}]}
 """
 
@@ -131,7 +133,10 @@ Criterios de revision:
    el material de origen. Marca cualquier afirmacion que no puedas verificar.
 2. COMPLETITUD: los temas clave de la fuente deben estar cubiertos. Marca omisiones
    significativas.
-3. CITAS: toda afirmacion factual debe tener cita. Marca las afirmaciones sin cita.
+3. SIN ARTEFACTOS DE CITA: el contenido NO debe contener marcadores de cita como
+   "[Fuente: ...]", "[Documento: ...]", "[Seccion: ...]" ni similares. El material
+   debe leerse como contenido educativo independiente. Marca cualquier artefacto de
+   cita que encuentres como problema "major".
 4. CALIDAD DE EJERCICIOS: los ejercicios deben tener respuestas correctas acordes con la
    fuente. Los casos practicos deben tener rubricas realistas. Marca respuestas erroneas
    o escenarios imposibles.
@@ -142,7 +147,7 @@ Criterios de revision:
 
 Para cada problema encontrado especifica:
 - severity: "critical" (error factual, respuesta erronea), "major" (omision
-  significativa, citas ausentes) o "minor" (estilo, claridad)
+  significativa, artefactos de cita) o "minor" (estilo, claridad)
 - module_index: indice del modulo (null para problema a nivel de curso)
 - description: que esta mal
 - suggestion: como corregirlo
@@ -162,12 +167,12 @@ Para cada problema:
 - Lee la descripcion y la sugerencia.
 - Haz el cambio minimo necesario para resolverlo.
 - Conserva el resto del contenido exactamente igual.
-- Si el problema es una cita ausente, anade la cita desde el material de origen.
 - Si el problema es un error factual, corrigelo usando el material de origen.
+- Si el problema es un artefacto de cita (e.g. "[Fuente: ...]", "[Documento: ...]"),
+  eliminalo. El contenido debe leerse como material educativo independiente.
 
 Devuelve el modulo corregido en el MISMO formato JSON que la entrada:
-{"lessons": [{"title": str, "position": int, "content": "<markdown>",
-              "citations": [...]}],
+{"lessons": [{"title": str, "position": int, "content": "<markdown>"}],
  "exercises": [{"type": str, "content": {...}, "position": int}]}
 
 """ + _EXERCISE_SHAPES
