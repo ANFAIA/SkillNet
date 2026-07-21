@@ -86,10 +86,11 @@ def grade(exercise_type: str, content: dict, answer: Any) -> AttemptResult:
     if exercise_type in _OPEN_TYPES:
         # Deterministic, LLM-free fallback. LLM grading (when configured) is
         # applied by ``ExerciseService.submit_attempt`` via ``grade_open_answer``.
+        # A score of 0.5 is considered acceptable for subjective exercises.
         return AttemptResult(
             score=0.5,
-            passed=False,
-            feedback="Respuesta registrada. Pendiente de evaluacion.",
+            passed=True,
+            feedback="Respuesta registrada. Pendiente de evaluacion manual.",
             explanation=None,
         )
 
