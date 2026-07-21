@@ -118,6 +118,16 @@ export function Content() {
                       <span>Creado: {new Date(course.created_at).toLocaleDateString()}</span>
                     </div>
                   </div>
+                  {course.module_count > 0 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="shrink-0"
+                      onClick={() => navigate(`/admin/curso/${course.id}`)}
+                    >
+                      Ver curso
+                    </Button>
+                  )}
                 </div>
               </Card>
             )

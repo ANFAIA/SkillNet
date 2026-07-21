@@ -14,6 +14,7 @@ import { Employees } from './pages/admin/Employees'
 import { Content } from './pages/admin/Content'
 import { CreateCourse } from './pages/admin/CreateCourse'
 import { AdminChat } from './pages/admin/Chat'
+import { CoursePreview } from './pages/admin/CoursePreview'
 import { Settings as AdminSettings } from './pages/admin/Settings'
 import { MotionDemo } from './pages/dev/MotionDemo'
 
@@ -63,6 +64,7 @@ function App() {
           <Route path="empleados" element={<Employees />} />
           <Route path="contenido" element={<Content />} />
           <Route path="crear-curso" element={<CreateCourse />} />
+          <Route path="curso/:id" element={<CoursePreview />} />
           <Route path="chat" element={<AdminChat />} />
           <Route path="ajustes" element={<AdminSettings />} />
         </Route>
