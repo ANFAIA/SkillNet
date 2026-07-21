@@ -4,12 +4,19 @@ import uuid
 from collections.abc import Sequence
 from datetime import date, datetime, timezone
 
+from sqlalchemy import select
+
 from src.core.exceptions import ConflictError, ForbiddenError, NotFoundError
+from src.core.logging import get_logger
 from src.models import Enrollment, EnrollmentStatus
+from src.models.course_skill import CourseSkill
+from src.models.user_skill import SkillLevel, UserSkill
 from src.repositories.course_repo import CourseRepository
 from src.repositories.enrollment_repo import EnrollmentRepository
 from src.repositories.exercise_repo import ExerciseRepository
 from src.repositories.lesson_progress_repo import LessonProgressRepository
+
+logger = get_logger(__name__)
 
 
 class EnrollmentService:
@@ -165,7 +172,61 @@ class EnrollmentService:
         enrollment.completed_at = datetime.now(timezone.utc)
         enrollment.score = progress
         await self.enrollment_repo.session.flush()
+
+        # Assign skills linked to the course.
+        await self._assign_course_skills(enrollment.user_id, enrollment.course_id)
+
         return enrollment, progress or 0.0
+
+    async def _assign_course_skills(
+        self, user_id: uuid.UUID, course_id: uuid.UUID
+    ) -> None:
+        """Assign skills linked to the completed course to the user.
+
+        When a user completes a course, they earn all skills associated
+        with that course at 'medium' level (first completion) or keep
+        their existing level if already higher.
+        """
+        db = self.enrollment_repo.session
+
+        # Find skills linked to this course.
+        result = await db.execute(
+            select(CourseSkill.skill_id).where(CourseSkill.course_id == course_id)
+        )
+        skill_ids = [row[0] for row in result.all()]
+        if not skill_ids:
+            return
+
+        for skill_id in skill_ids:
+            # Check if user already has this skill.
+            existing = await db.execute(
+                select(UserSkill).where(
+                    UserSkill.user_id == user_id,
+                    UserSkill.skill_id == skill_id,
+                )
+            )
+            user_skill = existing.scalar_one_or_none()
+
+            if user_skill is not None:
+                # Only upgrade, never downgrade.
+                level_order = {SkillLevel.LOW: 0, SkillLevel.MEDIUM: 1, SkillLevel.HIGH: 2}
+                if level_order.get(user_skill.level, 0) < level_order[SkillLevel.MEDIUM]:
+                    user_skill.level = SkillLevel.MEDIUM
+                    user_skill.source = "course_completion"
+                    user_skill.last_assessed_at = datetime.now(timezone.utc)
+            else:
+                db.add(UserSkill(
+                    user_id=user_id,
+                    skill_id=skill_id,
+                    level=SkillLevel.MEDIUM,
+                    source="course_completion",
+                ))
+
+        await db.flush()
+        logger.info(
+            "Assigned %d skills to user %s from course %s",
+            len(skill_ids), user_id, course_id,
+        )
 
     async def delete(self, *, enrollment_id: uuid.UUID, org_id: uuid.UUID) -> None:
         enrollment = await self.get_scoped(
