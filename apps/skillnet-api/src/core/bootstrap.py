@@ -1,5 +1,6 @@
-"""Idempotent startup routines: migrations, default org, and admin bootstrap."""
+"""Idempotent startup routines: migrations, default org, admin, and API key bootstrap."""
 
+import hashlib
 import threading
 from pathlib import Path
 
@@ -8,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.config import settings
 from src.core.logging import get_logger
-from src.models import Organization, User, UserRole
+from src.models import ApiKey, Organization, User, UserRole
 
 logger = get_logger(__name__)
 
@@ -58,6 +59,44 @@ async def maybe_create_admin(session: AsyncSession) -> None:
     session.add(admin)
     await session.commit()
     logger.info("Created bootstrap admin user: %s", settings.ADMIN_EMAIL)
+
+
+async def maybe_create_a2a_api_key(
+    session: AsyncSession, org: Organization
+) -> None:
+    """Create an internal A2A API key from the env var if not already present."""
+    raw_key = settings.A2A_INTERNAL_API_KEY
+    if not raw_key:
+        return
+
+    key_hash = hashlib.sha256(raw_key.encode()).hexdigest()
+
+    existing = await session.execute(
+        select(ApiKey).where(ApiKey.key_hash == key_hash)
+    )
+    if existing.scalar_one_or_none() is not None:
+        return
+
+    # We need a user to attribute the key to. Use the first admin.
+    admin_result = await session.execute(
+        select(User).where(User.org_id == org.id, User.role == UserRole.ADMIN).limit(1)
+    )
+    admin = admin_result.scalar_one_or_none()
+    if admin is None:
+        logger.warning("Cannot create A2A API key: no admin user found")
+        return
+
+    api_key = ApiKey(
+        org_id=org.id,
+        created_by=admin.id,
+        name="A2A Internal",
+        key_hash=key_hash,
+        scopes=["skills:read", "skills:write", "users:read"],
+        is_active=True,
+    )
+    session.add(api_key)
+    await session.commit()
+    logger.info("Created A2A internal API key for org %s", org.name)
 
 
 def run_migrations() -> None:
