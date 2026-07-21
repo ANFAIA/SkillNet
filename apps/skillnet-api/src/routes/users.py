@@ -7,8 +7,10 @@ from fastapi import APIRouter, Query
 
 from src.deps.auth import AdminUser, CurrentUser
 from src.deps.db import DBSession
+from src.repositories.skill_repo import SkillRepository
 from src.repositories.user_repo import UserRepository
 from src.schemas.common import PaginatedResponse
+from src.schemas.skill import UserSkillRead
 from src.schemas.user import (
     EmployeeCreated,
     ResetPasswordRequest,
@@ -17,6 +19,7 @@ from src.schemas.user import (
     UserRead,
     UserSelfUpdate,
 )
+from src.services.skill_service import SkillService
 from src.services.user_service import UserService
 
 router = APIRouter(prefix="/users", tags=["Users"])
@@ -24,6 +27,10 @@ router = APIRouter(prefix="/users", tags=["Users"])
 
 def _service(db: DBSession) -> UserService:
     return UserService(UserRepository(db))
+
+
+def _skill_service(db: DBSession) -> SkillService:
+    return SkillService(SkillRepository(db))
 
 
 @router.get("", response_model=PaginatedResponse[UserRead])
@@ -88,6 +95,13 @@ async def update_me(
     )
     await db.commit()
     return UserRead.model_validate(updated)
+
+
+@router.get("/me/skills", response_model=list[UserSkillRead])
+async def get_my_skills(user: CurrentUser, db: DBSession) -> list[UserSkillRead]:
+    service = _skill_service(db)
+    skills = await service.get_user_skills(user.org_id, user.id)
+    return [UserSkillRead(**s) for s in skills]
 
 
 @router.get("/{user_id}", response_model=UserRead)

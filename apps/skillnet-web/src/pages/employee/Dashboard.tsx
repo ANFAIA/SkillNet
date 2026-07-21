@@ -2,8 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import { Card, CardTitle, MetricCard, CourseItem, SkillBars, EmptyState, SkeletonRow } from '../../components/ui'
 import { useMe } from '../../api/auth'
 import { useEnrollments } from '../../api/enrollments'
-// v1-static: skills have no backend yet (see task scope). Kept as mock preview.
-import { skills } from '../../data/mockData'
+import { useMySkills } from '../../api/users'
 
 function BookIcon() {
   return (
@@ -54,7 +53,8 @@ export function Dashboard() {
     ? Math.round(scored.reduce((acc, e) => acc + (e.score ?? 0), 0) / scored.length)
     : 0
 
-  const dashboardSkills = skills.slice(0, 4)
+  const { data: userSkills, isLoading: skillsLoading } = useMySkills()
+  const dashboardSkills = (userSkills ?? []).slice(0, 4)
   const firstName = me?.full_name?.split(' ')[0] ?? ''
 
   return (
@@ -103,20 +103,32 @@ export function Dashboard() {
           )}
         </Card>
 
-        {/* v1-static: Skill Map preview — skills have no backend endpoint yet. */}
         <Card>
           <CardTitle className="mb-4">Mi Skill Map</CardTitle>
-          <div className="space-y-3">
-            {dashboardSkills.map((skill) => (
-              <div key={skill.name} className="flex items-center justify-between gap-2 min-w-0">
-                <span className="text-sm text-text truncate min-w-0">{skill.name}</span>
-                <div className="flex items-center gap-2 shrink-0">
-                  <SkillBars level={skill.level} />
-                  <span className="text-xs text-text-secondary capitalize w-14">{skill.level}</span>
+          {skillsLoading ? (
+            <div className="space-y-1">
+              <SkeletonRow />
+              <SkeletonRow />
+            </div>
+          ) : dashboardSkills.length === 0 ? (
+            <EmptyState
+              title="Sin skills registradas"
+              description="Completa cursos para desarrollar tus competencias"
+              action={{ label: 'Ver Skill Map', onClick: () => navigate('/empleado/skills') }}
+            />
+          ) : (
+            <div className="space-y-3">
+              {dashboardSkills.map((skill) => (
+                <div key={skill.id} className="flex items-center justify-between gap-2 min-w-0">
+                  <span className="text-sm text-text truncate min-w-0">{skill.skill_name}</span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <SkillBars level={skill.level} />
+                    <span className="text-xs text-text-secondary capitalize w-14">{skill.level}</span>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </Card>
       </div>
     </div>

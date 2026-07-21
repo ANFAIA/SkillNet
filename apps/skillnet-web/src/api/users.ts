@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { get, post, put } from './client'
-import type { Paginated, User } from '../types'
+import type { Paginated, User, UserSkillRead } from '../types'
 
 export interface UserFilters {
   search?: string
@@ -56,6 +56,14 @@ export function useUpdateProfile() {
     onSuccess: (user) => {
       queryClient.setQueryData(['users', 'me'], user)
     },
+  })
+}
+
+export function useMySkills() {
+  return useQuery({
+    queryKey: ['users', 'me', 'skills'],
+    queryFn: () => get<UserSkillRead[]>('/users/me/skills'),
+    staleTime: 60_000,
   })
 }
 

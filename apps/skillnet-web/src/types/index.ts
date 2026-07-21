@@ -209,6 +209,17 @@ export interface EnrollmentRead {
   completed_at: string | null
 }
 
+// --- User Skills ---
+
+export interface UserSkillRead {
+  id: string
+  skill_id: string
+  skill_name: string
+  level: 'low' | 'medium' | 'high'
+  source: string
+  last_assessed_at: string | null
+}
+
 // --- Chat ---
 
 export interface Citation {
