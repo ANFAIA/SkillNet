@@ -171,6 +171,115 @@ A separate direction is emerging for A2TL-Web itself: positioning it as a consum
 - If the LLM generates everything, what does the developer do? Design rules? Train models? Define limits?
 - What is SkillNet if it's born with native generative UI? It's not an LMS with a chatbot. It's... what?
 
+## Update — July 24, 2026: Landscape scan, decisions, and new architecture
+
+A deep investigation session produced a comprehensive scan of the generative UI landscape: 21 academic papers, 3 frameworks, 2 protocols, and 1 production-ready standard. The key findings and decisions are documented in the vault; this section summarizes what changed.
+
+### Papers that validated our direction
+
+| Paper | Why it matters |
+|-------|----------------|
+| **[MAIC-UI](https://arxiv.org/abs/2604.25806)** (Tsinghua) | Academic twin of SkillNet. Same source (PDFs → interactive courseware), similar pipeline. +9.21 STEM points in 53 students over 3 months. **Validates our entire approach.** |
+| **[The Keyhole Effect](https://arxiv.org/abs/2602.00947)** (Reddy) | Neuroscience basis for why chat-only interfaces fail at learning/analysis. The chat destroys spatial memory, forces verbalization (which degrades visual memory), blocks cognitive offloading. **SkillNet's tutor cannot be chat-only.** |
+| **[Stanford SALT GenUI](https://arxiv.org/abs/2508.19227)** | Pipeline: requirement → DSL → generate → refine. 72% human preference over chat. Adaptive reward function. **Validates our 7-stage pipeline.** |
+| **[Software as Content](https://arxiv.org/abs/2603.21334)** (Xie & Xie) | Generated apps as persistent interaction layer, not disposable chat. **Exactly where SkillNet needs to go.** |
+| **[The Missing Layer](https://arxiv.org/abs/2606.15902)** | GenUI in education should be design-time (authoring), not just runtime. **Validates our schema/content separation.** |
+| **[Macaron-A2UI](https://arxiv.org/abs/2605.24830)** | LoRA + GRPO on declarative DSL surpasses GPT-5.4 with prompting. **Direct inspiration for fine-tuning a small model to generate UI DSL natively.** |
+| **[Google GenUI](https://arxiv.org/abs/2604.09577)** — Leviathan et al. | Foundational paper. LLMs generate UI comparable to human experts (ELO 1736 vs 1800). |
+
+Full list of 21 papers: `docs/research/generative-ui/papers/awesome_generative_ui.md` (or vault reference).
+
+### Frameworks and protocols evaluated
+
+| Resource | Type | What it offers |
+|----------|------|----------------|
+| **[A2UI](https://a2ui.org/)** (Google) | Open protocol | Agent-driven UI standard. Declarative JSON, framework-agnostic, safe by design (pre-approved component catalog). v0.9.1 in production, v1.0 candidate. Multi-client (React, Angular, Flutter, Lit). |
+| **[OpenUI Lang](https://www.openui.com/)** (Thesys) | DSL + Runtime | Line-oriented DSL, 52-67% fewer tokens than JSON, streaming parser with validation, React `<Renderer />`, system prompt generator (`library.prompt()`). 7K ⭐, production use. |
+| **[OpenGenerativeUI](https://github.com/CopilotKit/OpenGenerativeUI)** (CopilotKit) | Framework | Sandboxed HTML/SVG in iframes, progressive skills, visual decision matrix. Most complete framework. |
+| **A2TL-Web** (ours) | DSL | 76% token savings vs HTML, brand system, video coverage. No runtime, parser, or validation. |
+
+### Decisions taken
+
+#### 1. Adopt OpenUI Lang as runtime (replace A2TL-Web for production)
+
+A2TL-Web achieves higher compression (76% vs 52-67%), but OpenUI Lang has:
+- Parser with AST + JSON Schema validation
+- Production-proven React renderer
+- Automatic system prompt generation from component schemas
+- Ecosystem (7K ⭐, benchmarks, OpenUI Cloud)
+- Multi-framework support
+
+A2TL remains as an experiment and design reference. OpenUI Lang is the production runtime.
+
+#### 2. New architecture: design-time schema → runtime generation
+
+**Before (v1):** Admin uploads docs → pipeline generates entire course as Markdown → all employees see the same content.
+
+**After (v2):**
+```
+Admin defines schema (nodes, prerequisites, criticality)
+    ↓
+Employee opens course → pre-assessment per node
+    ↓
+For each node NOT mastered:
+    ├── decide_formato (8B LLM) → optimal UI type
+    ├── genera_ui (8B or 120B) → OpenUI Lang
+    └── render (OpenUI <Renderer />)
+    ↓
+Feedback → next node
+```
+
+This enables real personalization without regenerating the entire course.
+
+#### 3. Parallel LLM routing (8B / 120B)
+
+~90% of SkillNet UIs are Level 2 (standard components). A small model suffices.
+
+| Model | Speed | Cost input/1M | Use case |
+|-------|-------|---------------|----------|
+| Llama 3.1 8B (Groq) | 560 t/s | $0.05 | Skeleton + standard components (~90% of UIs) |
+| GPT-OSS 120B (Groq) | 500 t/s | $0.15 | SandboxHTML, simulations, diagrams (~10%) |
+
+Router: if the UI needs SandboxHTML → 120B, else 8B.
+
+#### 4. Stack (current)
+
+```
+Frontend:     React + OpenUI <Renderer /> + SkillNet UI Kit
+Backend:      FastAPI + LangGraph (per-node pipeline)
+Fast LLM:     Llama 3.1 8B (Groq) — 90% of UIs
+Heavy LLM:    GPT-OSS 120B (Groq) — simulations/diagrams
+Format:       OpenUI Lang
+Protocol ref: A2UI (for future multi-client)
+```
+
+#### 5. QLoRA fine-tuning (backlog)
+
+Inspired by Macaron-A2UI (LoRA + GRPO on A2UI surpasses GPT-5.4). Fine-tune Qwen3-30B or Llama-3.1-8B with QLoRA to generate OpenUI Lang natively. Cheaper inference, fewer format errors, no heavy prompting.
+
+### What this means for the existing pipeline
+
+| Today (v1) | Tomorrow (v2) |
+|------------|---------------|
+| Admin uploads docs → full course generated | Admin defines schema → no content until runtime |
+| All employees see same content | Each employee gets UI generated from their profile + pre-assessment |
+| Single LLM for everything | Router: 8B for 90%, 120B for 10% |
+| Content in fixed Markdown + JSON | UI in OpenUI Lang, rendered via `<Renderer />` |
+| No effectiveness metrics | Feedback loop → system adapts per node |
+
+### Immediate roadmap
+
+1. Define SkillNet UI Kit — Zod schemas for educational components (TextContent, Card, Simulation, Quiz, StepSequence, Chart, Table, CodeBlock)
+2. Integrate OpenUI in skillnet-web — `npm install openui`, mount `<Renderer />` with the UI Kit
+3. New pipeline nodes: `decide_formato → genera_ui` in LangGraph with LLM routing
+4. Connect with existing admin schema
+5. Pre-assessment per node (2-3 questions before generation)
+6. Feedback loop — user interaction → system adapts next node
+
+### Full documentation
+
+Each finding has its detailed document in the vault (`07_ANFAIA/investigacion/ui_innovadora/`). The synthesis and decision document is at `_sintesis_para_repo.md`.
+
 ## References
 
 - Leviathan et al., "Generative UI: LLMs are Effective UI Generators" ([arXiv 2604.09577](https://arxiv.org/abs/2604.09577), Google Research, 2025)
