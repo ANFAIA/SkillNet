@@ -15,7 +15,7 @@ from src.schemas.generation_job import GenerationJobRead
 
 router = APIRouter(prefix="/generation-jobs", tags=["Generation Jobs"])
 
-_TERMINAL_EVENTS = {"completed", "error"}
+_TERMINAL_EVENTS = {"completed", "error", "schema_ready"}
 
 
 @router.get("/{job_id}", response_model=GenerationJobRead)
