@@ -63,6 +63,12 @@ class Settings(BaseSettings):
     DYNAMIC_COURSES_MODE: Literal["off", "shadow", "on"] = "off"
     # Dialect asked of the LLM and parser used. One valid value in this PR.
     RENDER_BACKEND: Literal["openui"] = "openui"
+    # OpenUI's reactive layer ($state, Query, Mutation, Action, builtins). OFF, and the
+    # price of switching it on is stated in docs/design/openui-adoption.md §3: the model
+    # has to be taught the whole reactive syntax at once (the prompt flags do not split),
+    # and a structural property ("the grammar cannot express it") turns into a contract to
+    # re-verify on every @openuidev release. Read by src.render.gate.check_program.
+    RENDER_ALLOW_REACTIVE: bool = False
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import type { StackGap } from '../../../types/ui-spec'
+import type { StackGap } from '../kit/schemas'
 
 export interface StackBlockProps {
   gap?: StackGap

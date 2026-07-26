@@ -12,8 +12,8 @@ import pathlib
 
 import pytest
 
-from src.render import RenderError, RenderParseError, UISpec, get_render_backend
-from src.render.backends.openui import GRAMMAR, OpenUiLangBackend, infer_format
+from src.render import UI_KIT, RenderError, RenderParseError, UISpec, get_render_backend
+from src.render.backends.openui import OpenUiLangBackend, infer_format
 
 BACKEND = OpenUiLangBackend()
 
@@ -353,10 +353,21 @@ def test_an_unknown_backend_is_a_render_error() -> None:
         get_render_backend("a2tl")
 
 
-def test_the_frozen_grammar_lists_exactly_the_nine_emittable_components() -> None:
-    production = GRAMMAR.split("comp_name  =", 1)[1].split(";", 1)[0]
-    names = {token.strip('"') for token in production.replace("|", " ").split() if token.strip('"')}
-    assert names == {
+def test_the_parser_accepts_exactly_the_nine_emittable_components() -> None:
+    """What ``GRAMMAR``'s ``comp_name`` production used to assert, asserted on behaviour.
+
+    The EBNF is no longer a constant (the prompt comes from ``library.prompt()`` now), so
+    the closed catalogue is checked where it is enforced: in ``parse``.
+    """
+    accepted = set()
+    for name in (*UI_KIT.names, "Timeline", "SandboxHTML"):
+        try:
+            BACKEND.parse(f'root = {name}()\n')
+        except RenderParseError as exc:
+            if "unknown component" in str(exc):
+                continue
+            accepted.add(name)  # rejected for arity/props, so the name itself is known
+    assert accepted == {
         "Stack",
         "TextContent",
         "Card",
@@ -367,4 +378,3 @@ def test_the_frozen_grammar_lists_exactly_the_nine_emittable_components() -> Non
         "Chart",
         "QuizItem",
     }
-    assert "Markdown" not in GRAMMAR

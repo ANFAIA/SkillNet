@@ -1,11 +1,19 @@
-"""The SkillNet UI Kit — the frozen catalogue of §5.3.
+"""The SkillNet UI Kit — the frozen catalogue of §5.3, validator side.
 
-This module is the **single source of truth** for the component list, the exact
-prop names and the *positional* order the OpenUI dialect uses. Validation
-(``src/render/spec.py``) and the prompt fragment
-(``src/render/backends/openui.py::prompt_fragment``) are both generated from here,
-so the prompt can never drift from the validator — §5.4: "generado desde el kit,
-nunca escrito a mano dos veces".
+This module is the source of truth for **validation**: the component list, the exact
+prop names, the value types, the closed enums and the *positional* order the OpenUI
+dialect uses. ``src/render/spec.py`` enforces all of it, and the OpenUI parser cannot:
+``compileSchema()`` keeps only ``{name, required, defaultValue}``, so their parser checks
+arity and presence and nothing else.
+
+Since 2026-07-26 it is **no longer** where the prompt comes from. The prompt is generated
+by ``library.prompt()`` from the frontend kit
+(``apps/skillnet-web/src/components/courses/kit/``) into the artefacts that
+``src/render/prompt.py`` reads. The two catalogues are kept honest by a hash rather than
+by discipline: ``prompt.catalog_digest_from_kit()`` recomputes the normalised catalogue
+from this file and ``tests/test_render_prompt_artifact.py`` fails when it stops matching
+the artefact. Change the components here and the drift test tells you to regenerate;
+change them there and it tells you to update this file.
 
 Two closed lists are imported instead of retyped, so they cannot drift either:
 ``ExerciseType`` (the six ``item_type`` values, §5.3) and ``BLOOM_LEVELS`` (the six

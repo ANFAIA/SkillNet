@@ -1,14 +1,49 @@
-"""The ``openui`` dialect — default render backend (§5.4).
+"""The ``openui`` dialect — the server-side gate on generated programs (§5.4).
 
-Line-oriented, one declaration per line, **positional** arguments in the order of the
-kit table, references as arrays of ids:
+A **strict subset** of OpenUI Lang, parsed in Python. Line-oriented, one declaration per
+line, **positional** arguments in the order of the kit table, references as arrays of
+ids:
 
     root = Stack([intro, steps, quiz], "md")
     intro = TextContent("Las devoluciones se aceptan durante 30 dias.", "lead")
 
-Chosen as the default for token density (~50 % less than the equivalent JSON) and
-because line orientation makes ``parse_partial`` trivial: every ``\\n`` completes a
-component.
+Since the adoption of the real dependency (2026-07-26, ``docs/design/openui-adoption.md``)
+this module has **one** job and no longer has two:
+
+* It **no longer teaches the dialect.** ``library.prompt()`` does, from the frontend kit,
+  through the build-step artefacts that ``src/render/prompt.py`` reads. There is exactly
+  one place where the catalogue is declared, and it is not here.
+* It **still validates**, and it is the last gate before anything is persisted or served.
+  The frozen grammar below has no production for ``$state``, ``{objects}``, ``@builtins``,
+  ternaries, arithmetic, ``Query()`` or ``Mutation()``, so reactivity is *inexpressible*
+  rather than blacklisted — which is why this parser was kept when the browser got its
+  own. Their parser accepts a stray ``Mutation("delete_all_users", {...})`` with
+  ``meta.errors == []``; this one cannot represent it. ``src/render/gate.py`` is the cheap
+  door in front, ``serialize`` produces the canonical text the browser is allowed to see.
+
+The standard is wider than this subset: it accepts statements split over several lines,
+literal newlines inside strings, inline nesting without an id, booleans, ``null``,
+objects, arithmetic, ``//`` comments and markdown fences. In particular **escape rule 3
+("a real line break closes a block") is ours, not the standard's** — it is what makes
+``parse_partial`` trivial, and the prompt states it as a SkillNet rule for that reason.
+
+The frozen grammar, which this file *is* the implementation of. It used to be exported as
+``GRAMMAR`` because it was pasted into the prompt; the prompt now comes from
+``library.prompt()``, so it lives here as the specification of the gate and nothing reads
+it as data::
+
+    program    = { line } ;
+    line       = ident "=" call newline ;
+    ident      = ("a".."z" | "A".."Z" | "_") { "a".."z" | "A".."Z" | "0".."9" | "_" } ;
+    call       = comp_name "(" [ arg { "," arg } ] ")" ;
+    comp_name  = "Stack" | "TextContent" | "Card" | "Callout" | "StepSequence"
+               | "Table" | "CodeBlock" | "Chart" | "QuizItem" ;
+    arg        = string | number | array | ident ;
+    array      = "[" [ arg { "," arg } ] "]" ;
+    string     = '"' { char | escape } '"' ;
+    escape     = "\\" ( '"' | "\\" | "n" ) ;
+    char       = <cualquier caracter excepto '"', '\\' y newline> ;
+    number     = [ "-" ] digit { digit } [ "." digit { digit } ] ;
 
 Two things the dialect does **not** carry, and how they are recovered:
 
@@ -35,40 +70,13 @@ from src.render.kit import (
     ComponentSpec,
     PropKind,
     PropSpec,
-    UIKit,
 )
 from src.render.spec import (
-    FORMATS_REQUIRING_LEAD,
-    MAX_COMPONENTS,
-    MAX_ROOT_CHILDREN,
     UI_SPEC_VERSION,
     Component,
     UISpec,
     flatten_validation_error,
     parse_spec,
-)
-
-#: The frozen grammar of §5.4. The same text goes verbatim into ``prompt_fragment``.
-GRAMMAR = r"""program    = { line } ;
-line       = ident "=" call newline ;
-ident      = ("a".."z" | "A".."Z" | "_") { "a".."z" | "A".."Z" | "0".."9" | "_" } ;
-call       = comp_name "(" [ arg { "," arg } ] ")" ;
-comp_name  = "Stack" | "TextContent" | "Card" | "Callout" | "StepSequence"
-           | "Table" | "CodeBlock" | "Chart" | "QuizItem" ;
-arg        = string | number | array | ident ;
-array      = "[" [ arg { "," arg } ] "]" ;
-string     = '"' { char | escape } '"' ;
-escape     = "\" ( '"' | "\" | "n" ) ;
-char       = <cualquier caracter excepto '"', '\' y newline> ;
-number     = [ "-" ] digit { digit } [ "." digit { digit } ] ;"""
-
-#: The three rules a small model breaks on day one (§5.4). One malformed fixture each.
-ESCAPE_RULES: tuple[str, ...] = (
-    '1. Comilla doble dentro de un texto: escribela \\". Nunca sin escapar.',
-    "2. Arrays anidados permitidos y OBLIGATORIOS en Table.rows (array de arrays de "
-    'texto): Table(["A", "B"], [["1", "2"], ["3", "4"]]).',
-    "3. Ningun salto de linea literal dentro de un texto: escribe \\n. Cada salto de "
-    "linea real cierra un bloque, asi que uno dentro de una comilla rompe el parseo.",
 )
 
 _LINE_RE = re.compile(r"^[ \t]*([A-Za-z_][A-Za-z0-9_]*)[ \t]*=[ \t]*")
@@ -401,77 +409,10 @@ def _render_value(value: Any, prop: PropSpec) -> str:
             raise RenderError("refs are serialized from Component.children")
 
 
-_PREAMBLE = """\
-Responde UNICAMENTE con un programa en el dialecto OpenUI Lang descrito abajo.
-Sin prosa antes ni despues, sin comentarios, sin JSON.
-Una declaracion por linea, con esta forma exacta:
-
-    id = Componente(argumento1, argumento2, ...)
-
-Los argumentos son POSICIONALES y van en el orden de la ficha del componente.
-El nombre de la variable ES el id del bloque, y es como lo referencia un contenedor.
-Las referencias van sin comillas dentro de un array: Stack([intro, pasos], "md").
-Se puede referenciar un id definido en una linea posterior."""
-
-
-def _catalogue(kit: UIKit) -> str:
-    lines = ["CATALOGO (cerrado: no existe ningun otro componente):"]
-    for component in kit.llm_components:
-        lines.append(f"  {component.signature}")
-        lines.append(f"      {component.purpose}")
-    return "\n".join(lines)
-
-
-def _contract() -> str:
-    return "\n".join(
-        (
-            "REGLAS DEL CONTRATO (un spec que las rompa se rechaza):",
-            f"  - Como maximo {MAX_COMPONENTS} bloques en total.",
-            f"  - Como maximo {MAX_ROOT_CHILDREN} elementos en el nivel raiz.",
-            "  - El bloque raiz es un Stack o un Card, y ningun otro bloque lo referencia.",
-            "  - En los formatos "
-            + " y ".join(sorted(FORMATS_REQUIRING_LEAD))
-            + ', el PRIMER hijo de la raiz es un TextContent con variant "lead" o un '
-            "Callout: es el hueco de la linea que dice para que le sirve al aprendiz.",
-            "  - QuizItem NO lleva la respuesta correcta ni la explicacion: eso viaja "
-            "por separado.",
-            "  - El texto es texto plano o marcado inline (**negrita**, *cursiva*, "
-            "`literal`, enlaces). Nunca HTML.",
-            "  - Sin bloques repetidos: no digas lo mismo dos veces en dos formatos.",
-        )
-    )
-
-
-_EXAMPLE = """\
-EJEMPLO COMPLETO (formato explanation con ejercicio, es decir mixed):
-root = Stack([intro, pasos, quiz], "md")
-intro = TextContent("Las devoluciones se aceptan durante 30 dias naturales.", "lead")
-pasos = StepSequence("Proceso de devolucion", ["Verificar el producto", \
-"Escanear el ticket", "Registrar en el sistema", "Emitir el reembolso"])
-quiz = QuizItem("q1", "test", "apply", "Un cliente vuelve el dia 32. Que haces?", \
-["Aceptar la devolucion", "Ofrecer garantia del fabricante", "Rechazar sin mas", \
-"Llamar al encargado"])"""
-
-
 class OpenUiLangBackend:
     """Reference implementation of :class:`~src.render.backends.base.RenderBackend`."""
 
     name = "openui"
-
-    # -- prompt --------------------------------------------------------------------
-
-    def prompt_fragment(self, kit: UIKit = UI_KIT) -> str:
-        return "\n\n".join(
-            (
-                _PREAMBLE,
-                _catalogue(kit),
-                "GRAMATICA (EBNF, congelada):\n" + GRAMMAR,
-                "REGLAS DE ESCAPE (las tres que se rompen siempre):\n"
-                + "\n".join(f"  {rule}" for rule in ESCAPE_RULES),
-                _contract(),
-                _EXAMPLE,
-            )
-        )
 
     # -- parsing -------------------------------------------------------------------
 
@@ -544,17 +485,19 @@ class OpenUiLangBackend:
     # -- serialization -------------------------------------------------------------
 
     def serialize(self, spec: UISpec) -> str:
-        """Exact inverse of :meth:`parse` over the nine emittable components."""
+        """Spec -> the canonical program text. The only thing the browser may receive.
+
+        Covers the **whole** kit, ``Markdown`` included, which ``parse`` still refuses:
+        the asymmetry is the point. The model may not emit ``Markdown``; the server
+        authors it for ``fallback_seed``, and now that the browser is served dialect
+        instead of JSON, the fallback needs a dialect form too. The frontend library
+        therefore registers ten components while the prompt catalogue advertises nine.
+        """
         lines: list[str] = []
         for component in spec.components:
             kit_spec = UI_KIT.get(component.type)
             if kit_spec is None:
                 raise RenderError(f"component type {component.type!r} is not in the kit")
-            if not kit_spec.llm_emittable:
-                raise RenderError(
-                    f"{component.type} has no form in the {self.name} dialect: it only "
-                    "reaches a spec through fallback_seed, which builds JSON directly"
-                )
             args = [
                 "[" + ", ".join(component.children) + "]"
                 if prop.kind is PropKind.REFS
@@ -565,4 +508,4 @@ class OpenUiLangBackend:
         return "".join(f"{line}\n" for line in lines)
 
 
-__all__ = ["ESCAPE_RULES", "GRAMMAR", "OpenUiLangBackend", "infer_format"]
+__all__ = ["OpenUiLangBackend", "infer_format"]

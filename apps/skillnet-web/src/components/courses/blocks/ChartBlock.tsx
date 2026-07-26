@@ -1,4 +1,4 @@
-import type { ChartKind } from '../../../types/ui-spec'
+import type { ChartKind } from '../kit/schemas'
 
 export interface ChartBlockProps {
   kind: ChartKind

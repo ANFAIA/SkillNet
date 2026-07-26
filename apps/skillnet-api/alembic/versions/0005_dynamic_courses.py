@@ -299,7 +299,11 @@ def upgrade() -> None:
             nullable=False,
             server_default=sa.text("'{}'::jsonb"),
         ),
-        sa.Column("raw_dsl", sa.Text(), nullable=True),
+        # The canonical program the browser parses (re-serialized from ui_spec, never
+        # the model's raw output) plus the provenance of that program.
+        sa.Column("dialect", sa.Text(), nullable=True),
+        sa.Column("catalog_version", sa.Text(), nullable=True),
+        sa.Column("library_version", sa.Text(), nullable=True),
         sa.Column("backend", sa.Text(), nullable=False),
         sa.Column("model", sa.Text(), nullable=False),
         sa.Column("tier", sa.Text(), nullable=False),
@@ -324,6 +328,15 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["generated_by"], ["users.id"], ondelete="SET NULL"),
         sa.ForeignKeyConstraint(["node_id"], ["course_nodes.id"], ondelete="CASCADE"),
         sa.CheckConstraint("tier IN ('fast', 'heavy')", name="ck_node_renders_tier"),
+        # Compliance traceability: a row anybody was shown must carry the program and
+        # the catalogue/library it was written against (§3.4, §5.1). 'pending',
+        # 'generating' and 'failed' rows have nothing to show, so they are exempt.
+        sa.CheckConstraint(
+            "status NOT IN ('ready', 'fallback') OR ("
+            "dialect IS NOT NULL AND catalog_version IS NOT NULL "
+            "AND library_version IS NOT NULL)",
+            name="ck_node_renders_served_provenance",
+        ),
         sa.UniqueConstraint("cache_key", name="uq_node_renders_cache_key"),
     )
     op.create_index(

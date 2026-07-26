@@ -1,6 +1,6 @@
 import { InlineMarkdown } from './InlineMarkdown'
 import { ClickableText } from '../ClickableText'
-import type { CalloutTone } from '../../../types/ui-spec'
+import type { CalloutTone } from '../kit/schemas'
 
 export interface CalloutBlockProps {
   tone?: CalloutTone

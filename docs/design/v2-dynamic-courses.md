@@ -254,7 +254,9 @@ de este PR:
 | Quién vio qué render y cuándo (`node_render_views`) | — |
 
 **Caché y auditoría son dos tablas, no una.** `node_renders` es **contenido org-scoped**: guarda el
-`raw_dsl` que emitió el modelo, el modelo usado y el `ui_spec` parseado, y una misma fila la
+`dialect` canónico que se sirvió (re-serializado desde la `UISpec`, **nunca** el texto crudo del
+modelo), la `ui_spec` validada, el modelo usado y la procedencia (`catalog_version`,
+`library_version`), y una misma fila la
 comparten todos los empleados del mismo bucket de perfil. Por tanto **no** puede decir quién vio
 qué: en un acierto de caché (el ~80 % que hace sostenible el coste) la fila no tiene nada que ver
 con el empleado que la está leyendo.
@@ -683,9 +685,11 @@ CREATE TABLE node_renders (
     node_id        uuid NOT NULL REFERENCES course_nodes(id) ON DELETE CASCADE,
     cache_key      text NOT NULL,
     ui_format      ui_format NOT NULL,
-    ui_spec        jsonb NOT NULL DEFAULT '{}',
-    answer_key     jsonb NOT NULL DEFAULT '{}',
-    raw_dsl        text,
+    ui_spec        jsonb NOT NULL DEFAULT '{}',   -- IR validada; auditoría, NO se sirve
+    answer_key     jsonb NOT NULL DEFAULT '{}',   -- nunca se serializa al cliente
+    dialect        text,                          -- el programa canónico que pintó el navegador
+    catalog_version text,                         -- "skillnet-ui/1+<digest12>"
+    library_version text,                         -- "@openuidev/lang-core@0.2.10; ..."
     backend        text NOT NULL,
     model          text NOT NULL,
     tier           text NOT NULL CHECK (tier IN ('fast', 'heavy')),
@@ -695,6 +699,12 @@ CREATE TABLE node_renders (
     duration_ms    int,
     error_message  text,
     created_at     timestamptz NOT NULL DEFAULT now(),
+    -- Trazabilidad de cumplimiento: una fila que alguien vio dice QUÉ vio y contra qué
+    -- catálogo. 'pending'/'generating'/'failed' no tienen nada que mostrar.
+    CONSTRAINT ck_node_renders_served_provenance CHECK (
+      status NOT IN ('ready', 'fallback')
+      OR (dialect IS NOT NULL AND catalog_version IS NOT NULL AND library_version IS NOT NULL)
+    ),
     UNIQUE (cache_key)
 );
 
@@ -1111,9 +1121,9 @@ Cada nodo abre su propia sesión con `async_session_factory`, igual que v1.
 | `load_context` | Carga nodo, perfil, estado, y la fuente (ver nota de abajo). Calcula `effective_density` y `cache_key`. **Si hay hit en `node_renders` con `status='ready'` y `NOT is_preview`, corta antes de entrar al grafo** (lo comprueba el servicio, no el grafo) | — |
 | `probe_gate` | Lee `learner_node_states.state`. Si `'mastered'` → salta | — |
 | `decide_formato` | Decide `ui_format` y llama al router para el tier | Sí, tier `fast` |
-| `genera_ui` | Pide al modelo el **dialecto del backend activo**, usando `backend.prompt_fragment(UI_KIT)` como parte del system prompt | Sí, tier del router |
-| `validate_ui` | `backend.parse(raw_dsl)` → `UISpec`; valida contra el JSON Schema del kit; separa `answer_key` | — |
-| `persist_render` | Escribe `node_renders` (`status='ready'`), publica `ui_done` | — |
+| `genera_ui` | Pide al modelo el **dialecto del backend activo**, usando `src.render.prompt.render_prompt()` (el artefacto generado por `library.prompt()`) como parte del system prompt | Sí, tier del router |
+| `validate_ui` | `gate.canonicalize(raw_dsl)`: topes de tamaño y rechazo de reactividad → `backend.parse()` → `UISpec` (las 7 reglas) → `serialize()` → el `dialect` canónico. Separa `answer_key` | — |
+| `persist_render` | Escribe `node_renders` (`status='ready'`) con `dialect`, `catalog_version` y `library_version`, publica `ui_done` | — |
 | `fallback_seed` | Construye un `ui_spec` de un solo bloque `Markdown` con `lessons.content` del `seed_lesson_id` (o el `source_context` recortado). `status='fallback'` | — |
 | `skip_node` | Marca el nodo como saltado y publica `node_skipped` | — |
 
@@ -1206,15 +1216,56 @@ arreglo: `resolve_llm_config` los resuelve por `getattr(settings, f"LLM_{purpose
 
 ### 5.1 Principio
 
+> **CORREGIDO el 2026-07-26** (decisión de producto: adopción completa de OpenUI —
+> `docs/design/openui-adoption.md`). La frase que había aquí, *"el navegador **nunca** recibe markup
+> generado"*, **ya no es cierta** en la parte que importa: el navegador recibe **dialecto** y lo
+> interpreta con `<Renderer>` de `@openuidev/react-lang` sobre los componentes que registramos. Lo que
+> sigue siendo literalmente cierto es lo demás: **el LLM nunca produce HTML** y **el navegador nunca
+> recibe el texto que escribió el modelo**.
+
 ```
-nodo + perfil + fuente ──► LLM ──► DIALECTO (texto) ──► adapter.parse() ──► UISpec (IR jsonb)
-                                                                              │
-                                                                              ▼
-                                                        React: UiSpecRenderer → componentes
+nodo + perfil + fuente ──► LLM ──► DIALECTO (texto crudo, NO SE SIRVE NUNCA)
+        │
+        ├─► gate.check_program()   topes de tamaño; nada de $estado, Query, Mutation, @builtins
+        ├─► backend.parse()        gramática congelada + las 7 reglas de §5.2 (Pydantic)
+        ├─► UISpec (jsonb)         registro de auditoría, sólo servidor
+        └─► backend.serialize()  ──► node_renders.dialect ──► <Renderer> en el navegador
+                                     (+ catalog_version, library_version)
 ```
 
-El LLM **nunca** produce HTML, y el navegador **nunca** recibe markup generado. Se cambia de
-backend cambiando una env var; el pipeline, la IR, la BD y el frontend no se enteran.
+**Las tres propiedades que sostienen esto**, y ninguna es una promesa de estilo:
+
+1. **El navegador sólo ve la re-serialización canónica de una `UISpec` ya validada.** Nunca
+   `raw_dsl`. La columna ya no se llama así (`node_renders.dialect`), precisamente para que nadie la
+   sirva por descuido. Una `UISpec` no puede representar estado ni una llamada a tool, así que la
+   propiedad es **estructural**, no una comprobación.
+2. **El servidor sigue siendo el que valida.** El parser de OpenUI en el cliente pinta; el nuestro
+   decide. Su parser acepta en silencio enums inventados, tipos incorrectos, ids duplicados,
+   `<script>` y `Mutation("delete_all_users", {...})` con `meta.errors=[]`; el nuestro no puede ni
+   representarlos.
+3. **`answer_key` nunca se serializa.** Igual que antes: regla 5 de §5.2, columna aparte, y ningún
+   esquema de respuesta la menciona.
+
+**Superficie nueva que esto abre, dicha en voz alta: las mutaciones.** El lenguaje real tiene estado
+(`$var`), consultas (`Query`), mutaciones (`Mutation`), acciones (`Action`, `@OpenUrl`,
+`@ToAssistant`, `@Set`) y 13 builtins. Un PDF envenenado puede intentar emitirlas. Mitigación, en
+cuatro controles apilados y medidos (`SEGURIDAD-MUTACIONES.md`):
+
+| Control | Cómo | Efecto medido |
+|---|---|---|
+| No servir texto crudo | `serialize()` desde la `UISpec` validada | Las 10 fixtures re-serializadas parsean con 0 violaciones |
+| `toolProvider` **ausente** en el `<Renderer>` | por omisión de prop | `createQueryManager(null)`: cero red, queries **y** mutaciones cortadas |
+| `onAction` y `onStateUpdate` **ausentes** | por omisión de prop | `@OpenUrl`/`@ToAssistant` son no-ops; `@Set` no se persiste. Y sin ningún componente que llame a `useTriggerAction()`, un `ActionPlan` no es ni alcanzable |
+| Puerta en los dos lados | `src/render/gate.py` + `parse()` en el servidor; `assertStaticOnly(parseResult)` en `onParseResult` en el cliente | 15/15 payloads rechazados, 0 falsos positivos sobre las 10 fixtures válidas |
+
+Y el más barato de todos: **el prompt no enseña la reactividad**. Sin `tools` y sin `markReactive()`,
+`library.prompt()` no menciona `$var`, `Query(`, `Mutation(`, `@Run` ni `@Set`. Es mitigación en
+profundidad, no barrera: si el modelo la emite de memoria, quien la rechaza es la puerta.
+`RENDER_ALLOW_REACTIVE=false` es el interruptor, y las condiciones para tocarlo están en
+`docs/design/openui-adoption.md` §6.
+
+Se sigue cambiando de dialecto cambiando una env var; el pipeline, la IR y la BD no se enteran. El
+**frontend sí** se enteraría ahora: recibe dialecto, no IR.
 
 ### 5.2 La IR canónica: `UISpec`
 
@@ -1254,6 +1305,10 @@ Reglas del contrato, validadas por Pydantic en `src/render/spec.py`:
    estética: la memoria de trabajo procesa 4-7 elementos, y una "pantalla cognitiva" son 3-5
    elementos relacionados. Un spec con 30 bloques es un fallo de generación, no contenido rico.
 5. `QuizItem` **no lleva** respuesta correcta ni explicación. Eso va a `answer_key`.
+   **Corolario, demostrado (2026-07-26):** la corrección 100 % en cliente es **incompatible con esta
+   regla por construcción** — escribir el veredicto como `$elegida == 1` exige serializar la respuesta
+   al navegador. No es un defecto de OpenUI Lang, es aritmética. La vía que sí la respeta es
+   `Mutation("grade_answer", {item_id, choice})` con un viaje al servidor, y está apagada (§5.1).
 6. `props.text` es texto plano o markdown inline (`**`, `*`, `` ` ``, links). Nunca HTML.
 7. **El primer hijo de `root` en los formatos `explanation` y `mixed` debe ser un `TextContent`
    (`variant: "lead"`) o un `Callout`.** Es un error de validación, no un aviso, y es el hueco donde
@@ -1278,8 +1333,23 @@ error; hasta entonces no se presenta como contrato cumplido.
 
 ### 5.3 El SkillNet UI Kit — lista congelada
 
-`src/render/kit.py` (Python, fuente de verdad del prompt y de la validación) y
-`apps/skillnet-web/src/components/courses/blocks/` (implementación React).
+**Actualizado el 2026-07-26.** Dónde vive cada cosa desde la adopción:
+
+* `apps/skillnet-web/src/components/courses/kit/` — **el catálogo, en zod + `defineComponent`**. Es de
+  donde sale el prompt: `scripts/generate-openui-prompt.mjs` llama a `library.prompt()` y escribe
+  `apps/skillnet-api/src/render/openui_prompt.txt` + `openui_catalog.json`. Un solo sitio donde se
+  declara la lista.
+* `src/render/kit.py` — **fuente de verdad de la validación** (tipos, enums, orden posicional, las 7
+  reglas vía `src/render/spec.py`). Ya **no** genera el prompt. `tests/test_render_prompt_artifact.py`
+  recalcula el digest del catálogo desde aquí y falla si el artefacto no coincide: es la alarma de
+  deriva entre los dos lados, y la que avisará el día que su API cambie.
+* `apps/skillnet-web/src/components/courses/blocks/` — la implementación React, que ahora se registra
+  en la librería de OpenUI en vez de despacharse por `switch`.
+
+La librería del navegador registra **diez** componentes y el catálogo del prompt anuncia **nueve**:
+`Markdown` lo escribe el servidor para `fallback_seed` y el modelo no puede emitirlo. Como el
+navegador ya recibe dialecto, el fallback también necesita forma de dialecto, así que `serialize()`
+cubre los diez y `parse()` sigue rechazando `Markdown`. La asimetría no desapareció: cambió de sitio.
 
 | Componente | Props (orden **posicional** para el dialecto OpenUI) | Para qué |
 |---|---|---|
@@ -1320,19 +1390,21 @@ Se acepta la duplicación de ~120 líneas de UI a cambio de no tocar v1.
 class RenderBackend(Protocol):
     name: str                                    # "openui" (el registro admite más)
 
-    def prompt_fragment(self, kit: UIKit) -> str:
-        """Fragmento de system prompt que enseña el dialecto y el catálogo.
-        Generado desde el kit — nunca escrito a mano dos veces."""
+    # prompt_fragment() SE ELIMINÓ el 2026-07-26: el prompt lo genera library.prompt()
+    # en el paso de build y lo lee src/render/prompt.py. Un backend valida un dialecto
+    # y lo vuelve a escribir; ya no lo enseña.
 
-    def parse(self, raw: str) -> UISpec:
+    def parse(self, raw: str, *, ui_format: str | None = None) -> UISpec:
         """Parsea el dialecto completo. Lanza RenderParseError."""
 
-    def parse_partial(self, raw: str) -> UISpec:
+    def parse_partial(self, raw: str, *, ui_format: str | None = None) -> UISpec:
         """Parseo tolerante de salida incompleta (streaming). Descarta la última
-        línea si está a medias. Nunca lanza."""
+        línea si está a medias. Nunca lanza. Sigue siendo necesario en el servidor
+        aunque el navegador también parsee: lo que se le manda en streaming es la
+        re-serialización canónica del prefijo, nunca los bytes del modelo."""
 
     def serialize(self, spec: UISpec) -> str:
-        """Inverso de parse. Sólo para tests de round-trip y para las fixtures."""
+        """Spec -> texto canónico. Lo ÚNICO que el cliente puede recibir."""
 ```
 
 ```python
@@ -1343,10 +1415,12 @@ def get_render_backend(name: str | None = None) -> RenderBackend:
     return _BACKENDS[(name or settings.RENDER_BACKEND)]
 ```
 
-**El parseo es Python, en el backend.** Consecuencias buscadas: (a) no se añade la dependencia npm
-`openui` ni `@floating-ui/react` al frontend, respetando el límite de dependencias de `AGENTS.md`;
-(b) las fixtures de test cubren el parser sin navegador; (c) el navegador recibe JSON validado, no
-un DSL que tenga que interpretar.
+**El parseo de validación es Python, en el backend; el de pintado es JavaScript, en el navegador.**
+De las tres consecuencias que este párrafo reclamaba, (b) sigue en pie — las fixtures cubren el parser
+sin navegador — y las otras dos cambiaron el 2026-07-26: (a) **sí** entran dependencias npm
+(`@openuidev/react-lang@0.2.9`, `@openuidev/lang-core@0.2.10`, `zod@4.4.3`, versiones exactas), y (c)
+**el navegador ya no recibe JSON**, recibe dialecto. Lo que ocupa el sitio de (c) son las tres
+propiedades y los cuatro controles de §5.1.
 
 **Backend 1 — `openui` (DEFAULT).** `src/render/backends/openui.py`. Dialecto línea a línea, una
 declaración por línea, argumentos **posicionales** en el orden de la tabla del kit, referencias por
@@ -1363,9 +1437,12 @@ Elegido como default por densidad de tokens (≈50 % menos que JSON equivalente)
 línea a línea permite `parse_partial` trivial: cada `\n` completa un componente. El nombre de la
 variable es el `id` del componente en la IR.
 
-**Gramática congelada** (`src/render/backends/openui.py::GRAMMAR`, y el mismo texto va literal en
-`prompt_fragment`). Un dialecto "obvio" con un ejemplo y sin reglas es lo que un modelo de 8B rompe el
-primer día; estas tres son exactamente las que rompe:
+**Gramática congelada.** Vive en el docstring de `src/render/backends/openui.py` y ya **no** es una
+constante `GRAMMAR` que se pegue en el prompt: el bloque de sintaxis lo pone `library.prompt()`. Sigue
+siendo la especificación de la puerta, y es lo que hace que la reactividad sea **inexpresable** en vez
+de estar en una lista negra. Un dialecto "obvio" con un ejemplo y sin reglas es lo que un modelo de 8B
+rompe el primer día; estas tres son exactamente las que rompe, y van al prompt por
+`additionalRules`:
 
 ```ebnf
 program    = { line } ;
@@ -1406,6 +1483,14 @@ en mano es más efectivo que reintentar a ciegas o cambiar de dialecto. Si tambi
 segundo dialecto.
 
 ### 5.5 Lado frontend
+
+> **CORREGIDO el 2026-07-26.** El despacho por `switch` sobre una `UiSpec` lo sustituye el
+> `<Renderer>` de `@openuidev/react-lang` sobre la librería de
+> `src/components/courses/kit/`: los mismos diez componentes de bloque, registrados en vez de
+> despachados, y el streaming lo lleva `isStreaming`. Las props que **no** se pasan son parte del
+> contrato de seguridad (§5.1): sin `toolProvider`, sin `onAction`, sin `onStateUpdate`. El bloque de
+> abajo describe la forma anterior y se conserva porque las zonas de estabilidad espacial, el pinning
+> de `active_render_id` y las dos afordancias de control **no cambian**.
 
 `apps/skillnet-web/src/components/courses/UiSpecRenderer.tsx` — mismo patrón de dispatch que
 `ExerciseRenderer`:
@@ -2352,7 +2437,9 @@ funciona igual.
 |---|---|---|---|
 | Unit | `tests/test_render_openui.py` | `parse()` de 8 dialectos válidos → golden JSON; 6 malformados → `RenderParseError`, incluidas las 3 reglas de la gramática (§5.4); `parse_partial` sobre truncados en **cada** posición mediante un `@pytest.mark.parametrize` sobre `range(len(raw))` — **no** con `hypothesis`, que sería una dependencia de desarrollo nueva y el límite de dependencias de `AGENTS.md` exige justificarla para nada que un bucle no dé | nada |
 | Unit | `tests/test_render_roundtrip.py` | `parse(serialize(spec)) == spec` para el backend `openui` sobre 10 specs golden, **incluidos** specs con `QuizItem`, `Stack` anidado y `Table` con `rows` anidadas | nada |
-| Unit | `tests/test_render_kit.py` | `prompt_fragment()` menciona los 9 componentes y ninguno más **y contiene las 3 reglas de escape**; `UISpec` rechaza >12 componentes, ciclos, refs colgantes, `QuizItem` con `correct`, y `explanation`/`mixed` sin bloque `lead` inicial | nada |
+| Unit | `tests/test_render_kit.py` | El catálogo congelado (10 nombres, orden posicional prop a prop, los 6 `item_type` del enum existente) y las 7 reglas: `UISpec` rechaza >12 componentes, ciclos, refs colgantes, `QuizItem` con `correct`, y `explanation`/`mixed` sin bloque `lead` inicial | nada |
+| Unit | `tests/test_render_prompt_artifact.py` | **La alarma de deriva** entre `src/render/kit.py` y el artefacto que genera `library.prompt()`: digest normalizado del catálogo, `prompt_sha256`, que el prompt anuncie las 9 firmas y ninguna más, que **no** enseñe sintaxis reactiva, y que las versiones de `@openuidev` sean las auditadas | nada |
+| Unit | `tests/test_render_gate.py` | 15 payloads reactivos (`Mutation` suelta, `Query` autodisparada, `refreshInterval`, `@OpenUrl` con `javascript:`, `@ToAssistant`, `$estado`, ternario, builtins…) rechazados, y 6 contenidos legítimos aceptados — incluida la prosa que menciona `Query()` y `$300`, que es el falso positivo medido de un grep de palabras clave; topes de tamaño; `canonicalize()` devuelve la re-serialización y no la entrada | nada |
 | Unit | `tests/test_mastery.py` | Tabla de verdad de `probe_verdict` (25 casos), incluido "B perfecto y A a cero" → **no** maestría; que `critical` con 2/2 seleccionadas da `tiebreak`, no `mastered`; que `tiebreak_mastery` **alcanza cada uno de los 3 umbrales** (la tabla de §7.2 caso por caso); el techo de maestría (0.85 sostenido **sí** llega a `mastered` en un nodo `critical`); EWMA; las **8** transiciones de `node_state` de §7.3 | nada |
 | Unit | `tests/test_probe_reuse.py` | El segundo `POST /probe` del mismo `(user, node, schema_version)` devuelve el veredicto almacenado y **no** genera ítems; re-probe rechazado si `state != 'needs_review'` o han pasado <7 días; probe diagnóstico (`scored=false`) no consume el intento | nada |
 | Unit | `tests/test_node_grading.py` | `content_for()` para los 4 tipos deterministas: recombina `answer_key` + props y `grade()` puntúa igual que en v1 con la misma entrada | nada |
@@ -2681,16 +2768,42 @@ arriba.
 
 ### 15.5 Verificaciones que confirmaron el documento (no requerían cambio)
 
+> **DOS DE ESTAS VERIFICACIONES QUEDAN ANULADAS el 2026-07-26** (decisión de producto: adopción
+> completa de OpenUI — `docs/design/openui-adoption.md`). Esta sección es la que se lee como *"esto ya
+> está comprobado, no lo vuelvas a auditar"*, así que las dos frases caducadas están tachadas abajo en
+> lugar de borradas, y lo que sigue siendo cierto queda separado de lo que ya no lo es.
+>
+> 1. **La promesa de "ninguna dependencia npm nueva" ya NO se sostiene.** Entran tres, con versión
+>    exacta y sin `^`: `@openuidev/react-lang@0.2.9`, `@openuidev/lang-core@0.2.10` y `zod@4.4.3`
+>    (`apps/skillnet-web/package.json`, resueltas en `pnpm-lock.yaml`). Las versiones están fijadas
+>    porque ninguna de las propiedades de seguridad en las que se apoya la adopción es un contrato
+>    público del paquete; `tests/test_render_prompt_artifact.py::test_the_pinned_openui_versions_are_the_audited_ones`
+>    es la alarma que salta al subirlas.
+> 2. **El parser del navegador ya NO es el de Python.** El de Python se conserva, pero como
+>    **validador** en el servidor (`src/render/gate.py` + `src/render/spec.py`): valida antes de
+>    persistir y re-serializa la `UISpec` al dialecto canónico. El pintado lo hace `<Renderer>` de
+>    `@openuidev/react-lang` sobre los componentes que registramos (§5.1, §5.3, §5.4).
+>
+> **Lo que sí sigue siendo cierto de la frase original, y está comprobado:** la mitigación de XSS.
+> `react-markdown` 10 sigue presente **sin** `rehype-raw`, no hay ningún `dangerouslySetInnerHTML` en
+> `apps/skillnet-web/src/` y `framer-motion` sigue presente. Esa mitad no depende de la adopción: los
+> paquetes de OpenUI no interpretan HTML, mapean el lenguaje a componentes React nuestros.
+
 Se listan para que nadie las vuelva a auditar: la cadena de Alembic es lineal `0001→0004`, así que
 `down_revision="0004"` es correcta y no hay heads en conflicto · ninguna ruta nueva de §11 colisiona
 con las ~40 existentes · la precedencia de `resolve_llm_config` funciona exactamente como describe
 §4.3 para `runtime_fast`/`runtime_heavy` (`src/llm/client.py:61-67`) · `GenerationJobRead.status` es
 `str`, así que los dos miembros nuevos del enum no lo rompen · el marcador `integration` ya está en la
 configuración de pytest · `react-markdown` 10 está presente **sin** `rehype-raw` y `framer-motion`
-está presente, así que la mitigación de XSS y la promesa de "ninguna dependencia npm nueva" se
-sostienen · `docker/api.Dockerfile` arranca con `--workers 1`, coherente con el supuesto del SSE.
+está presente, así que ~~la mitigación de XSS y la promesa de "ninguna dependencia npm nueva" se
+sostienen~~ **la mitigación de XSS se sostiene** (la promesa de "ninguna dependencia npm nueva", no:
+ver el aviso de arriba) · `docker/api.Dockerfile` arranca con `--workers 1`, coherente con el supuesto
+del SSE.
 
-Sobre el paquete npm `openui`: es irrelevante que exista o no, porque §5.4 implementa el parser en
-**Python** y no añade ninguna dependencia de frontend. Lo que sí era un riesgo real —presentar "OpenUI
-Lang" como dialecto externo con un ejemplo y ninguna gramática— está cerrado con la EBNF congelada y
-las tres reglas de escape de §5.4, más una fixture malformada por regla.
+Sobre el paquete npm `openui`: ~~es irrelevante que exista o no, porque §5.4 implementa el parser en
+**Python** y no añade ninguna dependencia de frontend~~. **Corregido el 2026-07-26:** el paquete real
+es `@openuidev/*`, existe, y **sí entra** como dependencia de frontend; el parser de Python se
+conserva como validador de servidor, no como el parser del navegador. Lo que sí era un riesgo real
+—presentar "OpenUI Lang" como dialecto externo con un ejemplo y ninguna gramática— está cerrado dos
+veces: con la EBNF congelada y las tres reglas de escape de §5.4 (más una fixture malformada por
+regla) y, desde la adopción, con la implementación de referencia del propio dialecto.

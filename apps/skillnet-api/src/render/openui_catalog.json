@@ -1,0 +1,260 @@
+{
+  "generated_by": "apps/skillnet-web/scripts/generate-openui-prompt.mjs",
+  "catalog_source": "src/components/courses/kit/schemas.ts",
+  "catalog_id": "skillnet-ui/1",
+  "root": "Stack",
+  "library_versions": {
+    "@openuidev/lang-core": "0.2.10",
+    "@openuidev/react-lang": "0.2.9",
+    "zod": "4.4.3"
+  },
+  "prompt_components": [
+    {
+      "name": "Stack",
+      "description": "Contenedor vertical",
+      "signature": "Stack(children: any[], gap: \"sm\" | \"md\" | \"lg\")",
+      "props": [
+        {
+          "name": "children",
+          "kind": "ref[]",
+          "choices": [],
+          "optional": false
+        },
+        {
+          "name": "gap",
+          "kind": "enum",
+          "choices": [
+            "sm",
+            "md",
+            "lg"
+          ],
+          "optional": false
+        }
+      ]
+    },
+    {
+      "name": "TextContent",
+      "description": "Prosa",
+      "signature": "TextContent(text: string, variant: \"body\" | \"lead\" | \"caption\")",
+      "props": [
+        {
+          "name": "text",
+          "kind": "string",
+          "choices": [],
+          "optional": false
+        },
+        {
+          "name": "variant",
+          "kind": "enum",
+          "choices": [
+            "body",
+            "lead",
+            "caption"
+          ],
+          "optional": false
+        }
+      ]
+    },
+    {
+      "name": "Card",
+      "description": "Agrupar",
+      "signature": "Card(title: string, children: any[])",
+      "props": [
+        {
+          "name": "title",
+          "kind": "string",
+          "choices": [],
+          "optional": false
+        },
+        {
+          "name": "children",
+          "kind": "ref[]",
+          "choices": [],
+          "optional": false
+        }
+      ]
+    },
+    {
+      "name": "Callout",
+      "description": "Regla critica, excepcion",
+      "signature": "Callout(tone: \"info\" | \"warn\" | \"success\", text: string)",
+      "props": [
+        {
+          "name": "tone",
+          "kind": "enum",
+          "choices": [
+            "info",
+            "warn",
+            "success"
+          ],
+          "optional": false
+        },
+        {
+          "name": "text",
+          "kind": "string",
+          "choices": [],
+          "optional": false
+        }
+      ]
+    },
+    {
+      "name": "StepSequence",
+      "description": "Procedimiento (2-7 pasos)",
+      "signature": "StepSequence(title: string, steps: string[])",
+      "props": [
+        {
+          "name": "title",
+          "kind": "string",
+          "choices": [],
+          "optional": false
+        },
+        {
+          "name": "steps",
+          "kind": "string[]",
+          "choices": [],
+          "optional": false
+        }
+      ]
+    },
+    {
+      "name": "Table",
+      "description": "Comparar conceptos",
+      "signature": "Table(headers: string[], rows: string[][])",
+      "props": [
+        {
+          "name": "headers",
+          "kind": "string[]",
+          "choices": [],
+          "optional": false
+        },
+        {
+          "name": "rows",
+          "kind": "string[][]",
+          "choices": [],
+          "optional": false
+        }
+      ]
+    },
+    {
+      "name": "CodeBlock",
+      "description": "Ejemplo de codigo",
+      "signature": "CodeBlock(language: string, code: string)",
+      "props": [
+        {
+          "name": "language",
+          "kind": "string",
+          "choices": [],
+          "optional": false
+        },
+        {
+          "name": "code",
+          "kind": "string",
+          "choices": [],
+          "optional": false
+        }
+      ]
+    },
+    {
+      "name": "Chart",
+      "description": "Dato cuantitativo",
+      "signature": "Chart(kind: \"bar\" | \"line\", title: string, labels: string[], values: number[])",
+      "props": [
+        {
+          "name": "kind",
+          "kind": "enum",
+          "choices": [
+            "bar",
+            "line"
+          ],
+          "optional": false
+        },
+        {
+          "name": "title",
+          "kind": "string",
+          "choices": [],
+          "optional": false
+        },
+        {
+          "name": "labels",
+          "kind": "string[]",
+          "choices": [],
+          "optional": false
+        },
+        {
+          "name": "values",
+          "kind": "number[]",
+          "choices": [],
+          "optional": false
+        }
+      ]
+    },
+    {
+      "name": "QuizItem",
+      "description": "Ejercicio",
+      "signature": "QuizItem(item_id: string, item_type: \"test\" | \"true_false\" | \"fill_blank\" | \"order_steps\" | \"practical_case\" | \"dialogue\", bloom_level: \"remember\" | \"understand\" | \"apply\" | \"analyze\" | \"evaluate\" | \"create\", question: string, options: string[])",
+      "props": [
+        {
+          "name": "item_id",
+          "kind": "string",
+          "choices": [],
+          "optional": false
+        },
+        {
+          "name": "item_type",
+          "kind": "enum",
+          "choices": [
+            "test",
+            "true_false",
+            "fill_blank",
+            "order_steps",
+            "practical_case",
+            "dialogue"
+          ],
+          "optional": false
+        },
+        {
+          "name": "bloom_level",
+          "kind": "enum",
+          "choices": [
+            "remember",
+            "understand",
+            "apply",
+            "analyze",
+            "evaluate",
+            "create"
+          ],
+          "optional": false
+        },
+        {
+          "name": "question",
+          "kind": "string",
+          "choices": [],
+          "optional": false
+        },
+        {
+          "name": "options",
+          "kind": "string[]",
+          "choices": [],
+          "optional": false
+        }
+      ]
+    }
+  ],
+  "render_components": [
+    "Stack",
+    "TextContent",
+    "Card",
+    "Callout",
+    "StepSequence",
+    "Table",
+    "CodeBlock",
+    "Chart",
+    "QuizItem",
+    "Markdown"
+  ],
+  "canonical_catalog": "catalog: skillnet-ui/1\nroot: Stack\nStack(children:ref[], gap:enum(sm|md|lg))\nTextContent(text:string, variant:enum(body|lead|caption))\nCard(title:string, children:ref[])\nCallout(tone:enum(info|warn|success), text:string)\nStepSequence(title:string, steps:string[])\nTable(headers:string[], rows:string[][])\nCodeBlock(language:string, code:string)\nChart(kind:enum(bar|line), title:string, labels:string[], values:number[])\nQuizItem(item_id:string, item_type:enum(test|true_false|fill_blank|order_steps|practical_case|dialogue), bloom_level:enum(remember|understand|apply|analyze|evaluate|create), question:string, options:string[])\n",
+  "catalog_digest": "ecaa7d56dcff456f96a1d905619f3b4d925e911f8b360a9397334dada3af6cd8",
+  "catalog_version": "skillnet-ui/1+ecaa7d56dcff",
+  "prompt_sha256": "a35ad37b20fa8a8457cb1b9455a32867bee28163c8ee96e716618cbd80a9222b",
+  "prompt_chars": 6420
+}

@@ -9,7 +9,9 @@ The seven rules, all enforced here:
 1. ``root`` exists in ``components`` and is a container (``Stack`` or ``Card``).
 2. Every id in ``children`` exists. Forward references are allowed.
 3. No cycles in the ``children`` graph.
-4. At most 12 components per spec and at most 5 children at the root level.
+4. At most 12 components per spec, at most 5 children at the root level, and at most 64
+   blocks in the tree those components EXPAND to (a shared id is painted once per
+   reference, so the flat count alone bounds nothing).
 5. ``QuizItem`` carries no correct answer and no explanation — those live in
    ``answer_key``.
 6. ``props.text`` is plain text or inline markup, never HTML.
@@ -48,6 +50,21 @@ UI_SPEC_VERSION = "skillnet-ui/1"
 #: Contract rule 4 (§5.2). Not aesthetics: working memory handles 4-7 items.
 MAX_COMPONENTS = 12
 MAX_ROOT_CHILDREN = 5
+
+#: Contract rule 4, painting half. Counting *components* is not enough: the list is a
+#: DAG, so the same id may appear many times inside one ``children`` array and inside
+#: many parents, and only the ROOT fan-out is bounded above. Twelve components therefore
+#: expand exponentially in the tree the browser paints.
+#:
+#: MEASURED against ``@openuidev/lang-core`` 0.2.10, all with 12 components and
+#: ``meta.statementCount == 12`` (so the client's rule-4 check does not fire):
+#: ``a{i} = Card("n{i}", [a{i+1} x W])`` for i in 0..8 gives 334 B -> 1 025 elements,
+#: 370 B -> 29 526 elements (4.1 MB of tree JSON), and at W=8 a 550-byte program kills
+#: the tab with ``FATAL ERROR: Ineffective mark-compacts near heap limit`` after ~47 s.
+#: A V8 heap OOM is not catchable, so the client cannot defend itself: the cap has to
+#: stop the text from ever being served. 64 is the number the hand-written renderer used
+#: as its render budget; the ten valid fixtures expand to 5 nodes at most.
+MAX_RENDERED_NODES = 64
 
 #: Contract rule 7 (§5.2).
 FORMATS_REQUIRING_LEAD: frozenset[str] = frozenset({"explanation", "mixed"})
@@ -258,7 +275,21 @@ class UISpec(BaseModel):
                     )
 
         # Rule 3: no cycles.
-        errors.extend(_find_cycles(by_id))
+        cycles = _find_cycles(by_id)
+        errors.extend(cycles)
+
+        # Rule 4: the size of the EXPANDED tree, not of the flat list. Skipped when the
+        # graph is not a DAG yet — a cycle makes the expansion infinite and rule 3 has
+        # already rejected the spec anyway.
+        if root is not None and not cycles:
+            painted = _count_expanded(self.root, by_id, MAX_RENDERED_NODES)
+            if painted > MAX_RENDERED_NODES:
+                errors.append(
+                    f"rule 4: the tree expands to more than {MAX_RENDERED_NODES} "
+                    "blocks. Reuse fewer ids: a block referenced from several "
+                    "parents, or twice inside one children array, is painted once "
+                    "per reference"
+                )
 
         if root is not None:
             # Rule 4: root fan-out.
@@ -314,6 +345,41 @@ def _check_lead_slot(
     if got == "TextContent":
         got = f"TextContent variant={first.props.get('variant')!r}"
     return f"format {ui_format!r} requires the first child of root to be {suffix}. Got {got}"
+
+
+def _count_expanded(root_id: str, by_id: Mapping[str, Component], cap: int) -> int:
+    """Nodes in the tree ``root_id`` expands to, counting every reference separately.
+
+    Memoised over the DAG, so it is O(V+E) however wide the fan-out, and clamped at
+    ``cap + 1`` at every accumulation so the arithmetic cannot blow up either (12
+    components with a 4 kB line can express W**N in the 1e26 range).
+
+    Requires an acyclic graph: the caller only runs it when rule 3 found nothing.
+    A dangling reference counts as one leaf; rule 2 rejects the spec for it anyway.
+    """
+    ceiling = cap + 1
+    memo: dict[str, int] = {}
+    # Explicit post-order stack rather than recursion: the flat list is only capped at
+    # 12 by another rule that merely *reports*, so a hostile spec could otherwise pick
+    # the recursion limit as its denial of service.
+    stack: list[tuple[str, bool]] = [(root_id, False)]
+    while stack:
+        component_id, expanded = stack.pop()
+        if component_id in memo:
+            continue
+        component = by_id.get(component_id)
+        children = component.children if component is not None else []
+        if not expanded:
+            stack.append((component_id, True))
+            for child in children:
+                if child not in memo:
+                    stack.append((child, False))
+            continue
+        total = 1
+        for child in children:
+            total = min(total + memo.get(child, 1), ceiling)
+        memo[component_id] = total
+    return memo[root_id]
 
 
 def _find_cycles(by_id: Mapping[str, Component]) -> list[str]:
@@ -374,6 +440,7 @@ __all__ = [
     "ANSWER_KEY_KEYS",
     "FORMATS_REQUIRING_LEAD",
     "MAX_COMPONENTS",
+    "MAX_RENDERED_NODES",
     "MAX_ROOT_CHILDREN",
     "UI_FORMATS",
     "UI_SPEC_VERSION",

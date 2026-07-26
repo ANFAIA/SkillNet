@@ -1,6 +1,6 @@
 import { InlineMarkdown } from './InlineMarkdown'
 import { ClickableText } from '../ClickableText'
-import type { TextVariant } from '../../../types/ui-spec'
+import type { TextVariant } from '../kit/schemas'
 
 export interface TextContentBlockProps {
   text: string

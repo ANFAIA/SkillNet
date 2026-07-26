@@ -1,6 +1,7 @@
-"""The frozen catalogue (§5.3), the generated prompt fragment and the 7 contract rules.
+"""The frozen catalogue (§5.3) and the 7 contract rules of §5.2.
 
-No DB, no network.
+No DB, no network. The prompt is no longer built here — ``library.prompt()`` writes it at
+build time and ``tests/test_render_prompt_artifact.py`` guards it against drift.
 """
 
 from __future__ import annotations
@@ -9,15 +10,11 @@ import pytest
 
 from src.models.exercise import ExerciseType
 from src.render import (
-    MAX_COMPONENTS,
     UI_KIT,
     RenderValidationError,
     parse_spec,
 )
-from src.render.backends.openui import ESCAPE_RULES, GRAMMAR, OpenUiLangBackend
 from src.render.kit import PropKind
-
-BACKEND = OpenUiLangBackend()
 
 # The table of §5.3, verbatim: name -> positional prop order.
 EXPECTED_CATALOGUE: tuple[tuple[str, tuple[str, ...]], ...] = (
@@ -100,43 +97,12 @@ def test_each_container_declares_exactly_one_refs_prop() -> None:
         assert len(refs) == (1 if component.is_container else 0), component.name
 
 
-# -- the generated prompt fragment ---------------------------------------------------
+# -- the names that stay out of the catalogue ----------------------------------------
 
 
-@pytest.mark.parametrize("name", UI_KIT.llm_names)
-def test_prompt_fragment_mentions_every_emittable_component(name: str) -> None:
-    assert name in BACKEND.prompt_fragment(UI_KIT)
-
-
-@pytest.mark.parametrize("name", ("Markdown", *REJECTED_NAMES))
-def test_prompt_fragment_mentions_no_other_component(name: str) -> None:
-    assert name not in BACKEND.prompt_fragment(UI_KIT)
-
-
-@pytest.mark.parametrize("rule", ESCAPE_RULES)
-def test_prompt_fragment_carries_the_three_escape_rules(rule: str) -> None:
-    assert rule in BACKEND.prompt_fragment(UI_KIT)
-
-
-def test_prompt_fragment_carries_the_frozen_grammar_verbatim() -> None:
-    assert GRAMMAR in BACKEND.prompt_fragment(UI_KIT)
-
-
-def test_prompt_fragment_is_generated_from_the_kit_not_hand_written() -> None:
-    fragment = BACKEND.prompt_fragment(UI_KIT)
-    quiz = UI_KIT.get("QuizItem")
-    assert quiz is not None
-    # The signature is derived, so a prop rename cannot desync prompt and validator.
-    assert quiz.signature in fragment
-    assert "bloom_level" in fragment
-
-
-def test_prompt_fragment_states_the_contract_limits() -> None:
-    fragment = BACKEND.prompt_fragment(UI_KIT)
-    assert str(MAX_COMPONENTS) in fragment
-    assert "lead" in fragment
-    assert "explanation" in fragment and "mixed" in fragment
-    assert "Nunca HTML" in fragment
+@pytest.mark.parametrize("name", REJECTED_NAMES)
+def test_a_rejected_name_is_not_in_the_kit(name: str) -> None:
+    assert UI_KIT.get(name) is None
 
 
 # -- the seven contract rules -------------------------------------------------------
@@ -254,6 +220,85 @@ def test_rule_4_accepts_exactly_twelve_components_and_five_at_root() -> None:
         )
     assert len(payload["components"]) == 12
     assert len(parse_spec(payload).components) == 12
+
+
+# -- rule 4, the painting budget ------------------------------------------------------
+#
+# A DAG of 12 components expands to an unbounded TREE, because an id may be referenced
+# from several parents and twice inside one children array, and only the root fan-out is
+# capped. MEASURED with @openuidev/lang-core 0.2.10: the fan-out below at width 2 gives
+# 1 025 elements from 334 bytes, at width 3 gives 29 526 from 370 bytes (all with
+# ``statementCount == 12``, so the client's component check sees nothing wrong), and at
+# width 8 a 550-byte program kills the tab with a V8 heap OOM after ~47 s. A heap OOM is
+# not catchable, so the client cannot defend itself: this cap is the one that counts.
+
+
+def _fan_out(width: int, depth: int) -> dict:
+    """``a{i} = Card("n{i}", [a{i+1}] * width)``: 3 + depth components, width**depth leaves."""
+    payload = _spec(format="explanation")
+    payload["components"][0]["children"] = ["a", "n0"]
+    payload["components"] = payload["components"][:2] + [
+        {
+            "id": f"n{index}",
+            "type": "Card",
+            "props": {"title": f"n{index}"},
+            "children": [f"n{index + 1}"] * width,
+        }
+        for index in range(depth)
+    ]
+    payload["components"].append(
+        {"id": f"n{depth}", "type": "TextContent", "props": {"text": "Hoja.", "variant": "body"}}
+    )
+    return payload
+
+
+def test_rule_4_rejects_a_tree_that_expands_past_the_render_budget() -> None:
+    payload = _fan_out(width=8, depth=9)
+    assert len(payload["components"]) == 12  # rule 4's component count is satisfied
+    with pytest.raises(RenderValidationError) as excinfo:
+        parse_spec(payload)
+    assert any("rule 4" in e and "64" in e for e in excinfo.value.errors)
+
+
+def test_rule_4_rejects_the_same_id_repeated_inside_one_children_array() -> None:
+    """The cheapest form of the same attack, and one no per-component rule can see."""
+    payload = _spec()
+    payload["components"][0]["children"] = ["a", "wide"]
+    payload["components"].append(
+        {"id": "wide", "type": "Card", "props": {"title": "W"}, "children": ["b"] * 70}
+    )
+    with pytest.raises(RenderValidationError) as excinfo:
+        parse_spec(payload)
+    assert any("rule 4" in e and "64" in e for e in excinfo.value.errors)
+
+
+def test_rule_4_accepts_a_tree_right_at_the_render_budget() -> None:
+    """Proof the cap is a cap and not a ban on reuse: 64 painted blocks is fine."""
+    payload = _spec()
+    payload["components"][0]["children"] = ["a", "wide"]
+    payload["components"].append(
+        # root + lead + Card + 61 references to `b` = 64 elements.
+        {"id": "wide", "type": "Card", "props": {"title": "W"}, "children": ["b"] * 61}
+    )
+    assert len(parse_spec(payload).components) == 4
+
+
+def test_rule_4_reports_a_cycle_instead_of_looping_on_the_expansion() -> None:
+    """The expansion is only defined on a DAG; rule 3 has to win, not hang."""
+    payload = _spec()
+    payload["components"][0]["children"] = ["a", "c1"]
+    payload["components"] += [
+        {"id": "c1", "type": "Card", "props": {"title": "1"}, "children": ["c2"] * 9},
+        {"id": "c2", "type": "Card", "props": {"title": "2"}, "children": ["c1"] * 9},
+    ]
+    with pytest.raises(RenderValidationError) as excinfo:
+        parse_spec(payload)
+    assert any("rule 3" in e for e in excinfo.value.errors)
+
+
+def test_the_render_budget_is_not_checked_in_partial_mode() -> None:
+    """Mid-stream a spec is legitimately half-built; rules 1-4 and 7 do not run."""
+    parse_spec(_fan_out(width=8, depth=9), partial=True)
 
 
 @pytest.mark.parametrize("key", ("correct", "explanation", "correct_order", "blanks"))

@@ -1,9 +1,10 @@
 """``parse(serialize(spec)) == spec`` over the golden specs (§12.2).
 
 No DB, no network. ``serialize`` is the inverse of ``parse`` over the nine emittable
-components; ``Markdown`` only ever reaches a spec through ``fallback_seed``, which
-builds JSON directly, so it is the one golden that is not round-trippable — and the
-test asserts that asymmetry instead of hiding it.
+components. ``Markdown`` is the one golden that does not round-trip: the server authors
+it for ``fallback_seed`` and ``serialize`` writes it (the browser is served dialect now,
+so the fallback needs a dialect form), but ``parse`` refuses it because the model may not
+emit it. The test asserts that asymmetry instead of hiding it.
 """
 
 from __future__ import annotations
@@ -34,8 +35,8 @@ ROUND_TRIPPABLE = (
     "quiz_types",
 )
 
-#: Golden specs the dialect deliberately cannot express.
-JSON_ONLY = ("fallback_markdown",)
+#: Golden specs only the server authors: the dialect can write them, the model cannot.
+SERVER_AUTHORED = ("fallback_markdown",)
 
 
 def _spec(name: str) -> UISpec:
@@ -47,7 +48,7 @@ def _spec(name: str) -> UISpec:
 def test_the_golden_set_is_ten_round_trippable_specs() -> None:
     on_disk = {path.stem for path in _SPEC_DIR.glob("*.json")}
     assert len(ROUND_TRIPPABLE) == 10
-    assert on_disk == set(ROUND_TRIPPABLE) | set(JSON_ONLY)
+    assert on_disk == set(ROUND_TRIPPABLE) | set(SERVER_AUTHORED)
 
 
 @pytest.mark.parametrize("name", ROUND_TRIPPABLE)
@@ -180,10 +181,19 @@ def test_nested_quotes_in_a_table_cell_survive() -> None:
 # -- the deliberate asymmetry --------------------------------------------------------
 
 
-@pytest.mark.parametrize("name", JSON_ONLY)
-def test_a_markdown_spec_is_valid_ir_but_not_serializable(name: str) -> None:
+@pytest.mark.parametrize("name", SERVER_AUTHORED)
+def test_a_markdown_spec_serializes_but_cannot_be_parsed_back(name: str) -> None:
+    """The asymmetry moved, it did not disappear.
+
+    It used to be "``Markdown`` has no dialect form": the browser received JSON, so
+    ``fallback_seed`` never needed one. Now the browser is served dialect, so the fallback
+    is serialized like everything else — while ``parse`` still refuses ``Markdown``,
+    because the *model* may not emit it. Server writes it, model cannot.
+    """
     spec = _spec(name)
     assert "Markdown" in spec.types
+    program = BACKEND.serialize(spec)
+    assert "Markdown(" in program
     with pytest.raises(RenderError) as excinfo:
-        BACKEND.serialize(spec)
-    assert "fallback_seed" in str(excinfo.value)
+        BACKEND.parse(program)
+    assert "unknown component 'Markdown'" in str(excinfo.value)

@@ -1,13 +1,11 @@
 // TypeScript interfaces matching the SkillNet backend API contract (v1).
 // These are kept separate from the legacy mock-data types in src/data/*.
 
-// v2 render IR. Type-only import, so it is erased at build time and the
-// index <-> ui-spec cycle never exists at runtime.
-import type {
-  BloomLevel as BloomLevelType,
-  UiFormat as UiFormatType,
-  UiSpec as UiSpecType,
-} from './ui-spec'
+// v2 render contract. Type-only imports, so they are erased at build time and no
+// import cycle exists at runtime. `BloomLevel` now comes from the UI Kit schemas,
+// which are the frontend's single declaration of the frozen catalogue (§5.3).
+import type { BloomLevel as BloomLevelType } from '../components/courses/kit/schemas'
+import type { UiFormat as UiFormatType } from './node-render'
 
 export type UserRole = 'admin' | 'employee'
 
@@ -374,7 +372,19 @@ export interface NodeRender {
   status: 'pending' | 'generating' | 'ready' | 'failed' | 'fallback'
   backend: string
   cached: boolean
-  spec: UiSpecType
+  /**
+   * The lesson as OpenUI Lang **text**, re-serialized by the backend from the
+   * already-validated `UISpec` (`RenderBackend.serialize`). It replaces the `spec`
+   * JSON: the browser now renders the dialect with OpenUI's own runtime, so the
+   * flat IR never crosses the wire.
+   *
+   * It must NEVER be `node_renders.raw_dsl`. The raw model output is
+   * attacker-influenced text (a poisoned source document is the path) and feeding
+   * it to a reactive runtime bypasses every barrier at once; a `UISpec` cannot
+   * represent an AST, so the round-trip through it is a structural guarantee.
+   * `raw_dsl` stays in the model and in no response schema.
+   */
+  program: string
 }
 
 /** `GET /users/me/learner-profile` (§11.2). `format_vector` and `tutor_notes` stay server-side. */

@@ -3,12 +3,12 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { post } from '../../../api/client'
 import { Button } from '../../ui'
 import type { ExerciseType } from '../../../types'
+import type { BloomLevel } from '../kit/schemas'
 import type {
-  BloomLevel,
   NodeAnswerPayload,
   NodeAnswerRequest,
   NodeAttemptResult,
-} from '../../../types/ui-spec'
+} from '../../../types/node-render'
 
 export interface QuizItemBlockProps {
   item_id: string

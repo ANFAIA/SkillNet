@@ -1,307 +1,143 @@
-import { Fragment, useMemo, type ReactNode } from 'react'
-import {
-  CalloutBlock,
-  CardBlock,
-  ChartBlock,
-  CodeBlockBlock,
-  MarkdownBlock,
-  QuizItemBlock,
-  StackBlock,
-  StepSequenceBlock,
-  TableBlock,
-  TextContentBlock,
-} from './blocks'
-import { UI_SPEC_VERSION, type RawUiComponent, type UiSpec } from '../../types/ui-spec'
-import type { ExerciseType } from '../../types'
-import type {
-  BloomLevel,
-  CalloutTone,
-  ChartKind,
-  StackGap,
-  TextVariant,
-} from '../../types/ui-spec'
+import { useEffect, useMemo, useRef } from 'react'
+import { Renderer } from '@openuidev/react-lang'
+import type { OpenUIError } from '@openuidev/react-lang'
+
+import { ErrorBoundary } from '../ErrorBoundary'
+import { gateProgram, type StaticViolation } from './kit/assertStaticOnly'
+import { nodeRenderContext } from './kit/NodeRenderContext'
+import { skillnetLibrary } from './kit/library'
+import type { UiFormat } from '../../types/node-render'
 
 const WARN = '[UiSpecRenderer]'
 
-/**
- * Guards, not contract limits. The backend already enforces "max 12 components"
- * (§5.2 rule 4); these exist so a spec that reached the browser malformed — a
- * cycle, a self-reference, a diamond that fans out — cannot lock the tab.
- */
-const MAX_DEPTH = 8
-const MAX_RENDERED = 64
-
-// ── Defensive prop readers ───────────────────────────────────
-// Specs are validated server-side, but a browser holding an older bundle can
-// receive a spec with a component or a prop shape it does not know. Every read
-// below degrades to a safe default instead of throwing.
-
-function readString(props: Record<string, unknown> | undefined, key: string, fallback = ''): string {
-  const value = props?.[key]
-  return typeof value === 'string' ? value : fallback
-}
-
-function readEnum<T extends string>(
-  props: Record<string, unknown> | undefined,
-  key: string,
-  allowed: readonly T[],
-  fallback: T,
-): T {
-  const value = props?.[key]
-  return typeof value === 'string' && (allowed as readonly string[]).includes(value)
-    ? (value as T)
-    : fallback
-}
-
-function readStringArray(props: Record<string, unknown> | undefined, key: string): string[] {
-  const value = props?.[key]
-  if (!Array.isArray(value)) return []
-  return value.map((entry) => (typeof entry === 'string' ? entry : String(entry ?? '')))
-}
-
-function readStringMatrix(props: Record<string, unknown> | undefined, key: string): string[][] {
-  const value = props?.[key]
-  if (!Array.isArray(value)) return []
-  return value.map((row) =>
-    Array.isArray(row) ? row.map((cell) => (typeof cell === 'string' ? cell : String(cell ?? ''))) : [],
-  )
-}
-
-function readNumberArray(props: Record<string, unknown> | undefined, key: string): number[] {
-  const value = props?.[key]
-  if (!Array.isArray(value)) return []
-  return value.map((entry) => {
-    const num = Number(entry)
-    return Number.isFinite(num) ? num : 0
-  })
-}
-
-const GAPS: readonly StackGap[] = ['sm', 'md', 'lg']
-const TEXT_VARIANTS: readonly TextVariant[] = ['body', 'lead', 'caption']
-const CALLOUT_TONES: readonly CalloutTone[] = ['info', 'warn', 'success']
-const CHART_KINDS: readonly ChartKind[] = ['bar', 'line']
-const EXERCISE_TYPES: readonly ExerciseType[] = [
-  'test',
-  'true_false',
-  'fill_blank',
-  'order_steps',
-  'practical_case',
-  'dialogue',
-]
-const BLOOM_LEVELS: readonly BloomLevel[] = [
-  'remember',
-  'understand',
-  'apply',
-  'analyze',
-  'evaluate',
-  'create',
-]
-
-interface RenderContext {
-  byId: Map<string, RawUiComponent>
-  nodeId: string
-  renderId?: string
-  /** Mutable render budget shared by the whole pass. */
-  budget: { remaining: number }
-}
-
-/**
- * Resolves a list of child ids into nodes.
- *
- * `ancestors` is the current path, not a global visited set: a component may
- * legally appear twice in a spec (a diamond), but never inside itself.
- */
-function renderChildren(
-  ids: string[] | undefined,
-  ctx: RenderContext,
-  ancestors: readonly string[],
-  depth: number,
-): ReactNode {
-  if (!Array.isArray(ids) || ids.length === 0) return null
-
-  const nodes: ReactNode[] = []
-  ids.forEach((childId, index) => {
-    if (typeof childId !== 'string') {
-      console.warn(`${WARN} child reference at index ${index} is not a string, skipped`)
-      return
-    }
-    const node = renderById(childId, ctx, ancestors, depth)
-    if (node !== null) {
-      // Keyed by id AND index: the same id may legally appear twice in one list.
-      nodes.push(<Fragment key={`${childId}:${index}`}>{node}</Fragment>)
-    }
-  })
-
-  return nodes.length > 0 ? nodes : null
-}
-
-function renderById(
-  id: string,
-  ctx: RenderContext,
-  ancestors: readonly string[],
-  depth: number,
-): ReactNode {
-  if (ancestors.includes(id)) {
-    console.warn(`${WARN} cycle detected at "${id}" (path: ${[...ancestors, id].join(' > ')})`)
-    return null
-  }
-  if (depth > MAX_DEPTH) {
-    console.warn(`${WARN} max depth ${MAX_DEPTH} exceeded at "${id}"`)
-    return null
-  }
-  if (ctx.budget.remaining <= 0) {
-    console.warn(`${WARN} render budget of ${MAX_RENDERED} components exhausted at "${id}"`)
-    return null
-  }
-
-  const component = ctx.byId.get(id)
-  if (!component) {
-    // §5.2 rule 2 says every reference must resolve. A dangling one means the
-    // spec is broken upstream; the learner still gets the rest of the screen.
-    console.warn(`${WARN} unknown component id "${id}", skipped`)
-    return null
-  }
-
-  ctx.budget.remaining -= 1
-  const path = [...ancestors, id]
-  const props = component.props
-  const kids = () => renderChildren(component.children, ctx, path, depth + 1)
-
-  switch (component.type) {
-    case 'Stack':
-      return <StackBlock gap={readEnum(props, 'gap', GAPS, 'md')}>{kids()}</StackBlock>
-
-    case 'TextContent':
-      return (
-        <TextContentBlock
-          text={readString(props, 'text')}
-          variant={readEnum(props, 'variant', TEXT_VARIANTS, 'body')}
-        />
-      )
-
-    case 'Card':
-      return <CardBlock title={readString(props, 'title')}>{kids()}</CardBlock>
-
-    case 'Callout':
-      return (
-        <CalloutBlock
-          tone={readEnum(props, 'tone', CALLOUT_TONES, 'info')}
-          text={readString(props, 'text')}
-        />
-      )
-
-    case 'StepSequence':
-      return (
-        <StepSequenceBlock
-          title={readString(props, 'title')}
-          steps={readStringArray(props, 'steps')}
-        />
-      )
-
-    case 'Table':
-      return (
-        <TableBlock
-          headers={readStringArray(props, 'headers')}
-          rows={readStringMatrix(props, 'rows')}
-        />
-      )
-
-    case 'CodeBlock':
-      return (
-        <CodeBlockBlock
-          language={readString(props, 'language')}
-          code={readString(props, 'code')}
-        />
-      )
-
-    case 'Chart':
-      return (
-        <ChartBlock
-          kind={readEnum(props, 'kind', CHART_KINDS, 'bar')}
-          title={readString(props, 'title')}
-          labels={readStringArray(props, 'labels')}
-          values={readNumberArray(props, 'values')}
-        />
-      )
-
-    case 'QuizItem':
-      return (
-        <QuizItemBlock
-          item_id={readString(props, 'item_id', component.id)}
-          item_type={readEnum(props, 'item_type', EXERCISE_TYPES, 'test')}
-          bloom_level={readEnum(props, 'bloom_level', BLOOM_LEVELS, 'apply')}
-          question={readString(props, 'question')}
-          options={readStringArray(props, 'options')}
-          nodeId={ctx.nodeId}
-          renderId={ctx.renderId}
-        />
-      )
-
-    case 'Markdown':
-      return <MarkdownBlock content={readString(props, 'content')} />
-
-    default:
-      // Frozen kit + newer server = unknown type. Log and drop the block; never
-      // break the page (§5.5).
-      console.warn(`${WARN} unsupported component type "${component.type}" (id "${component.id}")`)
-      return null
-  }
-}
-
 export interface UiSpecRendererProps {
-  spec: UiSpec
-  /** Node the spec belongs to — `QuizItemBlock` posts its answers there. */
+  /**
+   * The lesson as OpenUI Lang **text**.
+   *
+   * ARCHITECTURAL RULE, and the one that matters most in this file: this must be
+   * the program **re-serialized from the already-validated `UISpec`**, never the
+   * model's `raw_dsl`. `<Renderer response>` only accepts text, and the tempting
+   * shortcut is to forward whatever the model wrote. That would put
+   * attacker-directed text — a poisoned PDF is the attack path — straight into a
+   * reactive runtime, jumping every barrier at once. A `UISpec` cannot represent
+   * an AST, so round-tripping through it is a structural guarantee rather than a
+   * check that can be forgotten. `raw_dsl` stays in the model
+   * (`src/models/node_render.py`) and in no response schema.
+   *
+   * `null` while the render is still loading.
+   */
+  program: string | null
+  /** Node the program belongs to — `QuizItemBlock` posts its answers there. */
   nodeId: string
   /**
-   * `node_renders.id` of this spec. Required for a gradeable quiz item; when
-   * omitted the quiz items render read-only (raw-spec preview, Storybook).
+   * `node_renders.id` of this program. Required for a gradeable quiz item; when
+   * omitted the quiz items render read-only (preview, Storybook).
    */
   renderId?: string
+  /**
+   * True while the program is still arriving over SSE. Passed straight through:
+   * the runtime disables form interaction and keeps the last good subtree while
+   * it re-parses each chunk.
+   */
+  isStreaming?: boolean
+  /** `node_renders.ui_format`, surfaced as `data-ui-format` for §9.2 and tests. */
+  format?: UiFormat
+  /**
+   * Structural-gate telemetry (§14.2). Called with every violation, blocking or
+   * not; a non-empty `blocking` list means somebody handed the browser a program
+   * with reactivity in it, which the trusted pipeline cannot produce.
+   */
+  onViolations?: (violations: StaticViolation[]) => void
+  /**
+   * Parser and runtime errors in the vendor's LLM-friendly shape — the input to
+   * the repair loop of §5.4. Fired with `[]` once everything resolves.
+   */
+  onError?: (errors: OpenUIError[]) => void
 }
 
 /**
- * Renders a validated `UISpec` (§5.2) by walking `children` ids from `root`.
+ * Renders a lesson with OpenUI's own runtime (`@openuidev/react-lang`).
  *
- * Same dispatch shape as v1's `ExerciseRenderer`, with three hard guarantees the
- * v1 renderer never needed: a dangling id, a duplicate id and a cycle all
- * degrade to a warning plus a partial screen. Nothing here throws.
+ * ## Reactivity: off, by omission of props
+ *
+ * The mandatory security profile is "sin reactividad", and it is enforced here by
+ * what is NOT passed to `<Renderer>`:
+ *
+ * - no `toolProvider` → `createQueryManager(null)` and the two guards inside
+ *   lang-core cut every `Query` and `Mutation` to zero. There is no other network
+ *   egress in the package: the audit found no `fetch`, `XMLHttpRequest`,
+ *   `WebSocket`, `sendBeacon`, `window.open`, `location`, `localStorage`,
+ *   `document.cookie`, `eval` or `new Function` in either bundle.
+ * - no `onAction` → `@OpenUrl` and `@ToAssistant` are no-ops. The runtime never
+ *   navigates itself; it forwards the intent to that prop and nothing else.
+ * - no `onStateUpdate` → `@Set` is persisted nowhere.
+ * - and no component in the library calls `useTriggerAction()`, which is what
+ *   makes an `ActionPlan` physically unfirable.
+ *
+ * On top of that, `gateProgram` parses the text *before* the runtime does and
+ * refuses to hand it over at all if any of the above is in it.
+ *
+ * ## Robustness, kept from the hand-written renderer
+ *
+ * A dangling reference, a duplicate id and a cycle all degrade to a partial
+ * screen: the vendor's parser drops the unresolvable child and reports it in
+ * `meta.unresolved`, and truncates a cycle instead of recursing. A component that
+ * is not in the library is not painted. A throw inside a single component is
+ * caught by the runtime's per-element boundary, and anything it misses is caught
+ * by ours — this component never throws at its caller.
+ *
+ * The hand-written renderer's `MAX_RENDERED` budget is back too, as
+ * `MAX_RENDERED_ELEMENTS` in the gate: twelve components are a DAG, not a tree, so
+ * counting components bounds nothing (measured: 370 bytes of legal program expand to
+ * 29 526 elements). The cap that actually protects the tab is the server's
+ * `MAX_RENDERED_NODES`, because at higher fan-out the *parse* dies of a V8 heap OOM,
+ * which no `try/catch` can intercept; the gate's copy is the fail-closed half.
+ *
+ * `ClickableSurface` (§8.5) still wraps this component from the outside, in
+ * `NodeView`; the hit-test is unchanged and the `data-no-explain` markers live
+ * where they always did, inside the blocks.
  */
-export function UiSpecRenderer({ spec, nodeId, renderId }: UiSpecRendererProps) {
-  const byId = useMemo(() => {
-    const map = new Map<string, RawUiComponent>()
-    const components: unknown = spec?.components
-    if (!Array.isArray(components)) return map
+export function UiSpecRenderer({
+  program,
+  nodeId,
+  renderId,
+  isStreaming = false,
+  format,
+  onViolations,
+  onError,
+}: UiSpecRendererProps) {
+  const gate = useMemo(() => gateProgram(program, { streaming: isStreaming }), [program, isStreaming])
+  const target = useMemo(() => ({ nodeId, renderId }), [nodeId, renderId])
 
-    for (const entry of components as RawUiComponent[]) {
-      if (!entry || typeof entry.id !== 'string' || typeof entry.type !== 'string') {
-        console.warn(`${WARN} component without a string id/type, skipped`)
-        continue
-      }
-      if (map.has(entry.id)) {
-        // First declaration wins: it is the one `root` and any earlier
-        // `children` array was written against.
-        console.warn(`${WARN} duplicate component id "${entry.id}", keeping the first`)
-        continue
-      }
-      map.set(entry.id, entry)
+  const onViolationsRef = useRef(onViolations)
+  onViolationsRef.current = onViolations
+
+  useEffect(() => {
+    if (gate.violations.length === 0) return
+    for (const violation of gate.violations) {
+      console.warn(`${WARN} ${violation.severity} ${violation.code}: ${violation.message}`)
     }
-    return map
-  }, [spec])
+    onViolationsRef.current?.(gate.violations)
+  }, [gate])
 
-  if (!spec || typeof spec.root !== 'string' || byId.size === 0) {
-    console.warn(`${WARN} spec has no usable root or no components`)
-    return null
-  }
-  if (spec.version && spec.version !== UI_SPEC_VERSION) {
-    console.warn(`${WARN} spec version "${spec.version}" != "${UI_SPEC_VERSION}", rendering anyway`)
-  }
-
-  const tree = renderById(spec.root, { byId, nodeId, renderId, budget: { remaining: MAX_RENDERED } }, [], 0)
-  if (tree === null) return null
+  // `empty` is the "no usable root" case: nothing to paint, so not even the
+  // wrapper is emitted.
+  if (!program || gate.blocked || gate.empty) return null
 
   return (
-    <div className="min-w-0" data-ui-format={spec.format}>
-      {tree}
-    </div>
+    <nodeRenderContext.Provider value={target}>
+      <div className="min-w-0" data-ui-format={format}>
+        <ErrorBoundary fallback={() => null}>
+          <Renderer
+            response={program}
+            library={skillnetLibrary}
+            isStreaming={isStreaming}
+            onError={onError}
+            // toolProvider, onAction and onStateUpdate are ABSENT on purpose.
+            // See the "Reactivity" section above before adding any of them.
+          />
+        </ErrorBoundary>
+      </div>
+    </nodeRenderContext.Provider>
   )
 }

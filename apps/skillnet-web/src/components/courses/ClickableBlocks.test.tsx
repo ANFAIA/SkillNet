@@ -1,6 +1,8 @@
 /**
  * The §8.5 boundary, wired end to end: `ClickableSurface` + `UiSpecRenderer` +
- * the real blocks, over B1's golden specs.
+ * the real blocks, over B1's dialect fixtures — now rendered by OpenUI's own
+ * runtime, which is exactly why this file has to keep passing unchanged in
+ * substance: the hit-test must not care who built the DOM.
  *
  * `ClickableSurface.test.tsx` proves the hit-test in isolation, with hand-built
  * markup. This file proves the thing that actually ships: that the five prose
@@ -18,8 +20,7 @@ import type { ReactElement } from 'react'
 
 import { ClickableSurface } from './ClickableSurface'
 import { UiSpecRenderer } from './UiSpecRenderer'
-import { goldenSpecs } from '../../test/fixtures/ui-specs'
-import type { UiSpec } from '../../types/ui-spec'
+import { validPrograms } from '../../test/fixtures/dsl'
 
 vi.mock('../../api/client', () => ({
   post: vi.fn(),
@@ -64,7 +65,7 @@ function lastExplainBody(): Record<string, unknown> {
   return JSON.parse(String(init?.body)) as Record<string, unknown>
 }
 
-function renderLesson(spec: UiSpec, ui?: ReactElement) {
+function renderLesson(program: string, ui?: ReactElement) {
   const client = new QueryClient({
     defaultOptions: { mutations: { retry: false }, queries: { retry: false } },
   })
@@ -72,7 +73,7 @@ function renderLesson(spec: UiSpec, ui?: ReactElement) {
     <MemoryRouter>
       <QueryClientProvider client={client}>
         <ClickableSurface nodeId="node-1">
-          {ui ?? <UiSpecRenderer spec={spec} nodeId="node-1" renderId="render-1" />}
+          {ui ?? <UiSpecRenderer program={program} nodeId="node-1" renderId="render-1" />}
         </ClickableSurface>
       </QueryClientProvider>
     </MemoryRouter>,
@@ -91,7 +92,7 @@ afterEach(() => {
 
 describe('click-to-explain inside the kit blocks (§8.5)', () => {
   it('explains a word clicked in a TextContentBlock, with the paragraph as context', async () => {
-    renderLesson(goldenSpecs.mixed_quiz)
+    renderLesson(validPrograms.mixed_quiz)
 
     await userEvent.click(screen.getByText('devoluciones'))
 
@@ -103,7 +104,7 @@ describe('click-to-explain inside the kit blocks (§8.5)', () => {
   })
 
   it('does NOT explain a word clicked in a quiz option', async () => {
-    renderLesson(goldenSpecs.mixed_quiz)
+    renderLesson(validPrograms.mixed_quiz)
 
     const option = screen.getByText('Ofrecer garantia del fabricante')
     // The option is inside the item's `data-no-explain`, and it was never
@@ -118,7 +119,7 @@ describe('click-to-explain inside the kit blocks (§8.5)', () => {
   })
 
   it('does NOT explain the quiz statement either', async () => {
-    renderLesson(goldenSpecs.mixed_quiz)
+    renderLesson(validPrograms.mixed_quiz)
 
     await userEvent.click(screen.getByText(/Un cliente vuelve el dia 32/))
 
@@ -126,7 +127,7 @@ describe('click-to-explain inside the kit blocks (§8.5)', () => {
   })
 
   it('explains a step of a StepSequenceBlock, scoped to its own <li>', async () => {
-    renderLesson(goldenSpecs.explanation_basic)
+    renderLesson(validPrograms.explanation_basic)
 
     await userEvent.click(screen.getByText('Escanear'))
 
@@ -135,7 +136,7 @@ describe('click-to-explain inside the kit blocks (§8.5)', () => {
   })
 
   it('does NOT turn the step number into a term', async () => {
-    const { container } = renderLesson(goldenSpecs.explanation_basic)
+    const { container } = renderLesson(validPrograms.explanation_basic)
 
     const markers = Array.from(container.querySelectorAll('li > [aria-hidden="true"]'))
     expect(markers).toHaveLength(4)
@@ -146,7 +147,7 @@ describe('click-to-explain inside the kit blocks (§8.5)', () => {
   })
 
   it('explains a table cell, scoped to that cell', async () => {
-    renderLesson(goldenSpecs.table_nested)
+    renderLesson(validPrograms.table_nested)
 
     await userEvent.click(screen.getByText('Telefono'))
 
@@ -155,7 +156,7 @@ describe('click-to-explain inside the kit blocks (§8.5)', () => {
   })
 
   it('explains a Callout, but not its tone label', async () => {
-    const { container } = renderLesson(goldenSpecs.explanation_callout_first)
+    const { container } = renderLesson(validPrograms.explanation_callout_first)
 
     const label = screen.getByText('Atencion')
     expect(label.querySelector('.entity')).toBeNull()
@@ -169,7 +170,7 @@ describe('click-to-explain inside the kit blocks (§8.5)', () => {
   })
 
   it('explains a Card title (§8.5: "titulos incluidos") and not the code inside it', async () => {
-    renderLesson(goldenSpecs.card_nested)
+    renderLesson(validPrograms.card_nested)
 
     // The code sample is one opaque run, inside `data-no-explain`.
     const code = screen.getByText(/dias = \(hoy - ticket\)\.days/)
@@ -184,7 +185,7 @@ describe('click-to-explain inside the kit blocks (§8.5)', () => {
   })
 
   it('gives each block exactly one tab stop, not one per word', () => {
-    renderLesson(goldenSpecs.explanation_basic)
+    renderLesson(validPrograms.explanation_basic)
 
     // TextContent + StepSequence = two groups, and no word is tabbable (§8.2).
     const groups = screen.getAllByRole('group')
