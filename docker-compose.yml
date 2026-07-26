@@ -40,6 +40,13 @@ services:
       EMBEDDING_API_KEY: ${EMBEDDING_API_KEY:-}
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-}
       EMBEDDING_DIMENSIONS: ${EMBEDDING_DIMENSIONS:-384}
+      # Dynamic courses (v2). Defaults keep production behaving exactly as today.
+      DYNAMIC_COURSES_MODE: ${DYNAMIC_COURSES_MODE:-off}
+      RENDER_BACKEND: ${RENDER_BACKEND:-openui}
+      LLM_RUNTIME_FAST_MODEL: ${LLM_RUNTIME_FAST_MODEL:-}
+      LLM_RUNTIME_HEAVY_MODEL: ${LLM_RUNTIME_HEAVY_MODEL:-}
+      LLM_FIXTURE_DIR: ${LLM_FIXTURE_DIR:-src/llm/fixture_data}
+      LLM_FIXTURE_MODE: ${LLM_FIXTURE_MODE:-replay}
       UPLOAD_DIR: /data/uploads
       MAX_UPLOAD_SIZE_MB: ${MAX_UPLOAD_SIZE_MB:-50}
       CORS_ORIGINS: ${CORS_ORIGINS:-["http://localhost:3000"]}
@@ -60,6 +67,44 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+
+  # ── Keyless demo API (optional — docker compose --profile fixtures up db api-fixtures)
+  # Same image as `api`, but every LLM and embedding call is served from the
+  # recorded fixtures in src/llm/fixture_data (they ship inside `src`, so the
+  # production Dockerfile needs no change) and v2 is fully on. No API key needed.
+  # Published on its own port because the bundled nginx SPA proxies to `api`; to
+  # run the *whole* stack keyless, set these three values in .env instead.
+  api-fixtures:
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+    restart: unless-stopped
+    profiles: [fixtures]
+    ports:
+      - "${API_FIXTURES_PORT:-8001}:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-skillnet}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-skillnet}
+      SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      LLM_MODEL: fixture/local
+      EMBEDDING_MODEL: fixture/local
+      EMBEDDING_DIMENSIONS: ${EMBEDDING_DIMENSIONS:-384}
+      DYNAMIC_COURSES_MODE: "on"
+      RENDER_BACKEND: ${RENDER_BACKEND:-openui}
+      LLM_FIXTURE_DIR: ${LLM_FIXTURE_DIR:-src/llm/fixture_data}
+      LLM_FIXTURE_MODE: replay
+      UPLOAD_DIR: /data/uploads
+      CORS_ORIGINS: ${CORS_ORIGINS:-["http://localhost:3000"]}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      ORG_NAME: ${ORG_NAME:-SkillNet}
+    volumes:
+      - uploads:/data/uploads
+    depends_on:
+      db:
+        condition: service_healthy
 
   # ── Local Embeddings (optional — enable with: docker compose --profile ollama up)
   ollama:

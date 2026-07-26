@@ -1,0 +1,17 @@
+{
+  "649471a037fb107d": {
+    "file": "explain/mercurio_quimica.json",
+    "prompt_preview": "Eres el explicador de SkillNet. Una persona que esta estudiando ha hecho clic en una palabra o ha seleccionado una frase y quiere un vistazo rapido. Responde co",
+    "use_case": "explain"
+  },
+  "6d8af06feaefe27a": {
+    "file": "explain/mercurio_planeta.json",
+    "prompt_preview": "Eres el explicador de SkillNet. Una persona que esta estudiando ha hecho clic en una palabra o ha seleccionado una frase y quiere un vistazo rapido. Responde co",
+    "use_case": "explain"
+  },
+  "c5a0fca440fe4f0e": {
+    "file": "probe_generate/plazo_devolucion.json",
+    "prompt_preview": "Eres un disenador de evaluacion diagnostica para formacion en el puesto de trabajo. Tu tarea es escribir un pre-test muy corto que sirva para decidir si una per",
+    "use_case": "probe_generate"
+  }
+}

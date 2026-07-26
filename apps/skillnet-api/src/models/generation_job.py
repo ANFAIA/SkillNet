@@ -19,10 +19,13 @@ class GenerationOutput(str, enum.Enum):
 
 class GenerationStep(str, enum.Enum):
     PENDING = "pending"
+    # v2 design-time schema pipeline (added to the PG enum in migration 0005).
+    SCHEMA_PROPOSING = "schema_proposing"
     EXTRACTING = "extracting"
     STRUCTURING = "structuring"
     GENERATING = "generating"
     REVIEWING = "reviewing"
+    SCHEMA_PROPOSED = "schema_proposed"
     PUBLISHED = "published"
     FAILED = "failed"
 

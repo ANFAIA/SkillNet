@@ -2,10 +2,22 @@
 
 from src.models.access_token import AccessToken
 from src.models.api_key import ApiKey
+from src.models.audit_log import AUDIT_ACTIONS, AuditLog
 from src.models.base import Base, TimestampMixin, UUIDMixin
 from src.models.chat_message import ChatMessage
 from src.models.chat_session import ChatSession
-from src.models.course import ContentStatus, Course
+from src.models.course import (
+    ContentStatus,
+    Course,
+    CourseDeliveryMode,
+    CourseSchemaStatus,
+)
+from src.models.course_node import (
+    CRITICALITY_THRESHOLDS,
+    CourseNode,
+    NodeCriticality,
+)
+from src.models.course_node_prerequisite import CourseNodePrerequisite
 from src.models.course_skill import CourseSkill
 from src.models.document import Document, DocumentStatus
 from src.models.document_chunk import DocumentChunk
@@ -17,12 +29,37 @@ from src.models.generation_job import (
     GenerationOutput,
     GenerationStep,
 )
+from src.models.learner_node_state import (
+    SCAFFOLD_BANDS,
+    ErrorKind,
+    LearnerNodeState,
+    NodeState,
+)
+from src.models.learner_profile import (
+    EMPTY_FORMAT_VECTOR,
+    FORMAT_VECTOR_DIMENSIONS,
+    LearnerExperience,
+    LearnerProfile,
+)
+from src.models.learning_event import LearningEvent
 from src.models.lesson import Lesson
 from src.models.lesson_progress import LessonProgress
+from src.models.llm_usage_log import USE_CASES, LlmUsageLog
 from src.models.module import Module
+from src.models.node_attempt import BLOOM_LEVELS, NodeAttempt
+from src.models.node_feedback import DIFFICULTY_VALUES, NodeFeedback
+from src.models.node_probe import NodeProbe
+from src.models.node_render import NodeRender, NodeRenderStatus, UiFormat
+from src.models.node_render_view import NodeRenderView
 from src.models.organization import Organization
 from src.models.skill import Skill
 from src.models.skill_category import SkillCategory
+from src.models.term_explanation import (
+    TERM_CACHEABLE_MAX_LENGTH,
+    TERM_CACHEABLE_MAX_TOKENS,
+    TERM_MAX_LENGTH,
+    TermExplanation,
+)
 from src.models.user import LearningProfile, User, UserRole
 from src.models.user_skill import SkillLevel, UserSkill
 
@@ -59,4 +96,37 @@ __all__ = [
     "UserSkill",
     "ChatSession",
     "ChatMessage",
+    # --- v2 dynamic courses ---
+    "CourseDeliveryMode",
+    "CourseSchemaStatus",
+    "CourseNode",
+    "CourseNodePrerequisite",
+    "NodeCriticality",
+    "CRITICALITY_THRESHOLDS",
+    "LearnerProfile",
+    "LearnerExperience",
+    "FORMAT_VECTOR_DIMENSIONS",
+    "EMPTY_FORMAT_VECTOR",
+    "LearnerNodeState",
+    "NodeState",
+    "ErrorKind",
+    "SCAFFOLD_BANDS",
+    "LearningEvent",
+    "NodeRender",
+    "UiFormat",
+    "NodeRenderStatus",
+    "NodeRenderView",
+    "NodeProbe",
+    "NodeAttempt",
+    "BLOOM_LEVELS",
+    "NodeFeedback",
+    "DIFFICULTY_VALUES",
+    "TermExplanation",
+    "TERM_MAX_LENGTH",
+    "TERM_CACHEABLE_MAX_LENGTH",
+    "TERM_CACHEABLE_MAX_TOKENS",
+    "LlmUsageLog",
+    "USE_CASES",
+    "AuditLog",
+    "AUDIT_ACTIONS",
 ]

@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -24,6 +26,14 @@ class Settings(BaseSettings):
     LLM_GENERATION_MODEL: str | None = None
     LLM_TUTOR_MODEL: str | None = None
     LLM_EVAL_MODEL: str | None = None
+    # v2 two-tier runtime router. Empty -> both tiers fall back to LLM_MODEL.
+    LLM_RUNTIME_FAST_MODEL: str | None = None
+    LLM_RUNTIME_HEAVY_MODEL: str | None = None
+
+    # v2 recorded-fixture LLM (no API keys needed). Fixtures live inside the package
+    # so they travel into the Docker image with `src`.
+    LLM_FIXTURE_DIR: str = "src/llm/fixture_data"
+    LLM_FIXTURE_MODE: Literal["replay", "record"] = "replay"
 
     # Embeddings
     EMBEDDING_BASE_URL: str = "https://api.openai.com/v1"
@@ -47,6 +57,12 @@ class Settings(BaseSettings):
 
     # Agent-to-agent internal API key (auto-provisioned on startup)
     A2A_INTERNAL_API_KEY: str | None = None
+
+    # v2 dynamic courses. `off` = production exactly as it is today. Read only by the
+    # route guards and by src.services.course_delivery.resolve_delivery.
+    DYNAMIC_COURSES_MODE: Literal["off", "shadow", "on"] = "off"
+    # Dialect asked of the LLM and parser used. One valid value in this PR.
+    RENDER_BACKEND: Literal["openui"] = "openui"
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

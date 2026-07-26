@@ -1,0 +1,48 @@
+{
+  "items": [
+    {
+      "item_id": "a",
+      "item_type": "test",
+      "bloom_level": "apply",
+      "question": "Un cliente llega al mostrador con un articulo comprado hace 20 dias y trae el ticket. Que procede?",
+      "options": [
+        "Rechazar la devolucion porque han pasado mas de 15 dias",
+        "Aceptar la devolucion y reembolsar el importe",
+        "Aceptarla solo como vale, aunque traiga ticket",
+        "Pedir autorizacion al fabricante antes de decidir"
+      ]
+    },
+    {
+      "item_id": "b",
+      "item_type": "test",
+      "bloom_level": "understand",
+      "question": "Que diferencia hay entre devolver con ticket y devolver sin ticket?",
+      "options": [
+        "Sin ticket no se admite ninguna devolucion",
+        "Sin ticket el plazo baja a 7 dias naturales",
+        "Sin ticket se emite un vale por el importe en lugar de reembolsar",
+        "No hay ninguna diferencia si el articulo esta sin usar"
+      ]
+    },
+    {
+      "item_id": "c",
+      "item_type": "fill_blank",
+      "bloom_level": "apply",
+      "template": "Con el ticket de compra, el cliente dispone de ___ dias naturales para devolver el articulo."
+    }
+  ],
+  "answer_key": {
+    "a": {
+      "correct": 1,
+      "explanation": "El plazo con ticket es de 30 dias naturales, asi que a los 20 dias la devolucion se acepta y se reembolsa."
+    },
+    "b": {
+      "correct": 2,
+      "explanation": "Sin ticket la devolucion sigue admitiendose dentro del plazo, pero se resuelve con un vale por el importe."
+    },
+    "c": {
+      "blanks": ["30"],
+      "explanation": "Treinta dias naturales desde la fecha de compra."
+    }
+  }
+}
