@@ -1,0 +1,59 @@
+{
+  "version": "skillnet-ui/1",
+  "format": "mixed",
+  "root": "root",
+  "components": [
+    {
+      "id": "root",
+      "type": "Stack",
+      "props": {
+        "gap": "md"
+      },
+      "children": [
+        "intro",
+        "pasos",
+        "quiz"
+      ]
+    },
+    {
+      "id": "intro",
+      "type": "TextContent",
+      "props": {
+        "text": "Las devoluciones se aceptan durante 30 dias naturales.",
+        "variant": "lead"
+      },
+      "children": []
+    },
+    {
+      "id": "pasos",
+      "type": "StepSequence",
+      "props": {
+        "title": "Proceso de devolucion",
+        "steps": [
+          "Verificar el producto",
+          "Escanear el ticket",
+          "Registrar en el sistema",
+          "Emitir el reembolso"
+        ]
+      },
+      "children": []
+    },
+    {
+      "id": "quiz",
+      "type": "QuizItem",
+      "props": {
+        "item_id": "q1",
+        "item_type": "test",
+        "bloom_level": "apply",
+        "question": "Un cliente vuelve el dia 32. Que haces?",
+        "options": [
+          "Aceptar la devolucion",
+          "Ofrecer garantia del fabricante",
+          "Rechazar sin mas",
+          "Llamar al encargado"
+        ]
+      },
+      "children": []
+    }
+  ]
+}

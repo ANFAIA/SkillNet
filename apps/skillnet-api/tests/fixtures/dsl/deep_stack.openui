@@ -1,0 +1,5 @@
+root  =  Stack([intro, grupo] ,  "lg")
+grupo = Stack([uno, dos], "sm")
+intro = Callout("info", "Tres cosas que recordar antes de atender una devolucion.")
+uno = TextContent("Primera: comprueba la fecha del ticket.", "body")
+dos = TextContent("Segunda: revisa el estado del producto.", "body")

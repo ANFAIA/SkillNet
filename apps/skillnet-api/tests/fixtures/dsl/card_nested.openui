@@ -1,0 +1,5 @@
+root = Stack([intro, ficha], "md")
+intro = TextContent("El script comprueba el plazo antes de aceptar la devolucion.", "lead")
+ficha = Card("Comprobacion del plazo", [texto, codigo])
+texto = TextContent("Compara la fecha del ticket con la de hoy.", "body")
+codigo = CodeBlock("python", "dias = (hoy - ticket).days\nif dias <= 30:\n    aceptar()")

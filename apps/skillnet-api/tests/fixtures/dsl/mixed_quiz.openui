@@ -1,0 +1,4 @@
+root = Stack([intro, pasos, quiz], "md")
+intro = TextContent("Las devoluciones se aceptan durante 30 dias naturales.", "lead")
+pasos = StepSequence("Proceso de devolucion", ["Verificar el producto", "Escanear el ticket", "Registrar en el sistema", "Emitir el reembolso"])
+quiz = QuizItem("q1", "test", "apply", "Un cliente vuelve el dia 32. Que haces?", ["Aceptar la devolucion", "Ofrecer garantia del fabricante", "Rechazar sin mas", "Llamar al encargado"])

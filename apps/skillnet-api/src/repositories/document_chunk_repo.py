@@ -108,3 +108,55 @@ class DocumentChunkRepository(BaseRepository[DocumentChunk]):
             }
             for row in rows
         ]
+
+    async def similarity_search_by_headings(
+        self,
+        *,
+        org_id: uuid.UUID,
+        query_embedding: list[float],
+        top_k: int = 8,
+        document_ids: Sequence[uuid.UUID] | None = None,
+        headings: Sequence[str] | None = None,
+    ) -> list[dict]:
+        """Same as :meth:`similarity_search`, restricted to a set of section headings.
+
+        Adds ``AND (chunk_metadata->>'heading') = ANY(:headings)`` when ``headings`` is
+        non-empty. Used by the v2 runtime's ``load_context`` (§4.2) to scope retrieval
+        to ``course_nodes.source_headings``: headings survive re-ingestion, chunk ids do
+        not. With ``headings`` empty the behaviour is identical to
+        :meth:`similarity_search` with ``top_k=8``, which is also the documented retry
+        when the heading filter returns nothing.
+        """
+        distance = DocumentChunk.embedding.cosine_distance(query_embedding)
+        query = (
+            select(
+                DocumentChunk.id,
+                DocumentChunk.document_id,
+                DocumentChunk.content,
+                DocumentChunk.chunk_metadata,
+                Document.title.label("document_title"),
+                (1 - distance).label("similarity"),
+            )
+            .join(Document, Document.id == DocumentChunk.document_id)
+            .where(Document.org_id == org_id)
+        )
+        if document_ids:
+            query = query.where(DocumentChunk.document_id.in_(document_ids))
+        if headings:
+            query = query.where(
+                DocumentChunk.chunk_metadata["heading"].astext.in_(list(headings))
+            )
+        query = query.order_by(distance).limit(top_k)
+
+        rows = (await self.session.execute(query)).all()
+        return [
+            {
+                "chunk_id": row.id,
+                "document_id": row.document_id,
+                "content": row.content,
+                "metadata": row.chunk_metadata,
+                "document_title": row.document_title,
+                "similarity": float(row.similarity),
+            }
+            for row in rows
+        ]

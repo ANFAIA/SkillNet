@@ -1,0 +1,41 @@
+{
+  "version": "skillnet-ui/1",
+  "format": "explanation",
+  "root": "root",
+  "components": [
+    {
+      "id": "root",
+      "type": "Stack",
+      "props": {
+        "gap": "md"
+      },
+      "children": [
+        "intro",
+        "pasos"
+      ]
+    },
+    {
+      "id": "intro",
+      "type": "TextContent",
+      "props": {
+        "text": "Las devoluciones se aceptan durante 30 dias naturales.",
+        "variant": "lead"
+      },
+      "children": []
+    },
+    {
+      "id": "pasos",
+      "type": "StepSequence",
+      "props": {
+        "title": "Proceso de devolucion",
+        "steps": [
+          "Verificar el producto",
+          "Escanear el ticket",
+          "Registrar en el sistema",
+          "Emitir el reembolso"
+        ]
+      },
+      "children": []
+    }
+  ]
+}

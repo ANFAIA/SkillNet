@@ -1,0 +1,3 @@
+root = Stack([q1, q2], "md")
+q1 = QuizItem("q1", "true_false", "remember", "El plazo de devolucion es de 30 dias naturales.", [])
+q2 = QuizItem("q2", "fill_blank", "understand", "El plazo de devolucion es de ___ dias naturales.", [])

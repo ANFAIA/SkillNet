@@ -1,0 +1,422 @@
+"""The frozen catalogue (§5.3), the generated prompt fragment and the 7 contract rules.
+
+No DB, no network.
+"""
+
+from __future__ import annotations
+
+import pytest
+
+from src.models.exercise import ExerciseType
+from src.render import (
+    MAX_COMPONENTS,
+    UI_KIT,
+    RenderValidationError,
+    parse_spec,
+)
+from src.render.backends.openui import ESCAPE_RULES, GRAMMAR, OpenUiLangBackend
+from src.render.kit import PropKind
+
+BACKEND = OpenUiLangBackend()
+
+# The table of §5.3, verbatim: name -> positional prop order.
+EXPECTED_CATALOGUE: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("Stack", ("children", "gap")),
+    ("TextContent", ("text", "variant")),
+    ("Card", ("title", "children")),
+    ("Callout", ("tone", "text")),
+    ("StepSequence", ("title", "steps")),
+    ("Table", ("headers", "rows")),
+    ("CodeBlock", ("language", "code")),
+    ("Chart", ("kind", "title", "labels", "values")),
+    ("QuizItem", ("item_id", "item_type", "bloom_level", "question", "options")),
+    ("Markdown", ("content",)),
+)
+
+# Explicitly out of the kit (§5.3), plus the names the spec renamed away from.
+REJECTED_NAMES = (
+    "Timeline",
+    "ImageCard",
+    "DragDrop",
+    "Simulation",
+    "SandboxHTML",
+    "StepList",
+    "BarChart",
+    "LineChart",
+)
+
+
+def _spec(**overrides: object) -> dict:
+    """A minimal valid spec: Stack root + lead + body."""
+    payload: dict = {
+        "version": "skillnet-ui/1",
+        "format": "explanation",
+        "root": "root",
+        "components": [
+            {"id": "root", "type": "Stack", "props": {"gap": "md"}, "children": ["a", "b"]},
+            {"id": "a", "type": "TextContent", "props": {"text": "Guia.", "variant": "lead"}},
+            {"id": "b", "type": "TextContent", "props": {"text": "Detalle.", "variant": "body"}},
+        ],
+    }
+    payload.update(overrides)
+    return payload
+
+
+# -- the catalogue ------------------------------------------------------------------
+
+
+def test_catalogue_is_the_frozen_list_of_ten() -> None:
+    assert UI_KIT.names == tuple(name for name, _ in EXPECTED_CATALOGUE)
+
+
+@pytest.mark.parametrize(("name", "props"), EXPECTED_CATALOGUE)
+def test_positional_prop_order_matches_the_spec_table(name: str, props: tuple[str, ...]) -> None:
+    component = UI_KIT.get(name)
+    assert component is not None
+    assert component.prop_names == props
+
+
+def test_only_markdown_is_off_limits_to_the_model() -> None:
+    assert UI_KIT.llm_names == tuple(n for n, _ in EXPECTED_CATALOGUE if n != "Markdown")
+    assert len(UI_KIT.llm_names) == 9
+
+
+def test_containers_are_stack_and_card() -> None:
+    assert UI_KIT.container_names == ("Stack", "Card")
+
+
+def test_item_type_choices_are_the_existing_exercise_type_enum() -> None:
+    quiz = UI_KIT.get("QuizItem")
+    assert quiz is not None
+    item_type = quiz.prop("item_type")
+    assert item_type is not None
+    assert item_type.choices == tuple(m.value for m in ExerciseType)
+    assert len(item_type.choices) == 6
+
+
+def test_each_container_declares_exactly_one_refs_prop() -> None:
+    for component in UI_KIT.components:
+        refs = [p for p in component.props if p.kind is PropKind.REFS]
+        assert len(refs) == (1 if component.is_container else 0), component.name
+
+
+# -- the generated prompt fragment ---------------------------------------------------
+
+
+@pytest.mark.parametrize("name", UI_KIT.llm_names)
+def test_prompt_fragment_mentions_every_emittable_component(name: str) -> None:
+    assert name in BACKEND.prompt_fragment(UI_KIT)
+
+
+@pytest.mark.parametrize("name", ("Markdown", *REJECTED_NAMES))
+def test_prompt_fragment_mentions_no_other_component(name: str) -> None:
+    assert name not in BACKEND.prompt_fragment(UI_KIT)
+
+
+@pytest.mark.parametrize("rule", ESCAPE_RULES)
+def test_prompt_fragment_carries_the_three_escape_rules(rule: str) -> None:
+    assert rule in BACKEND.prompt_fragment(UI_KIT)
+
+
+def test_prompt_fragment_carries_the_frozen_grammar_verbatim() -> None:
+    assert GRAMMAR in BACKEND.prompt_fragment(UI_KIT)
+
+
+def test_prompt_fragment_is_generated_from_the_kit_not_hand_written() -> None:
+    fragment = BACKEND.prompt_fragment(UI_KIT)
+    quiz = UI_KIT.get("QuizItem")
+    assert quiz is not None
+    # The signature is derived, so a prop rename cannot desync prompt and validator.
+    assert quiz.signature in fragment
+    assert "bloom_level" in fragment
+
+
+def test_prompt_fragment_states_the_contract_limits() -> None:
+    fragment = BACKEND.prompt_fragment(UI_KIT)
+    assert str(MAX_COMPONENTS) in fragment
+    assert "lead" in fragment
+    assert "explanation" in fragment and "mixed" in fragment
+    assert "Nunca HTML" in fragment
+
+
+# -- the seven contract rules -------------------------------------------------------
+
+
+def test_accepts_a_minimal_valid_spec() -> None:
+    spec = parse_spec(_spec())
+    assert spec.root == "root"
+    assert len(spec.components) == 3
+
+
+def test_rule_1_root_must_exist() -> None:
+    with pytest.raises(RenderValidationError) as excinfo:
+        parse_spec(_spec(root="nope"))
+    assert any("rule 1" in e for e in excinfo.value.errors)
+
+
+def test_rule_1_root_must_be_a_container() -> None:
+    payload = _spec(root="a")
+    with pytest.raises(RenderValidationError) as excinfo:
+        parse_spec(payload)
+    assert any("rule 1" in e for e in excinfo.value.errors)
+
+
+def test_rule_2_dangling_reference_is_rejected() -> None:
+    payload = _spec()
+    payload["components"][0]["children"] = ["a", "ghost"]
+    with pytest.raises(RenderValidationError) as excinfo:
+        parse_spec(payload)
+    assert any("rule 2" in e and "ghost" in e for e in excinfo.value.errors)
+
+
+def test_rule_2_forward_references_are_allowed() -> None:
+    payload = _spec()
+    payload["components"].reverse()  # root now declared last
+    assert parse_spec(payload).root == "root"
+
+
+def test_rule_3_self_cycle_is_rejected() -> None:
+    payload = _spec()
+    payload["components"].append(
+        {"id": "loop", "type": "Card", "props": {"title": "x"}, "children": ["loop"]}
+    )
+    payload["components"][0]["children"] = ["a", "loop"]
+    with pytest.raises(RenderValidationError) as excinfo:
+        parse_spec(payload)
+    assert any("rule 3" in e for e in excinfo.value.errors)
+
+
+def test_rule_3_two_cycle_is_rejected() -> None:
+    payload = _spec()
+    payload["components"][0]["children"] = ["a", "c1"]
+    payload["components"] += [
+        {"id": "c1", "type": "Card", "props": {"title": "1"}, "children": ["c2"]},
+        {"id": "c2", "type": "Card", "props": {"title": "2"}, "children": ["c1"]},
+    ]
+    with pytest.raises(RenderValidationError) as excinfo:
+        parse_spec(payload)
+    assert any("rule 3" in e for e in excinfo.value.errors)
+
+
+def test_rule_3_a_deep_dag_is_not_a_cycle() -> None:
+    payload = _spec()
+    payload["components"][0]["children"] = ["a", "c1"]
+    payload["components"] += [
+        {"id": "c1", "type": "Card", "props": {"title": "1"}, "children": ["c2", "b"]},
+        {"id": "c2", "type": "Card", "props": {"title": "2"}, "children": ["b"]},
+    ]
+    assert len(parse_spec(payload).components) == 5
+
+
+def test_rule_4_rejects_more_than_twelve_components() -> None:
+    payload = _spec()
+    payload["components"][0]["children"] = ["a"]
+    for index in range(11):
+        payload["components"].append(
+            {
+                "id": f"x{index}",
+                "type": "TextContent",
+                "props": {"text": f"Bloque {index}.", "variant": "body"},
+            }
+        )
+    assert len(payload["components"]) == 14
+    with pytest.raises(RenderValidationError) as excinfo:
+        parse_spec(payload)
+    assert any("rule 4" in e for e in excinfo.value.errors)
+
+
+def test_rule_4_rejects_more_than_five_root_children() -> None:
+    payload = _spec()
+    payload["components"][0]["children"] = ["a", "b", "x0", "x1", "x2", "x3"]
+    for index in range(4):
+        payload["components"].append(
+            {
+                "id": f"x{index}",
+                "type": "TextContent",
+                "props": {"text": f"Bloque {index}.", "variant": "body"},
+            }
+        )
+    with pytest.raises(RenderValidationError) as excinfo:
+        parse_spec(payload)
+    assert any("rule 4" in e and "root level" in e for e in excinfo.value.errors)
+
+
+def test_rule_4_accepts_exactly_twelve_components_and_five_at_root() -> None:
+    payload = _spec()
+    payload["components"][0]["children"] = ["a", "b", "x0", "x1", "x2"]
+    for index in range(9):
+        payload["components"].append(
+            {
+                "id": f"x{index}",
+                "type": "TextContent",
+                "props": {"text": f"Bloque {index}.", "variant": "body"},
+            }
+        )
+    assert len(payload["components"]) == 12
+    assert len(parse_spec(payload).components) == 12
+
+
+@pytest.mark.parametrize("key", ("correct", "explanation", "correct_order", "blanks"))
+def test_rule_5_quiz_item_never_carries_the_answer(key: str) -> None:
+    payload = _spec(format="exercise")
+    payload["components"][0]["children"] = ["q"]
+    payload["components"] = [payload["components"][0]] + [
+        {
+            "id": "q",
+            "type": "QuizItem",
+            "props": {
+                "item_id": "q1",
+                "item_type": "test",
+                "bloom_level": "apply",
+                "question": "Que haces?",
+                "options": ["A", "B"],
+                key: 1,
+            },
+        }
+    ]
+    with pytest.raises(RenderValidationError) as excinfo:
+        parse_spec(payload)
+    assert any("rule 5" in e for e in excinfo.value.errors)
+
+
+def test_rule_6_rejects_html_in_text() -> None:
+    payload = _spec()
+    payload["components"][1]["props"]["text"] = "Lee <b>esto</b> con atencion."
+    with pytest.raises(RenderValidationError) as excinfo:
+        parse_spec(payload)
+    assert any("rule 6" in e for e in excinfo.value.errors)
+
+
+def test_rule_6_allows_inline_markup_and_a_bare_less_than() -> None:
+    payload = _spec()
+    payload["components"][1]["props"]["text"] = (
+        "Si el plazo es **menor** que 30 dias (dias < 30) usa `devolucion`."
+    )
+    assert parse_spec(payload) is not None
+
+
+@pytest.mark.parametrize("ui_format", ("explanation", "mixed"))
+def test_rule_7_requires_a_lead_or_callout_first(ui_format: str) -> None:
+    payload = _spec(format=ui_format)
+    payload["components"][1]["props"]["variant"] = "body"
+    with pytest.raises(RenderValidationError) as excinfo:
+        parse_spec(payload)
+    assert any("rule 7" in e for e in excinfo.value.errors)
+
+
+def test_rule_7_is_satisfied_by_a_callout() -> None:
+    payload = _spec()
+    payload["components"][1] = {
+        "id": "a",
+        "type": "Callout",
+        "props": {"tone": "info", "text": "Para que te sirve: cobrar bien."},
+    }
+    assert parse_spec(payload) is not None
+
+
+@pytest.mark.parametrize("ui_format", ("exercise", "chart"))
+def test_rule_7_does_not_apply_to_the_other_formats(ui_format: str) -> None:
+    payload = _spec(format=ui_format)
+    payload["components"][1]["props"]["variant"] = "body"
+    assert parse_spec(payload) is not None
+
+
+# -- component-level validation -----------------------------------------------------
+
+
+def test_unknown_component_type_is_rejected() -> None:
+    payload = _spec()
+    payload["components"][1]["type"] = "Timeline"
+    with pytest.raises(RenderValidationError) as excinfo:
+        parse_spec(payload)
+    assert any("unknown component type" in e for e in excinfo.value.errors)
+
+
+def test_missing_prop_is_rejected() -> None:
+    payload = _spec()
+    del payload["components"][1]["props"]["variant"]
+    with pytest.raises(RenderValidationError) as excinfo:
+        parse_spec(payload)
+    assert any("missing prop 'variant'" in e for e in excinfo.value.errors)
+
+
+def test_enum_prop_rejects_a_value_outside_the_kit() -> None:
+    payload = _spec()
+    payload["components"][0]["props"]["gap"] = "xl"
+    with pytest.raises(RenderValidationError) as excinfo:
+        parse_spec(payload)
+    assert any("prop 'gap'" in e for e in excinfo.value.errors)
+
+
+def test_table_rows_must_be_nested_arrays() -> None:
+    payload = _spec()
+    payload["components"][2] = {
+        "id": "b",
+        "type": "Table",
+        "props": {"headers": ["A", "B"], "rows": ["1", "2"]},
+    }
+    with pytest.raises(RenderValidationError) as excinfo:
+        parse_spec(payload)
+    assert any("array of arrays" in e for e in excinfo.value.errors)
+
+
+def test_chart_values_must_be_numbers() -> None:
+    payload = _spec(format="chart")
+    payload["components"][2] = {
+        "id": "b",
+        "type": "Chart",
+        "props": {"kind": "line", "title": "T", "labels": ["a"], "values": ["1"]},
+    }
+    with pytest.raises(RenderValidationError) as excinfo:
+        parse_spec(payload)
+    assert any("array of numbers" in e for e in excinfo.value.errors)
+
+
+def test_non_container_cannot_take_children() -> None:
+    payload = _spec()
+    payload["components"][1]["children"] = ["b"]
+    with pytest.raises(RenderValidationError) as excinfo:
+        parse_spec(payload)
+    assert any("takes no children" in e for e in excinfo.value.errors)
+
+
+def test_duplicate_ids_are_rejected() -> None:
+    payload = _spec()
+    payload["components"][2]["id"] = "a"
+    with pytest.raises(RenderValidationError) as excinfo:
+        parse_spec(payload)
+    assert any("duplicate component id" in e for e in excinfo.value.errors)
+
+
+def test_unknown_version_is_rejected() -> None:
+    with pytest.raises(RenderValidationError):
+        parse_spec(_spec(version="skillnet-ui/2"))
+
+
+def test_unknown_format_is_rejected() -> None:
+    with pytest.raises(RenderValidationError):
+        parse_spec(_spec(format="carousel"))
+
+
+def test_partial_mode_tolerates_dangling_refs_and_no_lead() -> None:
+    payload = {
+        "version": "skillnet-ui/1",
+        "format": "explanation",
+        "root": "root",
+        "components": [
+            {"id": "root", "type": "Stack", "props": {"gap": "md"}, "children": ["a", "b"]}
+        ],
+    }
+    spec = parse_spec(payload, partial=True)
+    assert spec.components[0].children == ["a", "b"]
+
+
+def test_partial_mode_still_rejects_an_unknown_component() -> None:
+    payload = {
+        "version": "skillnet-ui/1",
+        "format": "explanation",
+        "root": "root",
+        "components": [{"id": "root", "type": "Nope", "props": {}}],
+    }
+    with pytest.raises(RenderValidationError):
+        parse_spec(payload, partial=True)

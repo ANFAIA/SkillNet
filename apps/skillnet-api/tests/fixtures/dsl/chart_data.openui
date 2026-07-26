@@ -1,0 +1,4 @@
+root = Stack([intro, grafico, nota], "md")
+intro = TextContent("Variacion de las devoluciones en la tienda de Bilbao.", "lead")
+grafico = Chart("bar", "Variacion mensual de devoluciones", ["Enero", "Febrero", "Marzo"], [12, 8.5, -3])
+nota = TextContent("Fuente: informe interno del primer trimestre.", "caption")

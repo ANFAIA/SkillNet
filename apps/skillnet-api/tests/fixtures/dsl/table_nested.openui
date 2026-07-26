@@ -1,0 +1,3 @@
+root = Stack([intro, tabla], "sm")
+intro = TextContent("Compara los tres canales de devolucion antes de responder al cliente.", "lead")
+tabla = Table(["Canal", "Plazo", "Coste del envio"], [["Tienda", "30 dias", "0 EUR"], ["Web", "14 dias", "3,95 EUR"], ["Telefono", "14 dias", "0 EUR"]])
