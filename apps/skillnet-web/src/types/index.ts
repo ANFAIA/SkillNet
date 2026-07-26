@@ -1,6 +1,14 @@
 // TypeScript interfaces matching the SkillNet backend API contract (v1).
 // These are kept separate from the legacy mock-data types in src/data/*.
 
+// v2 render IR. Type-only import, so it is erased at build time and the
+// index <-> ui-spec cycle never exists at runtime.
+import type {
+  BloomLevel as BloomLevelType,
+  UiFormat as UiFormatType,
+  UiSpec as UiSpecType,
+} from './ui-spec'
+
 export type UserRole = 'admin' | 'employee'
 
 export interface User {
@@ -326,4 +334,67 @@ export interface StatsResponse {
   in_progress_enrollments: number
   avg_score: number | null
   recent_activity: RecentActivityItem[]
+}
+
+// --- Dynamic courses (v2) ---
+// Additive only. No v1 type above changes shape, so `CourseView` and every
+// other v1 screen keeps compiling with the feature flag off (§10.1).
+
+export type NodeCriticality = 'critical' | 'recommended' | 'contextual'
+
+export type NodeState =
+  | 'not_started'
+  | 'probing'
+  | 'learning'
+  | 'mastered'
+  | 'needs_review'
+
+/** One node of a dynamic course schema, as served by `GET /courses/{id}/nodes` (§11.3). */
+export interface LearningNode {
+  id: string
+  title: string
+  summary: string | null
+  criticality: NodeCriticality
+  position: number
+  state: NodeState
+  mastery: number
+  locked: boolean
+  /** Ids of the unmet prerequisites that keep this node locked. */
+  locked_by: string[]
+  /** `state === 'needs_review'` (§7.4). */
+  needs_practice: boolean
+  estimated_minutes: number
+}
+
+/** `GET /nodes/{node_id}/render` (§11.3). `answer_key` is never serialized here. */
+export interface NodeRender {
+  render_id: string
+  node_id: string
+  ui_format: UiFormatType
+  status: 'pending' | 'generating' | 'ready' | 'failed' | 'fallback'
+  backend: string
+  cached: boolean
+  spec: UiSpecType
+}
+
+/** `GET /users/me/learner-profile` (§11.2). `format_vector` and `tutor_notes` stay server-side. */
+export interface LearnerProfile {
+  role_title: string | null
+  sector: string | null
+  goal: string | null
+  experience_level: 'unknown' | 'none' | 'some' | 'experienced'
+  preset: 'standard' | 'focus' | 'fast'
+  nodes_completed: number
+  onboarding_completed_at: string | null
+  onboarding_skipped: boolean
+  calibrating: boolean
+}
+
+/** One pre-assessment item from `POST /nodes/{node_id}/probe` (§7.1). Never carries the answer. */
+export interface ProbeItem {
+  item_id: string
+  item_type: ExerciseType
+  bloom_level: BloomLevelType
+  question: string
+  options?: string[]
 }

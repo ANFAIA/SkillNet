@@ -1,0 +1,42 @@
+{
+  "version": "skillnet-ui/1",
+  "format": "exercise",
+  "root": "root",
+  "components": [
+    {
+      "id": "root",
+      "type": "Stack",
+      "props": {
+        "gap": "md"
+      },
+      "children": [
+        "q1",
+        "q2"
+      ]
+    },
+    {
+      "id": "q1",
+      "type": "QuizItem",
+      "props": {
+        "item_id": "q1",
+        "item_type": "true_false",
+        "bloom_level": "remember",
+        "question": "El plazo de devolucion es de 30 dias naturales.",
+        "options": []
+      },
+      "children": []
+    },
+    {
+      "id": "q2",
+      "type": "QuizItem",
+      "props": {
+        "item_id": "q2",
+        "item_type": "fill_blank",
+        "bloom_level": "understand",
+        "question": "El plazo de devolucion es de ___ dias naturales.",
+        "options": []
+      },
+      "children": []
+    }
+  ]
+}

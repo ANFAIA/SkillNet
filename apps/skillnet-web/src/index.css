@@ -93,6 +93,107 @@ body {
   background-attachment: fixed;
 }
 
+/* ── Click-to-explain (§8.2, §8.5) ─────────────────────────────
+   A clickable word is invisible at rest: no underline, no color, no cursor hint.
+   Curiosity is rewarded on click, not advertised — and a lesson where every content
+   word is decorated is unreadable. */
+.entity {
+  color: inherit;
+  font: inherit;
+  text-decoration: none;
+  background: transparent;
+  border: 0;
+  margin: 0;
+  /* No padding or radius at rest: horizontal padding would split a multi-word text
+     selection into per-word boxes with gaps at the spaces. The open-word pill below
+     supplies its own. */
+  padding: 0;
+  cursor: inherit;
+  transition: color var(--dur-fast, 0.2s) var(--ease-base);
+}
+
+.entity:hover {
+  color: var(--color-primary);
+  cursor: pointer;
+}
+
+/* The word whose explanation is open, and the word the keyboard cursor is on, read
+   as the same "selected unit". The negative margin offsets the padding so the text
+   never shifts, and box-decoration-break keeps the fill continuous across a wrap. */
+.entity-open,
+.entity[data-cursor='true'] {
+  color: var(--color-primary);
+  background: var(--color-primary-subtle);
+  border-radius: 3px;
+  margin: 0 -2px;
+  padding: 0 2px;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+/* One tab stop per block (roving tabindex, §8.2). A real focus ring, not `outline:
+   none` — this is the only thing telling a keyboard user where they are. */
+.clickable-text:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+  border-radius: 3px;
+}
+
+/* Selected-phrase band: one rounded rect per wrapped line, drawn behind the text.
+   `::highlight()` cannot do padding or border-radius, hence real elements. */
+.phrase-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 40;
+}
+
+.phrase-rect {
+  position: fixed;
+  background: var(--color-primary-subtle);
+  border-radius: 4px;
+  animation: explain-band-in 0.2s var(--ease-base);
+}
+
+@keyframes explain-band-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.explain-popover {
+  position: fixed;
+  z-index: 50;
+  max-width: calc(100vw - 24px);
+  padding: 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  background: var(--color-bg);
+  box-shadow: 0 4px 16px rgb(15 23 42 / 0.08);
+  animation: explain-pop-in 0.2s var(--ease-base);
+}
+
+.explain-popover:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+@keyframes explain-pop-in {
+  from { opacity: 0; transform: translateY(2px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* The original had no reduced-motion guard (§8.2). Movement is removed; the elements
+   still appear, they just do not travel. */
+@media (prefers-reduced-motion: reduce) {
+  .entity {
+    transition: none;
+  }
+  .explain-popover,
+  .phrase-rect {
+    animation: none;
+  }
+}
+
 /* L-frame gradient + cobweb texture */
 .frame-surface {
   background:

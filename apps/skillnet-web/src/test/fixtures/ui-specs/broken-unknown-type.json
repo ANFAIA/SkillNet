@@ -1,0 +1,48 @@
+{
+  "version": "skillnet-ui/1",
+  "format": "explanation",
+  "root": "b0",
+  "components": [
+    {
+      "id": "b0",
+      "type": "Stack",
+      "props": {
+        "gap": "md"
+      },
+      "children": [
+        "b1",
+        "b2",
+        "b3"
+      ]
+    },
+    {
+      "id": "b1",
+      "type": "TextContent",
+      "props": {
+        "text": "Bloque conocido.",
+        "variant": "lead"
+      },
+      "children": []
+    },
+    {
+      "id": "b2",
+      "type": "Timeline",
+      "props": {
+        "events": [
+          "1990",
+          "2000"
+        ]
+      },
+      "children": []
+    },
+    {
+      "id": "b3",
+      "type": "TextContent",
+      "props": {
+        "text": "Otro bloque conocido, detras del desconocido.",
+        "variant": "body"
+      },
+      "children": []
+    }
+  ]
+}

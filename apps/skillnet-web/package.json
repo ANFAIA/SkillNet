@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
+    "pretest": "node scripts/check-ui-spec-fixtures.mjs",
     "test": "vitest run --project unit",
     "test:watch": "vitest --project unit",
     "storybook": "storybook dev -p 6006",
