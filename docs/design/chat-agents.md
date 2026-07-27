@@ -644,6 +644,22 @@ Instructions:
     }
 ```
 
+> **SUPERSEDED (2026-07-27) — the refusal above is gone.** The instruction *"If the
+> information is not in the context, say 'No tengo informacion sobre esto en los
+> documentos disponibles.'"* shipped, and then answered **every** question in the demo
+> organization: the seeded documents are small enough to keep their whole text in
+> `documents.full_text` and to have no `document_chunks` at all, so retrieval was always
+> empty and the tutor always refused, with the answer sitting in a column it never read.
+>
+> What replaces it is a **grounding ladder** in `src/services/retrieval.py` —
+> retrieved chunks, then the whole document of a course the learner is enrolled in, then
+> general knowledge — and a persona in `src/llm/prompts/tutor.py` that holds in all three.
+> The rung is decided by the server, announced as a `grounding` SSE event and persisted in
+> `chat_messages.metadata`: whether an answer is a cited passage, a whole document or the
+> model's own knowledge is a property of the system, not a sentence the model was asked to
+> write. There is no state in which the tutor refuses; the bottom rung answers and says
+> out loud that it is not company material.
+
 #### post_process (citations, suggestions)
 
 Extracts inline citations from the response text and maps them to structured `Citation` objects. Also generates follow-up suggestions.

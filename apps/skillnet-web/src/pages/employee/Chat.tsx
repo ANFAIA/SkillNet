@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Button } from '../../components/ui'
+import { UiSpecRenderer } from '../../components/courses/UiSpecRenderer'
 import { useChat } from '../../api/chat'
-import type { ChatMessage } from '../../types'
+import type { ChatGrounding, ChatMessage } from '../../types'
 
 function SendIcon() {
   return (
@@ -10,6 +11,30 @@ function SendIcon() {
       <line x1="22" y1="2" x2="11" y2="13" />
       <polygon points="22 2 15 22 11 13 2 9 22 2" />
     </svg>
+  )
+}
+
+/**
+ * What the answer stands on, in one line, in the learner's words.
+ *
+ * `chunks` gets no note: a cited passage is the normal case and the citations are
+ * printed right underneath. The other two are the ones a person has to be told
+ * about — `document` because "it is somewhere in your course material" is a
+ * weaker claim than "it is on page 3", and `general` because it is not company
+ * material at all.
+ */
+const GROUNDING_LABEL: Partial<Record<ChatGrounding, string>> = {
+  document: 'De la documentacion de tus cursos, leida entera',
+  general: 'Conocimiento general: esto no esta en la documentacion de tu empresa',
+}
+
+function GroundingNote({ grounding }: { grounding?: ChatGrounding }) {
+  const label = grounding ? GROUNDING_LABEL[grounding] : undefined
+  if (!label) return null
+  return (
+    <p className="text-xs text-text-muted mb-1.5" data-grounding={grounding}>
+      {label}
+    </p>
   )
 }
 
@@ -24,15 +49,33 @@ function ChatBubble({ message }: { message: ChatMessage }) {
             : 'bg-bg-muted text-text rounded-xl rounded-bl-sm'
         }`}
       >
-        <p className="whitespace-pre-line break-words">
-          {message.content}
-          {message.isStreaming && !message.content && (
-            <span className="text-text-muted">Escribiendo...</span>
-          )}
-          {message.isStreaming && message.content && (
-            <span className="inline-block w-1.5 h-4 ml-0.5 align-middle bg-current opacity-60 animate-pulse" />
-          )}
-        </p>
+        {!isUser && <GroundingNote grounding={message.grounding} />}
+
+        {/*
+          The blocks replace the prose only once there is a program, and the prose
+          is what comes back if there never is one. `UiSpecRenderer` returns null
+          for a blocked or empty program, so rendering the two alternatives (rather
+          than the blocks stacked on top of the text) is what would risk an empty
+          bubble — hence the program is only chosen when the server sent one, and
+          the server only sends one that already parsed into a valid `UISpec`.
+        */}
+        {message.program ? (
+          <UiSpecRenderer program={message.program} nodeId="" format="explanation" />
+        ) : (
+          <p className="whitespace-pre-line break-words">
+            {message.content}
+            {message.isStreaming && !message.content && (
+              <span className="text-text-muted">Escribiendo...</span>
+            )}
+            {message.isStreaming && message.content && (
+              <span className="inline-block w-1.5 h-4 ml-0.5 align-middle bg-current opacity-60 animate-pulse" />
+            )}
+          </p>
+        )}
+
+        {message.isLayingOut && (
+          <p className="text-xs text-text-muted mt-2">Dando formato...</p>
+        )}
 
         {message.citations && message.citations.length > 0 && (
           <div className="mt-2 space-y-0.5">

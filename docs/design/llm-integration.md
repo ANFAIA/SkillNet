@@ -494,6 +494,12 @@ sobre esto en los documentos disponibles."
 "Mi funcion es ayudarte con los procesos y conocimientos de la empresa."
 """
 
+# SUPERSEDED 2026-07-27 for the tutor: the second rule ("di exactamente: No tengo
+# informacion...") is the one that made the tutor refuse every question in the demo.
+# The live prompts are in src/llm/prompts/tutor.py, where the persona holds across
+# three grounding states and the bottom one answers from general knowledge and says
+# so. The other five rules survive there, reworded. See docs/design/chat-agents.md.
+
 CITATION_INSTRUCTIONS = """
 INSTRUCCIONES DE CITACION:
 - Cita la fuente usando [Fuente N] al final de cada afirmacion basada en el contexto.
