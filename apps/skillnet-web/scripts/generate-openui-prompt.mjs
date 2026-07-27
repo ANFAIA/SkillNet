@@ -97,11 +97,18 @@ const PREAMBLE = [
 ].join('\n')
 
 const ADDITIONAL_RULES = [
-  'SkillNet 1 — Una declaracion por linea. Ningun salto de linea literal dentro de una ' +
-    'comilla: escribe \\n. Cada salto de linea real cierra un bloque. Un bloque anidado ' +
-    'en linea dentro del array de su padre es valido, pero se prefiere declararlo en su ' +
-    'propia linea y referenciarlo por id: asi el aprendiz ve la pantalla montarse ' +
-    'mientras se genera, en vez de esperar a que termine la linea entera.',
+  // "Cada salto de linea real cierra un bloque" used to be stated here as a rule. It was
+  // false: lang-core separates statements at bracket depth 0, so a newline inside an open
+  // array continues the same declaration, and since 2026-07-27 the Python parser agrees
+  // (src/render/lines.py). Teaching a rule the validator does not enforce is the same
+  // defect as teaching a grammar narrower than the dialect — it costs a repair attempt on
+  // a program that was already valid. It stays as a *preference*, which is what it is.
+  'SkillNet 1 — Una declaracion por linea, preferiblemente. Ningun salto de linea ' +
+    'literal dentro de una comilla: escribe \\n. Un salto de linea dentro de un array ' +
+    'abierto continua la misma declaracion, asi que no la rompe, pero escribir cada ' +
+    'declaracion entera en su linea hace que el aprendiz vea la pantalla montarse ' +
+    'mientras se genera. Un bloque anidado en linea dentro del array de su padre es ' +
+    'valido, y por lo mismo se prefiere declararlo aparte y referenciarlo por id.',
   'SkillNet 2 — Comilla doble dentro de un texto: escribela \\". Nunca sin escapar.',
   'SkillNet 3 — Table.rows es un array de arrays de texto, obligatoriamente: ' +
     'Table(["A", "B"], [["1", "2"], ["3", "4"]]).',

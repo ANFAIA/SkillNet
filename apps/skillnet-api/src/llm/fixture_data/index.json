@@ -33,5 +33,10 @@
     "file": "probe_generate/plazo_devolucion.json",
     "prompt_preview": "Eres un disenador de evaluacion diagnostica para formacion en el puesto de trabajo. Tu tarea es escribir un pre-test muy corto que sirva para decidir si una per",
     "use_case": "probe_generate"
+  },
+  "f2c9407f6dc5742e": {
+    "file": "genera_ui/openui_explanation.txt",
+    "prompt_preview": "Eres el generador de pantallas de SkillNet, formacion de cumplimiento normativo para empleados. Responde UNICAMENTE con un programa en el dialecto descrito abaj",
+    "use_case": "genera_ui"
   }
 }

@@ -104,7 +104,7 @@ here shows up in the bench as a repair or a fallback, so they read like quality 
 | Dial | Line | Current | Turning it |
 |---|---|---|---|
 | `MAX_PROGRAM_BYTES` | 47 | `16_384` | Total program size cap, enforced before anything expensive happens. A 12-component spec with long prose is ~4 kB, so this is generous. Bounds the work a poisoned document can ask of the parser and the browser. |
-| `MAX_PROGRAM_LINES` | 50 | `MAX_COMPONENTS + 8` (= 20) | One component per line is the frozen grammar; `MAX_COMPONENTS` is `12` (`src/render/spec.py:51`). The `+ 8` is a fenced block, blank lines and slack for a repair attempt. |
+| `MAX_PROGRAM_LINES` | 50 | `MAX_COMPONENTS + 8` (= 20) | Counted in **logical** lines — declarations, joined across newlines that fall inside an open bracket (`src/render/lines.py::logical_lines`), which is where lang-core also splits statements. It used to count physical lines, so a correctly sized program with a blank line between declarations measured 23 and the model was told to shorten a lesson that was the right length. `MAX_COMPONENTS` is `12` (`src/render/spec.py:51`); the `+ 8` is slack for a fenced block and a repair attempt. |
 | `MAX_LINE_BYTES` | 53 | `4_096` | One line is one component's worth of text. Note `FALLBACK_BLOCK_CHARS` below is set well under this on purpose. |
 | `RENDER_ALLOW_REACTIVE` (`src/config.py:85`) | 85 | `False` | **Leave it off.** The price of switching it on is stated in `openui-adoption.md` §3: the model has to be taught the whole reactive syntax at once (the prompt flags do not split), and a structural property — "the grammar cannot express it" — degrades into a contract to re-verify on every `@openuidev` release. |
 
