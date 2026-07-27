@@ -69,13 +69,14 @@ skillnet/
 │   ├── design/                    Architecture and technical decisions
 │   └── research/                  Investigation by topic
 ├── apps/
-│   ├── skillnet-api/              FastAPI backend (v1) — auth, CRUD, RAG, LangGraph generation, chat
+│   ├── skillnet-api/              FastAPI backend — auth, CRUD, RAG, LangGraph generation, chat
 │   └── skillnet-web/              React SPA frontend
 ├── docker/                        Dockerfiles + nginx config
 ├── docker-compose.yml             Production stack (db + api + web)
 ├── packages/
-│   ├── mcp-md-reader/             Intelligent markdown reading for LLM agents
-│   └── mcp-ui-renderer/           Compact DSL for generating standalone HTML pages
+│   ├── a2tl-video/                A2TL-Video — compact spec for agent-generated video
+│   ├── a2tl-web/                  A2TL-Web — compact spec for agent-generated web pages
+│   └── mcp-md-reader/             Intelligent markdown reading for LLM agents
 └── assets/
 ```
 
@@ -113,6 +114,9 @@ Edit `.env` — you only need to set 3 things:
 - `POSTGRES_PASSWORD` — any strong password
 - `LLM_API_KEY` + `LLM_MODEL` — your AI provider (e.g. `anthropic/claude-sonnet-4-20250514`, `deepseek/deepseek-chat`, `ollama/llama3.1`)
 
+Everything else has a working default, including the v2 flag — see
+[Dynamic courses (v2)](#dynamic-courses-v2) below, which is **off** unless you turn it on.
+
 ### 2. Start
 
 ```bash
@@ -141,6 +145,62 @@ This creates:
 
 The admin account uses whatever you set in `.env`. Demo data is optional — your real installation starts clean.
 
+For a **v2** dataset with something to actually play with, use the other seed:
+
+```bash
+docker compose exec api uv run python -m src.seed_demo_v2
+```
+
+It creates a Spanish bakery-café organization: five employees (four with populated learner
+profiles, one deliberately without — that is the one to walk the onboarding wizard with),
+three source documents, two validated dynamic courses of 3 and 7 nodes, and one static v1
+course so the two paths can be compared side by side. Every employee shares the password
+`espiga2026`; the admin keeps whatever is in your `.env`.
+
+It is idempotent, so running it twice changes nothing. `--refresh` is the content-editing
+loop: edit the node specs in `src/seed_demo_v2.py`, re-run with `--refresh`, and the
+design-time fields of the existing nodes are overwritten in place while learner progress is
+kept. It also bumps `courses.schema_version`, which is part of the render `cache_key`, so
+cached renders are invalidated and the next visit regenerates.
+
+### Dynamic courses (v2)
+
+v2 generates each screen for each learner at the moment they open it, instead of serving one
+static Markdown lesson to everybody. It ships **behind a flag that defaults to off**, so a
+production deployment behaves exactly as it did before you upgraded.
+
+Set `DYNAMIC_COURSES_MODE` in `.env`:
+
+| Value | What happens |
+|---|---|
+| `off` *(default)* | Every v2 route returns 404 and `delivery_mode` is ignored. Production is unchanged. |
+| `shadow` | Admin-only. Propose, edit and validate a course schema, and preview renders with `?preview=1`. Employees still see v1. |
+| `on` | Full v2. A course only takes the v2 path if it is `delivery_mode='dynamic'` **and** `schema_status='validated'`; every other course stays on v1. |
+
+The development compose overlay already sets `shadow` for you, so a developer gets the admin
+schema surface without exposing anything to employees:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+```
+
+**No API key?** There is a keyless profile that serves every LLM and embedding call from
+recorded fixtures, with v2 fully on:
+
+```bash
+docker compose --profile fixtures up -d db api-fixtures   # http://localhost:8001
+```
+
+It runs the same image as `api` on its own port (`API_FIXTURES_PORT`, default `8001`),
+because the bundled nginx SPA proxies to `api`. To run the *whole* stack keyless instead,
+set `LLM_MODEL=fixture/local` and `EMBEDDING_MODEL=fixture/local` in `.env`.
+
+Two optional knobs pick the models for the two-tier runtime router,
+`LLM_RUNTIME_FAST_MODEL` and `LLM_RUNTIME_HEAVY_MODEL`. Leave both empty and every tier
+falls back to `LLM_MODEL`, which works fine. Tuning generation quality is documented in
+[`docs/design/tuning.md`](docs/design/tuning.md); the full design is in
+[`docs/design/v2-dynamic-courses.md`](docs/design/v2-dynamic-courses.md).
+
 ### API documentation
 
 Set `DEBUG=true` and `ENVIRONMENT=development` in your `.env` to enable Swagger docs at [http://localhost:3000/api/docs](http://localhost:3000/api/docs).
@@ -152,8 +212,12 @@ Set `DEBUG=true` and `ENVIRONMENT=development` in your `.env` to enable Swagger 
 cd apps/skillnet-api
 uv sync
 uv run uvicorn src.main:app --reload      # http://localhost:8000  (docs at /api/docs in DEBUG)
-uv run pytest                              # unit tests
+uv run pytest -m "not integration"        # unit tests — no database, no API key
+uv run pytest -m integration              # integration suites — need a live PostgreSQL
 uv run ruff check src tests
+
+# Generation quality bench (see docs/design/tuning.md)
+uv run python scripts/quality_bench.py --offline   # recorded fixtures, no API key
 
 # Frontend (Vite dev server proxies /api to localhost:8000)
 cd apps/skillnet-web

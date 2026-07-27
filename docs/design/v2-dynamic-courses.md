@@ -326,14 +326,35 @@ ALTER TYPE generation_step ADD VALUE IF NOT EXISTS 'schema_proposing' BEFORE 'ex
 ALTER TYPE generation_step ADD VALUE IF NOT EXISTS 'schema_proposed'  AFTER 'reviewing';
 ```
 
-> **Nota de implementación, corregida:** el despliegue es **pg16**
+> **Nota de implementación, corregida dos veces.** El despliegue es **pg16**
 > (`docker-compose.yml`: `pgvector/pgvector:pg16`), donde `ALTER TYPE … ADD VALUE` **sí** funciona
 > dentro de una transacción desde pg12. Lo único prohibido es **usar** el valor nuevo en la misma
-> transacción, y `0005` no lo usa. Por tanto: las dos sentencias se ejecutan tal cual y
-> **está prohibido `op.execute("COMMIT")`**. Razón concreta: `alembic/env.py:35-41` envuelve
-> **toda** la tirada en un `context.begin_transaction()` sin `transaction_per_migration`, y
-> `src/main.py:48` llama a `run_migrations()` en el lifespan — un COMMIT a mitad confirmaría
-> `0001..0004` y, si `0005` fallara después, el arranque quedaría con estado parcial.
+> transacción — y la versión anterior de esta nota afirmaba que `0005` no lo hacía. **Era falso**:
+> el paso 16 usa `schema_proposing`/`schema_proposed` en el predicado del índice parcial
+> `uq_generation_jobs_schema_in_flight`, así que la tirada muere con
+> `UnsafeNewEnumValueUsageError`. Lo descubrió la primera ejecución real de las suites de
+> integración; hasta entonces nadie había hecho un `alembic upgrade head` desde cero.
+>
+> Corrección aplicada en el fichero: los dos `ALTER TYPE … ADD VALUE` se ejecutan dentro de
+> `op.get_context().autocommit_block()`, y es el **único** de la migración. El coste de ese
+> bloque sigue siendo el que la nota anterior quería evitar y hay que asumirlo con los ojos
+> abiertos: `alembic/env.py` envuelve **toda** la tirada en un `context.begin_transaction()` sin
+> `transaction_per_migration`, y `src/main.py` llama a `run_migrations()` en el lifespan, así que
+> el bloque confirma `0001..0004` antes de tiempo. Si un paso posterior de `0005` falla, la base
+> se queda en `0004` sin `0005` estampada y hay que borrar a mano los objetos v2 a medio crear
+> antes de reintentar. Está documentado en el docstring de la migración y afirmado por
+> `tests/integration/test_migration_0005.py`.
+>
+> Segunda lección de la misma ejecución, aplicable a cualquier migración futura de este repo:
+> **`sa.Enum(..., create_type=False)` no sirve**. `sa.Enum` pierde ese flag al adaptarse al
+> dialecto de postgres, así que el `CREATE TYPE` se emite igualmente y la segunda vez revienta.
+> Hay que usar `postgresql.ENUM(..., create_type=False)`. Era el motivo real de que
+> `alembic upgrade head` desde cero no hubiera funcionado nunca (estaba en `0003`).
+>
+> Tercera: un valor por defecto JSONB construido con `sa.text()` interpreta los `:` como
+> parámetros de bind. Sin escapar, el DDL de `0005` y de `src/models/learner_profile.py` salía
+> como `{"texto"NULL,...}`. Hay que escribir `\:`.
+>
 > Añadir también los miembros al enum Python `GenerationStep` en `src/models/generation_job.py`
 > (`SCHEMA_PROPOSING = "schema_proposing"`, `SCHEMA_PROPOSED = "schema_proposed"`).
 
@@ -2492,8 +2513,8 @@ Los golden specs son **el mismo fichero JSON** en backend y frontend (copiado po
 Regla: cada lote es un commit (o pocos), compila, pasa `pytest -m "not integration"` y `pnpm lint`,
 y **deja el flag en `off`** hasta el lote B12. Ningún lote intermedio puede romper v1.
 
-**Las tres únicas superficies v1 que se tocan, declaradas** (todo lo demás es fichero nuevo). Ninguna
-cambia comportamiento con el flag apagado, y las tres van cubiertas por tests v1 existentes o nuevos:
+**Las seis únicas superficies v1 que se tocan, declaradas** (todo lo demás es fichero nuevo). Ninguna
+cambia comportamiento con el flag apagado, y las seis van cubiertas por tests v1 existentes o nuevos:
 
 | Fichero v1 | Lote | Cambio | Por qué es seguro |
 |---|---|---|---|
@@ -2653,7 +2674,7 @@ y luego B6-B10 se pueden solapar.
 | Coste por LLM se dispara | Media | Caché compartida por bucket (no por usuario) · probes pre-generados por nodo, no por usuario · el pre-assessment evita generar lo ya sabido · `llm_usage_log` con `use_case`, **tabla creada en `0005`** (§3.5) · presupuestos de `max_tokens` explícitos |
 | El hit rate de la caché inter-usuario es mucho peor que el medido | **Alta** | El régimen inter-usuario **no está medido** (§3.4) y `role_bucket` lo empeora a propósito. Es lo primero que se mide (§14.2 #3), y la palanca de retirada es una línea: quitar `role_bucket` o `vector_bucket` de la clave y subir `PROMPT_VERSION` |
 | El SSE en memoria pierde eventos o rompe con >1 worker | Media | `202 {request_id}` + suscripción antes del trabajo + espera de 500 ms · fallback a polling de `GET /nodes/{id}/render` (patrón que el frontend ya usa para generación) · documentado: **un solo worker de uvicorn hasta migrar a LISTEN/NOTIFY** |
-| Fuga de la respuesta correcta al cliente | Media | `answer_key` en columna separada que ningún schema Pydantic de respuesta incluye · `ProbeSession.probe` tipado como `ProbeRow` (protocolo **sin** `answer_key`) y proyectado por `ProbeSessionRead.from_session` (`extra="forbid"`, campos enumerados a mano) — el servicio ya no devuelve la fila ORM entera a su llamante · test que vuelca el modelo de respuesta y afirma que ni la clave ni sus valores aparecen (`tests/test_probe_answer_key_privacy.py`) · **pendiente B5**: el mismo test para `NodeRenderRead` cuando ese schema exista · `hints_used` del cliente es informativo y no puede gobernar la revelación (§11.3) |
+| Fuga de la respuesta correcta al cliente | Media | `answer_key` en columna separada que ningún schema Pydantic de respuesta incluye · `ProbeSession.probe` tipado como `ProbeRow` (protocolo **sin** `answer_key`) y proyectado por `ProbeSessionRead.from_session` (`extra="forbid"`, campos enumerados a mano) — el servicio ya no devuelve la fila ORM entera a su llamante · test que vuelca el modelo de respuesta y afirma que ni la clave ni sus valores aparecen (`tests/test_probe_answer_key_privacy.py`) · `NodeRenderRead` ya existe (`src/schemas/node.py:115`, llegó con B5) con `extra="forbid"` y la lista de campos enumerada a mano en `NodeRenderRead.of`, que es el contrato entero; **queda pendiente** el test equivalente que vuelque *ese* modelo y afirme la ausencia de la clave, como el de `ProbeSessionRead` · `hints_used` del cliente es informativo y no puede gobernar la revelación (§11.3) |
 | Inyección de prompt desde el texto que manda el cliente | Media | `POST /explain` interpola dos valores del cliente (`term`, `context`, y el contexto no se contrasta con el texto real del nodo). **Ninguno va entre comillas**: se sanean (controles, `<`/`>`, rachas de comillas, tope de longitud 140/600) y se vallan en marcas `<<<nombre:token>>>` cuyo token ningún payload saneado puede contener — cerrar la valla exigiría los caracteres que ya se han quitado. El `system` declara que lo que va entre marcas es dato, nunca instrucción. Token derivado del contenido (no aleatorio) para que las fixtures sigan siendo reproducibles. Tests de secuestro en `tests/test_explain_service.py` |
 | La regla de maestría deja pasar a quien no sabe | Media | Cláusula `score_a >= 0.5` · desempate con respuesta construida **obligatorio en todo nodo `critical`** · **un solo probe puntuado por versión de esquema** (índice único), que es lo que impide reentrar hasta acertar por azar · racha de 3 además del umbral |
 | La regla de maestría deja fuera a quien sí sabe | Media | Techo de maestría: 3 aciertos consecutivos elevan `mastery` al umbral (§7.3), porque el EWMA converge a la media y dejaba el 0.85 sostenido a 0.05 del 0.90 para siempre · salida humana `POST /nodes/{id}/waive` con registro en `audit_log` · nodo en `needs_review` visible y reintentable, no desaparecido |
@@ -2669,10 +2690,21 @@ y luego B6-B10 se pueden solapar.
 1. **Ratio real fast/heavy.** La estimación 90/10 es una hipótesis. Se decide con datos de
    `llm_usage_log` tras 2 semanas en modo `shadow`. Si el heavy supera el 25 %, hay que revisar el
    prompt de `decide_formato` — probablemente esté eligiendo `chart` cuando basta `explanation`.
-2. **Latencia real de `genera_ui`.** Las fuentes internas dan cifras incompatibles (1-2 s vs 22.9 s
-   vs 60-120 s), y todas eran de generación de HTML completo, no de IR. Se mide en el lote B5 con
-   `duration_ms` y **entonces** se decide si la espera productiva basta o hace falta pre-generación.
-   No se diseñan más capas de espera antes de tener el número.
+2. **Latencia real de `genera_ui`. ~~Abierta~~ CERRADA (2026-07-27, medida).** Las fuentes internas
+   daban cifras incompatibles (1-2 s vs 22.9 s vs 60-120 s), todas de generación de HTML completo y
+   no de IR. Medido con `scripts/quality_bench.py` contra Groq real
+   (`groq/llama-3.1-8b-instant` como nivel fast, `groq/openai/gpt-oss-120b` como heavy):
+   **de menos de un segundo a ~3 s por render, a ~0.0008 USD por render**, con la contabilidad de
+   tokens ya poblada. **El problema de "20-30 segundos" que asumía la investigación no existe en
+   esta pila**: las cifras de 60-150 s eran de un modelo 7B en CPU local.
+
+   Consecuencias, y son las que importan: la espera productiva basta de sobra, **no hace falta
+   pre-generación**, y no se añade ninguna capa más de espera. El presupuesto de latencia deja de
+   ser una restricción de diseño, así que los diales se gastan en *corrección*, no en velocidad
+   (`docs/design/tuning.md`). La única restricción operativa real es que **el plan gratuito de Groq
+   devuelve 429 con facilidad**: cualquier tanda de medición necesita retroceso exponencial, y el
+   banco lo trae dentro y contabiliza la espera aparte para que un 429 no pueda puntuar como fallo
+   de calidad.
 3. **Tasa de aciertos **y de obsolescencia** de la caché inter-usuario.** Se miden **las dos**, porque
    el ~80 %/0 % citado se midió con una clave **por usuario** y esta clave es compartida: es un
    régimen sin datos (§3.4). Consulta: aciertos por `cache_key` sobre `node_renders` + `node_render_views`,
@@ -2720,6 +2752,52 @@ y luego B6-B10 se pueden solapar.
     en `node_renders.error_message` tras 2 semanas en `shadow`: si aparece en <5 % de los renders, se
     promueve a error de validación; si aparece a menudo por tabla-resumen-tras-texto (redundancia
     buena), se retira la heurística.
+
+### 14.3 Lo que encontró la primera ejecución real de las suites de integración (2026-07-27)
+
+Las suites de `tests/integration/` se escribieron en B11 pero **no se habían llegado a ejecutar
+nunca contra un PostgreSQL vivo**. La primera vez que corrieron, encontraron siete cosas. Se anotan
+aquí porque cinco de ellas contradicen algo que este documento o el código afirmaban, y porque dos
+son bugs de **v1** que llevaban ahí desde antes de v2.
+
+**Migraciones (nada de esto era teórico: `alembic upgrade head` desde cero no había funcionado nunca).**
+
+1. `0003` usaba `sa.Enum(..., create_type=False)`. `sa.Enum` **pierde ese flag** al adaptarse al
+   dialecto de postgres, así que `CREATE TYPE skill_level` se emitía dos veces y la tirada moría.
+   Corregido a `postgresql.ENUM`. Este era el motivo de fondo de que nadie hubiera podido levantar
+   la base desde vacío.
+2. `0005` y `src/models/learner_profile.py` construían un default JSONB con `sa.text()` que llevaba
+   `:` sin escapar. SQLAlchemy los leía como parámetros de bind y el DDL salía como
+   `{"texto"NULL,...}`. Corregido escapando `\:`.
+3. `0005` usaba un valor nuevo de `generation_step` **en la misma transacción que lo añadía** (el
+   índice parcial `uq_generation_jobs_schema_in_flight`) → `UnsafeNewEnumValueUsageError`. Los dos
+   `ALTER TYPE … ADD VALUE` van ahora en `op.get_context().autocommit_block()`. La afirmación
+   contraria del docstring de `0005` y de la nota de §3 **era falsa** y está corregida en los dos
+   sitios.
+4. Migración nueva **`0006`**: `user_skills.last_assessed_at` era `timestamp without time zone`
+   mientras que sus dos escritores (`SkillService.record_mastery` y
+   `EnrollmentService._grant_course_skills`) le pasan valores *aware*. asyncpg rechaza la mezcla, así
+   que **subir** de nivel una skill que ya existía reventaba la petición. Sobrevivió hasta ahora
+   porque sólo afecta a la rama UPDATE.
+
+**Bugs de producto de v1, descubiertos por la regresión y no por v2.**
+
+5. Cuatro sitios auto-completan una matrícula al llegar a progreso 1.0 y **ninguno concedía las
+   skills del curso**. `POST /enrollments/{id}/complete` se encontraba la matrícula ya completada,
+   tomaba su retorno temprano, y `user_skills` se quedaba vacía: un empleado terminaba un curso y no
+   se le acreditaba nada. Corregido en `EnrollmentService.complete()`.
+6. `PUT /lessons/{id}` era un **500 garantizado** (`MissingGreenlet`): leía `lesson.exercises` de un
+   loader que nunca las cargaba de forma anticipada. Ninguna prueba cubría esa ruta.
+
+**Entorno.**
+
+7. `docker-compose.dev.yml` montaba el repo del host sobre `/app`, así que `uv run` dentro del
+   contenedor veía un virtualenv con binarios ajenos, lo daba por roto y **borraba el `.venv` del
+   host** para reconstruirlo. Resuelto con un volumen anónimo sobre `/app/.venv`.
+
+La lección transversal, y es la que vale para el resto del proyecto: **una suite que no se ha
+ejecutado no es cobertura**. Las dos rutas de v1 rotas (5 y 6) llevaban meses en el repo con tests
+unitarios verdes alrededor.
 
 ---
 

@@ -1,13 +1,29 @@
 # v1 Scope & Decisions
 
-> **Este documento tiene PRIORIDAD sobre todos los demas docs de design/ cuando haya contradiccion.** Los otros docs fueron escritos para el producto completo (v1 + v2 + futuro). Este define que se implementa en v1.
+> **Este documento define el producto v1 y tiene PRIORIDAD sobre los demas docs de design/ en
+> cuestiones de v1.** Los otros docs fueron escritos para el producto completo (v1 + v2 + futuro).
+>
+> **Lo que ya no hace:** decidir el alcance del proyecto entero. v2 esta implementado
+> (2026-07-27), detras del flag `DYNAMIC_COURSES_MODE`, y su documento de diseno
+> —[`v2-dynamic-courses.md`](v2-dynamic-courses.md)— es el que manda en todo lo relativo a v2.
+> Si este fichero y aquel se contradicen sobre v2, gana aquel.
 
 ---
 
 ## v1 vs v2
 
-- **v1 (implementar ahora):** Generacion estatica de cursos. El admin sube un documento, la IA genera un curso en Markdown, se guarda en BD, se renderiza con react-markdown. El chatbot es dinamico (RAG). No hay personalizacion por usuario.
-- **v2 (NO implementar, solo contexto):** Generacion dinamica. Todo on the fly. La IA genera el curso personalizado para cada usuario en el momento (perfil, nivel, ritmo, neurodivergencia). El MD de v1 sirve como materia prima / seed.
+- **v1 (implementado, y lo que sirve produccion):** Generacion estatica de cursos. El admin sube un documento, la IA genera un curso en Markdown, se guarda en BD, se renderiza con react-markdown. El chatbot es dinamico (RAG). No hay personalizacion por usuario.
+- **v2 (implementado detras de un flag, `off` por defecto):** Generacion dinamica. La IA genera la pantalla personalizada para cada aprendiz en el momento (perfil, nivel, ritmo). El MD de v1 sigue siendo la materia prima / seed, y ademas es el `fallback_seed` cuando la generacion falla.
+
+  Con `DYNAMIC_COURSES_MODE=off` —el valor por defecto— todas las rutas v2 devuelven 404 y
+  `delivery_mode` se ignora: produccion se comporta exactamente como este documento describe.
+  `shadow` expone solo la superficie de admin; `on` sirve v2 al empleado, y aun asi solo para
+  cursos `delivery_mode='dynamic'` **y** `schema_status='validated'`. Cualquier otro curso sigue
+  por v1.
+
+  **La regresion de v1 con el flag apagado es la invariante del proyecto**
+  (`tests/integration/test_v1_regression.py`). Por tanto: todo lo que este documento dice sobre
+  v1 sigue vigente, palabra por palabra. Lo unico que ha caducado es el "NO implementar".
 
 ---
 

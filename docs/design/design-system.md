@@ -189,14 +189,24 @@ Badges are for status. Not for decorating every metric.
 ### Skeleton (loading)
 
 ```tsx
-<div className="animate-pulse space-y-3">
-  <div className="h-4 bg-[--color-bg-muted] rounded w-1/3" />
-  <div className="h-4 bg-[--color-bg-muted] rounded w-full" />
-  <div className="h-4 bg-[--color-bg-muted] rounded w-2/3" />
+<div className="space-y-3">
+  <ShimmerSkeleton className="h-4 w-1/3" />
+  <ShimmerSkeleton className="h-4 w-full" />
+  <ShimmerSkeleton className="h-4 w-2/3" />
 </div>
 ```
 
 Skeleton shape should match the content it replaces. No generic spinners.
+
+`ShimmerSkeleton` (`components/ui/ShimmerSkeleton.tsx`) is the one to use in new code: a
+transform-based shimmer sweep rather than `animate-pulse`. Under `prefers-reduced-motion` it
+drops the sweep entirely and renders a static muted block — a slower animation is not the
+accessible degradation, no animation is.
+
+The older `components/ui/Skeleton.tsx` still exists and still uses `animate-pulse`. It was
+deliberately **not** changed: it is re-exported as `SkeletonText` / `SkeletonCard` /
+`SkeletonRow` across v1 pages, so editing it would have been a visible v1 change with the v2
+flag off. Leave it alone; reach for `ShimmerSkeleton` in anything new.
 
 ### Empty state
 
