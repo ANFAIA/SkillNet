@@ -6,7 +6,12 @@ from fastapi import APIRouter
 
 from src.deps.auth import AdminUser
 from src.deps.db import DBSession
-from src.schemas.settings import LLMConfigUpdate, LLMTestResult, OrgSettingsRead
+from src.schemas.settings import (
+    FeaturesUpdate,
+    LLMConfigUpdate,
+    LLMTestResult,
+    OrgSettingsRead,
+)
 from src.services.settings_service import SettingsService
 
 router = APIRouter(prefix="/settings", tags=["Settings"])
@@ -24,6 +29,18 @@ async def update_llm(
     service = SettingsService(db)
     result = await service.update_llm(
         model=body.model, base_url=body.base_url, api_key=body.api_key
+    )
+    await db.commit()
+    return result
+
+
+@router.put("/features", response_model=OrgSettingsRead)
+async def update_features(
+    admin: AdminUser, db: DBSession, body: FeaturesUpdate
+) -> OrgSettingsRead:
+    service = SettingsService(db)
+    result = await service.update_features(
+        chat_generative_ui=body.chat_generative_ui
     )
     await db.commit()
     return result

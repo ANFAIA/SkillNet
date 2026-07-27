@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import { Card, CardTitle, Badge, Button, Input, SkeletonRow } from '../../components/ui'
-import { useSettings, useUpdateLlmSettings, useTestLlm } from '../../api/settings'
+import { useSettings, useUpdateLlmSettings, useTestLlm, useUpdateFeatures } from '../../api/settings'
 import { ApiError } from '../../api/client'
 
 export function Settings() {
   const { data: settings, isLoading, error } = useSettings()
   const update = useUpdateLlmSettings()
   const test = useTestLlm()
+  const features = useUpdateFeatures()
 
   const [model, setModel] = useState('')
   const [baseUrl, setBaseUrl] = useState('')
@@ -88,8 +89,50 @@ export function Settings() {
 
           <p className="text-xs text-text-muted mt-4">
             Cualquier proveedor compatible con litellm. El modelo de embeddings debe coincidir con la dimension
-            del vector configurada (por defecto 384).
+            del vector configurada (por defecto 384). Recomendaciones medidas por modelo en{' '}
+            <span className="font-mono">docs/design/tuning.md</span>.
           </p>
+        </Card>
+      )}
+
+      {!isLoading && !error && settings && (
+        <Card className="mt-4">
+          <CardTitle className="mb-1">Respuestas del tutor</CardTitle>
+          <p className="text-sm text-text-secondary mb-4">
+            Como se presentan las respuestas del chat a los empleados.
+          </p>
+
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              className="mt-1 accent-primary shrink-0"
+              checked={settings.chat_generative_ui}
+              disabled={features.isPending}
+              onChange={(e) => features.mutate({ chat_generative_ui: e.target.checked })}
+            />
+            <span className="min-w-0">
+              <span className="block text-sm font-medium text-text">
+                Maquetar las respuestas con los bloques del curso
+              </span>
+              <span className="block text-sm text-text-secondary mt-0.5">
+                El tutor entrega la respuesta como pasos, tabla o aviso cuando esa es la
+                forma que mejor le va, en vez de como texto corrido. Cuesta una llamada
+                mas al modelo por respuesta.
+              </span>
+              <span className="block text-xs text-text-muted mt-1">
+                Apagado, el tutor responde en texto. Encendido, si el modelo devuelve algo
+                que no vale, la respuesta cae a texto sola: nunca se queda en blanco.
+              </span>
+            </span>
+          </label>
+
+          {features.isError && (
+            <p className="text-sm text-danger mt-3">
+              {features.error instanceof ApiError
+                ? features.error.body.detail
+                : 'No se pudo guardar el ajuste'}
+            </p>
+          )}
         </Card>
       )}
     </div>

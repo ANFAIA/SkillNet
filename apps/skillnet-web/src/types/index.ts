@@ -259,6 +259,18 @@ export interface Citation {
   page?: number
 }
 
+/**
+ * Where an answer came from, decided by the server's grounding ladder
+ * (`src/services/retrieval.py`) and never by the model.
+ *
+ * - `chunks` — retrieved passages of a company document.
+ * - `document` — the whole document of one of the learner's courses. A real
+ *   answer, but not a located passage, and the UI says so.
+ * - `general` — nothing in the company's material covers it. The tutor answers
+ *   anyway, from general knowledge, and this is the label that keeps that honest.
+ */
+export type ChatGrounding = 'chunks' | 'document' | 'general'
+
 export interface ChatMessage {
   id: string
   role: 'user' | 'assistant'
@@ -266,6 +278,18 @@ export interface ChatMessage {
   citations?: Citation[]
   suggestions?: string[]
   isStreaming?: boolean
+  grounding?: ChatGrounding
+  /**
+   * The answer re-laid in the SkillNet kit, as OpenUI Lang **text**.
+   *
+   * Always the canonical program re-serialized from a validated `UISpec` on the
+   * server — never the model's own bytes. See `UiSpecRenderer`'s `program` prop:
+   * the rule is the same one, and a chat answer is a *less* trusted input than a
+   * node render, not a more trusted one.
+   */
+  program?: string
+  /** True while the server is laying the answer out. The prose is already complete. */
+  isLayingOut?: boolean
 }
 
 export interface ChatSessionRead {
@@ -329,6 +353,14 @@ export interface OrgSettings {
   llm_model?: string | null
   embedding_model?: string | null
   llm_base_url?: string | null
+  /**
+   * Whether the tutor may lay its answers out in the SkillNet kit instead of plain
+   * prose. On unless the admin turned it off. Not a safety net — an answer the gate
+   * rejects already falls back to prose on its own — but a choice: an admin whose model
+   * is weak at the dialect, or who does not want to pay for a second call per answer,
+   * turns it off here.
+   */
+  chat_generative_ui: boolean
 }
 
 export interface LlmTestResult {

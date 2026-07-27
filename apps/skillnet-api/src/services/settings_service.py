@@ -18,6 +18,7 @@ from src.llm.embedding import resolve_embedding_config
 from src.llm.fixtures import maybe_fixture_llm
 from src.models import Organization
 from src.schemas.settings import LLMTestResult, OrgSettingsRead
+from src.services.org_features import CHAT_GENERATIVE_UI, chat_generative_ui_enabled
 
 logger = get_logger(__name__)
 
@@ -49,7 +50,17 @@ class SettingsService:
             llm_model=llm.model or None,
             embedding_model=embedding.model or None,
             llm_base_url=llm.api_base,
+            chat_generative_ui=chat_generative_ui_enabled(org_settings),
         )
+
+    async def update_features(self, *, chat_generative_ui: bool) -> OrgSettingsRead:
+        org = await self._get_org()
+        new_settings = dict(org.settings or {})
+        new_settings[CHAT_GENERATIVE_UI] = chat_generative_ui
+        # Reassign so SQLAlchemy detects the JSONB change.
+        org.settings = new_settings
+        await self.db.flush()
+        return await self.get_settings()
 
     async def update_llm(
         self, *, model: str, base_url: str | None, api_key: str | None
