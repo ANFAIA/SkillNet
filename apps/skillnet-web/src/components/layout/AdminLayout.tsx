@@ -1,5 +1,5 @@
 import { Outlet, useLocation } from 'react-router-dom'
-import { AnimatePresence, motion } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { AdminSidebar } from './AdminSidebar'
 import { Header } from './Header'
 import { ErrorBoundary } from '../ErrorBoundary'
@@ -44,15 +44,21 @@ function AdminLayoutInner() {
               </div>
             )}
           >
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={location.pathname}
-                {...pageTransition}
-                className="p-4 md:p-6"
-              >
-                <Outlet />
-              </motion.div>
-            </AnimatePresence>
+            {/*
+              Enter-only, no `AnimatePresence`. Same fix, same reason as
+              `AppLayout` — see the long comment there. This layout had the identical
+              `AnimatePresence mode="wait"` + unfrozen `<Outlet />` shape, so it had
+              the identical blank-main bug latent in it: any admin page that mounts a
+              `layoutId` would strand the exiting node at `opacity: 0`.
+            */}
+            <motion.div
+              key={location.pathname}
+              initial={pageTransition.initial}
+              animate={pageTransition.animate}
+              className="p-4 md:p-6"
+            >
+              <Outlet />
+            </motion.div>
           </ErrorBoundary>
         </main>
       </div>

@@ -87,6 +87,19 @@ export const transition = {
  * Page transition: quick blur-in (no scale). The scale read as "too much" on
  * every route change; blur alone keeps the iOS depth-of-field feel while staying
  * snappy and not competing with the sliding nav pill.
+ *
+ * ⚠️ `exit` is for an `AnimatePresence` whose children are **stable** — content you
+ * hand it directly, as MotionDemo does. Do **not** spread the whole preset into an
+ * `AnimatePresence mode="wait"` wrapped around a react-router `<Outlet />`.
+ *
+ * `Outlet` is not frozen: under `mode="wait"` the outgoing element stays mounted to
+ * play its exit while React re-renders its subtree against the *new* location, so the
+ * incoming page mounts inside the node that is exiting. If that page registers a
+ * `layoutId` from in there, framer never calls `safeToRemove` for the exiting key, the
+ * incoming child is never swapped in, and the whole main area is left blank at
+ * `opacity: 0` until the next navigation. That was a real, shipped bug on
+ * /empleado/cursos; both route layouts are now enter-only for this reason and pass
+ * `initial`/`animate` explicitly rather than spreading. See `AppLayout.tsx`.
  */
 export const pageTransition = {
   initial: { opacity: 0, filter: 'blur(6px)' },

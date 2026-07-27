@@ -93,7 +93,12 @@ describe('Content — the schema entry point', () => {
     renderPage()
 
     await userEvent.click(await screen.findByRole('button', { name: 'Esquema' }))
-    expect(await screen.findByText('ESQUEMA')).toBeInTheDocument()
+    // A longer timeout than the 1000 ms default, and it is not papering over anything:
+    // this is the only assertion in the file that waits on a *route change* rather than
+    // on a render, and with 33 test files across parallel workers it intermittently
+    // exceeded the default on a loaded machine. It passes alone every time. The
+    // assertion is unchanged — the sentinel still has to be in the document.
+    expect(await screen.findByText('ESQUEMA', {}, { timeout: 5000 })).toBeInTheDocument()
   })
 
   it('offers the link with the flag on too', async () => {
