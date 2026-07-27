@@ -213,7 +213,13 @@ async def _seed() -> World:
         await db.flush()
         admin = User(
             org_id=org.id,
-            email=f"admin-{suffix}@v1.test",
+            # `@v1.test` looks harmless but `email-validator` — which `EmailStr` runs on
+            # the way *out* of `/auth/me` too, not just on input — rejects `.test` as a
+            # special-use reserved TLD (RFC 2606). Seeded rows go in through the ORM,
+            # which does not validate, so the bad domain only surfaces as a
+            # `ResponseValidationError` when a route serializes the user. `.example` is
+            # the reserved-for-documentation domain the validator does accept.
+            email=f"admin-{suffix}@v1.example",
             hashed_password="x",
             full_name="Admin v1",
             role=UserRole.ADMIN,
@@ -221,7 +227,7 @@ async def _seed() -> World:
         )
         employee = User(
             org_id=org.id,
-            email=f"empleado-{suffix}@v1.test",
+            email=f"empleado-{suffix}@v1.example",
             hashed_password="x",
             full_name="Empleado v1",
             role=UserRole.EMPLOYEE,
@@ -242,6 +248,13 @@ async def _seed() -> World:
         )
         db.add(document)
         await db.commit()
+        # Refresh before the session closes. These instances are handed straight to the
+        # app (`dependency_overrides[current_user]`), and `UserRead` reads columns the
+        # seed never sets — `accessibility`, `is_superuser`. On a detached object those
+        # are expired attributes, and touching one raises `MissingGreenlet` instead of
+        # lazily loading. A real request never hits this: it loads its own user.
+        for instance in (org, admin, employee, document):
+            await db.refresh(instance)
     return World(org=org, admin=admin, employee=employee, document=document)
 
 

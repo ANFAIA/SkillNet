@@ -4,7 +4,7 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Enum as SAEnum, ForeignKey, String, UniqueConstraint, text
+from sqlalchemy import DateTime, Enum as SAEnum, ForeignKey, String, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.models.base import Base, UUIDMixin
@@ -38,7 +38,12 @@ class UserSkill(UUIDMixin, Base):
         default=SkillLevel.LOW,
     )
     source: Mapped[str] = mapped_column(String, nullable=False, default="checkpoint")
-    last_assessed_at: Mapped[datetime] = mapped_column(server_default=text("now()"))
+    # Timezone-aware (0006): both writers — `SkillService.record_mastery` and
+    # `EnrollmentService._grant_course_skills` — assign `datetime.now(timezone.utc)`,
+    # and asyncpg rejects an aware value for a naive column outright.
+    last_assessed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=text("now()")
+    )
     updated_at: Mapped[datetime] = mapped_column(
         server_default=text("now()"), onupdate=text("now()")
     )

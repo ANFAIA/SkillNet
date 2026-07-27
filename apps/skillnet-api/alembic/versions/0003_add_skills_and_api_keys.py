@@ -9,6 +9,7 @@ from collections.abc import Sequence
 
 import sqlalchemy as sa
 from alembic import op
+from sqlalchemy.dialects import postgresql
 
 revision: str = "0003"
 down_revision: str | None = "0002"
@@ -18,7 +19,12 @@ depends_on: str | Sequence[str] | None = None
 
 def upgrade() -> None:
     # --- Enum ---
-    skill_level = sa.Enum("low", "medium", "high", name="skill_level")
+    # `postgresql.ENUM` and not `sa.Enum`: only the dialect type honours
+    # `create_type=False` below. `sa.Enum` drops the flag when it adapts itself to the
+    # postgres dialect, so `create_table("user_skills")` re-issued `CREATE TYPE
+    # skill_level` and the whole upgrade died with DuplicateObjectError on a clean
+    # database. Measured against pgvector/pgvector:pg16.
+    skill_level = postgresql.ENUM("low", "medium", "high", name="skill_level")
     skill_level.create(op.get_bind(), checkfirst=True)
 
     # --- skill_categories ---
@@ -60,7 +66,7 @@ def upgrade() -> None:
         sa.Column("skill_id", sa.Uuid(), nullable=False),
         sa.Column(
             "level",
-            sa.Enum("low", "medium", "high", name="skill_level", create_type=False),
+            postgresql.ENUM("low", "medium", "high", name="skill_level", create_type=False),
             nullable=False,
             server_default="low",
         ),
@@ -109,4 +115,4 @@ def downgrade() -> None:
 
     op.drop_table("skill_categories")
 
-    sa.Enum(name="skill_level").drop(op.get_bind(), checkfirst=True)
+    postgresql.ENUM(name="skill_level").drop(op.get_bind(), checkfirst=True)
