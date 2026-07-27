@@ -1,0 +1,3 @@
+root = Stack([intro, tabla], "md")
+intro = TextContent("Compara los dos canales de devolucion.", "lead")
+tabla = Table(["Canal", "Plazo"], ["Tienda", "30 dias"])

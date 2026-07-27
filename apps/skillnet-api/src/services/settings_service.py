@@ -12,8 +12,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.exceptions import NotFoundError
 from src.core.logging import get_logger
-from src.llm.client import LLMConfig, LLMService, resolve_llm_config
+from src.llm.client import LLMConfig, resolve_llm_config
 from src.llm.embedding import resolve_embedding_config
+from src.llm.fixtures import maybe_fixture_llm
 from src.models import Organization
 from src.schemas.settings import LLMTestResult, OrgSettingsRead
 
@@ -69,7 +70,7 @@ class SettingsService:
         *, model: str, base_url: str | None, api_key: str | None
     ) -> LLMTestResult:
         try:
-            service = LLMService(
+            service = maybe_fixture_llm(
                 LLMConfig(model=model, api_base=base_url or None, api_key=api_key or None)
             )
             reply = await service.complete(

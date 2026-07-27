@@ -33,3 +33,6 @@ export type { SkeletonProps } from './Skeleton'
 
 export { SkillBars } from './SkillBars'
 export type { SkillBarsProps } from './SkillBars'
+
+export { StepIndicator } from './StepIndicator'
+export type { StepIndicatorProps } from './StepIndicator'

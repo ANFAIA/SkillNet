@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { get, post, put } from './client'
+import type { AccessibilitySettings, LearningPreset } from './onboarding'
 import type { Paginated, User, UserSkillRead } from '../types'
 
 export interface UserFilters {
@@ -48,11 +49,30 @@ export function useCreateUser() {
   })
 }
 
+export interface ProfileUpdate {
+  full_name?: string
+  /**
+   * `users.learning_profile` is the `learning_profile` enum, not a JSON blob, so
+   * the value is a plain string (§13, B8). The previous
+   * `Record<string, unknown>` made it impossible to send.
+   */
+  learning_profile?: LearningPreset
+  /**
+   * The four reading settings of question 5.
+   *
+   * The onboarding wizard does **not** write them through here: `POST /onboarding`
+   * persists `learner_profiles` + `users.learning_profile` + `users.accessibility`
+   * in one transaction (§11.2), which is the only atomic path. This field is for
+   * the Settings screen, and it needs `UserSelfUpdate` to grow an `accessibility`
+   * field server-side before it does anything — see the report for B8.
+   */
+  accessibility?: AccessibilitySettings
+}
+
 export function useUpdateProfile() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (payload: { full_name?: string; learning_profile?: Record<string, unknown> }) =>
-      put<User>('/users/me', payload),
+    mutationFn: (payload: ProfileUpdate) => put<User>('/users/me', payload),
     onSuccess: (user) => {
       queryClient.setQueryData(['users', 'me'], user)
     },

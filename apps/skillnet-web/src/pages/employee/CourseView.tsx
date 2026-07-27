@@ -3,8 +3,11 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button, Card, ProgressBar, EmptyState, Skeleton, SkeletonText } from '../../components/ui'
 import { LessonContent } from '../../components/courses/LessonContent'
+import { NodeList } from '../../components/courses/NodeList'
 import { ExerciseRenderer } from '../../components/exercises/ExerciseRenderer'
 import { useCourse, useCompleteLesson, useCourseProgress } from '../../api/courses'
+import { useDynamicCoursesMode } from '../../api/health'
+import { useCourseNodes } from '../../api/nodes'
 import { useEnrollments, useCompleteEnrollment } from '../../api/enrollments'
 import { useQueryClient } from '@tanstack/react-query'
 import { slideVariants, staggerContainer, staggerItem, duration, ease, transition } from '../../lib/motion'
@@ -93,6 +96,23 @@ export function CourseView() {
   const { data: courseProgress } = useCourseProgress(id)
   const queryClient = useQueryClient()
 
+  // --- the ONE v2 modification of this file (§13, B9) -------------------------
+  //
+  // A dynamic course renders `NodeList`; anything else renders the v1 tree below,
+  // untouched. The discriminator is `GET /courses/{id}/nodes` and not
+  // `course.delivery_mode`, because `CourseRead` does not carry that field: §11.3 sketches
+  // it, but `src/schemas/course.py` is a v1 file no v2 batch may edit, so the field does
+  // not exist yet. The node list is a better signal anyway — it is the route that only
+  // answers for a dynamic course with a validated schema and the flag `on`, and it 404s
+  // in every other case, which is exactly the condition `resolve_delivery` computes.
+  const { mode: dynamicMode } = useDynamicCoursesMode()
+  const nodesQuery = useCourseNodes(id, { enabled: dynamicMode === 'on' })
+  const dynamicNodes =
+    nodesQuery.data?.delivery_mode === 'dynamic' ? nodesQuery.data : null
+  // With the flag on, wait for the answer before painting: showing the v1 tree and then
+  // replacing it with the node map is precisely the layout jump §5.5 forbids.
+  const dynamicPending = dynamicMode === 'on' && nodesQuery.isLoading
+
   const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set())
   const [activeLessonId, setActiveLessonId] = useState<string>('')
   const [direction, setDirection] = useState<1 | -1>(1)
@@ -117,7 +137,7 @@ export function CourseView() {
     setActiveLessonId(firstModule?.lessons[0]?.id ?? '')
   }, [course])
 
-  if (isLoading) {
+  if (isLoading || dynamicPending) {
     return (
       <div>
         <Skeleton className="h-6 w-1/3 mb-6" />
@@ -129,6 +149,20 @@ export function CourseView() {
             <Card><SkeletonText lines={8} /></Card>
           </div>
         </div>
+      </div>
+    )
+  }
+
+  if (dynamicNodes && id) {
+    return (
+      <div>
+        <div className="mb-6 flex items-center gap-3 min-w-0">
+          <span className="w-3 h-3 rounded-full shrink-0 bg-primary" />
+          <h2 className="text-xl font-semibold text-text truncate">
+            {course?.title ?? 'Curso'}
+          </h2>
+        </div>
+        <NodeList courseId={id} data={dynamicNodes} />
       </div>
     )
   }

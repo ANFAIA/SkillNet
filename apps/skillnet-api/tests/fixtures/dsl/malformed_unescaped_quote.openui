@@ -1,0 +1,2 @@
+root = Stack([intro], "md")
+intro = TextContent("El cliente dijo "quiero mi dinero" y se marcho.", "lead")

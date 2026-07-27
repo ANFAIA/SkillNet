@@ -1,0 +1,2 @@
+Stack([intro], "md")
+intro = TextContent("La primera linea no declara ningun id.", "lead")

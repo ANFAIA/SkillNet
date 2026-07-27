@@ -1,0 +1,3 @@
+root = Stack([intro], "md")
+intro = TextContent("Las devoluciones se aceptan durante 30 dias.
+Pasados 30 dias aplica la garantia.", "lead")

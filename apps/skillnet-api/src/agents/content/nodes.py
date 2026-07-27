@@ -9,13 +9,19 @@ from __future__ import annotations
 
 import asyncio
 import json
-import re
 import uuid
 from typing import Any
 
 from sqlalchemy import select
 
 from src.agents.content.errors import node_error_wrapper, sse_channel
+from src.agents.content.helpers import (
+    FULL_TEXT_PAGE_THRESHOLD,
+    assemble_chunk_text as _assemble_chunk_text,
+    estimate_pages as _estimate_pages,
+    strip_chunk_prefix as _strip_chunk_prefix,
+    themes_list as _themes_list,
+)
 from src.agents.content.state import GenerationState
 from src.core import sse
 from src.core.exceptions import LLMError
@@ -23,6 +29,7 @@ from src.core.logging import get_logger
 from src.deps.db import async_session_factory
 from src.llm.client import LLMService, resolve_llm_config
 from src.llm.embedding import EmbeddingService, resolve_embedding_config
+from src.llm.fixtures import maybe_fixture_embedder, maybe_fixture_llm
 from src.llm.parsing import parse_json_response
 from src.llm.prompts import (
     CONTENT_REFINER_SYSTEM,
@@ -40,7 +47,6 @@ from src.models import (
     Course,
     CourseSkill,
     Document,
-    DocumentChunk,
     Exercise,
     ExerciseType,
     GenerationStep,
@@ -60,8 +66,6 @@ GEN_TEMPERATURE = 0.3
 REVIEW_TEMPERATURE = 0.1
 GEN_MAX_TOKENS = 4096
 SEMANTIC_TOP_K = 15
-FULL_TEXT_PAGE_THRESHOLD = 5
-_CHARS_PER_PAGE = 2000
 
 
 # --------------------------------------------------------------------------- #
@@ -79,13 +83,13 @@ async def _load_org_settings(db: Any, org_id: uuid.UUID) -> dict[str, Any]:
 async def _make_llm(org_id: uuid.UUID) -> LLMService:
     async with async_session_factory() as db:
         org_settings = await _load_org_settings(db, org_id)
-    return LLMService(resolve_llm_config(org_settings, purpose="generation"))
+    return maybe_fixture_llm(resolve_llm_config(org_settings, purpose="generation"))
 
 
 async def _make_embeddings(org_id: uuid.UUID) -> EmbeddingService:
     async with async_session_factory() as db:
         org_settings = await _load_org_settings(db, org_id)
-    return EmbeddingService(resolve_embedding_config(org_settings))
+    return maybe_fixture_embedder(resolve_embedding_config(org_settings))
 
 
 async def _set_job(job_id: str, **fields: Any) -> None:
@@ -111,37 +115,9 @@ def _uuids(values: list[str] | None) -> list[uuid.UUID]:
     return out
 
 
-def _estimate_pages(doc: Document) -> int:
-    if doc.page_count:
-        return doc.page_count
-    return max(1, len(doc.full_text or "") // _CHARS_PER_PAGE)
-
-
-
-
-# Pattern that matches the "[Documento: ...] [Seccion: ...]" prefix added by the
-# chunker.  These prefixes are useful for RAG chat (source attribution) but must
-# be stripped from the generation pipeline so the LLM does not bake citation
-# artifacts into the course content shown to end users.
-_CHUNK_PREFIX_RE = re.compile(
-    r"^\[Documento:\s*[^\]]*\]\s*\[Seccion:\s*[^\]]*\]\s*", re.MULTILINE
-)
-
-
-def _strip_chunk_prefix(text: str) -> str:
-    return _CHUNK_PREFIX_RE.sub("", text).lstrip()
-
-
-def _assemble_chunk_text(chunks: list[DocumentChunk]) -> str:
-    return "\n\n".join(_strip_chunk_prefix(chunk.content) for chunk in chunks)
-
-
-def _themes_list(parsed: Any) -> list[dict]:
-    if isinstance(parsed, dict):
-        return parsed.get("themes") or []
-    if isinstance(parsed, list):
-        return parsed
-    return []
+# ``estimate_pages``, ``strip_chunk_prefix``, ``assemble_chunk_text`` and
+# ``themes_list`` now live in ``src/agents/content/helpers.py`` (shared with the v2
+# schema graph) and are imported above under their original private names.
 
 
 # --------------------------------------------------------------------------- #

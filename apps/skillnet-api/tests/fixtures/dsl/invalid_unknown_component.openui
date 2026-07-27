@@ -1,0 +1,3 @@
+root = Stack([intro, linea], "md")
+intro = TextContent("Los hitos del proceso de devolucion.", "lead")
+linea = Timeline("Hitos", ["Compra", "Devolucion", "Reembolso"])

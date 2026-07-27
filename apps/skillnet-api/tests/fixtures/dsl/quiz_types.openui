@@ -1,0 +1,8 @@
+```openui
+root = Stack([lead, caso, orden, dialogo], "md")
+
+lead = TextContent("Practica los tres casos que mas se dan en tienda.", "lead")
+caso = QuizItem("q1", "practical_case", "analyze", "Un cliente insiste tras 32 dias. Redacta la respuesta que le darias.", [])
+orden = QuizItem("q2", "order_steps", "apply", "Ordena los pasos de la devolucion.", ["Verificar el producto", "Escanear el ticket", "Registrar en el sistema", "Emitir el reembolso"])
+dialogo = QuizItem("q3", "dialogue", "create", "Simula la conversacion con un cliente que llega sin ticket.", [])
+```

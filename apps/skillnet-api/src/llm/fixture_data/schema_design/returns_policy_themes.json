@@ -1,0 +1,28 @@
+{
+  "themes": [
+    {
+      "key": "plazo_devolucion",
+      "title": "Plazo de devolucion",
+      "bloom_level": "apply",
+      "summary": "Cuantos dias tiene el cliente para devolver un articulo y desde cuando se cuentan."
+    },
+    {
+      "key": "excepciones_plazo",
+      "title": "Excepciones al plazo",
+      "bloom_level": "analyze",
+      "summary": "Articulos que no admiten devolucion y casos en que el plazo se amplia."
+    },
+    {
+      "key": "registro_sistema",
+      "title": "Registro de la devolucion",
+      "bloom_level": "apply",
+      "summary": "Como se registra una devolucion en el sistema y que justificante se entrega."
+    },
+    {
+      "key": "trato_cliente",
+      "title": "Trato con el cliente",
+      "bloom_level": "understand",
+      "summary": "Tono y expresiones recomendadas al gestionar una devolucion en mostrador."
+    }
+  ]
+}

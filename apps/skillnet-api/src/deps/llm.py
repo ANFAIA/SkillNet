@@ -16,6 +16,7 @@ from src.core.exceptions import LLMError
 from src.deps.db import DBSession
 from src.llm.client import LLMService, resolve_llm_config
 from src.llm.embedding import EmbeddingService, resolve_embedding_config
+from src.llm.fixtures import maybe_fixture_embedder, maybe_fixture_llm
 from src.models import Organization
 
 
@@ -26,21 +27,30 @@ async def _org_settings(db: DBSession) -> dict[str, Any]:
 
 
 async def get_llm_service(db: DBSession) -> LLMService:
-    return LLMService(resolve_llm_config(await _org_settings(db)))
+    return maybe_fixture_llm(resolve_llm_config(await _org_settings(db)))
 
 
 async def get_tutor_llm_service(db: DBSession) -> LLMService:
-    return LLMService(resolve_llm_config(await _org_settings(db), purpose="tutor"))
+    return maybe_fixture_llm(
+        resolve_llm_config(await _org_settings(db), purpose="tutor")
+    )
 
 
 async def get_embedding_service(db: DBSession) -> EmbeddingService:
-    return EmbeddingService(resolve_embedding_config(await _org_settings(db)))
+    return maybe_fixture_embedder(resolve_embedding_config(await _org_settings(db)))
 
 
 async def get_optional_llm_service(db: DBSession) -> LLMService | None:
-    """LLM service if one is configured, else ``None`` (grading degrades gracefully)."""
+    """LLM service if one is configured, else ``None`` (grading degrades gracefully).
+
+    Goes through ``maybe_fixture_llm`` too: this is the factory ``grade_open_answer``
+    uses, so without it a fixture-mode probe or tie-break would attempt a real
+    network call.
+    """
     try:
-        return LLMService(resolve_llm_config(await _org_settings(db), purpose="eval"))
+        return maybe_fixture_llm(
+            resolve_llm_config(await _org_settings(db), purpose="eval")
+        )
     except LLMError:
         return None
 

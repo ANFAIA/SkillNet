@@ -1,0 +1,47 @@
+{
+  "nodes": [
+    {
+      "title": "Plazo de devolucion",
+      "summary": "El cliente tiene 14 dias naturales desde la entrega para devolver un articulo sin dar explicaciones.",
+      "outcome": "Decidir si una devolucion esta dentro de plazo a partir de la fecha de entrega.",
+      "criticality": "critical",
+      "default_ui_format": "exercise",
+      "estimated_minutes": 6,
+      "source_headings": ["Devoluciones", "Plazo"],
+      "prerequisites": []
+    },
+    {
+      "title": "Excepciones al plazo",
+      "summary": "Los articulos precintados de higiene y los personalizados no admiten devolucion, y los defectuosos amplian el plazo a dos anos.",
+      "outcome": "Identificar cuando una devolucion queda fuera del regimen general.",
+      "criticality": "recommended",
+      "default_ui_format": "explanation",
+      "estimated_minutes": 8,
+      "source_headings": ["Excepciones"],
+      "prerequisites": [0, 2]
+    },
+    {
+      "title": "Registro de la devolucion",
+      "summary": "Toda devolucion se registra en el sistema con el numero de ticket y se entrega justificante al cliente.",
+      "outcome": "Registrar una devolucion completa sin dejar campos pendientes.",
+      "criticality": "critical",
+      "default_ui_format": "mixed",
+      "estimated_minutes": 10,
+      "source_headings": ["Devoluciones"],
+      "prerequisites": [1]
+    },
+    {
+      "title": "Trato con el cliente",
+      "summary": "Se explica el motivo de cada decision y no se atribuye la negativa a la politica sin mas.",
+      "outcome": "Comunicar una negativa sin escalar el conflicto.",
+      "criticality": "contextual",
+      "default_ui_format": "explanation",
+      "estimated_minutes": 4,
+      "source_headings": ["Atencion al cliente", "Manual interno de tono"],
+      "prerequisites": []
+    }
+  ],
+  "notes": [
+    "El documento no detalla el circuito de reembolso por transferencia."
+  ]
+}

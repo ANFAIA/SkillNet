@@ -139,6 +139,25 @@ export const backdrop = {
   transition: { duration: duration.fast },
 } as const
 
+/**
+ * Loading shimmer — a highlight band swept across a placeholder.
+ *
+ * `transform` only: `animate-pulse` is banned (motion-system.md:437,636) because
+ * an infinite opacity loop reads as generic and repaints the whole element.
+ * Sweeping a translated band keeps the work on the compositor.
+ * Consumed by `ui/ShimmerSkeleton.tsx`; skip it under `prefers-reduced-motion`.
+ */
+export const shimmer = {
+  initial: { x: '-100%' },
+  animate: { x: '100%' },
+  transition: {
+    duration: 1.4,
+    ease: ease.base,
+    repeat: Infinity,
+    repeatDelay: 0.25,
+  },
+} as const
+
 /** Sidebar slide-in from left */
 export const sidebarSlide = {
   initial: { x: '-100%' },

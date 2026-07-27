@@ -1,0 +1,5 @@
+root = Stack([intro, quiz], "md")
+intro = TextContent("Un caso de caja como los de tu turno.", "body")
+quiz = QuizItem("q1", "test", "apply", "Un cliente vuelve el dia 32 con el ticket. Que haces?", ["Aceptar la devolucion", "Rechazarla y ofrecer la garantia del fabricante", "Aceptarla solo si el producto esta sin abrir", "Llamar al encargado para que decida"])
+---ANSWER-KEY---
+{"q1": {"correct": 1, "explanation": "Pasados 30 dias el plazo ha vencido, asi que la devolucion no se admite; lo que queda es la garantia del fabricante."}}

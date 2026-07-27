@@ -21,13 +21,18 @@ from src.deps.db import async_session_factory, engine
 from src.routes import (
     auth,
     chat,
+    course_schema,
     courses,
     documents,
     enrollments,
     exercises,
+    explain,
     generation_jobs,
     health,
+    learner_profile,
     lessons,
+    nodes,
+    onboarding,
     settings as settings_routes,
     stats,
     users,
@@ -119,6 +124,21 @@ def create_app() -> FastAPI:
     app.include_router(chat.router, prefix=prefix, tags=["Chat"])
     app.include_router(stats.router, prefix=prefix)
     app.include_router(settings_routes.router, prefix=prefix)
+    # v2 click-to-explain (B7). Its own guard 404s the route unless the flag is `on`.
+    app.include_router(explain.router, prefix=prefix)
+    # v2 onboarding and learner profile (B3). Both routers carry the employee-surface
+    # flag guard, so every path is a 404 unless the flag is `on`.
+    app.include_router(onboarding.router, prefix=prefix)
+    app.include_router(learner_profile.router, prefix=prefix)
+    # v2 admin course schema (B2). Registered after `courses` so the more specific
+    # /courses/{id}/schema* paths are matched by their own router; the admin-surface
+    # guard 404s every path unless the flag is `shadow` or `on`.
+    app.include_router(course_schema.router, prefix=prefix)
+    # v2 runtime employee surface (B5). Registered after `courses` so the more specific
+    # /courses/{id}/nodes path is matched by its own router; both routers carry the
+    # employee-surface guard, so every path 404s unless the flag is `on`.
+    app.include_router(nodes.router, prefix=prefix)
+    app.include_router(nodes.course_nodes_router, prefix=prefix)
 
     ext_prefix = "/ext/v1"
     app.include_router(ext_skills.router, prefix=ext_prefix)

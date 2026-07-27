@@ -1,0 +1,3 @@
+root = Stack([intro, cita], "md")
+intro = TextContent("Regla 1: una comilla dentro del texto se escribe \" y una barra se escribe \\.", "lead")
+cita = TextContent("El cliente dijo: \"quiero mi dinero hoy\".\nEl encargado acepto la devolucion.", "body")

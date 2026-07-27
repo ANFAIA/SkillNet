@@ -1,0 +1,35 @@
+{
+  "version": "skillnet-ui/1",
+  "format": "explanation",
+  "root": "root",
+  "components": [
+    {
+      "id": "root",
+      "type": "Stack",
+      "props": {
+        "gap": "md"
+      },
+      "children": [
+        "aviso",
+        "seed"
+      ]
+    },
+    {
+      "id": "aviso",
+      "type": "Callout",
+      "props": {
+        "tone": "info",
+        "text": "Esta leccion se muestra en su version original."
+      },
+      "children": []
+    },
+    {
+      "id": "seed",
+      "type": "Markdown",
+      "props": {
+        "content": "## Devoluciones\n\nLas devoluciones se aceptan durante **30 dias naturales** desde la fecha del ticket.\n\n1. Verificar el producto\n2. Escanear el ticket\n3. Registrar en el sistema\n4. Emitir el reembolso\n"
+      },
+      "children": []
+    }
+  ]
+}

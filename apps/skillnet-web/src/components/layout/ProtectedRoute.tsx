@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
+import { useDynamicCoursesMode } from '../../api/health'
+import { useLearnerProfile } from '../../api/onboarding'
 import type { UserRole } from '../../types'
 
 const HOME_BY_ROLE: Record<UserRole, string> = {
@@ -21,18 +23,66 @@ function AppSkeleton() {
   )
 }
 
+/**
+ * Auth guard, plus the onboarding gate of §6.1.
+ *
+ * The gate redirects **iff** all three hold:
+ *
+ *     features.dynamic_courses === 'on'  ∧  user.role === 'employee'
+ *     ∧  the profile loaded with onboarding_completed_at == null
+ *
+ * Each of the four rules below is load-bearing, and this component wraps the admin
+ * pages too, so getting any of them wrong breaks a role that has no onboarding:
+ *
+ * 1. The flag comes from `GET /health`, read once at startup — **not** from
+ *    `/auth/me`, which serializes the ORM user and would ship a stale `off`
+ *    forever (§10.1).
+ * 2. The profile query is **conditioned** on `role === 'employee' && flag === 'on'`,
+ *    so an admin never fires it.
+ * 3. A **404 means "do not redirect"**, not "not onboarded". `useLearnerProfile`
+ *    maps it to `null`. If it meant the latter, turning the flag off mid-session
+ *    (the routes become 404) would loop the learner towards a route that no longer
+ *    exists.
+ * 4. While either query is in flight the skeleton is painted and **nothing is
+ *    redirected** — a guess here is a redirect the user has to fight.
+ */
 export function ProtectedRoute({
   role,
+  skipOnboardingGate = false,
   children,
 }: {
   role?: UserRole
+  /**
+   * Set on `/onboarding` itself. Without it the gate would send the wizard to the
+   * wizard.
+   */
+  skipOnboardingGate?: boolean
   children: ReactNode
 }) {
   const { user, isLoading } = useAuth()
+  const { mode, isLoading: flagLoading } = useDynamicCoursesMode()
+
+  // Rule 2 — conditioned, so this request does not exist for an admin or with the
+  // flag off.
+  const gateApplies = !skipOnboardingGate && user?.role === 'employee' && mode === 'on'
+  const profile = useLearnerProfile({ enabled: gateApplies })
 
   if (isLoading) return <AppSkeleton />
   if (!user) return <Navigate to="/login" replace />
   if (role && user.role !== role) return <Navigate to={HOME_BY_ROLE[user.role]} replace />
+
+  if (!skipOnboardingGate && user.role === 'employee') {
+    // Rule 4 — the flag is still unknown: waiting is correct, guessing is not.
+    if (flagLoading) return <AppSkeleton />
+    if (gateApplies) {
+      if (profile.isLoading) return <AppSkeleton />
+      // Rule 3 — `null` is the 404. Only a profile that actually loaded and has no
+      // completion timestamp sends anyone anywhere.
+      if (profile.data && !profile.data.onboarding_completed_at) {
+        return <Navigate to="/onboarding" replace />
+      }
+    }
+  }
 
   return <>{children}</>
 }

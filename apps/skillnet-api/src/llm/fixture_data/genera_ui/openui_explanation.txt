@@ -1,0 +1,4 @@
+root = Stack([intro, pasos, aviso], "md")
+intro = TextContent("Como dependiente, esto te sirve para resolver una devolucion en caja sin pedir ayuda.", "lead")
+pasos = StepSequence("Proceso de devolucion", ["Comprobar que el producto esta sin usar", "Escanear el ticket de compra", "Registrar la devolucion en el sistema", "Emitir el reembolso"])
+aviso = Callout("warn", "Pasados 30 dias naturales desde la entrega la devolucion no se admite.")

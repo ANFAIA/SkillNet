@@ -1,0 +1,4 @@
+root = Stack([aviso, cuerpo, tabla], "lg")
+aviso = Callout("warn", "Pasados 30 dias aplica la garantia del fabricante, no la devolucion.")
+cuerpo = TextContent("El plazo se cuenta desde la fecha impresa en el ticket.", "body")
+tabla = Table(["Caso", "Accion"], [["Menos de 30 dias", "Devolucion"], ["Mas de 30 dias", "Garantia"]])

@@ -13,7 +13,8 @@ from pathlib import Path
 
 from src.core.logging import get_logger
 from src.deps.db import async_session_factory
-from src.llm.embedding import EmbeddingService, resolve_embedding_config
+from src.llm.embedding import resolve_embedding_config
+from src.llm.fixtures import maybe_fixture_embedder
 from src.models import Document, DocumentStatus, Organization
 from src.repositories.document_chunk_repo import DocumentChunkRepository
 from src.services.chunker import chunk_sections
@@ -50,7 +51,7 @@ async def ingest_document(document_id: uuid.UUID | str) -> None:
                     org = await session.get(Organization, doc.org_id)
                     org_settings = dict(org.settings) if org and org.settings else {}
                     config = resolve_embedding_config(org_settings)
-                    embedder = EmbeddingService(config)
+                    embedder = maybe_fixture_embedder(config)
 
                     vectors = await embedder.embed_texts(
                         [c.content for c in chunks], prefix="passage: "
