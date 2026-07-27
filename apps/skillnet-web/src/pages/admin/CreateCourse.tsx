@@ -2,11 +2,12 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ease, duration } from '../../lib/motion'
-import { Card, CardTitle, Button, Input, Badge, EmptyState, FileUploadZone, ProgressBar } from '../../components/ui'
+import { Card, CardTitle, Button, Input, Badge, EmptyState, FileUploadZone, ProgressBar, StepIndicator } from '../../components/ui'
 import { GenerationProgress } from '../../components/generation/GenerationProgress'
 import { useUploadDocument, useProcessDocument } from '../../api/documents'
 import { useCreateCourse, useGenerateContent, usePublishCourse, useCourse, useUpdateLesson, useUpdateExercise } from '../../api/courses'
 import { useGenerationProgress, useGenerationJobStatus, jobToProgress } from '../../api/generation'
+import { useDynamicCoursesMode } from '../../api/health'
 import { useUsers } from '../../api/users'
 import { useAssignCourse } from '../../api/enrollments'
 import { ApiError } from '../../api/client'
@@ -73,27 +74,6 @@ function ChevronIcon({ open }: { open: boolean }) {
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform ${open ? 'rotate-90' : ''}`}>
       <polyline points="9 18 15 12 9 6" />
     </svg>
-  )
-}
-
-function StepIndicator({ current, total }: { current: number; total: number }) {
-  return (
-    <div className="flex items-center gap-1 sm:gap-2">
-      {Array.from({ length: total }).map((_, i) => (
-        <div key={i} className="flex items-center gap-1 sm:gap-2">
-          <div
-            className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center text-xs font-medium transition-colors shrink-0 ${
-              i < current ? 'bg-accent text-white' : i === current ? 'bg-primary text-white' : 'bg-bg-muted text-text-muted'
-            }`}
-          >
-            {i < current ? <CheckIcon /> : i + 1}
-          </div>
-          {i < total - 1 && (
-            <div className={`w-4 sm:w-8 h-px transition-colors ${i < current ? 'bg-accent' : 'bg-border'}`} />
-          )}
-        </div>
-      ))}
-    </div>
   )
 }
 
@@ -486,6 +466,22 @@ export function CreateCourse() {
   const publish = usePublishCourse()
   const assign = useAssignCourse()
 
+  /**
+   * The v2 branch of step 1 (§13, B10). With the flag in `shadow` or `on` the creator
+   * can define a schema instead of generating a course in one shot, and the schema
+   * screen is where nodes get reviewed and validated before anything is generated.
+   *
+   * It is an **extra** action, not a replacement: the v1 "Generar" button is still
+   * right there, so with the flag off (or for a course built from scratch, where
+   * there is no source document for the designer to read) the wizard behaves exactly
+   * as it does today.
+   */
+  const { mode: dynamicMode } = useDynamicCoursesMode()
+  const schemaFirstAvailable =
+    (dynamicMode === 'shadow' || dynamicMode === 'on') &&
+    source === 'documentos' &&
+    !!documentId
+
   // Mark the uploaded document ready + kick off server-side processing.
   const latestUpload = uploader.uploads[uploader.uploads.length - 1]
   useEffect(() => {
@@ -531,6 +527,23 @@ export function CreateCourse() {
       setStep(2)
     } catch (err) {
       setStartError(err instanceof ApiError ? err.body.detail : 'No se pudo iniciar la generacion')
+    }
+  }
+
+  // Creates the course and hands over to the schema screen. It deliberately does not
+  // call `schema/propose` here: the proposal needs `intent_density`, which is chosen on
+  // that screen, and starting a designer run from behind this button would spend an LLM
+  // call on a density the creator never saw.
+  async function startSchemaDefinition() {
+    setStartError(null)
+    try {
+      const course = await createCourse.mutateAsync({
+        title: title.trim(),
+        source_document_id: documentId ?? undefined,
+      })
+      navigate(`/admin/curso/${course.id}/esquema`)
+    } catch (err) {
+      setStartError(err instanceof ApiError ? err.body.detail : 'No se pudo crear el curso')
     }
   }
 
@@ -643,7 +656,17 @@ export function CreateCourse() {
               <Button variant="secondary" onClick={prev}>Anterior</Button>
             )}
           </div>
-          <div>
+          <div className="flex items-center gap-2 flex-wrap justify-end">
+            {step === 1 && schemaFirstAvailable && (
+              <Button
+                variant="secondary"
+                onClick={() => void startSchemaDefinition()}
+                disabled={!canNext() || createCourse.isPending || generate.isPending}
+                title="Define y revisa el esquema antes de generar nada"
+              >
+                Definir esquema
+              </Button>
+            )}
             {step < 3 ? (
               <Button variant="primary" onClick={next} disabled={!canNext() || createCourse.isPending || generate.isPending}>
                 {step === 1 ? (createCourse.isPending || generate.isPending ? 'Iniciando...' : 'Generar') : 'Siguiente'}
