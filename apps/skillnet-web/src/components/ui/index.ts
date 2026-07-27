@@ -18,6 +18,8 @@ export type { FileUploadZoneProps } from './FileUploadZone'
 
 export { Input } from './Input'
 export type { InputProps } from './Input'
+export { Textarea } from './Textarea'
+export type { TextareaProps } from './Textarea'
 
 export { MetricCard } from './MetricCard'
 export type { MetricCardProps } from './MetricCard'

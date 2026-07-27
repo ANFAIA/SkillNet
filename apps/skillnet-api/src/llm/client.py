@@ -18,7 +18,6 @@ from tenacity import (
     retry,
     retry_if_exception_type,
     stop_after_attempt,
-    wait_exponential,
 )
 
 from src.config import settings
@@ -35,6 +34,63 @@ _RETRYABLE = (
     litellm.InternalServerError,
     litellm.ServiceUnavailableError,
 )
+
+#: Providers that limit **tokens per minute** say how long to wait, in the message body:
+#: ``"Rate limit reached ... Please try again in 27.91s"`` (Groq, and OpenAI in the same
+#: shape). Honouring that number is the difference between a retry that works and one
+#: that is guaranteed not to.
+_RETRY_AFTER = re.compile(r"try again in\s+([0-9]+(?:\.[0-9]+)?)\s*s", re.IGNORECASE)
+
+
+def _retry_after_seconds(exc: BaseException | None) -> float | None:
+    """The provider's own estimate, if it gave one."""
+    if exc is None:
+        return None
+    match = _RETRY_AFTER.search(str(exc))
+    if match is None:
+        return None
+    try:
+        return float(match.group(1))
+    except ValueError:  # pragma: no cover - the regex already guarantees a float
+        return None
+
+
+def _retry_wait(state: Any) -> float:
+    """How long to wait before the next provider attempt.
+
+    Plain exponential backoff is the wrong shape for a *tokens per minute* quota. It was
+    the shape in use, at ``multiplier=2, min=4, max=60`` over three attempts, so the two
+    waits were about 4 s and 8 s: the call gave up roughly 12 s into a window that resets
+    after 60. Measured on Groq's free tier on 2026-07-27, that is exactly how a course
+    generation died at ``review_quality`` — an entire multi-step pipeline lost to a limit
+    the provider had already said would clear in 27.91 s.
+
+    So: use the provider's number when it gives one, fall back to exponential when it
+    does not, and cap it. The half second on top is slack for clock skew — coming back
+    a hair early costs another full window.
+    """
+    exc = state.outcome.exception() if state.outcome else None
+    hinted = _retry_after_seconds(exc)
+    if hinted is None:
+        base = _setting_float("LLM_RETRY_BASE_SECONDS", 4.0)
+        hinted = base * (2 ** max(state.attempt_number - 1, 0))
+    ceiling = _setting_float("LLM_RETRY_MAX_WAIT_SECONDS", 90.0)
+    return min(max(hinted + 0.5, 1.0), ceiling)
+
+
+def _setting_float(name: str, default: float) -> float:
+    """``getattr`` with a default, and **not** ``or default``.
+
+    ``0 or 4.0`` is ``4.0``, so the idiomatic-looking guard silently turns a deliberate
+    zero into the default. Only ``None`` should fall back.
+    """
+    value = getattr(settings, name, None)
+    return default if value is None else float(value)
+
+
+def _retry_attempts() -> int:
+    value = getattr(settings, "LLM_MAX_ATTEMPTS", None)
+    return max(int(5 if value is None else value), 1)
 
 
 # --------------------------------------------------------------------------- #
@@ -254,8 +310,8 @@ class LLMService:
         return kwargs
 
     @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=2, min=4, max=60),
+        stop=stop_after_attempt(_retry_attempts()),
+        wait=_retry_wait,
         retry=retry_if_exception_type(_RETRYABLE),
         reraise=True,
     )
@@ -455,8 +511,8 @@ class LLMService:
             budget *= BUDGET_RETRY_MULTIPLIER
 
     @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=2, min=4, max=60),
+        stop=stop_after_attempt(_retry_attempts()),
+        wait=_retry_wait,
         retry=retry_if_exception_type(_RETRYABLE),
         reraise=True,
     )

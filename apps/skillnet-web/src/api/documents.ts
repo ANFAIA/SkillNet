@@ -13,6 +13,15 @@ export function useDocuments(filters?: { status?: string }) {
   })
 }
 
+/** One document. Used to tell the creator where a course's source came from. */
+export function useDocument(documentId: string | null | undefined) {
+  return useQuery({
+    queryKey: ['documents', documentId],
+    queryFn: () => get<DocumentRead>(`/documents/${documentId}`),
+    enabled: !!documentId,
+  })
+}
+
 export interface UploadProgress {
   file: File
   progress: number // 0-100
@@ -99,6 +108,52 @@ export function useUploadDocument() {
   const clearUploads = useCallback(() => setUploads([]), [])
 
   return { uploadFile, uploads, markReady, clearUploads }
+}
+
+/** How long to wait for a synthesised source to finish ingesting, and how often to ask. */
+const INGEST_POLL_MS = 1000
+const INGEST_TIMEOUT_MS = 90_000
+
+/**
+ * Wait until a document is `ready`, because `POST /courses/{id}/generate` refuses
+ * anything else.
+ *
+ * Polling and not SSE: ingestion has no event stream, it is normally a couple of
+ * seconds, and adding one for this would be more moving parts than the problem has.
+ * Rejects on `error` with the server's own message, and on timeout — a caller that
+ * hangs forever on a stuck ingestion is worse than one that says so.
+ */
+export async function waitForDocumentReady(documentId: string): Promise<DocumentRead> {
+  const deadline = Date.now() + INGEST_TIMEOUT_MS
+  for (;;) {
+    const doc = await get<DocumentRead>(`/documents/${documentId}`)
+    if (doc.status === 'ready') return doc
+    if (doc.status === 'error') {
+      throw new Error(doc.error_message ?? 'No se pudo procesar el documento generado')
+    }
+    if (Date.now() > deadline) {
+      throw new Error('El documento generado tarda demasiado en procesarse')
+    }
+    await new Promise((resolve) => setTimeout(resolve, INGEST_POLL_MS))
+  }
+}
+
+/**
+ * `POST /documents/from-idea` — the "desde cero" path.
+ *
+ * The server writes a source document from the title and the creator's description and
+ * starts ingesting it, so what comes back is an ordinary `DocumentRead` in `processing`
+ * whose `origin` is `'generated'`. Everything after this point is the document flow.
+ */
+export function useCreateSourceFromIdea() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (body: { title: string; idea: string }) =>
+      post<DocumentRead>('/documents/from-idea', body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['documents'] })
+    },
+  })
 }
 
 export function useProcessDocument() {

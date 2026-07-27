@@ -30,6 +30,19 @@ class Settings(BaseSettings):
     LLM_RUNTIME_FAST_MODEL: str | None = None
     LLM_RUNTIME_HEAVY_MODEL: str | None = None
 
+    # Provider retries. Read only by src/llm/client.py.
+    #
+    # These exist as settings because the right values are a property of the *plan*, not
+    # of the code: a tokens-per-minute quota resets after a minute, so a backoff that
+    # gives up in twelve seconds cannot succeed. Measured on Groq's free tier
+    # (6000 TPM) on 2026-07-27: a course generation died at `review_quality` against a
+    # limit the provider itself said would clear in 27.91 s.
+    LLM_MAX_ATTEMPTS: int = 5
+    #: Only used when the provider does not say how long to wait; it usually does.
+    LLM_RETRY_BASE_SECONDS: float = 4.0
+    #: Ceiling on a single wait. Above a minute, a TPM window has already reset.
+    LLM_RETRY_MAX_WAIT_SECONDS: float = 90.0
+
     # Reasoning models (o-series, gpt-oss, deepseek-reasoner...) emit their chain of
     # thought into a separate field that is billed against the SAME `max_tokens` as the
     # answer. Measured on Groq's openai/gpt-oss-120b at max_tokens=1200: it sometimes

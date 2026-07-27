@@ -47,6 +47,12 @@ export interface DocumentRead {
   page_count: number | null
   size_bytes: number
   status: DocumentStatus | string
+  /**
+   * `'uploaded'` is the company's own material. `'generated'` means the model wrote it
+   * from a one-line idea in the "desde cero" path, so a course standing on it carries
+   * the model's knowledge and not the organisation's policy. Shown, never hidden.
+   */
+  origin: 'uploaded' | 'generated' | string
   error_message: string | null
   created_at: string
 }

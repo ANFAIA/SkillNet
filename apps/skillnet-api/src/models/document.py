@@ -20,6 +20,24 @@ class DocumentStatus(str, enum.Enum):
     ERROR = "error"
 
 
+class DocumentOrigin(str, enum.Enum):
+    """Where the text came from, and it is not a detail.
+
+    ``UPLOADED`` is the company's own material: somebody chose it, and a course built
+    on it can be defended. ``GENERATED`` is a source the model wrote from a one-line
+    idea, so the course standing on it carries the model's knowledge and not the
+    organisation's policy.
+
+    A compliance course whose source silently turned out to be invented is the exact
+    failure this product exists to avoid, so the distinction is a column and not a
+    convention: it travels to every screen that shows a document, and the creator is
+    told before the course is generated, not after.
+    """
+
+    UPLOADED = "uploaded"
+    GENERATED = "generated"
+
+
 class Document(UUIDMixin, TimestampMixin, Base):
     __tablename__ = "documents"
 
@@ -45,6 +63,16 @@ class Document(UUIDMixin, TimestampMixin, Base):
         ),
         nullable=False,
         default=DocumentStatus.PENDING,
+    )
+    origin: Mapped[DocumentOrigin] = mapped_column(
+        SAEnum(
+            DocumentOrigin,
+            name="document_origin",
+            values_callable=lambda e: [m.value for m in e],
+        ),
+        nullable=False,
+        server_default=DocumentOrigin.UPLOADED.value,
+        default=DocumentOrigin.UPLOADED,
     )
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
 

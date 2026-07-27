@@ -5,6 +5,7 @@ import { Button, Badge, Card, EmptyState, Input, Skeleton, SkeletonText } from '
 import { LessonContent } from '../../components/courses/LessonContent'
 import { ExerciseRenderer } from '../../components/exercises/ExerciseRenderer'
 import { useCourse, useUpdateCourse, usePublishCourse, useArchiveCourse } from '../../api/courses'
+import { useDocument } from '../../api/documents'
 import { useDynamicCoursesMode } from '../../api/health'
 import { slideVariants, staggerContainer, staggerItem, duration, ease, transition } from '../../lib/motion'
 
@@ -32,6 +33,10 @@ export function CoursePreview() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { data: course, isLoading, error } = useCourse(id)
+  // Where the content came from. A course built on a source the model wrote is not the
+  // same claim as one built on the company's own material, and the creator has to be
+  // able to see which one they are looking at without going digging.
+  const { data: sourceDoc } = useDocument(course?.source_document_id)
 
   const updateCourse = useUpdateCourse()
   const publishCourse = usePublishCourse()
@@ -198,6 +203,17 @@ export function CoursePreview() {
             <p className="text-sm text-text-secondary">
               {course.modules.length} modulos · {allLessons.length} lecciones
             </p>
+            {sourceDoc && (
+              <p className="text-sm text-text-secondary mt-1 flex items-center gap-2 flex-wrap">
+                <span className="text-text-muted">Fuente:</span>
+                <span className="truncate">{sourceDoc.title}</span>
+                {sourceDoc.origin === 'generated' && (
+                  <Badge variant="warning" badgeStyle="plain" className="shrink-0">
+                    Documento generado con IA
+                  </Badge>
+                )}
+              </p>
+            )}
             <div className="flex items-center gap-2 mt-3">
               <Button variant="secondary" size="sm" onClick={startEditing}>
                 Editar
