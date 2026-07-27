@@ -21,7 +21,9 @@ BACKEND = OpenUiLangBackend()
 
 _SPEC_DIR = pathlib.Path(__file__).parent / "fixtures" / "ui-specs"
 
-#: Golden specs that the dialect can express. Ten, per §12.2.
+#: Golden specs that the dialect can express. Ten of §12.2 plus ``inline_nested``, which
+#: is the eleventh because the inline form parses to a spec like any other — and its
+#: golden file is where the synthetic ids are pinned.
 ROUND_TRIPPABLE = (
     "explanation_basic",
     "explanation_callout_first",
@@ -33,6 +35,7 @@ ROUND_TRIPPABLE = (
     "escapes",
     "deep_stack",
     "quiz_types",
+    "inline_nested",
 )
 
 #: Golden specs only the server authors: the dialect can write them, the model cannot.
@@ -45,9 +48,9 @@ def _spec(name: str) -> UISpec:
     )
 
 
-def test_the_golden_set_is_ten_round_trippable_specs() -> None:
+def test_the_golden_set_is_eleven_round_trippable_specs() -> None:
     on_disk = {path.stem for path in _SPEC_DIR.glob("*.json")}
-    assert len(ROUND_TRIPPABLE) == 10
+    assert len(ROUND_TRIPPABLE) == 11
     assert on_disk == set(ROUND_TRIPPABLE) | set(SERVER_AUTHORED)
 
 
@@ -103,6 +106,23 @@ def test_the_golden_set_covers_a_table_with_nested_rows() -> None:
     reparsed = BACKEND.parse(BACKEND.serialize(spec)).component("tabla")
     assert reparsed is not None
     assert reparsed.props["rows"] == tabla.props["rows"]
+
+
+def test_the_canonical_form_of_an_inline_program_is_the_referenced_one() -> None:
+    """`serialize` has one output per spec, and the inline form is not it (§5.4).
+
+    Both spellings parse to the same shape, so only one of them can be the text the
+    browser is served — and the flat one is what their prompt recommends for streaming
+    and the only one that gives every block a real statement id in their parser.
+    """
+    inline = pathlib.Path(__file__).parent / "fixtures" / "dsl" / "inline_nested.openui"
+    spec = BACKEND.parse(inline.read_text(encoding="utf-8"))
+    program = BACKEND.serialize(spec)
+    assert spec == _spec("inline_nested")
+    assert len(program.rstrip("\n").split("\n")) == len(spec.components)
+    for line in program.rstrip("\n").split("\n"):
+        assert line.count("(") == 1, f"a serialized line is one call: {line}"
+    assert BACKEND.parse(program) == spec
 
 
 def test_the_golden_set_covers_a_nested_card() -> None:

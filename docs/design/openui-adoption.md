@@ -298,6 +298,51 @@ Y el quinto, el más barato: **el prompt**. Sin `tools` y sin `markReactive`, `l
 menciona la sintaxis reactiva. Es mitigación en profundidad, no una barrera: si el modelo la emite de
 memoria, quien la rechaza es la puerta.
 
+## 4 bis. Corrección del 2026-07-27: el anidado en línea era nuestro, no del modelo
+
+Probando el prompt real contra un modelo local (`qwen2.5:7b-instruct`, Ollama, CPU) salieron dos
+fallos que no eran del modelo:
+
+1. **El parser rechazaba el anidado en línea** (`root = Stack([TextContent("Hola.", "lead")], "md")`)
+   mientras el bloque de firmas que genera `library.prompt()` lo ofrece textualmente: *"Sub-components
+   can be inline or referenced; prefer references for better streaming"*. Le enseñábamos una
+   construcción y luego se la rechazábamos, que es exactamente lo que §1 dice que hay que no hacer.
+2. **El mensaje de error diagnosticaba mal.** Ante el paréntesis de una llamada anidada respondía
+   *"the usual cause is an unescaped double quote"*. El bucle de reparación reinyecta ese texto, el
+   modelo mueve comillas que estaban bien y reincide: **0 de 2 programas rescatados en 3 intentos**.
+
+Qué cambia, y qué no:
+
+- `parse` acepta llamadas anidadas donde hoy acepta una referencia, y las **aplana** a la lista plana
+  de la `UISpec` con ids sintéticos deterministas (`root_1`, `root_1_1`, …). El máximo de 12 bloques
+  y de 5 hijos en la raíz se cuenta **después** de aplanar, así que diez bloques en línea cuestan
+  exactamente lo que diez declarados. La profundidad por línea está topada (16) para que un programa
+  patológico no pueda elegir el límite de recursión de CPython como denegación de servicio.
+- `serialize` **no cambia**: sigue escribiendo la forma referenciada, una declaración por línea. Es la
+  forma canónica y es lo único que puede recibir el navegador. Con esto desaparece además el caso de
+  pérdida nº 2 de §1 ("nodos inline: `statementId: null`, hay que sintetizar ids"): los ids los
+  sintetiza el servidor, se persisten en la `UISpec` y llegan al navegador como declaraciones
+  normales, que es lo que `node_render_views` necesita para medir bloque a bloque.
+- Los mensajes de error del parser dejan de adivinar. Cada uno nombra una causa **comprobada** y dice
+  qué escribir en su lugar: el argumento con nombre (`gap = "md"`) se llama argumento con nombre, la
+  declaración partida en dos líneas se llama declaración partida, y el diagnóstico de la comilla sin
+  escapar sólo aparece cuando de verdad acaba de cerrarse un texto. Son parte del contrato con el
+  LLM, porque el bucle de reparación los reenvía literalmente.
+- La regla SkillNet 4 del prompt ya no lista el anidado en línea entre las formas que rechazan el
+  programa entero (era falso desde el momento en que el parser lo acepta); la regla SkillNet 1 sigue
+  **prefiriendo** las referencias, que es la recomendación de la propia librería y lo que hace que la
+  pantalla se monte mientras se genera.
+- `UI_REPAIR_SYSTEM` gana tres pares MAL/BIEN — argumento con nombre, llamada partida en varias
+  líneas, comilla sin escapar — porque son los tres fallos que el 7B cometió pese a que el prompt ya
+  los prohibía en prosa. `PROMPT_VERSION` pasa a `runtime/2`, así que invalida la caché de renders.
+
+Lo que la prueba **no** cambia y conviene no olvidar: 60–150 s por generación en CPU y ~4 minutos por
+bucle de reparación confirman que el modelo local sirve para tests, no para servir a un empleado; y un
+7B inventó alérgenos fuera de los 14 de declaración obligatoria de la UE, lo que refuerza que la
+puerta del creador sobre el esquema no es burocracia.
+
+---
+
 ## 5. Qué se decide más adelante, y con qué señal
 
 | Decisión aplazada | Señal concreta que la dispara | Qué haríamos |

@@ -5,6 +5,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Query, Response
 
+from src.config import settings
 from src.core.exceptions import ForbiddenError, ValidationError
 from src.deps.auth import AdminUser, CurrentUser
 from src.deps.db import DBSession
@@ -14,6 +15,7 @@ from src.repositories.enrollment_repo import EnrollmentRepository
 from src.repositories.exercise_repo import ExerciseRepository
 from src.schemas.common import PaginatedResponse
 from src.schemas.enrollment import EnrollmentCreate, EnrollmentRead
+from src.services.course_delivery import resolve_delivery
 from src.services.enrollment_service import EnrollmentService
 
 router = APIRouter(prefix="/enrollments", tags=["Enrollments"])
@@ -36,6 +38,11 @@ def _parse_status(status: str | None) -> EnrollmentStatus | None:
 
 def _read(enrollment: Enrollment, progress: float | None) -> EnrollmentRead:
     course_title = enrollment.course.title if enrollment.course else None
+    # `resolve_delivery`, never the raw column: with the flag off this is `static` for
+    # every row, so the employee lists are byte-identical to what v1 served.
+    delivery_mode = (
+        resolve_delivery(enrollment.course, settings) if enrollment.course else "static"
+    )
     return EnrollmentRead(
         id=enrollment.id,
         course_id=enrollment.course_id,
@@ -47,6 +54,7 @@ def _read(enrollment: Enrollment, progress: float | None) -> EnrollmentRead:
         course_title=course_title,
         started_at=enrollment.started_at,
         completed_at=enrollment.completed_at,
+        delivery_mode=delivery_mode,
     )
 
 

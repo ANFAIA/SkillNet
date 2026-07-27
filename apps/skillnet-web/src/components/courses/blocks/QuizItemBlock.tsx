@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { post } from '../../../api/client'
 import { Button } from '../../ui'
+import { HintLadder, WorkedSolution } from './QuizItemHints'
 import type { ExerciseType } from '../../../types'
 import type { BloomLevel } from '../kit/schemas'
 import type {
@@ -186,9 +187,16 @@ export function QuizItemBlock({
       ? TRUE_FALSE_OPTIONS
       : (options ?? [])
 
-  // A passed item is final. A failed one can be retried, which is what
-  // `next === 'retry'` asks for.
-  const locked = result?.passed === true
+  // A passed item is final. So is one the server just closed with the worked solution
+  // (§7.4 rule 8): the node has moved to `needs_review` and re-answering the same item
+  // with the solution on screen would record an attempt that measures nothing. Everything
+  // else can be retried, which is what `next === 'retry'` asks for.
+  //
+  // `workedSolution` is read from the server's flag and never inferred here. See
+  // `QuizItemHints`: a client that decided when the solution appears could decide to see
+  // it on the first attempt.
+  const workedSolution = result?.show_worked_solution === true
+  const locked = result?.passed === true || workedSolution
   const answer = buildAnswer(item_type, selected, text)
   const readOnly = !renderId
 
@@ -205,8 +213,7 @@ export function QuizItemBlock({
       render_id: renderId,
       item_id,
       answer,
-      // Hints come from `POST /nodes/{id}/hint`, owned by the node view (B9).
-      // This block never grants one, so it always reports zero.
+      // Always zero, even though `HintLadder` below now spends real hints.
       //
       // The number is INFORMATIVE and the server must treat it as such: it is what
       // decides whether `correct_answer` comes back, and a field the client fills in
@@ -264,11 +271,30 @@ export function QuizItemBlock({
         )
       )}
 
+      {renderId ? (
+        <HintLadder
+          nodeId={nodeId}
+          renderId={renderId}
+          itemId={item_id}
+          // Kept mounted once the item closes so the hints already earned stay on
+          // screen next to the solution; only the "pedir otra" affordance goes away.
+          disabled={locked}
+        />
+      ) : null}
+
       {submit.isError ? (
         <p className="mt-3 text-sm text-danger">No se pudo enviar la respuesta.</p>
       ) : null}
 
-      {result ? <ResultPanel result={result} onRetry={result.passed ? undefined : retry} /> : null}
+      {result ? <ResultPanel result={result} onRetry={locked ? undefined : retry} /> : null}
+
+      {workedSolution ? (
+        <WorkedSolution
+          itemType={item_type}
+          correctAnswer={result?.correct_answer ?? null}
+          options={choices}
+        />
+      ) : null}
     </div>
   )
 }

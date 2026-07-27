@@ -28,7 +28,7 @@ from typing import Any
 from src.config import settings
 from src.core.exceptions import LLMError
 from src.core.logging import get_logger
-from src.llm.client import LLMConfig, LLMService
+from src.llm.client import LLMConfig, LLMService, Usage
 from src.llm.embedding import EmbeddingConfig, EmbeddingService
 
 logger = get_logger(__name__)
@@ -170,6 +170,25 @@ class FixtureLLMService(LLMService):
         """
         return self._resolve(system_prompt, user_prompt)
 
+    async def complete_with_usage(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        *,
+        model: str | None = None,
+        temperature: float = 0.3,
+        max_tokens: int = 4096,
+        json_mode: bool = False,
+    ) -> tuple[str, Usage]:
+        """The recorded response with an **empty** usage, and a reason that says so.
+
+        Inventing token counts here would put fabricated numbers into ``llm_usage_log``,
+        which exists precisely to replace a guess with a measurement (§9.3).
+        """
+        return self._resolve(system_prompt, user_prompt), Usage(
+            reason="fixture LLM: no provider call was made"
+        )
+
     async def stream(
         self,
         messages: list[dict[str, str]],
@@ -177,9 +196,12 @@ class FixtureLLMService(LLMService):
         model: str | None = None,
         temperature: float = 0.4,
         max_tokens: int = 2048,
+        usage_out: dict[str, Any] | None = None,
     ) -> AsyncIterator[str]:
         """Replay the recorded response as deltas, so streaming consumers (SSE,
         incremental parsing) exercise their real chunk-handling path."""
+        if usage_out is not None:
+            usage_out["reason"] = "fixture LLM: no provider call was made"
         system_prompt, user_prompt = self._split_messages(messages)
         text = self._resolve(system_prompt, user_prompt)
         step = 24
@@ -190,12 +212,15 @@ class FixtureLLMService(LLMService):
 class RecordingLLMService(LLMService):
     """Real provider calls that also write each (prompt, response) pair to disk.
 
-    Selected by ``LLM_FIXTURE_MODE=record``. It exists as a subclass so that
-    ``src/llm/client.py`` stays byte-for-byte untouched: with the fixture mode off
-    (the default) nothing in the v1 path changes.
+    Selected by ``LLM_FIXTURE_MODE=record``. It exists as a subclass so the v1 path is
+    untouched with the fixture mode off (the default).
+
+    The hook is ``complete_with_usage`` rather than ``complete`` because the base
+    ``complete`` delegates to it: overriding the delegate records both entry points, while
+    overriding ``complete`` would record only one of the two.
     """
 
-    async def complete(
+    async def complete_with_usage(
         self,
         system_prompt: str,
         user_prompt: str,
@@ -204,8 +229,8 @@ class RecordingLLMService(LLMService):
         temperature: float = 0.3,
         max_tokens: int = 4096,
         json_mode: bool = False,
-    ) -> str:
-        response = await super().complete(
+    ) -> tuple[str, Usage]:
+        response, usage = await super().complete_with_usage(
             system_prompt,
             user_prompt,
             model=model,
@@ -224,7 +249,7 @@ class RecordingLLMService(LLMService):
             )
         except (OSError, LLMError) as exc:  # recording must never break the call
             logger.warning("Could not record LLM fixture %s: %s", key, exc)
-        return response
+        return response, usage
 
 
 class FixtureEmbeddingService(EmbeddingService):

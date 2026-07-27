@@ -446,20 +446,32 @@ class ProbeService:
         elif existing is not None:
             # The stored verdict is served; no new hand is dealt (§3.4).
             return self._session_for(existing, node=node)
-        elif _value(state.state) in (LEARNING, MASTERED, NEEDS_REVIEW):
-            # Past the probe with no scored row: the diagnostic probe of §7.1. The
-            # probe is over for this node until a re-probe is authorized.
+        else:
             latest = await self.probe_repo.latest(user_id=user_id, node_id=node.id)
-            closed: ProbeVerdict = (
-                "mastered" if _value(state.state) == MASTERED else "learning"
-            )
-            return ProbeSession(
-                probe=latest,
-                items=[],
-                reused=True,
-                verdict=closed,
-                diagnostic=bool(latest is not None and not latest.scored),
-            )
+            if self._still_open(latest, schema_version=schema_version):
+                # The hand already dealt, whatever ``scored`` says.
+                #
+                # ``get_scored`` above cannot see a **diagnostic** probe, because §7.1
+                # writes it with ``scored=False``. Without this branch every reopening of
+                # the node dealt a brand-new ``node_probes`` row for a self-declared
+                # beginner — and ``ProbeRunner`` fires the mutation from a mount effect, so
+                # a page reload was enough — with no upper bound, and with a fresh
+                # ``runtime_fast`` call each time in any course whose probe pre-generation
+                # had degraded.
+                return self._session_for(latest, node=node)  # type: ignore[arg-type]
+            if _value(state.state) in (LEARNING, MASTERED, NEEDS_REVIEW):
+                # Past the probe with no scored row: the diagnostic probe of §7.1, already
+                # answered. The probe is over for this node until a re-probe is authorized.
+                closed: ProbeVerdict = (
+                    "mastered" if _value(state.state) == MASTERED else "learning"
+                )
+                return ProbeSession(
+                    probe=latest,
+                    items=[],
+                    reused=True,
+                    verdict=closed,
+                    diagnostic=bool(latest is not None and not latest.scored),
+                )
 
         items, answer_key, model = await self.build_items(
             node=node, source_context=source_context
@@ -490,6 +502,18 @@ class ProbeService:
             verdict=None,
             diagnostic=diagnostic,
         )
+
+    @staticmethod
+    def _still_open(probe: Any, *, schema_version: int) -> bool:
+        """An already-dealt hand this call must serve instead of dealing another.
+
+        ``completed_at is None`` is the whole test for "unanswered"; the
+        ``schema_version`` guard is what keeps a probe written against an older version of
+        the graph from being handed back after the creator edited the node.
+        """
+        if probe is None or probe.completed_at is not None:
+            return False
+        return int(getattr(probe, "schema_version", schema_version)) == schema_version
 
     async def _authorize_reprobe(self, *, state: Any, existing: Any, now: datetime) -> None:
         """Re-probe only from ``needs_review`` and only 7 days after the last one (§3.4)."""

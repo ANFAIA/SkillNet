@@ -1,0 +1,2 @@
+root = Stack([TextContent("Comprueba el plazo antes de aceptar una devolucion.", "lead"), ficha, Callout("warn", "Pasados 30 dias no se acepta la devolucion.")], "md")
+ficha = Card("Comprobacion del plazo", [TextContent("Compara la fecha del ticket con la de hoy.", "body")])

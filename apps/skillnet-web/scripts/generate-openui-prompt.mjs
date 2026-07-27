@@ -98,16 +98,23 @@ const PREAMBLE = [
 
 const ADDITIONAL_RULES = [
   'SkillNet 1 — Una declaracion por linea. Ningun salto de linea literal dentro de una ' +
-    'comilla: escribe \\n. Cada salto de linea real cierra un bloque.',
+    'comilla: escribe \\n. Cada salto de linea real cierra un bloque. Un bloque anidado ' +
+    'en linea dentro del array de su padre es valido, pero se prefiere declararlo en su ' +
+    'propia linea y referenciarlo por id: asi el aprendiz ve la pantalla montarse ' +
+    'mientras se genera, en vez de esperar a que termine la linea entera.',
   'SkillNet 2 — Comilla doble dentro de un texto: escribela \\". Nunca sin escapar.',
   'SkillNet 3 — Table.rows es un array de arrays de texto, obligatoriamente: ' +
     'Table(["A", "B"], [["1", "2"], ["3", "4"]]).',
+  // Inline nesting is deliberately NOT in this list: it is part of OpenUI Lang, the
+  // signature block above recommends it as an option, and the backend parser accepts it
+  // since 2026-07-27 (flattening it with synthetic ids). Teaching a construction and
+  // then rejecting it was measured to cost the whole repair loop against a 7B model.
   'SkillNet 4 — Esto ANULA la regla de sintaxis 3 de arriba: en SkillNet NO existen los ' +
-    'booleanos, ni null, ni los objetos {...}, ni el anidado inline sin id, ni los ' +
+    'booleanos, ni null, ni los objetos {...}, ni los ' +
     'comentarios //, ni la aritmetica, ni las variables $estado, ni los builtins @Nombre, ' +
     'ni Query(...), ni Mutation(...), ni Action(...). Un programa que use cualquiera de esas ' +
     'formas se rechaza entero. Los unicos argumentos validos son texto entre comillas, ' +
-    'numeros, arrays y referencias por id sin comillas.',
+    'numeros, arrays, referencias por id sin comillas y llamadas a bloques del catalogo.',
   `SkillNet 5 — Como maximo ${MAX_COMPONENTS} bloques en total.`,
   `SkillNet 6 — Como maximo ${MAX_ROOT_CHILDREN} elementos en el nivel raiz.`,
   'SkillNet 7 — El bloque raiz es un Stack o un Card, y ningun otro bloque lo referencia.',

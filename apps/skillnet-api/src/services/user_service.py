@@ -2,7 +2,7 @@
 
 import secrets
 import uuid
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 
 from fastapi_users.password import PasswordHelper
 
@@ -121,6 +121,7 @@ class UserService:
         user: User,
         full_name: str | None = None,
         learning_profile: str | None = None,
+        accessibility: Mapping[str, bool] | None = None,
     ) -> User:
         changes: dict = {}
         if full_name is not None:
@@ -129,6 +130,13 @@ class UserService:
             changes["learning_profile"] = _to_enum(
                 LearningProfile, learning_profile, "learning_profile"
             )
+        if accessibility is not None:
+            # Replace, never merge: the Settings screen submits the four
+            # checkboxes as a whole, so an unchecked box has to be able to turn
+            # a stored `true` back off. Same normalization the onboarding path
+            # applies (`learner_profile_service.complete_onboarding`), so the
+            # jsonb holds plain booleans whichever door wrote it.
+            changes["accessibility"] = {k: bool(v) for k, v in accessibility.items()}
         if not changes:
             return user
         return await self.repo.update(user, **changes)

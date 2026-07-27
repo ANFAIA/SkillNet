@@ -64,6 +64,15 @@ export interface CourseRead {
   source_document_id: string | null
   created_at: string
   module_count: number
+  /**
+   * The **effective** delivery path (§11.3), computed server-side by `resolve_delivery`.
+   *
+   * Not the raw `courses.delivery_mode` column: the server folds in the feature flag and
+   * the schema gate first, so with dynamic courses off — or with the schema still in
+   * draft — every course reads `'static'` here and no v1 screen changes. That is what
+   * makes it safe for `pages/admin/Content.tsx` to branch on it directly.
+   */
+  delivery_mode: CourseDeliveryMode
 }
 
 export type ExerciseType =
@@ -217,6 +226,12 @@ export interface EnrollmentRead {
   course_title: string
   started_at: string | null
   completed_at: string | null
+  /**
+   * Same effective value as `CourseRead.delivery_mode`, repeated here because an
+   * employee has no access to `GET /courses` (admin only) — the enrollment is the only
+   * place their own screens can read it from.
+   */
+  delivery_mode: CourseDeliveryMode
 }
 
 // --- User Skills ---

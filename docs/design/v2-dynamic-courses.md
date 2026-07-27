@@ -1451,13 +1451,24 @@ ident      = ("a".."z" | "A".."Z" | "_") { "a".."z" | "A".."Z" | "0".."9" | "_" 
 call       = comp_name "(" [ arg { "," arg } ] ")" ;
 comp_name  = "Stack" | "TextContent" | "Card" | "Callout" | "StepSequence"
            | "Table" | "CodeBlock" | "Chart" | "QuizItem" ;
-arg        = string | number | array | ident ;
+arg        = string | number | array | ident | call ;
 array      = "[" [ arg { "," arg } ] "]" ;
 string     = '"' { char | escape } '"' ;
 escape     = "\" ( '"' | "\" | "n" ) ;
 char       = <cualquier carácter excepto '"', '\' y newline> ;
 number     = [ "-" ] digit { digit } [ "." digit { digit } ] ;
 ```
+
+**`arg = … | call` es de 2026-07-27** (`docs/design/openui-adoption.md` §4 bis). Una llamada anidada
+en línea, `root = Stack([TextContent("Hola.", "lead")], "md")`, es OpenUI Lang válido y el bloque de
+firmas que genera `library.prompt()` la ofrece; rechazarla era un subconjunto nuestro, no una regla
+del estándar, y le costó el bucle de reparación entero a un modelo de 7B. `parse` la **aplana** a la
+lista plana de la `UISpec` con ids sintéticos deterministas (`root_1`, `root_1_1`, …), así que la
+regla 4 de §5.2 se cuenta después de aplanar; sólo tiene sentido donde el kit declara un `ref[]`
+(`Stack.children`, `Card.children`) y en cualquier otra posición es un error con nombre propio; y la
+profundidad por línea está topada (16) para que la recursión no sea un vector de caída. `serialize`
+sigue emitiendo **sólo** la forma referenciada: es la forma canónica, es la que su prompt recomienda
+para streaming y es la única que da a cada bloque un `statementId` real en el navegador.
 
 Las tres reglas que el prompt repite en imperativo y que las fixtures malformadas cubren una a una:
 
@@ -2436,7 +2447,7 @@ funciona igual.
 | Nivel | Fichero | Qué comprueba | Necesita |
 |---|---|---|---|
 | Unit | `tests/test_render_openui.py` | `parse()` de 8 dialectos válidos → golden JSON; 6 malformados → `RenderParseError`, incluidas las 3 reglas de la gramática (§5.4); `parse_partial` sobre truncados en **cada** posición mediante un `@pytest.mark.parametrize` sobre `range(len(raw))` — **no** con `hypothesis`, que sería una dependencia de desarrollo nueva y el límite de dependencias de `AGENTS.md` exige justificarla para nada que un bucle no dé | nada |
-| Unit | `tests/test_render_roundtrip.py` | `parse(serialize(spec)) == spec` para el backend `openui` sobre 10 specs golden, **incluidos** specs con `QuizItem`, `Stack` anidado y `Table` con `rows` anidadas | nada |
+| Unit | `tests/test_render_roundtrip.py` | `parse(serialize(spec)) == spec` para el backend `openui` sobre 11 specs golden (los 10 de aquí más `inline_nested`, que fija los ids sintéticos del anidado en línea), **incluidos** specs con `QuizItem`, `Stack` anidado y `Table` con `rows` anidadas | nada |
 | Unit | `tests/test_render_kit.py` | El catálogo congelado (10 nombres, orden posicional prop a prop, los 6 `item_type` del enum existente) y las 7 reglas: `UISpec` rechaza >12 componentes, ciclos, refs colgantes, `QuizItem` con `correct`, y `explanation`/`mixed` sin bloque `lead` inicial | nada |
 | Unit | `tests/test_render_prompt_artifact.py` | **La alarma de deriva** entre `src/render/kit.py` y el artefacto que genera `library.prompt()`: digest normalizado del catálogo, `prompt_sha256`, que el prompt anuncie las 9 firmas y ninguna más, que **no** enseñe sintaxis reactiva, y que las versiones de `@openuidev` sean las auditadas | nada |
 | Unit | `tests/test_render_gate.py` | 15 payloads reactivos (`Mutation` suelta, `Query` autodisparada, `refreshInterval`, `@OpenUrl` con `javascript:`, `@ToAssistant`, `$estado`, ternario, builtins…) rechazados, y 6 contenidos legítimos aceptados — incluida la prosa que menciona `Query()` y `$300`, que es el falso positivo medido de un grep de palabras clave; topes de tamaño; `canonicalize()` devuelve la re-serialización y no la entrada | nada |

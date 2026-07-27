@@ -5,6 +5,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Query, Response
 
+from src.config import settings
 from src.core.exceptions import ForbiddenError, NotFoundError, ValidationError
 from src.deps.auth import AdminUser, CurrentUser
 from src.deps.db import DBSession
@@ -24,10 +25,24 @@ from src.schemas.course import (
     ModuleRead,
 )
 from src.schemas.exercise import ExerciseRead, strip_answers
+from src.services.course_delivery import resolve_delivery
 from src.services.course_service import CourseService
 from src.services.generation_service import GenerationService
 
 router = APIRouter(prefix="/courses", tags=["Courses"])
+
+
+def _delivery(course: Course) -> str:
+    """The one thing v2 adds to this v1 file: which path this course is actually on.
+
+    ``resolve_delivery`` and not ``course.delivery_mode``, because the column is only one
+    of the three conditions (§10.1: flag ``on``, course opted in, schema validated). A
+    course flagged ``dynamic`` whose schema is still in draft is served by the v1 tree, and
+    a badge reading "dinamico" over it would send the creator looking for a node map that
+    does not exist. With the flag ``off`` every course reads ``static`` and nothing in the
+    v1 surface changes at all, which is the condition this field ships under.
+    """
+    return resolve_delivery(course, settings)
 
 
 def _service(db: DBSession) -> CourseService:
@@ -53,6 +68,7 @@ def _summary(course: Course, module_count: int | None) -> CourseRead:
         source_document_id=course.source_document_id,
         created_at=course.created_at,
         module_count=module_count,
+        delivery_mode=_delivery(course),
     )
 
 
@@ -101,6 +117,7 @@ def _detail(course: Course, *, strip: bool) -> CourseDetail:
         source_document_id=course.source_document_id,
         created_at=course.created_at,
         module_count=len(course.modules),
+        delivery_mode=_delivery(course),
         modules=modules,
     )
 

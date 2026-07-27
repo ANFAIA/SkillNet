@@ -58,13 +58,19 @@ export interface ProfileUpdate {
    */
   learning_profile?: LearningPreset
   /**
-   * The four reading settings of question 5.
+   * The four reading settings of question 5 (`users.accessibility`).
    *
    * The onboarding wizard does **not** write them through here: `POST /onboarding`
    * persists `learner_profiles` + `users.learning_profile` + `users.accessibility`
-   * in one transaction (§11.2), which is the only atomic path. This field is for
-   * the Settings screen, and it needs `UserSelfUpdate` to grow an `accessibility`
-   * field server-side before it does anything — see the report for B8.
+   * in one transaction (§11.2), which is the only atomic path. This field is the
+   * Settings-screen path for changing them afterwards, and `UserSelfUpdate` accepts
+   * it server-side with the wizard's own validation (`AccessibilitySubmit`,
+   * `extra='forbid'`), so an unknown key is a `422` rather than a silent drop.
+   *
+   * Send the **whole** object, not a partial: the server replaces the stored value
+   * instead of merging, which is what lets an unchecked box turn a setting back off.
+   * `short_blocks` feeds `effective_density` and therefore the render `cache_key`
+   * (§3.1), so the next node the learner opens is rendered for the new bucket.
    */
   accessibility?: AccessibilitySettings
 }

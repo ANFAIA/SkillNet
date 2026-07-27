@@ -50,7 +50,7 @@ from src.agents.runtime.nodes import (
     split_answer_key,
 )
 from src.config import settings
-from src.llm.client import LLMConfig
+from src.llm.client import LLMConfig, Usage
 from src.llm.fixtures import FixtureLLMService, write_fixture
 from src.llm.prompts.runtime import (
     ANSWER_KEY_SENTINEL,
@@ -707,6 +707,41 @@ async def test_the_spec_never_carries_an_answer_and_the_key_has_its_own_column(
     assert final["error"] is None
 
 
+async def test_the_finished_render_is_pinned_for_the_learner_who_asked(
+    harness: Harness,
+) -> None:
+    """The last step of a render is being reachable.
+
+    ``NodeRenderService`` pins only on a *cache hit* and ``GET /nodes/{id}/render``
+    recomputes nothing on purpose (the "Estable" row of §5.5), so if the graph does not pin
+    what it just wrote, the learner whose request paid for the generation polls ``202``
+    forever while everybody who arrives afterwards gets the render for free. It is also the
+    only way back to a forced refresh, whose ``cache_key`` is salted and therefore
+    un-lookupable by design.
+    """
+    harness.session.node_state.active_render_id = None
+    harness.session.node_state.render_pinned = False
+
+    await run_graph(make_request_state())
+    render = harness.render()
+
+    assert harness.session.node_state.active_render_id == render.id
+    assert harness.session.node_state.render_pinned is True
+
+
+async def test_a_preview_pins_nothing(harness: Harness) -> None:
+    """§11.3: a preview generates with the admin's profile and must not touch
+    ``learner_node_states`` — that is half of what makes ``shadow`` mode safe."""
+    harness.session.node_state.active_render_id = None
+    harness.session.node_state.render_pinned = False
+
+    await run_graph(make_request_state(is_preview=True))
+
+    assert harness.render().is_preview is True
+    assert harness.session.node_state.active_render_id is None
+    assert harness.session.node_state.render_pinned is False
+
+
 async def test_the_usage_of_both_calls_is_logged_with_its_tier(harness: Harness) -> None:
     """``llm_usage_log`` is what settles the fast/heavy ratio with data (§3.5, §14.2 #1)."""
     await run_graph(make_request_state())
@@ -715,6 +750,67 @@ async def test_the_usage_of_both_calls_is_logged_with_its_tier(harness: Harness)
     assert ("decide_formato", "runtime_fast", "fast") in logged
     assert ("genera_ui", "runtime_fast", "fast") in logged
     assert all(row.model == FIXTURE_MODEL for row in harness.session.usage)
+
+
+class UsageReportingLLM(FixtureLLMService):
+    """A fixture LLM that also reports usage, standing in for a real provider.
+
+    The fixtures themselves cannot report tokens (no call was made), so without this the
+    only thing the suite could assert about §9.3's cost model is that the columns exist.
+    """
+
+    async def complete_with_usage(self, system_prompt, user_prompt, **kwargs):
+        text, _usage = await super().complete_with_usage(
+            system_prompt, user_prompt, **kwargs
+        )
+        return text, Usage(tokens_in=11, tokens_out=22)
+
+    async def stream(self, messages, *, usage_out=None, **kwargs):
+        if usage_out is not None:
+            usage_out.update({"tokens_in": 100, "tokens_out": 200, "reason": None})
+        async for piece in super().stream(messages, **kwargs):
+            yield piece
+
+
+async def test_the_provider_token_counts_reach_both_tables(
+    harness: Harness, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """§9.3 cannot be settled with latency: without tokens, ``llm_usage_log`` measures
+    nothing about money and the shared ``cache_key`` stays an unverified hypothesis.
+
+    Both calls count towards the render: ``node_renders.tokens_*`` is the cost of the
+    screen, not of one of the two calls that produced it.
+    """
+    monkeypatch.setattr(
+        runtime_nodes,
+        "tier_llm",
+        lambda org_settings, tier: UsageReportingLLM(
+            LLMConfig(model=FIXTURE_MODEL, api_base=None, api_key=None),
+            directory=harness.fixture_dir,
+        ),
+    )
+
+    await run_graph(make_request_state())
+    render = harness.render()
+
+    assert render.tokens_in == 111
+    assert render.tokens_out == 222
+    by_use_case = {row.use_case: row for row in harness.session.usage}
+    assert (by_use_case["decide_formato"].tokens_in, by_use_case["decide_formato"].tokens_out) == (11, 22)
+    assert (by_use_case["genera_ui"].tokens_in, by_use_case["genera_ui"].tokens_out) == (100, 200)
+
+
+async def test_a_provider_that_reports_nothing_leaves_null_not_zero(
+    harness: Harness,
+) -> None:
+    """``0`` claims the call was free; ``None`` says nobody counted. Coalescing the second
+    into the first is what would make the ratio *look* measured."""
+    await run_graph(make_request_state())
+    render = harness.render()
+
+    assert render.tokens_in is None
+    assert render.tokens_out is None
+    assert all(row.tokens_in is None for row in harness.session.usage)
 
 
 async def test_streaming_announces_each_block_as_it_completes(harness: Harness) -> None:
@@ -1112,6 +1208,133 @@ async def test_the_second_learner_of_a_bucket_never_starts_a_generation(
     assert len(spawned) == 1, "the cache hit must not start a second generation"
 
 
+async def test_force_regenerates_instead_of_returning_the_cached_row(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """"Actualizar esta leccion" (§5.5) has to *cost* something, or it is decoration.
+
+    Nothing in the ``cache_key`` moves when the button is pressed — ``mastery`` is excluded
+    by design and ``scaffold_band`` was frozen when the probe closed — so the recomputed key
+    is the same key, and a cache read with it hands back the very render the learner asked
+    to replace. This asserts the two halves of the fix together: a second generation *is*
+    started, and the row the rest of the bucket is reading survives untouched.
+    """
+    from src.services import node_render_service
+    from src.services.node_render_service import NodeRenderService
+
+    monkeypatch.setattr(settings, "LLM_MODEL", FIXTURE_MODEL)
+    monkeypatch.setattr(settings, "LLM_RUNTIME_FAST_MODEL", None)
+    monkeypatch.setattr(settings, "LLM_RUNTIME_HEAVY_MODEL", None)
+
+    node = make_node(reviewed_at=_now())
+    course = make_course()
+    user = FakeUser(id=USER_ID, org_id=ORG_ID)
+    session = FakeSession(
+        node=node,
+        course=course,
+        user=user,
+        profile=make_profile(user_id=USER_ID),
+        node_state=None,
+    )
+
+    spawned: list[dict] = []
+    monkeypatch.setattr(
+        "src.agents.runtime.runner.spawn_node_render",
+        lambda state: spawned.append(dict(state)),
+    )
+    node_render_service._INFLIGHT.clear()
+
+    service = NodeRenderService(session)
+    first = await service.request_render(user=user, node=node, course=course)
+    assert first.cached is False
+    cache_key = spawned[0]["cache_key"]
+
+    ready = NodeRender(
+        org_id=ORG_ID,
+        node_id=NODE_ID,
+        cache_key=cache_key,
+        ui_format=UiFormat.EXPLANATION,
+        ui_spec={"components": []},
+        answer_key={},
+        dialect='root = Stack([], "md")\n',
+        catalog_version="skillnet-ui/1+abc",
+        library_version="@openuidev/lang-core@0.2.10",
+        backend="openui",
+        model=FIXTURE_MODEL,
+        tier="fast",
+        status=NodeRenderStatus.READY,
+        generated_by=USER_ID,
+    )
+    ready.id = uuid.uuid4()
+    ready.is_preview = False
+    session.renders.append(ready)
+    node_render_service._INFLIGHT.clear()
+
+    # Without the force, the same request is the cache hit that pins the shared row.
+    cached = await service.request_render(user=user, node=node, course=course)
+    assert cached.cached is True
+    assert cached.render_id == ready.id
+    assert len(spawned) == 1
+
+    forced = await service.request_render(
+        user=user, node=node, course=course, force=True
+    )
+
+    assert forced.cached is False, "force must not answer from the cache"
+    assert forced.request_id != ""
+    assert len(spawned) == 2, "force must start a second generation"
+
+    refreshed_key = spawned[1]["cache_key"]
+    assert refreshed_key.startswith("refresh:")
+    assert refreshed_key != cache_key, (
+        "reusing the key would make `claim` return the served row and the graph would "
+        "overwrite what the rest of the bucket has open"
+    )
+    # The previous render is still there, so `GET /nodes/{id}/renders` keeps telling the
+    # truth about what this learner was served.
+    assert ready in session.renders
+    assert ready.status is NodeRenderStatus.READY
+    assert ready.dialect == 'root = Stack([], "md")\n'
+
+    # Two refreshes are two rows, never a collision on the globally UNIQUE key.
+    await service.request_render(user=user, node=node, course=course, force=True)
+    assert spawned[2]["cache_key"] != refreshed_key
+
+
+async def test_force_on_a_node_with_nothing_cached_keeps_the_shared_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The salt is a collision fix, not a policy: with no row under the base key there is
+    nothing to collide with, and salting anyway would quietly opt this learner out of the
+    shared cache for the rest of the node's life."""
+    from src.services import node_render_service
+    from src.services.node_render_service import NodeRenderService
+
+    monkeypatch.setattr(settings, "LLM_MODEL", FIXTURE_MODEL)
+    monkeypatch.setattr(settings, "LLM_RUNTIME_FAST_MODEL", None)
+    monkeypatch.setattr(settings, "LLM_RUNTIME_HEAVY_MODEL", None)
+
+    node = make_node(reviewed_at=_now())
+    course = make_course()
+    user = FakeUser(id=USER_ID, org_id=ORG_ID)
+    session = FakeSession(
+        node=node, course=course, user=user,
+        profile=make_profile(user_id=USER_ID), node_state=None,
+    )
+    spawned: list[dict] = []
+    monkeypatch.setattr(
+        "src.agents.runtime.runner.spawn_node_render",
+        lambda state: spawned.append(dict(state)),
+    )
+    node_render_service._INFLIGHT.clear()
+
+    forced = await NodeRenderService(session).request_render(
+        user=user, node=node, course=course, force=True
+    )
+    assert forced.cached is False
+    assert not spawned[0]["cache_key"].startswith("refresh:")
+
+
 async def test_a_preview_is_salted_out_of_the_cache(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -1281,6 +1504,56 @@ def test_the_ui_generator_prompt_is_the_generated_artefact_not_a_copy() -> None:
         assert forbidden not in system.replace("ni Query(...)", "").replace(
             "ni Mutation(...)", ""
         )
+
+
+#: The corrected halves of the MAL/BIEN block in ``_UI_REPAIR_HEADER``. Every one of them
+#: has to be a program the validator accepts, or the repair turn is teaching the mistake
+#: it is trying to fix.
+_REPAIR_GOOD = (
+    'root = Stack([intro], "md")',
+    'intro = TextContent("Las devoluciones se aceptan durante 30 dias.", "lead")',
+    'aviso = Callout("info", "Dijo \\"no\\" y colgo.")',
+    'root = Stack([TextContent("Hola.", "lead")], "md")',
+)
+
+#: The wrong halves. Each is a real failure mode measured against qwen2.5:7b-instruct
+#: (HALLAZGOS-MODELO-LOCAL.md), and each must still be rejected — a counterexample that
+#: quietly became legal would be worse than no counterexample.
+_REPAIR_BAD = (
+    'root = Stack(children = [intro], gap = "md")',
+    'aviso = Callout("info", "Dijo "no" y colgo.")',
+)
+
+
+def test_the_repair_prompt_pairs_every_mistake_with_its_correction() -> None:
+    """A named counterexample beats a rule in prose for a small model (§4.2)."""
+    system = ui_repair_system()
+    assert system.count("MAL") == len(_REPAIR_BAD) + 1  # + the split-over-lines one
+    assert system.count("BIEN") == system.count("MAL")
+    assert "argumentos con nombre" in system
+    assert "partida en varias lineas" in system
+    # The split-call counterexample really is split, and its correction really is not.
+    assert "intro = TextContent(\n" in system
+    assert f"{_REPAIR_GOOD[1]}\n" in system
+
+
+def test_every_corrected_example_in_the_repair_prompt_is_valid_dialect() -> None:
+    system = ui_repair_system()
+    backend = get_render_backend("openui")
+    for good in _REPAIR_GOOD:
+        assert good in system, good
+    assert backend.parse(f"{_REPAIR_GOOD[0]}\n{_REPAIR_GOOD[1]}\n").root == "root"
+    assert backend.parse(f'root = Stack([aviso], "md")\n{_REPAIR_GOOD[2]}\n').root == "root"
+    # The inline form, which the parser accepts since 2026-07-27 and the prompt says so.
+    assert len(backend.parse(f"{_REPAIR_GOOD[3]}\n").components) == 2
+
+
+def test_every_wrong_example_in_the_repair_prompt_is_still_rejected() -> None:
+    backend = get_render_backend("openui")
+    for bad in _REPAIR_BAD:
+        assert bad in ui_repair_system(), bad
+        with pytest.raises(RenderError):
+            backend.parse(f'{bad}\nintro = TextContent("H.", "lead")\n')
 
 
 def _now():

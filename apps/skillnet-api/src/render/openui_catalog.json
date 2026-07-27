@@ -255,6 +255,6 @@
   "canonical_catalog": "catalog: skillnet-ui/1\nroot: Stack\nStack(children:ref[], gap:enum(sm|md|lg))\nTextContent(text:string, variant:enum(body|lead|caption))\nCard(title:string, children:ref[])\nCallout(tone:enum(info|warn|success), text:string)\nStepSequence(title:string, steps:string[])\nTable(headers:string[], rows:string[][])\nCodeBlock(language:string, code:string)\nChart(kind:enum(bar|line), title:string, labels:string[], values:number[])\nQuizItem(item_id:string, item_type:enum(test|true_false|fill_blank|order_steps|practical_case|dialogue), bloom_level:enum(remember|understand|apply|analyze|evaluate|create), question:string, options:string[])\n",
   "catalog_digest": "ecaa7d56dcff456f96a1d905619f3b4d925e911f8b360a9397334dada3af6cd8",
   "catalog_version": "skillnet-ui/1+ecaa7d56dcff",
-  "prompt_sha256": "a35ad37b20fa8a8457cb1b9455a32867bee28163c8ee96e716618cbd80a9222b",
-  "prompt_chars": 6420
+  "prompt_sha256": "b2f73e1c799ece5a765139504c35f1774909905e77904dc66a2d41386d2c728c",
+  "prompt_chars": 6671
 }

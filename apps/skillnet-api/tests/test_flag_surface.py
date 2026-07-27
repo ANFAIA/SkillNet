@@ -69,7 +69,9 @@ EMPLOYEE_SURFACE: tuple[tuple[str, str, dict | None], ...] = (
     ("POST", f"/nodes/{NODE_ID}/render", {"force": False}),
     ("GET", f"/nodes/{NODE_ID}/render", None),
     ("GET", f"/nodes/{NODE_ID}/renders", None),
+    ("GET", f"/nodes/{NODE_ID}/renders/{RENDER_ID}", None),
     ("GET", f"/nodes/{NODE_ID}/render/stream?request_id=abc", None),
+    ("GET", "/render-kit", None),
     (
         "POST",
         f"/nodes/{NODE_ID}/answer",

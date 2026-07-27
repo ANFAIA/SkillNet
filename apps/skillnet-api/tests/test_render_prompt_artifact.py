@@ -243,8 +243,27 @@ def test_the_prompt_carries_the_three_escape_rules() -> None:
 
 def test_the_prompt_forbids_the_syntax_the_standard_has_and_we_reject() -> None:
     prompt = render_prompt()
-    for forbidden in ("booleanos", "null", "objetos", "anidado inline", "comentarios"):
+    for forbidden in ("booleanos", "null", "objetos", "comentarios"):
         assert forbidden in prompt
+
+
+def test_the_prompt_never_forbids_a_construction_the_parser_accepts() -> None:
+    """Inline sub-components are OpenUI Lang and the parser flattens them (§5.4).
+
+    The signature block the library generates offers them ("Sub-components can be inline
+    or referenced"); SkillNet rule 4 used to list them among the forms that reject the
+    whole program, which was false the moment the parser learnt to flatten them — and a
+    false statement in the contract with the model is what BUG 2 of the local-model run
+    was about. Preferring references is advice and stays; claiming rejection is a lie and
+    is gone.
+    """
+    prompt = render_prompt()
+    rule_four = prompt[prompt.index("SkillNet 4") : prompt.index("SkillNet 5")]
+    assert "se rechaza entero" in rule_four
+    assert "anidado inline" not in rule_four
+    rule_one = prompt[prompt.index("SkillNet 1") : prompt.index("SkillNet 2")]
+    assert "anidado en linea dentro del array de su padre es valido" in rule_one
+    assert "se prefiere declararlo en su propia linea" in rule_one
 
 
 def test_the_prompt_declares_the_root_container() -> None:

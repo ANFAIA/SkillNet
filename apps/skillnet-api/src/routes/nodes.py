@@ -58,6 +58,8 @@ from src.models import (
     Organization,
     UserRole,
 )
+from src.render.prompt import load_artifact
+from src.render.spec import UI_SPEC_VERSION
 from src.repositories.audit_log_repo import AuditLogRepository, node_subject
 from src.repositories.course_node_repo import CourseNodeRepository
 from src.repositories.course_repo import CourseRepository
@@ -68,7 +70,8 @@ from src.repositories.learner_profile_repo import LearnerProfileRepository
 from src.repositories.learning_event_repo import EventInput, LearningEventRepository
 from src.repositories.node_attempt_repo import NodeAttemptRepository
 from src.repositories.node_probe_repo import NodeProbeRepository
-from src.repositories.node_render_repo import NodeRenderRepository
+from src.repositories.node_render_repo import SERVABLE_STATUSES, NodeRenderRepository
+from src.repositories.node_render_view_repo import NodeRenderViewRepository
 from src.repositories.skill_repo import SkillRepository
 from src.schemas.node import (
     DEFAULT_ESTIMATED_MINUTES,
@@ -89,6 +92,8 @@ from src.schemas.node import (
     NodeWaiveRequest,
     ProbeAnswerRequest,
     ProbeAnswerResult,
+    UIKitComponentRead,
+    UIKitRead,
 )
 from src.schemas.probe import ProbeSessionRead
 from src.services.course_delivery import resolve_delivery
@@ -115,6 +120,7 @@ from src.services.node_grading import (
 )
 from src.services.node_render_service import (
     NodeRenderService,
+    ServedRender,
     in_flight_for,
     owner_of_request,
 )
@@ -131,6 +137,14 @@ router = APIRouter(
 #: the v1 ``courses`` surface. Registered after ``courses`` in ``main.py``; no path collides.
 course_nodes_router = APIRouter(
     prefix="/courses",
+    tags=["Nodes"],
+    dependencies=[Depends(require_dynamic_courses("employee"))],
+)
+
+#: ``GET /render-kit`` (§11.3). Its own router because the path has no ``/nodes`` prefix
+#: and it is the one route here that reads no per-learner data at all.
+render_kit_router = APIRouter(
+    prefix="/render-kit",
     tags=["Nodes"],
     dependencies=[Depends(require_dynamic_courses("employee"))],
 )
@@ -207,6 +221,27 @@ async def _feedback_difficulty(
     return (await db.execute(query)).scalars().first()
 
 
+async def _assert_enrolled(db: DBSession, user: Any, course_id: uuid.UUID) -> None:
+    """The v1 rule of ``GET /courses/{id}`` (``routes/courses.py``), applied to v2.
+
+    Org scoping is **not** an access rule. ``CourseNodeRepository.get_scoped`` and
+    ``CourseRepository.get_scoped`` only prove the row belongs to the caller's
+    organisation, which every colleague shares; without this check any authenticated
+    employee could enumerate the node graph of a course nobody assigned them, open its
+    probes, and make ``POST /nodes/{id}/render`` spend real tokens on a node they were
+    never meant to see. v1 forbids exactly that over the same data.
+
+    Admins are exempt for the same reason they are in v1: the preview of §11.3 and the
+    waiver of §7.4 are creator tools, and nobody enrolls a creator in the course they are
+    reviewing.
+    """
+    if _is_admin(user):
+        return
+    enrollment = await EnrollmentRepository(db).get_by_user_and_course(user.id, course_id)
+    if enrollment is None:
+        raise ForbiddenError("You are not enrolled in this course")
+
+
 async def _load_dynamic_node(
     db: DBSession, user: Any, node_id: uuid.UUID
 ) -> tuple[CourseNode, Course]:
@@ -215,6 +250,9 @@ async def _load_dynamic_node(
     ``resolve_delivery`` is the single decision point (flag ``on`` + course opted in +
     schema validated). A node of a static course is not "forbidden", it does not exist as
     far as this surface is concerned.
+
+    Enrollment is checked here rather than in each route because *every* node route goes
+    through this function: a route added later inherits the gate instead of forgetting it.
     """
     node = await CourseNodeRepository(db).get_scoped(node_id, user.org_id)
     if node is None or node.archived:
@@ -222,6 +260,7 @@ async def _load_dynamic_node(
     course = await CourseRepository(db).get_by_id(node.course_id)
     if course is None or resolve_delivery(course, settings) != "dynamic":
         raise NotFoundError("course_nodes", str(node_id))
+    await _assert_enrolled(db, user, course.id)
     return node, course
 
 
@@ -272,6 +311,7 @@ async def list_course_nodes(
     course = await CourseRepository(db).get_scoped(course_id, user.org_id)
     if course is None or resolve_delivery(course, settings) != "dynamic":
         raise NotFoundError("courses", str(course_id))
+    await _assert_enrolled(db, user, course.id)
 
     node_repo = CourseNodeRepository(db)
     nodes = list(await node_repo.list_for_course(course_id, include_archived=False))
@@ -555,6 +595,34 @@ async def list_renders(
             for render in renders
         ]
     )
+
+
+@router.get("/{node_id}/renders/{render_id}", response_model=NodeRenderRead)
+async def get_render_version(
+    user: CurrentUser, db: DBSession, node_id: uuid.UUID, render_id: uuid.UUID
+) -> NodeRenderRead:
+    """One version out of the list above — what makes "Ver la version anterior" real.
+
+    Without this route the version list was a list of dead links: the client could only
+    reopen a version it still happened to be holding in memory from the current session,
+    so a reload emptied the feature. The authorization is the ``node_render_views`` row,
+    not the org: ``node_renders`` is shared by the whole bucket, so "a render of a node in
+    my organisation" would hand a learner screens they were never served. A row in
+    ``node_render_views`` is the record that *this* person was shown *this* render (§2.1),
+    which is exactly the set the history endpoint lists.
+
+    Nothing is pinned and no view is recorded: reopening an old version is looking back at
+    something already seen, not being served it, and moving ``first_seen_at`` would corrupt
+    the evidence a certificate is justified with.
+    """
+    node, _course = await _load_dynamic_node(db, user, node_id)
+    render = await NodeRenderRepository(db).get_scoped(render_id, user.org_id)
+    if render is None or render.node_id != node.id or render.status not in SERVABLE_STATUSES:
+        raise NotFoundError("node_renders", str(render_id))
+    seen = await NodeRenderViewRepository(db).get(user_id=user.id, render_id=render.id)
+    if seen is None:
+        raise NotFoundError("node_renders", str(render_id))
+    return NodeRenderRead.of(ServedRender.of(render, cached=True))
 
 
 @router.get("/{node_id}/render/stream")
@@ -842,7 +910,9 @@ async def record_events(
         EventInput(
             type=event.type,
             element=event.element,
-            node_id=event.node_id or node.id,
+            # The path node, always. See ``NodeEventInput``: a body-supplied node id was
+            # only bounded by the foreign key, which accepts any node in any organisation.
+            node_id=node.id,
             element_id=event.element_id,
             ms=event.ms,
         )
@@ -891,6 +961,54 @@ async def waive_node(
     )
     await db.commit()
     return NodeStateRead.of(state)
+
+
+# --------------------------------------------------------------------------------------
+# GET /render-kit
+# --------------------------------------------------------------------------------------
+@render_kit_router.get("", response_model=UIKitRead)
+async def get_render_kit(user: CurrentUser) -> UIKitRead:
+    """The frozen kit, served (§11.3).
+
+    Read straight from the build-time artefacts (``load_artifact`` is ``lru_cache``d), so
+    this endpoint cannot disagree with the catalogue the prompt was generated from or with
+    the ``catalog_version`` baked into every ``cache_key``. It is a *contract*, not
+    content: no learner data is touched, which is why it takes a session-less
+    ``CurrentUser`` and no ``DBSession``.
+
+    Authenticated, and behind the same feature flag as the rest of §11.3: the component
+    list describes an unreleased surface, and there is no reason for it to be public.
+    """
+    artifact = load_artifact()
+    return UIKitRead(
+        catalog_id=artifact.catalog_id,
+        catalog_version=artifact.catalog_version,
+        catalog_digest=artifact.catalog_digest,
+        root=artifact.root,
+        ui_spec_version=UI_SPEC_VERSION,
+        library_versions={
+            name: str(version)
+            for name, version in artifact.library_versions.items()
+            if version
+        },
+        components=[
+            UIKitComponentRead(
+                name=str(component["name"]),
+                description=(
+                    str(component["description"])
+                    if component.get("description")
+                    else None
+                ),
+                signature=str(component["signature"]),
+            )
+            for component in artifact.prompt_components
+        ],
+        render_components=(
+            list(artifact.render_components)
+            if artifact.render_components is not None
+            else None
+        ),
+    )
 
 
 # --------------------------------------------------------------------------------------

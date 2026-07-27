@@ -3,6 +3,7 @@
 from pydantic import BaseModel, EmailStr, Field
 
 from src.auth.schemas import UserRead
+from src.schemas.onboarding import AccessibilitySubmit
 
 __all__ = [
     "UserRead",
@@ -37,6 +38,15 @@ class UserAdminUpdate(BaseModel):
 class UserSelfUpdate(BaseModel):
     full_name: str | None = None
     learning_profile: str | None = None
+    #: The four reading settings of question 5 (``users.accessibility``, §3.1).
+    #: The onboarding wizard writes them through ``POST /onboarding``, which is
+    #: the only atomic path (``learner_profiles`` + ``users`` in one tx, §11.2);
+    #: this is the Settings-screen path for changing them afterwards. Validation
+    #: is the *same* ``AccessibilitySubmit`` the wizard uses — ``extra='forbid'``,
+    #: four known booleans — so no unknown flag can reach the jsonb column by
+    #: either door. ``short_blocks`` feeds ``effective_density`` and therefore the
+    #: ``cache_key`` (§3.1), so this has to persist or the setting is a lie.
+    accessibility: AccessibilitySubmit | None = None
 
 
 class ResetPasswordRequest(BaseModel):
