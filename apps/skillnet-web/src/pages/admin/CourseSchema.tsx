@@ -391,9 +391,16 @@ export function CourseSchema() {
   return (
     <div>
       <div className="mb-6">
-        <Button variant="ghost" size="sm" onClick={() => navigate('/admin/contenido')}>
-          ← Contenido
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button variant="ghost" size="sm" onClick={() => navigate('/admin/contenido')}>
+            ← Contenido
+          </Button>
+          {/* The schema screen is reached from the course as often as from the list, and
+              without this the only way back to the course was the browser's back button. */}
+          <Button variant="ghost" size="sm" onClick={() => navigate(`/admin/curso/${id}`)}>
+            ← Volver al curso
+          </Button>
+        </div>
 
         <div className="flex items-center gap-3 mt-1 min-w-0">
           <h2 className="text-xl font-semibold text-text truncate min-w-0">

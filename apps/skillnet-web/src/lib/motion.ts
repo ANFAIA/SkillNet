@@ -55,10 +55,24 @@ export const spring = {
 export const transition = {
   /** Page/route transitions — quick blur-in, no scale (keeps nav snappy) */
   page: { duration: duration.normal, ease: ease.base },
+  /**
+   * Route *exit*. Deliberately shorter and accelerating: entering a screen is a
+   * deliberate act, leaving one is not (the enter/exit asymmetry of the iOS
+   * navigation controller, motion-system.md §4). Symmetric 300/300 spent 600 ms of
+   * dead time on every click in the nav.
+   */
+  pageOut: { duration: duration.fast, ease: ease.snapOut },
   /** Content swap within a page (lesson switch, tab change) */
   content: { duration: duration.normal, ease: ease.base },
   /** Layout morph (layoutId transitions) */
   layout: { duration: duration.slow, ease: ease.base },
+  /**
+   * A container settling to a new size around content that was swapped or that
+   * just arrived (wizard step height, the reserved node content area). Structural,
+   * so `medium` rather than `normal` — but not `slow`: nobody is waiting on a
+   * modal here, the content is already readable while the box catches up.
+   */
+  resize: { duration: duration.medium, ease: ease.base },
   /** Panel push-in */
   pushIn: { duration: 0.4, ease: ease.snapIn },
   /** Panel push-out */
@@ -73,11 +87,26 @@ export const transition = {
  * Page transition: quick blur-in (no scale). The scale read as "too much" on
  * every route change; blur alone keeps the iOS depth-of-field feel while staying
  * snappy and not competing with the sliding nav pill.
+ *
+ * ⚠️ `exit` is for an `AnimatePresence` whose children are **stable** — content you
+ * hand it directly, as MotionDemo does. Do **not** spread the whole preset into an
+ * `AnimatePresence mode="wait"` wrapped around a react-router `<Outlet />`.
+ *
+ * `Outlet` is not frozen: under `mode="wait"` the outgoing element stays mounted to
+ * play its exit while React re-renders its subtree against the *new* location, so the
+ * incoming page mounts inside the node that is exiting. If that page registers a
+ * `layoutId` from in there, framer never calls `safeToRemove` for the exiting key, the
+ * incoming child is never swapped in, and the whole main area is left blank at
+ * `opacity: 0` until the next navigation. That was a real, shipped bug on
+ * /empleado/cursos; both route layouts are now enter-only for this reason and pass
+ * `initial`/`animate` explicitly rather than spreading. See `AppLayout.tsx`.
  */
 export const pageTransition = {
   initial: { opacity: 0, filter: 'blur(6px)' },
-  animate: { opacity: 1, filter: 'blur(0px)' },
-  exit: { opacity: 0, filter: 'blur(6px)' },
+  animate: { opacity: 1, filter: 'blur(0px)', transition: transition.page },
+  exit: { opacity: 0, filter: 'blur(6px)', transition: transition.pageOut },
+  // Kept as the element-level default for anything the two variants above do not
+  // name; the per-variant transitions are what make the exit the fast half.
   transition: transition.page,
 } as const
 
@@ -130,6 +159,43 @@ export function slideVariants(distance: number | string = 80) {
     }),
   }
 }
+
+/**
+ * Wizard step slide, with the enter/exit asymmetry the plain `slideVariants` does
+ * not carry.
+ *
+ * A 5-screen wizard with a symmetric 300 ms slide and `AnimatePresence mode="wait"`
+ * spends 600 ms per step doing nothing — 3 s of the ≤90 s budget §6.1 sets for
+ * onboarding, and the reason the wizard *reads* long even though it is short. The
+ * outgoing step leaves in `fast` and accelerating; the incoming one still lands on
+ * the signature curve, so nothing feels rushed, only the gap disappears.
+ */
+export function stepSlideVariants(distance: number | string = 64) {
+  const base = slideVariants(distance)
+  return {
+    enter: base.enter,
+    center: { ...base.center, transition: transition.content },
+    exit: (dir: 1 | -1) => ({ ...base.exit(dir), transition: transition.pushOut }),
+  }
+}
+
+/**
+ * Generated blocks entering the node view one after another (§9.2).
+ *
+ * Implemented in CSS (`.block-arrival` in `index.css`) rather than as framer
+ * variants, because the children being staggered are produced by OpenUI's runtime:
+ * we never hold a mappable child array, only the container. These are the numbers
+ * that file mirrors — the same 60 ms cadence and the same blur + rise as
+ * `staggerItem`, so a generated lesson and a hand-written list arrive alike.
+ */
+export const blockArrival = {
+  /** Seconds between one block and the next. Matches `staggerContainer`. */
+  stagger: 0.06,
+  /** How long a single block takes to resolve. */
+  duration: duration.normal,
+  /** Blocks past this index all share the last delay — §5.2 rule 4 caps root fan-out at 5. */
+  maxStaggered: 8,
+} as const
 
 /** Sidebar/overlay backdrop */
 export const backdrop = {

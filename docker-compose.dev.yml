@@ -1,6 +1,10 @@
 # SkillNet — Development overrides.
-# Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+# Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
 # Adds hot reload, debug logging, exposed db/api ports.
+#
+# `--build` is not decoration: this file overrides `target` to `builder`, and without a
+# build the api service silently reuses the `runtime` image, whose PATH has no `uv` —
+# the container then dies with `exec: "uv": executable file not found in $PATH`.
 
 services:
   api:
@@ -8,14 +12,37 @@ services:
       context: .
       dockerfile: docker/api.Dockerfile
       target: builder
-    command: ["uv", "run", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    # `--reload-dir src`: without it uvicorn watches all of /app, so every edit to a
+    # test file restarts the API and the container never reaches a healthy state while
+    # anyone is working in `tests/`.
+    command: ["uv", "run", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-dir", "src"]
     working_dir: /app
+    # The production healthcheck runs `python -c "import httpx"`, which works because the
+    # runtime stage puts /app/.venv/bin on PATH. The builder stage does not, so the same
+    # command fails on an import and the service is reported unhealthy while answering
+    # requests perfectly — and `web`, which waits for `service_healthy`, never starts.
+    healthcheck:
+      test: ["CMD", "/app/.venv/bin/python", "-c", "import httpx; httpx.get('http://localhost:8000/health').raise_for_status()"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
     environment:
       LOG_LEVEL: debug
       ENVIRONMENT: development
       COOKIE_SECURE: "false"
+      # `shadow` by default here and `off` in production (§13 B12): a developer gets the
+      # admin schema surface without exposing anything to employees. Still an override,
+      # so `DYNAMIC_COURSES_MODE=on` in .env wins when you want the full v2 path.
+      DYNAMIC_COURSES_MODE: ${DYNAMIC_COURSES_MODE:-shadow}
     volumes:
       - ./apps/skillnet-api:/app
+      # An anonymous volume masking the bind mount, and it is load-bearing. The mount
+      # above shadows the image's /app/.venv with the host's, which on Windows or macOS
+      # is a virtualenv full of foreign binaries. `uv run` then decides the environment
+      # is broken, DELETES IT and rebuilds it inside the container — destroying the
+      # host venv the test suite runs from. Measured, not theoretical.
+      - /app/.venv
     ports:
       - "8000:8000"
 

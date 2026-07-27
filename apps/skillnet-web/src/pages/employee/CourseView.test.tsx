@@ -154,7 +154,9 @@ async function expectV1Tree() {
   expect(await screen.findByText('Modulo de devoluciones')).toBeInTheDocument()
   // "Plazo legal" is both the sidebar entry and the open lesson's heading, which is the
   // v1 layout: a module list on the left, the active lesson on the right.
-  expect(screen.getByRole('button', { name: 'Plazo legal' })).toBeInTheDocument()
+  // Awaited, not queried: the first module is expanded by a passive effect, which can
+  // land a tick after the module title is already in the DOM.
+  expect(await screen.findByRole('button', { name: 'Plazo legal' })).toBeInTheDocument()
   expect(screen.getByRole('heading', { name: 'Plazo legal' })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Excepciones' })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Siguiente' })).toBeInTheDocument()

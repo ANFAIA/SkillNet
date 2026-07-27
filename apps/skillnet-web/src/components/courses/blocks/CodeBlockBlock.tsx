@@ -1,3 +1,5 @@
+import { BLOCK_EYEBROW } from './rhythm'
+
 export interface CodeBlockBlockProps {
   language: string
   code: string
@@ -14,9 +16,12 @@ export function CodeBlockBlock({ language, code }: CodeBlockBlockProps) {
   return (
     <div data-no-explain="" className="min-w-0">
       {language ? (
-        <p className="text-xs font-mono text-text-muted mb-1.5">{language}</p>
+        <p className={`${BLOCK_EYEBROW} font-mono text-text-muted`}>{language}</p>
       ) : null}
-      <pre className="rounded-lg bg-bg-muted border border-border p-3 overflow-x-auto text-xs font-mono text-text">
+      {/* `INLINE_SURFACE` is not spread here: the slab needs `bg-bg-muted` and an
+          `overflow-x-auto` of its own, and it is a <pre>, not a div. The radius,
+          border and padding are the family's. */}
+      <pre className="rounded-lg border border-border p-4 min-w-0 bg-bg-muted overflow-x-auto text-xs font-mono text-text">
         <code>{code}</code>
       </pre>
     </div>

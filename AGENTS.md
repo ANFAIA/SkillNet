@@ -26,21 +26,41 @@ skillnet/
 │   └── skillnet-web/                 # React SPA (frontend)
 │       └── AGENTS.md                 # Frontend-specific instructions
 ├── packages/
-│   ├── mcp-md-reader/                # Markdown reader MCP server (TypeScript)
-│   └── mcp-ui-renderer/             # UI renderer for declarative specs (TypeScript)
+│   ├── a2tl-video/                   # A2TL-Video — compact spec for agent-generated video (TypeScript)
+│   ├── a2tl-web/                     # A2TL-Web — compact spec for agent-generated web pages (TypeScript)
+│   └── mcp-md-reader/                # Markdown reader MCP server (TypeScript)
 ├── docs/
 │   ├── design/
+│   │   ├── v1-scope.md               # What v1 is and isn't
+│   │   ├── v2-dynamic-courses.md     # The v2 design (Spanish) — implemented behind a flag
+│   │   ├── openui-adoption.md        # Why OpenUI, and what its reactive layer would cost (Spanish)
+│   │   ├── tuning.md                 # The dials for generation quality, and what each does
 │   │   ├── architecture.md           # Architecture decisions (decided + deferred)
-│   │   ├── data-model.md             # PostgreSQL schema (15 tables)
-│   │   ├── screens.md                # Screen specs for all 20 screens
+│   │   ├── data-model.md             # PostgreSQL schema (v1 body + v2 appendix)
+│   │   ├── screens.md                # Screen specs
 │   │   └── design-system.md          # Visual design tokens and component patterns
 │   └── research/                     # Investigation by topic
 └── assets/
 ```
 
-## Current phase: v1
+## Current phase: v2, behind a flag
 
-**Read `docs/design/v1-scope.md` FIRST.** It defines what v1 is, what it isn't, and overrides other docs where they contradict. All other design docs cover the full product (v1 + v2 + future) — v1-scope.md has priority.
+v1 is implemented and is what production serves. **v2 (dynamic courses) is also implemented,
+gated on `DYNAMIC_COURSES_MODE`, which defaults to `off`** — every v2 route 404s and
+`delivery_mode` is ignored until it is turned on. `shadow` exposes the admin schema surface
+only; `on` serves v2 to employees, and then only for a course that is
+`delivery_mode='dynamic'` **and** `schema_status='validated'`. Every other course stays on v1.
+
+Consequences for anything you change:
+
+- **v1 behaviour with the flag off is the invariant.** `tests/integration/test_v1_regression.py`
+  exists to catch a break. `src/services/course_delivery.resolve_delivery` is the single
+  decision point; do not add a second one.
+- `docs/design/v1-scope.md` still defines the v1 product and still wins on v1 questions. It no
+  longer wins on "is v2 implemented" — it isn't a forward-looking document any more.
+- `docs/design/v2-dynamic-courses.md` is the design of record for everything v2.
+- Tuning generation quality: `docs/design/tuning.md` plus
+  `apps/skillnet-api/scripts/quality_bench.py`.
 
 ## Architecture (key decisions)
 
@@ -63,12 +83,18 @@ pnpm dev              # dev server on localhost:5173
 pnpm build            # production build
 pnpm lint             # oxlint
 
-# Backend (from apps/skillnet-api/ — not yet created)
-# uv sync
-# uv run uvicorn main:app --reload
+# Backend (from apps/skillnet-api/)
+uv sync
+uv run uvicorn src.main:app --reload
+uv run pytest -m "not integration"      # unit tests: no database, no API key
+uv run pytest -m integration            # needs a live PostgreSQL
+uv run ruff check src tests
 
 # Full stack (from root)
-# docker compose up
+docker compose up -d --build
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build   # hot reload, v2 in `shadow`
+docker compose --profile fixtures up -d db api-fixtures                     # keyless, v2 `on`, port 8001
+docker compose exec api uv run python -m src.seed_demo_v2                   # v2 demo dataset
 ```
 
 ## Code conventions
@@ -91,7 +117,7 @@ pnpm lint             # oxlint
 
 ## Boundaries
 
-- **DO NOT** modify `packages/mcp-md-reader/` or `packages/mcp-ui-renderer/` without explicit instruction
+- **DO NOT** modify anything under `packages/` (`a2tl-video`, `a2tl-web`, `mcp-md-reader`) without explicit instruction
 - **DO NOT** modify `docs/research/` — these are completed investigations
 - **DO NOT** add dependencies without checking if the existing stack covers the need
 - **DO NOT** use AI-slop patterns: gratuitous gradients, rounded-2xl on everything, pastel icon backgrounds on every card, decorative animations. Follow `docs/design/design-system.md`
@@ -100,7 +126,10 @@ pnpm lint             # oxlint
 
 ## Key references
 
-- **v1 scope & decisions: `docs/design/v1-scope.md`** (READ FIRST — overrides other docs)
+- **v1 scope & decisions: `docs/design/v1-scope.md`** (defines the v1 product; wins on v1 questions)
+- **v2 dynamic courses: `docs/design/v2-dynamic-courses.md`** (design of record for everything behind the flag)
+- Generation tuning: `docs/design/tuning.md` (the dials, with current values and what turning them does)
+- OpenUI adoption: `docs/design/openui-adoption.md` (why the real packages, and the cost of the reactive layer)
 - Screen specs: `docs/design/screens.md`
 - Data model: `docs/design/data-model.md`
 - Architecture: `docs/design/architecture.md`

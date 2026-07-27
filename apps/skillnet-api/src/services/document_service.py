@@ -7,12 +7,37 @@ from src.config import settings
 from src.core.exceptions import AppError, NotFoundError, ValidationError
 from src.core.logging import get_logger
 from src.deps.db import async_session_factory
-from src.models import Document, DocumentStatus
+from src.llm.client import LLMService
+from src.llm.prompts.source import SOURCE_WRITER_SYSTEM, build_source_prompt
+from src.models import Document, DocumentOrigin, DocumentStatus
 from src.repositories.document_repo import DocumentRepository
 
 logger = get_logger(__name__)
 
 ALLOWED_EXTENSIONS = {".pdf", ".txt", ".md", ".docx"}
+
+#: Generous, because the source is the input to the whole generation pipeline and a
+#: thin one produces a thin course. Four to eight Markdown sections land well inside it.
+SOURCE_MAX_TOKENS = 3000
+
+#: Below this the model returned something that is not a document — an apology, an empty
+#: string, a one-line refusal. Better to fail the request than to build a course on it.
+_MIN_SOURCE_CHARS = 400
+
+
+def _strip_code_fence(text: str) -> str:
+    """Unwrap a whole-response ```` ``` ```` fence, and only that.
+
+    Conservative on purpose: it unwraps only when the text both opens and closes with a
+    fence, so a document that legitimately contains a fenced snippet in the middle is
+    left exactly as written.
+    """
+    if not text.startswith("```"):
+        return text
+    lines = text.splitlines()
+    if len(lines) < 3 or not lines[-1].strip().startswith("```"):
+        return text
+    return "\n".join(lines[1:-1]).strip()
 
 
 class DocumentService:
@@ -55,6 +80,76 @@ class DocumentService:
         target_dir.mkdir(parents=True, exist_ok=True)
         target_path = target_dir / f"original{ext}"
         target_path.write_bytes(content)
+        return await self.repo.update(doc, storage_path=str(target_path))
+
+    async def create_from_idea(
+        self,
+        *,
+        org_id: uuid.UUID,
+        created_by: uuid.UUID,
+        title: str,
+        idea: str,
+        llm: LLMService,
+    ) -> Document:
+        """Write a source document from a one-line idea, then hand it to normal ingestion.
+
+        The "desde cero" path in one method, and deliberately no more than that. The
+        model writes Markdown, the Markdown is written to disk exactly where an upload
+        would live, and the row that comes out is a plain ``Document`` with
+        ``file_type='md'``. From here on nothing else in the system knows the difference:
+        ``ingest_document`` parses, chunks and embeds it, the v1 pipeline extracts themes
+        from it, the v2 designer picks node sources from its headings and the tutor
+        retrieves from its chunks. That is the entire reason for synthesising a document
+        instead of teaching the pipeline to work without one — the alternative is a
+        second, less-tested path through every stage.
+
+        ``origin=GENERATED`` is the one thing that *is* different, and it is a column so
+        it cannot be lost. See :class:`~src.models.document.DocumentOrigin`.
+
+        Status is ``PENDING`` on return: the caller commits and then spawns ingestion,
+        the same two steps ``POST /documents/{id}/process`` performs.
+        """
+        clean_title = title.strip()
+        if not clean_title:
+            raise ValidationError("A title is required to write a source", field="title")
+
+        text = (
+            await llm.complete(
+                SOURCE_WRITER_SYSTEM,
+                build_source_prompt(title=clean_title, idea=idea),
+                max_tokens=SOURCE_MAX_TOKENS,
+                # Higher than the pipeline's 0.3: this call is writing prose from a
+                # one-line brief rather than restructuring a document, and at 0.3 the
+                # sections come out formulaic and near-identical between topics.
+                temperature=0.6,
+            )
+        ).strip()
+        # Models wrap long Markdown in a fence about a third of the time even when told
+        # not to. Stripping it here is cheaper than a repair call and cannot lose content.
+        text = _strip_code_fence(text)
+
+        if len(text) < _MIN_SOURCE_CHARS:
+            raise AppError(
+                "The model did not return a usable source document for this topic. "
+                "Try again with a more specific description.",
+                code="SOURCE_GENERATION_FAILED",
+                status_code=502,
+            )
+
+        doc = await self.repo.create(
+            org_id=org_id,
+            uploaded_by=created_by,
+            title=clean_title,
+            storage_path="",
+            file_type="md",
+            size_bytes=len(text.encode("utf-8")),
+            status=DocumentStatus.PENDING,
+            origin=DocumentOrigin.GENERATED,
+        )
+        target_dir = Path(settings.UPLOAD_DIR) / str(org_id) / str(doc.id)
+        target_dir.mkdir(parents=True, exist_ok=True)
+        target_path = target_dir / "generated.md"
+        target_path.write_text(text, encoding="utf-8")
         return await self.repo.update(doc, storage_path=str(target_path))
 
     async def get_document(self, doc_id: uuid.UUID, org_id: uuid.UUID) -> Document:

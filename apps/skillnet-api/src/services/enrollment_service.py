@@ -252,6 +252,16 @@ class EnrollmentService:
             progress = await self.compute_progress(
                 enrollment=enrollment, org_id=org_id
             )
+            # Grant the skills even on the idempotent path. The status is not only
+            # written here: `routes/lessons.py`, `exercise_service._update_enrollment_
+            # progress` and `course_service` all flip an enrollment to `completed` the
+            # moment progress reaches 1.0, and none of them assign skills. So by the time
+            # the learner posts the explicit `/complete`, the early return above was
+            # reached and `user_skills` stayed empty — the course was finished and taught
+            # the org nothing. `_assign_course_skills` is idempotent (it only ever raises
+            # a level, never lowers one), so re-running it converges on the intended end
+            # state instead of depending on which side door closed the enrollment first.
+            await self._assign_course_skills(enrollment.user_id, enrollment.course_id)
             return enrollment, progress or 0.0
 
         progress = await self.compute_progress(

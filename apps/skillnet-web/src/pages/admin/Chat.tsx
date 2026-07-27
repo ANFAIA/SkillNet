@@ -22,6 +22,16 @@ function Bubble({ message }: { message: ChatMessage }) {
           isUser ? 'bg-primary text-white rounded-xl rounded-br-sm' : 'bg-bg-muted text-text rounded-xl rounded-bl-sm'
         }`}
       >
+        {/*
+          Same honesty note as the employee tutor, same reason. No blocks here: the
+          admin assistant answers in two operational lines and a wall of blocks
+          would be slower to act on than the sentence it replaced.
+        */}
+        {!isUser && message.grounding === 'general' && (
+          <p className="text-xs text-text-muted mb-1.5" data-grounding="general">
+            Conocimiento general: no sale de la documentacion subida
+          </p>
+        )}
         <p className="whitespace-pre-line break-words">
           {message.content}
           {message.isStreaming && !message.content && <span className="text-text-muted">Escribiendo...</span>}

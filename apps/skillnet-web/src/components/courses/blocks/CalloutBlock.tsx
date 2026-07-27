@@ -1,5 +1,6 @@
 import { InlineMarkdown } from './InlineMarkdown'
 import { ClickableText } from '../ClickableText'
+import { BLOCK_EYEBROW, INLINE_SURFACE } from './rhythm'
 import type { CalloutTone } from '../kit/schemas'
 
 export interface CalloutBlockProps {
@@ -8,11 +9,12 @@ export interface CalloutBlockProps {
 }
 
 // Hierarchy through a left rule + a subtle surface, not a pastel block with a
-// coloured icon circle (design-system.md anti-patterns). The tone tokens are the
-// existing status colours; no new colour is introduced.
+// coloured icon circle (design-system.md anti-patterns). The tones are the existing
+// status colours and their `*-subtle` tints — `warn` used to have no tint at all
+// (`bg-bg-subtle`), which left the loudest tone as the only silent surface.
 const toneClasses: Record<CalloutTone, string> = {
   info: 'border-l-primary bg-primary-subtle',
-  warn: 'border-l-warning bg-bg-subtle',
+  warn: 'border-l-warning bg-warning-subtle',
   success: 'border-l-accent bg-accent-subtle',
 }
 
@@ -32,11 +34,11 @@ export function CalloutBlock({ tone = 'info', text }: CalloutBlockProps) {
       // a colour-only cue would not.
       role="note"
       aria-label={toneLabels[resolved]}
-      className={`border border-border border-l-2 rounded-lg px-4 py-3 min-w-0 ${toneClasses[resolved]}`}
+      className={`${INLINE_SURFACE} border-l-2 ${toneClasses[resolved]}`}
     >
       {/* The tone label is chrome, not lesson prose: it is deliberately outside
           the ClickableText, so "Atencion" is not a term anyone can explain. */}
-      <p className="text-xs font-medium text-text-secondary mb-1">{toneLabels[resolved]}</p>
+      <p className={`${BLOCK_EYEBROW} text-text-secondary`}>{toneLabels[resolved]}</p>
       <ClickableText as="p" className="text-sm text-text leading-relaxed min-w-0">
         <InlineMarkdown>{text}</InlineMarkdown>
       </ClickableText>

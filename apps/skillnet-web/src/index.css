@@ -29,6 +29,11 @@
   --color-success: #4BA862;
   --color-warning: #d97706;
   --color-danger: #dc2626;
+  /* The third `*-subtle` tint, so the three Callout tones are one family. `warn`
+     used to fall back to `--color-bg-subtle`, which left the most urgent tone as the
+     only one with no colour on the surface — exactly backwards. Same relationship to
+     `--color-warning` as `--color-accent-subtle` has to `--color-accent`. */
+  --color-warning-subtle: #FDF4E7;
 
   /* Skill levels */
   --color-skill-high: #4BA862;
@@ -53,6 +58,17 @@
   --ease-snap-in: cubic-bezier(0.1, 0.8, 0, 1);
   --ease-snap-out: cubic-bezier(0.1, 0, 0.7, 1);
   --ease-morph: cubic-bezier(0.56, 0.27, 0, 1);
+
+  /* Motion — durations (mirror `duration` in src/lib/motion.ts). `--dur-fast` was
+     already being referenced below with a hardcoded fallback and was never defined;
+     defining the whole scale is what lets a CSS-only transition stay on the system
+     instead of guessing a number. */
+  --dur-instant: 0.125s;
+  --dur-fast: 0.2s;
+  --dur-normal: 0.3s;
+  --dur-medium: 0.5s;
+  --dur-slow: 0.7s;
+  --dur-morph-slow: 1s;
 }
 
 *, *::before, *::after {
@@ -190,6 +206,49 @@ body {
   }
   .explain-popover,
   .phrase-rect {
+    animation: none;
+  }
+}
+
+/* ── Generated blocks arriving (§9.2) ──────────────────────────
+   The lesson is written while the learner watches. When it lands, its blocks enter
+   in sequence instead of the whole program appearing in one frame — the same 60 ms
+   cadence and the same blur + rise as `staggerItem` in src/lib/motion.ts, which is
+   also where these numbers are documented (`blockArrival`).
+
+   Why CSS and not framer variants: the children being staggered are built by
+   OpenUI's runtime from `renderNode`, so the container is the only thing we hold —
+   there is no child array to map over and no way to attach a variant to each block
+   without wrapping every one of them in a div we do not control the semantics of.
+   `nth-child` needs neither.
+
+   The class is applied by `StackBlock` and ONLY on the root Stack of a render that
+   actually replaced a skeleton (`blockArrivalContext`). A pinned render served from
+   cache paints instantly and must not stagger: "animar en page load" is an
+   anti-pattern in motion-system.md, and it is a real one — re-opening yesterday's
+   node should feel like it never left. */
+@keyframes block-arrive {
+  from { opacity: 0; transform: translateY(12px); filter: blur(6px); }
+  to   { opacity: 1; transform: none;             filter: blur(0); }
+}
+
+.block-arrival > * {
+  animation: block-arrive var(--dur-normal) var(--ease-base) both;
+  animation-delay: calc(var(--block-index, 0) * 60ms);
+}
+
+.block-arrival > *:nth-child(1) { --block-index: 0; }
+.block-arrival > *:nth-child(2) { --block-index: 1; }
+.block-arrival > *:nth-child(3) { --block-index: 2; }
+.block-arrival > *:nth-child(4) { --block-index: 3; }
+.block-arrival > *:nth-child(5) { --block-index: 4; }
+.block-arrival > *:nth-child(6) { --block-index: 5; }
+.block-arrival > *:nth-child(7) { --block-index: 6; }
+/* Root fan-out is capped at 5 (§5.2 rule 4); anything past 8 would only be delay. */
+.block-arrival > *:nth-child(n+8) { --block-index: 7; }
+
+@media (prefers-reduced-motion: reduce) {
+  .block-arrival > * {
     animation: none;
   }
 }

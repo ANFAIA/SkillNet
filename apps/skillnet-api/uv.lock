@@ -2464,6 +2464,7 @@ source = { editable = "." }
 dependencies = [
     { name = "alembic" },
     { name = "asyncpg" },
+    { name = "cryptography" },
     { name = "fastapi" },
     { name = "fastapi-users", extra = ["sqlalchemy"] },
     { name = "greenlet" },
@@ -2495,6 +2496,7 @@ dev = [
 requires-dist = [
     { name = "alembic" },
     { name = "asyncpg" },
+    { name = "cryptography" },
     { name = "fastapi" },
     { name = "fastapi-users", extras = ["sqlalchemy"] },
     { name = "greenlet" },

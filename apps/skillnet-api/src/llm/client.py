@@ -18,12 +18,12 @@ from tenacity import (
     retry,
     retry_if_exception_type,
     stop_after_attempt,
-    wait_exponential,
 )
 
 from src.config import settings
 from src.core.exceptions import LLMError
 from src.core.logging import get_logger
+from src.core.secrets import unseal
 
 logger = get_logger(__name__)
 
@@ -35,6 +35,83 @@ _RETRYABLE = (
     litellm.InternalServerError,
     litellm.ServiceUnavailableError,
 )
+
+#: Providers that limit **tokens per minute** say how long to wait, in the message body:
+#: ``"Rate limit reached ... Please try again in 27.91s"`` (Groq, and OpenAI in the same
+#: shape). Honouring that number is the difference between a retry that works and one
+#: that is guaranteed not to.
+_RETRY_AFTER = re.compile(r"try again in\s+([0-9]+(?:\.[0-9]+)?)\s*s", re.IGNORECASE)
+
+
+def _retry_after_seconds(exc: BaseException | None) -> float | None:
+    """The provider's own estimate, if it gave one."""
+    if exc is None:
+        return None
+    match = _RETRY_AFTER.search(str(exc))
+    if match is None:
+        return None
+    try:
+        return float(match.group(1))
+    except ValueError:  # pragma: no cover - the regex already guarantees a float
+        return None
+
+
+def _retry_wait(state: Any) -> float:
+    """How long to wait before the next provider attempt.
+
+    Plain exponential backoff is the wrong shape for a *tokens per minute* quota. It was
+    the shape in use, at ``multiplier=2, min=4, max=60`` over three attempts, so the two
+    waits were about 4 s and 8 s: the call gave up roughly 12 s into a window that resets
+    after 60. Measured on Groq's free tier on 2026-07-27, that is exactly how a course
+    generation died at ``review_quality`` — an entire multi-step pipeline lost to a limit
+    the provider had already said would clear in 27.91 s.
+
+    So: use the provider's number when it gives one, fall back to exponential when it
+    does not, and cap it. The half second on top is slack for clock skew — coming back
+    a hair early costs another full window.
+    """
+    exc = state.outcome.exception() if state.outcome else None
+    hinted = _retry_after_seconds(exc)
+    if hinted is None:
+        base = _setting_float("LLM_RETRY_BASE_SECONDS", 4.0)
+        hinted = base * (2 ** max(state.attempt_number - 1, 0))
+    ceiling = _setting_float("LLM_RETRY_MAX_WAIT_SECONDS", 90.0)
+    return min(max(hinted + 0.5, 1.0), ceiling)
+
+
+def _setting_float(name: str, default: float) -> float:
+    """``getattr`` with a default, and **not** ``or default``.
+
+    ``0 or 4.0`` is ``4.0``, so the idiomatic-looking guard silently turns a deliberate
+    zero into the default. Only ``None`` should fall back.
+    """
+    value = getattr(settings, name, None)
+    return default if value is None else float(value)
+
+
+def _retry_attempts() -> int:
+    value = getattr(settings, "LLM_MAX_ATTEMPTS", None)
+    return max(int(5 if value is None else value), 1)
+
+
+def _failure_message(exc: BaseException) -> str:
+    """What the admin reads when a generation dies.
+
+    ``LLM request failed: RateLimitError`` is technically accurate and practically
+    useless: it sends somebody looking for a bug in a pipeline that is working exactly
+    as designed and is simply out of quota. A tokens-per-minute limit is a plan problem
+    with a plan solution, and the message should say which one it is — measured against
+    Groq's free tier (6000 TPM), where a single module-generation call requests about
+    5000 of them.
+    """
+    if isinstance(exc, litellm.RateLimitError):
+        return (
+            "LLM rate limit reached after every retry. The provider's quota is the "
+            "limit here, not the content: generating a full course needs several "
+            "large calls in a row. Retry when the quota window has cleared, or move "
+            "to a plan with a higher tokens-per-minute allowance."
+        )
+    return f"LLM request failed: {type(exc).__name__}"
 
 
 # --------------------------------------------------------------------------- #
@@ -229,7 +306,9 @@ def resolve_llm_config(
     model = model or settings.LLM_MODEL
 
     api_base = org_settings.get("llm_base_url") or settings.LLM_BASE_URL or None
-    api_key = org_settings.get("llm_api_key") or settings.LLM_API_KEY or None
+    # `unseal`, because the org's key is encrypted at rest (src/core/secrets.py). It is a
+    # no-op on the environment default and on a key stored before that existed.
+    api_key = unseal(org_settings.get("llm_api_key")) or settings.LLM_API_KEY or None
     return LLMConfig(model=model, api_base=api_base, api_key=api_key)
 
 
@@ -254,8 +333,8 @@ class LLMService:
         return kwargs
 
     @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=2, min=4, max=60),
+        stop=stop_after_attempt(_retry_attempts()),
+        wait=_retry_wait,
         retry=retry_if_exception_type(_RETRYABLE),
         reraise=True,
     )
@@ -360,7 +439,7 @@ class LLMService:
         except litellm.BadRequestError as exc:
             if "reasoning_effort" not in kwargs:
                 logger.error("LLM completion failed: %s", exc, exc_info=True)
-                raise LLMError(f"LLM request failed: {type(exc).__name__}") from exc
+                raise LLMError(_failure_message(exc)) from exc
             logger.warning(
                 "Provider rejected reasoning_effort for %s; retrying without it: %s",
                 kwargs.get("model"),
@@ -371,7 +450,7 @@ class LLMService:
             return await self._completion_call(kwargs)
         except Exception as exc:  # noqa: BLE001 - normalize all provider errors
             logger.error("LLM completion failed: %s", exc, exc_info=True)
-            raise LLMError(f"LLM request failed: {type(exc).__name__}") from exc
+            raise LLMError(_failure_message(exc)) from exc
 
     async def stream(
         self,
@@ -455,8 +534,8 @@ class LLMService:
             budget *= BUDGET_RETRY_MULTIPLIER
 
     @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=2, min=4, max=60),
+        stop=stop_after_attempt(_retry_attempts()),
+        wait=_retry_wait,
         retry=retry_if_exception_type(_RETRYABLE),
         reraise=True,
     )

@@ -12,8 +12,11 @@ from src.llm.prompts.generation import (
     build_review_prompt,
     build_structure_prompt,
 )
+from src.llm.prompts.source import SOURCE_WRITER_SYSTEM, build_source_prompt
 
 __all__ = [
+    "SOURCE_WRITER_SYSTEM",
+    "build_source_prompt",
     "THEME_EXTRACTOR_SYSTEM",
     "STRUCTURE_DESIGNER_SYSTEM",
     "MODULE_GENERATOR_SYSTEM",

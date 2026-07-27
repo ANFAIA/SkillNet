@@ -256,6 +256,12 @@ def test_the_prompt_never_forbids_a_construction_the_parser_accepts() -> None:
     false statement in the contract with the model is what BUG 2 of the local-model run
     was about. Preferring references is advice and stays; claiming rejection is a lie and
     is gone.
+
+    Since 2026-07-27 this covers the second construction in the same class: a newline
+    inside an open bracket. ``lang-core`` separates statements at bracket depth 0 and
+    ``src/render/lines.py`` now does too, so "cada salto de linea real cierra un bloque"
+    was false in both grammars at once, and it cost a repair attempt on programs that
+    were already valid.
     """
     prompt = render_prompt()
     rule_four = prompt[prompt.index("SkillNet 4") : prompt.index("SkillNet 5")]
@@ -263,7 +269,10 @@ def test_the_prompt_never_forbids_a_construction_the_parser_accepts() -> None:
     assert "anidado inline" not in rule_four
     rule_one = prompt[prompt.index("SkillNet 1") : prompt.index("SkillNet 2")]
     assert "anidado en linea dentro del array de su padre es valido" in rule_one
-    assert "se prefiere declararlo en su propia linea" in rule_one
+    # The preference survives. Its wording may change; the claim may not.
+    assert "se prefiere declararlo aparte y referenciarlo por id" in rule_one
+    assert "dentro de un array abierto continua la misma declaracion" in rule_one
+    assert "cada salto de linea real cierra un bloque" not in rule_one.lower()
 
 
 def test_the_prompt_declares_the_root_container() -> None:

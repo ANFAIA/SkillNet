@@ -24,6 +24,23 @@ is the whole trick:
   prose. They can only be state, builtins, objects, ternaries, arithmetic or named
   arguments — none of which exist in this dialect.
 
+**Letters are not reactivity, in any script.** Until 2026-07-27 the skeleton alphabet was
+spelled out in ASCII, so ``conclusión = TextContent(...)`` was refused here as though the
+``ó`` were a state sigil, with a message that named the character and not the identifier.
+Measured against ``groq/llama-3.1-8b-instant``, that single misclassification cost every
+pass of the ``atencion-reclamaciones`` brief. The parser folds an accented id to ASCII
+(``src/render/backends/openui.py``); this gate's job is to keep the *punctuation* out, and
+it now does only that.
+
+Two of the three size caps also changed on that date, because they were counting the
+wrong thing. The unit is now the **logical** line of ``src/render/lines.py`` — one
+declaration, however many physical lines it was written on, blank lines and fences
+excluded. Counting physical lines had refused a ten-declaration program as "23 lines"
+because the model put a blank line between each pair, and had refused a five-declaration
+program as "25 lines" because it wrapped a children array. Neither program was oversized;
+both messages sent the model to shorten a lesson that was already the right length. The
+numbers themselves are unchanged.
+
 This gate is the cheap outer door; the real structural gate is
 ``OpenUiLangBackend.parse`` (the frozen grammar has no production for any of the above,
 so reactivity is *inexpressible*, not blacklisted). The value of the gate is that it
@@ -35,28 +52,47 @@ from __future__ import annotations
 
 import re
 import string
+import unicodedata
 
 from src.config import settings
 from src.render.backends import get_render_backend
 from src.render.backends.base import RenderBackend
-from src.render.errors import RenderValidationError
+from src.render.errors import RenderError, RenderValidationError
+from src.render.lines import logical_lines
 from src.render.spec import MAX_COMPONENTS, UISpec
 
 #: A 12-component spec with long prose is ~4 kB; 16 kB is generous and still bounds the
-#: work a poisoned document can ask of the parser and of the browser.
+#: work a poisoned document can ask of the parser and of the browser. This is the only
+#: cap that short-circuits: past it, nothing is parsed at all.
 MAX_PROGRAM_BYTES = 16_384
 
-#: 12 components (rule 4) + a fenced block + blank lines + slack for a repair attempt.
+#: 12 declarations (rule 4) + slack for a repair attempt. Counted in **logical** lines,
+#: so blank lines, fences and a wrapped children array cost nothing — see the module
+#: docstring for what counting physical lines cost instead.
 MAX_PROGRAM_LINES = MAX_COMPONENTS + 8
 
-#: One component per line, so a line is one component's worth of text.
+#: One declaration per logical line, so a logical line is one component's worth of text.
+#: Applied to the joined line rather than to each physical fragment: the joined line is
+#: what the scanner walks, so it is the length that bounds the work.
 MAX_LINE_BYTES = 4_096
 
-#: Everything the frozen grammar of §5.4 can emit outside a string literal. Note what is
-#: absent: ``$ @ { } ? : + * / < > ! % ; & | ' \`` and the backtick.
-_SKELETON_ALPHABET = frozenset(
-    string.ascii_letters + string.digits + '_ \t\r\n=(),[].-"'
-)
+#: Everything the frozen grammar of §5.4 can emit outside a string literal, plus every
+#: **letter**, in any script (see the module docstring: a letter cannot be reactivity, and
+#: refusing accented ids here is what broke the Spanish corpus). Note what is still
+#: absent, and is the whole point: ``$ @ { } ? : + * / < > ! % ; & | ' \`` and the
+#: backtick.
+_SKELETON_ASCII = frozenset(string.ascii_letters + string.digits + '_ \t\r\n=(),[].-"')
+
+
+def _is_dialect_char(char: str) -> bool:
+    """Whether ``char`` can appear outside a string literal in a valid program.
+
+    ``isalpha()`` covers every script; a combining mark is not alphanumeric, so the
+    decomposed spelling of an accent is admitted explicitly. Both forms are folded to
+    ASCII by the parser before anything is persisted or served.
+    """
+    return char in _SKELETON_ASCII or char.isalpha() or unicodedata.combining(char) != 0
+
 
 #: Reserved calls of the real language. Hard-wired in ``lang-core``'s ``RESERVED_CALLS``,
 #: so *their* parser accepts them with ``meta.errors == []`` even when no tool is
@@ -125,37 +161,51 @@ def strip_string_literals(text: str) -> str:
     return "".join(out)
 
 
-def check_size(text: str) -> list[str]:
-    """Size caps. Independent of the security profile: always enforced."""
-    problems: list[str] = []
+def check_program_bytes(text: str) -> list[str]:
+    """The one cap that refuses to look any further. Nothing past this is parsed."""
     size = len(text.encode("utf-8"))
     if size > MAX_PROGRAM_BYTES:
-        problems.append(
-            f"program is {size} bytes; the cap is {MAX_PROGRAM_BYTES}"
-        )
-    lines = text.splitlines()
+        return [f"program is {size} bytes; the cap is {MAX_PROGRAM_BYTES}"]
+    return []
+
+
+def check_size(text: str) -> list[str]:
+    """Size caps. Independent of the security profile: always enforced.
+
+    The two line caps count **declarations**, not physical lines, and say "declarations"
+    in the message: a model told it wrote 25 lines when it wrote 5 declarations goes and
+    deletes content that was never the problem.
+    """
+    problems: list[str] = check_program_bytes(text)
+    lines = logical_lines(text)
     if len(lines) > MAX_PROGRAM_LINES:
         problems.append(
-            f"program has {len(lines)} lines; the cap is {MAX_PROGRAM_LINES} "
-            f"(rule 4 allows {MAX_COMPONENTS} components)"
+            f"program has {len(lines)} declarations; the cap is {MAX_PROGRAM_LINES} "
+            f"(rule 4 allows {MAX_COMPONENTS} blocks)"
         )
-    for line_no, line in enumerate(lines, start=1):
-        length = len(line.encode("utf-8"))
+    for logical in lines:
+        length = len(logical.text.encode("utf-8"))
         if length > MAX_LINE_BYTES:
             problems.append(
-                f"line {line_no}: {length} bytes; the cap is {MAX_LINE_BYTES}"
+                f"line {logical.line_no}: the declaration is {length} bytes; the cap "
+                f"is {MAX_LINE_BYTES}"
             )
     return problems
 
 
 def check_static_only(text: str) -> list[str]:
-    """Reject reactivity on the string-blanked skeleton. One message per line, at most."""
+    """Reject reactivity on the string-blanked skeleton. One message per line, at most.
+
+    Physical lines here, not logical ones: the number in the message has to be the number
+    of the line the offending character is really on, and a stray ``{`` is precisely the
+    character the joiner refuses to let open a continuation.
+    """
     problems: list[str] = []
     skeleton = strip_string_literals(text)
     for line_no, line in enumerate(skeleton.split("\n"), start=1):
         if not line.strip() or _FENCE_RE.match(line):
             continue
-        foreign = sorted({char for char in line if char not in _SKELETON_ALPHABET})
+        foreign = sorted({char for char in line if not _is_dialect_char(char)})
         if foreign:
             described = ", ".join(
                 f"{char!r} ({_CHAR_NAMES[char]})" if char in _CHAR_NAMES else repr(char)
@@ -212,10 +262,30 @@ def canonicalize(
     would put attacker-directed text straight into the reactive runtime, past both of
     the switches the render is configured with (no ``toolProvider``, no ``onAction``).
     Re-serializing from the spec is what makes that impossible rather than forbidden.
+
+    **Gate problems and parse problems are reported together.** There is exactly one
+    repair attempt (``MAX_UI_RETRIES``), so every error the model does not hear about on
+    the first refusal is an error it gets to make again on the second. Measured on
+    ``alergenos-hosteleria`` (2026-07-27): attempt 0 was refused for its line count alone,
+    the model fixed exactly that, and attempt 1 was refused for the 19 blocks nobody had
+    mentioned — one defect, two attempts, no attempts left. Only the byte cap still
+    short-circuits, because past it there is a real reason not to parse.
     """
-    assert_program_ok(raw)
+    oversized = check_program_bytes(raw)
+    if oversized:
+        raise RenderValidationError(oversized)
+
+    problems = check_program(raw)
     resolved = backend or get_render_backend()
-    spec = resolved.parse(raw, ui_format=ui_format)
+    try:
+        spec = resolved.parse(raw, ui_format=ui_format)
+    except RenderError as exc:
+        found = list(getattr(exc, "errors", None) or [str(exc)])
+        problems.extend(message for message in found if message not in problems)
+        raise RenderValidationError(problems) from exc
+    if problems:
+        raise RenderValidationError(problems)
+
     program = resolved.serialize(spec)
     # Clean by construction: a UISpec cannot hold state, a tool call or an answer key.
     # Asserted anyway, because this is the byte stream the employee's browser parses.
@@ -230,6 +300,7 @@ __all__ = [
     "assert_program_ok",
     "canonicalize",
     "check_program",
+    "check_program_bytes",
     "check_size",
     "check_static_only",
     "strip_string_literals",

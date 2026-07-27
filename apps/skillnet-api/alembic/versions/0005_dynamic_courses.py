@@ -12,13 +12,16 @@ Creation order matters. Two forward references exist in the schema of §3:
 ``CREATE TYPE`` first, then ``course_nodes`` -> ``course_node_prerequisites`` ->
 ``node_renders`` -> ``learner_node_states`` -> the rest -> ``node_render_views``.
 
-**No ``op.execute("COMMIT")`` here, deliberately.** The deployment target is pg16
-(``pgvector/pgvector:pg16``) where ``ALTER TYPE ... ADD VALUE`` works inside a
-transaction; only *using* the new value in the same transaction is forbidden, and
-this migration never does. Meanwhile ``alembic/env.py`` wraps the whole run in one
-``context.begin_transaction()`` (no ``transaction_per_migration``) and
-``src/main.py`` runs migrations in the lifespan — a mid-run COMMIT would confirm
-0001..0004 and leave startup in a partial state if 0005 then failed.
+**One ``autocommit_block`` here, and only one.** On pg16
+(``pgvector/pgvector:pg16``) ``ALTER TYPE ... ADD VALUE`` runs happily inside a
+transaction, but *using* the new value in that same transaction raises
+``UnsafeNewEnumValueUsageError`` — and step 16 does exactly that, in the predicate of
+``uq_generation_jobs_schema_in_flight``. So the two ``generation_step`` values are
+added in an autocommit block. ``alembic/env.py`` wraps the whole run in one
+``context.begin_transaction()`` (no ``transaction_per_migration``) and ``src/main.py``
+runs migrations in the lifespan, so that block does commit 0001..0004 early: if a
+later step of 0005 fails, the database keeps 0004 and 0005 is not stamped, and the
+half-built v2 objects have to be dropped before retrying.
 
 ``downgrade()`` scope, stated honestly: it drops the 13 new tables, the 6 new
 ``courses`` columns and the 8 new enums, but **leaves ``schema_proposing`` and
@@ -96,16 +99,26 @@ def upgrade() -> None:
     for name, values in NEW_ENUMS:
         postgresql.ENUM(*values, name=name).create(bind, checkfirst=True)
 
-    # The design-time 'schema' step of the generation pipeline. Safe inside the
-    # surrounding transaction on pg12+; the values are not used until 0005 is done.
-    op.execute(
-        "ALTER TYPE generation_step ADD VALUE IF NOT EXISTS 'schema_proposing' "
-        "BEFORE 'extracting'"
-    )
-    op.execute(
-        "ALTER TYPE generation_step ADD VALUE IF NOT EXISTS 'schema_proposed' "
-        "AFTER 'reviewing'"
-    )
+    # The design-time 'schema' step of the generation pipeline.
+    #
+    # `autocommit_block` and not a plain `op.execute`: step 16 below builds a partial
+    # index whose predicate is `status = 'schema_proposing'`, and PostgreSQL refuses to
+    # *use* an enum value added by the transaction it is still inside
+    # (UnsafeNewEnumValueUsageError, measured on pg16). ADD VALUE inside a transaction
+    # is fine; reading it back in the same one is not. The block commits what came
+    # before it, runs these two statements outside any transaction and opens a fresh
+    # one — so if a later step fails, 0001..0004 stay applied and 0005 is not stamped.
+    # Re-running then needs the half-built 0005 objects removed by hand; that is the
+    # price of a partial index on a brand-new enum value, and it is paid once.
+    with op.get_context().autocommit_block():
+        op.execute(
+            "ALTER TYPE generation_step ADD VALUE IF NOT EXISTS 'schema_proposing' "
+            "BEFORE 'extracting'"
+        )
+        op.execute(
+            "ALTER TYPE generation_step ADD VALUE IF NOT EXISTS 'schema_proposed' "
+            "AFTER 'reviewing'"
+        )
 
     # ── 2. courses: 6 additive columns, all defaulted ───────────
     op.add_column(
@@ -446,8 +459,11 @@ def upgrade() -> None:
             "format_vector",
             postgresql.JSONB(),
             nullable=False,
+            # ``\:`` and not ``:`` — sa.text() reads ``:word`` as a bind parameter, so
+            # ``"texto":0`` compiled to ``"texto"NULL`` and CREATE TABLE failed on a real
+            # Postgres. The backslash is text()'s escape; the DDL gets a plain colon.
             server_default=sa.text(
-                """'{"texto":0,"ejercicio":0,"codigo":0,"dato":0}'::jsonb"""
+                r"""'{"texto"\:0,"ejercicio"\:0,"codigo"\:0,"dato"\:0}'::jsonb"""
             ),
         ),
         sa.Column(

@@ -1,4 +1,5 @@
-import { motion, useReducedMotion } from 'framer-motion'
+import { motion } from 'framer-motion'
+import { useReducedMotion } from '../../hooks/useReducedMotion'
 import { shimmer } from '../../lib/motion'
 
 export interface ShimmerSkeletonProps {
@@ -14,8 +15,12 @@ export interface ShimmerSkeletonProps {
  * `SkeletonCard` / `SkeletonRow` across v1 pages, so touching it would be a
  * visible v1 change with the flag off.
  *
- * Under `prefers-reduced-motion` the sweep is dropped entirely — a static muted
- * block is the accessible degradation, not a slower animation.
+ * Under reduced motion the sweep is dropped entirely — a static muted block is the
+ * accessible degradation, not a slower animation. "Reduced motion" here means the OS
+ * setting **or** the `reduce_motion` the learner ticked in the wizard: this is the
+ * component someone with vestibular sensitivity stares at for the ten seconds a
+ * lesson takes to generate, so it is the last place that should honour only half of
+ * the request. See `hooks/useReducedMotion.ts`.
  */
 export function ShimmerSkeleton({ className = '' }: ShimmerSkeletonProps) {
   const reduceMotion = useReducedMotion()

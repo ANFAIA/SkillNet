@@ -19,7 +19,7 @@ from src.models.course_node import (
 )
 from src.models.course_node_prerequisite import CourseNodePrerequisite
 from src.models.course_skill import CourseSkill
-from src.models.document import Document, DocumentStatus
+from src.models.document import Document, DocumentOrigin, DocumentStatus
 from src.models.document_chunk import DocumentChunk
 from src.models.enrollment import Enrollment, EnrollmentStatus
 from src.models.exercise import Exercise, ExerciseType
@@ -74,6 +74,7 @@ __all__ = [
     "UserRole",
     "LearningProfile",
     "Document",
+    "DocumentOrigin",
     "DocumentStatus",
     "DocumentChunk",
     "Course",

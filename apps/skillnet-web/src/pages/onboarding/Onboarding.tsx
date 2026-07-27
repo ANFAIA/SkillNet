@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import { AnimatePresence, motion } from 'framer-motion'
 import { Button, Card, StepIndicator } from '../../components/ui'
 import { ShimmerSkeleton } from '../../components/ui/ShimmerSkeleton'
 import { RoleStep } from '../../components/onboarding/RoleStep'
@@ -9,7 +9,8 @@ import { GoalStep } from '../../components/onboarding/GoalStep'
 import { ExperienceStep } from '../../components/onboarding/ExperienceStep'
 import { PresetStep } from '../../components/onboarding/PresetStep'
 import { AccessibilityStep } from '../../components/onboarding/AccessibilityStep'
-import { slideVariants, transition } from '../../lib/motion'
+import { stepSlideVariants, transition } from '../../lib/motion'
+import { useReducedMotion } from '../../hooks/useReducedMotion'
 import { ApiError } from '../../api/client'
 import { useDynamicCoursesMode } from '../../api/health'
 import {
@@ -29,6 +30,14 @@ import type {
 
 /** Where an answered, skipped or unavailable wizard sends the learner. */
 const AFTER_ONBOARDING = '/empleado'
+
+/**
+ * Built once: the outgoing step leaves in 200 ms and the incoming one lands in 300,
+ * instead of 300 each way. Five screens at `mode="wait"` made the symmetric version
+ * cost 3 s of pure waiting out of the ≤90 s the wizard is allowed (§6.1) — and a wait
+ * you sit through between questions is what makes five questions feel like ten.
+ */
+const stepSlide = stepSlideVariants(64)
 
 /**
  * The question ids this wizard knows how to render, in the order of §6.2. A
@@ -286,11 +295,22 @@ export function Onboarding() {
       }
     >
       <form onSubmit={handleSubmit} noValidate>
-        <div className="overflow-hidden">
+        {/* One panel that resizes, not five screens of different heights. A question
+            with four options is taller than one with a text field, and with the height
+            snapping between steps the card read as a new page every time — which is
+            the single thing that made a 5-question wizard feel long. `layout` lets the
+            card settle instead; the step inside is a `motion.div`, so framer's scale
+            correction keeps the text undistorted while it does.
+
+            Dropped entirely under reduced motion, where the plain swap below is the
+            accessible degradation: no travel, no blur, no resize. */}
+        <motion.div
+          className="overflow-hidden"
+          layout={reduceMotion ? false : 'size'}
+          transition={transition.resize}
+        >
           <AnimatePresence mode="wait" custom={direction} initial={false}>
             {reduceMotion ? (
-              // No travel, no blur: the accessible degradation is a plain swap, not
-              // a slower slide.
               <div key={step} ref={focusStep} tabIndex={-1} data-step={currentQuestion.id}>
                 {stepBody}
               </div>
@@ -301,17 +321,16 @@ export function Onboarding() {
                 tabIndex={-1}
                 data-step={currentQuestion.id}
                 custom={direction}
-                variants={slideVariants(64)}
+                variants={stepSlide}
                 initial="enter"
                 animate="center"
                 exit="exit"
-                transition={transition.content}
               >
                 {stepBody}
               </motion.div>
             )}
           </AnimatePresence>
-        </div>
+        </motion.div>
 
         {submit.isError && (
           <p className="text-sm text-danger mt-4">

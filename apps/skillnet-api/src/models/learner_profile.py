@@ -32,6 +32,12 @@ FORMAT_VECTOR_DIMENSIONS: tuple[str, ...] = ("texto", "ejercicio", "codigo", "da
 
 EMPTY_FORMAT_VECTOR = '{"texto":0,"ejercicio":0,"codigo":0,"dato":0}'
 
+#: The same literal, safe to interpolate into :func:`sqlalchemy.text`. ``text()`` reads
+#: ``:word`` as a bind parameter and ``"texto":0`` matches, so the unescaped form
+#: compiled to ``{"texto"NULL,...}`` and ``CREATE TABLE learner_profiles`` failed on a
+#: real Postgres. ``\:`` is ``text()``'s own escape and comes back out as a plain colon.
+_EMPTY_FORMAT_VECTOR_SQL = EMPTY_FORMAT_VECTOR.replace(":", r"\:")
+
 
 class LearnerExperience(str, enum.Enum):
     """``UNKNOWN`` is the default: it maps to *neutral* scaffolding, not novice."""
@@ -82,7 +88,7 @@ class LearnerProfile(UUIDMixin, TimestampMixin, Base):
     format_vector: Mapped[dict] = mapped_column(
         JSONB,
         nullable=False,
-        server_default=text(f"'{EMPTY_FORMAT_VECTOR}'::jsonb"),
+        server_default=text(f"'{_EMPTY_FORMAT_VECTOR_SQL}'::jsonb"),
     )
     format_vector_updated_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True

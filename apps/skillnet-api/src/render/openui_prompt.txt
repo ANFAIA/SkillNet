@@ -57,7 +57,7 @@ Before finishing, walk your output and verify:
 1. root = Stack(...) is the FIRST line (for optimal streaming).
 2. Every referenced name is defined. Every defined name (other than root) is reachable from root.
 
-- SkillNet 1 — Una declaracion por linea. Ningun salto de linea literal dentro de una comilla: escribe \n. Cada salto de linea real cierra un bloque. Un bloque anidado en linea dentro del array de su padre es valido, pero se prefiere declararlo en su propia linea y referenciarlo por id: asi el aprendiz ve la pantalla montarse mientras se genera, en vez de esperar a que termine la linea entera.
+- SkillNet 1 — Una declaracion por linea, preferiblemente. Ningun salto de linea literal dentro de una comilla: escribe \n. Un salto de linea dentro de un array abierto continua la misma declaracion, asi que no la rompe, pero escribir cada declaracion entera en su linea hace que el aprendiz vea la pantalla montarse mientras se genera. Un bloque anidado en linea dentro del array de su padre es valido, y por lo mismo se prefiere declararlo aparte y referenciarlo por id.
 - SkillNet 2 — Comilla doble dentro de un texto: escribela \". Nunca sin escapar.
 - SkillNet 3 — Table.rows es un array de arrays de texto, obligatoriamente: Table(["A", "B"], [["1", "2"], ["3", "4"]]).
 - SkillNet 4 — Esto ANULA la regla de sintaxis 3 de arriba: en SkillNet NO existen los booleanos, ni null, ni los objetos {...}, ni los comentarios //, ni la aritmetica, ni las variables $estado, ni los builtins @Nombre, ni Query(...), ni Mutation(...), ni Action(...). Un programa que use cualquiera de esas formas se rechaza entero. Los unicos argumentos validos son texto entre comillas, numeros, arrays, referencias por id sin comillas y llamadas a bloques del catalogo.

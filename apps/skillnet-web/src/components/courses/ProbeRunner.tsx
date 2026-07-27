@@ -82,6 +82,10 @@ export function ProbeRunner({
   const [selected, setSelected] = useState<number | null>(null)
   const [text, setText] = useState('')
   const [closing, setClosing] = useState<ProbeAnswerResult | null>(null)
+  //: Whether opening the probe failed. Component state and not `probe.isError`, for the
+  //: same reason `adopt` runs off `mutateAsync` below: the observer's flags do not
+  //: survive a remount, and a probe that failed silently is worse than one that failed.
+  const [openFailed, setOpenFailed] = useState(false)
 
   // The probe opens exactly once per mounted node. A query would re-fire on every
   // cache decision, and `POST /probe` for a node whose probe is unfinished and
@@ -125,15 +129,28 @@ export function ProbeRunner({
     [emitVerdict],
   )
 
+  // `mutateAsync` and a promise, and **not** a per-call `onSuccess` handed to `mutate`.
+  //
+  // Those callbacks hang off the mutation *observer*, and react-query drops them when the
+  // observer is torn down before the request settles. Reading `probe.data` instead does
+  // not help either: a remount builds a **new** observer, which is not attached to the
+  // mutation that already finished, so `data` stays `undefined`. Either way the request
+  // succeeded, the server dealt a hand, nothing read it, and `openedRef` turned the retry
+  // into a no-op — the screen sat on "Preparando dos preguntas rapidas..." for good, with
+  // no error to explain it. StrictMode reproduces it every time, which is how it was
+  // found; a concurrent remount in production is the same shape.
+  //
+  // The promise from `mutateAsync` belongs to the call, not to the observer, and `adopt`
+  // writes component state, which does survive the simulated remount. Nothing cancels on
+  // cleanup on purpose: cancelling is precisely what loses the only result there will be,
+  // because `openedRef` guarantees no second request.
   useEffect(() => {
     if (openedRef.current || !nodeId) return
     openedRef.current = true
-    probe.mutate(
-      {},
-      {
-        onSuccess: (next) => adopt(next),
-      },
-    )
+    probe
+      .mutateAsync({})
+      .then(adopt)
+      .catch(() => setOpenFailed(true))
     // `probe` and `adopt` are fresh objects on every render, so this effect re-runs
     // often; `openedRef` is what makes every run after the first a no-op. The guard is
     // the mechanism, the dependency list is not.
@@ -220,7 +237,9 @@ export function ProbeRunner({
   }
 
   // --- the residual wait: items being generated (§9.1) ------------------------
-  if (probe.isPending && !session) {
+  // Keyed off `session`/`openFailed` rather than `probe.isPending`, which reads `false`
+  // both before the opening effect has run and after a remount has replaced the observer.
+  if (!session && !openFailed) {
     return (
       <div className="space-y-4" data-testid="probe-loading" aria-busy="true">
         {openingLine && <p className="text-base text-text">{openingLine}</p>}
@@ -231,7 +250,7 @@ export function ProbeRunner({
     )
   }
 
-  if (probe.isError) {
+  if (openFailed) {
     // A probe that cannot open must not block the lesson: §7 measures what the learner
     // already knows, and not measuring it costs an unnecessary node, not a wrong one.
     return (

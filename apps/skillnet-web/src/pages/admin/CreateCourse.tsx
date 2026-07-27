@@ -2,9 +2,14 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ease, duration } from '../../lib/motion'
-import { Card, CardTitle, Button, Input, Badge, EmptyState, FileUploadZone, ProgressBar, StepIndicator } from '../../components/ui'
+import { Card, CardTitle, Button, Input, Textarea, Badge, EmptyState, FileUploadZone, ProgressBar, StepIndicator } from '../../components/ui'
 import { GenerationProgress } from '../../components/generation/GenerationProgress'
-import { useUploadDocument, useProcessDocument } from '../../api/documents'
+import {
+  useUploadDocument,
+  useProcessDocument,
+  useCreateSourceFromIdea,
+  waitForDocumentReady,
+} from '../../api/documents'
 import { useCreateCourse, useGenerateContent, usePublishCourse, useCourse, useUpdateLesson, useUpdateExercise } from '../../api/courses'
 import { useGenerationProgress, useGenerationJobStatus, jobToProgress } from '../../api/generation'
 import { useDynamicCoursesMode } from '../../api/health'
@@ -115,11 +120,13 @@ function StepSource({ selected, onSelect }: { selected: SourceType; onSelect: (s
 
 // --- Step 1: Content ---
 function StepContent({
-  source, title, onTitleChange, uploader, documentReady,
+  source, title, onTitleChange, idea, onIdeaChange, uploader, documentReady,
 }: {
   source: SourceType
   title: string
   onTitleChange: (v: string) => void
+  idea: string
+  onIdeaChange: (v: string) => void
   uploader: ReturnType<typeof useUploadDocument>
   documentReady: boolean
 }) {
@@ -132,6 +139,31 @@ function StepContent({
 
       <div className="mt-5 space-y-4">
         <Input label="Nombre del curso" placeholder="Ej: Seguridad Alimentaria" value={title} onChange={(e) => onTitleChange(e.target.value)} />
+
+        {source === 'cero' && (
+          <>
+            {/* Optional on purpose. The title alone is a thin brief but a legitimate
+                one, and the server's prompt handles an empty description explicitly —
+                making this required would add a wall in front of the quickest path
+                through the wizard to buy quality the creator can also get by editing
+                the source afterwards. */}
+            <Textarea
+              label="Que quieres que cubra"
+              placeholder={'Ej: como funciona una sinapsis, los principales neurotransmisores y que se sabe hoy sobre plasticidad. Nivel introductorio, sin matematicas.'}
+              hint="Opcional, pero cuanto mas concreto seas, mejor sale el material."
+              value={idea}
+              onChange={(e) => onIdeaChange(e.target.value)}
+            />
+            <div className="rounded-lg border border-border bg-bg-subtle p-3">
+              <p className="text-xs text-text-secondary">
+                <span className="font-medium text-text">Se escribira un documento fuente con IA</span>{' '}
+                y el curso se generara a partir de el. Ese documento queda guardado y
+                marcado como generado, para que puedas leerlo y corregirlo: recoge
+                conocimiento general, no la politica interna de tu empresa.
+              </p>
+            </div>
+          </>
+        )}
 
         {source === 'documentos' && (
           <div>
@@ -451,6 +483,11 @@ export function CreateCourse() {
   const [source, setSource] = useState<SourceType>(null)
   const [title, setTitle] = useState('')
   const [documentId, setDocumentId] = useState<string | null>(null)
+  const [idea, setIdea] = useState('')
+  //: The "desde cero" path writes a source document before anything else can happen —
+  //: an LLM call plus ingestion, a few seconds. Without a state for it the wizard looks
+  //: frozen on the button the creator just pressed.
+  const [writingSource, setWritingSource] = useState(false)
   const [courseId, setCourseId] = useState<string | null>(null)
   const [jobId, setJobId] = useState<string | null>(null)
   const [startError, setStartError] = useState<string | null>(null)
@@ -461,6 +498,7 @@ export function CreateCourse() {
 
   const uploader = useUploadDocument()
   const processDoc = useProcessDocument()
+  const createSource = useCreateSourceFromIdea()
   const createCourse = useCreateCourse()
   const generate = useGenerateContent()
   const publish = usePublishCourse()
@@ -472,15 +510,16 @@ export function CreateCourse() {
    * screen is where nodes get reviewed and validated before anything is generated.
    *
    * It is an **extra** action, not a replacement: the v1 "Generar" button is still
-   * right there, so with the flag off (or for a course built from scratch, where
-   * there is no source document for the designer to read) the wizard behaves exactly
-   * as it does today.
+   * right there, so with the flag off the wizard behaves exactly as it does today.
+   *
+   * "Desde cero" qualifies too, and the note about it not having a source to read is
+   * no longer true: `ensureSourceDocument` writes one before either button proceeds,
+   * so the designer gets the same headings it would get from an upload.
    */
   const { mode: dynamicMode } = useDynamicCoursesMode()
   const schemaFirstAvailable =
     (dynamicMode === 'shadow' || dynamicMode === 'on') &&
-    source === 'documentos' &&
-    !!documentId
+    (source === 'cero' || (source === 'documentos' && !!documentId))
 
   // Mark the uploaded document ready + kick off server-side processing.
   const latestUpload = uploader.uploads[uploader.uploads.length - 1]
@@ -493,6 +532,16 @@ export function CreateCourse() {
   }, [latestUpload, documentId, processDoc, uploader])
 
   const documentReady = source !== 'documentos' || !!documentId
+
+  // Three things can be in flight behind step 1's buttons and all three must disable
+  // them. `writingSource` is the slow one — an LLM call plus ingestion — and it gets its
+  // own label, because "Iniciando..." for eight seconds reads as a hang.
+  const busyStarting = writingSource || createCourse.isPending || generate.isPending
+  const startButtonLabel = writingSource
+    ? 'Escribiendo el documento fuente...'
+    : createCourse.isPending || generate.isPending
+      ? 'Iniciando...'
+      : 'Generar'
 
   // Generation tracking (SSE + polling fallback).
   const { progress: sseProgress, connectionFailed } = useGenerationProgress(step === 2 ? jobId : null)
@@ -509,24 +558,63 @@ export function CreateCourse() {
     }
   }, [step, effective.step, effective.courseId])
 
+  /**
+   * The source document for whichever path we are on, creating it if there is none.
+   *
+   * "Desde cero" has no upload, so the source is written here and then ingested exactly
+   * like one: the rest of the wizard, the generation pipeline and the v2 schema screen
+   * all receive an ordinary `source_document_id` and never learn where it came from.
+   *
+   * The wait for `ready` is not optional — `POST /courses/{id}/generate` refuses a
+   * document that is still `processing`, which is the very error this whole path
+   * existed to produce.
+   */
+  /**
+   * `waitForDocumentReady` rejects with a plain `Error` carrying a message worth
+   * reading ("el documento tarda demasiado", the server's ingestion error). The old
+   * handler collapsed anything that was not an `ApiError` into one generic line, which
+   * is how a specific failure becomes an unactionable one.
+   */
+  function startFailureMessage(err: unknown, fallback: string): string {
+    if (err instanceof ApiError) return err.body.detail
+    if (err instanceof Error && err.message) return err.message
+    return fallback
+  }
+
+  async function ensureSourceDocument(): Promise<string | undefined> {
+    if (documentId) return documentId
+    if (source !== 'cero') return undefined
+
+    setWritingSource(true)
+    try {
+      const doc = await createSource.mutateAsync({ title: title.trim(), idea: idea.trim() })
+      await waitForDocumentReady(doc.id)
+      setDocumentId(doc.id)
+      return doc.id
+    } finally {
+      setWritingSource(false)
+    }
+  }
+
   async function startGeneration() {
     setStartError(null)
     try {
+      const sourceId = await ensureSourceDocument()
       const course = await createCourse.mutateAsync({
         title: title.trim(),
-        source_document_id: documentId ?? undefined,
+        source_document_id: sourceId ?? undefined,
       })
       setCourseId(course.id)
       const job = await generate.mutateAsync({
         courseId: course.id,
-        source_document_id: documentId ?? undefined,
+        source_document_id: sourceId ?? undefined,
         output_type: 'course_and_manual',
       })
       setJobId(job.job_id)
       setDirection(1)
       setStep(2)
     } catch (err) {
-      setStartError(err instanceof ApiError ? err.body.detail : 'No se pudo iniciar la generacion')
+      setStartError(startFailureMessage(err, 'No se pudo iniciar la generacion'))
     }
   }
 
@@ -537,13 +625,18 @@ export function CreateCourse() {
   async function startSchemaDefinition() {
     setStartError(null)
     try {
+      // Same source resolution as the v1 button, so "desde cero" reaches the schema
+      // screen too. The designer reads the document's headings to propose nodes, and
+      // without this it had nothing to read — `CourseSchemaService.propose` refuses
+      // without a source exactly like the v1 generator does.
+      const sourceId = await ensureSourceDocument()
       const course = await createCourse.mutateAsync({
         title: title.trim(),
-        source_document_id: documentId ?? undefined,
+        source_document_id: sourceId ?? undefined,
       })
       navigate(`/admin/curso/${course.id}/esquema`)
     } catch (err) {
-      setStartError(err instanceof ApiError ? err.body.detail : 'No se pudo crear el curso')
+      setStartError(startFailureMessage(err, 'No se pudo crear el curso'))
     }
   }
 
@@ -608,7 +701,7 @@ export function CreateCourse() {
   function renderStep() {
     switch (step) {
       case 0: return <StepSource selected={source} onSelect={setSource} />
-      case 1: return <StepContent source={source} title={title} onTitleChange={setTitle} uploader={uploader} documentReady={documentReady} />
+      case 1: return <StepContent source={source} title={title} onTitleChange={setTitle} idea={idea} onIdeaChange={setIdea} uploader={uploader} documentReady={documentReady} />
       case 2: return (
         <div className="py-6">
           <div className="text-center mb-8">
@@ -661,15 +754,15 @@ export function CreateCourse() {
               <Button
                 variant="secondary"
                 onClick={() => void startSchemaDefinition()}
-                disabled={!canNext() || createCourse.isPending || generate.isPending}
+                disabled={!canNext() || busyStarting}
                 title="Define y revisa el esquema antes de generar nada"
               >
                 Definir esquema
               </Button>
             )}
             {step < 3 ? (
-              <Button variant="primary" onClick={next} disabled={!canNext() || createCourse.isPending || generate.isPending}>
-                {step === 1 ? (createCourse.isPending || generate.isPending ? 'Iniciando...' : 'Generar') : 'Siguiente'}
+              <Button variant="primary" onClick={next} disabled={!canNext() || busyStarting}>
+                {step === 1 ? startButtonLabel : 'Siguiente'}
               </Button>
             ) : step === 3 ? (
               <Button variant="primary" onClick={next}>Siguiente</Button>

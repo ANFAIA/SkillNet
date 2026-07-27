@@ -17,8 +17,13 @@ What it creates (all of it inside the single organization the app bootstraps):
   is visible without filling five onboarding wizards by hand; the fifth deliberately has
   none, which is the one to walk the wizard with.
 * Three source documents with real prose. All of them are <= 5 pages, which is the
-  ``full_text`` branch of ``load_source_context`` (§4.2): the runtime reads the whole
-  document and no embeddings — and therefore no embedding provider — are needed.
+  ``full_text`` branch of ``load_source_context`` (§4.2): the *node runtime* reads the
+  whole document and needs no embeddings. They are **also chunked and embedded** (best
+  effort, see ``_ensure_chunks``), because the tutor chat is RAG over ``document_chunks``
+  and a demo whose chunk table is empty never exercises that half of the product. If no
+  embedding provider is configured the chunks are skipped with a warning and the tutor
+  still answers — from ``full_text``, which is rung 2 of the ladder in
+  ``src/services/retrieval.py``.
 * Two **dynamic** courses whose schema is already ``validated``: a 3-node compliance one
   and a 7-node process one. Every node carries its pre-generated ``probe_items`` /
   ``probe_answer_key`` (§7.1 origin 1), so opening a node costs zero probe tokens.
@@ -83,13 +88,18 @@ from src.models import (
     UserRole,
     UserSkill,
 )
+from src.llm.embedding import resolve_embedding_config
+from src.llm.fixtures import maybe_fixture_embedder
+from src.repositories.document_chunk_repo import DocumentChunkRepository
 from src.repositories.learner_profile_repo import LearnerProfileRepository
 from src.repositories.learning_event_repo import LearningEventRepository
 from src.seed_demo import TAXONOMY
+from src.services.chunker import chunk_sections
 from src.services.course_schema_service import (
     default_threshold_for,
     validate_schema_graph,
 )
+from src.services.document_parser import ParsedSection
 from src.services.learner_profile_service import LearnerProfileService
 from src.services.probe_service import validate_probe_items
 
@@ -1502,6 +1512,81 @@ async def _ensure_document(
     return document
 
 
+def _parsed_sections(spec: DocumentSpec) -> list[ParsedSection]:
+    """The spec's sections in the shape ``chunk_sections`` expects.
+
+    Page numbers are apportioned evenly over ``page_count`` rather than invented per
+    section: a citation that says "pag. 2" has to be *roughly* true, and the seed has no
+    real pagination to be exactly true to.
+    """
+    total = max(1, len(spec.sections))
+    per_page = max(1, (total + spec.page_count - 1) // spec.page_count)
+    return [
+        ParsedSection(
+            heading=heading,
+            level=2,
+            content=body,
+            page_start=min(spec.page_count, index // per_page + 1),
+            page_end=min(spec.page_count, index // per_page + 1),
+            position=index,
+        )
+        for index, (heading, body) in enumerate(spec.sections)
+    ]
+
+
+async def _ensure_chunks(session, org: Organization, document: Document, spec: DocumentSpec) -> int:
+    """Chunk and embed a seeded document, exactly as ingestion would have.
+
+    **Why a <= 5-page document is chunked at all.** The runtime does not need it: those
+    documents take the ``full_text`` branch of ``load_source_context`` (§4.2) and that is
+    still the branch the node graph uses. The tutor chat is the other consumer, it is RAG
+    over ``document_chunks``, and until today the demo gave it an empty table — so the
+    ``chunked`` half of the product was never exercised by the thing everybody actually
+    clicks on. Chunking here costs nothing at runtime and makes that path real.
+
+    **Why the chat is still correct when this does nothing.** It is best effort: an org
+    with no embedding provider gets a warning and zero chunks, which is precisely the
+    state ``src/services/ingestion.py`` leaves behind when embedding fails. The tutor's
+    ladder (``src/services/retrieval.py``) treats that as rung 2 and answers from
+    ``full_text``. The seed is not allowed to be the reason the chat works.
+
+    Idempotent: a document that already has chunks is left alone.
+    """
+    repo = DocumentChunkRepository(session)
+    if await repo.count_for_document(document.id):
+        return 0
+
+    chunks = chunk_sections(_parsed_sections(spec), spec.title)
+    if not chunks:
+        return 0
+
+    config = resolve_embedding_config(dict(org.settings or {}))
+    embedder = maybe_fixture_embedder(config)
+    try:
+        vectors = await embedder.embed_texts([c.content for c in chunks], prefix="passage: ")
+    except Exception as exc:  # noqa: BLE001 - the demo must seed without an embedder
+        logger.warning(
+            "No embeddings for %s (%s). The document keeps its full_text and the tutor "
+            "answers from it; RAG will have nothing to retrieve.",
+            spec.title,
+            exc,
+        )
+        return 0
+
+    for chunk, vector in zip(chunks, vectors, strict=True):
+        await repo.add_chunk(
+            document_id=document.id,
+            content=chunk.content,
+            embedding=vector,
+            chunk_index=chunk.chunk_index,
+            chunk_metadata=chunk.metadata,
+        )
+    document.embedding_model = config.model
+    document.embedding_dim = config.dimensions
+    await session.flush()
+    return len(chunks)
+
+
 async def _ensure_module_tree(
     session,
     course: Course,
@@ -1800,9 +1885,12 @@ async def seed(*, refresh: bool = False) -> None:
             if created:
                 created_users.append(spec.email)
 
-        documents = {
-            spec.key: await _ensure_document(session, org, admin, spec) for spec in DOCUMENTS
-        }
+        documents: dict[str, Document] = {}
+        chunk_counts: dict[str, int] = {}
+        for spec in DOCUMENTS:
+            document = await _ensure_document(session, org, admin, spec)
+            documents[spec.key] = document
+            chunk_counts[spec.title] = await _ensure_chunks(session, org, document, spec)
 
         courses: dict[str, Course] = {}
         static_course = await _ensure_static_course(session, org, admin, documents["caja"])
@@ -1829,7 +1917,16 @@ async def seed(*, refresh: bool = False) -> None:
                 await _ensure_enrollment(session, users[email_local], course, admin)
 
         await session.commit()
-        _report(org, admin, users, courses, node_counts, created_users, refresh=refresh)
+        _report(
+            org,
+            admin,
+            users,
+            courses,
+            node_counts,
+            created_users,
+            chunk_counts,
+            refresh=refresh,
+        )
 
     await engine.dispose()
 
@@ -1841,6 +1938,7 @@ def _report(
     courses: dict[str, Course],
     node_counts: dict[str, int],
     created_users: list[str],
+    chunk_counts: dict[str, int],
     *,
     refresh: bool,
 ) -> None:
@@ -1864,6 +1962,12 @@ def _report(
         if spec.note:
             print(f"          {spec.note}")
     print()
+    if any(chunk_counts.values()):
+        print("  Documentos indexados para el tutor (RAG):")
+        for title, count in chunk_counts.items():
+            if count:
+                print(f"    - {title}: {count} fragmentos")
+        print()
     print("  Cursos:")
     for title, course in courses.items():
         mode = str(getattr(course.delivery_mode, "value", course.delivery_mode))

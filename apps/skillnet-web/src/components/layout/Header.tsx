@@ -1,15 +1,29 @@
 import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useMe, useLogout } from '../../api/auth'
+import { useDynamicCoursesMode } from '../../api/health'
 import { useSidebar } from '../../contexts/SidebarContext'
 import { transition, duration, ease } from '../../lib/motion'
 
 export function Header() {
   const { data: user } = useMe()
   const logout = useLogout()
+  const navigate = useNavigate()
   const { collapsed, setMobileOpen } = useSidebar()
   const [open, setOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+
+  /**
+   * The way back into the wizard (§6.1). Skipping writes `experience_level = 'unknown'`
+   * and stops the gate from ever firing again, so without an entry point here "lo hago
+   * luego" is permanent and the learner profile can never be set.
+   *
+   * Gated on `'on'` and on the employee role: this header is also the admin one, and
+   * below `on` every onboarding route is a 404 — the wizard would bounce straight back.
+   */
+  const { mode: dynamicMode } = useDynamicCoursesMode()
+  const canRerunOnboarding = dynamicMode === 'on' && user?.role === 'employee'
 
   useEffect(() => {
     if (!open) return
@@ -73,6 +87,21 @@ export function Header() {
                   <p className="text-sm font-medium text-text truncate">{user.full_name}</p>
                   <p className="text-xs text-text-muted truncate">{user.email}</p>
                 </div>
+              )}
+              {canRerunOnboarding && (
+                <motion.button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setOpen(false)
+                    navigate('/onboarding')
+                  }}
+                  className="w-full text-left px-4 py-2.5 text-sm text-text hover:bg-bg-muted transition-colors border-b border-border cursor-pointer"
+                  whileTap={{ scale: 0.98 }}
+                  transition={transition.micro}
+                >
+                  Preferencias de aprendizaje
+                </motion.button>
               )}
               <motion.button
                 type="button"

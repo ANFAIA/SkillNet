@@ -1223,6 +1223,28 @@ Instrucciones:
     ]
 ```
 
+> **SUPERSEDED (2026-07-27).** The last instruction is the bug, not the contract. Measured
+> in the demo organization: three documents, 6 710 characters of `full_text`, **zero**
+> chunks and zero embeddings — because a document at or under 5 pages takes the
+> `full_text` branch of `load_source_context` (§4.2) and is never chunked — so this branch
+> fired on every question ever asked and the tutor refused every one of them.
+>
+> An empty retrieval is now a *rung*, not a dead end. `ground_question` in
+> `src/services/retrieval.py` walks **chunks -> the whole enrolled document -> general
+> knowledge** and returns which rung it stood on. Two details worth carrying into any
+> future revision of this document:
+>
+> - A hit below `SIMILARITY_FLOOR` (0.25) counts as no hit. That is not a relevance
+>   threshold — real sentence embeddings never come back that low — it is how a
+>   non-semantic embedder is told apart from a real one. Measured with
+>   `EMBEDDING_MODEL=fixture/local`, which is what `.env` configures locally: the five
+>   best "hits" for *"¿Qué son los alérgenos?"* scored 0.107, 0.105, 0.070, 0.058, 0.053,
+>   i.e. random. Without the floor the tutor answers an allergen question from a chunk
+>   about the cash float, which is worse than the refusal because it looks right.
+> - The whole-document rung orders documents by a lexical term count, accent-folded. The
+>   demo's most likely question shares zero literal terms with the document that answers
+>   it (`alérgenos` vs `alergenos`), and without folding the ranking is arbitrary.
+
 ---
 
 ### 3.5 Embedding Model Management

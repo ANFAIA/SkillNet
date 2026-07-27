@@ -602,6 +602,65 @@ describe('NodeView — the two control affordances (§5.5)', () => {
   })
 })
 
+describe('NodeView — how the lesson arrives (§9.2)', () => {
+  /** The staggering container, applied by `StackBlock` to the root Stack of a program. */
+  function staggered(container: HTMLElement) {
+    return container.querySelectorAll('.block-arrival')
+  }
+
+  it('lets the blocks resolve in sequence instead of appearing in one frame', async () => {
+    installFetch({
+      node: learningNode(),
+      renderResponses: [
+        [202, { status: 'pending', request_id: null }],
+        [200, servedRender(PROGRAM)],
+      ],
+      accepted: [{ request_id: 'req-1', cached: false, render_id: null }],
+      streamChunks: [
+        `event: ui_done\ndata: ${JSON.stringify({ render_id: RENDER_ID, format: 'explanation', status: 'ready' })}\n\n`,
+      ],
+    })
+    const { container } = renderPage()
+
+    await waitFor(() => expect(container).toHaveTextContent('El plazo de devolucion es de 30 dias.'))
+    // Exactly one container carries the cadence — the root Stack, not every Stack.
+    expect(staggered(container)).toHaveLength(1)
+  })
+
+  it('does not animate a previous version the learner asked to see again', async () => {
+    installFetch({
+      node: learningNode(),
+      renderResponses: [
+        [200, servedRender(PROGRAM)],
+        [200, servedRender(SECOND_PROGRAM, OLD_RENDER_ID)],
+      ],
+      accepted: [{ request_id: 'req-2', cached: false, render_id: null }],
+      streamChunks: [
+        `event: ui_done\ndata: ${JSON.stringify({ render_id: OLD_RENDER_ID, format: 'explanation', status: 'ready' })}\n\n`,
+      ],
+      renders: [
+        { render_id: OLD_RENDER_ID, created_at: '2026-07-26T11:00:00Z', ui_format: 'explanation', status: 'ready' },
+        { render_id: RENDER_ID, created_at: '2026-07-26T09:00:00Z', ui_format: 'explanation', status: 'ready' },
+      ],
+    })
+    const { container } = renderPage()
+
+    await screen.findByTestId('render-controls')
+    await userEvent.click(screen.getByRole('button', { name: 'Actualizar esta leccion' }))
+    await waitFor(() => expect(container).toHaveTextContent('Ahora con un ejemplo de caja.'))
+
+    await userEvent.click(screen.getByRole('button', { name: 'Ver la version anterior' }))
+    await userEvent.click(screen.getByRole('button', { name: /^Version del/ }))
+    await waitFor(() =>
+      expect(container).toHaveTextContent('El plazo de devolucion es de 30 dias.'),
+    )
+
+    // Re-reading something you already read is not an event. Animating it would say
+    // a new lesson had just been written.
+    expect(staggered(container)).toHaveLength(0)
+  })
+})
+
 describe('NodeView — click to explain (§8.5)', () => {
   it('explains a word in the lesson but not a click on a control', async () => {
     installFetch({

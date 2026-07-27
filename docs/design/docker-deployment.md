@@ -17,6 +17,27 @@ Three services. Each one has exactly one job.
 - A single exposed port (3000) for the admin to open.
 - SSL termination in one place (nginx, when configured).
 
+**Optional services, behind compose profiles.** None of these start with a plain `docker compose up`:
+
+| Profile | Service | What it is |
+|---------|---------|------------|
+| `fixtures` | `api-fixtures` | A keyless copy of the API. Same image as `api`, but `LLM_MODEL=fixture/local` and `EMBEDDING_MODEL=fixture/local`, so every LLM and embedding call is served from the recorded fixtures in `src/llm/fixture_data`. `DYNAMIC_COURSES_MODE` is forced to `on`. |
+| `ollama` | `ollama` | Local embedding/LLM inference. |
+| `a2a` | `a2a` | Agent-to-agent server for external agents (`A2A_PORT`, default `5000`). |
+
+```bash
+docker compose --profile fixtures up -d db api-fixtures   # http://localhost:8001
+```
+
+`api-fixtures` publishes its **own** port — `API_FIXTURES_PORT`, default `8001` — rather than
+sharing 3000, because the bundled nginx SPA proxies to `api` and nothing else. That is the whole
+reason it is a separate service instead of an environment override: you get a keyless API to poke
+at with `curl` or the Swagger docs while the normal stack keeps running. To make the *entire*
+stack keyless, including the SPA, set the two `fixture/local` values in `.env` instead of using
+this profile.
+
+The fixtures ship inside `src`, so the production Dockerfile needs no change to support this.
+
 ---
 
 ### 5.2 docker-compose.yml
@@ -792,9 +813,21 @@ docker compose up -d         # Restart with new images (migrations run automatic
 ./scripts/backup.sh          # Dumps DB to backups/ directory
 
 # ── Development ──────────────────────────────────────────────
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+#   `--build` is not optional: the dev file overrides `target` to `builder`, and
+#   without a build the api service reuses the `runtime` image, whose PATH has no
+#   `uv`, and dies with `exec: "uv": executable file not found in $PATH`.
+#   Sets DYNAMIC_COURSES_MODE=shadow by default.
+
+# ── No API key at all (recorded fixtures, v2 on) ─────────────
+docker compose --profile fixtures up -d db api-fixtures   # http://localhost:8001
+
+# ── Demo data ────────────────────────────────────────────────
+docker compose exec api python -m src.seed_demo             # v1
+docker compose exec api uv run python -m src.seed_demo_v2   # v2 (bakery-café org)
 
 # ── Offline mode (Ollama) ────────────────────────────────────
-docker compose -f docker-compose.yml -f docker-compose.local-llm.yml up -d
+# There is no docker-compose.local-llm.yml; ollama is a profile in the main file.
+docker compose --profile ollama up -d
 docker compose exec ollama ollama pull llama3.1
 ```

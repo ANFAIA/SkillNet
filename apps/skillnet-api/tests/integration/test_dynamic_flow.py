@@ -303,6 +303,13 @@ async def _seed(fixture_dir: Path) -> World:
         skill = Skill(org_id=org.id, name=f"{SKILL_NAME} {suffix}")
         db.add(skill)
         await db.commit()
+        # Refresh before the session closes. These instances are handed straight to the
+        # app (`dependency_overrides[current_user]`), and `UserRead` reads columns the
+        # seed never sets — `accessibility`, `is_superuser`. On a detached object those
+        # are expired attributes, and touching one raises `MissingGreenlet` instead of
+        # lazily loading. A real request never hits this: it loads its own user.
+        for instance in (org, admin, employee, other, document, skill):
+            await db.refresh(instance)
 
     _register_design_fixtures(fixture_dir, document=document)
     return World(
@@ -384,9 +391,9 @@ async def _register_render_fixtures(
     of the pipeline rather than of a stub: drop ``role_title`` from the prompt and the key
     changes, the fixture is not found, and the render comes back as ``fallback``.
     """
+    from src.agents.runtime.router import runtime_model_key
     from src.repositories.learner_profile_repo import LearnerProfileRepository
     from src.repositories.learner_node_state_repo import LearnerNodeStateRepository
-    from src.services.node_render_service import runtime_model_key
 
     async with async_session_factory() as db:
         node = await db.get(CourseNode, node_id)
@@ -843,14 +850,21 @@ async def test_the_designer_writes_a_real_schema_and_the_gate_blocks_until_revie
     assert schema["schema_status"] == "proposed"
     # §10.1: proposing does not make a course dynamic. Only `validate` does.
     assert schema["delivery_mode"] == "static"
+    # `position` is a *topological* rank, not the order the model happened to list its
+    # nodes in (§4.1: `persist_schema` runs `topological_order` over the pruned edges and
+    # numbers the result). The packaged proposal asks for
+    # `Excepciones <- [Plazo, Registro]` and `Registro <- [Excepciones]`; pruning drops the
+    # edge that *closes* the cycle, i.e. `Registro <- Excepciones`, which leaves
+    # `Excepciones` genuinely downstream of `Registro` and therefore last. Asserting the
+    # proposal's own order here would have been asserting that the sort does nothing.
     titles = [node["title"] for node in schema["nodes"]]
-    assert titles == [N_PLAZO, N_EXCEPCIONES, N_REGISTRO, N_TRATO]
+    assert titles == [N_PLAZO, N_REGISTRO, N_TRATO, N_EXCEPCIONES]
     assert [node["position"] for node in schema["nodes"]] == [1, 2, 3, 4]
     assert [node["criticality"] for node in schema["nodes"]] == [
         "critical",
-        "recommended",
         "critical",
         "contextual",
+        "recommended",
     ]
     # Thresholds derive from criticality (§3.2).
     assert node_by_title(schema, N_PLAZO)["mastery_threshold"] == pytest.approx(0.90)
@@ -883,9 +897,16 @@ async def test_the_designer_writes_a_real_schema_and_the_gate_blocks_until_revie
     # The gate: no validation while a single node is unreviewed.
     refused = await admin.post(f"/courses/{world.course_id}/schema/validate")
     assert refused.status_code == 422, refused.text
+    # §11.1 fixes one nested shape for every schema error: `{"detail": {"code": ...}}`,
+    # and `validate` reports its blocking rule violations as a *list* under
+    # `schema_invalid` because more than one rule can fail at once. The unreviewed-node
+    # rule is one entry of that list, keyed `node_not_reviewed` — the same code the
+    # per-node runtime lock uses, which is the point: one name for one gate.
     detail = refused.json()["detail"]
-    assert detail["error"] == "unreviewed_nodes"
-    assert len(detail["node_ids"]) == 4
+    assert detail["code"] == "schema_invalid"
+    unreviewed = [row for row in detail["errors"] if row["code"] == "node_not_reviewed"]
+    assert len(unreviewed) == 1, detail
+    assert len(unreviewed[0]["node_ids"]) == 4
 
     validated = await review_all_and_validate(admin, world, schema)
     assert validated["schema_status"] == "validated"
@@ -910,7 +931,7 @@ async def test_the_designer_writes_a_real_schema_and_the_gate_blocks_until_revie
         ]},
     )
     assert locked.status_code == 422, locked.text
-    assert locked.json()["detail"]["error"] == "schema_locked"
+    assert locked.json()["detail"]["code"] == "schema_locked"
 
 
 # --------------------------------------------------------------------------------- #
@@ -1093,7 +1114,14 @@ async def test_the_full_learner_journey_closes_the_course(
     assert [row["passed"] for row in results] == [True, True, True]
     assert [row["consecutive_correct"] for row in results] == [1, 2, 3]
     assert results[-1]["state"] == "mastered"
-    assert results[-1]["mastery"] >= 0.90
+    # The ceiling lands mastery *exactly* on the threshold — `max(ewma, threshold)` with
+    # an EWMA still at 0.816 after this streak — and `learner_node_states.mastery` is a
+    # Postgres REAL, so what comes back over the wire is float32(0.90) = 0.8999999761...
+    # A literal `>= 0.90` would be asserting that float4 can represent 0.9, not asserting
+    # anything about §7.3. Pinning the exact value is the stronger claim anyway, and the
+    # threshold comparison that *matters* already happened in float64 inside
+    # `apply_answer`, before storage — which is why the state above is `mastered`.
+    assert results[-1]["mastery"] == pytest.approx(0.90, rel=1e-6)
     assert results[-1]["next"] == "next_node"
     # Passing reveals the worked answer; that is the only path that does.
     assert results[0]["correct_answer"]["correct"] == QUIZ_CORRECT
@@ -1148,11 +1176,25 @@ async def test_the_full_learner_journey_closes_the_course(
         f"/nodes/{registro}/probe/answer",
         json={"probe_id": probe2_id, "item_id": "b", "answer": {"selected": PROBE_B_CORRECT}},
     )
-    assert ok_b.json()["verdict"] == "tiebreak", ok_b.json()
+    # `verdict` is documented as `null` until every *required* item has been answered,
+    # and 2/2 on a `critical` node is exactly what makes the constructed item required
+    # (§7.2 rule 3). So the tie-break surfaces as "not decided yet, answer c", not as a
+    # verdict string: the three `ProbeVerdict` values are terminal, and reporting
+    # "tiebreak" on an open probe would let a client close the session on a shortcut that
+    # §7.2 says may never grant mastery. The estimate is already 1.0 and still not enough.
+    assert ok_b.json()["verdict"] is None, ok_b.json()
+    assert ok_b.json()["estimate"] == pytest.approx(1.0)
     assert ok_b.json()["next_item_id"] == "c"
+    # Item `c` is `fill_blank`, whose answer payload is `{"answers": [...]}` — one entry
+    # per blank, because the grader scores 0.0 the moment the arity differs. Sending the
+    # bare string under `answer` is the `true_false` shape and grades 0.0.
     ok_c = await learner.post(
         f"/nodes/{registro}/probe/answer",
-        json={"probe_id": probe2_id, "item_id": "c", "answer": {"answer": PROBE_C_CORRECT}},
+        json={
+            "probe_id": probe2_id,
+            "item_id": "c",
+            "answer": {"answers": [PROBE_C_CORRECT]},
+        },
     )
     assert ok_c.status_code == 200, ok_c.text
     assert ok_c.json()["verdict"] == "mastered", ok_c.json()
@@ -1324,9 +1366,23 @@ async def test_a_second_learner_in_the_same_bucket_is_served_from_the_cache(
         # Same declared profile, so the same `scaffold_band` and the same bucket.
         assert (await actor.post(f"/nodes/{trato}/probe")).status_code == 200
 
-    first = await generate_render(learner, world, trato, ui_format="explanation")
+    # The POST is where "generated or served from the cache?" is actually answered.
+    # `GET /render` reports `cached: true` unconditionally — it hands back the *pinned*
+    # render and recomputes nothing (§5.5), so reading the flag off the GET would be
+    # comparing a constant against itself. Spelling the first learner's POST out rather
+    # than going through `generate_render` is what makes the two POSTs comparable.
+    await _register_render_fixtures(
+        Path(settings.LLM_FIXTURE_DIR),
+        node_id=trato,
+        user_id=learner.user.id,
+        ui_format="explanation",
+    )
+    fresh = await learner.post(f"/nodes/{trato}/render", json={"force": False})
+    assert fresh.status_code == 202, fresh.text
+    assert fresh.json()["cached"] is False
+    assert fresh.json()["request_id"], "a real generation must be subscribable"
+    first = await wait_for_render(learner, trato)
     assert first["status"] == "ready", first
-    assert first["cached"] is False
 
     async with async_session_factory() as db:
         before = (

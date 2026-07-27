@@ -34,6 +34,19 @@ export interface NodeSkeletonProps {
 /** Tall enough that a typical lesson does not shift the footer when it replaces this. */
 const MIN_CONTENT_HEIGHT = 'min-h-[22rem]'
 
+/**
+ * The same 22rem as a number of pixels, for the one thing a class cannot do: hand the
+ * reserved height back gradually.
+ *
+ * Reserving the space stops the footer jumping *up* while the lesson is being written
+ * (§5.5). It does nothing for the other half — the moment the program lands and the
+ * box snaps from 352 px to whatever the lesson actually needs, which for a short one
+ * is a visible collapse under content the learner has just started reading. `NodeView`
+ * animates `minHeight` from this value down to zero instead, so the reservation is
+ * released at the speed of a layout change rather than in one frame.
+ */
+export const RESERVED_CONTENT_PX = 352
+
 /** Typical block count of a lesson — root fan-out is capped at 5 (§5.2 rule 4). */
 const TYPICAL_BLOCKS = 5
 

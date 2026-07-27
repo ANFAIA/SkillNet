@@ -4,11 +4,13 @@ import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, File, Query, Response, UploadFile
+from pydantic import BaseModel, ConfigDict, Field
 
 from src.core.exceptions import ValidationError
 from src.core.tasks import task_registry
 from src.deps.auth import AdminUser
 from src.deps.db import DBSession
+from src.deps.llm import LLMDep
 from src.models import DocumentStatus
 from src.repositories.document_repo import DocumentRepository
 from src.schemas.common import PaginatedResponse
@@ -67,6 +69,42 @@ async def upload_document(
         content=content,
     )
     await db.commit()
+    return DocumentRead.model_validate(doc)
+
+
+class SourceFromIdeaRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    title: str = Field(min_length=1, max_length=200)
+    #: What the creator wants covered. Optional — a title alone is a thin but legitimate
+    #: brief, and the prompt says so explicitly rather than guessing at an empty string.
+    idea: str = Field(default="", max_length=4000)
+
+
+@router.post("/from-idea", response_model=DocumentRead, status_code=201)
+async def create_document_from_idea(
+    admin: AdminUser, db: DBSession, llm: LLMDep, body: SourceFromIdeaRequest
+) -> DocumentRead:
+    """Write a source document from an idea, then ingest it like any upload.
+
+    The front half of "crear curso desde cero". It returns a normal ``Document`` in
+    ``processing``, so the caller carries on down the ordinary path: create the course
+    with this ``source_document_id`` and generate, or open the v2 schema screen. Nothing
+    downstream branches on where the text came from — only the UI does, and only to say
+    so. Declared **above** ``/{document_id}`` because ``from-idea`` would otherwise be
+    parsed as a UUID path parameter and 422.
+    """
+    service = _service(db)
+    doc = await service.create_from_idea(
+        org_id=admin.org_id,
+        created_by=admin.id,
+        title=body.title,
+        idea=body.idea,
+        llm=llm,
+    )
+    doc = await service.repo.update(doc, status=DocumentStatus.PROCESSING)
+    await db.commit()
+    task_registry.spawn(run_document_ingestion(doc.id), name=f"ingest:{doc.id}")
     return DocumentRead.model_validate(doc)
 
 

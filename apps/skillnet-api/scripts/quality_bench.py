@@ -1050,12 +1050,18 @@ _OFFLINE_PROGRAMS: dict[str, str] = {
     ),
 }
 
-#: Programa invalido: argumentos con nombre y una llamada partida en dos lineas, que son
-#: los dos fallos reales de un modelo pequeno (ver ``_UI_REPAIR_HEADER``).
+#: Programa invalido: argumentos con nombre y la clave de respuestas colada como una
+#: declaracion mas. Son los dos fallos que los modelos de verdad han cometido en este
+#: banco (ver ``_UI_REPAIR_HEADER``), y por eso son estos y no otros.
+#:
+#: Aqui habia, hasta el 2026-07-27, una llamada partida en dos lineas. Se quito porque
+#: **dejo de ser un fallo**: partir una declaracion mientras haya un corchete abierto es
+#: OpenUI Lang valido y el parser lo acepta desde ``src/render/lines.py``. Un fixture
+#: "invalido" que en realidad es valido mide otra cosa que la que dice medir.
 _OFFLINE_INVALID = (
     'root = Stack(children = [intro], gap = "md")\n'
-    "intro = TextContent(\n"
-    '    "Texto partido en dos lineas.", "lead")\n'
+    'intro = TextContent("Un texto cualquiera.", "lead")\n'
+    'clave = {"q1": {"correct": 1}}\n'
 )
 
 

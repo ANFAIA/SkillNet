@@ -34,7 +34,7 @@ Email + password form. On success, backend sets session cookie and redirects to 
 
 ### Dashboard
 
-**Route:** `/dashboard`
+**Route:** `/empleado`
 **Role:** employee
 
 The main screen. Not a course catalog. A daily plan: what to do today, how things are going, what you know.
@@ -66,7 +66,7 @@ The main screen. Not a course catalog. A daily plan: what to do today, how thing
 
 ### My Courses
 
-**Route:** `/courses`
+**Route:** `/empleado/cursos`
 **Role:** employee
 
 List of all courses assigned to the employee.
@@ -90,7 +90,7 @@ List of all courses assigned to the employee.
 
 ### Course View
 
-**Route:** `/courses/:id`
+**Route:** `/empleado/curso/:id`
 **Role:** employee
 
 The course experience. Module list -> lesson content -> exercises. Sequential navigation.
@@ -125,7 +125,7 @@ The course experience. Module list -> lesson content -> exercises. Sequential na
 
 ### Chat Tutor
 
-**Route:** `/chat`
+**Route:** `/empleado/chat`
 **Role:** employee
 
 AI tutor trained on company documents. The employee asks questions, gets answers grounded in internal knowledge with source citations.
@@ -154,7 +154,7 @@ AI tutor trained on company documents. The employee asks questions, gets answers
 
 ### Skill Map
 
-**Route:** `/skills`
+**Route:** `/empleado/skillmap`
 **Role:** employee
 
 Visual map of what the employee knows.
@@ -178,7 +178,7 @@ Visual map of what the employee knows.
 
 ### Manual Viewer
 
-**Route:** `/manuals/:id`
+**Route:** *not implemented* — there is no manual viewer page and no route for one
 **Role:** employee
 
 Reference material. Employees consult when they need to look something up.
@@ -204,13 +204,15 @@ Reference material. Employees consult when they need to look something up.
 
 ### Employee Settings
 
-**Route:** `/settings`
+**Route:** *not implemented as its own page.* The employee account menu in `Header` has no
+settings entry; the one item it does have is "Preferencias de aprendizaje", which re-enters the
+onboarding wizard at `/onboarding` (employee, and only when the v2 flag is `on`)
 **Role:** employee
 
 **Sections:**
 - **Profile** — name, email (read-only), change password
 - **Learning profile** — select: Standard / Focus / Fast. One click, no configuration. Private (no one else sees it)
-- **Accessibility** — optional: TEA, TDAH, dislexia flags. "Prefer not to say" option. Private
+- **Accessibility** — optional presentation preferences stored in `users.accessibility`. Neutral, behavioural settings only ("shorter blocks of text", and similar): what the reader wants on screen, never a diagnosis. **No neurotype labels are collected, stored or offered.** Private, and never sent to the LLM — `short_blocks` reaches generation only as a smaller `effective_density`
 
 **Data:**
 - `GET /api/v1/users/me` — current profile
@@ -261,7 +263,7 @@ Map of who knows what. Not a metrics dashboard. A talent map with action suggest
 
 ### Employees
 
-**Route:** `/admin/users`
+**Route:** `/admin/empleados`
 **Role:** admin
 
 List and manage employees.
@@ -280,7 +282,7 @@ List and manage employees.
 
 **Actions:**
 - Click employee -> detail view
-- Invite new employees -> `/admin/users/invite`
+- Invite new employees -> in place on this screen (see *Invite Employees* below; there is no separate route)
 - Deactivate employee
 - Assign course to employee
 
@@ -288,7 +290,7 @@ List and manage employees.
 
 ### Invite Employees
 
-**Route:** `/admin/users/invite`
+**Route:** *not implemented as its own route* — inviting happens inside `/admin/empleados`
 **Role:** admin
 
 **Sections:**
@@ -310,7 +312,7 @@ List and manage employees.
 
 ### Content Management
 
-**Route:** `/admin/content`
+**Route:** `/admin/contenido`
 **Role:** admin
 
 Overview of all content (courses + manuals).
@@ -318,7 +320,8 @@ Overview of all content (courses + manuals).
 **Sections:**
 - **Content list** — title, type (course/manual), status (draft/published/archived), creation date, source document
 - **Filter** — by type, by status
-- **Create new** button -> `/admin/content/new`
+- **Create new** button -> `/admin/crear-curso`
+- **Esquema** button per course -> `/admin/curso/:id/esquema`, only with `DYNAMIC_COURSES_MODE` at `shadow` or `on`
 
 **Data:**
 - `GET /api/v1/courses` — all courses
@@ -335,28 +338,28 @@ Overview of all content (courses + manuals).
 
 Multi-step flow for creating a course or manual.
 
+**Route:** `/admin/crear-curso` — **one route, not five.** The steps below are internal state of
+`CreateCourse.tsx` driven by a `StepIndicator`, so there is no per-step URL and no deep link into
+a step. When the v2 flag allows it, step 1 gains an optional "define the schema" path; the v1
+path stays available.
+
 **Step 1 — Type selection**
-**Route:** `/admin/content/new`
 
 Choose output: course + manual, or manual only. Upload source document (PDF) or start from scratch.
 
 **Step 2 — Input**
-**Route:** `/admin/content/new/input`
 
 If document uploaded: show processing status. If from scratch: title + topic + outcome fields.
 
 **Step 3 — Preview**
-**Route:** `/admin/content/new/preview`
 
 Generated content preview. Modules, lessons, exercises listed. Admin reviews.
 
 **Step 4 — Edit**
-**Route:** `/admin/content/new/edit`
 
 Admin can edit generated content: reorder modules, edit lesson text, modify exercises, remove/add content.
 
 **Step 5 — Publish**
-**Route:** `/admin/content/new/publish`
 
 Set metadata: title, description, outcome, skills taught, assign to employees (optional). Publish.
 
@@ -390,7 +393,7 @@ AI assistant for admin tasks. Different from tutor — this one helps manage the
 
 ### Admin Settings
 
-**Route:** `/admin/settings`
+**Route:** `/admin/ajustes`
 **Role:** admin
 
 **Sections:**
@@ -429,24 +432,49 @@ Sidebar collapses to icons on mobile. Header stays fixed.
 
 ## Route Summary
 
+**Routes are in Spanish.** The code is the source of truth here (`apps/skillnet-web/src/App.tsx`)
+and the English paths this document used to list never existed. Decided in
+`v2-dynamic-courses.md` §14.2 #8: follow the code; switching to English would be a mechanical
+rename of `App.tsx` and the `Link`s, with no effect on the API.
+
 | Route | Screen | Role |
 |-------|--------|------|
+| `/` | Redirect by role | public |
 | `/login` | Login | public |
-| `/dashboard` | Employee Dashboard | employee |
-| `/courses` | My Courses | employee |
-| `/courses/:id` | Course View | employee |
-| `/chat` | Chat Tutor | employee |
-| `/skills` | Skill Map | employee |
-| `/manuals/:id` | Manual Viewer | employee |
-| `/settings` | Employee Settings | employee |
+| `/onboarding` | Learner profile wizard (v2) | employee |
+| `/empleado` | Employee Dashboard | employee |
+| `/empleado/cursos` | My Courses | employee |
+| `/empleado/curso/:id` | Course View | employee |
+| `/empleado/curso/:id/nodo/:nodeId` | Node View (v2 dynamic course) | employee |
+| `/empleado/skillmap` | Skill Map | employee |
+| `/empleado/chat` | Chat Tutor | employee |
 | `/admin` | Admin Dashboard | admin |
-| `/admin/users` | Employees | admin |
-| `/admin/users/invite` | Invite Employees | admin |
-| `/admin/content` | Content Management | admin |
-| `/admin/content/new` | Content Creation (step 1) | admin |
-| `/admin/content/new/input` | Content Creation (step 2) | admin |
-| `/admin/content/new/preview` | Content Creation (step 3) | admin |
-| `/admin/content/new/edit` | Content Creation (step 4) | admin |
-| `/admin/content/new/publish` | Content Creation (step 5) | admin |
+| `/admin/empleados` | Employees (invite lives inside) | admin |
+| `/admin/contenido` | Content Management | admin |
+| `/admin/crear-curso` | Content Creation (all 5 steps, one route) | admin |
+| `/admin/curso/:id` | Course Preview | admin |
+| `/admin/curso/:id/esquema` | Course Schema (v2) | admin |
 | `/admin/chat` | Admin Chat | admin |
-| `/admin/settings` | Admin Settings | admin |
+| `/admin/ajustes` | Admin Settings | admin |
+| `/dev/motion` | Motion demo (development only) | public |
+
+Three of these are mounted **unconditionally** even though they belong to v2: `/onboarding`,
+`/empleado/curso/:id/nodo/:nodeId` and `/admin/curso/:id/esquema` exist whatever
+`DYNAMIC_COURSES_MODE` says. With the flag off the runtime routes 404 and the screen explains
+that the course is served in its v1 format — which beats a route that silently does not exist.
+
+There is no employee settings page and no manual viewer page; both are specified above but
+unbuilt.
+
+### v2 entry points
+
+Navigation into the v2 surfaces, all of it gated so nothing appears with the flag off:
+
+| Where | What | Gate |
+|---|---|---|
+| `pages/admin/Content.tsx` | Per-course "Esquema" link | flag is `shadow` or `on` |
+| `pages/admin/CoursePreview.tsx` | "Esquema" link | flag is `shadow` or `on` |
+| `pages/admin/CourseSchema.tsx` | "← Volver al curso" back-link | always (it is inside the screen) |
+| `pages/employee/MyCourses.tsx` | "Por nodos" badge on dynamic courses | `enrollment.delivery_mode` |
+| `pages/employee/Dashboard.tsx` | "Por nodos" badge on dynamic courses | `enrollment.delivery_mode` |
+| `components/layout/Header.tsx` | "Preferencias de aprendizaje" account-menu item, re-enters `/onboarding` | employee **and** flag is `on` |

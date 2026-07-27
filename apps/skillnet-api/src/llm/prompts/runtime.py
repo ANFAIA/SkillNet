@@ -39,9 +39,13 @@ from typing import Any
 from src.render.prompt import render_prompt
 
 #: Bumped whenever any prompt in this module changes in a way that changes output.
-#: Enters the ``cache_key`` (§3.4). ``runtime/2``: the repair header gained the MAL/BIEN
-#: counterexamples (2026-07-27).
-PROMPT_VERSION = "runtime/2"
+#: Enters the ``cache_key`` (§3.4). ``runtime/3`` (2026-07-27): the closing line of
+#: ``build_ui_prompt`` stopped contradicting the answer-key protocol, the generator tail
+#: gained SkillNet 14 (ASCII ids), 15 (an inline block is a block) and 16 (a Callout tone
+#: is not the node's criticality), the length budget stopped asking for more blocks than
+#: rule 6 allows, and the repair header swapped its false "one call per line"
+#: counterexample for the two the corpus actually measured.
+PROMPT_VERSION = "runtime/3"
 
 # --- budgets (§4.2) ----------------------------------------------------------------
 
@@ -74,12 +78,24 @@ SOURCE_CONTEXT_MAX_CHARS = 6000
 ANSWER_KEY_SENTINEL = "---ANSWER-KEY---"
 
 #: Length budget wording per ``effective_density`` (1 = condensed, 5 = expanded).
+#:
+#: **No band asks for more than five**, and that is a correction, not a preference. Rule 6
+#: of the generated prompt caps the root level at :data:`~src.render.spec.MAX_ROOT_CHILDREN`
+#: = 5, and until 2026-07-27 this table asked density 4 for "4-6 bloques" and density 5 for
+#: "5-7 bloques" — the prompt requesting, in the same breath, more blocks than the
+#: validator would accept. Measured on the 30-render baseline of that date, "the root level
+#: holds at most 5 elements (got 6)" and "(got 7)" were 2 of the 14 fallbacks, and the model
+#: was doing exactly what the length budget told it to. Density now buys **depth** — longer
+#: blocks, more worked examples inside them — and never a sixth block.
 _DENSITY_BUDGET: dict[int, str] = {
     1: "2-3 bloques y frases muy cortas. Solo lo imprescindible.",
     2: "3 bloques como maximo y frases cortas.",
-    3: "3-5 bloques. Explicacion normal, sin relleno.",
-    4: "4-6 bloques. Puedes desarrollar con un ejemplo mas.",
-    5: "5-7 bloques. Desarrolla con ejemplos y matices.",
+    3: "3-4 bloques. Explicacion normal, sin relleno.",
+    4: "4-5 bloques. Puedes desarrollar mas dentro de cada bloque, no anadir mas bloques.",
+    5: (
+        "5 bloques como maximo, pero desarrollados: ejemplos y matices DENTRO de esos "
+        "cinco. Nunca un sexto."
+    ),
 }
 
 #: What each scaffolding band changes, stated as behaviour and not as a label.
@@ -219,6 +235,21 @@ def build_format_prompt(
 
 _UI_GENERATOR_TAIL = f"""
 
+## SkillNet: tres reglas que el catalogo de arriba no dice
+
+- SkillNet 14 — El id de un bloque se escribe en ASCII, sin tildes ni enes: `conclusion`,
+  nunca `conclusión`; `manana`, nunca `mañana`. Es solo el nombre interno del bloque y el
+  aprendiz no lo ve nunca. Los TEXTOS entre comillas si llevan tildes: escribe el espanol
+  correcto en todo lo que se lee.
+- SkillNet 15 — Un bloque escrito EN LINEA dentro del array de hijos de otro cuenta como
+  un bloque para el limite de 12. Una lista de N cosas es UN bloque, no N: un StepSequence,
+  un Table, o un solo TextContent cuyo texto lleve la enumeracion. Nunca un TextContent
+  por elemento.
+- SkillNet 16 — El PRIMER argumento de Callout es el tono, y solo hay tres: "info", "warn"
+  y "success". La criticidad del nodo NO es un tono: "critical", "recommended" y
+  "contextual" no valen ahi. Un nodo critical se avisa con Callout("warn", "..."), y el
+  texto del aviso va en el SEGUNDO argumento, nunca en el primero.
+
 ## SkillNet: la clave de respuestas
 
 Si el programa incluye algun QuizItem, DESPUES del programa escribes una linea con
@@ -252,19 +283,26 @@ def ui_generator_system() -> str:
     return render_prompt().rstrip("\n") + _UI_GENERATOR_TAIL
 
 
-#: The repair header. The MAL/BIEN block is not decoration: measured against
-#: ``qwen2.5:7b-instruct`` (2026-07-26), the two syntax mistakes a small model makes here
-#: are **named arguments** (``title = "x"`` inside the call) and **splitting one call over
-#: several lines** — both already forbidden in prose by the generated rules, both made
-#: anyway. A paired counterexample is the cheapest instruction that has ever fixed either,
-#: and the repair turn is where it pays: there is exactly one retry (``MAX_UI_RETRIES``).
+#: The repair header. The MAL/BIEN block is not decoration: a paired counterexample is the
+#: cheapest instruction that has ever fixed a syntax habit, and the repair turn is where it
+#: pays, because there is exactly one retry (``MAX_UI_RETRIES``).
+#:
+#: **Which** examples are here is a measurement, not a taste, and the set changed on
+#: 2026-07-27. The one that left was "a call split over several lines": that is legal
+#: OpenUI Lang — ``lang-core``'s statement splitter ignores a newline inside an open
+#: bracket — and this repository only thought otherwise until ``src/render/lines.py``.
+#: Spending a counterexample on a rule that does not exist is worse than spending nothing:
+#: it teaches the model to reformat a program that was never wrong, on the one turn it has.
+#: The two that replaced it are the mistakes the real corpus actually made, both of them
+#: about the answer key: dropping it (``higiene-alimentaria``, ``alergenos-hosteleria``)
+#: and smuggling it in as a declaration (``atencion-reclamaciones``: ``clave = {...}``).
 #:
 #: The last paragraph exists because the loop's failure mode is *chasing the wrong bug*.
 #: The measured run had the model rewriting quotes that were correct, three attempts in a
 #: row, because the parse error blamed a quote for an inline component call. The parser no
 #: longer misdiagnoses that (``src/render/backends/openui.py``) and inline nesting is now
 #: accepted, so the model is told plainly not to go looking for it.
-_UI_REPAIR_HEADER = """\
+_UI_REPAIR_HEADER = f"""\
 Tu respuesta anterior fue RECHAZADA por el validador de SkillNet. Vuelve a emitir el
 programa completo, corregido. No expliques el error, no te disculpes y no comentes nada:
 responde solo con el programa (y su clave de respuestas si lleva QuizItem).
@@ -272,24 +310,27 @@ responde solo con el programa (y su clave de respuestas si lleva QuizItem).
 Corrige EXACTAMENTE lo que dicen los errores del validador: cada uno nombra la linea y la
 causa real. No cambies nada mas: el contenido que no aparece en la lista ya era correcto.
 
-Los tres fallos de forma que mas se repiten, con su version corregida al lado:
+Los fallos de forma que mas se repiten, con su version corregida al lado:
 
 MAL  (argumentos con nombre):  root = Stack(children = [intro], gap = "md")
 BIEN (posicionales, en orden): root = Stack([intro], "md")
 
-MAL  (una llamada partida en varias lineas):
-intro = TextContent(
-    "Las devoluciones se aceptan durante 30 dias.",
-    "lead")
-BIEN (cada declaracion entera en UNA linea):
-intro = TextContent("Las devoluciones se aceptan durante 30 dias.", "lead")
-
 MAL  (comilla sin escapar dentro del texto): aviso = Callout("info", "Dijo "no" y colgo.")
 BIEN (comilla escapada con \\"):              aviso = Callout("info", "Dijo \\"no\\" y colgo.")
 
-Anidar un bloque dentro de otro en la misma linea SI es valido, aunque se prefieren las
-referencias por id:
-root = Stack([TextContent("Hola.", "lead")], "md")
+MAL  (tilde en el id de un bloque):  conclusión = TextContent("...", "body")
+BIEN (id en ASCII, texto con tildes): conclusion = TextContent("Aquí sí van tildes.", "body")
+
+MAL  (la clave como declaracion del programa):  clave = {{"q1": {{"correct": 1}}}}
+BIEN (la clave despues del programa, tras la linea {ANSWER_KEY_SENTINEL}):
+q1 = QuizItem("q1", "test", "understand", "Enunciado?", ["A", "B"])
+{ANSWER_KEY_SENTINEL}
+{{"q1": {{"correct": 1, "explanation": "Por que esa y no otra."}}}}
+
+Dos construcciones que SI son validas, por si el error te hace dudar de ellas:
+- Anidar un bloque dentro de otro en la misma linea, aunque se prefieren las referencias
+  por id: root = Stack([TextContent("Hola.", "lead")], "md")
+- Partir una declaracion en varias lineas mientras haya un corchete abierto.
 Si los errores del validador no hablan de eso, no lo toques.
 
 Reglas del dialecto y catalogo de bloques: los mismos de abajo, sin excepciones.
@@ -388,8 +429,35 @@ def build_ui_prompt(
             "y no anadas ni una cifra, plazo o nombre de norma nuevos."
         )
     parts.append("")
-    parts.append("Responde solo con el programa.")
+    parts.append(_closing_line(ui_format))
     return "\n".join(parts)
+
+
+#: The formats whose screen carries a ``QuizItem``, and therefore an answer key.
+_FORMATS_WITH_QUIZ: frozenset[str] = frozenset({"exercise", "mixed"})
+
+
+def _closing_line(ui_format: str) -> str:
+    """The last line of the user prompt, and it may not contradict the system prompt.
+
+    It said ``"Responde solo con el programa."`` for every format until 2026-07-27, which
+    is the opposite of what the answer-key protocol at the end of the system prompt asks
+    for. A model reconciling the two has three ways out and the corpus measured all three
+    on real Groq: emit the key and be right, drop the key (``higiene-alimentaria``,
+    ``alergenos-hosteleria`` — both then repaired, at the cost of the whole retry), or
+    keep "solo el programa" literally and smuggle the key in as a declaration
+    (``atencion-reclamaciones`` r2: ``clave = {"q1": {...}}``, which the gate refuses for
+    the braces and which no repair message can explain, because the model was obeying the
+    last instruction it read).
+
+    So the last instruction it reads now says the same thing as the first.
+    """
+    if ui_format not in _FORMATS_WITH_QUIZ:
+        return "Responde solo con el programa."
+    return (
+        "Responde con el programa y, si lleva algun QuizItem, con su bloque "
+        f"{ANSWER_KEY_SENTINEL} justo despues. Nada mas."
+    )
 
 
 def build_repair_prompt(
@@ -400,6 +468,12 @@ def build_repair_prompt(
     The validator's messages travel verbatim: they name the line, the component and the
     rule, which is exactly what an 8B model needs to fix an escaping mistake instead of
     rewriting the lesson.
+
+    The closing line carries the same correction as :func:`_closing_line`, and for the
+    same measured reason: "Solo el programa." was the last instruction on the repair turn
+    too, including on the turn whose *only* complaint was a missing answer key. Telling a
+    model to fix a missing key and then telling it to send only the program is asking it
+    to fail twice.
     """
     listed = "\n".join(f"- {error}" for error in errors) or "- programa invalido"
     return (
@@ -408,7 +482,7 @@ def build_repair_prompt(
         f"{listed}\n\n"
         "TU RESPUESTA ANTERIOR:\n"
         f"{previous}\n\n"
-        "Vuelve a emitir el programa completo y corregido. Solo el programa."
+        f"Vuelve a emitir el programa completo y corregido. {_closing_line(ui_format)}"
     )
 
 

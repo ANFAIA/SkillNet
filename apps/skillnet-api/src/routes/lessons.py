@@ -30,7 +30,13 @@ async def update_lesson(
     body: LessonUpdate,
 ) -> LessonRead:
     repo = LessonRepository(db)
-    lesson = await repo.get_with_course(lesson_id)
+    # `get_with_course_and_exercises`, not `get_with_course`: the response below builds
+    # `ExerciseRead` from `lesson.exercises`, and with only module -> course eager-loaded
+    # that attribute is unloaded. On an `AsyncSession` an unloaded relationship cannot be
+    # resolved from synchronous attribute access — it raises `MissingGreenlet` — so every
+    # `PUT /lessons/{id}` against a lesson was a 500 waiting to happen. The eager-loading
+    # variant already existed for `complete_lesson`; this route just was not using it.
+    lesson = await repo.get_with_course_and_exercises(lesson_id)
     if lesson is None or lesson.module.course.org_id != admin.org_id:
         raise NotFoundError("lessons", str(lesson_id))
 

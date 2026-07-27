@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, LayoutGroup } from 'framer-motion'
-import { Card, CardTitle, CourseItem, EmptyState, SkeletonRow } from '../../components/ui'
+import { Badge, Card, CardTitle, CourseItem, EmptyState, SkeletonRow } from '../../components/ui'
 import { useEnrollments } from '../../api/enrollments'
 import { ApiError } from '../../api/client'
 import { staggerContainer, staggerItem, spring } from '../../lib/motion'
@@ -21,6 +21,22 @@ const statusLabel: Record<string, string> = {
   in_progress: 'En progreso',
   completed: 'Completado',
   overdue: 'Atrasado',
+}
+
+/**
+ * A node-based course opens as a map of nodes instead of a list of lessons, so the
+ * learner is told which of the two they are about to open. `delivery_mode` comes on the
+ * enrollment because an employee cannot read `GET /courses`, and it only says
+ * `'dynamic'` when the schema is validated and the flag is `on` — so no extra gate is
+ * needed here.
+ */
+function dynamicBadge(e: EnrollmentRead) {
+  if (e.delivery_mode !== 'dynamic') return undefined
+  return (
+    <Badge variant="primary" badgeStyle="plain">
+      Por nodos
+    </Badge>
+  )
 }
 
 function subtitleFor(e: EnrollmentRead): string {
@@ -107,6 +123,7 @@ export function MyCourses() {
                 <motion.div key={e.id} variants={staggerItem}>
                   <CourseItem
                     title={e.course_title}
+                    badge={dynamicBadge(e)}
                     subtitle={subtitleFor(e)}
                     progress={Math.round((e.progress ?? 0) * 100)}
                     color="var(--color-primary)"

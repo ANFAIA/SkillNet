@@ -22,6 +22,9 @@ dependencies = [
     "python-docx",
     "tenacity",
     "httpx",
+    # Direct import in src/core/secrets.py (Fernet), which encrypts the provider API key
+    # an organization stores. Already present transitively; declared because we use it.
+    "cryptography",
 ]
 
 [dependency-groups]

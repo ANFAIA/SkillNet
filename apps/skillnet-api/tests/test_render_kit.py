@@ -191,6 +191,99 @@ def test_rule_4_rejects_more_than_twelve_components() -> None:
     assert any("rule 4" in e for e in excinfo.value.errors)
 
 
+def test_rule_4_names_the_container_that_is_holding_the_list() -> None:
+    """A bare count is a number the model can only obey by deleting the wrong thing.
+
+    Measured on ``alergenos-hosteleria`` (2026-07-27): 19 blocks, 14 of them one-line
+    ``TextContent``s inside one ``Card`` — a bullet list the kit has no component for.
+    "got 19" pointed at none of that and the repair attempt was spent guessing.
+    """
+    payload = _spec()
+    payload["components"][0]["children"] = ["a", "lista"]
+    payload["components"].append(
+        {
+            "id": "lista",
+            "type": "Card",
+            "props": {"title": "Alergenos"},
+            "children": [f"x{index}" for index in range(14)],
+        }
+    )
+    for index in range(14):
+        payload["components"].append(
+            {
+                "id": f"x{index}",
+                "type": "TextContent",
+                "props": {"text": f"Alergeno {index}.", "variant": "body"},
+            }
+        )
+    with pytest.raises(RenderValidationError) as excinfo:
+        parse_spec(payload)
+    message = next(e for e in excinfo.value.errors if "rule 4" in e and "blocks" in e)
+    assert "'lista' alone holds 14 of them" in message
+    assert "A list of N items is ONE block" in message
+
+
+def test_rule_4_does_not_name_a_culprit_when_the_blocks_are_spread_flat() -> None:
+    """``devoluciones-tienda``, same run: 18 blocks, fullest container the root with 4.
+
+    Naming the root there would be a guess, and the repair loop replays it verbatim.
+    """
+    payload = _spec()
+    payload["components"][0]["children"] = ["a"]
+    for index in range(16):
+        payload["components"].append(
+            {
+                "id": f"x{index}",
+                "type": "TextContent",
+                "props": {"text": f"Bloque {index}.", "variant": "body"},
+            }
+        )
+    with pytest.raises(RenderValidationError) as excinfo:
+        parse_spec(payload)
+    assert not any("alone holds" in e for e in excinfo.value.errors)
+
+
+def test_a_sentence_in_an_enum_slot_is_reported_as_swapped_arguments() -> None:
+    """``Callout`` is the only block whose enum comes first, and it is the only one the
+    corpus has seen the arguments swapped on (``epi-taller``, 2026-07-27)."""
+    payload = _spec()
+    payload["components"][0]["children"] = ["a", "aviso"]
+    payload["components"].append(
+        {
+            "id": "aviso",
+            "type": "Callout",
+            "props": {
+                "tone": "Cuidado con el estado del EPI. Un EPI danado no protege.",
+                "text": "warn",
+            },
+        }
+    )
+    with pytest.raises(RenderValidationError) as excinfo:
+        parse_spec(payload)
+    message = next(e for e in excinfo.value.errors if "aviso" in e)
+    assert "the arguments are in the wrong order" in message
+    assert "Callout(tone:" in message  # the real signature, so it can put them back
+
+
+def test_a_near_miss_in_an_enum_slot_still_lists_the_choices() -> None:
+    """``Callout("critical", ...)`` — the node's criticality used as a tone. Short, so it
+    is a wrong choice and not a swap, and it must not be told to reorder anything."""
+    payload = _spec()
+    payload["components"][0]["children"] = ["a", "aviso"]
+    payload["components"].append(
+        {
+            "id": "aviso",
+            "type": "Callout",
+            "props": {"tone": "critical", "text": "Un conato se apaga o se evacua."},
+        }
+    )
+    with pytest.raises(RenderValidationError) as excinfo:
+        parse_spec(payload)
+    message = next(e for e in excinfo.value.errors if "aviso" in e)
+    assert "must be one of: info, warn, success" in message
+    assert "wrong order" not in message
+
+
 def test_rule_4_rejects_more_than_five_root_children() -> None:
     payload = _spec()
     payload["components"][0]["children"] = ["a", "b", "x0", "x1", "x2", "x3"]

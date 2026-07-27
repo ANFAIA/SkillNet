@@ -1,8 +1,16 @@
-"""Organization settings: read effective config and manage LLM provider.
+"""Organization settings: read the effective config, switch product features.
 
-LLM/embedding overrides are persisted in ``organizations.settings`` (jsonb) and
-take precedence over environment defaults (see ``src.deps.llm``). The API key is
-stored but never returned.
+**The LLM provider is not settable here.** It comes from the environment, because
+SkillNet runs one organization per deployment (``bootstrap.py`` creates exactly one) and
+so the deployment's provider and the organization's provider are the same thing — see
+``src/routes/settings.py`` for the full reasoning.
+
+``resolve_llm_config`` still *reads* an override out of ``organizations.settings``, and
+that is deliberate rather than leftover: it is the precedence chain the two-tier runtime
+router is built on (``src/agents/runtime/router.py``), it keeps working for a deployment
+that stored a key before this changed, and it is the seam that would carry per-tenant
+providers the day SkillNet grows a second organization. What went away is the endpoint
+that let a web form write it.
 """
 
 from __future__ import annotations
@@ -12,16 +20,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.exceptions import NotFoundError
 from src.core.logging import get_logger
-from src.llm.client import LLMConfig, resolve_llm_config
+from src.llm.client import resolve_llm_config
 from src.llm.embedding import resolve_embedding_config
 from src.llm.fixtures import maybe_fixture_llm
 from src.models import Organization
 from src.schemas.settings import LLMTestResult, OrgSettingsRead
+from src.services.org_features import CHAT_GENERATIVE_UI, chat_generative_ui_enabled
 
 logger = get_logger(__name__)
-
-_LLM_KEYS = ("llm_model", "llm_base_url", "llm_api_key")
-
 
 class SettingsService:
     def __init__(self, db: AsyncSession) -> None:
@@ -48,38 +54,44 @@ class SettingsService:
             llm_model=llm.model or None,
             embedding_model=embedding.model or None,
             llm_base_url=llm.api_base,
+            chat_generative_ui=chat_generative_ui_enabled(org_settings),
         )
 
-    async def update_llm(
-        self, *, model: str, base_url: str | None, api_key: str | None
-    ) -> OrgSettingsRead:
+    async def update_features(self, *, chat_generative_ui: bool) -> OrgSettingsRead:
         org = await self._get_org()
         new_settings = dict(org.settings or {})
-        new_settings["llm_model"] = model
-        if base_url is not None:
-            new_settings["llm_base_url"] = base_url
-        if api_key:
-            new_settings["llm_api_key"] = api_key
+        new_settings[CHAT_GENERATIVE_UI] = chat_generative_ui
         # Reassign so SQLAlchemy detects the JSONB change.
         org.settings = new_settings
         await self.db.flush()
         return await self.get_settings()
 
-    @staticmethod
-    async def test_llm(
-        *, model: str, base_url: str | None, api_key: str | None
-    ) -> LLMTestResult:
+    async def test_configured_llm(self) -> LLMTestResult:
+        """Ask the provider the application actually uses to answer.
+
+        Resolved through ``resolve_llm_config``, not from anything the caller sent, so a
+        green result means the *deployment* works — which is the only useful meaning. The
+        previous version tested credentials posted in the same request, which could pass
+        while the configured provider was broken, and did not survive the provider moving
+        into the environment.
+        """
+        org = await self._get_org()
+        config = resolve_llm_config(dict(org.settings or {}))
         try:
-            service = maybe_fixture_llm(
-                LLMConfig(model=model, api_base=base_url or None, api_key=api_key or None)
-            )
+            service = maybe_fixture_llm(config)
             reply = await service.complete(
                 "You are a connection tester.",
                 "Reply with the single word: OK",
                 max_tokens=5,
                 temperature=0.0,
             )
-            return LLMTestResult(ok=True, detail=reply.strip()[:100] or "OK", model=model)
+            return LLMTestResult(
+                ok=True, detail=reply.strip()[:100] or "OK", model=config.model
+            )
         except Exception as exc:  # noqa: BLE001 - report any provider failure to the admin
             logger.warning("LLM test failed: %s", exc)
-            return LLMTestResult(ok=False, detail=f"{type(exc).__name__}: {exc}"[:300], model=model)
+            return LLMTestResult(
+                ok=False,
+                detail=f"{type(exc).__name__}: {exc}"[:300],
+                model=config.model,
+            )

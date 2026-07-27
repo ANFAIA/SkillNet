@@ -106,13 +106,17 @@ Most of SkillNet is Level 1 and 2. Level 3 applies only where content, context, 
 
 **What exists:**
 
-- [A2TL-Web renderer](../../packages/mcp-ui-renderer/) — Level 2 implementation. 76% token savings vs equivalent HTML.
+- [A2TL-Web renderer](../../packages/a2tl-web/) — Level 2 implementation. 76% token savings vs equivalent HTML.
 
-**Level 3 latency: deferred.** The approach for handling generation wait times (skeleton + SSE streaming, pre-generation, or waiting screen) will be decided when the generation pipeline is built. SSE infrastructure will already be in place from the tutor chat.
+**Level 3 latency: no longer deferred, and smaller than assumed.** v2 (dynamic courses) is the Level 3 implementation, and its generation latency has been measured against real Groq (2026-07-27): **sub-second to ~3 s per render, ~0.0008 USD per render**. The "20-30 second generation" problem this section was written to worry about **does not exist on this stack** — the 60-150 s figures in the research came from a 7B model on local CPU.
+
+The shipped approach is therefore the cheap one: skeleton + SSE streaming (a `ui_block` event per completed component), no pre-generation and no waiting screen. See [`v2-dynamic-courses.md`](v2-dynamic-courses.md) §14.2 #2 for the measurement and [`tuning.md`](tuning.md) for the dials.
+
+Note also that Level 3 as built does **not** inject agent-generated HTML: the model emits a typed dialect that is parsed to a `UISpec`, re-serialized, and rendered by native React components. Never HTML, so the shadow-DOM/iframe isolation contemplated below is not needed.
 
 **Frontend architecture: single SPA.** One React app with React Router. Level 1 (static) are regular React components. Level 2 (declarative) uses a renderer component that takes a compact spec and paints it — the specific format (A2TL-Web or otherwise) is not locked. Level 3 (generative) injects agent-generated HTML into an isolated container (shadow DOM or iframe) to prevent CSS conflicts. The user doesn't know which level they're seeing — navigation is the same everywhere.
 
-**Routing: fixed routes with dynamic content.** Every screen has a predictable URL (`/dashboard`, `/courses/:id`, `/courses/:id/module/:mid/lesson/:lid`, `/admin/users`, `/settings`). URLs are shareable and browser back/forward works. When Level 3 generates content, it renders inside the fixed route — the URL doesn't change, only what's inside.
+**Routing: fixed routes with dynamic content.** Every screen has a predictable URL. The routes are in Spanish, following the code (`apps/skillnet-web/src/App.tsx`): `/empleado`, `/empleado/curso/:id`, `/empleado/curso/:id/nodo/:nodeId`, `/admin/empleados`, `/admin/curso/:id/esquema`. The full list is in [`screens.md`](screens.md). URLs are shareable and browser back/forward works. When Level 3 generates content, it renders inside the fixed route — the URL doesn't change, only what's inside.
 
 **State management: React Query (TanStack Query).** Server state (courses, progress, skills, exercises) is fetched and cached by React Query — the backend is the single source of truth. Local UI state (sidebar open, filter active, modal visible) uses plain `useState`. No global store needed. If a case arises later, Zustand can be added in minutes.
 

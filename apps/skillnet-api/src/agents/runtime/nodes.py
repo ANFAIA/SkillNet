@@ -222,18 +222,46 @@ def missing_answer_keys(spec: UISpec, answer_key: dict) -> list[str]:
     content dict with no solution), so the learner could never pass the node. That is a
     validation failure worth spending the single repair attempt on, not something to serve.
     """
-    problems: list[str] = []
-    for component in spec.components:
-        if component.type != "QuizItem":
-            continue
-        item_id = str(component.props.get("item_id") or component.id)
-        entry = answer_key.get(item_id)
-        if not isinstance(entry, dict) or not _has_solution(entry):
-            problems.append(
-                f"QuizItem {item_id!r} tiene enunciado pero no llega su solucion en el "
-                f"bloque {ANSWER_KEY_SENTINEL}"
-            )
-    return problems
+    wanted = [
+        str(component.props.get("item_id") or component.id)
+        for component in spec.components
+        if component.type == "QuizItem"
+    ]
+    missing = [
+        item_id
+        for item_id in wanted
+        if not isinstance(answer_key.get(item_id), dict)
+        or not _has_solution(answer_key[item_id])
+    ]
+    if not missing:
+        return []
+
+    # What the model has to change depends on what it actually sent, and the repair loop
+    # replays this string verbatim, so the two cases are told apart here rather than left
+    # to the model to guess. Measured (2026-07-27): the key was *absent* on
+    # `higiene-alimentaria` and `alergenos-hosteleria`, and *present but indexed by the
+    # question text* on `atencion-reclamaciones`. The old message — "no llega su solucion"
+    # for both — is the same complaint for two different mistakes.
+    if answer_key:
+        received = ", ".join(repr(key) for key in list(answer_key)[:4])
+        remedy = (
+            f"La clave que has enviado indexa por {received}. Se indexa por el item_id "
+            "del QuizItem, que es su PRIMER argumento, no por el enunciado ni por el id "
+            "del bloque."
+        )
+    else:
+        example = missing[0]
+        remedy = (
+            f"No has escrito el bloque. Despues del programa, una linea con exactamente "
+            f"{ANSWER_KEY_SENTINEL} y debajo un unico JSON: "
+            f'{{"{example}": {{"correct": 0, "explanation": "Por que esa."}}}}. '
+            "La clave nunca es una declaracion del programa."
+        )
+    return [
+        f"QuizItem {item_id!r} tiene enunciado pero no llega su solucion en el bloque "
+        f"{ANSWER_KEY_SENTINEL}. {remedy}"
+        for item_id in missing
+    ]
 
 
 def _has_solution(entry: dict) -> bool:
