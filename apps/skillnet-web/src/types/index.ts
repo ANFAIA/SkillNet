@@ -339,11 +339,9 @@ export interface GenerationProgress {
 
 // --- Settings ---
 
-export interface LlmSettings {
-  model: string
-  base_url?: string
-  api_key?: string
-}
+// `LlmSettings` used to live here, as the body of `PUT /settings/llm`. Both are gone:
+// the provider is configured in the deployment's `.env`, so there is no request that
+// carries a model and an API key from a browser any more.
 
 export interface OrgSettings {
   name: string

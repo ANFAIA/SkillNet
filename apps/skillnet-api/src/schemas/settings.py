@@ -19,19 +19,12 @@ class OrgSettingsRead(BaseModel):
     chat_generative_ui: bool = True
 
 
-class LLMConfigUpdate(BaseModel):
-    model: str
-    base_url: str | None = None
-    api_key: str | None = None
-
-
 class FeaturesUpdate(BaseModel):
     """What an admin may switch on and off for their own organization.
 
-    One field today. It is its own endpoint rather than a flag bolted onto
-    `LLMConfigUpdate` because changing how answers are presented has nothing to do with
-    which provider serves them, and an admin who edits one should not have to re-enter
-    the other — least of all the API key.
+    One field today, and its own endpoint on purpose: it is the only thing on this
+    surface an admin may write. The provider comes from the environment, so there is
+    nothing else here for a form to change.
     """
 
     chat_generative_ui: bool

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { get, post, put } from './client'
-import type { LlmSettings, LlmTestResult, OrgSettings } from '../types'
+import type { LlmTestResult, OrgSettings } from '../types'
 
 export function useSettings() {
   return useQuery({
@@ -10,22 +10,13 @@ export function useSettings() {
   })
 }
 
-export function useUpdateLlmSettings() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (payload: LlmSettings) => put<OrgSettings>('/settings/llm', payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['organizations', 'me'] })
-    },
-  })
-}
-
 /**
  * `PUT /settings/features` — what the admin switches on and off for their organization.
  *
- * Separate from `useUpdateLlmSettings` because the two have nothing to do with each
- * other: flipping how answers are presented must not require re-entering the API key,
- * which the LLM endpoint would otherwise overwrite with whatever is in the form.
+ * The only writable thing on this surface. The provider is read-only here: it comes
+ * from the deployment's `.env`, because SkillNet runs one organization per deployment
+ * and the API key belongs to whoever deployed it. How the product behaves is the
+ * admin's call; what it runs on is not.
  */
 export function useUpdateFeatures() {
   const queryClient = useQueryClient()
@@ -41,8 +32,15 @@ export function useUpdateFeatures() {
   })
 }
 
+/**
+ * `POST /settings/llm/test` — ask the **configured** provider to answer.
+ *
+ * No payload: there is nothing for the caller to supply, because the provider comes from
+ * the deployment's environment. Testing credentials sent in the same request would have
+ * tested something other than what the application actually uses.
+ */
 export function useTestLlm() {
   return useMutation({
-    mutationFn: (payload: LlmSettings) => post<LlmTestResult>('/settings/llm/test', payload),
+    mutationFn: () => post<LlmTestResult>('/settings/llm/test'),
   })
 }
