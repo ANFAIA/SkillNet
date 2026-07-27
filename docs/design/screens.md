@@ -282,7 +282,7 @@ List and manage employees.
 
 **Actions:**
 - Click employee -> detail view
-- Invite new employees -> `/admin/users/invite`
+- Invite new employees -> in place on this screen (see *Invite Employees* below; there is no separate route)
 - Deactivate employee
 - Assign course to employee
 
@@ -320,7 +320,8 @@ Overview of all content (courses + manuals).
 **Sections:**
 - **Content list** — title, type (course/manual), status (draft/published/archived), creation date, source document
 - **Filter** — by type, by status
-- **Create new** button -> `/admin/content/new`
+- **Create new** button -> `/admin/crear-curso`
+- **Esquema** button per course -> `/admin/curso/:id/esquema`, only with `DYNAMIC_COURSES_MODE` at `shadow` or `on`
 
 **Data:**
 - `GET /api/v1/courses` — all courses
