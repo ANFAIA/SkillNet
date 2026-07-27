@@ -62,8 +62,8 @@ afterEach(() => {
 describe('the dialect corpus', () => {
   it('is the backend fixture set, read in place', () => {
     expect(hasDslCorpus).toBe(true)
-    expect(Object.keys(dslFixtures)).toHaveLength(16)
-    expect(Object.keys(validPrograms)).toHaveLength(10)
+    expect(Object.keys(dslFixtures)).toHaveLength(17)
+    expect(Object.keys(validPrograms)).toHaveLength(11)
     expect(Object.keys(brokenPrograms)).toHaveLength(6)
   })
 })

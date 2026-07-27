@@ -31,15 +31,19 @@ function load(): Record<string, string> {
   return out
 }
 
-/** All 16 fixtures, keyed by file name without the extension. */
+/** All 17 fixtures, keyed by file name without the extension. */
 export const dslFixtures = load()
 
 const isBroken = (name: string) => name.startsWith('malformed') || name.startsWith('invalid')
 
 /**
- * The ten programs the backend validator accepts. Between them they exercise
+ * The eleven programs the backend validator accepts. Between them they exercise
  * nine of the ten frozen components; `Markdown` has no `.openui` fixture because
  * the model cannot emit it (§5.3), so its test builds the fallback program inline.
+ *
+ * `inline_nested` is the one written in the standard's inline form — sub-components
+ * spelled out inside their parent's array instead of referenced by id. Both parsers
+ * have to accept it: theirs always did, ours does since 2026-07-27.
  */
 export const validPrograms: Record<string, string> = Object.fromEntries(
   Object.entries(dslFixtures).filter(([name]) => !isBroken(name)),

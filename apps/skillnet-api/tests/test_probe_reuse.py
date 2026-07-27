@@ -536,6 +536,73 @@ async def test_diagnostic_probe_neither_scores_nor_consumes_the_single_attempt()
     assert probe_repo.creates == 2
 
 
+async def test_reopening_a_diagnostic_probe_deals_the_same_hand():
+    """A declared novice must not mint a ``node_probes`` row per page reload.
+
+    ``get_scored`` mirrors the partial unique index, so it cannot see a diagnostic probe
+    (§7.1 writes it with ``scored = false``) and the anti-retry rule of §3.4 never applied
+    to one. ``ProbeRunner`` fires ``POST /probe`` from a mount effect, so every remount used
+    to deal a fresh hand — unbounded, and paying ``runtime_fast`` for it in any course whose
+    probe pre-generation had degraded.
+    """
+    items, key = make_items(with_c=False)
+    node = canonical_node(probe_items=[], probe_answer_key={})
+    llm = RecordingLLM(json.dumps({"items": items, "answer_key": key}))
+    profile = FakeProfile(experience_level="none", nodes_completed=0)
+    service, probe_repo, _attempts, _states = build_service(node=node, llm=llm)
+    user_id = uuid.uuid4()
+
+    dealt: list[dict] = []
+    original_build = service.build_items
+
+    async def counting_build(**kwargs):
+        dealt.append(kwargs)
+        return await original_build(**kwargs)
+
+    service.build_items = counting_build  # type: ignore[method-assign]
+
+    first = await service.start_probe(
+        user_id=user_id, node=node, schema_version=1, profile=profile,
+        source_context=CANON_SOURCE, now=NOW,
+    )
+    second = await service.start_probe(
+        user_id=user_id, node=node, schema_version=1, profile=profile,
+        source_context=CANON_SOURCE, now=NOW,
+    )
+
+    assert first.diagnostic is True and first.probe.scored is False
+    assert second.probe is first.probe
+    assert second.reused is True
+    assert second.diagnostic is True
+    # One row, one hand, one generation — whatever the client does on mount.
+    assert probe_repo.creates == 1
+    assert len(dealt) == 1
+    assert len(llm.calls) == 1
+    # The items are the same ones, not a re-roll under the same id.
+    assert [item["item_id"] for item in second.items] == [
+        item["item_id"] for item in first.items
+    ]
+
+
+async def test_an_open_probe_of_an_older_schema_version_is_not_reused():
+    """The reuse guard is per ``schema_version``: editing the node re-deals."""
+    items, key = make_items(with_c=False)
+    node = canonical_node(probe_items=items, probe_answer_key=key)
+    profile = FakeProfile(experience_level="none", nodes_completed=0)
+    service, probe_repo, _attempts, _states = build_service(node=node)
+    user_id = uuid.uuid4()
+
+    await service.start_probe(
+        user_id=user_id, node=node, schema_version=1, profile=profile, now=NOW
+    )
+    reopened = await service.start_probe(
+        user_id=user_id, node=node, schema_version=2, profile=profile, now=NOW
+    )
+
+    assert reopened.reused is False
+    assert probe_repo.creates == 2
+
+
 # --- verdict flow -----------------------------------------------------------
 
 

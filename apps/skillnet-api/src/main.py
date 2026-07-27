@@ -139,6 +139,7 @@ def create_app() -> FastAPI:
     # employee-surface guard, so every path 404s unless the flag is `on`.
     app.include_router(nodes.router, prefix=prefix)
     app.include_router(nodes.course_nodes_router, prefix=prefix)
+    app.include_router(nodes.render_kit_router, prefix=prefix)
 
     ext_prefix = "/ext/v1"
     app.include_router(ext_skills.router, prefix=ext_prefix)

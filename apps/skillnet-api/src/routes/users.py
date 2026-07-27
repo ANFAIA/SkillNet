@@ -92,6 +92,9 @@ async def update_me(
         user=user,
         full_name=body.full_name,
         learning_profile=body.learning_profile,
+        accessibility=(
+            body.accessibility.model_dump() if body.accessibility is not None else None
+        ),
     )
     await db.commit()
     return UserRead.model_validate(updated)

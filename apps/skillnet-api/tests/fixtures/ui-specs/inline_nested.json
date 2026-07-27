@@ -1,0 +1,56 @@
+{
+  "version": "skillnet-ui/1",
+  "format": "explanation",
+  "root": "root",
+  "components": [
+    {
+      "id": "root",
+      "type": "Stack",
+      "props": {
+        "gap": "md"
+      },
+      "children": [
+        "root_1",
+        "ficha",
+        "root_2"
+      ]
+    },
+    {
+      "id": "root_1",
+      "type": "TextContent",
+      "props": {
+        "text": "Comprueba el plazo antes de aceptar una devolucion.",
+        "variant": "lead"
+      },
+      "children": []
+    },
+    {
+      "id": "root_2",
+      "type": "Callout",
+      "props": {
+        "tone": "warn",
+        "text": "Pasados 30 dias no se acepta la devolucion."
+      },
+      "children": []
+    },
+    {
+      "id": "ficha",
+      "type": "Card",
+      "props": {
+        "title": "Comprobacion del plazo"
+      },
+      "children": [
+        "ficha_1"
+      ]
+    },
+    {
+      "id": "ficha_1",
+      "type": "TextContent",
+      "props": {
+        "text": "Compara la fecha del ticket con la de hoy.",
+        "variant": "body"
+      },
+      "children": []
+    }
+  ]
+}

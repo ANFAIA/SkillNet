@@ -39,8 +39,9 @@ from typing import Any
 from src.render.prompt import render_prompt
 
 #: Bumped whenever any prompt in this module changes in a way that changes output.
-#: Enters the ``cache_key`` (§3.4).
-PROMPT_VERSION = "runtime/1"
+#: Enters the ``cache_key`` (§3.4). ``runtime/2``: the repair header gained the MAL/BIEN
+#: counterexamples (2026-07-27).
+PROMPT_VERSION = "runtime/2"
 
 # --- budgets (§4.2) ----------------------------------------------------------------
 
@@ -251,10 +252,45 @@ def ui_generator_system() -> str:
     return render_prompt().rstrip("\n") + _UI_GENERATOR_TAIL
 
 
+#: The repair header. The MAL/BIEN block is not decoration: measured against
+#: ``qwen2.5:7b-instruct`` (2026-07-26), the two syntax mistakes a small model makes here
+#: are **named arguments** (``title = "x"`` inside the call) and **splitting one call over
+#: several lines** — both already forbidden in prose by the generated rules, both made
+#: anyway. A paired counterexample is the cheapest instruction that has ever fixed either,
+#: and the repair turn is where it pays: there is exactly one retry (``MAX_UI_RETRIES``).
+#:
+#: The last paragraph exists because the loop's failure mode is *chasing the wrong bug*.
+#: The measured run had the model rewriting quotes that were correct, three attempts in a
+#: row, because the parse error blamed a quote for an inline component call. The parser no
+#: longer misdiagnoses that (``src/render/backends/openui.py``) and inline nesting is now
+#: accepted, so the model is told plainly not to go looking for it.
 _UI_REPAIR_HEADER = """\
 Tu respuesta anterior fue RECHAZADA por el validador de SkillNet. Vuelve a emitir el
 programa completo, corregido. No expliques el error, no te disculpes y no comentes nada:
 responde solo con el programa (y su clave de respuestas si lleva QuizItem).
+
+Corrige EXACTAMENTE lo que dicen los errores del validador: cada uno nombra la linea y la
+causa real. No cambies nada mas: el contenido que no aparece en la lista ya era correcto.
+
+Los tres fallos de forma que mas se repiten, con su version corregida al lado:
+
+MAL  (argumentos con nombre):  root = Stack(children = [intro], gap = "md")
+BIEN (posicionales, en orden): root = Stack([intro], "md")
+
+MAL  (una llamada partida en varias lineas):
+intro = TextContent(
+    "Las devoluciones se aceptan durante 30 dias.",
+    "lead")
+BIEN (cada declaracion entera en UNA linea):
+intro = TextContent("Las devoluciones se aceptan durante 30 dias.", "lead")
+
+MAL  (comilla sin escapar dentro del texto): aviso = Callout("info", "Dijo "no" y colgo.")
+BIEN (comilla escapada con \\"):              aviso = Callout("info", "Dijo \\"no\\" y colgo.")
+
+Anidar un bloque dentro de otro en la misma linea SI es valido, aunque se prefieren las
+referencias por id:
+root = Stack([TextContent("Hola.", "lead")], "md")
+Si los errores del validador no hablan de eso, no lo toques.
 
 Reglas del dialecto y catalogo de bloques: los mismos de abajo, sin excepciones.
 """

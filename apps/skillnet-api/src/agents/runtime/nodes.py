@@ -96,7 +96,7 @@ from src.repositories.llm_usage_repo import log_usage
 from src.repositories.node_render_repo import NodeRenderRepository
 from src.services.learner_profile_service import is_calibrating
 from src.services.mastery_service import MASTERED, target_bloom, threshold_for
-from src.services.node_render_service import build_render_key
+from src.services.node_render_service import NodeRenderService, build_render_key
 
 logger = get_logger(__name__)
 
@@ -438,6 +438,8 @@ async def decide_formato(state: NodeRuntimeState) -> dict:
     profile = state.get("profile") or {}
     node_state = state.get("node_state") or {}
     default_format = coerce_ui_format(node.get("default_ui_format"))
+    #: Empty during calibration: no call was made, so there is nothing to account for.
+    decide_tokens: dict[str, int] = {}
 
     if is_calibrating(int(profile.get("nodes_completed") or 0)):
         ui_format = default_format
@@ -465,7 +467,7 @@ async def decide_formato(state: NodeRuntimeState) -> dict:
             source_has_numbers=_source_has_numbers(str(state.get("source_context") or "")),
         )
         started = time.monotonic()
-        raw = await llm.complete(
+        raw, usage = await llm.complete_with_usage(
             FORMAT_DECIDER_SYSTEM,
             prompt,
             temperature=DECIDE_TEMPERATURE,
@@ -486,8 +488,27 @@ async def decide_formato(state: NodeRuntimeState) -> dict:
             purpose=purpose_for("fast"),
             model=getattr(llm, "model", "unknown"),
             tier="fast",
+            tokens_in=usage.tokens_in,
+            tokens_out=usage.tokens_out,
             duration_ms=duration_ms,
         )
+        if usage.reason:
+            # An explicit, greppable gap. `llm_usage_log` with NULL tokens and no
+            # explanation reads like an accounting bug months later; this says which
+            # provider (or which fixture run) is the one that reported nothing.
+            logger.info(
+                "No token accounting for decide_formato on %s: %s",
+                getattr(llm, "model", "unknown"),
+                usage.reason,
+            )
+        decide_tokens = {
+            name: value
+            for name, value in (
+                ("tokens_in", usage.tokens_in),
+                ("tokens_out", usage.tokens_out),
+            )
+            if value is not None
+        }
 
     await publish_step(request_id, "decide_formato", STEP_MESSAGES["decide_formato"])
     await sse.publish(
@@ -498,6 +519,9 @@ async def decide_formato(state: NodeRuntimeState) -> dict:
         "tier": tier,
         "format_rationale": rationale,
         "current_step": "decide_formato",
+        # Carried so `node_renders.tokens_*` is the cost of the *render*, not of one of the
+        # two calls that produced it. `genera_ui` adds its own on top, retries included.
+        **decide_tokens,
     }
 
 
@@ -565,6 +589,7 @@ async def genera_ui(state: NodeRuntimeState) -> dict:
 
     await publish_step(request_id, "genera_ui", STEP_MESSAGES["genera_ui"])
     started = time.monotonic()
+    usage_out: dict[str, Any] = {}
     raw = await _stream_program(
         llm,
         system,
@@ -573,8 +598,11 @@ async def genera_ui(state: NodeRuntimeState) -> dict:
         ui_format=ui_format,
         tier=tier,
         backend_name=str(state.get("backend") or "openui"),
+        usage_out=usage_out,
     )
     duration_ms = int((time.monotonic() - started) * 1000)
+    tokens_in = usage_out.get("tokens_in")
+    tokens_out = usage_out.get("tokens_out")
 
     await log_usage(
         async_session_factory,
@@ -584,14 +612,38 @@ async def genera_ui(state: NodeRuntimeState) -> dict:
         purpose=purpose_for(tier),
         model=getattr(llm, "model", "unknown"),
         tier=tier,
+        tokens_in=tokens_in,
+        tokens_out=tokens_out,
         duration_ms=duration_ms,
     )
+    if tokens_in is None and tokens_out is None:
+        # The expensive half of the render is the one that streams, so a provider that
+        # cannot report usage on a stream is the difference between a measured cost model
+        # and an estimated one. Named here rather than left as two NULLs (§9.3).
+        logger.info(
+            "No token accounting for genera_ui on %s: %s",
+            getattr(llm, "model", "unknown"),
+            usage_out.get("reason") or "unknown",
+        )
     return {
         "raw_dsl": raw,
         "model": getattr(llm, "model", "unknown"),
         "duration_ms": duration_ms + int(state.get("duration_ms") or 0),
+        "tokens_in": _accumulate(state.get("tokens_in"), tokens_in),
+        "tokens_out": _accumulate(state.get("tokens_out"), tokens_out),
         "current_step": "genera_ui",
     }
+
+
+def _accumulate(previous: int | None, addition: int | None) -> int | None:
+    """Sum two token counts, keeping ``None`` when nothing was ever measured.
+
+    ``0`` and ``None`` are different answers: ``0`` claims the call was free, ``None``
+    says nobody counted. Coalescing to ``0`` would make the §9.3 ratio look measured.
+    """
+    if previous is None and addition is None:
+        return None
+    return int(previous or 0) + int(addition or 0)
 
 
 async def _stream_program(
@@ -603,6 +655,7 @@ async def _stream_program(
     ui_format: str,
     tier: str,
     backend_name: str,
+    usage_out: dict[str, Any] | None = None,
 ) -> str:
     """Collect the completion, publishing ``ui_block`` as components complete (§9.2)."""
     backend = get_render_backend(backend_name)
@@ -613,7 +666,10 @@ async def _stream_program(
     chunks: list[str] = []
     announced: set[str] = set()
     async for delta in llm.stream(
-        messages, temperature=UI_TEMPERATURE, max_tokens=ui_max_tokens(tier)
+        messages,
+        temperature=UI_TEMPERATURE,
+        max_tokens=ui_max_tokens(tier),
+        usage_out=usage_out,
     ):
         chunks.append(delta)
         if "\n" not in delta:
@@ -860,6 +916,20 @@ async def _persist(
             duration_ms=state.get("duration_ms"),
             status=status,
         )
+        if not state.get("is_preview"):
+            # Pin what was just written (§3.3 "Vision A"). Nothing else can, and that is
+            # not an optimisation detail: ``NodeRenderService`` pins only on a *cache hit*
+            # and ``GET /nodes/{id}/render`` recomputes nothing on purpose, so without this
+            # the learner whose request paid for the generation would poll ``202`` forever
+            # while everybody who arrived after them got the render for free. It is also
+            # what makes ``POST /render {"force": true}`` visible: the refreshed row is
+            # written under a salted key nobody will ever look up, so the pin is the only
+            # way back to it.
+            await NodeRenderService(db).pin(
+                user_id=_uuid(str(state["user_id"])),
+                node_id=_uuid(str(state["node_id"])),
+                render=render,
+            )
         await db.commit()
 
     if step == "persist_render":

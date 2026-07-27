@@ -408,6 +408,14 @@ def transition_on_answer(
     ):
         # 8. The only producer of `needs_review` in this PR. Worked solution shown,
         # the node joins the practice queue and stays visible and re-enterable.
+        #
+        # **Unreachable in the shipped product, on purpose and not by accident.**
+        # `hints_used` comes from `node_attempts.hints_used`, which only
+        # `POST /nodes/{id}/hint` increments, and no client calls that endpoint yet. So
+        # `needs_review` is never entered, the practice queue never fills and
+        # `may_reprobe` can never authorize a re-probe. The rule is implemented and unit
+        # tested here because it is the pure half; §7.4's hint ladder — the client half —
+        # is out of scope for this PR and is what makes the whole branch live.
         return Transition(
             rule=8,
             to_state=NEEDS_REVIEW,

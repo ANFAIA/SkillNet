@@ -37,6 +37,37 @@ _RETRYABLE = (
 
 
 @dataclass(frozen=True)
+class Usage:
+    """The provider's token accounting for one call.
+
+    Both fields are ``None`` when the provider did not report usage; ``reason`` says why,
+    so ``llm_usage_log`` and ``node_renders`` record a *known* gap instead of a silent one.
+    Without this the §9.3 cost model — the economic justification for sharing a
+    ``cache_key`` at all — can only ever be settled with latency, which measures nothing
+    about money.
+    """
+
+    tokens_in: int | None = None
+    tokens_out: int | None = None
+    reason: str | None = None
+
+    @classmethod
+    def of(cls, response: Any) -> Usage:
+        """Read litellm's ``usage`` block off a response (or a streaming chunk)."""
+        usage = getattr(response, "usage", None)
+        if usage is None:
+            return cls(reason="provider returned no usage block")
+        tokens_in = getattr(usage, "prompt_tokens", None)
+        tokens_out = getattr(usage, "completion_tokens", None)
+        if tokens_in is None and tokens_out is None:
+            return cls(reason="provider usage block carried no token counts")
+        return cls(
+            tokens_in=int(tokens_in) if tokens_in is not None else None,
+            tokens_out=int(tokens_out) if tokens_out is not None else None,
+        )
+
+
+@dataclass(frozen=True)
 class LLMConfig:
     """Resolved connection settings for a single LLM call."""
 
@@ -111,6 +142,31 @@ class LLMService:
         json_mode: bool = False,
     ) -> str:
         """Single-shot completion. Returns the assistant message text."""
+        text, _usage = await self.complete_with_usage(
+            system_prompt,
+            user_prompt,
+            model=model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            json_mode=json_mode,
+        )
+        return text
+
+    async def complete_with_usage(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        *,
+        model: str | None = None,
+        temperature: float = 0.3,
+        max_tokens: int = 4096,
+        json_mode: bool = False,
+    ) -> tuple[str, Usage]:
+        """``complete`` plus the provider's token counts.
+
+        A separate method rather than a changed return type: ``complete`` has eight call
+        sites, most of them v1, and a batch presented as additive must not rewrite them.
+        """
         kwargs = self._base_kwargs(model)
         kwargs["messages"] = [
             {"role": "system", "content": system_prompt},
@@ -128,7 +184,7 @@ class LLMService:
             logger.error("LLM completion failed: %s", exc, exc_info=True)
             raise LLMError(f"LLM request failed: {type(exc).__name__}") from exc
         content = response.choices[0].message.content
-        return content or ""
+        return content or "", Usage.of(response)
 
     async def stream(
         self,
@@ -137,17 +193,41 @@ class LLMService:
         model: str | None = None,
         temperature: float = 0.4,
         max_tokens: int = 2048,
+        usage_out: dict[str, Any] | None = None,
     ) -> AsyncIterator[str]:
-        """Stream completion token deltas for a full message list (chat)."""
+        """Stream completion token deltas for a full message list (chat).
+
+        ``usage_out`` is opt-in accounting: pass a dict and it is filled with
+        ``tokens_in`` / ``tokens_out`` / ``reason`` from the provider's final chunk. It is
+        opt-in because asking for it changes the request — ``stream_options`` is an
+        OpenAI-ism, and ``drop_params`` is what stops a provider that has never heard of it
+        from failing the whole render over accounting. The v1 chat path passes nothing and
+        its request is byte-for-byte what it was.
+
+        The usage chunk carries **no** ``choices``, which is why the delta is read
+        defensively below: indexing ``choices[0]`` on it is an ``IndexError`` mid-stream.
+        """
         kwargs = self._base_kwargs(model)
         kwargs["messages"] = messages
         kwargs["temperature"] = temperature
         kwargs["max_tokens"] = max_tokens
         kwargs["stream"] = True
+        if usage_out is not None:
+            kwargs["stream_options"] = {"include_usage": True}
+            kwargs["drop_params"] = True
+            usage_out.setdefault("reason", "provider reported no usage on the stream")
         try:
             response = await litellm.acompletion(**kwargs)
             async for chunk in response:
-                delta = chunk.choices[0].delta
+                if usage_out is not None and getattr(chunk, "usage", None) is not None:
+                    usage = Usage.of(chunk)
+                    usage_out["tokens_in"] = usage.tokens_in
+                    usage_out["tokens_out"] = usage.tokens_out
+                    usage_out["reason"] = usage.reason
+                choices = getattr(chunk, "choices", None) or ()
+                if not choices:
+                    continue
+                delta = choices[0].delta
                 piece = getattr(delta, "content", None)
                 if piece:
                     yield piece

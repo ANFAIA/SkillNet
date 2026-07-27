@@ -56,6 +56,13 @@ class NodeSummaryRead(BaseModel):
     locked_by: list[uuid.UUID] = Field(default_factory=list)
     #: ``state == 'needs_review'`` (§7.4). The node stays visible in a "para practicar"
     #: section instead of disappearing.
+    #:
+    #: **Reserved in this PR: always ``false``.** ``needs_review`` has exactly one producer
+    #: — rule 8 of §7.3 — and rule 8 requires ``hints_used >= HINT_LIMIT``. ``hints_used``
+    #: only moves through ``POST /nodes/{id}/hint``, and no client calls it (see the note in
+    #: ``apps/skillnet-web/src/api/nodes.ts``), so the state is unreachable and so is the
+    #: practice queue. The field ships as the contract the hint ladder will fill, not as
+    #: coverage it already has.
     needs_practice: bool = False
     estimated_minutes: int = DEFAULT_ESTIMATED_MINUTES
 
@@ -159,6 +166,47 @@ class NodeRenderHistoryRead(BaseModel):
     renders: list[NodeRenderHistoryItem] = Field(default_factory=list)
 
 
+# --- the frozen kit ------------------------------------------------------------------
+
+
+class UIKitComponentRead(BaseModel):
+    """One component of the frozen SkillNet UI Kit, as the model may emit it."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str
+    description: str | None = None
+    #: ``Stack(children: any[], gap: "sm" | "md" | "lg")`` — the positional signature.
+    signature: str
+
+
+class UIKitRead(BaseModel):
+    """``GET /render-kit`` (§11.3): the served contract of the frozen kit.
+
+    The **system prompt is not in here**. The browser has no use for the instructions the
+    model was given, and serving them would turn an audit artefact into an API surface.
+    What a client legitimately needs is the identity of the catalogue a ``program`` was
+    written against — which is the same string ``node_renders.catalog_version`` records
+    and the same one baked into the ``cache_key`` — plus the component list, so a mismatch
+    between the kit the page ships and the kit the server generates against is
+    *detectable* at runtime instead of only at build time.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    catalog_id: str
+    #: ``"skillnet-ui/1+<digest12>"``. Compare against ``NodeRenderRead``'s provenance.
+    catalog_version: str
+    catalog_digest: str
+    root: str
+    ui_spec_version: str
+    library_versions: dict[str, str] = Field(default_factory=dict)
+    components: list[UIKitComponentRead] = Field(default_factory=list)
+    #: Everything the browser can draw: the emittable components plus the server-authored
+    #: ``Markdown`` of the fallback. ``null`` when the kit exported no render library.
+    render_components: list[str] | None = None
+
+
 # --- probe -------------------------------------------------------------------------
 
 
@@ -218,7 +266,9 @@ class NodeAttemptResult(BaseModel):
     consecutive_failed: int = 0
     next: Literal["retry", "next_item", "next_node"] = "next_item"
     #: §7.4: at the 4th failure after 3 hints the worked solution is shown and the node
-    #: enters the practice queue.
+    #: enters the practice queue. **Reserved in this PR: always ``false``**, for the same
+    #: reason as ``NodeSummaryRead.needs_practice`` — the second half of the condition is
+    #: the server-side hint count, and nothing in the product spends a hint yet.
     show_worked_solution: bool = False
 
 
@@ -259,13 +309,21 @@ class NodeEventInput(BaseModel):
 
     ``metadata`` is not accepted: the repository composes it from ``element_id`` and ``ms``
     and nothing else, because ``learning_events.metadata`` must never hold user text.
+
+    **``node_id`` is not accepted either**, and that is a security decision rather than a
+    simplification. The route writes ``learning_events.node_id`` from the path, so the only
+    node a batch can be attributed to is the one it was posted to. When the body could name
+    the node, the only backstop was the foreign key — which happily accepts a node of
+    another organisation — and these events feed ``refresh_format_vector`` and
+    ``recent_types_for_node``, i.e. the learner's own ``format_vector``, their ``cache_key``
+    bucket and the ``revisar_prerrequisito`` signal. A client must not be able to steer any
+    of those by writing history against nodes it never opened.
     """
 
     model_config = ConfigDict(extra="forbid")
 
     type: str
     element: str | None = None
-    node_id: uuid.UUID | None = None
     element_id: str | None = None
     ms: int | None = None
 
@@ -356,4 +414,6 @@ __all__ = [
     "NodeWaiveRequest",
     "ProbeAnswerRequest",
     "ProbeAnswerResult",
+    "UIKitComponentRead",
+    "UIKitRead",
 ]

@@ -21,6 +21,13 @@ Two invariants worth stating because they are easy to break by accident:
   computed from the same profile as a real render would collide with it on insert; and a
   preview *must* stay out of the cache (§11.3), so it cannot simply reuse the row. The salt
   makes every preview its own row, un-hittable by construction.
+* **A forced refresh gets a salted key too, and for the same reason.** Nothing that moves
+  with a click is *in* the key — ``mastery`` is excluded by design and ``scaffold_band`` is
+  frozen when the probe closes — so "Actualizar esta leccion" (§5.5) recomputes the exact
+  same key. Reading the cache with it would hand back the very render the learner asked to
+  replace, and writing over the row would rewrite the screen of everybody else in the
+  bucket. The salt is what makes the refresh a *new* row, leaving the shared one (and this
+  learner's ``GET /renders`` history) intact.
 """
 
 from __future__ import annotations
@@ -48,7 +55,7 @@ from src.models import (
 )
 from src.render.prompt import catalog_version
 from src.repositories.learner_node_state_repo import LearnerNodeStateRepository
-from src.repositories.node_render_repo import NodeRenderRepository
+from src.repositories.node_render_repo import SERVABLE_STATUSES, NodeRenderRepository
 from src.repositories.node_render_view_repo import NodeRenderViewRepository
 from src.services.cache_key import build_cache_key, effective_density, role_bucket
 from src.services.learner_profile_service import CALIBRATION_NODES, vector_bucket
@@ -62,6 +69,12 @@ NODE_NOT_REVIEWED = "node_not_reviewed"
 
 #: Prefix of a preview ``cache_key``. Also makes previews trivially greppable in the table.
 PREVIEW_KEY_PREFIX = "preview"
+
+#: Prefix of the ``cache_key`` of a forced refresh (§5.5). Same device as the preview salt,
+#: different meaning: a refresh row **is** servable and **is** pinned, it simply belongs to
+#: the one learner who asked for it, because nothing shared can be regenerated in place
+#: without rewriting somebody else's open lesson.
+REFRESH_KEY_PREFIX = "refresh"
 
 
 def _plain(value: object) -> str:
@@ -100,6 +113,7 @@ def build_render_key(
     backend: str | None = None,
     is_preview: bool = False,
     preview_salt: str | None = None,
+    refresh_salt: str | None = None,
 ) -> RenderKey:
     """Compose the ``cache_key`` of §3.4 from a loaded context.
 
@@ -144,6 +158,8 @@ def build_render_key(
     if is_preview:
         salt = preview_salt or uuid.uuid4().hex[:12]
         key = f"{PREVIEW_KEY_PREFIX}:{salt}:{key}"
+    elif refresh_salt:
+        key = f"{REFRESH_KEY_PREFIX}:{refresh_salt}:{key}"
 
     return RenderKey(
         cache_key=key,
@@ -389,10 +405,18 @@ class NodeRenderService:
            guarantees spatial stability.
         2. **Already generating** -> return the same ``request_id``. Two tabs must not start
            two generations of the same screen.
-        3. **Cache hit on ``cache_key``** -> pin it and answer ``cached=True``. Zero tokens.
+        3. **Cache hit on ``cache_key``, and not forced** -> pin it and answer
+           ``cached=True``. Zero tokens.
         4. Otherwise spawn the graph and answer ``202`` with a fresh ``request_id``.
 
         A preview never pins and never hits the cache (§11.3).
+
+        ``force`` skips step 3 *entirely*, not just the pin: the key is a pure function of
+        the node and the learner's profile, and neither moves when the learner presses
+        "Actualizar esta leccion", so reading the cache with it would return the render they
+        asked to replace and the button would be decoration. When the base key is already
+        occupied by something servable, the forced run gets a salted key of its own so it
+        writes a new row instead of overwriting the one the rest of the bucket is reading.
         """
         from src.agents.runtime.runner import spawn_node_render  # local: avoids a cycle
 
@@ -416,12 +440,24 @@ class NodeRenderService:
             user=user, node=node, course=course, is_preview=preview
         )
 
-        if not preview:
+        if not preview and not force:
             hit = await self.renders.find_cached(key.cache_key)
             if hit is not None:
                 await self.pin(user_id=user.id, node_id=node.id, render=hit)
                 await self.db.commit()
                 return RenderRequest(request_id="", cached=True, render_id=hit.id)
+
+        if not preview and force:
+            # The row under the base key is not read as a cache hit here — it is only
+            # checked for *existence*. ``cache_key`` is UNIQUE, so reusing it would make
+            # ``claim`` either return the served row untouched (and the graph would rewrite
+            # what other learners have open) or resurrect a failed one. A salt keeps the
+            # shared row, and this learner's "version anterior", exactly as they are.
+            occupied = await self.renders.get_by_cache_key(key.cache_key)
+            if occupied is not None and occupied.status in SERVABLE_STATUSES:
+                key = await self.render_key_for(
+                    user=user, node=node, course=course, refresh=True
+                )
 
         request_id = uuid.uuid4().hex
         state: dict[str, Any] = {
@@ -461,6 +497,7 @@ class NodeRenderService:
         node: CourseNode,
         course: Course,
         is_preview: bool = False,
+        refresh: bool = False,
     ) -> RenderKey:
         """The pre-graph key: same pure function ``load_context`` uses (§4.2)."""
         from src.agents.runtime.router import runtime_model_key
@@ -477,6 +514,7 @@ class NodeRenderService:
             accessibility=dict(user.accessibility or {}),
             model_key=runtime_model_key(org_settings),
             is_preview=is_preview,
+            refresh_salt=uuid.uuid4().hex[:12] if refresh and not is_preview else None,
         )
 
     # -- cancellation (§9.1) ----------------------------------------------------
@@ -489,6 +527,7 @@ class NodeRenderService:
 __all__ = [
     "NODE_NOT_REVIEWED",
     "PREVIEW_KEY_PREFIX",
+    "REFRESH_KEY_PREFIX",
     "InFlight",
     "NodeRenderService",
     "RenderKey",
