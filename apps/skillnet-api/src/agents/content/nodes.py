@@ -364,16 +364,42 @@ async def review_quality(state: GenerationState) -> dict:
     generated = json.dumps(
         state.get("generated_modules", []), ensure_ascii=False, default=str
     )
-    response = await llm.complete(
-        QUALITY_REVIEWER_SYSTEM,
-        build_review_prompt(source, generated),
-        temperature=REVIEW_TEMPERATURE,
-        max_tokens=GEN_MAX_TOKENS,
-        json_mode=True,
-    )
-    report = parse_json_response(response)
-    if not isinstance(report, dict):
-        report = {"passed": False, "overall_score": 0.0, "issues": []}
+    # The reviewer is a quality *gate*, not a producer, and by the time it runs the
+    # modules and lessons already exist — four LLM calls of them. Letting a provider
+    # failure here reach `node_error_wrapper` sends the graph to `handle_error` and
+    # discards all of it, which is how a course generation died on Groq's free tier on
+    # 2026-07-27: a 6000 tokens-per-minute limit, and a review call that asks for most of
+    # a minute's worth in one go.
+    #
+    # So a reviewer that cannot run is recorded as *not having run*, and the course goes
+    # out unreviewed. It lands as a **draft** either way — an admin still has to press
+    # Publish — so the human gate the reviewer feeds into is still there. What must not
+    # happen is silence: the report says so, and the SSE event says so.
+    try:
+        response = await llm.complete(
+            QUALITY_REVIEWER_SYSTEM,
+            build_review_prompt(source, generated),
+            temperature=REVIEW_TEMPERATURE,
+            max_tokens=GEN_MAX_TOKENS,
+            json_mode=True,
+        )
+    except LLMError as exc:
+        logger.warning(
+            "Quality review could not run for job %s (%s); publishing unreviewed",
+            job_id,
+            exc,
+        )
+        report = {
+            "passed": False,
+            "review_skipped": True,
+            "overall_score": 0.0,
+            "issues": [],
+            "skip_reason": str(exc)[:200],
+        }
+    else:
+        report = parse_json_response(response)
+        if not isinstance(report, dict):
+            report = {"passed": False, "overall_score": 0.0, "issues": []}
 
     await _set_job(job_id, status=GenerationStep.REVIEWING)
     await sse.publish(
@@ -383,6 +409,7 @@ async def review_quality(state: GenerationState) -> dict:
             "passed": bool(report.get("passed")),
             "score": report.get("overall_score", 0.0),
             "issues_count": len(report.get("issues") or []),
+            "skipped": bool(report.get("review_skipped")),
         },
     )
     return {"review_report": report, "current_step": "reviewing"}

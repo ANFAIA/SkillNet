@@ -93,6 +93,26 @@ def _retry_attempts() -> int:
     return max(int(5 if value is None else value), 1)
 
 
+def _failure_message(exc: BaseException) -> str:
+    """What the admin reads when a generation dies.
+
+    ``LLM request failed: RateLimitError`` is technically accurate and practically
+    useless: it sends somebody looking for a bug in a pipeline that is working exactly
+    as designed and is simply out of quota. A tokens-per-minute limit is a plan problem
+    with a plan solution, and the message should say which one it is — measured against
+    Groq's free tier (6000 TPM), where a single module-generation call requests about
+    5000 of them.
+    """
+    if isinstance(exc, litellm.RateLimitError):
+        return (
+            "LLM rate limit reached after every retry. The provider's quota is the "
+            "limit here, not the content: generating a full course needs several "
+            "large calls in a row. Retry when the quota window has cleared, or move "
+            "to a plan with a higher tokens-per-minute allowance."
+        )
+    return f"LLM request failed: {type(exc).__name__}"
+
+
 # --------------------------------------------------------------------------- #
 # Reasoning models: the thinking is billed against the answer's budget
 # --------------------------------------------------------------------------- #
@@ -416,7 +436,7 @@ class LLMService:
         except litellm.BadRequestError as exc:
             if "reasoning_effort" not in kwargs:
                 logger.error("LLM completion failed: %s", exc, exc_info=True)
-                raise LLMError(f"LLM request failed: {type(exc).__name__}") from exc
+                raise LLMError(_failure_message(exc)) from exc
             logger.warning(
                 "Provider rejected reasoning_effort for %s; retrying without it: %s",
                 kwargs.get("model"),
@@ -427,7 +447,7 @@ class LLMService:
             return await self._completion_call(kwargs)
         except Exception as exc:  # noqa: BLE001 - normalize all provider errors
             logger.error("LLM completion failed: %s", exc, exc_info=True)
-            raise LLMError(f"LLM request failed: {type(exc).__name__}") from exc
+            raise LLMError(_failure_message(exc)) from exc
 
     async def stream(
         self,

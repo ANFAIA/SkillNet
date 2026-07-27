@@ -17,6 +17,14 @@ def route_after_quality_review(state: GenerationState) -> str:
     if not report:
         return "fail"
 
+    # The reviewer could not run at all — a provider outage or a rate limit, not a
+    # judgement on the content. Refining is not an option because refinement needs the
+    # reviewer's issue list, and failing would throw away four LLM calls of finished
+    # modules over the one step that produces nothing. It ships unreviewed, as a draft
+    # an admin still has to publish. See `review_quality` for the measured case.
+    if report.get("review_skipped"):
+        return "pass"
+
     if report.get("passed"):
         return "pass"
 
