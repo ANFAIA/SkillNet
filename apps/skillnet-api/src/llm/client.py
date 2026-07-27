@@ -8,6 +8,7 @@ Anthropic, DeepSeek, Ollama, etc. requires no code change.
 
 from __future__ import annotations
 
+import re
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from typing import Any
@@ -34,6 +35,123 @@ _RETRYABLE = (
     litellm.InternalServerError,
     litellm.ServiceUnavailableError,
 )
+
+
+# --------------------------------------------------------------------------- #
+# Reasoning models: the thinking is billed against the answer's budget
+# --------------------------------------------------------------------------- #
+
+#: Model-name fragments that mark a *reasoning* model — one that emits its chain of
+#: thought into a separate ``reasoning`` field charged against the **same** ``max_tokens``
+#: as the answer.
+#:
+#: Measured on Groq's ``openai/gpt-oss-120b`` with ``max_tokens=1200``: some calls spent
+#: the entire budget thinking (4600+ characters of it) and came back with an empty
+#: ``content``. The runtime read that as an invalid program and burned the repair loop on
+#: it, so the symptom was an intermittent, expensive failure that blames the model for
+#: something the caller's budget caused.
+_REASONING_NAME_HINTS: tuple[str, ...] = (
+    "gpt-oss",
+    "reasoner",
+    "reasoning",
+    "thinking",
+    "qwq",
+    "magistral",
+)
+
+#: OpenAI's o-series (``o1``, ``o3-mini``, ``o4-mini``...). Anchored on the bare model
+#: name so no ordinary model is caught by a stray two-character substring.
+_O_SERIES = re.compile(r"^o[1-9](?:[-_.]|$)")
+
+#: What an empty completion's budget is multiplied by before it is asked for again.
+BUDGET_RETRY_MULTIPLIER = 3
+
+#: One growth step. A second means paying three times over for one screen, and if 3x the
+#: budget still returns nothing the prompt is wrong — no amount of budget fixes that.
+MAX_BUDGET_RETRIES = 1
+
+#: Log marker for "the budget ran out", greppable and deliberately not shared with any
+#: other failure. An empty ``content`` with ``finish_reason == "length"`` is not a bad
+#: answer, it is an *unfinished* one: it must not reach the repair loop, and whoever reads
+#: the logs has to be able to tell the two apart at a glance.
+BUDGET_EXHAUSTED = "llm.budget_exhausted"
+
+
+def is_reasoning_model(model: str) -> bool:
+    """Whether ``model`` spends its ``max_tokens`` on thinking **before it is asked to**.
+
+    Deliberately a name check and not ``litellm.supports_reasoning``, which answers a
+    different question — *can* this model reason if asked — and answers it wrong in both
+    directions for this purpose (verified against litellm 1.91.3):
+
+    * ``supports_reasoning("openai/gpt-oss-120b") -> False``, and that string is the one
+      this deployment carries in ``.env``: Groq reached as an OpenAI-compatible endpoint
+      through ``LLM_BASE_URL``. The registry alone would miss exactly the model that
+      produced the bug (it only knows the ``groq/`` prefixed spelling).
+    * ``supports_reasoning("anthropic/claude-sonnet-4-...") -> True``, but its extended
+      thinking is **off** until requested. Treating it as a reasoning model would send
+      ``reasoning_effort`` and switch thinking on for every v1 deployment on Anthropic —
+      a behaviour and cost change nobody asked for, made by a bug fix for another model.
+
+    What matters here is the narrow family that thinks unprompted and bills it against the
+    answer's budget. That family is recognisable by name.
+    """
+    name = (model or "").rsplit("/", 1)[-1].lower()
+    return bool(any(hint in name for hint in _REASONING_NAME_HINTS) or _O_SERIES.match(name))
+
+
+def reasoning_kwargs(model: str) -> dict[str, Any]:
+    """``reasoning_effort`` for a reasoning model, in the only form litellm passes through.
+
+    Verified with ``litellm.utils.get_optional_params`` on 1.91.3 for
+    ``openai/gpt-oss-120b``: a bare ``reasoning_effort`` raises ``UnsupportedParamsError``,
+    ``drop_params=True`` silently discards it, and only ``allowed_openai_params`` forwards
+    it to the provider. Forwarding it is what stops the model from thinking away the whole
+    budget; the headroom below is the net for the providers that drop it anyway.
+    """
+    effort = str(getattr(settings, "LLM_REASONING_EFFORT", "none") or "none").lower()
+    if effort == "none" or not is_reasoning_model(model):
+        return {}
+    return {"reasoning_effort": effort, "allowed_openai_params": ["reasoning_effort"]}
+
+
+def budget_for(model: str, max_tokens: int) -> int:
+    """The caller's ``max_tokens`` plus room for a reasoning model to think in."""
+    if not is_reasoning_model(model):
+        return max_tokens
+    headroom = int(getattr(settings, "LLM_REASONING_TOKEN_HEADROOM", 0) or 0)
+    return max_tokens + max(headroom, 0)
+
+
+def _finish_reason(response_or_chunk: Any) -> str | None:
+    """The first choice's ``finish_reason``, read defensively.
+
+    A stream's usage chunk carries no ``choices`` at all, so indexing is not an option.
+    """
+    choices = getattr(response_or_chunk, "choices", None) or ()
+    if not choices:
+        return None
+    return getattr(choices[0], "finish_reason", None)
+
+
+def _message_content(response: Any) -> str:
+    """The assistant text of a non-streamed response, ``""`` when there is none."""
+    choices = getattr(response, "choices", None) or ()
+    if not choices:
+        return ""
+    message = getattr(choices[0], "message", None)
+    return getattr(message, "content", None) or ""
+
+
+def _add_tokens(left: int | None, right: int | None) -> int | None:
+    """Sum two counts, keeping ``None`` when neither side ever measured anything.
+
+    ``0`` and ``None`` are different answers: ``0`` claims the call was free, ``None``
+    says nobody counted.
+    """
+    if left is None and right is None:
+        return None
+    return int(left or 0) + int(right or 0)
 
 
 @dataclass(frozen=True)
@@ -65,6 +183,19 @@ class Usage:
             tokens_in=int(tokens_in) if tokens_in is not None else None,
             tokens_out=int(tokens_out) if tokens_out is not None else None,
         )
+
+    def plus(self, other: Usage) -> Usage:
+        """Add a second attempt's cost to this one.
+
+        A call that burned its budget thinking and returned nothing was still billed.
+        Reporting only the attempt that succeeded would understate the heavy tier's cost
+        precisely where it is highest, which is the comparison §9.3 exists to make.
+        """
+        tokens_in = _add_tokens(self.tokens_in, other.tokens_in)
+        tokens_out = _add_tokens(self.tokens_out, other.tokens_out)
+        if tokens_in is None and tokens_out is None:
+            return Usage(reason=other.reason or self.reason)
+        return Usage(tokens_in=tokens_in, tokens_out=tokens_out)
 
 
 @dataclass(frozen=True)
@@ -166,25 +297,81 @@ class LLMService:
 
         A separate method rather than a changed return type: ``complete`` has eight call
         sites, most of them v1, and a batch presented as additive must not rewrite them.
+
+        The returned ``Usage`` is the cost of **every** attempt, including one thrown away
+        for coming back empty: that attempt was billed too.
         """
+        model_name = model or self._config.model
         kwargs = self._base_kwargs(model)
         kwargs["messages"] = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
         ]
         kwargs["temperature"] = temperature
-        kwargs["max_tokens"] = max_tokens
         if json_mode:
             kwargs["response_format"] = {"type": "json_object"}
+        kwargs.update(reasoning_kwargs(model_name))
+
+        budget = budget_for(model_name, max_tokens)
+        spent = Usage(reason="no attempt reported usage")
+        for attempt in range(MAX_BUDGET_RETRIES + 1):
+            kwargs["max_tokens"] = budget
+            response = await self._completion_call(kwargs)
+            spent = spent.plus(Usage.of(response))
+            content = _message_content(response)
+            if content or _finish_reason(response) != "length":
+                return content, spent
+            # Empty *and* cut off for length: the model never got to the answer. Handing
+            # this to the caller would look like an invalid generation and start a repair
+            # loop over a program the model never wrote.
+            if attempt == MAX_BUDGET_RETRIES:
+                logger.error(
+                    "%s: %s returned no content at max_tokens=%d after %d attempt(s); "
+                    "giving up",
+                    BUDGET_EXHAUSTED,
+                    model_name,
+                    budget,
+                    attempt + 1,
+                )
+                break
+            logger.warning(
+                "%s: %s spent all %d tokens before answering; retrying at %d",
+                BUDGET_EXHAUSTED,
+                model_name,
+                budget,
+                budget * BUDGET_RETRY_MULTIPLIER,
+            )
+            budget *= BUDGET_RETRY_MULTIPLIER
+        return "", spent
+
+    async def _completion_call(self, kwargs: dict[str, Any]) -> Any:
+        """One provider call, with provider errors normalized to :class:`LLMError`.
+
+        The ``reasoning_effort`` retreat lives here because that parameter is *forced*
+        through with ``allowed_openai_params`` (see :func:`reasoning_kwargs`): litellm no
+        longer vets it, so a provider that rejects it would otherwise turn a knob we chose
+        into a failed render. Dropping it and calling again costs one round trip; the
+        token headroom still covers the case it was meant to prevent.
+        """
         try:
-            response = await self._acompletion(**kwargs)
+            return await self._acompletion(**kwargs)
         except LLMError:
             raise
+        except litellm.BadRequestError as exc:
+            if "reasoning_effort" not in kwargs:
+                logger.error("LLM completion failed: %s", exc, exc_info=True)
+                raise LLMError(f"LLM request failed: {type(exc).__name__}") from exc
+            logger.warning(
+                "Provider rejected reasoning_effort for %s; retrying without it: %s",
+                kwargs.get("model"),
+                exc,
+            )
+            kwargs.pop("reasoning_effort", None)
+            kwargs.pop("allowed_openai_params", None)
+            return await self._completion_call(kwargs)
         except Exception as exc:  # noqa: BLE001 - normalize all provider errors
             logger.error("LLM completion failed: %s", exc, exc_info=True)
             raise LLMError(f"LLM request failed: {type(exc).__name__}") from exc
-        content = response.choices[0].message.content
-        return content or "", Usage.of(response)
 
     async def stream(
         self,
@@ -206,31 +393,121 @@ class LLMService:
 
         The usage chunk carries **no** ``choices``, which is why the delta is read
         defensively below: indexing ``choices[0]`` on it is an ``IndexError`` mid-stream.
+
+        A stream that ends having yielded **nothing** with ``finish_reason == "length"``
+        is retried on a bigger budget, exactly as the single-shot path is. This is the one
+        that mattered in practice: ``genera_ui`` streams, so without it a reasoning model
+        that thinks past its budget produces an empty program on the hot path. Retrying is
+        safe only because nothing was yielded — the moment a delta is out, the attempt is
+        final and the caller keeps whatever arrived.
         """
+        model_name = model or self._config.model
         kwargs = self._base_kwargs(model)
         kwargs["messages"] = messages
         kwargs["temperature"] = temperature
-        kwargs["max_tokens"] = max_tokens
         kwargs["stream"] = True
+        kwargs.update(reasoning_kwargs(model_name))
         if usage_out is not None:
             kwargs["stream_options"] = {"include_usage": True}
             kwargs["drop_params"] = True
             usage_out.setdefault("reason", "provider reported no usage on the stream")
+
+        budget = budget_for(model_name, max_tokens)
+        spent = Usage(reason="provider reported no usage on the stream")
+        growths = 0
+        while True:
+            kwargs["max_tokens"] = budget
+            state: dict[str, Any] = {
+                "produced": False,
+                "finish_reason": None,
+                "usage": Usage(),
+                "retreat": False,
+            }
+            async for piece in self._stream_once(kwargs, state):
+                yield piece
+            spent = spent.plus(state["usage"])
+            if usage_out is not None:
+                usage_out["tokens_in"] = spent.tokens_in
+                usage_out["tokens_out"] = spent.tokens_out
+                usage_out["reason"] = spent.reason
+            if state["retreat"]:
+                # The knob was rejected and removed; same budget, one more go. It can only
+                # happen once, because `reasoning_effort` is gone from `kwargs` for good.
+                continue
+            if state["produced"] or state["finish_reason"] != "length":
+                return
+            if growths >= MAX_BUDGET_RETRIES:
+                logger.error(
+                    "%s: %s streamed no content at max_tokens=%d; giving up",
+                    BUDGET_EXHAUSTED,
+                    model_name,
+                    budget,
+                )
+                return
+            logger.warning(
+                "%s: %s spent all %d streamed tokens before answering; retrying at %d",
+                BUDGET_EXHAUSTED,
+                model_name,
+                budget,
+                budget * BUDGET_RETRY_MULTIPLIER,
+            )
+            growths += 1
+            budget *= BUDGET_RETRY_MULTIPLIER
+
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=2, min=4, max=60),
+        retry=retry_if_exception_type(_RETRYABLE),
+        reraise=True,
+    )
+    async def _open_stream(self, kwargs: dict[str, Any]) -> Any:
+        """Open the stream, retrying the transient refusals.
+
+        Only the *opening* is retried, and only before a single delta exists, so nothing
+        can be replayed to the caller twice. Groq's free tier answers 429 readily and the
+        non-streamed path has had this since day one; the streamed one is the expensive
+        call, so losing a whole render to a rate limit is the worse of the two outcomes.
+        """
+        return await litellm.acompletion(**kwargs)
+
+    async def _stream_once(
+        self, kwargs: dict[str, Any], state: dict[str, Any]
+    ) -> AsyncIterator[str]:
+        """One streamed attempt, recording into ``state`` what the caller has to judge it by.
+
+        ``state`` carries ``produced`` (was anything yielded), ``finish_reason``, the
+        attempt's ``usage`` and ``retreat`` (the provider refused ``reasoning_effort``, so
+        it was dropped and the attempt should simply be repeated).
+        """
         try:
-            response = await litellm.acompletion(**kwargs)
+            response = await self._open_stream(kwargs)
             async for chunk in response:
-                if usage_out is not None and getattr(chunk, "usage", None) is not None:
-                    usage = Usage.of(chunk)
-                    usage_out["tokens_in"] = usage.tokens_in
-                    usage_out["tokens_out"] = usage.tokens_out
-                    usage_out["reason"] = usage.reason
+                if getattr(chunk, "usage", None) is not None:
+                    state["usage"] = state["usage"].plus(Usage.of(chunk))
+                reason = _finish_reason(chunk)
+                if reason:
+                    state["finish_reason"] = reason
                 choices = getattr(chunk, "choices", None) or ()
                 if not choices:
                     continue
                 delta = choices[0].delta
                 piece = getattr(delta, "content", None)
                 if piece:
+                    state["produced"] = True
                     yield piece
+        except litellm.BadRequestError as exc:
+            if state["produced"] or "reasoning_effort" not in kwargs:
+                logger.error("LLM stream failed: %s", exc, exc_info=True)
+                raise LLMError(f"LLM stream failed: {type(exc).__name__}") from exc
+            logger.warning(
+                "Provider rejected reasoning_effort for %s; retrying the stream without "
+                "it: %s",
+                kwargs.get("model"),
+                exc,
+            )
+            kwargs.pop("reasoning_effort", None)
+            kwargs.pop("allowed_openai_params", None)
+            state["retreat"] = True
         except Exception as exc:  # noqa: BLE001 - normalize all provider errors
             logger.error("LLM stream failed: %s", exc, exc_info=True)
             raise LLMError(f"LLM stream failed: {type(exc).__name__}") from exc

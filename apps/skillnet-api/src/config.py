@@ -30,6 +30,20 @@ class Settings(BaseSettings):
     LLM_RUNTIME_FAST_MODEL: str | None = None
     LLM_RUNTIME_HEAVY_MODEL: str | None = None
 
+    # Reasoning models (o-series, gpt-oss, deepseek-reasoner...) emit their chain of
+    # thought into a separate field that is billed against the SAME `max_tokens` as the
+    # answer. Measured on Groq's openai/gpt-oss-120b at max_tokens=1200: it sometimes
+    # spent the whole budget thinking and returned an empty `content`, which the runtime
+    # read as an invalid program and sent through the repair loop for nothing.
+    # Both knobs are settings and not constants because tuning them is a prompt-tuning
+    # session's business, and a redeploy per experiment is what kills that loop.
+    # `none` = never send the parameter. Read only by src/llm/client.py.
+    LLM_REASONING_EFFORT: Literal["none", "low", "medium", "high"] = "low"
+    # Extra completion budget handed to a reasoning model on top of what the call site
+    # asked for. The call site's number budgets the *answer*; the thinking is invisible
+    # to it. 0 disables the headroom (the empty-response retry still applies).
+    LLM_REASONING_TOKEN_HEADROOM: int = 2048
+
     # v2 recorded-fixture LLM (no API keys needed). Fixtures live inside the package
     # so they travel into the Docker image with `src`.
     LLM_FIXTURE_DIR: str = "src/llm/fixture_data"

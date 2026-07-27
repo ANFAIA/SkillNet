@@ -66,6 +66,12 @@ export const nodeRenderKey = (nodeId: string | undefined) =>
 export const nodeRenderHistoryKey = (nodeId: string | undefined) =>
   ['nodes', nodeId, 'renders'] as const
 
+/** One superseded version, by id. Immutable once written, so it is cached forever. */
+export const nodeRenderVersionKey = (
+  nodeId: string | undefined,
+  renderId: string | undefined,
+) => ['nodes', nodeId, 'renders', renderId] as const
+
 // --------------------------------------------------------------------------- //
 // Error narrowing
 // --------------------------------------------------------------------------- //
@@ -230,6 +236,34 @@ export function useNodeRenderHistory(
     queryFn: () => get<NodeRenderHistory>(`/nodes/${nodeId}/renders`),
     enabled: !!nodeId && enabled,
     retry: false,
+  })
+}
+
+/**
+ * `GET /nodes/{node_id}/renders/{render_id}` — **one** version out of that list.
+ *
+ * The endpoint the version list spent a batch without. Before it existed a version was
+ * only reopenable while this session still held its program in memory, so a reload emptied
+ * the feature and a version from last week was a dead entry with a date on it. The server
+ * authorizes by `node_render_views` (the record that *this* learner was served *that*
+ * render), pins nothing and records no new view: looking back at something already seen is
+ * not being served it, and moving `first_seen_at` would corrupt the evidence a certificate
+ * rests on.
+ *
+ * `staleTime: Infinity` because an old version is immutable by construction — `node_renders`
+ * rows are never rewritten, only superseded.
+ */
+export function useNodeRenderVersion(
+  nodeId: string | undefined,
+  renderId: string | null | undefined,
+) {
+  return useQuery({
+    queryKey: nodeRenderVersionKey(nodeId, renderId ?? undefined),
+    queryFn: () => get<NodeRender>(`/nodes/${nodeId}/renders/${renderId}`),
+    enabled: !!nodeId && !!renderId,
+    retry: false,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
   })
 }
 
@@ -498,13 +532,17 @@ export function useSubmitNodeAnswer(nodeId: string | undefined) {
   })
 }
 
-// `POST /nodes/{node_id}/hint` has **no client here on purpose**: nothing in this batch
-// grants a hint. `QuizItemBlock` (B6) does not offer one and always reports
-// `hints_used: 0`, so the hint endpoint has no caller and a hook for it would be dead
-// code pretending to be a feature. The consequence is real and belongs in the report
-// rather than in a comment nobody reads: without a hint UI the server-side count never
-// reaches 3, so §7.4's worked solution and the `needs_review` transition are unreachable
-// from the product. `NodeHintResult` stays in `types/index.ts` for whoever builds it.
+// `POST /nodes/{node_id}/hint` has no hook here, and now for the opposite reason to the
+// one that used to be written in this spot. It has a caller: `HintLadder`, in
+// `components/courses/blocks/QuizItemHints.tsx`. It lives there rather than here for the
+// same reason `QuizItemBlock`'s answer mutation does — those components are instantiated
+// by OpenUI's runtime, which passes props and nothing else, so a hook lifted to this file
+// would have no component able to call it with the item it belongs to.
+//
+// What changed by wiring it up is worth stating once: `node_attempts.hints_used` only
+// moves through that endpoint, and rule 8 of §7.3 needs it at 3. Until something spent a
+// hint, `needs_review` was unreachable, `NodeSummaryRead.needs_practice` was permanently
+// `false` and the "Para practicar" queue could not fill. It can now.
 
 /** `POST /nodes/{node_id}/feedback` — `204`, and it fires the difficulty signals (§3.3). */
 export function useNodeFeedback(nodeId: string | undefined) {
