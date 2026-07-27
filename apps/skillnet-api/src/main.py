@@ -31,6 +31,7 @@ from src.routes import (
     health,
     learner_profile,
     lessons,
+    nodes,
     onboarding,
     settings as settings_routes,
     stats,
@@ -133,6 +134,11 @@ def create_app() -> FastAPI:
     # /courses/{id}/schema* paths are matched by their own router; the admin-surface
     # guard 404s every path unless the flag is `shadow` or `on`.
     app.include_router(course_schema.router, prefix=prefix)
+    # v2 runtime employee surface (B5). Registered after `courses` so the more specific
+    # /courses/{id}/nodes path is matched by its own router; both routers carry the
+    # employee-surface guard, so every path 404s unless the flag is `on`.
+    app.include_router(nodes.router, prefix=prefix)
+    app.include_router(nodes.course_nodes_router, prefix=prefix)
 
     ext_prefix = "/ext/v1"
     app.include_router(ext_skills.router, prefix=ext_prefix)

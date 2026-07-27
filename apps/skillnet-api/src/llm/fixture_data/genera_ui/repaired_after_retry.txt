@@ -1,0 +1,3 @@
+root = Stack([intro, pasos], "md")
+intro = TextContent("Como dependiente, esto te sirve para resolver una devolucion en caja sin pedir ayuda.", "lead")
+pasos = StepSequence("Proceso de devolucion", ["Comprobar el producto", "Escanear el ticket", "Registrar la devolucion", "Emitir el reembolso"])

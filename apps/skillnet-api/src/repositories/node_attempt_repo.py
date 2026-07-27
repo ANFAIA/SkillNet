@@ -50,6 +50,39 @@ class NodeAttemptRepository(BaseRepository[NodeAttempt]):
         )
         return int((await self.session.execute(query)).scalar_one())
 
+    async def latest_for_item(
+        self, *, user_id: uuid.UUID, node_id: uuid.UUID, item_id: str
+    ) -> NodeAttempt | None:
+        """Most recent attempt at one item — the row ``POST /nodes/{id}/hint`` bumps (B5)."""
+        query = (
+            select(NodeAttempt)
+            .where(
+                NodeAttempt.user_id == user_id,
+                NodeAttempt.node_id == node_id,
+                NodeAttempt.item_id == item_id,
+            )
+            .order_by(NodeAttempt.attempted_at.desc())
+            .limit(1)
+        )
+        return (await self.session.execute(query)).scalars().first()
+
+    async def hints_used_for_item(
+        self, *, user_id: uuid.UUID, node_id: uuid.UUID, item_id: str
+    ) -> int:
+        """``MAX(hints_used)`` for one item — the **server-side** hint count of §11.3.
+
+        The ``hints_used`` a client sends is informative only: it is what decides whether
+        ``NodeAttemptResult.correct_answer`` is revealed, and a field the browser fills in
+        cannot govern that (``hints_used: 3`` would be a free answer key). This query is the
+        count of record, and only ``POST /nodes/{id}/hint`` moves it.
+        """
+        query = select(func.coalesce(func.max(NodeAttempt.hints_used), 0)).where(
+            NodeAttempt.user_id == user_id,
+            NodeAttempt.node_id == node_id,
+            NodeAttempt.item_id == item_id,
+        )
+        return int((await self.session.execute(query)).scalar_one() or 0)
+
     async def list_for_node(
         self, *, user_id: uuid.UUID, node_id: uuid.UUID, limit: int = 50
     ) -> Sequence[NodeAttempt]:

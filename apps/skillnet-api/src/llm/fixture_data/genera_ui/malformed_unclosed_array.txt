@@ -1,0 +1,2 @@
+root = Stack([intro, pasos, "md")
+intro = TextContent("Como dependiente, esto te sirve para resolver una devolucion en caja.", "lead")

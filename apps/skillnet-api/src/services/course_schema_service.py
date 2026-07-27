@@ -43,7 +43,6 @@ from src.models import (
     CourseNode,
     CourseSchemaStatus,
     DocumentStatus,
-    EnrollmentStatus,
     GenerationJob,
     GenerationOutput,
     GenerationStep,
@@ -57,6 +56,8 @@ from src.repositories.course_repo import CourseRepository
 from src.repositories.document_repo import DocumentRepository
 from src.repositories.enrollment_repo import EnrollmentRepository
 from src.repositories.generation_job_repo import GenerationJobRepository
+from src.services.enrollment_service import NodeProgressRow, apply_dynamic_closure
+from src.services.mastery_service import evaluate_course_completion
 
 logger = get_logger(__name__)
 
@@ -1023,12 +1024,20 @@ class CourseSchemaService:
         ``mastered``. Because the schema just changed, a completed enrollment can
         reopen (a new ``critical`` node appeared) and a stuck one can complete (the
         missing node was archived).
+
+        The *rule* is not implemented here (B11): ``evaluate_course_completion`` is the
+        pure predicate and ``apply_dynamic_closure`` is the one mutation, both shared
+        with ``EnrollmentService``, so the schema editor and the runtime cannot end up
+        with two definitions of "completed" — a number that gets printed on a
+        certificate. What stays here is the *batch read*: one ``mastery_rows`` query for
+        every learner at once instead of a per-learner join, because a shift-wide course
+        can have hundreds of enrollments and this runs inside a request.
         """
         nodes = list(
             await self.node_repo.list_for_course(course.id, include_archived=False)
         )
-        critical_ids = [
-            node.id
+        critical = [
+            node
             for node in nodes
             if _criticality_value(node.criticality) == NodeCriticality.CRITICAL.value
         ]
@@ -1038,33 +1047,36 @@ class CourseSchemaService:
         if not enrollments:
             return {"completed": 0, "reopened": 0}
 
-        rows = await self.node_repo.mastery_rows(critical_ids) if critical_ids else []
+        rows = (
+            await self.node_repo.mastery_rows([node.id for node in critical])
+            if critical
+            else []
+        )
         by_user: dict[uuid.UUID, dict[uuid.UUID, tuple[str, float]]] = {}
         for user_id, node_id, state, mastery in rows:
             by_user.setdefault(user_id, {})[node_id] = (state, mastery)
 
-        completed = 0
-        reopened = 0
+        counts = {"completed": 0, "reopened": 0}
         now = datetime.now(timezone.utc)
         for enrollment in enrollments:
             states = by_user.get(enrollment.user_id, {})
-            closes = bool(critical_ids) and all(
-                states.get(node_id, ("", 0.0))[0] == NodeState.MASTERED.value
-                for node_id in critical_ids
+            progress = [
+                NodeProgressRow(
+                    node_id=node.id,
+                    criticality=node.criticality,
+                    archived=False,
+                    state=states.get(node.id, (NodeState.NOT_STARTED.value, 0.0))[0],
+                    mastery=states.get(node.id, (NodeState.NOT_STARTED.value, 0.0))[1],
+                )
+                for node in critical
+            ]
+            outcome = apply_dynamic_closure(
+                enrollment, evaluate_course_completion(progress), now=now
             )
-            if closes and enrollment.status != EnrollmentStatus.COMPLETED:
-                enrollment.status = EnrollmentStatus.COMPLETED
-                enrollment.completed_at = now
-                enrollment.score = sum(
-                    states[node_id][1] for node_id in critical_ids
-                ) / len(critical_ids)
-                completed += 1
-            elif not closes and enrollment.status == EnrollmentStatus.COMPLETED:
-                enrollment.status = EnrollmentStatus.IN_PROGRESS
-                enrollment.completed_at = None
-                reopened += 1
+            if outcome is not None:
+                counts[outcome] += 1
         await self.session.flush()
-        return {"completed": completed, "reopened": reopened}
+        return counts
 
 
 # --------------------------------------------------------------------------- #

@@ -1,0 +1,3 @@
+root = Stack([intro, acordeon], "md")
+intro = TextContent("Como dependiente, esto te sirve para resolver una devolucion.", "lead")
+acordeon = Accordion("Excepciones", ["Producto abierto", "Sin ticket"])
