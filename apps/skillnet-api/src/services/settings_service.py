@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.exceptions import NotFoundError
 from src.core.logging import get_logger
+from src.core.secrets import seal
 from src.llm.client import LLMConfig, resolve_llm_config
 from src.llm.embedding import resolve_embedding_config
 from src.llm.fixtures import maybe_fixture_llm
@@ -59,7 +60,12 @@ class SettingsService:
         if base_url is not None:
             new_settings["llm_base_url"] = base_url
         if api_key:
-            new_settings["llm_api_key"] = api_key
+            # Sealed before it touches the JSONB column. The API never reads this value
+            # back out (`get_settings` reports only `llm_configured` and the model), so
+            # encrypting on the way in is the whole of the change: nothing downstream
+            # sees anything different, because every reader goes through
+            # `resolve_llm_config` / `resolve_embedding_config`, which unseal.
+            new_settings["llm_api_key"] = seal(api_key)
         # Reassign so SQLAlchemy detects the JSONB change.
         org.settings = new_settings
         await self.db.flush()

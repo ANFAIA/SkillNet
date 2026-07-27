@@ -16,6 +16,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 from src.config import settings
 from src.core.exceptions import LLMError
 from src.core.logging import get_logger
+from src.core.secrets import unseal
 
 logger = get_logger(__name__)
 
@@ -46,10 +47,12 @@ def resolve_embedding_config(org_settings: dict[str, Any] | None = None) -> Embe
         or settings.LLM_BASE_URL
         or None
     )
+    # Both org-stored keys go through `unseal`: they are encrypted at rest
+    # (src/core/secrets.py), and it is a no-op on the environment defaults.
     api_key = (
-        org_settings.get("embedding_api_key")
+        unseal(org_settings.get("embedding_api_key"))
         or settings.EMBEDDING_API_KEY
-        or org_settings.get("llm_api_key")
+        or unseal(org_settings.get("llm_api_key"))
         or settings.LLM_API_KEY
         or None
     )

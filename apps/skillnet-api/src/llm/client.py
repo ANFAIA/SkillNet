@@ -23,6 +23,7 @@ from tenacity import (
 from src.config import settings
 from src.core.exceptions import LLMError
 from src.core.logging import get_logger
+from src.core.secrets import unseal
 
 logger = get_logger(__name__)
 
@@ -305,7 +306,9 @@ def resolve_llm_config(
     model = model or settings.LLM_MODEL
 
     api_base = org_settings.get("llm_base_url") or settings.LLM_BASE_URL or None
-    api_key = org_settings.get("llm_api_key") or settings.LLM_API_KEY or None
+    # `unseal`, because the org's key is encrypted at rest (src/core/secrets.py). It is a
+    # no-op on the environment default and on a key stored before that existed.
+    api_key = unseal(org_settings.get("llm_api_key")) or settings.LLM_API_KEY or None
     return LLMConfig(model=model, api_base=api_base, api_key=api_key)
 
 
