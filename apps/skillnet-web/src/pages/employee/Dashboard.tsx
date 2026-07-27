@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { Card, CardTitle, MetricCard, CourseItem, SkillBars, EmptyState, SkeletonRow } from '../../components/ui'
+import { Badge, Card, CardTitle, MetricCard, CourseItem, SkillBars, EmptyState, SkeletonRow } from '../../components/ui'
 import { useMe } from '../../api/auth'
 import { useEnrollments } from '../../api/enrollments'
 import { useMySkills } from '../../api/users'
@@ -93,6 +93,13 @@ export function Dashboard() {
                 <CourseItem
                   key={e.id}
                   title={e.course_title}
+                  badge={
+                    e.delivery_mode === 'dynamic' ? (
+                      <Badge variant="primary" badgeStyle="plain">
+                        Por nodos
+                      </Badge>
+                    ) : undefined
+                  }
                   subtitle={e.deadline ? `Fecha limite ${new Date(e.deadline).toLocaleDateString()}` : 'En progreso'}
                   progress={Math.round((e.progress ?? 0) * 100)}
                   color="var(--color-primary)"
@@ -114,7 +121,7 @@ export function Dashboard() {
             <EmptyState
               title="Sin skills registradas"
               description="Completa cursos para desarrollar tus competencias"
-              action={{ label: 'Ver Skill Map', onClick: () => navigate('/empleado/skills') }}
+              action={{ label: 'Ver Skill Map', onClick: () => navigate('/empleado/skillmap') }}
             />
           ) : (
             <div className="space-y-3">

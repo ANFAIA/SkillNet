@@ -6,6 +6,8 @@ export interface CourseItemProps {
   progress: number
   color: string
   icon?: React.ReactNode
+  /** Optional marker rendered after the title — a `Badge`, not a second line of copy. */
+  badge?: React.ReactNode
   onClick?: () => void
   className?: string
 }
@@ -16,6 +18,7 @@ export function CourseItem({
   progress,
   color,
   icon,
+  badge,
   onClick,
   className = '',
 }: CourseItemProps) {
@@ -41,6 +44,7 @@ export function CourseItem({
             style={{ backgroundColor: color }}
           />
           <span className="text-sm font-medium text-text truncate">{title}</span>
+          {badge && <span className="shrink-0">{badge}</span>}
         </div>
         <p className="text-xs text-text-muted mt-0.5 ml-4">{subtitle}</p>
         <div className="flex items-center gap-2 mt-2 ml-4">

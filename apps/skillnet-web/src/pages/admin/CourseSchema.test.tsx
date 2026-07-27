@@ -120,6 +120,9 @@ function renderPage() {
       <MemoryRouter initialEntries={[`/admin/curso/${COURSE_ID}/esquema`]}>
         <Routes>
           <Route path="/admin/curso/:id/esquema" element={<CourseSchema />} />
+          {/* Sentinels for the two back-links. */}
+          <Route path="/admin/curso/:id" element={<div>PREVIEW</div>} />
+          <Route path="/admin/contenido" element={<div>CONTENIDO</div>} />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>,
@@ -302,6 +305,28 @@ describe('CourseSchema', () => {
       expect(
         screen.getByText('No se puede validar todavia: 2 problemas'),
       ).toBeInTheDocument()
+    })
+  })
+
+  describe('back-links', () => {
+    it('returns to the course it belongs to', async () => {
+      installFetch({ schema: schema() })
+      renderPage()
+
+      await screen.findByLabelText('Titulo')
+      await userEvent.click(screen.getByRole('button', { name: '← Volver al curso' }))
+
+      expect(await screen.findByText('PREVIEW')).toBeInTheDocument()
+    })
+
+    it('still returns to the course list', async () => {
+      installFetch({ schema: schema() })
+      renderPage()
+
+      await screen.findByLabelText('Titulo')
+      await userEvent.click(screen.getByRole('button', { name: '← Contenido' }))
+
+      expect(await screen.findByText('CONTENIDO')).toBeInTheDocument()
     })
   })
 
