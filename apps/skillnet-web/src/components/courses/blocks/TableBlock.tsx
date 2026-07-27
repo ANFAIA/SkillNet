@@ -29,7 +29,7 @@ export function TableBlock({ headers, rows }: TableBlockProps) {
                 <th
                   key={idx}
                   scope="col"
-                  className="text-left align-top py-2 px-3 border-b border-border font-medium text-text-secondary"
+                  className="text-left align-top py-2 px-3 border-b border-border font-medium text-text-secondary leading-relaxed"
                 >
                   <InlineMarkdown>{header}</InlineMarkdown>
                 </th>
@@ -43,7 +43,9 @@ export function TableBlock({ headers, rows }: TableBlockProps) {
               {(Array.isArray(row) ? row : []).map((cell, cellIdx) => (
                 <td
                   key={cellIdx}
-                  className="align-top py-2 px-3 border-b border-border text-text"
+                  // `leading-relaxed` matches the prose blocks: a two-line cell used
+                  // to set tighter than the paragraph right above the table.
+                  className="align-top py-2 px-3 border-b border-border text-text leading-relaxed"
                 >
                   <InlineMarkdown>{String(cell ?? '')}</InlineMarkdown>
                 </td>

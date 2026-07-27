@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { motion } from 'framer-motion'
 import type { MouseEvent } from 'react'
 import { Button, Card, EmptyState, ProgressBar } from '../../components/ui'
 import { ClickableSurface, NO_EXPLAIN_SELECTOR } from '../../components/courses/ClickableSurface'
 import { UiSpecRenderer } from '../../components/courses/UiSpecRenderer'
-import { NodeSkeleton } from '../../components/courses/NodeSkeleton'
+import { NodeSkeleton, RESERVED_CONTENT_PX } from '../../components/courses/NodeSkeleton'
 import { NodeFeedback } from '../../components/courses/NodeFeedback'
 import { ProbeRunner } from '../../components/courses/ProbeRunner'
 import { RenderControls } from '../../components/courses/RenderControls'
+import { useReducedMotion } from '../../hooks/useReducedMotion'
+import { transition } from '../../lib/motion'
 import { useLearnerProfile } from '../../api/onboarding'
 import {
   elementForFormat,
@@ -42,6 +45,14 @@ import type { UiFormat } from '../../types/node-render'
  *    program lands, and the content itself is the *pinned* render: answering an item or
  *    coming back tomorrow returns the same bytes. The only thing that changes it is the
  *    "Actualizar esta leccion" button in `RenderControls`.
+ *
+ *    The reservation is also *released* rather than dropped: `RESERVED_CONTENT_PX`
+ *    animates to zero on the arriving content, so a lesson shorter than the skeleton
+ *    settles instead of snapping the footer up under the learner's eyes. And the blocks
+ *    themselves resolve in sequence (`arriving`, see `blocks/blockArrival.ts`) — but
+ *    **only when the learner waited for them**. A pinned render served from cache paints
+ *    on the first frame with no entrance at all, because a node re-opened tomorrow should
+ *    feel like it never closed.
  * 3. **The deterministic opening line** (§6.2 Q2, §3.3). `goal` never travels to the LLM;
  *    it is rendered here, above the lesson, from a template. Rule 7 of §5.2 guarantees
  *    the program itself starts with a `lead` block, so the injected line reads as the
@@ -128,6 +139,8 @@ export function NodeView() {
   const [streamFailure, setStreamFailure] = useState<string | null>(null)
 
   const requestedRef = useRef(false)
+  /** Set once any lesson has been on screen — see `fromSkeleton` further down. */
+  const programShownBefore = useRef(false)
   const viewedRenderRef = useRef<string | null>(null)
   const dwellStartRef = useRef<number | null>(null)
   const formatRef = useRef<UiFormat | null>(null)
@@ -138,6 +151,8 @@ export function NodeView() {
 
   const served = isServedRender(render.data) ? render.data : null
   const pending = isPendingRender(render.data) ? render.data : null
+
+  const reduceMotion = useReducedMotion()
 
   const stream = useNodeRenderStream({
     onSettled: ({ reason, fallbackAvailable }) => {
@@ -231,6 +246,9 @@ export function NodeView() {
   // mount: a remount of the same pinned render is the same view.
   useEffect(() => {
     if (!served) return
+    // A lesson is on screen from here on: the reserved height has been released and
+    // must not be re-reserved by whatever replaces it.
+    programShownBefore.current = true
     formatRef.current = served.ui_format
     if (viewedRenderRef.current === served.render_id) return
     viewedRenderRef.current = served.render_id
@@ -338,6 +356,33 @@ export function NodeView() {
   const shownProgram = viewingHeld?.program ?? served?.program ?? null
   const shownFormat = viewingHeld?.format ?? served?.ui_format ?? null
 
+  /**
+   * A program that is being shown for the first time arrives; a held previous version
+   * does not. Going back to something you already read is not an event, and animating
+   * it would say it was.
+   *
+   * The lesson always replaces an empty box — `GET /render` is a request even on a
+   * cache hit, so the skeleton is on screen first in every path — which is why there
+   * is no "was it instant?" test here. What differs is only how long the box was empty.
+   */
+  const arriving = !viewingHeld && !reduceMotion
+
+  /**
+   * ...but only the *first* program released the reserved height, and only that one
+   * should animate it back. A regeneration replaces a lesson that was already sitting
+   * at its natural height: re-reserving 22 rem there would grow the card and then
+   * shrink it, which is the jump this whole mechanism exists to remove.
+   */
+  const fromSkeleton = !programShownBefore.current
+
+  /**
+   * The subtree remounts when the program does. Without it the CSS entrance would not
+   * re-run on a regeneration (a CSS animation fires on element creation, and the vendor
+   * runtime reuses the same DOM node when only the text changed) — and keeping a
+   * replaced item's local answer state alive is worse than losing it.
+   */
+  const shownKey = viewingHeld ? `held:${viewingRenderId}` : (served?.render_id ?? 'none')
+
   return (
     <div className="space-y-6">
       {/* Zona congelada (§5.5): nothing in this header moves while the node is open. */}
@@ -405,7 +450,17 @@ export function NodeView() {
               // `ClickableSurface` keeps wrapping the tree (§8.5): a click on prose
               // explains, a click on a button or a quiz option does not. The hit test
               // lives in the surface; the wrapper only counts the event.
-              <div onClick={onSurfaceClick}>
+              <motion.div
+                key={shownKey}
+                onClick={onSurfaceClick}
+                className="min-w-0"
+                // Hands the skeleton's reserved height back over half a second instead
+                // of in one frame. `false` means "no entrance": the box is simply the
+                // size of its content from the start.
+                initial={arriving && fromSkeleton ? { minHeight: RESERVED_CONTENT_PX } : false}
+                animate={{ minHeight: 0 }}
+                transition={transition.resize}
+              >
                 <ClickableSurface nodeId={node.id} className="min-w-0">
                   <UiSpecRenderer
                     program={shownProgram}
@@ -415,9 +470,10 @@ export function NodeView() {
                     // against a screen the learner is not looking at.
                     renderId={viewingHeld ? undefined : served?.render_id}
                     format={shownFormat ?? undefined}
+                    arriving={arriving}
                   />
                 </ClickableSurface>
-              </div>
+              </motion.div>
             ) : (
               <NodeSkeleton
                 format={stream.format}

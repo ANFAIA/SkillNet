@@ -3,6 +3,7 @@ import { Renderer } from '@openuidev/react-lang'
 import type { OpenUIError } from '@openuidev/react-lang'
 
 import { ErrorBoundary } from '../ErrorBoundary'
+import { blockArrivalContext } from './blocks/blockArrival'
 import { gateProgram, type StaticViolation } from './kit/assertStaticOnly'
 import { nodeRenderContext } from './kit/NodeRenderContext'
 import { skillnetLibrary } from './kit/library'
@@ -42,6 +43,15 @@ export interface UiSpecRendererProps {
   isStreaming?: boolean
   /** `node_renders.ui_format`, surfaced as `data-ui-format` for §9.2 and tests. */
   format?: UiFormat
+  /**
+   * True when this program is replacing a skeleton the learner was watching, false
+   * when it was already pinned and paints on the first frame.
+   *
+   * Presentation only, and it reaches the blocks by context — see
+   * `blocks/blockArrival.ts` for why the distinction has to come from the caller.
+   * Defaults to `false`, so a preview or a story never animates.
+   */
+  arriving?: boolean
   /**
    * Structural-gate telemetry (§14.2). Called with every violation, blocking or
    * not; a non-empty `blocking` list means somebody handed the browser a program
@@ -103,6 +113,7 @@ export function UiSpecRenderer({
   renderId,
   isStreaming = false,
   format,
+  arriving = false,
   onViolations,
   onError,
 }: UiSpecRendererProps) {
@@ -126,18 +137,20 @@ export function UiSpecRenderer({
 
   return (
     <nodeRenderContext.Provider value={target}>
-      <div className="min-w-0" data-ui-format={format}>
-        <ErrorBoundary fallback={() => null}>
-          <Renderer
-            response={program}
-            library={skillnetLibrary}
-            isStreaming={isStreaming}
-            onError={onError}
-            // toolProvider, onAction and onStateUpdate are ABSENT on purpose.
-            // See the "Reactivity" section above before adding any of them.
-          />
-        </ErrorBoundary>
-      </div>
+      <blockArrivalContext.Provider value={arriving}>
+        <div className="min-w-0" data-ui-format={format}>
+          <ErrorBoundary fallback={() => null}>
+            <Renderer
+              response={program}
+              library={skillnetLibrary}
+              isStreaming={isStreaming}
+              onError={onError}
+              // toolProvider, onAction and onStateUpdate are ABSENT on purpose.
+              // See the "Reactivity" section above before adding any of them.
+            />
+          </ErrorBoundary>
+        </div>
+      </blockArrivalContext.Provider>
     </nodeRenderContext.Provider>
   )
 }

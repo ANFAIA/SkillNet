@@ -1,3 +1,4 @@
+import { BLOCK_TITLE } from './rhythm'
 import type { ChartKind } from '../kit/schemas'
 
 export interface ChartBlockProps {
@@ -128,7 +129,10 @@ function LineChart({
       </svg>
       <div className="flex justify-between gap-2 mt-1.5">
         {points.map((point, idx) => (
-          <span key={idx} className="text-[11px] text-text-muted truncate">
+          // `text-xs` like every other caption in the kit — the bar chart's own
+          // labels one component down were already 12px, so the two chart kinds set
+          // their axis text at two different sizes.
+          <span key={idx} className="text-xs text-text-muted truncate">
             {point.label}
           </span>
         ))}
@@ -148,7 +152,7 @@ export function ChartBlock({ kind, title, labels, values }: ChartBlockProps) {
   return (
     <figure className="min-w-0 m-0">
       {title ? (
-        <figcaption className="text-sm font-medium text-text mb-3">{title}</figcaption>
+        <figcaption className={BLOCK_TITLE}>{title}</figcaption>
       ) : null}
       {points.length === 0 ? (
         <p className="text-xs text-text-muted">Sin datos para representar.</p>

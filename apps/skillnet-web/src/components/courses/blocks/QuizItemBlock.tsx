@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { post } from '../../../api/client'
 import { Button } from '../../ui'
 import { HintLadder, WorkedSolution } from './QuizItemHints'
+import { BLOCK_TITLE, INLINE_SURFACE } from './rhythm'
 import type { ExerciseType } from '../../../types'
 import type { BloomLevel } from '../kit/schemas'
 import type {
@@ -231,9 +232,12 @@ export function QuizItemBlock({
       // §8.5: the WHOLE item is excluded from click-to-explain — statement AND
       // options. Explaining a word inside the correct option leaks the answer.
       data-no-explain=""
-      className="rounded-lg border border-border bg-bg-subtle p-4 min-w-0"
+      className={`${INLINE_SURFACE} bg-bg-subtle`}
     >
-      <p className="text-sm font-medium text-text mb-4">{question}</p>
+      {/* The stem is a block title, not a heavier thing: it used to sit on `mb-4`
+          while every other block's title sat on `mb-3`, so a quiz next to a
+          StepSequence was visibly on a different grid. */}
+      <p className={BLOCK_TITLE}>{question}</p>
 
       {isSingleChoice ? (
         <SingleChoiceItem

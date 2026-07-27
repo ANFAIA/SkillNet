@@ -1,5 +1,8 @@
 import { Link } from 'react-router-dom'
+import { motion } from 'framer-motion'
 import { Card, ProgressBar } from '../ui'
+import { useReducedMotion } from '../../hooks/useReducedMotion'
+import { staggerContainer, staggerItem } from '../../lib/motion'
 import type { LearningNode, NodeList as NodeListRead, NodeState } from '../../types'
 
 /**
@@ -72,10 +75,13 @@ function NodeRow({
   courseId,
   node,
   titleById,
+  animated,
 }: {
   courseId: string
   node: LearningNode
   titleById: Map<string, string>
+  /** Off under reduced motion, and off for the parent that is not staggering. */
+  animated: boolean
 }) {
   const blockers = node.locked_by
     .map((id) => titleById.get(id))
@@ -108,27 +114,40 @@ function NodeRow({
     </>
   )
 
+  const variants = animated ? staggerItem : undefined
+
   if (node.locked) {
     return (
-      <li>
+      <motion.li variants={variants}>
         <div className="px-4 py-3 border-b border-border last:border-b-0 opacity-60">{body}</div>
-      </li>
+      </motion.li>
     )
   }
 
   return (
-    <li>
+    <motion.li variants={variants}>
       <Link
         to={`/empleado/curso/${courseId}/nodo/${node.id}`}
         className="block px-4 py-3 border-b border-border last:border-b-0 hover:bg-bg-subtle transition-colors"
       >
         {body}
       </Link>
-    </li>
+    </motion.li>
   )
 }
 
 export function NodeList({ courseId, data }: NodeListProps) {
+  const reduceMotion = useReducedMotion()
+  /**
+   * The map is the last thing the learner sees before a node opens, so it is half of
+   * the course → node transition. Rows resolving 60 ms apart give the list a reading
+   * order; arriving all at once gives it none. Under reduced motion the props are
+   * simply absent and the rows are static markup.
+   */
+  const listMotion = reduceMotion
+    ? {}
+    : { initial: 'hidden' as const, animate: 'visible' as const, variants: staggerContainer }
+
   const titleById = new Map(data.nodes.map((node) => [node.id, node.title]))
   const ordered = [...data.nodes].sort((a, b) => a.position - b.position)
   const practice = ordered.filter((node) => node.needs_practice)
@@ -162,11 +181,17 @@ export function NodeList({ courseId, data }: NodeListProps) {
       </div>
 
       <Card className="p-0 overflow-hidden">
-        <ul>
+        <motion.ul {...listMotion}>
           {main.map((node) => (
-            <NodeRow key={node.id} courseId={courseId} node={node} titleById={titleById} />
+            <NodeRow
+              key={node.id}
+              courseId={courseId}
+              node={node}
+              titleById={titleById}
+              animated={!reduceMotion}
+            />
           ))}
-        </ul>
+        </motion.ul>
       </Card>
 
       {practice.length > 0 && (
@@ -177,11 +202,17 @@ export function NodeList({ courseId, data }: NodeListProps) {
             repetir el diagnostico.
           </p>
           <Card className="p-0 overflow-hidden">
-            <ul>
+            <motion.ul {...listMotion}>
               {practice.map((node) => (
-                <NodeRow key={node.id} courseId={courseId} node={node} titleById={titleById} />
+                <NodeRow
+                  key={node.id}
+                  courseId={courseId}
+                  node={node}
+                  titleById={titleById}
+                  animated={!reduceMotion}
+                />
               ))}
-            </ul>
+            </motion.ul>
           </Card>
         </div>
       )}

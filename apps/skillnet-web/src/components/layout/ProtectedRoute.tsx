@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
+import { declaredReducedMotionContext } from '../../hooks/useReducedMotion'
 import { useDynamicCoursesMode } from '../../api/health'
 import { useLearnerProfile } from '../../api/onboarding'
 import type { UserRole } from '../../types'
@@ -45,6 +46,12 @@ function AppSkeleton() {
  *    exists.
  * 4. While either query is in flight the skeleton is painted and **nothing is
  *    redirected** — a guess here is a redirect the user has to fight.
+ *
+ * It is also where the learner's declared `reduce_motion` (§6.2 Q5) is published to
+ * the tree. This is the first component with a resolved `/auth/me` and it wraps every
+ * authenticated screen including `/onboarding`, so the setting reaches every
+ * `useReducedMotion()` below it without any leaf component owning an auth query — and
+ * `/login`, which is outside this guard, still fires no extra probe.
  */
 export function ProtectedRoute({
   role,
@@ -84,5 +91,9 @@ export function ProtectedRoute({
     }
   }
 
-  return <>{children}</>
+  return (
+    <declaredReducedMotionContext.Provider value={user.accessibility?.reduce_motion === true}>
+      {children}
+    </declaredReducedMotionContext.Provider>
+  )
 }
