@@ -14,6 +14,7 @@ import pytest
 
 from src.render import UI_KIT, RenderError, RenderParseError, UISpec, get_render_backend
 from src.render.backends import openui as openui_module
+from src.render.lines import logical_lines
 from src.render.backends.openui import (
     MAX_NESTING_DEPTH,
     OpenUiLangBackend,
@@ -260,7 +261,10 @@ def test_rule_4_counts_the_components_after_flattening() -> None:
     raw = f'root = Stack([TextContent("Hola.", "lead"), {cards}], "md")\n'
     with pytest.raises(RenderParseError) as excinfo:
         BACKEND.parse(raw)
-    assert any("at most 12 components" in error for error in excinfo.value.errors)
+    assert any("at most 12 blocks" in error for error in excinfo.value.errors)
+    # Nothing here is crowded - the root holds five and each Card two - so the message
+    # names no culprit. `tests/test_render_kit.py` pins the case where one exists.
+    assert not any("alone holds" in error for error in excinfo.value.errors)
     assert "got 14" in str(excinfo.value)
 
 
@@ -434,23 +438,54 @@ def test_a_named_argument_is_named_as_a_named_argument() -> None:
     assert "\\\"" not in message
 
 
-def test_a_split_declaration_is_reported_as_a_split_declaration() -> None:
+def test_a_declaration_may_continue_while_a_bracket_is_open() -> None:
+    """The rule ``lang-core`` really has: a newline separates statements at depth 0 only.
+
+    This used to raise «a declaration never continues on the next line», which was our
+    rule and not the language's (``dist/index.mjs``, ``function split``). Measured cost of
+    the divergence: ``groq/openai/gpt-oss-120b`` wrote its allergen list this way on both
+    passes of ``alergenos-hosteleria`` and spent the repair attempt un-wrapping it.
+    """
     raw = 'root = Stack([intro],\n    "md")\nintro = TextContent("H.", "lead")\n'
-    with pytest.raises(RenderParseError) as excinfo:
-        BACKEND.parse(raw)
-    message = str(excinfo.value)
-    assert "line 1" in message
-    assert "never continues on the next line" in message
+    spec = BACKEND.parse(raw)
+    assert spec.root == "root"
+    assert spec.component("root") is not None
+    assert spec.component("root").children == ["intro"]  # type: ignore[union-attr]
 
 
-def test_a_continuation_line_says_so_instead_of_repeating_the_grammar() -> None:
+def test_a_wrapped_children_array_is_the_same_program_as_the_flat_one() -> None:
+    head = 'root = Stack([intro, lista], "md")\nintro = TextContent("Hola.", "lead")\n'
+    flat = head + (
+        'lista = Card("Alergenos", [TextContent("gluten", "body"), '
+        'TextContent("soja", "body")])\n'
+    )
+    wrapped = head + (
+        'lista = Card("Alergenos", [\n'
+        '    TextContent("gluten", "body"),\n'
+        '    TextContent("soja", "body")\n'
+        "])\n"
+    )
+    assert BACKEND.parse(wrapped) == BACKEND.parse(flat)
+
+
+def test_blank_lines_between_declarations_are_still_dropped() -> None:
+    raw = (
+        'root = Stack([intro], "md")\n'
+        "\n"
+        'intro = TextContent("H.", "lead")\n'
+        "\n"
+    )
+    assert len(BACKEND.parse(raw).components) == 2
+
+
+def test_a_stray_continuation_after_a_closed_call_still_says_so() -> None:
+    """Depth is back to 0 after line 2, so line 3 is a leftover and not a continuation."""
     raw = 'root = Stack([intro], "md")\nintro = TextContent("H.", "lead")\n    "body")\n'
     with pytest.raises(RenderParseError) as excinfo:
         BACKEND.parse(raw)
     message = str(excinfo.value)
     assert "line 3" in message
-    assert "continues the previous one" in message
-    assert "on ONE line" in message
+    assert "already closed on the previous line" in message
 
 
 def test_the_quote_diagnosis_only_fires_when_a_text_value_really_just_closed() -> None:
@@ -459,6 +494,205 @@ def test_the_quote_diagnosis_only_fires_when_a_text_value_really_just_closed() -
     assert "the text ended at the double quote before it" in str(excinfo.value)
     # The construction that used to get this message now parses.
     assert BACKEND.parse(_INLINE).component("root_1") is not None
+
+
+# -- accented block ids ---------------------------------------------------------------
+#
+# The product is Spanish and the model names its variables in Spanish. Measured against
+# ``groq/llama-3.1-8b-instant``, ``conclusión`` failed the ``atencion-reclamaciones``
+# brief 3 passes out of 3, both attempts each time. It is not a lang-core widening — their
+# tokenizer is ASCII-only too — it is a normalisation, and these pin what it may do.
+
+
+def test_an_accented_block_id_parses_and_comes_out_as_ascii() -> None:
+    raw = (
+        'root = Stack([introduccion, conclusión], "md")\n'
+        'introduccion = TextContent("Hola.", "lead")\n'
+        'conclusión = TextContent("Adios.", "body")\n'
+    )
+    spec = BACKEND.parse(raw)
+    assert [c.id for c in spec.components] == ["root", "introduccion", "conclusion"]
+    # The reference folded to the same name, so rule 2 holds without anyone patching it.
+    assert spec.component("root").children == ["introduccion", "conclusion"]  # type: ignore[union-attr]
+
+
+def test_the_canonical_text_the_browser_gets_is_pure_ascii() -> None:
+    """``lang-core``'s tokenizer silently *skips* a character it cannot classify, so an
+    accented id in the served text is a dropped statement, not an error it reports."""
+    raw = (
+        'root = Stack([conclusión], "md")\n'
+        'conclusión = TextContent("Adios.", "lead")\n'
+    )
+    program = BACKEND.serialize(BACKEND.parse(raw))
+    # Every id, on both sides of every reference. Not the string literals: their scanner
+    # takes those whole, and the learner's Spanish belongs in them.
+    assert all(line.split(" =")[0].isascii() for line in program.splitlines())
+    assert "conclusion = TextContent" in program
+    assert "Stack([conclusion]" in program
+
+
+@pytest.mark.parametrize(
+    ("written", "folded"),
+    [
+        ("conclusión", "conclusion"),
+        ("mañana", "manana"),
+        ("resumen", "resumen"),
+        ("Paso_2", "Paso_2"),
+        ("señal1", "senal1"),
+        # Decomposed: base letter plus a combining acute (U+0301). Python's ``\w``
+        # does not match a combining mark, which is why the ident pattern names the
+        # range explicitly instead of relying on ``\w`` alone.
+        ("conclusio" + "\u0301" + "n", "conclusion"),
+    ],
+)
+def test_fold_identifier_is_a_no_op_on_ascii_and_strips_accents(
+    written: str, folded: str
+) -> None:
+    assert openui_module.fold_identifier(written) == folded
+
+
+def test_an_id_with_no_ascii_letters_left_is_named_as_such() -> None:
+    with pytest.raises(RenderParseError) as excinfo:
+        BACKEND.parse('root = Stack([一], "md")\n一 = TextContent("H.", "lead")\n')
+    assert "no letters a-z" in str(excinfo.value)
+
+
+def test_two_ids_that_differ_only_by_an_accent_are_rejected_by_name() -> None:
+    raw = (
+        'root = Stack([conclusion, conclusión], "md")\n'
+        'conclusion = TextContent("Hola.", "lead")\n'
+        'conclusión = TextContent("Adios.", "body")\n'
+    )
+    with pytest.raises(RenderParseError) as excinfo:
+        BACKEND.parse(raw)
+    message = str(excinfo.value)
+    assert "accents are removed" in message
+    # Both names the model actually typed, so it can tell which two to rename.
+    assert "'conclusion'" in message
+    assert "conclusi" in message
+
+
+def test_a_plain_duplicate_id_is_still_reported_as_a_duplicate() -> None:
+    """The fold must not steal the message for a mistake that has nothing to do with it."""
+    raw = (
+        'root = Stack([intro], "md")\n'
+        'intro = TextContent("Hola.", "lead")\n'
+        'intro = TextContent("Otra vez.", "body")\n'
+    )
+    with pytest.raises(RenderError) as excinfo:
+        BACKEND.parse(raw)
+    assert "duplicate component id" in str(excinfo.value)
+
+
+# -- the joiner, on its own -------------------------------------------------------------
+#
+# `logical_lines` is what decides where a declaration ends, so the gate's line count and
+# the parser's statement list both depend on it agreeing with lang-core's `split()`:
+# «Statements are separated by newlines at depth 0 (newlines inside brackets are ignored)».
+
+
+def test_logical_lines_joins_only_while_a_bracket_is_open() -> None:
+    raw = 'a = Card("T", [\n  x,\n  y\n])\nb = TextContent("H.", "lead")\n'
+    lines = logical_lines(raw)
+    assert [line.line_no for line in lines] == [1, 5]
+    assert lines[0].text == 'a = Card("T", [ x, y ])'
+    assert lines[0].span == 4
+    assert all(line.closed for line in lines)
+
+
+def test_a_bracket_inside_a_text_value_does_not_open_a_continuation() -> None:
+    """The extintor source really says «gases (C)», and an unbalanced one would swallow
+    the rest of the program if strings were not skipped whole."""
+    raw = 'a = TextContent("Sirve para gases (C.", "lead")\nb = TextContent("H.", "body")\n'
+    assert [line.line_no for line in logical_lines(raw)] == [1, 2]
+
+
+def test_an_escaped_quote_does_not_end_the_text_value_for_the_joiner() -> None:
+    raw = 'a = Callout("info", "Dijo \\"no\\" y colgo (dos veces).")\nb = T("x")\n'
+    assert [line.line_no for line in logical_lines(raw)] == [1, 2]
+
+
+def test_a_stray_object_brace_does_not_swallow_the_lines_after_it() -> None:
+    """The gate has to be able to name ``{`` on the line it is really on."""
+    raw = 'clave = {\n  "q1": 1\n}\nb = TextContent("H.", "lead")\n'
+    assert [line.line_no for line in logical_lines(raw)] == [1, 2, 3, 4]
+
+
+def test_a_stray_closing_bracket_does_not_drive_the_depth_negative() -> None:
+    raw = 'a = TextContent("H.", "lead"))\nb = TextContent("H.", "body")\n'
+    assert [line.line_no for line in logical_lines(raw)] == [1, 2]
+
+
+def test_a_line_that_ends_inside_a_text_value_ends_the_logical_line() -> None:
+    """Ours, not the standard's: it is what keeps ``parse_partial`` a per-line decision."""
+    raw = 'a = TextContent("sin cerrar\nb = TextContent("H.", "lead")\n'
+    lines = logical_lines(raw)
+    assert lines[0].line_no == 1
+    assert not lines[0].closed
+
+
+def test_parse_partial_drops_a_half_written_wrapped_declaration() -> None:
+    raw = 'root = Stack([intro], "md")\nintro = TextContent("H.", "lead")\nlista = Card("T", [\n'
+    spec = BACKEND.parse_partial(raw)
+    assert [c.id for c in spec.components] == ["root", "intro"]
+
+
+def test_parse_partial_picks_the_wrapped_declaration_up_once_it_closes() -> None:
+    raw = (
+        'root = Stack([intro, lista], "md")\n'
+        'intro = TextContent("H.", "lead")\n'
+        'lista = Card("T", [\n'
+        '  TextContent("uno", "body")\n'
+        "])\n"
+    )
+    spec = BACKEND.parse_partial(raw)
+    assert "lista" in [c.id for c in spec.components]
+
+
+def test_a_wrapped_block_streams_in_as_one_unit_when_it_closes() -> None:
+    """The streaming cost of the wrapped form, stated rather than assumed.
+
+    A block written across several lines cannot appear until its bracket closes, so
+    the learner sees it arrive whole instead of filling in. That is not a regression
+    - it is why the generated prompt still says <<prefer references for better
+    streaming>> - but it is the reason ``serialize`` keeps writing the flat form as
+    the canonical text.
+    """
+    full = (
+        'root = Stack([intro, lista], "md")\n'
+        'intro = TextContent("Hola.", "lead")\n'
+        'lista = Card("Alergenos", [\n'
+        '    TextContent("gluten", "body")\n'
+        "])\n"
+    )
+    before_close = full[: full.rindex("])")]
+    assert [c.id for c in BACKEND.parse_partial(before_close).components] == [
+        "root",
+        "intro",
+    ]
+    assert [c.id for c in BACKEND.parse_partial(full).components] == [
+        "root",
+        "intro",
+        "lista",
+        "lista_1",
+    ]
+
+
+def test_streaming_a_wrapped_program_never_loses_a_block_it_already_showed() -> None:
+    full = (
+        'root = Stack([intro, lista], "md")\n'
+        'intro = TextContent("Hola.", "lead")\n'
+        'lista = Card("Alergenos", [\n'
+        '    TextContent("gluten", "body"),\n'
+        '    TextContent("soja", "body")\n'
+        "])\n"
+    )
+    shown: set[str] = set()
+    for cut in range(1, len(full) + 1):
+        ids = {c.id for c in BACKEND.parse_partial(full[:cut]).components}
+        assert shown <= ids, f"a block vanished at cut {cut}"
+        shown = ids
+    assert shown == {c.id for c in BACKEND.parse(full).components}
 
 
 def test_no_parser_message_guesses_a_cause_it_did_not_check() -> None:

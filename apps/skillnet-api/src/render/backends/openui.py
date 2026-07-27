@@ -1,7 +1,8 @@
 """The ``openui`` dialect — the server-side gate on generated programs (§5.4).
 
-A **subset** of OpenUI Lang, parsed in Python. Line-oriented, one declaration per line,
-**positional** arguments in the order of the kit table, children as arrays:
+A **subset** of OpenUI Lang, parsed in Python. Line-oriented, one declaration per
+*logical* line, **positional** arguments in the order of the kit table, children as
+arrays:
 
     root = Stack([intro, steps, quiz], "md")
     intro = TextContent("Las devoluciones se aceptan durante 30 dias.", "lead")
@@ -38,11 +39,14 @@ this module has **one** job and no longer has two:
   ``meta.errors == []``; this one cannot represent it. ``src/render/gate.py`` is the cheap
   door in front, ``serialize`` produces the canonical text the browser is allowed to see.
 
-The standard is still wider than this subset: it accepts statements split over several
-lines, literal newlines inside strings, booleans, ``null``, objects, arithmetic, ``//``
-comments and markdown fences. In particular **escape rule 3 ("a real line break closes a
-block") is ours, not the standard's** — it is what makes ``parse_partial`` trivial, and
-the prompt states it as a SkillNet rule for that reason.
+The standard is still wider than this subset: it accepts literal newlines inside strings,
+booleans, ``null``, objects, arithmetic, ``//`` comments and markdown fences. It does
+**not** require one declaration per physical line, and neither does this parser any more:
+``src/render/lines.py`` joins the physical lines of a declaration the way
+``lang-core``'s own statement splitter does (a newline inside an open bracket is not a
+separator), and that module carries the measurement that forced the change. What is still
+ours and not the standard's is the narrower half of escape rule 3: **a text value closes
+its quote on the line that opened it**, which is what keeps ``parse_partial`` cheap.
 
 Every error message this file raises is part of the contract with the LLM, not prose for
 a human: the repair loop feeds them back verbatim (``build_repair_prompt``), so a message
@@ -56,8 +60,8 @@ The frozen grammar, which this file *is* the implementation of. It used to be ex
 it as data::
 
     program    = { line } ;
-    line       = ident "=" call newline ;
-    ident      = ("a".."z" | "A".."Z" | "_") { "a".."z" | "A".."Z" | "0".."9" | "_" } ;
+    line       = ident "=" call line_break ;
+    ident      = letter { letter | "0".."9" | "_" } ;   (* folded to ASCII, see below *)
     call       = comp_name "(" [ arg { "," arg } ] ")" ;
     comp_name  = "Stack" | "TextContent" | "Card" | "Callout" | "StepSequence"
                | "Table" | "CodeBlock" | "Chart" | "QuizItem" ;
@@ -67,6 +71,29 @@ it as data::
     escape     = "\\" ( '"' | "\\" | "n" ) ;
     char       = <cualquier caracter excepto '"', '\\' y newline> ;
     number     = [ "-" ] digit { digit } [ "." digit { digit } ] ;
+
+``line_break`` is a newline at bracket depth zero, not any newline: see
+``src/render/lines.py``.
+
+``letter`` is any Unicode letter, and the id is then **folded to ASCII** by
+:func:`fold_identifier`, so ``conclusión`` is accepted and becomes ``conclusion``. This
+is the one place where this parser is deliberately *wider* than ``lang-core``, and the
+reason is that ``lang-core`` is narrower than it looks: its tokenizer takes identifiers
+from ``[A-Za-z_][A-Za-z0-9_]*`` only, and the character it cannot classify it **silently
+skips** (``dist/index.mjs``, the trailing ``i++`` of ``tokenize``). ``conclusión`` in the
+browser is therefore not an error, it is two identifiers and a dropped statement — the
+worst possible outcome for a validator whose job is to decide what may be served. So the
+id cannot travel as written; but it also does not have to be refused, because it is
+unambiguous. Folding it and serializing the folded form gives the browser the pure-ASCII
+text its tokenizer needs, deterministically, and costs nothing: block ids are statement
+keys and are never shown to the learner.
+
+Measured, this was the single most expensive defect in the corpus: ``groq/llama-3.1-8b-instant``
+failed ``atencion-reclamaciones`` **3 passes out of 3** on ``conclusión``
+(``bench_out/failures/quality-20260727-030727``), both attempts each time, because the
+product is Spanish and a Spanish-speaking model names its variables in Spanish. Note that
+this is *not* the 79ede73 case — our grammar was not a strict subset here, both were ASCII
+— which is why the fix is a normalisation and not a widening.
 
 Two constraints the EBNF cannot state:
 
@@ -90,6 +117,7 @@ Two things the dialect does **not** carry, and how they are recovered:
 from __future__ import annotations
 
 import re
+import unicodedata
 from typing import Any, NamedTuple, NoReturn
 
 from pydantic import ValidationError as PydanticValidationError
@@ -102,6 +130,7 @@ from src.render.kit import (
     PropKind,
     PropSpec,
 )
+from src.render.lines import LogicalLine, logical_lines
 from src.render.spec import (
     UI_SPEC_VERSION,
     Component,
@@ -110,10 +139,23 @@ from src.render.spec import (
     parse_spec,
 )
 
-_LINE_RE = re.compile(r"^[ \t]*([A-Za-z_][A-Za-z0-9_]*)[ \t]*=[ \t]*")
-_IDENT_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
+#: An identifier as *written*: any Unicode letter or ``_`` to start, then letters,
+#: digits, ``_`` and combining marks. ``[^\W\d]`` is 'a word character
+#: that is not a digit'; the explicit \u0300-\u036f range picks up the
+#: *decomposed* form of an accent, which ``\w`` does not match (a combining mark
+#: is not alphanumeric). Every id that comes out of here goes through
+#: :func:`fold_identifier` before it is used, so nothing downstream -- the ``UISpec``,
+#: ``serialize``, the browser -- ever sees a non-ASCII id.
+_IDENT_PATTERN = r"[^\W\d][\w\u0300-\u036f]*"
+_IDENT_RE = re.compile(_IDENT_PATTERN, re.UNICODE)
+_LINE_RE = re.compile(
+    rf"^[ \t]*({_IDENT_PATTERN})[ \t]*=[ \t]*", re.UNICODE
+)
 _NUMBER_RE = re.compile(r"-?[0-9]+(?:\.[0-9]+)?")
-_FENCE_RE = re.compile(r"^[ \t]*```")
+
+#: What a folded identifier is allowed to be. Same production ``src/render/spec.py``
+#: enforces on ``Component.id``, and the same one ``lang-core``'s tokenizer implements.
+_ASCII_IDENT_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 #: Content-bearing components. Used only by :func:`infer_format`.
 _CONTENT_TYPES = frozenset(UI_KIT.names) - {"Stack", "Card", "QuizItem"}
@@ -127,6 +169,33 @@ MAX_NESTING_DEPTH = 16
 
 #: Separator that joins a synthetic id to its owner. ``root_1``, ``root_2``, ``root_1_1``.
 _SYNTHETIC_SEP = "_"
+
+
+#: The alphabet :func:`fold_identifier` keeps. Spelled out rather than derived from a
+#: regex so the fold cannot quietly widen when the regex is edited.
+_ASCII_ID_CHARS = frozenset(
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_"
+)
+
+
+def fold_identifier(name: str) -> str:
+    """``conclusión`` -> ``conclusion``. ``""`` when nothing usable survives.
+
+    NFKD splits an accented letter into its base plus a combining mark; dropping the
+    marks and everything else outside ``[A-Za-z0-9_]`` leaves the ASCII the browser's
+    tokenizer can actually carry. Pure ASCII in, the same string out — this is a no-op on
+    every id the corpus has ever produced except the accented ones, which is what makes
+    it safe to run on all of them.
+
+    Deterministic by construction (no dict order, no locale, no case folding), because
+    the folded id is what the ``cache_key``, the round trip and ``node_render_views`` all
+    compare across runs.
+    """
+    decomposed = unicodedata.normalize("NFKD", name)
+    folded = "".join(
+        char for char in decomposed if char in _ASCII_ID_CHARS
+    )
+    return folded if _ASCII_IDENT_RE.match(folded) else ""
 
 
 class _Ref(NamedTuple):
@@ -314,8 +383,8 @@ class _Scanner:
                 return items
             if not char:
                 self.fail(
-                    "unclosed array: expected ',' or ']' before the end of the line. A "
-                    "declaration never continues on the next line"
+                    "unclosed array: expected ',' or ']' before the end of the "
+                    "declaration"
                 )
             if char == ")":
                 self.fail("unclosed array: expected ']' before the ')' that closes the call")
@@ -332,9 +401,8 @@ class _Scanner:
         char = self.peek()
         if not char:
             self.fail(
-                "expected a value before the end of the line: text in double quotes, a "
-                "number, an array or the id of another block. A declaration never "
-                "continues on the next line"
+                "expected a value before the end of the declaration: text in double "
+                "quotes, a number, an array or the id of another block"
             )
         if char == '"':
             value = self.string()
@@ -363,7 +431,16 @@ class _Scanner:
             return call
         self.pos = after_ident  # so the next failure points at the offending character
         self.last_value = "ref"
-        return _Ref(match.group())
+        # Folded here and in ``_parse_line``, the only two places an id enters the
+        # program, so a reference to ``conclusión`` and the declaration of ``conclusión``
+        # land on the same ASCII name without either side knowing the other exists.
+        folded = fold_identifier(match.group())
+        if not folded:
+            self.fail(
+                f"the block id {match.group()!r} has no letters a-z in it: name the "
+                "blocks with plain ASCII words, e.g. 'conclusion'"
+            )
+        return _Ref(folded)
 
     def args(self) -> list[Any]:
         self.expect_open()
@@ -387,30 +464,18 @@ class _Scanner:
                 return items
             if not char:
                 self.fail(
-                    "unclosed call: expected ',' or ')' before the end of the line. A "
-                    "declaration never continues on the next line"
+                    "unclosed call: expected ',' or ')' before the end of the "
+                    "declaration"
                 )
             self.missing_separator("',' or ')'", ")")
 
 
-def _normalize_lines(raw: str) -> list[str]:
-    """Split on ``\\n`` only: a lone ``\\r`` is a legal ``char`` inside a string."""
-    return raw.replace("\r\n", "\n").split("\n")
-
-
-def _skippable(line: str) -> bool:
-    """Blank lines and markdown fences are not content, so they are dropped.
-
-    The grammar has no production for either; a model that wraps its answer in a
-    fenced block is still emitting a valid program, and failing on the fence would
-    burn the single repair attempt on punctuation.
-    """
-    return not line.strip() or _FENCE_RE.match(line) is not None
-
-
-#: Characters that can only start a *continuation* of the previous line, never a
-#: declaration. A small model that splits one call over several lines produces exactly
-#: these, and saying so is worth more than repeating the grammar at it.
+#: Characters that can only start a *stray continuation*: a fragment left over after the
+#: previous declaration already closed all its brackets. ``src/render/lines.py`` has
+#: already absorbed every line that continues a declaration *properly* (one with a
+#: bracket still open), so anything reaching this list is a genuine leftover — the model
+#: closed the call and then kept writing arguments — and saying so is worth more than
+#: repeating the grammar at it.
 _CONTINUATION_STARTS = ')]},"'
 
 
@@ -421,13 +486,22 @@ def _parse_line(line: str, line_no: int) -> _Statement:
         stripped = line.lstrip()
         if stripped[:1] in _CONTINUATION_STARTS:
             message = (
-                "this line continues the previous one, and a declaration may not be "
-                "split over several lines: write the whole 'id = Componente(argumentos)' "
-                "on ONE line, with \\n inside a text instead of a real line break"
+                "this line continues a declaration that was already closed on the "
+                "previous line: every declaration is one complete "
+                "'id = Componente(argumentos)', and the arguments cannot be added "
+                "after its ')'"
             )
         else:
             message = "expected a declaration of the form: id = Componente(argumentos)"
         raise RenderParseError(message, line_no=line_no, line=line)
+    ident = fold_identifier(head.group(1))
+    if not ident:
+        raise RenderParseError(
+            f"the block id {head.group(1)!r} has no letters a-z in it: name the blocks "
+            "with plain ASCII words, e.g. 'conclusion'",
+            line_no=line_no,
+            line=line,
+        )
     scanner = _Scanner(line, line_no, head.end())
     comp_name = scanner.comp_name()
     args = scanner.args()
@@ -437,7 +511,55 @@ def _parse_line(line: str, line_no: int) -> _Statement:
             f"unexpected trailing text after ')': {line[scanner.pos :]!r}. One "
             "declaration per line, and nothing else on it"
         )
-    return _Statement(head.group(1), comp_name, args, line_no, line)
+    return _Statement(ident, comp_name, args, line_no, line)
+
+
+def _assert_closed(logical: LogicalLine) -> None:
+    """A declaration whose brackets never closed, and which parsed anyway.
+
+    Nearly unreachable, and deliberately kept: every route to it that has been found so
+    far — an unterminated text value, a call that runs into the end of the program — is
+    caught first by the scanner with a better message, so this is the net under the ones
+    that have not been found.
+    """
+    if logical.closed:
+        return
+    raise RenderParseError(
+        "this declaration opens a '(' or a '[' that is never closed: the program ends "
+        "in the middle of it. Close every bracket before the end of the program",
+        line_no=logical.line_no,
+        line=logical.text,
+    )
+
+
+def _assert_no_fold_collision(statements: list[_Statement]) -> None:
+    """Two ids that differ only by an accent are one id after the fold, and that is a bug.
+
+    ``conclusión`` and ``conclusion`` in the same program both become ``conclusion``, and
+    silently keeping the last one would drop a block the model meant to show. Rare enough
+    that it has never been measured; named explicitly because the alternative — a
+    duplicate-id error from ``UISpec``, whose message talks about a name the model never
+    typed — is exactly the kind of message that makes the repair loop chase a ghost.
+    """
+    seen: dict[str, tuple[str, int]] = {}
+    for statement in statements:
+        head = _LINE_RE.match(statement.line)
+        written = head.group(1) if head is not None else statement.ident
+        previous = seen.get(statement.ident)
+        if previous is None:
+            seen[statement.ident] = (written, statement.line_no)
+            continue
+        if previous[0] == written:
+            # The same name typed twice. Not a fold problem; ``UISpec`` reports it as the
+            # duplicate id it is, using the name the model actually wrote.
+            continue
+        raise RenderParseError(
+            f"the blocks {previous[0]!r} (line {previous[1]}) and {written!r} are the "
+            f"same id {statement.ident!r} once the accents are removed: give them names "
+            "that differ by more than an accent",
+            line_no=statement.line_no,
+            line=statement.line,
+        )
 
 
 def _spec_of(statement: _Statement) -> ComponentSpec:
@@ -652,10 +774,15 @@ class OpenUiLangBackend:
         collide with an id the program declares three lines further down.
         """
         statements: list[_Statement] = []
-        for line_no, line in enumerate(_normalize_lines(raw), start=1):
-            if _skippable(line):
-                continue
-            statements.append(_parse_line(line, line_no))
+        for logical in logical_lines(raw):
+            # ``_parse_line`` first: an unclosed declaration almost always has a sharper
+            # thing to say about itself (an unterminated text value, a call that reached
+            # the end of the program mid-argument) than "a bracket is open", and the
+            # sharper message is the one the repair loop can act on.
+            statements.append(_parse_line(logical.text, logical.line_no))
+            _assert_closed(logical)
+
+        _assert_no_fold_collision(statements)
 
         taken = {statement.ident for statement in statements}
         components: list[Component] = [
@@ -692,18 +819,19 @@ class OpenUiLangBackend:
         same situation as a retransmitted line and it resolves the same way: the later
         declaration replaces the earlier component.
         """
-        lines = _normalize_lines(raw)
-        if not raw.endswith("\n"):
+        lines = logical_lines(raw)
+        if lines and (not raw.endswith("\n") or not lines[-1].closed):
+            # The tail is still being written, or it opened a bracket it never closed
+            # (which mid-stream means the same thing). Both are dropped whole and
+            # reappear complete on the next chunk.
             lines = lines[:-1]
 
         components: list[Component] = []
         index: dict[str, int] = {}
         taken: set[str] = set()
-        for line_no, line in enumerate(lines, start=1):
-            if _skippable(line):
-                continue
+        for logical in lines:
             try:
-                statement = _parse_line(line, line_no)
+                statement = _parse_line(logical.text, logical.line_no)
                 taken.add(statement.ident)
                 produced = [
                     _component_from_call(flattened)

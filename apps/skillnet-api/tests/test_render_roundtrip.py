@@ -217,3 +217,37 @@ def test_a_markdown_spec_serializes_but_cannot_be_parsed_back(name: str) -> None
     with pytest.raises(RenderError) as excinfo:
         BACKEND.parse(program)
     assert "unknown component 'Markdown'" in str(excinfo.value)
+
+
+# -- accented ids reach a fixed point in one step ---------------------------------------
+#
+# `parse` folds a non-ASCII id to ASCII (`src/render/backends/openui.py`), so the accented
+# program and its folded form are the same spec, and re-parsing the canonical text changes
+# nothing. That second property is the one that matters: the canonical text is what is
+# persisted and what the browser tokenizes, and `canonicalize` asserts over it a second
+# time on the way out.
+
+
+def test_an_accented_program_and_its_folded_form_are_the_same_spec() -> None:
+    accented = (
+        'root = Stack([introduccion, conclusión], "md")\n'
+        'introduccion = TextContent("Hola.", "lead")\n'
+        'conclusión = TextContent("Adiós, con tilde en el texto.", "body")\n'
+    )
+    folded = accented.replace("conclusión", "conclusion")
+    assert BACKEND.parse(accented) == BACKEND.parse(folded)
+
+
+def test_serializing_an_accented_program_is_a_fixed_point() -> None:
+    accented = (
+        'root = Stack([conclusión], "md")\n'
+        'conclusión = TextContent("Adiós.", "lead")\n'
+    )
+    once = BACKEND.serialize(BACKEND.parse(accented))
+    # The *ids* are ASCII, which is all lang-core's tokenizer needs; a string literal may
+    # hold anything, because their scanner takes it whole and JSON.parses it.
+    assert once.split(" =")[0].isascii()
+    assert all(line.split(" =")[0].isascii() for line in once.splitlines())
+    assert BACKEND.serialize(BACKEND.parse(once)) == once
+    # The learner-visible text keeps its accents; only the id was ever folded.
+    assert "Adiós." in BACKEND.parse(once).component("conclusion").props["text"]

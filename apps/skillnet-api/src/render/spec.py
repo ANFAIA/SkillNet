@@ -100,7 +100,18 @@ def _is_partial(info: ValidationInfo) -> bool:
     return bool(context and context.get("partial"))
 
 
-def _check_value(prop: PropSpec, value: Any) -> str | None:
+#: Above this many characters, a value in an enum slot is not a mistyped choice — it is
+#: the block's prose in the wrong argument. Measured on ``epi-taller`` (2026-07-27):
+#: ``Callout("Cuidado con el estado del EPI. Un EPI dañado no protege.", ...)``. ``Callout``
+#: is the only block in the kit whose *first* argument is the enum and whose second is the
+#: text, so it is the only one that invites the swap, and telling the model to pick one of
+#: three tones when it has put a sentence there sends it to fix the wrong argument. Every
+#: real choice in the kit is at most 12 characters (``true_false``, ``understand``), so
+#: this cannot fire on a near miss.
+_ENUM_PROSE_CHARS = 24
+
+
+def _check_value(prop: PropSpec, value: Any, signature: str = "") -> str | None:
     """Return an error message when ``value`` does not match the kit's declared kind."""
     match prop.kind:
         case PropKind.STRING:
@@ -111,6 +122,13 @@ def _check_value(prop: PropSpec, value: Any) -> str | None:
                 return f"prop '{prop.name}' must be a string"
             if value not in prop.choices:
                 allowed = ", ".join(prop.choices)
+                if len(value) > _ENUM_PROSE_CHARS:
+                    where = f" The signature is {signature}." if signature else ""
+                    return (
+                        f"prop '{prop.name}' has a whole sentence in it, so the "
+                        "arguments are in the wrong order: they are positional."
+                        f"{where} '{prop.name}' takes one of: {allowed}"
+                    )
                 return f"prop '{prop.name}' must be one of: {allowed} (got {value!r})"
         case PropKind.STRING_LIST:
             if not isinstance(value, list) or not all(isinstance(v, str) for v in value):
@@ -187,7 +205,7 @@ class Component(BaseModel):
                     f"component {self.id!r}: missing prop {prop.name!r} for {self.type}"
                 )
                 continue
-            problem = _check_value(prop, self.props[prop.name])
+            problem = _check_value(prop, self.props[prop.name], spec.signature)
             if problem:
                 errors.append(f"component {self.id!r}: {problem}")
 
@@ -251,8 +269,11 @@ class UISpec(BaseModel):
         # Rule 4: size limits.
         if len(self.components) > MAX_COMPONENTS:
             errors.append(
-                f"rule 4: a spec holds at most {MAX_COMPONENTS} components "
-                f"(got {len(self.components)})"
+                f"rule 4: a spec holds at most {MAX_COMPONENTS} blocks "
+                f"(got {len(self.components)}){_crowded_parent(self.components)}. "
+                "A sub-component written inline inside a children array is a block too. "
+                "A list of N items is ONE block — a StepSequence, a Table, or a single "
+                "TextContent whose text carries the list — never one block per item"
             )
 
         # Rule 1: root exists and is a container.
@@ -322,6 +343,35 @@ class UISpec(BaseModel):
     @property
     def types(self) -> set[str]:
         return {c.type for c in self.components}
+
+
+def _crowded_parent(components: list[Component]) -> str:
+    """``" - 'lista' alone holds 14 of them"`` - or ``""`` when nothing stands out.
+
+    No ``"; "`` anywhere in the returned text: ``flatten_validation_error`` splits on it,
+    and half a sentence arriving as its own bullet is how a clear message becomes two
+    unclear ones.
+
+    Rule 4's bare count is a number the model can only obey by deleting something, and
+    measured it deletes the wrong thing: on ``alergenos-hosteleria`` (2026-07-27) the
+    over-count was 14 one-line ``TextContent`` blocks inside a single ``Card``, i.e. a
+    bullet list the kit has no component for, and "got 19" pointed at none of that. The
+    fix is one clause naming the container that holds the most children, because that
+    container is the list, and merging it is the whole repair.
+
+    Silent at or below :data:`MAX_ROOT_CHILDREN` children, and that threshold is the
+    point: a container holding more than a whole root level's worth of blocks is a list,
+    and nothing else is. Measured on the same run, ``devoluciones-tienda`` also blew rule
+    4 — with eighteen blocks spread flat across the program, the fullest container being
+    the root with four. Naming the root there would have been a guess, and a guess in a
+    message the repair loop replays verbatim is how the loop stops converging.
+    """
+    if not components:
+        return ""
+    fullest = max(components, key=lambda component: len(component.children))
+    if len(fullest.children) <= MAX_ROOT_CHILDREN:
+        return ""
+    return f" - {fullest.id!r} alone holds {len(fullest.children)} of them"
 
 
 def _check_lead_slot(

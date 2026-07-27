@@ -158,11 +158,55 @@ def test_an_oversized_program_is_refused() -> None:
     assert any("bytes" in problem for problem in check_size(program))
 
 
-def test_too_many_lines_are_refused() -> None:
+def test_too_many_declarations_are_refused() -> None:
     program = LESSON + "".join(
         f'x{index} = TextContent("Bloque.", "body")\n' for index in range(MAX_PROGRAM_LINES)
     )
-    assert any("lines" in problem for problem in check_size(program))
+    assert any("declarations" in problem for problem in check_size(program))
+
+
+# The next three pin what the cap counts. It counted physical lines until 2026-07-27, and
+# every one of these programs was refused as oversized while holding four declarations.
+# Measured cost: a whole generation each on `atencion-reclamaciones` r3 (blank lines, "23
+# lines") and `alergenos-hosteleria` (a wrapped array, "25 lines").
+
+
+def test_blank_lines_between_declarations_do_not_count() -> None:
+    program = "\n".join(
+        [
+            'root = Stack([intro, pasos], "md")',
+            "",
+            'intro = TextContent("Hola.", "lead")',
+            "",
+            'pasos = StepSequence("Proceso", ["Uno", "Dos"])',
+            "",
+        ]
+        * 5
+    )
+    assert check_size(program) == []
+
+
+def test_a_wrapped_children_array_does_not_count_as_many_lines() -> None:
+    program = (
+        'root = Stack([intro, lista], "md")\n'
+        'intro = TextContent("Hola.", "lead")\n'
+        'lista = Card("Alergenos", [\n'
+        + "".join(
+            f'    TextContent("Alergeno {index}", "body"),\n' for index in range(14)
+        )
+        + '    TextContent("y moluscos", "body")\n'
+        "])\n"
+    )
+    assert check_size(program) == []
+
+
+def test_the_byte_cap_is_the_one_that_short_circuits() -> None:
+    """A program past it never reaches the parser, so it is reported on its own."""
+    padding = "x" * (MAX_PROGRAM_BYTES + 1)
+    program = f'root = Stack([a], "md")\na = TextContent("{padding}", "lead")\n'
+    with pytest.raises(RenderValidationError) as excinfo:
+        canonicalize(program)
+    assert all("bytes" in problem for problem in excinfo.value.errors)
 
 
 def test_an_oversized_line_is_refused() -> None:
@@ -177,6 +221,61 @@ def test_size_caps_apply_even_when_reactivity_is_allowed() -> None:
 
 def test_the_shipped_lesson_is_well_inside_every_cap() -> None:
     assert check_size(LESSON) == []
+
+
+# -- letters are not reactivity ---------------------------------------------------------
+#
+# The product is Spanish. Until 2026-07-27 the skeleton alphabet was ASCII, so an accented
+# block id was refused here with a message about a character, and the repair loop had
+# nothing to act on: measured, `atencion-reclamaciones` failed 3 passes out of 3 on
+# `conclusión`. The punctuation blacklist below it is unchanged and is what the gate is
+# actually for.
+
+
+def test_an_accented_block_id_passes_the_gate() -> None:
+    program = (
+        'root = Stack([introduccion, conclusión], "md")\n'
+        'introduccion = TextContent("Hola.", "lead")\n'
+        'conclusión = TextContent("Adios.", "body")\n'
+    )
+    assert check_static_only(program) == []
+
+
+def test_an_accented_block_id_survives_canonicalization_as_ascii() -> None:
+    program = (
+        'root = Stack([conclusión], "md")\n'
+        'conclusión = TextContent("Adios.", "lead")\n'
+    )
+    _, canonical = canonicalize(program)
+    assert all(line.split(" =")[0].isascii() for line in canonical.splitlines())
+
+
+def test_letters_being_allowed_does_not_let_any_punctuation_through() -> None:
+    """The characters the gate exists for are still refused, accents or no accents."""
+    for char, name in (("$", "state"), ("@", "builtins"), ("{", "objects"), ("?", "tern")):
+        program = f'root = Stack([á{char}b], "md")\n'
+        assert check_static_only(program), f"{name}: {char!r} slipped through"
+
+
+# -- one refusal carries every reason ---------------------------------------------------
+
+
+def test_a_gate_problem_and_a_parse_problem_are_reported_together() -> None:
+    """One repair attempt: an error the model does not hear about now is one it repeats.
+
+    Measured on `alergenos-hosteleria` (2026-07-27): the line count alone came back on
+    attempt 0, the model fixed exactly that, and the 19 blocks came back on attempt 1.
+    """
+    program = (
+        'root = Stack([intro], "md")\n'
+        'intro = TextContent("Hola.", "lead")\n'
+        'clave = {"q1": 1}\n'
+    )
+    with pytest.raises(RenderValidationError) as excinfo:
+        canonicalize(program)
+    errors = excinfo.value.errors
+    assert any("objects" in problem for problem in errors)  # from the gate
+    assert any("Componente(argumentos)" in problem for problem in errors)  # from the parser
 
 
 # -- the security switch --------------------------------------------------------------

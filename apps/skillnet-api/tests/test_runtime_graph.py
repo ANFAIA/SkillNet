@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -1442,6 +1443,73 @@ def test_missing_and_invented_answer_keys_are_both_handled() -> None:
     assert set(pruned) == {"q1"}
 
 
+def test_a_missing_key_and_a_misaddressed_one_get_different_remedies() -> None:
+    """Two different mistakes, measured on 2026-07-27, that used to get one complaint.
+
+    The key was *absent* on ``higiene-alimentaria`` and ``alergenos-hosteleria``, and
+    *present but indexed by the question text* on ``atencion-reclamaciones``. "No llega su
+    solucion" is true of both and tells neither of them what to change, and the repair
+    loop replays it verbatim.
+    """
+    program, _ = split_answer_key(packaged("genera_ui/openui_exercise.txt"))
+    spec = get_render_backend("openui").parse(program, ui_format="exercise")
+
+    absent = missing_answer_keys(spec, {})[0]
+    assert "No has escrito el bloque" in absent
+    assert ANSWER_KEY_SENTINEL in absent
+    assert '"q1"' in absent  # the id it has to use, spelled out
+
+    misaddressed = missing_answer_keys(
+        spec, {"Un cliente vuelve el dia 32. Que haces?": {"correct": 0}}
+    )[0]
+    assert "indexa por" in misaddressed
+    assert "PRIMER argumento" in misaddressed
+    assert "No has escrito el bloque" not in misaddressed
+
+
+def test_the_user_prompt_never_contradicts_the_answer_key_protocol() -> None:
+    """``atencion-reclamaciones`` r2 obeyed "solo con el programa" literally and smuggled
+    the key in as ``clave = {...}``, which the gate then refused for the braces. The
+    closing line is the last instruction the model reads; it may not fight the first."""
+    system = ui_generator_system()
+    assert ANSWER_KEY_SENTINEL in system
+
+    for ui_format in ("exercise", "mixed"):
+        prompt = build_ui_prompt(title="T", summary="S", ui_format=ui_format)
+        assert ANSWER_KEY_SENTINEL in prompt, ui_format
+        assert "Responde solo con el programa." not in prompt, ui_format
+
+    for ui_format in ("explanation", "chart"):
+        prompt = build_ui_prompt(title="T", summary="S", ui_format=ui_format)
+        assert prompt.rstrip().endswith("Responde solo con el programa."), ui_format
+
+
+def test_the_repair_prompt_closes_the_same_way_the_generation_one_does() -> None:
+    """The repair turn had the contradiction too, including on the turn whose only
+    complaint was a missing key: "arregla la clave" followed by "solo el programa"."""
+    errors = ["QuizItem 'q1' tiene enunciado pero no llega su solucion"]
+    for ui_format in ("exercise", "mixed"):
+        prompt = build_repair_prompt(previous="x", errors=errors, ui_format=ui_format)
+        assert ANSWER_KEY_SENTINEL in prompt.rsplit("\n", 1)[-1], ui_format
+
+    plain = build_repair_prompt(previous="x", errors=errors, ui_format="explanation")
+    assert plain.rstrip().endswith("Responde solo con el programa.")
+
+
+def test_no_length_budget_asks_for_more_blocks_than_rule_6_allows() -> None:
+    """The prompt asked density 5 for "5-7 bloques" while the validator capped the root
+    level at 5. Measured: 2 of the 14 fallbacks of 2026-07-27 were "got 6" and "got 7"."""
+    from src.render.spec import MAX_ROOT_CHILDREN
+
+    for density in range(1, 6):
+        budget = build_ui_prompt(
+            title="T", summary="S", effective_density=density
+        )
+        asked = [int(n) for n in re.findall(r"\b(\d+)\s*bloques?", budget)]
+        assert asked, density
+        assert max(asked) <= MAX_ROOT_CHILDREN, (density, asked)
+
+
 def test_the_fallback_spec_satisfies_the_contract_rules() -> None:
     """A lone ``Markdown`` block cannot be a valid ``explanation`` spec: rule 7 needs a lead
     slot. That is why the fallback is ``Stack([lead, md...])`` and not one component."""
@@ -1511,30 +1579,41 @@ def test_the_ui_generator_prompt_is_the_generated_artefact_not_a_copy() -> None:
 #: it is trying to fix.
 _REPAIR_GOOD = (
     'root = Stack([intro], "md")',
-    'intro = TextContent("Las devoluciones se aceptan durante 30 dias.", "lead")',
     'aviso = Callout("info", "Dijo \\"no\\" y colgo.")',
+    'conclusion = TextContent("Aquí sí van tildes.", "body")',
     'root = Stack([TextContent("Hola.", "lead")], "md")',
 )
 
-#: The wrong halves. Each is a real failure mode measured against qwen2.5:7b-instruct
-#: (HALLAZGOS-MODELO-LOCAL.md), and each must still be rejected — a counterexample that
-#: quietly became legal would be worse than no counterexample.
+#: The wrong halves. Each is a real failure mode measured against a real model, and each
+#: must still be rejected — a counterexample that quietly became legal would be worse than
+#: no counterexample. That is not hypothetical: "a call split over several lines" was in
+#: this tuple until 2026-07-27, and it became legal the day the parser started splitting
+#: statements at bracket depth 0 the way lang-core does.
 _REPAIR_BAD = (
     'root = Stack(children = [intro], gap = "md")',
     'aviso = Callout("info", "Dijo "no" y colgo.")',
+    'clave = {"q1": {"correct": 1}}',
 )
 
 
 def test_the_repair_prompt_pairs_every_mistake_with_its_correction() -> None:
     """A named counterexample beats a rule in prose for a small model (§4.2)."""
     system = ui_repair_system()
-    assert system.count("MAL") == len(_REPAIR_BAD) + 1  # + the split-over-lines one
+    assert system.count("MAL") == len(_REPAIR_BAD) + 1  # + the accented-id one
     assert system.count("BIEN") == system.count("MAL")
     assert "argumentos con nombre" in system
-    assert "partida en varias lineas" in system
-    # The split-call counterexample really is split, and its correction really is not.
-    assert "intro = TextContent(\n" in system
-    assert f"{_REPAIR_GOOD[1]}\n" in system
+    assert "tilde en el id" in system
+    assert "la clave como declaracion" in system
+
+
+def test_the_repair_prompt_no_longer_teaches_the_one_line_rule() -> None:
+    """It was never OpenUI Lang's rule, and it is not this parser's either since
+    ``src/render/lines.py``. Teaching it burns the single retry on a reformat."""
+    system = ui_repair_system()
+    assert "partida en varias lineas" not in system
+    assert "intro = TextContent(\n" not in system
+    # And the model is told plainly that the construction is fine.
+    assert "mientras haya un corchete abierto" in system
 
 
 def test_every_corrected_example_in_the_repair_prompt_is_valid_dialect() -> None:
@@ -1542,8 +1621,20 @@ def test_every_corrected_example_in_the_repair_prompt_is_valid_dialect() -> None
     backend = get_render_backend("openui")
     for good in _REPAIR_GOOD:
         assert good in system, good
-    assert backend.parse(f"{_REPAIR_GOOD[0]}\n{_REPAIR_GOOD[1]}\n").root == "root"
-    assert backend.parse(f'root = Stack([aviso], "md")\n{_REPAIR_GOOD[2]}\n').root == "root"
+    assert (
+        backend.parse(
+            f'{_REPAIR_GOOD[0]}\nintro = TextContent("Hola.", "lead")\n'
+        ).root
+        == "root"
+    )
+    assert backend.parse(f'root = Stack([aviso], "md")\n{_REPAIR_GOOD[1]}\n').root == "root"
+    assert (
+        backend.parse(
+            f'root = Stack([intro, conclusion], "md")\n'
+            f'intro = TextContent("Hola.", "lead")\n{_REPAIR_GOOD[2]}\n'
+        ).root
+        == "root"
+    )
     # The inline form, which the parser accepts since 2026-07-27 and the prompt says so.
     assert len(backend.parse(f"{_REPAIR_GOOD[3]}\n").components) == 2
 
@@ -1553,7 +1644,10 @@ def test_every_wrong_example_in_the_repair_prompt_is_still_rejected() -> None:
     for bad in _REPAIR_BAD:
         assert bad in ui_repair_system(), bad
         with pytest.raises(RenderError):
-            backend.parse(f'{bad}\nintro = TextContent("H.", "lead")\n')
+            canonicalize(
+                f'{bad}\nintro = TextContent("H.", "lead")\n',
+                backend=backend,
+            )
 
 
 def _now():
