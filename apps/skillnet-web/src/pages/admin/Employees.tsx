@@ -334,22 +334,34 @@ export function Employees() {
         )}
       </Card>
 
-      {/* Mobile cards */}
-      <motion.div className="mt-4 space-y-3 md:hidden" initial="hidden" animate="visible" variants={staggerContainer}>
-        {!isLoading && !error && employees.map((emp) => (
-          <motion.div key={emp.id} variants={staggerItem}>
-            <Card variant="interactive" onClick={(e) => openDetail(emp, e)}>
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="font-medium text-text truncate">{emp.full_name}</p>
-                  <p className="text-sm text-text-secondary mt-0.5 truncate">{emp.email}</p>
+      {/* Mobile cards. The loading branch is a real placeholder and not `!isLoading &&`:
+          below `md` the desktop card above is `display: none`, so with nothing here the
+          whole list reserved zero height and the page grew by the full list the moment
+          the data landed. One card per skeleton, so the placeholder has the shape of
+          what replaces it. */}
+      {isLoading ? (
+        <div className="mt-4 space-y-3 md:hidden">
+          <Card><SkeletonRow /></Card>
+          <Card><SkeletonRow /></Card>
+          <Card><SkeletonRow /></Card>
+        </div>
+      ) : (
+        <motion.div className="mt-4 space-y-3 md:hidden" initial="hidden" animate="visible" variants={staggerContainer}>
+          {!error && employees.map((emp) => (
+            <motion.div key={emp.id} variants={staggerItem}>
+              <Card variant="interactive" onClick={(e) => openDetail(emp, e)}>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-medium text-text truncate">{emp.full_name}</p>
+                    <p className="text-sm text-text-secondary mt-0.5 truncate">{emp.email}</p>
+                  </div>
+                  <Badge variant="primary" badgeStyle="plain">{emp.role === 'admin' ? 'Admin' : 'Empleado'}</Badge>
                 </div>
-                <Badge variant="primary" badgeStyle="plain">{emp.role === 'admin' ? 'Admin' : 'Empleado'}</Badge>
-              </div>
-            </Card>
-          </motion.div>
-        ))}
-      </motion.div>
+              </Card>
+            </motion.div>
+          ))}
+        </motion.div>
+      )}
 
       {/* Create-employee modal */}
       <Modal open={creating} onClose={() => setCreating(false)} size="lg" origin={createOrigin}>
