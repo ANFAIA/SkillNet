@@ -143,7 +143,7 @@ export const ChatMarkdown = memo(function ChatMarkdown({
         disallowedElements={['img']}
         unwrapDisallowed
       >
-        {isStreaming ? `${content}${CARET}` : content}
+        {isStreaming && content ? `${content}${CARET}` : content}
       </ReactMarkdown>
     </div>
   )

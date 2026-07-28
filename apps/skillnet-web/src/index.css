@@ -139,7 +139,7 @@ body {
 .entity-open,
 .entity[data-cursor='true'] {
   color: var(--color-primary);
-  background: var(--color-primary-subtle);
+  background: rgba(54, 97, 165, 0.12);
   border-radius: 3px;
   margin: 0 -2px;
   padding: 0 2px;
@@ -161,12 +161,12 @@ body {
   position: fixed;
   inset: 0;
   pointer-events: none;
-  z-index: 40;
+  z-index: 0;
 }
 
 .phrase-rect {
   position: fixed;
-  background: var(--color-primary-subtle);
+  background: rgba(54, 97, 165, 0.12);
   border-radius: 4px;
   animation: explain-band-in 0.2s var(--ease-base);
 }
@@ -251,6 +251,36 @@ body {
   .block-arrival > * {
     animation: none;
   }
+}
+
+/* ── Typing indicator (chat) ────────────────────────────────── */
+@keyframes typing-bounce {
+  0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }
+  30%           { opacity: 1;   transform: translateY(-6px); }
+}
+
+.typing-dots {
+  display: inline-flex;
+  gap: 0.25rem;
+  align-items: center;
+  height: 1.25rem;
+}
+
+.typing-dots span {
+  display: block;
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.3;
+  animation: typing-bounce 1.2s infinite;
+}
+
+.typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+.typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .typing-dots span { animation: none; opacity: 0.5; }
 }
 
 /* ── Scrollbars ──────────────────────────────────────────────

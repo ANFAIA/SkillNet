@@ -71,11 +71,23 @@ export function ChatAnswer({ message }: ChatAnswerProps) {
     )
   }
 
+  // While the layout call is in flight, hide the raw markdown and show a
+  // placeholder so the learner never sees prose that will be swapped out.
+  if (message.isLayingOut) {
+    return (
+      <span className="typing-dots" aria-label="Preparando formato">
+        <span /><span /><span />
+      </span>
+    )
+  }
+
   return (
     <>
       <ChatMarkdown content={message.content} isStreaming={message.isStreaming} />
       {message.isStreaming && !message.content && (
-        <p className="text-text-muted">Escribiendo...</p>
+        <span className="typing-dots" aria-label="Escribiendo">
+          <span /><span /><span />
+        </span>
       )}
     </>
   )
