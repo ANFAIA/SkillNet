@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Button } from '../../components/ui'
 import { ChatAnswer } from '../../components/chat'
+import { ClickableSurface } from '../../components/courses/ClickableSurface'
 import { useChat } from '../../api/chat'
 import type { ChatGrounding, ChatMessage } from '../../types'
 
@@ -40,44 +41,43 @@ function GroundingNote({ grounding }: { grounding?: ChatGrounding }) {
 
 function ChatBubble({ message }: { message: ChatMessage }) {
   const isUser = message.role === 'user'
+  const bubble = (
+    <div
+      className={`max-w-[85%] md:max-w-[70%] px-3 md:px-4 py-3 text-sm leading-relaxed ${
+        isUser
+          ? 'bg-primary text-white rounded-xl rounded-br-sm'
+          : 'bg-bg-muted text-text rounded-xl rounded-bl-sm'
+      }`}
+    >
+      {!isUser && <GroundingNote grounding={message.grounding} />}
+
+      {isUser ? (
+        <p className="whitespace-pre-line break-words">{message.content}</p>
+      ) : (
+        <ChatAnswer message={message} />
+      )}
+
+      {message.isLayingOut && (
+        <p className="text-xs text-text-muted mt-2">Dando formato...</p>
+      )}
+
+      {message.citations && message.citations.length > 0 && (
+        <div className="mt-2 space-y-0.5">
+          {message.citations.map((c, i) => (
+            <p key={i} className={`text-xs ${isUser ? 'text-white/60' : 'text-text-muted'}`}>
+              {c.document}
+              {c.section ? ` · ${c.section}` : ''}
+              {c.page ? ` (p.${c.page})` : ''}
+            </p>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
-      <div
-        className={`max-w-[85%] md:max-w-[70%] px-3 md:px-4 py-3 text-sm leading-relaxed ${
-          isUser
-            ? 'bg-primary text-white rounded-xl rounded-br-sm'
-            : 'bg-bg-muted text-text rounded-xl rounded-bl-sm'
-        }`}
-      >
-        {!isUser && <GroundingNote grounding={message.grounding} />}
-
-        {/*
-          What the learner typed is what the learner typed: no markdown pass over the
-          user's own bubble, which would turn an asterisked note into emphasis they
-          did not ask for. `ChatAnswer` owns the two-beat assistant answer.
-        */}
-        {isUser ? (
-          <p className="whitespace-pre-line break-words">{message.content}</p>
-        ) : (
-          <ChatAnswer message={message} />
-        )}
-
-        {message.isLayingOut && (
-          <p className="text-xs text-text-muted mt-2">Dando formato...</p>
-        )}
-
-        {message.citations && message.citations.length > 0 && (
-          <div className="mt-2 space-y-0.5">
-            {message.citations.map((c, i) => (
-              <p key={i} className={`text-xs ${isUser ? 'text-white/60' : 'text-text-muted'}`}>
-                {c.document}
-                {c.section ? ` · ${c.section}` : ''}
-                {c.page ? ` (p.${c.page})` : ''}
-              </p>
-            ))}
-          </div>
-        )}
-      </div>
+      {isUser ? bubble : <ClickableSurface nodeId="">{bubble}</ClickableSurface>}
     </div>
   )
 }

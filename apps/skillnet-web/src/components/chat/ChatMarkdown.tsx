@@ -2,6 +2,7 @@ import { memo } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import type { Components } from 'react-markdown'
+import { ClickableText } from '../courses/ClickableText'
 
 /**
  * The caret, as a character rather than an element.
@@ -136,7 +137,7 @@ export const ChatMarkdown = memo(function ChatMarkdown({
   isStreaming = false,
 }: ChatMarkdownProps) {
   return (
-    <div className="min-w-0 break-words">
+    <ClickableText className="min-w-0 break-words">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={components}
@@ -145,6 +146,6 @@ export const ChatMarkdown = memo(function ChatMarkdown({
       >
         {isStreaming && content ? `${content}${CARET}` : content}
       </ReactMarkdown>
-    </div>
+    </ClickableText>
   )
 })
