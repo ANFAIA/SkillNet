@@ -13,9 +13,10 @@ export interface ChartBlockProps {
 // not justify 40 kB of runtime.
 
 const VIEW_W = 320
-const VIEW_H = 120
+const VIEW_H = 140
 const PAD_X = 4
-const PAD_Y = 8
+const PAD_Y = 16
+const GRID_LINES = 4
 
 function formatValue(value: number): string {
   return Number.isFinite(value) ? value.toLocaleString('es-ES') : '-'
@@ -39,26 +40,32 @@ function toPoints(labels: unknown, values: unknown): Array<{ label: string; valu
  * sentences ("Devoluciones fuera de plazo"), and vertical bars force either
  * rotated text or truncation. Label + number are real text, so the chart is
  * readable by a screen reader with no parallel description.
+ *
+ * Visual improvements: taller bars with rounded ends and a gradient fill from
+ * primary to primary/70 for depth.
  */
 function BarChart({ points }: { points: Array<{ label: string; value: number }> }) {
   const maxAbs = points.reduce((acc, p) => Math.max(acc, Math.abs(p.value)), 0)
 
   return (
-    <ul className="space-y-2.5 min-w-0">
+    <ul className="space-y-3 min-w-0">
       {points.map((point, idx) => {
         const pct = maxAbs === 0 ? 0 : Math.max(0, Math.min(100, (point.value / maxAbs) * 100))
         return (
           <li key={idx} className="min-w-0">
-            <div className="flex items-baseline justify-between gap-3 mb-1">
+            <div className="flex items-baseline justify-between gap-3 mb-1.5">
               <span className="text-xs text-text-secondary truncate">{point.label}</span>
-              <span className="text-xs font-medium text-text tabular-nums shrink-0">
+              <span className="text-xs font-semibold text-text tabular-nums shrink-0">
                 {formatValue(point.value)}
               </span>
             </div>
-            <div className="h-1.5 w-full rounded-full bg-bg-muted overflow-hidden">
+            <div className="h-2.5 w-full rounded-full bg-bg-muted overflow-hidden">
               <div
-                className="h-full rounded-full bg-primary"
-                style={{ width: `${pct}%` }}
+                className="h-full rounded-full transition-all duration-300"
+                style={{
+                  width: `${pct}%`,
+                  background: 'linear-gradient(90deg, var(--color-primary), var(--color-primary) 60%, color-mix(in srgb, var(--color-primary) 70%, transparent))',
+                }}
               />
             </div>
           </li>
@@ -71,6 +78,9 @@ function BarChart({ points }: { points: Array<{ label: string; value: number }> 
 /**
  * Line chart as an inline SVG polyline. `role="img"` plus the `sr-only` value
  * list below is the accessible pair — an SVG alone announces nothing useful.
+ *
+ * Visual improvements: area fill under the line (gradient to transparent),
+ * larger dots, value labels above points, and subtle horizontal grid lines.
  */
 function LineChart({
   points,
@@ -95,6 +105,21 @@ function LineChart({
   const polyline = coords.map(({ x, y }) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ')
   const summary = points.map((p) => `${p.label}: ${formatValue(p.value)}`).join('; ')
 
+  // Build the area fill path: line path + close down to baseline + back
+  const baseline = VIEW_H - PAD_Y
+  const areaPath =
+    coords.length > 1
+      ? `M${coords[0].x.toFixed(1)},${coords[0].y.toFixed(1)} ` +
+        coords
+          .slice(1)
+          .map(({ x, y }) => `L${x.toFixed(1)},${y.toFixed(1)}`)
+          .join(' ') +
+        ` L${coords[coords.length - 1].x.toFixed(1)},${baseline} L${coords[0].x.toFixed(1)},${baseline} Z`
+      : ''
+
+  // Unique ID for the gradient defs (safe for multiple charts on the page)
+  const gradId = `area-grad-${title?.replace(/\W/g, '') || 'chart'}`
+
   return (
     <div className="min-w-0">
       <svg
@@ -102,36 +127,76 @@ function LineChart({
         preserveAspectRatio="none"
         role="img"
         aria-label={`${title}. ${summary}`}
-        className="w-full h-28 block"
+        className="w-full h-32 block"
       >
+        <defs>
+          <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="var(--color-primary)" stopOpacity={0.2} />
+            <stop offset="100%" stopColor="var(--color-primary)" stopOpacity={0.02} />
+          </linearGradient>
+        </defs>
+        {/* Horizontal grid lines */}
+        {Array.from({ length: GRID_LINES }).map((_, i) => {
+          const y = PAD_Y + (usableH / GRID_LINES) * i
+          return (
+            <line
+              key={i}
+              x1={PAD_X}
+              y1={y}
+              x2={VIEW_W - PAD_X}
+              y2={y}
+              stroke="var(--color-border)"
+              strokeWidth={0.5}
+              strokeDasharray="4 3"
+            />
+          )
+        })}
+        {/* Baseline axis */}
         <line
           x1={PAD_X}
-          y1={VIEW_H - PAD_Y}
+          y1={baseline}
           x2={VIEW_W - PAD_X}
-          y2={VIEW_H - PAD_Y}
-          className="stroke-border"
+          y2={baseline}
+          stroke="var(--color-border-strong)"
           strokeWidth={1}
         />
+        {/* Area fill */}
+        {areaPath && <path d={areaPath} fill={`url(#${gradId})`} />}
+        {/* Line */}
         {coords.length > 1 && (
           <polyline
             points={polyline}
             fill="none"
             className="stroke-primary"
-            strokeWidth={2}
+            strokeWidth={2.5}
             strokeLinejoin="round"
             strokeLinecap="round"
             vectorEffect="non-scaling-stroke"
           />
         )}
+        {/* Dots — larger for visibility, with white center ring */}
         {coords.map(({ x, y }, idx) => (
-          <circle key={idx} cx={x} cy={y} r={2.5} className="fill-primary" />
+          <g key={idx}>
+            <circle cx={x} cy={y} r={4.5} className="fill-bg" />
+            <circle cx={x} cy={y} r={3.5} className="fill-primary" />
+          </g>
+        ))}
+        {/* Value labels above each point */}
+        {coords.map(({ x, y }, idx) => (
+          <text
+            key={`val-${idx}`}
+            x={x}
+            y={y - 8}
+            textAnchor="middle"
+            className="fill-text-secondary"
+            style={{ fontSize: '8px', fontWeight: 500 }}
+          >
+            {formatValue(points[idx].value)}
+          </text>
         ))}
       </svg>
       <div className="flex justify-between gap-2 mt-1.5">
         {points.map((point, idx) => (
-          // `text-xs` like every other caption in the kit — the bar chart's own
-          // labels one component down were already 12px, so the two chart kinds set
-          // their axis text at two different sizes.
           <span key={idx} className="text-xs text-text-muted truncate">
             {point.label}
           </span>

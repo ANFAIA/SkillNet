@@ -10,10 +10,16 @@ export interface TextContentBlockProps {
 // `lead` is the first-child slot of §5.2 rule 7 — the "esto te sirve para X"
 // line. It gets weight and the primary text colour; body stays secondary so a
 // wall of prose does not compete with it.
+//
+// Visual improvements:
+// - `lead`: slightly larger (text-base), medium weight, primary-coloured left
+//   accent border so it reads as the "hook" paragraph
+// - `body`: generous line-height (leading-7) for comfortable reading
+// - `caption`: italic to distinguish it from body
 const variantClasses: Record<TextVariant, string> = {
-  lead: 'text-base text-text leading-relaxed',
-  body: 'text-sm text-text-secondary leading-relaxed',
-  caption: 'text-xs text-text-muted leading-relaxed',
+  lead: 'text-base font-medium text-text leading-7 border-l-2 border-primary pl-3',
+  body: 'text-sm text-text-secondary leading-7',
+  caption: 'text-xs text-text-muted leading-relaxed italic',
 }
 
 /**

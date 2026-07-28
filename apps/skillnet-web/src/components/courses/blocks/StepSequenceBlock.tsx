@@ -22,25 +22,35 @@ export function StepSequenceBlock({ title, steps }: StepSequenceBlockProps) {
   return (
     <ClickableText as="div" className="min-w-0">
       {title ? <p className={BLOCK_TITLE}>{title}</p> : null}
-      <ol className="space-y-2.5 min-w-0">
-        {items.map((step, idx) => (
-          <li key={idx} className="flex gap-3 min-w-0">
-            <span
-              aria-hidden="true"
-              // The step number is a list marker, not a word: without this the
-              // walk would turn "3" into a clickable term.
-              data-no-explain=""
-              // `text-xs`, not the `text-[11px]` this used to carry: an off-scale
-              // size next to captions that are 12px reads as a rendering accident.
-              className="shrink-0 mt-0.5 w-5 h-5 rounded-full border border-border bg-bg-subtle text-xs font-medium text-text-secondary flex items-center justify-center"
-            >
-              {idx + 1}
-            </span>
-            <span className="text-sm text-text-secondary leading-relaxed min-w-0">
-              <InlineMarkdown>{step}</InlineMarkdown>
-            </span>
-          </li>
-        ))}
+      <ol className="min-w-0">
+        {items.map((step, idx) => {
+          const isLast = idx === items.length - 1
+          return (
+            <li key={idx} className="flex gap-4 min-w-0">
+              {/* Timeline column: circle + connecting line */}
+              <div className="flex flex-col items-center shrink-0">
+                <span
+                  aria-hidden="true"
+                  data-no-explain=""
+                  className="w-7 h-7 rounded-full bg-primary text-white text-xs font-semibold flex items-center justify-center shadow-sm"
+                >
+                  {idx + 1}
+                </span>
+                {/* Vertical connector line between steps */}
+                {!isLast && (
+                  <div
+                    aria-hidden="true"
+                    className="w-px flex-1 bg-border-strong mt-1"
+                  />
+                )}
+              </div>
+              {/* Step content */}
+              <div className={`text-sm text-text-secondary leading-relaxed min-w-0 ${isLast ? '' : 'pb-5'}`}>
+                <InlineMarkdown>{step}</InlineMarkdown>
+              </div>
+            </li>
+          )
+        })}
       </ol>
     </ClickableText>
   )

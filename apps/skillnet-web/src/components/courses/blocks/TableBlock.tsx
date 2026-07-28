@@ -20,16 +20,16 @@ export function TableBlock({ headers, rows }: TableBlockProps) {
   const body = Array.isArray(rows) ? rows : []
 
   return (
-    <ClickableText as="div" className="overflow-x-auto min-w-0">
+    <ClickableText as="div" className="overflow-x-auto min-w-0 rounded-lg border border-border overflow-hidden">
       <table className="w-full text-sm border-collapse">
         {head.length > 0 && (
           <thead>
-            <tr>
+            <tr className="bg-bg-muted">
               {head.map((header, idx) => (
                 <th
                   key={idx}
                   scope="col"
-                  className="text-left align-top py-2 px-3 border-b border-border font-medium text-text-secondary leading-relaxed"
+                  className="text-left align-top py-2.5 px-4 border-b border-border font-semibold text-text text-xs uppercase tracking-wide leading-relaxed"
                 >
                   <InlineMarkdown>{header}</InlineMarkdown>
                 </th>
@@ -39,13 +39,20 @@ export function TableBlock({ headers, rows }: TableBlockProps) {
         )}
         <tbody>
           {body.map((row, rowIdx) => (
-            <tr key={rowIdx}>
+            <tr
+              key={rowIdx}
+              className={`transition-colors duration-150 hover:bg-primary-subtle ${
+                rowIdx % 2 === 1 ? 'bg-bg-subtle' : 'bg-bg'
+              }`}
+            >
               {(Array.isArray(row) ? row : []).map((cell, cellIdx) => (
                 <td
                   key={cellIdx}
                   // `leading-relaxed` matches the prose blocks: a two-line cell used
                   // to set tighter than the paragraph right above the table.
-                  className="align-top py-2 px-3 border-b border-border text-text leading-relaxed"
+                  className={`align-top py-2.5 px-4 text-text leading-relaxed ${
+                    rowIdx < body.length - 1 ? 'border-b border-border' : ''
+                  }`}
                 >
                   <InlineMarkdown>{String(cell ?? '')}</InlineMarkdown>
                 </td>
