@@ -253,6 +253,54 @@ body {
   }
 }
 
+/* ── Scrollbars ──────────────────────────────────────────────
+   Global rather than a utility class, because there are 18 scroll containers in the app
+   and the one thing worse than an unstyled scrollbar is half of them being styled. The
+   default Windows/Chromium bar is a wide grey slab that reads as a browser artefact
+   dropped into the page — most visible in the employees table, which scrolls sideways.
+
+   `scrollbar-gutter: stable` on the scrollable elements themselves, not on `html`: it
+   reserves the track so content does not shift by ~12px the moment a list grows past its
+   container, which is the jump you see when a table gains one row.
+
+   Deliberately not on `body`: the L-frame gradient owns that edge. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-strong) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--color-border-strong);
+  border-radius: 9999px;
+  /* Transparent border + background-clip is the only way to inset a webkit thumb, so it
+     floats in the track instead of filling it wall to wall. */
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-text-muted);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+.overflow-x-auto,
+.overflow-y-auto,
+.overflow-auto {
+  scrollbar-gutter: stable;
+}
+
 /* L-frame gradient + cobweb texture */
 .frame-surface {
   background:

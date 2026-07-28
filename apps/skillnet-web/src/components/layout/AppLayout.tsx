@@ -21,7 +21,14 @@ function AppLayoutInner() {
       >
         <Header />
 
-        <main className="flex-1 mt-[50px] bg-bg md:rounded-tl-xl overflow-y-auto overflow-x-hidden">
+        {/* No `overflow-y-auto`: this element grows with its content and the *page*
+            scrolls. It used to be a scroll box, which put a second scrollbar inside the
+            layout — most obvious on Empleados, where a long list scrolled inside a panel
+            while the window stayed still. Nothing needed it: the sidebar is
+            `fixed left-0 top-0 bottom-0` and the header is `fixed top-0`, so both stay
+            put under page scroll on their own. `overflow-x-hidden` stays, to stop a wide
+            child blowing out the layout sideways. */}
+        <main className="flex-1 mt-[50px] bg-bg md:rounded-tl-xl overflow-x-hidden">
           <ErrorBoundary
             fallback={(error, reset) => (
               <div className="p-4 md:p-6">
