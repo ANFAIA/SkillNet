@@ -371,6 +371,35 @@ def test_grammar_rule_2_table_rows_must_be_nested() -> None:
     assert "array of arrays" in str(excinfo.value)
 
 
+def test_a_table_row_must_have_one_cell_per_header() -> None:
+    """A table whose rows do not line up with its headers is a broken screen.
+
+    ``STRING_MATRIX`` only checks "list of lists of strings", so this used to be served.
+    Measured on the real ``Los catorce alergenos obligatorios`` node: told to use a single
+    column, the model emitted one row holding all fourteen allergens, which paints as one
+    row running off the side of the screen and which nothing rejected.
+    """
+    raw = (
+        'root = Stack([t], "md")\n'
+        't = Table(["Alergeno"], [["Gluten", "Huevos", "Leche"]])\n'
+    )
+    with pytest.raises(RenderError) as excinfo:
+        BACKEND.parse(raw)
+    message = str(excinfo.value)
+    assert "3 cells but there is 1 header" in message
+    # The message has to show the shape, not just name the mismatch.
+    assert '[["a"], ["b"], ["c"]]' in message
+
+
+def test_a_one_column_table_with_one_cell_per_row_is_accepted() -> None:
+    raw = (
+        'root = Stack([intro, t], "md")\n'
+        'intro = TextContent("Los alergenos de la casa.", "lead")\n'
+        't = Table(["Alergeno"], [["Gluten"], ["Huevos"], ["Leche"]])\n'
+    )
+    assert len(BACKEND.parse(raw).component("t").props["rows"]) == 3
+
+
 def test_grammar_rule_3_a_literal_newline_breaks_the_string() -> None:
     with pytest.raises(RenderParseError) as excinfo:
         BACKEND.parse(_dsl("malformed_literal_newline"))

@@ -9,6 +9,12 @@ import type {
   Citation,
 } from '../types'
 
+/**
+ * Which assistant answers — and nothing else. The two endpoints speak the *same* SSE
+ * dialect, so there is deliberately one parser below rather than a branch: `ui`
+ * included, now that `_should_lay_out` lays out `admin` turns too. A second handler
+ * for the admin stream is how the `ui` event would get silently dropped on one surface.
+ */
 type ChatEndpoint = '/chat' | '/chat/admin'
 
 /**
@@ -158,6 +164,9 @@ export function useChat(endpoint: ChatEndpoint = '/chat') {
                   ),
                 )
               }
+              // An event type no branch claims falls straight through, on purpose:
+              // `org_data` ships on admin turns today and costs the browser nothing
+              // until somebody decides what, if anything, it should look like.
 
               eventType = ''
             }

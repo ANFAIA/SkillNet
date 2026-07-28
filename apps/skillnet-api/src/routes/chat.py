@@ -94,7 +94,14 @@ async def admin_chat(
     llm: LLMDep,
     embeddings: EmbeddingDep,
 ) -> StreamingResponse:
-    service = ChatService(db, llm, embeddings)
+    # The same two switches, composed the same way, from the same two places. Until
+    # 2026-07-28 this route simply did not pass the flag, which was invisible while
+    # ``_should_lay_out`` excluded ``admin`` outright and became the whole feature the
+    # moment it stopped: an admin turn would have been the one surface where the
+    # organization's own ``chat_generative_ui`` setting decided nothing.
+    org_settings = await _org_settings(db, getattr(user, "org_id", None))
+    generative_ui = dynamic_courses_on() and chat_generative_ui_enabled(org_settings)
+    service = ChatService(db, llm, embeddings, generative_ui=generative_ui)
     stream = service.stream_admin(
         user, request.message, request.session_id, request.context
     )

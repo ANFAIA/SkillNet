@@ -21,7 +21,11 @@ function AdminLayoutInner() {
       >
         <Header />
 
-        <main className="flex-1 mt-[50px] bg-bg md:rounded-tl-xl overflow-y-auto overflow-x-hidden">
+        {/* No `overflow-y-auto` — see the note in AppLayout. This grows with its content
+            and the page scrolls; the sidebar and header are both `fixed`, so nothing here
+            needed a scroll box of its own. `clip` rather than `hidden` because
+            `overflow-x: hidden` would force the vertical axis back to `auto`. */}
+        <main className="flex-1 mt-[50px] bg-bg md:rounded-tl-xl overflow-x-clip">
           <ErrorBoundary
             fallback={(error, reset) => (
               <div className="p-4 md:p-6">
