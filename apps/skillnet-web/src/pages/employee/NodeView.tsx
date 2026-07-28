@@ -8,7 +8,6 @@ import { UiSpecRenderer } from '../../components/courses/UiSpecRenderer'
 import { NodeSkeleton, RESERVED_CONTENT_PX } from '../../components/courses/NodeSkeleton'
 import { NodeFeedback } from '../../components/courses/NodeFeedback'
 import { ProbeRunner } from '../../components/courses/ProbeRunner'
-import { RenderControls } from '../../components/courses/RenderControls'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
 import { transition } from '../../lib/motion'
 import { useLearnerProfile } from '../../api/onboarding'
@@ -21,7 +20,6 @@ import {
   useCourseNodes,
   useNodeEvents,
   useNodeRender,
-  useNodeRenderHistory,
   useNodeRenderStream,
   useRequestRender,
 } from '../../api/nodes'
@@ -93,11 +91,6 @@ const SLOW_MS = 3000
 
 type Phase = 'probe' | 'content' | 'mastered'
 
-interface HeldVersion {
-  program: string
-  format: UiFormat | null
-}
-
 export function NodeView() {
   const { id: courseId, nodeId } = useParams<{ id: string; nodeId: string }>()
   const navigate = useNavigate()
@@ -119,23 +112,16 @@ export function NodeView() {
   const previousNode = index > 0 ? ordered[index - 1] : null
   const nextNode = index >= 0 && index < ordered.length - 1 ? ordered[index + 1] : null
 
-  // `not_started`/`probing` still owe a probe; anything past it goes straight to content
-  // (§7.3 transitions 1-5 all happen before the lesson exists).
-  const initialPhase: Phase | null = node
-    ? node.state === 'not_started' || node.state === 'probing'
-      ? 'probe'
-      : 'content'
-    : null
+  // BYPASS: pre-assessment probe disabled — always start in content phase.
+  // To re-enable, restore the original condition:
+  //   node.state === 'not_started' || node.state === 'probing' ? 'probe' : 'content'
+  const initialPhase: Phase | null = node ? 'content' : null
 
   const [phase, setPhase] = useState<Phase | null>(null)
   useEffect(() => {
     setPhase((prev) => prev ?? initialPhase)
   }, [initialPhase])
 
-  const [adapted, setAdapted] = useState(false)
-  const [refreshing, setRefreshing] = useState(false)
-  const [viewingRenderId, setViewingRenderId] = useState<string | null>(null)
-  const [held, setHeld] = useState<Record<string, HeldVersion>>({})
   const [streamFailure, setStreamFailure] = useState<string | null>(null)
 
   const requestedRef = useRef(false)
@@ -146,7 +132,6 @@ export function NodeView() {
   const formatRef = useRef<UiFormat | null>(null)
 
   const render = useNodeRender(nodeId, { enabled: phase === 'content' })
-  const history = useNodeRenderHistory(nodeId, { enabled: phase === 'content' })
   const requestRender = useRequestRender(nodeId)
 
   const served = isServedRender(render.data) ? render.data : null
@@ -156,7 +141,6 @@ export function NodeView() {
 
   const stream = useNodeRenderStream({
     onSettled: ({ reason, fallbackAvailable }) => {
-      setRefreshing(false)
       if (reason === 'skipped') {
         setPhase('mastered')
         return
@@ -171,7 +155,6 @@ export function NodeView() {
       // something pinned.
       setStreamFailure(null)
       void render.refetch()
-      void history.refetch()
     },
   })
 
@@ -184,26 +167,23 @@ export function NodeView() {
    * subscriber and this pub/sub keeps no backlog (§9.2).
    */
   const startRender = useCallback(
-    (options: { force?: boolean } = {}) => {
+    () => {
       if (!nodeId) return
       requestedRef.current = true
       requestRender.mutate(
-        { force: options.force ?? false },
+        { force: false },
         {
           onSuccess: (accepted) => {
             if (!accepted.request_id) {
-              setRefreshing(false)
               void render.refetch()
-              void history.refetch()
               return
             }
             void stream.start(nodeId, accepted.request_id)
           },
-          onError: () => setRefreshing(false),
         },
       )
     },
-    [nodeId, requestRender, render, history, stream],
+    [nodeId, requestRender, render, stream],
   )
 
   // The prefetch of §9.1: fired by the probe, not by the server.
@@ -482,19 +462,6 @@ export function NodeView() {
               />
             )}
 
-            {served && (
-              <RenderControls
-                refreshing={refreshing}
-                onRefresh={onRefresh}
-                versions={history.data?.renders ?? []}
-                activeRenderId={served.render_id}
-                viewableRenderIds={Object.keys(held)}
-                onViewVersion={setViewingRenderId}
-                onViewCurrent={() => setViewingRenderId(null)}
-                viewingPrevious={!!viewingHeld}
-                adapted={adapted}
-              />
-            )}
 
             {served && !viewingHeld && <NodeFeedback nodeId={node.id} />}
           </>
@@ -516,10 +483,9 @@ export function NodeView() {
         {nextNode ? (
           <Button
             size="sm"
-            disabled={nextNode.locked}
             onClick={() => navigate(`/empleado/curso/${courseId}/nodo/${nextNode.id}`)}
           >
-            {nextNode.locked ? 'Siguiente bloqueado' : 'Siguiente'}
+            Siguiente
           </Button>
         ) : (
           <Button size="sm" variant="secondary" onClick={() => navigate(backToCourse)}>

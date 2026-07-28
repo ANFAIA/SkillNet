@@ -462,8 +462,11 @@ def _plain_or_none(value: object) -> str | None:
 @runtime_node_error_wrapper("probe_gate")
 async def probe_gate(state: NodeRuntimeState) -> dict:
     """Skip the node when the learner already mastered it. Zero tokens (§2, §7.3)."""
-    node_state = state.get("node_state") or {}
-    mastered = str(node_state.get("state")) == MASTERED
+    # BYPASS: pre-assessment gate disabled — always route to content generation.
+    # To re-enable, restore the original two lines:
+    #   node_state = state.get("node_state") or {}
+    #   mastered = str(node_state.get("state")) == MASTERED
+    mastered = False
     await publish_step(
         str(state["request_id"]), "probe_gate", STEP_MESSAGES["probe_gate"]
     )
