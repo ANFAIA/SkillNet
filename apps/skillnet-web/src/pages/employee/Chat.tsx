@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Button } from '../../components/ui'
-import { UiSpecRenderer } from '../../components/courses/UiSpecRenderer'
+import { ChatAnswer } from '../../components/chat'
 import { useChat } from '../../api/chat'
 import type { ChatGrounding, ChatMessage } from '../../types'
 
@@ -52,25 +52,14 @@ function ChatBubble({ message }: { message: ChatMessage }) {
         {!isUser && <GroundingNote grounding={message.grounding} />}
 
         {/*
-          The blocks replace the prose only once there is a program, and the prose
-          is what comes back if there never is one. `UiSpecRenderer` returns null
-          for a blocked or empty program, so rendering the two alternatives (rather
-          than the blocks stacked on top of the text) is what would risk an empty
-          bubble — hence the program is only chosen when the server sent one, and
-          the server only sends one that already parsed into a valid `UISpec`.
+          What the learner typed is what the learner typed: no markdown pass over the
+          user's own bubble, which would turn an asterisked note into emphasis they
+          did not ask for. `ChatAnswer` owns the two-beat assistant answer.
         */}
-        {message.program ? (
-          <UiSpecRenderer program={message.program} nodeId="" format="explanation" />
+        {isUser ? (
+          <p className="whitespace-pre-line break-words">{message.content}</p>
         ) : (
-          <p className="whitespace-pre-line break-words">
-            {message.content}
-            {message.isStreaming && !message.content && (
-              <span className="text-text-muted">Escribiendo...</span>
-            )}
-            {message.isStreaming && message.content && (
-              <span className="inline-block w-1.5 h-4 ml-0.5 align-middle bg-current opacity-60 animate-pulse" />
-            )}
-          </p>
+          <ChatAnswer message={message} />
         )}
 
         {message.isLayingOut && (

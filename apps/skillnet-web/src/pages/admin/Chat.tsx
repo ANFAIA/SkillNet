@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Button } from '../../components/ui'
+import { ChatMarkdown } from '../../components/chat'
 import { useChat } from '../../api/chat'
 import type { ChatMessage } from '../../types'
 
@@ -26,16 +27,28 @@ function Bubble({ message }: { message: ChatMessage }) {
           Same honesty note as the employee tutor, same reason. No blocks here: the
           admin assistant answers in two operational lines and a wall of blocks
           would be slower to act on than the sentence it replaced.
+
+          `_should_lay_out` in `chat_service.py` never lays out an `admin` turn, so no
+          `ui` event can reach this bubble — and rendering `ChatMarkdown` rather than
+          `ChatAnswer` keeps that a decision rather than a coincidence. Which makes
+          this the surface that proves the markdown map on its own: it is the one chat
+          in the product where prose is *always* the whole answer.
         */}
         {!isUser && message.grounding === 'general' && (
           <p className="text-xs text-text-muted mb-1.5" data-grounding="general">
             Conocimiento general: no sale de la documentacion subida
           </p>
         )}
-        <p className="whitespace-pre-line break-words">
-          {message.content}
-          {message.isStreaming && !message.content && <span className="text-text-muted">Escribiendo...</span>}
-        </p>
+        {isUser ? (
+          <p className="whitespace-pre-line break-words">{message.content}</p>
+        ) : (
+          <>
+            <ChatMarkdown content={message.content} isStreaming={message.isStreaming} />
+            {message.isStreaming && !message.content && (
+              <p className="text-text-muted">Escribiendo...</p>
+            )}
+          </>
+        )}
       </div>
     </div>
   )
