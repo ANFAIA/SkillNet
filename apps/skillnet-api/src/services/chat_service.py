@@ -18,8 +18,14 @@ a persisted field, not a sentence the model was asked to write: honesty about th
 is a property of the system, not a request to the model.
 
 **2. Generative UI.** After the prose has finished streaming, a second call re-lays the
-same answer as a program in the frozen SkillNet kit, which the browser paints with the
-same ``UiSpecRenderer`` a node render uses. Three properties are load-bearing:
+same answer in the frozen SkillNet kit, which the browser paints with the same
+``UiSpecRenderer`` a node render uses. Since 2026-07-28 that call does **not** ask the
+model for a program: it asks for one JSON object naming a shape out of five and filling
+that shape's fields, and ``emit_chat_program`` below writes the OpenUI Lang. The reason is
+measured and lives in :data:`src.llm.prompts.tutor.CHAT_SHAPES` — every validator
+rejection in this repository's own render bench was a markup-authoring error, not a
+judgement error, so the model kept the judgement and lost the typewriter. Three properties
+are load-bearing:
 
 * **The prose is untouched.** The layout call happens *after* ``done``, so the first token
   arrives exactly as fast as it did before, the input re-enables at exactly the same
@@ -47,11 +53,23 @@ mastery sat in the database it is the administration console for. Two changes, b
   which is where the privacy line is drawn and tested.
 * A greeting never reaches the model: ``src/services/small_talk.py`` answers it. *"que
   tal"* used to be met with *"No tengo suficiente informacion"*, which is what a model
-  correctly says when it is handed an allergen manual and a pleasantry.
+  correctly says when it is handed an allergen manual and a pleasantry. *"quien eres"*
+  joined it on 2026-07-28, for the same reason one rung up: the assistant is the one thing
+  in the turn that is not in the snapshot, so looking for it there can only end in "no
+  consta".
+
+**4. The admin assistant lays out too** (2026-07-28). It was excluded from the layout call
+on the grounds that a wall of blocks is slower to act on than a sentence; ``MIN_LAYOUT_CHARS``
+already enforces that on its own, and the exclusion was costing the clearest case of
+generative UI in the product — *"como van mis empleados"* is five people, four columns and
+a deadline. Same two switches, same silent fall back to the prose, plus one rule the tutor
+does not need: ``invented_figures`` refuses any program carrying a number the answer did
+not, because these blocks describe named people's training records.
 """
 
 from __future__ import annotations
 
+import json
 import re
 import uuid
 from collections.abc import AsyncIterator, Sequence
@@ -69,12 +87,17 @@ from src.llm.prompts.admin import (
     build_admin_turn,
 )
 from src.llm.prompts.tutor import (
+    CHAT_LAYOUT_SYSTEM,
+    CHAT_SHAPES,
+    MAX_DEFINITION_POINTS,
+    MAX_STEPS,
+    MAX_TABLE_COLUMNS,
+    MAX_TABLE_ROWS,
     NO_UI_SENTINEL,
     TUTOR_PROMPT_VERSION,
     Grounding,
-    build_chat_ui_prompt,
+    build_chat_layout_prompt,
     build_user_turn,
-    chat_ui_system,
     tutor_system_prompt,
 )
 from src.models import ChatMessage, ChatSession, User
@@ -183,8 +206,271 @@ def strip_no_ui(raw: str) -> str:
     return text
 
 
+# --------------------------------------------------------------------------------------
+# classify + populate: the model's JSON -> a program the *server* wrote
+#
+# The model no longer authors OpenUI Lang here. See :data:`src.llm.prompts.tutor
+# .CHAT_SHAPES` for the measurement that motivated it; what follows is the half that makes
+# the measurement moot. Every rejection class in that bench — named arguments, an accent
+# in a bare identifier, ``{`` for an object, twice the line cap — is a property of text
+# *this module* now writes, so none of them can be produced by anything the model says.
+#
+# The output still goes through ``validate_chat_program`` unchanged. That is not belt and
+# braces for its own sake: the strings inside the program are still the model's bytes, and
+# the rule that only a re-serialized ``UISpec`` reaches the browser has to hold for text
+# the server assembled exactly as it holds for text the model typed.
+# --------------------------------------------------------------------------------------
+
+#: Anything below this is not a shape, it is a fragment. A one-step "procedure" and a
+#: one-row "table" are both the paragraph they came from, wearing a border.
+MIN_SHAPE_ITEMS = 2
+
+_CALLOUT_TONES = ("info", "warn", "success")
+
+
+def _scalar(value: object) -> str | None:
+    """``value`` as one line of printable text; ``None`` when it is not a scalar at all.
+
+    The distinction from :func:`_one_line` is the whole reason both exist. ``""`` is a
+    *legitimately empty* field — a table cell for a person with no deadline — while
+    ``None`` means the model put a dict, a list or a boolean where text belongs, which is
+    a shape it did not populate rather than a field it left blank. Collapsing the two
+    would turn ``rows: [[{"a": 1}]]`` into a table of empty cells: a block that renders,
+    says nothing, and looks like the data is missing rather than like the layout failed.
+
+    A number is scalar and is kept: asked for a cell, a model writes ``40`` as often as
+    ``"40"``, and refusing that would throw away a good table over JSON typing.
+
+    A dialect string literal closes its quote on the line that opened it (SkillNet rule 1),
+    so every newline the model puts in a field collapses to a space here rather than
+    becoming an unterminated value the gate would reject.
+    """
+    if isinstance(value, str):
+        text = value
+    elif isinstance(value, bool) or not isinstance(value, int | float):
+        # ``bool`` first: it is an ``int`` subclass, and "True" is not a figure.
+        return None
+    else:
+        text = str(value)
+    collapsed = " ".join(part for part in text.split() if part)
+    return "".join(char for char in collapsed if char.isprintable()).strip()
+
+
+def _one_line(value: object) -> str | None:
+    """``_scalar``, with "blank" folded into "absent". For fields that must carry text."""
+    return _scalar(value) or None
+
+
+def _literal(text: str) -> str:
+    """A dialect string literal. Same escapes as ``OpenUiLangBackend.serialize``.
+
+    Only two of that function's three rules are needed, because ``_one_line`` has already
+    removed every newline; the backslash must still be escaped before the quote, and in
+    that order, or a trailing ``\\`` swallows the closing quote.
+    """
+    escaped = text.replace("\\", "\\\\").replace('"', '\\"')
+    return f'"{escaped}"'
+
+
+def _string_list(value: object, *, minimum: int, maximum: int) -> list[str] | None:
+    """A list of non-empty lines, or ``None``.
+
+    Strict about every item rather than filtering: a step the model wrote as an object is
+    a step, and dropping it quietly would serve a four-step procedure as three — a wrong
+    answer that looks like a right one. Prose is the better outcome.
+    """
+    if not isinstance(value, list):
+        return None
+    items: list[str] = []
+    for item in value:
+        line = _one_line(item)
+        if line is None:
+            return None
+        items.append(line)
+    if not minimum <= len(items) <= maximum:
+        return None
+    return items
+
+
+def _emit_body(shape: str, payload: dict) -> list[str] | None:
+    """The declarations for the body block, ``cuerpo`` last-but-not-least.
+
+    ``None`` whenever the populated fields do not make the shape the model claimed. The
+    only thing forgiven is JSON typing — a number where a string was asked for — because
+    that is a habit, not a mistake. Anything that changes what the block *says* is refused
+    outright: a "table" whose rows are ragged is a model that misread its own answer, and
+    prose is a better outcome than a table with a hole in it.
+    """
+    match shape:
+        case "steps":
+            title = _one_line(payload.get("title"))
+            steps = _string_list(
+                payload.get("steps"), minimum=MIN_SHAPE_ITEMS, maximum=MAX_STEPS
+            )
+            if title is None or steps is None:
+                return None
+            rendered = ", ".join(_literal(step) for step in steps)
+            return [f"cuerpo = StepSequence({_literal(title)}, [{rendered}])"]
+
+        case "table":
+            headers = _string_list(
+                payload.get("headers"),
+                minimum=MIN_SHAPE_ITEMS,
+                maximum=MAX_TABLE_COLUMNS,
+            )
+            raw_rows = payload.get("rows")
+            if headers is None or not isinstance(raw_rows, list):
+                return None
+            rows: list[list[str]] = []
+            for raw_row in raw_rows:
+                # A cell may legitimately be empty ("sin plazo"), so cells are kept
+                # positionally and only the *width* has to match. Dropping empties would
+                # silently shift every value in the row one column to the left. A cell
+                # that is not a scalar at all is a different matter and kills the table.
+                if not isinstance(raw_row, list) or len(raw_row) != len(headers):
+                    return None
+                cells: list[str] = []
+                for cell in raw_row:
+                    text = _scalar(cell)
+                    if text is None:
+                        return None
+                    cells.append(text)
+                rows.append(cells)
+            if not MIN_SHAPE_ITEMS <= len(rows) <= MAX_TABLE_ROWS:
+                return None
+            head = ", ".join(_literal(header) for header in headers)
+            body = ", ".join(
+                "[" + ", ".join(_literal(cell) for cell in row) + "]" for row in rows
+            )
+            return [f"cuerpo = Table([{head}], [{body}])"]
+
+        case "callout":
+            text = _one_line(payload.get("text"))
+            if text is None:
+                return None
+            tone = payload.get("tone")
+            # An unknown tone is a colour, not a claim: "info" is the neutral one and
+            # losing a shade is not worth losing the block.
+            tone = tone if tone in _CALLOUT_TONES else "info"
+            return [f"cuerpo = Callout({_literal(tone)}, {_literal(text)})"]
+
+        case "definition":
+            title = _one_line(payload.get("title"))
+            raw_points = payload.get("points")
+            if title is None or not isinstance(raw_points, list):
+                return None
+            points: list[str] = []
+            for raw_point in raw_points:
+                if not isinstance(raw_point, dict):
+                    return None
+                term = _one_line(raw_point.get("term"))
+                detail = _one_line(raw_point.get("detail"))
+                if term is None or detail is None:
+                    return None
+                points.append(f"{term}: {detail}")
+            if not MIN_SHAPE_ITEMS <= len(points) <= MAX_DEFINITION_POINTS:
+                return None
+            ids = [f"punto{index}" for index in range(1, len(points) + 1)]
+            lines = [f"cuerpo = Card({_literal(title)}, [{', '.join(ids)}])"]
+            lines.extend(
+                f"{point_id} = TextContent({_literal(point)}, \"body\")"
+                for point_id, point in zip(ids, points, strict=True)
+            )
+            return lines
+
+    return None
+
+
+def emit_chat_program(payload: object) -> str | None:
+    """The model's populated shape -> program text, or ``None`` for "serve the prose".
+
+    ``None`` is the answer to every doubt: an unknown shape, a missing field, a ragged
+    table, and the explicit ``"prose"`` verdict all leave the reader with the answer they
+    already read. Same contract ``NO_UI`` had, minus the model's ability to misspell it.
+    """
+    if not isinstance(payload, dict):
+        return None
+    shape = payload.get("shape")
+    if not isinstance(shape, str) or shape not in CHAT_SHAPES or shape == "prose":
+        return None
+
+    body = _emit_body(shape, payload)
+    if body is None:
+        return None
+
+    lead = _one_line(payload.get("lead"))
+    if lead is None:
+        # Contract rule 7: the first child of the root has to be a lead TextContent or a
+        # Callout. A Callout body can stand in for itself; nothing else can, and inventing
+        # a lead line would be this module writing content, which is the one thing it must
+        # never do.
+        if shape != "callout":
+            return None
+        return "root = Stack([cuerpo], \"md\")\n" + "\n".join(body) + "\n"
+    return (
+        'root = Stack([entrada, cuerpo], "md")\n'
+        f'entrada = TextContent({_literal(lead)}, "lead")\n' + "\n".join(body) + "\n"
+    )
+
+
+#: Any run of digits. Deliberately not a number parser: "40", "2026", "1169" and the "5"
+#: in "2/5" are all figures a reader would hold the platform to, and the question asked of
+#: them is only ever "was this already on screen?".
+_DIGIT_RUN = re.compile(r"\d+")
+
+
+def invented_figures(program: str, answer: str) -> list[str]:
+    """Digit runs the layout step put on screen that the answer never contained.
+
+    The layout call is forbidden to add information, and for an administrator reading
+    other people's training records that rule is worth more than the blocks: a table that
+    says a person is at 60% when the prose said 40% is a record an employer might act on.
+    The prompt asks; this is what makes it true. Every figure in a program the server
+    emitted came out of a model-supplied string, so anything here that is not already in
+    the prose was invented between the two calls.
+
+    Comparing digit runs rather than parsed numbers is what keeps it honest about
+    formatting: "40%" and "40" agree, and "2/5" contributes both of its halves. It also
+    means "catorce" in the prose does not license "14" in the table — which is the safe
+    direction to be wrong in, because the cost is the paragraph the reader already has.
+    """
+    known = set(_DIGIT_RUN.findall(answer))
+    return sorted({run for run in _DIGIT_RUN.findall(program) if run not in known})
+
+
+def parse_layout_json(raw: str) -> object | None:
+    """The model's reply as a JSON value, or ``None``.
+
+    ``json_mode`` is requested on the call, and providers honour it well enough that this
+    is mostly a formality — but "mostly" is not a contract, and a fenced or prefaced object
+    is the failure they actually produce, so the outermost braces are located rather than
+    trusted to be the whole string.
+    """
+    text = raw.strip()
+    if not text:
+        return None
+    try:
+        return json.loads(text)
+    except ValueError:
+        pass
+    start, end = text.find("{"), text.rfind("}")
+    if start == -1 or end <= start:
+        return None
+    try:
+        return json.loads(text[start : end + 1])
+    except ValueError:
+        logger.info("Chat layout returned something that is not JSON")
+        return None
+
+
 def validate_chat_program(raw: str) -> str | None:
-    """Untrusted layout output -> the canonical program the browser may receive.
+    """Program text -> the canonical program the browser may receive.
+
+    Since the chat moved to classify+populate the input is text ``emit_chat_program``
+    wrote, not text a model wrote — but the *strings inside it* are still the model's, and
+    the rule that only a re-serialized ``UISpec`` reaches the browser has to hold for both.
+    So this stayed exactly where it was, and the emitter is an extra floor under it rather
+    than a replacement for it.
 
     ``None`` for anything that does not hold, and the caller's answer to ``None`` is
     always "serve the prose". There is no repair loop here on purpose: the node runtime
@@ -366,7 +652,7 @@ class ChatService:
             # optional program arrives later on the same open stream, if it validates.
             yield format_sse("done", {"message_id": str(assistant.id)})
 
-            if self._should_lay_out(agent_type, answer):
+            if self._should_lay_out(agent_type, answer, canned=canned is not None):
                 yield format_sse("layout_start", {})
                 program = await self._lay_out(message, answer)
                 if program:
@@ -416,33 +702,59 @@ class ChatService:
 
     # -- the layout call ---------------------------------------------------------
 
-    def _should_lay_out(self, agent_type: str, answer: str) -> bool:
+    def _should_lay_out(self, agent_type: str, answer: str, *, canned: bool) -> bool:
         """Whether this answer earns a second call.
 
-        The admin assistant is excluded: it answers operational questions in two lines,
-        and its surface is the one place in the product where a wall of blocks would be
-        slower to act on than a sentence.
+        A canned answer never does, and that check is worth more than it looks. The point
+        of ``src/services/small_talk.py`` is that "hola" and "quien eres" cost **zero**
+        tokens; the identity reply is long enough to clear ``MIN_LAYOUT_CHARS``, so the
+        moment the admin path started laying out, a question that deliberately never
+        reaches a provider started paying for a call to one. Measured live before this
+        line existed: ``quien eres`` emitted ``layout_start``.
+
+        The admin assistant used to be excluded, on the grounds that it answers in two
+        lines and a wall of blocks would be slower to act on than a sentence. The first
+        half is enforced by ``MIN_LAYOUT_CHARS`` on its own, and the second half turned
+        out to be wrong in the one case that matters: *"como van mis empleados"* is five
+        people, four columns and a deadline, which is a table in every other tool an
+        administrator uses. So it is in, behind exactly the same two switches, with
+        exactly the same fall back to the prose it already streamed.
         """
         return (
             self.generative_ui
-            and agent_type == "tutor"
+            and not canned
+            and agent_type in ("tutor", "admin")
             and self.tutor_llm is not None
             and len(answer.strip()) >= MIN_LAYOUT_CHARS
         )
 
     async def _lay_out(self, question: str, answer: str) -> str | None:
-        """Re-lay ``answer`` in the kit. ``None`` means "serve the prose", always."""
+        """Re-lay ``answer`` in the kit. ``None`` means "serve the prose", always.
+
+        The model classifies and populates; **this process writes the program**. See
+        ``emit_chat_program`` above and :data:`src.llm.prompts.tutor.CHAT_SHAPES` for why.
+        """
         try:
             raw = await self.tutor_llm.complete(  # type: ignore[union-attr]
-                chat_ui_system(),
-                build_chat_ui_prompt(question, answer),
+                CHAT_LAYOUT_SYSTEM,
+                build_chat_layout_prompt(question, answer),
                 temperature=LAYOUT_TEMPERATURE,
                 max_tokens=LAYOUT_MAX_TOKENS,
+                json_mode=True,
             )
         except Exception as exc:  # noqa: BLE001 - the prose is already on screen
             logger.info("Chat layout call failed, serving prose: %s", exc)
             return None
-        return validate_chat_program(raw)
+        program = emit_chat_program(parse_layout_json(raw))
+        if program is None:
+            return None
+        invented = invented_figures(program, answer)
+        if invented:
+            logger.info(
+                "Chat layout rejected: figures not in the answer: %s", ", ".join(invented)
+            )
+            return None
+        return validate_chat_program(program)
 
     async def _persist_program(self, assistant: ChatMessage, program: str) -> None:
         """Store the canonical program so reopening the session repaints the blocks.
@@ -562,8 +874,12 @@ __all__ = [
     "CHAT_UI_FORMAT",
     "MEMORY_TURNS",
     "MIN_LAYOUT_CHARS",
+    "MIN_SHAPE_ITEMS",
     "RETRIEVAL_TOP_K",
     "ChatService",
+    "emit_chat_program",
+    "invented_figures",
+    "parse_layout_json",
     "strip_no_ui",
     "validate_chat_program",
 ]

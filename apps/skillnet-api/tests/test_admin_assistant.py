@@ -89,6 +89,66 @@ def test_the_prompt_points_at_the_precounted_totals_instead_of_a_headcount() -> 
     assert "no es una accion, es relleno" in prompt
 
 
+def test_the_closing_action_is_scoped_to_questions_about_people_and_courses() -> None:
+    """Reported 2026-07-28: "explicame paso a paso como atender una consulta de alergenos"
+    got five correct steps and then "Escribe a Aitana, que no ha abierto sus tres cursos".
+
+    Aitana has nothing to do with the question. The rule that makes a *management* answer
+    end in something actionable was firing on a *content* answer, and an answer that ends
+    by nagging about an unrelated person reads as broken. So the block now sorts the
+    question first and says, in imperative, that the close is forbidden outside case (A).
+    """
+    prompt = admin_system_prompt("document", org_data=True)
+
+    assert "Pregunta DE GESTION" in prompt
+    assert "Pregunta DE CONTENIDO" in prompt
+    assert "NO se aplica y esta PROHIBIDA" in prompt
+    # The failing turn is quoted verbatim, the way "habla con el encargado" already is.
+    assert "escribe a Aitana" in prompt
+    assert "La respuesta termina cuando termina el contenido" in prompt
+
+
+def test_a_question_about_the_assistant_is_not_looked_up_in_the_data() -> None:
+    """"quien eres" -> "No consta la informacion de identidad del administrador"."""
+    prompt = admin_system_prompt("document", org_data=True)
+    assert "la respuesta eres TU" in prompt
+    assert "busques en los datos de la organizacion" in prompt
+    assert "ahi estan sus empleados y sus cursos" in prompt
+
+
+def test_no_question_is_allowed_to_be_a_dead_end() -> None:
+    """"usa openui para esta respuesta" -> "no puedo comprender la pregunta"."""
+    for grounding in ("chunks", "document", "general"):
+        for prompt in (
+            admin_system_prompt(grounding),
+            admin_system_prompt(grounding, org_data=True),
+        ):
+            assert "no puedo comprender la pregunta" in prompt
+            assert "Nunca escribas" in prompt
+    # An instruction about the shape of the answer is answered, not refused.
+    persona = admin_system_prompt("general")
+    assert "instruccion sobre el FORMATO" in persona
+
+
+def test_the_context_is_never_the_answer() -> None:
+    """Measured live on the first fix of the dead-end: telling the model not to refuse
+    *"usa openui para esta respuesta"* got it to paste the entire platform data block and
+    both documents into the bubble instead.
+
+    Trading a refusal for a context dump is not a fix — it is the same non-answer, at
+    four kilobytes, with five employees' records in it. So "do not stall" and "do not
+    empty the context onto the screen" have to be stated together, and a format
+    instruction with no subject is a question to ask back, not an order to fill.
+    """
+    for prompt in (
+        admin_system_prompt("document"),
+        admin_system_prompt("document", org_data=True),
+    ):
+        assert "No copias NUNCA, tal cual, el bloque de datos" in prompt
+        assert "no es responder, es vaciarlo en la pantalla" in prompt
+        assert "no te dicen SOBRE QUE" in prompt
+
+
 def test_the_prompt_tells_the_model_the_private_half_is_not_missing_but_withheld() -> None:
     """So "no lo tengo" is answered as policy, not as a gap to be filled by guessing."""
     prompt = admin_system_prompt("document", org_data=True)
@@ -136,6 +196,42 @@ def test_a_farewell_is_its_own_reply(message: str) -> None:
 @pytest.mark.parametrize(
     "message",
     [
+        "quien eres",
+        "¿Quién eres?",
+        "  QUE ERES  ",
+        "que puedes hacer",
+        "para que sirves",
+        "ayuda",
+        "en que me puedes ayudar",
+        "como funcionas",
+        "who are you",
+    ],
+)
+def test_asking_the_assistant_about_itself_is_answered_here(message: str) -> None:
+    """Reported: *"quien eres"* -> *"No consta la informacion de identidad del
+    administrador de la plataforma SkillNet."*
+
+    It searched the org snapshot for the admin's identity. The assistant is the one thing
+    in the turn that is not in the snapshot, so the question never gets there.
+    """
+    assert classify_small_talk(message) == "identity"
+
+
+def test_the_identity_reply_says_what_it_is_what_it_does_and_what_it_will_not_do() -> None:
+    reply = small_talk_reply("quien eres") or ""
+
+    assert "asistente de SkillNet" in reply
+    assert "empleados" in reply
+    # The two honest limits, said before anyone has to discover them.
+    assert "privadas" in reply
+    assert "no me invento" in reply
+    # Not the greeting: "hola" and "quien eres" are different questions.
+    assert reply != small_talk_reply("hola")
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
         "hola, como van mis empleados",
         "que tal va el curso de alergenos",
         "gracias, y quien no ha empezado?",
@@ -143,12 +239,35 @@ def test_a_farewell_is_its_own_reply(message: str) -> None:
         "buenas, necesito el listado de plazos",
         "",
         "   ",
+        # Near misses of the identity table that are real questions about the data.
+        "quien eres tu para Lucia",
+        "que puedo hacer con Aitana",
+        "que puedes hacer con los cursos sin publicar",
+        "ayuda a Lucia",
+        "para que sirve el curso de alergenos",
     ],
 )
 def test_a_real_question_is_never_answered_from_the_can(message: str) -> None:
     """Too narrow costs one greeting to the model. Too wide costs a real answer."""
     assert classify_small_talk(message) is None
     assert small_talk_reply(message) is None
+
+
+async def test_asking_who_it_is_costs_nothing_and_never_reaches_the_data(
+    monkeypatch,
+) -> None:
+    """Zero tokens, zero snapshot queries, and it cannot say "no consta"."""
+    llm = _RecordingLLM()
+    events, repo, seen = await _run_admin(monkeypatch, llm, message="quien eres")
+    answer = "".join(data["content"] for name, data in events if name == "token")
+
+    assert llm.calls == []
+    assert llm.completions == 0
+    assert seen == {}  # the snapshot was never assembled
+    assert "No consta" not in answer
+    assert "asistente de SkillNet" in answer
+    assert repo.messages[-1].content == answer
+    assert repo.messages[-1].message_metadata["small_talk"] is True
 
 
 def test_the_greeting_reply_says_what_the_assistant_can_do() -> None:
@@ -351,6 +470,29 @@ async def test_a_greeting_never_reaches_the_provider(monkeypatch) -> None:
 async def test_a_greeting_does_not_pay_for_a_snapshot_either(monkeypatch) -> None:
     _, _, seen = await _run_admin(monkeypatch, _RecordingLLM(), message="hola")
     assert "org_id" not in seen
+
+
+@pytest.mark.parametrize("message", ["hola", "quien eres", "gracias"])
+async def test_a_canned_answer_does_not_pay_for_a_layout_call_either(
+    monkeypatch, message: str
+) -> None:
+    """Zero tokens means zero, on both calls.
+
+    Caught live: the identity reply is comfortably longer than ``MIN_LAYOUT_CHARS``, so
+    the moment the admin path started laying out, the one question guaranteed never to
+    reach a provider began emitting ``layout_start`` and paying for a second call to
+    reformat a string this repository wrote itself.
+    """
+    llm = _RecordingLLM()
+    service, user, _ = _service(monkeypatch, llm)
+    service.generative_ui = True
+    events = _events(
+        [event async for event in service.stream_admin(user, message, None, None)]
+    )
+
+    assert llm.completions == 0
+    assert "layout_start" not in [name for name, _ in events]
+    assert [name for name, _ in events][-1] == "done"
 
 
 async def test_a_greeting_still_closes_the_stream_the_way_every_turn_does(

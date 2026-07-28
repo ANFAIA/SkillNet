@@ -171,7 +171,13 @@ CHAT_UI_RULES = f"""\
 
 
 def chat_ui_system() -> str:
-    """The generated artefact plus the chat overrides. Same catalogue as a node render."""
+    """The generated artefact plus the chat overrides. Same catalogue as a node render.
+
+    Kept, unused by ``ChatService`` since the chat moved to :data:`CHAT_SHAPES` below, for
+    the node runtime's sake: this is the text that documents what "author the program
+    yourself" asks of a model, and the rules in it are still the rules the node prompt
+    plays by. Deleting it would delete the comparison.
+    """
     return render_prompt().rstrip() + "\n" + CHAT_UI_RULES
 
 
@@ -185,14 +191,115 @@ def build_chat_ui_prompt(question: str, answer: str) -> str:
     )
 
 
+# --------------------------------------------------------------------------------------
+# The layout call, second attempt: classify + populate (2026-07-28)
+# --------------------------------------------------------------------------------------
+#: The shapes a chat answer can take. Five, closed, and the fifth is "none of these".
+#:
+#: **Why this replaced asking for a program.** Everything above asks the model to *author*
+#: OpenUI Lang: identifiers, a reference graph, arity, quoting, a line budget. Measured on
+#: this repository's own node-render bench (``bench_out/runs/*.json``, 22 runs against
+#: ``groq/llama-3.1-8b-instant`` and ``groq/openai/gpt-oss-120b``): 5 runs fell back to
+#: prose and 3 more needed the repair attempt, and **all ten validator errors in the
+#: failure dumps are markup-authoring errors** — named arguments (``Stack(children = ...)``),
+#: an accent inside a bare identifier, ``{`` for an object, twice the line cap. Not one is
+#: "the model picked the wrong block" or "the model got the content wrong". The model's
+#: judgement about *shape* was never the failing part; its typing was.
+#:
+#: So the model no longer types. It returns one JSON object naming a shape and filling
+#: that shape's fields, and ``src/services/chat_service.py`` writes the program. Every
+#: failure class above becomes unrepresentable rather than rejected. This is Curio's
+#: "classify + populate, never author markup" (``docs/ARCHITECTURE.md``), narrowed to the
+#: one place in SkillNet where the answer really does have five shapes.
+#:
+#: Curio splits it into two calls because it runs 1-4B models locally and a smaller schema
+#: fills better. Here it is **one** call returning a tagged union: the models are an order
+#: of magnitude larger, the layout is a second call the learner is already reading past,
+#: and doubling its latency and its rate-limit exposure to shrink a five-branch enum is
+#: the wrong trade. Splitting it later needs no change outside this module and the emitter.
+CHAT_SHAPES: tuple[str, ...] = ("steps", "table", "callout", "definition", "prose")
+
+#: Caps enforced **again** in the emitter. Stated here so the model aims inside them, and
+#: re-checked there because a prompt is a request and the emitter is the guarantee.
+MAX_STEPS = 7
+MAX_TABLE_COLUMNS = 4
+MAX_TABLE_ROWS = 8
+MAX_DEFINITION_POINTS = 6
+
+CHAT_LAYOUT_SYSTEM = f"""\
+Eres un maquetador. NO escribes codigo, ni HTML, ni ningun lenguaje de marcado. Devuelves
+UN objeto JSON y nada mas.
+
+Te dan una pregunta y la respuesta que el asistente acaba de dar. Tu unico trabajo es
+elegir que FORMA tiene esa respuesta y rellenar los campos de esa forma con texto que ya
+esta en ella.
+
+Reglas que no se negocian:
+- No anades informacion. No cambias ninguna cifra, ningun nombre, ninguna fecha y ningun
+  plazo. Si un dato no esta en la respuesta, no aparece en el JSON.
+- No copias los marcadores [Fuente N]: las fuentes se pintan aparte.
+- Escribes en el mismo idioma que la respuesta.
+- Si dudas entre una forma y "prose", eliges "prose". Maquetar por maquetar hace la
+  respuesta mas lenta y mas dificil de leer.
+
+Las cinco formas:
+
+1) "steps" — la respuesta es un procedimiento con pasos en orden.
+   {{"shape": "steps", "lead": "<una frase que resume la respuesta>",
+     "title": "<titulo corto del procedimiento>",
+     "steps": ["<paso 1>", "<paso 2>"]}}
+   Entre 2 y {MAX_STEPS} pasos. Un paso es una frase, no un parrafo.
+
+2) "table" — la respuesta compara dos o mas cosas, o son filas con las mismas columnas
+   (por ejemplo una persona por fila y su estado en columnas).
+   {{"shape": "table", "lead": "<una frase>",
+     "headers": ["<columna>", "<columna>"],
+     "rows": [["<celda>", "<celda>"]]}}
+   Entre 2 y {MAX_TABLE_COLUMNS} columnas y entre 2 y {MAX_TABLE_ROWS} filas. TODAS las
+   filas tienen exactamente tantas celdas como cabeceras.
+
+3) "callout" — la respuesta es UNA regla critica, un limite o una excepcion.
+   {{"shape": "callout", "lead": "<una frase>", "tone": "info" | "warn" | "success",
+     "text": "<la regla>"}}
+   "warn" si es un riesgo o una prohibicion, "success" si es una confirmacion, "info" en
+   el resto.
+
+4) "definition" — la respuesta define o enumera conceptos, cada uno con su explicacion.
+   {{"shape": "definition", "lead": "<una frase>", "title": "<titulo corto>",
+     "points": [{{"term": "<concepto>", "detail": "<que es>"}}]}}
+   Entre 2 y {MAX_DEFINITION_POINTS} puntos.
+
+5) "prose" — ninguna de las anteriores. Un parrafo suelto, una sola idea, una pregunta de
+   vuelta, o una respuesta que ya se lee bien tal cual.
+   {{"shape": "prose"}}
+
+Devuelve solo el objeto JSON."""
+
+
+def build_chat_layout_prompt(question: str, answer: str) -> str:
+    """The populate turn: the question asked and the answer that was just streamed."""
+    return (
+        f"Pregunta:\n{question}\n\n"
+        f"Respuesta que se acaba de dar:\n{answer}\n\n"
+        "Elige la forma de esa respuesta y rellena sus campos. Solo el JSON."
+    )
+
+
 __all__ = [
     "ADMIN_PERSONA",
+    "CHAT_LAYOUT_SYSTEM",
+    "CHAT_SHAPES",
     "CHAT_UI_RULES",
+    "MAX_DEFINITION_POINTS",
+    "MAX_STEPS",
+    "MAX_TABLE_COLUMNS",
+    "MAX_TABLE_ROWS",
     "NO_UI_SENTINEL",
     "TUTOR_PERSONA",
     "TUTOR_PROMPT_VERSION",
     "Grounding",
     "admin_system_prompt",
+    "build_chat_layout_prompt",
     "build_chat_ui_prompt",
     "build_user_turn",
     "chat_ui_system",
