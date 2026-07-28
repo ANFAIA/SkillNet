@@ -10,9 +10,9 @@ import type { EnrollmentRead } from '../../types'
 type Tab = 'in_progress' | 'completed' | 'not_started'
 
 const tabs: { key: Tab; label: string }[] = [
+  { key: 'not_started', label: 'Pendientes' },
   { key: 'in_progress', label: 'En progreso' },
   { key: 'completed', label: 'Completados' },
-  { key: 'not_started', label: 'Pendientes' },
 ]
 
 const statusLabel: Record<string, string> = {
@@ -48,18 +48,18 @@ function subtitleFor(e: EnrollmentRead): string {
 }
 
 export function MyCourses() {
-  const [activeTab, setActiveTab] = useState<Tab>('in_progress')
+  const [activeTab, setActiveTab] = useState<Tab>('not_started')
   const navigate = useNavigate()
   const { data, isLoading, error } = useEnrollments()
 
   const items = data?.items ?? []
-  const filtered = items.filter((e) =>
-    activeTab === 'completed'
-      ? e.status === 'completed'
-      : activeTab === 'in_progress'
-        ? e.status === 'in_progress' || e.status === 'overdue'
-        : e.status === 'not_started' || e.status === 'assigned',
-  )
+  const filtered = items.filter((e) => {
+    const done = e.status === 'completed' || (e.progress ?? 0) >= 1.0
+    if (activeTab === 'completed') return done
+    if (activeTab === 'in_progress')
+      return !done && (e.status === 'in_progress' || e.status === 'overdue')
+    return !done && (e.status === 'not_started' || e.status === 'assigned')
+  })
 
   return (
     <div>
