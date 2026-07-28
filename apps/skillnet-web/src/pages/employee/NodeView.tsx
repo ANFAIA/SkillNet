@@ -41,8 +41,7 @@ import type { UiFormat } from '../../types/node-render'
  * 2. **A stable frame** (§5.5). Title, progress and the previous/next buttons never move.
  *    `NodeSkeleton` reserves the content area so the footer does not jump when the
  *    program lands, and the content itself is the *pinned* render: answering an item or
- *    coming back tomorrow returns the same bytes. The only thing that changes it is the
- *    "Actualizar esta leccion" button in `RenderControls`.
+ *    coming back tomorrow returns the same bytes.
  *
  *    The reservation is also *released* rather than dropped: `RESERVED_CONTENT_PX`
  *    animates to zero on the arriving content, so a lesson shorter than the skeleton
@@ -273,25 +272,6 @@ export function NodeView() {
     [events],
   )
 
-  // --- controls ---------------------------------------------------------------
-
-  const onRefresh = useCallback(() => {
-    if (!served) return
-    // Hold the program that is about to be replaced: it is the "version anterior" the
-    // learner can go back to (there is no endpoint that serves a render by id).
-    setHeld((prev) => ({
-      ...prev,
-      [served.render_id]: { program: served.program, format: served.ui_format },
-    }))
-    setViewingRenderId(null)
-    setRefreshing(true)
-    setAdapted(true)
-    setStreamFailure(null)
-    stream.reset()
-    requestedRef.current = false
-    startRender({ force: true })
-  }, [served, stream, startRender])
-
   // --- frame ------------------------------------------------------------------
 
   const openingLine = openingLineFor(profile)
@@ -332,36 +312,18 @@ export function NodeView() {
   }
 
   const notReviewed = isNodeNotReviewed(render.error) || isNodeNotReviewed(requestRender.error)
-  const viewingHeld = viewingRenderId ? held[viewingRenderId] : undefined
-  const shownProgram = viewingHeld?.program ?? served?.program ?? null
-  const shownFormat = viewingHeld?.format ?? served?.ui_format ?? null
+  const shownProgram = served?.program ?? null
+  const shownFormat = served?.ui_format ?? null
+
+  const arriving = !reduceMotion
 
   /**
-   * A program that is being shown for the first time arrives; a held previous version
-   * does not. Going back to something you already read is not an event, and animating
-   * it would say it was.
-   *
-   * The lesson always replaces an empty box — `GET /render` is a request even on a
-   * cache hit, so the skeleton is on screen first in every path — which is why there
-   * is no "was it instant?" test here. What differs is only how long the box was empty.
-   */
-  const arriving = !viewingHeld && !reduceMotion
-
-  /**
-   * ...but only the *first* program released the reserved height, and only that one
-   * should animate it back. A regeneration replaces a lesson that was already sitting
-   * at its natural height: re-reserving 22 rem there would grow the card and then
-   * shrink it, which is the jump this whole mechanism exists to remove.
+   * Only the *first* program releases the reserved height, and only that one should
+   * animate it back.
    */
   const fromSkeleton = !programShownBefore.current
 
-  /**
-   * The subtree remounts when the program does. Without it the CSS entrance would not
-   * re-run on a regeneration (a CSS animation fires on element creation, and the vendor
-   * runtime reuses the same DOM node when only the text changed) — and keeping a
-   * replaced item's local answer state alive is worse than losing it.
-   */
-  const shownKey = viewingHeld ? `held:${viewingRenderId}` : (served?.render_id ?? 'none')
+  const shownKey = served?.render_id ?? 'none'
 
   return (
     <div className="space-y-6">
@@ -445,10 +407,7 @@ export function NodeView() {
                   <UiSpecRenderer
                     program={shownProgram}
                     nodeId={node.id}
-                    // A held previous version is read-only: its items belong to a render
-                    // that is no longer pinned, so an answer against it would be graded
-                    // against a screen the learner is not looking at.
-                    renderId={viewingHeld ? undefined : served?.render_id}
+                    renderId={served?.render_id}
                     format={shownFormat ?? undefined}
                     arriving={arriving}
                   />
@@ -462,8 +421,7 @@ export function NodeView() {
               />
             )}
 
-
-            {served && !viewingHeld && <NodeFeedback nodeId={node.id} />}
+            {served && <NodeFeedback nodeId={node.id} />}
           </>
         )}
       </Card>
