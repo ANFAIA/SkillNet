@@ -154,6 +154,47 @@ def _check_value(prop: PropSpec, value: Any, signature: str = "") -> str | None:
     return None
 
 
+def _table_shape_errors(component: Component) -> list[str]:
+    """A ``Table`` whose rows do not line up with its headers.
+
+    ``PropKind.STRING_MATRIX`` only checks that ``rows`` is a list of lists of strings, so
+    until 2026-07-28 a table could declare one header and hand back a single row holding
+    fourteen cells — and the gate would serve it. That is not a hypothetical: it is what
+    the real ``Los catorce alergenos obligatorios`` node produced when it was told to use
+    one column, and it paints as one row running off the side of the screen.
+
+    Reported per component with both numbers in the message, because "row 1 has 14 cells
+    and there is 1 header" is a repair the model can make in one attempt, while a silently
+    broken table is a screen nobody finds until an employee is looking at it.
+    """
+    if component.type != "Table":
+        return []
+    headers = component.props.get("headers")
+    rows = component.props.get("rows")
+    if not isinstance(headers, list) or not isinstance(rows, list):
+        return []  # already reported by the kit's own type check
+    width = len(headers)
+    if width == 0:
+        return [
+            f"component {component.id!r}: Table needs at least one header"
+        ]
+    problems: list[str] = []
+    for index, row in enumerate(rows, start=1):
+        if not isinstance(row, list):
+            continue  # the kit's STRING_MATRIX check owns this one
+        if len(row) != width:
+            problems.append(
+                f"component {component.id!r}: row {index} of the Table has "
+                f"{len(row)} cells but there {'is' if width == 1 else 'are'} "
+                f"{width} header{'' if width == 1 else 's'}. Every row is its own "
+                "array with one cell per header — a one-column table is "
+                '[["a"], ["b"], ["c"]], not [["a", "b", "c"]]'
+            )
+    # One message is enough to fix all of them, and N of them would crowd out every other
+    # error in a repair prompt that has exactly one attempt to spend.
+    return problems[:1]
+
+
 class Component(BaseModel):
     """One node of the flat list. ``children`` is the refs array, never a prop."""
 
@@ -217,6 +258,8 @@ class Component(BaseModel):
             )
         if not all(isinstance(child, str) and _ID_RE.match(child) for child in self.children):
             errors.append(f"component {self.id!r}: children must be component ids")
+
+        errors.extend(_table_shape_errors(self))
 
         # Rule 6: no HTML in props.text.
         text = self.props.get("text")

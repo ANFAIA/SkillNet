@@ -64,6 +64,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import collections
 import contextvars
 import json
 import math
@@ -106,10 +107,16 @@ from src.models import (  # noqa: E402
     NodeState,
     UiFormat,
 )
+from src.render.kit import LLM_COMPONENT_NAMES  # noqa: E402
 
 # --------------------------------------------------------------------------------------
 # Diales del propio banco
 # --------------------------------------------------------------------------------------
+
+#: Los bloques que el modelo PUEDE emitir — el denominador de la cobertura de catalogo.
+#: ``Markdown`` queda fuera a proposito: ``llm_emittable`` es falso y solo lo escribe
+#: ``fallback_seed``, asi que contarlo premiaria justo el desenlace que no queremos.
+EMITTABLE_BLOCKS: tuple[str, ...] = LLM_COMPONENT_NAMES
 
 #: El User-Agent por defecto de Python recibe **403 de Groq** (medido). Cualquier cadena
 #: identificable sirve; lo que no sirve es no poner ninguna.
@@ -1360,6 +1367,10 @@ class RunResult:
     steps: list[str]
     cache_key: str
     reason: str = ""
+    #: Tipos de bloque del spec que REALMENTE se sirvio, uno por aparicion. Es la medida
+    #: que faltaba: un render valido con tres TextContent seguidos pasa todas las demas
+    #: columnas y aun asi es la pantalla que el dueno rechazo.
+    block_types: list[str] = field(default_factory=list)
 
 
 async def run_one(
@@ -1489,7 +1500,28 @@ def _classify(
         steps=list(recorder.steps),
         cache_key=recorder.cache_key,
         reason=reason[:400],
+        block_types=_block_types(render),
     )
+
+
+def _block_types(render: NodeRender | None) -> list[str]:
+    """Los tipos de bloque del ``ui_spec`` persistido, uno por aparicion.
+
+    Se lee de la fila y no del estado del grafo a proposito: la fila lleva el spec
+    **canonico**, el que ``gate.canonicalize`` re-serializo y el unico que llega al
+    navegador. Un intento rechazado no cuenta aunque hubiera usado un Table precioso.
+    """
+    spec = getattr(render, "ui_spec", None)
+    if not isinstance(spec, dict):
+        return []
+    components = spec.get("components")
+    if not isinstance(components, list):
+        return []
+    return [
+        str(component.get("type"))
+        for component in components
+        if isinstance(component, dict) and component.get("type")
+    ]
 
 
 _INFRA_MARKERS = (
@@ -1598,11 +1630,19 @@ class Aggregate:
     tokens_out: list[int] = field(default_factory=list)
     cost: float = 0.0
     cost_known: bool = True
+    #: Cuantas veces aparecio cada tipo de bloque en los specs servidos.
+    blocks: collections.Counter[str] = field(default_factory=collections.Counter)
+    #: Tipos distintos por render, para poder decir "una pantalla usa 2,1 tipos de media"
+    #: ademas de "la tanda entera toco 3 de 9".
+    distinct_per_run: list[int] = field(default_factory=list)
 
     def add(self, run: RunResult) -> None:
         self.runs += 1
         setattr(self, run.outcome, getattr(self, run.outcome) + 1)
         self.seconds.append(run.seconds)
+        if run.block_types:
+            self.blocks.update(run.block_types)
+            self.distinct_per_run.append(len(set(run.block_types)))
         if run.tokens_in is not None:
             self.tokens_in.append(run.tokens_in)
         if run.tokens_out is not None:
@@ -1616,6 +1656,15 @@ class Aggregate:
     def graded(self) -> int:
         """Ejecuciones que dicen algo sobre la calidad (sin fallos de infraestructura)."""
         return self.first_pass + self.repaired + self.fallback
+
+    @property
+    def types_used(self) -> list[str]:
+        """Tipos emitibles que aparecieron al menos una vez, en el orden del catalogo."""
+        return [name for name in EMITTABLE_BLOCKS if self.blocks.get(name)]
+
+    @property
+    def types_unused(self) -> list[str]:
+        return [name for name in EMITTABLE_BLOCKS if not self.blocks.get(name)]
 
     def rate(self, field_name: str) -> float:
         base = self.graded
@@ -1647,6 +1696,18 @@ class Aggregate:
             "cost_usd_per_run": round(self.cost / self.runs, 6)
             if self.cost_known and self.runs
             else None,
+            # --- cobertura del catalogo (§5.3) ---------------------------------
+            "distinct_block_types": len(self.types_used),
+            "block_type_coverage_pct": round(
+                100.0 * len(self.types_used) / len(EMITTABLE_BLOCKS), 1
+            ),
+            "mean_distinct_types_per_render": round(
+                statistics.fmean(self.distinct_per_run), 2
+            )
+            if self.distinct_per_run
+            else None,
+            "block_types": dict(self.blocks.most_common()),
+            "block_types_unused": self.types_unused,
         }
 
 
@@ -1680,6 +1741,37 @@ def _num(value: Any) -> str:
     return "n/d" if value is None else f"{value:.0f}"
 
 
+def print_coverage(total: Aggregate) -> None:
+    """Que parte del catalogo se uso de verdad.
+
+    Esta seccion existe por un fallo que ninguna de las columnas de arriba veia. El nodo
+    de los catorce alergenos salio ``ready``, a la primera segun la fila, con cuatro
+    bloques validos — y era un parrafo con catorce cosas separadas por comas, porque el
+    modelo solo habia usado ``TextContent`` y ``Callout``. Un render puede ser
+    perfectamente valido y aun asi ser la pantalla equivocada, y "3 de 9" es el numero que
+    lo dice en voz alta.
+    """
+    used = total.types_used
+    print()
+    print(
+        f"Cobertura del catalogo: {len(used)} de {len(EMITTABLE_BLOCKS)} tipos emitibles "
+        f"({100.0 * len(used) / len(EMITTABLE_BLOCKS):.0f} %)"
+    )
+    if total.distinct_per_run:
+        print(
+            f"  Tipos distintos por pantalla (media): "
+            f"{statistics.fmean(total.distinct_per_run):.2f}"
+        )
+    total_blocks = sum(total.blocks.values()) or 1
+    for name in EMITTABLE_BLOCKS:
+        count = total.blocks.get(name, 0)
+        share = 100.0 * count / total_blocks
+        mark = "  " if count else "->"
+        print(f"  {mark} {name:<14} {count:>4}  {share:>5.1f} %")
+    if total.types_unused:
+        print(f"  Sin usar ni una vez: {', '.join(total.types_unused)}")
+
+
 def print_comparison(current: dict, previous: dict | None) -> None:
     if previous is None:
         print(
@@ -1701,6 +1793,8 @@ def print_comparison(current: dict, previous: dict | None) -> None:
         ("latencia p95", "p95_seconds", "s", 2, False),
         ("tokens de salida (media)", "mean_tokens_out", "", 0, False),
         ("coste por render", "cost_usd_per_run", " USD", 6, False),
+        ("tipos de bloque usados", "distinct_block_types", f"/{len(EMITTABLE_BLOCKS)}", 0, True),
+        ("tipos por pantalla (media)", "mean_distinct_types_per_render", "", 2, True),
     )
     for label, key, unit, digits, higher_is_better in rows:
         old = before.get(key)
@@ -2078,6 +2172,7 @@ async def run_bench(args: argparse.Namespace) -> int:
         total.add(run)
 
     print_table(per_encargo, total)
+    print_coverage(total)
 
     if stats.rate_limited or stats.exhausted:
         print(

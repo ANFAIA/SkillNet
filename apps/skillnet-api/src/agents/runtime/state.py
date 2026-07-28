@@ -39,6 +39,13 @@ class NodeRuntimeState(TypedDict, total=False):
     ui_format: Literal["explanation", "simulation", "exercise", "chart", "mixed"]
     tier: Literal["fast", "heavy"]
     format_rationale: str
+    #: What ``src/agents/runtime/shape.py`` found in *this node's* section of the source:
+    #: one instruction per structure, already naming the kit block that renders it. Written
+    #: by ``decide_formato`` and read by ``genera_ui``; it is a property of the node, never
+    #: of the learner, which is what makes it safe during the calibration period (§6.4).
+    shape_hints: list[str]
+    #: One line of evidence for the log and the rationale — never for a prompt.
+    shape_summary: str
 
     # --- Generation ---
     backend: str  # "openui" (the only dialect in this PR)

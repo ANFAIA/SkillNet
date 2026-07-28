@@ -1597,13 +1597,76 @@ _REPAIR_BAD = (
 
 
 def test_the_repair_prompt_pairs_every_mistake_with_its_correction() -> None:
-    """A named counterexample beats a rule in prose for a small model (§4.2)."""
+    """A named counterexample beats a rule in prose for a small model (§4.2).
+
+    Counted exactly rather than as ``>= 1``: an unpaired MAL is a counterexample that
+    teaches the mistake and never shows the fix, and it is the kind of thing that survives
+    a careless edit. The repair system prompt is the header **plus the whole generator
+    tail**, so the total spans both — four in the header (the three of ``_REPAIR_BAD`` and
+    the accented id) and one in the tail (SkillNet 17's bare array declaration).
+    """
     system = ui_repair_system()
-    assert system.count("MAL") == len(_REPAIR_BAD) + 1  # + the accented-id one
+    assert system.count("MAL") == len(_REPAIR_BAD) + 2
     assert system.count("BIEN") == system.count("MAL")
     assert "argumentos con nombre" in system
     assert "tilde en el id" in system
     assert "la clave como declaracion" in system
+
+
+def test_the_generator_prompt_forbids_the_two_habits_the_baseline_measured() -> None:
+    """SkillNet 17 and 18, and that they are not merely asserted but demonstrated.
+
+    Both come from the 30-render baseline of 2026-07-28: three rejections of
+    ``expected a component name after '=', found '['`` (a bare ``opciones = [...]``
+    declaration) and five of ``duplicate component id``.
+    """
+    backend = get_render_backend("openui")
+    system = ui_generator_system()
+
+    assert 'opciones = ["A", "B"]' in system
+    assert "Cada id se declara UNA sola vez" in system
+
+    # The MAL half really is refused...
+    with pytest.raises(RenderError):
+        canonicalize(
+            'root = Stack([q1], "md")\n'
+            'opciones = ["A", "B"]\n'
+            'q1 = QuizItem("q1", "test", "apply", "Cual?", opciones)\n',
+            ui_format="exercise",
+            backend=backend,
+        )
+    # ...and the BIEN half really is accepted.
+    spec = backend.parse(
+        'root = Stack([q1], "md")\n'
+        'q1 = QuizItem("q1", "test", "apply", "Cual?", ["A", "B"])\n',
+        ui_format="exercise",
+    )
+    assert spec.root == "root"
+
+
+def test_the_node_criticality_never_travels_as_its_enum_token() -> None:
+    """The largest single failure class of the 2026-07-28 baseline, and its cause.
+
+    Eight renders were refused for ``prop 'tone' must be one of: info, warn, success``
+    having received ``'critical'``, ``'recommended'`` or ``'contextual'`` — the
+    ``NodeCriticality`` values, which the prompt was printing verbatim on a line reading
+    ``- Criticidad: critical``. The model copied the only enum-shaped word it could see
+    into the only enum slot it had. ``SkillNet 16`` forbade it in words and did not stop
+    it; deleting the token did.
+    """
+    for criticality in ("critical", "recommended", "contextual"):
+        prompt = build_ui_prompt(
+            title="T", summary="S", criticality=criticality, ui_format="explanation"
+        )
+        assert f"Criticidad: {criticality}" not in prompt
+        assert criticality not in prompt
+
+    # It still travels — as behaviour, which is the whole point of removing the label.
+    critical = build_ui_prompt(
+        title="T", summary="S", criticality="critical", ui_format="explanation"
+    )
+    assert "obligado cumplimiento" in critical
+    assert 'Callout("warn"' in critical
 
 
 def test_the_repair_prompt_no_longer_teaches_the_one_line_rule() -> None:

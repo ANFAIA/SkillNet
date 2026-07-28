@@ -37,15 +37,27 @@ from functools import cache
 from typing import Any
 
 from src.render.prompt import render_prompt
+from src.render.spec import FORMATS_REQUIRING_LEAD
 
 #: Bumped whenever any prompt in this module changes in a way that changes output.
-#: Enters the ``cache_key`` (§3.4). ``runtime/3`` (2026-07-27): the closing line of
-#: ``build_ui_prompt`` stopped contradicting the answer-key protocol, the generator tail
-#: gained SkillNet 14 (ASCII ids), 15 (an inline block is a block) and 16 (a Callout tone
-#: is not the node's criticality), the length budget stopped asking for more blocks than
-#: rule 6 allows, and the repair header swapped its false "one call per line"
-#: counterexample for the two the corpus actually measured.
-PROMPT_VERSION = "runtime/3"
+#: Enters the ``cache_key`` (§3.4). ``runtime/4`` (2026-07-28): the generator prompt stopped
+#: leaving the choice of block to the model's taste. It now carries a content-to-block map
+#: with worked examples (:data:`_BLOCK_CHOICE`), SkillNet 15 stopped offering the flattened
+#: paragraph as a peer of ``Table``/``StepSequence``, and ``build_ui_prompt`` grew a
+#: ``LA FORMA DEL MATERIAL`` section fed by ``src/agents/runtime/shape.py``.
+#:
+#: The measurement behind it: the first node of the seeded ``Alergenos`` course served the
+#: fourteen mandatory allergens as one comma-separated sentence, and the same brief on the
+#: bench was refused for emitting **19 components** — one per allergen. Both are the same
+#: gap, which is that nothing ever told the model that a list of N things is one ``Table``.
+#: Across every render in ``node_renders`` the model had used 3 of the 9 emittable blocks.
+#:
+#: The same bump also carries the three fixes the 30-render baseline of that date made
+#: visible, in descending order of how often they cost a repair: the node's criticality
+#: stopped travelling as its bare enum token (:data:`_CRITICALITY_RULES` — 8 rejections,
+#: the largest single class), and SkillNet 17 and 18 name the two syntax habits behind the
+#: rest (a bare ``opciones = [...]`` declaration, and the same id declared twice).
+PROMPT_VERSION = "runtime/4"
 
 # --- budgets (§4.2) ----------------------------------------------------------------
 
@@ -113,6 +125,44 @@ _SCAFFOLD_RULES: dict[str, str] = {
         "ni repitas definiciones; esta persona ya demostro que lo domina."
     ),
 }
+
+#: Node criticality, stated as behaviour and **never as its label**.
+#:
+#: This is the highest-frequency validation failure on record, and the prompt was causing
+#: it. Measured over the 30-render baseline of 2026-07-28: eight rejections of the form
+#: ``prop 'tone' must be one of: info, warn, success (got 'critical')`` — also ``'recommended'``
+#: and ``'contextual'``. All three are the ``NodeCriticality`` enum, and the user prompt was
+#: handing the model the bare token on a line reading ``- Criticidad: critical``, four lines
+#: above a catalogue entry whose first argument is an enum. The model was not hallucinating
+#: a tone; it was copying the only enum-shaped word in front of it into the only enum slot
+#: it had.
+#:
+#: ``SkillNet 16`` was written to forbid exactly this and did not stop it, which is the
+#: lesson: a prohibition in the system prompt does not out-argue a concrete token in the
+#: user prompt. Removing the token is what removes the failure. It also costs nothing —
+#: criticality still travels, as the behaviour it is supposed to cause, which is the same
+#: pattern :data:`_SCAFFOLD_RULES` and :data:`_ERROR_RULES` already use in this module.
+_CRITICALITY_RULES: dict[str, str] = {
+    "critical": (
+        "Este nodo es de obligado cumplimiento y equivocarse tiene consecuencias reales. "
+        "Si la fuente marca un limite, una prohibicion o un caso en que hay que parar, "
+        'dale su propio aviso con Callout("warn", "..."). Uno, no tres.'
+    ),
+    "recommended": (
+        "Nodo recomendado: explica bien y no dramatices. Un Callout solo si la fuente "
+        "senala de verdad una excepcion."
+    ),
+    "contextual": (
+        "Nodo de contexto: no hace falta ningun aviso salvo que la fuente lo pida."
+    ),
+}
+
+
+def _criticality_rule(criticality: str) -> str:
+    return _CRITICALITY_RULES.get(
+        str(criticality).strip().lower(), _CRITICALITY_RULES["recommended"]
+    )
+
 
 #: How ``last_error_kind`` changes the next screen (§7.4).
 _ERROR_RULES: dict[str, str] = {
@@ -190,6 +240,7 @@ def build_format_prompt(
     consecutive_failed: int = 0,
     last_error_kind: str | None = None,
     source_has_numbers: bool = False,
+    shape_summary: str = "",
 ) -> str:
     """The user prompt for ``decide_formato``.
 
@@ -209,6 +260,15 @@ def build_format_prompt(
             f"- Criticidad: {criticality}",
             f"- Formato por defecto que eligio el creador: {default_ui_format}",
             f"- La fuente contiene cifras representables: {'si' if source_has_numbers else 'no'}",
+        ]
+    )
+    if shape_summary:
+        # Read off the source by ``src/agents/runtime/shape.py``, not guessed by a model.
+        # It is the only evidence in this prompt about what the material *is*, and it is
+        # what makes "chart" answerable rather than a coin flip.
+        parts.append(f"- Estructuras encontradas en la fuente: {shape_summary}")
+    parts.extend(
+        [
             "",
             "APRENDIZ",
             f"- Puesto: {role_title or 'sin declarar'}",
@@ -233,8 +293,48 @@ def build_format_prompt(
 
 # --- genera_ui ---------------------------------------------------------------------
 
-_UI_GENERATOR_TAIL = f"""
+#: Which block for which content, with the call written out.
+#:
+#: This section is the fix for the defect that made the owner reject the product on
+#: 2026-07-28, and every line of it is a measurement rather than a preference.
+#:
+#: The catalogue the generated artefact ships lists nine components and one worked example,
+#: and that example is ``Stack`` + ``TextContent`` + ``StepSequence`` + ``QuizItem``. So the
+#: only blocks the model has ever *seen used* are prose blocks, and the only guidance on
+#: choosing between the other six is the artefact's own "choose components that best
+#: represent the content" — which is advice, not an instruction, and an 8B model does not
+#: act on advice. Measured across the whole ``node_renders`` table: ``Stack``,
+#: ``TextContent`` and ``Callout``. Three of nine. ``Table`` never once.
+#:
+#: The rule is stated as a *mapping* and not as a list of components because the model's
+#: failure was never "did not know Table exists" — ``Table`` is in the signatures block it
+#: is given every single time. The failure was not connecting "fourteen allergens" to it.
+#: Deliberately terse, and that is a constraint and not a style. Measured on Groq's free
+#: tier: the ``genera_ui`` request already averages ~5 250 input tokens against a 6 000
+#: tokens-per-minute ceiling, and a rejected request still reserves its estimate, so a
+#: prompt that grows toward the ceiling stops fitting *at all* and every retry keeps the
+#: bucket full. The first draft of this section ran to ~420 tokens and wedged the heavy
+#: tier completely. What survives is the part that carries the instruction — the mapping
+#: and three written-out calls — with the prose around it deleted.
+_BLOCK_CHOICE = """
+## SkillNet: que bloque para que contenido
 
+Elige el bloque por lo que ES el material. Un contenido en el bloque equivocado es una
+pantalla mal hecha aunque el programa sea valido.
+
+- LISTA de cosas (los N alergenos, los contenedores, los EPI por tarea) -> UN Table, una
+  fila por cosa; segunda columna solo si la fuente da un dato de cada una.
+  Table(["Alergeno", "Donde aparece"], [["Cereales con gluten", "Masa y bolleria"], ["Leche", "Hojaldre"]])
+- PROCEDIMIENTO en orden -> UN StepSequence de 2 a 7 pasos.
+  StepSequence("Uso del extintor", ["Quitar el pasador", "Apuntar a la base", "Barrer"])
+- CIFRAS comparables, y solo si estan en la fuente -> UN Chart.
+  Chart("bar", "Temperatura por camara", ["Carne", "Pescado"], [4, 2])
+- REGLA CRITICA o excepcion -> UN Callout. Bloques que se leen juntos -> UN Card.
+- TextContent es prosa: la frase de entrada y el matiz. NUNCA una lista.
+"""
+
+_UI_GENERATOR_TAIL = f"""
+{_BLOCK_CHOICE}
 ## SkillNet: tres reglas que el catalogo de arriba no dice
 
 - SkillNet 14 — El id de un bloque se escribe en ASCII, sin tildes ni enes: `conclusion`,
@@ -242,13 +342,20 @@ _UI_GENERATOR_TAIL = f"""
   aprendiz no lo ve nunca. Los TEXTOS entre comillas si llevan tildes: escribe el espanol
   correcto en todo lo que se lee.
 - SkillNet 15 — Un bloque escrito EN LINEA dentro del array de hijos de otro cuenta como
-  un bloque para el limite de 12. Una lista de N cosas es UN bloque, no N: un StepSequence,
-  un Table, o un solo TextContent cuyo texto lleve la enumeracion. Nunca un TextContent
-  por elemento.
+  un bloque para el limite de 12. Una lista de N cosas es UN bloque, no N: el Table o el
+  StepSequence de la seccion de arriba. Nunca un TextContent por elemento, y tampoco los N
+  elementos separados por comas dentro de un TextContent: eso cumple el limite y deshace
+  la lista, que es peor. Meter la lista en su bloque es lo que arregla las dos cosas.
 - SkillNet 16 — El PRIMER argumento de Callout es el tono, y solo hay tres: "info", "warn"
   y "success". La criticidad del nodo NO es un tono: "critical", "recommended" y
   "contextual" no valen ahi. Un nodo critical se avisa con Callout("warn", "..."), y el
   texto del aviso va en el SEGUNDO argumento, nunca en el primero.
+- SkillNet 17 — A la derecha del `=` va SIEMPRE una llamada a un bloque. No hay variables
+  sueltas; el array se escribe dentro del bloque que lo usa.
+  MAL:  opciones = ["A", "B"]
+  BIEN: q1 = QuizItem("q1", "test", "apply", "Cual?", ["A", "B"])
+- SkillNet 18 — Cada id se declara UNA sola vez, `root` incluido. Dos lineas con el mismo
+  id invalidan el programa: usa nombres distintos (`pregunta1`, `pregunta2`).
 
 ## SkillNet: la clave de respuestas
 
@@ -367,6 +474,7 @@ def build_ui_prompt(
     consecutive_correct: int = 0,
     tutor_signals: Sequence[str] = (),
     source_context: str = "",
+    shape_hints: Sequence[str] = (),
 ) -> str:
     """The user prompt for ``genera_ui``.
 
@@ -374,6 +482,13 @@ def build_ui_prompt(
     literally (§3.3, §6.2): they are what the examples get framed around, and the reason
     ``role_bucket`` is part of the ``cache_key``. ``goal`` and ``accessibility`` do not
     travel, by design.
+
+    ``shape_hints`` come from :func:`src.agents.runtime.shape.analyze_shape` and are the
+    one part of this prompt derived from reading the source rather than from describing
+    the learner. They are placed **immediately before** the source and after everything
+    else, because that is the last thing the model reads before the material itself, and
+    the ordering is the same reason :func:`_closing_line` exists: on an 8B model the
+    instruction nearest the content wins.
     """
     parts = [
         f"FORMATO QUE DEBES PRODUCIR: {ui_format}",
@@ -384,7 +499,9 @@ def build_ui_prompt(
     ]
     if outcome:
         parts.append(f"- Resultado esperado: {outcome}")
-    parts.append(f"- Criticidad: {criticality}")
+    # NOT ``- Criticidad: critical``. See ``_CRITICALITY_RULES``: the bare enum token on
+    # this line was being copied straight into ``Callout("critical", ...)``.
+    parts.append(f"- {_criticality_rule(criticality)}")
 
     parts.extend(
         [
@@ -419,6 +536,11 @@ def build_ui_prompt(
         if rule:
             parts.append(f"- {rule}")
 
+    shape_section = _shape_section(shape_hints, ui_format)
+    if shape_section:
+        parts.append("")
+        parts.extend(shape_section)
+
     parts.append("")
     if source_context.strip():
         parts.append("FUENTE (es la unica verdad; no anadas datos que no esten aqui)")
@@ -435,6 +557,38 @@ def build_ui_prompt(
 
 #: The formats whose screen carries a ``QuizItem``, and therefore an answer key.
 _FORMATS_WITH_QUIZ: frozenset[str] = frozenset({"exercise", "mixed"})
+
+
+def _shape_section(shape_hints: Sequence[str], ui_format: str) -> list[str]:
+    """The ``LA FORMA DEL MATERIAL`` block, or ``[]`` when the source had no structure.
+
+    Shared by the first turn and the repair turn: the material does not change between
+    them, and the repair is the turn where "those 14 items are one Table" matters most.
+
+    The closing line about the lead slot is not decoration. Measured end to end on the
+    real ``Los catorce alergenos obligatorios`` node the first time these hints ran: the
+    model obeyed the hint, opened the screen with the ``Table``, and was refused **twice**
+    for contract rule 7 — *"requires the first child of root to be a TextContent with
+    variant='lead' or a Callout. Got Table"* — and fell back to the seed lesson. The hints
+    sit last in the prompt precisely because the nearest instruction wins on an 8B model,
+    and that is exactly how they out-shouted a rule they were never meant to touch. Rule 7
+    is stated in the system prompt (``SkillNet 8``); it has to be restated *here*, next to
+    the instruction that competes with it, or the two keep fighting on every render.
+    """
+    hints = [str(hint).strip() for hint in shape_hints if str(hint).strip()]
+    if not hints:
+        return []
+    lines = [
+        "LA FORMA DEL MATERIAL (leido de la fuente, no es una preferencia de estilo)"
+    ]
+    lines.extend(f"- {hint}" for hint in hints)
+    if ui_format in FORMATS_REQUIRING_LEAD:
+        lines.append(
+            "- El PRIMER bloque de la pantalla sigue siendo la linea de entrada "
+            '(TextContent con variant "lead", o un Callout). El bloque de la lista va '
+            "DESPUES de esa linea, nunca el primero."
+        )
+    return lines
 
 
 def _closing_line(ui_format: str) -> str:
@@ -461,7 +615,11 @@ def _closing_line(ui_format: str) -> str:
 
 
 def build_repair_prompt(
-    *, previous: str, errors: Sequence[str], ui_format: str = "explanation"
+    *,
+    previous: str,
+    errors: Sequence[str],
+    ui_format: str = "explanation",
+    shape_hints: Sequence[str] = (),
 ) -> str:
     """The user prompt for the single repair attempt.
 
@@ -474,12 +632,22 @@ def build_repair_prompt(
     too, including on the turn whose *only* complaint was a missing answer key. Telling a
     model to fix a missing key and then telling it to send only the program is asking it
     to fail twice.
+
+    ``shape_hints`` are repeated here rather than assumed remembered. The single most
+    expensive rejection measured on real Groq is rule 4 with a large count —
+    ``alergenos-hosteleria`` came back with 19 components and ``atencion-reclamaciones``
+    with 23 declarations, both of them a list written as one block per item. "You have too
+    many blocks" tells the model to delete content; "those N items are one Table" tells it
+    what to do instead, and it is the only message that ends that loop in one attempt.
     """
     listed = "\n".join(f"- {error}" for error in errors) or "- programa invalido"
+    section = _shape_section(shape_hints, ui_format)
+    reminder = "\n".join(section) + "\n\n" if section else ""
     return (
         f"FORMATO QUE DEBES PRODUCIR: {ui_format}\n\n"
         "ERRORES DEL VALIDADOR:\n"
         f"{listed}\n\n"
+        f"{reminder}"
         "TU RESPUESTA ANTERIOR:\n"
         f"{previous}\n\n"
         f"Vuelve a emitir el programa completo y corregido. {_closing_line(ui_format)}"

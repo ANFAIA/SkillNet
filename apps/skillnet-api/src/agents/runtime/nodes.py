@@ -51,6 +51,7 @@ from src.agents.runtime.router import (
     tier_config,
     tier_llm,
 )
+from src.agents.runtime.shape import analyze_shape, focus_on_headings, refine_format
 from src.agents.runtime.state import NodeRuntimeState
 from src.core import sse
 from src.core.logging import get_logger
@@ -161,7 +162,14 @@ async def load_source_context(db: Any, node: CourseNode, org_id: uuid.UUID) -> s
         return ""
 
     if estimate_pages(document) <= FULL_TEXT_PAGE_THRESHOLD and document.full_text:
-        return clip_source(document.full_text)
+        # Scoped to the node's own headings, exactly like the chunked branch below.
+        # The asymmetry was invisible and expensive: a document of <= 5 pages went in
+        # WHOLE, so all three nodes of the seeded ``Alergenos`` course were handed the
+        # same text and the node about cross-contamination was asked to teach from the
+        # fourteen allergens as well. It also costs tokens where they are scarcest —
+        # ``genera_ui`` averages ~5 250 input tokens against a 6 000/min free-tier
+        # ceiling, and the whole document is most of that.
+        return clip_source(_scoped_full_text(document.full_text, node.source_headings))
 
     repo = DocumentChunkRepository(db)
     embedder = maybe_fixture_embedder(resolve_embedding_config(await _org_settings(db, org_id)))
@@ -196,6 +204,21 @@ async def load_source_context(db: Any, node: CourseNode, org_id: uuid.UUID) -> s
             self.content = content
 
     return clip_source(assemble_chunk_text([_Chunk(row["content"]) for row in rows]))
+
+
+#: A scoped section shorter than this is treated as a bad match and the whole document is
+#: kept. Narrowing to two sentences would starve the generator of the material it has to
+#: teach from, and ``SkillNet 13`` then leaves it nothing to say — a worse failure than
+#: carrying a few hundred tokens too many.
+MIN_SCOPED_SOURCE_CHARS = 200
+
+
+def _scoped_full_text(full_text: str, headings: Any) -> str:
+    """The node's own sections of a short document, or all of it when that is not safe."""
+    scoped = focus_on_headings(full_text, list(headings or ()))
+    if len(scoped.strip()) < MIN_SCOPED_SOURCE_CHARS:
+        return full_text
+    return scoped
 
 
 def split_answer_key(raw: str) -> tuple[str, dict]:
@@ -460,6 +483,21 @@ async def decide_formato(state: NodeRuntimeState) -> dict:
     would still cost a call, and the reason for the rule is pedagogical, not economic: the
     learner has to build a mental map before the interface starts moving (the lesson of
     Office 2000's adaptive menus).
+
+    **The shape of the material is read on every path, calibrating or not** (§4.2, defect
+    of 2026-07-28). Until then the calibration branch chose the screen with *zero*
+    knowledge of the content: ``default_ui_format`` is written by the schema agent when the
+    course is created and never looked at again. Measured on the seeded courses, that is
+    not a theoretical gap — ``Coordinacion con cocina y tiempos`` is declared ``chart`` and
+    its section writes every figure as a word ("doce minutos", "dieciocho"), so there is
+    not one digit for a chart to plot and the generator could only have invented them.
+
+    Reading the source here does not weaken the calibration rule, and it is worth being
+    precise about why: §6.4 freezes adaptation **to the learner**. A shape derived from the
+    node's own material is the same for every learner and on every visit, so the interface
+    still does not move under anyone. It also costs no call, which matters more than it
+    looks — the free tier's ceiling is tokens per minute, and a second call to pick a shape
+    would spend the quota the generation itself needs.
     """
     request_id = str(state["request_id"])
     node = state.get("node") or {}
@@ -469,10 +507,29 @@ async def decide_formato(state: NodeRuntimeState) -> dict:
     #: Empty during calibration: no call was made, so there is nothing to account for.
     decide_tokens: dict[str, int] = {}
 
+    plan = analyze_shape(
+        source_context=str(state.get("source_context") or ""),
+        summary=str(node.get("summary") or ""),
+        headings=list(node.get("source_headings") or ()),
+    )
+
     if is_calibrating(int(profile.get("nodes_completed") or 0)):
-        ui_format = default_format
+        ui_format, correction = refine_format(
+            default_format,
+            plan,
+            criticality=str(node.get("criticality") or "recommended"),
+        )
         tier = select_tier(ui_format)
         rationale = "calibracion: se usa el formato por defecto del nodo (§6.4)"
+        if correction:
+            rationale = f"calibracion, corregido: {correction}"
+            logger.info(
+                "Node %s declares default_ui_format=%r but %s; serving %r instead",
+                node.get("id"),
+                default_format,
+                correction,
+                ui_format,
+            )
     else:
         org_id = _uuid(state["org_id"])
         llm = await _make_llm(org_id, "fast")
@@ -493,6 +550,7 @@ async def decide_formato(state: NodeRuntimeState) -> dict:
             consecutive_failed=int(node_state.get("consecutive_failed") or 0),
             last_error_kind=node_state.get("last_error_kind"),
             source_has_numbers=_source_has_numbers(str(state.get("source_context") or "")),
+            shape_summary=plan.summary if plan else "",
         )
         started = time.monotonic()
         raw, usage = await llm.complete_with_usage(
@@ -546,6 +604,11 @@ async def decide_formato(state: NodeRuntimeState) -> dict:
         "ui_format": ui_format,
         "tier": tier,
         "format_rationale": rationale,
+        # Computed once here and carried, so `genera_ui` and its one repair attempt read
+        # the same analysis. Re-deriving it in the retry would re-scan the source for a
+        # result that cannot have changed.
+        "shape_hints": list(plan.hints(ui_format)),
+        "shape_summary": plan.summary,
         "current_step": "decide_formato",
         # Carried so `node_renders.tokens_*` is the cost of the *render*, not of one of the
         # two calls that produced it. `genera_ui` adds its own on top, retries included.
@@ -586,12 +649,15 @@ async def genera_ui(state: NodeRuntimeState) -> dict:
         node.get("criticality") or "recommended", node.get("mastery_threshold")
     )
 
+    shape_hints = list(state.get("shape_hints") or ())
+
     if retry:
         system = ui_repair_system()
         user_prompt = build_repair_prompt(
             previous=str(state.get("raw_dsl") or ""),
             errors=list(state.get("validation_errors") or []),
             ui_format=ui_format,
+            shape_hints=shape_hints,
         )
     else:
         system = ui_generator_system()
@@ -613,6 +679,7 @@ async def genera_ui(state: NodeRuntimeState) -> dict:
             consecutive_correct=int(node_state.get("consecutive_correct") or 0),
             tutor_signals=tuple(profile.get("tutor_signals") or ()),
             source_context=str(state.get("source_context") or ""),
+            shape_hints=shape_hints,
         )
 
     await publish_step(request_id, "genera_ui", STEP_MESSAGES["genera_ui"])
