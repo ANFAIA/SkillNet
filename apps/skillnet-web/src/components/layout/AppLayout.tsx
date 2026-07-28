@@ -26,9 +26,11 @@ function AppLayoutInner() {
             layout — most obvious on Empleados, where a long list scrolled inside a panel
             while the window stayed still. Nothing needed it: the sidebar is
             `fixed left-0 top-0 bottom-0` and the header is `fixed top-0`, so both stay
-            put under page scroll on their own. `overflow-x-hidden` stays, to stop a wide
-            child blowing out the layout sideways. */}
-        <main className="flex-1 mt-[50px] bg-bg md:rounded-tl-xl overflow-x-hidden">
+            put under page scroll on their own. `overflow-x-clip` and not `hidden`: per spec,
+            `overflow-x: hidden` forces the other axis from `visible` to `auto`, which
+            would quietly recreate the scroll container we just removed. `clip` does
+            not, and still stops a wide child blowing out the layout sideways. */}
+        <main className="flex-1 mt-[50px] bg-bg md:rounded-tl-xl overflow-x-clip">
           <ErrorBoundary
             fallback={(error, reset) => (
               <div className="p-4 md:p-6">

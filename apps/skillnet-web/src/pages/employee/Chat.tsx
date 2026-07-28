@@ -103,13 +103,17 @@ export function Chat() {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-50px-48px)]">
+    // No fixed height and no inner scroll: the log grows and the *page* scrolls.
+    // It used to be `h-[calc(100vh-50px-48px)]` with an `overflow-y-auto` log, which
+    // was a scroll box inside a page that now scrolls on its own — two scrollbars for
+    // one conversation. `endRef.scrollIntoView` keeps working; it just moves the page.
+    <div className="flex flex-col">
       <div className="mb-4">
         <h2 className="text-xl font-semibold text-text">Chat</h2>
         <p className="text-sm text-text-secondary mt-0.5">Pregunta sobre tus cursos y procedimientos</p>
       </div>
 
-      <div className="flex-1 overflow-y-auto space-y-4 pb-4">
+      <div className="space-y-4 pb-4">
         {messages.length === 0 && (
           <div className="text-center py-12 px-4">
             <p className="text-sm font-medium text-text">Hazme una pregunta</p>
@@ -124,7 +128,12 @@ export function Chat() {
         <div ref={endRef} />
       </div>
 
-      <form onSubmit={handleSubmit} className="flex gap-2 pt-4 border-t border-border">
+      {/* Sticky, so removing the inner scroll does not bury the composer at the bottom
+          of a long conversation. It stays on screen; the messages scroll behind it. */}
+      <form
+        onSubmit={handleSubmit}
+        className="sticky bottom-0 flex gap-2 py-4 border-t border-border bg-bg"
+      >
         <input
           type="text"
           value={input}
