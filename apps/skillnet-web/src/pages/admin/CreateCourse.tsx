@@ -31,13 +31,6 @@ function FileIcon() {
     </svg>
   )
 }
-function GridIcon() {
-  return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" />
-    </svg>
-  )
-}
 function EditIcon() {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -87,7 +80,6 @@ function StepSource({ selected, onSelect }: { selected: SourceType; onSelect: (s
   const sources: { key: SourceType; title: string; desc: string; icon: React.ReactNode; disabled?: boolean }[] = [
     { key: 'documentos', title: 'Documentos', desc: 'Sube un PDF y generamos el curso con IA', icon: <FileIcon /> },
     { key: 'cero', title: 'Desde cero', desc: 'Define el tema y generamos el contenido con IA', icon: <EditIcon /> },
-    { key: 'catalogo', title: 'Catalogo', desc: 'Proximamente', icon: <GridIcon />, disabled: true },
   ]
 
   return (

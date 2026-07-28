@@ -126,42 +126,40 @@ docker compose up -d --build
 
 ### 3. Open
 
-Open [http://localhost:3000](http://localhost:3000) and log in with the admin account you configured in `.env`.
-
-Upload a document, generate a course, create employees, and start training.
-
-### Want to try it out first?
-
-Load demo data (employee account + 16 skills across 4 categories) with one command:
-
-```bash
-docker compose exec api python -m src.seed_demo
-```
-
-This creates:
+Open [http://localhost:3000](http://localhost:3000). The `.env.example` ships with ready-to-use demo credentials:
 
 | Role | Email | Password |
 |------|-------|----------|
-| Employee | `empleado@demo.skillnet.dev` | `demo1234` |
+| **Admin** | `admin@skillnet.dev` | `admin123` |
 
-The admin account uses whatever you set in `.env`. Demo data is optional — your real installation starts clean.
+### Load demo data
+
+```bash
+# v1 basic demo: 1 employee + 16 skills
+docker compose exec api python -m src.seed_demo
+
+# v2 full demo: 5 employees, 3 docs, 2 dynamic courses, 1 static course
+docker compose exec api uv run python -m src.seed_demo_v2
+```
+
+After running the v2 seed, these accounts are available:
+
+| Role | Email | Password |
+|------|-------|----------|
+| Employee (any of 5) | See console output | `espiga2026` |
+| v1 Employee | `empleado@demo.skillnet.dev` | `demo1234` |
 
 ### Try Gen UI (dynamic courses)
 
-To experience real-time UI generation (v2):
+Gen UI generates each learning screen on the fly, personalized for the learner.
+It's enabled by default in `.env.example` (`DYNAMIC_COURSES_MODE=on`).
 
-1. Set `DYNAMIC_COURSES_MODE=on` in `.env` (already the default in `.env.example`)
-2. Load the v2 demo data:
-   ```bash
-   docker compose exec api uv run python -m src.seed_demo_v2
-   ```
-3. Log in as any of the 5 seeded employees (password: `espiga2026`)
-4. Go to **Mis Cursos** — dynamic courses generate each screen on the fly for the learner
+1. Run the v2 seed (see above)
+2. Log in as any employee (password: `espiga2026`)
+3. Go to **Mis Cursos** and open a dynamic course
 
 > **No API key?** Set `LLM_MODEL=fixture/local` and `EMBEDDING_MODEL=fixture/local`
 > in `.env` to use local recordings instead of calling a provider.
-
-For more detail on the v2 dataset, see the section below.
 
 For a **v2** dataset with something to actually play with, use the other seed:
 
