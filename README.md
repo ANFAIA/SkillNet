@@ -114,8 +114,9 @@ Edit `.env` — you only need to set 3 things:
 - `POSTGRES_PASSWORD` — any strong password
 - `LLM_API_KEY` + `LLM_MODEL` — your AI provider (e.g. `anthropic/claude-sonnet-4-20250514`, `deepseek/deepseek-chat`, `ollama/llama3.1`)
 
-Everything else has a working default, including the v2 flag — see
-[Dynamic courses (v2)](#dynamic-courses-v2) below, which is **off** unless you turn it on.
+Everything else has a working default. The v2 flag (`DYNAMIC_COURSES_MODE`) defaults to
+`on` in `.env.example` so you get the full experience out of the box — see
+[Dynamic courses (v2)](#dynamic-courses-v2) below for details.
 
 ### 2. Start
 
@@ -145,6 +146,23 @@ This creates:
 
 The admin account uses whatever you set in `.env`. Demo data is optional — your real installation starts clean.
 
+### Try Gen UI (dynamic courses)
+
+To experience real-time UI generation (v2):
+
+1. Set `DYNAMIC_COURSES_MODE=on` in `.env` (already the default in `.env.example`)
+2. Load the v2 demo data:
+   ```bash
+   docker compose exec api uv run python -m src.seed_demo_v2
+   ```
+3. Log in as any of the 5 seeded employees (password: `espiga2026`)
+4. Go to **Mis Cursos** — dynamic courses generate each screen on the fly for the learner
+
+> **No API key?** Set `LLM_MODEL=fixture/local` and `EMBEDDING_MODEL=fixture/local`
+> in `.env` to use local recordings instead of calling a provider.
+
+For more detail on the v2 dataset, see the section below.
+
 For a **v2** dataset with something to actually play with, use the other seed:
 
 ```bash
@@ -166,16 +184,17 @@ cached renders are invalidated and the next visit regenerates.
 ### Dynamic courses (v2)
 
 v2 generates each screen for each learner at the moment they open it, instead of serving one
-static Markdown lesson to everybody. It ships **behind a flag that defaults to off**, so a
-production deployment behaves exactly as it did before you upgraded.
+static Markdown lesson to everybody. It ships **behind a flag** (`DYNAMIC_COURSES_MODE`).
+`.env.example` sets it to `on`; for a production upgrade where you want zero changes, set it
+to `off`.
 
 Set `DYNAMIC_COURSES_MODE` in `.env`:
 
 | Value | What happens |
 |---|---|
-| `off` *(default)* | Every v2 route returns 404 and `delivery_mode` is ignored. Production is unchanged. |
+| `off` | Every v2 route returns 404 and `delivery_mode` is ignored. Safe for production upgrades. |
 | `shadow` | Admin-only. Propose, edit and validate a course schema, and preview renders with `?preview=1`. Employees still see v1. |
-| `on` | Full v2. A course only takes the v2 path if it is `delivery_mode='dynamic'` **and** `schema_status='validated'`; every other course stays on v1. |
+| `on` *(default in .env.example)* | Full v2. A course only takes the v2 path if it is `delivery_mode='dynamic'` **and** `schema_status='validated'`; every other course stays on v1. |
 
 The development compose overlay already sets `shadow` for you, so a developer gets the admin
 schema surface without exposing anything to employees:
@@ -200,6 +219,15 @@ Two optional knobs pick the models for the two-tier runtime router,
 falls back to `LLM_MODEL`, which works fine. Tuning generation quality is documented in
 [`docs/design/tuning.md`](docs/design/tuning.md); the full design is in
 [`docs/design/v2-dynamic-courses.md`](docs/design/v2-dynamic-courses.md).
+
+## Services and ports
+
+| Service | URL | Description |
+|---------|-----|-------------|
+| **web** | [http://localhost:3000](http://localhost:3000) | SPA + nginx reverse proxy |
+| **api** | http://localhost:8000 | FastAPI (internal, behind nginx) |
+| **db** | localhost:5432 | PostgreSQL + pgvector |
+| **api-fixtures** *(optional)* | [http://localhost:8001](http://localhost:8001) | Keyless demo API |
 
 ### API documentation
 
