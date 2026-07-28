@@ -34,6 +34,20 @@ same ``UiSpecRenderer`` a node render uses. Three properties are load-bearing:
 * **It degrades to the prose.** Every failure — the model refusing, an invalid program, a
   provider 429 — ends with no ``ui`` event and the answer the learner already read. The
   one thing that never happens is a blank bubble.
+
+**3. The admin assistant stopped being a copy of the tutor** (2026-07-28). It used to walk
+the same document ladder and nothing else, so asked *"como van mis empleados"* it answered
+with four bullets of management advice while five employees, their enrolments and their
+mastery sat in the database it is the administration console for. Two changes, both on the
+``admin`` path only:
+
+* ``_org_snapshot`` assembles the organization's training data server-side and pastes it
+  into the turn the way a document already is. Deterministic, ``org_id``-scoped, and it
+  carries no field of the private learner profile — see ``src/services/org_snapshot.py``,
+  which is where the privacy line is drawn and tested.
+* A greeting never reaches the model: ``src/services/small_talk.py`` answers it. *"que
+  tal"* used to be met with *"No tengo suficiente informacion"*, which is what a model
+  correctly says when it is handed an allergen manual and a pleasantry.
 """
 
 from __future__ import annotations
@@ -49,11 +63,15 @@ from src.core.logging import get_logger
 from src.core.sse import format_sse
 from src.llm.client import LLMService
 from src.llm.embedding import EmbeddingService
+from src.llm.prompts.admin import (
+    ADMIN_PROMPT_VERSION,
+    admin_system_prompt,
+    build_admin_turn,
+)
 from src.llm.prompts.tutor import (
     NO_UI_SENTINEL,
     TUTOR_PROMPT_VERSION,
     Grounding,
-    admin_system_prompt,
     build_chat_ui_prompt,
     build_user_turn,
     chat_ui_system,
@@ -64,13 +82,21 @@ from src.render.errors import RenderError
 from src.render.gate import canonicalize
 from src.render.prompt import catalog_version
 from src.repositories.chat_repo import ChatRepository
+from src.services.org_snapshot import build_org_snapshot, render_snapshot
 from src.services.retrieval import GroundedContext, ground_question
+from src.services.small_talk import small_talk_reply
 
 logger = get_logger(__name__)
 
 MEMORY_TURNS = 8
 TITLE_MAX_CHARS = 40
 RETRIEVAL_TOP_K = 5
+
+#: A canned answer is not streamed by a provider, so it has no natural chunking. Emitted a
+#: few words at a time rather than in one event, purely so the bubble fills the way every
+#: other bubble does — a greeting that appears instantly while every real answer types
+#: itself out reads like two different products.
+CANNED_CHUNK_WORDS = 6
 
 #: Below this many characters an answer is one idea, and a ``Stack`` around one idea is
 #: worse than the paragraph it replaces. Also the cheap half of the rate-limit story: the
@@ -125,6 +151,20 @@ def _context_course_id(context: dict | None) -> uuid.UUID | None:
         return raw if isinstance(raw, uuid.UUID) else uuid.UUID(str(raw))
     except (ValueError, TypeError):
         return None
+
+
+def _canned_chunks(text: str, words: int = CANNED_CHUNK_WORDS) -> list[str]:
+    """A canned answer cut into token-sized pieces that reassemble to it exactly.
+
+    ``"".join(_canned_chunks(t)) == t`` is the whole contract: the persisted message and
+    the bubble have to be the same string, and a chunker that drops a space is a chunker
+    that makes them differ by the time anyone notices.
+    """
+    pieces = text.split(" ")
+    return [
+        " ".join(pieces[i : i + words]) + (" " if i + words < len(pieces) else "")
+        for i in range(0, len(pieces), words)
+    ]
 
 
 def strip_no_ui(raw: str) -> str:
@@ -214,6 +254,14 @@ class ChatService:
         session_id: uuid.UUID | None,
         context: dict | None,
     ) -> AsyncIterator[str]:
+        """The admin assistant. Same stream as the tutor, two things more.
+
+        It is handed the **organization's own data** (``src/services/org_snapshot.py``)
+        alongside whatever the document ladder found, because "como van mis empleados" is
+        an admin's first question and the answer is a query, not a paragraph of the
+        allergen manual. And a greeting is answered here rather than by the model: see
+        ``src/services/small_talk.py`` for why that is a fix and not a shortcut.
+        """
         async for event in self._stream(
             user,
             message,
@@ -221,6 +269,7 @@ class ChatService:
             context,
             agent_type="admin",
             whole_documents="org",
+            canned=small_talk_reply(message),
         ):
             yield event
 
@@ -233,10 +282,12 @@ class ChatService:
         *,
         agent_type: str,
         whole_documents: str,
+        canned: str | None = None,
     ) -> AsyncIterator[str]:
         grounded = GroundedContext("general")
         parts: list[str] = []
         session: ChatSession | None = None
+        snapshot_block = ""
         if self.tutor_llm is None or self.embeddings is None:
             yield format_sse("error", {"detail": "Chat services are not configured."})
             return
@@ -253,25 +304,42 @@ class ChatService:
             )
             await self.db.commit()
 
-            grounded = await ground_question(
-                self.db,
-                user_id=user.id,
-                org_id=user.org_id,
-                embedding_service=self.embeddings,
-                query=message,
-                top_k=RETRIEVAL_TOP_K,
-                document_ids=_context_document_ids(context),
-                whole_documents=whole_documents,
-            )
+            org_data: dict | None = None
+            if canned is None:
+                grounded = await ground_question(
+                    self.db,
+                    user_id=user.id,
+                    org_id=user.org_id,
+                    embedding_service=self.embeddings,
+                    query=message,
+                    top_k=RETRIEVAL_TOP_K,
+                    document_ids=_context_document_ids(context),
+                    whole_documents=whole_documents,
+                )
+                if agent_type == "admin":
+                    snapshot_block, org_data = await self._org_snapshot(user)
+
             # Announced before the first token, so the bubble carries its provenance from
             # the moment it starts filling rather than growing a label at the end.
+            # ``grounding`` describes the *documents*; ``org_data`` is a separate axis,
+            # because an answer can be grounded on the platform's data and on no document
+            # at all, and collapsing the two would make the label lie in one direction or
+            # the other.
             yield format_sse("grounding", {"grounding": grounded.grounding})
+            if org_data is not None:
+                yield format_sse("org_data", org_data)
 
-            messages = self._build_messages(history, grounded, message, agent_type)
-
-            async for piece in self.tutor_llm.stream(messages):
-                parts.append(piece)
-                yield format_sse("token", {"content": piece})
+            if canned is not None:
+                for piece in _canned_chunks(canned):
+                    parts.append(piece)
+                    yield format_sse("token", {"content": piece})
+            else:
+                messages = self._build_messages(
+                    history, grounded, message, agent_type, snapshot_block
+                )
+                async for piece in self.tutor_llm.stream(messages):
+                    parts.append(piece)
+                    yield format_sse("token", {"content": piece})
 
             answer = "".join(parts)
             yield format_sse("citations", {"citations": grounded.citations})
@@ -283,7 +351,13 @@ class ChatService:
                 metadata={
                     "citations": grounded.citations,
                     "grounding": grounded.grounding,
-                    "prompt_version": TUTOR_PROMPT_VERSION,
+                    "prompt_version": (
+                        ADMIN_PROMPT_VERSION
+                        if agent_type == "admin"
+                        else TUTOR_PROMPT_VERSION
+                    ),
+                    **({"org_data": org_data} if org_data is not None else {}),
+                    **({"small_talk": True} if canned is not None else {}),
                 },
             )
             await self.db.commit()
@@ -306,6 +380,39 @@ class ChatService:
             logger.error("Tutor chat failed: %s", exc, exc_info=True)
             await self._persist_partial(session, parts, grounded)
             yield format_sse("error", {"detail": detail})
+
+    # -- the organization's own data ----------------------------------------------
+
+    async def _org_snapshot(self, user: User) -> tuple[str, dict | None]:
+        """``(the block for the prompt, the summary for the browser)``.
+
+        Scoped to ``user.org_id`` and to nothing else: the admin assistant must be
+        incapable of reading another organization's rows, and "there is only one
+        organization today" is a fact about the data, not a property of the code.
+
+        A failure here costs the data and never the answer. Eight aggregate queries is
+        eight chances to hit a lock, a migration mid-flight or a column that moved, and
+        the right behaviour for all of them is the assistant this surface had yesterday:
+        documents only. It is logged at ``warning`` because a snapshot that quietly stops
+        being assembled looks exactly like a model that has gone vague.
+        """
+        org_id = getattr(user, "org_id", None)
+        if org_id is None:
+            return "", None
+        try:
+            snapshot = await build_org_snapshot(self.db, org_id=org_id)
+            block = render_snapshot(snapshot)
+        except Exception as exc:  # noqa: BLE001 - the answer survives a missing snapshot
+            logger.warning("Could not assemble the org snapshot: %s", exc, exc_info=True)
+            return "", None
+        if not block:
+            return "", None
+        return block, {
+            "employees": snapshot.employees_total,
+            "courses": len(snapshot.courses),
+            "documents": snapshot.documents_total,
+            "generated_at": snapshot.generated_at.isoformat(),
+        }
 
     # -- the layout call ---------------------------------------------------------
 
@@ -386,23 +493,32 @@ class ChatService:
         grounded: GroundedContext,
         question: str,
         agent_type: str,
+        snapshot_block: str = "",
     ) -> list[dict[str, str]]:
+        """Persona, the last N turns, and one final turn carrying everything found.
+
+        The snapshot is pasted into the **current** turn and never into the history, so a
+        long admin session does not accumulate five stale copies of the payroll and the
+        model never has two contradictory versions of a number in front of it. Yesterday's
+        counts are worse than none.
+        """
         grounding: Grounding = grounded.grounding
+        is_admin = agent_type == "admin"
         system = (
-            admin_system_prompt(grounding)
-            if agent_type == "admin"
+            admin_system_prompt(grounding, org_data=bool(snapshot_block))
+            if is_admin
             else tutor_system_prompt(grounding)
         )
         messages: list[dict[str, str]] = [{"role": "system", "content": system}]
         for msg in history:
             if msg.role in ("user", "assistant"):
                 messages.append({"role": msg.role, "content": msg.content})
-        messages.append(
-            {
-                "role": "user",
-                "content": build_user_turn(grounding, grounded.context, question),
-            }
+        turn = (
+            build_admin_turn(grounding, grounded.context, snapshot_block, question)
+            if is_admin
+            else build_user_turn(grounding, grounded.context, question)
         )
+        messages.append({"role": "user", "content": turn})
         return messages
 
     async def _persist_partial(
@@ -442,6 +558,7 @@ class ChatService:
 
 
 __all__ = [
+    "CANNED_CHUNK_WORDS",
     "CHAT_UI_FORMAT",
     "MEMORY_TURNS",
     "MIN_LAYOUT_CHARS",

@@ -28,14 +28,9 @@ untouched, so no cached render is invalidated by anything in this file.
 
 from __future__ import annotations
 
-from typing import Literal
-
+from src.llm.prompts.admin import ADMIN_PERSONA, admin_system_prompt
+from src.llm.prompts.grounding import Grounding
 from src.render.prompt import render_prompt
-
-#: The three rungs of the ladder, best first. Persisted in ``chat_messages.metadata`` and
-#: sent to the browser as a ``grounding`` SSE event, so the bubble can say where it came
-#: from without the model having to be trusted to say it.
-Grounding = Literal["chunks", "document", "general"]
 
 #: Bumped when anything in this module changes in a way that changes an answer. Not part
 #: of any cache key today; it is what makes "which tutor wrote this" answerable from a
@@ -75,20 +70,9 @@ Lo que no haces nunca:
 - No prometes nada en nombre de la empresa: para eso esta el encargado."""
 
 
-ADMIN_PERSONA = """\
-Eres el asistente del administrador de SkillNet, la plataforma de formacion interna de una
-pequena empresa espanola. Hablas con la persona que gestiona los cursos, los documentos y
-los empleados.
-
-Como respondes siempre:
-- En el idioma de la pregunta. Por defecto, espanol.
-- Conciso y operativo: que hacer, donde, en que orden.
-- En cuanto haya mas de dos pasos, los enumeras.
-
-Lo que no haces nunca:
-- No te inventas cifras, plazos ni contenido de documentos que no tengas delante.
-- No contestas "no tengo informacion" y te callas: dices que no consta y ofreces lo que
-  si puedes (criterio general, o que documento haria falta subir)."""
+# The admin assistant moved to ``src/llm/prompts/admin.py`` when it stopped being a second
+# skin on the tutor and grew its own data block; both names are re-exported here so the
+# callers and tests that predate the split keep working unchanged.
 
 
 # --------------------------------------------------------------------------------------
@@ -121,28 +105,10 @@ tienes que ayudar; negarte no es una opcion.
 - Termina diciendo a quien preguntar o que documento pedir para confirmarlo.""",
 }
 
-_ADMIN_GROUNDING_BLOCKS: dict[str, str] = {
-    "chunks": """\
-Tienes en el contexto fragmentos recuperados de la documentacion de la organizacion.
-Apoyate en ellos y cita con [Fuente N] lo que salga de ahi.""",
-    "document": """\
-Tienes en el contexto el texto COMPLETO de documentos de la organizacion. Apoyate en el y
-cita con [Fuente N], que aqui identifica al documento entero.""",
-    "general": """\
-No hay documentacion de la organizacion que responda a esto. Responde igualmente con
-conocimiento general o con lo que sabes de como funciona la plataforma, y di en la primera
-linea que no sale de la documentacion subida. No escribas [Fuente N].""",
-}
-
 
 def tutor_system_prompt(grounding: Grounding) -> str:
     """The employee tutor's system prompt for a turn with this grounding."""
     return f"{TUTOR_PERSONA}\n\n{_GROUNDING_BLOCKS[grounding]}"
-
-
-def admin_system_prompt(grounding: Grounding) -> str:
-    """The admin assistant's system prompt for a turn with this grounding."""
-    return f"{ADMIN_PERSONA}\n\n{_ADMIN_GROUNDING_BLOCKS[grounding]}"
 
 
 # --------------------------------------------------------------------------------------
