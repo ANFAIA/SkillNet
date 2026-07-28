@@ -107,13 +107,13 @@ export function Chat() {
     // It used to be `h-[calc(100vh-50px-48px)]` with an `overflow-y-auto` log, which
     // was a scroll box inside a page that now scrolls on its own — two scrollbars for
     // one conversation. `endRef.scrollIntoView` keeps working; it just moves the page.
-    <div className="flex flex-col">
+    <div className="flex flex-col min-h-[calc(100dvh-82px)] md:min-h-[calc(100dvh-98px)]">
       <div className="mb-4">
         <h2 className="text-xl font-semibold text-text">Chat</h2>
         <p className="text-sm text-text-secondary mt-0.5">Pregunta sobre tus cursos y procedimientos</p>
       </div>
 
-      <div className="space-y-4 pb-4">
+      <div className="flex-1 space-y-4 pb-4">
         {messages.length === 0 && (
           <div className="text-center py-12 px-4">
             <p className="text-sm font-medium text-text">Hazme una pregunta</p>

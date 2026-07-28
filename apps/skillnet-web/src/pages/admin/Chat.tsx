@@ -80,13 +80,13 @@ export function AdminChat() {
   return (
     // No inner scroll — see the note in the employee Chat. The log grows, the page
     // scrolls, and the composer below stays put.
-    <div className="flex flex-col">
+    <div className="flex flex-col min-h-[calc(100dvh-82px)] md:min-h-[calc(100dvh-98px)]">
       <div className="mb-4">
         <h2 className="text-xl font-semibold text-text">Asistente</h2>
         <p className="text-sm text-text-secondary mt-0.5">Pregunta sobre cursos, empleados o la plataforma</p>
       </div>
 
-      <div className="space-y-4 pb-4">
+      <div className="flex-1 space-y-4 pb-4">
         {messages.length === 0 && (
           <div className="text-center py-12 px-4">
             <p className="text-sm font-medium text-text">¿En que puedo ayudarte?</p>
