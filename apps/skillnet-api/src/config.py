@@ -68,6 +68,13 @@ class Settings(BaseSettings):
     EMBEDDING_MODEL: str = "multilingual-e5-small"
     EMBEDDING_DIMENSIONS: int = 384
 
+    # TTS (provider-agnostic, follows the litellm pattern)
+    TTS_PROVIDER: str = "disabled"
+    TTS_API_KEY: str = ""
+    TTS_VOICE: str = "alloy"
+    TTS_LANGUAGE: str = "es"
+    TTS_CACHE_DIR: str = "data/tts_cache"
+
     # File uploads
     UPLOAD_DIR: str = "./uploads"
     MAX_UPLOAD_SIZE_MB: int = 50

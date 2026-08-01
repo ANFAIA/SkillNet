@@ -33,9 +33,12 @@ from src.routes import (
     lessons,
     nodes,
     onboarding,
-    settings as settings_routes,
     stats,
+    tts,
     users,
+)
+from src.routes import (
+    settings as settings_routes,
 )
 from src.routes.ext import skills as ext_skills
 
@@ -124,6 +127,7 @@ def create_app() -> FastAPI:
     app.include_router(chat.router, prefix=prefix, tags=["Chat"])
     app.include_router(stats.router, prefix=prefix)
     app.include_router(settings_routes.router, prefix=prefix)
+    app.include_router(tts.router, prefix=prefix)
     # v2 click-to-explain (B7). Its own guard 404s the route unless the flag is `on`.
     app.include_router(explain.router, prefix=prefix)
     # v2 onboarding and learner profile (B3). Both routers carry the employee-surface
