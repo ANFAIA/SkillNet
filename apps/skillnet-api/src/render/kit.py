@@ -32,6 +32,7 @@ GAP_VALUES: tuple[str, ...] = ("sm", "md", "lg")
 TEXT_VARIANTS: tuple[str, ...] = ("body", "lead", "caption")
 CALLOUT_TONES: tuple[str, ...] = ("info", "warn", "success")
 CHART_KINDS: tuple[str, ...] = ("bar", "line")
+VOICE_STYLES: tuple[str, ...] = ("neutral", "warm", "formal")
 ITEM_TYPES: tuple[str, ...] = tuple(m.value for m in ExerciseType)
 
 #: The ``variant`` a ``TextContent`` must carry to satisfy contract rule 7 (§5.2).
@@ -286,6 +287,30 @@ UI_KIT = UIKit(
                 PropSpec("steps", PropKind.STRING_MATRIX, "Pasos: [[enunciado, explicacion], ...]"),
             ),
         ),
+        ComponentSpec(
+            name="AudioExplanation",
+            purpose="Texto leido en voz alta con resaltado de palabras",
+            props=(
+                PropSpec("text", PropKind.STRING, "Texto que se leera en voz alta"),
+                PropSpec("voice", PropKind.ENUM, "Estilo de voz", VOICE_STYLES),
+            ),
+        ),
+        ComponentSpec(
+            name="PronunciationExercise",
+            purpose="Escuchar y practicar pronunciacion con comparacion de ondas",
+            props=(
+                PropSpec("targetText", PropKind.STRING, "Texto objetivo para practicar"),
+                PropSpec("language", PropKind.STRING, "Codigo de idioma, p.ej. \"es\""),
+            ),
+        ),
+        ComponentSpec(
+            name="DiagramBuilder",
+            purpose="Diagrama SVG que se construye paso a paso",
+            props=(
+                PropSpec("title", PropKind.STRING, "Titulo del diagrama"),
+                PropSpec("steps", PropKind.STRING_MATRIX, "Pasos: [[etiqueta, svgFragment, explicacion], ...]"),
+            ),
+        ),
     )
 )
 
@@ -305,6 +330,7 @@ __all__ = [
     "LLM_COMPONENT_NAMES",
     "TEXT_VARIANTS",
     "UI_KIT",
+    "VOICE_STYLES",
     "ComponentSpec",
     "PropKind",
     "PropSpec",

@@ -33,6 +33,9 @@ BeforeAfter(title: string, beforeLabel: string, beforeContent: string, afterLabe
 DragOrder(instruction: string, items: string[], correctOrder: string[]) — Reordenar arrastrando
 HotspotImage(imageUrl: string, alt: string, hotspots: string[][]) — Imagen con zonas interactivas
 StepByStepReveal(title: string, steps: string[][]) — Revelacion progresiva de pasos
+AudioExplanation(text: string, voice: "neutral" | "warm" | "formal") — Texto leido en voz alta con resaltado de palabras
+PronunciationExercise(targetText: string, language: string) — Escuchar y practicar pronunciacion con comparacion de ondas
+DiagramBuilder(title: string, steps: string[][]) — Diagrama SVG que se construye paso a paso
 
 ## Hoisting & Streaming (CRITICAL)
 

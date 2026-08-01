@@ -82,6 +82,9 @@ const CATALOGUE = [
   ['DragOrder', 'dragOrderProps', 'Reordenar arrastrando'],
   ['HotspotImage', 'hotspotImageProps', 'Imagen con zonas interactivas'],
   ['StepByStepReveal', 'stepByStepRevealProps', 'Revelacion progresiva de pasos'],
+  ['AudioExplanation', 'audioExplanationProps', 'Texto leido en voz alta con resaltado de palabras'],
+  ['PronunciationExercise', 'pronunciationExerciseProps', 'Escuchar y practicar pronunciacion con comparacion de ondas'],
+  ['DiagramBuilder', 'diagramBuilderProps', 'Diagrama SVG que se construye paso a paso'],
 ]
 
 // ---------------------------------------------------------------------------------

@@ -42,6 +42,7 @@ export const STACK_GAPS = ['sm', 'md', 'lg'] as const
 export const TEXT_VARIANTS = ['body', 'lead', 'caption'] as const
 export const CALLOUT_TONES = ['info', 'warn', 'success'] as const
 export const CHART_KINDS = ['bar', 'line'] as const
+export const VOICE_STYLES = ['neutral', 'warm', 'formal'] as const
 
 /** The six `exercise_type` values (§5.3). Same list as `ExerciseType` in `src/types/index.ts`. */
 export const ITEM_TYPES = [
@@ -67,6 +68,7 @@ export type StackGap = (typeof STACK_GAPS)[number]
 export type TextVariant = (typeof TEXT_VARIANTS)[number]
 export type CalloutTone = (typeof CALLOUT_TONES)[number]
 export type ChartKind = (typeof CHART_KINDS)[number]
+export type VoiceStyle = (typeof VOICE_STYLES)[number]
 export type ItemType = (typeof ITEM_TYPES)[number]
 export type BloomLevel = (typeof BLOOM_LEVELS)[number]
 
@@ -180,6 +182,21 @@ export const stepByStepRevealProps = z.object({
   steps: z.array(z.array(z.string())).describe('Pasos: [[enunciado, explicacion], ...]'),
 })
 
+export const audioExplanationProps = z.object({
+  text: z.string().describe('Texto que se leera en voz alta'),
+  voice: z.enum(VOICE_STYLES).describe('Estilo de voz'),
+})
+
+export const pronunciationExerciseProps = z.object({
+  targetText: z.string().describe('Texto objetivo para practicar'),
+  language: z.string().describe('Codigo de idioma, p.ej. "es"'),
+})
+
+export const diagramBuilderProps = z.object({
+  title: z.string().describe('Titulo del diagrama'),
+  steps: z.array(z.array(z.string())).describe('Pasos: [[etiqueta, svgFragment, explicacion], ...]'),
+})
+
 /** The frozen names, in the order of the §5.3 table. */
 export const KIT_COMPONENT_NAMES = [
   'Stack',
@@ -198,6 +215,9 @@ export const KIT_COMPONENT_NAMES = [
   'DragOrder',
   'HotspotImage',
   'StepByStepReveal',
+  'AudioExplanation',
+  'PronunciationExercise',
+  'DiagramBuilder',
 ] as const
 
 export type KitComponentName = (typeof KIT_COMPONENT_NAMES)[number]
@@ -236,6 +256,9 @@ export const KIT_DESCRIPTIONS = {
   DragOrder: 'Reordenar arrastrando',
   HotspotImage: 'Imagen con zonas interactivas',
   StepByStepReveal: 'Revelacion progresiva de pasos',
+  AudioExplanation: 'Texto leido en voz alta con resaltado de palabras',
+  PronunciationExercise: 'Escuchar y practicar pronunciacion con comparacion de ondas',
+  DiagramBuilder: 'Diagrama SVG que se construye paso a paso',
 } satisfies Record<KitComponentName, string>
 
 /** Name → prop schema, so a consumer can walk the catalogue without React. */
@@ -256,6 +279,9 @@ export const KIT_PROP_SCHEMAS = {
   DragOrder: dragOrderProps,
   HotspotImage: hotspotImageProps,
   StepByStepReveal: stepByStepRevealProps,
+  AudioExplanation: audioExplanationProps,
+  PronunciationExercise: pronunciationExerciseProps,
+  DiagramBuilder: diagramBuilderProps,
 } satisfies Record<KitComponentName, z.ZodObject>
 
 /**

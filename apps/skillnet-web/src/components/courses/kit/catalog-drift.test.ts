@@ -29,6 +29,7 @@ import {
   MAX_RENDERED_ELEMENTS,
   STACK_GAPS,
   TEXT_VARIANTS,
+  VOICE_STYLES,
 } from './schemas'
 
 const here = dirname(fileURLToPath(import.meta.url))
@@ -152,6 +153,9 @@ describe('the kit is the catalogue of §5.3', () => {
     expect(propOrder('DragOrder')).toEqual(['instruction', 'items', 'correctOrder'])
     expect(propOrder('HotspotImage')).toEqual(['imageUrl', 'alt', 'hotspots'])
     expect(propOrder('StepByStepReveal')).toEqual(['title', 'steps'])
+    expect(propOrder('AudioExplanation')).toEqual(['text', 'voice'])
+    expect(propOrder('PronunciationExercise')).toEqual(['targetText', 'language'])
+    expect(propOrder('DiagramBuilder')).toEqual(['title', 'steps'])
   })
 
   it('declares every prop required — the kit has no optional props', () => {
@@ -179,6 +183,7 @@ describe.skipIf(!hasCatalog)('no drift against the backend catalogue artefact', 
     kind: CHART_KINDS,
     item_type: ITEM_TYPES,
     bloom_level: BLOOM_LEVELS,
+    voice: VOICE_STYLES,
   }
 
   it('lists Markdown as renderable but never in the canonical prompt catalogue', () => {
@@ -210,7 +215,7 @@ describe.skipIf(!hasCatalog)('no drift against the backend catalogue artefact', 
   it('keeps Markdown out of what the model is taught to emit', () => {
     const promptNames = catalog!.prompt_components.map((component) => component.name)
     expect(promptNames).not.toContain('Markdown')
-    expect(promptNames).toHaveLength(15)
+    expect(promptNames).toHaveLength(18)
     // …and in what the browser can render, for `fallback_seed`.
     expect(Object.keys(skillnetLibrary.components)).toContain('Markdown')
   })

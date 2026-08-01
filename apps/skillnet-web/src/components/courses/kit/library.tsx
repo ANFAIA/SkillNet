@@ -44,15 +44,18 @@ import { createLibrary, defineComponent } from '@openuidev/react-lang'
 import type { ComponentRenderProps } from '@openuidev/react-lang'
 
 import {
+  AudioExplanationBlock,
   BeforeAfterBlock,
   CalloutBlock,
   CardBlock,
   ChartBlock,
   CodeBlockBlock,
+  DiagramBuilderBlock,
   DragOrderBlock,
   HotspotImageBlock,
   ManipulableGraphBlock,
   MarkdownBlock,
+  PronunciationExerciseBlock,
   SliderExplorationBlock,
   StackBlock,
   StepByStepRevealBlock,
@@ -62,6 +65,7 @@ import {
 } from '../blocks'
 import {
   readChildren,
+  readDiagramSteps,
   readEnum,
   readHotspots,
   readNumber,
@@ -78,15 +82,19 @@ import {
   KIT_DESCRIPTIONS,
   STACK_GAPS,
   TEXT_VARIANTS,
+  VOICE_STYLES,
+  audioExplanationProps,
   beforeAfterProps,
   calloutProps,
   cardProps,
   chartProps,
   codeBlockProps,
+  diagramBuilderProps,
   dragOrderProps,
   hotspotImageProps,
   manipulableGraphProps,
   markdownProps,
+  pronunciationExerciseProps,
   quizItemProps,
   sliderExplorationProps,
   stackProps,
@@ -332,6 +340,42 @@ const StepByStepReveal = defineComponent({
   ),
 })
 
+const AudioExplanation = defineComponent({
+  name: 'AudioExplanation',
+  description: KIT_DESCRIPTIONS.AudioExplanation,
+  props: audioExplanationProps,
+  component: ({ props }: ComponentRenderProps<{ text: string; voice: string }>) => (
+    <AudioExplanationBlock
+      text={readString(props.text)}
+      voice={readEnum(props.voice, VOICE_STYLES, 'neutral')}
+    />
+  ),
+})
+
+const PronunciationExercise = defineComponent({
+  name: 'PronunciationExercise',
+  description: KIT_DESCRIPTIONS.PronunciationExercise,
+  props: pronunciationExerciseProps,
+  component: ({ props }: ComponentRenderProps<{ targetText: string; language: string }>) => (
+    <PronunciationExerciseBlock
+      targetText={readString(props.targetText)}
+      language={readString(props.language, 'es')}
+    />
+  ),
+})
+
+const DiagramBuilder = defineComponent({
+  name: 'DiagramBuilder',
+  description: KIT_DESCRIPTIONS.DiagramBuilder,
+  props: diagramBuilderProps,
+  component: ({ props }: ComponentRenderProps<{ title: string; steps: string[][] }>) => (
+    <DiagramBuilderBlock
+      title={readString(props.title)}
+      steps={readDiagramSteps(props.steps)}
+    />
+  ),
+})
+
 /**
  * The render library.
  *
@@ -364,6 +408,9 @@ export const skillnetLibrary = createLibrary({
     DragOrder,
     HotspotImage,
     StepByStepReveal,
+    AudioExplanation,
+    PronunciationExercise,
+    DiagramBuilder,
   ],
 })
 

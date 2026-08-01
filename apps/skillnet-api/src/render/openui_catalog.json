@@ -430,6 +430,67 @@
           "optional": false
         }
       ]
+    },
+    {
+      "name": "AudioExplanation",
+      "description": "Texto leido en voz alta con resaltado de palabras",
+      "signature": "AudioExplanation(text: string, voice: \"neutral\" | \"warm\" | \"formal\")",
+      "props": [
+        {
+          "name": "text",
+          "kind": "string",
+          "choices": [],
+          "optional": false
+        },
+        {
+          "name": "voice",
+          "kind": "enum",
+          "choices": [
+            "neutral",
+            "warm",
+            "formal"
+          ],
+          "optional": false
+        }
+      ]
+    },
+    {
+      "name": "PronunciationExercise",
+      "description": "Escuchar y practicar pronunciacion con comparacion de ondas",
+      "signature": "PronunciationExercise(targetText: string, language: string)",
+      "props": [
+        {
+          "name": "targetText",
+          "kind": "string",
+          "choices": [],
+          "optional": false
+        },
+        {
+          "name": "language",
+          "kind": "string",
+          "choices": [],
+          "optional": false
+        }
+      ]
+    },
+    {
+      "name": "DiagramBuilder",
+      "description": "Diagrama SVG que se construye paso a paso",
+      "signature": "DiagramBuilder(title: string, steps: string[][])",
+      "props": [
+        {
+          "name": "title",
+          "kind": "string",
+          "choices": [],
+          "optional": false
+        },
+        {
+          "name": "steps",
+          "kind": "string[][]",
+          "choices": [],
+          "optional": false
+        }
+      ]
     }
   ],
   "render_components": [
@@ -448,11 +509,14 @@
     "Markdown",
     "DragOrder",
     "HotspotImage",
-    "StepByStepReveal"
+    "StepByStepReveal",
+    "AudioExplanation",
+    "PronunciationExercise",
+    "DiagramBuilder"
   ],
-  "canonical_catalog": "catalog: skillnet-ui/1\nroot: Stack\nStack(children:ref[], gap:enum(sm|md|lg))\nTextContent(text:string, variant:enum(body|lead|caption))\nCard(title:string, children:ref[])\nCallout(tone:enum(info|warn|success), text:string)\nStepSequence(title:string, steps:string[])\nTable(headers:string[], rows:string[][])\nCodeBlock(language:string, code:string)\nChart(kind:enum(bar|line), title:string, labels:string[], values:number[])\nQuizItem(item_id:string, item_type:enum(test|true_false|fill_blank|order_steps|practical_case|dialogue), bloom_level:enum(remember|understand|apply|analyze|evaluate|create), question:string, options:string[])\nSliderExploration(title:string, variable:string, min:number, max:number, step:number, formula:string, description:string)\nManipulableGraph(title:string, xLabel:string, yLabel:string, points:string[][], functions:string[])\nBeforeAfter(title:string, beforeLabel:string, beforeContent:string, afterLabel:string, afterContent:string)\nDragOrder(instruction:string, items:string[], correctOrder:string[])\nHotspotImage(imageUrl:string, alt:string, hotspots:string[][])\nStepByStepReveal(title:string, steps:string[][])\n",
-  "catalog_digest": "da5948ae14d307a06cdc5223f6d5a30fc5cf7273f186bce5074bd9e5d90be7bf",
-  "catalog_version": "skillnet-ui/1+da5948ae14d3",
-  "prompt_sha256": "65336d3a9d819f1c211b10907af54c33a44b3dbd6e4f304ac57b15c5521b0d00",
-  "prompt_chars": 7519
+  "canonical_catalog": "catalog: skillnet-ui/1\nroot: Stack\nStack(children:ref[], gap:enum(sm|md|lg))\nTextContent(text:string, variant:enum(body|lead|caption))\nCard(title:string, children:ref[])\nCallout(tone:enum(info|warn|success), text:string)\nStepSequence(title:string, steps:string[])\nTable(headers:string[], rows:string[][])\nCodeBlock(language:string, code:string)\nChart(kind:enum(bar|line), title:string, labels:string[], values:number[])\nQuizItem(item_id:string, item_type:enum(test|true_false|fill_blank|order_steps|practical_case|dialogue), bloom_level:enum(remember|understand|apply|analyze|evaluate|create), question:string, options:string[])\nSliderExploration(title:string, variable:string, min:number, max:number, step:number, formula:string, description:string)\nManipulableGraph(title:string, xLabel:string, yLabel:string, points:string[][], functions:string[])\nBeforeAfter(title:string, beforeLabel:string, beforeContent:string, afterLabel:string, afterContent:string)\nDragOrder(instruction:string, items:string[], correctOrder:string[])\nHotspotImage(imageUrl:string, alt:string, hotspots:string[][])\nStepByStepReveal(title:string, steps:string[][])\nAudioExplanation(text:string, voice:enum(neutral|warm|formal))\nPronunciationExercise(targetText:string, language:string)\nDiagramBuilder(title:string, steps:string[][])\n",
+  "catalog_digest": "be3b4074fac4a01e7a2934e9133a4ffd7306e54791abb7b41c85c595a16c17ac",
+  "catalog_version": "skillnet-ui/1+be3b4074fac4",
+  "prompt_sha256": "c51767503e18852a7cc719c5beb3f2dc364199a9ccdda484510747d3e856607a",
+  "prompt_chars": 7855
 }

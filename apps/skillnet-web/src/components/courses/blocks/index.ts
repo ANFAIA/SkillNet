@@ -49,4 +49,13 @@ export type { HotspotImageBlockProps } from './HotspotImageBlock'
 export { StepByStepRevealBlock } from './StepByStepRevealBlock'
 export type { StepByStepRevealBlockProps } from './StepByStepRevealBlock'
 
+export { AudioExplanationBlock } from './AudioExplanationBlock'
+export type { AudioExplanationBlockProps } from './AudioExplanationBlock'
+
+export { PronunciationExerciseBlock } from './PronunciationExerciseBlock'
+export type { PronunciationExerciseBlockProps } from './PronunciationExerciseBlock'
+
+export { DiagramBuilderBlock } from './DiagramBuilderBlock'
+export type { DiagramBuilderBlockProps } from './DiagramBuilderBlock'
+
 export { InlineMarkdown } from './InlineMarkdown'
