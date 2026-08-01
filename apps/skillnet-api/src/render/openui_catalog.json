@@ -361,6 +361,75 @@
           "optional": false
         }
       ]
+    },
+    {
+      "name": "DragOrder",
+      "description": "Reordenar arrastrando",
+      "signature": "DragOrder(instruction: string, items: string[], correctOrder: string[])",
+      "props": [
+        {
+          "name": "instruction",
+          "kind": "string",
+          "choices": [],
+          "optional": false
+        },
+        {
+          "name": "items",
+          "kind": "string[]",
+          "choices": [],
+          "optional": false
+        },
+        {
+          "name": "correctOrder",
+          "kind": "string[]",
+          "choices": [],
+          "optional": false
+        }
+      ]
+    },
+    {
+      "name": "HotspotImage",
+      "description": "Imagen con zonas interactivas",
+      "signature": "HotspotImage(imageUrl: string, alt: string, hotspots: string[][])",
+      "props": [
+        {
+          "name": "imageUrl",
+          "kind": "string",
+          "choices": [],
+          "optional": false
+        },
+        {
+          "name": "alt",
+          "kind": "string",
+          "choices": [],
+          "optional": false
+        },
+        {
+          "name": "hotspots",
+          "kind": "string[][]",
+          "choices": [],
+          "optional": false
+        }
+      ]
+    },
+    {
+      "name": "StepByStepReveal",
+      "description": "Revelacion progresiva de pasos",
+      "signature": "StepByStepReveal(title: string, steps: string[][])",
+      "props": [
+        {
+          "name": "title",
+          "kind": "string",
+          "choices": [],
+          "optional": false
+        },
+        {
+          "name": "steps",
+          "kind": "string[][]",
+          "choices": [],
+          "optional": false
+        }
+      ]
     }
   ],
   "render_components": [
@@ -376,11 +445,14 @@
     "SliderExploration",
     "ManipulableGraph",
     "BeforeAfter",
-    "Markdown"
+    "Markdown",
+    "DragOrder",
+    "HotspotImage",
+    "StepByStepReveal"
   ],
-  "canonical_catalog": "catalog: skillnet-ui/1\nroot: Stack\nStack(children:ref[], gap:enum(sm|md|lg))\nTextContent(text:string, variant:enum(body|lead|caption))\nCard(title:string, children:ref[])\nCallout(tone:enum(info|warn|success), text:string)\nStepSequence(title:string, steps:string[])\nTable(headers:string[], rows:string[][])\nCodeBlock(language:string, code:string)\nChart(kind:enum(bar|line), title:string, labels:string[], values:number[])\nQuizItem(item_id:string, item_type:enum(test|true_false|fill_blank|order_steps|practical_case|dialogue), bloom_level:enum(remember|understand|apply|analyze|evaluate|create), question:string, options:string[])\nSliderExploration(title:string, variable:string, min:number, max:number, step:number, formula:string, description:string)\nManipulableGraph(title:string, xLabel:string, yLabel:string, points:string[][], functions:string[])\nBeforeAfter(title:string, beforeLabel:string, beforeContent:string, afterLabel:string, afterContent:string)\n",
-  "catalog_digest": "017b1b3a15d2dd744a260050f8a650bc4340da6a9036a0ffd20b193d403c6ebe",
-  "catalog_version": "skillnet-ui/1+017b1b3a15d2",
-  "prompt_sha256": "66a24530a50fc5502a4ac702b2bd9ec6b578aad542472e61818dcbb2587ad099",
-  "prompt_chars": 7241
+  "canonical_catalog": "catalog: skillnet-ui/1\nroot: Stack\nStack(children:ref[], gap:enum(sm|md|lg))\nTextContent(text:string, variant:enum(body|lead|caption))\nCard(title:string, children:ref[])\nCallout(tone:enum(info|warn|success), text:string)\nStepSequence(title:string, steps:string[])\nTable(headers:string[], rows:string[][])\nCodeBlock(language:string, code:string)\nChart(kind:enum(bar|line), title:string, labels:string[], values:number[])\nQuizItem(item_id:string, item_type:enum(test|true_false|fill_blank|order_steps|practical_case|dialogue), bloom_level:enum(remember|understand|apply|analyze|evaluate|create), question:string, options:string[])\nSliderExploration(title:string, variable:string, min:number, max:number, step:number, formula:string, description:string)\nManipulableGraph(title:string, xLabel:string, yLabel:string, points:string[][], functions:string[])\nBeforeAfter(title:string, beforeLabel:string, beforeContent:string, afterLabel:string, afterContent:string)\nDragOrder(instruction:string, items:string[], correctOrder:string[])\nHotspotImage(imageUrl:string, alt:string, hotspots:string[][])\nStepByStepReveal(title:string, steps:string[][])\n",
+  "catalog_digest": "da5948ae14d307a06cdc5223f6d5a30fc5cf7273f186bce5074bd9e5d90be7bf",
+  "catalog_version": "skillnet-ui/1+da5948ae14d3",
+  "prompt_sha256": "65336d3a9d819f1c211b10907af54c33a44b3dbd6e4f304ac57b15c5521b0d00",
+  "prompt_chars": 7519
 }

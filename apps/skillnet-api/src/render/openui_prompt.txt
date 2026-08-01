@@ -30,6 +30,9 @@ QuizItem(item_id: string, item_type: "test" | "true_false" | "fill_blank" | "ord
 SliderExploration(title: string, variable: string, min: number, max: number, step: number, formula: string, description: string) — Explorar un parametro con slider interactivo
 ManipulableGraph(title: string, xLabel: string, yLabel: string, points: string[][], functions: string[]) — Plano cartesiano interactivo con puntos y funciones
 BeforeAfter(title: string, beforeLabel: string, beforeContent: string, afterLabel: string, afterContent: string) — Comparar dos estados con divisor deslizante
+DragOrder(instruction: string, items: string[], correctOrder: string[]) — Reordenar arrastrando
+HotspotImage(imageUrl: string, alt: string, hotspots: string[][]) — Imagen con zonas interactivas
+StepByStepReveal(title: string, steps: string[][]) — Revelacion progresiva de pasos
 
 ## Hoisting & Streaming (CRITICAL)
 

@@ -67,6 +67,7 @@ CATALOG_ROOT = "Stack"
 #: choice is cosmetic, while a renamed, reordered or retyped prop is not.
 _KIND_TOKENS: dict[PropKind, str] = {
     PropKind.STRING: "string",
+    PropKind.NUMBER: "number",
     PropKind.ENUM: "enum",
     PropKind.STRING_LIST: "string[]",
     PropKind.STRING_MATRIX: "string[][]",

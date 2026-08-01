@@ -260,6 +260,32 @@ UI_KIT = UIKit(
             llm_emittable=False,
             props=(PropSpec("content", PropKind.STRING, "Contenido de la leccion semilla"),),
         ),
+        ComponentSpec(
+            name="DragOrder",
+            purpose="Reordenar arrastrando",
+            props=(
+                PropSpec("instruction", PropKind.STRING, "Enunciado de la tarea de ordenar"),
+                PropSpec("items", PropKind.STRING_LIST, "Elementos a ordenar (desordenados)"),
+                PropSpec("correctOrder", PropKind.STRING_LIST, "Secuencia correcta"),
+            ),
+        ),
+        ComponentSpec(
+            name="HotspotImage",
+            purpose="Imagen con zonas interactivas",
+            props=(
+                PropSpec("imageUrl", PropKind.STRING, "URL de la imagen"),
+                PropSpec("alt", PropKind.STRING, "Texto alternativo"),
+                PropSpec("hotspots", PropKind.STRING_MATRIX, "Puntos: [[x, y, label, detail], ...]"),
+            ),
+        ),
+        ComponentSpec(
+            name="StepByStepReveal",
+            purpose="Revelacion progresiva de pasos",
+            props=(
+                PropSpec("title", PropKind.STRING, "Titulo del bloque"),
+                PropSpec("steps", PropKind.STRING_MATRIX, "Pasos: [[enunciado, explicacion], ...]"),
+            ),
+        ),
     )
 )
 

@@ -40,4 +40,13 @@ export type { ManipulableGraphBlockProps } from './ManipulableGraphBlock'
 export { BeforeAfterBlock } from './BeforeAfterBlock'
 export type { BeforeAfterBlockProps } from './BeforeAfterBlock'
 
+export { DragOrderBlock } from './DragOrderBlock'
+export type { DragOrderBlockProps } from './DragOrderBlock'
+
+export { HotspotImageBlock } from './HotspotImageBlock'
+export type { HotspotImageBlockProps } from './HotspotImageBlock'
+
+export { StepByStepRevealBlock } from './StepByStepRevealBlock'
+export type { StepByStepRevealBlockProps } from './StepByStepRevealBlock'
+
 export { InlineMarkdown } from './InlineMarkdown'

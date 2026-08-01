@@ -49,10 +49,13 @@ import {
   CardBlock,
   ChartBlock,
   CodeBlockBlock,
+  DragOrderBlock,
+  HotspotImageBlock,
   ManipulableGraphBlock,
   MarkdownBlock,
   SliderExplorationBlock,
   StackBlock,
+  StepByStepRevealBlock,
   StepSequenceBlock,
   TableBlock,
   TextContentBlock,
@@ -60,8 +63,10 @@ import {
 import {
   readChildren,
   readEnum,
+  readHotspots,
   readNumber,
   readNumberArray,
+  readStepPairs,
   readString,
   readStringArray,
   readStringMatrix,
@@ -78,11 +83,14 @@ import {
   cardProps,
   chartProps,
   codeBlockProps,
+  dragOrderProps,
+  hotspotImageProps,
   manipulableGraphProps,
   markdownProps,
   quizItemProps,
   sliderExplorationProps,
   stackProps,
+  stepByStepRevealProps,
   stepSequenceProps,
   tableProps,
   textContentProps,
@@ -286,6 +294,44 @@ const Markdown = defineComponent({
   ),
 })
 
+const DragOrder = defineComponent({
+  name: 'DragOrder',
+  description: KIT_DESCRIPTIONS.DragOrder,
+  props: dragOrderProps,
+  component: ({ props }: ComponentRenderProps<{ instruction: string; items: string[]; correctOrder: string[] }>) => (
+    <DragOrderBlock
+      instruction={readString(props.instruction)}
+      items={readStringArray(props.items)}
+      correctOrder={readStringArray(props.correctOrder)}
+    />
+  ),
+})
+
+const HotspotImage = defineComponent({
+  name: 'HotspotImage',
+  description: KIT_DESCRIPTIONS.HotspotImage,
+  props: hotspotImageProps,
+  component: ({ props }: ComponentRenderProps<{ imageUrl: string; alt: string; hotspots: string[][] }>) => (
+    <HotspotImageBlock
+      imageUrl={readString(props.imageUrl)}
+      alt={readString(props.alt)}
+      hotspots={readHotspots(props.hotspots)}
+    />
+  ),
+})
+
+const StepByStepReveal = defineComponent({
+  name: 'StepByStepReveal',
+  description: KIT_DESCRIPTIONS.StepByStepReveal,
+  props: stepByStepRevealProps,
+  component: ({ props }: ComponentRenderProps<{ title: string; steps: string[][] }>) => (
+    <StepByStepRevealBlock
+      title={readString(props.title)}
+      steps={readStepPairs(props.steps)}
+    />
+  ),
+})
+
 /**
  * The render library.
  *
@@ -315,6 +361,9 @@ export const skillnetLibrary = createLibrary({
     ManipulableGraph,
     BeforeAfter,
     Markdown,
+    DragOrder,
+    HotspotImage,
+    StepByStepReveal,
   ],
 })
 

@@ -79,6 +79,9 @@ const CATALOGUE = [
   ['ManipulableGraph', 'manipulableGraphProps', 'Plano cartesiano interactivo con puntos y funciones'],
   ['BeforeAfter', 'beforeAfterProps', 'Comparar dos estados con divisor deslizante'],
   ['Markdown', 'markdownProps', 'Solo para fallback_seed; el modelo no puede emitirlo'],
+  ['DragOrder', 'dragOrderProps', 'Reordenar arrastrando'],
+  ['HotspotImage', 'hotspotImageProps', 'Imagen con zonas interactivas'],
+  ['StepByStepReveal', 'stepByStepRevealProps', 'Revelacion progresiva de pasos'],
 ]
 
 // ---------------------------------------------------------------------------------

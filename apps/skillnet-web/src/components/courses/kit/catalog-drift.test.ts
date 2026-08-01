@@ -149,6 +149,9 @@ describe('the kit is the catalogue of §5.3', () => {
       'afterContent',
     ])
     expect(propOrder('Markdown')).toEqual(['content'])
+    expect(propOrder('DragOrder')).toEqual(['instruction', 'items', 'correctOrder'])
+    expect(propOrder('HotspotImage')).toEqual(['imageUrl', 'alt', 'hotspots'])
+    expect(propOrder('StepByStepReveal')).toEqual(['title', 'steps'])
   })
 
   it('declares every prop required — the kit has no optional props', () => {
@@ -207,7 +210,7 @@ describe.skipIf(!hasCatalog)('no drift against the backend catalogue artefact', 
   it('keeps Markdown out of what the model is taught to emit', () => {
     const promptNames = catalog!.prompt_components.map((component) => component.name)
     expect(promptNames).not.toContain('Markdown')
-    expect(promptNames).toHaveLength(12)
+    expect(promptNames).toHaveLength(15)
     // …and in what the browser can render, for `fallback_seed`.
     expect(Object.keys(skillnetLibrary.components)).toContain('Markdown')
   })

@@ -163,6 +163,23 @@ export const markdownProps = z.object({
   content: z.string().describe('Contenido de la leccion semilla'),
 })
 
+export const dragOrderProps = z.object({
+  instruction: z.string().describe('Enunciado de la tarea de ordenar'),
+  items: z.array(z.string()).describe('Elementos a ordenar (desordenados)'),
+  correctOrder: z.array(z.string()).describe('Secuencia correcta'),
+})
+
+export const hotspotImageProps = z.object({
+  imageUrl: z.string().describe('URL de la imagen'),
+  alt: z.string().describe('Texto alternativo'),
+  hotspots: z.array(z.array(z.string())).describe('Puntos: [[x, y, label, detail], ...]'),
+})
+
+export const stepByStepRevealProps = z.object({
+  title: z.string().describe('Titulo del bloque'),
+  steps: z.array(z.array(z.string())).describe('Pasos: [[enunciado, explicacion], ...]'),
+})
+
 /** The frozen names, in the order of the §5.3 table. */
 export const KIT_COMPONENT_NAMES = [
   'Stack',
@@ -178,6 +195,9 @@ export const KIT_COMPONENT_NAMES = [
   'ManipulableGraph',
   'BeforeAfter',
   'Markdown',
+  'DragOrder',
+  'HotspotImage',
+  'StepByStepReveal',
 ] as const
 
 export type KitComponentName = (typeof KIT_COMPONENT_NAMES)[number]
@@ -213,6 +233,9 @@ export const KIT_DESCRIPTIONS = {
   ManipulableGraph: 'Plano cartesiano interactivo con puntos y funciones',
   BeforeAfter: 'Comparar dos estados con divisor deslizante',
   Markdown: 'Solo para fallback_seed; el modelo no puede emitirlo',
+  DragOrder: 'Reordenar arrastrando',
+  HotspotImage: 'Imagen con zonas interactivas',
+  StepByStepReveal: 'Revelacion progresiva de pasos',
 } satisfies Record<KitComponentName, string>
 
 /** Name → prop schema, so a consumer can walk the catalogue without React. */
@@ -230,6 +253,9 @@ export const KIT_PROP_SCHEMAS = {
   ManipulableGraph: manipulableGraphProps,
   BeforeAfter: beforeAfterProps,
   Markdown: markdownProps,
+  DragOrder: dragOrderProps,
+  HotspotImage: hotspotImageProps,
+  StepByStepReveal: stepByStepRevealProps,
 } satisfies Record<KitComponentName, z.ZodObject>
 
 /**
