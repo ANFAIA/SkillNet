@@ -125,6 +125,29 @@ describe('the kit is the catalogue of §5.3', () => {
       'question',
       'options',
     ])
+    expect(propOrder('SliderExploration')).toEqual([
+      'title',
+      'variable',
+      'min',
+      'max',
+      'step',
+      'formula',
+      'description',
+    ])
+    expect(propOrder('ManipulableGraph')).toEqual([
+      'title',
+      'xLabel',
+      'yLabel',
+      'points',
+      'functions',
+    ])
+    expect(propOrder('BeforeAfter')).toEqual([
+      'title',
+      'beforeLabel',
+      'beforeContent',
+      'afterLabel',
+      'afterContent',
+    ])
     expect(propOrder('Markdown')).toEqual(['content'])
   })
 
@@ -184,7 +207,7 @@ describe.skipIf(!hasCatalog)('no drift against the backend catalogue artefact', 
   it('keeps Markdown out of what the model is taught to emit', () => {
     const promptNames = catalog!.prompt_components.map((component) => component.name)
     expect(promptNames).not.toContain('Markdown')
-    expect(promptNames).toHaveLength(9)
+    expect(promptNames).toHaveLength(12)
     // …and in what the browser can render, for `fallback_seed`.
     expect(Object.keys(skillnetLibrary.components)).toContain('Markdown')
   })

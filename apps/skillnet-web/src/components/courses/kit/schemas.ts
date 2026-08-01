@@ -133,11 +133,37 @@ export const quizItemProps = z.object({
   options: z.array(z.string()).describe('Opciones; [] si no aplica'),
 })
 
+export const sliderExplorationProps = z.object({
+  title: z.string().describe('Titulo del explorador'),
+  variable: z.string().describe('Nombre de la variable'),
+  min: z.number().describe('Valor minimo del slider'),
+  max: z.number().describe('Valor maximo del slider'),
+  step: z.number().describe('Incremento del slider'),
+  formula: z.string().describe('Formula con la variable, p.ej. "y = 2 * x + 3"'),
+  description: z.string().describe('Texto explicativo'),
+})
+
+export const manipulableGraphProps = z.object({
+  title: z.string().describe('Titulo del grafico'),
+  xLabel: z.string().describe('Etiqueta del eje X'),
+  yLabel: z.string().describe('Etiqueta del eje Y'),
+  points: z.array(z.array(z.string())).describe('Puntos: [label, x, y, draggable?]'),
+  functions: z.array(z.string()).describe('Funciones matematicas, p.ej. "Math.sin(x)"'),
+})
+
+export const beforeAfterProps = z.object({
+  title: z.string().describe('Titulo de la comparacion'),
+  beforeLabel: z.string().describe('Etiqueta del estado anterior'),
+  beforeContent: z.string().describe('Contenido del estado anterior'),
+  afterLabel: z.string().describe('Etiqueta del estado posterior'),
+  afterContent: z.string().describe('Contenido del estado posterior'),
+})
+
 export const markdownProps = z.object({
   content: z.string().describe('Contenido de la leccion semilla'),
 })
 
-/** The ten frozen names, in the order of the §5.3 table. */
+/** The frozen names, in the order of the §5.3 table. */
 export const KIT_COMPONENT_NAMES = [
   'Stack',
   'TextContent',
@@ -148,6 +174,9 @@ export const KIT_COMPONENT_NAMES = [
   'CodeBlock',
   'Chart',
   'QuizItem',
+  'SliderExploration',
+  'ManipulableGraph',
+  'BeforeAfter',
   'Markdown',
 ] as const
 
@@ -180,6 +209,9 @@ export const KIT_DESCRIPTIONS = {
   CodeBlock: 'Ejemplo de codigo',
   Chart: 'Dato cuantitativo',
   QuizItem: 'Ejercicio',
+  SliderExploration: 'Explorar un parametro con slider interactivo',
+  ManipulableGraph: 'Plano cartesiano interactivo con puntos y funciones',
+  BeforeAfter: 'Comparar dos estados con divisor deslizante',
   Markdown: 'Solo para fallback_seed; el modelo no puede emitirlo',
 } satisfies Record<KitComponentName, string>
 
@@ -194,6 +226,9 @@ export const KIT_PROP_SCHEMAS = {
   CodeBlock: codeBlockProps,
   Chart: chartProps,
   QuizItem: quizItemProps,
+  SliderExploration: sliderExplorationProps,
+  ManipulableGraph: manipulableGraphProps,
+  BeforeAfter: beforeAfterProps,
   Markdown: markdownProps,
 } satisfies Record<KitComponentName, z.ZodObject>
 

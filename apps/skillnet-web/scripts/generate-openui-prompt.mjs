@@ -75,6 +75,9 @@ const CATALOGUE = [
   ['CodeBlock', 'codeBlockProps', 'Ejemplo de codigo'],
   ['Chart', 'chartProps', 'Dato cuantitativo'],
   ['QuizItem', 'quizItemProps', 'Ejercicio'],
+  ['SliderExploration', 'sliderExplorationProps', 'Explorar un parametro con slider interactivo'],
+  ['ManipulableGraph', 'manipulableGraphProps', 'Plano cartesiano interactivo con puntos y funciones'],
+  ['BeforeAfter', 'beforeAfterProps', 'Comparar dos estados con divisor deslizante'],
   ['Markdown', 'markdownProps', 'Solo para fallback_seed; el modelo no puede emitirlo'],
 ]
 

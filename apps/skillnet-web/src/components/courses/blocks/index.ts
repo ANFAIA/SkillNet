@@ -31,4 +31,13 @@ export type { QuizItemBlockProps } from './QuizItemBlock'
 export { MarkdownBlock } from './MarkdownBlock'
 export type { MarkdownBlockProps } from './MarkdownBlock'
 
+export { SliderExplorationBlock } from './SliderExplorationBlock'
+export type { SliderExplorationBlockProps } from './SliderExplorationBlock'
+
+export { ManipulableGraphBlock } from './ManipulableGraphBlock'
+export type { ManipulableGraphBlockProps } from './ManipulableGraphBlock'
+
+export { BeforeAfterBlock } from './BeforeAfterBlock'
+export type { BeforeAfterBlockProps } from './BeforeAfterBlock'
+
 export { InlineMarkdown } from './InlineMarkdown'

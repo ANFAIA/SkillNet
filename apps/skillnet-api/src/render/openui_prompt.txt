@@ -27,6 +27,9 @@ Table(headers: string[], rows: string[][]) — Comparar conceptos
 CodeBlock(language: string, code: string) — Ejemplo de codigo
 Chart(kind: "bar" | "line", title: string, labels: string[], values: number[]) — Dato cuantitativo
 QuizItem(item_id: string, item_type: "test" | "true_false" | "fill_blank" | "order_steps" | "practical_case" | "dialogue", bloom_level: "remember" | "understand" | "apply" | "analyze" | "evaluate" | "create", question: string, options: string[]) — Ejercicio
+SliderExploration(title: string, variable: string, min: number, max: number, step: number, formula: string, description: string) — Explorar un parametro con slider interactivo
+ManipulableGraph(title: string, xLabel: string, yLabel: string, points: string[][], functions: string[]) — Plano cartesiano interactivo con puntos y funciones
+BeforeAfter(title: string, beforeLabel: string, beforeContent: string, afterLabel: string, afterContent: string) — Comparar dos estados con divisor deslizante
 
 ## Hoisting & Streaming (CRITICAL)
 

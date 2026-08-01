@@ -42,6 +42,7 @@ class PropKind(str, enum.Enum):
     """The value shapes the dialect can express."""
 
     STRING = "string"
+    NUMBER = "number"
     ENUM = "enum"
     STRING_LIST = "string[]"
     STRING_MATRIX = "string[][]"
@@ -216,6 +217,41 @@ UI_KIT = UIKit(
                 PropSpec("bloom_level", PropKind.ENUM, "Nivel cognitivo", BLOOM_LEVELS),
                 PropSpec("question", PropKind.STRING, "Enunciado"),
                 PropSpec("options", PropKind.STRING_LIST, "Opciones; [] si no aplica"),
+            ),
+        ),
+        ComponentSpec(
+            name="SliderExploration",
+            purpose="Explorar un parametro con slider interactivo",
+            props=(
+                PropSpec("title", PropKind.STRING, "Titulo del explorador"),
+                PropSpec("variable", PropKind.STRING, "Nombre de la variable"),
+                PropSpec("min", PropKind.NUMBER, "Valor minimo del slider"),
+                PropSpec("max", PropKind.NUMBER, "Valor maximo del slider"),
+                PropSpec("step", PropKind.NUMBER, "Incremento del slider"),
+                PropSpec("formula", PropKind.STRING, "Formula con la variable, p.ej. \"y = 2 * x + 3\""),
+                PropSpec("description", PropKind.STRING, "Texto explicativo"),
+            ),
+        ),
+        ComponentSpec(
+            name="ManipulableGraph",
+            purpose="Plano cartesiano interactivo con puntos y funciones",
+            props=(
+                PropSpec("title", PropKind.STRING, "Titulo del grafico"),
+                PropSpec("xLabel", PropKind.STRING, "Etiqueta del eje X"),
+                PropSpec("yLabel", PropKind.STRING, "Etiqueta del eje Y"),
+                PropSpec("points", PropKind.STRING_MATRIX, "Puntos: [label, x, y, draggable?]"),
+                PropSpec("functions", PropKind.STRING_LIST, "Funciones matematicas, p.ej. \"Math.sin(x)\""),
+            ),
+        ),
+        ComponentSpec(
+            name="BeforeAfter",
+            purpose="Comparar dos estados con divisor deslizante",
+            props=(
+                PropSpec("title", PropKind.STRING, "Titulo de la comparacion"),
+                PropSpec("beforeLabel", PropKind.STRING, "Etiqueta del estado anterior"),
+                PropSpec("beforeContent", PropKind.STRING, "Contenido del estado anterior"),
+                PropSpec("afterLabel", PropKind.STRING, "Etiqueta del estado posterior"),
+                PropSpec("afterContent", PropKind.STRING, "Contenido del estado posterior"),
             ),
         ),
         ComponentSpec(

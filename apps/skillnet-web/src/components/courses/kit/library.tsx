@@ -44,11 +44,14 @@ import { createLibrary, defineComponent } from '@openuidev/react-lang'
 import type { ComponentRenderProps } from '@openuidev/react-lang'
 
 import {
+  BeforeAfterBlock,
   CalloutBlock,
   CardBlock,
   ChartBlock,
   CodeBlockBlock,
+  ManipulableGraphBlock,
   MarkdownBlock,
+  SliderExplorationBlock,
   StackBlock,
   StepSequenceBlock,
   TableBlock,
@@ -57,6 +60,7 @@ import {
 import {
   readChildren,
   readEnum,
+  readNumber,
   readNumberArray,
   readString,
   readStringArray,
@@ -69,12 +73,15 @@ import {
   KIT_DESCRIPTIONS,
   STACK_GAPS,
   TEXT_VARIANTS,
+  beforeAfterProps,
   calloutProps,
   cardProps,
   chartProps,
   codeBlockProps,
+  manipulableGraphProps,
   markdownProps,
   quizItemProps,
+  sliderExplorationProps,
   stackProps,
   stepSequenceProps,
   tableProps,
@@ -192,6 +199,79 @@ const QuizItem = defineComponent({
   component: QuizItemRenderer,
 })
 
+const SliderExploration = defineComponent({
+  name: 'SliderExploration',
+  description: KIT_DESCRIPTIONS.SliderExploration,
+  props: sliderExplorationProps,
+  component: ({
+    props,
+  }: ComponentRenderProps<{
+    title: string
+    variable: string
+    min: number
+    max: number
+    step: number
+    formula: string
+    description: string
+  }>) => (
+    <SliderExplorationBlock
+      title={readString(props.title)}
+      variable={readString(props.variable, 'x')}
+      min={readNumber(props.min, 0)}
+      max={readNumber(props.max, 100)}
+      step={readNumber(props.step, 1)}
+      formula={readString(props.formula)}
+      description={readString(props.description)}
+    />
+  ),
+})
+
+const ManipulableGraph = defineComponent({
+  name: 'ManipulableGraph',
+  description: KIT_DESCRIPTIONS.ManipulableGraph,
+  props: manipulableGraphProps,
+  component: ({
+    props,
+  }: ComponentRenderProps<{
+    title: string
+    xLabel: string
+    yLabel: string
+    points: string[][]
+    functions: string[]
+  }>) => (
+    <ManipulableGraphBlock
+      title={readString(props.title)}
+      xLabel={readString(props.xLabel, 'x')}
+      yLabel={readString(props.yLabel, 'y')}
+      points={readStringMatrix(props.points)}
+      functions={readStringArray(props.functions)}
+    />
+  ),
+})
+
+const BeforeAfter = defineComponent({
+  name: 'BeforeAfter',
+  description: KIT_DESCRIPTIONS.BeforeAfter,
+  props: beforeAfterProps,
+  component: ({
+    props,
+  }: ComponentRenderProps<{
+    title: string
+    beforeLabel: string
+    beforeContent: string
+    afterLabel: string
+    afterContent: string
+  }>) => (
+    <BeforeAfterBlock
+      title={readString(props.title)}
+      beforeLabel={readString(props.beforeLabel, 'Antes')}
+      beforeContent={readString(props.beforeContent)}
+      afterLabel={readString(props.afterLabel, 'Despues')}
+      afterContent={readString(props.afterContent)}
+    />
+  ),
+})
+
 /**
  * `fallback_seed` only (§5.3). It is registered because the "never a red screen"
  * path serves `lessons.content` through this same renderer; it is absent from the
@@ -231,6 +311,9 @@ export const skillnetLibrary = createLibrary({
     CodeBlock,
     Chart,
     QuizItem,
+    SliderExploration,
+    ManipulableGraph,
+    BeforeAfter,
     Markdown,
   ],
 })

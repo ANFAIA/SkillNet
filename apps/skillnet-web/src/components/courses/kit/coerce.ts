@@ -15,6 +15,12 @@
  * which during streaming means silently showing stale content.
  */
 
+/** Reads a numeric prop, tolerating strings and nulls the parser lets through. */
+export function readNumber(value: unknown, fallback: number): number {
+  const num = Number(value)
+  return Number.isFinite(num) ? num : fallback
+}
+
 /** Reads a string prop, tolerating the numbers and nulls the parser lets through. */
 export function readString(value: unknown, fallback = ''): string {
   return typeof value === 'string' ? value : fallback
