@@ -15,6 +15,17 @@ export interface DiagramBuilderBlockProps {
   steps: DiagramStep[]
 }
 
+/**
+ * Strip dangerous elements from LLM-generated SVG before rendering.
+ */
+function sanitizeSvg(svg: string): string {
+  return svg
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<foreignObject[\s\S]*?<\/foreignObject>/gi, '')
+    .replace(/\bon\w+\s*=\s*["'][^"']*["']/gi, '')
+    .replace(/javascript\s*:/gi, '')
+}
+
 export function DiagramBuilderBlock({ title, steps }: DiagramBuilderBlockProps) {
   const safeSteps = Array.isArray(steps) ? steps : []
   const [currentStep, setCurrentStep] = useState(0)
@@ -62,7 +73,7 @@ export function DiagramBuilderBlock({ title, steps }: DiagramBuilderBlockProps) 
           className="w-full h-auto max-h-72"
           role="img"
           aria-label={currentStepData?.label ?? title}
-          dangerouslySetInnerHTML={{ __html: cumulativeSvg }}
+          dangerouslySetInnerHTML={{ __html: sanitizeSvg(cumulativeSvg) }}
         />
       </div>
 

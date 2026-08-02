@@ -19,6 +19,10 @@ import { CSS } from '@dnd-kit/utilities'
 import { Button } from '../../ui'
 import { BLOCK_TITLE, INLINE_SURFACE } from './rhythm'
 
+// Design decision (v1): correctOrder is in the program text (browser-visible).
+// Unlike QuizItem (server-side grading), DragOrder validates locally because
+// the exercise is formative, not summative. A server-side endpoint can be added
+// in v2 if needed for certification scenarios.
 export interface DragOrderBlockProps {
   instruction: string
   items: string[]

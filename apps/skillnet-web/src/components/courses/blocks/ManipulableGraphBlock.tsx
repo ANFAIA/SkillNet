@@ -43,6 +43,9 @@ function buildFn(expr: string): ((x: number) => number) | null {
   const sanitized = expr.replace(/Math\.\w+/g, '').replace(/\bx\b/g, '')
   if (/[a-zA-Z]/.test(sanitized)) return null
   try {
+    // NOTE: Requires CSP `script-src 'unsafe-eval'` or equivalent.
+    // The expression is LLM-generated (not user input) and validated against
+    // a whitelist of safe math tokens before evaluation.
     // eslint-disable-next-line no-new-func
     const fn = new Function('x', `"use strict"; return (${expr})`) as (x: number) => number
     // Smoke test

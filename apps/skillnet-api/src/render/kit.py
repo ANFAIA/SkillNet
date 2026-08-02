@@ -229,7 +229,10 @@ UI_KIT = UIKit(
                 PropSpec("min", PropKind.NUMBER, "Valor minimo del slider"),
                 PropSpec("max", PropKind.NUMBER, "Valor maximo del slider"),
                 PropSpec("step", PropKind.NUMBER, "Incremento del slider"),
-                PropSpec("formula", PropKind.STRING, "Formula con la variable, p.ej. \"y = 2 * x + 3\""),
+                PropSpec(
+                    "formula", PropKind.STRING,
+                    'Formula con la variable, p.ej. "y = 2 * x + 3"',
+                ),
                 PropSpec("description", PropKind.STRING, "Texto explicativo"),
             ),
         ),
@@ -241,7 +244,10 @@ UI_KIT = UIKit(
                 PropSpec("xLabel", PropKind.STRING, "Etiqueta del eje X"),
                 PropSpec("yLabel", PropKind.STRING, "Etiqueta del eje Y"),
                 PropSpec("points", PropKind.STRING_MATRIX, "Puntos: [label, x, y, draggable?]"),
-                PropSpec("functions", PropKind.STRING_LIST, "Funciones matematicas, p.ej. \"Math.sin(x)\""),
+                PropSpec(
+                    "functions", PropKind.STRING_LIST,
+                    'Funciones matematicas, p.ej. "Math.sin(x)"',
+                ),
             ),
         ),
         ComponentSpec(
@@ -276,7 +282,10 @@ UI_KIT = UIKit(
             props=(
                 PropSpec("imageUrl", PropKind.STRING, "URL de la imagen"),
                 PropSpec("alt", PropKind.STRING, "Texto alternativo"),
-                PropSpec("hotspots", PropKind.STRING_MATRIX, "Puntos: [[x, y, label, detail], ...]"),
+                PropSpec(
+                    "hotspots", PropKind.STRING_MATRIX,
+                    "Puntos: [[x, y, label, detail], ...]",
+                ),
             ),
         ),
         ComponentSpec(
@@ -308,7 +317,10 @@ UI_KIT = UIKit(
             purpose="Diagrama SVG que se construye paso a paso",
             props=(
                 PropSpec("title", PropKind.STRING, "Titulo del diagrama"),
-                PropSpec("steps", PropKind.STRING_MATRIX, "Pasos: [[etiqueta, svgFragment, explicacion], ...]"),
+                PropSpec(
+                    "steps", PropKind.STRING_MATRIX,
+                    "Pasos: [[etiqueta, svgFragment, explicacion], ...]",
+                ),
             ),
         ),
     )

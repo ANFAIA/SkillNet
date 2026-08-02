@@ -33,7 +33,9 @@ function evaluateFormula(formula: string, variable: string, value: number): stri
   // Parse simple arithmetic: numbers, +, -, *, /, parentheses, spaces
   if (/^[\d\s+\-*/().]+$/.test(rhs)) {
     try {
-      // Safe subset: only digits and arithmetic operators
+      // NOTE: Requires CSP `script-src 'unsafe-eval'` or equivalent.
+      // The expression is LLM-generated (not user input) and validated against
+      // a whitelist of safe math tokens before evaluation.
       const result = Function(`"use strict"; return (${rhs})`)() as number
       if (Number.isFinite(result)) {
         return `${lhs} = ${rhs} = ${Number.isInteger(result) ? result : result.toFixed(2)}`

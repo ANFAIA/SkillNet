@@ -12,6 +12,8 @@ utterance is never synthesized twice.
 from __future__ import annotations
 
 import hashlib
+import os
+import tempfile
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import ClassVar
@@ -107,7 +109,9 @@ class GoogleWaveNetProvider(TTSProvider):
         "en-US-Wavenet-F": "English (US) Female",
     }
 
-    async def synthesize(self, text: str, voice: str = "es-ES-Wavenet-B", language: str = "es") -> bytes:
+    async def synthesize(
+        self, text: str, voice: str = "es-ES-Wavenet-B", language: str = "es",
+    ) -> bytes:
         try:
             from google.cloud import texttospeech  # type: ignore[import-untyped]
         except ImportError as exc:
@@ -220,10 +224,24 @@ class TTSCache:
 
     def put(self, text: str, voice: str, provider: str, language: str, audio: bytes) -> Path:
         key = _cache_key(text, voice, provider, language)
-        path = self._path(key)
-        path.write_bytes(audio)
-        logger.debug("TTS cache store: %s (%d bytes)", path.name, len(audio))
-        return path
+        cache_path = self._path(key)
+        # Atomic write: write to temp file then rename to avoid partial reads
+        # from concurrent requests.
+        fd, tmp_path = tempfile.mkstemp(dir=str(self.cache_dir))
+        closed = False
+        try:
+            os.write(fd, audio)
+            os.close(fd)
+            closed = True
+            os.replace(tmp_path, str(cache_path))
+        except BaseException:
+            if not closed:
+                os.close(fd)
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+            raise
+        logger.debug("TTS cache store: %s (%d bytes)", cache_path.name, len(audio))
+        return cache_path
 
 
 # ---------------------------------------------------------------------------
