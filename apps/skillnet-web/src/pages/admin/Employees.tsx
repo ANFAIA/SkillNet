@@ -260,7 +260,7 @@ export function Employees() {
   const employees = data?.items ?? []
 
   return (
-    <div className="flex flex-col md:h-[calc(100dvh-50px-3rem)]">
+    <div className="flex flex-col flex-1 min-h-0">
       <div className="shrink-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h2 className="text-xl font-semibold text-text">Empleados</h2>

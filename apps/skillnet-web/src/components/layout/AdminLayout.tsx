@@ -25,7 +25,7 @@ function AdminLayoutInner() {
             and the page scrolls; the sidebar and header are both `fixed`, so nothing here
             needed a scroll box of its own. `clip` rather than `hidden` because
             `overflow-x: hidden` would force the vertical axis back to `auto`. */}
-        <main className="flex-1 mt-[50px] bg-bg md:rounded-tl-xl overflow-x-clip overflow-y-auto">
+        <main className="flex-1 mt-[50px] bg-bg md:rounded-tl-xl overflow-x-clip overflow-y-auto flex flex-col">
           <ErrorBoundary
             fallback={(error, reset) => (
               <div className="p-4 md:p-6">
@@ -59,7 +59,7 @@ function AdminLayoutInner() {
               key={location.pathname}
               initial={pageTransition.initial}
               animate={pageTransition.animate}
-              className="p-4 md:p-6"
+              className="p-4 md:p-6 flex-1 min-h-0 flex flex-col"
             >
               <Outlet />
             </motion.div>
