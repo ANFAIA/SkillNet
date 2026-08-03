@@ -44,27 +44,21 @@ are load-bearing:
 **3. The admin assistant stopped being a copy of the tutor** (2026-07-28). It used to walk
 the same document ladder and nothing else, so asked *"como van mis empleados"* it answered
 with four bullets of management advice while five employees, their enrolments and their
-mastery sat in the database it is the administration console for. Two changes, both on the
-``admin`` path only:
+mastery sat in the database it is the administration console for. ``_org_snapshot`` assembles
+the organization's training data server-side and pastes it into the turn the way a document
+already is. Deterministic, ``org_id``-scoped, and it carries no field of the private learner
+profile — see ``src/services/org_snapshot.py``, which is where the privacy line is drawn and
+tested.
 
-* ``_org_snapshot`` assembles the organization's training data server-side and pastes it
-  into the turn the way a document already is. Deterministic, ``org_id``-scoped, and it
-  carries no field of the private learner profile — see ``src/services/org_snapshot.py``,
-  which is where the privacy line is drawn and tested.
-* A greeting never reaches the model: ``src/services/small_talk.py`` answers it. *"que
-  tal"* used to be met with *"No tengo suficiente informacion"*, which is what a model
-  correctly says when it is handed an allergen manual and a pleasantry. *"quien eres"*
-  joined it on 2026-07-28, for the same reason one rung up: the assistant is the one thing
-  in the turn that is not in the snapshot, so looking for it there can only end in "no
-  consta".
+**4. Single-phase GenUI for the admin** (2026-08-03). The admin assistant no longer uses the
+two-phase approach (prose + layout call). Instead, the LLM is prompted with the OpenUI Lang
+spec directly and generates a program in a single call. If the model fails to produce valid
+OpenUI Lang, the streamed text is served as prose — same degradation contract as before,
+minus the second call and its latency. The tutor still uses the two-phase path.
 
-**4. The admin assistant lays out too** (2026-07-28). It was excluded from the layout call
-on the grounds that a wall of blocks is slower to act on than a sentence; ``MIN_LAYOUT_CHARS``
-already enforces that on its own, and the exclusion was costing the clearest case of
-generative UI in the product — *"como van mis empleados"* is five people, four columns and
-a deadline. Same two switches, same silent fall back to the prose, plus one rule the tutor
-does not need: ``invented_figures`` refuses any program carrying a number the answer did
-not, because these blocks describe named people's training records.
+The small-talk module (``src/services/small_talk.py``) is no longer used by the chat service.
+All messages — greetings included — go through the LLM, which now has enough persona context
+to handle them. The module itself is kept for its tests and potential reuse elsewhere.
 """
 
 from __future__ import annotations
@@ -83,6 +77,7 @@ from src.llm.client import LLMService
 from src.llm.embedding import EmbeddingService
 from src.llm.prompts.admin import (
     ADMIN_PROMPT_VERSION,
+    admin_genui_system_prompt,
     admin_system_prompt,
     build_admin_turn,
 )
@@ -107,19 +102,12 @@ from src.render.prompt import catalog_version
 from src.repositories.chat_repo import ChatRepository
 from src.services.org_snapshot import build_org_snapshot, render_snapshot
 from src.services.retrieval import GroundedContext, ground_question
-from src.services.small_talk import small_talk_reply
 
 logger = get_logger(__name__)
 
 MEMORY_TURNS = 8
 TITLE_MAX_CHARS = 40
 RETRIEVAL_TOP_K = 5
-
-#: A canned answer is not streamed by a provider, so it has no natural chunking. Emitted a
-#: few words at a time rather than in one event, purely so the bubble fills the way every
-#: other bubble does — a greeting that appears instantly while every real answer types
-#: itself out reads like two different products.
-CANNED_CHUNK_WORDS = 6
 
 #: Below this many characters an answer is one idea, and a ``Stack`` around one idea is
 #: worse than the paragraph it replaces. Also the cheap half of the rate-limit story: the
@@ -174,20 +162,6 @@ def _context_course_id(context: dict | None) -> uuid.UUID | None:
         return raw if isinstance(raw, uuid.UUID) else uuid.UUID(str(raw))
     except (ValueError, TypeError):
         return None
-
-
-def _canned_chunks(text: str, words: int = CANNED_CHUNK_WORDS) -> list[str]:
-    """A canned answer cut into token-sized pieces that reassemble to it exactly.
-
-    ``"".join(_canned_chunks(t)) == t`` is the whole contract: the persisted message and
-    the bubble have to be the same string, and a chunker that drops a space is a chunker
-    that makes them differ by the time anyone notices.
-    """
-    pieces = text.split(" ")
-    return [
-        " ".join(pieces[i : i + words]) + (" " if i + words < len(pieces) else "")
-        for i in range(0, len(pieces), words)
-    ]
 
 
 def strip_no_ui(raw: str) -> str:
@@ -540,13 +514,12 @@ class ChatService:
         session_id: uuid.UUID | None,
         context: dict | None,
     ) -> AsyncIterator[str]:
-        """The admin assistant. Same stream as the tutor, two things more.
+        """The admin assistant. Same stream as the tutor, one thing more.
 
         It is handed the **organization's own data** (``src/services/org_snapshot.py``)
         alongside whatever the document ladder found, because "como van mis empleados" is
         an admin's first question and the answer is a query, not a paragraph of the
-        allergen manual. And a greeting is answered here rather than by the model: see
-        ``src/services/small_talk.py`` for why that is a fix and not a shortcut.
+        allergen manual.
         """
         async for event in self._stream(
             user,
@@ -555,7 +528,6 @@ class ChatService:
             context,
             agent_type="admin",
             whole_documents="org",
-            canned=small_talk_reply(message),
         ):
             yield event
 
@@ -568,7 +540,6 @@ class ChatService:
         *,
         agent_type: str,
         whole_documents: str,
-        canned: str | None = None,
     ) -> AsyncIterator[str]:
         grounded = GroundedContext("general")
         parts: list[str] = []
@@ -591,19 +562,18 @@ class ChatService:
             await self.db.commit()
 
             org_data: dict | None = None
-            if canned is None:
-                grounded = await ground_question(
-                    self.db,
-                    user_id=user.id,
-                    org_id=user.org_id,
-                    embedding_service=self.embeddings,
-                    query=message,
-                    top_k=RETRIEVAL_TOP_K,
-                    document_ids=_context_document_ids(context),
-                    whole_documents=whole_documents,
-                )
-                if agent_type == "admin":
-                    snapshot_block, org_data = await self._org_snapshot(user)
+            grounded = await ground_question(
+                self.db,
+                user_id=user.id,
+                org_id=user.org_id,
+                embedding_service=self.embeddings,
+                query=message,
+                top_k=RETRIEVAL_TOP_K,
+                document_ids=_context_document_ids(context),
+                whole_documents=whole_documents,
+            )
+            if agent_type == "admin":
+                snapshot_block, org_data = await self._org_snapshot(user)
 
             # Announced before the first token, so the bubble carries its provenance from
             # the moment it starts filling rather than growing a label at the end.
@@ -615,17 +585,12 @@ class ChatService:
             if org_data is not None:
                 yield format_sse("org_data", org_data)
 
-            if canned is not None:
-                for piece in _canned_chunks(canned):
-                    parts.append(piece)
-                    yield format_sse("token", {"content": piece})
-            else:
-                messages = self._build_messages(
-                    history, grounded, message, agent_type, snapshot_block
-                )
-                async for piece in self.tutor_llm.stream(messages):
-                    parts.append(piece)
-                    yield format_sse("token", {"content": piece})
+            messages = self._build_messages(
+                history, grounded, message, agent_type, snapshot_block
+            )
+            async for piece in self.tutor_llm.stream(messages):
+                parts.append(piece)
+                yield format_sse("token", {"content": piece})
 
             answer = "".join(parts)
             yield format_sse("citations", {"citations": grounded.citations})
@@ -643,7 +608,6 @@ class ChatService:
                         else TUTOR_PROMPT_VERSION
                     ),
                     **({"org_data": org_data} if org_data is not None else {}),
-                    **({"small_talk": True} if canned is not None else {}),
                 },
             )
             await self.db.commit()
@@ -652,7 +616,19 @@ class ChatService:
             # optional program arrives later on the same open stream, if it validates.
             yield format_sse("done", {"message_id": str(assistant.id)})
 
-            if self._should_lay_out(agent_type, answer, canned=canned is not None):
+            # -- generative UI --------------------------------------------------------
+            # Admin GenUI (single-phase): the model was already prompted to produce
+            # OpenUI Lang directly.  Check whether it did; if valid, emit the program.
+            # If not (plain prose, or invalid program), the streamed text stands as-is.
+            if agent_type == "admin" and self.generative_ui and self._is_genui_candidate(answer):
+                program = self._extract_genui_program(answer)
+                if program:
+                    await self._persist_program(assistant, program)
+                    yield format_sse("ui", {"program": program, "format": CHAT_UI_FORMAT})
+
+            # Tutor GenUI (two-phase): a second LLM call classifies and re-lays the
+            # answer.  Admin no longer uses this path.
+            elif self._should_lay_out(agent_type, answer):
                 yield format_sse("layout_start", {})
                 program = await self._lay_out(message, answer)
                 if program:
@@ -700,30 +676,56 @@ class ChatService:
             "generated_at": snapshot.generated_at.isoformat(),
         }
 
-    # -- the layout call ---------------------------------------------------------
+    # -- single-phase GenUI (admin) -----------------------------------------------
 
-    def _should_lay_out(self, agent_type: str, answer: str, *, canned: bool) -> bool:
-        """Whether this answer earns a second call.
+    @staticmethod
+    def _is_genui_candidate(answer: str) -> bool:
+        """Whether the streamed answer looks like it might contain an OpenUI Lang program.
 
-        A canned answer never does, and that check is worth more than it looks. The point
-        of ``src/services/small_talk.py`` is that "hola" and "quien eres" cost **zero**
-        tokens; the identity reply is long enough to clear ``MIN_LAYOUT_CHARS``, so the
-        moment the admin path started laying out, a question that deliberately never
-        reaches a provider started paying for a call to one. Measured live before this
-        line existed: ``quien eres`` emitted ``layout_start``.
+        The check is deliberately cheap: if the model wrote ``root = Stack(`` anywhere in
+        its output, it attempted a program. If it did not, it wrote prose and there is
+        nothing to validate.
+        """
+        return "root = Stack(" in answer or "root=Stack(" in answer
 
-        The admin assistant used to be excluded, on the grounds that it answers in two
-        lines and a wall of blocks would be slower to act on than a sentence. The first
-        half is enforced by ``MIN_LAYOUT_CHARS`` on its own, and the second half turned
-        out to be wrong in the one case that matters: *"como van mis empleados"* is five
-        people, four columns and a deadline, which is a table in every other tool an
-        administrator uses. So it is in, behind exactly the same two switches, with
-        exactly the same fall back to the prose it already streamed.
+    @staticmethod
+    def _extract_genui_program(answer: str) -> str | None:
+        """Extract and validate an OpenUI Lang program from the model's streamed answer.
+
+        Returns the canonical program string ready for the browser, or ``None`` when the
+        answer should be served as prose. Every failure — bad syntax, an invented figure,
+        a ``QuizItem`` — degrades to the text the reader already has.
+        """
+        program = validate_chat_program(answer)
+        if program is None:
+            return None
+        # The invented-figures check still applies: the model must not put a number on
+        # screen that was not in the text it was given.  In single-phase mode the
+        # "answer" and the "program" are the same string, so every figure in the program
+        # is trivially present in the answer.  The check is kept for safety in case the
+        # model emits prose *before* the program (which validate_chat_program strips).
+        invented = invented_figures(program, answer)
+        if invented:
+            logger.info(
+                "GenUI program rejected: figures not in the answer: %s",
+                ", ".join(invented),
+            )
+            return None
+        return program
+
+    # -- the two-phase layout call (tutor only) ---------------------------------
+
+    def _should_lay_out(self, agent_type: str, answer: str) -> bool:
+        """Whether this answer earns a second (two-phase) layout call.
+
+        Only the tutor uses the two-phase path now. The admin assistant switched to
+        single-phase GenUI: the model produces OpenUI Lang directly, so there is no
+        second call to classify the shape. ``MIN_LAYOUT_CHARS`` still applies: a short
+        answer is one idea, and a ``Stack`` around one idea is worse than the paragraph.
         """
         return (
             self.generative_ui
-            and not canned
-            and agent_type in ("tutor", "admin")
+            and agent_type == "tutor"
             and self.tutor_llm is not None
             and len(answer.strip()) >= MIN_LAYOUT_CHARS
         )
@@ -813,14 +815,19 @@ class ChatService:
         long admin session does not accumulate five stale copies of the payroll and the
         model never has two contradictory versions of a number in front of it. Yesterday's
         counts are worse than none.
+
+        When ``self.generative_ui`` is True and the agent is ``admin``, the system prompt
+        includes the OpenUI Lang spec so the model produces a program directly (single-
+        phase GenUI) instead of prose that a second call would re-lay.
         """
         grounding: Grounding = grounded.grounding
         is_admin = agent_type == "admin"
-        system = (
-            admin_system_prompt(grounding, org_data=bool(snapshot_block))
-            if is_admin
-            else tutor_system_prompt(grounding)
-        )
+        if is_admin and self.generative_ui:
+            system = admin_genui_system_prompt(grounding, org_data=bool(snapshot_block))
+        elif is_admin:
+            system = admin_system_prompt(grounding, org_data=bool(snapshot_block))
+        else:
+            system = tutor_system_prompt(grounding)
         messages: list[dict[str, str]] = [{"role": "system", "content": system}]
         for msg in history:
             if msg.role in ("user", "assistant"):
@@ -870,7 +877,6 @@ class ChatService:
 
 
 __all__ = [
-    "CANNED_CHUNK_WORDS",
     "CHAT_UI_FORMAT",
     "MEMORY_TURNS",
     "MIN_LAYOUT_CHARS",

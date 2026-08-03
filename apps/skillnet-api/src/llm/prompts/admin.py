@@ -17,6 +17,8 @@ names and numbers.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from src.llm.prompts.grounding import Grounding
 
 #: Bumped when anything here changes in a way that changes an answer. Persisted on every
@@ -142,6 +144,55 @@ _CONTEXT_HEADERS: dict[str, str] = {
 }
 
 
+_OPENUI_SPEC: str | None = None
+
+
+def _load_openui_spec() -> str:
+    """Lazily load the OpenUI Lang spec from ``src/render/openui_prompt.txt``."""
+    global _OPENUI_SPEC  # noqa: PLW0603
+    if _OPENUI_SPEC is None:
+        spec_path = Path(__file__).resolve().parent.parent.parent / "render" / "openui_prompt.txt"
+        _OPENUI_SPEC = spec_path.read_text(encoding="utf-8")
+    return _OPENUI_SPEC
+
+
+#: The task note that replaces the two-phase layout approach: the model composes
+#: OpenUI Lang directly, in a single call, instead of writing prose and then having
+#: a second call classify the shape.
+ADMIN_GENUI_TASK = """\
+You are the SkillNet admin assistant. Instead of plain text, you RESPOND by COMPOSING
+the available components. Normal paragraphs are TextContent; use richer pieces (Callout,
+StepSequence, Table, Chart, Card) whenever they express the answer better than prose.
+Match the piece to the shape: StepSequence for how-tos, Table for comparisons or lists
+of people/courses, Callout for rules or warnings, Chart for quantities.
+
+CRITICAL: root = Stack([...]) must be the FIRST line. Never use QuizItem in chat responses.
+Answer in the same language as the user. Be concise and operational.
+
+Do NOT invent figures, dates, or names not present in the context provided.
+Citation markers [Fuente N] should NOT appear inside component text — citations are
+rendered separately by the frontend."""
+
+
+def admin_genui_system_prompt(grounding: Grounding, *, org_data: bool = False) -> str:
+    """Single-phase GenUI prompt: persona + data-block + OpenUI spec + task note + grounding.
+
+    The model produces an OpenUI Lang program directly instead of prose that a second
+    call would re-lay. If it fails to produce valid OpenUI Lang, the service degrades
+    to prose — same contract as the two-phase approach, minus the second call.
+    """
+    openui_spec = _load_openui_spec()
+
+    sections = [ADMIN_PERSONA]
+    if org_data:
+        sections.append(ADMIN_DATA_BLOCK)
+    sections.append(openui_spec)
+    sections.append(ADMIN_GENUI_TASK)
+    grounding_table = _GROUNDING_BLOCKS if org_data else _STANDALONE_GROUNDING_BLOCKS
+    sections.append(grounding_table[grounding])
+    return "\n\n".join(sections)
+
+
 def admin_system_prompt(grounding: Grounding, *, org_data: bool = False) -> str:
     """The admin assistant's system prompt for a turn with this grounding.
 
@@ -181,8 +232,10 @@ def build_admin_turn(
 
 __all__ = [
     "ADMIN_DATA_BLOCK",
+    "ADMIN_GENUI_TASK",
     "ADMIN_PERSONA",
     "ADMIN_PROMPT_VERSION",
+    "admin_genui_system_prompt",
     "admin_system_prompt",
     "build_admin_turn",
 ]
