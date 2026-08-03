@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SkillNet — Flujo del Chat Admin</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', -apple-system, system-ui, sans-serif; background: #f8fafc; color: #0f172a; line-height: 1.6; }
+  .container { max-width: 960px; margin: 0 auto; padding: 3rem 2rem 6rem; }
+
+  h1 { font-size: 2rem; font-weight: 600; letter-spacing: -0.02em; margin-bottom: 0.5rem; }
+  .subtitle { color: #64748b; font-size: 0.875rem; margin-bottom: 3rem; }
+
+  h2 { font-size: 1.125rem; font-weight: 600; margin: 3rem 0 1rem; padding-top: 2rem; border-top: 1px solid #e2e8f0; }
+  h2:first-of-type { border-top: none; padding-top: 0; }
+
+  p { margin-bottom: 1rem; color: #334155; font-size: 0.9375rem; }
+
+  .flow { display: flex; flex-direction: column; gap: 0; margin: 1.5rem 0; }
+  .step { display: flex; gap: 1rem; align-items: flex-start; position: relative; padding: 1rem 0; }
+  .step::before { content: ''; position: absolute; left: 15px; top: 2.5rem; bottom: 0; width: 1px; background: #e2e8f0; }
+  .step:last-child::before { display: none; }
+  .dot { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 600; color: white; flex-shrink: 0; z-index: 1; }
+  .dot.blue { background: #3661A5; }
+  .dot.green { background: #4BA862; }
+  .dot.orange { background: #d97706; }
+  .dot.gray { background: #94a3b8; }
+  .step-content { flex: 1; min-width: 0; }
+  .step-title { font-weight: 600; font-size: 0.9375rem; margin-bottom: 0.25rem; }
+  .step-desc { color: #64748b; font-size: 0.8125rem; }
+
+  .card { border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.25rem; margin: 1rem 0; background: white; }
+  .card-title { font-weight: 600; font-size: 0.8125rem; text-transform: uppercase; letter-spacing: 0.05em; color: #94a3b8; margin-bottom: 0.75rem; }
+
+  pre { background: #1e293b; color: #e2e8f0; padding: 1rem 1.25rem; border-radius: 8px; overflow-x: auto; font-size: 0.8125rem; line-height: 1.7; margin: 1rem 0; font-family: 'JetBrains Mono', monospace; }
+  code { font-family: 'JetBrains Mono', monospace; font-size: 0.8125rem; background: #f1f5f9; padding: 0.15em 0.4em; border-radius: 4px; }
+  pre code { background: none; padding: 0; }
+
+  .tag { display: inline-flex; font-size: 0.75rem; font-weight: 500; padding: 0.2em 0.6em; border-radius: 6px; }
+  .tag.chunks { background: rgba(54,97,165,0.12); color: #3661A5; }
+  .tag.document { background: rgba(75,168,98,0.12); color: #3D8C51; }
+  .tag.general { background: rgba(217,119,6,0.12); color: #d97706; }
+
+  table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.875rem; }
+  th { text-align: left; padding: 0.6rem 0.75rem; border-bottom: 2px solid #e2e8f0; color: #64748b; font-weight: 500; font-size: 0.8125rem; }
+  td { padding: 0.6rem 0.75rem; border-bottom: 1px solid #f1f5f9; }
+
+  .sse-event { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0; font-size: 0.875rem; }
+  .sse-name { font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 0.8125rem; color: #3661A5; min-width: 120px; }
+  .sse-desc { color: #64748b; font-size: 0.8125rem; }
+  .sse-num { color: #94a3b8; font-size: 0.75rem; font-family: 'JetBrains Mono', monospace; min-width: 1.5rem; }
+
+  .prompt-block { background: #fefce8; border: 1px solid #fef08a; border-radius: 8px; padding: 1rem 1.25rem; margin: 1rem 0; font-size: 0.8125rem; color: #713f12; line-height: 1.8; }
+
+  .ladder { display: flex; flex-direction: column; gap: 0; margin: 1rem 0; }
+  .rung { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; border: 1px solid #e2e8f0; font-size: 0.875rem; }
+  .rung:first-child { border-radius: 8px 8px 0 0; }
+  .rung:last-child { border-radius: 0 0 8px 8px; }
+  .rung:not(:last-child) { border-bottom: none; }
+  .rung-num { font-weight: 700; font-size: 1.25rem; color: #cbd5e1; font-family: 'JetBrains Mono', monospace; }
+  .rung-label { font-weight: 500; }
+  .rung-detail { color: #64748b; font-size: 0.8125rem; }
+  .rung.active { background: #f0fdf4; border-color: #4BA862; }
+
+  .divider { height: 1px; background: #e2e8f0; margin: 2rem 0; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>Flujo del Chat Admin</h1>
+<p class="subtitle">Como viaja un mensaje desde que el admin escribe hasta que ve la respuesta en pantalla.</p>
+
+<!-- ───────────────── OVERVIEW ───────────────── -->
+
+<h2>Vista general</h2>
+<p>El chat es streaming SSE en tiempo real. El admin escribe, el servidor decide de donde sacar la informacion, llama al LLM y va emitiendo tokens. Al terminar, opcionalmente reformatea la respuesta en bloques visuales (Generative UI).</p>
+
+<div class="flow">
+  <div class="step">
+    <div class="dot blue">1</div>
+    <div class="step-content">
+      <div class="step-title">Frontend envia el mensaje</div>
+      <div class="step-desc"><code>POST /api/v1/chat/admin</code> con el texto. Abre una conexion SSE para recibir la respuesta en streaming.</div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="dot blue">2</div>
+    <div class="step-content">
+      <div class="step-title">Small talk check</div>
+      <div class="step-desc">Si es un saludo, despedida o "quien eres", responde con un mensaje prefabricado (0 tokens, 0 latencia). Si no, continua.</div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="dot green">3</div>
+    <div class="step-content">
+      <div class="step-title">Recuperacion (RAG ladder)</div>
+      <div class="step-desc">Busca en 3 escalones: chunks por similitud → documentos completos → conocimiento general. El primero que tenga resultados gana.</div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="dot green">4</div>
+    <div class="step-content">
+      <div class="step-title">Org snapshot</div>
+      <div class="step-desc">Lee de la BD el estado actual: empleados, cursos, progreso, competencias, documentos. Se inyecta en el prompt como contexto.</div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="dot blue">5</div>
+    <div class="step-content">
+      <div class="step-title">Construccion del prompt</div>
+      <div class="step-desc">System prompt (persona + reglas) + historial (8 turnos) + turno actual (snapshot + docs + pregunta).</div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="dot blue">6</div>
+    <div class="step-content">
+      <div class="step-title">Streaming de tokens</div>
+      <div class="step-desc">El LLM responde token a token. Cada token se emite como evento SSE <code>token</code> y aparece en pantalla al instante.</div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="dot orange">7</div>
+    <div class="step-content">
+      <div class="step-title">Layout (opcional)</div>
+      <div class="step-desc">Si la respuesta tiene 220+ caracteres y Generative UI esta activo, una segunda llamada al LLM clasifica la forma (tabla, pasos, callout, definicion) y se renderiza como bloque visual.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ───────────────── RAG LADDER ───────────────── -->
+
+<h2>Escalera de RAG</h2>
+<p>El sistema nunca falla: siempre responde. La pregunta es de donde saca la informacion.</p>
+
+<div class="ladder">
+  <div class="rung active">
+    <div class="rung-num">1</div>
+    <div>
+      <div class="rung-label">Chunks por similitud <span class="tag chunks">chunks</span></div>
+      <div class="rung-detail">Embedding de la pregunta → busqueda semantica en <code>document_chunks</code> → top 5 con score ≥ 0.25. Si hay resultados, se formatean con [Fuente N] y se pasan al LLM.</div>
+    </div>
+  </div>
+  <div class="rung">
+    <div class="rung-num">2</div>
+    <div>
+      <div class="rung-label">Documentos completos <span class="tag document">document</span></div>
+      <div class="rung-detail">Si no hay chunks, busca documentos de la org con <code>full_text</code>. Ranking lexico (coincidencia de palabras). Max 3 docs, 4000 chars cada uno.</div>
+    </div>
+  </div>
+  <div class="rung">
+    <div class="rung-num">3</div>
+    <div>
+      <div class="rung-label">Conocimiento general <span class="tag general">general</span></div>
+      <div class="rung-detail">Sin documentos. El LLM responde con conocimiento propio. El frontend muestra "Conocimiento general: no sale de la documentacion subida".</div>
+    </div>
+  </div>
+</div>
+
+<!-- ───────────────── SYSTEM PROMPT ───────────────── -->
+
+<h2>System prompt</h2>
+<p>El prompt se compone de 3 bloques que se concatenan segun el contexto:</p>
+
+<div class="card">
+  <div class="card-title">Bloque 1 — Persona</div>
+  <div class="prompt-block">
+    Eres el asistente del administrador de SkillNet. Hablas con la persona que gestiona los cursos, los documentos y los empleados.<br><br>
+    <strong>Como respondes:</strong> en el idioma de la pregunta, conciso y operativo. Si hay mas de dos pasos, los enumeras.<br><br>
+    <strong>Lo que no haces nunca:</strong> no te inventas cifras. No dices "no tengo informacion" y te callas — ofreces lo que si puedes. No copias los datos tal cual, son tu material de consulta.
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-title">Bloque 2 — Datos de la plataforma (si hay snapshot)</div>
+  <div class="prompt-block">
+    Tienes un bloque "DATOS DE LA PLATAFORMA" con el estado real de esta organizacion, leido de la base de datos ahora mismo.<br><br>
+    <strong>Decide de que va la pregunta:</strong><br>
+    (A) Gestion → usa los datos, nombres y numeros concretos.<br>
+    (B) Contenido → usa los documentos o criterio general.<br>
+    (C) Sobre ti → ni datos ni documentos.<br><br>
+    <strong>Limites:</strong> toda cifra tiene que estar literalmente en el bloque. No sumes, no promedies, no estimes. No hables de personas que no aparezcan.
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-title">Bloque 3 — Grounding (segun escalon RAG)</div>
+  <div class="prompt-block">
+    <span class="tag chunks">chunks</span> "Tienes fragmentos recuperados de la documentacion. Apoyate en ellos y cita con [Fuente N]."<br><br>
+    <span class="tag document">document</span> "Tienes el texto COMPLETO de documentos. Cita con [Fuente N]."<br><br>
+    <span class="tag general">general</span> "No hay documentacion que responda a esto. Responde con conocimiento general y dilo en la primera linea. No escribas [Fuente N]."
+  </div>
+</div>
+
+<!-- ───────────────── ORG SNAPSHOT ───────────────── -->
+
+<h2>Org snapshot</h2>
+<p>Se lee de la BD en cada pregunta y se inyecta como texto tabulado en el turno del usuario (antes de la pregunta, para que el LLM lo tenga de contexto).</p>
+
+<table>
+  <thead>
+    <tr><th>Dato</th><th>Limite</th><th>Incluye</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Empleados</td><td>Max 40</td><td>Nombre, rol, cursos asignados, progreso, competencias (max 8), nodos dominados</td></tr>
+    <tr><td>Cursos</td><td>Todos</td><td>Titulo, estado, modo delivery, unidades, asignaciones</td></tr>
+    <tr><td>Documentos</td><td>Max 25</td><td>Solo titulos, no contenido</td></tr>
+  </tbody>
+</table>
+
+<div class="card">
+  <div class="card-title">Datos de privacidad excluidos</div>
+  <p style="font-size: 0.8125rem; margin: 0;">Nunca se incluyen: <code>accessibility</code>, <code>experience_level</code>, <code>format_vector</code>, <code>goal</code>, <code>learning_profile</code>, <code>preset</code>, <code>tutor_notes</code>. El perfil de aprendizaje es privado entre el empleado y el sistema.</p>
+</div>
+
+<!-- ───────────────── SSE EVENTS ───────────────── -->
+
+<h2>Protocolo SSE</h2>
+<p>La respuesta llega como una secuencia de eventos Server-Sent Events. El frontend los procesa en orden:</p>
+
+<div class="card">
+  <div class="sse-event"><div class="sse-num">1</div><div class="sse-name">grounding</div><div class="sse-desc">Tipo de fuente: <code>"chunks"</code>, <code>"document"</code> o <code>"general"</code>. El frontend sabe la procedencia antes del primer token.</div></div>
+  <div class="sse-event"><div class="sse-num">2</div><div class="sse-name">org_data</div><div class="sse-desc">Resumen numerico: empleados, cursos, documentos. Solo admin.</div></div>
+  <div class="sse-event"><div class="sse-num">3</div><div class="sse-name">token</div><div class="sse-desc">Un fragmento de texto de la respuesta. Se repite N veces mientras el LLM genera.</div></div>
+  <div class="sse-event"><div class="sse-num">4</div><div class="sse-name">citations</div><div class="sse-desc">Lista de fuentes citadas: <code>[{document, section, page}]</code>.</div></div>
+  <div class="sse-event"><div class="sse-num">5</div><div class="sse-name">done</div><div class="sse-desc">Respuesta completa. El input se habilita aqui — el usuario ya puede escribir.</div></div>
+  <div class="sse-event"><div class="sse-num">6</div><div class="sse-name">layout_start</div><div class="sse-desc">Empieza el reformateo visual (segunda llamada LLM). Opcional.</div></div>
+  <div class="sse-event"><div class="sse-num">7</div><div class="sse-name">ui</div><div class="sse-desc">Programa OpenUI Lang validado. El frontend reemplaza la prose por bloques visuales.</div></div>
+</div>
+
+<!-- ───────────────── LAYOUT ───────────────── -->
+
+<h2>Layout (Generative UI)</h2>
+<p>Despues de <code>done</code>, si la respuesta tiene 220+ caracteres, una segunda llamada al LLM clasifica la forma de la respuesta y la reformatea en bloques. El servidor escribe el programa OpenUI Lang, no el modelo.</p>
+
+<table>
+  <thead>
+    <tr><th>Forma</th><th>Cuando</th><th>Ejemplo</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>steps</code></td><td>Procedimiento con pasos en orden</td><td>"Para abrir el turno: 1. Revisar reservas, 2. Contar fondo..."</td></tr>
+    <tr><td><code>table</code></td><td>Comparacion de 2+ cosas</td><td>Tabla de empleados con progreso</td></tr>
+    <tr><td><code>callout</code></td><td>Regla critica, limite o excepcion</td><td>"La frase 'creo que no lleva' esta prohibida"</td></tr>
+    <tr><td><code>definition</code></td><td>Conceptos con explicacion</td><td>Los 14 alergenos con descripcion</td></tr>
+    <tr><td><code>prose</code></td><td>Nada de lo anterior</td><td>Se queda como texto plano</td></tr>
+  </tbody>
+</table>
+
+<p>Validaciones antes de servir el layout:</p>
+<ul style="margin: 0.5rem 0 1rem 1.5rem; font-size: 0.875rem; color: #334155;">
+  <li><strong>invented_figures</strong> — rechaza si aparecen numeros que no estaban en la respuesta original</li>
+  <li><strong>validate_chat_program</strong> — parsea, rechaza QuizItems, re-serializa desde UISpec</li>
+  <li>Si falla → se sirve la prose original (nunca falla para el usuario)</li>
+</ul>
+
+<!-- ───────────────── SMALL TALK ───────────────── -->
+
+<h2>Small talk</h2>
+<p>Saludos, despedidas y preguntas de identidad se responden con mensajes prefabricados. Coste cero de tokens, latencia minima.</p>
+
+<table>
+  <thead>
+    <tr><th>Categoria</th><th>Ejemplos</th><th>Respuesta</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Saludo</td><td>"hola", "buenas", "que tal"</td><td>Presentacion + capacidades</td></tr>
+    <tr><td>Agradecimiento</td><td>"gracias"</td><td>"A mandar. Si necesitas otra cosa..."</td></tr>
+    <tr><td>Despedida</td><td>"adios", "hasta luego"</td><td>"Hasta luego. Aqui me tienes..."</td></tr>
+    <tr><td>Identidad</td><td>"quien eres", "que puedes hacer"</td><td>Descripcion + capacidades</td></tr>
+  </tbody>
+</table>
+<p style="font-size: 0.8125rem; color: #64748b;">El matcher es restrictivo: max 6 palabras y coincidencia completa. "Hola, como van mis empleados" no es small talk — es una pregunta real.</p>
+
+<!-- ───────────────── CONSTANTS ───────────────── -->
+
+<h2>Constantes clave</h2>
+<table>
+  <thead>
+    <tr><th>Constante</th><th>Valor</th><th>Que controla</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>MEMORY_TURNS</code></td><td>8</td><td>Turnos previos en el contexto</td></tr>
+    <tr><td><code>RETRIEVAL_TOP_K</code></td><td>5</td><td>Max chunks para RAG</td></tr>
+    <tr><td><code>SIMILARITY_FLOOR</code></td><td>0.25</td><td>Score minimo para aceptar un chunk</td></tr>
+    <tr><td><code>MAX_CONTEXT_DOCUMENTS</code></td><td>3</td><td>Max documentos completos</td></tr>
+    <tr><td><code>MAX_DOCUMENT_CHARS</code></td><td>4000</td><td>Max caracteres por documento</td></tr>
+    <tr><td><code>MIN_LAYOUT_CHARS</code></td><td>220</td><td>Minimo para disparar Generative UI</td></tr>
+    <tr><td><code>MAX_EMPLOYEES_LISTED</code></td><td>40</td><td>Empleados en el org snapshot</td></tr>
+    <tr><td><code>ADMIN_PROMPT_VERSION</code></td><td>"admin/3"</td><td>Version para auditoria</td></tr>
+  </tbody>
+</table>
+
+</div>
+</body>
+</html>

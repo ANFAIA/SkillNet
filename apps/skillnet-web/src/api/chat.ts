@@ -55,6 +55,7 @@ export function useChat(endpoint: ChatEndpoint = '/chat') {
         content: '',
         citations: [],
         isStreaming: true,
+        generative: endpoint === '/chat/admin',
       }
       setMessages((prev) => [...prev, assistantMsg])
       setIsStreaming(true)

@@ -290,6 +290,8 @@ export interface ChatMessage {
   program?: string
   /** True while the server is laying the answer out. The prose is already complete. */
   isLayingOut?: boolean
+  /** True when the model is generating OpenUI Lang directly (single-phase GenUI). */
+  generative?: boolean
 }
 
 export interface ChatSessionRead {
