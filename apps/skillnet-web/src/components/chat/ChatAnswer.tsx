@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react'
+import { useMemo } from 'react'
 import { UiSpecRenderer } from '../courses/UiSpecRenderer'
 import { gateProgram } from '../courses/kit'
 import { ChatMarkdown } from './ChatMarkdown'
@@ -10,44 +10,37 @@ export interface ChatAnswerProps {
   message: ChatMessage
 }
 
+/**
+ * Curio pattern: generative replies show dots for the ENTIRE streaming phase,
+ * then reveal the complete panel at once when done. No progressive component
+ * rendering — partial OpenUI Lang parses out of order and reads as janky.
+ */
 export function ChatAnswer({ message }: ChatAnswerProps) {
   const gate = useMemo(() => gateProgram(message.program), [message.program])
   const showBlocks = Boolean(message.program) && !gate.blocked && !gate.empty
-  const watchedProse = useRef(!message.program)
 
-  // Once we've seen generative content, hold onto it until `program` arrives
-  // or we know it won't (connection closed without `ui` event).
-  const sawGenerative = useRef(false)
-  if (message.generative && message.content) sawGenerative.current = true
-  if (message.program) sawGenerative.current = false
-
-  // Validated program arrived — render the final blocks.
+  // Validated program arrived — render the blocks.
   if (showBlocks) {
     return (
       <UiSpecRenderer
         program={message.program ?? null}
         nodeId=""
         format={CHAT_UI_FORMAT}
-        arriving={watchedProse.current}
+        arriving
       />
     )
   }
 
-  // Generative mode: streaming or holding the last render while waiting for `ui` event.
-  // Uses raw content as the program — UiSpecRenderer handles partial/invalid gracefully.
-  if (message.generative && sawGenerative.current && message.content) {
-    return (
-      <UiSpecRenderer
-        program={message.content}
-        nodeId=""
-        format={CHAT_UI_FORMAT}
-        isStreaming={message.isStreaming}
-      />
-    )
-  }
+  // Generative mode: dots for the WHOLE generation. Content is OpenUI Lang code
+  // that must not be shown raw. Dots stay until `program` arrives via `ui` event.
+  if (message.generative && (message.isStreaming || !message.program)) {
+    // Streaming done but no program yet — still waiting for `ui` event, or
+    // validation failed. If content looks like code, keep dots. If it's clearly
+    // not code (validation failed, model wrote prose), show it as markdown.
+    if (!message.isStreaming && message.content && !/^\s*root\s*=/.test(message.content)) {
+      return <ChatMarkdown content={message.content} isStreaming={false} />
+    }
 
-  // Generative mode waiting for first token.
-  if (message.generative && message.isStreaming && !message.content) {
     return (
       <span className="typing-dots" aria-label="Generando respuesta">
         <span /><span /><span />

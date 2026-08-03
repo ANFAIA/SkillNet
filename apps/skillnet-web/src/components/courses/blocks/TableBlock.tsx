@@ -20,7 +20,7 @@ export function TableBlock({ headers, rows }: TableBlockProps) {
   const body = Array.isArray(rows) ? rows : []
 
   return (
-    <ClickableText as="div" className="overflow-x-auto min-w-0 rounded-lg border border-border overflow-hidden">
+    <ClickableText as="div" className="overflow-x-auto min-w-0 rounded-lg border border-border overflow-hidden [scrollbar-gutter:auto]">
       <table className="w-full text-sm border-collapse">
         {head.length > 0 && (
           <thead>
