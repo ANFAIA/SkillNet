@@ -11,7 +11,7 @@ function AppLayoutInner() {
   const { collapsed } = useSidebar()
 
   return (
-    <div className="flex min-h-screen overflow-x-hidden">
+    <div className="flex h-screen overflow-hidden">
       <Sidebar />
 
       <div
@@ -30,7 +30,7 @@ function AppLayoutInner() {
             `overflow-x: hidden` forces the other axis from `visible` to `auto`, which
             would quietly recreate the scroll container we just removed. `clip` does
             not, and still stops a wide child blowing out the layout sideways. */}
-        <main className="flex-1 mt-[50px] bg-bg md:rounded-tl-xl overflow-x-clip">
+        <main className="flex-1 mt-[50px] bg-bg md:rounded-tl-xl overflow-x-clip overflow-y-auto">
           <ErrorBoundary
             fallback={(error, reset) => (
               <div className="p-4 md:p-6">

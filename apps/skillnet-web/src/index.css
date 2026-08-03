@@ -331,24 +331,10 @@ body {
   scrollbar-gutter: stable;
 }
 
-/* And the page, which is now a scroll container too.
-   `main` used to be `overflow-y-auto`, so it matched the rule above and its gutter was
-   always reserved — the bar could come and go without moving anything. Moving the
-   scroll to the page (see the note on `<main>` in AppLayout) moved it off that rule and
-   onto `html`, which reserved nothing, so the 10px bar started appearing and
-   disappearing on the window itself as content loaded.
-   That is not just a bar flickering: every appearance narrows the content box by 10px.
-   Measured on /admin/contenido at 1440x920 — `main` goes 1192px → 1182px the moment the
-   courses land, the cards re-wrap in the narrower box and gain ~44px of height, which
-   deepens the overflow that caused it. Reserving the gutter here costs a 10px strip the
-   canvas gradient already paints over, and keeps the page width constant whether or not
-   it scrolls, so nothing reflows when the bar arrives.
-   On `html` and not `body` for the same reason the rule above skips `body`: the L-frame
-   gradient owns that edge, and `body` is not the scroll container — the viewport is, and
-   it takes this from the root element. */
-html {
-  scrollbar-gutter: stable;
-}
+/* Scroll is now contained within `main` (overflow-y-auto), not the viewport.
+   The `.overflow-y-auto` rule above already applies `scrollbar-gutter: stable`
+   to the main element, so the gutter is reserved inside the content area only —
+   no 10px strip on the full-page right edge. */
 
 /* L-frame gradient + cobweb texture */
 .frame-surface {

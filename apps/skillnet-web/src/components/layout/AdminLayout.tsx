@@ -11,7 +11,7 @@ function AdminLayoutInner() {
   const { collapsed } = useSidebar()
 
   return (
-    <div className="flex min-h-screen overflow-x-hidden">
+    <div className="flex h-screen overflow-hidden">
       <AdminSidebar />
 
       <div
@@ -25,7 +25,7 @@ function AdminLayoutInner() {
             and the page scrolls; the sidebar and header are both `fixed`, so nothing here
             needed a scroll box of its own. `clip` rather than `hidden` because
             `overflow-x: hidden` would force the vertical axis back to `auto`. */}
-        <main className="flex-1 mt-[50px] bg-bg md:rounded-tl-xl overflow-x-clip">
+        <main className="flex-1 mt-[50px] bg-bg md:rounded-tl-xl overflow-x-clip overflow-y-auto">
           <ErrorBoundary
             fallback={(error, reset) => (
               <div className="p-4 md:p-6">
