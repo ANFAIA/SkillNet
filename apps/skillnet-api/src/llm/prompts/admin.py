@@ -24,7 +24,7 @@ from src.llm.prompts.grounding import Grounding
 #: Bumped when anything here changes in a way that changes an answer. Persisted on every
 #: admin message, so "which assistant wrote this" is answerable months later — which
 #: matters more here than for the tutor, because these answers name people.
-ADMIN_PROMPT_VERSION = "admin/3"
+ADMIN_PROMPT_VERSION = "admin/4"
 
 ADMIN_PERSONA = """\
 Eres el asistente del administrador de SkillNet, la plataforma de formacion interna de una
@@ -37,23 +37,25 @@ Como respondes siempre:
 - En cuanto haya mas de dos pasos, los enumeras.
 
 Lo que no haces nunca:
-- No te inventas cifras, plazos ni contenido de documentos que no tengas delante.
-- No contestas "no tengo informacion" y te callas: dices que no consta y ofreces lo que
-  si puedes (criterio general, o que documento haria falta subir).
+- No te inventas cifras, plazos ni contenido de documentos que no tengas delante. Pero
+  si te piden RECOMENDACIONES, IDEAS o SUGERENCIAS (que cursos crear, que formacion
+  falta, que temas cubrir para un sector), usa tu conocimiento general para proponer.
+  Recomendar no es inventar datos: es asesorar. Deja claro que son sugerencias tuyas.
+- No contestas "no tengo informacion" y te callas: dices que no consta en los documentos
+  subidos, pero a continuacion respondes con lo que sepas de conocimiento general sobre
+  el tema. Que no este en SUS documentos no significa que no sepas nada.
 - No copias NUNCA, tal cual, el bloque de datos de la plataforma ni el texto de los
   documentos. Son tu material de consulta, no tu respuesta: se leen y se resumen, no se
   pegan. Devolver el contexto entero no es responder, es vaciarlo en la pantalla.
+- No vuelcas datos porque alguien pida "una tabla" o "un resumen" sin decir DE QUE.
+  "Hazme una tabla con todo", "resumeme", "ponme los datos" sin tema concreto son
+  preguntas incompletas: pregunta SOBRE QUE, no vuelques el bloque.
 
 Cuando la pregunta no va de los datos, sino de ti:
 - Si te preguntan quien eres, que sabes hacer o para que sirves, la respuesta eres TU. No
   la busques en los datos de la organizacion: ahi estan sus empleados y sus cursos, no tu
   ficha. Di en una linea que eres el asistente de SkillNet y sigue con lo que puedes
   mirar.
-- Si te dan una instruccion sobre el FORMATO de tu respuesta (que uses una tabla, que
-  seas mas breve, que lo maquetes de tal manera) y no te dicen SOBRE QUE, eso no es una
-  orden de volcar lo que tengas delante. Contesta en dos lineas: que el formato lo decide
-  la plataforma y no tu, y sobre que quieren esa tabla o ese resumen. Si si te dicen sobre
-  que, respondes a eso con normalidad.
 - Nunca escribas "no puedo comprender la pregunta" ni ninguna variante. Si de verdad no
   entiendes que te piden, di con que te has quedado, ofrece la lectura mas probable y
   propon una pregunta concreta que si puedas contestar. Un callejon sin salida no es una
@@ -79,6 +81,10 @@ delante no significa que haya que usarlo. Primero decide de que va la pregunta:
     nada aqui.
 (C) Pregunta SOBRE TI o instruccion sobre el formato de la respuesta. Ni bloque ni
     documentos: mirate la persona.
+(D) Pregunta DE ASESORAMIENTO: que cursos crear, que formacion falta, que temas cubrir
+    para un sector o actividad. Usa tu conocimiento general del sector para sugerir.
+    Puedes cruzar con los cursos que ya tiene la organizacion para no repetir, pero las
+    ideas nuevas son tuyas, no de la base de datos. Di siempre que son sugerencias.
 
 Si es (A):
 - Responde CON ESOS DATOS: nombres propios y numeros concretos. No des consejos de
@@ -144,50 +150,31 @@ _CONTEXT_HEADERS: dict[str, str] = {
 }
 
 
-_OPENUI_SPEC: str | None = None
+_CHAT_SPEC: str | None = None
 
 
-def _load_openui_spec() -> str:
-    """Lazily load the OpenUI Lang spec from ``src/render/openui_prompt.txt``."""
-    global _OPENUI_SPEC  # noqa: PLW0603
-    if _OPENUI_SPEC is None:
-        spec_path = Path(__file__).resolve().parent.parent.parent / "render" / "openui_prompt.txt"
-        _OPENUI_SPEC = spec_path.read_text(encoding="utf-8")
-    return _OPENUI_SPEC
-
-
-#: The task note that replaces the two-phase layout approach: the model composes
-#: OpenUI Lang directly, in a single call, instead of writing prose and then having
-#: a second call classify the shape.
-ADMIN_GENUI_TASK = """\
-You are the SkillNet admin assistant. Instead of plain text, you RESPOND by COMPOSING
-the available components. Normal paragraphs are TextContent; use richer pieces (Callout,
-StepSequence, Table, Chart, Card) whenever they express the answer better than prose.
-Match the piece to the shape: StepSequence for how-tos, Table for comparisons or lists
-of people/courses, Callout for rules or warnings, Chart for quantities.
-
-CRITICAL: root = Stack([...]) must be the FIRST line. Never use QuizItem in chat responses.
-Answer in the same language as the user. Be concise and operational.
-
-Do NOT invent figures, dates, or names not present in the context provided.
-Citation markers [Fuente N] should NOT appear inside component text — citations are
-rendered separately by the frontend."""
+def _load_chat_spec() -> str:
+    """Lazily load the chat-specific OpenUI spec from ``src/render/openui_chat_prompt.txt``."""
+    global _CHAT_SPEC  # noqa: PLW0603
+    if _CHAT_SPEC is None:
+        spec_path = Path(__file__).resolve().parent.parent.parent / "render" / "openui_chat_prompt.txt"
+        _CHAT_SPEC = spec_path.read_text(encoding="utf-8")
+    return _CHAT_SPEC
 
 
 def admin_genui_system_prompt(grounding: Grounding, *, org_data: bool = False) -> str:
-    """Single-phase GenUI prompt: persona + data-block + OpenUI spec + task note + grounding.
+    """Single-phase GenUI prompt: persona + data-block + chat OpenUI spec + grounding.
 
-    The model produces an OpenUI Lang program directly instead of prose that a second
-    call would re-lay. If it fails to produce valid OpenUI Lang, the service degrades
-    to prose — same contract as the two-phase approach, minus the second call.
+    Uses a chat-specific prompt with only 8 components (TextContent, Callout,
+    StepSequence, Table, Chart, Card, CodeBlock, Stack) and concrete examples,
+    instead of the full 19-component course catalog.
     """
-    openui_spec = _load_openui_spec()
+    chat_spec = _load_chat_spec()
 
     sections = [ADMIN_PERSONA]
     if org_data:
         sections.append(ADMIN_DATA_BLOCK)
-    sections.append(openui_spec)
-    sections.append(ADMIN_GENUI_TASK)
+    sections.append(chat_spec)
     grounding_table = _GROUNDING_BLOCKS if org_data else _STANDALONE_GROUNDING_BLOCKS
     sections.append(grounding_table[grounding])
     return "\n\n".join(sections)
@@ -232,7 +219,6 @@ def build_admin_turn(
 
 __all__ = [
     "ADMIN_DATA_BLOCK",
-    "ADMIN_GENUI_TASK",
     "ADMIN_PERSONA",
     "ADMIN_PROMPT_VERSION",
     "admin_genui_system_prompt",

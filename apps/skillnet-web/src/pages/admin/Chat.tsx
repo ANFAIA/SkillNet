@@ -12,7 +12,7 @@ function Bubble({ message }: { message: ChatMessage }) {
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
       <div
         className={`max-w-[85%] md:max-w-[70%] px-3 md:px-4 py-3 text-sm leading-relaxed ${
-          isUser ? 'bg-primary text-white rounded-2xl rounded-br-sm' : 'text-text rounded-2xl rounded-bl-sm'
+          isUser ? 'bg-primary text-white rounded-2xl rounded-br-sm' : 'bg-bg-muted text-text rounded-2xl rounded-bl-sm'
         }`}
       >
         {!isUser && message.grounding === 'general' && (

@@ -17,8 +17,8 @@ import {
   useRef,
   useState,
 } from 'react'
-import type { FormEvent } from 'react'
-import { Modal } from '../ui/Modal'
+import type { FormEvent, KeyboardEvent } from 'react'
+import { createPortal } from 'react-dom'
 import { ClickableSurface } from './ClickableSurface'
 import { UiSpecRenderer } from './UiSpecRenderer'
 import { gateProgram } from './kit'
@@ -260,27 +260,14 @@ function ExplanationPanel({
   )
 }
 
-// ── Follow-up conversation ──────────────────────────────────────
+// ── Follow-up state (shared between messages display and composer) ──
 
-interface FollowUpProps {
-  /** Seed context for the conversation. */
-  termContext: string
-}
-
-function FollowUp({ termContext }: FollowUpProps) {
+function useFollowUp(termContext: string) {
   const [messages, setMessages] = useState<FollowUpMessage[]>([])
-  const [input, setInput] = useState('')
   const [isStreaming, setIsStreaming] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
-  const endRef = useRef<HTMLDivElement>(null)
 
-  // Cancel in-flight request on unmount.
   useEffect(() => () => abortRef.current?.abort(), [])
-
-  // Auto-scroll to the latest message.
-  useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-  }, [messages])
 
   const send = useCallback(
     async (text: string) => {
@@ -288,24 +275,13 @@ function FollowUp({ termContext }: FollowUpProps) {
       const controller = new AbortController()
       abortRef.current = controller
 
-      const userMsg: FollowUpMessage = {
-        id: crypto.randomUUID(),
-        role: 'user',
-        content: text,
-      }
-
+      const userMsg: FollowUpMessage = { id: crypto.randomUUID(), role: 'user', content: text }
       const assistantId = crypto.randomUUID()
-      const assistantMsg: FollowUpMessage = {
-        id: assistantId,
-        role: 'assistant',
-        content: '',
-        isStreaming: true,
-      }
+      const assistantMsg: FollowUpMessage = { id: assistantId, role: 'assistant', content: '', isStreaming: true }
 
       setMessages((prev) => [...prev, userMsg, assistantMsg])
       setIsStreaming(true)
 
-      // Prefix with term context so the model knows what we are talking about.
       const seeded = messages.length === 0
         ? `Contexto: estoy leyendo sobre "${termContext}". Mi pregunta: ${text}`
         : text
@@ -313,93 +289,89 @@ function FollowUp({ termContext }: FollowUpProps) {
       try {
         await streamFollowUp(seeded, controller.signal, (chunk) => {
           if (controller.signal.aborted) return
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === assistantId ? { ...m, content: m.content + chunk } : m,
-            ),
-          )
+          setMessages((prev) => prev.map((m) => m.id === assistantId ? { ...m, content: m.content + chunk } : m))
         })
       } catch (err) {
         if ((err as Error).name === 'AbortError') return
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === assistantId
-              ? {
-                  ...m,
-                  content: m.content || 'Error al conectar con el asistente.',
-                  isStreaming: false,
-                }
-              : m,
-          ),
-        )
+        setMessages((prev) => prev.map((m) => m.id === assistantId ? { ...m, content: m.content || 'Error.', isStreaming: false } : m))
       } finally {
         if (abortRef.current === controller) {
           setIsStreaming(false)
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === assistantId ? { ...m, isStreaming: false } : m,
-            ),
-          )
+          setMessages((prev) => prev.map((m) => m.id === assistantId ? { ...m, isStreaming: false } : m))
         }
       }
     },
     [messages.length, termContext],
   )
 
+  return { messages, isStreaming, send }
+}
+
+// Follow-up messages (rendered inside the scrollable area)
+function FollowUpMessages({ messages }: { messages: FollowUpMessage[] }) {
+  if (messages.length === 0) return null
+  return (
+    <div className="mt-5 space-y-3 border-t border-border pt-4">
+      {messages.map((msg) => (
+        <div key={msg.id} className={msg.role === 'user' ? 'text-right' : ''}>
+          {msg.role === 'user' ? (
+            <span className="inline-block bg-bg-muted px-3 py-1.5 rounded-2xl text-sm text-text">
+              {msg.content}
+            </span>
+          ) : (
+            <div className="text-sm">
+              <ChatMarkdown content={msg.content} isStreaming={msg.isStreaming} />
+              {msg.isStreaming && !msg.content && (
+                <span className="typing-dots"><span /><span /><span /></span>
+              )}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// Composer input — outside the scroll, sticky at bottom of the card
+function FollowUpInput({ onSend }: { onSend: (text: string) => void }) {
+  const [input, setInput] = useState('')
+
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
     const text = input.trim()
-    if (!text || isStreaming) return
-    void send(text)
+    if (!text) return
+    onSend(text)
     setInput('')
   }
 
-  return (
-    <div className="mt-4 border-t border-border pt-4">
-      {messages.length > 0 && (
-        <div className="space-y-3 mb-3 max-h-64 overflow-y-auto">
-          {messages.map((msg) => (
-            <div
-              key={msg.id}
-              className={`text-sm ${
-                msg.role === 'user'
-                  ? 'text-right'
-                  : 'text-left'
-              }`}
-            >
-              {msg.role === 'user' ? (
-                <span className="inline-block bg-primary text-white px-3 py-1.5 rounded-xl rounded-br-sm max-w-[85%]">
-                  {msg.content}
-                </span>
-              ) : (
-                <div className="bg-bg-muted px-3 py-2 rounded-xl rounded-bl-sm max-w-[85%] inline-block text-left">
-                  <ChatMarkdown content={msg.content} isStreaming={msg.isStreaming} />
-                </div>
-              )}
-            </div>
-          ))}
-          <div ref={endRef} />
-        </div>
-      )}
+  function onKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      handleSubmit(e)
+    }
+  }
 
-      <form onSubmit={handleSubmit} className="flex gap-2">
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Pregunta algo mas..."
-          disabled={isStreaming}
-          className="flex-1 px-3 py-2 text-sm text-text border border-border rounded-lg bg-bg placeholder:text-text-muted focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-colors disabled:opacity-50"
-        />
-        <button
-          type="submit"
-          disabled={!input.trim() || isStreaming}
-          className="px-3 py-2 bg-primary text-white rounded-lg text-sm font-medium disabled:opacity-50 hover:opacity-90 transition-opacity flex items-center justify-center"
-        >
-          <SendIcon />
-        </button>
-      </form>
-    </div>
+  return (
+    <form onSubmit={handleSubmit} className="shrink-0 flex items-end gap-2 px-4 pb-4 pt-2">
+      <textarea
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+        onKeyDown={onKeyDown}
+        rows={1}
+        placeholder="Pregunta algo mas..."
+        className="flex-1 min-h-[36px] max-h-[100px] resize-none rounded-2xl bg-bg-muted px-3 py-2 text-sm text-text outline-none placeholder:text-text-muted"
+      />
+      <button
+        type="submit"
+        disabled={!input.trim()}
+        aria-label="Enviar"
+        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-bg-muted text-text-muted hover:bg-primary hover:text-white disabled:opacity-30 transition-colors"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M5 12h13" /><path d="M12 5l7 7-7 7" />
+        </svg>
+      </button>
+    </form>
   )
 }
 
@@ -461,6 +433,7 @@ export function ExplainModal({
   }, [open, term, context, nodeId])
 
   const current = stack[stack.length - 1]
+  const followUpState = useFollowUp(current.term)
 
   const goBack = useCallback(() => {
     setStack((prev) => (prev.length > 1 ? prev.slice(0, -1) : prev))
@@ -477,53 +450,82 @@ export function ExplainModal({
     [nodeId],
   )
 
-  return (
-    <Modal open={open} onClose={onClose} size="md" origin={origin} hideClose>
-      {/* Header */}
-      <div className="flex items-start gap-2 mb-4">
-        {stack.length > 1 && (
-          <button
-            type="button"
-            onClick={goBack}
-            aria-label="Volver al termino anterior"
-            className="mt-0.5 w-7 h-7 flex items-center justify-center rounded-full text-text-muted hover:text-text hover:bg-bg-muted transition-colors shrink-0"
-          >
-            <BackIcon />
-          </button>
-        )}
-        <div className="flex-1 min-w-0">
-          <Breadcrumb stack={stack} onNavigate={navigateTo} />
-          <h2 className="text-base font-semibold text-text break-words">
-            {current.term}
-          </h2>
-        </div>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Cerrar"
-          className="w-8 h-8 flex items-center justify-center rounded-full text-text-muted hover:text-text hover:bg-bg-muted transition-colors shrink-0"
+  if (!open) return null
+
+  return createPortal(
+    <>
+      {/* Scrim */}
+      <div className="fixed inset-0 z-[100] bg-slate-900/25 backdrop-blur-sm" onClick={onClose} />
+
+      {/* Card */}
+      <div className="fixed inset-0 z-[101] flex items-center justify-center p-5 pointer-events-none">
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="pointer-events-auto flex flex-col w-full max-w-[560px] bg-bg border border-border overflow-hidden"
+          style={{ maxHeight: 'min(80vh, 640px)', borderRadius: 16 }}
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-        </button>
-      </div>
+          {/* Header */}
+          <header className="flex shrink-0 items-center gap-2 px-5 pb-1 pt-4">
+            {stack.length > 1 && (
+              <button
+                type="button"
+                onClick={goBack}
+                aria-label="Volver"
+                className="shrink-0 p-1 text-text-muted hover:text-text transition-colors"
+              >
+                <BackIcon />
+              </button>
+            )}
+            <h2 className="flex-1 text-lg font-semibold leading-snug text-text truncate">
+              {current.term}
+            </h2>
+            <button
+              onClick={onClose}
+              aria-label="Cerrar"
+              className="shrink-0 p-1 text-xl leading-none text-text-muted hover:text-text transition-colors"
+            >
+              &times;
+            </button>
+          </header>
 
-      {/* Explanation content — scrollable area with clickable words */}
-      <div className="max-h-80 overflow-y-auto mb-2">
-        <ExplanationPanel
-          key={`${current.term}-${stack.length}`}
-          term={current.term}
-          context={current.context}
-          nodeId={current.nodeId}
-          language={language}
-          onDrillDown={drillDown}
-        />
-      </div>
+          {/* Breadcrumb */}
+          {stack.length > 1 && (
+            <div className="flex items-center gap-1 px-5 pb-1 text-xs text-text-muted overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+              {stack.map((entry, i) => (
+                <span key={i} className="flex items-center gap-1 shrink-0">
+                  {i > 0 && <span className="text-text-muted/50">›</span>}
+                  <button
+                    type="button"
+                    onClick={() => navigateTo(i)}
+                    className={`transition-colors hover:text-text ${i === stack.length - 1 ? 'text-text font-medium' : ''}`}
+                  >
+                    {entry.term}
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
 
-      {/* Follow-up conversation */}
-      <FollowUp termContext={current.term} />
-    </Modal>
+          {/* Scrollable content */}
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 text-sm leading-relaxed text-text" style={{ scrollbarWidth: 'none' }}>
+            <ExplanationPanel
+              key={`${current.term}-${stack.length}`}
+              term={current.term}
+              context={current.context}
+              nodeId={current.nodeId}
+              language={language}
+              onDrillDown={drillDown}
+            />
+
+            <FollowUpMessages messages={followUpState.messages} />
+          </div>
+
+          {/* Composer — outside scroll, sticky at bottom */}
+          <FollowUpInput onSend={followUpState.send} />
+        </div>
+      </div>
+    </>,
+    document.body,
   )
 }

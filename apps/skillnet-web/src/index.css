@@ -300,8 +300,8 @@ body {
 }
 
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -311,10 +311,6 @@ body {
 ::-webkit-scrollbar-thumb {
   background-color: var(--color-border-strong);
   border-radius: 9999px;
-  /* Transparent border + background-clip is the only way to inset a webkit thumb, so it
-     floats in the track instead of filling it wall to wall. */
-  border: 3px solid transparent;
-  background-clip: padding-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
@@ -323,6 +319,10 @@ body {
 
 ::-webkit-scrollbar-corner {
   background: transparent;
+}
+
+::-webkit-scrollbar-button {
+  display: none;
 }
 
 .overflow-x-auto,

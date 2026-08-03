@@ -17,9 +17,9 @@ export interface TextContentBlockProps {
 // - `body`: generous line-height (leading-7) for comfortable reading
 // - `caption`: italic to distinguish it from body
 const variantClasses: Record<TextVariant, string> = {
-  lead: 'text-base font-medium text-text leading-7 border-l-2 border-primary pl-3',
-  body: 'text-sm text-text-secondary leading-7',
-  caption: 'text-xs text-text-muted leading-relaxed italic',
+  lead: 'text-sm text-text leading-7',
+  body: 'text-sm text-text leading-7',
+  caption: 'text-xs text-text-muted leading-relaxed',
 }
 
 /**
