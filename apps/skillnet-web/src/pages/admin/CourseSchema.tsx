@@ -394,18 +394,27 @@ export function CourseSchema() {
   return (
     <div>
       <div className="mb-6">
-        <div className="flex items-center gap-1">
-          <Button variant="ghost" size="sm" onClick={() => navigate('/admin/contenido')}>
-            ← Contenido
-          </Button>
-          {/* The schema screen is reached from the course as often as from the list, and
-              without this the only way back to the course was the browser's back button. */}
-          <Button variant="ghost" size="sm" onClick={() => navigate(`/admin/curso/${id}`)}>
-            ← Volver al curso
-          </Button>
-        </div>
-
-        <div className="flex items-center gap-3 mt-1 min-w-0">
+        <div className="flex items-center gap-2 min-w-0">
+          <button
+            type="button"
+            onClick={() => navigate('/admin/contenido')}
+            className="group shrink-0 p-1 -ml-1"
+            aria-label="Volver a contenido"
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="text-text-muted group-hover:text-primary group-hover:-translate-x-1 transition-all duration-200"
+            >
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+          </button>
           <h2 className="text-xl font-semibold text-text truncate min-w-0">
             {courseQuery.data?.title ?? 'Esquema del curso'}
           </h2>
