@@ -22,7 +22,6 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { useNavigate } from 'react-router-dom'
 import { useExplain } from '../../api/explain'
 import type { ExplainSelection } from './ClickableSurface'
 
@@ -37,6 +36,8 @@ export interface ExplainPopoverProps {
   nodeId?: string | null
   language?: string
   onClose: () => void
+  /** Called when the learner clicks "Ver mas" to open the full ExplainModal. */
+  onVerMas?: (selection: ExplainSelection) => void
 }
 
 interface Position {
@@ -81,12 +82,12 @@ export function ExplainPopover({
   nodeId = null,
   language,
   onClose,
+  onVerMas,
 }: ExplainPopoverProps) {
   const ref = useRef<HTMLDivElement>(null)
   const returnFocusTo = useRef<HTMLElement | null>(null)
   const [position, setPosition] = useState<Position | null>(null)
   const { status, text, error, run } = useExplain()
-  const navigate = useNavigate()
 
   // One request per (term, context) pair. The server cache makes a repeat free, so
   // there is no client-side memo to keep in sync with it.
@@ -170,19 +171,6 @@ export function ExplainPopover({
     return () => returnFocusTo.current?.focus?.()
   }, [selection.viaKeyboard])
 
-  const openChat = useCallback(() => {
-    onClose()
-    const state: ExplainChatState = {
-      explainSeed: {
-        message: buildChatSeed(selection),
-        term: selection.term,
-        context: selection.context,
-        node_id: nodeId ?? null,
-      },
-    }
-    navigate('/empleado/chat', { state })
-  }, [navigate, nodeId, onClose, selection])
-
   const body =
     status === 'error' ? (
       <p className="text-sm text-danger">{error}</p>
@@ -214,13 +202,15 @@ export function ExplainPopover({
         {selection.term}
       </p>
       <div aria-live="polite">{body}</div>
-      <button
-        type="button"
-        onClick={openChat}
-        className="mt-2 text-xs font-medium text-primary hover:underline"
-      >
-        No lo entiendo
-      </button>
+      {onVerMas && text && (
+        <button
+          type="button"
+          onClick={() => { onClose(); onVerMas(selection) }}
+          className="mt-2 text-xs font-medium text-primary hover:underline"
+        >
+          Ver mas
+        </button>
+      )}
     </div>,
     document.body,
   )

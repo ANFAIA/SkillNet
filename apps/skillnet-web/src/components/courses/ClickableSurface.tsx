@@ -17,6 +17,7 @@ import { createPortal } from 'react-dom'
 import type { MouseEvent, ReactNode } from 'react'
 import { centerContext } from '../../api/explain'
 import { ExplainPopover } from './ExplainPopover'
+import { ExplainModal } from './ExplainModal'
 
 /** The block a term's context is taken from (§8.3). */
 export const BLOCK_SELECTOR = 'p,li,h1,h2,h3,h4,h5,h6,blockquote,td,th,dd,dt'
@@ -180,6 +181,14 @@ export interface ClickableSurfaceProps {
   nodeId?: string | null
   language?: string
   className?: string
+  /**
+   * Called when the learner clicks "Ver mas" from within this surface's ExplainModal.
+   * When provided, the popover shows a "Ver mas" button and the surface manages the
+   * ExplainModal internally. When the callback is provided externally (e.g. from
+   * ExplainModal's inner ClickableSurface), it is forwarded without opening a nested
+   * modal.
+   */
+  onVerMas?: (term: string, context: string) => void
 }
 
 export function ClickableSurface({
@@ -187,12 +196,20 @@ export function ClickableSurface({
   nodeId = null,
   language,
   className,
+  onVerMas,
 }: ClickableSurfaceProps) {
   const ref = useRef<HTMLDivElement>(null)
   // Set when a drag just produced a selection, so the trailing click a short drag
   // also fires does not overwrite the phrase with a single word. Cleared next tick.
   const justDragged = useRef(false)
   const [selection, setSelection] = useState<ExplainSelection | null>(null)
+
+  // Modal state: which term is shown in the ExplainModal.
+  const [modalTerm, setModalTerm] = useState<{
+    term: string
+    context: string
+    origin: DOMRect | null
+  } | null>(null)
 
   const blockContext = useCallback((node: Node | null, term: string): string => {
     const element = node instanceof Element ? node : node?.parentElement
@@ -295,6 +312,22 @@ export function ClickableSurface({
     [blockContext],
   )
 
+  const handleVerMas = useCallback(
+    (sel: ExplainSelection) => {
+      // When an external onVerMas is provided (e.g. inside ExplainModal's inner
+      // ClickableSurface), forward the drill-down without opening a nested modal.
+      if (onVerMas) {
+        onVerMas(sel.term, sel.context)
+        return
+      }
+      const rect = sel.el?.getBoundingClientRect() ?? sel.range?.getBoundingClientRect() ?? null
+      setModalTerm({ term: sel.term, context: sel.context, origin: rect })
+    },
+    [onVerMas],
+  )
+
+  const closeModal = useCallback(() => setModalTerm(null), [])
+
   return (
     <div ref={ref} onClick={onClick} onMouseUp={onMouseUp} className={className}>
       {children}
@@ -305,6 +338,18 @@ export function ClickableSurface({
           nodeId={nodeId}
           language={language}
           onClose={close}
+          onVerMas={handleVerMas}
+        />
+      )}
+      {modalTerm && (
+        <ExplainModal
+          term={modalTerm.term}
+          context={modalTerm.context}
+          nodeId={nodeId ?? null}
+          language={language}
+          open={!!modalTerm}
+          onClose={closeModal}
+          origin={modalTerm.origin}
         />
       )}
     </div>

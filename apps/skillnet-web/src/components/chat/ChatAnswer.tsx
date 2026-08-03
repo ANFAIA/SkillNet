@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { UiSpecRenderer } from '../courses/UiSpecRenderer'
+import { ClickableSurface } from '../courses/ClickableSurface'
 import { gateProgram } from '../courses/kit'
 import { ChatMarkdown } from './ChatMarkdown'
 import type { ChatMessage } from '../../types'
@@ -19,15 +20,18 @@ export function ChatAnswer({ message }: ChatAnswerProps) {
   const gate = useMemo(() => gateProgram(message.program), [message.program])
   const showBlocks = Boolean(message.program) && !gate.blocked && !gate.empty
 
-  // Validated program arrived — render the blocks.
+  // Validated program arrived — render the blocks. Wrapped in ClickableSurface so
+  // words are clickable and "Ver mas" opens the ExplainModal.
   if (showBlocks) {
     return (
-      <UiSpecRenderer
-        program={message.program ?? null}
-        nodeId=""
-        format={CHAT_UI_FORMAT}
-        arriving
-      />
+      <ClickableSurface nodeId={null}>
+        <UiSpecRenderer
+          program={message.program ?? null}
+          nodeId=""
+          format={CHAT_UI_FORMAT}
+          arriving
+        />
+      </ClickableSurface>
     )
   }
 
@@ -57,11 +61,21 @@ export function ChatAnswer({ message }: ChatAnswerProps) {
     )
   }
 
-  // Prose fallback.
+  // Prose fallback. Completed content is wrapped in ClickableSurface for the
+  // click-to-explain popover and "Ver mas" modal; streaming content stays unwrapped
+  // because re-measuring the surface on every token would thrash layout.
+  if (!message.isStreaming) {
+    return (
+      <ClickableSurface nodeId={null}>
+        <ChatMarkdown content={message.content} isStreaming={false} />
+      </ClickableSurface>
+    )
+  }
+
   return (
     <>
       <ChatMarkdown content={message.content} isStreaming={message.isStreaming} />
-      {message.isStreaming && !message.content && (
+      {!message.content && (
         <span className="typing-dots" aria-label="Escribiendo">
           <span /><span /><span />
         </span>
