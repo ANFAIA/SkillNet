@@ -260,8 +260,8 @@ export function Employees() {
   const employees = data?.items ?? []
 
   return (
-    <div>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+    <div className="flex flex-col md:h-[calc(100dvh-50px-3rem)]">
+      <div className="shrink-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h2 className="text-xl font-semibold text-text">Empleados</h2>
           <p className="text-sm text-text-secondary mt-1">{data?.total ?? employees.length} miembros del equipo</p>
@@ -278,7 +278,7 @@ export function Employees() {
         </Button>
       </div>
 
-      <div className="relative mt-4">
+      <div className="shrink-0 relative mt-4">
         <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-text-muted">
           <SearchIcon />
         </div>
@@ -292,7 +292,7 @@ export function Employees() {
       </div>
 
       {/* Desktop table */}
-      <Card className="mt-4 p-0 overflow-hidden hidden md:block">
+      <Card className="mt-4 p-0 overflow-hidden hidden md:flex md:flex-col min-h-0">
         {isLoading ? (
           <div className="p-4 space-y-1">
             <SkeletonRow />
@@ -304,13 +304,13 @@ export function Employees() {
         ) : employees.length === 0 ? (
           <EmptyState title="No se encontraron empleados" description="Agrega tu primer empleado" />
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0">
             <table className="w-full text-sm">
-              <thead>
+              <thead className="sticky top-0 z-10">
                 <tr className="border-b border-border bg-bg-subtle">
-                  <th className="text-left py-3 px-5 font-medium text-text-secondary">Nombre</th>
+                  <th className="text-left py-3 px-5 font-medium text-text-secondary rounded-tl-xl">Nombre</th>
                   <th className="text-left py-3 px-4 font-medium text-text-secondary">Correo</th>
-                  <th className="text-left py-3 px-4 font-medium text-text-secondary">Rol</th>
+                  <th className="text-left py-3 px-4 font-medium text-text-secondary rounded-tr-xl">Rol</th>
                 </tr>
               </thead>
               <motion.tbody initial="hidden" animate="visible" variants={staggerContainer}>
