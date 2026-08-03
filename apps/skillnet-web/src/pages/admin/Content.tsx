@@ -128,7 +128,7 @@ export function Content() {
                     </div>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
-                    {course.module_count > 0 && (
+                    {course.module_count > 0 && course.delivery_mode !== 'dynamic' && (
                       <Button
                         variant="ghost"
                         size="sm"

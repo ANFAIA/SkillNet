@@ -8,6 +8,7 @@ import { ReviewChecklist } from '../../components/schema/ReviewChecklist'
 import { SchemaValidationPanel } from '../../components/schema/SchemaValidationPanel'
 import type { PrerequisiteOption } from '../../components/schema/PrerequisitePicker'
 import { useCourse } from '../../api/courses'
+import { NodePreview } from '../../components/schema/NodePreview'
 import {
   isSchemaSurfaceDisabled,
   schemaErrorMessage,
@@ -131,6 +132,8 @@ export function CourseSchema() {
   const [density, setDensity] = useState(3)
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
   const [proposeJobId, setProposeJobId] = useState<string | null>(null)
+  const [previewNodeId, setPreviewNodeId] = useState<string | null>(null)
+  const [previewOrigin, setPreviewOrigin] = useState<DOMRect | null>(null)
 
   const proposeJob = useSchemaProposeJob(id, proposeJobId)
   const newNodeCounter = useRef(0)
@@ -556,23 +559,42 @@ export function CourseSchema() {
           <div className="flex-1 min-w-0">
             <Card>
               {selected && selectedIndex >= 0 ? (
-                <NodeEditor
-                  node={selected}
-                  index={selectedIndex}
-                  total={draft.length}
-                  prerequisiteOptions={prerequisiteOptions}
-                  reviewedAt={
-                    selected.id ? serverById.get(selected.id)?.reviewed_at ?? null : null
-                  }
-                  dirty={!!dirtyByKey.get(selected.key)}
-                  locked={!!locked}
-                  onChange={(patch) => patchNode(selected.key, patch)}
-                  onMove={(direction) => moveNode(selected.key, direction)}
-                  onArchiveToggle={() =>
-                    patchNode(selected.key, { archived: !selected.archived })
-                  }
-                  onRemove={() => removeNode(selected.key)}
-                />
+                <>
+                  <NodeEditor
+                    node={selected}
+                    index={selectedIndex}
+                    total={draft.length}
+                    prerequisiteOptions={prerequisiteOptions}
+                    reviewedAt={
+                      selected.id ? serverById.get(selected.id)?.reviewed_at ?? null : null
+                    }
+                    dirty={!!dirtyByKey.get(selected.key)}
+                    locked={!!locked}
+                    onChange={(patch) => patchNode(selected.key, patch)}
+                    onMove={(direction) => moveNode(selected.key, direction)}
+                    onArchiveToggle={() =>
+                      patchNode(selected.key, { archived: !selected.archived })
+                    }
+                    onRemove={() => removeNode(selected.key)}
+                  />
+                  {selected.id && !dirtyByKey.get(selected.key) && (
+                    <div className="mt-4 pt-4 border-t border-border">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={(e) => {
+                          setPreviewOrigin(e.currentTarget.getBoundingClientRect())
+                          setPreviewNodeId(selected.id)
+                        }}
+                      >
+                        Previsualizar contenido
+                      </Button>
+                      <p className="text-xs text-text-muted mt-1.5">
+                        Genera el contenido como lo veria un empleado.
+                      </p>
+                    </div>
+                  )}
+                </>
               ) : (
                 <EmptyState
                   title="Selecciona un nodo"
@@ -620,6 +642,16 @@ export function CourseSchema() {
           </Button>
         </div>
       </div>
+
+      {previewNodeId && (
+        <NodePreview
+          nodeId={previewNodeId}
+          nodeTitle={draft.find((n) => n.id === previewNodeId)?.title ?? 'Nodo'}
+          open={!!previewNodeId}
+          onClose={() => setPreviewNodeId(null)}
+          origin={previewOrigin}
+        />
+      )}
     </div>
   )
 }
