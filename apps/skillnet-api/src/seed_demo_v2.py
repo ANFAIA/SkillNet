@@ -1235,7 +1235,7 @@ STATIC_COURSE_MODULES: tuple[StaticModuleSpec, ...] = (
 ENROLLMENTS: dict[str, tuple[str, ...]] = {
     COURSE_ALERGENOS.title: tuple(spec.email_local for spec in EMPLOYEES),
     COURSE_SALA.title: ("aitana.souto", "diego.varela", "noa.pereira", "lucia.fernandez"),
-    STATIC_COURSE_TITLE: ("lucia.fernandez", "aitana.souto", "diego.varela", "noa.pereira"),
+    # STATIC_COURSE_TITLE removed — v2 only
 }
 
 
@@ -1307,7 +1307,7 @@ def check_specs() -> None:
         for skill_name in employee.skills:
             assert skill_name in known_skills, f"unknown skill {skill_name!r}"
 
-    titles = {course.title for course in DYNAMIC_COURSES} | {STATIC_COURSE_TITLE}
+    titles = {course.title for course in DYNAMIC_COURSES}
     assert set(ENROLLMENTS) == titles, "ENROLLMENTS does not cover every seeded course"
     emails = {spec.email_local for spec in EMPLOYEES}
     for course_title, assigned in ENROLLMENTS.items():
@@ -1893,8 +1893,6 @@ async def seed(*, refresh: bool = False) -> None:
             chunk_counts[spec.title] = await _ensure_chunks(session, org, document, spec)
 
         courses: dict[str, Course] = {}
-        static_course = await _ensure_static_course(session, org, admin, documents["caja"])
-        courses[STATIC_COURSE_TITLE] = static_course
 
         node_counts: dict[str, int] = {}
         for spec in DYNAMIC_COURSES:
