@@ -12,9 +12,13 @@ import re
 from typing import Any
 
 from src.core.exceptions import LLMError
+from src.core.logging import get_logger
+
+_logger = get_logger(__name__)
 
 _CODE_BLOCK = re.compile(r"```(?:json)?\s*\n?(.*?)```", re.DOTALL)
 _TRAILING_COMMA = re.compile(r",\s*([}\]])")
+_THINK_BLOCK = re.compile(r"<think>.*?</think>", re.DOTALL)
 
 
 def _extract_balanced(text: str, open_ch: str, close_ch: str) -> str | None:
@@ -55,7 +59,7 @@ def parse_json_response(response: str) -> Any:
     if response is None:
         raise LLMError("Empty LLM response; expected JSON.")
 
-    text = response.strip()
+    text = _THINK_BLOCK.sub("", response).strip()
 
     try:
         return json.loads(text)
@@ -79,4 +83,5 @@ def parse_json_response(response: str) -> Any:
                 except json.JSONDecodeError:
                     continue
 
+    _logger.error("Could not parse JSON from LLM response. Raw (first 2000 chars): %s", text[:2000])
     raise LLMError("Could not parse JSON from LLM response.")

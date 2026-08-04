@@ -313,6 +313,8 @@ async def generate_modules(state: GenerationState) -> dict:
                 json_mode=True,
             )
             data = parse_json_response(response)
+            if isinstance(data, list):
+                data = {"lessons": data, "exercises": []}
             module = {
                 "module_spec": spec,
                 "lessons": (data or {}).get("lessons", []),
