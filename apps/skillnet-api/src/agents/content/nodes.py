@@ -18,7 +18,11 @@ from src.agents.content.errors import node_error_wrapper, sse_channel
 from src.agents.content.helpers import (
     FULL_TEXT_PAGE_THRESHOLD,
     assemble_chunk_text as _assemble_chunk_text,
+    describe_payload as _describe_payload,
     estimate_pages as _estimate_pages,
+    module_payload as _module_payload,
+    outline_dict as _outline_dict,
+    review_report as _review_report,
     strip_chunk_prefix as _strip_chunk_prefix,
     themes_list as _themes_list,
 )
@@ -186,7 +190,17 @@ async def extract_themes(state: GenerationState) -> dict:
         max_tokens=GEN_MAX_TOKENS,
         json_mode=True,
     )
-    themes = _themes_list(parse_json_response(response))
+    parsed = parse_json_response(response, context="extract_themes")
+    themes = _themes_list(parsed)
+    if not themes:
+        # Not fatal — the designer can still build an outline from the source metadata —
+        # but it costs the course every skill it would have been linked to, so it must not
+        # pass in silence.
+        logger.warning(
+            "Theme extraction produced no usable themes for job %s; received %s",
+            job_id,
+            _describe_payload(parsed),
+        )
 
     await _set_job(job_id, status=GenerationStep.STRUCTURING)
     await _publish_step(job_id, "structuring", "Disenando la estructura del curso...")
@@ -213,9 +227,7 @@ async def design_structure(state: GenerationState) -> dict:
         max_tokens=GEN_MAX_TOKENS,
         json_mode=True,
     )
-    outline = parse_json_response(response)
-    if not isinstance(outline, dict):
-        outline = {"title": "Curso", "modules": []}
+    outline = _outline_dict(parse_json_response(response, context="design_structure"))
 
     await _set_job(job_id, status=GenerationStep.STRUCTURING)
     return {"course_outline": outline, "current_step": "structuring"}
@@ -312,13 +324,13 @@ async def generate_modules(state: GenerationState) -> dict:
                 max_tokens=GEN_MAX_TOKENS,
                 json_mode=True,
             )
-            data = parse_json_response(response)
-            if isinstance(data, list):
-                data = {"lessons": data, "exercises": []}
+            payload = _module_payload(
+                parse_json_response(response, context="generate_modules")
+            )
             module = {
                 "module_spec": spec,
-                "lessons": (data or {}).get("lessons", []),
-                "exercises": (data or {}).get("exercises", []),
+                "lessons": payload["lessons"],
+                "exercises": payload["exercises"],
             }
             completed += 1
             await sse.publish(
@@ -377,6 +389,11 @@ async def review_quality(state: GenerationState) -> dict:
     # out unreviewed. It lands as a **draft** either way — an admin still has to press
     # Publish — so the human gate the reviewer feeds into is still there. What must not
     # happen is silence: the report says so, and the SSE event says so.
+    #
+    # The parse is inside the same `try` for the same reason: a review whose answer
+    # cannot be read is a review that did not happen, and it must cost the course no more
+    # than a review that never returned. `parse_json_response` puts the raw response in
+    # the log, so the unreadable answer is still diagnosable.
     try:
         response = await llm.complete(
             QUALITY_REVIEWER_SYSTEM,
@@ -385,6 +402,7 @@ async def review_quality(state: GenerationState) -> dict:
             max_tokens=GEN_MAX_TOKENS,
             json_mode=True,
         )
+        report = _review_report(parse_json_response(response, context="review_quality"))
     except LLMError as exc:
         logger.warning(
             "Quality review could not run for job %s (%s); publishing unreviewed",
@@ -398,10 +416,6 @@ async def review_quality(state: GenerationState) -> dict:
             "issues": [],
             "skip_reason": str(exc)[:200],
         }
-    else:
-        report = parse_json_response(response)
-        if not isinstance(report, dict):
-            report = {"passed": False, "overall_score": 0.0, "issues": []}
 
     await _set_job(job_id, status=GenerationStep.REVIEWING)
     await sse.publish(
@@ -449,13 +463,32 @@ async def refine_content(state: GenerationState) -> dict:
             max_tokens=GEN_MAX_TOKENS,
             json_mode=True,
         )
-        data = parse_json_response(response)
-        if isinstance(data, dict):
-            modules[index] = {
-                "module_spec": module.get("module_spec", {}),
-                "lessons": data.get("lessons", module.get("lessons", [])),
-                "exercises": data.get("exercises", module.get("exercises", [])),
-            }
+        # Refinement is best-effort: the module it is editing already exists and is
+        # publishable, so an answer that cannot be read keeps the module as it was — but
+        # says so, instead of the old silent `if isinstance(data, dict)`, which threw a
+        # perfectly good refinement away for arriving without its wrapper.
+        #
+        # `or` and not `.get(key, default)` below: an empty array is the model saying
+        # nothing rather than "delete everything", and a refiner asked to fix two
+        # sentences has no business emptying a module.
+        try:
+            payload = _module_payload(
+                parse_json_response(response, context="refine_content")
+            )
+        except LLMError as exc:
+            logger.warning(
+                "Refinement of module %d skipped for job %s; keeping the reviewed "
+                "version (%s)",
+                index,
+                job_id,
+                exc,
+            )
+            continue
+        modules[index] = {
+            "module_spec": module.get("module_spec", {}),
+            "lessons": payload["lessons"] or module.get("lessons", []),
+            "exercises": payload["exercises"] or module.get("exercises", []),
+        }
 
     await _set_job(job_id, status=GenerationStep.REVIEWING)
     await sse.publish(

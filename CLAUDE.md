@@ -1,44 +1,49 @@
 # CLAUDE.md — SkillNet
 
-Orientacion rapida del repo tal como esta hoy (2026-07-27). Para las reglas de estilo y las
-fronteras del proyecto, `AGENTS.md`. Para el diseno de v2, `docs/design/v2-dynamic-courses.md`.
+Orientacion rapida del repo tal como esta hoy (2026-08-04). **Para arrancarlo, `RUNNING.md`.**
+Para las reglas de estilo y las fronteras del proyecto, `AGENTS.md`. Para el diseno de v2,
+`docs/design/v2-dynamic-courses.md`.
+
+Este fichero **va al repo**, asi que aqui solo cabe lo que es cierto en cualquier maquina.
+Rutas absolutas, servidores de modelos locales y apanos de sistema operativo van en
+`CLAUDE.local.md`, que esta en el `.gitignore`.
+
+**Idioma:** el codigo y sus comentarios, `README.md`, `RUNNING.md` y `.env.example` van en
+**ingles**. En castellano solo este fichero, `AGENTS.md` y `scripts/` (los bancos de calidad).
 
 ## 1. Donde esta todo
 
-- Repo: `C:\Users\Usuario\Proyectos\SkillNet`
 - Backend: `apps/skillnet-api/` (FastAPI + LangGraph + pgvector)
 - Frontend: `apps/skillnet-web/` (React 19 + TanStack Query)
-- Docker: `docker-compose.yml` (db + api + web), `docker-compose.dev.yml` (hot reload)
-- Notas personales: `C:\Users\Usuario\Proyectos\Digital-Brain`.
-  **NUNCA usar la memoria de Claude (`.claude/memory/`)** — todo va al Digital-Brain.
+- Docker: `docker-compose.yml` (db + api + web), `docker-compose.dev.yml` (hot reload),
+  `docker-compose.ollama.yml` (todo con un modelo local, sin clave)
 
 ## 2. Docker
 
-Arrancar Docker Desktop si no esta corriendo:
-
 ```bash
-powershell.exe -Command "Start-Process 'C:\Program Files\Docker\Docker\Docker Desktop.exe'"
-```
-
-Esperar ~30 s y verificar con `docker ps`. Desde Git Bash el CLI necesita PATH:
-`export PATH="/c/Program Files/Docker/Docker/resources/bin:$PATH"`
-
-```bash
-# Produccion (v2 apagado)
+# Produccion. v2 queda en `on` si copiaste el .env.example; el default del codigo es `off`.
 docker compose up -d --build                                              # http://localhost:3000
 
 # Desarrollo: hot reload, logs en debug, v2 en `shadow`
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
 
-# Perfil `fixtures`: sin ninguna clave de API, v2 en `on`, puerto propio
-docker compose --profile fixtures up -d db api-fixtures                   # http://localhost:8001
+# Todo con un modelo local, sin clave. La primera vez descarga los modelos.
+docker compose -f docker-compose.yml -f docker-compose.ollama.yml up -d --build
+
+# Perfil `fixtures`: una segunda API sin claves, solo para curl. La SPA NO la usa.
+docker compose --profile fixtures up -d db api-fixtures                   # http://127.0.0.1:8001
 ```
 
+**Puertos publicados.** Produccion publica **solo el 3000** (`web`); `api` y `db` viven en la
+red interna. El override de dev anade `8000` y `5432`, y `api-fixtures`, `a2a` y `ollama` sus
+puertos — todos en `127.0.0.1`, nunca en `0.0.0.0`: Docker publica con reglas DNAT que
+**atraviesan el cortafuegos**, asi que un `0.0.0.0:5432` es Postgres abierto a la red.
+
 El perfil `fixtures` levanta la misma imagen que `api` pero con `LLM_MODEL=fixture/local` y
-`EMBEDDING_MODEL=fixture/local`, asi que cada llamada al LLM y a embeddings se sirve de las
-grabaciones de `src/llm/fixture_data`. Va en su propio puerto (`API_FIXTURES_PORT`, por
-defecto 8001) porque el nginx que sirve la SPA apunta a `api`. Para dejar *toda* la pila sin
-claves, poner esos dos valores en el `.env` en vez de usar el perfil.
+`EMBEDDING_MODEL=fixture/local`. Va en su propio puerto porque el nginx que sirve la SPA
+apunta a `api` sin variable que cambiar, asi que **la interfaz web no lo usa**: sirve para
+`curl` y Swagger. Para dejar *toda* la pila sin claves, poner esos dos valores en el `.env` y
+arrancar normal. Ojo: comparte `SECRET_KEY` y base de datos con `api`, no es un sandbox.
 
 `docker-compose.dev.yml` monta el repo del host sobre `/app` y ademas declara un volumen
 anonimo en `/app/.venv`. Ese volumen es imprescindible: sin el, `uv run` dentro del

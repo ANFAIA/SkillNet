@@ -76,43 +76,47 @@ function ChevronIcon({ open }: { open: boolean }) {
 }
 
 // --- Step 0: Source ---
+//: Two cards, two columns. The grid used to say `sm:grid-cols-3` from when a third
+//: `catalogo` source was planned, which left each of the two real cards at a third of
+//: the width with a dead gap beside them. `SourceType` still carries `'catalogo'` and
+//: the `disabled` flag still works, so a third source only needs a row here plus the
+//: column count put back.
 function StepSource({ selected, onSelect }: { selected: SourceType; onSelect: (s: SourceType) => void }) {
   const sources: { key: SourceType; title: string; desc: string; icon: React.ReactNode; disabled?: boolean }[] = [
-    { key: 'documentos', title: 'Documentos', desc: 'Sube un PDF y generamos el curso con IA', icon: <FileIcon /> },
-    { key: 'cero', title: 'Desde cero', desc: 'Define el tema y generamos el contenido con IA', icon: <EditIcon /> },
+    { key: 'documentos', title: 'Documentos', desc: 'A partir de un PDF que ya tienes', icon: <FileIcon /> },
+    { key: 'cero', title: 'Desde cero', desc: 'A partir de un tema que describes', icon: <EditIcon /> },
   ]
 
   return (
-    <div>
-      <h3 className="text-base font-medium text-text">Elige el origen del curso</h3>
-      <p className="text-sm text-text-secondary mt-1">Selecciona como quieres crear el contenido</p>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-5">
-        {sources.map((s) => (
-          <Card
-            key={s.key}
-            variant="default"
-            className={`transition-colors ${
-              s.disabled
-                ? 'opacity-50 cursor-not-allowed'
-                : selected === s.key
-                  ? 'border-primary bg-primary-subtle cursor-pointer'
-                  : 'cursor-pointer hover:border-primary'
-            }`}
-            onClick={() => !s.disabled && onSelect(s.key)}
-          >
-            <div className="text-text-secondary mb-3">{s.icon}</div>
-            <p className="text-sm font-medium text-text">{s.title}</p>
-            <p className="text-xs text-text-muted mt-1">{s.desc}</p>
-          </Card>
-        ))}
-      </div>
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {sources.map((s) => (
+        <Card
+          key={s.key}
+          variant="default"
+          className={`transition-colors ${
+            s.disabled
+              ? 'opacity-50 cursor-not-allowed'
+              : selected === s.key
+                ? 'border-primary bg-primary-subtle cursor-pointer'
+                : 'cursor-pointer hover:border-primary'
+          }`}
+          onClick={() => !s.disabled && onSelect(s.key)}
+        >
+          <div className="text-text-muted mb-3">{s.icon}</div>
+          <p className="text-sm font-medium text-text">{s.title}</p>
+          <p className="text-xs text-text-muted mt-1">{s.desc}</p>
+        </Card>
+      ))}
     </div>
   )
 }
 
 // --- Step 1: Content ---
+//: No `documentReady` prop any more: the only thing it drove was a "Sube un documento
+//: para continuar" line that said exactly what the disabled "Generar" button already
+//: says. The flag still gates that button — see `canNext`.
 function StepContent({
-  source, title, onTitleChange, idea, onIdeaChange, uploader, documentReady,
+  source, title, onTitleChange, idea, onIdeaChange, uploader,
 }: {
   source: SourceType
   title: string
@@ -120,75 +124,53 @@ function StepContent({
   idea: string
   onIdeaChange: (v: string) => void
   uploader: ReturnType<typeof useUploadDocument>
-  documentReady: boolean
 }) {
   return (
-    <div>
-      <h3 className="text-base font-medium text-text">Contenido del curso</h3>
-      <p className="text-sm text-text-secondary mt-1">
-        {source === 'documentos' ? 'Sube tu documento y dale un nombre al curso' : 'Describe el curso que quieres generar'}
-      </p>
+    <div className="space-y-6">
+      <Input label="Nombre del curso" placeholder="Ej: Seguridad Alimentaria" value={title} onChange={(e) => onTitleChange(e.target.value)} />
 
-      <div className="mt-5 space-y-4">
-        <Input label="Nombre del curso" placeholder="Ej: Seguridad Alimentaria" value={title} onChange={(e) => onTitleChange(e.target.value)} />
+      {source === 'cero' && (
+        /* Optional on purpose — hence "(opcional)" in the label. The title alone is a
+           thin brief but a legitimate one, and the server's prompt handles an empty
+           description explicitly — making this required would add a wall in front of
+           the quickest path through the wizard to buy quality the creator can also
+           get by editing the source afterwards. */
+        <Textarea
+          label="Que quieres que cubra (opcional)"
+          placeholder={'Ej: como funciona una sinapsis, los neurotransmisores principales y la plasticidad. Nivel introductorio.'}
+          hint="Con esto la IA escribe un documento fuente, editable despues, del que sale el curso."
+          value={idea}
+          onChange={(e) => onIdeaChange(e.target.value)}
+        />
+      )}
 
-        {source === 'cero' && (
-          <>
-            {/* Optional on purpose. The title alone is a thin brief but a legitimate
-                one, and the server's prompt handles an empty description explicitly —
-                making this required would add a wall in front of the quickest path
-                through the wizard to buy quality the creator can also get by editing
-                the source afterwards. */}
-            <Textarea
-              label="Que quieres que cubra"
-              placeholder={'Ej: como funciona una sinapsis, los principales neurotransmisores y que se sabe hoy sobre plasticidad. Nivel introductorio, sin matematicas.'}
-              hint="Opcional, pero cuanto mas concreto seas, mejor sale el material."
-              value={idea}
-              onChange={(e) => onIdeaChange(e.target.value)}
-            />
-            <div className="rounded-lg border border-border bg-bg-subtle p-3">
-              <p className="text-xs text-text-secondary">
-                <span className="font-medium text-text">Se escribira un documento fuente con IA</span>{' '}
-                y el curso se generara a partir de el. Ese documento queda guardado y
-                marcado como generado, para que puedas leerlo y corregirlo: recoge
-                conocimiento general, no la politica interna de tu empresa.
-              </p>
-            </div>
-          </>
-        )}
-
-        {source === 'documentos' && (
-          <div>
-            <label className="block text-sm font-medium text-text mb-1">Documento</label>
-            <FileUploadZone
-              accept=".pdf,.docx,.md,.txt"
-              maxSizeMB={20}
-              onFilesSelected={(files) => uploader.uploadFile(files[0]).catch(() => {})}
-            />
-            {uploader.uploads.length > 0 && (
-              <div className="mt-3 space-y-2">
-                {uploader.uploads.map((u, i) => (
-                  <div key={i} className="text-sm">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-text truncate min-w-0">{u.file.name}</span>
-                      {u.status === 'ready' || u.status === 'processing' ? (
-                        <span className="text-accent shrink-0"><CheckIcon /></span>
-                      ) : u.status === 'error' ? (
-                        <span className="text-danger text-xs shrink-0">{u.error}</span>
-                      ) : null}
-                    </div>
-                    {u.status === 'uploading' && <ProgressBar value={u.progress} size="sm" className="mt-1" />}
-                    {(u.status === 'processing' || u.status === 'ready') && (
-                      <p className="text-xs text-text-muted mt-0.5">Documento listo</p>
-                    )}
+      {source === 'documentos' && (
+        <div>
+          <label className="block text-sm font-medium text-text mb-2">Documento</label>
+          <FileUploadZone
+            accept=".pdf,.docx,.md,.txt"
+            maxSizeMB={20}
+            onFilesSelected={(files) => uploader.uploadFile(files[0]).catch(() => {})}
+          />
+          {uploader.uploads.length > 0 && (
+            <div className="mt-3 space-y-2">
+              {uploader.uploads.map((u, i) => (
+                <div key={i} className="text-sm">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-text truncate min-w-0">{u.file.name}</span>
+                    {u.status === 'ready' || u.status === 'processing' ? (
+                      <span className="text-accent shrink-0"><CheckIcon /></span>
+                    ) : u.status === 'error' ? (
+                      <span className="text-danger text-xs shrink-0">{u.error}</span>
+                    ) : null}
                   </div>
-                ))}
-              </div>
-            )}
-            {!documentReady && <p className="text-xs text-text-muted mt-2">Sube un documento para continuar.</p>}
-          </div>
-        )}
-      </div>
+                  {u.status === 'uploading' && <ProgressBar value={u.progress} size="sm" className="mt-1" />}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -367,7 +349,7 @@ function EditableExercise({ exercise }: { exercise: Exercise }) {
 function StepReview({ courseId, onPublish, publishing, published }: { courseId: string; onPublish: () => void; publishing: boolean; published: boolean }) {
   const { data: course, isLoading } = useCourse(courseId)
 
-  if (isLoading) return <p className="text-sm text-text-secondary">Cargando contenido generado...</p>
+  if (isLoading) return <p className="text-sm text-text-secondary">Cargando...</p>
   if (!course) return <EmptyState title="No se pudo cargar el curso generado" />
 
   const totalLessons = course.modules.reduce((acc, m) => acc + m.lessons.length, 0)
@@ -375,16 +357,13 @@ function StepReview({ courseId, onPublish, publishing, published }: { courseId: 
   return (
     <div>
       <div className="flex items-center justify-between gap-3">
-        <div>
-          <h3 className="text-base font-medium text-text">Revisa y edita el contenido generado</h3>
-          <p className="text-sm text-text-secondary mt-1">{course.modules.length} modulos · {totalLessons} lecciones</p>
-        </div>
+        <p className="text-sm text-text-secondary">{course.modules.length} modulos · {totalLessons} lecciones</p>
         <Button size="sm" variant="accent" onClick={onPublish} disabled={publishing || published}>
           {published ? 'Publicado' : publishing ? 'Publicando...' : 'Publicar'}
         </Button>
       </div>
 
-      <div className="mt-5 space-y-3">
+      <div className="mt-6 space-y-3">
         {course.modules.map((mod, i) => (
           <Card key={mod.id}>
             <div className="flex items-center justify-between gap-2">
@@ -414,36 +393,31 @@ function StepAssign({ selected, onToggle, deadline, onDeadline }: {
   const employees: User[] = data?.items ?? []
 
   return (
-    <div>
-      <h3 className="text-base font-medium text-text">Asignar a empleados</h3>
-      <p className="text-sm text-text-secondary mt-1">Selecciona quienes tomaran este curso</p>
-
-      <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-text mb-2">Empleados</label>
-          <div className="border border-border rounded-lg max-h-64 overflow-y-auto">
-            {isLoading ? (
-              <p className="text-sm text-text-muted p-4">Cargando...</p>
-            ) : employees.length === 0 ? (
-              <p className="text-sm text-text-muted p-4">No hay empleados.</p>
-            ) : (
-              employees.map((emp) => (
-                <label key={emp.id} className="flex items-center gap-3 px-4 py-2.5 border-b border-border last:border-b-0 hover:bg-bg-subtle cursor-pointer transition-colors">
-                  <input type="checkbox" checked={selected.has(emp.id)} onChange={() => onToggle(emp.id)} className="accent-primary" />
-                  <div className="min-w-0">
-                    <p className="text-sm text-text truncate">{emp.full_name}</p>
-                    <p className="text-xs text-text-muted truncate">{emp.email}</p>
-                  </div>
-                </label>
-              ))
-            )}
-          </div>
-          <p className="text-xs text-text-muted mt-1">{selected.size} seleccionados</p>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div>
+        <label className="block text-sm font-medium text-text mb-2">Empleados</label>
+        <div className="border border-border rounded-lg max-h-64 overflow-y-auto">
+          {isLoading ? (
+            <p className="text-sm text-text-muted p-4">Cargando...</p>
+          ) : employees.length === 0 ? (
+            <p className="text-sm text-text-muted p-4">No hay empleados.</p>
+          ) : (
+            employees.map((emp) => (
+              <label key={emp.id} className="flex items-center gap-3 px-4 py-2.5 border-b border-border last:border-b-0 hover:bg-bg-subtle cursor-pointer transition-colors">
+                <input type="checkbox" checked={selected.has(emp.id)} onChange={() => onToggle(emp.id)} className="accent-primary" />
+                <div className="min-w-0">
+                  <p className="text-sm text-text truncate">{emp.full_name}</p>
+                  <p className="text-xs text-text-muted truncate">{emp.email}</p>
+                </div>
+              </label>
+            ))
+          )}
         </div>
+        <p className="text-xs text-text-muted mt-1.5">{selected.size} seleccionados</p>
+      </div>
 
-        <div>
-          <Input label="Fecha limite (opcional)" type="date" value={deadline} onChange={(e) => onDeadline(e.target.value)} />
-        </div>
+      <div>
+        <Input label="Fecha limite (opcional)" type="date" value={deadline} onChange={(e) => onDeadline(e.target.value)} />
       </div>
     </div>
   )
@@ -693,13 +667,13 @@ export function CreateCourse() {
   function renderStep() {
     switch (step) {
       case 0: return <StepSource selected={source} onSelect={setSource} />
-      case 1: return <StepContent source={source} title={title} onTitleChange={setTitle} idea={idea} onIdeaChange={setIdea} uploader={uploader} documentReady={documentReady} />
+      case 1: return <StepContent source={source} title={title} onTitleChange={setTitle} idea={idea} onIdeaChange={setIdea} uploader={uploader} />
+      //: `GenerationProgress` owns the status heading, the status line and the error
+      //: text. The header block that used to sit above it here said the same thing
+      //: twice, so it is gone; only the retry action stays, and it does not repeat
+      //: the error either.
       case 2: return (
-        <div className="py-6">
-          <div className="text-center mb-8">
-            <h3 className="text-base font-medium text-text">{effective.step === 'failed' ? 'La generacion fallo' : 'Generando curso...'}</h3>
-            <p className="text-sm text-text-secondary mt-1">Esto puede tomar unos momentos</p>
-          </div>
+        <div className="py-2">
           <GenerationProgress progress={effective} />
           {effective.step === 'failed' && (
             <div className="mt-6 text-center">
@@ -719,12 +693,14 @@ export function CreateCourse() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-semibold text-text">Crear Curso</h2>
-          <p className="text-sm text-text-secondary mt-1">{stepLabels[step]}</p>
+          {/* The only orientation label in the flow: the per-step headings this page
+              used to repeat under it are gone. */}
+          <p className="text-sm text-text-muted mt-1">{stepLabels[step]}</p>
         </div>
         <StepIndicator current={step} total={5} />
       </div>
 
-      <div className="mt-6 overflow-hidden">
+      <div className="mt-8 overflow-hidden">
         <AnimatePresence mode="wait" custom={direction} initial={false}>
           <motion.div key={step} custom={direction} variants={slideVariants} initial="enter" animate="center" exit="exit">
             {renderStep()}
@@ -735,7 +711,7 @@ export function CreateCourse() {
       {startError && step === 1 && <p className="text-sm text-danger mt-3">{startError}</p>}
 
       {step !== 2 && (
-        <div className="flex items-center justify-between mt-8 pt-4 border-t border-border">
+        <div className="flex items-center justify-between mt-10 pt-5 border-t border-border">
           <div>
             {step === 1 && (
               <Button variant="secondary" onClick={prev}>Anterior</Button>

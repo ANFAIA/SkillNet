@@ -26,7 +26,7 @@ from datetime import datetime, timezone
 
 from sqlalchemy import select
 
-from src.core.exceptions import NotFoundError, ValidationError
+from src.core.exceptions import ValidationError
 from src.core.logging import get_logger
 from src.models.user_skill import SkillLevel, UserSkill
 from src.repositories.skill_repo import SkillRepository

@@ -154,18 +154,50 @@ class GoogleWaveNetProvider(TTSProvider):
 
 
 class ElevenLabsProvider(TTSProvider):
-    """ElevenLabs TTS provider.
+    """ElevenLabs TTS via their REST API (v1).
 
-    TODO: implement with the ``elevenlabs`` SDK once the dependency is added.
+    Uses ``httpx`` (already a project dependency) — no SDK needed.
+    The ``voice`` parameter is an ElevenLabs voice ID. The ``language`` is passed
+    as ``language_code`` in the request body so the model picks the right accent.
     """
 
     name: ClassVar[str] = "elevenlabs"
 
-    async def synthesize(self, text: str, voice: str = "default", language: str = "es") -> bytes:
-        raise NotImplementedError("ElevenLabs provider is not yet implemented")
+    _BASE = "https://api.elevenlabs.io/v1"
+
+    # Curated default voices (multilingual v2 model).
+    _VOICES: ClassVar[list[dict[str, str]]] = [
+        {"id": "21m00Tcm4TlvDq8ikWAM", "name": "Rachel"},
+        {"id": "29vD33N1CtxCmqQRPOHJ", "name": "Drew"},
+        {"id": "EXAVITQu4vr4xnSDxMaL", "name": "Sarah"},
+        {"id": "ErXwobaYiN019PkySvjV", "name": "Antoni"},
+        {"id": "MF3mGyEYCl7XYWbV9V6O", "name": "Elli"},
+        {"id": "TxGEqnHWrfWFTfGW9XjX", "name": "Josh"},
+        {"id": "pNInz6obpgDQGcFmaJgB", "name": "Adam"},
+        {"id": "yoZ06aMxZJJ28mfd3POQ", "name": "Sam"},
+    ]
+
+    async def synthesize(self, text: str, voice: str = "21m00Tcm4TlvDq8ikWAM", language: str = "es") -> bytes:
+        import httpx
+
+        url = f"{self._BASE}/text-to-speech/{voice}"
+        headers = {"xi-api-key": self.api_key, "Content-Type": "application/json"}
+        body = {
+            "text": text,
+            "model_id": "eleven_multilingual_v2",
+            "voice_settings": {"stability": 0.5, "similarity_boost": 0.75},
+            "language_code": language,
+        }
+
+        async with httpx.AsyncClient(timeout=60) as client:
+            resp = await client.post(url, headers=headers, json=body)
+            if resp.status_code != 200:
+                detail = resp.text[:300]
+                raise RuntimeError(f"ElevenLabs API error {resp.status_code}: {detail}")
+            return resp.content
 
     def available_voices(self) -> list[dict[str, str]]:
-        return [{"id": "default", "name": "Default (not implemented)"}]
+        return list(self._VOICES)
 
 
 # ---------------------------------------------------------------------------

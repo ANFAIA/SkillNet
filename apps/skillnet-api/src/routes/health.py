@@ -22,10 +22,10 @@ async def health(db: DBSession) -> dict:
         logger.warning("Health check DB probe failed: %s", exc)
         database = "error"
 
-    # Los embeddings, porque un desajuste de dimension no se ve de ninguna otra forma:
-    # la insercion falla dentro del `except` de la ingesta, el documento queda `READY`
-    # con solo `full_text`, y el tutor responde por los peldanos de abajo sin decir por
-    # que. Aqui lo ve una sonda; el arranque ademas lo escribe en el log.
+    # Embeddings, because a dimension mismatch is invisible any other way: the insert
+    # fails inside the ingestion `except`, the document ends up `READY` with only
+    # `full_text`, and the tutor answers from the lower rungs without saying why. Here a
+    # probe can see it; startup also writes it to the log.
     embeddings: dict[str, object] = {"status": "unknown", "model": settings.EMBEDDING_MODEL}
     if database == "connected":
         try:
@@ -38,7 +38,7 @@ async def health(db: DBSession) -> dict:
             }
             if check.detail:
                 embeddings["detail"] = check.detail
-        except Exception as exc:  # noqa: BLE001 - degradar, nunca tumbar el health
+        except Exception as exc:  # noqa: BLE001 - degrade, never take health down
             logger.warning("Health check embedding probe failed: %s", exc)
             embeddings["status"] = "error"
 

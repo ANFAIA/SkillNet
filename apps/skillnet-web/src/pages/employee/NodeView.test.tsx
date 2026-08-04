@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { NodeView } from './NodeView'
+import { declaredReducedMotionContext } from '../../hooks/useReducedMotion'
 import type {
   LearningNode,
   NodeList,
@@ -31,13 +32,27 @@ import type {
  * 3. **The wait is productive** (§9.1). `render_hint: "prefetch"` fires `POST /render` in
  *    the background *while item B is still on screen*. If that stopped happening the
  *    product would still work and would simply be slow in a way no other test notices.
+ *
+ * ## Two features this screen no longer has
+ *
+ * Points 2 and 3 are **parked**, not abandoned. `b9a06c3` disabled the pre-assessment on
+ * both sides — `runtime/nodes.py` always routes to generation and `NodeView` hardcodes
+ * `initialPhase = 'content'` — and kept every other line "preserved for re-enablement".
+ * The probe suite below is skipped in the same spirit: `ProbeRunner` still has its own
+ * unit tests, but nothing else covers how this screen wires the prefetch and the
+ * `mastered` verdict to it, and rewriting that from scratch later is the expensive half.
+ * Restoring the one commented-out line in `NodeView.tsx` should turn it green again.
+ *
+ * The §5.5 control affordances — "Actualizar esta leccion" and the version history it
+ * gave access to — are **gone**, not parked: `fc6a348` removed the button and the held
+ * previous version outright. Their tests went with them, and `RenderControls.tsx` is
+ * now unreferenced.
  */
 
 const COURSE_ID = '11111111-1111-4111-8111-111111111111'
 const NODE_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
 const NEXT_NODE_ID = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
 const RENDER_ID = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc'
-const OLD_RENDER_ID = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd'
 const PROBE_ID = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'
 
 const PROGRAM = [
@@ -45,9 +60,12 @@ const PROGRAM = [
   'intro = TextContent("El plazo de devolucion es de 30 dias.", "lead")',
 ].join('\n')
 
-const SECOND_PROGRAM = [
-  'root = Stack([intro], "md")',
-  'intro = TextContent("Ahora con un ejemplo de caja.", "lead")',
+/** A lesson with a real control in it, for the §8.5 hit test. */
+const PROGRAM_WITH_QUIZ = [
+  'root = Stack([intro, quiz], "md")',
+  'intro = TextContent("El plazo de devolucion es de 30 dias.", "lead")',
+  'quiz = QuizItem("q1", "test", "apply", "Un cliente vuelve el dia 32. Que haces?", ' +
+    '["Aceptar la devolucion", "Ofrecer garantia del fabricante"])',
 ].join('\n')
 
 function learningNode(overrides: Partial<LearningNode> = {}): LearningNode {
@@ -265,17 +283,25 @@ function callsTo(fragment: string, method = 'GET') {
   })
 }
 
-function renderPage() {
+/**
+ * `declaredReducedMotion` is the wizard's "Menos animaciones" answer (§6.2 Q5), which
+ * `ProtectedRoute` provides in the real tree. Passing it here rather than faking
+ * `matchMedia` exercises the half that only exists because the OS setting is unreachable
+ * on a shared work laptop.
+ */
+function renderPage({ declaredReducedMotion = false } = {}) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   })
   return render(
     <QueryClientProvider client={client}>
-      <MemoryRouter initialEntries={[`/empleado/curso/${COURSE_ID}/nodo/${NODE_ID}`]}>
-        <Routes>
-          <Route path="/empleado/curso/:id/nodo/:nodeId" element={<NodeView />} />
-        </Routes>
-      </MemoryRouter>
+      <declaredReducedMotionContext.Provider value={declaredReducedMotion}>
+        <MemoryRouter initialEntries={[`/empleado/curso/${COURSE_ID}/nodo/${NODE_ID}`]}>
+          <Routes>
+            <Route path="/empleado/curso/:id/nodo/:nodeId" element={<NodeView />} />
+          </Routes>
+        </MemoryRouter>
+      </declaredReducedMotionContext.Provider>
     </QueryClientProvider>,
   )
 }
@@ -463,7 +489,9 @@ describe('NodeView — streaming', () => {
   })
 })
 
-describe('NodeView — the probe is the productive wait', () => {
+// Skipped, not deleted: the pre-assessment is switched off at the routing level
+// (`b9a06c3`), and `NodeView.tsx` marks the one line to restore. See the header note.
+describe.skip('NodeView — the probe is the productive wait', () => {
   it('fires the background render while item B is still on screen', async () => {
     installFetch({
       node: learningNode({ state: 'not_started' }),
@@ -538,8 +566,15 @@ describe('NodeView — the probe is the productive wait', () => {
   })
 })
 
-describe('NodeView — the two control affordances (§5.5)', () => {
-  it('offers "Actualizar esta leccion" and says it is the only thing that changes it', async () => {
+describe('NodeView — the pinned render is the lesson (§5.5)', () => {
+  /**
+   * What is left of §5.5 once the regenerate button is gone: the learner gets the pinned
+   * render and has no way to ask for a different one. `fc6a348` removed the only call that
+   * recomputed a node from the browser, so a `POST` with `force: true` must not go out at
+   * all — that is the claim the two deleted tests were really protecting, and it is the
+   * one that still means something.
+   */
+  it('never asks the server to recompute the lesson', async () => {
     installFetch({
       node: learningNode(),
       renderResponses: [[200, servedRender(PROGRAM)]],
@@ -547,58 +582,15 @@ describe('NodeView — the two control affordances (§5.5)', () => {
         { render_id: RENDER_ID, created_at: '2026-07-26T09:00:00Z', ui_format: 'explanation', status: 'ready' },
       ],
     })
-    renderPage()
-
-    const controls = await screen.findByTestId('render-controls')
-    expect(
-      screen.getByRole('button', { name: 'Actualizar esta leccion' }),
-    ).toBeInTheDocument()
-    expect(controls).toHaveTextContent(
-      'Solo este boton cambia el contenido de este nodo.',
-    )
-    // With only the pinned version served, there is no previous version to offer yet.
-    expect(screen.queryByRole('button', { name: 'Ver la version anterior' })).toBeNull()
-  })
-
-  it('regenerating shows the adaptation notice and a way back to the replaced version', async () => {
-    installFetch({
-      node: learningNode(),
-      renderResponses: [
-        [200, servedRender(PROGRAM)],
-        [200, servedRender(SECOND_PROGRAM, OLD_RENDER_ID)],
-      ],
-      accepted: [{ request_id: 'req-2', cached: false, render_id: null }],
-      streamChunks: [
-        `event: ui_done\ndata: ${JSON.stringify({ render_id: OLD_RENDER_ID, format: 'explanation', status: 'ready' })}\n\n`,
-      ],
-      renders: [
-        { render_id: OLD_RENDER_ID, created_at: '2026-07-26T11:00:00Z', ui_format: 'explanation', status: 'ready' },
-        { render_id: RENDER_ID, created_at: '2026-07-26T09:00:00Z', ui_format: 'explanation', status: 'ready' },
-      ],
-    })
     const { container } = renderPage()
 
-    await screen.findByTestId('render-controls')
-    await userEvent.click(screen.getByRole('button', { name: 'Actualizar esta leccion' }))
+    await waitFor(() => expect(container).toHaveTextContent('El plazo de devolucion es de 30 dias.'))
 
-    await waitFor(() => expect(container).toHaveTextContent('Ahora con un ejemplo de caja.'))
-    expect(
-      screen.getByText('Esta leccion se ha adaptado a tus ultimas respuestas.'),
-    ).toBeInTheDocument()
-
-    // The version that was replaced is still viewable in this session.
-    await userEvent.click(screen.getByRole('button', { name: 'Ver la version anterior' }))
-    await userEvent.click(screen.getByRole('button', { name: /^Version del/ }))
-    await waitFor(() =>
-      expect(container).toHaveTextContent('El plazo de devolucion es de 30 dias.'),
-    )
-    expect(screen.getByText('Estas viendo una version anterior.')).toBeInTheDocument()
-
-    // The forced render went out with `force: true` — the only recomputing call (§5.5).
-    const force = callsTo(`/nodes/${NODE_ID}/render`, 'POST').at(-1)
-    expect(force).toBeDefined()
-    const body = (force?.[1] as RequestInit | undefined)?.body
-    expect(JSON.parse(String(body))).toEqual({ force: true, preview: false })
+    // A render that is already pinned is served, not re-requested — with or without force.
+    expect(callsTo(`/nodes/${NODE_ID}/render`, 'POST')).toHaveLength(0)
+    // And no affordance offers to: the feedback row is optional and changes nothing.
+    expect(screen.queryByRole('button', { name: 'Actualizar esta leccion' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Ver la version anterior' })).toBeNull()
   })
 })
 
@@ -627,52 +619,54 @@ describe('NodeView — how the lesson arrives (§9.2)', () => {
     expect(staggered(container)).toHaveLength(1)
   })
 
-  it('does not animate a previous version the learner asked to see again', async () => {
+  /**
+   * The other half of the cadence: the learner's declared preference silences it.
+   *
+   * This used to be asserted through "go back to the previous version" — a held render was
+   * the one case that painted with no entrance. `fc6a348` removed the version history, and
+   * with it the only path to a program that must *not* animate... except this one, which is
+   * the reason the switch exists at all (`useReducedMotion` reads the OS setting **and**
+   * the preference set in the onboarding wizard).
+   */
+  it('does not animate at all when the learner asked for less motion', async () => {
     installFetch({
       node: learningNode(),
       renderResponses: [
+        [202, { status: 'pending', request_id: null }],
         [200, servedRender(PROGRAM)],
-        [200, servedRender(SECOND_PROGRAM, OLD_RENDER_ID)],
       ],
-      accepted: [{ request_id: 'req-2', cached: false, render_id: null }],
+      accepted: [{ request_id: 'req-1', cached: false, render_id: null }],
       streamChunks: [
-        `event: ui_done\ndata: ${JSON.stringify({ render_id: OLD_RENDER_ID, format: 'explanation', status: 'ready' })}\n\n`,
-      ],
-      renders: [
-        { render_id: OLD_RENDER_ID, created_at: '2026-07-26T11:00:00Z', ui_format: 'explanation', status: 'ready' },
-        { render_id: RENDER_ID, created_at: '2026-07-26T09:00:00Z', ui_format: 'explanation', status: 'ready' },
+        `event: ui_done\ndata: ${JSON.stringify({ render_id: RENDER_ID, format: 'explanation', status: 'ready' })}\n\n`,
       ],
     })
-    const { container } = renderPage()
+    const { container } = renderPage({ declaredReducedMotion: true })
 
-    await screen.findByTestId('render-controls')
-    await userEvent.click(screen.getByRole('button', { name: 'Actualizar esta leccion' }))
-    await waitFor(() => expect(container).toHaveTextContent('Ahora con un ejemplo de caja.'))
-
-    await userEvent.click(screen.getByRole('button', { name: 'Ver la version anterior' }))
-    await userEvent.click(screen.getByRole('button', { name: /^Version del/ }))
-    await waitFor(() =>
-      expect(container).toHaveTextContent('El plazo de devolucion es de 30 dias.'),
-    )
-
-    // Re-reading something you already read is not an event. Animating it would say
-    // a new lesson had just been written.
+    await waitFor(() => expect(container).toHaveTextContent('El plazo de devolucion es de 30 dias.'))
     expect(staggered(container)).toHaveLength(0)
   })
 })
 
 describe('NodeView — click to explain (§8.5)', () => {
-  it('explains a word in the lesson but not a click on a control', async () => {
+  /**
+   * The control clicked here is a quiz option, not the page's own chrome.
+   *
+   * It used to be "Actualizar esta leccion", which `fc6a348` removed — and that button was
+   * a weak subject anyway: it sat in the surface, but so does every other button, and a
+   * quiz option is the case §8.5 was written for. Explaining the words of an option the
+   * learner just clicked hands out a free, uncounted hint on the correct answer.
+   */
+  it('explains a word in the lesson but not a click on a quiz option', async () => {
     installFetch({
       node: learningNode(),
-      renderResponses: [[200, servedRender(PROGRAM)]],
+      renderResponses: [[200, servedRender(PROGRAM_WITH_QUIZ)]],
     })
     const { container } = renderPage()
 
     await waitFor(() => expect(container).toHaveTextContent('El plazo de devolucion es de 30 dias.'))
 
     // A control inside the same subtree is not a term: no popover, no `/explain`.
-    await userEvent.click(screen.getByRole('button', { name: 'Actualizar esta leccion' }))
+    await userEvent.click(screen.getByText('Ofrecer garantia del fabricante'))
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(callsTo('/explain', 'POST')).toHaveLength(0)
 

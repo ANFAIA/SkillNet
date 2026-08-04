@@ -699,11 +699,16 @@ class ChatService:
         program = validate_chat_program(answer)
         if program is None:
             return None
-        # The invented-figures check still applies: the model must not put a number on
-        # screen that was not in the text it was given.  In single-phase mode the
-        # "answer" and the "program" are the same string, so every figure in the program
-        # is trivially present in the answer.  The check is kept for safety in case the
-        # model emits prose *before* the program (which validate_chat_program strips).
+        # The invented-figures check cannot fire on this path, and the comment that used to
+        # be here said it could: it claimed `validate_chat_program` strips prose written
+        # *before* the program, leaving a narrated figure to compare a tabulated one
+        # against. It does not strip it — a leading sentence is a line the dialect cannot
+        # parse, so such an answer is refused whole, one branch up. By the time the guard
+        # runs, `answer` and `program` describe the same bytes and every figure in one is in
+        # the other. It stays as a floor under a future extractor that *does* learn to
+        # separate the two; where it still earns its keep today is the tutor's two-phase
+        # path, where the layout call is a different call from the one that wrote the prose.
+        # Pinned by `test_a_sentence_in_front_of_the_program_costs_the_whole_program`.
         invented = invented_figures(program, answer)
         if invented:
             logger.info(

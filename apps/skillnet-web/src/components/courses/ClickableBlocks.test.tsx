@@ -138,11 +138,14 @@ describe('click-to-explain inside the kit blocks (§8.5)', () => {
   it('does NOT turn the step number into a term', async () => {
     const { container } = renderLesson(validPrograms.explanation_basic)
 
-    const markers = Array.from(container.querySelectorAll('li > [aria-hidden="true"]'))
-    expect(markers).toHaveLength(4)
+    // Matched by the opt-out rather than by position: `b0a4b93` moved the number into a
+    // timeline column, so it is no longer a direct child of its `<li>`. Reading the text
+    // back is what keeps this honest — the elements found have to *be* the four numbers.
+    const markers = Array.from(container.querySelectorAll('li [data-no-explain]'))
+    expect(markers.map((marker) => marker.textContent)).toEqual(['1', '2', '3', '4'])
     for (const marker of markers) {
       expect(marker.querySelector('.entity')).toBeNull()
-      expect(marker.closest('[data-no-explain]')).not.toBeNull()
+      expect(marker).toHaveAttribute('aria-hidden', 'true')
     }
   })
 

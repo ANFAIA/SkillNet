@@ -13,6 +13,13 @@ Three properties are worth more than the rest and each has its own block below:
    do: it cannot pass a named argument, cannot put an accent in an identifier and cannot
    blow the line cap, because it does not type the program. Every one of those was a real
    rejection in ``bench_out/failures/``.
+
+The two surfaces stopped sharing a mechanism on 2026-08-03 (``7a48fa5``): the **tutor**
+still streams prose and buys a second call to classify and populate it, while the **admin**
+is taught the dialect in its own system prompt and the stream *is* the program. Property 1
+holds for both — nothing reaches the browser that is not a re-serialized ``UISpec`` — and
+property 2 changes shape for the admin: there is no second call to fail, so a turn with no
+usable program is simply a turn, with no ``layout_start``/``layout_skipped`` pair around it.
 """
 
 from __future__ import annotations
@@ -94,6 +101,16 @@ ADMIN_ANSWER = (
     "Tienes dos personas con formacion abierta. Lucia Fernandez Vila va por el 40% del "
     "curso de Alergenos y Aitana Ruiz no ha empezado el de Higiene. "
 ) * 2
+
+#: What the admin assistant streams since ``7a48fa5``: the program itself, in one call.
+#: The tutor still streams prose and pays for ``STEPS_PAYLOAD``-shaped second call above.
+ADMIN_PROGRAM = (
+    'root = Stack([intro, tabla], "md")\n'
+    'intro = TextContent("Asi va cada persona.", "lead")\n'
+    'tabla = Table(["Empleado", "Curso", "Estado"], '
+    '[["Lucia Fernandez Vila", "Alergenos", "40%"], '
+    '["Aitana Ruiz", "Higiene", "sin empezar"]])\n'
+)
 
 
 # -- the verdict token --------------------------------------------------------------
@@ -663,26 +680,38 @@ async def _run_admin_layout(monkeypatch, llm, *, generative_ui: bool):
     )
 
 
-async def test_the_admin_assistant_lays_out_too(monkeypatch) -> None:
-    """It used to be excluded. A table of five employees is the clearest case in the app.
+async def test_the_admin_assistant_generates_its_blocks_in_the_first_call(
+    monkeypatch,
+) -> None:
+    """A table of five employees is still the clearest case in the app; the *second call*
+    that used to build it is gone.
 
-    The exclusion was a judgement about answer *length*, and ``MIN_LAYOUT_CHARS`` already
-    makes that judgement on its own — for the admin exactly as for the tutor.
+    Rewritten for ``7a48fa5`` ("single-phase GenUI chat", 2026-08-03). Until then the admin
+    streamed prose and a second LLM call classified it into a shape; now
+    ``admin_genui_system_prompt`` teaches the dialect up front and the stream itself is the
+    program. So the assertion that used to read ``completions == 1`` reads ``== 0``: the
+    blocks arrive without a second round trip, which is the whole point of the change.
     """
-    llm = _FakeLLM(ADMIN_ANSWER, layout=TABLE_PAYLOAD)
+    llm = _FakeLLM(ADMIN_PROGRAM)
     events = await _run_admin_layout(monkeypatch, llm, generative_ui=True)
     names = [name for name, _ in events]
 
-    assert llm.completions == 1
+    assert llm.completions == 0
+    assert "layout_start" not in names  # there is no second phase to announce
     assert names.index("done") < names.index("ui")
     program = dict(events[names.index("ui")][1])["program"]
     assert "Table(" in program
     assert "Lucia Fernandez Vila" in program
 
 
-async def test_the_admin_layout_answers_to_the_same_two_switches(monkeypatch) -> None:
-    """Enabling it for the admin did not give it its own way in."""
-    llm = _FakeLLM(LONG_ANSWER, layout=TABLE_PAYLOAD)
+async def test_the_admin_program_answers_to_the_same_two_switches(monkeypatch) -> None:
+    """Single-phase did not give the admin its own way in.
+
+    With the switch off the model is never asked for a dialect at all, so a stream that
+    happens to contain one is not served: ``self.generative_ui`` is checked before the
+    answer is even looked at.
+    """
+    llm = _FakeLLM(ADMIN_PROGRAM)
     events = await _run_admin_layout(monkeypatch, llm, generative_ui=False)
 
     assert llm.completions == 0
@@ -690,14 +719,76 @@ async def test_the_admin_layout_answers_to_the_same_two_switches(monkeypatch) ->
     assert "layout_start" not in [name for name, _ in events]
 
 
-async def test_the_admin_layout_falls_back_to_prose_like_every_other(monkeypatch) -> None:
-    llm = _FakeLLM(LONG_ANSWER, layout="no soy JSON")
+async def test_an_admin_answer_that_is_prose_is_served_as_prose(monkeypatch) -> None:
+    """The degradation contract, minus the second call.
+
+    Note what is *not* asserted any more: ``layout_skipped``. That event belonged to the
+    two-phase path — it told the frontend "the call you saw start produced nothing". In
+    single-phase there is no call to start, so an answer with no program in it is
+    indistinguishable from an ordinary turn, which is exactly right.
+    """
+    llm = _FakeLLM(ADMIN_ANSWER)
+    events = await _run_admin_layout(monkeypatch, llm, generative_ui=True)
+    names = [name for name, _ in events]
+
+    assert llm.completions == 0
+    assert "ui" not in names
+    assert "layout_start" not in names
+    assert "layout_skipped" not in names
+    assert "error" not in names
+    assert names[-1] == "done"
+
+
+async def test_an_admin_program_that_does_not_validate_degrades_to_the_prose(
+    monkeypatch,
+) -> None:
+    """A stream that *attempts* the dialect and gets it wrong must not blank the bubble.
+
+    ``root = Stack(`` is the cheap candidate check, so this reaches the validator and is
+    refused by it — an undeclared id. What the reader keeps is the text that streamed.
+    """
+    broken = 'root = Stack([intro, tabla], "md")\nintro = TextContent("Asi va cada persona.", "lead")\n'
+    llm = _FakeLLM(broken)
+    events = await _run_admin_layout(monkeypatch, llm, generative_ui=True)
+    names = [name for name, _ in events]
+
+    assert validate_chat_program(broken) is None  # the seam this test depends on
+    assert "ui" not in names
+    assert "error" not in names
+    assert names[-1] == "done"
+
+
+async def test_a_sentence_in_front_of_the_program_costs_the_whole_program(
+    monkeypatch,
+) -> None:
+    """Measured, because ``_extract_genui_program`` claimed the opposite.
+
+    Its comment says the ``invented_figures`` guard is kept "in case the model emits prose
+    before the program (which ``validate_chat_program`` strips)". It does not strip it:
+    a leading sentence is a line the dialect cannot parse, so the *whole* answer is refused
+    and served as prose. Which means that in single-phase the guard can never fire — the
+    answer and the program are byte-identical by the time it runs — and the comment was
+    corrected rather than the code: an inert floor is cheap, a floor described as
+    load-bearing is not.
+
+    The behaviour itself is the right one (a half-parsed program is not a program), and it
+    is worth pinning because it is what makes ``invented_figures`` unreachable here. The
+    tutor's two-phase path is where that guard still earns its keep.
+    """
+    prose_then_program = "Lucia va por el 72%.\n" + ADMIN_PROGRAM
+
+    assert validate_chat_program(ADMIN_PROGRAM) is not None
+    assert validate_chat_program(prose_then_program) is None
+    # And with nothing stripped, the guard has nothing left to compare against.
+    assert invented_figures(ADMIN_PROGRAM, ADMIN_PROGRAM) == []
+
+    llm = _FakeLLM(prose_then_program)
     events = await _run_admin_layout(monkeypatch, llm, generative_ui=True)
     names = [name for name, _ in events]
 
     assert "ui" not in names
-    assert "layout_skipped" in names
     assert "error" not in names
+    assert names[-1] == "done"
 
 
 async def test_a_user_with_nothing_still_gets_an_answer(monkeypatch) -> None:

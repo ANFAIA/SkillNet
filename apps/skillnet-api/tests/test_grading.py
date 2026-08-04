@@ -36,9 +36,19 @@ def test_grade_order_steps() -> None:
 
 
 def test_grade_open_answer_fallback() -> None:
+    """The LLM-free fallback for the open types **passes** and says why.
+
+    Updated for ``c68d045`` ("open exercise types now pass by default", 2026-07-21), which
+    flipped ``passed`` to ``True`` and added "manual" to the feedback. The distinction the
+    two halves of this suite keep is worth stating: this is ``grade``'s deterministic
+    fallback, which lets a learner past an exercise nobody has read yet. The *LLM* grader's
+    pending result (``src/services/llm_grading._PENDING``) still has ``passed=False`` and
+    the shorter message — it is a grading attempt that failed, not a submission accepted on
+    trust. ``tests/test_generation_pipeline.py`` pins that one.
+    """
     for open_type in ("practical_case", "dialogue"):
         result = grade(open_type, {"rubric": "..."}, {"response": "text"})
         assert result.score == 0.5
-        assert result.passed is False
-        assert result.feedback == "Respuesta registrada. Pendiente de evaluacion."
+        assert result.passed is True
+        assert result.feedback == "Respuesta registrada. Pendiente de evaluacion manual."
         assert result.explanation is None

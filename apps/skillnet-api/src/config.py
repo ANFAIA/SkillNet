@@ -64,18 +64,23 @@ class Settings(BaseSettings):
 
     # Embeddings
     #
-    # `EMBEDDING_DIMENSIONS` **describe** el esquema, no lo decide: la columna
-    # `document_chunks.embedding` es `vector(768)` fijado a mano en la migracion 0008,
-    # y el modelo declara `Vector(settings.EMBEDDING_DIMENSIONS)`, asi que este numero
-    # tiene que coincidir con la base o cada INSERT de chunk falla. Cambiar de modelo a
-    # otra dimension es una migracion mas re-ingesta, no una edicion del `.env` — la
-    # 0008 cuenta lo que paso cuando esto se leia del entorno.
+    # `EMBEDDING_DIMENSIONS` **describes** the schema, it does not decide it. The
+    # `document_chunks.embedding` column is `vector(768)`, pinned by hand in migration
+    # 0008, and the ORM deliberately declares `Vector()` with no size so the database stays
+    # the only place that number lives.
     #
-    # El par por defecto esta elegido para que **una clave de OpenAI baste**:
-    # `text-embedding-3-small` sale 1536 de fabrica, pero acepta el parametro
-    # `dimensions` y `EmbeddingService` lo envia, asi que devuelve 768 y encaja con la
-    # columna sin migrar nada. Un modelo cuya salida nativa ya sea de 768
-    # (multilingual-e5-base, nomic-embed-text, paraphrase-multilingual) vale igual.
+    # What this setting does is tell the *provider* how many dimensions to return. So it has
+    # to match the column, and nothing in Python enforces that — Postgres rejects the
+    # INSERT, and `services/embedding_check.py` compares the two at startup precisely
+    # because that rejection is otherwise invisible. Moving to a model with a different
+    # dimension is a migration plus a re-ingestion, not a `.env` edit; 0008 records what
+    # happened when this number was read from the environment.
+    #
+    # The default pair is chosen so that **one OpenAI key is enough**:
+    # `text-embedding-3-small` returns 1536 out of the box, but it accepts the
+    # `dimensions` parameter and `EmbeddingService` sends it, so it returns 768 and fits
+    # the column with no migration. Any model whose native output is already 768
+    # (multilingual-e5-base, nomic-embed-text, paraphrase-multilingual) does just as well.
     EMBEDDING_BASE_URL: str = "https://api.openai.com/v1"
     EMBEDDING_API_KEY: str = ""
     EMBEDDING_MODEL: str = "text-embedding-3-small"

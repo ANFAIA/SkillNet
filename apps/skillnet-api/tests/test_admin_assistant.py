@@ -1,4 +1,4 @@
-"""The admin assistant answers about the organization, and says hello back.
+"""The admin assistant answers about the organization, and answers being greeted.
 
 Both defects were reported from a live session at ``/admin/chat`` on 2026-07-27, and they
 are the same defect twice: the assistant was the employee tutor with a different persona,
@@ -10,8 +10,38 @@ so it could read training *documents* and nothing else.
 * *"que tal"* -> *"No tengo suficiente informacion para responder a tu pregunta."*
 
 The tests below assert the mechanism, never the model's prose: that the facts are in the
-turn, that the private ones are not, that the greeting never reaches a provider, and that
-the employee tutor is untouched by all of it.
+turn, that the private ones are not, that a pleasantry is answered rather than refused, and
+that the employee tutor is untouched by all of it.
+
+--------------------------------------------------------------------------------------
+Why this file changed on 2026-08-04
+--------------------------------------------------------------------------------------
+It stopped importing in ``7a48fa5`` ("feat(api): single-phase GenUI chat, remove small
+talk", 2026-08-03), which deleted ``chat_service._canned_chunks`` along with the whole
+canned-answer path. Because the module could not be collected, the suite was being run with
+``--ignore=tests/test_admin_assistant.py`` and none of the twenty-odd properties below were
+being checked at all — including the snapshot privacy line, which is the most expensive
+thing in this file to get wrong.
+
+What ``7a48fa5`` actually removed, and what that does to each group of tests:
+
+* **The canned answers are gone.** ``stream_admin`` no longer consults
+  ``small_talk_reply``; every message, greeting included, is grounded, given the snapshot
+  and sent to the provider. So the four tests that asserted *"a greeting reaches no
+  provider, pays for no snapshot and no second call"* were asserting the opposite of the
+  code. They are not deleted — the *defect* they were written for is still a defect — they
+  are inverted: the greeting now costs a turn, and what must hold instead is that the
+  persona carries the instruction that stops *"No tengo suficiente informacion"*. That is
+  where the fix moved, so that is where it is now pinned.
+* **``_canned_chunks`` no longer exists.** Its test (``"".join(chunks) == text``) is
+  deleted outright: there is no chunker, so there is nothing to be exact about.
+* **``src/services/small_talk.py`` survives but is wired to nothing** — the commit says it
+  is kept for potential reuse. Its unit tests are kept too, in their own clearly-labelled
+  section, because they do test real behaviour of real code; what they no longer describe
+  is anything the chat does. Deleting the module is a product call, not a test-repair call.
+* **The prompt tests still hold**, with two strings updated for ``075e49f`` (``admin/4``,
+  2026-08-04), which rewrote the "a format instruction with no subject" bullet.
+* **The snapshot tests were correct all along** and are unchanged.
 """
 
 from __future__ import annotations
@@ -26,11 +56,12 @@ import pytest
 from src.llm.prompts.admin import (
     ADMIN_DATA_BLOCK,
     ADMIN_PROMPT_VERSION,
+    admin_genui_system_prompt,
     admin_system_prompt,
     build_admin_turn,
 )
 from src.services import chat_service as chat_module
-from src.services.chat_service import ChatService, _canned_chunks
+from src.services.chat_service import ChatService
 from src.services.org_snapshot import EmployeeFact, EnrolmentFact, OrgSnapshot
 from src.services.retrieval import GroundedContext
 from src.services.small_talk import classify_small_talk, small_talk_reply
@@ -109,7 +140,13 @@ def test_the_closing_action_is_scoped_to_questions_about_people_and_courses() ->
 
 
 def test_a_question_about_the_assistant_is_not_looked_up_in_the_data() -> None:
-    """"quien eres" -> "No consta la informacion de identidad del administrador"."""
+    """"quien eres" -> "No consta la informacion de identidad del administrador".
+
+    This is where the deleted canned identity reply went. Until ``7a48fa5`` the question
+    never reached a provider, so the prompt only had to be right in theory; now it is the
+    only thing standing between *"quien eres"* and a search through the org snapshot for
+    the admin's staff record.
+    """
     prompt = admin_system_prompt("document", org_data=True)
     assert "la respuesta eres TU" in prompt
     assert "busques en los datos de la organizacion" in prompt
@@ -125,9 +162,13 @@ def test_no_question_is_allowed_to_be_a_dead_end() -> None:
         ):
             assert "no puedo comprender la pregunta" in prompt
             assert "Nunca escribas" in prompt
-    # An instruction about the shape of the answer is answered, not refused.
+    # An instruction about the shape of the answer is answered, not refused. In `admin/3`
+    # this was its own bullet ("Si te dan una instruccion sobre el FORMATO... y no te dicen
+    # SOBRE QUE"); `075e49f` folded it into the "lo que no haces nunca" list, where it now
+    # names the three real requests that triggered it.
     persona = admin_system_prompt("general")
-    assert "instruccion sobre el FORMATO" in persona
+    assert 'alguien pida "una tabla" o "un resumen" sin decir DE QUE' in persona
+    assert "pregunta SOBRE QUE, no vuelques el bloque" in persona
 
 
 def test_the_context_is_never_the_answer() -> None:
@@ -146,7 +187,7 @@ def test_the_context_is_never_the_answer() -> None:
     ):
         assert "No copias NUNCA, tal cual, el bloque de datos" in prompt
         assert "no es responder, es vaciarlo en la pantalla" in prompt
-        assert "no te dicen SOBRE QUE" in prompt
+        assert "sin tema concreto son" in prompt
 
 
 def test_the_prompt_tells_the_model_the_private_half_is_not_missing_but_withheld() -> None:
@@ -154,6 +195,28 @@ def test_the_prompt_tells_the_model_the_private_half_is_not_missing_but_withheld
     prompt = admin_system_prompt("document", org_data=True)
     assert "privado de cada empleado" in prompt
     assert "accesibilidad" in prompt
+
+
+@pytest.mark.parametrize("grounding", ["chunks", "document", "general"])
+def test_teaching_the_dialect_did_not_drop_a_single_limit(grounding: str) -> None:
+    """``7a48fa5`` gave the admin a second system prompt, and a second system prompt is a
+    second place for the privacy line to go missing.
+
+    ``admin_genui_system_prompt`` is what the model actually sees whenever generative UI is
+    on, so every rule the prose prompt is tested for above has to survive the addition of
+    the OpenUI spec — and the spec has to actually be in there, or single-phase generation
+    is asking for a dialect it never taught.
+    """
+    genui = admin_genui_system_prompt(grounding, org_data=True)  # type: ignore[arg-type]
+
+    assert ADMIN_DATA_BLOCK in genui
+    assert "tiene que estar literalmente en el bloque" in genui
+    assert "privado de cada empleado" in genui
+    assert "la respuesta eres TU" in genui
+    # ...and the half that is new: the dialect it is being asked to write.
+    assert "root = Stack(" in genui
+
+    assert ADMIN_DATA_BLOCK not in admin_genui_system_prompt(grounding)  # type: ignore[arg-type]
 
 
 def test_the_question_is_the_last_thing_in_the_turn() -> None:
@@ -172,115 +235,6 @@ def test_a_turn_with_neither_falls_back_to_the_general_instruction() -> None:
     turn = build_admin_turn("general", "", "", "¿que es un alergeno?")
     assert "criterio general" in turn
     assert "¿que es un alergeno?" in turn
-
-
-# -- small talk ---------------------------------------------------------------------
-@pytest.mark.parametrize(
-    "message",
-    ["hola", "Hola", "  hola  ", "¿Qué tal?", "que tal", "buenas", "Buenos dias"],
-)
-def test_a_greeting_is_recognised_however_it_is_typed(message: str) -> None:
-    assert classify_small_talk(message) == "greeting"
-
-
-@pytest.mark.parametrize("message", ["gracias", "Muchas gracias!", "ok gracias"])
-def test_thanks_is_its_own_reply(message: str) -> None:
-    assert classify_small_talk(message) == "thanks"
-
-
-@pytest.mark.parametrize("message", ["adios", "Hasta luego", "nos vemos"])
-def test_a_farewell_is_its_own_reply(message: str) -> None:
-    assert classify_small_talk(message) == "farewell"
-
-
-@pytest.mark.parametrize(
-    "message",
-    [
-        "quien eres",
-        "¿Quién eres?",
-        "  QUE ERES  ",
-        "que puedes hacer",
-        "para que sirves",
-        "ayuda",
-        "en que me puedes ayudar",
-        "como funcionas",
-        "who are you",
-    ],
-)
-def test_asking_the_assistant_about_itself_is_answered_here(message: str) -> None:
-    """Reported: *"quien eres"* -> *"No consta la informacion de identidad del
-    administrador de la plataforma SkillNet."*
-
-    It searched the org snapshot for the admin's identity. The assistant is the one thing
-    in the turn that is not in the snapshot, so the question never gets there.
-    """
-    assert classify_small_talk(message) == "identity"
-
-
-def test_the_identity_reply_says_what_it_is_what_it_does_and_what_it_will_not_do() -> None:
-    reply = small_talk_reply("quien eres") or ""
-
-    assert "asistente de SkillNet" in reply
-    assert "empleados" in reply
-    # The two honest limits, said before anyone has to discover them.
-    assert "privadas" in reply
-    assert "no me invento" in reply
-    # Not the greeting: "hola" and "quien eres" are different questions.
-    assert reply != small_talk_reply("hola")
-
-
-@pytest.mark.parametrize(
-    "message",
-    [
-        "hola, como van mis empleados",
-        "que tal va el curso de alergenos",
-        "gracias, y quien no ha empezado?",
-        "como van mis empleados",
-        "buenas, necesito el listado de plazos",
-        "",
-        "   ",
-        # Near misses of the identity table that are real questions about the data.
-        "quien eres tu para Lucia",
-        "que puedo hacer con Aitana",
-        "que puedes hacer con los cursos sin publicar",
-        "ayuda a Lucia",
-        "para que sirve el curso de alergenos",
-    ],
-)
-def test_a_real_question_is_never_answered_from_the_can(message: str) -> None:
-    """Too narrow costs one greeting to the model. Too wide costs a real answer."""
-    assert classify_small_talk(message) is None
-    assert small_talk_reply(message) is None
-
-
-async def test_asking_who_it_is_costs_nothing_and_never_reaches_the_data(
-    monkeypatch,
-) -> None:
-    """Zero tokens, zero snapshot queries, and it cannot say "no consta"."""
-    llm = _RecordingLLM()
-    events, repo, seen = await _run_admin(monkeypatch, llm, message="quien eres")
-    answer = "".join(data["content"] for name, data in events if name == "token")
-
-    assert llm.calls == []
-    assert llm.completions == 0
-    assert seen == {}  # the snapshot was never assembled
-    assert "No consta" not in answer
-    assert "asistente de SkillNet" in answer
-    assert repo.messages[-1].content == answer
-    assert repo.messages[-1].message_metadata["small_talk"] is True
-
-
-def test_the_greeting_reply_says_what_the_assistant_can_do() -> None:
-    reply = small_talk_reply("hola") or ""
-    assert "empleados" in reply
-    assert "cursos" in reply
-    # A greeting that answers "hola" and stops is the refusal with better manners.
-    assert len(reply) > 120
-
-
-def test_canned_chunks_reassemble_to_exactly_the_reply() -> None:
-    for text in ("hola", "una frase algo mas larga que la anterior, con coma", ""):
-        assert "".join(_canned_chunks(text)) == text
 
 
 # -- the stream ---------------------------------------------------------------------
@@ -453,35 +407,71 @@ async def test_the_snapshot_travels_even_when_no_document_matched(monkeypatch) -
     assert "Lucia Fernandez Vila" in llm.turn
 
 
-async def test_a_greeting_never_reaches_the_provider(monkeypatch) -> None:
-    """"que tal" used to be answered "No tengo suficiente informacion"."""
+# -- a pleasantry is a turn now ------------------------------------------------------
+# These four replace the four that asserted the opposite. ``7a48fa5`` removed the canned
+# path deliberately — "all messages go through the LLM, which now has enough persona
+# context to handle them" — so what used to be free is now priced, and what used to be
+# guaranteed by a lookup table is now guaranteed by the persona. Both halves are asserted,
+# because a greeting that costs a provider call *and* comes back with "No tengo suficiente
+# informacion" would be the reported defect back at a higher price.
+@pytest.mark.parametrize("message", ["hola", "que tal", "gracias", "quien eres"])
+async def test_a_pleasantry_now_reaches_the_provider_like_every_other_message(
+    monkeypatch, message: str
+) -> None:
     llm = _RecordingLLM()
-    events, repo, _ = await _run_admin(monkeypatch, llm, message="que tal")
-    answer = "".join(data["content"] for name, data in events if name == "token")
+    events, repo, seen = await _run_admin(monkeypatch, llm, message=message)
+    names = [name for name, _ in events]
 
-    assert llm.calls == []
-    assert llm.completions == 0
-    assert "No tengo" not in answer
-    assert "empleados" in answer
-    assert repo.messages[-1].content == answer
-    assert repo.messages[-1].message_metadata["small_talk"] is True
+    assert llm.calls, "there is no canned path left: the model answers this"
+    assert llm.turn.rstrip().endswith(f"Pregunta: {message}")
+    # No canned answer means no marker for one.
+    assert "small_talk" not in repo.messages[-1].message_metadata
+    assert names[-1] == "done"
 
 
-async def test_a_greeting_does_not_pay_for_a_snapshot_either(monkeypatch) -> None:
+async def test_the_greeting_is_answered_by_the_persona_now_instead_of_a_lookup_table(
+    monkeypatch,
+) -> None:
+    """*"que tal"* -> *"No tengo suficiente informacion"* was the reported defect, and the
+    first fix was to answer it without a provider at all.
+
+    That fix is gone. What has to hold instead is that the model is not put in the position
+    that produced the refusal: it is a document assistant handed an allergen manual and a
+    pleasantry unless the persona tells it that a dead end is not an answer, and that a
+    question about itself is answered from itself.
+    """
+    llm = _RecordingLLM()
+    _, _, _ = await _run_admin(monkeypatch, llm, message="que tal")
+
+    assert "no puedo comprender la pregunta" in llm.system  # forbidden, verbatim
+    assert "Nunca escribas" in llm.system
+    assert "la respuesta eres TU" in llm.system
+    assert "asistente del administrador de SkillNet" in llm.system
+
+
+async def test_a_pleasantry_now_pays_for_the_snapshot_too(monkeypatch) -> None:
+    """The measurable cost of removing the canned path, stated rather than discovered.
+
+    Before ``7a48fa5``, *"hola"* skipped retrieval and skipped the eight aggregate queries
+    of ``build_org_snapshot``. It no longer does: the gate that decided "this needs no
+    context" was the small-talk classifier, and there is nothing in its place. Asserted so
+    that a future change back to a cheap path fails here and gets read, rather than
+    quietly re-diverging from what this file claims.
+    """
     _, _, seen = await _run_admin(monkeypatch, _RecordingLLM(), message="hola")
-    assert "org_id" not in seen
+    assert "org_id" in seen
 
 
 @pytest.mark.parametrize("message", ["hola", "quien eres", "gracias"])
-async def test_a_canned_answer_does_not_pay_for_a_layout_call_either(
-    monkeypatch, message: str
-) -> None:
-    """Zero tokens means zero, on both calls.
+async def test_one_turn_is_still_exactly_one_provider_call(monkeypatch, message: str) -> None:
+    """Single-phase, on the cheapest messages there are.
 
-    Caught live: the identity reply is comfortably longer than ``MIN_LAYOUT_CHARS``, so
-    the moment the admin path started laying out, the one question guaranteed never to
-    reach a provider began emitting ``layout_start`` and paying for a second call to
-    reformat a string this repository wrote itself.
+    Its ancestor asserted that a canned answer paid for no *layout* call — the identity
+    reply is comfortably longer than ``MIN_LAYOUT_CHARS``, so the moment the admin path
+    started laying out, the one question guaranteed never to reach a provider began
+    emitting ``layout_start``. The canned answer is gone and so is the second call: the
+    admin's blocks come out of the same stream as its prose, and ``complete`` is never
+    reached on this path at all.
     """
     llm = _RecordingLLM()
     service, user, _ = _service(monkeypatch, llm)
@@ -490,26 +480,33 @@ async def test_a_canned_answer_does_not_pay_for_a_layout_call_either(
         [event async for event in service.stream_admin(user, message, None, None)]
     )
 
+    assert len(llm.calls) == 1
     assert llm.completions == 0
     assert "layout_start" not in [name for name, _ in events]
     assert [name for name, _ in events][-1] == "done"
 
 
-async def test_a_greeting_still_closes_the_stream_the_way_every_turn_does(
+async def test_every_turn_closes_the_stream_the_way_the_frontend_needs(
     monkeypatch,
 ) -> None:
-    """The frontend re-enables the composer on ``done``; a canned turn must send one."""
+    """The frontend re-enables the composer on ``done``; every turn must send one.
+
+    Written for the canned path, kept for the ordinary one: this used to be the only test
+    covering a turn that skipped grounding, and its ``citations == []`` assertion was an
+    artefact of that skip. A greeting is grounded like anything else now, so what is pinned
+    is the event order, which is what the composer depends on.
+    """
     events, _, _ = await _run_admin(monkeypatch, _RecordingLLM(), message="gracias")
     names = [name for name, _ in events]
 
     assert names[0] == "grounding"
     assert "token" in names
+    assert names.index("citations") < names.index("done")
     assert names[-1] == "done"
-    assert next(d for n, d in events if n == "citations")["citations"] == []
 
 
 # -- the employee tutor is untouched --------------------------------------------------
-async def test_the_tutor_gets_no_snapshot_and_no_canned_greeting(monkeypatch) -> None:
+async def test_the_tutor_gets_no_snapshot_and_no_admin_persona(monkeypatch) -> None:
     """Everything above is on the ``admin`` path. The tutor's ladder landed yesterday."""
     llm = _RecordingLLM()
     service, user, seen = _service(monkeypatch, llm)
@@ -520,3 +517,105 @@ async def test_the_tutor_gets_no_snapshot_and_no_canned_greeting(monkeypatch) ->
     assert "DATOS DE LA PLATAFORMA" not in llm.turn
     assert "tutor de SkillNet" in llm.system
     assert "org_data" not in [name for name, _ in _events(events)]
+
+
+# --------------------------------------------------------------------------------------
+# ``src/services/small_talk.py``: a module nothing imports any more
+# --------------------------------------------------------------------------------------
+# ``7a48fa5`` unwired it and kept the file, in its own words, "for its tests and potential
+# reuse elsewhere". These tests are therefore honest about what they cover and honest about
+# what they do not: the classifier and the canned replies still behave exactly as written,
+# and nothing in the product calls either of them. Nothing above depends on this section —
+# the chat's behaviour with a greeting is pinned in "a pleasantry is a turn now".
+#
+# Left in place rather than deleted because deleting the module is a product decision (it is
+# the ready-made cheap path back, if the cost measured in
+# ``test_a_pleasantry_now_pays_for_the_snapshot_too`` ever matters), and a test file is the
+# wrong place to take it. If the decision is "small talk is not coming back", the module and
+# this section go together.
+@pytest.mark.parametrize(
+    "message",
+    ["hola", "Hola", "  hola  ", "¿Qué tal?", "que tal", "buenas", "Buenos dias"],
+)
+def test_a_greeting_is_recognised_however_it_is_typed(message: str) -> None:
+    assert classify_small_talk(message) == "greeting"
+
+
+@pytest.mark.parametrize("message", ["gracias", "Muchas gracias!", "ok gracias"])
+def test_thanks_is_its_own_reply(message: str) -> None:
+    assert classify_small_talk(message) == "thanks"
+
+
+@pytest.mark.parametrize("message", ["adios", "Hasta luego", "nos vemos"])
+def test_a_farewell_is_its_own_reply(message: str) -> None:
+    assert classify_small_talk(message) == "farewell"
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        "quien eres",
+        "¿Quién eres?",
+        "  QUE ERES  ",
+        "que puedes hacer",
+        "para que sirves",
+        "ayuda",
+        "en que me puedes ayudar",
+        "como funcionas",
+        "who are you",
+    ],
+)
+def test_asking_the_assistant_about_itself_is_its_own_class(message: str) -> None:
+    """Reported: *"quien eres"* -> *"No consta la informacion de identidad del
+    administrador de la plataforma SkillNet."*
+
+    It searched the org snapshot for the admin's identity. The assistant is the one thing
+    in the turn that is not in the snapshot, so the question never got there. The chat
+    answers this from the persona now — see
+    ``test_a_question_about_the_assistant_is_not_looked_up_in_the_data``.
+    """
+    assert classify_small_talk(message) == "identity"
+
+
+def test_the_identity_reply_says_what_it_is_what_it_does_and_what_it_will_not_do() -> None:
+    reply = small_talk_reply("quien eres") or ""
+
+    assert "asistente de SkillNet" in reply
+    assert "empleados" in reply
+    # The two honest limits, said before anyone has to discover them.
+    assert "privadas" in reply
+    assert "no me invento" in reply
+    # Not the greeting: "hola" and "quien eres" are different questions.
+    assert reply != small_talk_reply("hola")
+
+
+def test_the_greeting_reply_says_what_the_assistant_can_do() -> None:
+    reply = small_talk_reply("hola") or ""
+    assert "empleados" in reply
+    assert "cursos" in reply
+    # A greeting that answers "hola" and stops is the refusal with better manners.
+    assert len(reply) > 120
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        "hola, como van mis empleados",
+        "que tal va el curso de alergenos",
+        "gracias, y quien no ha empezado?",
+        "como van mis empleados",
+        "buenas, necesito el listado de plazos",
+        "",
+        "   ",
+        # Near misses of the identity table that are real questions about the data.
+        "quien eres tu para Lucia",
+        "que puedo hacer con Aitana",
+        "que puedes hacer con los cursos sin publicar",
+        "ayuda a Lucia",
+        "para que sirve el curso de alergenos",
+    ],
+)
+def test_a_real_question_is_never_classified_as_small_talk(message: str) -> None:
+    """Too narrow costs one greeting to the model. Too wide costs a real answer."""
+    assert classify_small_talk(message) is None
+    assert small_talk_reply(message) is None

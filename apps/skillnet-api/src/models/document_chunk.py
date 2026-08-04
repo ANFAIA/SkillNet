@@ -31,19 +31,19 @@ class DocumentChunk(Base):
         ForeignKey("documents.id", ondelete="CASCADE"), nullable=False
     )
     content: Mapped[str] = mapped_column(Text, nullable=False)
-    #: ``Vector()`` sin dimension, a proposito: la dimension la manda **la base**.
+    #: ``Vector()`` with no dimension, on purpose: **the database** dictates the dimension.
     #:
-    #: Antes era ``Vector(settings.EMBEDDING_DIMENSIONS)``, y eso ponia la dependencia al
-    #: reves — un ajuste de entorno describiendo una columna que ya existe. Con dos
-    #: fuentes de verdad para el mismo numero, la que se lee en Python puede no ser la
-    #: que Postgres aplica, y el desajuste solo aparece al insertar. La migracion 0008
-    #: fija ``vector(768)`` y aqui no se repite el numero.
+    #: It used to be ``Vector(settings.EMBEDDING_DIMENSIONS)``, and that pointed the
+    #: dependency the wrong way — an environment setting describing a column that already
+    #: exists. With two sources of truth for the same number, the one read in Python may
+    #: not be the one Postgres enforces, and the mismatch only shows up on insert.
+    #: Migration 0008 pins ``vector(768)`` and the number is not repeated here.
     #:
-    #: No afecta al DDL porque nadie llama a ``create_all``: las migraciones son las
-    #: unicas que crean esquema. Y no relaja ninguna validacion — Postgres sigue
-    #: rechazando un vector del tamano equivocado, que es donde debe comprobarse.
-    #: ``check_embedding_dimensions`` compara ambos al arrancar para que el fallo se vea
-    #: antes de ingerir nada.
+    #: This does not affect the DDL, because nobody calls ``create_all``: migrations are
+    #: the only thing that creates schema. And it relaxes no validation — Postgres still
+    #: rejects a vector of the wrong size, which is where the check belongs.
+    #: ``check_embedding_dimensions`` compares the two at startup so the failure is seen
+    #: before anything is ingested.
     embedding: Mapped[list[float]] = mapped_column(Vector(), nullable=False)
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
     # `metadata` is reserved on declarative classes, so map the column explicitly.

@@ -1,25 +1,26 @@
-"""Que la dimension configurada y la de la base coincidan, dicho al arrancar.
+"""That the configured dimension and the database's match, said out loud at startup.
 
-## Por que existe
+## Why this exists
 
-Un desajuste de dimension no se nota. `EMBEDDING_DIMENSIONS` decide el tamano del vector
-que se le pide al proveedor; `document_chunks.embedding` es `vector(768)` desde la
-migracion 0008. Si no coinciden, Postgres rechaza la insercion — pero el rechazo cae
-dentro del `except Exception` de `src/services/ingestion.py`, que lo registra como
-"embedding unavailable", guarda `full_text` y marca el documento **`READY`**. El admin ve
-un documento correcto que no se puede recuperar por RAG, y el tutor responde por los
-peldanos de abajo de la escalera sin que nada indique por que.
+A dimension mismatch is not noticeable. `EMBEDDING_DIMENSIONS` decides the size of the
+vector asked of the provider; `document_chunks.embedding` has been `vector(768)` since
+migration 0008. When they disagree, Postgres rejects the insert — but the rejection lands
+inside the `except Exception` of `src/services/ingestion.py`, which logs it as "embedding
+unavailable", stores `full_text` and marks the document **`READY`**. The admin sees a
+document that looks fine and cannot be retrieved by RAG, and the tutor answers from the
+lower rungs of the ladder with nothing anywhere saying why.
 
-Es el fallo mas caro posible: silencioso, tardio, y con toda la pinta de estar bien. Asi
-que se comprueba al arrancar, donde hay un log que alguien lee, y se expone en `/health`,
-que es lo que mira una sonda.
+It is the most expensive failure there is: silent, late, and looking entirely correct. So
+it is checked at startup, where there is a log someone reads, and exposed on `/health`,
+which is what a probe looks at.
 
-## Por que no aborta el arranque
+## Why it does not abort startup
 
-Se penso en lanzar y dejar el contenedor muerto. No: SkillNet sin embeddings sigue
-sirviendo autenticacion, cursos v1, lecciones, ejercicios y progreso, y el chat sigue
-respondiendo por el peldano lexico o por documento completo. Tirar todo eso por una
-funcion degradada seria un fallo peor que el que se quiere evitar. Se grita, no se muere.
+Raising and leaving the container dead was considered. No: SkillNet without embeddings
+still serves authentication, v1 courses, lessons, exercises and progress, and the chat
+still answers from the lexical rung or from the whole document. Throwing all of that away
+over one degraded function would be a worse failure than the one being avoided. It
+shouts; it does not die.
 """
 
 from __future__ import annotations
@@ -34,14 +35,14 @@ from src.repositories.document_chunk_repo import DocumentChunkRepository
 
 logger = get_logger(__name__)
 
-#: Modelos cuya dimension nativa se puede pedir a medida, asi que un desajuste se arregla
-#: sin migrar. Mismo criterio que `EmbeddingService._accepts_dimensions`.
+#: Models whose native dimension can be requested to order, so a mismatch is fixed without
+#: migrating. Same rule as `EmbeddingService._accepts_dimensions`.
 _TRUNCATABLE = "text-embedding-3"
 
 
 @dataclass(frozen=True)
 class EmbeddingCheck:
-    """Resultado de comparar la configuracion con el esquema."""
+    """The result of comparing the configuration against the schema."""
 
     configured: int
     column: int | None
@@ -54,43 +55,43 @@ class EmbeddingCheck:
 
     @property
     def detail(self) -> str | None:
-        """Que hacer, no solo que pasa. ``None`` cuando no hay nada que hacer."""
+        """What to do, not just what happened. ``None`` when there is nothing to do."""
         if self.status == "ok":
             return None
         if self.status == "unconstrained":
             return (
-                "La columna document_chunks.embedding es `vector` sin dimension, asi que "
-                "la base no valida el tamano. Funciona, pero un cambio de modelo pasaria "
-                "inadvertido. Se espera vector(768) desde la migracion 0008."
+                "The document_chunks.embedding column is `vector` with no dimension, so "
+                "the database does not validate the size. It works, but a model change "
+                "would go unnoticed. vector(768) is expected since migration 0008."
             )
-        arreglo = (
-            f"pon EMBEDDING_DIMENSIONS={self.column} en el .env"
+        fix = (
+            f"set EMBEDDING_DIMENSIONS={self.column} in the .env"
             if _TRUNCATABLE in settings.EMBEDDING_MODEL
             else (
-                f"pon EMBEDDING_DIMENSIONS={self.column} y un modelo que devuelva "
-                f"{self.column} dimensiones, o migra la columna y reingiere los documentos"
+                f"set EMBEDDING_DIMENSIONS={self.column} and a model that returns "
+                f"{self.column} dimensions, or migrate the column and re-ingest the documents"
             )
         )
         return (
-            f"EMBEDDING_DIMENSIONS={self.configured} pero document_chunks.embedding es "
-            f"vector({self.column}). Cada insercion de chunk va a fallar y el documento "
-            f"se quedara indexado solo como texto completo, sin error visible. "
-            f"Arreglo: {arreglo}."
+            f"EMBEDDING_DIMENSIONS={self.configured} but document_chunks.embedding is "
+            f"vector({self.column}). Every chunk insert is going to fail and the document "
+            f"will be indexed as full text only, with no visible error. "
+            f"Fix: {fix}."
         )
 
 
 async def check_embedding_dimensions(session: AsyncSession) -> EmbeddingCheck:
-    """Comparar `EMBEDDING_DIMENSIONS` con la columna, y registrar el desajuste."""
+    """Compare `EMBEDDING_DIMENSIONS` against the column, and log the mismatch."""
     column = await DocumentChunkRepository(session).column_dimensions()
     check = EmbeddingCheck(configured=settings.EMBEDDING_DIMENSIONS, column=column)
 
     if check.status == "mismatch":
-        logger.error("Configuracion de embeddings incoherente. %s", check.detail)
+        logger.error("Inconsistent embedding configuration. %s", check.detail)
     elif check.status == "unconstrained":
-        logger.warning("Configuracion de embeddings sin validar. %s", check.detail)
+        logger.warning("Unvalidated embedding configuration. %s", check.detail)
     else:
         logger.info(
-            "Embeddings: %s a %d dimensiones, coincide con la columna.",
+            "Embeddings: %s at %d dimensions, matches the column.",
             settings.EMBEDDING_MODEL,
             check.configured,
         )

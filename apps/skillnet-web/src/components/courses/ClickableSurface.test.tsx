@@ -6,7 +6,6 @@ import type { ReactNode } from 'react'
 import { ClickableSurface, expandRangeToWords } from './ClickableSurface'
 import { ClickableText } from './ClickableText'
 import { centerContext, normalizeContext } from '../../api/explain'
-import type { ExplainChatState } from './ExplainPopover'
 
 const navigate = vi.fn()
 vi.mock('react-router-dom', async () => {
@@ -219,6 +218,39 @@ describe('ClickableSurface', () => {
 
       await waitFor(() => expect(explainCalls()).toHaveLength(1))
     })
+
+    /**
+     * Surfaces nest, and only the innermost one owns the click.
+     *
+     * Two places do this today: `Chat.tsx` wraps the tutor bubble and `ChatAnswer` wraps
+     * its own content inside it, and `ExplainModal` — rendered *by* a surface — wraps its
+     * panel in a surface of its own. React events walk the React tree rather than the DOM
+     * tree, so `createPortal` does not separate the second pair either.
+     *
+     * The cost of getting this wrong is not cosmetic: every ancestor surface handled the
+     * same click, so one word produced two stacked popovers and **two `POST /explain`** —
+     * two generations billed, and two answers written over each other.
+     */
+    it('lets only the innermost surface handle a click', async () => {
+      render(
+        <MemoryRouter>
+          <ClickableSurface nodeId="outer">
+            <ClickableSurface nodeId="inner">
+              <p>
+                <ClickableText>El plazo de devolucion es de 30 dias.</ClickableText>
+              </p>
+            </ClickableSurface>
+          </ClickableSurface>
+        </MemoryRouter>,
+      )
+
+      await userEvent.click(screen.getByText('devolucion'))
+
+      await waitFor(() => expect(explainCalls()).toHaveLength(1))
+      expect(screen.getAllByRole('dialog')).toHaveLength(1)
+      // The inner surface is the one that knows which node the word was read in.
+      expect(lastExplainBody().node_id).toBe('inner')
+    })
   })
 
   describe('keyboard access (§8.2)', () => {
@@ -253,8 +285,42 @@ describe('ClickableSurface', () => {
     })
   })
 
-  describe('the "No lo entiendo" action', () => {
-    it('opens the v1 chat seeded with the term and the block text', async () => {
+  /**
+   * The popover's one action, which is no longer "No lo entiendo".
+   *
+   * §8.4 gave the popover a single next step because a learner who does not understand
+   * the one sentence needs somewhere to go, and originally that somewhere was the v1 chat
+   * seeded with the term (`navigate('/empleado/chat', { state })`). `2a750f5` replaced it
+   * with **"Ver mas"**, which opens `ExplainModal` in place: the same next step without
+   * leaving the lesson, and with the term's context already loaded. The seeded-chat route
+   * has no producer any more, so what is asserted here is the handoff that exists.
+   */
+  describe('the "Ver mas" action', () => {
+    it('opens the explanation panel on the term, without leaving the lesson', async () => {
+      renderSurface(
+        <p>
+          <ClickableText>El plazo de devolucion es de 30 dias.</ClickableText>
+        </p>,
+      )
+
+      await userEvent.click(screen.getByText('devolucion'))
+      // The button only appears once there is an explanation to expand on.
+      await userEvent.click(await screen.findByRole('button', { name: 'Ver mas' }))
+
+      const panel = await screen.findByRole('dialog', {
+        name: 'Explicacion ampliada de devolucion',
+      })
+      expect(panel).toHaveAttribute('aria-modal', 'true')
+      // The popover it was opened from is gone: one explanation of one word at a time.
+      expect(document.querySelector('.explain-popover')).toBeNull()
+      // In place, not on another route.
+      expect(navigate).not.toHaveBeenCalled()
+    })
+
+    it('is not offered while the explanation is still being written', async () => {
+      // A `Ver mas` with nothing to expand on would open an empty panel and spend a
+      // generation on it.
+      mockFetch.mockImplementation(() => sseResponse([]))
       renderSurface(
         <p>
           <ClickableText>El plazo de devolucion es de 30 dias.</ClickableText>
@@ -263,16 +329,7 @@ describe('ClickableSurface', () => {
 
       await userEvent.click(screen.getByText('devolucion'))
       await screen.findByRole('dialog')
-      await userEvent.click(screen.getByRole('button', { name: 'No lo entiendo' }))
-
-      expect(navigate).toHaveBeenCalledTimes(1)
-      const [path, options] = navigate.mock.calls[0] as [string, { state: ExplainChatState }]
-      expect(path).toBe('/empleado/chat')
-      const seed = options.state.explainSeed
-      expect(seed.term).toBe('devolucion')
-      expect(seed.node_id).toBe('node-1')
-      expect(seed.message).toContain('devolucion')
-      expect(seed.message).toContain('El plazo de devolucion es de 30 dias.')
+      expect(screen.queryByRole('button', { name: 'Ver mas' })).toBeNull()
     })
   })
 

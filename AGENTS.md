@@ -1,5 +1,10 @@
 # AGENTS.md
 
+> **Asked to start the project? → [`RUNNING.md`](RUNNING.md).** Five steps, one decision
+> (API key, local model, or neither), and it says what to verify afterwards. Do not
+> reconstruct the commands from this file — the seed step is easy to miss and without it the
+> dashboard is empty.
+
 ## Project
 
 SkillNet — open-source training platform for SMEs. Turns company documents into courses, tracks employee skills. Self-hosted, one instance per company.
@@ -87,15 +92,26 @@ pnpm lint             # oxlint
 uv sync
 uv run uvicorn src.main:app --reload
 uv run pytest -m "not integration"      # unit tests: no database, no API key
-uv run pytest -m integration            # needs a live PostgreSQL
-uv run ruff check src tests
+uv run pytest -m integration            # needs a live PostgreSQL. EMPTIES document_chunks
+uv run ruff check src tests scripts
+uv run python scripts/retrieval_bench.py   # RAG retrieval quality (needs a seeded database)
+uv run python scripts/quality_bench.py --offline   # generation quality, no API key
 
 # Full stack (from root)
 docker compose up -d --build
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build   # hot reload, v2 in `shadow`
-docker compose --profile fixtures up -d db api-fixtures                     # keyless, v2 `on`, port 8001
-docker compose exec api uv run python -m src.seed_demo_v2                   # v2 demo dataset
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build      # hot reload, v2 `shadow`
+docker compose -f docker-compose.yml -f docker-compose.ollama.yml up -d --build   # local model
+docker compose exec api uv run python -m src.seed_demo_v2                      # v2 demo dataset
 ```
+
+`uv run pytest -m integration` leaves `document_chunks` empty — the downgrade in
+`test_migration_0005` passes through migration 0008, which changes the vector dimension, and
+768-component vectors cannot survive a return to a 384 column. Re-run the seed afterwards.
+
+There is also a `fixtures` profile (`docker compose --profile fixtures up -d db
+api-fixtures`), but it is **not** the keyless path for the web app: `docker/nginx.conf`
+proxies to `api` unconditionally, so the SPA never reaches it. To run the whole stack without
+keys, set `LLM_MODEL=fixture/local` and `EMBEDDING_MODEL=fixture/local` in `.env` instead.
 
 ## Code conventions
 

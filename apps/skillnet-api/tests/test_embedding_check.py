@@ -1,12 +1,12 @@
-"""El chequeo de dimensiones, que existe porque el fallo que detecta es invisible.
+"""The dimension check, which exists because the failure it catches is invisible.
 
-Sin el: `EMBEDDING_DIMENSIONS` no cuadra con la columna, Postgres rechaza la insercion, y
-el rechazo cae dentro del `except Exception` de `src/services/ingestion.py`, que lo
-registra como "embedding unavailable", guarda `full_text` y marca el documento **READY**.
-Queda un documento aparentemente correcto que no se puede recuperar por RAG.
+Without it: `EMBEDDING_DIMENSIONS` does not match the column, Postgres rejects the insert,
+and the rejection lands inside the `except Exception` of `src/services/ingestion.py`, which
+logs it as "embedding unavailable", stores `full_text` and marks the document **READY**.
+What is left is an apparently correct document that cannot be retrieved by RAG.
 
-Todo aqui es unitario: `EmbeddingCheck` es un dataclass sobre dos enteros, asi que los
-casos se construyen a mano sin base de datos.
+Everything here is a unit test: `EmbeddingCheck` is a dataclass over two integers, so the
+cases are built by hand with no database.
 """
 
 from __future__ import annotations
@@ -18,60 +18,60 @@ from src.services.embedding_check import EmbeddingCheck
 
 
 class TestStatus:
-    def test_coincidir_es_ok(self):
+    def test_matching_dimensions_are_ok(self):
         assert EmbeddingCheck(configured=768, column=768).status == "ok"
 
-    def test_no_coincidir_es_mismatch(self):
+    def test_differing_dimensions_are_a_mismatch(self):
         assert EmbeddingCheck(configured=384, column=768).status == "mismatch"
 
-    def test_columna_sin_restringir_se_distingue_de_un_desajuste(self):
-        """`vector` sin dimension funciona, pero deja de validar: no es ni ok ni error."""
+    def test_an_unconstrained_column_is_told_apart_from_a_mismatch(self):
+        """`vector` with no dimension works, but stops validating: neither ok nor error."""
         assert EmbeddingCheck(configured=768, column=None).status == "unconstrained"
 
 
 class TestDetail:
-    def test_cuando_cuadra_no_hay_nada_que_decir(self):
+    def test_a_match_has_nothing_to_say(self):
         assert EmbeddingCheck(configured=768, column=768).detail is None
 
-    def test_el_desajuste_nombra_los_dos_numeros(self):
+    def test_a_mismatch_names_both_numbers(self):
         detail = EmbeddingCheck(configured=384, column=768).detail
 
         assert detail is not None
         assert "384" in detail
         assert "vector(768)" in detail
 
-    def test_el_desajuste_avisa_de_que_el_fallo_es_invisible(self):
-        """Lo que hace el mensaje util: sin esto nadie sabe que hay que mirar."""
+    def test_a_mismatch_warns_that_the_failure_is_invisible(self):
+        """What makes the message useful: without this nobody knows where to look."""
         detail = EmbeddingCheck(configured=384, column=768).detail
 
         assert detail is not None
-        assert "sin error visible" in detail
+        assert "no visible error" in detail
 
-    def test_con_un_modelo_recortable_el_arreglo_es_una_linea_del_env(
+    def test_with_a_truncatable_model_the_fix_is_one_line_of_the_env(
         self, monkeypatch: pytest.MonkeyPatch
     ):
-        """`text-embedding-3-*` acepta `dimensions`, asi que no hay que migrar."""
+        """`text-embedding-3-*` accepts `dimensions`, so there is nothing to migrate."""
         monkeypatch.setattr(settings, "EMBEDDING_MODEL", "text-embedding-3-small")
 
         detail = EmbeddingCheck(configured=1536, column=768).detail
 
         assert detail is not None
         assert "EMBEDDING_DIMENSIONS=768" in detail
-        assert "migra" not in detail
+        assert "migrate" not in detail
 
-    def test_con_un_modelo_de_dimension_fija_el_arreglo_es_migrar(
+    def test_with_a_fixed_dimension_model_the_fix_is_to_migrate(
         self, monkeypatch: pytest.MonkeyPatch
     ):
-        """No prometer un arreglo facil cuando el modelo no puede recortar."""
+        """Do not promise an easy fix when the model cannot truncate."""
         monkeypatch.setattr(settings, "EMBEDDING_MODEL", "multilingual-e5-small")
 
         detail = EmbeddingCheck(configured=384, column=768).detail
 
         assert detail is not None
-        assert "migra la columna" in detail
-        assert "reingiere" in detail
+        assert "migrate the column" in detail
+        assert "re-ingest" in detail
 
-    def test_la_columna_sin_restringir_explica_que_esperabamos(self):
+    def test_an_unconstrained_column_explains_what_was_expected(self):
         detail = EmbeddingCheck(configured=768, column=None).detail
 
         assert detail is not None
@@ -80,7 +80,7 @@ class TestDetail:
 
 
 class TestDimensionsParameter:
-    """`(c)`: pedir la dimension al proveedor es lo que hace cierto "una clave y ya"."""
+    """`(c)`: asking the provider for the dimension is what makes "one key and done" true."""
 
     def _service(self, model: str):
         from src.llm.embedding import EmbeddingConfig, EmbeddingService
@@ -89,18 +89,18 @@ class TestDimensionsParameter:
             EmbeddingConfig(model=model, api_base=None, api_key="k", dimensions=768)
         )
 
-    def test_se_envia_a_text_embedding_3(self):
-        """Sale 1536 de fabrica; sin pedir 768 no entra en la columna."""
+    def test_it_is_sent_to_text_embedding_3(self):
+        """1536 out of the box; without asking for 768 it does not fit the column."""
         kwargs = self._service("text-embedding-3-small")._kwargs(["hola"])
 
         assert kwargs["dimensions"] == 768
 
-    def test_tambien_a_la_variante_large(self):
+    def test_it_goes_to_the_large_variant_too(self):
         kwargs = self._service("text-embedding-3-large")._kwargs(["hola"])
 
         assert kwargs["dimensions"] == 768
 
-    def test_no_se_envia_a_un_proveedor_que_no_lo_conoce(self):
-        """Mandarlo donde no se soporta es un error, no una pista ignorada."""
+    def test_it_is_not_sent_to_a_provider_that_does_not_know_it(self):
+        """Sending it where it is unsupported is an error, not an ignored hint."""
         for model in ("ollama/paraphrase-multilingual", "multilingual-e5-base"):
             assert "dimensions" not in self._service(model)._kwargs(["hola"])

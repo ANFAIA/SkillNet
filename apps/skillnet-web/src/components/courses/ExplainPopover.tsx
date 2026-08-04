@@ -11,10 +11,13 @@
  * * The content is **not** recursively clickable. It is painted as plain text, so a
  *   click inside it cannot start another generation. Explaining the explanation adds
  *   nothing and loops cost.
- * * It does carry one action, **"No lo entiendo"**, which opens the v1 chat seeded
- *   with the term, the block text and the node. Without it, someone who does not
- *   understand the single sentence has no next step: the chat lives on another route
- *   and knows nothing about this lesson.
+ * * It does carry one action — a next step for someone who did not understand the single
+ *   sentence. It used to be **"No lo entiendo"**, which navigated to the v1 chat seeded
+ *   with the term and the block text; `2a750f5` made it **"Ver mas"**, which opens
+ *   `ExplainModal` over the lesson instead. Same purpose, without leaving the page and
+ *   without re-explaining the context to a chat that knows nothing about this node. It
+ *   only appears once there *is* an explanation to expand on, so it can never open an
+ *   empty panel and spend a generation on it.
  *
  * The open/close animation lives in `index.css` behind
  * `@media (prefers-reduced-motion: reduce)` — the original had no such guard.
@@ -56,31 +59,6 @@ function anchorRect(selection: ExplainSelection): DOMRect | null {
   if (selection.el) return selection.el.getBoundingClientRect()
   if (selection.range) return selection.range.getBoundingClientRect()
   return null
-}
-
-/**
- * What "No lo entiendo" hands to the v1 chat route in `location.state` (§8.4).
- * Declared here, next to the only producer, so the consumer — and the test —
- * read the same shape instead of casting an untyped `state` twice.
- */
-export interface ExplainSeed {
-  message: string
-  term: string
-  context: string
-  node_id: string | null
-}
-
-/** The `location.state` `/empleado/chat` receives. */
-export interface ExplainChatState {
-  explainSeed: ExplainSeed
-}
-
-/** Build the chat seed: the term, where it appears, and which lesson it came from. */
-export function buildChatSeed(selection: ExplainSelection): string {
-  return (
-    `No entiendo "${selection.term}". Aparece en este texto: "${selection.context}". ` +
-    'Explicamelo de otra forma, con un ejemplo.'
-  )
 }
 
 export function ExplainPopover({
