@@ -1,8 +1,34 @@
-import { memo } from 'react'
+import { Children, memo } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import type { Components } from 'react-markdown'
-import { ClickableText } from '../courses/ClickableText'
+import type { ReactNode } from 'react'
+import { ClickableText, toClickable } from '../courses/ClickableText'
+
+/**
+ * Split a node's own string children into `.entity` word spans.
+ *
+ * ## Why the overrides have to do this themselves
+ *
+ * Wrapping the markdown in `<ClickableText>` is not enough, and used to be all this
+ * file did — which meant **no word in a chat answer was ever clickable**. `clickify`
+ * walks a *rendered* tree and treats every composite component as opaque, because a
+ * composite's `children` prop is its input, not its output. `<ReactMarkdown>`'s input
+ * is the markdown source string, so the walk stopped at it and the finished `<p>` came
+ * out as one untouched text node.
+ *
+ * The parsed strings only exist inside these overrides, so this is the only place the
+ * split can happen — the same conclusion Curio's `MarkdownMessage` reaches.
+ *
+ * `a`, `code` and `pre` are deliberately left whole: they have their own meaning, and
+ * the surface's hit-test excludes them anyway, so decorating them would promise a
+ * click that never fires.
+ */
+function words(children: ReactNode): ReactNode {
+  return Children.map(children, (child, index) =>
+    typeof child === 'string' ? toClickable(child, `w${index}`) : child,
+  )
+}
 
 /**
  * The caret, as a character rather than an element.
@@ -50,16 +76,16 @@ const CARET = '▍'
  * `javascript:`.
  */
 const components: Components = {
-  p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+  p: ({ children }) => <p className="mb-2 last:mb-0">{words(children)}</p>,
 
   // Chat answers are not documents: every heading level collapses onto one step of
   // emphasis rather than opening a hierarchy inside a 70%-wide bubble.
-  h1: ({ children }) => <p className="font-semibold mt-3 mb-1.5 first:mt-0">{children}</p>,
-  h2: ({ children }) => <p className="font-semibold mt-3 mb-1.5 first:mt-0">{children}</p>,
-  h3: ({ children }) => <p className="font-semibold mt-3 mb-1.5 first:mt-0">{children}</p>,
-  h4: ({ children }) => <p className="font-semibold mt-3 mb-1.5 first:mt-0">{children}</p>,
-  h5: ({ children }) => <p className="font-semibold mt-3 mb-1.5 first:mt-0">{children}</p>,
-  h6: ({ children }) => <p className="font-semibold mt-3 mb-1.5 first:mt-0">{children}</p>,
+  h1: ({ children }) => <p className="font-semibold mt-3 mb-1.5 first:mt-0">{words(children)}</p>,
+  h2: ({ children }) => <p className="font-semibold mt-3 mb-1.5 first:mt-0">{words(children)}</p>,
+  h3: ({ children }) => <p className="font-semibold mt-3 mb-1.5 first:mt-0">{words(children)}</p>,
+  h4: ({ children }) => <p className="font-semibold mt-3 mb-1.5 first:mt-0">{words(children)}</p>,
+  h5: ({ children }) => <p className="font-semibold mt-3 mb-1.5 first:mt-0">{words(children)}</p>,
+  h6: ({ children }) => <p className="font-semibold mt-3 mb-1.5 first:mt-0">{words(children)}</p>,
 
   ul: ({ children }) => (
     <ul className="list-disc pl-5 space-y-1 mb-2 last:mb-0 marker:text-text-muted">{children}</ul>
@@ -69,11 +95,11 @@ const components: Components = {
       {children}
     </ol>
   ),
-  li: ({ children }) => <li className="leading-relaxed">{children}</li>,
+  li: ({ children }) => <li className="leading-relaxed">{words(children)}</li>,
 
-  strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
-  em: ({ children }) => <em className="italic">{children}</em>,
-  del: ({ children }) => <del className="opacity-70">{children}</del>,
+  strong: ({ children }) => <strong className="font-semibold">{words(children)}</strong>,
+  em: ({ children }) => <em className="italic">{words(children)}</em>,
+  del: ({ children }) => <del className="opacity-70">{words(children)}</del>,
 
   a: ({ children, href }) => (
     <a
@@ -88,7 +114,7 @@ const components: Components = {
 
   blockquote: ({ children }) => (
     <blockquote className="border-l-2 border-border-strong pl-3 italic mb-2 last:mb-0">
-      {children}
+      {words(children)}
     </blockquote>
   ),
 
@@ -113,10 +139,12 @@ const components: Components = {
   ),
   th: ({ children }) => (
     <th className="text-left py-1.5 px-2 border-b border-border-strong font-medium whitespace-nowrap">
-      {children}
+      {words(children)}
     </th>
   ),
-  td: ({ children }) => <td className="py-1.5 px-2 border-b border-border align-top">{children}</td>,
+  td: ({ children }) => (
+    <td className="py-1.5 px-2 border-b border-border align-top">{words(children)}</td>
+  ),
 
   hr: () => <hr className="border-border my-3" />,
 }

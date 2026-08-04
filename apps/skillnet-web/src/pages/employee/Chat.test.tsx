@@ -124,8 +124,10 @@ describe('employee Chat', () => {
     await ask(/pregunta/i)
 
     await waitFor(() => expect(container.querySelector('ol')).not.toBeNull())
-    expect(screen.getByText('Escucha la pregunta').tagName).toBe('STRONG')
-    expect(screen.getByText('Nunca').tagName).toBe('EM')
+    // `textContent`, not `getByText`: §8.5 splits every word into its own span so the
+    // explain popover has something to anchor to, which no phrase matcher can see past.
+    expect(container.querySelector('strong')?.textContent).toBe('Escucha la pregunta')
+    expect(container.querySelector('em')?.textContent).toBe('Nunca')
     expect(container.textContent).not.toContain('**Escucha')
     expect(container.querySelector('[data-ui-format]')).toBeNull()
     // "Dando formato..." is cleared by `layout_skipped`, not left spinning forever.
@@ -155,7 +157,7 @@ describe('admin Chat', () => {
     await ask(/consulta/i, 'como veo el estado de los empleados')
 
     await waitFor(() => expect(container.querySelector('ul')).not.toBeNull())
-    expect(screen.getByText('Revisa').tagName).toBe('STRONG')
+    expect(container.querySelector('strong')?.textContent).toBe('Revisa')
     expect(container.textContent).not.toContain('- **Revisa**')
     expect(screen.getByText(/Conocimiento general/)).toBeInTheDocument()
   })

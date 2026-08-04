@@ -59,6 +59,19 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
+/**
+ * The text of the first `selector` in the bubble.
+ *
+ * `getByText` cannot be used for a *phrase* anywhere in this file any more: §8.5 splits
+ * every word into its own span for the explain popover, and since `ChatMarkdown` began
+ * emitting those spans — without them no word in a chat answer was clickable at all —
+ * that applies to markdown as well as to the kit blocks. The element is still asserted;
+ * only the way its text is read changes.
+ */
+function textOf(container: HTMLElement, selector: string): string | null | undefined {
+  return container.querySelector(selector)?.textContent
+}
+
 describe('ChatAnswer', () => {
   it('renders the prose as markdown, not as the characters the model typed', () => {
     const { container } = render(<ChatAnswer message={answer()} />)
@@ -67,17 +80,19 @@ describe('ChatAnswer', () => {
     expect(container.textContent).not.toContain('**Escucha')
     expect(container.textContent).not.toContain('| Turno |')
 
-    expect(screen.getByText('Escucha la pregunta').tagName).toBe('STRONG')
-    expect(screen.getByText('Nunca').tagName).toBe('EM')
+    expect(textOf(container, 'strong')).toBe('Escucha la pregunta')
+    expect(textOf(container, 'em')).toBe('Nunca')
     expect(container.querySelector('ol')).not.toBeNull()
     // GFM: the table only exists because `remark-gfm` is applied.
     expect(container.querySelector('table')).not.toBeNull()
-    expect(screen.getByText('Responsable').tagName).toBe('TH')
+    expect(Array.from(container.querySelectorAll('th')).map((th) => th.textContent)).toContain(
+      'Responsable',
+    )
   })
 
   it('lets the kit program replace the prose once it arrives', () => {
     const { container, rerender } = render(<ChatAnswer message={answer()} />)
-    expect(screen.getByText('Escucha la pregunta').tagName).toBe('STRONG')
+    expect(textOf(container, 'strong')).toBe('Escucha la pregunta')
 
     rerender(<ChatAnswer message={answer({ program: PROGRAM })} />)
 
@@ -98,7 +113,7 @@ describe('ChatAnswer', () => {
     const { container } = render(<ChatAnswer message={answer({ program: REACTIVE_PROGRAM })} />)
 
     // Not a blank bubble: the answer the learner was already reading is still there.
-    expect(screen.getByText('Escucha la pregunta').tagName).toBe('STRONG')
+    expect(textOf(container, 'strong')).toBe('Escucha la pregunta')
     expect(container.querySelector('[data-ui-format]')).toBeNull()
     expect(container.textContent).not.toContain('Texto')
   })

@@ -35,6 +35,12 @@ export interface ExplainPopoverProps {
   selection: ExplainSelection
   nodeId?: string | null
   language?: string
+  /**
+   * Overrides the `.explain-popover` z-index. `null` keeps the stylesheet's base-layer
+   * value; `ExplainModal` lifts it above its own card so a word clicked inside the
+   * "Ver mas" panel actually shows a bubble instead of one hidden behind the card.
+   */
+  zIndex?: number | null
   onClose: () => void
   /** Called when the learner clicks "Ver mas" to open the full ExplainModal. */
   onVerMas?: (selection: ExplainSelection) => void
@@ -81,6 +87,7 @@ export function ExplainPopover({
   selection,
   nodeId = null,
   language,
+  zIndex = null,
   onClose,
   onVerMas,
 }: ExplainPopoverProps) {
@@ -196,6 +203,7 @@ export function ExplainPopover({
         left: position ? `${position.left}px` : 0,
         width: `${WIDTH}px`,
         visibility: position ? 'visible' : 'hidden',
+        ...(zIndex == null ? {} : { zIndex }),
       }}
     >
       <p className="text-xs font-medium text-text-secondary mb-1 break-words">

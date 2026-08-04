@@ -18,6 +18,7 @@ import type { MouseEvent, ReactNode } from 'react'
 import { centerContext } from '../../api/explain'
 import { ExplainPopover } from './ExplainPopover'
 import { ExplainModal } from './ExplainModal'
+import { useExplainLayer } from './explainLayer'
 
 /** The block a term's context is taken from (§8.3). */
 export const BLOCK_SELECTOR = 'p,li,h1,h2,h3,h4,h5,h6,blockquote,td,th,dd,dt'
@@ -127,7 +128,7 @@ function mergeIntoLines(rects: DOMRect[]): LineRect[] {
  * Highlight API cannot do this: `::highlight()` supports neither padding nor
  * border-radius, so the band is measured and drawn as real elements.
  */
-function PhraseBand({ range }: { range: Range | null }) {
+function PhraseBand({ range, zIndex }: { range: Range | null; zIndex?: number | null }) {
   const [rects, setRects] = useState<LineRect[]>([])
 
   useEffect(() => {
@@ -157,7 +158,12 @@ function PhraseBand({ range }: { range: Range | null }) {
   if (!range || rects.length === 0) return null
 
   return createPortal(
-    <div className="phrase-layer" aria-hidden="true">
+    <div
+      className="phrase-layer"
+      aria-hidden="true"
+      // One below the popover's layer, so a band never covers the bubble anchored to it.
+      style={zIndex == null ? undefined : { zIndex: zIndex - 1 }}
+    >
       {rects.map((rect, index) => (
         <span
           key={index}
@@ -189,6 +195,12 @@ export interface ClickableSurfaceProps {
    * modal.
    */
   onVerMas?: (term: string, context: string) => void
+  /**
+   * A term this surface must not explain — the one already being read. `ExplainModal`
+   * passes its current stack entry: clicking the very word the panel is *about* would
+   * spend a generation restating its own heading. Curio's modal guards the same case.
+   */
+  skipTerm?: string | null
 }
 
 export function ClickableSurface({
@@ -197,19 +209,18 @@ export function ClickableSurface({
   language,
   className,
   onVerMas,
+  skipTerm = null,
 }: ClickableSurfaceProps) {
   const ref = useRef<HTMLDivElement>(null)
+  // `null` on the page's base layer, elevated inside ExplainModal (see explainLayer).
+  const layer = useExplainLayer()
   // Set when a drag just produced a selection, so the trailing click a short drag
   // also fires does not overwrite the phrase with a single word. Cleared next tick.
   const justDragged = useRef(false)
   const [selection, setSelection] = useState<ExplainSelection | null>(null)
 
   // Modal state: which term is shown in the ExplainModal.
-  const [modalTerm, setModalTerm] = useState<{
-    term: string
-    context: string
-    origin: DOMRect | null
-  } | null>(null)
+  const [modalTerm, setModalTerm] = useState<{ term: string; context: string } | null>(null)
 
   const blockContext = useCallback((node: Node | null, term: string): string => {
     const element = node instanceof Element ? node : node?.parentElement
@@ -257,6 +268,7 @@ export function ClickableSurface({
       if (!(entity instanceof HTMLElement) || !ref.current?.contains(entity)) return
       const term = entity.textContent?.trim() ?? ''
       if (!term) return
+      if (skipTerm && term.toLowerCase() === skipTerm.toLowerCase()) return
 
       setSelection({
         term,
@@ -269,7 +281,7 @@ export function ClickableSurface({
         viaKeyboard: event.detail === 0,
       })
     },
-    [blockContext],
+    [blockContext, skipTerm],
   )
 
   const onMouseUp = useCallback(
@@ -286,6 +298,10 @@ export function ClickableSurface({
       expandRangeToWords(range) // a 2+ word selection is explained as one unit
       const term = range.toString().trim()
       if (!term) return
+      if (skipTerm && term.toLowerCase() === skipTerm.toLowerCase()) {
+        native.removeAllRanges()
+        return
+      }
 
       const node = range.commonAncestorContainer
       const block =
@@ -309,7 +325,7 @@ export function ClickableSurface({
         justDragged.current = false
       }, 0)
     },
-    [blockContext],
+    [blockContext, skipTerm],
   )
 
   const handleVerMas = useCallback(
@@ -320,8 +336,7 @@ export function ClickableSurface({
         onVerMas(sel.term, sel.context)
         return
       }
-      const rect = sel.el?.getBoundingClientRect() ?? sel.range?.getBoundingClientRect() ?? null
-      setModalTerm({ term: sel.term, context: sel.context, origin: rect })
+      setModalTerm({ term: sel.term, context: sel.context })
     },
     [onVerMas],
   )
@@ -331,12 +346,13 @@ export function ClickableSurface({
   return (
     <div ref={ref} onClick={onClick} onMouseUp={onMouseUp} className={className}>
       {children}
-      <PhraseBand range={selection?.range ?? null} />
+      <PhraseBand range={selection?.range ?? null} zIndex={layer} />
       {selection && (
         <ExplainPopover
           selection={selection}
           nodeId={nodeId}
           language={language}
+          zIndex={layer}
           onClose={close}
           onVerMas={handleVerMas}
         />
@@ -349,7 +365,6 @@ export function ClickableSurface({
           language={language}
           open={!!modalTerm}
           onClose={closeModal}
-          origin={modalTerm.origin}
         />
       )}
     </div>

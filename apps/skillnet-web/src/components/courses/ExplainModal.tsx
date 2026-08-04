@@ -20,9 +20,14 @@ import {
 import type { FormEvent, KeyboardEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { ClickableSurface } from './ClickableSurface'
+import { ExplainLayer, EXPLAIN_LAYER_MODAL } from './explainLayer'
 import { UiSpecRenderer } from './UiSpecRenderer'
 import { gateProgram } from './kit'
 import { ChatMarkdown } from '../chat/ChatMarkdown'
+
+/** Focus-trap candidates inside the card. */
+const FOCUSABLE =
+  'button, [href], input, textarea, select, [tabindex]:not([tabindex="-1"])'
 
 // ── Types ───────────────────────────────────────────────────────
 
@@ -52,8 +57,6 @@ export interface ExplainModalProps {
   open: boolean
   /** Called when the modal should close. */
   onClose: () => void
-  /** Rect of the element that opened the modal, for FLIP animation. */
-  origin?: DOMRect | null
 }
 
 // ── Icons ───────────────────────────────────────────────────────
@@ -62,15 +65,6 @@ function BackIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <polyline points="15 18 9 12 15 6" />
-    </svg>
-  )
-}
-
-function SendIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="22" y1="2" x2="11" y2="13" />
-      <polygon points="22 2 15 22 11 13 2 9 22 2" />
     </svg>
   )
 }
@@ -141,21 +135,23 @@ async function streamFollowUp(
 interface ExplanationPanelProps {
   term: string
   context: string
-  nodeId: string | null
   language?: string
-  onDrillDown: (term: string, context: string) => void
 }
 
 /**
  * Generates a rich OpenUI explanation for a term via the chat admin endpoint.
  * Falls back to prose if the model doesn't produce valid OpenUI Lang.
+ *
+ * It does **not** own a `ClickableSurface`: the modal wraps one around this panel *and*
+ * the follow-up thread together, so both are click-to-explain from a single handler
+ * (§8.3). When the surface lived in here, only the first explanation was clickable and
+ * every follow-up answer was dead text — the same mistake Curio avoids by putting its
+ * one handler on the whole scroll area.
  */
 function ExplanationPanel({
   term,
   context,
-  nodeId,
   language,
-  onDrillDown,
 }: ExplanationPanelProps) {
   const [content, setContent] = useState('')
   const [program, setProgram] = useState<string | null>(null)
@@ -221,7 +217,7 @@ function ExplanationPanel({
           }
         }
         setIsLoading(false)
-      } catch (err) {
+      } catch {
         if (controller.signal.aborted) return
         setError('No se pudo generar la explicacion.')
         setIsLoading(false)
@@ -249,15 +245,7 @@ function ExplanationPanel({
     <p className="text-sm text-text-muted">Sin contenido.</p>
   )
 
-  return (
-    <ClickableSurface
-      nodeId={nodeId}
-      language={language}
-      onVerMas={(drillTerm, drillContext) => onDrillDown(drillTerm, drillContext)}
-    >
-      <div aria-live="polite">{body}</div>
-    </ClickableSurface>
-  )
+  return <div aria-live="polite">{body}</div>
 }
 
 // ── Follow-up state (shared between messages display and composer) ──
@@ -268,6 +256,18 @@ function useFollowUp(termContext: string) {
   const abortRef = useRef<AbortController | null>(null)
 
   useEffect(() => () => abortRef.current?.abort(), [])
+
+  /**
+   * Drop the thread. The follow-up conversation is scoped to the term on screen — after
+   * drilling into a word found *inside* an answer, the old exchange is about something
+   * else, and leaving it visible seeds the next question with the wrong context.
+   */
+  const reset = useCallback(() => {
+    abortRef.current?.abort()
+    abortRef.current = null
+    setMessages([])
+    setIsStreaming(false)
+  }, [])
 
   const send = useCallback(
     async (text: string) => {
@@ -304,7 +304,7 @@ function useFollowUp(termContext: string) {
     [messages.length, termContext],
   )
 
-  return { messages, isStreaming, send }
+  return { messages, isStreaming, send, reset }
 }
 
 // Follow-up messages (rendered inside the scrollable area)
@@ -375,41 +375,6 @@ function FollowUpInput({ onSend }: { onSend: (text: string) => void }) {
   )
 }
 
-// ── Breadcrumb ──────────────────────────────────────────────────
-
-interface BreadcrumbProps {
-  stack: StackEntry[]
-  onNavigate: (index: number) => void
-}
-
-function Breadcrumb({ stack, onNavigate }: BreadcrumbProps) {
-  if (stack.length <= 1) return null
-
-  return (
-    <nav className="flex items-center gap-1 text-xs text-text-muted mb-2 flex-wrap" aria-label="Historial de terminos">
-      {stack.map((entry, i) => {
-        const isLast = i === stack.length - 1
-        return (
-          <span key={i} className="flex items-center gap-1">
-            {i > 0 && <span aria-hidden="true">/</span>}
-            {isLast ? (
-              <span className="text-text font-medium">{entry.term}</span>
-            ) : (
-              <button
-                type="button"
-                onClick={() => onNavigate(i)}
-                className="hover:text-primary hover:underline transition-colors"
-              >
-                {entry.term}
-              </button>
-            )}
-          </span>
-        )
-      })}
-    </nav>
-  )
-}
-
 // ── Main modal ──────────────────────────────────────────────────
 
 export function ExplainModal({
@@ -419,8 +384,12 @@ export function ExplainModal({
   language,
   open,
   onClose,
-  origin,
 }: ExplainModalProps) {
+  const cardRef = useRef<HTMLDivElement>(null)
+  const closeRef = useRef<HTMLButtonElement>(null)
+  const returnFocusTo = useRef<Element | null>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
+
   const [stack, setStack] = useState<StackEntry[]>([
     { term, context, nodeId },
   ])
@@ -434,34 +403,111 @@ export function ExplainModal({
 
   const current = stack[stack.length - 1]
   const followUpState = useFollowUp(current.term)
+  const { reset: resetFollowUp } = followUpState
+
+  /** Every stack move drops the follow-up thread and returns to the top of the panel. */
+  const rewind = useCallback(() => {
+    resetFollowUp()
+    if (scrollRef.current) scrollRef.current.scrollTop = 0
+  }, [resetFollowUp])
 
   const goBack = useCallback(() => {
     setStack((prev) => (prev.length > 1 ? prev.slice(0, -1) : prev))
-  }, [])
+    rewind()
+  }, [rewind])
 
-  const navigateTo = useCallback((index: number) => {
-    setStack((prev) => prev.slice(0, index + 1))
-  }, [])
+  const navigateTo = useCallback(
+    (index: number) => {
+      setStack((prev) => prev.slice(0, index + 1))
+      rewind()
+    },
+    [rewind],
+  )
 
   const drillDown = useCallback(
     (drillTerm: string, drillContext: string) => {
       setStack((prev) => [...prev, { term: drillTerm, context: drillContext, nodeId }])
+      rewind()
     },
-    [nodeId],
+    [nodeId, rewind],
   )
+
+  // Follow the thread: a streamed answer that lands below the fold is an answer the
+  // learner never sees, and it is also where the popover had nothing to anchor to.
+  useEffect(() => {
+    if (followUpState.messages.length === 0) return
+    const pane = scrollRef.current
+    if (pane) pane.scrollTop = pane.scrollHeight
+  }, [followUpState.messages])
+
+  /**
+   * Escape and the focus trap, both missing before: the card was a `div` that keyboard
+   * focus walked straight out of, and the only way out was the mouse.
+   *
+   * Capture phase, and it yields to an open popover. `ClickableSurface` closes its own
+   * selection on a bubble-phase Escape, so checking for a live `.explain-popover` here
+   * gives the two layers the order a reader expects — first the bubble, then the modal —
+   * without either component having to know the other's state.
+   */
+  useEffect(() => {
+    if (!open) return
+    returnFocusTo.current = document.activeElement
+    closeRef.current?.focus()
+
+    const onKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        if (document.querySelector('.explain-popover')) return
+        event.stopPropagation()
+        onClose()
+        return
+      }
+      if (event.key !== 'Tab') return
+      const card = cardRef.current
+      if (!card) return
+      const items = Array.from(card.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(
+        (el) => el.offsetParent !== null,
+      )
+      if (items.length === 0) {
+        event.preventDefault()
+        return
+      }
+      const first = items[0]
+      const last = items[items.length - 1]
+      const active = document.activeElement
+      if (event.shiftKey && (active === first || !card.contains(active))) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && (active === last || !card.contains(active))) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+
+    document.addEventListener('keydown', onKeyDown, true)
+    return () => {
+      document.removeEventListener('keydown', onKeyDown, true)
+      if (returnFocusTo.current instanceof HTMLElement) returnFocusTo.current.focus()
+    }
+  }, [open, onClose])
 
   if (!open) return null
 
   return createPortal(
-    <>
+    // Everything under here explains at the modal's layer, not the page's, so a popover
+    // opened inside the card paints above it instead of behind it.
+    <ExplainLayer zIndex={EXPLAIN_LAYER_MODAL}>
       {/* Scrim */}
       <div className="fixed inset-0 z-[100] bg-slate-900/25 backdrop-blur-sm" onClick={onClose} />
 
       {/* Card */}
       <div className="fixed inset-0 z-[101] flex items-center justify-center p-5 pointer-events-none">
         <div
+          ref={cardRef}
           role="dialog"
           aria-modal="true"
+          // Distinct from the popover's "Explicacion de X": the two are both dialogs
+          // and both on screen at once, so they must not answer to the same name.
+          aria-label={`Explicacion ampliada de ${current.term}`}
           className="pointer-events-auto flex flex-col w-full max-w-[560px] bg-bg border border-border overflow-hidden"
           style={{ maxHeight: 'min(80vh, 640px)', borderRadius: 16 }}
         >
@@ -481,6 +527,7 @@ export function ExplainModal({
               {current.term}
             </h2>
             <button
+              ref={closeRef}
               onClick={onClose}
               aria-label="Cerrar"
               className="shrink-0 p-1 text-xl leading-none text-text-muted hover:text-text transition-colors"
@@ -507,25 +554,36 @@ export function ExplainModal({
             </div>
           )}
 
-          {/* Scrollable content */}
-          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 text-sm leading-relaxed text-text" style={{ scrollbarWidth: 'none' }}>
-            <ExplanationPanel
-              key={`${current.term}-${stack.length}`}
-              term={current.term}
-              context={current.context}
+          {/* Scrollable content. ONE ClickableSurface over the explanation *and* the
+              follow-up thread, so a word is clickable wherever it appears — the panel,
+              a generated block, or an answer that arrived thirty seconds later. */}
+          <div
+            ref={scrollRef}
+            className="min-h-0 flex-1 overflow-y-auto px-5 py-4 text-sm leading-relaxed text-text"
+            style={{ scrollbarWidth: 'none' }}
+          >
+            <ClickableSurface
               nodeId={current.nodeId}
               language={language}
-              onDrillDown={drillDown}
-            />
+              skipTerm={current.term}
+              onVerMas={drillDown}
+            >
+              <ExplanationPanel
+                key={`${current.term}-${stack.length}`}
+                term={current.term}
+                context={current.context}
+                language={language}
+              />
 
-            <FollowUpMessages messages={followUpState.messages} />
+              <FollowUpMessages messages={followUpState.messages} />
+            </ClickableSurface>
           </div>
 
           {/* Composer — outside scroll, sticky at bottom */}
           <FollowUpInput onSend={followUpState.send} />
         </div>
       </div>
-    </>,
+    </ExplainLayer>,
     document.body,
   )
 }

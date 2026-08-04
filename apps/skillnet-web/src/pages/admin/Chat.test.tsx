@@ -129,7 +129,9 @@ describe('admin Chat', () => {
 
     // Mid-turn: the answer is complete, the layout is not. The admin reads prose.
     await waitFor(() => expect(screen.getByText('Dando formato...')).toBeInTheDocument())
-    expect(screen.getByText('Noa').tagName).toBe('STRONG')
+    // `textContent`, not `getByText().tagName`: §8.5 wraps every word in its own span so
+    // the explain popover has an anchor, so the emphasised run is no longer a text node.
+    expect(container.querySelector('strong')?.textContent).toBe('Noa')
     // `org_data` is parsed by nobody and breaks nothing — the handler ignores it.
     expect(container.textContent).not.toContain('generated_at')
 
@@ -162,8 +164,8 @@ describe('admin Chat', () => {
     await ask()
 
     await waitFor(() => expect(container.querySelector('ul')).not.toBeNull())
-    expect(screen.getByText('Noa').tagName).toBe('STRONG')
-    expect(screen.getByText('Iker').tagName).toBe('EM')
+    expect(container.querySelector('strong')?.textContent).toBe('Noa')
+    expect(container.querySelector('em')?.textContent).toBe('Iker')
     expect(container.textContent).not.toContain('- **Noa**')
     expect(container.querySelector('[data-ui-format]')).toBeNull()
     // The honesty note survives either way — it is not the answer.
@@ -191,7 +193,7 @@ describe('admin Chat', () => {
     // still refused it, so the answer the admin was already reading stays put.
     expect(container.querySelector('[data-ui-format]')).toBeNull()
     expect(container.textContent).not.toContain('Datos del equipo')
-    expect(screen.getByText('Noa').tagName).toBe('STRONG')
+    expect(container.querySelector('strong')?.textContent).toBe('Noa')
   })
 
   it('does not run the question the admin typed through markdown', async () => {

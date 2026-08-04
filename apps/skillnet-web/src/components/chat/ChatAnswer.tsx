@@ -61,25 +61,22 @@ export function ChatAnswer({ message }: ChatAnswerProps) {
     )
   }
 
-  // Prose fallback. Completed content is wrapped in ClickableSurface for the
-  // click-to-explain popover and "Ver mas" modal; streaming content stays unwrapped
-  // because re-measuring the surface on every token would thrash layout.
-  if (!message.isStreaming) {
-    return (
-      <ClickableSurface nodeId={null}>
-        <ChatMarkdown content={message.content} isStreaming={false} />
-      </ClickableSurface>
-    )
-  }
-
+  // Prose fallback, streaming or not — one branch, always inside a ClickableSurface.
+  //
+  // The streaming half used to render bare, on the grounds that "re-measuring the
+  // surface on every token would thrash layout". The surface measures nothing: it
+  // attaches two handlers, and the only thing that measures is the phrase band, which
+  // does so only once a selection exists. Meanwhile `ChatMarkdown` paints every word as
+  // an `.entity` with `cursor: pointer`, so leaving the handler off made a half-written
+  // answer *look* click-to-explain and do nothing.
   return (
-    <>
+    <ClickableSurface nodeId={null}>
       <ChatMarkdown content={message.content} isStreaming={message.isStreaming} />
-      {!message.content && (
+      {message.isStreaming && !message.content && (
         <span className="typing-dots" aria-label="Escribiendo">
           <span /><span /><span />
         </span>
       )}
-    </>
+    </ClickableSurface>
   )
 }
