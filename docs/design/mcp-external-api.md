@@ -463,6 +463,13 @@ Codigos HTTP usados: 200, 201, 400 (bad request), 401 (no auth), 403 (scope insu
 
 ### 8.2 MCP Server
 
+> **Nota (2026-08-04):** esta seccion se escribio antes de que existiera `/ext/v1` y antes de que
+> MCP estandarizase las interfaces graficas. Dos decisiones de aqui han quedado desfasadas: el
+> transporte **SSE** (deprecado en MCP a favor de Streamable HTTP) y el acceso **directo a
+> PostgreSQL con asyncpg** (hoy duplicaria la logica que `/ext/v1` ya tiene). La revision esta en
+> la seccion 8.8, que ademas cubre el caso de ofrecer SkillNet como conector a clientes IA de
+> terceros. Leer 8.8 antes de implementar nada de 8.2.
+
 #### 8.2.1 Que es
 
 Un proceso separado que expone los datos de SkillNet como herramientas MCP (Model Context Protocol). Cualquier agente IA compatible con MCP (Claude Desktop, asistentes custom, agentes de Slack) puede conectarse y consultar datos de skills en tiempo real.
@@ -1259,3 +1266,157 @@ GET /ext/v1/export/profiles.json → Tabla "Employee Profiles" en Metabase
 | **Fase 3** | MCP server completo (6 tools + resources). Todos los webhooks. Export JSON. Integraciones BambooHR/Factorial. Informes programados. | Escala |
 
 Cada fase se construye sobre la anterior. La logica de negocio escrita en Fase 1 se reutiliza en las APIs y el MCP de Fases 2 y 3. No se reescribe nada.
+
+---
+
+### 8.8 SkillNet como conector para clientes IA (exploracion, no comprometido)
+
+**Estado: posibilidad futura.** Nada de esta seccion esta planificado ni tiene fecha. Se documenta
+para que la decision este tomada por escrito el dia que se retome, y para corregir lo que la
+seccion 8.2 daba por bueno.
+
+La seccion 8.2 asume que el usuario del MCP es *el admin de la propia instancia*, conectando su
+Claude Desktop a su SkillNet por stdio. Esta seccion cubre lo contrario: **exponer SkillNet hacia
+fuera** para que cualquier usuario de Claude (u otro host MCP) conecte su instancia como conector
+remoto y consulte sus datos de skills desde la conversacion.
+
+Es la aplicacion literal del primer parrafo de este documento — "SkillNet es la capa de datos de
+skills del ecosistema" — a un canal de distribucion que en 2026 ya existe.
+
+#### 8.8.1 Las cuatro capas y cual falta
+
+| Capa | Que es | Estado |
+|------|--------|--------|
+| 1. Logica de negocio scoped por organizacion | `SkillService`, alcanzado por `org_id` en cada llamada | **hecha** |
+| 2. Transporte remoto + autenticacion de usuario final | Streamable HTTP + OAuth 2.1 | **no existe** |
+| 3. Tools MCP | envoltura fina sobre `/ext/v1` | parcial (la API esta, la envoltura no) |
+| 4. MCP App: interfaz grafica dentro del chat | recursos `ui://` | no existe |
+
+El grueso del trabajo es la capa 2. Las capas 3 y 4 son pequenas encima de ella.
+
+Lo que ya no hay que resolver: **el aislamiento por organizacion**. Todos los endpoints de
+`/ext/v1` reciben el `org_id` de la credencial y lo propagan al servicio
+(`src/routes/ext/skills.py`). Un conector multi-inquilino se apoya en eso tal cual; el token de
+OAuth pasa a ser el portador del `org_id` en lugar de la API key, y por debajo no cambia nada.
+
+#### 8.8.2 Endurecimiento previo de `/ext/v1`
+
+Antes de que la API externa la consuma alguien que no seamos nosotros, `_get_api_key()` en
+`src/routes/ext/auth.py` tiene que hacer cumplir dos cosas que el modelo de datos ya contempla
+pero la dependencia todavia no comprueba:
+
+- **`scopes`**: la tabla `api_keys` los almacena y la seccion 8.1.1 los especifica, pero ninguna
+  ruta los exige hoy. `POST /skills/verify` debe requerir `skills:write`; las lecturas,
+  `skills:read`.
+- **`expires_at`**: solo se comprueba `is_active`.
+
+Es la primera tarea de cualquier trabajo en esta direccion, y es independiente del resto.
+
+#### 8.8.3 Correcciones a la seccion 8.2
+
+**Transporte: Streamable HTTP, no SSE.** El transporte SSE quedo deprecado en MCP. Para acceso
+remoto se usa Streamable HTTP; stdio sigue siendo valido para el caso local de 8.2.
+
+**El servidor MCP es un cliente de `/ext/v1`, no de PostgreSQL.** La seccion 8.2.4 propone
+`asyncpg` contra la misma base de datos. Se escribio cuando la API externa no existia. Hoy eso
+duplicaria el alcance por organizacion, la validacion de niveles y el tratamiento de errores en un
+segundo camino a los datos, contra el principio declarado al inicio de este documento. El servidor
+habla HTTP con `/ext/v1` y no necesita credenciales de base de datos.
+
+**Ubicacion: `packages/skillnet-mcp/`, TypeScript.** Coherente con `packages/mcp-md-reader` y
+`packages/a2tl-video`, y es donde estan los SDK de MCP Apps.
+
+#### 8.8.4 Reparto de tools: lectura para el modelo, escritura para la interfaz
+
+MCP Apps (SEP-1865) anade `_meta.ui.visibility`, que acepta `["model"]`, `["app"]` o ambos. Una
+tool marcada `["app"]` **no aparece en la lista de herramientas del modelo**: solo la puede invocar
+la interfaz de la propia app, desde la misma conexion.
+
+| Tool | `visibility` | Anotacion | Interfaz |
+|------|-------------|-----------|----------|
+| `who_knows` | `model` | `readOnlyHint` | si |
+| `get_gap` | `model` | `readOnlyHint` | si |
+| `get_user_skills` | `model` | `readOnlyHint` | si |
+| `list_skills` | `model` | `readOnlyHint` | no, basta texto |
+| `verify_skill` | **`app`** | `destructiveHint` | la dispara un boton |
+
+Que la unica escritura sea `app`-only es la decision de diseno de esta seccion. Un modelo que puede
+subir el nivel de una skill de un empleado por su cuenta es un fallo inaceptable en un producto de
+datos de personal. Con `visibility: ["app"]` no es una instruccion del prompt que se pueda ignorar:
+la herramienta no existe para el modelo. Sigue habiendo un humano pulsando un boton.
+
+#### 8.8.5 Que aporta la interfaz grafica
+
+Una MCP App es un HTML autocontenido que el servidor publica como recurso `ui://`, con
+`mimeType` `text/html;profile=mcp-app`, enlazado a una tool por `_meta.ui.resourceUri`. El host lo
+renderiza en un iframe aislado dentro de la conversacion.
+
+Convierte el escenario ya descrito en 8.5.2 — "quien puede cubrir un turno en caja manana?" — de un
+parrafo de prosa en la matriz de skills real, con niveles, fecha de ultima evaluacion y un boton de
+verificar que llama a `verify_skill` sin pasar por el modelo.
+
+Dos detalles del estandar que importan al diseno:
+
+- **`structuredContent` frente a `content`**: `content` lo ven el modelo y la app;
+  `structuredContent` va solo a la app, tipado. La matriz completa viaja en `structuredContent` y en
+  `content` va un resumen de dos lineas. El modelo no consume la tabla entera en tokens.
+- **CSP `default-src 'none'` por defecto**: el iframe no puede hacer una sola peticion de red si no
+  se declara en `_meta.ui.csp.connectDomains`. Se evita: la interfaz obtiene datos llamando a tools,
+  no a la API por su cuenta. Ademas no expone credenciales al navegador.
+
+Hay variables CSS estandarizadas (`--color-background-primary`, `--font-sans`, ...) que el host
+inyecta; usandolas, la interfaz respeta el tema claro/oscuro del cliente sin trabajo extra.
+
+Sobre reutilizar componentes de `skillnet-web`: `components/courses/kit/` arrastra
+`NodeRenderContext` y OpenUI Lang, que no encajan en un bundle autocontenido. Las primeras vistas se
+escriben ligeras y aparte; si el canal demuestra valor, se extraen los componentes de presentacion
+puros a un paquete compartido.
+
+#### 8.8.6 Autenticacion: el bloque grande
+
+Los clientes MCP no permiten que el usuario pegue un `client_id` y un `client_secret`. Exigen
+**OAuth 2.1 con Dynamic Client Registration** (o Client ID Metadata Documents): el cliente se
+registra en caliente. SkillNet tendria que publicar:
+
+- `/.well-known/oauth-protected-resource` (RFC 9728)
+- `/.well-known/oauth-authorization-server`
+- `/register` — DCR, `application/json` (RFC 7591)
+- `/authorize` — validando redirect URI, scope y PKCE
+- `/token` — `application/x-www-form-urlencoded`, codigo de un solo uso, verificacion PKCE
+
+Mas la exigencia de OAuth 2.1 de rotar o vincular al emisor los refresh tokens de clientes
+publicos.
+
+Hoy SkillNet tiene sesion por cookie para la SPA y API keys para maquinas. Falta el caso
+intermedio: *esta persona concreta, de esta organizacion, autoriza a un cliente externo a leer sus
+datos de skills*. Es trabajo real y es el motivo por el que esta seccion no es una tarea pequena.
+
+#### 8.8.7 Autohospedado y directorios de conectores
+
+SkillNet es autohospedado: una instancia por empresa, cada una con su URL. Eso encaja mal con el
+modelo de "un conector del directorio apunta a un dominio unico", pero los directorios contemplan
+conectores de **conexion propia**, donde es el usuario quien aporta su URL y sus credenciales al
+conectar. Ese es el encaje correcto.
+
+Y hay un escalon anterior que no depende de nadie: en los clientes que soportan conectores remotos
+personalizados, cualquier usuario puede anadir uno pegando una URL, sin revision ni aprobacion. Los
+primeros clientes no necesitan que SkillNet este listado en ningun sitio. El directorio es
+distribucion, no requisito tecnico.
+
+Si algun dia se solicita el listado, los requisitos que mas rechazos causan son: cada tool con
+`title` y su anotacion `readOnlyHint` / `destructiveHint`, HTTPS, OAuth, documentacion publica con
+ejemplos de uso, y una **politica de privacidad publica y completa** — cuya ausencia es rechazo
+directo. Para un producto que trata datos de empleados, esa politica hace falta igualmente antes
+que ningun directorio.
+
+#### 8.8.8 Orden si se retoma
+
+1. Hacer cumplir `scopes` y `expires_at` en `/ext/v1` (8.8.2). Independiente y barato.
+2. Servidor MCP remoto sobre Streamable HTTP, autenticado con API key, envolviendo `/ext/v1`.
+   Sirve ya para una instancia propia o un cliente piloto, y valida si las tools son buenas.
+3. OAuth 2.1 con DCR (8.8.6). El bloque caro. A partir de aqui conecta cualquiera.
+4. MCP App: interfaz para `who_knows` y `get_gap`.
+5. Listado en directorio, si tiene sentido comercial para entonces.
+
+El paso 2 es barato y responde a la pregunta que importa — si el producto se siente util dentro de
+un asistente. No conviene pagar el paso 3 sin haber pasado por el 2.
