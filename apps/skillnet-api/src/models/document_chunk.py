@@ -10,7 +10,6 @@ from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.config import settings
 from src.models.base import Base
 
 if TYPE_CHECKING:
@@ -32,9 +31,20 @@ class DocumentChunk(Base):
         ForeignKey("documents.id", ondelete="CASCADE"), nullable=False
     )
     content: Mapped[str] = mapped_column(Text, nullable=False)
-    embedding: Mapped[list[float]] = mapped_column(
-        Vector(settings.EMBEDDING_DIMENSIONS), nullable=False
-    )
+    #: ``Vector()`` sin dimension, a proposito: la dimension la manda **la base**.
+    #:
+    #: Antes era ``Vector(settings.EMBEDDING_DIMENSIONS)``, y eso ponia la dependencia al
+    #: reves — un ajuste de entorno describiendo una columna que ya existe. Con dos
+    #: fuentes de verdad para el mismo numero, la que se lee en Python puede no ser la
+    #: que Postgres aplica, y el desajuste solo aparece al insertar. La migracion 0008
+    #: fija ``vector(768)`` y aqui no se repite el numero.
+    #:
+    #: No afecta al DDL porque nadie llama a ``create_all``: las migraciones son las
+    #: unicas que crean esquema. Y no relaja ninguna validacion — Postgres sigue
+    #: rechazando un vector del tamano equivocado, que es donde debe comprobarse.
+    #: ``check_embedding_dimensions`` compara ambos al arrancar para que el fallo se vea
+    #: antes de ingerir nada.
+    embedding: Mapped[list[float]] = mapped_column(Vector(), nullable=False)
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
     # `metadata` is reserved on declarative classes, so map the column explicitly.
     chunk_metadata: Mapped[dict] = mapped_column(

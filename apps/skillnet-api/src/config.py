@@ -71,12 +71,14 @@ class Settings(BaseSettings):
     # otra dimension es una migracion mas re-ingesta, no una edicion del `.env` — la
     # 0008 cuenta lo que paso cuando esto se leia del entorno.
     #
-    # El par por defecto es coherente: `multilingual-e5-base` son 768 dims, y sigue
-    # siendo familia e5, asi que `EmbeddingService` le pone los prefijos `query:` y
-    # `passage:` que estos modelos necesitan para no perder precision.
+    # El par por defecto esta elegido para que **una clave de OpenAI baste**:
+    # `text-embedding-3-small` sale 1536 de fabrica, pero acepta el parametro
+    # `dimensions` y `EmbeddingService` lo envia, asi que devuelve 768 y encaja con la
+    # columna sin migrar nada. Un modelo cuya salida nativa ya sea de 768
+    # (multilingual-e5-base, nomic-embed-text, paraphrase-multilingual) vale igual.
     EMBEDDING_BASE_URL: str = "https://api.openai.com/v1"
     EMBEDDING_API_KEY: str = ""
-    EMBEDDING_MODEL: str = "multilingual-e5-base"
+    EMBEDDING_MODEL: str = "text-embedding-3-small"
     EMBEDDING_DIMENSIONS: int = 768
 
     # TTS (provider-agnostic, follows the litellm pattern)

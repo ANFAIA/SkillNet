@@ -41,6 +41,7 @@ from src.routes import (
     settings as settings_routes,
 )
 from src.routes.ext import skills as ext_skills
+from src.services.embedding_check import check_embedding_dimensions
 
 configure_logging(settings.LOG_LEVEL)
 logger = get_logger(__name__)
@@ -60,6 +61,10 @@ async def lifespan(app: FastAPI):
             org = await ensure_organization(session)
             await maybe_create_admin(session)
             await maybe_create_a2a_api_key(session, org)
+            # Despues de `run_migrations`, que es lo que fija la dimension de la columna.
+            # Solo avisa: sin embeddings el resto del producto sigue en pie, asi que
+            # tumbar el arranque seria peor que el fallo que se quiere hacer visible.
+            await check_embedding_dimensions(session)
     except Exception as exc:  # noqa: BLE001
         logger.error("Bootstrap (org/admin) failed: %s", exc)
 

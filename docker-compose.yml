@@ -30,16 +30,25 @@ services:
       SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env}
       SESSION_LIFETIME_SECONDS: ${SESSION_LIFETIME_SECONDS:-604800}
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      # Los modelos llevan default AQUI, no cadena vacia. `${X:-}` deja la variable
+      # *puesta y vacia*, y una cadena vacia gana al default de src/config.py, asi que
+      # con `${LLM_MODEL:-}` poner solo LLM_API_KEY en el .env no arrancaba nada: el
+      # default del codigo no se aplicaba nunca dentro de Docker. Con estos valores,
+      # una clave de OpenAI es lo unico obligatorio.
       LLM_BASE_URL: ${LLM_BASE_URL:-}
       LLM_API_KEY: ${LLM_API_KEY:-}
-      LLM_MODEL: ${LLM_MODEL:-}
+      LLM_MODEL: ${LLM_MODEL:-gpt-4o-mini}
       LLM_GENERATION_MODEL: ${LLM_GENERATION_MODEL:-}
       LLM_TUTOR_MODEL: ${LLM_TUTOR_MODEL:-}
       LLM_EVAL_MODEL: ${LLM_EVAL_MODEL:-}
       EMBEDDING_BASE_URL: ${EMBEDDING_BASE_URL:-}
       EMBEDDING_API_KEY: ${EMBEDDING_API_KEY:-}
-      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-}
-      EMBEDDING_DIMENSIONS: ${EMBEDDING_DIMENSIONS:-384}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-text-embedding-3-small}
+      # 768 y no 384: lo fija la migracion 0008 en la columna `document_chunks.embedding`.
+      # Si no coinciden, cada insercion de chunk falla — la comprobacion del arranque
+      # (src/main.py) lo dice en claro en vez de dejarlo salir al ingerir el primer
+      # documento.
+      EMBEDDING_DIMENSIONS: ${EMBEDDING_DIMENSIONS:-768}
       # Dynamic courses (v2). Defaults keep production behaving exactly as today.
       DYNAMIC_COURSES_MODE: ${DYNAMIC_COURSES_MODE:-off}
       RENDER_BACKEND: ${RENDER_BACKEND:-openui}
@@ -88,7 +97,10 @@ services:
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
       LLM_MODEL: fixture/local
       EMBEDDING_MODEL: fixture/local
-      EMBEDDING_DIMENSIONS: ${EMBEDDING_DIMENSIONS:-384}
+      # Igual que en `api`: la dimension la manda la migracion 0008. El embebedor de
+      # fixtures genera vectores de este tamano, asi que un 384 aqui rompe la insercion
+      # contra una columna de 768 igual que lo haria un proveedor real.
+      EMBEDDING_DIMENSIONS: ${EMBEDDING_DIMENSIONS:-768}
       DYNAMIC_COURSES_MODE: "on"
       RENDER_BACKEND: ${RENDER_BACKEND:-openui}
       LLM_FIXTURE_DIR: ${LLM_FIXTURE_DIR:-src/llm/fixture_data}

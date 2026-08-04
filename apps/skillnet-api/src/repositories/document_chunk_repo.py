@@ -9,16 +9,37 @@ from __future__ import annotations
 import uuid
 from collections.abc import Sequence
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models import Document, DocumentChunk
 from src.repositories.base import BaseRepository
 
+#: La dimension que Postgres aplica a `document_chunks.embedding`. `atttypmod` guarda el
+#: numero tal cual para el tipo `vector` (a diferencia de `varchar`, que le suma 4), y se
+#: lee de `pg_attribute` porque `information_schema.columns` no expone la dimension de un
+#: tipo de extension. Devuelve -1 si la columna es `vector` sin restringir.
+_DIMENSIONS_SQL = text(
+    "SELECT atttypmod FROM pg_attribute "
+    "WHERE attrelid = 'document_chunks'::regclass AND attname = 'embedding' "
+    "AND NOT attisdropped"
+)
+
 
 class DocumentChunkRepository(BaseRepository[DocumentChunk]):
     def __init__(self, session: AsyncSession) -> None:
         super().__init__(session, DocumentChunk)
+
+    async def column_dimensions(self) -> int | None:
+        """La dimension que la base exige, o ``None`` si la columna no la restringe.
+
+        La fuente de verdad para el tamano de los embeddings. ``DocumentChunk.embedding``
+        ya no la declara, precisamente para que este sea el unico sitio donde vive.
+        """
+        typmod = (await self.session.execute(_DIMENSIONS_SQL)).scalar_one_or_none()
+        if typmod is None or typmod < 0:
+            return None
+        return int(typmod)
 
     async def add_chunk(
         self,
