@@ -18,11 +18,15 @@ function SendIcon() {
 /**
  * What the answer stands on, in one line, in the learner's words.
  *
- * `chunks` gets no note: a cited passage is the normal case and the citations are
- * printed right underneath. The other two are the ones a person has to be told
- * about — `document` because "it is somewhere in your course material" is a
- * weaker claim than "it is on page 3", and `general` because it is not company
- * material at all.
+ * `chunks` and `chunks_fts` get no note, and deliberately share that: both are a
+ * located passage with its citation printed right underneath, and whether the
+ * passage was found by cosine distance or by Spanish full-text search is a fact
+ * about our infrastructure, not about how much the learner should trust the answer.
+ * The distinction is still carried on `data-grounding` for tests and debugging.
+ *
+ * The other two are the ones a person has to be told about — `document` because
+ * "it is somewhere in your course material" is a weaker claim than "it is on
+ * page 3", and `general` because it is not company material at all.
  */
 const GROUNDING_LABEL: Partial<Record<ChatGrounding, string>> = {
   document: 'De la documentacion de tus cursos, leida entera',

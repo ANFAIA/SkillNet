@@ -263,13 +263,19 @@ export interface Citation {
  * Where an answer came from, decided by the server's grounding ladder
  * (`src/services/retrieval.py`) and never by the model.
  *
- * - `chunks` — retrieved passages of a company document.
+ * - `chunks` — retrieved passages of a company document, found by vector search.
+ * - `chunks_fts` — the same thing, found by Spanish full-text search instead. A
+ *   separate value rather than a reuse of `chunks`, because this label is the
+ *   *guarantee* of provenance — the one thing about an answer the model cannot
+ *   influence — and collapsing two retrievers into one name would make it claim a
+ *   semantic match where there was a lexical one. It is also the rung that runs
+ *   whenever no real embedding provider is configured, which is the local default.
  * - `document` — the whole document of one of the learner's courses. A real
  *   answer, but not a located passage, and the UI says so.
  * - `general` — nothing in the company's material covers it. The tutor answers
  *   anyway, from general knowledge, and this is the label that keeps that honest.
  */
-export type ChatGrounding = 'chunks' | 'document' | 'general'
+export type ChatGrounding = 'chunks' | 'chunks_fts' | 'document' | 'general'
 
 export interface ChatMessage {
   id: string

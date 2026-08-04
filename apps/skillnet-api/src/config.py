@@ -63,10 +63,23 @@ class Settings(BaseSettings):
     LLM_FIXTURE_MODE: Literal["replay", "record"] = "replay"
 
     # Embeddings
+    #
+    # `EMBEDDING_DIMENSIONS` **describe** el esquema, no lo decide: la columna
+    # `document_chunks.embedding` es `vector(768)` fijado a mano en la migracion 0008,
+    # y el modelo declara `Vector(settings.EMBEDDING_DIMENSIONS)`, asi que este numero
+    # tiene que coincidir con la base o cada INSERT de chunk falla. Cambiar de modelo a
+    # otra dimension es una migracion mas re-ingesta, no una edicion del `.env` — la
+    # 0008 cuenta lo que paso cuando esto se leia del entorno.
+    #
+    # El par por defecto esta elegido para que **una clave de OpenAI baste**:
+    # `text-embedding-3-small` sale 1536 de fabrica, pero acepta el parametro
+    # `dimensions` y `EmbeddingService` lo envia, asi que devuelve 768 y encaja con la
+    # columna sin migrar nada. Un modelo cuya salida nativa ya sea de 768
+    # (multilingual-e5-base, nomic-embed-text, paraphrase-multilingual) vale igual.
     EMBEDDING_BASE_URL: str = "https://api.openai.com/v1"
     EMBEDDING_API_KEY: str = ""
-    EMBEDDING_MODEL: str = "multilingual-e5-small"
-    EMBEDDING_DIMENSIONS: int = 384
+    EMBEDDING_MODEL: str = "text-embedding-3-small"
+    EMBEDDING_DIMENSIONS: int = 768
 
     # TTS (provider-agnostic, follows the litellm pattern)
     TTS_PROVIDER: str = "disabled"

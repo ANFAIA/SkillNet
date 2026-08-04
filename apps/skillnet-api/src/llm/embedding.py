@@ -77,12 +77,29 @@ class EmbeddingService:
     def dimensions(self) -> int:
         return self._config.dimensions
 
+    @property
+    def _accepts_dimensions(self) -> bool:
+        """Whether the provider lets us ask for a specific output size.
+
+        Only OpenAI's ``text-embedding-3-*`` family, deliberately narrow: sending
+        ``dimensions`` to a provider that does not know the parameter is an error, not an
+        ignored hint, so an allowlist is the safe direction to be wrong in.
+
+        This is what makes "one OpenAI key and it works" true. ``text-embedding-3-small``
+        returns 1536 components by default, the column is ``vector(768)``, and without
+        asking for 768 every chunk insert fails — the API truncates for us (Matryoshka
+        embeddings, so a truncated vector is still a usable one, not a broken one).
+        """
+        return "text-embedding-3" in self._config.model
+
     def _kwargs(self, texts: list[str]) -> dict[str, Any]:
         kwargs: dict[str, Any] = {"model": self._config.model, "input": texts}
         if self._config.api_base:
             kwargs["api_base"] = self._config.api_base
         if self._config.api_key:
             kwargs["api_key"] = self._config.api_key
+        if self._accepts_dimensions:
+            kwargs["dimensions"] = self._config.dimensions
         return kwargs
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=2, min=2, max=30), reraise=True)
