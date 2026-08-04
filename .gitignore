@@ -1,6 +1,10 @@
 # Secrets & local config
 .env
 *.local
+# Per-machine agent instructions: absolute paths, local model servers, OS-specific
+# workarounds. `*.local` above does not match this, and CLAUDE.md ships to everyone who
+# clones — a stranger's agent following someone else's paths is worse than no instructions.
+CLAUDE.local.md
 
 # Python
 .venv/

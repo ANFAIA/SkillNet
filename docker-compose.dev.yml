@@ -43,9 +43,15 @@ services:
       # is broken, DELETES IT and rebuilds it inside the container — destroying the
       # host venv the test suite runs from. Measured, not theoretical.
       - /app/.venv
+    # The `127.0.0.1:` prefix is what separates "exposed to my machine" from "exposed to
+    # the network". Docker publishes on 0.0.0.0 by default, and it does so with DNAT
+    # rules that **bypass the host firewall** on both Windows and Linux — so "I have a
+    # firewall" is not protection here. Port 8000 skips nginx, meaning no security
+    # headers and no upload limit; 5432 is Postgres with the password from `.env`. On a
+    # shared network that was an open database.
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
 
   db:
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"

@@ -23,10 +23,30 @@ async def agent_card(request: Request) -> JSONResponse:
     return JSONResponse(AGENT_CARD)
 
 
-def _verify_auth(request: Request) -> bool:
-    """Verify bearer token if A2A_AUTH_KEY is configured."""
+def require_auth_key() -> None:
+    """Refuse to serve without a bearer token. Called once, at startup.
+
+    The previous behaviour was ``if not A2A_AUTH_KEY: return True``, i.e. an unset token
+    meant *authentication disabled*, and the default was unset. That is the wrong
+    direction to fail in: this server holds a ``SKILLNET_API_KEY`` scoped
+    ``skills:read``/``skills:write``/``users:read``, so an open instance hands those
+    privileges to whoever reaches the port.
+
+    Checked here rather than with ``${A2A_AUTH_KEY:?}`` in compose because Compose
+    interpolates every service in the file whatever the active profiles are, so a required
+    variable on an optional service breaks plain ``docker compose up`` for everybody.
+    """
     if not settings.A2A_AUTH_KEY:
-        return True  # no auth configured
+        raise RuntimeError(
+            "A2A_AUTH_KEY is not set. This server exposes SkillNet data to external "
+            "agents and will not start without a bearer token. Generate one with "
+            '`python -c "import secrets; print(secrets.token_urlsafe(32))"` and put it in '
+            "the .env as A2A_AUTH_KEY."
+        )
+
+
+def _verify_auth(request: Request) -> bool:
+    """Verify the bearer token. ``require_auth_key`` guarantees one is configured."""
     auth = request.headers.get("authorization", "")
     if not auth.startswith("Bearer "):
         return False
@@ -139,6 +159,9 @@ app = Starlette(
         Route("/.well-known/agent.json", agent_card, methods=["GET"]),
         Route("/", jsonrpc_handler, methods=["POST"]),
     ],
+    # Fail at startup, not on the first unauthenticated request: a server that is open to
+    # everyone must never reach the point of listening.
+    on_startup=[require_auth_key],
 )
 
 

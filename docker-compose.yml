@@ -27,14 +27,19 @@ services:
     restart: unless-stopped
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-skillnet}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-skillnet}
-      SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env}
+      SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env (32 caracteres o mas)}
       SESSION_LIFETIME_SECONDS: ${SESSION_LIFETIME_SECONDS:-604800}
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
-      # Los modelos llevan default AQUI, no cadena vacia. `${X:-}` deja la variable
-      # *puesta y vacia*, y una cadena vacia gana al default de src/config.py, asi que
-      # con `${LLM_MODEL:-}` poner solo LLM_API_KEY en el .env no arrancaba nada: el
-      # default del codigo no se aplicaba nunca dentro de Docker. Con estos valores,
-      # una clave de OpenAI es lo unico obligatorio.
+      # Without this line the `.env` never arrives: no service declares `env_file`, and
+      # `.dockerignore` keeps `.env` out of the image, so pydantic's `env_file=".env"`
+      # finds nothing inside the container. Only the keys listed here get through — which
+      # is why "set DEBUG=true to see Swagger" could never have worked.
+      DEBUG: ${DEBUG:-false}
+      # Model defaults live HERE, not as an empty string. `${X:-}` leaves the variable
+      # *set and empty*, and an empty string beats the default in src/config.py — so with
+      # `${LLM_MODEL:-}` putting only LLM_API_KEY in `.env` started nothing: the code's
+      # default never applied inside Docker. With these values an OpenAI key is the only
+      # thing actually required.
       LLM_BASE_URL: ${LLM_BASE_URL:-}
       LLM_API_KEY: ${LLM_API_KEY:-}
       LLM_MODEL: ${LLM_MODEL:-gpt-4o-mini}
@@ -44,10 +49,10 @@ services:
       EMBEDDING_BASE_URL: ${EMBEDDING_BASE_URL:-}
       EMBEDDING_API_KEY: ${EMBEDDING_API_KEY:-}
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-text-embedding-3-small}
-      # 768 y no 384: lo fija la migracion 0008 en la columna `document_chunks.embedding`.
-      # Si no coinciden, cada insercion de chunk falla — la comprobacion del arranque
-      # (src/main.py) lo dice en claro en vez de dejarlo salir al ingerir el primer
-      # documento.
+      # 768 rather than 384: migration 0008 pins it on `document_chunks.embedding`. A
+      # mismatch makes every chunk insert fail, so the startup check in src/main.py says
+      # so in plain words instead of letting it surface when the first document is
+      # ingested — where it hides inside the ingestion `except`.
       EMBEDDING_DIMENSIONS: ${EMBEDDING_DIMENSIONS:-768}
       # Dynamic courses (v2). Defaults keep production behaving exactly as today.
       DYNAMIC_COURSES_MODE: ${DYNAMIC_COURSES_MODE:-off}
@@ -89,17 +94,22 @@ services:
       dockerfile: docker/api.Dockerfile
     restart: unless-stopped
     profiles: [fixtures]
+    # `127.0.0.1:` is mandatory here. This service shares `SECRET_KEY` and the database
+    # with `api`, so its session cookies are valid against the real API; it has no nginx
+    # in front of it; and it forces `DYNAMIC_COURSES_MODE: on`, so it answers v2 routes
+    # that production 404s. Publishing it on 0.0.0.0 was a second complete API open to
+    # the network, carrying the first one's privileges.
     ports:
-      - "${API_FIXTURES_PORT:-8001}:8000"
+      - "127.0.0.1:${API_FIXTURES_PORT:-8001}:8000"
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-skillnet}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-skillnet}
       SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env}
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
       LLM_MODEL: fixture/local
       EMBEDDING_MODEL: fixture/local
-      # Igual que en `api`: la dimension la manda la migracion 0008. El embebedor de
-      # fixtures genera vectores de este tamano, asi que un 384 aqui rompe la insercion
-      # contra una columna de 768 igual que lo haria un proveedor real.
+      # As in `api`: migration 0008 owns the dimension. The fixture embedder generates
+      # vectors of exactly this size, so a 384 here breaks the insert against a 768
+      # column just as a real provider would.
       EMBEDDING_DIMENSIONS: ${EMBEDDING_DIMENSIONS:-768}
       DYNAMIC_COURSES_MODE: "on"
       RENDER_BACKEND: ${RENDER_BACKEND:-openui}
@@ -117,21 +127,18 @@ services:
     depends_on:
       db:
         condition: service_healthy
-
-  # ── Local Embeddings (optional — enable with: docker compose --profile ollama up)
-  ollama:
-    image: ollama/ollama:latest
-    restart: unless-stopped
-    profiles: [ollama]
-    volumes:
-      - ollama:/root/.ollama
-    command: serve
     healthcheck:
-      test: ["CMD-SHELL", "ollama list 2>/dev/null"]
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8000/health').raise_for_status()"]
       interval: 10s
       timeout: 5s
-      retries: 10
+      retries: 5
       start_period: 30s
+
+  # The `ollama` service used to live here and moved to `docker-compose.ollama.yml`,
+  # because here it could not work: a `profiles:` entry cannot change the environment of
+  # *another* service, so nothing ever told `api` it existed. It also published no port,
+  # pulled no model, and its healthcheck (`ollama list`) exits 0 with zero models — it
+  # reported itself healthy while being unusable. See that file for the path that works.
 
   # ── A2A Agent Server (optional) ─────────────────────────────
   a2a:
@@ -141,7 +148,7 @@ services:
     restart: unless-stopped
     profiles: [a2a]
     ports:
-      - "${A2A_PORT:-5000}:5000"
+      - "127.0.0.1:${A2A_PORT:-5000}:5000"
     environment:
       API_URL: http://api:8000
       SKILLNET_API_KEY: ${A2A_INTERNAL_API_KEY:-}
@@ -149,6 +156,11 @@ services:
       LLM_API_KEY: ${LLM_API_KEY:-}
       LLM_MODEL: ${A2A_LLM_MODEL:-gpt-4o-mini}
       A2A_PORT: "5000"
+      # Required, and enforced by the server rather than by `${...:?}` here. Compose
+      # interpolates the *whole* file regardless of which profiles are active, so a `:?`
+      # on an optional service breaks plain `docker compose up` for everyone. The check
+      # belongs in `apps/skillnet-a2a/src/main.py`, which now refuses to start without a
+      # token instead of silently accepting every caller.
       A2A_AUTH_KEY: ${A2A_AUTH_KEY:-}
       A2A_AGENT_URL: ${A2A_AGENT_URL:-http://localhost:5000}
     depends_on:
@@ -166,10 +178,15 @@ services:
     depends_on:
       api:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
 volumes:
   pgdata:
     driver: local
   uploads:
     driver: local
-  ollama:

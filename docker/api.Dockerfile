@@ -6,9 +6,17 @@ FROM python:3.12-slim AS builder
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
+# `PYTHONUNBUFFERED` and `PYTHONDONTWRITEBYTECODE` are set in the *builder* stage on
+# purpose, so `runtime` inherits them too. They used to live only in `runtime`, and
+# `docker-compose.dev.yml` builds `target: builder` — so development lost two things:
+# anything written to `stdout` (uvicorn's access log, arriving in 8 KB blocks, and every
+# `print()`, which is how the seed scripts talk when run without a TTY), and `.pyc` files
+# were written into the bind-mounted host source tree.
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
-    UV_PROJECT_ENVIRONMENT=/app/.venv
+    UV_PROJECT_ENVIRONMENT=/app/.venv \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
 
 WORKDIR /app
 
@@ -36,9 +44,14 @@ COPY --from=builder /app/alembic /app/alembic
 COPY --from=builder /app/alembic.ini /app/alembic.ini
 COPY --from=builder /app/pyproject.toml /app/pyproject.toml
 
+# `uv` in runtime too, and it is not a 30 MB indulgence: without it `uv run ...` works
+# only in the development image and bare `python ...` only in the production one, because
+# the venv `PATH` is added just below. Every documented command was therefore valid in
+# exactly one of the two modes — including the two the README prints three lines apart.
+# With this, `docker compose exec api uv run python -m src.seed_demo_v2` works in both.
+COPY --from=builder /usr/local/bin/uv /usr/local/bin/uv
+
 ENV PATH="/app/.venv/bin:$PATH" \
-    PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
     UPLOAD_DIR=/data/uploads
 
 RUN mkdir -p /data/uploads && chown -R skillnet:skillnet /data /app

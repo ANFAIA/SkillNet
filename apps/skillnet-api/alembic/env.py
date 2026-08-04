@@ -1,6 +1,7 @@
 """Alembic async environment."""
 
 import asyncio
+import os
 from logging.config import fileConfig
 
 from alembic import context
@@ -13,7 +14,28 @@ from src.models import Base
 config = context.config
 
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    # Only when Alembic owns the process. Applying `alembic.ini`'s logging inside the API
+    # silenced the application, and it did so in two ways at once:
+    #
+    #  1. `logging.config.fileConfig` defaults `disable_existing_loggers` to **True**, so
+    #     it switched off every logger the app had already created.
+    #  2. `alembic.ini` sets `[logger_root] level = WARNING`, which it applies to the root
+    #     logger — so even a re-created logger emitted nothing below WARNING.
+    #
+    # Migrations run from the app's own lifespan (`src/main.py` calls `configure_logging()`
+    # at import and `run_migrations()` a few lines into the lifespan), so everything logged
+    # *after* migrating vanished: the org/admin bootstrap, the embedding-dimension check
+    # that exists precisely to make a silent misconfiguration loud, and LLM errors.
+    #
+    # The symptom was misleading in both directions. Alembic's own lines kept appearing —
+    # its loggers are created after this call and `alembic.ini` sets them to INFO — so the
+    # log looked alive, and it read like output buffering. It was not.
+    #
+    # `context.is_offline_mode()` is not the test that matters here; what matters is
+    # whether this process is `alembic` on a terminal or the API server. The API sets
+    # `SKILLNET_APP_LOGGING`, and only it does.
+    if not os.getenv("SKILLNET_APP_LOGGING"):
+        fileConfig(config.config_file_name)
 
 target_metadata = Base.metadata
 
