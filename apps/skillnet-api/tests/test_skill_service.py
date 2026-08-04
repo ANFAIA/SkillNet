@@ -62,7 +62,8 @@ async def test_who_knows_returns_matching_users(service, repo, org_id):
     """who_knows should return users with the skill."""
     user1 = _make_user("Maria", org_id)
     user2 = _make_user("Juan", org_id)
-    skill = _make_skill("Python", org_id)
+    # No `_make_skill` here: `repo` is an `AsyncMock`, so the skill row is never looked up
+    # and building one only made it look as if the lookup were being exercised.
 
     repo.who_knows.return_value = [
         (user1, SkillLevel.HIGH),

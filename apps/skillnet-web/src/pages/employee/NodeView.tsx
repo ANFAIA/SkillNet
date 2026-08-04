@@ -46,10 +46,10 @@ import type { UiFormat } from '../../types/node-render'
  *    The reservation is also *released* rather than dropped: `RESERVED_CONTENT_PX`
  *    animates to zero on the arriving content, so a lesson shorter than the skeleton
  *    settles instead of snapping the footer up under the learner's eyes. And the blocks
- *    themselves resolve in sequence (`arriving`, see `blocks/blockArrival.ts`) — but
- *    **only when the learner waited for them**. A pinned render served from cache paints
- *    on the first frame with no entrance at all, because a node re-opened tomorrow should
- *    feel like it never closed.
+ *    themselves resolve in sequence (`arriving`, see `blocks/blockArrival.ts`) whenever
+ *    the learner has not asked for less motion — `useReducedMotion()` is the OS setting
+ *    *or* the answer given in the onboarding wizard, and it is the only thing that
+ *    silences the cadence since `fc6a348` removed the held previous version.
  * 3. **The deterministic opening line** (§6.2 Q2, §3.3). `goal` never travels to the LLM;
  *    it is rendered here, above the lesson, from a template. Rule 7 of §5.2 guarantees
  *    the program itself starts with a `lead` block, so the injected line reads as the

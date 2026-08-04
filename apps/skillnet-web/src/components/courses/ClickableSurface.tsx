@@ -31,6 +31,22 @@ export const BLOCK_SELECTOR = 'p,li,h1,h2,h3,h4,h5,h6,blockquote,td,th,dd,dt'
 export const NO_EXPLAIN_SELECTOR =
   'button, a, input, textarea, select, label, [role="radio"], [role="button"], [data-no-explain]'
 
+/**
+ * Marks a surface's own subtree, so the **nearest** surface handles a click and the ones
+ * above it do not.
+ *
+ * Surfaces nest, in two ways that are both live today: the tutor bubble is wrapped by
+ * `Chat.tsx` and again by `ChatAnswer`, and `ExplainModal` — which the surface renders
+ * itself — wraps its panel in a surface of its own. React events propagate through the
+ * React tree, not the DOM tree, so `createPortal` does not break the second case either.
+ *
+ * Without this test every ancestor surface ran the same handler on the same click: two
+ * popovers stacked on the same word and **two `POST /explain`**, i.e. two generations
+ * billed for one click. `contains()` cannot tell the cases apart — the outer surface
+ * really does contain the word.
+ */
+const SURFACE_ATTR = 'data-explain-surface'
+
 /** Word characters, including the internal apostrophe/hyphen the tokenizer keeps. */
 const WORD_CHAR = /[\p{L}\p{N}'’-]/u
 
@@ -230,6 +246,13 @@ export function ClickableSurface({
 
   const close = useCallback(() => setSelection(null), [])
 
+  /** Is `node` in *this* surface rather than in a surface nested inside it? */
+  const owns = useCallback((node: Node | null): boolean => {
+    const element = node instanceof Element ? node : node?.parentElement
+    if (!element || !ref.current?.contains(element)) return false
+    return element.closest(`[${SURFACE_ATTR}]`) === ref.current
+  }, [])
+
   // Escape closes from anywhere, including while the popover has focus.
   useEffect(() => {
     if (!selection) return
@@ -265,7 +288,7 @@ export function ClickableSurface({
       if (native && !native.isCollapsed && native.toString().trim()) return
 
       const entity = (event.target as HTMLElement).closest('.entity')
-      if (!(entity instanceof HTMLElement) || !ref.current?.contains(entity)) return
+      if (!(entity instanceof HTMLElement) || !owns(entity)) return
       const term = entity.textContent?.trim() ?? ''
       if (!term) return
       if (skipTerm && term.toLowerCase() === skipTerm.toLowerCase()) return
@@ -281,7 +304,7 @@ export function ClickableSurface({
         viaKeyboard: event.detail === 0,
       })
     },
-    [blockContext, skipTerm],
+    [blockContext, owns, skipTerm],
   )
 
   const onMouseUp = useCallback(
@@ -292,7 +315,7 @@ export function ClickableSurface({
       const native = window.getSelection()
       if (!native || native.isCollapsed || native.rangeCount === 0) return
       const liveRange = native.getRangeAt(0)
-      if (!ref.current?.contains(liveRange.commonAncestorContainer)) return
+      if (!owns(liveRange.commonAncestorContainer)) return
 
       const range = liveRange.cloneRange()
       expandRangeToWords(range) // a 2+ word selection is explained as one unit
@@ -325,7 +348,7 @@ export function ClickableSurface({
         justDragged.current = false
       }, 0)
     },
-    [blockContext, skipTerm],
+    [blockContext, owns, skipTerm],
   )
 
   const handleVerMas = useCallback(
@@ -344,7 +367,13 @@ export function ClickableSurface({
   const closeModal = useCallback(() => setModalTerm(null), [])
 
   return (
-    <div ref={ref} onClick={onClick} onMouseUp={onMouseUp} className={className}>
+    <div
+      ref={ref}
+      onClick={onClick}
+      onMouseUp={onMouseUp}
+      className={className}
+      data-explain-surface=""
+    >
       {children}
       <PhraseBand range={selection?.range ?? null} zIndex={layer} />
       {selection && (

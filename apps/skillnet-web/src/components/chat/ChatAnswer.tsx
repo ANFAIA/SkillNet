@@ -42,11 +42,20 @@ export function ChatAnswer({ message }: ChatAnswerProps) {
     // validation failed. If content looks like code, keep dots. If it's clearly
     // not code (validation failed, model wrote prose), show it as markdown.
     if (!message.isStreaming && message.content && !/^\s*root\s*=/.test(message.content)) {
-      return <ChatMarkdown content={message.content} isStreaming={false} />
+      // Same surface as the prose branch below, for the same reason: `ChatMarkdown`
+      // paints every word as an `.entity` with `cursor: pointer`, so rendering it bare
+      // makes the answer *look* click-to-explain and do nothing. This branch is the
+      // admin assistant's normal outcome — the model wrote prose instead of a program —
+      // and `Chat.tsx` does not wrap the bubble, so nothing else supplies the handler.
+      return (
+        <ClickableSurface nodeId={null}>
+          <ChatMarkdown content={message.content} isStreaming={false} />
+        </ClickableSurface>
+      )
     }
 
     return (
-      <span className="typing-dots" aria-label="Generando respuesta">
+      <span className="typing-dots" role="status" aria-label="Generando respuesta">
         <span /><span /><span />
       </span>
     )
@@ -55,7 +64,7 @@ export function ChatAnswer({ message }: ChatAnswerProps) {
   // Two-phase layout in flight (tutor path).
   if (message.isLayingOut) {
     return (
-      <span className="typing-dots" aria-label="Preparando formato">
+      <span className="typing-dots" role="status" aria-label="Preparando formato">
         <span /><span /><span />
       </span>
     )
@@ -73,7 +82,7 @@ export function ChatAnswer({ message }: ChatAnswerProps) {
     <ClickableSurface nodeId={null}>
       <ChatMarkdown content={message.content} isStreaming={message.isStreaming} />
       {message.isStreaming && !message.content && (
-        <span className="typing-dots" aria-label="Escribiendo">
+        <span className="typing-dots" role="status" aria-label="Escribiendo">
           <span /><span /><span />
         </span>
       )}

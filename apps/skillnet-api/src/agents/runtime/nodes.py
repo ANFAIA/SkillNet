@@ -96,7 +96,7 @@ from src.repositories.learner_profile_repo import LearnerProfileRepository
 from src.repositories.llm_usage_repo import log_usage
 from src.repositories.node_render_repo import NodeRenderRepository
 from src.services.learner_profile_service import is_calibrating
-from src.services.mastery_service import MASTERED, target_bloom, threshold_for
+from src.services.mastery_service import target_bloom, threshold_for
 from src.services.node_render_service import NodeRenderService, build_render_key
 
 logger = get_logger(__name__)
@@ -461,9 +461,16 @@ def _plain_or_none(value: object) -> str | None:
 # --------------------------------------------------------------------------- #
 @runtime_node_error_wrapper("probe_gate")
 async def probe_gate(state: NodeRuntimeState) -> dict:
-    """Skip the node when the learner already mastered it. Zero tokens (§2, §7.3)."""
+    """Skip the node when the learner already mastered it. Zero tokens (§2, §7.3).
+
+    **Currently bypassed** (``b9a06c3``, 2026-07-28): the gate always routes to content
+    generation, so the "a mastered node costs zero tokens" guarantee of §2/§7.3 is not in
+    force. The frontend bypasses the probe phase in the same commit, so re-enabling this
+    is a product decision that has to be taken on both sides at once.
+    """
     # BYPASS: pre-assessment gate disabled — always route to content generation.
-    # To re-enable, restore the original two lines:
+    # To re-enable, restore the original two lines (and the `MASTERED` import from
+    # `src.services.mastery_service`, dropped because nothing else here uses it):
     #   node_state = state.get("node_state") or {}
     #   mastered = str(node_state.get("state")) == MASTERED
     mastered = False

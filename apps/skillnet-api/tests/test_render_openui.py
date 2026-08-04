@@ -861,21 +861,21 @@ def test_an_unknown_backend_is_a_render_error() -> None:
         get_render_backend("a2tl")
 
 
-def test_the_parser_accepts_exactly_the_nine_emittable_components() -> None:
+def test_the_parser_accepts_exactly_the_emittable_components() -> None:
     """What ``GRAMMAR``'s ``comp_name`` production used to assert, asserted on behaviour.
 
     The EBNF is no longer a constant (the prompt comes from ``library.prompt()`` now), so
     the closed catalogue is checked where it is enforced: in ``parse``.
+
+    The list was nine names until the interactive components landed (``d1aaddc``
+    ``SliderExploration``, ``b32b8ff`` ``DragOrder``/``HotspotImage``/``StepByStepReveal``,
+    and the rest of §5.3's second half); the test kept the nine and so stopped running with
+    the suite. It is spelled out rather than derived from ``UI_KIT.llm_names`` on purpose —
+    a literal list is what makes an accidental addition to the kit fail here — and then
+    cross-checked against the kit so a *deliberate* addition fails in exactly one place.
     """
-    accepted = set()
-    for name in (*UI_KIT.names, "Timeline", "SandboxHTML"):
-        try:
-            BACKEND.parse(f'root = {name}()\n')
-        except RenderParseError as exc:
-            if "unknown component" in str(exc):
-                continue
-            accepted.add(name)  # rejected for arity/props, so the name itself is known
-    assert accepted == {
+    emittable = {
+        # The original nine of §5.3.
         "Stack",
         "TextContent",
         "Card",
@@ -885,4 +885,28 @@ def test_the_parser_accepts_exactly_the_nine_emittable_components() -> None:
         "CodeBlock",
         "Chart",
         "QuizItem",
+        # The interactive half, added since.
+        "SliderExploration",
+        "ManipulableGraph",
+        "BeforeAfter",
+        "DragOrder",
+        "HotspotImage",
+        "StepByStepReveal",
+        "AudioExplanation",
+        "PronunciationExercise",
+        "DiagramBuilder",
     }
+    # ``Markdown`` is in the kit but ``llm_emittable=False``: reachable from
+    # ``fallback_seed`` only, so the parser must refuse it like any unknown name.
+    assert "Markdown" not in emittable
+    assert set(UI_KIT.llm_names) == emittable
+
+    accepted = set()
+    for name in (*UI_KIT.names, "Timeline", "SandboxHTML"):
+        try:
+            BACKEND.parse(f'root = {name}()\n')
+        except RenderParseError as exc:
+            if "unknown component" in str(exc):
+                continue
+            accepted.add(name)  # rejected for arity/props, so the name itself is known
+    assert accepted == emittable

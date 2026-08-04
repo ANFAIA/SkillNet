@@ -129,9 +129,48 @@ describe('ChatAnswer', () => {
     expect(container.textContent).toContain('Los alergenos son 14.')
   })
 
+  /**
+   * The wait indicator is the three bouncing dots, not the words "Escribiendo...".
+   *
+   * `cc7751e` replaced the literal sentence on purpose, and the dots are what every
+   * other chat uses; printing both would be the same information twice. What the
+   * sentence *did* carry, and what a bare animated span does not, is a name for anyone
+   * not looking at the screen — so the claim asserted here is the accessible one.
+   */
   it('says it is writing before the first token', () => {
-    render(<ChatAnswer message={answer({ content: '', isStreaming: true })} />)
-    expect(screen.getByText('Escribiendo...')).toBeInTheDocument()
+    const { container } = render(<ChatAnswer message={answer({ content: '', isStreaming: true })} />)
+
+    const dots = screen.getByRole('status', { name: 'Escribiendo' })
+    expect(dots).toHaveClass('typing-dots')
+    // Three dots, and no sentence duplicating them.
+    expect(dots.querySelectorAll('span')).toHaveLength(3)
+    expect(container.textContent).toBe('')
+  })
+
+  it('drops the dots as soon as the first token lands', () => {
+    const { rerender } = render(<ChatAnswer message={answer({ content: '', isStreaming: true })} />)
+    expect(screen.getByRole('status', { name: 'Escribiendo' })).toBeInTheDocument()
+
+    rerender(<ChatAnswer message={answer({ content: 'Los', isStreaming: true })} />)
+    expect(screen.queryByRole('status', { name: 'Escribiendo' })).toBeNull()
+  })
+
+  /**
+   * The admin path, where the streamed text is OpenUI Lang and the `ui` event may never
+   * come. When it does not, the bubble falls back to the text — and that text has to be
+   * inside the explain surface, exactly like the tutor's prose. `ChatMarkdown` paints
+   * every word as an `.entity` with `cursor: pointer`, and `admin/Chat.tsx` does not wrap
+   * the bubble, so a bare fallback made every word of an admin answer look clickable and
+   * do nothing.
+   */
+  it('keeps a generative answer that came out as prose inside the explain surface', () => {
+    const { container } = render(
+      <ChatAnswer message={answer({ generative: true, isStreaming: false })} />,
+    )
+
+    expect(textOf(container, 'strong')).toBe('Escucha la pregunta')
+    expect(container.querySelector('[data-explain-surface]')).not.toBeNull()
+    expect(container.querySelector('.entity')).not.toBeNull()
   })
 })
 

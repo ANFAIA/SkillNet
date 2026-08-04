@@ -120,8 +120,7 @@ function renderPage() {
       <MemoryRouter initialEntries={[`/admin/curso/${COURSE_ID}/esquema`]}>
         <Routes>
           <Route path="/admin/curso/:id/esquema" element={<CourseSchema />} />
-          {/* Sentinels for the two back-links. */}
-          <Route path="/admin/curso/:id" element={<div>PREVIEW</div>} />
+          {/* Sentinel for the back-link. */}
           <Route path="/admin/contenido" element={<div>CONTENIDO</div>} />
         </Routes>
       </MemoryRouter>
@@ -308,23 +307,26 @@ describe('CourseSchema', () => {
     })
   })
 
-  describe('back-links', () => {
-    it('returns to the course it belongs to', async () => {
+  /**
+   * There is one back-link, and it is an icon.
+   *
+   * The header used to carry two text buttons, "← Contenido" and "← Volver al curso".
+   * `8a25f7f` collapsed them into a single chevron to the content list, so the screen has
+   * no affordance back to the course itself any more — the browser's back button is it.
+   * The test for that second link is gone with the link; what has to keep working is that
+   * the one remaining affordance is reachable by name, which for an icon-only button means
+   * its `aria-label` and nothing else.
+   */
+  describe('back-link', () => {
+    it('returns to the course list, and says so without a visible label', async () => {
       installFetch({ schema: schema() })
       renderPage()
 
       await screen.findByLabelText('Titulo')
-      await userEvent.click(screen.getByRole('button', { name: '← Volver al curso' }))
+      const back = screen.getByRole('button', { name: 'Volver a contenido' })
+      expect(back).toHaveTextContent('')
 
-      expect(await screen.findByText('PREVIEW')).toBeInTheDocument()
-    })
-
-    it('still returns to the course list', async () => {
-      installFetch({ schema: schema() })
-      renderPage()
-
-      await screen.findByLabelText('Titulo')
-      await userEvent.click(screen.getByRole('button', { name: '← Contenido' }))
+      await userEvent.click(back)
 
       expect(await screen.findByText('CONTENIDO')).toBeInTheDocument()
     })

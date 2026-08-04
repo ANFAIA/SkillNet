@@ -43,7 +43,11 @@ import pytest
 import src.llm as llm_package
 from src.agents.runtime import errors as runtime_errors
 from src.agents.runtime import nodes as runtime_nodes
-from src.agents.runtime.graph import build_node_graph, route_after_validate
+from src.agents.runtime.graph import (
+    build_node_graph,
+    route_after_gate,
+    route_after_validate,
+)
 from src.agents.runtime.nodes import (
     build_fallback_spec,
     missing_answer_keys,
@@ -983,25 +987,66 @@ async def test_load_context_failing_says_so_once_and_promises_nothing(
 
 
 # --------------------------------------------------------------------------------------
-# The gate: mastered nodes cost nothing
+# The gate: currently bypassed, so mastered nodes cost exactly what fresh ones do
 # --------------------------------------------------------------------------------------
-async def test_a_mastered_node_is_skipped_without_a_single_token(
-    harness: Harness, monkeypatch: pytest.MonkeyPatch
+async def test_a_mastered_node_is_generated_anyway_because_the_gate_is_bypassed(
+    harness: Harness,
 ) -> None:
+    """The gate of §2/§7.3 is **off** since ``b9a06c3`` ("bypass pre-assessment gate",
+    2026-07-28): ``probe_gate`` hardcodes ``mastered = False`` and the frontend starts every
+    node in the content phase, so there is no probe left to reach ``mastered`` before the
+    lesson exists either.
+
+    This test used to assert the opposite — a mastered node skipped without a single token —
+    and was one of the six that stopped running when the suite needed ``--ignore``. It is
+    not restored to the old assertion, because turning the gate back on is a product
+    decision that has to be taken on both sides at once (see the note on ``probe_gate``).
+    What it pins instead is the price of the bypass, stated out loud: the two LLM calls that
+    §2 promised a returning learner would not pay.
+    """
     harness.session.node_state = make_state(NodeState.MASTERED)
-
-    def never(org_settings, tier):  # pragma: no cover - must not be reached
-        raise AssertionError("a mastered node must not reach an LLM")
-
-    monkeypatch.setattr(runtime_nodes, "tier_llm", never)
 
     final = await run_graph(make_request_state())
 
-    assert final["mastered"] is True
-    assert final["current_step"] == "skip_node"
+    assert final["mastered"] is False
+    assert final["current_step"] == "persist_render"
+    assert harness.payloads("node_skipped") == []
+    # The cost of the bypass, in the currency §2 was written in.
+    assert [row.use_case for row in harness.session.usage] == ["decide_formato", "genera_ui"]
+    assert harness.render().status is NodeRenderStatus.READY
+
+
+def test_the_skip_route_is_still_wired_for_the_day_the_gate_comes_back() -> None:
+    """``probe_gate`` is bypassed; the router it feeds is not modified.
+
+    Worth its own assertion precisely because the test above no longer exercises the skip
+    branch: without this, re-enabling the gate would be a one-line change into code with no
+    coverage at all.
+    """
+    assert route_after_gate({"mastered": True}) == "skip"
+    assert route_after_gate({"mastered": False}) == "generate"
+    assert route_after_gate({"mastered": True, "error": "boom"}) == "error"
+
+
+async def test_skip_node_hands_the_claimed_key_back_instead_of_parking_it(
+    harness: Harness,
+) -> None:
+    """The other half of the dormant skip path: ``skip_node`` released the row it claimed.
+
+    Driven directly rather than through the graph, because the bypassed gate can no longer
+    route to it. Leaving a ``generating`` row behind would read like a crashed worker for
+    the cheapest outcome the pipeline has.
+    """
+    claimed = await run_graph(make_request_state())
+    render_id = claimed["render_id"]
+    harness.render().status = NodeRenderStatus.GENERATING
+
+    result = await runtime_nodes.skip_node(
+        make_request_state(render_id=render_id)  # type: ignore[arg-type]
+    )
+
+    assert result["current_step"] == "skip_node"
     assert harness.payloads("node_skipped") == [{"reason": "mastered"}]
-    assert harness.session.usage == []
-    # The claimed cache_key is handed back rather than parked in `generating`.
     assert harness.render().status is NodeRenderStatus.PENDING
     assert "already mastered" in (harness.render().error_message or "")
 

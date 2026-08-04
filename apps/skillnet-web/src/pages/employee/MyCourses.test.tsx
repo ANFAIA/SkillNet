@@ -79,6 +79,16 @@ function renderPage() {
   )
 }
 
+/**
+ * The list lands on **Pendientes** since `dbd7804`, and these fixtures are courses already
+ * under way — which is the state a node-based course spends its life in, so changing them
+ * to make the landing tab do the work would be testing the marker on the wrong course.
+ * Every test therefore opens the tab its fixtures live in first.
+ */
+async function openInProgress() {
+  await userEvent.click(screen.getByRole('button', { name: 'En progreso' }))
+}
+
 beforeEach(() => {
   mockFetch.mockReset()
   vi.stubGlobal('fetch', mockFetch)
@@ -99,6 +109,7 @@ describe('MyCourses — node-based courses', () => {
       }),
     ])
     renderPage()
+    await openInProgress()
 
     expect(await screen.findByText('Politica de devoluciones v2')).toBeInTheDocument()
     expect(screen.getByText('Por nodos')).toBeInTheDocument()
@@ -107,6 +118,7 @@ describe('MyCourses — node-based courses', () => {
   it('leaves a static course unmarked', async () => {
     installFetch([enrollment()])
     renderPage()
+    await openInProgress()
 
     expect(await screen.findByText('Devoluciones en tienda')).toBeInTheDocument()
     expect(screen.queryByText('Por nodos')).toBeNull()
@@ -123,6 +135,7 @@ describe('MyCourses — node-based courses', () => {
       }),
     ])
     renderPage()
+    await openInProgress()
 
     await screen.findByText('Devoluciones en tienda')
     expect(screen.getAllByText('Por nodos')).toHaveLength(1)
@@ -138,6 +151,7 @@ describe('MyCourses — node-based courses', () => {
       }),
     ])
     renderPage()
+    await openInProgress()
 
     await userEvent.click(await screen.findByText('Politica de devoluciones v2'))
     expect(await screen.findByText('CURSO')).toBeInTheDocument()

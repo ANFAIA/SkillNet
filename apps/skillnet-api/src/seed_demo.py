@@ -181,7 +181,7 @@ async def seed() -> None:
         print(f"  Assigned {a_count} skills to admin, {e_count} skills to employee")
         print()
         print("Done! Demo accounts:")
-        print(f"  Admin:    admin (use the email/password from your .env)")
+        print("  Admin:    admin (use the email/password from your .env)")
         print(f"  Employee: {DEMO_EMPLOYEE_EMAIL} / {DEMO_EMPLOYEE_PASSWORD}")
 
     await engine.dispose()
