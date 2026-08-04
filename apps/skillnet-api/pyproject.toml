@@ -18,6 +18,17 @@ dependencies = [
     "litellm<1.92",
     "langgraph",
     "tiktoken",
+    # PDF text extraction. `pypdf` stays for page counting and as the fallback reader;
+    # `pdfplumber` is what makes a PDF section-aware, and the existing stack genuinely
+    # cannot do it: heading detection needs the font size of each character, and
+    # `pypdf.extract_text()` returns a bare string. Without headings a PDF chunk has no
+    # section in its citation, loses the chunker's contextual prefix, and — the silent
+    # one — can never match `similarity_search_by_headings`, which is how the v2 runtime
+    # scopes retrieval to `course_nodes.source_headings`.
+    #
+    # MIT, like its `pdfminer.six` backend. PyMuPDF is the faster option and was
+    # rejected on licence: it is AGPL-3.0 and this repository ships Apache-2.0.
+    "pdfplumber",
     "pypdf",
     "python-docx",
     "tenacity",

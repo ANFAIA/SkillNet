@@ -7,16 +7,29 @@ Since 2026-07-27 this module also owns the **grounding ladder** the tutor answer
 because "what did we find" and "what do we do when we found nothing" are the same
 decision and splitting them is how the second half gets forgotten:
 
-    retrieved chunks  >  the whole document of an enrolled course  >  general knowledge
+    vector chunks  >  lexical chunks  >  the whole document  >  general knowledge
 
-The middle rung is the one the demo needed. ``src/seed_demo_v2.py`` keeps every document
-at or under 5 pages on purpose — that is the ``full_text`` branch of ``load_source_context``
-(§4.2), which needs no embeddings — so the three seeded documents have ``full_text`` and
-**zero** ``document_chunks``. RAG retrieved nothing and the tutor refused, with the answer
-sitting in a column nobody read. A small document with no chunks is a legitimate
-production state (it is also what an org gets when the embedding provider was down during
-ingestion: ``src/services/ingestion.py`` logs it and stores ``full_text`` alone), so the
-fix belongs here and not only in the seed.
+**Which rung actually runs, measured rather than assumed.** With the local default
+``EMBEDDING_MODEL=fixture/local`` the first rung is dead: ``FixtureEmbeddingService``
+hashes each text into a random unit vector, so query and passage are orthogonal in
+expectation. On the seeded corpus, *"cuales son los 14 alergenos de declaracion
+obligatoria"* scores 0.099 / 0.075 / 0.073 / 0.066 / 0.049 against
+:data:`SIMILARITY_FLOOR` = 0.25 — and the *best* of those five is a passage about
+counting the cash float while the allergen manual ranks last. Zero of five survive, which
+is the floor doing exactly its job.
+
+Rung 2 is why the lexical rung exists at all. ``document_chunks.search_vector`` (a Spanish
+``tsvector``) and its GIN index were created with the table and then queried by nothing,
+while this module reimplemented a worse version of the same idea in Python — see
+:func:`rank_documents`, counting terms over whole documents. Rung 2 hands that job back to
+Postgres, at chunk granularity, with stemming, and yields a located passage carrying a
+heading and a page instead of 8 000 characters of pasted document.
+
+Rung 3 is still needed: a document too small to have been chunked is a legitimate
+production state (``src/seed_demo_v2.py`` keeps documents at or under 5 pages so they take
+the ``full_text`` branch of ``load_source_context``, §4.2), and it is also what an org gets
+when the embedding provider was down during ingestion — ``src/services/ingestion.py`` logs
+that and stores ``full_text`` alone.
 
 The bottom rung is not a failure mode either: a user with no enrolments at all must still
 get an answer. What never happens again is a refusal.
@@ -88,14 +101,26 @@ class GroundedContext:
     is a request, not a guarantee — this field is the guarantee.
     """
 
-    grounding: Literal["chunks", "document", "general"]
+    grounding: Literal["chunks", "chunks_fts", "document", "general"]
     context: str = ""
     citations: list[dict] = field(default_factory=list)
 
 
+def chunk_score(chunk: dict) -> float:
+    """The chunk's own score, whichever retriever produced it.
+
+    Vector hits carry ``similarity`` (cosine), lexical hits carry ``rank``
+    (``ts_rank_cd``). Never both, and the two are not comparable — this only has to order
+    a list that came from one retriever, not reconcile the two.
+    """
+    if "similarity" in chunk:
+        return float(chunk["similarity"])
+    return float(chunk.get("rank", 0.0))
+
+
 def dedupe_chunks(chunks: list[dict]) -> list[dict]:
-    """Drop near-duplicate chunks, keeping the highest-similarity version."""
-    ordered = sorted(chunks, key=lambda c: c.get("similarity", 0.0), reverse=True)
+    """Drop near-duplicate chunks, keeping the highest-scoring version."""
+    ordered = sorted(chunks, key=chunk_score, reverse=True)
     seen: set[str] = set()
     result: list[dict] = []
     for chunk in ordered:
@@ -170,6 +195,37 @@ async def retrieve_context(
         document_ids=document_ids,
     )
     rows = usable_chunks(rows)
+    if not rows:
+        return "", []
+    return assemble_context(order_chunks(dedupe_chunks(rows)))
+
+
+async def retrieve_context_fts(
+    db: AsyncSession,
+    *,
+    org_id: uuid.UUID,
+    query: str,
+    top_k: int = 5,
+    document_ids: Sequence[uuid.UUID] | None = None,
+) -> tuple[str, list[dict]]:
+    """Lexical sibling of :func:`retrieve_context`: same assembly, no embeddings.
+
+    No ``usable_chunks`` call, and that is not an omission. The floor exists to detect
+    vectors with no semantics in them; a row is here precisely *because* Postgres matched
+    the query's lexemes against the passage's, which is signal by construction.
+
+    :func:`query_terms` does the preprocessing, so accent folding and the Spanish stopword
+    list live in exactly one place — the same one :func:`rank_documents` already used. It
+    matters twice here: the corpus is written without accents while a learner types them,
+    and without stripping stopwords the OR query would match every chunk containing "de".
+    """
+    terms = sorted(query_terms(query))
+    if not terms:
+        return "", []
+    repo = DocumentChunkRepository(db)
+    rows = await repo.search_chunks_fts(
+        org_id=org_id, terms=terms, top_k=top_k, document_ids=document_ids
+    )
     if not rows:
         return "", []
     return assemble_context(order_chunks(dedupe_chunks(rows)))
@@ -346,7 +402,20 @@ async def ground_question(
         if context:
             return GroundedContext("chunks", context, citations)
     except Exception as exc:  # noqa: BLE001 - a dead embedder must not cost the answer
-        logger.warning("Chunk retrieval failed, falling back to whole documents: %s", exc)
+        logger.warning("Chunk retrieval failed, falling back to lexical search: %s", exc)
+
+    # Rung 1.5: the same chunks, found lexically. Tried before whole documents because a
+    # located passage with a heading and a page beats 8 000 characters of pasted document
+    # on every axis that matters — prompt budget, citation precision, and the reader's
+    # ability to check the answer.
+    try:
+        context, citations = await retrieve_context_fts(
+            db, org_id=org_id, query=query, top_k=top_k, document_ids=document_ids
+        )
+        if context:
+            return GroundedContext("chunks_fts", context, citations)
+    except Exception as exc:  # noqa: BLE001 - same contract as the vector rung above
+        logger.warning("Lexical retrieval failed, falling back to whole documents: %s", exc)
 
     if whole_documents == "org":
         documents = await org_documents(db, org_id=org_id)

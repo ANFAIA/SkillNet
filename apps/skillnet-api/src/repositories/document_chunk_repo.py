@@ -70,6 +70,84 @@ class DocumentChunkRepository(BaseRepository[DocumentChunk]):
         )
         return (await self.session.execute(query)).scalars().all()
 
+    async def search_chunks_fts(
+        self,
+        *,
+        org_id: uuid.UUID,
+        terms: Sequence[str],
+        top_k: int = 5,
+        document_ids: Sequence[uuid.UUID] | None = None,
+    ) -> list[dict]:
+        """Org-scoped Spanish full-text search over chunks.
+
+        The lexical half of retrieval, and the one that actually works today: with
+        ``EMBEDDING_MODEL=fixture/local`` every vector is a hashed random unit vector, so
+        :meth:`similarity_search` returns five arbitrary passages and they are all dropped
+        by ``retrieval.SIMILARITY_FLOOR``. This query needs no embedding provider at all.
+
+        **``terms``, already cleaned, and OR-ed — not the raw question.** Handing the
+        question straight to ``websearch_to_tsquery`` is the obvious version and it
+        retrieves nothing: that parser joins words with ``&``, so *"cuales son los 14
+        alergenos de declaracion obligatoria"* compiles to
+        ``'cual' & '14' & 'alergen' & 'declaracion' & 'obligatori'`` and no single chunk
+        holds all five. Measured on the seeded corpus: 0 rows for the question, 7 rows for
+        ``alergenos`` alone. OR-ing the terms and letting the rank discriminate puts the
+        section actually titled *"Los catorce alergenos de declaracion obligatoria"* at
+        the top.
+
+        Still ``websearch_to_tsquery`` and not ``to_tsquery``, via its ``or`` keyword: the
+        websearch parser never raises on its input, and these terms are interpolated into
+        a query string. ``to_tsquery`` would turn a stray ``&`` into a syntax error and an
+        unbalanced quote into an exception on a user-typed question.
+
+        ``ts_rank_cd`` rather than ``ts_rank``: cover density rewards matches that sit
+        *close together*, which is what distinguishes a passage genuinely about the
+        question from one that happens to mention each of its words in a different
+        paragraph.
+
+        Returns the same dict shape as :meth:`similarity_search` so ``assemble_context``
+        consumes either without knowing which ran, but scores under ``rank`` rather than
+        ``similarity`` — the two are not on a comparable scale, and putting a
+        ``ts_rank_cd`` value (typically well under 0.5) into ``similarity`` would feed it
+        to a cosine threshold of 0.25 and filter away almost every row.
+        """
+        if not terms:
+            return []
+
+        tsquery = func.websearch_to_tsquery("spanish", " or ".join(terms))
+        rank = func.ts_rank_cd(DocumentChunk.search_vector, tsquery)
+        statement = (
+            select(
+                DocumentChunk.id,
+                DocumentChunk.document_id,
+                DocumentChunk.content,
+                DocumentChunk.chunk_metadata,
+                Document.title.label("document_title"),
+                rank.label("rank"),
+            )
+            .join(Document, Document.id == DocumentChunk.document_id)
+            .where(
+                Document.org_id == org_id,
+                DocumentChunk.search_vector.op("@@")(tsquery),
+            )
+        )
+        if document_ids:
+            statement = statement.where(DocumentChunk.document_id.in_(document_ids))
+        statement = statement.order_by(rank.desc()).limit(top_k)
+
+        rows = (await self.session.execute(statement)).all()
+        return [
+            {
+                "chunk_id": row.id,
+                "document_id": row.document_id,
+                "content": row.content,
+                "metadata": row.chunk_metadata,
+                "document_title": row.document_title,
+                "rank": float(row.rank),
+            }
+            for row in rows
+        ]
+
     async def similarity_search(
         self,
         *,
