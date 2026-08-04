@@ -16,6 +16,29 @@ from src.deps.auth import CurrentUser
 from src.schemas.tts import TTSRequest, TTSVoicesResponse
 from src.services.tts_service import TTSService, get_tts_provider
 
+# Map frontend voice styles to provider-specific voice IDs.
+_VOICE_STYLE_MAP: dict[str, dict[str, str]] = {
+    "openai": {"neutral": "alloy", "warm": "nova", "formal": "onyx"},
+    "elevenlabs": {
+        "neutral": "21m00Tcm4TlvDq8ikWAM",  # Rachel
+        "warm": "EXAVITQu4vr4xnSDxMaL",     # Sarah
+        "formal": "pNInz6obpgDQGcFmaJgB",    # Adam
+    },
+    "google": {
+        "neutral": "es-ES-Wavenet-B",
+        "warm": "es-ES-Wavenet-C",
+        "formal": "es-ES-Wavenet-D",
+    },
+}
+
+
+def _resolve_voice(voice: str) -> str | None:
+    """Turn a style name into a provider voice ID, or pass through."""
+    if voice == "default":
+        return None
+    provider_map = _VOICE_STYLE_MAP.get(settings.TTS_PROVIDER, {})
+    return provider_map.get(voice, voice)
+
 router = APIRouter(prefix="/tts", tags=["TTS"])
 
 
@@ -40,7 +63,7 @@ async def synthesize(body: TTSRequest, user: CurrentUser) -> Response:
     service = _get_service()
     audio = await service.synthesize(
         text=body.text,
-        voice=body.voice if body.voice != "default" else None,
+        voice=_resolve_voice(body.voice),
         language=body.language,
     )
     return Response(content=audio, media_type="audio/mpeg")

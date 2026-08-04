@@ -66,7 +66,7 @@ class TestAvailableVoices:
         voices = provider.available_voices()
         assert len(voices) > 0
 
-    def test_elevenlabs_voices_stub(self):
+    def test_elevenlabs_voices_are_non_empty(self):
         provider = ElevenLabsProvider(api_key="test")
         voices = provider.available_voices()
         assert len(voices) >= 1
@@ -204,12 +204,64 @@ class TestTTSService:
 
 
 # ---------------------------------------------------------------------------
-# ElevenLabs stub raises
+# ElevenLabs provider (mocked HTTP)
 # ---------------------------------------------------------------------------
 
 
-class TestElevenLabsStub:
-    async def test_elevenlabs_synthesize_raises_not_implemented(self):
-        provider = ElevenLabsProvider(api_key="test")
-        with pytest.raises(NotImplementedError):
-            await provider.synthesize("hello", "default", "es")
+class _FakeResponse:
+    def __init__(self, status_code: int, content: bytes = b"", text: str = "") -> None:
+        self.status_code = status_code
+        self.content = content
+        self.text = text
+
+
+class _FakeAsyncClient:
+    """Stands in for ``httpx.AsyncClient`` so the provider never hits the network."""
+
+    def __init__(self, response: _FakeResponse) -> None:
+        self._response = response
+        self.calls: list[dict[str, object]] = []
+
+    async def __aenter__(self) -> _FakeAsyncClient:
+        return self
+
+    async def __aexit__(self, *exc: object) -> bool:
+        return False
+
+    async def post(self, url: str, headers: dict | None = None, json: dict | None = None) -> _FakeResponse:
+        self.calls.append({"url": url, "headers": headers, "json": json})
+        return self._response
+
+
+class TestElevenLabsProvider:
+    async def test_synthesize_posts_to_the_voice_endpoint_and_returns_the_audio(self):
+        client = _FakeAsyncClient(_FakeResponse(200, content=b"audio-bytes"))
+
+        with patch("httpx.AsyncClient", return_value=client):
+            audio = await ElevenLabsProvider(api_key="secret").synthesize("hola", "voice-id", "es")
+
+        assert audio == b"audio-bytes"
+        call = client.calls[0]
+        # The voice ID belongs in the path, not the body — a voice in the body is
+        # silently ignored by ElevenLabs and you get the default voice instead.
+        assert str(call["url"]).endswith("/text-to-speech/voice-id")
+        assert call["headers"]["xi-api-key"] == "secret"  # type: ignore[index]
+        assert call["json"]["text"] == "hola"  # type: ignore[index]
+        assert call["json"]["language_code"] == "es"  # type: ignore[index]
+        assert call["json"]["model_id"] == "eleven_multilingual_v2"  # type: ignore[index]
+
+    async def test_a_failed_request_raises_with_the_provider_detail(self):
+        client = _FakeAsyncClient(_FakeResponse(401, text="invalid api key"))
+
+        with patch("httpx.AsyncClient", return_value=client):
+            with pytest.raises(RuntimeError, match="401") as err:
+                await ElevenLabsProvider(api_key="bad").synthesize("hola", "voice-id", "es")
+
+        # The provider's own message is what tells you it is the key and not the
+        # voice, so it has to survive into the error.
+        assert "invalid api key" in str(err.value)
+
+    def test_voices_are_non_empty_and_shaped_like_the_other_providers(self):
+        voices = ElevenLabsProvider(api_key="test").available_voices()
+        assert len(voices) > 0
+        assert all("id" in v and "name" in v for v in voices)
