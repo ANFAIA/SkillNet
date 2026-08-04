@@ -106,6 +106,9 @@ que cualquier medicion necesita retroceso exponencial (el banco ya lo trae).
 
 ## 6. Git
 
-- Rama de trabajo actual: `feat/dynamic-courses`. Se integra en `main` por PR.
+- **Una sola rama: `main`.** No hay ramas de larga duracion. `feat/dynamic-courses` existio
+  hasta el 2026-08-04 y se borro ya fusionada, cuando llevaba 34 commits por detras de
+  `main`; esta linea decia que era "la rama de trabajo actual" mucho despues de dejar de
+  serlo, que es como una rama muerta sobrevive.
 - Formato de commit: `type: descripcion` (feat, fix, docs, refactor, test, chore).
 - **Autoria solo de Jose. Sin `Co-Authored-By`.**
