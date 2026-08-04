@@ -283,6 +283,65 @@ body {
   .typing-dots span { animation: none; opacity: 0.5; }
 }
 
+/* ── Course generation in flight ───────────────────────────────
+   Two continuous loops for the wait screen of the course wizard
+   (`generation/GenerationProgress.tsx`). CSS rather than framer variants for the
+   same reason `shimmer` exists as a transform sweep: an infinite loop that never
+   re-renders React is the cheap version, and one `@media` guard covers both.
+
+   `gen-halo` is a ring leaving the active node — deliberately not Tailwind's
+   `animate-ping`/`animate-pulse` (banned in motion-system.md:437): it rides the
+   signature exit curve and fades before it reaches full size, so it reads as
+   emanating rather than blinking.
+
+   `gen-sweep` travels down the rail segment that leaves the active step, which is
+   what gives the wait a *direction*. The band is half the segment tall, so -100% to
+   200% carries it clear of both ends whatever height the row ends up with. */
+/* The stops are split on purpose: `transform` is defined only at the ends, so it
+   rides the signature curve out to full size, while `opacity` gets its own stop at
+   20% and fades across the rest. Tying both to the same two stops makes the ring
+   fade out before it is big enough to see — measured, the visible frames were all
+   at 2% opacity. */
+@keyframes gen-halo {
+  0%   { transform: scale(1);   opacity: 0; }
+  20%  { opacity: 0.55; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+
+@keyframes gen-sweep {
+  from { transform: translateY(-100%); }
+  to   { transform: translateY(200%); }
+}
+
+.gen-halo {
+  animation: gen-halo 1.6s var(--ease-base) infinite;
+}
+
+.gen-sweep {
+  animation: gen-sweep 1.5s var(--ease-base) infinite;
+}
+
+/* The component already declines to render either element under reduced motion, so
+   this is the belt to that braces — and it is the only guard that applies if the
+   markup is ever reused outside React. */
+@media (prefers-reduced-motion: reduce) {
+  .gen-halo,
+  .gen-sweep {
+    animation: none;
+    opacity: 0;
+  }
+}
+
+/* The other half of "reduced motion": the answer the learner gave in the onboarding
+   wizard (`users.accessibility.reduce_motion`), which no media query can see. It
+   travels as a data attribute on the container — see `hooks/useReducedMotion.ts`.
+   The dots are the case that needs it: unlike the halo and the sweep they are always
+   rendered, because they are the indicator, not the decoration. */
+[data-reduced-motion] .typing-dots span {
+  animation: none;
+  opacity: 0.5;
+}
+
 /* ── Scrollbars ──────────────────────────────────────────────
    Global rather than a utility class, because there are 18 scroll containers in the app
    and the one thing worse than an unstyled scrollbar is half of them being styled. The
