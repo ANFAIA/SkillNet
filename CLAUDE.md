@@ -53,9 +53,16 @@ docker compose exec api uv run python -m src.seed_demo_v2     # v2: panaderia-ca
 ```
 
 `seed_demo_v2` crea una pyme espanola completa: 5 empleados (4 con perfil de aprendizaje
-poblado, 1 a proposito sin el, para recorrer el wizard de onboarding), 3 documentos, 2 cursos
-dinamicos validados de 3 y 7 nodos, y 1 curso estatico v1 para comparar. Contrasena de todos
-los empleados: `espiga2026`. El admin usa el `ADMIN_EMAIL`/`ADMIN_PASSWORD` del `.env`.
+poblado, 1 a proposito sin el, para recorrer el wizard de onboarding), 3 documentos y 2 cursos
+dinamicos validados de 3 y 7 nodos. Contrasena de todos los empleados: `espiga2026`. El admin
+usa el `ADMIN_EMAIL`/`ADMIN_PASSWORD` del `.env`.
+
+**`uv run pytest -m integration` deja `document_chunks` vacia.** `test_migration_0005`
+hace upgrade -> downgrade -> upgrade, el downgrade pasa por la migracion 0008, y esa
+cambia la dimension del vector: no hay forma de conservar vectores de 768 componentes
+al volver a una columna de 384, asi que los borra. El esquema vuelve solo y correcto;
+los chunks no. Se recuperan relanzando el seed, y hasta entonces el tutor responde por
+los peldanos de abajo de la escalera (`src/services/retrieval.py`) sin citar pasajes.
 
 Es idempotente. `--refresh` es el bucle de calidad de contenido: se editan las especificaciones
 de los nodos en `src/seed_demo_v2.py`, se relanza con `--refresh`, y los campos de diseno de los
@@ -72,6 +79,9 @@ uv run ruff check src tests
 
 uv run python scripts/quality_bench.py --offline    # banco de calidad, sin clave
 uv run python scripts/quality_bench.py --repeat 3   # contra el proveedor del .env
+
+uv run python scripts/retrieval_bench.py            # banco de RECUPERACION (RAG)
+uv run python scripts/retrieval_bench.py --verbose  # + volcado de cada fallo
 ```
 
 El banco corre el pipeline real sobre 10 encargos fijos y saca aciertos a la primera /
