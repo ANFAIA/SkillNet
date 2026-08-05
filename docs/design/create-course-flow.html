@@ -1,0 +1,1452 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CreateCourse — Flujo paso a paso</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --bg-subtle: #f8fafc;
+    --bg-muted: #f1f5f9;
+    --text: #0f172a;
+    --text-secondary: #64748b;
+    --text-muted: #94a3b8;
+    --border: #e2e8f0;
+    --primary: #3661A5;
+    --primary-subtle: #EBF0F7;
+    --accent: #4BA862;
+    --accent-subtle: #EDF7EF;
+    --danger: #dc2626;
+    --warning: #d97706;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: Inter, -apple-system, system-ui, sans-serif;
+    color: var(--text);
+    background: var(--bg-subtle);
+    line-height: 1.6;
+    padding: 40px 24px;
+  }
+
+  .container { max-width: 1100px; margin: 0 auto; }
+
+  h1 {
+    font-size: 28px;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  h1 span { color: var(--text-muted); font-weight: 400; }
+
+  .subtitle {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin-bottom: 48px;
+  }
+
+  /* ── Section ── */
+  .section {
+    margin-bottom: 56px;
+  }
+  .section-title {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    margin-bottom: 20px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* ── State machine ── */
+  .state-machine {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    padding: 24px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow-x: auto;
+  }
+  .state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    min-width: 110px;
+  }
+  .state-box {
+    padding: 10px 16px;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    text-align: center;
+    background: var(--bg);
+    white-space: nowrap;
+  }
+  .state-box.active { border-color: var(--primary); background: var(--primary-subtle); color: var(--primary); }
+  .state-box.dynamic-only { border-color: var(--accent); background: var(--accent-subtle); color: #2d6e3e; }
+  .state-box.static-only { border-color: var(--warning); background: #fffbeb; color: var(--warning); }
+  .state-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-align: center;
+    max-width: 120px;
+  }
+  .arrow {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 60px;
+    gap: 2px;
+  }
+  .arrow-line {
+    font-size: 18px;
+    color: var(--text-muted);
+    line-height: 1;
+  }
+  .arrow-label {
+    font-size: 10px;
+    color: var(--text-secondary);
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  /* ── Phase card ── */
+  .phase-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 24px;
+    overflow: hidden;
+  }
+  .phase-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-subtle);
+  }
+  .phase-number {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--primary);
+    color: white;
+    font-size: 14px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .phase-name {
+    font-size: 16px;
+    font-weight: 600;
+  }
+  .phase-type {
+    font-size: 11px;
+    font-weight: 500;
+    padding: 2px 8px;
+    border-radius: 99px;
+    margin-left: auto;
+  }
+  .phase-type.morph { background: #ede9fe; color: #6d28d9; }
+  .phase-type.swap { background: #fef3c7; color: #92400e; }
+  .phase-type.standalone { background: var(--bg-muted); color: var(--text-secondary); }
+  .phase-body {
+    padding: 24px;
+  }
+
+  /* ── Visual mockup ── */
+  .mockup {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-subtle);
+    padding: 16px;
+    margin: 16px 0;
+    position: relative;
+  }
+  .mockup-label {
+    position: absolute;
+    top: -10px;
+    left: 12px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    background: var(--bg-subtle);
+    padding: 0 6px;
+  }
+
+  .two-cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .mini-card {
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    text-align: center;
+    background: var(--bg);
+  }
+  .mini-card.selected { border-color: var(--primary); background: var(--primary-subtle); }
+  .mini-card.morphed {
+    border-color: var(--primary);
+    background: var(--bg);
+    grid-column: 1 / -1;
+  }
+  .mini-card .icon { font-size: 24px; margin-bottom: 6px; }
+  .mini-card .card-title { font-size: 13px; font-weight: 500; }
+  .mini-card .card-sub { font-size: 11px; color: var(--text-muted); }
+
+  /* ── Code snippet ── */
+  .code {
+    background: #1e293b;
+    color: #e2e8f0;
+    padding: 16px;
+    border-radius: 6px;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 12px;
+    line-height: 1.7;
+    overflow-x: auto;
+    margin: 12px 0;
+  }
+  .code .comment { color: #64748b; }
+  .code .keyword { color: #93c5fd; }
+  .code .string { color: #86efac; }
+  .code .fn { color: #fbbf24; }
+  .code .type { color: #c4b5fd; }
+
+  /* ── Info boxes ── */
+  .info {
+    padding: 14px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    margin: 12px 0;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  .info.blue { background: var(--primary-subtle); border-left: 3px solid var(--primary); }
+  .info.green { background: var(--accent-subtle); border-left: 3px solid var(--accent); }
+  .info.amber { background: #fffbeb; border-left: 3px solid var(--warning); }
+  .info.red { background: #fef2f2; border-left: 3px solid var(--danger); }
+  .info-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+  .info strong { font-weight: 600; }
+
+  /* ── Detail grid ── */
+  .detail-grid {
+    display: grid;
+    grid-template-columns: 140px 1fr;
+    gap: 4px 16px;
+    font-size: 13px;
+    margin: 12px 0;
+  }
+  .detail-grid dt {
+    color: var(--text-muted);
+    font-weight: 500;
+    padding: 4px 0;
+  }
+  .detail-grid dd {
+    padding: 4px 0;
+  }
+
+  .tag {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 500;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .tag.state-tag { background: var(--primary-subtle); color: var(--primary); }
+  .tag.hook-tag { background: #ede9fe; color: #6d28d9; }
+  .tag.anim-tag { background: #fef3c7; color: #92400e; }
+  .tag.api-tag { background: var(--accent-subtle); color: #2d6e3e; }
+
+  /* ── Schema detail ── */
+  .schema-layout {
+    display: grid;
+    grid-template-columns: 160px 1fr;
+    gap: 12px;
+    margin: 12px 0;
+  }
+  .schema-sidebar {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    background: var(--bg);
+    font-size: 12px;
+  }
+  .schema-sidebar .sidebar-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .schema-sidebar .sidebar-item:last-child { border: none; }
+  .schema-nodes {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .schema-node {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    background: var(--bg);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .node-number {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--bg-muted);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .node-content { flex: 1; min-width: 0; }
+  .node-title { font-size: 13px; font-weight: 500; }
+  .node-summary { font-size: 11px; color: var(--text-muted); }
+  .node-badges { display: flex; gap: 6px; margin-top: 4px; }
+  .badge-crit { font-size: 10px; padding: 1px 6px; border-radius: 99px; }
+  .badge-crit.critical { background: var(--primary-subtle); color: var(--primary); }
+  .badge-crit.recommended { background: var(--accent-subtle); color: #2d6e3e; }
+
+  /* ── Flow diagram ── */
+  .flow {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin: 16px 0;
+  }
+  .flow-step {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 0;
+  }
+  .flow-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--primary);
+    flex-shrink: 0;
+    position: relative;
+  }
+  .flow-dot::after {
+    content: '';
+    position: absolute;
+    left: 4px;
+    top: 10px;
+    width: 2px;
+    height: 28px;
+    background: var(--border);
+  }
+  .flow-step:last-child .flow-dot::after { display: none; }
+  .flow-text { font-size: 13px; }
+  .flow-text code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    background: var(--bg-muted);
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+
+  /* ── Data flow ── */
+  .data-flow {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    margin: 16px 0;
+    flex-wrap: wrap;
+  }
+  .data-box {
+    flex: 1;
+    min-width: 150px;
+    padding: 14px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    text-align: center;
+    background: var(--bg);
+  }
+  .data-box .data-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+  }
+  .data-box .data-content {
+    font-size: 13px;
+    font-weight: 500;
+  }
+  .data-arrow {
+    display: flex;
+    align-items: center;
+    font-size: 20px;
+    color: var(--text-muted);
+    padding: 0 4px;
+  }
+
+  /* ── Animation explanation ── */
+  .anim-pair {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 16px 0;
+  }
+  .anim-box {
+    padding: 16px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+  }
+  .anim-box h4 {
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .anim-box p { font-size: 12px; color: var(--text-secondary); }
+
+  ul.clean {
+    list-style: none;
+    padding: 0;
+    margin: 8px 0;
+  }
+  ul.clean li {
+    font-size: 13px;
+    padding: 4px 0;
+    padding-left: 20px;
+    position: relative;
+  }
+  ul.clean li::before {
+    content: '';
+    position: absolute;
+    left: 4px;
+    top: 11px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--border);
+  }
+
+  .separator {
+    height: 1px;
+    background: var(--border);
+    margin: 40px 0;
+  }
+
+  /* Breadcrumb mockup */
+  .breadcrumb-mock {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    font-size: 16px;
+    font-weight: 600;
+    margin: 12px 0;
+  }
+  .breadcrumb-mock .muted { color: var(--text-muted); }
+  .breadcrumb-mock .active { color: var(--text); }
+  .breadcrumb-mock .clickable { color: var(--text-muted); cursor: pointer; text-decoration: underline; text-decoration-color: transparent; }
+  .breadcrumb-mock .clickable:hover { text-decoration-color: var(--text-muted); }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    margin: 12px 0;
+  }
+  th {
+    text-align: left;
+    padding: 8px 12px;
+    background: var(--bg-subtle);
+    border: 1px solid var(--border);
+    font-weight: 600;
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+  td {
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    vertical-align: top;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>CreateCourse.tsx <span>flujo paso a paso</span></h1>
+<p class="subtitle">
+  Como funciona el wizard de creacion de cursos: fases, animaciones, datos y decisiones.
+  <br>Archivo: <code>apps/skillnet-web/src/pages/admin/CreateCourse.tsx</code>
+</p>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">Maquina de estados</div>
+
+  <p style="font-size:14px; margin-bottom:16px;">
+    El componente tiene <strong>una sola variable de estado</strong> que controla todo:
+    <code style="background:var(--primary-subtle); color:var(--primary); padding:2px 6px; border-radius:4px;">phase: Phase</code>
+    donde <code>Phase = 'choose' | 'details' | 'schema' | 'generating' | 'review' | 'assign'</code>
+  </p>
+
+  <div class="state-machine">
+    <div class="state">
+      <div class="state-box active">choose</div>
+      <div class="state-label">Elegir origen</div>
+    </div>
+    <div class="arrow">
+      <div class="arrow-line">&rarr;</div>
+      <div class="arrow-label">click card + Continuar</div>
+    </div>
+    <div class="state">
+      <div class="state-box active">details</div>
+      <div class="state-label">Titulo, desc, modo</div>
+    </div>
+    <div class="arrow">
+      <div class="arrow-line">&rarr;</div>
+      <div class="arrow-label">Confirmar (dynamic)</div>
+    </div>
+    <div class="state">
+      <div class="state-box dynamic-only">schema</div>
+      <div class="state-label">Disenar esquema con IA</div>
+    </div>
+    <div class="arrow">
+      <div class="arrow-line">&rarr;</div>
+      <div class="arrow-label">Crear curso</div>
+    </div>
+    <div class="state">
+      <div class="state-box dynamic-only">assign</div>
+      <div class="state-label">Asignar empleados</div>
+    </div>
+  </div>
+
+  <div style="height:12px"></div>
+
+  <div class="state-machine">
+    <div class="state" style="min-width:80px">
+      <div class="state-box" style="opacity:0.4">details</div>
+    </div>
+    <div class="arrow">
+      <div class="arrow-line">&rarr;</div>
+      <div class="arrow-label">Confirmar (static)</div>
+    </div>
+    <div class="state">
+      <div class="state-box static-only">generating</div>
+      <div class="state-label">Pipeline v1</div>
+    </div>
+    <div class="arrow">
+      <div class="arrow-line">&rarr;</div>
+      <div class="arrow-label">SSE complete</div>
+    </div>
+    <div class="state">
+      <div class="state-box static-only">review</div>
+      <div class="state-label">Revisar contenido</div>
+    </div>
+    <div class="arrow">
+      <div class="arrow-line">&rarr;</div>
+      <div class="arrow-label">Siguiente</div>
+    </div>
+    <div class="state">
+      <div class="state-box static-only">assign</div>
+      <div class="state-label">Asignar empleados</div>
+    </div>
+  </div>
+
+  <div class="info blue" style="margin-top:16px">
+    <span class="info-icon">i</span>
+    <div>
+      <strong>Dos caminos.</strong> Si el admin elige <em>Personalizado</em> (dynamic), pasa por el editor de esquema.
+      Si elige <em>Clasico</em> (static), salta directo a generacion v1. El schema phase solo existe para cursos dinamicos.
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">Grupos de render</div>
+
+  <p style="font-size:14px; margin-bottom:16px;">
+    El componente tiene <strong>tres grupos de render</strong> segun la fase. Esto es importante para entender
+    que animaciones aplican donde.
+  </p>
+
+  <table>
+    <tr>
+      <th>Grupo</th>
+      <th>Fases</th>
+      <th>Como se renderiza</th>
+      <th>Animacion</th>
+    </tr>
+    <tr>
+      <td><strong>Morph flow</strong></td>
+      <td><span class="tag state-tag">choose</span> <span class="tag state-tag">details</span> <span class="tag state-tag">schema</span></td>
+      <td>Un solo bloque de JSX al final del componente, dentro de <code>&lt;LayoutGroup&gt;</code></td>
+      <td>
+        <span class="tag anim-tag">layoutId</span> para morph forward<br>
+        <span class="tag anim-tag">AnimatePresence</span> mode="wait" para swaps internos<br>
+        <span class="tag hook-tag">useInstantLayoutTransition</span> para backward
+      </td>
+    </tr>
+    <tr>
+      <td><strong>Generation</strong></td>
+      <td><span class="tag state-tag">generating</span> <span class="tag state-tag">review</span></td>
+      <td>Early returns al principio del render (lineas 567-595)</td>
+      <td>Sin animacion de transicion</td>
+    </tr>
+    <tr>
+      <td><strong>Assign</strong></td>
+      <td><span class="tag state-tag">assign</span></td>
+      <td>Early return (linea 597). Breadcrumb completo + fade in</td>
+      <td><span class="tag anim-tag">opacity fade</span> en entrada</td>
+    </tr>
+  </table>
+
+  <div class="info amber">
+    <span class="info-icon">!</span>
+    <div>
+      <strong>Los early returns rompen el morph.</strong> Cuando pasas de <code>schema</code> a <code>assign</code>,
+      el early return hace que el <code>&lt;LayoutGroup&gt;</code> se desmonte. El layoutId desaparece, no hay morph inverso.
+      Esto es intencionado: la fase assign es un contexto nuevo.
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">Fase 1: Choose</div>
+
+  <div class="phase-card">
+    <div class="phase-header">
+      <div class="phase-number">1</div>
+      <div class="phase-name">Elegir origen del curso</div>
+      <div class="phase-type morph">layoutId morph</div>
+    </div>
+    <div class="phase-body">
+
+      <dl class="detail-grid">
+        <dt>Estado React</dt>
+        <dd><code>phase = 'choose'</code>, <code>source = null | 'documentos' | 'cero'</code></dd>
+        <dt>Variable <code>expanded</code></dt>
+        <dd><code>false</code> (derivada: <code>phase === 'details' || phase === 'schema'</code>)</dd>
+        <dt>Render</dt>
+        <dd>Dos cards en grid 2 columnas. Ambas visibles.</dd>
+      </dl>
+
+      <div class="mockup">
+        <div class="mockup-label">Lo que ve el admin</div>
+        <div class="breadcrumb-mock">
+          <span class="active">Crear curso</span>
+        </div>
+        <div class="two-cards" style="margin-top:12px">
+          <div class="mini-card">
+            <div class="icon">&#128196;</div>
+            <div class="card-title">Tengo un documento</div>
+            <div class="card-sub">PDF, Word, Markdown</div>
+          </div>
+          <div class="mini-card selected">
+            <div class="icon">&#9998;</div>
+            <div class="card-title">Tengo una idea</div>
+            <div class="card-sub">La IA escribe el contenido</div>
+          </div>
+        </div>
+        <div style="text-align:center; margin-top:12px">
+          <span style="background:var(--primary); color:white; padding:6px 20px; border-radius:6px; font-size:13px; font-weight:500">Continuar</span>
+        </div>
+      </div>
+
+      <h4 style="font-size:14px; font-weight:600; margin:20px 0 8px">Como funciona el click</h4>
+
+      <div class="flow">
+        <div class="flow-step">
+          <div class="flow-dot"></div>
+          <div class="flow-text">Admin hace click en una card &rarr; <code>setSource('cero')</code> o <code>setSource('documentos')</code></div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-dot"></div>
+          <div class="flow-text">Click es toggle: si ya estaba seleccionada, <code>setSource(null)</code></div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-dot"></div>
+          <div class="flow-text">La card seleccionada tiene <code>border-primary + bg-primary-subtle</code></div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-dot"></div>
+          <div class="flow-text">Aparece boton "Continuar" (AnimatePresence fade). Click &rarr; <code>confirmSource()</code> &rarr; <code>setPhase('details')</code></div>
+        </div>
+      </div>
+
+      <h4 style="font-size:14px; font-weight:600; margin:20px 0 8px">layoutId: la clave del morph</h4>
+
+      <p style="font-size:13px; color:var(--text-secondary); margin-bottom:12px">
+        Cada card tiene un <code>layoutId</code> unico: <code>"source-card-documentos"</code> y <code>"source-card-cero"</code>.
+        Cuando <code>expanded</code> pasa a <code>true</code>, solo se renderiza la card seleccionada (la otra desaparece del DOM).
+        Framer Motion ve que el mismo <code>layoutId</code> ahora tiene un tamano/posicion diferente y <strong>anima automaticamente el cambio</strong> (tecnica FLIP).
+      </p>
+
+      <div class="code">
+<span class="comment">// Renderizado condicional — solo la card activa se queda</span>
+{<span class="keyword">activeCard</span> === <span class="string">'documentos'</span> || !<span class="keyword">expanded</span>} && (
+  &lt;<span class="type">motion.div</span>
+    <span class="fn">layoutId</span>=<span class="string">"source-card-documentos"</span>
+    <span class="fn">transition</span>={morphTransition.layout}
+    <span class="fn">style</span>={{ borderRadius: 8 }}  <span class="comment">// inline! no clase CSS</span>
+  &gt;
+    ...
+  &lt;/<span class="type">motion.div</span>&gt;
+)
+      </div>
+
+      <div class="info green">
+        <span class="info-icon">&#10003;</span>
+        <div>
+          <strong>borderRadius en style inline.</strong> Si usas una clase CSS (<code>rounded-lg</code>),
+          Framer Motion no puede animar el borderRadius durante el morph porque no lo "ve" como propiedad animable.
+          Con <code>style={{ borderRadius: 8 }}</code> si.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">Fase 2: Details</div>
+
+  <div class="phase-card">
+    <div class="phase-header">
+      <div class="phase-number">2</div>
+      <div class="phase-name">Rellenar datos del curso</div>
+      <div class="phase-type morph">mismo layoutId (card expandida)</div>
+    </div>
+    <div class="phase-body">
+
+      <dl class="detail-grid">
+        <dt>Estado React</dt>
+        <dd><code>phase = 'details'</code>, <code>expanded = true</code>, <code>activeCard = source</code></dd>
+        <dt>Lo que cambia</dt>
+        <dd>La card deja de ser un boton y pasa a ser un formulario. El contenido interno se swappea con <code>contentReveal</code> (opacity fade, delay 0.35s).</dd>
+        <dt>La otra card</dt>
+        <dd>No se renderiza. La condicion <code>activeCard === 'cero' || !expanded</code> es falsa para la card no seleccionada.</dd>
+      </dl>
+
+      <div class="mockup">
+        <div class="mockup-label">Lo que ve el admin</div>
+        <div class="breadcrumb-mock">
+          <span class="clickable">Crear curso</span>
+          <span class="muted">/</span>
+          <span class="active">Idea</span>
+        </div>
+        <div style="margin-top:12px">
+          <div class="mini-card morphed">
+            <div style="text-align:left">
+              <div style="display:flex; gap:8px; align-items:center; margin-bottom:12px">
+                <span style="color:var(--primary)">&#9998;</span>
+                <div>
+                  <div style="font-size:13px; font-weight:500">A partir de una idea</div>
+                  <div style="font-size:11px; color:var(--text-muted)">La IA escribe un documento fuente</div>
+                </div>
+              </div>
+              <div style="border:1px solid var(--border); border-radius:6px; padding:8px 12px; font-size:12px; color:var(--text-secondary); margin-bottom:10px">Nombre del curso: Seguridad Alimentaria</div>
+              <div style="border:1px solid var(--border); border-radius:6px; padding:8px 12px; font-size:12px; color:var(--text-muted); margin-bottom:10px; min-height:48px">Que quieres que cubra (opcional)</div>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px">
+                <div style="border:2px solid var(--primary); background:var(--primary-subtle); border-radius:6px; padding:8px; font-size:12px; font-weight:500">Personalizado</div>
+                <div style="border:1px solid var(--border); border-radius:6px; padding:8px; font-size:12px; color:var(--text-secondary)">Clasico</div>
+              </div>
+              <div style="background:var(--primary); color:white; text-align:center; padding:8px; border-radius:6px; font-size:13px; font-weight:500">Confirmar</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h4 style="font-size:14px; font-weight:600; margin:20px 0 8px">Breadcrumb acumulativo</h4>
+      <p style="font-size:13px; color:var(--text-secondary); margin-bottom:12px">
+        El breadcrumb no reemplaza el titulo, lo acumula. "Crear curso" sigue visible pero se vuelve
+        <code>text-text-muted</code> y clickable (lleva de vuelta a choose). Cada segmento nuevo
+        entra con <code>opacity + x fade</code> via AnimatePresence.
+      </p>
+
+      <h4 style="font-size:14px; font-weight:600; margin:20px 0 8px">Ir hacia atras: goBackToChoose</h4>
+
+      <div class="code">
+<span class="keyword">const</span> goBackToChoose = <span class="fn">useCallback</span>(() => {
+  <span class="fn">startInstant</span>(() => {         <span class="comment">// useInstantLayoutTransition</span>
+    <span class="fn">setPhase</span>(<span class="string">'choose'</span>)
+    <span class="fn">setSource</span>(<span class="keyword">null</span>)
+  })
+}, [startInstant])
+      </div>
+
+      <div class="info blue">
+        <span class="info-icon">i</span>
+        <div>
+          <strong>useInstantLayoutTransition</strong> es un hook oficial de Framer Motion. Todos los cambios de estado
+          dentro de su callback se aplican <em>sin animar</em> los layoutId. Sin esto, al volver atras la card haria
+          un morph inverso (grande &rarr; pequena), que se ve raro. Con el hook, la card simplemente aparece en su
+          posicion original sin animacion.
+        </div>
+      </div>
+
+      <h4 style="font-size:14px; font-weight:600; margin:20px 0 8px">Click en Confirmar</h4>
+
+      <div class="flow">
+        <div class="flow-step">
+          <div class="flow-dot"></div>
+          <div class="flow-text">Si <code>deliveryChoice === 'dynamic'</code> &rarr; <code>setPhase('schema')</code> (no toca el backend)</div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-dot"></div>
+          <div class="flow-text">Si <code>deliveryChoice === 'static'</code> &rarr; crea curso en BD + lanza generacion v1 &rarr; <code>setPhase('generating')</code></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">Fase 3: Schema (la fase que vamos a mejorar)</div>
+
+  <div class="phase-card">
+    <div class="phase-header">
+      <div class="phase-number">3</div>
+      <div class="phase-name">Editor de esquema con IA</div>
+      <div class="phase-type swap">content swap dentro del mismo card</div>
+    </div>
+    <div class="phase-body">
+
+      <dl class="detail-grid">
+        <dt>Estado React</dt>
+        <dd><code>phase = 'schema'</code>, <code>expanded = true</code></dd>
+        <dt>Transicion</dt>
+        <dd>La card <strong>no se mueve</strong>. Es el mismo <code>layoutId</code>, mismo tamano. Solo cambia el contenido interno via <code>AnimatePresence mode="wait"</code> con opacity fade (sin blur).</dd>
+        <dt>Datos</dt>
+        <dd><code>proposedNodes: ProposedNode[]</code> en React state. <strong>Nada en BD todavia.</strong></dd>
+      </dl>
+
+      <div class="info green">
+        <span class="info-icon">&#10003;</span>
+        <div>
+          <strong>Principio clave:</strong> La card es el mismo contenedor que en details. El <code>layoutId</code> no cambia,
+          asi que Framer Motion no hace morph. Solo el hijo interno se swappea. La transicion entre details &harr; schema
+          es un <code>AnimatePresence mode="wait"</code> con las variantes <code>innerFadeIn</code> / <code>innerFadeOut</code>.
+        </div>
+      </div>
+
+      <div class="mockup">
+        <div class="mockup-label">Lo que ve el admin</div>
+        <div class="breadcrumb-mock">
+          <span class="clickable">Crear curso</span>
+          <span class="muted">/</span>
+          <span class="clickable">Idea</span>
+          <span class="muted">/</span>
+          <span class="active">Esquema</span>
+        </div>
+        <div style="margin-top:12px">
+          <div class="mini-card morphed" style="padding:0; border-color:var(--primary)">
+            <div style="padding:16px">
+              <div class="schema-layout">
+                <div class="schema-sidebar">
+                  <div style="font-size:10px; font-weight:600; text-transform:uppercase; color:var(--text-muted); margin-bottom:8px">Densidad</div>
+                  <div style="height:4px; background:var(--bg-muted); border-radius:2px; margin-bottom:4px; position:relative">
+                    <div style="position:absolute; left:50%; top:-3px; width:10px; height:10px; background:var(--primary); border-radius:50%; transform:translateX(-50%)"></div>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; font-size:9px; color:var(--text-muted); margin-bottom:12px">
+                    <span>Breve</span><span>3</span><span>Detallado</span>
+                  </div>
+                  <div class="sidebar-item"><span>Nodos</span> <strong>5</strong></div>
+                  <div class="sidebar-item"><span>Imprescindibles</span> <strong>3</strong></div>
+                  <div class="sidebar-item"><span>Tiempo est.</span> <strong>45 min</strong></div>
+                  <div style="margin-top:12px; background:var(--primary); color:white; text-align:center; padding:6px; border-radius:6px; font-size:12px; font-weight:500">Crear curso</div>
+                </div>
+                <div class="schema-nodes">
+                  <div class="schema-node">
+                    <div class="node-number">1</div>
+                    <div class="node-content">
+                      <div class="node-title">Introduccion a la higiene</div>
+                      <div class="node-summary">Conceptos basicos de higiene alimentaria</div>
+                      <div class="node-badges"><span class="badge-crit critical">Imprescindible</span> <span style="font-size:10px; color:var(--text-muted)">10 min</span></div>
+                    </div>
+                    <span style="color:var(--text-muted); cursor:pointer">&times;</span>
+                  </div>
+                  <div class="schema-node">
+                    <div class="node-number">2</div>
+                    <div class="node-content">
+                      <div class="node-title">Control de temperaturas</div>
+                      <div class="node-summary">Cadena de frio y puntos criticos</div>
+                      <div class="node-badges"><span class="badge-crit critical">Imprescindible</span> <span style="font-size:10px; color:var(--text-muted)">12 min</span></div>
+                    </div>
+                    <span style="color:var(--text-muted); cursor:pointer">&times;</span>
+                  </div>
+                  <div class="schema-node">
+                    <div class="node-number">3</div>
+                    <div class="node-content">
+                      <div class="node-title">Alergenos y etiquetado</div>
+                      <div class="node-summary">Los 14 alergenos principales</div>
+                      <div class="node-badges"><span class="badge-crit recommended">Recomendado</span> <span style="font-size:10px; color:var(--text-muted)">8 min</span></div>
+                    </div>
+                    <span style="color:var(--text-muted); cursor:pointer">&times;</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Auto-propose -->
+      <h4 style="font-size:14px; font-weight:600; margin:24px 0 8px">Auto-propuesta al entrar</h4>
+
+      <p style="font-size:13px; color:var(--text-secondary); margin-bottom:12px">
+        Cuando el phase cambia a <code>'schema'</code> por primera vez (desde <code>'details'</code> y sin nodos),
+        se dispara automaticamente la propuesta de esquema.
+      </p>
+
+      <div class="code">
+<span class="comment">// useEffect que detecta la transicion details -> schema</span>
+<span class="keyword">const</span> prevPhaseRef = <span class="fn">useRef</span>&lt;Phase&gt;(<span class="string">'choose'</span>)
+
+<span class="fn">useEffect</span>(() => {
+  <span class="keyword">if</span> (phase === <span class="string">'schema'</span>
+      && prevPhaseRef.current === <span class="string">'details'</span>
+      && proposedNodes.length === 0) {
+    <span class="keyword">void</span> <span class="fn">proposeSchema</span>(density)   <span class="comment">// llama al endpoint</span>
+  }
+  prevPhaseRef.current = phase
+}, [phase])
+      </div>
+
+      <!-- Data flow -->
+      <h4 style="font-size:14px; font-weight:600; margin:24px 0 8px">Flujo de datos</h4>
+
+      <div class="data-flow">
+        <div class="data-box">
+          <div class="data-title">React state</div>
+          <div class="data-content">title, idea, density</div>
+        </div>
+        <div class="data-arrow">&rarr;</div>
+        <div class="data-box" style="border-color:var(--accent)">
+          <div class="data-title" style="color:var(--accent)">POST /ai/schema-propose</div>
+          <div class="data-content">{ title, description, intent_density }</div>
+        </div>
+        <div class="data-arrow">&rarr;</div>
+        <div class="data-box">
+          <div class="data-title">Respuesta</div>
+          <div class="data-content">{ nodes: ProposedNode[] }</div>
+        </div>
+        <div class="data-arrow">&rarr;</div>
+        <div class="data-box" style="border-color:var(--primary)">
+          <div class="data-title" style="color:var(--primary)">React state</div>
+          <div class="data-content">proposedNodes</div>
+        </div>
+      </div>
+
+      <div class="info blue">
+        <span class="info-icon">i</span>
+        <div>
+          <strong>Stateless.</strong> El endpoint no guarda nada. Recibe titulo + descripcion + densidad, devuelve nodos. Todo
+          el estado vive en React (<code>useState</code>). El curso no existe en BD todavia.
+        </div>
+      </div>
+
+      <!-- proposeSchema -->
+      <h4 style="font-size:14px; font-weight:600; margin:24px 0 8px">La funcion proposeSchema</h4>
+
+      <div class="code">
+<span class="keyword">const</span> proposeSchema = <span class="fn">useCallback</span>(<span class="keyword">async</span> (d: number) => {
+  <span class="comment">// 1. Abortar llamada anterior si existe</span>
+  proposeAbortRef.current?.<span class="fn">abort</span>()
+  <span class="keyword">const</span> abort = <span class="keyword">new</span> AbortController()
+  proposeAbortRef.current = abort
+
+  <span class="fn">setProposing</span>(<span class="keyword">true</span>)         <span class="comment">// muestra "Disenando el esquema..."</span>
+  <span class="fn">setProposeError</span>(<span class="keyword">null</span>)
+
+  <span class="keyword">try</span> {
+    <span class="comment">// 2. Llamada directa con post() del api client</span>
+    <span class="keyword">const</span> result = <span class="keyword">await</span> <span class="fn">post</span>&lt;{ nodes: ProposedNode[] }&gt;(
+      <span class="string">'/ai/schema-propose'</span>,
+      { title, description: idea || <span class="keyword">undefined</span>, intent_density: d }
+    )
+
+    <span class="comment">// 3. Solo actualizar si no fue abortado</span>
+    <span class="keyword">if</span> (!abort.signal.aborted) {
+      <span class="fn">setProposedNodes</span>(result.nodes)
+      <span class="fn">setProposing</span>(<span class="keyword">false</span>)
+    }
+  } <span class="keyword">catch</span> (err) { ... }
+}, [title, idea])
+      </div>
+
+      <div class="info amber">
+        <span class="info-icon">!</span>
+        <div>
+          <strong>AbortController.</strong> Si el admin cambia la densidad rapido (el slider tiene debounce de 400ms),
+          la llamada anterior se aborta. Esto evita que llegue una respuesta vieja y sobreescriba la nueva.
+        </div>
+      </div>
+
+      <!-- Density slider -->
+      <h4 style="font-size:14px; font-weight:600; margin:24px 0 8px">Slider de densidad</h4>
+
+      <div class="flow">
+        <div class="flow-step">
+          <div class="flow-dot"></div>
+          <div class="flow-text">Admin mueve el slider &rarr; <code>handleDensityChange(newDensity)</code></div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-dot"></div>
+          <div class="flow-text">Actualiza <code>density</code> inmediatamente (React state)</div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-dot"></div>
+          <div class="flow-text">Debounce 400ms &rarr; <code>proposeSchema(newDensity)</code> si estamos en fase schema</div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-dot"></div>
+          <div class="flow-text">Mientras carga: muestra "Disenando el esquema..." (la lista de nodos desaparece)</div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-dot"></div>
+          <div class="flow-text">Respuesta &rarr; <code>setProposedNodes(result.nodes)</code> &rarr; la lista se repinta</div>
+        </div>
+      </div>
+
+      <!-- Operations -->
+      <h4 style="font-size:14px; font-weight:600; margin:24px 0 8px">Operaciones locales (sin backend)</h4>
+
+      <table>
+        <tr>
+          <th>Accion</th>
+          <th>Handler</th>
+          <th>Que hace</th>
+        </tr>
+        <tr>
+          <td>Editar titulo de nodo</td>
+          <td><code>onNodeTitleChange(i, v)</code></td>
+          <td><code>setProposedNodes</code> con map, reemplaza el titulo del nodo i</td>
+        </tr>
+        <tr>
+          <td>Eliminar nodo</td>
+          <td><code>onNodeDelete(i)</code></td>
+          <td><code>setProposedNodes</code> con filter, quita el nodo i</td>
+        </tr>
+      </table>
+
+      <p style="font-size:13px; color:var(--text-secondary); margin-top:12px">
+        Estas operaciones mutan React state directamente. Son instantaneas, sin llamada al servidor.
+        No hay drag & drop ni edicion de summary/outcome todavia.
+      </p>
+
+      <!-- SchemaContent component -->
+      <h4 style="font-size:14px; font-weight:600; margin:24px 0 8px">Componente SchemaContent</h4>
+
+      <p style="font-size:13px; color:var(--text-secondary); margin-bottom:12px">
+        <code>SchemaContent</code> (linea 871) es un componente funcional que recibe todo por props.
+        No tiene estado propio. Tiene tres estados de render:
+      </p>
+
+      <table>
+        <tr>
+          <th>Condicion</th>
+          <th>Render</th>
+        </tr>
+        <tr>
+          <td><code>proposing === true</code></td>
+          <td>Texto centrado: "Disenando el esquema..." + titulo del curso</td>
+        </tr>
+        <tr>
+          <td><code>proposeError !== null</code></td>
+          <td>Mensaje de error en rojo</td>
+        </tr>
+        <tr>
+          <td><code>nodes.length === 0</code></td>
+          <td>"No se generaron nodos"</td>
+        </tr>
+        <tr>
+          <td>Default (hay nodos)</td>
+          <td>Layout 2 columnas: sidebar (densidad + stats + boton) | lista de nodos</td>
+        </tr>
+      </table>
+
+      <h4 style="font-size:14px; font-weight:600; margin:24px 0 8px">Estructura de un ProposedNode</h4>
+
+      <div class="code">
+<span class="keyword">interface</span> <span class="type">ProposedNode</span> {
+  title: <span class="type">string</span>             <span class="comment">// editable inline</span>
+  summary: <span class="type">string</span>           <span class="comment">// visible, NO editable</span>
+  outcome: <span class="type">string | null</span>    <span class="comment">// NO visible en la UI actual</span>
+  criticality: <span class="type">string</span>       <span class="comment">// 'critical' | 'recommended' | 'context'</span>
+  default_ui_format: <span class="type">string</span> <span class="comment">// NO visible en la UI actual</span>
+  estimated_minutes: <span class="type">number</span> <span class="comment">// visible en badge + sum en sidebar</span>
+  source_headings: <span class="type">string[]</span> <span class="comment">// NO visible en la UI actual</span>
+  prerequisites: <span class="type">number[]</span>   <span class="comment">// NO visible en la UI actual</span>
+}
+      </div>
+
+      <div class="info amber">
+        <span class="info-icon">!</span>
+        <div>
+          <strong>Campos ocultos.</strong> El endpoint devuelve <code>outcome</code>, <code>default_ui_format</code>,
+          <code>source_headings</code> y <code>prerequisites</code>, pero la UI actual no los muestra ni permite editarlos.
+          Estos son campos que podriamos exponer en la mejora de UX.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">Fase 3 &rarr; Assign: "Crear curso"</div>
+
+  <div class="phase-card">
+    <div class="phase-header">
+      <div class="phase-number">&#8594;</div>
+      <div class="phase-name">handleCreateFromSchema()</div>
+      <div class="phase-type standalone">persiste en BD</div>
+    </div>
+    <div class="phase-body">
+
+      <p style="font-size:13px; color:var(--text-secondary); margin-bottom:16px">
+        Este es el momento en que los datos pasan de React state a base de datos. Antes de este click,
+        <strong>nada existe en el servidor</strong>.
+      </p>
+
+      <div class="flow">
+        <div class="flow-step">
+          <div class="flow-dot"></div>
+          <div class="flow-text"><strong>POST /courses</strong> &mdash; Crea el curso (titulo, descripcion, source_document_id)</div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-dot"></div>
+          <div class="flow-text"><strong>PUT /courses/{id}/schema</strong> &mdash; Escribe los nodos del esquema (transforma <code>ProposedNode[]</code> al formato de la API)</div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-dot"></div>
+          <div class="flow-text"><code>setPhase('assign')</code> &mdash; Pasa a la pantalla de asignacion</div>
+        </div>
+      </div>
+
+      <h4 style="font-size:14px; font-weight:600; margin:20px 0 8px">Transformacion de datos</h4>
+
+      <p style="font-size:13px; color:var(--text-secondary); margin-bottom:12px">
+        Los nodos propuestos por la IA se transforman antes de enviarse al servidor. Cada <code>ProposedNode</code>
+        se convierte en un nodo de esquema con campos adicionales:
+      </p>
+
+      <div class="code">
+<span class="keyword">const</span> schemaNodes = proposedNodes.<span class="fn">map</span>((n, i) => ({
+  title: n.title,
+  summary: n.summary,
+  outcome: n.outcome,
+  criticality: n.criticality,
+  position: i + 1,                          <span class="comment">// orden secuencial</span>
+  mastery_threshold:                         <span class="comment">// derivado de criticality</span>
+    n.criticality === <span class="string">'critical'</span> ? 0.9
+    : n.criticality === <span class="string">'recommended'</span> ? 0.8
+    : 0.7,
+  estimated_minutes: n.estimated_minutes,
+  default_ui_format: n.default_ui_format,
+  skill_id: <span class="keyword">null</span>,                          <span class="comment">// no asignado aun</span>
+  seed_lesson_id: <span class="keyword">null</span>,                    <span class="comment">// no hay leccion semilla</span>
+  source_document_id: sourceId ?? <span class="keyword">null</span>,    <span class="comment">// si vino de documento</span>
+  source_headings: n.source_headings,
+  prerequisite_node_ids: [],                 <span class="comment">// siempre vacio (!)</span>
+  archived: <span class="keyword">false</span>,
+}))
+      </div>
+
+      <div class="info red">
+        <span class="info-icon">!</span>
+        <div>
+          <strong>prerequisite_node_ids siempre vacio.</strong> El endpoint <code>/ai/schema-propose</code> devuelve
+          <code>prerequisites: number[]</code> (indices), pero <code>handleCreateFromSchema</code> los ignora y siempre envia
+          <code>[]</code>. Los prerequisitos del esquema propuesto por la IA se pierden.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">Fase 4: Assign</div>
+
+  <div class="phase-card">
+    <div class="phase-header">
+      <div class="phase-number">4</div>
+      <div class="phase-name">Asignar empleados</div>
+      <div class="phase-type standalone">early return, fuera del morph flow</div>
+    </div>
+    <div class="phase-body">
+
+      <dl class="detail-grid">
+        <dt>Estado React</dt>
+        <dd><code>phase = 'assign'</code></dd>
+        <dt>Render</dt>
+        <dd>Early return (linea 597). Se sale del <code>&lt;LayoutGroup&gt;</code>.</dd>
+        <dt>Animacion</dt>
+        <dd>Fade in simple: <code>initial={{ opacity: 0 }}</code>, <code>animate={{ opacity: 1 }}</code></dd>
+      </dl>
+
+      <div class="mockup">
+        <div class="mockup-label">Lo que ve el admin</div>
+        <div class="breadcrumb-mock">
+          <span class="muted">Crear curso</span>
+          <span class="muted">/</span>
+          <span class="muted">Idea</span>
+          <span class="muted">/</span>
+          <span class="muted">Esquema</span>
+          <span class="muted">/</span>
+          <span class="active">Asignar</span>
+        </div>
+        <div style="margin-top:12px">
+          <div style="border:1px solid var(--border); border-radius:8px; padding:16px; background:var(--bg)">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px">
+              <div>
+                <div style="font-size:12px; font-weight:500; margin-bottom:8px">Empleados</div>
+                <div style="border:1px solid var(--border); border-radius:6px; font-size:12px">
+                  <div style="padding:8px 12px; border-bottom:1px solid var(--border); display:flex; gap:6px; align-items:center">
+                    <input type="checkbox" checked> Maria Garcia
+                  </div>
+                  <div style="padding:8px 12px; border-bottom:1px solid var(--border); display:flex; gap:6px; align-items:center">
+                    <input type="checkbox"> Juan Lopez
+                  </div>
+                  <div style="padding:8px 12px; display:flex; gap:6px; align-items:center">
+                    <input type="checkbox" checked> Ana Torres
+                  </div>
+                </div>
+                <div style="font-size:11px; color:var(--text-muted); margin-top:4px">2 seleccionados</div>
+              </div>
+              <div>
+                <div style="font-size:12px; font-weight:500; margin-bottom:8px">Fecha limite</div>
+                <div style="border:1px solid var(--border); border-radius:6px; padding:8px 12px; font-size:12px; color:var(--text-muted)">dd/mm/aaaa</div>
+              </div>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-top:16px; padding-top:12px; border-top:1px solid var(--border)">
+              <span style="font-size:12px; color:var(--text-secondary)">Saltar</span>
+              <span style="background:var(--primary); color:white; padding:6px 16px; border-radius:6px; font-size:12px; font-weight:500">Asignar y finalizar</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flow">
+        <div class="flow-step">
+          <div class="flow-dot"></div>
+          <div class="flow-text">"Saltar" &rarr; <code>navigate('/admin/contenido')</code> sin asignar a nadie</div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-dot"></div>
+          <div class="flow-text">"Asignar y finalizar" &rarr; <code>POST /enrollments</code> con los IDs seleccionados + deadline &rarr; <code>navigate('/admin/contenido')</code></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="separator"></div>
+
+<div class="section">
+  <div class="section-title">Resumen de animaciones del morph flow</div>
+
+  <table>
+    <tr>
+      <th>Transicion</th>
+      <th>Mecanismo</th>
+      <th>Constantes</th>
+      <th>Efecto visual</th>
+    </tr>
+    <tr>
+      <td>choose &rarr; details</td>
+      <td><code>layoutId</code> morph</td>
+      <td><code>spring stiffness:200 damping:28</code></td>
+      <td>La card seleccionada crece y ocupa todo el ancho. La otra card desaparece (sale del DOM). El contenido nuevo aparece con opacity fade (delay 0.35s).</td>
+    </tr>
+    <tr>
+      <td>details &rarr; choose</td>
+      <td><code>useInstantLayoutTransition</code></td>
+      <td>Sin animacion</td>
+      <td>Cambio instantaneo. No hay morph inverso.</td>
+    </tr>
+    <tr>
+      <td>details &harr; schema</td>
+      <td><code>AnimatePresence mode="wait"</code></td>
+      <td><code>innerFadeIn/Out</code>: opacity 0&rarr;1 / 1&rarr;0, 200-300ms, <code>ease.base</code></td>
+      <td>El contenedor no se mueve. Solo el contenido interno cambia con opacity fade. Sin blur.</td>
+    </tr>
+    <tr>
+      <td>schema &rarr; assign</td>
+      <td>Early return (desmonta LayoutGroup)</td>
+      <td>opacity fade simple</td>
+      <td>Todo el morph flow desaparece. El assign es una pantalla nueva.</td>
+    </tr>
+  </table>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">Mapa de estado completo</div>
+
+  <p style="font-size:14px; margin-bottom:16px">
+    Todo el estado del wizard vive en <code>CreateCourse</code> via <code>useState</code>. No hay context, no hay store, no hay URL params.
+  </p>
+
+  <table>
+    <tr>
+      <th>Variable</th>
+      <th>Tipo</th>
+      <th>Usado en fases</th>
+      <th>Descripcion</th>
+    </tr>
+    <tr>
+      <td><code>phase</code></td>
+      <td><code>Phase</code></td>
+      <td>Todas</td>
+      <td>Fase actual del wizard</td>
+    </tr>
+    <tr>
+      <td><code>source</code></td>
+      <td><code>'documentos' | 'cero' | null</code></td>
+      <td>choose, details, schema</td>
+      <td>Origen seleccionado</td>
+    </tr>
+    <tr>
+      <td><code>deliveryChoice</code></td>
+      <td><code>'dynamic' | 'static'</code></td>
+      <td>details</td>
+      <td>Modo de entrega (determina si hay fase schema)</td>
+    </tr>
+    <tr>
+      <td><code>title</code></td>
+      <td><code>string</code></td>
+      <td>details, schema</td>
+      <td>Nombre del curso</td>
+    </tr>
+    <tr>
+      <td><code>idea</code></td>
+      <td><code>string</code></td>
+      <td>details, schema</td>
+      <td>Descripcion / idea del admin</td>
+    </tr>
+    <tr>
+      <td><code>documentId</code></td>
+      <td><code>string | null</code></td>
+      <td>details, schema</td>
+      <td>ID del documento subido (solo si source='documentos')</td>
+    </tr>
+    <tr>
+      <td><code>density</code></td>
+      <td><code>number (1-5)</code></td>
+      <td>schema</td>
+      <td>Nivel de densidad para la propuesta de IA</td>
+    </tr>
+    <tr>
+      <td><code>proposedNodes</code></td>
+      <td><code>ProposedNode[]</code></td>
+      <td>schema</td>
+      <td>Nodos propuestos por la IA (editables localmente)</td>
+    </tr>
+    <tr>
+      <td><code>proposing</code></td>
+      <td><code>boolean</code></td>
+      <td>schema</td>
+      <td>true mientras la IA esta generando</td>
+    </tr>
+    <tr>
+      <td><code>proposeError</code></td>
+      <td><code>string | null</code></td>
+      <td>schema</td>
+      <td>Error de la ultima propuesta fallida</td>
+    </tr>
+    <tr>
+      <td><code>courseId</code></td>
+      <td><code>string | null</code></td>
+      <td>assign, review</td>
+      <td>ID del curso creado en BD</td>
+    </tr>
+    <tr>
+      <td><code>assignSelected</code></td>
+      <td><code>Set&lt;string&gt;</code></td>
+      <td>assign</td>
+      <td>IDs de empleados seleccionados</td>
+    </tr>
+    <tr>
+      <td><code>deadline</code></td>
+      <td><code>string</code></td>
+      <td>assign</td>
+      <td>Fecha limite opcional</td>
+    </tr>
+  </table>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">Lo que hay vs lo que falta en el Schema phase</div>
+
+  <div class="anim-pair">
+    <div class="anim-box">
+      <h4 style="color:var(--accent)">&#10003; Implementado</h4>
+      <ul class="clean">
+        <li>Propuesta automatica al entrar</li>
+        <li>Re-propuesta con slider de densidad (debounce 400ms)</li>
+        <li>Abort de llamadas anteriores</li>
+        <li>Editar titulo de nodo inline</li>
+        <li>Eliminar nodo</li>
+        <li>Stats en sidebar (nodos, criticos, tiempo)</li>
+        <li>Boton "Crear curso" que persiste en BD</li>
+        <li>Badges de criticality por nodo</li>
+        <li>Tiempo estimado por nodo</li>
+      </ul>
+    </div>
+    <div class="anim-box">
+      <h4 style="color:var(--danger)">&#10007; No implementado</h4>
+      <ul class="clean">
+        <li>Editar summary de nodo</li>
+        <li>Editar/ver outcome de nodo</li>
+        <li>Ver/editar default_ui_format</li>
+        <li>Ver/editar source_headings</li>
+        <li>Ver/editar prerequisites (se pierden al crear!)</li>
+        <li>Anadir nodo manualmente</li>
+        <li>Reordenar nodos (drag & drop)</li>
+        <li>Animacion en la lista de nodos (stagger, exit)</li>
+        <li>Loading skeleton mientras propone</li>
+        <li>Confirmar antes de borrar un nodo</li>
+        <li>Responsive (sidebar se rompe en movil)</li>
+        <li>Vista previa de como se vera el curso</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div style="text-align:center; padding:40px 0; color:var(--text-muted); font-size:13px">
+  Documento de referencia interna &mdash; SkillNet, agosto 2026
+</div>
+
+</div>
+</body>
+</html>

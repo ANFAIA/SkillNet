@@ -1,0 +1,1353 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Schema Editor — Conceptos UX</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --bg-subtle: #f8fafc;
+    --bg-muted: #f1f5f9;
+    --text: #0f172a;
+    --text-secondary: #64748b;
+    --text-muted: #94a3b8;
+    --border: #e2e8f0;
+    --primary: #3661A5;
+    --primary-subtle: #EBF0F7;
+    --accent: #4BA862;
+    --accent-subtle: #EDF7EF;
+    --danger: #dc2626;
+    --warning: #d97706;
+    --purple: #7c3aed;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: Inter, -apple-system, system-ui, sans-serif;
+    color: var(--text);
+    background: var(--bg-subtle);
+    line-height: 1.6;
+  }
+
+  /* ── Nav ── */
+  .topnav {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: rgba(255,255,255,0.85);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .topnav h1 { font-size: 16px; font-weight: 600; }
+  .topnav .pills { display: flex; gap: 6px; margin-left: auto; }
+  .topnav .pill {
+    padding: 6px 14px;
+    font-size: 13px;
+    font-weight: 500;
+    border-radius: 99px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    cursor: pointer;
+    transition: all 0.15s;
+    color: var(--text-secondary);
+  }
+  .topnav .pill:hover { border-color: var(--primary); color: var(--primary); }
+  .topnav .pill.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+  /* ── Section ── */
+  .concept {
+    display: none;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 40px 24px;
+  }
+  .concept.active { display: block; }
+  .concept-header {
+    margin-bottom: 32px;
+  }
+  .concept-header h2 {
+    font-size: 24px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .concept-header .subtitle {
+    font-size: 14px;
+    color: var(--text-secondary);
+  }
+  .concept-header .badges {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .badge-sm {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 99px;
+  }
+  .badge-green { background: var(--accent-subtle); color: #2d6e3e; }
+  .badge-blue { background: var(--primary-subtle); color: var(--primary); }
+  .badge-amber { background: #fef3c7; color: #92400e; }
+  .badge-red { background: #fef2f2; color: var(--danger); }
+
+  /* ── Mockup frame ── */
+  .mockup-frame {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin: 24px 0;
+    box-shadow: 0 4px 24px -8px rgba(0,0,0,0.08);
+  }
+  .mockup-toolbar {
+    background: var(--bg-subtle);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .mockup-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--border);
+  }
+  .mockup-toolbar span {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-left: 8px;
+  }
+  .mockup-body {
+    padding: 24px;
+    min-height: 420px;
+    position: relative;
+  }
+
+  /* ── Shared node card ── */
+  .node-card {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 16px;
+    background: var(--bg);
+    position: relative;
+  }
+  .node-card.selected { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-subtle); }
+  .node-card .node-num {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--bg-muted);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .node-card .node-title { font-size: 13px; font-weight: 500; }
+  .node-card .node-summary { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+  .node-badge {
+    font-size: 10px;
+    font-weight: 500;
+    padding: 1px 7px;
+    border-radius: 99px;
+  }
+  .node-badge.critical { background: var(--primary-subtle); color: var(--primary); }
+  .node-badge.recommended { background: var(--accent-subtle); color: #2d6e3e; }
+  .node-badge.contextual { background: var(--bg-muted); color: var(--text-muted); }
+  .node-time { font-size: 10px; color: var(--text-muted); }
+  .drag-handle {
+    width: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    align-items: center;
+    cursor: grab;
+    padding: 4px 0;
+  }
+  .drag-handle span {
+    width: 10px;
+    height: 2px;
+    background: var(--border);
+    border-radius: 1px;
+  }
+
+  /* ── Prereq chips ── */
+  .prereq-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    font-size: 10px;
+    font-weight: 600;
+    border: 1.5px solid var(--border);
+    color: var(--text-muted);
+    cursor: pointer;
+  }
+  .prereq-chip:hover { border-color: var(--primary); color: var(--primary); }
+
+  /* ── Prose ── */
+  .prose { max-width: 720px; }
+  .prose h3 { font-size: 16px; font-weight: 600; margin: 24px 0 8px; }
+  .prose p { font-size: 14px; color: var(--text-secondary); margin-bottom: 12px; }
+  .prose ul { margin: 8px 0 16px 20px; font-size: 14px; color: var(--text-secondary); }
+  .prose li { margin-bottom: 4px; }
+  .pros-cons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 16px 0;
+  }
+  .pros-cons > div {
+    padding: 16px;
+    border-radius: 8px;
+    font-size: 13px;
+  }
+  .pros-cons .pros { background: var(--accent-subtle); }
+  .pros-cons .cons { background: #fef2f2; }
+  .pros-cons h4 { font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+  .pros-cons ul { margin: 0 0 0 16px; color: var(--text); }
+
+  /* ── SVG connectors ── */
+  .connector-svg {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    z-index: 1;
+  }
+  .connector-svg path {
+    fill: none;
+    stroke: var(--border);
+    stroke-width: 1.5;
+  }
+  .connector-svg path.active { stroke: var(--primary); stroke-width: 2; }
+  .connector-svg circle { fill: var(--primary); }
+
+  /* ── Compare table ── */
+  .compare-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    margin: 24px 0;
+  }
+  .compare-table th {
+    text-align: left;
+    padding: 10px 12px;
+    background: var(--bg-subtle);
+    border: 1px solid var(--border);
+    font-weight: 600;
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+  .compare-table td {
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+  }
+  .compare-table .score {
+    text-align: center;
+    font-weight: 600;
+  }
+  .compare-table .score.high { color: var(--accent); }
+  .compare-table .score.mid { color: var(--warning); }
+  .compare-table .score.low { color: var(--danger); }
+
+  /* ── Expanded editor ── */
+  .inline-editor {
+    background: var(--bg-subtle);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    margin-top: 8px;
+  }
+  .inline-editor label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-bottom: 4px;
+    margin-top: 12px;
+  }
+  .inline-editor label:first-child { margin-top: 0; }
+  .inline-editor input, .inline-editor textarea, .inline-editor select {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 13px;
+    font-family: inherit;
+    background: var(--bg);
+    color: var(--text);
+  }
+  .inline-editor textarea { resize: vertical; min-height: 48px; }
+  .pill-group { display: flex; gap: 4px; }
+  .pill-opt {
+    padding: 4px 12px;
+    border-radius: 99px;
+    font-size: 12px;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    background: var(--bg);
+    color: var(--text-secondary);
+  }
+  .pill-opt.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+  /* ── Mini map ── */
+  .minimap {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    text-align: center;
+  }
+  .minimap-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-bottom: 8px;
+  }
+
+  /* ── Lanes (concept B) ── */
+  .lanes { display: flex; gap: 16px; align-items: flex-start; min-height: 380px; position: relative; }
+  .lane {
+    flex: 1;
+    min-width: 160px;
+  }
+  .lane-header {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-bottom: 12px;
+    text-align: center;
+    padding: 6px;
+    background: var(--bg-muted);
+    border-radius: 6px;
+  }
+  .lane .node-card { margin-bottom: 10px; }
+
+  /* ── Grid (concept D) ── */
+  .phase-grid { display: flex; flex-direction: column; gap: 24px; }
+  .phase-row-header {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-bottom: 8px;
+  }
+  .phase-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+  }
+  .recipe-card {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    background: var(--bg);
+    cursor: pointer;
+    transition: box-shadow 0.15s, border-color 0.15s;
+    border-left: 3px solid var(--border);
+  }
+  .recipe-card:hover { border-color: var(--primary); box-shadow: 0 2px 12px -4px rgba(0,0,0,0.08); }
+  .recipe-card.crit { border-left-color: var(--primary); }
+  .recipe-card.rec { border-left-color: var(--accent); }
+  .recipe-card.ctx { border-left-color: var(--text-muted); }
+  .recipe-card .rc-title { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+  .recipe-card .rc-summary { font-size: 11px; color: var(--text-muted); margin-bottom: 8px; line-height: 1.4; }
+  .recipe-card .rc-meta { display: flex; gap: 8px; align-items: center; font-size: 10px; color: var(--text-muted); }
+
+  /* ── Flow (concept A) ── */
+  .flow-list { display: flex; flex-direction: column; gap: 0; position: relative; padding-left: 40px; }
+  .flow-node { position: relative; padding: 8px 0; }
+  .flow-rail {
+    position: absolute;
+    left: -40px;
+    top: 0;
+    bottom: 0;
+    width: 40px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .flow-dot {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: var(--primary);
+    z-index: 2;
+    margin-top: 16px;
+    flex-shrink: 0;
+  }
+  .flow-dot.accent { background: var(--accent); }
+  .flow-dot.muted { background: var(--text-muted); }
+  .flow-line {
+    width: 2px;
+    flex: 1;
+    background: var(--border);
+  }
+  .flow-connector-left {
+    position: absolute;
+    left: -56px;
+    width: 16px;
+    border-right: 2px solid var(--primary);
+    border-bottom: 2px solid var(--primary);
+    border-radius: 0 0 8px 0;
+    z-index: 1;
+  }
+
+  /* ── Sidebar ── */
+  .editor-layout { display: flex; gap: 20px; }
+  .editor-sidebar {
+    width: 180px;
+    flex-shrink: 0;
+  }
+  .editor-main { flex: 1; min-width: 0; }
+  .sidebar-section {
+    margin-bottom: 20px;
+  }
+  .sidebar-section .sidebar-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-bottom: 8px;
+  }
+  .stat-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    padding: 3px 0;
+  }
+  .stat-row .stat-val { font-weight: 600; color: var(--text); }
+  .slider-mock {
+    width: 100%;
+    height: 4px;
+    background: var(--bg-muted);
+    border-radius: 2px;
+    position: relative;
+    margin: 8px 0;
+  }
+  .slider-thumb {
+    position: absolute;
+    top: -4px;
+    left: 50%;
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: var(--primary);
+    transform: translateX(-50%);
+  }
+  .btn-mock {
+    display: block;
+    width: 100%;
+    padding: 8px;
+    text-align: center;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+  }
+  .btn-primary { background: var(--primary); color: white; }
+  .btn-secondary { background: var(--bg); color: var(--text); border: 1px solid var(--border); margin-top: 6px; }
+
+  /* ── Add button ── */
+  .add-node-btn {
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    padding: 10px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+    margin-top: 8px;
+  }
+  .add-node-btn:hover { border-color: var(--primary); color: var(--primary); }
+
+  /* drawer */
+  .drawer {
+    position: absolute;
+    right: 0; top: 0; bottom: 0;
+    width: 280px;
+    background: var(--bg);
+    border-left: 1px solid var(--border);
+    padding: 20px;
+    z-index: 10;
+    box-shadow: -4px 0 24px -8px rgba(0,0,0,0.08);
+  }
+  .drawer h3 { font-size: 15px; font-weight: 600; margin-bottom: 16px; }
+</style>
+</head>
+<body>
+
+<nav class="topnav">
+  <h1>Schema Editor — Conceptos</h1>
+  <div class="pills">
+    <div class="pill active" onclick="show('a')">A: Vertical Flow</div>
+    <div class="pill" onclick="show('b')">B: Canvas Lanes</div>
+    <div class="pill" onclick="show('c')">C: Outline</div>
+    <div class="pill" onclick="show('d')">D: Recipe Grid</div>
+    <div class="pill" onclick="show('compare')">Comparar</div>
+  </div>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- CONCEPT A: Vertical Flow -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div id="sec-a" class="concept active">
+  <div class="concept-header">
+    <h2>A: Vertical Flow</h2>
+    <p class="subtitle">Lista vertical con lineas SVG entre nodos. Como un mapa de metro.</p>
+    <div class="badges">
+      <span class="badge-sm badge-blue">Complejidad: Media</span>
+      <span class="badge-sm badge-green">Intuitividad: Alta</span>
+    </div>
+  </div>
+
+  <div class="mockup-frame">
+    <div class="mockup-toolbar">
+      <div class="mockup-dot"></div><div class="mockup-dot"></div><div class="mockup-dot"></div>
+      <span>Crear curso / Boxeo / Esquema</span>
+    </div>
+    <div class="mockup-body">
+      <div class="editor-layout">
+        <div class="editor-sidebar">
+          <div class="sidebar-section">
+            <div class="sidebar-label">Densidad</div>
+            <div class="slider-mock"><div class="slider-thumb"></div></div>
+            <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-muted)"><span>Breve</span><span>3</span><span>Detallado</span></div>
+          </div>
+          <div class="sidebar-section">
+            <div class="stat-row"><span style="color:var(--text-muted)">Nodos</span><span class="stat-val">6</span></div>
+            <div class="stat-row"><span style="color:var(--text-muted)">Criticos</span><span class="stat-val">3</span></div>
+            <div class="stat-row"><span style="color:var(--text-muted)">Tiempo</span><span class="stat-val">52 min</span></div>
+          </div>
+          <button class="btn-mock btn-primary">Crear curso</button>
+        </div>
+        <div class="editor-main">
+          <div class="flow-list">
+            <!-- Connectors SVG -->
+            <svg class="connector-svg" viewBox="0 0 700 520" preserveAspectRatio="none">
+              <!-- 1→3 arc -->
+              <path d="M -10 48 C -30 48 -30 208 -10 208" class="active" style="stroke:var(--primary); opacity:0.4"/>
+              <!-- 2→3 straight line is the rail -->
+              <!-- 3→4 -->
+              <path d="M -10 208 C -30 208 -30 288 -10 288" style="stroke:var(--primary); opacity:0.4"/>
+              <!-- 4→5 -->
+              <path d="M -10 288 C -30 288 -30 368 -10 368" style="stroke:var(--primary); opacity:0.4"/>
+              <!-- 1,2,3,4,5→6 arc -->
+              <path d="M -10 48 C -50 48 -50 448 -10 448" style="stroke:var(--text-muted); opacity:0.3"/>
+            </svg>
+
+            <div class="flow-node">
+              <div class="flow-rail"><div class="flow-dot"></div><div class="flow-line"></div></div>
+              <div class="node-card" style="display:flex;align-items:center;gap:12px">
+                <div class="drag-handle"><span></span><span></span><span></span></div>
+                <div class="node-num">1</div>
+                <div style="flex:1;min-width:0">
+                  <div class="node-title">Historia y reglas del boxeo</div>
+                  <div class="node-summary">Origenes, reglas basicas del ring, categorias de peso</div>
+                </div>
+                <span class="node-badge recommended">Recomendado</span>
+                <span class="node-time">8 min</span>
+              </div>
+            </div>
+
+            <div class="flow-node">
+              <div class="flow-rail"><div class="flow-dot"></div><div class="flow-line"></div></div>
+              <div class="node-card" style="display:flex;align-items:center;gap:12px">
+                <div class="drag-handle"><span></span><span></span><span></span></div>
+                <div class="node-num">2</div>
+                <div style="flex:1;min-width:0">
+                  <div class="node-title">Posicion de guardia y desplazamiento</div>
+                  <div class="node-summary">Stance ortodoxo y zurdo, footwork basico</div>
+                </div>
+                <span class="node-badge critical">Imprescindible</span>
+                <span class="node-time">12 min</span>
+              </div>
+            </div>
+
+            <div class="flow-node">
+              <div class="flow-rail"><div class="flow-dot"></div><div class="flow-line"></div></div>
+              <div class="node-card selected" style="display:flex;align-items:center;gap:12px">
+                <div class="drag-handle"><span></span><span></span><span></span></div>
+                <div class="node-num">3</div>
+                <div style="flex:1;min-width:0">
+                  <div class="node-title">Golpes basicos: jab, cross, hook</div>
+                  <div class="node-summary">Tecnica de los tres golpes fundamentales</div>
+                  <div style="display:flex;gap:4px;margin-top:6px;align-items:center">
+                    <span style="font-size:10px;color:var(--text-muted)">Depende de:</span>
+                    <span class="prereq-chip" title="1. Historia y reglas">1</span>
+                    <span class="prereq-chip" title="2. Posicion de guardia">2</span>
+                  </div>
+                </div>
+                <span class="node-badge critical">Imprescindible</span>
+                <span class="node-time">15 min</span>
+              </div>
+
+              <!-- Expanded editor for selected node -->
+              <div class="inline-editor">
+                <label>Titulo</label>
+                <input value="Golpes basicos: jab, cross, hook">
+                <label>Resumen</label>
+                <textarea>Tecnica de los tres golpes fundamentales del boxeo</textarea>
+                <label>Objetivo</label>
+                <input value="Ejecutar jab, cross y hook con tecnica correcta">
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+                  <div>
+                    <label>Importancia</label>
+                    <div class="pill-group">
+                      <span class="pill-opt active">Imprescindible</span>
+                      <span class="pill-opt">Recomendado</span>
+                    </div>
+                  </div>
+                  <div>
+                    <label>Formato</label>
+                    <select><option>Ejercicio</option></select>
+                  </div>
+                  <div>
+                    <label>Minutos</label>
+                    <input type="number" value="15" style="width:70px">
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="flow-node">
+              <div class="flow-rail"><div class="flow-dot accent"></div><div class="flow-line"></div></div>
+              <div class="node-card" style="display:flex;align-items:center;gap:12px">
+                <div class="drag-handle"><span></span><span></span><span></span></div>
+                <div class="node-num">4</div>
+                <div style="flex:1;min-width:0">
+                  <div class="node-title">Defensa: bloqueo y esquiva</div>
+                  <div class="node-summary">Tecnicas defensivas basicas</div>
+                </div>
+                <span class="node-badge critical">Imprescindible</span>
+                <span class="node-time">10 min</span>
+              </div>
+            </div>
+
+            <div class="flow-node">
+              <div class="flow-rail"><div class="flow-dot accent"></div><div class="flow-line"></div></div>
+              <div class="node-card" style="display:flex;align-items:center;gap:12px">
+                <div class="drag-handle"><span></span><span></span><span></span></div>
+                <div class="node-num">5</div>
+                <div style="flex:1;min-width:0">
+                  <div class="node-title">Combinaciones y sparring</div>
+                  <div class="node-summary">Encadenar golpes y aplicar en combate controlado</div>
+                </div>
+                <span class="node-badge recommended">Recomendado</span>
+                <span class="node-time">12 min</span>
+              </div>
+            </div>
+
+            <div class="flow-node">
+              <div class="flow-rail"><div class="flow-dot muted"></div></div>
+              <div class="node-card" style="display:flex;align-items:center;gap:12px">
+                <div class="drag-handle"><span></span><span></span><span></span></div>
+                <div class="node-num">6</div>
+                <div style="flex:1;min-width:0">
+                  <div class="node-title">Preparacion fisica y mental</div>
+                  <div class="node-summary">Rutinas de entrenamiento y mentalidad competitiva</div>
+                </div>
+                <span class="node-badge contextual">Contexto</span>
+                <span class="node-time">8 min</span>
+              </div>
+            </div>
+
+            <div class="add-node-btn">+ Anadir nodo</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="prose">
+    <h3>Como funciona</h3>
+    <ul>
+      <li><strong>Click en un nodo</strong> lo expande y muestra el editor inline (como un accordion)</li>
+      <li><strong>Drag handle</strong> a la izquierda para reordenar arrastrando</li>
+      <li><strong>Lineas SVG</strong> conectan nodos con sus prerequisitos visualmente</li>
+      <li><strong>Chips numerados</strong> en cada nodo muestran de que depende</li>
+      <li>Solo un nodo expandido a la vez</li>
+    </ul>
+
+    <div class="pros-cons">
+      <div class="pros">
+        <h4>Pros</h4>
+        <ul>
+          <li>Orden natural arriba-abajo</li>
+          <li>Prerequisites siempre visibles</li>
+          <li>Funciona bien en movil</li>
+          <li>Reutiliza @dnd-kit existente</li>
+        </ul>
+      </div>
+      <div class="cons">
+        <h4>Contras</h4>
+        <ul>
+          <li>Se enreda con muchas dependencias cruzadas</li>
+          <li>Scroll largo con 15+ nodos</li>
+          <li>No muestra rutas paralelas</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- CONCEPT B: Canvas Lanes -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div id="sec-b" class="concept">
+  <div class="concept-header">
+    <h2>B: Canvas Lanes</h2>
+    <p class="subtitle">Columnas horizontales por profundidad del DAG. Izquierda = sin dependencias, derecha = final.</p>
+    <div class="badges">
+      <span class="badge-sm badge-amber">Complejidad: Media-Alta</span>
+      <span class="badge-sm badge-green">Intuitividad: Alta</span>
+    </div>
+  </div>
+
+  <div class="mockup-frame">
+    <div class="mockup-toolbar">
+      <div class="mockup-dot"></div><div class="mockup-dot"></div><div class="mockup-dot"></div>
+      <span>Crear curso / Boxeo / Esquema</span>
+    </div>
+    <div class="mockup-body" style="overflow-x:auto">
+      <div class="lanes">
+        <svg class="connector-svg" viewBox="0 0 700 400" preserveAspectRatio="none">
+          <!-- Lane 0 → Lane 1 connections -->
+          <path d="M 175 55 C 210 55 220 45 255 45" style="stroke:var(--primary);stroke-width:1.5"/>
+          <path d="M 175 160 C 210 160 220 45 255 55" style="stroke:var(--primary);stroke-width:1.5;opacity:0.5"/>
+          <!-- Lane 1 → Lane 2 -->
+          <path d="M 415 55 C 445 55 455 55 485 55" style="stroke:var(--primary);stroke-width:1.5"/>
+          <path d="M 415 55 C 445 55 455 140 485 140" style="stroke:var(--accent);stroke-width:1.5"/>
+          <!-- Lane 2 → Lane 3 -->
+          <path d="M 640 55 C 660 55 660 55 680 55" style="stroke:var(--text-muted);stroke-width:1;opacity:0.3"/>
+        </svg>
+
+        <div class="lane">
+          <div class="lane-header">Fase 1 — Base</div>
+          <div class="node-card" style="margin-bottom:10px">
+            <div style="display:flex;align-items:center;gap:8px">
+              <div class="node-num">1</div>
+              <div style="flex:1">
+                <div class="node-title">Historia y reglas</div>
+                <div class="node-summary">Origenes y reglas basicas</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:6px;margin-top:6px">
+              <span class="node-badge recommended">Recomendado</span>
+              <span class="node-time">8 min</span>
+            </div>
+          </div>
+          <div class="node-card">
+            <div style="display:flex;align-items:center;gap:8px">
+              <div class="node-num">2</div>
+              <div style="flex:1">
+                <div class="node-title">Posicion de guardia</div>
+                <div class="node-summary">Stance y footwork</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:6px;margin-top:6px">
+              <span class="node-badge critical">Imprescindible</span>
+              <span class="node-time">12 min</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="lane">
+          <div class="lane-header">Fase 2 — Tecnica</div>
+          <div class="node-card selected">
+            <div style="display:flex;align-items:center;gap:8px">
+              <div class="node-num">3</div>
+              <div style="flex:1">
+                <div class="node-title">Golpes basicos</div>
+                <div class="node-summary">Jab, cross, hook</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:6px;margin-top:6px">
+              <span class="node-badge critical">Imprescindible</span>
+              <span class="node-time">15 min</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="lane">
+          <div class="lane-header">Fase 3 — Aplicacion</div>
+          <div class="node-card" style="margin-bottom:10px">
+            <div style="display:flex;align-items:center;gap:8px">
+              <div class="node-num">4</div>
+              <div style="flex:1">
+                <div class="node-title">Defensa</div>
+                <div class="node-summary">Bloqueo y esquiva</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:6px;margin-top:6px">
+              <span class="node-badge critical">Imprescindible</span>
+              <span class="node-time">10 min</span>
+            </div>
+          </div>
+          <div class="node-card">
+            <div style="display:flex;align-items:center;gap:8px">
+              <div class="node-num">5</div>
+              <div style="flex:1">
+                <div class="node-title">Combinaciones</div>
+                <div class="node-summary">Encadenar y sparring</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:6px;margin-top:6px">
+              <span class="node-badge recommended">Recomendado</span>
+              <span class="node-time">12 min</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="lane">
+          <div class="lane-header">Fase 4 — Cierre</div>
+          <div class="node-card">
+            <div style="display:flex;align-items:center;gap:8px">
+              <div class="node-num">6</div>
+              <div style="flex:1">
+                <div class="node-title">Prep. fisica</div>
+                <div class="node-summary">Entrenamiento y mentalidad</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:6px;margin-top:6px">
+              <span class="node-badge contextual">Contexto</span>
+              <span class="node-time">8 min</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Drawer for selected node -->
+      <div class="drawer">
+        <h3>3. Golpes basicos</h3>
+        <label style="display:block;font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;margin-bottom:4px;margin-top:12px">Resumen</label>
+        <textarea style="width:100%;border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:13px;font-family:inherit;min-height:60px;resize:vertical">Tecnica de los tres golpes fundamentales del boxeo</textarea>
+        <label style="display:block;font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;margin-bottom:4px;margin-top:12px">Importancia</label>
+        <div class="pill-group"><span class="pill-opt active">Imprescindible</span><span class="pill-opt">Recomendado</span><span class="pill-opt">Contexto</span></div>
+        <label style="display:block;font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;margin-bottom:4px;margin-top:12px">Depende de</label>
+        <div style="display:flex;gap:4px;flex-wrap:wrap">
+          <span style="font-size:11px;background:var(--primary-subtle);color:var(--primary);padding:2px 8px;border-radius:99px">1. Historia</span>
+          <span style="font-size:11px;background:var(--primary-subtle);color:var(--primary);padding:2px 8px;border-radius:99px">2. Guardia</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="prose">
+    <h3>Como funciona</h3>
+    <ul>
+      <li><strong>Columnas automaticas</strong> por profundidad del DAG (sin prereqs = izquierda, final = derecha)</li>
+      <li><strong>Flechas</strong> horizontales entre columnas muestran dependencias</li>
+      <li><strong>Click en nodo</strong> abre panel lateral (drawer) con editor</li>
+      <li><strong>Nodos paralelos</strong> (sin dependencia entre si) quedan en la misma columna</li>
+      <li>El admin ve la "linea de produccion" del curso de un vistazo</li>
+    </ul>
+    <div class="pros-cons">
+      <div class="pros">
+        <h4>Pros</h4>
+        <ul>
+          <li>Muestra paralelismo (nodos independientes)</li>
+          <li>Imposible crear orden invalido</li>
+          <li>Visualmente potente</li>
+          <li>Buen uso del espacio horizontal</li>
+        </ul>
+      </div>
+      <div class="cons">
+        <h4>Contras</h4>
+        <ul>
+          <li>Scroll horizontal en cadenas profundas</li>
+          <li>Mal en movil</li>
+          <li>Admin no controla la posicion</li>
+          <li>Requiere mas implementacion (SVG routing)</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- CONCEPT C: Interactive Outline -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div id="sec-c" class="concept">
+  <div class="concept-header">
+    <h2>C: Outline Interactivo</h2>
+    <p class="subtitle">Lista mejorada con chips de prerequisitos + mini-mapa DAG arriba. Evolucion natural de lo actual.</p>
+    <div class="badges">
+      <span class="badge-sm badge-green">Complejidad: Baja-Media</span>
+      <span class="badge-sm badge-green">Intuitividad: Muy Alta</span>
+    </div>
+  </div>
+
+  <div class="mockup-frame">
+    <div class="mockup-toolbar">
+      <div class="mockup-dot"></div><div class="mockup-dot"></div><div class="mockup-dot"></div>
+      <span>Crear curso / Boxeo / Esquema</span>
+    </div>
+    <div class="mockup-body">
+      <div class="editor-layout">
+        <div class="editor-sidebar">
+          <div class="sidebar-section">
+            <div class="sidebar-label">Densidad</div>
+            <div class="slider-mock"><div class="slider-thumb"></div></div>
+            <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-muted)"><span>Breve</span><span>3</span><span>Detallado</span></div>
+          </div>
+          <div class="sidebar-section">
+            <div class="stat-row"><span style="color:var(--text-muted)">Nodos</span><span class="stat-val">6</span></div>
+            <div class="stat-row"><span style="color:var(--text-muted)">Criticos</span><span class="stat-val">3</span></div>
+            <div class="stat-row"><span style="color:var(--text-muted)">Tiempo</span><span class="stat-val">52 min</span></div>
+          </div>
+          <button class="btn-mock btn-primary">Crear curso</button>
+        </div>
+        <div class="editor-main">
+          <!-- Mini map -->
+          <div class="minimap">
+            <div class="minimap-label">Vista general</div>
+            <svg width="380" height="80" viewBox="0 0 380 80">
+              <!-- Nodes as circles -->
+              <circle cx="30" cy="25" r="14" fill="var(--accent-subtle)" stroke="var(--accent)" stroke-width="1.5"/>
+              <text x="30" y="29" text-anchor="middle" font-size="10" font-weight="600" fill="var(--accent)">1</text>
+
+              <circle cx="30" cy="60" r="14" fill="var(--primary-subtle)" stroke="var(--primary)" stroke-width="1.5"/>
+              <text x="30" y="64" text-anchor="middle" font-size="10" font-weight="600" fill="var(--primary)">2</text>
+
+              <circle cx="140" cy="40" r="16" fill="var(--primary)" stroke="var(--primary)" stroke-width="2"/>
+              <text x="140" y="44" text-anchor="middle" font-size="10" font-weight="700" fill="white">3</text>
+
+              <circle cx="230" cy="25" r="14" fill="var(--primary-subtle)" stroke="var(--primary)" stroke-width="1.5"/>
+              <text x="230" y="29" text-anchor="middle" font-size="10" font-weight="600" fill="var(--primary)">4</text>
+
+              <circle cx="230" cy="60" r="14" fill="var(--accent-subtle)" stroke="var(--accent)" stroke-width="1.5"/>
+              <text x="230" y="64" text-anchor="middle" font-size="10" font-weight="600" fill="var(--accent)">5</text>
+
+              <circle cx="340" cy="40" r="14" fill="var(--bg-muted)" stroke="var(--text-muted)" stroke-width="1.5"/>
+              <text x="340" y="44" text-anchor="middle" font-size="10" font-weight="600" fill="var(--text-muted)">6</text>
+
+              <!-- Edges -->
+              <line x1="44" y1="25" x2="124" y2="38" stroke="var(--border)" stroke-width="1.5"/>
+              <line x1="44" y1="58" x2="124" y2="42" stroke="var(--border)" stroke-width="1.5"/>
+              <line x1="156" y1="38" x2="216" y2="27" stroke="var(--border)" stroke-width="1.5"/>
+              <line x1="156" y1="42" x2="216" y2="58" stroke="var(--border)" stroke-width="1.5"/>
+              <line x1="244" y1="27" x2="326" y2="38" stroke="var(--border)" stroke-width="1"/>
+              <line x1="244" y1="58" x2="326" y2="42" stroke="var(--border)" stroke-width="1"/>
+            </svg>
+          </div>
+
+          <div style="margin-top:16px;display:flex;flex-direction:column;gap:6px">
+            <!-- Node rows -->
+            <div class="node-card" style="display:flex;align-items:center;gap:10px">
+              <div class="drag-handle"><span></span><span></span><span></span></div>
+              <div class="node-num">1</div>
+              <div style="flex:1;min-width:0">
+                <div class="node-title">Historia y reglas del boxeo</div>
+              </div>
+              <span class="node-badge recommended">Recomendado</span>
+              <span class="node-time">8 min</span>
+            </div>
+
+            <div class="node-card" style="display:flex;align-items:center;gap:10px">
+              <div class="drag-handle"><span></span><span></span><span></span></div>
+              <div class="node-num">2</div>
+              <div style="flex:1;min-width:0">
+                <div class="node-title">Posicion de guardia y desplazamiento</div>
+              </div>
+              <span class="node-badge critical">Imprescindible</span>
+              <span class="node-time">12 min</span>
+            </div>
+
+            <div class="node-card selected" style="display:flex;flex-direction:column;gap:0">
+              <div style="display:flex;align-items:center;gap:10px">
+                <div class="drag-handle"><span></span><span></span><span></span></div>
+                <div class="node-num">3</div>
+                <div style="flex:1;min-width:0">
+                  <div class="node-title">Golpes basicos: jab, cross, hook</div>
+                </div>
+                <div style="display:flex;gap:3px">
+                  <span class="prereq-chip" title="Depende de 1">1</span>
+                  <span class="prereq-chip" title="Depende de 2">2</span>
+                </div>
+                <span class="node-badge critical">Imprescindible</span>
+                <span class="node-time">15 min</span>
+              </div>
+              <!-- Expanded inline -->
+              <div class="inline-editor" style="margin-top:10px">
+                <label>Resumen</label>
+                <textarea>Tecnica de los tres golpes fundamentales del boxeo</textarea>
+                <label>Objetivo</label>
+                <input value="Ejecutar jab, cross y hook con tecnica correcta">
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+                  <div>
+                    <label>Importancia</label>
+                    <div class="pill-group"><span class="pill-opt active">Imprescindible</span><span class="pill-opt">Recomendado</span></div>
+                  </div>
+                  <div>
+                    <label>Formato</label>
+                    <select><option>Ejercicio</option></select>
+                  </div>
+                  <div>
+                    <label>Minutos</label>
+                    <input type="number" value="15" style="width:70px">
+                  </div>
+                </div>
+                <label>Depende de</label>
+                <div style="display:flex;gap:4px;flex-wrap:wrap">
+                  <span style="font-size:11px;background:var(--primary-subtle);color:var(--primary);padding:2px 8px;border-radius:99px">1. Historia y reglas &times;</span>
+                  <span style="font-size:11px;background:var(--primary-subtle);color:var(--primary);padding:2px 8px;border-radius:99px">2. Guardia &times;</span>
+                  <span style="font-size:11px;border:1px dashed var(--border);color:var(--text-muted);padding:2px 8px;border-radius:99px;cursor:pointer">+ Anadir</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="node-card" style="display:flex;align-items:center;gap:10px">
+              <div class="drag-handle"><span></span><span></span><span></span></div>
+              <div class="node-num">4</div>
+              <div style="flex:1;min-width:0">
+                <div class="node-title">Defensa: bloqueo y esquiva</div>
+              </div>
+              <span class="prereq-chip">3</span>
+              <span class="node-badge critical">Imprescindible</span>
+              <span class="node-time">10 min</span>
+            </div>
+
+            <div class="node-card" style="display:flex;align-items:center;gap:10px">
+              <div class="drag-handle"><span></span><span></span><span></span></div>
+              <div class="node-num">5</div>
+              <div style="flex:1;min-width:0">
+                <div class="node-title">Combinaciones y sparring</div>
+              </div>
+              <span class="prereq-chip">4</span>
+              <span class="node-badge recommended">Recomendado</span>
+              <span class="node-time">12 min</span>
+            </div>
+
+            <div class="node-card" style="display:flex;align-items:center;gap:10px">
+              <div class="drag-handle"><span></span><span></span><span></span></div>
+              <div class="node-num">6</div>
+              <div style="flex:1;min-width:0">
+                <div class="node-title">Preparacion fisica y mental</div>
+              </div>
+              <div style="display:flex;gap:3px">
+                <span class="prereq-chip">1</span><span class="prereq-chip">2</span><span class="prereq-chip">3</span><span class="prereq-chip">4</span><span class="prereq-chip">5</span>
+              </div>
+              <span class="node-badge contextual">Contexto</span>
+              <span class="node-time">8 min</span>
+            </div>
+
+            <div class="add-node-btn">+ Anadir nodo</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="prose">
+    <h3>Como funciona</h3>
+    <ul>
+      <li><strong>Mini-mapa SVG</strong> arriba muestra el DAG completo como circulos + flechas (solo lectura, actualizado en tiempo real)</li>
+      <li><strong>Chips numerados</strong> en cada fila: prerequisitos de un vistazo sin expandir</li>
+      <li><strong>Click en fila</strong> la expande con editor inline (accordion)</li>
+      <li><strong>Prerequisites editables</strong> como tags removibles + boton "+ Anadir"</li>
+      <li><strong>Drag</strong> para reordenar (igual que ahora con @dnd-kit)</li>
+    </ul>
+    <div class="pros-cons">
+      <div class="pros">
+        <h4>Pros</h4>
+        <ul>
+          <li>Menor salto cognitivo (es una lista mejorada)</li>
+          <li>Funciona perfecto en movil</li>
+          <li>Mini-mapa da contexto sin forzar interaccion</li>
+          <li>Facil de implementar, reutiliza lo existente</li>
+          <li>Base para evolucionar a A si se necesita</li>
+        </ul>
+      </div>
+      <div class="cons">
+        <h4>Contras</h4>
+        <ul>
+          <li>Menos visual que A o B</li>
+          <li>Mini-mapa solo lectura</li>
+          <li>Con muchos prereqs, los chips se acumulan</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- CONCEPT D: Recipe Grid -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div id="sec-d" class="concept">
+  <div class="concept-header">
+    <h2>D: Recipe Builder</h2>
+    <p class="subtitle">Grid de cards por fases (filas = profundidad de prereqs). Click en card abre modal FLIP.</p>
+    <div class="badges">
+      <span class="badge-sm badge-red">Complejidad: Alta</span>
+      <span class="badge-sm badge-green">Intuitividad: Alta</span>
+    </div>
+  </div>
+
+  <div class="mockup-frame">
+    <div class="mockup-toolbar">
+      <div class="mockup-dot"></div><div class="mockup-dot"></div><div class="mockup-dot"></div>
+      <span>Crear curso / Boxeo / Esquema</span>
+    </div>
+    <div class="mockup-body">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+        <div>
+          <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.03em">6 nodos · 52 min · 3 criticos</div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn-mock btn-secondary" style="width:auto;padding:6px 14px;font-size:12px">Densidad: 3</button>
+          <button class="btn-mock btn-primary" style="width:auto;padding:6px 14px;font-size:12px">Crear curso</button>
+        </div>
+      </div>
+
+      <div class="phase-grid">
+        <div>
+          <div class="phase-row-header">Fase 1 — Fundamentos</div>
+          <div class="phase-cards">
+            <div class="recipe-card rec">
+              <div class="rc-title">1. Historia y reglas</div>
+              <div class="rc-summary">Origenes del boxeo, reglas basicas del ring, categorias de peso</div>
+              <div class="rc-meta">
+                <span class="node-badge recommended">Recomendado</span>
+                <span>8 min</span>
+                <span>Explicacion</span>
+              </div>
+            </div>
+            <div class="recipe-card crit">
+              <div class="rc-title">2. Posicion de guardia</div>
+              <div class="rc-summary">Stance ortodoxo y zurdo, footwork basico, equilibrio</div>
+              <div class="rc-meta">
+                <span class="node-badge critical">Imprescindible</span>
+                <span>12 min</span>
+                <span>Ejercicio</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="text-align:center;color:var(--text-muted);font-size:18px">&#8595; &#8595;</div>
+
+        <div>
+          <div class="phase-row-header">Fase 2 — Tecnica ofensiva</div>
+          <div class="phase-cards">
+            <div class="recipe-card crit" style="border-color:var(--primary);box-shadow:0 0 0 2px var(--primary-subtle)">
+              <div class="rc-title">3. Golpes basicos</div>
+              <div class="rc-summary">Jab, cross, hook: la mecanica de cada golpe, errores comunes</div>
+              <div class="rc-meta">
+                <span class="node-badge critical">Imprescindible</span>
+                <span>15 min</span>
+                <span>Mixto</span>
+                <span style="margin-left:auto;display:flex;gap:2px">
+                  <span class="prereq-chip" style="width:16px;height:16px;font-size:9px">1</span>
+                  <span class="prereq-chip" style="width:16px;height:16px;font-size:9px">2</span>
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="text-align:center;color:var(--text-muted);font-size:18px">&#8595; &#8595;</div>
+
+        <div>
+          <div class="phase-row-header">Fase 3 — Combate</div>
+          <div class="phase-cards">
+            <div class="recipe-card crit">
+              <div class="rc-title">4. Defensa</div>
+              <div class="rc-summary">Bloqueo alto/bajo, esquiva, contragolpe</div>
+              <div class="rc-meta">
+                <span class="node-badge critical">Imprescindible</span>
+                <span>10 min</span>
+                <span>Ejercicio</span>
+              </div>
+            </div>
+            <div class="recipe-card rec">
+              <div class="rc-title">5. Combinaciones</div>
+              <div class="rc-summary">Encadenar golpes, sparring controlado</div>
+              <div class="rc-meta">
+                <span class="node-badge recommended">Recomendado</span>
+                <span>12 min</span>
+                <span>Ejercicio</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="text-align:center;color:var(--text-muted);font-size:18px">&#8595;</div>
+
+        <div>
+          <div class="phase-row-header">Fase 4 — Cierre</div>
+          <div class="phase-cards">
+            <div class="recipe-card ctx">
+              <div class="rc-title">6. Prep. fisica y mental</div>
+              <div class="rc-summary">Rutinas de entrenamiento, mentalidad competitiva, recuperacion</div>
+              <div class="rc-meta">
+                <span class="node-badge contextual">Contexto</span>
+                <span>8 min</span>
+                <span>Explicacion</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="add-node-btn">+ Anadir nodo</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="prose">
+    <h3>Como funciona</h3>
+    <ul>
+      <li><strong>Grid por fases</strong>: filas = profundidad de prerequisitos (automatico, no manual)</li>
+      <li><strong>Cards de receta</strong> con borde de color segun criticality</li>
+      <li><strong>Click en card</strong> abre modal FLIP (la card crece hasta ser el modal) para editar</li>
+      <li><strong>Flechas entre fases</strong> muestran el flujo general</li>
+      <li><strong>Cards paralelas</strong> en la misma fila = se pueden estudiar en cualquier orden</li>
+    </ul>
+    <div class="pros-cons">
+      <div class="pros">
+        <h4>Pros</h4>
+        <ul>
+          <li>Metafora de "receta" relevante para el target</li>
+          <li>Modal FLIP ya existe en el codebase</li>
+          <li>Buen uso del espacio (grid compacto)</li>
+          <li>Muestra paralelismo y fases</li>
+        </ul>
+      </div>
+      <div class="cons">
+        <h4>Contras</h4>
+        <ul>
+          <li>Complejo de implementar (grid + FLIP + routing SVG)</li>
+          <li>En movil colapsa a una columna, pierde el concepto de fases</li>
+          <li>Modo "conectar" prerequisitos es un patron nuevo</li>
+          <li>Drag entre fases es complejo</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- COMPARE -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div id="sec-compare" class="concept">
+  <div class="concept-header">
+    <h2>Comparativa</h2>
+    <p class="subtitle">Todos los conceptos lado a lado para decidir.</p>
+  </div>
+
+  <table class="compare-table">
+    <tr>
+      <th></th>
+      <th>A: Vertical Flow</th>
+      <th>B: Canvas Lanes</th>
+      <th>C: Outline</th>
+      <th>D: Recipe Grid</th>
+    </tr>
+    <tr>
+      <td><strong>Intuitivo para no-tecnico</strong></td>
+      <td class="score high">Alta</td>
+      <td class="score mid">Media-Alta</td>
+      <td class="score high">Muy Alta</td>
+      <td class="score high">Alta</td>
+    </tr>
+    <tr>
+      <td><strong>Muestra dependencias</strong></td>
+      <td class="score high">Alta</td>
+      <td class="score high">Muy Alta</td>
+      <td class="score mid">Media</td>
+      <td class="score high">Alta</td>
+    </tr>
+    <tr>
+      <td><strong>Funciona en movil</strong></td>
+      <td class="score high">Alta</td>
+      <td class="score low">Baja</td>
+      <td class="score high">Muy Alta</td>
+      <td class="score mid">Media</td>
+    </tr>
+    <tr>
+      <td><strong>Reutiliza codigo existente</strong></td>
+      <td class="score mid">Media</td>
+      <td class="score low">Baja</td>
+      <td class="score high">Alta</td>
+      <td class="score mid">Media</td>
+    </tr>
+    <tr>
+      <td><strong>Esfuerzo de implementacion</strong></td>
+      <td class="score mid">Medio</td>
+      <td class="score low">Medio-Alto</td>
+      <td class="score high">Bajo-Medio</td>
+      <td class="score low">Alto</td>
+    </tr>
+    <tr>
+      <td><strong>Edicion inline</strong></td>
+      <td class="score high">Alta</td>
+      <td class="score mid">Media (drawer)</td>
+      <td class="score high">Alta</td>
+      <td class="score mid">Media (modal)</td>
+    </tr>
+    <tr>
+      <td><strong>Maneja 15 nodos</strong></td>
+      <td class="score mid">Media (scroll)</td>
+      <td class="score high">Alta</td>
+      <td class="score high">Alta</td>
+      <td class="score high">Alta</td>
+    </tr>
+    <tr>
+      <td><strong>Factor "wow"</strong></td>
+      <td class="score mid">Medio-Alto</td>
+      <td class="score high">Muy Alto</td>
+      <td class="score mid">Medio</td>
+      <td class="score high">Alto</td>
+    </tr>
+  </table>
+
+  <div class="prose" style="margin-top:32px">
+    <h3>Estrategia recomendada</h3>
+    <p>
+      <strong>C (Outline)</strong> como base inmediata: es el menor salto desde lo actual, funciona en todos los tamanos,
+      y el mini-mapa da contexto visual. Despues, si el feedback pide mas visualizacion de dependencias,
+      evolucionar a <strong>A (Vertical Flow)</strong> anadiendo las lineas SVG — la estructura de C es compatible.
+    </p>
+    <p>
+      <strong>D (Recipe Grid)</strong> es la alternativa si quieres maximizar el "wow" y la metafora de fases,
+      pero cuesta mas implementar y el responsive es peor.
+    </p>
+    <p>
+      <strong>B (Canvas Lanes)</strong> es el mas visualmente potente pero el peor en movil y el que
+      mas se aleja del patron de lista que el admin ya conoce.
+    </p>
+  </div>
+</div>
+
+<script>
+function show(id) {
+  document.querySelectorAll('.concept').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.pill').forEach(el => el.classList.remove('active'));
+  document.getElementById('sec-' + id).classList.add('active');
+  document.querySelectorAll('.pill').forEach(p => {
+    if (p.getAttribute('onclick').includes("'" + id + "'")) p.classList.add('active');
+  });
+}
+</script>
+
+<div style="text-align:center;padding:40px 0;color:var(--text-muted);font-size:13px">
+  SkillNet — Schema Editor Concepts — Agosto 2026
+</div>
+</body>
+</html>

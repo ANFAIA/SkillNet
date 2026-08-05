@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Schema Editor — Arbol interactivo</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --bg-subtle: #f8fafc;
+    --bg-muted: #f1f5f9;
+    --text: #0f172a;
+    --text-secondary: #64748b;
+    --text-muted: #94a3b8;
+    --border: #e2e8f0;
+    --border-strong: #cbd5e1;
+    --primary: #3661A5;
+    --primary-subtle: #EBF0F7;
+    --accent: #4BA862;
+    --accent-subtle: #EDF7EF;
+    --danger: #dc2626;
+    --warning: #d97706;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: Inter, -apple-system, system-ui, sans-serif;
+    color: var(--text);
+    background: var(--bg-subtle);
+    line-height: 1.6;
+    padding: 40px 24px;
+  }
+  .container { max-width: 900px; margin: 0 auto; }
+  h1 { font-size: 22px; font-weight: 600; margin-bottom: 4px; }
+  .subtitle { font-size: 14px; color: var(--text-secondary); margin-bottom: 32px; }
+
+  /* ── Mockup frame ── */
+  .frame {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 24px -8px rgba(0,0,0,0.08);
+    margin-bottom: 32px;
+  }
+  .frame-toolbar {
+    background: var(--bg-subtle);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .frame-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--border); }
+  .frame-toolbar span { font-size: 12px; color: var(--text-muted); margin-left: 8px; }
+  .frame-body { padding: 24px; }
+
+  /* ── Layout ── */
+  .editor-layout { display: flex; gap: 24px; }
+  .editor-sidebar { width: 180px; flex-shrink: 0; }
+  .editor-main { flex: 1; min-width: 0; }
+
+  .sidebar-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-bottom: 6px;
+  }
+  .sidebar-section { margin-bottom: 20px; }
+  .stat-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    padding: 3px 0;
+    color: var(--text-muted);
+  }
+  .stat-row strong { color: var(--text); font-weight: 600; }
+  .slider-mock {
+    width: 100%;
+    height: 4px;
+    background: var(--bg-muted);
+    border-radius: 2px;
+    position: relative;
+    margin: 8px 0 4px;
+  }
+  .slider-thumb {
+    position: absolute;
+    top: -4px;
+    left: 50%;
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: var(--primary);
+    transform: translateX(-50%);
+  }
+  .btn-mock {
+    display: block;
+    width: 100%;
+    padding: 8px;
+    text-align: center;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    background: var(--primary);
+    color: white;
+  }
+
+  /* ══════════════════════════════════════════
+     THE TREE
+     ══════════════════════════════════════════ */
+  .tree {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  /* ── Node (collapsed) ── */
+  .tree-node {
+    position: relative;
+  }
+  .tree-row {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    padding: 6px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+  .tree-row:hover { background: var(--bg-muted); }
+  .tree-row.expanded { background: var(--bg-subtle); border-radius: 6px 6px 0 0; }
+
+  /* Toggle arrow */
+  .tree-toggle {
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: var(--text-muted);
+    transition: transform 0.15s;
+  }
+  .tree-toggle.open { transform: rotate(90deg); }
+  .tree-toggle svg { width: 12px; height: 12px; }
+
+  /* Number dot */
+  .tree-num {
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    font-size: 10px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-right: 8px;
+  }
+  .tree-num.critical { background: var(--primary-subtle); color: var(--primary); }
+  .tree-num.recommended { background: var(--accent-subtle); color: var(--accent); }
+  .tree-num.contextual { background: var(--bg-muted); color: var(--text-muted); }
+
+  /* Title — looks like text, IS editable */
+  .tree-title {
+    flex: 1;
+    min-width: 0;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text);
+    border: none;
+    background: transparent;
+    outline: none;
+    padding: 0;
+    font-family: inherit;
+    cursor: text;
+  }
+  .tree-title:focus {
+    background: var(--bg);
+    box-shadow: 0 0 0 1px var(--primary);
+    border-radius: 3px;
+    padding: 0 4px;
+    margin: 0 -4px;
+  }
+
+  /* Meta on the right */
+  .tree-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+    margin-left: 8px;
+  }
+  .tree-time {
+    font-size: 11px;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+  .tree-prereqs {
+    display: flex;
+    gap: 2px;
+  }
+  .tree-prereq {
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    font-size: 9px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1.5px solid var(--border);
+    color: var(--text-muted);
+  }
+  .tree-delete {
+    opacity: 0;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 2px;
+    transition: opacity 0.1s, color 0.1s;
+  }
+  .tree-row:hover .tree-delete { opacity: 1; }
+  .tree-delete:hover { color: var(--danger); }
+
+  /* ── Node (expanded children) ── */
+  .tree-children {
+    margin-left: 20px;
+    padding-left: 20px;
+    border-left: 1.5px solid var(--border);
+    padding-bottom: 4px;
+  }
+
+  .tree-field {
+    display: flex;
+    align-items: flex-start;
+    gap: 0;
+    padding: 4px 8px;
+    border-radius: 4px;
+  }
+  .tree-field:hover { background: var(--bg-muted); }
+
+  .tree-field-label {
+    width: 100px;
+    flex-shrink: 0;
+    font-size: 12px;
+    color: var(--text-muted);
+    padding-top: 2px;
+  }
+
+  .tree-field-value {
+    flex: 1;
+    min-width: 0;
+    font-size: 13px;
+    color: var(--text);
+    border: none;
+    background: transparent;
+    outline: none;
+    padding: 0;
+    font-family: inherit;
+    resize: none;
+    line-height: 1.5;
+  }
+  .tree-field-value:focus {
+    background: var(--bg);
+    box-shadow: 0 0 0 1px var(--primary);
+    border-radius: 3px;
+    padding: 2px 6px;
+    margin: -2px -6px;
+  }
+  textarea.tree-field-value { min-height: 36px; }
+
+  /* Pill selectors (inline, no dropdown) */
+  .tree-pills {
+    display: flex;
+    gap: 3px;
+  }
+  .tree-pill {
+    padding: 2px 10px;
+    border-radius: 99px;
+    font-size: 11px;
+    font-weight: 500;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    background: var(--bg);
+    color: var(--text-secondary);
+    transition: all 0.1s;
+  }
+  .tree-pill:hover { border-color: var(--primary); }
+  .tree-pill.active-crit { background: var(--primary-subtle); color: var(--primary); border-color: var(--primary); }
+  .tree-pill.active-rec { background: var(--accent-subtle); color: #2d6e3e; border-color: var(--accent); }
+  .tree-pill.active-ctx { background: var(--bg-muted); color: var(--text-muted); border-color: var(--border-strong); }
+  .tree-pill.active-fmt { background: var(--primary-subtle); color: var(--primary); border-color: var(--primary); }
+
+  /* Prereq tags */
+  .tree-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    background: var(--primary-subtle);
+    color: var(--primary);
+    padding: 2px 8px;
+    border-radius: 99px;
+    margin-right: 4px;
+  }
+  .tree-tag-x {
+    cursor: pointer;
+    font-size: 10px;
+    opacity: 0.6;
+  }
+  .tree-tag-x:hover { opacity: 1; }
+  .tree-tag-add {
+    display: inline-flex;
+    align-items: center;
+    font-size: 11px;
+    color: var(--text-muted);
+    border: 1px dashed var(--border);
+    padding: 2px 8px;
+    border-radius: 99px;
+    cursor: pointer;
+  }
+  .tree-tag-add:hover { border-color: var(--primary); color: var(--primary); }
+
+  /* Add node */
+  .tree-add {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 8px;
+    margin-left: 20px;
+    border-radius: 6px;
+    font-size: 13px;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: background 0.1s, color 0.1s;
+  }
+  .tree-add:hover { background: var(--bg-muted); color: var(--primary); }
+  .tree-add svg { width: 14px; height: 14px; }
+
+  /* ── Connection lines (vertical rail from the tree) ── */
+  .rail-svg {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 40px;
+    height: 100%;
+    pointer-events: none;
+  }
+
+  /* ── Notes ── */
+  .notes {
+    max-width: 720px;
+    margin-top: 40px;
+  }
+  .notes h3 { font-size: 16px; font-weight: 600; margin-bottom: 12px; }
+  .notes p { font-size: 14px; color: var(--text-secondary); margin-bottom: 12px; }
+  .notes ul { margin: 8px 0 16px 20px; font-size: 14px; color: var(--text-secondary); }
+  .notes li { margin-bottom: 6px; }
+  .notes code { font-size: 12px; background: var(--bg-muted); padding: 1px 5px; border-radius: 3px; }
+
+  /* ── Interaction hints ── */
+  .hint {
+    position: absolute;
+    font-size: 10px;
+    color: var(--primary);
+    font-weight: 500;
+    white-space: nowrap;
+    pointer-events: none;
+  }
+  .hint-arrow {
+    display: inline-block;
+    margin-right: 3px;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>Schema como arbol desplegable</h1>
+<p class="subtitle">
+  Estilo Obsidian: cada nodo se despliega para mostrar sus campos. Todo se edita in-place,
+  el titulo es texto directamente editable, no un input separado.
+</p>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- MOCKUP 1: Varios estados a la vez -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="frame">
+  <div class="frame-toolbar">
+    <div class="frame-dot"></div><div class="frame-dot"></div><div class="frame-dot"></div>
+    <span>Crear curso / Boxeo / Esquema</span>
+  </div>
+  <div class="frame-body">
+    <div class="editor-layout">
+      <div class="editor-sidebar">
+        <div class="sidebar-section">
+          <div class="sidebar-label">Densidad</div>
+          <div class="slider-mock"><div class="slider-thumb"></div></div>
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-muted)"><span>Breve</span><span>3</span><span>Detallado</span></div>
+        </div>
+        <div class="sidebar-section">
+          <div class="stat-row"><span>Nodos</span><strong>6</strong></div>
+          <div class="stat-row"><span>Criticos</span><strong>3</strong></div>
+          <div class="stat-row"><span>Tiempo</span><strong>52 min</strong></div>
+        </div>
+        <button class="btn-mock">Crear curso</button>
+      </div>
+
+      <div class="editor-main">
+        <div class="tree">
+
+          <!-- ── Node 1: COLLAPSED ── -->
+          <div class="tree-node">
+            <div class="tree-row">
+              <div class="tree-toggle">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+              </div>
+              <div class="tree-num recommended">1</div>
+              <input class="tree-title" value="Historia y reglas del boxeo">
+              <div class="tree-meta">
+                <span class="tree-time">8 min</span>
+                <span class="tree-delete">&times;</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Node 2: COLLAPSED ── -->
+          <div class="tree-node">
+            <div class="tree-row">
+              <div class="tree-toggle">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+              </div>
+              <div class="tree-num critical">2</div>
+              <input class="tree-title" value="Posicion de guardia y desplazamiento">
+              <div class="tree-meta">
+                <span class="tree-time">12 min</span>
+                <span class="tree-delete">&times;</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Node 3: EXPANDED ── -->
+          <div class="tree-node">
+            <div class="tree-row expanded">
+              <div class="tree-toggle open">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+              </div>
+              <div class="tree-num critical">3</div>
+              <input class="tree-title" value="Golpes basicos: jab, cross, hook" style="font-weight:600">
+              <div class="tree-meta">
+                <span class="tree-time">15 min</span>
+                <span class="tree-delete" style="opacity:1">&times;</span>
+              </div>
+            </div>
+
+            <div class="tree-children">
+              <div class="tree-field">
+                <span class="tree-field-label">Resumen</span>
+                <textarea class="tree-field-value">Tecnica de los tres golpes fundamentales del boxeo: jab directo, cross cruzado y hook lateral</textarea>
+              </div>
+
+              <div class="tree-field">
+                <span class="tree-field-label">Objetivo</span>
+                <input class="tree-field-value" value="Ejecutar jab, cross y hook con tecnica correcta">
+              </div>
+
+              <div class="tree-field">
+                <span class="tree-field-label">Importancia</span>
+                <div class="tree-pills">
+                  <span class="tree-pill active-crit">Imprescindible</span>
+                  <span class="tree-pill">Recomendado</span>
+                  <span class="tree-pill">Contexto</span>
+                </div>
+              </div>
+
+              <div class="tree-field">
+                <span class="tree-field-label">Formato</span>
+                <div class="tree-pills">
+                  <span class="tree-pill">Explicacion</span>
+                  <span class="tree-pill active-fmt">Ejercicio</span>
+                  <span class="tree-pill">Grafico</span>
+                  <span class="tree-pill">Mixto</span>
+                </div>
+              </div>
+
+              <div class="tree-field">
+                <span class="tree-field-label">Minutos</span>
+                <input class="tree-field-value" type="number" value="15" style="width:60px">
+              </div>
+
+              <div class="tree-field">
+                <span class="tree-field-label">Depende de</span>
+                <div>
+                  <span class="tree-tag">1. Historia y reglas <span class="tree-tag-x">&times;</span></span>
+                  <span class="tree-tag">2. Guardia <span class="tree-tag-x">&times;</span></span>
+                  <span class="tree-tag-add">+ Anadir</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Node 4: COLLAPSED ── -->
+          <div class="tree-node">
+            <div class="tree-row">
+              <div class="tree-toggle">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+              </div>
+              <div class="tree-num critical">4</div>
+              <input class="tree-title" value="Defensa: bloqueo y esquiva">
+              <div class="tree-meta">
+                <span class="tree-prereqs">
+                  <span class="tree-prereq">3</span>
+                </span>
+                <span class="tree-time">10 min</span>
+                <span class="tree-delete">&times;</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Node 5: COLLAPSED ── -->
+          <div class="tree-node">
+            <div class="tree-row">
+              <div class="tree-toggle">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+              </div>
+              <div class="tree-num recommended">5</div>
+              <input class="tree-title" value="Combinaciones y sparring">
+              <div class="tree-meta">
+                <span class="tree-prereqs">
+                  <span class="tree-prereq">3</span>
+                  <span class="tree-prereq">4</span>
+                </span>
+                <span class="tree-time">12 min</span>
+                <span class="tree-delete">&times;</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Node 6: COLLAPSED ── -->
+          <div class="tree-node">
+            <div class="tree-row">
+              <div class="tree-toggle">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+              </div>
+              <div class="tree-num contextual">6</div>
+              <input class="tree-title" value="Preparacion fisica y mental">
+              <div class="tree-meta">
+                <span class="tree-prereqs">
+                  <span class="tree-prereq">1</span>
+                  <span class="tree-prereq">2</span>
+                  <span class="tree-prereq">3</span>
+                  <span class="tree-prereq">4</span>
+                  <span class="tree-prereq">5</span>
+                </span>
+                <span class="tree-time">8 min</span>
+                <span class="tree-delete">&times;</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Add node -->
+          <div class="tree-add">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Anadir nodo
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- MOCKUP 2: Multiple expanded -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<h2 style="font-size:18px;font-weight:600;margin-bottom:8px">Varios nodos abiertos a la vez</h2>
+<p style="font-size:14px;color:var(--text-secondary);margin-bottom:16px">
+  A diferencia de un accordion, puedes tener varios nodos desplegados simultaneamente.
+  Cada uno se expande y colapsa independientemente.
+</p>
+
+<div class="frame">
+  <div class="frame-toolbar">
+    <div class="frame-dot"></div><div class="frame-dot"></div><div class="frame-dot"></div>
+    <span>Dos nodos abiertos a la vez</span>
+  </div>
+  <div class="frame-body" style="padding:16px 24px">
+    <div class="tree">
+
+      <!-- Node 1: expanded -->
+      <div class="tree-node">
+        <div class="tree-row expanded">
+          <div class="tree-toggle open">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+          </div>
+          <div class="tree-num recommended">1</div>
+          <input class="tree-title" value="Historia y reglas del boxeo">
+          <div class="tree-meta"><span class="tree-time">8 min</span></div>
+        </div>
+        <div class="tree-children">
+          <div class="tree-field">
+            <span class="tree-field-label">Resumen</span>
+            <textarea class="tree-field-value">Origenes del boxeo moderno, reglamento basico, categorias de peso y equipamiento</textarea>
+          </div>
+          <div class="tree-field">
+            <span class="tree-field-label">Importancia</span>
+            <div class="tree-pills">
+              <span class="tree-pill">Imprescindible</span>
+              <span class="tree-pill active-rec">Recomendado</span>
+              <span class="tree-pill">Contexto</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Node 2: collapsed -->
+      <div class="tree-node">
+        <div class="tree-row">
+          <div class="tree-toggle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></div>
+          <div class="tree-num critical">2</div>
+          <input class="tree-title" value="Posicion de guardia y desplazamiento">
+          <div class="tree-meta"><span class="tree-time">12 min</span><span class="tree-delete">&times;</span></div>
+        </div>
+      </div>
+
+      <!-- Node 3: expanded -->
+      <div class="tree-node">
+        <div class="tree-row expanded">
+          <div class="tree-toggle open">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+          </div>
+          <div class="tree-num critical">3</div>
+          <input class="tree-title" value="Golpes basicos: jab, cross, hook" style="font-weight:600">
+          <div class="tree-meta"><span class="tree-time">15 min</span></div>
+        </div>
+        <div class="tree-children">
+          <div class="tree-field">
+            <span class="tree-field-label">Resumen</span>
+            <textarea class="tree-field-value">Tecnica correcta de los tres golpes fundamentales</textarea>
+          </div>
+          <div class="tree-field">
+            <span class="tree-field-label">Objetivo</span>
+            <input class="tree-field-value" value="Ejecutar jab, cross y hook con forma correcta">
+          </div>
+          <div class="tree-field">
+            <span class="tree-field-label">Importancia</span>
+            <div class="tree-pills"><span class="tree-pill active-crit">Imprescindible</span><span class="tree-pill">Recomendado</span><span class="tree-pill">Contexto</span></div>
+          </div>
+          <div class="tree-field">
+            <span class="tree-field-label">Depende de</span>
+            <div>
+              <span class="tree-tag">1. Historia <span class="tree-tag-x">&times;</span></span>
+              <span class="tree-tag">2. Guardia <span class="tree-tag-x">&times;</span></span>
+              <span class="tree-tag-add">+ Anadir</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Node 4: collapsed -->
+      <div class="tree-node">
+        <div class="tree-row">
+          <div class="tree-toggle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></div>
+          <div class="tree-num critical">4</div>
+          <input class="tree-title" value="Defensa: bloqueo y esquiva">
+          <div class="tree-meta">
+            <span class="tree-prereqs"><span class="tree-prereq">3</span></span>
+            <span class="tree-time">10 min</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- MOCKUP 3: Just arrived (skeleton → tree transition) -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<h2 style="font-size:18px;font-weight:600;margin:32px 0 8px">Estado de carga</h2>
+<p style="font-size:14px;color:var(--text-secondary);margin-bottom:16px">
+  Mientras la IA propone, se ven filas skeleton. Cuando llegan los nodos, aparecen con stagger (opacity, sin blur).
+</p>
+
+<div class="frame">
+  <div class="frame-toolbar">
+    <div class="frame-dot"></div><div class="frame-dot"></div><div class="frame-dot"></div>
+    <span>Disenando esquema...</span>
+  </div>
+  <div class="frame-body" style="padding:16px 24px">
+    <div class="tree">
+      <div class="tree-node" style="opacity:0.6">
+        <div class="tree-row">
+          <div style="width:20px"></div>
+          <div style="width:20px;height:20px;border-radius:50%;background:var(--bg-muted);margin-right:8px"></div>
+          <div style="flex:1;height:14px;background:var(--bg-muted);border-radius:4px;max-width:280px"></div>
+          <div style="width:40px;height:14px;background:var(--bg-muted);border-radius:4px;margin-left:8px"></div>
+        </div>
+      </div>
+      <div class="tree-node" style="opacity:0.45">
+        <div class="tree-row">
+          <div style="width:20px"></div>
+          <div style="width:20px;height:20px;border-radius:50%;background:var(--bg-muted);margin-right:8px"></div>
+          <div style="flex:1;height:14px;background:var(--bg-muted);border-radius:4px;max-width:340px"></div>
+          <div style="width:40px;height:14px;background:var(--bg-muted);border-radius:4px;margin-left:8px"></div>
+        </div>
+      </div>
+      <div class="tree-node" style="opacity:0.3">
+        <div class="tree-row">
+          <div style="width:20px"></div>
+          <div style="width:20px;height:20px;border-radius:50%;background:var(--bg-muted);margin-right:8px"></div>
+          <div style="flex:1;height:14px;background:var(--bg-muted);border-radius:4px;max-width:220px"></div>
+          <div style="width:40px;height:14px;background:var(--bg-muted);border-radius:4px;margin-left:8px"></div>
+        </div>
+      </div>
+      <div class="tree-node" style="opacity:0.15">
+        <div class="tree-row">
+          <div style="width:20px"></div>
+          <div style="width:20px;height:20px;border-radius:50%;background:var(--bg-muted);margin-right:8px"></div>
+          <div style="flex:1;height:14px;background:var(--bg-muted);border-radius:4px;max-width:300px"></div>
+          <div style="width:40px;height:14px;background:var(--bg-muted);border-radius:4px;margin-left:8px"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- NOTES -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="notes">
+  <h3>Interacciones</h3>
+  <ul>
+    <li><strong>Click en la flecha</strong> &rarr; despliega/colapsa los campos del nodo</li>
+    <li><strong>Click en el titulo</strong> &rarr; editar directamente (es un input con estilo de texto)</li>
+    <li><strong>Click en cualquier campo expandido</strong> &rarr; editar in-place (input/textarea con estilo de texto)</li>
+    <li><strong>Pills de importancia/formato</strong> &rarr; click para cambiar, feedback instantaneo</li>
+    <li><strong>Prereq tags</strong> &rarr; click en x para quitar, click en "+ Anadir" para buscar/seleccionar otro nodo</li>
+    <li><strong>Chips numerados</strong> en la fila colapsada &rarr; muestra de que depende sin expandir</li>
+    <li><strong>Delete (x)</strong> &rarr; aparece solo en hover, al final de la fila</li>
+    <li><strong>Drag</strong> &rarr; desde el numero circular (o un handle invisible) para reordenar</li>
+    <li><strong>Varios nodos abiertos a la vez</strong> &rarr; no es accordion, cada uno es independiente</li>
+  </ul>
+
+  <h3>Lo que NO tiene</h3>
+  <ul>
+    <li>No hay panel/editor separado: todo vive en el nodo</li>
+    <li>No hay modales: todo se edita inline</li>
+    <li>No hay blur en transiciones (solo opacity)</li>
+    <li>No hay labels de "Titulo:" — el titulo simplemente se ve como titulo</li>
+    <li>Los campos expandidos tienen label a la izquierda pero el valor parece texto, no un input enmarcado</li>
+  </ul>
+
+  <h3>Animaciones</h3>
+  <ul>
+    <li><strong>Expandir</strong>: los children entran con <code>opacity: 0 → 1</code> + <code>height: 0 → auto</code> (via Framer Motion <code>layout</code>)</li>
+    <li><strong>Colapsar</strong>: reverse, rapido (<code>duration.fast</code>)</li>
+    <li><strong>Stagger al cargar</strong>: los nodos aparecen uno a uno (0.04s entre cada uno), <code>opacity + y offset</code></li>
+    <li><strong>Delete</strong>: nodo sale con <code>opacity: 0, x: -48</code> + layout reflow</li>
+    <li><strong>Drag reorder</strong>: <code>@dnd-kit</code> con animacion de layout via Framer Motion</li>
+    <li>El numero circular cambia de color segun criticality con transicion <code>duration.instant</code></li>
+  </ul>
+
+  <h3>Implementacion</h3>
+  <ul>
+    <li>Sustituye <code>SchemaContent</code> en <code>CreateCourse.tsx</code></li>
+    <li>Cada nodo es un <code>&lt;SchemaTreeNode&gt;</code> con estado de expanded local</li>
+    <li>Drag via <code>@dnd-kit SortableContext + useSortable</code> (ya existe en el proyecto)</li>
+    <li>Sin librerias nuevas: todo con lo que ya hay (Framer Motion, @dnd-kit, Tailwind)</li>
+    <li>El tree-border-left (linea vertical de los children) da el feel de arbol sin SVG complejo</li>
+  </ul>
+</div>
+
+<div style="text-align:center;padding:40px 0;color:var(--text-muted);font-size:13px">
+  SkillNet — Schema Tree Concept — Agosto 2026
+</div>
+</div>
+</body>
+</html>

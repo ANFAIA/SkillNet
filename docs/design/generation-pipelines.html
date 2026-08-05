@@ -1,0 +1,1408 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SkillNet — Pipelines de generacion de cursos</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --bg-subtle: #f8fafc;
+    --bg-muted: #f1f5f9;
+    --text: #0f172a;
+    --text-secondary: #64748b;
+    --text-muted: #94a3b8;
+    --border: #e2e8f0;
+    --border-strong: #cbd5e1;
+    --primary: #3661A5;
+    --primary-subtle: #EBF0F7;
+    --accent: #4BA862;
+    --accent-subtle: #EDF7EF;
+    --danger: #dc2626;
+    --warning: #d97706;
+    --purple: #7c3aed;
+    --purple-subtle: #ede9fe;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: Inter, -apple-system, system-ui, sans-serif;
+    color: var(--text);
+    background: var(--bg-subtle);
+    line-height: 1.6;
+    padding: 40px 24px;
+  }
+  .container { max-width: 1200px; margin: 0 auto; }
+
+  h1 { font-size: 28px; font-weight: 600; margin-bottom: 4px; }
+  h1 span { color: var(--text-muted); font-weight: 400; }
+  .subtitle { font-size: 14px; color: var(--text-secondary); margin-bottom: 48px; }
+
+  /* ── Tabs ── */
+  .tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 2px solid var(--border);
+    margin-bottom: 32px;
+    position: sticky;
+    top: 0;
+    background: var(--bg-subtle);
+    z-index: 10;
+    padding-top: 8px;
+  }
+  .tab {
+    padding: 12px 24px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: color 0.15s, border-color 0.15s;
+    user-select: none;
+  }
+  .tab:hover { color: var(--text-secondary); }
+  .tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+  .tab.active.green { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* ── Section ── */
+  .section { margin-bottom: 48px; }
+  .section-title {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    margin-bottom: 20px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* ── Pipeline ── */
+  .pipeline {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin: 20px 0;
+  }
+  .pipe-node {
+    display: flex;
+    gap: 16px;
+    padding: 0 0 0 0;
+    position: relative;
+  }
+  .pipe-rail {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 40px;
+    flex-shrink: 0;
+  }
+  .pipe-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--primary);
+    flex-shrink: 0;
+    z-index: 1;
+    margin-top: 18px;
+  }
+  .pipe-dot.green { background: var(--accent); }
+  .pipe-dot.purple { background: var(--purple); }
+  .pipe-dot.orange { background: var(--warning); }
+  .pipe-dot.red { background: var(--danger); }
+  .pipe-dot.big { width: 20px; height: 20px; border: 3px solid var(--bg-subtle); box-shadow: 0 0 0 2px var(--primary); }
+  .pipe-dot.big.green { box-shadow: 0 0 0 2px var(--accent); }
+  .pipe-line {
+    width: 2px;
+    flex: 1;
+    background: var(--border);
+    min-height: 12px;
+  }
+  .pipe-line.dashed { background: repeating-linear-gradient(to bottom, var(--border) 0, var(--border) 4px, transparent 4px, transparent 8px); }
+  .pipe-body {
+    flex: 1;
+    padding: 12px 0 20px;
+    min-width: 0;
+  }
+  .pipe-title {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .pipe-file {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+    margin-bottom: 8px;
+  }
+  .pipe-desc {
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    margin: 16px 0;
+  }
+  .card h4 {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+
+  /* ── Code ── */
+  .code {
+    background: #1e293b;
+    color: #e2e8f0;
+    padding: 16px;
+    border-radius: 6px;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 12px;
+    line-height: 1.7;
+    overflow-x: auto;
+    margin: 12px 0;
+  }
+  .code .c { color: #64748b; }
+  .code .k { color: #93c5fd; }
+  .code .s { color: #86efac; }
+  .code .f { color: #fbbf24; }
+  .code .t { color: #c4b5fd; }
+
+  /* ── Info ── */
+  .info {
+    padding: 14px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    margin: 12px 0;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  .info.blue { background: var(--primary-subtle); border-left: 3px solid var(--primary); }
+  .info.green { background: var(--accent-subtle); border-left: 3px solid var(--accent); }
+  .info.amber { background: #fffbeb; border-left: 3px solid var(--warning); }
+  .info.red { background: #fef2f2; border-left: 3px solid var(--danger); }
+  .info.purple { background: var(--purple-subtle); border-left: 3px solid var(--purple); }
+  .info strong { font-weight: 600; }
+
+  /* ── Tag ── */
+  .tag {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+    vertical-align: middle;
+  }
+  .tag.api { background: var(--accent-subtle); color: #2d6e3e; }
+  .tag.llm { background: var(--purple-subtle); color: var(--purple); }
+  .tag.db { background: var(--primary-subtle); color: var(--primary); }
+  .tag.sse { background: #fef3c7; color: #92400e; }
+  .tag.gate { background: #fef2f2; color: var(--danger); }
+
+  /* ── Table ── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    margin: 12px 0;
+  }
+  th {
+    text-align: left;
+    padding: 8px 12px;
+    background: var(--bg-subtle);
+    border: 1px solid var(--border);
+    font-weight: 600;
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+  td {
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    vertical-align: top;
+  }
+
+  /* ── Graph diagram ── */
+  .graph-box {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 24px;
+    margin: 16px 0;
+    overflow-x: auto;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 2;
+    color: var(--text-secondary);
+    white-space: pre;
+  }
+  .graph-box strong { color: var(--text); font-weight: 600; }
+  .graph-box .g-green { color: var(--accent); font-weight: 600; }
+  .graph-box .g-blue { color: var(--primary); font-weight: 600; }
+  .graph-box .g-purple { color: var(--purple); font-weight: 600; }
+  .graph-box .g-red { color: var(--danger); font-weight: 600; }
+  .graph-box .g-orange { color: var(--warning); font-weight: 600; }
+  .graph-box .g-muted { color: var(--text-muted); }
+
+  /* ── Comparison ── */
+  .compare {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 20px 0;
+  }
+  .compare-col {
+    padding: 20px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+  }
+  .compare-col h4 {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .compare-col ul { list-style: none; padding: 0; }
+  .compare-col li {
+    font-size: 13px;
+    padding: 5px 0;
+    padding-left: 18px;
+    position: relative;
+    color: var(--text-secondary);
+  }
+  .compare-col li::before {
+    content: '';
+    position: absolute;
+    left: 2px;
+    top: 12px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+  }
+  .compare-col.static li::before { background: var(--primary); }
+  .compare-col.dynamic li::before { background: var(--accent); }
+
+  /* ── Separator ── */
+  .sep { height: 1px; background: var(--border); margin: 48px 0; }
+
+  /* ── Big number ── */
+  .big-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    font-size: 13px;
+    font-weight: 700;
+    color: white;
+    flex-shrink: 0;
+  }
+  .big-num.blue { background: var(--primary); }
+  .big-num.green { background: var(--accent); }
+  .big-num.purple { background: var(--purple); }
+
+  /* ── ladder ── */
+  .ladder {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin: 12px 0;
+  }
+  .ladder-step {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+  }
+  .ladder-bar {
+    width: 4px;
+    flex-shrink: 0;
+  }
+  .ladder-content {
+    padding: 10px 16px;
+    font-size: 13px;
+    flex: 1;
+    border: 1px solid var(--border);
+    border-left: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .ladder-step:first-child .ladder-content { border-radius: 0 8px 0 0; }
+  .ladder-step:last-child .ladder-content { border-radius: 0 0 8px 0; }
+  .ladder-step:first-child .ladder-bar { border-radius: 8px 0 0 0; }
+  .ladder-step:last-child .ladder-bar { border-radius: 0 0 0 8px; }
+  .ladder-label {
+    font-weight: 600;
+    min-width: 100px;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>Pipelines de generacion <span>— como se crean los cursos</span></h1>
+<p class="subtitle">
+  Dos caminos completos, desde el click del admin hasta el contenido que ve el alumno.
+  Sin UI — solo backend, modelos, LLM, base de datos.
+</p>
+
+<!-- ── Tabs ── -->
+<div class="tabs">
+  <div class="tab active" onclick="showTab('overview')">Vision general</div>
+  <div class="tab" onclick="showTab('static')">Estatico (v1)</div>
+  <div class="tab green" onclick="showTab('dynamic')">Dinamico (v2)</div>
+  <div class="tab" onclick="showTab('models')">Modelos de datos</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- TAB: OVERVIEW -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div id="tab-overview" class="tab-content active">
+
+<div class="section">
+  <div class="section-title">Dos filosofias de generacion</div>
+
+  <div class="compare">
+    <div class="compare-col static">
+      <h4><span class="big-num blue">v1</span> Estatico (Clasico)</h4>
+      <ul>
+        <li>El curso se genera <strong>una vez</strong>, completo</li>
+        <li>Mismo contenido para todos los alumnos</li>
+        <li>Modulos &rarr; lecciones &rarr; ejercicios, todo de golpe</li>
+        <li>Pipeline LangGraph asincrono con SSE</li>
+        <li>Resultado: contenido Markdown + ejercicios JSON en BD</li>
+        <li>El admin puede editar las lecciones despues</li>
+        <li>Revision de calidad automatica con LLM</li>
+        <li>Hasta 2 ciclos de refinamiento</li>
+        <li>Tiempo total: 10-30 segundos</li>
+      </ul>
+    </div>
+    <div class="compare-col dynamic">
+      <h4><span class="big-num green">v2</span> Dinamico (Personalizado)</h4>
+      <ul>
+        <li>El contenido se genera <strong>por nodo, por alumno, bajo demanda</strong></li>
+        <li>Cada alumno recibe contenido adaptado a su perfil</li>
+        <li>En design-time solo se crea el <em>esquema</em> (nodos + requisitos)</li>
+        <li>En runtime, cuando el alumno llega a un nodo, se genera su contenido</li>
+        <li>Resultado: programa UI en dialecto canonico (no Markdown)</li>
+        <li>Cache por cache_key (perfil + schema_version + modelo + ...)</li>
+        <li>Validacion de programa + retry + fallback a v1</li>
+        <li>Tiempo por nodo: 2-5 segundos</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="info blue">
+    <strong>La decision es por curso.</strong>
+    Un curso con <code>delivery_mode='dynamic'</code> Y <code>schema_status='validated'</code> se sirve por v2.
+    Cualquier otro se sirve por v1. El punto de decision unico: <code>course_delivery.resolve_delivery()</code>.
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">Flujo de alto nivel comparado</div>
+
+  <div class="graph-box"><strong>ESTATICO (v1)</strong>
+<span class="g-muted">El admin da el boton y el backend lo hace todo de una vez.</span>
+
+  Subir documento  &rarr;  <span class="g-blue">POST /documents/{id}/process</span>  &rarr;  Chunks + embeddings
+       |
+  Crear curso      &rarr;  <span class="g-blue">POST /courses</span>                   &rarr;  Course en BD (vacio)
+       |
+  Generar          &rarr;  <span class="g-blue">POST /courses/{id}/generate</span>     &rarr;  GenerationJob (async)
+       |
+  LangGraph        &rarr;  prepare &rarr; themes &rarr; structure &rarr; modules &rarr; review &rarr; [refine] &rarr; publish
+       |                                                                                    |
+  SSE al browser   &larr;  eventos de progreso  &larr;&larr;&larr;&larr;&larr;&larr;&larr;&larr;&larr;&larr;&larr;&larr;&larr;&larr;&larr;&larr;&larr;&larr;&larr;&larr;&larr;&larr;&larr;&larr;&larr;&mdash;
+       |
+  Resultado        &rarr;  Course + Modules + Lessons (Markdown) + Exercises (JSON) en BD
+
+
+<strong>DINAMICO (v2)</strong>
+<span class="g-muted">El admin disena la estructura. El contenido se genera cuando el alumno lo necesita.</span>
+
+  <span class="g-orange">DESIGN-TIME (admin)</span>
+
+  Proponer esquema  &rarr;  <span class="g-green">POST /ai/schema-propose</span>       &rarr;  ProposedNode[] (sin BD)
+       |
+  Crear curso       &rarr;  <span class="g-green">POST /courses</span>                  &rarr;  Course en BD
+       |
+  Guardar esquema   &rarr;  <span class="g-green">PUT /courses/{id}/schema</span>       &rarr;  CourseNode[] en BD
+       |
+  Revisar nodos     &rarr;  <span class="g-green">POST /.../nodes/{id}/review</span>    &rarr;  reviewed_at = now()
+       |
+  Validar           &rarr;  <span class="g-green">POST /.../schema/validate</span>      &rarr;  schema_status = VALIDATED
+       |
+  <span class="g-muted">--- El curso existe pero no tiene contenido. Solo la estructura. ---</span>
+
+  <span class="g-purple">RUNTIME (alumno)</span>
+
+  Pedir nodo        &rarr;  <span class="g-purple">POST /nodes/{id}/render</span>        &rarr;  check cache &rarr; spawn graph
+       |
+  LangGraph         &rarr;  context &rarr; probe &rarr; formato &rarr; genera_ui &rarr; validate &rarr; persist
+       |                                                        |
+  SSE al browser    &larr;  eventos de render  &larr;&larr;&larr;&larr;&larr;&larr;&larr;&larr;&larr;&larr;&larr;&larr;&larr;&larr;&mdash;
+       |
+  Resultado         &rarr;  NodeRender (programa UI canonico) pinned al alumno
+       |
+  Responder         &rarr;  <span class="g-purple">POST /nodes/{id}/answer</span>        &rarr;  grade + mastery update</div>
+</div>
+
+<div class="section">
+  <div class="section-title">Diferencia clave: cuando se genera el contenido</div>
+
+  <table>
+    <tr>
+      <th></th>
+      <th>Estatico (v1)</th>
+      <th>Dinamico (v2)</th>
+    </tr>
+    <tr>
+      <td><strong>Cuando se genera</strong></td>
+      <td>Una vez, cuando el admin da "Generar"</td>
+      <td>Bajo demanda, cuando cada alumno llega a cada nodo</td>
+    </tr>
+    <tr>
+      <td><strong>Que genera el LLM</strong></td>
+      <td>Markdown (lecciones) + JSON (ejercicios)</td>
+      <td>Programa UI en dialecto canonico (DSL propio)</td>
+    </tr>
+    <tr>
+      <td><strong>Personalizacion</strong></td>
+      <td>Ninguna. Mismo contenido para todos.</td>
+      <td>Por perfil: rol, sector, experiencia, scaffold_band, densidad</td>
+    </tr>
+    <tr>
+      <td><strong>Donde vive el contenido</strong></td>
+      <td><code>lessons.content</code> (texto), <code>exercises.content</code> (JSON)</td>
+      <td><code>node_renders.dialect</code> (programa UI) + <code>answer_key</code></td>
+    </tr>
+    <tr>
+      <td><strong>Cache</strong></td>
+      <td>No necesita: el contenido esta en BD</td>
+      <td>Si: cache_key compuesto (perfil + version + modelo + ...)</td>
+    </tr>
+    <tr>
+      <td><strong>Revision de calidad</strong></td>
+      <td>LLM review + refinamiento automatico</td>
+      <td>Gate de validacion de programa (parse + reglas) + retry + fallback</td>
+    </tr>
+    <tr>
+      <td><strong>Si el LLM falla</strong></td>
+      <td>Job marcado FAILED, el admin reintenta</td>
+      <td>Fallback a seed_lesson (contenido v1 degradado)</td>
+    </tr>
+    <tr>
+      <td><strong>Estructura en BD</strong></td>
+      <td>Course &rarr; Module &rarr; Lesson &rarr; Exercise</td>
+      <td>Course &rarr; CourseNode (+ prerequisites DAG) &rarr; NodeRender</td>
+    </tr>
+    <tr>
+      <td><strong>RAG</strong></td>
+      <td>Si: chunks del documento fuente alimentan la generacion</td>
+      <td>Si: misma retrieval ladder (vector &rarr; lexical &rarr; full doc &rarr; general)</td>
+    </tr>
+    <tr>
+      <td><strong>Llamadas LLM</strong></td>
+      <td>4-6 por curso (themes + structure + N modules + review + refine)</td>
+      <td>1-3 por nodo por alumno (formato + genera_ui + repair?)</td>
+    </tr>
+  </table>
+</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- TAB: STATIC -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div id="tab-static" class="tab-content">
+
+<div class="section">
+  <div class="section-title">Prerequisito: preparar el documento fuente</div>
+
+  <div class="pipeline">
+    <div class="pipe-node">
+      <div class="pipe-rail"><div class="pipe-dot"></div><div class="pipe-line"></div></div>
+      <div class="pipe-body">
+        <div class="pipe-title"><span class="tag api">API</span> POST /documents (upload)</div>
+        <div class="pipe-file">src/routes/documents.py</div>
+        <div class="pipe-desc">El admin sube un PDF, DOCX, MD o TXT. Se guarda el archivo y se crea un registro en <code>documents</code> con status <code>"uploaded"</code>.</div>
+      </div>
+    </div>
+    <div class="pipe-node">
+      <div class="pipe-rail"><div class="pipe-dot"></div><div class="pipe-line"></div></div>
+      <div class="pipe-body">
+        <div class="pipe-title"><span class="tag api">API</span> POST /documents/{id}/process</div>
+        <div class="pipe-file">src/services/document_service.py</div>
+        <div class="pipe-desc">
+          Procesa el documento en background:
+          <ol style="font-size:13px; margin:8px 0 0 20px; color:var(--text-secondary)">
+            <li>Parsea el archivo (PDF &rarr; texto, DOCX &rarr; texto, etc.)</li>
+            <li>Extrae <code>full_text</code> (el documento completo como string)</li>
+            <li>Si tiene mas de 5 paginas: lo trocea en chunks semanticos</li>
+            <li>Si hay un proveedor de embeddings: genera vectores para cada chunk</li>
+            <li>Guarda chunks en <code>document_chunks</code> (con vector en pgvector)</li>
+            <li>Marca el documento como <code>"ready"</code></li>
+          </ol>
+        </div>
+      </div>
+    </div>
+    <div class="pipe-node">
+      <div class="pipe-rail"><div class="pipe-dot"></div><div class="pipe-line dashed"></div></div>
+      <div class="pipe-body">
+        <div class="pipe-title">Resultado</div>
+        <div class="pipe-desc">
+          El documento esta listo. Hay dos modos de RAG posibles segun el tamano:
+        </div>
+        <div class="compare" style="margin-top:8px">
+          <div class="compare-col static" style="padding:12px">
+            <h4 style="font-size:13px">&le; 5 paginas: full_text</h4>
+            <ul><li>Se pasa el texto completo al LLM como contexto</li><li>Mas preciso, cero latencia de busqueda</li></ul>
+          </div>
+          <div class="compare-col dynamic" style="padding:12px">
+            <h4 style="font-size:13px">&gt; 5 paginas: chunked</h4>
+            <ul><li>Busqueda semantica por modulo (top K=15)</li><li>Solo los chunks relevantes van al LLM</li></ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">Pipeline LangGraph: generacion estatica</div>
+
+  <div class="graph-box"><strong>Grafo definido en</strong> <span class="g-muted">src/agents/content/graph.py</span>
+
+<span class="g-blue">prepare_context</span> &rarr; <span class="g-blue">extract_themes</span> &rarr; <span class="g-blue">design_structure</span> &rarr; <span class="g-blue">generate_modules</span>
+                                                                          |
+                                                                    <span class="g-purple">review_quality</span>
+                                                                     /      |      \
+                                                             <span class="g-orange">"refine"</span>   <span class="g-green">"pass"</span>   <span class="g-red">"fail"</span>
+                                                                |         |        |
+                                                          <span class="g-orange">refine_content</span>  <span class="g-green">publish</span>  <span class="g-red">handle_error</span>
+                                                                |         |        |
+                                                          <span class="g-purple">review_quality</span>  <strong>END</strong>     <strong>END</strong>
+                                                          <span class="g-muted">(max 2 ciclos)</span></div>
+
+  <div class="pipeline">
+    <!-- prepare_context -->
+    <div class="pipe-node">
+      <div class="pipe-rail"><div class="pipe-dot big"></div><div class="pipe-line"></div></div>
+      <div class="pipe-body">
+        <div class="pipe-title"><span class="big-num blue">1</span> prepare_context</div>
+        <div class="pipe-file">src/agents/content/nodes.py:130-166</div>
+        <div class="pipe-desc">
+          Carga los documentos fuente y decide la estrategia RAG.
+        </div>
+        <div class="card">
+          <h4>Que hace</h4>
+          <ul style="font-size:13px; margin-left:18px; color:var(--text-secondary)">
+            <li>Carga los registros <code>Document</code> de la BD</li>
+            <li>Si hay un solo documento de &le;5 paginas &rarr; modo <code>full_text</code> (pasa todo al LLM)</li>
+            <li>Si hay varios documentos o &gt;5 paginas &rarr; modo <code>chunked</code> (busqueda semantica)</li>
+            <li>Arma <code>source_metadata</code> (num. paginas, titulos, etc.)</li>
+          </ul>
+          <div style="margin-top:8px"><span class="tag sse">SSE</span> <code>{"step": "extracting", "message": "Analizando el material de origen..."}</code></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- extract_themes -->
+    <div class="pipe-node">
+      <div class="pipe-rail"><div class="pipe-dot big"></div><div class="pipe-line"></div></div>
+      <div class="pipe-body">
+        <div class="pipe-title"><span class="big-num blue">2</span> extract_themes</div>
+        <div class="pipe-file">src/agents/content/nodes.py:172-208</div>
+        <div class="pipe-desc">
+          Extrae los temas principales del documento.
+        </div>
+        <div class="card">
+          <h4><span class="tag llm">LLM</span> Llamada 1: extraccion de temas</h4>
+          <table>
+            <tr><td style="width:120px"><strong>System prompt</strong></td><td><code>THEME_EXTRACTOR_SYSTEM</code> — "Analiza el material, extrae 4-8 temas de fundamental a avanzado"</td></tr>
+            <tr><td><strong>User prompt</strong></td><td><code>build_extraction_prompt(context)</code> — el texto del documento (o chunks)</td></tr>
+            <tr><td><strong>Temperatura</strong></td><td>0.3 (determinista)</td></tr>
+            <tr><td><strong>Max tokens</strong></td><td>4096</td></tr>
+            <tr><td><strong>Formato</strong></td><td>JSON: <code>{"themes": [{"key", "title", "bloom_level", "summary"}]}</code></td></tr>
+          </table>
+          <div class="info amber" style="margin-top:8px">
+            <strong>Regla Bloom:</strong> &ge;50% de los temas deben ser nivel "apply" o superior (orientados a la accion, no solo teoria).
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- design_structure -->
+    <div class="pipe-node">
+      <div class="pipe-rail"><div class="pipe-dot big"></div><div class="pipe-line"></div></div>
+      <div class="pipe-body">
+        <div class="pipe-title"><span class="big-num blue">3</span> design_structure</div>
+        <div class="pipe-file">src/agents/content/nodes.py:214-233</div>
+        <div class="pipe-desc">
+          Disenha la estructura del curso: modulos, lecciones y tipos de ejercicio.
+        </div>
+        <div class="card">
+          <h4><span class="tag llm">LLM</span> Llamada 2: diseno de estructura</h4>
+          <table>
+            <tr><td style="width:120px"><strong>System prompt</strong></td><td><code>STRUCTURE_DESIGNER_SYSTEM</code> — "Cada modulo cubre 1-3 temas, cada modulo tiene 2-5 lecciones"</td></tr>
+            <tr><td><strong>Entrada</strong></td><td>Temas extraidos + metadata del documento</td></tr>
+            <tr><td><strong>Regla ejercicios</strong></td><td>&ge;50% deben ser high-order: practical_case, dialogue, order_steps</td></tr>
+            <tr><td><strong>Salida</strong></td><td>JSON: <code>{"title", "description", "outcome", "modules": [{"title", "summary", "lessons": [...]}]}</code></td></tr>
+          </table>
+          <div style="margin-top:8px"><span class="tag sse">SSE</span> <code>{"step": "structuring", "message": "Disenando la estructura..."}</code></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- generate_modules -->
+    <div class="pipe-node">
+      <div class="pipe-rail"><div class="pipe-dot big"></div><div class="pipe-line"></div></div>
+      <div class="pipe-body">
+        <div class="pipe-title"><span class="big-num blue">4</span> generate_modules <span class="tag" style="background:#fef3c7;color:#92400e">PARALELO, max 3</span></div>
+        <div class="pipe-file">src/agents/content/nodes.py:284-353</div>
+        <div class="pipe-desc">
+          Genera el contenido completo de cada modulo. Hasta 3 modulos en paralelo.
+        </div>
+        <div class="card">
+          <h4><span class="tag llm">LLM</span> Llamadas 3..N: generacion de modulos</h4>
+          <table>
+            <tr><td style="width:120px"><strong>System prompt</strong></td><td><code>MODULE_GENERATOR_SYSTEM</code> — "Escribe contenido practico y claro para empleados. Formato Markdown. Sin citas [Fuente: ...]"</td></tr>
+            <tr><td><strong>Por modulo</strong></td><td>Titulo + resumen del modulo + chunks relevantes del documento (busqueda semantica, top K=15)</td></tr>
+            <tr><td><strong>Concurrencia</strong></td><td><code>asyncio.Semaphore(3)</code> — maximo 3 llamadas LLM simultaneas</td></tr>
+            <tr><td><strong>Salida</strong></td><td>JSON por modulo: <code>{"title", "lessons": [{"title", "content" (Markdown)}], "exercises": [{"type", "content" (JSON)}]}</code></td></tr>
+          </table>
+          <div class="info blue" style="margin-top:8px">
+            <strong>RAG por modulo.</strong> Cada modulo busca sus propios chunks relevantes en el documento. Si hay full_text, se usa directo. Si no, busqueda semantica con el titulo+resumen del modulo como query.
+          </div>
+          <div style="margin-top:8px"><span class="tag sse">SSE</span> <code>{"step": "generating", "completed": 2, "total": 4, "current": "Modulo 3"}</code></div>
+        </div>
+
+        <div class="card">
+          <h4>Tipos de ejercicio generados</h4>
+          <table>
+            <tr><th>Tipo</th><th>Formato JSON</th></tr>
+            <tr><td><code>test</code></td><td><code>{"question", "options": [...], "correct_answer": int}</code></td></tr>
+            <tr><td><code>true_false</code></td><td><code>{"statement", "correct_answer": bool}</code></td></tr>
+            <tr><td><code>fill_blank</code></td><td><code>{"template" (con ___), "answer": str}</code></td></tr>
+            <tr><td><code>order_steps</code></td><td><code>{"instruction", "steps": [str], "correct_order": [int]}</code></td></tr>
+            <tr><td><code>practical_case</code></td><td><code>{"context", "question", "rubric": str}</code></td></tr>
+            <tr><td><code>dialogue</code></td><td><code>{"context", "instruction", "rubric": str}</code></td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- review_quality -->
+    <div class="pipe-node">
+      <div class="pipe-rail"><div class="pipe-dot big purple"></div><div class="pipe-line"></div></div>
+      <div class="pipe-body">
+        <div class="pipe-title"><span class="big-num purple">5</span> review_quality</div>
+        <div class="pipe-file">src/agents/content/nodes.py:371-431</div>
+        <div class="pipe-desc">
+          Un LLM independiente revisa la calidad del contenido generado.
+        </div>
+        <div class="card">
+          <h4><span class="tag llm">LLM</span> Llamada de revision</h4>
+          <table>
+            <tr><td style="width:120px"><strong>Criterios</strong></td><td>
+              1. Precision (hechos verificables contra fuente)<br>
+              2. Completitud (temas clave cubiertos)<br>
+              3. Sin artefactos de cita ([Fuente: ...])<br>
+              4. Calidad de ejercicios (respuestas correctas)<br>
+              5. Alineamiento Bloom (&ge;50% apply+)<br>
+              6. Lenguaje claro y profesional<br>
+              7. Consistencia entre modulos
+            </td></tr>
+            <tr><td><strong>Salida</strong></td><td><code>{"passed": bool, "overall_score": 0-1, "issues": [{"severity", "module_index", "description", "suggestion"}]}</code></td></tr>
+          </table>
+          <div class="info amber" style="margin-top:8px">
+            <strong>Resiliente.</strong> Si el LLM de revision falla (rate limit, proveedor caido), el pipeline NO se rompe.
+            Marca <code>review_skipped: true</code> y sigue adelante. Razon: la revision es la 5a llamada LLM; un fallo no deberia
+            descartar todo el trabajo. El admin aun tiene que publicar manualmente.
+          </div>
+        </div>
+
+        <h4 style="font-size:14px; font-weight:600; margin:20px 0 8px">Routing despues de review</h4>
+        <div class="pipe-file">src/agents/content/routing.py:10-44</div>
+        <table>
+          <tr><th>Condicion</th><th>Ruta</th><th>Que pasa</th></tr>
+          <tr><td>Passed = true O review skipped</td><td class="g-green" style="font-weight:600">"pass" &rarr; publish</td><td>El curso se persiste en BD</td></tr>
+          <tr><td>Issues criticas/mayores AND refinement &lt; 2</td><td style="color:var(--warning); font-weight:600">"refine" &rarr; refine_content</td><td>Se corrigen los modulos afectados</td></tr>
+          <tr><td>Sin review report (error total)</td><td style="color:var(--danger); font-weight:600">"fail" &rarr; handle_error</td><td>Job marcado como FAILED</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- refine_content -->
+    <div class="pipe-node">
+      <div class="pipe-rail"><div class="pipe-dot orange"></div><div class="pipe-line"></div></div>
+      <div class="pipe-body">
+        <div class="pipe-title"><span class="tag" style="background:#fef3c7;color:#92400e">OPCIONAL</span> refine_content</div>
+        <div class="pipe-file">src/agents/content/nodes.py:437-503</div>
+        <div class="pipe-desc">
+          Corrige solo los modulos con problemas identificados. Ediciones minimas, no reescritura.
+          Maximo 2 ciclos de refinamiento. Despues de refinar, vuelve a <code>review_quality</code>.
+        </div>
+      </div>
+    </div>
+
+    <!-- publish -->
+    <div class="pipe-node">
+      <div class="pipe-rail"><div class="pipe-dot big green"></div><div class="pipe-line dashed"></div></div>
+      <div class="pipe-body">
+        <div class="pipe-title"><span class="big-num green">6</span> publish</div>
+        <div class="pipe-file">src/agents/content/nodes.py:549-652</div>
+        <div class="pipe-desc">
+          Persiste todo el contenido generado en la base de datos.
+        </div>
+        <div class="card">
+          <h4><span class="tag db">BD</span> Lo que se escribe</h4>
+          <ol style="font-size:13px; margin-left:18px; color:var(--text-secondary)">
+            <li>Actualiza <code>Course</code> con titulo, descripcion, outcome. Status = <code>"draft"</code> (requiere publicacion manual).</li>
+            <li>Crea registros <code>Skill</code> a partir de los temas extraidos (nombre &rarr; snake_case). Los vincula al curso via <code>CourseSkill</code>.</li>
+            <li>Por cada modulo: crea <code>Module</code> (title, summary, position).</li>
+            <li>Por cada leccion del modulo: crea <code>Lesson</code> (title, content=Markdown, position).</li>
+            <li>Por cada ejercicio: crea <code>Exercise</code> (type, content=JSON, position).</li>
+            <li>Actualiza <code>GenerationJob</code>: status=PUBLISHED, result_course_id.</li>
+          </ol>
+          <div style="margin-top:8px"><span class="tag sse">SSE</span> <code>{"step": "published", "course_id": "...", "message": "Curso generado correctamente"}</code></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">Resumen de llamadas LLM (estatico)</div>
+  <table>
+    <tr><th>#</th><th>Nodo</th><th>Prompt</th><th>Temp</th><th>Tokens</th><th>Modo</th></tr>
+    <tr><td>1</td><td>extract_themes</td><td>THEME_EXTRACTOR_SYSTEM</td><td>0.3</td><td>4096</td><td>JSON</td></tr>
+    <tr><td>2</td><td>design_structure</td><td>STRUCTURE_DESIGNER_SYSTEM</td><td>0.3</td><td>4096</td><td>JSON</td></tr>
+    <tr><td>3..N</td><td>generate_modules</td><td>MODULE_GENERATOR_SYSTEM</td><td>0.3</td><td>4096</td><td>JSON</td></tr>
+    <tr><td>N+1</td><td>review_quality</td><td>QUALITY_REVIEWER_SYSTEM</td><td>0.1</td><td>4096</td><td>JSON</td></tr>
+    <tr><td>N+2?</td><td>refine_content</td><td>CONTENT_REFINER_SYSTEM</td><td>0.3</td><td>4096</td><td>JSON</td></tr>
+  </table>
+  <p style="font-size:13px; color:var(--text-secondary); margin-top:8px">
+    Total tipico: 5-7 llamadas LLM para un curso de 3-4 modulos. Tiempo: ~10-30 segundos con Groq.
+  </p>
+</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- TAB: DYNAMIC -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div id="tab-dynamic" class="tab-content">
+
+<div class="section">
+  <div class="section-title">Fase 1: Design-time (el admin disena el esquema)</div>
+
+  <div class="info green">
+    <strong>Principio:</strong> En design-time solo se crea la <em>estructura</em> del curso (nodos + prerequisitos + metadata).
+    No se genera ningun contenido de aprendizaje. El contenido se genera en runtime, por alumno, bajo demanda.
+  </div>
+
+  <div class="pipeline">
+    <!-- schema-propose -->
+    <div class="pipe-node">
+      <div class="pipe-rail"><div class="pipe-dot big green"></div><div class="pipe-line"></div></div>
+      <div class="pipe-body">
+        <div class="pipe-title"><span class="big-num green">1</span> POST /ai/schema-propose <span class="tag api">STATELESS</span></div>
+        <div class="pipe-file">src/routes/ai.py:37-106</div>
+        <div class="pipe-desc">
+          El admin envia titulo + descripcion + densidad. El backend propone un esquema sin guardar nada.
+        </div>
+        <div class="card">
+          <h4>Entrada</h4>
+          <div class="code">
+{
+  <span class="s">"title"</span>: <span class="s">"Seguridad Alimentaria"</span>,
+  <span class="s">"description"</span>: <span class="s">"Higiene, alergenos y APPCC"</span>,
+  <span class="s">"intent_density"</span>: 3        <span class="c">// 1=breve, 5=detallado</span>
+}
+          </div>
+
+          <h4 style="margin-top:16px"><span class="tag llm">LLM</span> Llamada 1: extraer temas</h4>
+          <table>
+            <tr><td style="width:100px"><strong>Prompt</strong></td><td><code>THEME_EXTRACTOR_SYSTEM</code> + <code>build_extraction_prompt(title + description)</code></td></tr>
+            <tr><td><strong>Temp / Tokens</strong></td><td>0.3 / 4096</td></tr>
+            <tr><td><strong>Salida</strong></td><td><code>{"themes": [{"key", "title", "bloom_level", "summary"}]}</code></td></tr>
+          </table>
+
+          <h4 style="margin-top:16px"><span class="tag llm">LLM</span> Llamada 2: disenar esquema</h4>
+          <table>
+            <tr><td style="width:100px"><strong>Prompt</strong></td><td><code>SCHEMA_DESIGNER_SYSTEM</code> + <code>build_schema_prompt(themes, density, title)</code></td></tr>
+            <tr><td><strong>Temp / Tokens</strong></td><td>0.2 / 8192</td></tr>
+            <tr><td><strong>Salida</strong></td><td><code>{"nodes": [ProposedNode]}</code></td></tr>
+          </table>
+
+          <h4 style="margin-top:16px">Salida: ProposedNode</h4>
+          <div class="code">
+{
+  <span class="s">"title"</span>: <span class="s">"Control de temperaturas"</span>,
+  <span class="s">"summary"</span>: <span class="s">"Cadena de frio y puntos criticos de control"</span>,
+  <span class="s">"outcome"</span>: <span class="s">"Identificar rangos de temperatura seguros"</span>,
+  <span class="s">"criticality"</span>: <span class="s">"critical"</span>,       <span class="c">// critical | recommended | contextual</span>
+  <span class="s">"default_ui_format"</span>: <span class="s">"explanation"</span>,<span class="c">// explanation | exercise | chart | mixed | text</span>
+  <span class="s">"estimated_minutes"</span>: 10,
+  <span class="s">"source_headings"</span>: [<span class="s">"Cadena de frio"</span>, <span class="s">"APPCC"</span>],
+  <span class="s">"prerequisites"</span>: [0]         <span class="c">// indices del nodo prerequisito en la lista</span>
+}
+          </div>
+        </div>
+
+        <div class="info blue">
+          <strong>Sin estado.</strong> Este endpoint no guarda nada en BD. El resultado vuelve al frontend y se queda
+          en React state (<code>proposedNodes</code>). Si el admin cierra la pestaña, se pierde. Eso es intencionado:
+          no queremos borradores huerfanos en el servidor.
+        </div>
+      </div>
+    </div>
+
+    <!-- create course -->
+    <div class="pipe-node">
+      <div class="pipe-rail"><div class="pipe-dot green"></div><div class="pipe-line"></div></div>
+      <div class="pipe-body">
+        <div class="pipe-title"><span class="tag db">BD</span> POST /courses</div>
+        <div class="pipe-file">src/routes/courses.py</div>
+        <div class="pipe-desc">Crea el curso en BD. En este punto <code>delivery_mode='static'</code> y <code>schema_status='draft'</code> por defecto.</div>
+      </div>
+    </div>
+
+    <!-- save schema -->
+    <div class="pipe-node">
+      <div class="pipe-rail"><div class="pipe-dot green"></div><div class="pipe-line"></div></div>
+      <div class="pipe-body">
+        <div class="pipe-title"><span class="tag db">BD</span> PUT /courses/{id}/schema</div>
+        <div class="pipe-file">src/routes/course_schema.py:138-154 &rarr; CourseSchemaService.update()</div>
+        <div class="pipe-desc">
+          Guarda los nodos del esquema como registros <code>CourseNode</code> + aristas <code>CourseNodePrerequisite</code>.
+          Cambia <code>schema_status</code> a <code>'proposed'</code>.
+        </div>
+        <div class="card">
+          <h4>Transformacion ProposedNode &rarr; CourseNode</h4>
+          <table>
+            <tr><th>Campo ProposedNode</th><th>Campo CourseNode</th><th>Nota</th></tr>
+            <tr><td>title, summary, outcome</td><td>title, summary, outcome</td><td>Directo</td></tr>
+            <tr><td>criticality</td><td>criticality + mastery_threshold</td><td>critical&rarr;0.9, recommended&rarr;0.8, contextual&rarr;0.7</td></tr>
+            <tr><td>position (indice+1)</td><td>position</td><td>1-based, contiguo</td></tr>
+            <tr><td>prerequisites (indices)</td><td>CourseNodePrerequisite edges</td><td>Se validan: sin ciclos, sin auto-referencia</td></tr>
+            <tr><td>source_headings</td><td>source_headings (ARRAY)</td><td>Secciones del documento que alimentan este nodo</td></tr>
+            <tr><td>default_ui_format</td><td>default_ui_format</td><td>Formato por defecto para la generacion runtime</td></tr>
+            <tr><td>estimated_minutes</td><td>estimated_minutes</td><td>Presupuesto de tiempo</td></tr>
+          </table>
+        </div>
+        <div class="info amber">
+          <strong>Schema bloqueado.</strong> Si el esquema ya esta <code>VALIDATED</code>, este endpoint lanza <code>SchemaLocked</code>.
+          Para modificar un esquema validado, primero hay que "desvalidarlo" explicitamente.
+        </div>
+      </div>
+    </div>
+
+    <!-- review nodes -->
+    <div class="pipe-node">
+      <div class="pipe-rail"><div class="pipe-dot green"></div><div class="pipe-line"></div></div>
+      <div class="pipe-body">
+        <div class="pipe-title"><span class="tag gate">GATE</span> POST /courses/{id}/schema/nodes/{node_id}/review</div>
+        <div class="pipe-file">src/routes/course_schema.py:181-205</div>
+        <div class="pipe-desc">
+          El admin marca un nodo como "revisado". Pone <code>reviewed_at = now()</code> y <code>reviewed_by = admin.id</code>.
+          Esto es un prerequisito para validar: <strong>todos los nodos deben estar revisados</strong>.
+        </div>
+        <div class="info amber">
+          <strong>Se invalida al editar.</strong> Si despues de revisar un nodo alguien cambia su <code>title</code>, <code>summary</code>,
+          <code>criticality</code> o <code>source_headings</code>, se borra <code>reviewed_at</code>. Hay que volver a revisar.
+        </div>
+      </div>
+    </div>
+
+    <!-- validate -->
+    <div class="pipe-node">
+      <div class="pipe-rail"><div class="pipe-dot big green"></div><div class="pipe-line dashed"></div></div>
+      <div class="pipe-body">
+        <div class="pipe-title"><span class="big-num green">&#10003;</span> POST /courses/{id}/schema/validate</div>
+        <div class="pipe-file">src/services/course_schema_service.py:322-387</div>
+        <div class="pipe-desc">
+          Gate bloqueante. Solo pasa si se cumplen TODAS las reglas. Si pasa, el curso se convierte en dinamico.
+        </div>
+        <div class="card">
+          <h4><span class="tag gate">GATE</span> 7 reglas de validacion</h4>
+          <table>
+            <tr><th>#</th><th>Regla</th><th>Que verifica</th></tr>
+            <tr><td>1</td><td>No vacio</td><td>Al menos un nodo no archivado</td></tr>
+            <tr><td>2</td><td>Summary obligatorio</td><td>Todos los nodos tienen <code>summary</code> (NOT NULL)</td></tr>
+            <tr><td>3</td><td>Fuente obligatoria</td><td>Todos tienen <code>source_document_id</code> o <code>seed_lesson_id</code></td></tr>
+            <tr><td>4</td><td>Nodo critico</td><td>Al menos un nodo con <code>criticality='critical'</code></td></tr>
+            <tr><td>5</td><td>Sin prerequisitos huerfanos</td><td>Todas las aristas apuntan a nodos existentes</td></tr>
+            <tr><td>6</td><td>Sin ciclos</td><td>El DAG de prerequisitos es aciclico (<code>find_cycle()</code>)</td></tr>
+            <tr><td>7</td><td>Posiciones contiguas</td><td>Posiciones 1, 2, 3... sin saltos</td></tr>
+            <tr><td>8</td><td>Todos revisados</td><td>Todos los nodos tienen <code>reviewed_at IS NOT NULL</code></td></tr>
+          </table>
+          <div style="margin-top:12px; font-size:13px; color:var(--text-secondary)">
+            Si pasa: <code>schema_status = VALIDATED</code>, <code>delivery_mode = DYNAMIC</code>.<br>
+            Si falla: responde con los errores especificos. Nada cambia en BD.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="info green">
+    <strong>Fin del design-time.</strong> El curso existe en BD con sus nodos, pero <em>sin contenido de aprendizaje</em>.
+    Los nodos son la estructura; el contenido se genera cuando un alumno lo necesita.
+  </div>
+</div>
+
+<div class="sep"></div>
+
+<div class="section">
+  <div class="section-title">Fase 2: Runtime (el alumno toma el curso)</div>
+
+  <div class="info purple">
+    <strong>Cambio de contexto.</strong> A partir de aqui, ya no es el admin quien actua. Es el <em>alumno</em> matriculado
+    en el curso. El contenido se genera por nodo, personalizado para este alumno especifico.
+  </div>
+
+  <div class="pipeline">
+    <!-- request render -->
+    <div class="pipe-node">
+      <div class="pipe-rail"><div class="pipe-dot big purple"></div><div class="pipe-line"></div></div>
+      <div class="pipe-body">
+        <div class="pipe-title"><span class="big-num purple">1</span> POST /nodes/{node_id}/render</div>
+        <div class="pipe-file">src/routes/nodes.py:504-534 &rarr; NodeRenderService.request_render()</div>
+        <div class="pipe-desc">
+          El alumno llega a un nodo. El frontend pide el render. El backend decide si generarlo o servirlo de cache.
+        </div>
+        <div class="card">
+          <h4>Arbol de decision (en orden)</h4>
+          <table>
+            <tr><th>#</th><th>Condicion</th><th>Resultado</th><th>Tokens LLM</th></tr>
+            <tr><td>1</td><td>Existe render pinned para este alumno</td><td>Devuelve el render cacheado</td><td>0</td></tr>
+            <tr><td>2</td><td>Ya hay una generacion en vuelo</td><td>Devuelve el mismo request_id (evita race)</td><td>0</td></tr>
+            <tr><td>3</td><td>Existe render con el mismo cache_key</td><td>Lo pinea a este alumno y lo devuelve</td><td>0</td></tr>
+            <tr><td>4</td><td>Nada de lo anterior</td><td>Spawn LangGraph, devuelve 202 + request_id</td><td>1-3 llamadas</td></tr>
+          </table>
+        </div>
+
+        <div class="card">
+          <h4>Composicion del cache_key</h4>
+          <p style="font-size:13px; color:var(--text-secondary); margin-bottom:8px">
+            El cache_key determina cuando dos alumnos reciben el mismo contenido. Si cualquier componente cambia, se regenera.
+          </p>
+          <table>
+            <tr><th>Componente</th><th>Que es</th></tr>
+            <tr><td><code>node_id</code></td><td>El nodo</td></tr>
+            <tr><td><code>schema_version</code></td><td>Version del esquema (sube al editar nodos con <code>--refresh</code>)</td></tr>
+            <tr><td><code>preset</code></td><td>Perfil del alumno: standard / fast / detailed</td></tr>
+            <tr><td><code>experience_level</code></td><td>Nivel de experiencia del alumno</td></tr>
+            <tr><td><code>scaffold_band</code></td><td>Banda de andamiaje (novice/neutral/advanced), se congela al calibrar</td></tr>
+            <tr><td><code>effective_density</code></td><td>Densidad del curso ajustada por accesibilidad</td></tr>
+            <tr><td><code>backend</code></td><td>Backend de render (openui)</td></tr>
+            <tr><td><code>model</code></td><td>Modelo LLM usado</td></tr>
+            <tr><td><code>prompt_version</code></td><td>Version de los prompts</td></tr>
+            <tr><td><code>catalog_version</code></td><td>Version del catalogo de componentes UI</td></tr>
+            <tr><td><code>role_title</code></td><td>El rol del alumno (va en el prompt)</td></tr>
+            <tr><td><code>sector</code></td><td>Sector del alumno</td></tr>
+            <tr><td><code>vector_bucket</code></td><td>Bucket del vector de formato (congelado en calibracion)</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- render graph -->
+    <div class="pipe-node">
+      <div class="pipe-rail"><div class="pipe-dot purple"></div><div class="pipe-line"></div></div>
+      <div class="pipe-body">
+        <div class="pipe-title">LangGraph: Runtime Render Agent</div>
+        <div class="pipe-file">src/agents/runtime/graph.py:45-141</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="graph-box"><strong>Grafo definido en</strong> <span class="g-muted">src/agents/runtime/graph.py</span>
+
+<span class="g-purple">load_context</span> &rarr; <span class="g-purple">probe_gate</span> &mdash;(<span class="g-green">mastered</span>)&mdash;&rarr; <span class="g-green">skip_node</span> &rarr; <strong>END</strong>  <span class="g-muted">(0 tokens)</span>
+                             |
+                      <span class="g-muted">(needs_content)</span>
+                             |
+                     <span class="g-purple">decide_formato</span> &rarr; <span class="g-purple">genera_ui</span> &rarr; <span class="g-purple">validate_ui</span>
+                                                              /          \
+                                                   <span class="g-green">(valid)</span>         <span class="g-red">(invalid)</span>
+                                                      |              |
+                                              <span class="g-green">persist_render</span>   retry &le; 1?
+                                                      |           /        \
+                                                   <strong>END</strong>      <span class="g-orange">genera_ui</span>  <span class="g-red">fallback_seed</span>
+                                                           <span class="g-muted">(con repair prompt)</span>      |
+                                                                              <strong>END</strong>  <span class="g-muted">(v1 degradado)</span></div>
+
+  <div class="pipeline">
+    <!-- load_context -->
+    <div class="pipe-node">
+      <div class="pipe-rail"><div class="pipe-dot big purple"></div><div class="pipe-line"></div></div>
+      <div class="pipe-body">
+        <div class="pipe-title"><span class="big-num purple">2</span> load_context</div>
+        <div class="pipe-file">src/agents/runtime/nodes.py:327-446</div>
+        <div class="pipe-desc">Carga todo el contexto necesario para generar: nodo, curso, perfil del alumno, documento fuente.</div>
+        <div class="card">
+          <h4>Lo que carga</h4>
+          <table>
+            <tr><td><strong>CourseNode</strong></td><td>Titulo, summary, outcome, criticality, mastery_threshold, ui_format, source_headings</td></tr>
+            <tr><td><strong>Course</strong></td><td>Schema version, intent_density</td></tr>
+            <tr><td><strong>User + LearnerProfile</strong></td><td>Rol, sector, experiencia, preset, tutor_signals, nodos completados</td></tr>
+            <tr><td><strong>LearnerNodeState</strong></td><td>Mastery actual, scaffold_band, consecutivos correctos/fallidos</td></tr>
+            <tr><td><strong>Contexto fuente</strong></td><td>Via retrieval ladder (ver abajo)</td></tr>
+          </table>
+        </div>
+        <div class="card">
+          <h4>Retrieval ladder (como se obtiene el contexto del documento)</h4>
+          <div class="ladder">
+            <div class="ladder-step">
+              <div class="ladder-bar" style="background:var(--accent)"></div>
+              <div class="ladder-content"><span class="ladder-label" style="color:var(--accent)">Full text</span> Si el documento tiene &le;5 paginas, se pasa entero (clipped a source_headings)</div>
+            </div>
+            <div class="ladder-step">
+              <div class="ladder-bar" style="background:var(--primary)"></div>
+              <div class="ladder-content"><span class="ladder-label" style="color:var(--primary)">Vector search</span> Busqueda semantica con query = titulo + summary del nodo. Top K=8. Filtrado por source_headings.</div>
+            </div>
+            <div class="ladder-step">
+              <div class="ladder-bar" style="background:var(--warning)"></div>
+              <div class="ladder-content"><span class="ladder-label" style="color:var(--warning)">Lexical</span> Busqueda por tsvector (stemming espanol) si los embeddings no estan disponibles.</div>
+            </div>
+            <div class="ladder-step">
+              <div class="ladder-bar" style="background:var(--danger)"></div>
+              <div class="ladder-content"><span class="ladder-label" style="color:var(--danger)">Full doc fallback</span> Si no hay chunks, se toman hasta 3 documentos, 4000 chars cada uno.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- probe_gate -->
+    <div class="pipe-node">
+      <div class="pipe-rail"><div class="pipe-dot purple"></div><div class="pipe-line"></div></div>
+      <div class="pipe-body">
+        <div class="pipe-title">probe_gate <span class="tag" style="background:#fef3c7;color:#92400e">BYPASSED</span></div>
+        <div class="pipe-file">src/agents/runtime/nodes.py:462-480</div>
+        <div class="pipe-desc">
+          Comprueba si el alumno ya domina este nodo (sin gastar tokens). Actualmente <strong>desactivado</strong>
+          (siempre genera). Cuando se reactive, saltara a <code>skip_node</code> si el alumno ya lo domina.
+        </div>
+      </div>
+    </div>
+
+    <!-- decide_formato -->
+    <div class="pipe-node">
+      <div class="pipe-rail"><div class="pipe-dot big purple"></div><div class="pipe-line"></div></div>
+      <div class="pipe-body">
+        <div class="pipe-title"><span class="big-num purple">3</span> decide_formato</div>
+        <div class="pipe-file">src/agents/runtime/nodes.py:486-620+</div>
+        <div class="pipe-desc">Elige el formato de UI y el tier (presupuesto de tokens).</div>
+        <div class="card">
+          <h4>Logica</h4>
+          <table>
+            <tr><th>Fase</th><th>Como elige formato</th><th>Llamada LLM</th></tr>
+            <tr><td>Calibracion (&lt;3 nodos)</td><td>Usa <code>node.default_ui_format</code> (lo que propuso la IA en design-time)</td><td>No</td></tr>
+            <tr><td>Post-calibracion</td><td>Analiza la estructura del contenido fuente (<code>analyze_shape()</code>) + llama al LLM</td><td>Si: <code>FORMAT_DECIDER_SYSTEM</code>, temp=0.0, 256 tokens</td></tr>
+          </table>
+          <div style="margin-top:8px">
+            <strong>Tiers:</strong>
+            <code>fast</code> (1200 tokens) para explanation |
+            <code>heavy</code> (2400 tokens) para chart/walkthrough/mixed
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- genera_ui -->
+    <div class="pipe-node">
+      <div class="pipe-rail"><div class="pipe-dot big purple"></div><div class="pipe-line"></div></div>
+      <div class="pipe-body">
+        <div class="pipe-title"><span class="big-num purple">4</span> genera_ui <span class="tag llm">LLM</span></div>
+        <div class="pipe-file">src/agents/runtime/nodes.py:623-750+</div>
+        <div class="pipe-desc">
+          Genera el programa UI personalizado para este alumno, en este nodo.
+        </div>
+        <div class="card">
+          <h4>Contexto que recibe el LLM</h4>
+          <table>
+            <tr><td><strong>Nodo</strong></td><td>title, summary, outcome, criticality, source_headings</td></tr>
+            <tr><td><strong>Perfil alumno</strong></td><td>role_title, sector, experience_level, nodos completados, tutor_signals</td></tr>
+            <tr><td><strong>Estado alumno</strong></td><td>Mastery actual, scaffold_band, consecutivos correctos/fallidos</td></tr>
+            <tr><td><strong>Fuente</strong></td><td>Texto del documento (max 6000 chars), via retrieval ladder</td></tr>
+            <tr><td><strong>Shape plan</strong></td><td>Analisis de estructura del contenido (listas, tablas, procedimientos...)</td></tr>
+            <tr><td><strong>Catalogo UI</strong></td><td>Componentes disponibles (library.prompt()) — la gramatica del DSL</td></tr>
+            <tr><td><strong>Scaffolding</strong></td><td>Reglas segun scaffold_band (novice: mas guia, advanced: mas autonomia)</td></tr>
+            <tr><td><strong>Densidad</strong></td><td>Presupuesto segun effective_density</td></tr>
+          </table>
+          <div style="margin-top:12px">
+            <strong>Params LLM:</strong> temp=0.4, max_tokens=1200 (fast) o 2400 (heavy), modelo segun tier
+          </div>
+        </div>
+        <div class="info purple">
+          <strong>Programa UI, no Markdown.</strong> A diferencia de v1 (que genera Markdown), v2 genera un programa en un
+          <em>dialecto canonico</em> (DSL propio de SkillNet). Este programa describe componentes UI
+          (explicaciones, quizzes, graficos, walkthroughs) que el frontend renderiza.
+          La answer_key se separa del programa con un sentinel antes de parsear.
+        </div>
+      </div>
+    </div>
+
+    <!-- validate_ui -->
+    <div class="pipe-node">
+      <div class="pipe-rail"><div class="pipe-dot big purple"></div><div class="pipe-line"></div></div>
+      <div class="pipe-body">
+        <div class="pipe-title"><span class="big-num purple">5</span> validate_ui <span class="tag gate">GATE</span></div>
+        <div class="pipe-file">src/agents/runtime/nodes.py:752-850+, src/render/gate.py</div>
+        <div class="pipe-desc">
+          Parsea, valida y canonicaliza el programa generado. Gate de seguridad.
+        </div>
+        <div class="card">
+          <h4>Pasos de validacion</h4>
+          <ol style="font-size:13px; margin-left:18px; color:var(--text-secondary)">
+            <li>Separar answer_key del programa (split por ANSWER_KEY_SENTINEL)</li>
+            <li>Parsear programa &rarr; UISpec (arbol de componentes)</li>
+            <li>Verificar reglas static-only (no $state, no tools, no reactive)</li>
+            <li>Validar estructura de componentes</li>
+            <li>Verificar que todos los quizzes tienen answer_key</li>
+            <li>Re-serializar a forma canonica (seguridad: nunca se persiste el raw del LLM)</li>
+            <li>Podar answer_key a solo items referenciados</li>
+          </ol>
+        </div>
+        <div class="card">
+          <h4>Routing post-validacion</h4>
+          <table>
+            <tr><th>Resultado</th><th>Accion</th></tr>
+            <tr><td style="color:var(--accent); font-weight:600">Valido</td><td>&rarr; persist_render (guardar y servir)</td></tr>
+            <tr><td style="color:var(--warning); font-weight:600">Invalido, retry &le; 1</td><td>&rarr; genera_ui de nuevo con <code>build_repair_prompt()</code> (el LLM ve sus propios errores)</td></tr>
+            <tr><td style="color:var(--danger); font-weight:600">Invalido, retries agotados</td><td>&rarr; fallback_seed (contenido v1 degradado)</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- persist_render -->
+    <div class="pipe-node">
+      <div class="pipe-rail"><div class="pipe-dot big green"></div><div class="pipe-line"></div></div>
+      <div class="pipe-body">
+        <div class="pipe-title"><span class="big-num green">6</span> persist_render</div>
+        <div class="pipe-file">src/agents/runtime/nodes.py:852-950+</div>
+        <div class="pipe-desc">Guarda el render y lo vincula al alumno.</div>
+        <div class="card">
+          <h4><span class="tag db">BD</span> Lo que se escribe</h4>
+          <ul style="font-size:13px; margin-left:18px; color:var(--text-secondary)">
+            <li><code>NodeRender</code>: status=READY, dialect (programa canonico), answer_key, ui_format, tier, model, cache_key</li>
+            <li><code>LearnerNodeState</code>: active_render_id = este render, render_pinned = true</li>
+            <li><code>NodeRenderView</code>: registro de que este alumno vio este render (audit trail)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- fallback -->
+    <div class="pipe-node">
+      <div class="pipe-rail"><div class="pipe-dot red"></div><div class="pipe-line dashed"></div></div>
+      <div class="pipe-body">
+        <div class="pipe-title"><span class="tag" style="background:#fef2f2;color:var(--danger)">FALLBACK</span> fallback_seed</div>
+        <div class="pipe-file">src/agents/runtime/nodes.py:952-1050+</div>
+        <div class="pipe-desc">
+          Si la generacion falla (LLM error, validacion imposible), sirve contenido degradado:
+          <code>seed_lesson.content</code> (Markdown v1) si existe, o un bloque minimo del documento fuente.
+          Status = FALLBACK. El alumno puede seguir usando el curso en modo v1.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="sep"></div>
+
+<div class="section">
+  <div class="section-title">Fase 3: Evaluacion y mastery</div>
+
+  <div class="pipeline">
+    <div class="pipe-node">
+      <div class="pipe-rail"><div class="pipe-dot big purple"></div><div class="pipe-line"></div></div>
+      <div class="pipe-body">
+        <div class="pipe-title"><span class="tag api">API</span> POST /nodes/{node_id}/answer</div>
+        <div class="pipe-file">src/routes/nodes.py:652-850+</div>
+        <div class="pipe-desc">El alumno responde a los ejercicios del nodo.</div>
+        <div class="card">
+          <h4>Flujo de evaluacion</h4>
+          <ol style="font-size:13px; margin-left:18px; color:var(--text-secondary)">
+            <li>Recupera la <code>answer_key</code> del render (nunca estuvo en el browser)</li>
+            <li><code>grade_item()</code>: evalua cada respuesta contra la clave</li>
+            <li>Devuelve: score, explicacion, resultados por item</li>
+            <li><code>transition_on_answer()</code>: actualiza mastery con modelo bayesiano</li>
+            <li>Detecta transiciones de estado: not_started &rarr; learning &rarr; mastered</li>
+            <li>Si mastered: incrementa <code>nodes_completed</code>, actualiza <code>format_vector</code></li>
+            <li>Cierra el nodo</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+    <div class="pipe-node">
+      <div class="pipe-rail"><div class="pipe-dot purple"></div><div class="pipe-line dashed"></div></div>
+      <div class="pipe-body">
+        <div class="pipe-title"><span class="tag api">API</span> POST /nodes/{node_id}/hint</div>
+        <div class="pipe-desc">Pista just-in-time. Max 3 por nodo. Solo si state == learning.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">Gates de seguridad (resumen)</div>
+  <table>
+    <tr><th>Gate</th><th>Donde</th><th>Que protege</th></tr>
+    <tr><td><strong>1. Schema validation</strong></td><td><code>POST .../schema/validate</code></td><td>Sin ciclos, nodos revisados, fuente, criticos, posiciones</td></tr>
+    <tr><td><strong>2. Course-level</strong></td><td><code>resolve_delivery()</code></td><td>delivery_mode=DYNAMIC + schema_status=VALIDATED</td></tr>
+    <tr><td><strong>3. Per-node</strong></td><td><code>ensure_node_servable()</code></td><td>Node not archived, reviewed_at exists</td></tr>
+    <tr><td><strong>4. Program validation</strong></td><td><code>validate_ui</code> + <code>canonicalize()</code></td><td>Static-only, correct nesting, components valid</td></tr>
+    <tr><td><strong>5. Answer key separation</strong></td><td>Split before parse</td><td>La clave nunca llega al browser</td></tr>
+    <tr><td><strong>6. Cache isolation</strong></td><td><code>build_render_key()</code></td><td>Previews y refreshes usan salt, no se cachean</td></tr>
+  </table>
+</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- TAB: MODELS -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div id="tab-models" class="tab-content">
+
+<div class="section">
+  <div class="section-title">Modelos de datos: estatico (v1)</div>
+
+  <div class="graph-box"><span class="g-blue">Course</span>
+  |
+  +&mdash; <span class="g-blue">Module</span>  <span class="g-muted">(1:N, position ordered)</span>
+  |     |
+  |     +&mdash; <span class="g-blue">Lesson</span>  <span class="g-muted">(1:N, position ordered)</span>
+  |     |     |
+  |     |     +&mdash; content  <span class="g-muted">(Markdown text)</span>
+  |     |
+  |     +&mdash; <span class="g-blue">Exercise</span>  <span class="g-muted">(1:N, per lesson, position ordered)</span>
+  |           |
+  |           +&mdash; type  <span class="g-muted">(test | true_false | fill_blank | order_steps | practical_case | dialogue)</span>
+  |           +&mdash; content  <span class="g-muted">(JSON blob, shape depends on type)</span>
+  |
+  +&mdash; <span class="g-blue">CourseSkill</span> &mdash;&gt; <span class="g-blue">Skill</span>  <span class="g-muted">(auto-created from themes)</span>
+  |
+  +&mdash; <span class="g-blue">GenerationJob</span>  <span class="g-muted">(tracks async generation)</span>
+  |     |
+  |     +&mdash; status  <span class="g-muted">(PENDING | EXTRACTING | STRUCTURING | GENERATING | REVIEWING | PUBLISHED | FAILED)</span>
+  |     +&mdash; progress  <span class="g-muted">(JSONB, SSE events mirror this)</span>
+  |
+  +&mdash; <span class="g-blue">Document</span>  <span class="g-muted">(source material)</span>
+        |
+        +&mdash; <span class="g-blue">DocumentChunk</span>  <span class="g-muted">(text + embedding vector in pgvector)</span></div>
+</div>
+
+<div class="section">
+  <div class="section-title">Modelos de datos: dinamico (v2)</div>
+
+  <div class="graph-box"><span class="g-green">Course</span>  <span class="g-muted">(delivery_mode=DYNAMIC, schema_status=VALIDATED)</span>
+  |
+  +&mdash; schema_version  <span class="g-muted">(int, invalidates cache_key on bump)</span>
+  +&mdash; intent_density   <span class="g-muted">(1-5, affects content generation)</span>
+  |
+  +&mdash; <span class="g-green">CourseNode</span>  <span class="g-muted">(1:N, position ordered — these are the "steps" of the course)</span>
+  |     |
+  |     +&mdash; title, summary, outcome
+  |     +&mdash; criticality       <span class="g-muted">(critical | recommended | contextual)</span>
+  |     +&mdash; mastery_threshold <span class="g-muted">(0.7 | 0.8 | 0.9, derived from criticality)</span>
+  |     +&mdash; default_ui_format <span class="g-muted">(explanation | exercise | chart | mixed | text)</span>
+  |     +&mdash; source_headings   <span class="g-muted">(ARRAY — which doc sections feed this node)</span>
+  |     +&mdash; estimated_minutes
+  |     +&mdash; probe_items       <span class="g-muted">(JSON — pre-built assessment questions)</span>
+  |     +&mdash; probe_answer_key  <span class="g-muted">(JSON — answers for probes)</span>
+  |     +&mdash; reviewed_at/by    <span class="g-muted">(gate: must be reviewed before validate)</span>
+  |     +&mdash; archived          <span class="g-muted">(soft delete)</span>
+  |     |
+  |     +&mdash; <span class="g-green">CourseNodePrerequisite</span>  <span class="g-muted">(self-join: DAG edges)</span>
+  |     |     +&mdash; node_id
+  |     |     +&mdash; prerequisite_node_id
+  |     |
+  |     +&mdash; <span class="g-purple">NodeRender</span>  <span class="g-muted">(1:N — one per cache_key, per learner variant)</span>
+  |     |     |
+  |     |     +&mdash; cache_key      <span class="g-muted">(UNIQUE — composite of profile + version + model + ...)</span>
+  |     |     +&mdash; status         <span class="g-muted">(GENERATING | READY | FALLBACK | SKIPPED)</span>
+  |     |     +&mdash; dialect        <span class="g-muted">(the canonical UI program — NOT Markdown)</span>
+  |     |     +&mdash; answer_key     <span class="g-muted">(JSON — never sent to browser)</span>
+  |     |     +&mdash; ui_format      <span class="g-muted">(actual format used)</span>
+  |     |     +&mdash; tier           <span class="g-muted">(fast | heavy)</span>
+  |     |     +&mdash; model          <span class="g-muted">(actual LLM model used)</span>
+  |     |     +&mdash; is_preview     <span class="g-muted">(preview renders are not cached)</span>
+  |     |     |
+  |     |     +&mdash; <span class="g-purple">NodeRenderView</span>  <span class="g-muted">(audit: which learner saw this render)</span>
+  |     |
+  |     +&mdash; <span class="g-purple">LearnerNodeState</span>  <span class="g-muted">(1:1 per learner per node)</span>
+  |           |
+  |           +&mdash; active_render_id  <span class="g-muted">(FK to the pinned render)</span>
+  |           +&mdash; render_pinned     <span class="g-muted">(bool)</span>
+  |           +&mdash; mastery           <span class="g-muted">(0.0 - 1.0, bayesian model)</span>
+  |           +&mdash; scaffold_band     <span class="g-muted">(novice | neutral | advanced — frozen on calibration)</span>
+  |           +&mdash; state             <span class="g-muted">(not_started | learning | mastered)</span>
+  |           +&mdash; consecutive_correct / consecutive_failed
+  |
+  +&mdash; <span class="g-green">Document</span>  <span class="g-muted">(same as v1, shared)</span>
+  |
+  +&mdash; <span class="g-purple">LearnerProfile</span>  <span class="g-muted">(per user, shared across courses)</span>
+        +&mdash; role_title, sector, experience_level
+        +&mdash; preset  <span class="g-muted">(standard | fast | detailed)</span>
+        +&mdash; tutor_signals, format_vector
+        +&mdash; nodes_completed</div>
+
+  <div class="info blue">
+    <strong>Diferencia fundamental:</strong> En v1, el contenido vive en <code>lessons.content</code> (Markdown, igual para todos).
+    En v2, el contenido vive en <code>node_renders.dialect</code> (programa UI, distinto por alumno y cache_key).
+    Los <code>CourseNode</code> solo tienen la <em>estructura</em> (titulo, summary, prerrequisitos); el contenido se genera bajo demanda.
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">Enums del curso</div>
+  <table>
+    <tr><th>Enum</th><th>Valores</th><th>Archivo</th></tr>
+    <tr><td><code>CourseDeliveryMode</code></td><td><code>STATIC</code> | <code>DYNAMIC</code></td><td>src/models/course.py</td></tr>
+    <tr><td><code>CourseSchemaStatus</code></td><td><code>DRAFT</code> | <code>PROPOSED</code> | <code>VALIDATED</code> | <code>ARCHIVED</code></td><td>src/models/course.py</td></tr>
+    <tr><td><code>NodeCriticality</code></td><td><code>CRITICAL</code> | <code>RECOMMENDED</code> | <code>CONTEXTUAL</code></td><td>src/models/course_node.py</td></tr>
+    <tr><td><code>UiFormat</code></td><td><code>EXPLANATION</code> | <code>EXERCISE</code> | <code>CHART</code> | <code>MIXED</code> | <code>TEXT</code></td><td>src/models/course_node.py</td></tr>
+    <tr><td><code>RenderStatus</code></td><td><code>GENERATING</code> | <code>READY</code> | <code>FALLBACK</code> | <code>SKIPPED</code></td><td>src/models/node_render.py</td></tr>
+    <tr><td><code>LearnerState</code></td><td><code>NOT_STARTED</code> | <code>LEARNING</code> | <code>MASTERED</code></td><td>src/models/learner_node_state.py</td></tr>
+  </table>
+</div>
+</div>
+
+<!-- ── JS: Tab switching ── -->
+<script>
+function showTab(name) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  const tabs = document.querySelectorAll('.tab');
+  tabs.forEach(t => {
+    if (t.getAttribute('onclick').includes(name)) t.classList.add('active');
+  });
+}
+</script>
+
+<div style="text-align:center; padding:40px 0; color:var(--text-muted); font-size:13px">
+  Documento de referencia interna &mdash; SkillNet, agosto 2026
+</div>
+
+</div>
+</body>
+</html>
