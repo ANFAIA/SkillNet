@@ -117,8 +117,16 @@ async def ingest_document(document_id: uuid.UUID | str) -> None:
                 Path(doc.storage_path), sections, org_settings,
             )
 
-            # Rebuild full_text if images were described (descriptions are now in sections).
-            full_text = "\n\n".join(s.content for s in sections) if sections else full_text
+            # Rebuild full_text preserving heading markers so focus_on_headings() works.
+            if sections:
+                parts = []
+                for s in sections:
+                    if s.heading:
+                        prefix = "#" * max(s.level, 1) if s.level else "##"
+                        parts.append(f"{prefix} {s.heading}\n\n{s.content}")
+                    else:
+                        parts.append(s.content)
+                full_text = "\n\n".join(parts)
 
             doc.page_count = page_count
             doc.full_text = full_text
