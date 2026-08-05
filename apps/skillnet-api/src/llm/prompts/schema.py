@@ -73,6 +73,9 @@ Reglas, todas obligatorias:
    aparecer ANTES en la lista que el nodo que lo necesita.
 5. Toda afirmacion debe poder rastrearse al material de origen. Si el material no
    cubre algo, no inventes un nodo para ello.
+6. Escribe title, summary y outcome en el MISMO IDIOMA que el documento de origen.
+   Si el documento esta en espanol, responde en espanol; si esta en ingles, en
+   ingles. Nunca traduzcas ni cambies de idioma.
 
 Responde en JSON valido, sin texto alrededor, con la forma:
 {{"nodes": [{{"title": str, "summary": str, "outcome": str,
