@@ -1,8 +1,12 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence, LayoutGroup, useInstantLayoutTransition } from 'framer-motion'
+import { DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors } from '@dnd-kit/core'
+import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { ease, duration } from '../../lib/motion'
 import { Button, Input, Textarea, Badge, EmptyState, FileUploadZone, ProgressBar } from '../../components/ui'
+import { ShimmerSkeleton } from '../../components/ui/ShimmerSkeleton'
 import { GenerationProgress } from '../../components/generation/GenerationProgress'
 import {
   useUploadDocument,
@@ -17,11 +21,12 @@ import { useAssignCourse } from '../../api/enrollments'
 import { ApiError, post, put } from '../../api/client'
 import type { GenerationProgress as GenProgress, User, Lesson, Exercise } from '../../types'
 
-type SourceType = 'documentos' | 'cero' | null
+type SourceType = 'importar' | 'crear' | null
 type DeliveryChoice = 'dynamic' | 'static'
 type Phase = 'choose' | 'details' | 'schema' | 'generating' | 'review' | 'assign'
 
 interface ProposedNode {
+  _key: number
   title: string
   summary: string
   outcome: string | null
@@ -86,6 +91,37 @@ function ChevronIcon({ open }: { open: boolean }) {
   )
 }
 
+
+function InfoTooltip({ text }: { text: string }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <span className="relative inline-flex">
+      <button
+        type="button"
+        className="text-text-muted hover:text-primary p-0 ml-1"
+        onClick={() => setOpen(!open)}
+        onBlur={() => setOpen(false)}
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" />
+        </svg>
+      </button>
+      {open && (
+        <span className="absolute left-0 top-6 z-10 w-56 bg-text text-bg text-xs rounded-md px-3 py-2 shadow-md leading-relaxed">
+          {text}
+        </span>
+      )}
+    </span>
+  )
+}
+
+function PlusIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+    </svg>
+  )
+}
 
 // ── Inline editable lesson (unchanged logic) ─────────────────
 
@@ -288,11 +324,11 @@ const contentReveal = {
 
 // Inner content swap (details <-> schema) — opacity only, no blur.
 const innerFadeOut = {
-  exit: { opacity: 0, transition: { duration: 0.2, ease: ease.base } },
+  exit: { opacity: 0, transition: { duration: duration.fast, ease: ease.base } },
 }
 const innerFadeIn = {
   initial: { opacity: 0 },
-  animate: { opacity: 1, transition: { duration: 0.3, ease: ease.base } },
+  animate: { opacity: 1, transition: { duration: duration.normal, ease: ease.base } },
 }
 
 
@@ -326,6 +362,10 @@ export function CreateCourse() {
   const [proposeError, setProposeError] = useState<string | null>(null)
   const [density, setDensity] = useState(3)
   const proposeAbortRef = useRef<AbortController | null>(null)
+  const nodeKeyCounter = useRef(0)
+  const assignKeys = useCallback((nodes: Omit<ProposedNode, '_key'>[]): ProposedNode[] =>
+    nodes.map(n => ({ ...n, _key: '_key' in n ? (n as ProposedNode)._key : nodeKeyCounter.current++ })),
+  [])
 
   // Hooks
   const uploader = useUploadDocument()
@@ -348,7 +388,7 @@ export function CreateCourse() {
 
   // Auto-suggest title from filename
   useEffect(() => {
-    if (source === 'documentos' && latestUpload?.file.name && !title) {
+    if (source === 'importar' && latestUpload?.file.name && !title) {
       const name = latestUpload.file.name.replace(/\.(pdf|docx|md|txt)$/i, '').replace(/[-_]/g, ' ')
       setTitle(name.charAt(0).toUpperCase() + name.slice(1))
     }
@@ -377,13 +417,13 @@ export function CreateCourse() {
     setProposeError(null)
 
     try {
-      const result = await post<{ nodes: ProposedNode[] }>('/ai/schema-propose', {
+      const result = await post<{ nodes: Omit<ProposedNode, '_key'>[] }>('/ai/schema-propose', {
         title: title.trim(),
         description: idea.trim() || undefined,
         intent_density: d,
       })
       if (!abort.signal.aborted) {
-        setProposedNodes(result.nodes)
+        setProposedNodes(assignKeys(result.nodes))
         setProposing(false)
       }
     } catch (err) {
@@ -398,13 +438,20 @@ export function CreateCourse() {
         }
       }
     }
-  }, [title, idea])
+  }, [title, idea, assignKeys])
 
-  // Auto-propose when entering schema phase for the first time (no nodes yet)
+  // Auto-propose when entering schema from details — re-propose if title/idea changed
   const prevPhaseRef = useRef<Phase>('choose')
+  const lastProposedInputRef = useRef<{ title: string; idea: string } | null>(null)
   useEffect(() => {
-    if (phase === 'schema' && prevPhaseRef.current === 'details' && proposedNodes.length === 0) {
-      void proposeSchema(density)
+    if (phase === 'schema' && prevPhaseRef.current === 'details') {
+      const current = { title: title.trim(), idea: idea.trim() }
+      const last = lastProposedInputRef.current
+      if (!last || last.title !== current.title || last.idea !== current.idea) {
+        lastProposedInputRef.current = current
+        setProposedNodes([])
+        void proposeSchema(density)
+      }
     }
     prevPhaseRef.current = phase
   }, [phase]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -447,7 +494,7 @@ export function CreateCourse() {
 
   async function ensureSourceDocument(): Promise<string | undefined> {
     if (documentId) return documentId
-    if (source !== 'cero') return undefined
+    if (source !== 'crear') return undefined
     setWritingSource(true)
     try {
       const doc = await createSource.mutateAsync({ title: title.trim(), idea: idea.trim() })
@@ -493,7 +540,7 @@ export function CreateCourse() {
   async function handleCreateFromSchema() {
     setStartError(null)
     try {
-      const sourceId = source === 'documentos' ? documentId ?? undefined : undefined
+      const sourceId = source === 'importar' ? documentId ?? undefined : undefined
       const course = await createCourse.mutateAsync({
         title: title.trim(),
         description: idea.trim() || undefined,
@@ -501,8 +548,8 @@ export function CreateCourse() {
       })
       setCourseId(course.id)
 
-      // Save the proposed nodes as the course schema
-      const schemaNodes = proposedNodes.map((n, i) => ({
+      // Save the proposed nodes as the course schema (two-step: create nodes, then wire prerequisites)
+      const toNodePayload = (n: ProposedNode, i: number, prereqIds: string[] = []) => ({
         title: n.title,
         summary: n.summary,
         outcome: n.outcome,
@@ -515,13 +562,31 @@ export function CreateCourse() {
         seed_lesson_id: null,
         source_document_id: sourceId ?? null,
         source_headings: n.source_headings,
-        prerequisite_node_ids: [],
+        prerequisite_node_ids: prereqIds,
         archived: false,
-      }))
-      await put(`/courses/${course.id}/schema`, {
-        intent_density: density,
-        nodes: schemaNodes,
       })
+
+      // Step 1: create nodes without prerequisites
+      const created = await put<{ nodes: { id: string; position: number }[] }>(
+        `/courses/${course.id}/schema`,
+        { intent_density: density, nodes: proposedNodes.map((n, i) => toNodePayload(n, i)) },
+      )
+
+      // Step 2: if any node has prerequisites, re-PUT with the real UUIDs
+      const hasPrereqs = proposedNodes.some(n => n.prerequisites.length > 0)
+      if (hasPrereqs) {
+        const idByPosition = new Map(created.nodes.map(n => [n.position, n.id]))
+        const withPrereqs = proposedNodes.map((n, i) => {
+          const prereqIds = n.prerequisites
+            .map(idx => idByPosition.get(idx + 1))
+            .filter((id): id is string => id !== undefined)
+          return { ...toNodePayload(n, i, prereqIds), id: idByPosition.get(i + 1) }
+        })
+        await put(`/courses/${course.id}/schema`, {
+          intent_density: density,
+          nodes: withPrereqs,
+        })
+      }
 
       setPhase('assign')
     } catch (err) {
@@ -551,8 +616,42 @@ export function CreateCourse() {
     )
   }
 
+  // Remap prerequisite indices when nodes are reordered
+  const handleNodeReorder = useCallback((from: number, to: number) => {
+    setProposedNodes(ns => {
+      const moved = arrayMove(ns, from, to)
+      // Build old-index -> new-index mapping
+      const remap = new Map<number, number>()
+      if (from < to) {
+        remap.set(from, to)
+        for (let i = from + 1; i <= to; i++) remap.set(i, i - 1)
+      } else {
+        remap.set(from, to)
+        for (let i = to; i < from; i++) remap.set(i, i + 1)
+      }
+      return moved.map(n => ({
+        ...n,
+        prerequisites: n.prerequisites.map(idx => remap.get(idx) ?? idx),
+      }))
+    })
+  }, [])
+
+  // Remap prerequisite indices when a node is deleted
+  const handleNodeDelete = useCallback((deleted: number) => {
+    setProposedNodes(ns =>
+      ns
+        .filter((_, j) => j !== deleted)
+        .map(n => ({
+          ...n,
+          prerequisites: n.prerequisites
+            .filter(idx => idx !== deleted)
+            .map(idx => (idx > deleted ? idx - 1 : idx)),
+        })),
+    )
+  }, [])
+
   const busyStarting = writingSource || createCourse.isPending || generate.isPending
-  const documentReady = source !== 'documentos' || !!documentId
+  const documentReady = source !== 'importar' || !!documentId
   const canConfirm = title.trim().length > 0 && documentReady && !busyStarting
 
   const confirmButtonLabel = writingSource
@@ -601,7 +700,7 @@ export function CreateCourse() {
         <div className="mb-6 flex items-baseline gap-1.5 text-xl font-semibold">
           <span className="text-text-muted">Crear curso</span>
           <span className="text-text-muted">/</span>
-          <span className="text-text-muted">{source === 'documentos' ? 'Documento' : 'Idea'}</span>
+          <span className="text-text-muted">{source === 'importar' ? 'Importar' : 'Crear'}</span>
           <span className="text-text-muted">/</span>
           <span className="text-text-muted">Esquema</span>
           <span className="text-text-muted">/</span>
@@ -660,7 +759,7 @@ export function CreateCourse() {
                 onClick={phase === 'schema' ? goBackToDetails : undefined}
                 role={phase === 'schema' ? 'button' : undefined}
               >
-                / {source === 'documentos' ? 'Documento' : 'Idea'}
+                / {source === 'importar' ? 'Importar' : 'Crear'}
               </motion.span>
             )}
           </AnimatePresence>
@@ -682,38 +781,38 @@ export function CreateCourse() {
         {/* Cards — conditional rendering so layoutId connects forward morphs */}
         <div className={expanded ? '' : 'grid grid-cols-1 sm:grid-cols-2 gap-4'}>
 
-          {/* Card: Documentos */}
-          {(activeCard === 'documentos' || !expanded) && (
+          {/* Card: Importar curso */}
+          {(activeCard === 'importar' || !expanded) && (
             <motion.div
-              layoutId="source-card-documentos"
+              layoutId="source-card-importar"
               transition={morphTransition.layout}
               style={{ borderRadius: 8 }}
               className={`border p-6 ${
                 expanded
                   ? 'border-primary bg-bg'
-                  : source === 'documentos'
+                  : source === 'importar'
                     ? 'border-primary bg-primary-subtle cursor-pointer'
                     : 'border-border hover:border-primary cursor-pointer'
               }`}
-              onClick={() => { if (!expanded) setSource(source === 'documentos' ? null : 'documentos') }}
+              onClick={() => { if (!expanded) setSource(source === 'importar' ? null : 'importar') }}
             >
               {!expanded ? (
-                <motion.div key="doc-col" {...contentReveal}>
+                <motion.div key="import-col" {...contentReveal}>
                   <div className="flex flex-col items-center justify-center text-center px-4 py-8">
                     <div className="text-text-muted mb-4"><FileIcon /></div>
-                    <p className="text-sm font-medium text-text">Tengo un documento</p>
-                    <p className="text-xs text-text-muted mt-1.5">PDF, Word, Markdown o texto plano</p>
+                    <p className="text-sm font-medium text-text">Importar curso</p>
+                    <p className="text-xs text-text-muted mt-1.5">Sube los materiales que ya tienes</p>
                   </div>
                 </motion.div>
               ) : (
                 <AnimatePresence mode="wait">
                   {phase === 'details' ? (
-                    <motion.div key="doc-details" {...innerFadeIn} {...innerFadeOut}>
+                    <motion.div key="import-details" {...innerFadeIn} {...innerFadeOut}>
                       <div className="flex items-center gap-3 mb-6">
                         <div className="text-primary"><FileIcon /></div>
                         <div>
-                          <p className="text-sm font-medium text-text">A partir de un documento</p>
-                          <p className="text-xs text-text-muted">Sube el archivo y ponle nombre al curso</p>
+                          <p className="text-sm font-medium text-text">Importar curso existente</p>
+                          <p className="text-xs text-text-muted">Sube tus materiales y la plataforma los estructura</p>
                         </div>
                       </div>
                       <div className="space-y-5">
@@ -725,16 +824,27 @@ export function CreateCourse() {
                         {uploader.uploads.length > 0 && (
                           <div className="space-y-2">
                             {uploader.uploads.map((u, i) => (
-                              <div key={i} className="text-sm">
-                                <div className="flex items-center justify-between gap-2">
-                                  <span className="text-text truncate min-w-0">{u.file.name}</span>
-                                  {u.status === 'ready' || u.status === 'processing' ? (
-                                    <span className="text-accent shrink-0"><CheckIcon /></span>
-                                  ) : u.status === 'error' ? (
-                                    <span className="text-danger text-xs shrink-0">{u.error}</span>
-                                  ) : null}
+                              <div key={i} className="flex items-center gap-3 border border-border rounded-lg px-3 py-2.5">
+                                <div className="shrink-0 w-8 h-8 rounded bg-bg-muted flex items-center justify-center">
+                                  <FileIcon />
                                 </div>
-                                {u.status === 'uploading' && <ProgressBar value={u.progress} size="sm" className="mt-1" />}
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm text-text truncate">{u.file.name}</p>
+                                  <p className="text-xs text-text-muted">
+                                    {(u.file.size / 1024).toFixed(0)} KB
+                                    {u.status === 'uploading' && ` · Subiendo...`}
+                                    {u.status === 'processing' && ` · Procesando...`}
+                                    {u.status === 'ready' && ` · Listo`}
+                                    {u.status === 'error' && ` · Error`}
+                                  </p>
+                                  {u.status === 'uploading' && <ProgressBar value={u.progress} size="sm" className="mt-1.5" />}
+                                </div>
+                                {(u.status === 'ready' || u.status === 'processing') && (
+                                  <span className="text-accent shrink-0"><CheckIcon /></span>
+                                )}
+                                {u.status === 'error' && (
+                                  <span className="text-danger text-xs shrink-0">{u.error}</span>
+                                )}
                               </div>
                             ))}
                           </div>
@@ -748,7 +858,7 @@ export function CreateCourse() {
                       </div>
                     </motion.div>
                   ) : (
-                    <motion.div key="doc-schema" {...innerFadeIn} {...innerFadeOut}>
+                    <motion.div key="import-schema" {...innerFadeIn} {...innerFadeOut}>
                       <SchemaContent
                         proposing={proposing}
                         proposeError={proposeError}
@@ -757,9 +867,10 @@ export function CreateCourse() {
                         onDensityChange={handleDensityChange}
                         totalMinutes={totalMinutes}
                         criticalCount={criticalCount}
-                        title={title}
-                        onNodeTitleChange={(i, v) => setProposedNodes(ns => ns.map((n, j) => j === i ? { ...n, title: v } : n))}
-                        onNodeDelete={(i) => setProposedNodes(ns => ns.filter((_, j) => j !== i))}
+                        onNodeChange={(i, patch) => setProposedNodes(ns => ns.map((n, j) => j === i ? { ...n, ...patch } : n))}
+                        onNodeDelete={handleNodeDelete}
+                        onNodeAdd={() => setProposedNodes(ns => [...ns, { _key: nodeKeyCounter.current++, title: '', summary: '', outcome: null, criticality: 'recommended', default_ui_format: 'explanation', estimated_minutes: 5, source_headings: [], prerequisites: [] }])}
+                        onNodeReorder={handleNodeReorder}
                         onCreateCourse={() => void handleCreateFromSchema()}
                         creating={createCourse.isPending}
                         startError={startError}
@@ -771,38 +882,38 @@ export function CreateCourse() {
             </motion.div>
           )}
 
-          {/* Card: Desde cero */}
-          {(activeCard === 'cero' || !expanded) && (
+          {/* Card: Crear curso */}
+          {(activeCard === 'crear' || !expanded) && (
             <motion.div
-              layoutId="source-card-cero"
+              layoutId="source-card-crear"
               transition={morphTransition.layout}
               style={{ borderRadius: 8 }}
               className={`border p-6 ${
                 expanded
                   ? 'border-primary bg-bg'
-                  : source === 'cero'
+                  : source === 'crear'
                     ? 'border-primary bg-primary-subtle cursor-pointer'
                     : 'border-border hover:border-primary cursor-pointer'
               }`}
-              onClick={() => { if (!expanded) setSource(source === 'cero' ? null : 'cero') }}
+              onClick={() => { if (!expanded) setSource(source === 'crear' ? null : 'crear') }}
             >
               {!expanded ? (
-                <motion.div key="cero-col" {...contentReveal}>
+                <motion.div key="crear-col" {...contentReveal}>
                   <div className="flex flex-col items-center justify-center text-center px-4 py-8">
                     <div className="text-text-muted mb-4"><EditIcon /></div>
-                    <p className="text-sm font-medium text-text">Tengo una idea</p>
-                    <p className="text-xs text-text-muted mt-1.5">Describe el tema y la IA escribe el contenido</p>
+                    <p className="text-sm font-medium text-text">Crear curso</p>
+                    <p className="text-xs text-text-muted mt-1.5">Describe el tema y la IA construye el curso</p>
                   </div>
                 </motion.div>
               ) : (
                 <AnimatePresence mode="wait">
                   {phase === 'details' ? (
-                    <motion.div key="cero-details" {...innerFadeIn} {...innerFadeOut}>
+                    <motion.div key="crear-details" {...innerFadeIn} {...innerFadeOut}>
                       <div className="flex items-center gap-3 mb-6">
                         <div className="text-primary"><EditIcon /></div>
                         <div>
-                          <p className="text-sm font-medium text-text">A partir de una idea</p>
-                          <p className="text-xs text-text-muted">La IA escribe un documento fuente del que sale el curso</p>
+                          <p className="text-sm font-medium text-text">Crear curso nuevo</p>
+                          <p className="text-xs text-text-muted">Describe el tema y la IA construye el contenido</p>
                         </div>
                       </div>
                       <div className="space-y-5">
@@ -810,7 +921,7 @@ export function CreateCourse() {
                         <Textarea
                           label="Que quieres que cubra (opcional)"
                           placeholder="Ej: como funciona una sinapsis, los neurotransmisores principales y la plasticidad. Nivel introductorio."
-                          hint="Con esto la IA escribe un documento fuente, editable despues, del que sale el curso."
+                          hint="Cuanto mas detalle, mejor sera el curso generado."
                           value={idea}
                           onChange={(e) => setIdea(e.target.value)}
                         />
@@ -822,7 +933,7 @@ export function CreateCourse() {
                       </div>
                     </motion.div>
                   ) : (
-                    <motion.div key="cero-schema" {...innerFadeIn} {...innerFadeOut}>
+                    <motion.div key="crear-schema" {...innerFadeIn} {...innerFadeOut}>
                       <SchemaContent
                         proposing={proposing}
                         proposeError={proposeError}
@@ -831,9 +942,10 @@ export function CreateCourse() {
                         onDensityChange={handleDensityChange}
                         totalMinutes={totalMinutes}
                         criticalCount={criticalCount}
-                        title={title}
-                        onNodeTitleChange={(i, v) => setProposedNodes(ns => ns.map((n, j) => j === i ? { ...n, title: v } : n))}
-                        onNodeDelete={(i) => setProposedNodes(ns => ns.filter((_, j) => j !== i))}
+                        onNodeChange={(i, patch) => setProposedNodes(ns => ns.map((n, j) => j === i ? { ...n, ...patch } : n))}
+                        onNodeDelete={handleNodeDelete}
+                        onNodeAdd={() => setProposedNodes(ns => [...ns, { _key: nodeKeyCounter.current++, title: '', summary: '', outcome: null, criticality: 'recommended', default_ui_format: 'explanation', estimated_minutes: 5, source_headings: [], prerequisites: [] }])}
+                        onNodeReorder={handleNodeReorder}
                         onCreateCourse={() => void handleCreateFromSchema()}
                         creating={createCourse.isPending}
                         startError={startError}
@@ -868,6 +980,227 @@ export function CreateCourse() {
 
 // ── Schema content (inside the expanded card) ────────────────
 
+const CRITICALITY_OPTIONS: { value: string; label: string }[] = [
+  { value: 'critical', label: 'Imprescindible' },
+  { value: 'recommended', label: 'Recomendado' },
+  { value: 'contextual', label: 'Contexto' },
+]
+
+const FORMAT_OPTIONS: { value: string; label: string }[] = [
+  { value: 'explanation', label: 'Explicacion' },
+  { value: 'exercise', label: 'Ejercicio' },
+  { value: 'chart', label: 'Grafico' },
+  { value: 'mixed', label: 'Mixto' },
+]
+
+function TreeNodeSkeleton({ opacity }: { opacity: number }) {
+  return (
+    <div className="flex items-center gap-0 px-2 py-1.5" style={{ opacity }}>
+      <div className="w-5 shrink-0" />
+      <ShimmerSkeleton className="w-5 h-5 rounded-full shrink-0" />
+      <ShimmerSkeleton className="h-3.5 ml-2 rounded w-3/5" />
+      <ShimmerSkeleton className="h-3 w-10 ml-auto rounded" />
+    </div>
+  )
+}
+
+// ── Sortable tree node ──────────────────────────────────────
+
+function SortableTreeNode({ id, index, node, nodes, expanded, onToggle, onChange, onDelete }: {
+  id: string
+  index: number
+  node: ProposedNode
+  nodes: ProposedNode[]
+  expanded: boolean
+  onToggle: () => void
+  onChange: (patch: Partial<ProposedNode>) => void
+  onDelete: () => void
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition: dndTransition, isDragging } = useSortable({ id })
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition: dndTransition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 10 : undefined,
+  }
+
+  const critClass = node.criticality === 'critical' ? 'bg-primary-subtle text-primary'
+    : node.criticality === 'recommended' ? 'bg-accent-subtle text-accent'
+    : 'bg-bg-muted text-text-muted'
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      {/* Row: always visible */}
+      <div className={`flex items-center gap-0 px-2 py-1.5 rounded-md group transition-colors ${expanded ? 'bg-bg-subtle' : 'hover:bg-bg-muted'}`}>
+        {/* Drag handle */}
+        <button {...attributes} {...listeners} className="w-5 shrink-0 flex flex-col items-center gap-0.5 cursor-grab text-text-muted opacity-0 group-hover:opacity-100 transition-opacity" title="Arrastrar">
+          <span className="block w-2.5 h-0.5 bg-current rounded-full" />
+          <span className="block w-2.5 h-0.5 bg-current rounded-full" />
+          <span className="block w-2.5 h-0.5 bg-current rounded-full" />
+        </button>
+
+        {/* Toggle */}
+        <button type="button" onClick={onToggle} className="text-text-muted hover:text-text shrink-0">
+          <ChevronIcon open={expanded} />
+        </button>
+
+        {/* Number dot (colored by criticality) */}
+        <span className={`text-xs font-medium rounded-full w-5 h-5 flex items-center justify-center shrink-0 ml-1 ${critClass}`}>
+          {index + 1}
+        </span>
+
+        {/* Title — editable, looks like text */}
+        <input
+          className="flex-1 min-w-0 text-sm font-medium text-text bg-transparent border-none focus:outline-none focus:ring-0 p-0 ml-2 focus:bg-bg focus:shadow-[0_0_0_1px_var(--color-primary)] focus:rounded focus:px-1 focus:-mx-1"
+          value={node.title}
+          onChange={(e) => onChange({ title: e.target.value })}
+          placeholder="Titulo del nodo"
+        />
+
+        {/* Meta: prereq chips + time */}
+        <div className="flex items-center gap-2 shrink-0 ml-2">
+          {!expanded && node.prerequisites.length > 0 && (
+            <div className="flex gap-0.5">
+              {node.prerequisites.map(idx => (
+                <span key={idx} className="w-4 h-4 rounded-full text-[9px] font-semibold border border-border text-text-muted flex items-center justify-center" title={`Depende de: ${nodes[idx]?.title || `Nodo ${idx + 1}`}`}>
+                  {idx + 1}
+                </span>
+              ))}
+            </div>
+          )}
+          <span className="text-xs text-text-muted whitespace-nowrap">{node.estimated_minutes} min</span>
+          <button
+            type="button"
+            onClick={onDelete}
+            className="text-text-muted hover:text-danger p-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+            title="Eliminar nodo"
+          >
+            <XIcon size={14} />
+          </button>
+        </div>
+      </div>
+
+      {/* Expanded children — tree indent with left border */}
+      {expanded && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1, transition: { duration: duration.fast } }}
+          className="ml-[42px] pl-4 border-l border-border space-y-1 pb-2"
+        >
+          {/* Summary */}
+          <div className="flex items-start gap-0 px-2 py-1 rounded hover:bg-bg-muted">
+            <span className="w-24 shrink-0 text-xs text-text-muted pt-0.5">Resumen</span>
+            <textarea
+              className="flex-1 min-w-0 text-sm text-text bg-transparent border-none focus:outline-none p-0 resize-none leading-relaxed focus:bg-bg focus:shadow-[0_0_0_1px_var(--color-primary)] focus:rounded focus:px-1.5 focus:py-0.5 focus:-mx-1.5 focus:-my-0.5"
+              value={node.summary}
+              onChange={(e) => onChange({ summary: e.target.value })}
+              rows={1}
+              onInput={(e) => { const t = e.target as HTMLTextAreaElement; t.style.height = 'auto'; t.style.height = t.scrollHeight + 'px' }}
+            />
+          </div>
+
+          {/* Outcome */}
+          <div className="flex items-start gap-0 px-2 py-1 rounded hover:bg-bg-muted">
+            <span className="w-24 shrink-0 text-xs text-text-muted pt-0.5">Objetivo</span>
+            <input
+              className="flex-1 min-w-0 text-sm text-text bg-transparent border-none focus:outline-none p-0 focus:bg-bg focus:shadow-[0_0_0_1px_var(--color-primary)] focus:rounded focus:px-1.5 focus:-mx-1.5"
+              value={node.outcome ?? ''}
+              onChange={(e) => onChange({ outcome: e.target.value || null })}
+              placeholder="Que sabra hacer el alumno"
+            />
+          </div>
+
+          {/* Criticality */}
+          <div className="flex items-center gap-0 px-2 py-1 rounded hover:bg-bg-muted">
+            <span className="w-24 shrink-0 text-xs text-text-muted flex items-center">
+              Importancia
+              <InfoTooltip text="Imprescindible: el alumno debe dominar este tema para completar el curso. Recomendado: importante pero no obligatorio. Contexto: material complementario que enriquece pero no se evalua." />
+            </span>
+            <div className="flex gap-1">
+              {CRITICALITY_OPTIONS.map(o => (
+                <button
+                  key={o.value}
+                  type="button"
+                  onClick={() => onChange({ criticality: o.value })}
+                  className={`text-xs px-2.5 py-0.5 rounded-full border transition-colors ${
+                    node.criticality === o.value
+                      ? o.value === 'critical' ? 'bg-primary-subtle text-primary border-primary'
+                        : o.value === 'recommended' ? 'bg-accent-subtle text-accent border-accent'
+                        : 'bg-bg-muted text-text-muted border-border-strong'
+                      : 'border-border text-text-muted hover:border-primary'
+                  }`}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Format */}
+          <div className="flex items-center gap-0 px-2 py-1 rounded hover:bg-bg-muted">
+            <span className="w-24 shrink-0 text-xs text-text-muted">Formato</span>
+            <div className="flex gap-1">
+              {FORMAT_OPTIONS.map(o => (
+                <button
+                  key={o.value}
+                  type="button"
+                  onClick={() => onChange({ default_ui_format: o.value })}
+                  className={`text-xs px-2.5 py-0.5 rounded-full border transition-colors ${
+                    node.default_ui_format === o.value
+                      ? 'bg-primary-subtle text-primary border-primary'
+                      : 'border-border text-text-muted hover:border-primary'
+                  }`}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Minutes */}
+          <div className="flex items-center gap-0 px-2 py-1 rounded hover:bg-bg-muted">
+            <span className="w-24 shrink-0 text-xs text-text-muted">Minutos</span>
+            <input
+              type="number"
+              min={1}
+              max={120}
+              className="w-16 text-sm text-text bg-transparent border-none focus:outline-none p-0 focus:bg-bg focus:shadow-[0_0_0_1px_var(--color-primary)] focus:rounded focus:px-1.5 focus:-mx-1.5"
+              value={node.estimated_minutes}
+              onChange={(e) => onChange({ estimated_minutes: Number(e.target.value) || 1 })}
+            />
+          </div>
+
+          {/* Prerequisites */}
+          <div className="flex items-center gap-0 px-2 py-1 rounded hover:bg-bg-muted">
+            <span className="w-24 shrink-0 text-xs text-text-muted">Depende de</span>
+            <div className="flex flex-wrap gap-1">
+              {node.prerequisites.map(idx => (
+                <span key={idx} className="text-xs bg-primary-subtle text-primary px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                  {idx + 1}. {nodes[idx]?.title ? nodes[idx].title.slice(0, 20) : `Nodo ${idx + 1}`}
+                  <button type="button" onClick={() => onChange({ prerequisites: node.prerequisites.filter(p => p !== idx) })} className="opacity-60 hover:opacity-100">&times;</button>
+                </span>
+              ))}
+              <button
+                type="button"
+                onClick={() => {
+                  // Simple: add the first node that isn't already a prereq and isn't self
+                  const available = nodes.map((_, j) => j).filter(j => j !== index && !node.prerequisites.includes(j))
+                  if (available.length > 0) onChange({ prerequisites: [...node.prerequisites, available[0]] })
+                }}
+                className="text-xs border border-dashed border-border text-text-muted px-2 py-0.5 rounded-full hover:border-primary hover:text-primary transition-colors"
+              >
+                + Anadir
+              </button>
+            </div>
+          </div>
+        </motion.div>
+      )}
+    </div>
+  )
+}
+
+// ── Schema content wrapper ──────────────────────────────────
+
 function SchemaContent({
   proposing,
   proposeError,
@@ -876,9 +1209,10 @@ function SchemaContent({
   onDensityChange,
   totalMinutes,
   criticalCount,
-  title,
-  onNodeTitleChange,
+  onNodeChange,
   onNodeDelete,
+  onNodeAdd,
+  onNodeReorder,
   onCreateCourse,
   creating,
   startError,
@@ -890,18 +1224,79 @@ function SchemaContent({
   onDensityChange: (v: number) => void
   totalMinutes: number
   criticalCount: number
-  title: string
-  onNodeTitleChange: (i: number, v: string) => void
+  onNodeChange: (i: number, patch: Partial<ProposedNode>) => void
   onNodeDelete: (i: number) => void
+  onNodeAdd: () => void
+  onNodeReorder: (from: number, to: number) => void
   onCreateCourse: () => void
   creating: boolean
   startError: string | null
 }) {
+  const [expandedNodes, setExpandedNodes] = useState<Set<number>>(new Set())
+
+  const toggleNode = (i: number) => {
+    setExpandedNodes(prev => {
+      const next = new Set(prev)
+      if (next.has(i)) next.delete(i); else next.add(i)
+      return next
+    })
+  }
+
+  // Wrap onNodeDelete to also clean up expandedNodes indices
+  const handleDelete = (deleted: number) => {
+    onNodeDelete(deleted)
+    setExpandedNodes(prev => {
+      const next = new Set<number>()
+      for (const idx of prev) {
+        if (idx === deleted) continue
+        next.add(idx > deleted ? idx - 1 : idx)
+      }
+      return next
+    })
+  }
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor),
+  )
+  const nodeIds = nodes.map((_, i) => `schema-node-${i}`)
+
+  function handleDragEnd(event: { active: { id: string | number }; over: { id: string | number } | null }) {
+    if (!event.over || event.active.id === event.over.id) return
+    const from = nodeIds.indexOf(String(event.active.id))
+    const to = nodeIds.indexOf(String(event.over.id))
+    if (from !== -1 && to !== -1) {
+      onNodeReorder(from, to)
+      // Update expanded set to follow moved nodes
+      setExpandedNodes(prev => {
+        const arr = Array.from(prev)
+        const next = new Set(arr.map(idx => {
+          if (idx === from) return to
+          if (from < to && idx > from && idx <= to) return idx - 1
+          if (from > to && idx >= to && idx < from) return idx + 1
+          return idx
+        }))
+        return next
+      })
+    }
+  }
+
   if (proposing) {
     return (
-      <div className="text-center py-12">
-        <p className="text-sm font-medium text-text">Disenando el esquema...</p>
-        <p className="text-xs text-text-muted mt-2">{title}</p>
+      <div className="flex gap-6">
+        <div className="shrink-0 space-y-4" style={{ width: 180 }}>
+          <ShimmerSkeleton className="h-4 w-20" />
+          <ShimmerSkeleton className="h-2 w-full rounded-full" />
+          <div className="space-y-2">
+            <ShimmerSkeleton className="h-3.5 w-full" />
+            <ShimmerSkeleton className="h-3.5 w-full" />
+            <ShimmerSkeleton className="h-3.5 w-full" />
+          </div>
+          <ShimmerSkeleton className="h-9 w-full rounded-md" />
+        </div>
+        <div className="flex-1 min-w-0">
+          {Array.from({ length: 5 }).map((_, i) => <TreeNodeSkeleton key={i} opacity={1 - i * 0.15} />)}
+        </div>
       </div>
     )
   }
@@ -918,104 +1313,77 @@ function SchemaContent({
     return (
       <div className="text-center py-12">
         <p className="text-sm text-text-muted">No se generaron nodos</p>
+        <button type="button" onClick={onNodeAdd} className="mt-3 text-sm text-primary hover:underline">
+          Anadir nodo manualmente
+        </button>
       </div>
     )
   }
 
   return (
     <div className="flex gap-6">
-      {/* Left sidebar: density + stats + create button */}
-      <div className="shrink-0" style={{ width: 200 }}>
+      {/* Left sidebar */}
+      <div className="shrink-0" style={{ width: 180 }}>
         <div className="space-y-5">
           <div>
             <label className="block text-xs font-medium text-text-muted uppercase tracking-wide mb-2">Densidad</label>
-            <input
-              type="range"
-              min={1}
-              max={5}
-              step={1}
-              value={density}
-              onChange={(e) => onDensityChange(Number(e.target.value))}
-              className="w-full accent-primary"
-            />
+            <input type="range" min={1} max={5} step={1} value={density} onChange={(e) => onDensityChange(Number(e.target.value))} className="w-full accent-primary" />
             <div className="flex justify-between text-xs text-text-muted mt-1">
-              <span>Breve</span>
-              <span>{density}</span>
-              <span>Detallado</span>
+              <span>Breve</span><span>{density}</span><span>Detallado</span>
             </div>
           </div>
 
           <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-text-muted">Nodos</span>
-              <span className="text-text font-medium">{nodes.length}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-text-muted">Imprescindibles</span>
-              <span className="text-text font-medium">{criticalCount}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-text-muted">Tiempo est.</span>
-              <span className="text-text font-medium">{totalMinutes} min</span>
-            </div>
+            <div className="flex justify-between"><span className="text-text-muted">Nodos</span><span className="text-text font-medium">{nodes.length}</span></div>
+            <div className="flex justify-between"><span className="text-text-muted">Imprescindibles</span><span className="text-text font-medium">{criticalCount}</span></div>
+            <div className="flex justify-between"><span className="text-text-muted">Tiempo est.</span><span className="text-text font-medium">{totalMinutes} min</span></div>
           </div>
 
           {startError && <p className="text-xs text-danger">{startError}</p>}
 
-          <Button
-            variant="primary"
-            className="w-full"
-            onClick={onCreateCourse}
-            disabled={creating || nodes.length === 0}
-          >
+          <Button variant="primary" className="w-full" onClick={onCreateCourse} disabled={creating || nodes.length === 0}>
             {creating ? 'Creando...' : 'Crear curso'}
           </Button>
         </div>
       </div>
 
-      {/* Right: node list */}
-      <div className="flex-1 min-w-0 space-y-3">
-        {nodes.map((node, i) => (
-          <div
-            key={i}
-            className="border border-border rounded-lg p-4 flex items-start gap-4"
-            style={{ borderRadius: 8 }}
-          >
-            <span className="text-xs font-medium text-text-muted bg-bg-muted rounded-full w-6 h-6 flex items-center justify-center shrink-0 mt-0.5">
-              {i + 1}
-            </span>
-            <div className="flex-1 min-w-0">
-              <input
-                className="w-full text-sm font-medium text-text bg-transparent border-none focus:outline-none focus:ring-0 p-0"
-                value={node.title}
-                onChange={(e) => onNodeTitleChange(i, e.target.value)}
-              />
-              <p className="text-xs text-text-muted mt-0.5">{node.summary}</p>
-              <div className="flex items-center gap-2 mt-2">
-                <span className={`text-xs px-2 py-0.5 rounded-full ${
-                  node.criticality === 'critical' ? 'bg-primary-subtle text-primary'
-                  : node.criticality === 'recommended' ? 'bg-accent-subtle text-accent'
-                  : 'bg-bg-muted text-text-muted'
-                }`}>
-                  {node.criticality === 'critical' ? 'Imprescindible'
-                   : node.criticality === 'recommended' ? 'Recomendado'
-                   : 'Contexto'}
-                </span>
-                {node.estimated_minutes > 0 && (
-                  <span className="text-xs text-text-muted">{node.estimated_minutes} min</span>
-                )}
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => onNodeDelete(i)}
-              className="text-text-muted hover:text-danger p-1 shrink-0"
-              title="Eliminar nodo"
-            >
-              <XIcon size={16} />
-            </button>
-          </div>
-        ))}
+      {/* Right: tree */}
+      <div className="flex-1 min-w-0">
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={nodeIds} strategy={verticalListSortingStrategy}>
+            <AnimatePresence initial={false}>
+              {nodes.map((node, i) => (
+                <motion.div
+                  key={`node-${node._key}`}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0, transition: { duration: duration.normal, ease: ease.base, delay: i * 0.04 } }}
+                  exit={{ opacity: 0, x: -32, transition: { duration: duration.fast, ease: ease.snapOut } }}
+                >
+                  <SortableTreeNode
+                    id={nodeIds[i]}
+                    index={i}
+                    node={node}
+                    nodes={nodes}
+                    expanded={expandedNodes.has(i)}
+                    onToggle={() => toggleNode(i)}
+                    onChange={(patch) => onNodeChange(i, patch)}
+                    onDelete={() => handleDelete(i)}
+                  />
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </SortableContext>
+        </DndContext>
+
+        {/* Add node */}
+        <button
+          type="button"
+          onClick={onNodeAdd}
+          className="w-full mt-2 px-2 py-1.5 rounded-md text-sm text-text-muted hover:text-primary hover:bg-bg-muted transition-colors flex items-center gap-2"
+        >
+          <PlusIcon size={14} />
+          Anadir nodo
+        </button>
       </div>
     </div>
   )
