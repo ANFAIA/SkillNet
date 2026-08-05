@@ -597,15 +597,33 @@ export function CreateCourse() {
   if (phase === 'assign') {
     return (
       <div>
-        <div className="flex items-center gap-3 mb-8">
-          <h2 className="text-xl font-semibold text-text">Asignar empleados</h2>
+        {/* Breadcrumb */}
+        <div className="mb-6 flex items-baseline gap-1.5 text-xl font-semibold">
+          <span className="text-text-muted">Crear curso</span>
+          <span className="text-text-muted">/</span>
+          <span className="text-text-muted">{source === 'documentos' ? 'Documento' : 'Idea'}</span>
+          <span className="text-text-muted">/</span>
+          <span className="text-text-muted">Esquema</span>
+          <span className="text-text-muted">/</span>
+          <span className="text-text">Asignar</span>
         </div>
-        <StepAssign selected={assignSelected} onToggle={toggleAssign} deadline={deadline} onDeadline={setDeadline} />
-        <div className="flex justify-end mt-8 pt-5 border-t border-border">
-          <Button variant="accent" onClick={finish} disabled={assign.isPending}>
-            {assign.isPending ? 'Asignando...' : assignSelected.size > 0 ? 'Asignar y finalizar' : 'Finalizar'}
-          </Button>
-        </div>
+
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1, transition: { duration: duration.normal } }}
+          className="border border-border p-6"
+          style={{ borderRadius: 8 }}
+        >
+          <StepAssign selected={assignSelected} onToggle={toggleAssign} deadline={deadline} onDeadline={setDeadline} />
+          <div className="flex items-center justify-between mt-8 pt-5 border-t border-border">
+            <Button variant="ghost" onClick={() => navigate('/admin/contenido')}>
+              Saltar
+            </Button>
+            <Button variant="primary" onClick={finish} disabled={assign.isPending}>
+              {assign.isPending ? 'Asignando...' : assignSelected.size > 0 ? 'Asignar y finalizar' : 'Finalizar'}
+            </Button>
+          </div>
+        </motion.div>
       </div>
     )
   }
