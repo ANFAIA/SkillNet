@@ -14,12 +14,13 @@ import { useCreateCourse, useGenerateContent, usePublishCourse, useCourse, useUp
 import { useGenerationProgress, useGenerationJobStatus, jobToProgress } from '../../api/generation'
 import { useUsers } from '../../api/users'
 import { useAssignCourse } from '../../api/enrollments'
+import { useProposeCourseSchema, useSchemaProposeJob, useCourseSchema } from '../../api/schema'
 import { ApiError } from '../../api/client'
-import type { GenerationProgress as GenProgress, User, Lesson, Exercise } from '../../types'
+import type { GenerationProgress as GenProgress, User, Lesson, Exercise, CourseSchemaNode } from '../../types'
 
 type SourceType = 'documentos' | 'cero' | null
 type DeliveryChoice = 'dynamic' | 'static'
-type Phase = 'choose' | 'details' | 'generating' | 'review' | 'assign'
+type Phase = 'choose' | 'details' | 'proposing' | 'schema' | 'generating' | 'review' | 'assign'
 
 // ── Icons ────────────────────────────────────────────────────
 
@@ -301,6 +302,12 @@ export function CreateCourse() {
   const [assignSelected, setAssignSelected] = useState<Set<string>>(new Set())
   const [deadline, setDeadline] = useState('')
 
+  // Schema proposal state
+  const [schemaJobId, setSchemaJobId] = useState<string | null>(null)
+  const proposeSchema = useProposeCourseSchema(courseId ?? undefined)
+  const schemaJob = useSchemaProposeJob(courseId ?? undefined, schemaJobId)
+  const schemaQuery = useCourseSchema(phase === 'schema' ? (courseId ?? undefined) : undefined)
+
   // Hooks
   const uploader = useUploadDocument()
   const processDoc = useProcessDocument()
@@ -341,6 +348,13 @@ export function CreateCourse() {
     }
   }, [phase, effective.step, effective.courseId])
 
+  // Schema proposal finished → show results
+  useEffect(() => {
+    if (phase === 'proposing' && schemaJob.settled && !schemaJob.failed) {
+      setPhase('schema')
+    }
+  }, [phase, schemaJob.settled, schemaJob.failed])
+
   const confirmSource = useCallback(() => {
     if (source) setPhase('details')
   }, [source])
@@ -377,19 +391,30 @@ export function CreateCourse() {
   async function handleCreate() {
     setStartError(null)
     try {
-      const sourceId = await ensureSourceDocument()
+      // "Desde idea" + dynamic: no document needed — schema proposer works from
+      // title + description + density alone. Skip the slow source generation.
+      const needsDocument = source === 'documentos' || deliveryChoice === 'static'
+      const sourceId = needsDocument ? await ensureSourceDocument() : undefined
+
       const course = await createCourse.mutateAsync({
         title: title.trim(),
-        source_document_id: sourceId ?? undefined,
+        description: idea.trim() || undefined,
+        source_document_id: sourceId,
       })
       setCourseId(course.id)
 
       if (deliveryChoice === 'dynamic') {
-        navigate(`/admin/curso/${course.id}/esquema`)
+        // Create course, propose schema, show results — all in this page
+        const job = await proposeSchema.mutateAsync({
+          intent_density: 3,
+          source_document_id: sourceId,
+        })
+        setSchemaJobId(job.job_id)
+        setPhase('proposing')
       } else {
         const job = await generate.mutateAsync({
           courseId: course.id,
-          source_document_id: sourceId ?? undefined,
+          source_document_id: sourceId,
           output_type: 'course_and_manual',
         })
         setJobId(job.job_id)
@@ -422,7 +447,7 @@ export function CreateCourse() {
     )
   }
 
-  const busyStarting = writingSource || createCourse.isPending || generate.isPending
+  const busyStarting = writingSource || createCourse.isPending || generate.isPending || proposeSchema.isPending
   const documentReady = source !== 'documentos' || !!documentId
   const canCreate = title.trim().length > 0 && documentReady && !busyStarting
 
@@ -434,7 +459,98 @@ export function CreateCourse() {
 
   // ── Render ─────────────────────────────────────────────────
 
-  // Post-creation phases (generating, review, assign) use the old layout
+  // Post-creation phases
+  if (phase === 'proposing') {
+    return (
+      <div>
+        <div className="mb-6">
+          <h2 className="text-xl font-semibold text-text">Crear curso</h2>
+        </div>
+        <div className="border rounded-lg p-8 text-center" style={{ borderRadius: 8 }}>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1, transition: { duration: duration.normal } }}
+          >
+            <p className="text-sm font-medium text-text">Disenando el esquema del curso...</p>
+            <p className="text-xs text-text-muted mt-2">{title}</p>
+            {schemaJob.failed && (
+              <div className="mt-6">
+                <p className="text-sm text-danger mb-3">{schemaJob.error || 'No se pudo disenar el esquema'}</p>
+                <Button variant="secondary" onClick={() => { setPhase('details'); setSchemaJobId(null) }}>Volver a intentar</Button>
+              </div>
+            )}
+          </motion.div>
+        </div>
+      </div>
+    )
+  }
+
+  if (phase === 'schema') {
+    const nodes: CourseSchemaNode[] = schemaQuery.data?.nodes?.filter(n => !n.archived) ?? []
+    return (
+      <div>
+        <div className="mb-6">
+          <h2 className="text-sm text-text-muted">
+            <button type="button" onClick={() => { setPhase('details') }} className="hover:text-text transition-colors">Crear curso</button>
+            <span className="mx-1.5">/</span>
+            <span className="text-xl font-semibold text-text">Esquema</span>
+          </h2>
+        </div>
+
+        {nodes.length === 0 && schemaQuery.isLoading ? (
+          <p className="text-sm text-text-muted">Cargando esquema...</p>
+        ) : nodes.length === 0 ? (
+          <EmptyState title="No se generaron nodos" />
+        ) : (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1, transition: { duration: duration.normal } }}
+            className="space-y-3"
+          >
+            {nodes.map((node, i) => (
+              <div
+                key={node.id}
+                className="border border-border rounded-lg p-4 flex items-start gap-4"
+                style={{ borderRadius: 8 }}
+              >
+                <span className="text-xs font-medium text-text-muted bg-bg-muted rounded-full w-6 h-6 flex items-center justify-center shrink-0 mt-0.5">
+                  {i + 1}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-text">{node.title}</p>
+                  <p className="text-xs text-text-muted mt-0.5">{node.summary}</p>
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${
+                      node.criticality === 'critical' ? 'bg-primary-subtle text-primary'
+                      : node.criticality === 'recommended' ? 'bg-accent-subtle text-accent'
+                      : 'bg-bg-muted text-text-muted'
+                    }`}>
+                      {node.criticality === 'critical' ? 'Imprescindible'
+                       : node.criticality === 'recommended' ? 'Recomendado'
+                       : 'Contexto'}
+                    </span>
+                    {node.estimated_minutes && (
+                      <span className="text-xs text-text-muted">{node.estimated_minutes} min</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </motion.div>
+        )}
+
+        <div className="flex items-center justify-between mt-8 pt-5 border-t border-border">
+          <Button variant="ghost" onClick={() => navigate(`/admin/curso/${courseId}/esquema`)}>
+            Editar en detalle
+          </Button>
+          <Button variant="primary" onClick={() => setPhase('assign')}>
+            Continuar
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
   if (phase === 'generating') {
     return (
       <div>
