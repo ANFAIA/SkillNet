@@ -30,6 +30,12 @@ class Settings(BaseSettings):
     LLM_RUNTIME_FAST_MODEL: str | None = None
     LLM_RUNTIME_HEAVY_MODEL: str | None = None
 
+    # Vision model for describing images in uploaded PDFs. Must support
+    # multimodal input (image_url message type). When empty, image description
+    # is disabled and PDFs are processed text-only — no error, just no image
+    # descriptions in the document. Gemini Flash, GPT-4o, Claude Sonnet all work.
+    VISION_MODEL: str | None = None
+
     # Provider retries. Read only by src/llm/client.py.
     #
     # These exist as settings because the right values are a property of the *plan*, not

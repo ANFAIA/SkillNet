@@ -42,6 +42,7 @@ services:
       # thing actually required.
       LLM_BASE_URL: ${LLM_BASE_URL:-}
       LLM_API_KEY: ${LLM_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       LLM_MODEL: ${LLM_MODEL:-gpt-4o-mini}
       LLM_GENERATION_MODEL: ${LLM_GENERATION_MODEL:-}
       LLM_TUTOR_MODEL: ${LLM_TUTOR_MODEL:-}
