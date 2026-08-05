@@ -21,6 +21,13 @@ logger = get_logger(__name__)
 _TOKENS_PER_PAGE = 750
 _HEADING_RE = re.compile(r"^(#{1,6})\s+(.*)$")
 
+# Plain-text heading heuristics: ALL-CAPS lines that are short and don't end
+# like a sentence are almost always section titles (MODULO 1: HIGIENE, LIMPIEZA, etc.).
+_UPPER_HEADING_RE = re.compile(
+    r"^([A-Z\u00C0-\u00DC][A-Z\u00C0-\u00DC0-9 :,\-–—().&/]{2,118})$"
+)
+_SENTENCE_ENDING = (".", "?", "!")
+
 # ── PDF layout heuristics ───────────────────────────────────────────────────────────
 #: Two words belong to the same visual line when their tops are within this many points.
 #: Generous enough for a superscript or a slightly taller glyph, tight enough not to
@@ -399,11 +406,42 @@ def _sections_from_lines(
     return sections, position
 
 
+def _normalize_plain_text_headings(lines: list[str]) -> list[str]:
+    """Convert ALL-CAPS section titles in plain text to Markdown headings.
+
+    Only activates when there are no ``#`` headings at all — if the file is
+    already Markdown, leave it alone. A first-line title gets ``#`` (level 1);
+    subsequent headings get ``##`` (level 2).
+    """
+    has_md_headings = any(_HEADING_RE.match(line) for line in lines)
+    if has_md_headings:
+        return lines
+
+    candidates: list[int] = []
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if not stripped or stripped.endswith(_SENTENCE_ENDING):
+            continue
+        if _UPPER_HEADING_RE.match(stripped):
+            candidates.append(i)
+
+    if len(candidates) < 2:
+        return lines
+
+    result = list(lines)
+    for idx, line_idx in enumerate(candidates):
+        level = "#" if idx == 0 else "##"
+        result[line_idx] = f"{level} {lines[line_idx].strip()}"
+    return result
+
+
 def _parse_text(path: Path) -> tuple[list[ParsedSection], str, int]:
     raw = path.read_text(encoding="utf-8", errors="ignore")
-    full_text = clean_text(raw)
+    raw_lines = raw.split("\n")
+    normalized = _normalize_plain_text_headings(raw_lines)
+    full_text = clean_text("\n".join(normalized))
     page_count = _estimate_pages(full_text)
-    sections, _ = _sections_from_lines(raw.split("\n"), page_count)
+    sections, _ = _sections_from_lines(normalized, page_count)
     if not sections and full_text:
         sections = [
             ParsedSection(
