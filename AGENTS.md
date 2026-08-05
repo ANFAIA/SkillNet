@@ -48,21 +48,19 @@ skillnet/
 └── assets/
 ```
 
-## Current phase: v2, behind a flag
+## Current phase: v1 and v2 always available
 
-v1 is implemented and is what production serves. **v2 (dynamic courses) is also implemented,
-gated on `DYNAMIC_COURSES_MODE`, which defaults to `off`** — every v2 route 404s and
-`delivery_mode` is ignored until it is turned on. `shadow` exposes the admin schema surface
-only; `on` serves v2 to employees, and then only for a course that is
+Both v1 (static courses) and v2 (dynamic courses) are always available. The choice is
+**per-course** via `delivery_mode`: a course is dynamic (v2) when it has
 `delivery_mode='dynamic'` **and** `schema_status='validated'`. Every other course stays on v1.
 
 Consequences for anything you change:
 
-- **v1 behaviour with the flag off is the invariant.** `tests/integration/test_v1_regression.py`
-  exists to catch a break. `src/services/course_delivery.resolve_delivery` is the single
-  decision point; do not add a second one.
+- `src/services/course_delivery.resolve_delivery` is the single decision point for v1 vs v2;
+  do not add a second one.
+- `tests/integration/test_v1_regression.py` exists to catch a break in v1 behaviour.
 - `docs/design/v1-scope.md` still defines the v1 product and still wins on v1 questions. It no
-  longer wins on "is v2 implemented" — it isn't a forward-looking document any more.
+  longer wins on "is v2 implemented" -- it is not a forward-looking document any more.
 - `docs/design/v2-dynamic-courses.md` is the design of record for everything v2.
 - Tuning generation quality: `docs/design/tuning.md` plus
   `apps/skillnet-api/scripts/quality_bench.py`.

@@ -3,21 +3,18 @@ import { render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { CourseView } from './CourseView'
-import type { DynamicCoursesMode } from '../../api/health'
 
 /**
- * The one v2 change to `CourseView`, and the regression it must not cause.
+ * The v2 branch of `CourseView`, and the regression it must not cause.
  *
- * B9's brief allows exactly one modification here: a dynamic course renders `NodeList`,
- * anything else renders the v1 tree **intact**. The tests below are the proof of the
- * second half, which is the half that can break silently — a v1 course served today by
- * this screen, with the flag `off`, in `shadow`, or `on` but static, has to look exactly
- * as it did before this batch existed.
+ * A dynamic course renders `NodeList`, anything else renders the v1 tree **intact**.
+ * The tests below are the proof of the second half, which is the half that can break
+ * silently — a v1 course served today by this screen has to look exactly as it did
+ * before v2 existed.
  *
  * The discriminator under test is `GET /courses/{id}/nodes`, not `course.delivery_mode`:
- * `CourseRead` has no such field (`src/schemas/course.py` is a v1 file no v2 batch may
- * edit), and the node list is the route that answers only for a dynamic course with a
- * validated schema and the flag `on` — exactly `resolve_delivery`'s three conditions.
+ * `CourseRead` has no such field, and the node list is the route that answers only for
+ * a dynamic course with a validated schema — exactly `resolve_delivery`'s conditions.
  */
 
 const COURSE_ID = '11111111-1111-4111-8111-111111111111'
@@ -69,12 +66,11 @@ const V1_COURSE = {
 }
 
 interface Options {
-  mode: DynamicCoursesMode
-  /** `null` → the node route 404s (static course, or the flag is not `on`). */
+  /** `null` → the node route 404s (static course). */
   nodes: unknown | null
 }
 
-function installFetch({ mode, nodes }: Options) {
+function installFetch({ nodes }: Options) {
   mockFetch.mockImplementation((input: string) => {
     const url = String(input)
 
@@ -83,7 +79,6 @@ function installFetch({ mode, nodes }: Options) {
         status: 'ok',
         version: '1',
         database: 'ok',
-        features: { dynamic_courses: mode },
       })
     }
     if (url.endsWith(`/courses/${COURSE_ID}/nodes`)) {
@@ -174,45 +169,23 @@ afterEach(() => {
 
 describe('CourseView — v1 non-regression', () => {
   it('renders exactly the v1 tree when `delivery_mode` is static', async () => {
-    installFetch({ mode: 'on', nodes: nodeList('static') })
+    installFetch({ nodes: nodeList('static') })
     renderPage()
 
     await expectV1Tree()
   })
 
-  it('renders the v1 tree when the node route 404s (flag on, course never migrated)', async () => {
-    installFetch({ mode: 'on', nodes: null })
+  it('renders the v1 tree when the node route 404s (course never migrated)', async () => {
+    installFetch({ nodes: null })
     renderPage()
 
     await expectV1Tree()
-  })
-
-  it('does not even ask for nodes with the flag off', async () => {
-    installFetch({ mode: 'off', nodes: nodeList('dynamic') })
-    renderPage()
-
-    await expectV1Tree()
-    // The employee runtime surface does not exist below `on`; asking would be a
-    // guaranteed 404 on every course a learner opens.
-    expect(
-      mockFetch.mock.calls.filter((call) => String(call[0]).includes('/nodes')),
-    ).toHaveLength(0)
-  })
-
-  it('does not ask for nodes in shadow mode either', async () => {
-    installFetch({ mode: 'shadow', nodes: nodeList('dynamic') })
-    renderPage()
-
-    await expectV1Tree()
-    expect(
-      mockFetch.mock.calls.filter((call) => String(call[0]).includes('/nodes')),
-    ).toHaveLength(0)
   })
 })
 
 describe('CourseView — the dynamic branch', () => {
   it('renders the node map, linking each node to its own screen', async () => {
-    installFetch({ mode: 'on', nodes: nodeList('dynamic') })
+    installFetch({ nodes: nodeList('dynamic') })
     renderPage()
 
     expect(await screen.findByTestId('node-list')).toBeInTheDocument()
@@ -230,7 +203,7 @@ describe('CourseView — the dynamic branch', () => {
   })
 
   it('never flashes the v1 tree before the node map lands', async () => {
-    installFetch({ mode: 'on', nodes: nodeList('dynamic') })
+    installFetch({ nodes: nodeList('dynamic') })
     renderPage()
 
     // While the node list is in flight the screen is the skeleton, never the module tree:

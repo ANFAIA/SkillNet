@@ -41,10 +41,9 @@ class CourseRead(BaseModel):
     created_at: datetime
     module_count: int | None = None
     #: The **effective** delivery path of §11.3, not the raw ``courses.delivery_mode``
-    #: column. It is whatever ``resolve_delivery`` computes, which folds in the feature
-    #: flag and the schema gate as well as the column — so with the flag ``off`` (or the
-    #: schema not yet validated) every course reads ``static`` here and no v1 screen can
-    #: start advertising a surface that would 404.
+    #: column. It is whatever ``resolve_delivery`` computes, which checks the column and
+    #: the schema status — so with the schema not yet validated every course reads
+    #: ``static`` here and no v1 screen can start advertising a surface that would 404.
     #:
     #: Defaults to ``static`` so the safe value is the one you get by forgetting to pass
     #: it. Every route in ``src/routes/courses.py`` fills it in from ``resolve_delivery``.

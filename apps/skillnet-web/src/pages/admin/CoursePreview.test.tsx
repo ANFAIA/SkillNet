@@ -4,13 +4,11 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { CoursePreview } from './CoursePreview'
-import type { DynamicCoursesMode } from '../../api/health'
 
 /**
  * The second door to the schema screen: the course the creator already has open.
  *
- * Same gate as the list — the global flag, never `delivery_mode` — and the same
- * non-regression: with the flag `off` the action row is the v1 one, nothing more.
+ * The schema button is always available for every course.
  */
 
 const COURSE_ID = '11111111-1111-4111-8111-111111111111'
@@ -54,7 +52,7 @@ const COURSE = {
   ],
 }
 
-function installFetch(mode: DynamicCoursesMode) {
+function installFetch() {
   mockFetch.mockImplementation((input: string) => {
     const url = String(input)
     if (url.endsWith('/health')) {
@@ -62,7 +60,6 @@ function installFetch(mode: DynamicCoursesMode) {
         status: 'ok',
         version: '1',
         database: 'ok',
-        features: { dynamic_courses: mode },
       })
     }
     if (url.endsWith(`/courses/${COURSE_ID}`)) {
@@ -99,30 +96,20 @@ afterEach(() => {
 })
 
 describe('CoursePreview — the schema entry point', () => {
-  it('opens the schema of the course on screen in shadow mode', async () => {
-    installFetch('shadow')
+  it('opens the schema of the course on screen', async () => {
+    installFetch()
     renderPage()
 
     await userEvent.click(await screen.findByRole('button', { name: 'Esquema' }))
     expect(await screen.findByText('ESQUEMA')).toBeInTheDocument()
   })
 
-  it('offers the link with the flag on too', async () => {
-    installFetch('on')
-    renderPage()
-
-    expect(await screen.findByRole('button', { name: 'Esquema' })).toBeInTheDocument()
-  })
-})
-
-describe('CoursePreview — flag off', () => {
-  it('shows no v2 affordance and leaves the v1 action row intact', async () => {
-    installFetch('off')
+  it('shows the schema button alongside the v1 action row', async () => {
+    installFetch()
     renderPage()
 
     expect(await screen.findByRole('button', { name: 'Editar' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Esquema' })).toBeNull()
-    // The v1 row, unchanged: edit, publish a draft, and the way back.
+    expect(screen.getByRole('button', { name: 'Esquema' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Publicar' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '← Contenido' })).toBeInTheDocument()
   })

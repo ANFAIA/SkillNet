@@ -1,9 +1,7 @@
 """The runtime employee surface (§11.3): node list, probe, render, answer, hint, feedback.
 
-Both routers carry ``require_dynamic_courses("employee")``, so with the flag ``off`` **or**
-``shadow`` every path here is a plain 404 — indistinguishable from a route that does not
-exist (§10.1). A course that is not dynamic 404s too: it has no nodes, and saying so with a
-403 would leak the existence of a surface the org has not enabled.
+A course that is not dynamic 404s: it has no nodes, and saying so with a 403 would leak
+the existence of a surface that does not apply.
 
 Where the wiring left dangling by other batches gets connected:
 
@@ -35,7 +33,6 @@ from sqlalchemy import select
 
 from src.agents.runtime.errors import node_channel
 from src.agents.runtime.nodes import load_source_context
-from src.config import settings
 from src.core.exceptions import (
     ConflictError,
     ForbiddenError,
@@ -45,7 +42,6 @@ from src.core.exceptions import (
 from src.core.sse import format_sse, subscribe
 from src.deps.auth import CurrentUser
 from src.deps.db import DBSession
-from src.deps.features import require_dynamic_courses
 from src.deps.llm import get_optional_llm_service
 from src.llm.client import LLMService, resolve_llm_config
 from src.llm.fixtures import maybe_fixture_llm
@@ -130,7 +126,6 @@ from src.services.skill_service import SkillService
 router = APIRouter(
     prefix="/nodes",
     tags=["Nodes"],
-    dependencies=[Depends(require_dynamic_courses("employee"))],
 )
 
 #: ``GET /courses/{course_id}/nodes`` lives on its own router because its prefix belongs to
@@ -138,7 +133,6 @@ router = APIRouter(
 course_nodes_router = APIRouter(
     prefix="/courses",
     tags=["Nodes"],
-    dependencies=[Depends(require_dynamic_courses("employee"))],
 )
 
 #: ``GET /render-kit`` (§11.3). Its own router because the path has no ``/nodes`` prefix
@@ -146,7 +140,6 @@ course_nodes_router = APIRouter(
 render_kit_router = APIRouter(
     prefix="/render-kit",
     tags=["Nodes"],
-    dependencies=[Depends(require_dynamic_courses("employee"))],
 )
 
 _SSE_HEADERS = {
@@ -247,8 +240,8 @@ async def _load_dynamic_node(
 ) -> tuple[CourseNode, Course]:
     """Fetch a node of a **dynamic** course in the caller's org, or 404.
 
-    ``resolve_delivery`` is the single decision point (flag ``on`` + course opted in +
-    schema validated). A node of a static course is not "forbidden", it does not exist as
+    ``resolve_delivery`` is the single decision point (course opted in + schema
+    validated). A node of a static course is not "forbidden", it does not exist as
     far as this surface is concerned.
 
     Enrollment is checked here rather than in each route because *every* node route goes
@@ -258,7 +251,7 @@ async def _load_dynamic_node(
     if node is None or node.archived:
         raise NotFoundError("course_nodes", str(node_id))
     course = await CourseRepository(db).get_by_id(node.course_id)
-    if course is None or resolve_delivery(course, settings) != "dynamic":
+    if course is None or resolve_delivery(course) != "dynamic":
         raise NotFoundError("course_nodes", str(node_id))
     await _assert_enrolled(db, user, course.id)
     return node, course
@@ -309,7 +302,7 @@ async def list_course_nodes(
 ) -> NodeListRead:
     """The node list with per-learner state, locks and the completion rule of §7.5."""
     course = await CourseRepository(db).get_scoped(course_id, user.org_id)
-    if course is None or resolve_delivery(course, settings) != "dynamic":
+    if course is None or resolve_delivery(course) != "dynamic":
         raise NotFoundError("courses", str(course_id))
     await _assert_enrolled(db, user, course.id)
 
@@ -976,8 +969,8 @@ async def get_render_kit(user: CurrentUser) -> UIKitRead:
     content: no learner data is touched, which is why it takes a session-less
     ``CurrentUser`` and no ``DBSession``.
 
-    Authenticated, and behind the same feature flag as the rest of §11.3: the component
-    list describes an unreleased surface, and there is no reason for it to be public.
+    Authenticated: the component list describes a v2 surface, and there is no reason
+    for it to be public.
     """
     artifact = load_artifact()
     return UIKitRead(

@@ -35,7 +35,6 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
-from src.config import settings
 from src.deps.auth import current_user
 from src.deps.db import get_async_session
 from src.main import create_app
@@ -346,7 +345,6 @@ def world() -> World:
 
 @pytest.fixture
 def client(monkeypatch: pytest.MonkeyPatch, world: World) -> TestClient:
-    monkeypatch.setattr(settings, "DYNAMIC_COURSES_MODE", "on")
     _install(monkeypatch, world)
     app = create_app()
     app.dependency_overrides[get_async_session] = lambda: StubSession()

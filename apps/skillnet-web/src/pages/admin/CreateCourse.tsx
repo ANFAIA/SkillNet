@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, LayoutGroup } from 'framer-motion'
 import { ease, duration } from '../../lib/motion'
-import { Card, CardTitle, Button, Input, Textarea, Badge, EmptyState, FileUploadZone, ProgressBar, StepIndicator } from '../../components/ui'
+import { Button, Input, Textarea, Badge, EmptyState, FileUploadZone, ProgressBar } from '../../components/ui'
 import { GenerationProgress } from '../../components/generation/GenerationProgress'
 import {
   useUploadDocument,
@@ -12,20 +12,20 @@ import {
 } from '../../api/documents'
 import { useCreateCourse, useGenerateContent, usePublishCourse, useCourse, useUpdateLesson, useUpdateExercise } from '../../api/courses'
 import { useGenerationProgress, useGenerationJobStatus, jobToProgress } from '../../api/generation'
-import { useDynamicCoursesMode } from '../../api/health'
 import { useUsers } from '../../api/users'
 import { useAssignCourse } from '../../api/enrollments'
 import { ApiError } from '../../api/client'
 import type { GenerationProgress as GenProgress, User, Lesson, Exercise } from '../../types'
 
-type SourceType = 'documentos' | 'cero' | 'catalogo' | null
-type Direction = 1 | -1
+type SourceType = 'documentos' | 'cero' | null
+type DeliveryChoice = 'dynamic' | 'static'
+type Phase = 'choose' | 'details' | 'generating' | 'review' | 'assign'
 
-const stepLabels = ['Origen', 'Contenido', 'Generando', 'Revisar', 'Asignar']
+// ── Icons ────────────────────────────────────────────────────
 
 function FileIcon() {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
       <polyline points="14 2 14 8 20 8" />
     </svg>
@@ -33,7 +33,7 @@ function FileIcon() {
 }
 function EditIcon() {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
       <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
       <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
     </svg>
@@ -74,108 +74,16 @@ function ChevronIcon({ open }: { open: boolean }) {
     </svg>
   )
 }
-
-// --- Step 0: Source ---
-//: Two cards, two columns. The grid used to say `sm:grid-cols-3` from when a third
-//: `catalogo` source was planned, which left each of the two real cards at a third of
-//: the width with a dead gap beside them. `SourceType` still carries `'catalogo'` and
-//: the `disabled` flag still works, so a third source only needs a row here plus the
-//: column count put back.
-function StepSource({ selected, onSelect }: { selected: SourceType; onSelect: (s: SourceType) => void }) {
-  const sources: { key: SourceType; title: string; desc: string; icon: React.ReactNode; disabled?: boolean }[] = [
-    { key: 'documentos', title: 'Documentos', desc: 'A partir de un PDF que ya tienes', icon: <FileIcon /> },
-    { key: 'cero', title: 'Desde cero', desc: 'A partir de un tema que describes', icon: <EditIcon /> },
-  ]
-
+function ArrowLeftIcon() {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-      {sources.map((s) => (
-        <Card
-          key={s.key}
-          variant="default"
-          className={`transition-colors ${
-            s.disabled
-              ? 'opacity-50 cursor-not-allowed'
-              : selected === s.key
-                ? 'border-primary bg-primary-subtle cursor-pointer'
-                : 'cursor-pointer hover:border-primary'
-          }`}
-          onClick={() => !s.disabled && onSelect(s.key)}
-        >
-          <div className="text-text-muted mb-3">{s.icon}</div>
-          <p className="text-sm font-medium text-text">{s.title}</p>
-          <p className="text-xs text-text-muted mt-1">{s.desc}</p>
-        </Card>
-      ))}
-    </div>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" />
+    </svg>
   )
 }
 
-// --- Step 1: Content ---
-//: No `documentReady` prop any more: the only thing it drove was a "Sube un documento
-//: para continuar" line that said exactly what the disabled "Generar" button already
-//: says. The flag still gates that button — see `canNext`.
-function StepContent({
-  source, title, onTitleChange, idea, onIdeaChange, uploader,
-}: {
-  source: SourceType
-  title: string
-  onTitleChange: (v: string) => void
-  idea: string
-  onIdeaChange: (v: string) => void
-  uploader: ReturnType<typeof useUploadDocument>
-}) {
-  return (
-    <div className="space-y-6">
-      <Input label="Nombre del curso" placeholder="Ej: Seguridad Alimentaria" value={title} onChange={(e) => onTitleChange(e.target.value)} />
+// ── Inline editable lesson (unchanged logic) ─────────────────
 
-      {source === 'cero' && (
-        /* Optional on purpose — hence "(opcional)" in the label. The title alone is a
-           thin brief but a legitimate one, and the server's prompt handles an empty
-           description explicitly — making this required would add a wall in front of
-           the quickest path through the wizard to buy quality the creator can also
-           get by editing the source afterwards. */
-        <Textarea
-          label="Que quieres que cubra (opcional)"
-          placeholder={'Ej: como funciona una sinapsis, los neurotransmisores principales y la plasticidad. Nivel introductorio.'}
-          hint="Con esto la IA escribe un documento fuente, editable despues, del que sale el curso."
-          value={idea}
-          onChange={(e) => onIdeaChange(e.target.value)}
-        />
-      )}
-
-      {source === 'documentos' && (
-        <div>
-          <label className="block text-sm font-medium text-text mb-2">Documento</label>
-          <FileUploadZone
-            accept=".pdf,.docx,.md,.txt"
-            maxSizeMB={20}
-            onFilesSelected={(files) => uploader.uploadFile(files[0]).catch(() => {})}
-          />
-          {uploader.uploads.length > 0 && (
-            <div className="mt-3 space-y-2">
-              {uploader.uploads.map((u, i) => (
-                <div key={i} className="text-sm">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-text truncate min-w-0">{u.file.name}</span>
-                    {u.status === 'ready' || u.status === 'processing' ? (
-                      <span className="text-accent shrink-0"><CheckIcon /></span>
-                    ) : u.status === 'error' ? (
-                      <span className="text-danger text-xs shrink-0">{u.error}</span>
-                    ) : null}
-                  </div>
-                  {u.status === 'uploading' && <ProgressBar value={u.progress} size="sm" className="mt-1" />}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
-
-// --- Inline editable lesson ---
 function EditableLesson({ lesson }: { lesson: Lesson }) {
   const [editingTitle, setEditingTitle] = useState(false)
   const [editingContent, setEditingContent] = useState(false)
@@ -190,23 +98,14 @@ function EditableLesson({ lesson }: { lesson: Lesson }) {
     }
     setEditingTitle(false)
   }
-
-  function cancelTitle() {
-    setTitleDraft(lesson.title)
-    setEditingTitle(false)
-  }
-
+  function cancelTitle() { setTitleDraft(lesson.title); setEditingTitle(false) }
   function saveContent() {
     if (contentDraft !== lesson.content) {
       updateLesson.mutate({ lessonId: lesson.id, payload: { content: contentDraft } })
     }
     setEditingContent(false)
   }
-
-  function cancelContent() {
-    setContentDraft(lesson.content)
-    setEditingContent(false)
-  }
+  function cancelContent() { setContentDraft(lesson.content); setEditingContent(false) }
 
   return (
     <li className="text-sm border border-border rounded-lg p-3">
@@ -216,49 +115,29 @@ function EditableLesson({ lesson }: { lesson: Lesson }) {
         </button>
         {editingTitle ? (
           <div className="flex items-center gap-1.5 flex-1 min-w-0">
-            <input
-              className="flex-1 min-w-0 text-sm border border-border rounded px-2 py-1 bg-bg text-text focus:outline-none focus:border-primary"
-              value={titleDraft}
-              onChange={(e) => setTitleDraft(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') saveTitle(); if (e.key === 'Escape') cancelTitle() }}
-              autoFocus
-            />
+            <input className="flex-1 min-w-0 text-sm border border-border rounded px-2 py-1 bg-bg text-text focus:outline-none focus:border-primary" value={titleDraft} onChange={(e) => setTitleDraft(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') saveTitle(); if (e.key === 'Escape') cancelTitle() }} autoFocus />
             <button type="button" onClick={saveTitle} className="text-accent hover:text-accent/80 p-0.5" title="Guardar"><SaveIcon /></button>
             <button type="button" onClick={cancelTitle} className="text-text-muted hover:text-text p-0.5" title="Cancelar"><XIcon /></button>
           </div>
         ) : (
           <div className="flex items-center gap-1.5 flex-1 min-w-0 group">
             <span className="text-text-secondary truncate min-w-0">{lesson.title}</span>
-            <button type="button" onClick={() => { setTitleDraft(lesson.title); setEditingTitle(true) }} className="text-text-muted hover:text-primary opacity-0 group-hover:opacity-100 transition-opacity p-0.5 shrink-0" title="Editar titulo">
-              <PencilIcon />
-            </button>
+            <button type="button" onClick={() => { setTitleDraft(lesson.title); setEditingTitle(true) }} className="text-text-muted hover:text-primary opacity-0 group-hover:opacity-100 transition-opacity p-0.5 shrink-0" title="Editar titulo"><PencilIcon /></button>
           </div>
         )}
       </div>
-
       {expanded && (
         <div className="mt-3 ml-6">
           <div className="mb-2">
             <div className="flex items-center justify-between mb-1">
               <span className="text-xs font-medium text-text-muted uppercase tracking-wide">Contenido</span>
-              {!editingContent && (
-                <button type="button" onClick={() => { setContentDraft(lesson.content); setEditingContent(true) }} className="text-text-muted hover:text-primary p-0.5" title="Editar contenido">
-                  <PencilIcon />
-                </button>
-              )}
+              {!editingContent && <button type="button" onClick={() => { setContentDraft(lesson.content); setEditingContent(true) }} className="text-text-muted hover:text-primary p-0.5" title="Editar contenido"><PencilIcon /></button>}
             </div>
             {editingContent ? (
               <div>
-                <textarea
-                  className="w-full text-sm border border-border rounded px-3 py-2 bg-bg text-text focus:outline-none focus:border-primary font-mono min-h-[120px] resize-y"
-                  value={contentDraft}
-                  onChange={(e) => setContentDraft(e.target.value)}
-                  rows={8}
-                />
+                <textarea className="w-full text-sm border border-border rounded px-3 py-2 bg-bg text-text focus:outline-none focus:border-primary font-mono min-h-[120px] resize-y" value={contentDraft} onChange={(e) => setContentDraft(e.target.value)} rows={8} />
                 <div className="flex items-center gap-2 mt-1.5">
-                  <Button size="sm" variant="primary" onClick={saveContent} disabled={updateLesson.isPending}>
-                    {updateLesson.isPending ? 'Guardando...' : 'Guardar'}
-                  </Button>
+                  <Button size="sm" variant="primary" onClick={saveContent} disabled={updateLesson.isPending}>{updateLesson.isPending ? 'Guardando...' : 'Guardar'}</Button>
                   <Button size="sm" variant="secondary" onClick={cancelContent}>Cancelar</Button>
                 </div>
               </div>
@@ -266,14 +145,11 @@ function EditableLesson({ lesson }: { lesson: Lesson }) {
               <pre className="text-xs text-text-secondary bg-bg-subtle rounded p-2 whitespace-pre-wrap max-h-40 overflow-y-auto">{lesson.content.slice(0, 500)}{lesson.content.length > 500 ? '...' : ''}</pre>
             )}
           </div>
-
           {lesson.exercises.length > 0 && (
             <div>
               <span className="text-xs font-medium text-text-muted uppercase tracking-wide">Ejercicios ({lesson.exercises.length})</span>
               <div className="mt-1 space-y-2">
-                {lesson.exercises.map((ex) => (
-                  <EditableExercise key={ex.id} exercise={ex} />
-                ))}
+                {lesson.exercises.map((ex) => <EditableExercise key={ex.id} exercise={ex} />)}
               </div>
             </div>
           )}
@@ -283,7 +159,6 @@ function EditableLesson({ lesson }: { lesson: Lesson }) {
   )
 }
 
-// --- Inline editable exercise ---
 function EditableExercise({ exercise }: { exercise: Exercise }) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(() => JSON.stringify(exercise.content, null, 2))
@@ -294,23 +169,15 @@ function EditableExercise({ exercise }: { exercise: Exercise }) {
       const parsed = JSON.parse(draft)
       updateExercise.mutate({ exerciseId: exercise.id, payload: { content: parsed } })
       setEditing(false)
-    } catch {
-      // invalid JSON, don't save
-    }
+    } catch { /* invalid JSON */ }
   }
-
-  function cancel() {
-    setDraft(JSON.stringify(exercise.content, null, 2))
-    setEditing(false)
-  }
-
-  const label = exercise.type.replace(/_/g, ' ')
+  function cancel() { setDraft(JSON.stringify(exercise.content, null, 2)); setEditing(false) }
 
   return (
     <div className="border border-border/50 rounded p-2 bg-bg-subtle">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
-          <Badge variant="primary" badgeStyle="plain">{label}</Badge>
+          <Badge variant="primary" badgeStyle="plain">{exercise.type.replace(/_/g, ' ')}</Badge>
           <span className="text-xs text-text-muted truncate min-w-0">
             {(exercise.content as unknown as Record<string, unknown>).question as string
               ?? (exercise.content as unknown as Record<string, unknown>).statement as string
@@ -319,24 +186,13 @@ function EditableExercise({ exercise }: { exercise: Exercise }) {
               ?? ''}
           </span>
         </div>
-        {!editing && (
-          <button type="button" onClick={() => { setDraft(JSON.stringify(exercise.content, null, 2)); setEditing(true) }} className="text-text-muted hover:text-primary p-0.5 shrink-0" title="Editar ejercicio">
-            <PencilIcon />
-          </button>
-        )}
+        {!editing && <button type="button" onClick={() => { setDraft(JSON.stringify(exercise.content, null, 2)); setEditing(true) }} className="text-text-muted hover:text-primary p-0.5 shrink-0" title="Editar ejercicio"><PencilIcon /></button>}
       </div>
       {editing && (
         <div className="mt-2">
-          <textarea
-            className="w-full text-xs border border-border rounded px-3 py-2 bg-bg text-text focus:outline-none focus:border-primary font-mono min-h-[100px] resize-y"
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            rows={6}
-          />
+          <textarea className="w-full text-xs border border-border rounded px-3 py-2 bg-bg text-text focus:outline-none focus:border-primary font-mono min-h-[100px] resize-y" value={draft} onChange={(e) => setDraft(e.target.value)} rows={6} />
           <div className="flex items-center gap-2 mt-1.5">
-            <Button size="sm" variant="primary" onClick={save} disabled={updateExercise.isPending}>
-              {updateExercise.isPending ? 'Guardando...' : 'Guardar'}
-            </Button>
+            <Button size="sm" variant="primary" onClick={save} disabled={updateExercise.isPending}>{updateExercise.isPending ? 'Guardando...' : 'Guardar'}</Button>
             <Button size="sm" variant="secondary" onClick={cancel}>Cancelar</Button>
           </div>
         </div>
@@ -345,15 +201,13 @@ function EditableExercise({ exercise }: { exercise: Exercise }) {
   )
 }
 
-// --- Step 3: Review ---
+// ── Review step ──────────────────────────────────────────────
+
 function StepReview({ courseId, onPublish, publishing, published }: { courseId: string; onPublish: () => void; publishing: boolean; published: boolean }) {
   const { data: course, isLoading } = useCourse(courseId)
-
   if (isLoading) return <p className="text-sm text-text-secondary">Cargando...</p>
   if (!course) return <EmptyState title="No se pudo cargar el curso generado" />
-
   const totalLessons = course.modules.reduce((acc, m) => acc + m.lessons.length, 0)
-
   return (
     <div>
       <div className="flex items-center justify-between gap-3">
@@ -362,47 +216,38 @@ function StepReview({ courseId, onPublish, publishing, published }: { courseId: 
           {published ? 'Publicado' : publishing ? 'Publicando...' : 'Publicar'}
         </Button>
       </div>
-
       <div className="mt-6 space-y-3">
         {course.modules.map((mod, i) => (
-          <Card key={mod.id}>
+          <div key={mod.id} className="border border-border rounded-lg p-5">
             <div className="flex items-center justify-between gap-2">
-              <CardTitle className="truncate min-w-0">Modulo {i + 1}: {mod.title}</CardTitle>
+              <h3 className="text-base font-medium text-text truncate min-w-0">Modulo {i + 1}: {mod.title}</h3>
               <Badge variant="accent" badgeStyle="plain">{mod.lessons.length} lecciones</Badge>
             </div>
             <ul className="mt-3 space-y-2">
-              {mod.lessons.map((l) => (
-                <EditableLesson key={l.id} lesson={l} />
-              ))}
+              {mod.lessons.map((l) => <EditableLesson key={l.id} lesson={l} />)}
             </ul>
-          </Card>
+          </div>
         ))}
       </div>
     </div>
   )
 }
 
-// --- Step 4: Assign ---
+// ── Assign step ──────────────────────────────────────────────
+
 function StepAssign({ selected, onToggle, deadline, onDeadline }: {
-  selected: Set<string>
-  onToggle: (id: string) => void
-  deadline: string
-  onDeadline: (v: string) => void
+  selected: Set<string>; onToggle: (id: string) => void; deadline: string; onDeadline: (v: string) => void
 }) {
   const { data, isLoading } = useUsers({ role: 'employee' })
   const employees: User[] = data?.items ?? []
-
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       <div>
         <label className="block text-sm font-medium text-text mb-2">Empleados</label>
         <div className="border border-border rounded-lg max-h-64 overflow-y-auto">
-          {isLoading ? (
-            <p className="text-sm text-text-muted p-4">Cargando...</p>
-          ) : employees.length === 0 ? (
-            <p className="text-sm text-text-muted p-4">No hay empleados.</p>
-          ) : (
-            employees.map((emp) => (
+          {isLoading ? <p className="text-sm text-text-muted p-4">Cargando...</p>
+            : employees.length === 0 ? <p className="text-sm text-text-muted p-4">No hay empleados.</p>
+            : employees.map((emp) => (
               <label key={emp.id} className="flex items-center gap-3 px-4 py-2.5 border-b border-border last:border-b-0 hover:bg-bg-subtle cursor-pointer transition-colors">
                 <input type="checkbox" checked={selected.has(emp.id)} onChange={() => onToggle(emp.id)} className="accent-primary" />
                 <div className="min-w-0">
@@ -410,12 +255,10 @@ function StepAssign({ selected, onToggle, deadline, onDeadline }: {
                   <p className="text-xs text-text-muted truncate">{emp.email}</p>
                 </div>
               </label>
-            ))
-          )}
+            ))}
         </div>
         <p className="text-xs text-text-muted mt-1.5">{selected.size} seleccionados</p>
       </div>
-
       <div>
         <Input label="Fecha limite (opcional)" type="date" value={deadline} onChange={(e) => onDeadline(e.target.value)} />
       </div>
@@ -423,45 +266,49 @@ function StepAssign({ selected, onToggle, deadline, onDeadline }: {
   )
 }
 
-// Wizard step slide — blur + signature curve, with iOS-style asymmetry:
-// entering a step is deliberate (slow, snapIn), leaving is quick (fast, snapOut).
-const slideVariants = {
-  enter: (dir: Direction) => ({ x: dir > 0 ? 200 : -200, opacity: 0, filter: 'blur(6px)' }),
-  center: {
-    x: 0,
+// ── Layout transition for the morph ──────────────────────────
+
+const morphTransition = {
+  layout: { type: 'spring' as const, stiffness: 200, damping: 28 },
+}
+
+const contentAppear = {
+  initial: { opacity: 0, filter: 'blur(8px)' },
+  animate: {
     opacity: 1,
     filter: 'blur(0px)',
-    transition: { duration: 0.4, ease: ease.snapIn },
+    transition: { duration: duration.normal, ease: ease.base, delay: 0.35 },
   },
-  exit: (dir: Direction) => ({
-    x: dir > 0 ? -200 : 200,
+  exit: {
     opacity: 0,
-    filter: 'blur(6px)',
+    filter: 'blur(8px)',
     transition: { duration: duration.fast, ease: ease.snapOut },
-  }),
+  },
 }
+
+// ── Main component ───────────────────────────────────────────
 
 export function CreateCourse() {
   const navigate = useNavigate()
-  const [step, setStep] = useState(0)
-  const [direction, setDirection] = useState<Direction>(1)
 
+  // Phase state
+  const [phase, setPhase] = useState<Phase>('choose')
   const [source, setSource] = useState<SourceType>(null)
+  const [deliveryChoice, setDeliveryChoice] = useState<DeliveryChoice>('dynamic')
+
+  // Form state
   const [title, setTitle] = useState('')
-  const [documentId, setDocumentId] = useState<string | null>(null)
   const [idea, setIdea] = useState('')
-  //: The "desde cero" path writes a source document before anything else can happen —
-  //: an LLM call plus ingestion, a few seconds. Without a state for it the wizard looks
-  //: frozen on the button the creator just pressed.
+  const [documentId, setDocumentId] = useState<string | null>(null)
   const [writingSource, setWritingSource] = useState(false)
   const [courseId, setCourseId] = useState<string | null>(null)
   const [jobId, setJobId] = useState<string | null>(null)
   const [startError, setStartError] = useState<string | null>(null)
   const [published, setPublished] = useState(false)
-
   const [assignSelected, setAssignSelected] = useState<Set<string>>(new Set())
   const [deadline, setDeadline] = useState('')
 
+  // Hooks
   const uploader = useUploadDocument()
   const processDoc = useProcessDocument()
   const createSource = useCreateSourceFromIdea()
@@ -470,24 +317,7 @@ export function CreateCourse() {
   const publish = usePublishCourse()
   const assign = useAssignCourse()
 
-  /**
-   * The v2 branch of step 1 (§13, B10). With the flag in `shadow` or `on` the creator
-   * can define a schema instead of generating a course in one shot, and the schema
-   * screen is where nodes get reviewed and validated before anything is generated.
-   *
-   * It is an **extra** action, not a replacement: the v1 "Generar" button is still
-   * right there, so with the flag off the wizard behaves exactly as it does today.
-   *
-   * "Desde cero" qualifies too, and the note about it not having a source to read is
-   * no longer true: `ensureSourceDocument` writes one before either button proceeds,
-   * so the designer gets the same headings it would get from an upload.
-   */
-  const { mode: dynamicMode } = useDynamicCoursesMode()
-  const schemaFirstAvailable =
-    (dynamicMode === 'shadow' || dynamicMode === 'on') &&
-    (source === 'cero' || (source === 'documentos' && !!documentId))
-
-  // Mark the uploaded document ready + kick off server-side processing.
+  // Track uploaded document
   const latestUpload = uploader.uploads[uploader.uploads.length - 1]
   useEffect(() => {
     if (latestUpload?.status === 'processing' && latestUpload.documentId && latestUpload.documentId !== documentId) {
@@ -497,51 +327,34 @@ export function CreateCourse() {
     }
   }, [latestUpload, documentId, processDoc, uploader])
 
-  const documentReady = source !== 'documentos' || !!documentId
+  // Auto-suggest title from filename
+  useEffect(() => {
+    if (source === 'documentos' && latestUpload?.file.name && !title) {
+      const name = latestUpload.file.name.replace(/\.(pdf|docx|md|txt)$/i, '').replace(/[-_]/g, ' ')
+      setTitle(name.charAt(0).toUpperCase() + name.slice(1))
+    }
+  }, [source, latestUpload, title])
 
-  // Three things can be in flight behind step 1's buttons and all three must disable
-  // them. `writingSource` is the slow one — an LLM call plus ingestion — and it gets its
-  // own label, because "Iniciando..." for eight seconds reads as a hang.
-  const busyStarting = writingSource || createCourse.isPending || generate.isPending
-  const startButtonLabel = writingSource
-    ? 'Escribiendo el documento fuente...'
-    : createCourse.isPending || generate.isPending
-      ? 'Iniciando...'
-      : 'Generar'
-
-  // Generation tracking (SSE + polling fallback).
-  const { progress: sseProgress, connectionFailed } = useGenerationProgress(step === 2 ? jobId : null)
-  const { data: polledJob } = useGenerationJobStatus(step === 2 && connectionFailed ? jobId : null)
+  // Generation tracking
+  const { progress: sseProgress, connectionFailed } = useGenerationProgress(phase === 'generating' ? jobId : null)
+  const { data: polledJob } = useGenerationJobStatus(phase === 'generating' && connectionFailed ? jobId : null)
   const effective: GenProgress = connectionFailed && polledJob ? jobToProgress(polledJob) : sseProgress
 
-  // Advance to review once generation publishes.
   useEffect(() => {
-    if (step === 2 && effective.step === 'published') {
+    if (phase === 'generating' && effective.step === 'published') {
       if (effective.courseId) setCourseId(effective.courseId)
       setPublished(true)
-      setDirection(1)
-      setStep(3)
+      setPhase('review')
     }
-  }, [step, effective.step, effective.courseId])
+  }, [phase, effective.step, effective.courseId])
 
-  /**
-   * The source document for whichever path we are on, creating it if there is none.
-   *
-   * "Desde cero" has no upload, so the source is written here and then ingested exactly
-   * like one: the rest of the wizard, the generation pipeline and the v2 schema screen
-   * all receive an ordinary `source_document_id` and never learn where it came from.
-   *
-   * The wait for `ready` is not optional — `POST /courses/{id}/generate` refuses a
-   * document that is still `processing`, which is the very error this whole path
-   * existed to produce.
-   */
-  /**
-   * `waitForDocumentReady` rejects with a plain `Error` carrying a message worth
-   * reading ("el documento tarda demasiado", the server's ingestion error). The old
-   * handler collapsed anything that was not an `ApiError` into one generic line, which
-   * is how a specific failure becomes an unactionable one.
-   */
-  function startFailureMessage(err: unknown, fallback: string): string {
+  // Source card confirmed → morph to details
+  const confirmSource = useCallback(() => {
+    if (source) setPhase('details')
+  }, [source])
+
+  // Error helper
+  function failMsg(err: unknown, fallback: string): string {
     if (err instanceof ApiError) return err.body.detail
     if (err instanceof Error && err.message) return err.message
     return fallback
@@ -550,7 +363,6 @@ export function CreateCourse() {
   async function ensureSourceDocument(): Promise<string | undefined> {
     if (documentId) return documentId
     if (source !== 'cero') return undefined
-
     setWritingSource(true)
     try {
       const doc = await createSource.mutateAsync({ title: title.trim(), idea: idea.trim() })
@@ -562,7 +374,7 @@ export function CreateCourse() {
     }
   }
 
-  async function startGeneration() {
+  async function handleCreate() {
     setStartError(null)
     try {
       const sourceId = await ensureSourceDocument()
@@ -571,38 +383,20 @@ export function CreateCourse() {
         source_document_id: sourceId ?? undefined,
       })
       setCourseId(course.id)
-      const job = await generate.mutateAsync({
-        courseId: course.id,
-        source_document_id: sourceId ?? undefined,
-        output_type: 'course_and_manual',
-      })
-      setJobId(job.job_id)
-      setDirection(1)
-      setStep(2)
-    } catch (err) {
-      setStartError(startFailureMessage(err, 'No se pudo iniciar la generacion'))
-    }
-  }
 
-  // Creates the course and hands over to the schema screen. It deliberately does not
-  // call `schema/propose` here: the proposal needs `intent_density`, which is chosen on
-  // that screen, and starting a designer run from behind this button would spend an LLM
-  // call on a density the creator never saw.
-  async function startSchemaDefinition() {
-    setStartError(null)
-    try {
-      // Same source resolution as the v1 button, so "desde cero" reaches the schema
-      // screen too. The designer reads the document's headings to propose nodes, and
-      // without this it had nothing to read — `CourseSchemaService.propose` refuses
-      // without a source exactly like the v1 generator does.
-      const sourceId = await ensureSourceDocument()
-      const course = await createCourse.mutateAsync({
-        title: title.trim(),
-        source_document_id: sourceId ?? undefined,
-      })
-      navigate(`/admin/curso/${course.id}/esquema`)
+      if (deliveryChoice === 'dynamic') {
+        navigate(`/admin/curso/${course.id}/esquema`)
+      } else {
+        const job = await generate.mutateAsync({
+          courseId: course.id,
+          source_document_id: sourceId ?? undefined,
+          output_type: 'course_and_manual',
+        })
+        setJobId(job.job_id)
+        setPhase('generating')
+      }
     } catch (err) {
-      setStartError(startFailureMessage(err, 'No se pudo crear el curso'))
+      setStartError(failMsg(err, 'No se pudo crear el curso'))
     }
   }
 
@@ -614,134 +408,307 @@ export function CreateCourse() {
   function toggleAssign(id: string) {
     setAssignSelected((prev) => {
       const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
+      if (next.has(id)) next.delete(id); else next.add(id)
       return next
     })
   }
 
   function finish() {
     if (!courseId) return
-    if (assignSelected.size === 0) {
-      navigate('/admin/contenido')
-      return
-    }
+    if (assignSelected.size === 0) { navigate('/admin/contenido'); return }
     assign.mutate(
       { user_ids: Array.from(assignSelected), course_id: courseId, deadline: deadline || undefined },
       { onSuccess: () => navigate('/admin/contenido') },
     )
   }
 
-  function canNext(): boolean {
-    switch (step) {
-      case 0: return source === 'documentos' || source === 'cero'
-      case 1: return title.trim().length > 0 && documentReady
-      case 3: return true
-      default: return false
-    }
+  const busyStarting = writingSource || createCourse.isPending || generate.isPending
+  const documentReady = source !== 'documentos' || !!documentId
+  const canCreate = title.trim().length > 0 && documentReady && !busyStarting
+
+  const createButtonLabel = writingSource
+    ? 'Escribiendo documento fuente...'
+    : createCourse.isPending || generate.isPending
+      ? 'Creando...'
+      : deliveryChoice === 'dynamic'
+        ? 'Crear y definir esquema'
+        : 'Crear y generar'
+
+  // ── Render ─────────────────────────────────────────────────
+
+  // Post-creation phases (generating, review, assign) use the old layout
+  if (phase === 'generating') {
+    return (
+      <div>
+        <div className="flex items-center gap-3 mb-8">
+          <h2 className="text-xl font-semibold text-text">Generando curso</h2>
+        </div>
+        <GenerationProgress progress={effective} />
+        {effective.step === 'failed' && (
+          <div className="mt-6 text-center">
+            <Button variant="secondary" onClick={() => { setPhase('details'); setJobId(null) }}>Volver a intentar</Button>
+          </div>
+        )}
+      </div>
+    )
   }
 
-  function next() {
-    if (step === 1) {
-      void startGeneration()
-      return
-    }
-    if (step === 3) {
-      setDirection(1)
-      setStep(4)
-      return
-    }
-    if (step < 4 && canNext()) {
-      setDirection(1)
-      setStep(step + 1)
-    }
+  if (phase === 'review') {
+    return (
+      <div>
+        <div className="flex items-center gap-3 mb-8">
+          <h2 className="text-xl font-semibold text-text">Revisar curso</h2>
+        </div>
+        {courseId && <StepReview courseId={courseId} onPublish={handlePublish} publishing={publish.isPending} published={published} />}
+        <div className="flex justify-end mt-8 pt-5 border-t border-border">
+          <Button variant="primary" onClick={() => setPhase('assign')}>Siguiente</Button>
+        </div>
+      </div>
+    )
   }
 
-  function prev() {
-    // No going back from generation / after it started.
-    if (step === 0 || step >= 2) return
-    setDirection(-1)
-    setStep(step - 1)
+  if (phase === 'assign') {
+    return (
+      <div>
+        <div className="flex items-center gap-3 mb-8">
+          <h2 className="text-xl font-semibold text-text">Asignar empleados</h2>
+        </div>
+        <StepAssign selected={assignSelected} onToggle={toggleAssign} deadline={deadline} onDeadline={setDeadline} />
+        <div className="flex justify-end mt-8 pt-5 border-t border-border">
+          <Button variant="accent" onClick={finish} disabled={assign.isPending}>
+            {assign.isPending ? 'Asignando...' : assignSelected.size > 0 ? 'Asignar y finalizar' : 'Finalizar'}
+          </Button>
+        </div>
+      </div>
+    )
   }
 
-  function renderStep() {
-    switch (step) {
-      case 0: return <StepSource selected={source} onSelect={setSource} />
-      case 1: return <StepContent source={source} title={title} onTitleChange={setTitle} idea={idea} onIdeaChange={setIdea} uploader={uploader} />
-      //: `GenerationProgress` owns the status heading, the status line and the error
-      //: text. The header block that used to sit above it here said the same thing
-      //: twice, so it is gone; only the retry action stays, and it does not repeat
-      //: the error either.
-      case 2: return (
-        <div className="py-2">
-          <GenerationProgress progress={effective} />
-          {effective.step === 'failed' && (
-            <div className="mt-6 text-center">
-              <Button variant="secondary" onClick={() => { setStep(1); setJobId(null) }}>Volver a intentar</Button>
-            </div>
+  // ── Choose + Details (morph flow) ──────────────────────────
+
+  const expanded = phase === 'details'
+
+  return (
+    <LayoutGroup>
+      <div>
+        {/* Header */}
+        <motion.div layout="position" transition={morphTransition.layout} className="mb-6 shrink-0">
+          <h2 className="text-xl font-semibold text-text">Crear curso</h2>
+          <AnimatePresence mode="wait">
+            {!expanded ? (
+              <motion.p key="choose-sub" className="text-sm text-text-muted mt-1" {...contentAppear}>
+                Elige como empezar
+              </motion.p>
+            ) : (
+              <motion.button
+                key="back-btn"
+                type="button"
+                onClick={() => { setPhase('choose'); setSource(null) }}
+                className="flex items-center gap-1.5 text-sm text-text-muted hover:text-text mt-1 transition-colors"
+                {...contentAppear}
+              >
+                <ArrowLeftIcon /> Cambiar origen
+              </motion.button>
+            )}
+          </AnimatePresence>
+        </motion.div>
+
+        {/* Cards area */}
+        <div className={expanded ? '' : 'grid grid-cols-1 sm:grid-cols-2 gap-4'}>
+
+          {/* Card: Documentos */}
+          {(source === 'documentos' || !expanded) && (
+            <motion.div
+              layoutId="source-card-documentos"
+              transition={morphTransition.layout}
+              className={`border rounded-lg p-6 flex flex-col ${
+                expanded
+                  ? 'border-primary bg-bg cursor-default'
+                  : source === 'documentos'
+                    ? 'border-primary bg-primary-subtle cursor-pointer'
+                    : 'border-border hover:border-primary cursor-pointer'
+              }`}
+              onClick={() => {
+                if (!expanded) setSource(source === 'documentos' ? null : 'documentos')
+              }}
+            >
+              {!expanded ? (
+                /* Collapsed — centered in the fixed-height card */
+                <div className="flex-1 flex flex-col items-center justify-center text-center px-4">
+                  <div className="text-text-muted mb-4"><FileIcon /></div>
+                  <p className="text-sm font-medium text-text">Tengo un documento</p>
+                  <p className="text-xs text-text-muted mt-1.5">PDF, Word, Markdown o texto plano</p>
+                </div>
+              ) : (
+                /* Expanded: full details form */
+                <motion.div className="flex-1 flex flex-col overflow-hidden" {...contentAppear}>
+                  <div className="flex items-center gap-3 mb-6 shrink-0">
+                    <div className="text-primary"><FileIcon /></div>
+                    <div>
+                      <p className="text-sm font-medium text-text">A partir de un documento</p>
+                      <p className="text-xs text-text-muted">Sube el archivo y ponle nombre al curso</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-5 flex-1 overflow-y-auto">
+                    <FileUploadZone
+                      accept=".pdf,.docx,.md,.txt"
+                      maxSizeMB={20}
+                      onFilesSelected={(files) => uploader.uploadFile(files[0]).catch(() => {})}
+                    />
+                    {uploader.uploads.length > 0 && (
+                      <div className="space-y-2">
+                        {uploader.uploads.map((u, i) => (
+                          <div key={i} className="text-sm">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-text truncate min-w-0">{u.file.name}</span>
+                              {u.status === 'ready' || u.status === 'processing' ? (
+                                <span className="text-accent shrink-0"><CheckIcon /></span>
+                              ) : u.status === 'error' ? (
+                                <span className="text-danger text-xs shrink-0">{u.error}</span>
+                              ) : null}
+                            </div>
+                            {u.status === 'uploading' && <ProgressBar value={u.progress} size="sm" className="mt-1" />}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <Input
+                      label="Nombre del curso"
+                      placeholder="Ej: Seguridad Alimentaria"
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                    />
+
+                    <DeliverySelector value={deliveryChoice} onChange={setDeliveryChoice} />
+
+                    {startError && <p className="text-sm text-danger">{startError}</p>}
+                  </div>
+
+                  <div className="flex justify-end pt-4">
+                    <Button variant="primary" onClick={() => void handleCreate()} disabled={!canCreate}>
+                      {createButtonLabel}
+                    </Button>
+                  </div>
+                </motion.div>
+              )}
+            </motion.div>
+          )}
+
+          {/* Card: Desde cero */}
+          {(source === 'cero' || !expanded) && (
+            <motion.div
+              layoutId="source-card-cero"
+              transition={morphTransition.layout}
+              className={`border rounded-lg p-6 flex flex-col ${
+                expanded
+                  ? 'border-primary bg-bg cursor-default'
+                  : source === 'cero'
+                    ? 'border-primary bg-primary-subtle cursor-pointer'
+                    : 'border-border hover:border-primary cursor-pointer'
+              }`}
+              onClick={() => {
+                if (!expanded) setSource(source === 'cero' ? null : 'cero')
+              }}
+            >
+              {!expanded ? (
+                /* Collapsed — centered in the fixed-height card */
+                <div className="flex-1 flex flex-col items-center justify-center text-center px-4">
+                  <div className="text-text-muted mb-4"><EditIcon /></div>
+                  <p className="text-sm font-medium text-text">Tengo una idea</p>
+                  <p className="text-xs text-text-muted mt-1.5">Describe el tema y la IA escribe el contenido</p>
+                </div>
+              ) : (
+                /* Expanded: idea form */
+                <motion.div className="flex-1 flex flex-col overflow-hidden" {...contentAppear}>
+                  <div className="flex items-center gap-3 mb-6 shrink-0">
+                    <div className="text-primary"><EditIcon /></div>
+                    <div>
+                      <p className="text-sm font-medium text-text">A partir de una idea</p>
+                      <p className="text-xs text-text-muted">La IA escribe un documento fuente del que sale el curso</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-5 flex-1 overflow-y-auto">
+                    <Input
+                      label="Nombre del curso"
+                      placeholder="Ej: Seguridad Alimentaria"
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                    />
+
+                    <Textarea
+                      label="Que quieres que cubra (opcional)"
+                      placeholder="Ej: como funciona una sinapsis, los neurotransmisores principales y la plasticidad. Nivel introductorio."
+                      hint="Con esto la IA escribe un documento fuente, editable despues, del que sale el curso."
+                      value={idea}
+                      onChange={(e) => setIdea(e.target.value)}
+                    />
+
+                    <DeliverySelector value={deliveryChoice} onChange={setDeliveryChoice} />
+
+                    {startError && <p className="text-sm text-danger">{startError}</p>}
+                  </div>
+
+                  <div className="flex justify-end pt-4">
+                    <Button variant="primary" onClick={() => void handleCreate()} disabled={!canCreate}>
+                      {createButtonLabel}
+                    </Button>
+                  </div>
+                </motion.div>
+              )}
+            </motion.div>
           )}
         </div>
-      )
-      case 3: return courseId ? <StepReview courseId={courseId} onPublish={handlePublish} publishing={publish.isPending} published={published} /> : null
-      case 4: return <StepAssign selected={assignSelected} onToggle={toggleAssign} deadline={deadline} onDeadline={setDeadline} />
-      default: return null
-    }
-  }
+
+        {/* Confirm button when a source is selected but not expanded */}
+        <AnimatePresence>
+          {source && !expanded && (
+            <motion.div
+              className="flex justify-center mt-6"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0, transition: { duration: duration.normal, ease: ease.base } }}
+              exit={{ opacity: 0, y: 8, transition: { duration: duration.fast, ease: ease.snapOut } }}
+            >
+              <Button variant="primary" onClick={confirmSource}>
+                Continuar
+              </Button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </LayoutGroup>
+  )
+}
+
+// ── Delivery mode selector ───────────────────────────────────
+
+function DeliverySelector({ value, onChange }: { value: DeliveryChoice; onChange: (v: DeliveryChoice) => void }) {
+  const options: { key: DeliveryChoice; label: string; desc: string }[] = [
+    { key: 'dynamic', label: 'Personalizado', desc: 'La IA adapta el contenido a cada alumno' },
+    { key: 'static', label: 'Clasico', desc: 'Genera el curso una vez, igual para todos' },
+  ]
 
   return (
     <div>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-semibold text-text">Crear Curso</h2>
-          {/* The only orientation label in the flow: the per-step headings this page
-              used to repeat under it are gone. */}
-          <p className="text-sm text-text-muted mt-1">{stepLabels[step]}</p>
-        </div>
-        <StepIndicator current={step} total={5} />
+      <label className="block text-sm font-medium text-text mb-2">Modo</label>
+      <div className="grid grid-cols-2 gap-3">
+        {options.map((opt) => (
+          <button
+            key={opt.key}
+            type="button"
+            onClick={() => onChange(opt.key)}
+            className={`text-left border rounded-lg px-4 py-3 transition-colors ${
+              value === opt.key
+                ? 'border-primary bg-primary-subtle'
+                : 'border-border hover:border-border-strong'
+            }`}
+          >
+            <p className="text-sm font-medium text-text">{opt.label}</p>
+            <p className="text-xs text-text-muted mt-0.5">{opt.desc}</p>
+          </button>
+        ))}
       </div>
-
-      <div className="mt-8 overflow-hidden">
-        <AnimatePresence mode="wait" custom={direction} initial={false}>
-          <motion.div key={step} custom={direction} variants={slideVariants} initial="enter" animate="center" exit="exit">
-            {renderStep()}
-          </motion.div>
-        </AnimatePresence>
-      </div>
-
-      {startError && step === 1 && <p className="text-sm text-danger mt-3">{startError}</p>}
-
-      {step !== 2 && (
-        <div className="flex items-center justify-between mt-10 pt-5 border-t border-border">
-          <div>
-            {step === 1 && (
-              <Button variant="secondary" onClick={prev}>Anterior</Button>
-            )}
-          </div>
-          <div className="flex items-center gap-2 flex-wrap justify-end">
-            {step === 1 && schemaFirstAvailable && (
-              <Button
-                variant="secondary"
-                onClick={() => void startSchemaDefinition()}
-                disabled={!canNext() || busyStarting}
-                title="Define y revisa el esquema antes de generar nada"
-              >
-                Definir esquema
-              </Button>
-            )}
-            {step < 3 ? (
-              <Button variant="primary" onClick={next} disabled={!canNext() || busyStarting}>
-                {step === 1 ? startButtonLabel : 'Siguiente'}
-              </Button>
-            ) : step === 3 ? (
-              <Button variant="primary" onClick={next}>Siguiente</Button>
-            ) : (
-              <Button variant="accent" onClick={finish} disabled={assign.isPending}>
-                {assign.isPending ? 'Asignando...' : assignSelected.size > 0 ? 'Asignar y finalizar' : 'Finalizar'}
-              </Button>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   )
 }

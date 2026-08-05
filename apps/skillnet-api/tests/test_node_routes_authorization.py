@@ -1,12 +1,10 @@
 """Who may reach the v2 runtime surface, and with whose data (§11.3).
 
-``tests/test_flag_surface.py`` proves the feature flag hides the surface. This file proves
-the next question, which the flag says nothing about: with the flag ``on`` and a valid
-session, *which* courses does an employee get to touch?
+With a valid session, *which* courses does an employee get to touch?
 
 The answer must be "the ones assigned to them", the same answer v1 gives in
-``src/routes/courses.py``. Org scoping is not an access rule — every colleague shares an
-``org_id`` — so ``get_scoped`` alone let any authenticated employee enumerate the node
+``src/routes/courses.py``. Org scoping is not an access rule -- every colleague shares an
+``org_id`` -- so ``get_scoped`` alone let any authenticated employee enumerate the node
 graph, probe, render, answer and give feedback on a course nobody assigned them, and make
 ``POST /nodes/{id}/render`` spend real tokens doing it.
 
@@ -32,7 +30,6 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
-from src.config import settings
 from src.deps.auth import current_user
 from src.deps.db import get_async_session
 from src.main import create_app
@@ -240,7 +237,6 @@ def world() -> World:
 def client(
     monkeypatch: pytest.MonkeyPatch, world: World
 ) -> TestClient:
-    monkeypatch.setattr(settings, "DYNAMIC_COURSES_MODE", "on")
     _install(monkeypatch, world)
     app = create_app()
     app.dependency_overrides[get_async_session] = lambda: StubSession()

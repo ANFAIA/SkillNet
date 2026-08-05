@@ -70,7 +70,7 @@ beforeEach(() => {
   mockFetch.mockImplementation((input: string) => {
     const url = String(input)
     if (url.endsWith('/health')) {
-      return jsonResponse(200, { status: 'ok', features: { dynamic_courses: 'on' } })
+      return jsonResponse(200, { status: 'ok' })
     }
     if (url.includes('/probe')) return jsonResponse(200, PROBE_SESSION)
     return jsonResponse(200, {})

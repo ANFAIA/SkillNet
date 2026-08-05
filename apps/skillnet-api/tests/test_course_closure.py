@@ -30,7 +30,6 @@ from typing import Any
 
 import pytest
 
-from src.config import settings
 from src.models import (
     Course,
     CourseDeliveryMode,
@@ -265,9 +264,8 @@ def test_an_already_completed_enrollment_is_not_restamped() -> None:
 # The resolve_delivery gate — v1 safety
 # --------------------------------------------------------------------------- #
 @pytest.mark.asyncio
-async def test_a_static_course_is_never_closed_by_the_node_rule(monkeypatch) -> None:
+async def test_a_static_course_is_never_closed_by_the_node_rule() -> None:
     """§7.5 applies **only** on the dynamic branch, so v1's rule keeps its monopoly."""
-    monkeypatch.setattr(settings, "DYNAMIC_COURSES_MODE", "on")
     course = make_course(mode=CourseDeliveryMode.STATIC)
     enrollment = FakeEnrollment(status=EnrollmentStatus.IN_PROGRESS)
     service = make_service(FakeSession(), enrollment)
@@ -281,22 +279,8 @@ async def test_a_static_course_is_never_closed_by_the_node_rule(monkeypatch) -> 
 
 
 @pytest.mark.asyncio
-async def test_an_unvalidated_schema_is_not_the_dynamic_branch(monkeypatch) -> None:
-    monkeypatch.setattr(settings, "DYNAMIC_COURSES_MODE", "on")
+async def test_an_unvalidated_schema_is_not_the_dynamic_branch() -> None:
     course = make_course(status=CourseSchemaStatus.PROPOSED)
-    service = make_service(FakeSession(), FakeEnrollment(EnrollmentStatus.IN_PROGRESS))
-
-    assert await service.close_dynamic_if_mastered(
-        course=course, user_id=USER_ID
-    ) == (None, None)
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize("mode", ["off", "shadow"])
-async def test_the_flag_alone_disables_dynamic_closing(monkeypatch, mode: str) -> None:
-    """With the flag anywhere but ``on`` the course is served by v1, so v1 closes it."""
-    monkeypatch.setattr(settings, "DYNAMIC_COURSES_MODE", mode)
-    course = make_course()
     service = make_service(FakeSession(), FakeEnrollment(EnrollmentStatus.IN_PROGRESS))
 
     assert await service.close_dynamic_if_mastered(

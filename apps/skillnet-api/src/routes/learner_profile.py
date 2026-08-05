@@ -10,11 +10,10 @@ feedback, the per-node states and the render views, and anonymizes
 an extra segment, so the router order in ``main.py`` is irrelevant.
 """
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Response
 
 from src.deps.auth import CurrentUser
 from src.deps.db import DBSession
-from src.deps.features import require_dynamic_courses
 from src.repositories.learner_profile_repo import LearnerProfileRepository
 from src.repositories.learning_event_repo import LearningEventRepository
 from src.schemas.learner_profile import LearnerProfileRead, LearnerProfileUpdate
@@ -23,7 +22,6 @@ from src.services.learner_profile_service import LearnerProfileService
 router = APIRouter(
     prefix="/users/me/learner-profile",
     tags=["Learner profile"],
-    dependencies=[Depends(require_dynamic_courses("employee"))],
 )
 
 

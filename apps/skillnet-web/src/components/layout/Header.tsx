@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useMe, useLogout } from '../../api/auth'
-import { useDynamicCoursesMode } from '../../api/health'
 import { useSidebar } from '../../contexts/SidebarContext'
 import { transition, duration, ease } from '../../lib/motion'
 
@@ -19,11 +18,10 @@ export function Header() {
    * and stops the gate from ever firing again, so without an entry point here "lo hago
    * luego" is permanent and the learner profile can never be set.
    *
-   * Gated on `'on'` and on the employee role: this header is also the admin one, and
-   * below `on` every onboarding route is a 404 — the wizard would bounce straight back.
+   * Gated on the employee role: this header is also the admin one, and an admin has
+   * no onboarding wizard.
    */
-  const { mode: dynamicMode } = useDynamicCoursesMode()
-  const canRerunOnboarding = dynamicMode === 'on' && user?.role === 'employee'
+  const canRerunOnboarding = user?.role === 'employee'
 
   useEffect(() => {
     if (!open) return

@@ -208,7 +208,6 @@ def _fixture_llm(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     build sites of §12.1 are exercised as they are in production with
     ``LLM_MODEL=fixture/local`` — which is exactly the ``fixtures`` compose profile.
     """
-    monkeypatch.setattr(settings, "DYNAMIC_COURSES_MODE", "on")
     monkeypatch.setattr(settings, "LLM_MODEL", "fixture/local")
     monkeypatch.setattr(settings, "EMBEDDING_MODEL", "fixture/local")
     monkeypatch.setattr(settings, "LLM_RUNTIME_FAST_MODEL", "fixture/local")

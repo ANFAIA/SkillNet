@@ -99,12 +99,11 @@ function json(body: unknown, status = 200) {
   })
 }
 
-function serve(options: { mode?: string; questionsStatus?: number } = {}) {
-  const mode = options.mode ?? 'on'
+function serve(options: { questionsStatus?: number } = {}) {
   mockFetch.mockImplementation((url: string) => {
     const path = String(url).replace('/api/v1', '')
     if (path === '/health') {
-      return json({ status: 'ok', version: '0.1.0', database: 'connected', features: { dynamic_courses: mode } })
+      return json({ status: 'ok', version: '0.1.0', database: 'connected' })
     }
     if (path === '/onboarding') {
       if (options.questionsStatus && options.questionsStatus >= 400) {
@@ -348,7 +347,7 @@ describe('Onboarding — question 5 asks about needs, not conditions (§6.2, §6
     mockFetch.mockImplementation((url: string) => {
       const path = String(url).replace('/api/v1', '')
       if (path === '/health') {
-        return json({ status: 'ok', version: '0.1.0', database: 'connected', features: { dynamic_courses: 'on' } })
+        return json({ status: 'ok', version: '0.1.0', database: 'connected' })
       }
       if (path === '/onboarding') {
         const questions = structuredClone(QUESTIONS)
@@ -426,29 +425,10 @@ describe('Onboarding — accessibility of the wizard itself', () => {
   })
 })
 
-describe('Onboarding — flag guard (§10.1)', () => {
-  it('leaves for the app when the flag is off (the endpoints do not exist)', async () => {
-    serve({ mode: 'off' })
-    renderWizard()
-    expect(await screen.findByText('HOME')).toBeInTheDocument()
-  })
-
-  it('leaves for the app in shadow mode', async () => {
-    serve({ mode: 'shadow' })
-    renderWizard()
-    expect(await screen.findByText('HOME')).toBeInTheDocument()
-  })
-
-  it('leaves for the app if the questions route answers 404 mid-session', async () => {
+describe('Onboarding — error handling', () => {
+  it('leaves for the app if the questions route answers 404', async () => {
     serve({ questionsStatus: 404 })
     renderWizard()
     expect(await screen.findByText('HOME')).toBeInTheDocument()
-  })
-
-  it('never asks for the questions while the flag is unknown', async () => {
-    serve({ mode: 'off' })
-    renderWizard()
-    await screen.findByText('HOME')
-    expect(mockFetch.mock.calls.filter((call) => String(call[0]) === '/api/v1/onboarding')).toHaveLength(0)
   })
 })

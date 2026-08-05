@@ -5,7 +5,6 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Header } from './Header'
 import { SidebarProvider } from '../../contexts/SidebarContext'
-import type { DynamicCoursesMode } from '../../api/health'
 
 /**
  * The way back into the onboarding wizard (§6.1).
@@ -14,8 +13,8 @@ import type { DynamicCoursesMode } from '../../api/health'
  * `ProtectedRoute` never fires again — without this menu item "lo hago luego" is a
  * one-way door and the learner profile can never be declared.
  *
- * Two gates, both tested from the closed side, because this header is also the admin
- * one: below `on` every onboarding route is a 404, and an admin has no wizard at all.
+ * The gate is on the employee role: this header is also the admin one, and an admin
+ * has no wizard at all.
  */
 
 const mockFetch = vi.fn()
@@ -28,7 +27,7 @@ function jsonResponse(status: number, body: unknown) {
   })
 }
 
-function installFetch(mode: DynamicCoursesMode, role: 'employee' | 'admin') {
+function installFetch(role: 'employee' | 'admin') {
   mockFetch.mockImplementation((input: string) => {
     const url = String(input)
     if (url.endsWith('/health')) {
@@ -36,7 +35,6 @@ function installFetch(mode: DynamicCoursesMode, role: 'employee' | 'admin') {
         status: 'ok',
         version: '1',
         database: 'ok',
-        features: { dynamic_courses: mode },
       })
     }
     if (url.endsWith('/auth/me')) {
@@ -96,8 +94,8 @@ afterEach(() => {
 })
 
 describe('Header — re-entering onboarding', () => {
-  it('offers the wizard to an employee with the flag on', async () => {
-    installFetch('on', 'employee')
+  it('offers the wizard to an employee', async () => {
+    installFetch('employee')
     renderHeader()
 
     await openMenu('Empleada Ejemplo')
@@ -109,27 +107,9 @@ describe('Header — re-entering onboarding', () => {
   })
 })
 
-describe('Header — the closed side of both gates', () => {
-  it('hides the wizard from an employee in shadow mode', async () => {
-    installFetch('shadow', 'employee')
-    renderHeader()
-
-    await openMenu('Empleada Ejemplo')
-    expect(screen.queryByRole('menuitem', { name: 'Preferencias de aprendizaje' })).toBeNull()
-    expect(screen.getByRole('menuitem', { name: 'Cerrar sesion' })).toBeInTheDocument()
-  })
-
-  it('hides it with the flag off', async () => {
-    installFetch('off', 'employee')
-    renderHeader()
-
-    await openMenu('Empleada Ejemplo')
-    expect(screen.queryByRole('menuitem', { name: 'Preferencias de aprendizaje' })).toBeNull()
-    expect(screen.getByRole('menuitem', { name: 'Cerrar sesion' })).toBeInTheDocument()
-  })
-
-  it('never offers it to an admin, flag on', async () => {
-    installFetch('on', 'admin')
+describe('Header — the admin gate', () => {
+  it('never offers the wizard to an admin', async () => {
+    installFetch('admin')
     renderHeader()
 
     await openMenu('Admin Ejemplo')

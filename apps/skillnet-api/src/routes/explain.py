@@ -1,9 +1,5 @@
 """``POST /explain`` — click-to-explain (§8.4, §11.3).
 
-An employee surface, so the guard is ``require_dynamic_courses("employee")``: 404 with
-the flag ``off`` **and** in ``shadow``, indistinguishable from a route that does not
-exist.
-
 The two failures that are knowable before a single token is generated are real HTTP
 statuses, not in-band SSE errors: 422 for a selection over 140 characters (a pydantic
 validator on ``ExplainRequest``) and 429 for the rate limit. Anything that goes wrong
@@ -20,7 +16,6 @@ from sqlalchemy import select
 
 from src.deps.auth import CurrentUser
 from src.deps.db import DBSession
-from src.deps.features import require_dynamic_courses
 from src.llm.client import LLMService, resolve_llm_config
 from src.llm.fixtures import maybe_fixture_llm
 from src.models import Organization
@@ -62,10 +57,7 @@ async def get_runtime_fast_llm(db: DBSession) -> LLMService:
 RuntimeFastLLMDep = Annotated[LLMService, Depends(get_runtime_fast_llm)]
 
 
-@router.post(
-    "/explain",
-    dependencies=[Depends(require_dynamic_courses("employee"))],
-)
+@router.post("/explain")
 async def explain(
     request: ExplainRequest,
     user: CurrentUser,
@@ -74,9 +66,8 @@ async def explain(
 ) -> StreamingResponse:
     """Stream a one-sentence, context-aware explanation of the selected term.
 
-    ``CurrentUser`` rather than ``EmployeeUser``: with the flag ``on`` an admin
-    reviewing a node sees the same clickable prose, and the rate limit is per user
-    either way. The role gate that matters here is the feature flag.
+    ``CurrentUser`` rather than ``EmployeeUser``: an admin reviewing a node sees the
+    same clickable prose, and the rate limit is per user either way.
     """
     check_rate_limit(user.id)
     service = ExplainService(db, llm)

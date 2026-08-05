@@ -35,7 +35,6 @@ from typing import Any
 
 from sqlalchemy import select
 
-from src.config import settings
 from src.core.exceptions import ConflictError, ForbiddenError, NotFoundError
 from src.core.logging import get_logger
 from src.models import Enrollment, EnrollmentStatus
@@ -406,7 +405,7 @@ class EnrollmentService:
         of a published course they were never assigned) and ``completion = None`` when
         the course is not on the dynamic branch at all.
         """
-        if resolve_delivery(course, settings) != "dynamic":
+        if resolve_delivery(course) != "dynamic":
             return None, None
 
         completion = await self.evaluate_dynamic(

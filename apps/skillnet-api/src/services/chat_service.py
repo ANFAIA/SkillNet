@@ -482,11 +482,9 @@ class ChatService:
         self.db = db
         self.tutor_llm = tutor_llm
         self.embeddings = embeddings
-        #: Decided by the route, never read from ``settings`` here: one flag consulted in
-        #: ten places is ten flags (``src/services/course_delivery.py``). It is the AND of
-        #: the deployment's ``DYNAMIC_COURSES_MODE`` and the admin's own
-        #: ``chat_generative_ui``; ``False`` short-circuits **before** the model, because
-        #: the point of the admin's switch is not paying for the second call.
+        #: Decided by the route from the organization's ``chat_generative_ui`` setting.
+        #: ``False`` short-circuits **before** the model, because the point of the
+        #: admin's switch is not paying for the second call.
         self.generative_ui = generative_ui
         self.repo = ChatRepository(db)
 

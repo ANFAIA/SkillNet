@@ -54,8 +54,6 @@ services:
       # so in plain words instead of letting it surface when the first document is
       # ingested — where it hides inside the ingestion `except`.
       EMBEDDING_DIMENSIONS: ${EMBEDDING_DIMENSIONS:-768}
-      # Dynamic courses (v2). Defaults keep production behaving exactly as today.
-      DYNAMIC_COURSES_MODE: ${DYNAMIC_COURSES_MODE:-off}
       RENDER_BACKEND: ${RENDER_BACKEND:-openui}
       LLM_RUNTIME_FAST_MODEL: ${LLM_RUNTIME_FAST_MODEL:-}
       LLM_RUNTIME_HEAVY_MODEL: ${LLM_RUNTIME_HEAVY_MODEL:-}
@@ -85,9 +83,9 @@ services:
   # ── Keyless demo API (optional — docker compose --profile fixtures up db api-fixtures)
   # Same image as `api`, but every LLM and embedding call is served from the
   # recorded fixtures in src/llm/fixture_data (they ship inside `src`, so the
-  # production Dockerfile needs no change) and v2 is fully on. No API key needed.
+  # production Dockerfile needs no change). No API key needed.
   # Published on its own port because the bundled nginx SPA proxies to `api`; to
-  # run the *whole* stack keyless, set these three values in .env instead.
+  # run the *whole* stack keyless, set these two values in .env instead.
   api-fixtures:
     build:
       context: .
@@ -96,8 +94,7 @@ services:
     profiles: [fixtures]
     # `127.0.0.1:` is mandatory here. This service shares `SECRET_KEY` and the database
     # with `api`, so its session cookies are valid against the real API; it has no nginx
-    # in front of it; and it forces `DYNAMIC_COURSES_MODE: on`, so it answers v2 routes
-    # that production 404s. Publishing it on 0.0.0.0 was a second complete API open to
+    # in front of it. Publishing it on 0.0.0.0 was a second complete API open to
     # the network, carrying the first one's privileges.
     ports:
       - "127.0.0.1:${API_FIXTURES_PORT:-8001}:8000"
@@ -111,7 +108,6 @@ services:
       # vectors of exactly this size, so a 384 here breaks the insert against a 768
       # column just as a real provider would.
       EMBEDDING_DIMENSIONS: ${EMBEDDING_DIMENSIONS:-768}
-      DYNAMIC_COURSES_MODE: "on"
       RENDER_BACKEND: ${RENDER_BACKEND:-openui}
       LLM_FIXTURE_DIR: ${LLM_FIXTURE_DIR:-src/llm/fixture_data}
       LLM_FIXTURE_MODE: replay

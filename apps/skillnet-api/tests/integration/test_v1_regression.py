@@ -1,28 +1,18 @@
-"""With ``DYNAMIC_COURSES_MODE=off``, v1 behaves exactly as it did. This is the test
-that justifies the flag.
+"""v1 behaviour is preserved: a static course goes through the v1 path.
 
-Everything the v2 work added is either a new file or an additive change behind
-``resolve_delivery`` / ``require_dynamic_courses``. That is a claim, and a claim about a
-production system that people are already using needs evidence, not a code review. So
-this file runs the **whole** v1 path against a real Postgres with the flag off:
+This file runs the **whole** v1 path against a real Postgres:
 
-1. Every v2 route of §11 answers ``404`` — indistinguishable from a route that does not
-   exist, which is what §10.1 promises. Enumerated by hand, one line per path, because a
-   loop over the OpenAPI schema would silently stop covering a path that got removed
-   from the app.
-2. ``shadow`` opens the **admin** surface and leaves the **employee** surface at ``404``
-   — the middle row of §10.1's table, which is the mode the internal demo runs in.
-3. ``POST /courses/{id}/generate`` still drives the v1 LangGraph pipeline to
+1. ``POST /courses/{id}/generate`` still drives the v1 LangGraph pipeline to
    ``published``: themes -> structure -> modules -> review -> publish, with real
    modules, lessons and exercises in the database. Recorded LLM responses, keyed on the
    prompts the v1 builders produce (§12.1), so this exercises the pipeline and not a
    stub.
-4. The v1 learner journey closes a course by the v1 rule (every lesson visited, every
-   exercise passed) and grants ``user_skills`` at ``medium`` — **not** at the
+2. The v1 learner journey closes a course by the v1 rule (every lesson visited, every
+   exercise passed) and grants ``user_skills`` at ``medium`` -- **not** at the
    ``mastery -> skill_level`` translation B11 added, which is dynamic-branch only.
-5. The additive columns of migration 0005 take their defaults on a course v1 created,
-   and a course somebody flips to ``dynamic`` while the flag is off is still served by
-   v1. That last one is the whole point of ``resolve_delivery`` being one function.
+3. The additive columns of migration 0005 take their defaults on a course v1 created,
+   and a static course whose columns are flipped to ``dynamic`` is still served by v1
+   unless the schema is validated. That is the point of ``resolve_delivery``.
 
 Run it with::
 
@@ -185,9 +175,8 @@ def _migrated_database() -> None:
 
 
 @pytest.fixture(autouse=True)
-def _flag_off(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    """The default production configuration: the flag off, the LLM on disk."""
-    monkeypatch.setattr(settings, "DYNAMIC_COURSES_MODE", "off")
+def _fixture_llm(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """Production configuration: LLM on disk."""
     monkeypatch.setattr(settings, "LLM_MODEL", "fixture/local")
     monkeypatch.setattr(settings, "EMBEDDING_MODEL", "fixture/local")
     monkeypatch.setattr(settings, "LLM_FIXTURE_DIR", str(tmp_path))
@@ -312,7 +301,7 @@ async def _cleanup(world: World) -> None:
 
 
 @pytest_asyncio.fixture
-async def world(_flag_off: Path) -> AsyncIterator[World]:
+async def world(_fixture_llm: Path) -> AsyncIterator[World]:
     seeded = await _seed()
     try:
         yield seeded
@@ -363,85 +352,15 @@ async def employee(world: World) -> AsyncIterator[Actor]:
         await actor.close()
 
 
-# --------------------------------------------------------------------------------- #
-# The v2 surface, enumerated
-#
-# Imported from the unit-level twin rather than copied: ``tests/test_flag_surface.py``
-# asserts the same §10.1 truth table without a database (so it runs in CI) and owns the
-# list, including the drift alarm that cross-checks it against the app's own OpenAPI
-# schema. What *this* file adds is the same table with real authentication, real rows and
-# the whole v1 flow running beside it.
-# --------------------------------------------------------------------------------- #
-from tests.test_flag_surface import (  # noqa: E402 - grouped with what it documents
-    ADMIN_SURFACE,
-    EMPLOYEE_SURFACE,
-)
-
-
 @pytest.mark.asyncio
-async def test_with_the_flag_off_every_v2_route_is_a_404(admin: Actor) -> None:
-    """``404``, not ``403``: with the flag off the v2 surface must be
-    indistinguishable from routes that were never deployed (§10.1)."""
-    for method, path, body in ADMIN_SURFACE + EMPLOYEE_SURFACE:
-        response = await admin.request(
-            method, path, **({"json": body} if body is not None else {})
-        )
-        assert response.status_code == 404, f"{method} {path} -> {response.status_code}"
-
-
-@pytest.mark.asyncio
-async def test_health_reports_the_flag_and_nothing_else_changed(admin: Actor) -> None:
+async def test_health_reports_version_and_database(admin: Actor) -> None:
     for path in ("/health", f"{PREFIX}/health"):
         response = await admin.client.get(path)
         assert response.status_code == 200
         body = response.json()
-        # The v1 keys, unchanged.
         assert body["status"] == "ok"
         assert body["version"] == "0.1.0"
         assert body["database"] == "connected"
-        # The one addition, and the only place the flag is exposed (§10.1).
-        assert body["features"] == {"dynamic_courses": "off"}
-
-    # It is NOT on /auth/me — adding it to `UserRead` would serialize a stale default.
-    me = await admin.get("/auth/me")
-    assert me.status_code == 200
-    assert "features" not in me.json()
-
-
-@pytest.mark.asyncio
-async def test_shadow_opens_the_admin_surface_and_leaves_the_employee_one_shut(
-    admin: Actor, employee: Actor, world: World, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """The middle row of §10.1: the creator can work on schemas with real data while
-    no learner can reach anything."""
-    monkeypatch.setattr(settings, "DYNAMIC_COURSES_MODE", "shadow")
-
-    # The admin surface exists. A missing course is a 404 too, so use a real one and
-    # assert on the *reason* instead: the route ran and answered about the resource.
-    created = await admin.post(
-        "/courses",
-        json={"title": COURSE_TITLE, "source_document_id": str(world.document.id)},
-    )
-    assert created.status_code == 201, created.text
-    course_id = uuid.UUID(created.json()["id"])
-    world.course_ids.append(course_id)
-
-    schema = await admin.get(f"/courses/{course_id}/schema")
-    assert schema.status_code == 200, schema.text
-    assert schema.json()["schema_status"] == "draft"
-    assert schema.json()["nodes"] == []
-
-    # The employee surface does not.
-    for method, path, body in EMPLOYEE_SURFACE:
-        response = await employee.request(
-            method, path, **({"json": body} if body is not None else {})
-        )
-        assert response.status_code == 404, f"{method} {path} -> {response.status_code}"
-
-    # And an employee still cannot reach the admin surface: the flag guard is not a
-    # substitute for the role guard.
-    forbidden = await employee.get(f"/courses/{course_id}/schema")
-    assert forbidden.status_code == 403, forbidden.text
 
 
 # --------------------------------------------------------------------------------- #
@@ -531,9 +450,9 @@ async def _generate_v1_course(admin: Actor, world: World, fixture_dir: Path) -> 
 
 @pytest.mark.asyncio
 async def test_the_v1_generation_pipeline_still_publishes_a_real_course(
-    admin: Actor, world: World, _flag_off: Path
+    admin: Actor, world: World, _fixture_llm: Path
 ) -> None:
-    course_id = await _generate_v1_course(admin, world, _flag_off)
+    course_id = await _generate_v1_course(admin, world, _fixture_llm)
 
     detail = await admin.get(f"/courses/{course_id}")
     assert detail.status_code == 200, detail.text
@@ -560,7 +479,7 @@ async def test_the_v1_generation_pipeline_still_publishes_a_real_course(
         assert course.schema_validated_by is None
         assert course.schema_validated_at is None
         # And the single decision point agrees.
-        assert resolve_delivery(course, settings) == "static"
+        assert resolve_delivery(course) == "static"
         # No v2 row was created by a v1 generation.
         nodes = (
             await db.execute(
@@ -577,7 +496,7 @@ async def test_the_v1_generation_pipeline_still_publishes_a_real_course(
 
 @pytest.mark.asyncio
 async def test_the_v1_learner_journey_completes_and_grants_skills_at_medium(
-    admin: Actor, employee: Actor, world: World, _flag_off: Path
+    admin: Actor, employee: Actor, world: World, _fixture_llm: Path
 ) -> None:
     """The v1 closing rule, unchanged: every lesson visited, every exercise passed.
 
@@ -585,7 +504,7 @@ async def test_the_v1_learner_journey_completes_and_grants_skills_at_medium(
     ``level``, defaulting to ``medium``, which the dynamic branch passes and v1 does
     not — this is the assertion that keeps the two apart.
     """
-    course_id = await _generate_v1_course(admin, world, _flag_off)
+    course_id = await _generate_v1_course(admin, world, _fixture_llm)
     assert (await admin.post(f"/courses/{course_id}/publish")).status_code == 200
 
     async with async_session_factory() as db:
@@ -692,37 +611,31 @@ async def test_the_v1_learner_journey_completes_and_grants_skills_at_medium(
 
 
 @pytest.mark.asyncio
-async def test_a_course_flipped_to_dynamic_is_still_served_by_v1_with_the_flag_off(
-    admin: Actor, employee: Actor, world: World, _flag_off: Path
+async def test_a_v1_course_without_validated_schema_stays_static(
+    admin: Actor, employee: Actor, world: World, _fixture_llm: Path
 ) -> None:
-    """The first line of ``resolve_delivery``, which is why it is one function.
-
-    Somebody can set ``delivery_mode='dynamic'`` and ``schema_status='validated'`` in
-    the database — a restored dump, a half-finished migration to v2, an operator who
-    turned the flag off again. With the flag off the course goes back through v1, and
-    the v2 routes stay gone.
+    """``resolve_delivery`` requires both ``delivery_mode='dynamic'`` AND
+    ``schema_status='validated'``. A course flipped to dynamic but with an
+    unvalidated schema is still served by v1.
     """
-    course_id = await _generate_v1_course(admin, world, _flag_off)
+    course_id = await _generate_v1_course(admin, world, _fixture_llm)
 
     async with async_session_factory() as db:
         course = await db.get(Course, course_id)
         course.delivery_mode = CourseDeliveryMode.DYNAMIC
-        course.schema_status = CourseSchemaStatus.VALIDATED
+        # Schema stays DRAFT (the default for v1 courses), so resolve_delivery -> static
         await db.commit()
-        assert resolve_delivery(course, settings) == "static"
+        assert resolve_delivery(course) == "static"
 
     # The v1 detail route still returns the module tree.
     detail = await admin.get(f"/courses/{course_id}")
     assert detail.status_code == 200
     assert len(detail.json()["modules"]) == 1
 
-    # And the v2 node list does not exist, flags beating course columns.
-    assert (await employee.get(f"/courses/{course_id}/nodes")).status_code == 404
-
 
 @pytest.mark.asyncio
 async def test_the_v1_admin_surfaces_are_untouched(
-    admin: Actor, world: World, _flag_off: Path
+    admin: Actor, world: World, _fixture_llm: Path
 ) -> None:
     """A sweep of the v1 admin routes the v2 batches touched around: documents,
     courses, lessons, exercises, stats, generation jobs."""
@@ -730,7 +643,7 @@ async def test_the_v1_admin_surfaces_are_untouched(
     assert documents.status_code == 200
     assert any(row["id"] == str(world.document.id) for row in documents.json()["items"])
 
-    course_id = await _generate_v1_course(admin, world, _flag_off)
+    course_id = await _generate_v1_course(admin, world, _fixture_llm)
 
     listing = await admin.get("/courses")
     assert listing.status_code == 200

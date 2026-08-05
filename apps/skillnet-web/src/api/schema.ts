@@ -19,8 +19,8 @@
  *    2), so "mark reviewed" has its own endpoint and the UI must save first. That
  *    ordering is enforced in the screen, not here.
  *
- * The flag itself is not read here: `api/health.ts` owns `useDynamicCoursesMode`, and
- * `GET /health` is the only route that exposes it (§10.1).
+ * Both v1 and v2 course modes are always available; the choice is per-course via
+ * `delivery_mode`, not a global flag.
  */
 
 import { useEffect } from 'react'

@@ -2,7 +2,6 @@ import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Card, Badge, Button, EmptyState, SkeletonCard } from '../../components/ui'
 import { useCourses } from '../../api/courses'
-import { useDynamicCoursesMode } from '../../api/health'
 import { ApiError } from '../../api/client'
 import { staggerContainer, staggerItem } from '../../lib/motion'
 import type { CourseStatus } from '../../types'
@@ -38,14 +37,6 @@ function PlusIcon() {
 export function Content() {
   const navigate = useNavigate()
   const { data, isLoading, error } = useCourses()
-
-  /**
-   * The per-course door to the schema screen (§11.1). Gated on the global flag, **not**
-   * on `delivery_mode`: that field only reads `'dynamic'` once a schema is validated, and
-   * a `draft` or `proposed` schema is precisely what this link exists to reach.
-   */
-  const { mode: dynamicMode } = useDynamicCoursesMode()
-  const schemaAvailable = dynamicMode === 'shadow' || dynamicMode === 'on'
 
   const courses = data?.items ?? []
   const published = courses.filter((c) => c.status === 'published')
@@ -137,15 +128,13 @@ export function Content() {
                         Ver curso
                       </Button>
                     )}
-                    {schemaAvailable && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => navigate(`/admin/curso/${course.id}/esquema`)}
-                      >
-                        Esquema
-                      </Button>
-                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => navigate(`/admin/curso/${course.id}/esquema`)}
+                    >
+                      Esquema
+                    </Button>
                   </div>
                 </div>
               </Card>

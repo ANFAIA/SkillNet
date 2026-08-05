@@ -5,7 +5,6 @@ from typing import Annotated
 
 from fastapi import APIRouter, Query, Response
 
-from src.config import settings
 from src.core.exceptions import ForbiddenError, NotFoundError, ValidationError
 from src.deps.auth import AdminUser, CurrentUser
 from src.deps.db import DBSession
@@ -36,13 +35,12 @@ def _delivery(course: Course) -> str:
     """The one thing v2 adds to this v1 file: which path this course is actually on.
 
     ``resolve_delivery`` and not ``course.delivery_mode``, because the column is only one
-    of the three conditions (§10.1: flag ``on``, course opted in, schema validated). A
-    course flagged ``dynamic`` whose schema is still in draft is served by the v1 tree, and
-    a badge reading "dinamico" over it would send the creator looking for a node map that
-    does not exist. With the flag ``off`` every course reads ``static`` and nothing in the
-    v1 surface changes at all, which is the condition this field ships under.
+    of the two conditions (course opted in, schema validated). A course flagged
+    ``dynamic`` whose schema is still in draft is served by the v1 tree, and a badge
+    reading "dinamico" over it would send the creator looking for a node map that does
+    not exist.
     """
-    return resolve_delivery(course, settings)
+    return resolve_delivery(course)
 
 
 def _service(db: DBSession) -> CourseService:

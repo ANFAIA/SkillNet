@@ -21,10 +21,10 @@ Rutas absolutas, servidores de modelos locales y apanos de sistema operativo van
 ## 2. Docker
 
 ```bash
-# Produccion. v2 queda en `on` si copiaste el .env.example; el default del codigo es `off`.
+# Produccion.
 docker compose up -d --build                                              # http://localhost:3000
 
-# Desarrollo: hot reload, logs en debug, v2 en `shadow`
+# Desarrollo: hot reload, logs en debug
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
 
 # Todo con un modelo local, sin clave. La primera vez descarga los modelos.
@@ -101,13 +101,11 @@ que cualquier medicion necesita retroceso exponencial (el banco ya lo trae).
 
 ## 5. Estado
 
-- v1 implementado y es lo que sirve produccion.
-- v2 (cursos dinamicos) implementado **detras de `DYNAMIC_COURSES_MODE`**, que por defecto esta
-  en `off`: todas las rutas v2 devuelven 404 y `delivery_mode` se ignora. `shadow` = solo la
-  superficie de admin; `on` = v2 completo, y aun asi solo para cursos
-  `delivery_mode='dynamic'` **y** `schema_status='validated'`.
-- La regresion de v1 con el flag apagado es la invariante que no se rompe:
-  `tests/integration/test_v1_regression.py`.
+- v1 y v2 siempre disponibles. La eleccion es **por curso** via `delivery_mode`:
+  un curso es dinamico (v2) cuando tiene `delivery_mode='dynamic'` **y**
+  `schema_status='validated'`; cualquier otro se sirve por v1.
+- `src/services/course_delivery.resolve_delivery` es el unico punto de decision.
+- `tests/integration/test_v1_regression.py` verifica que v1 sigue intacto.
 
 ## 6. Git
 

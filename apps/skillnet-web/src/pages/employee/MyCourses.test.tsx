@@ -53,7 +53,6 @@ function installFetch(items: unknown[]) {
         status: 'ok',
         version: '1',
         database: 'ok',
-        features: { dynamic_courses: 'on' },
       })
     }
     if (url.includes('/enrollments')) {

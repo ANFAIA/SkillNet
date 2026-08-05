@@ -81,7 +81,7 @@ function installFetch(handlers: Handlers) {
     const method = (init?.method ?? 'GET').toUpperCase()
 
     if (url.endsWith('/health')) {
-      return jsonResponse(200, { status: 'ok', features: { dynamic_courses: 'shadow' } })
+      return jsonResponse(200, { status: 'ok' })
     }
     if (url.endsWith(`/courses/${COURSE_ID}/schema`) && method === 'GET') {
       return jsonResponse(200, handlers.schema)
@@ -332,12 +332,12 @@ describe('CourseSchema', () => {
     })
   })
 
-  it('explains that the surface is off instead of showing a broken screen', async () => {
+  it('shows an error message when the schema cannot be loaded', async () => {
     mockFetch.mockImplementation(() => jsonResponse(404, { detail: 'Not Found' }))
     renderPage()
 
     expect(
-      await screen.findByText('Los cursos dinamicos estan desactivados'),
+      await screen.findByText('No se pudo cargar el esquema'),
     ).toBeInTheDocument()
   })
 })

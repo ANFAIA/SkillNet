@@ -1,19 +1,9 @@
-"""Onboarding endpoints (§11.2).
+"""Onboarding endpoints (§11.2)."""
 
-The whole router sits behind the employee surface of the feature flag, so with
-``DYNAMIC_COURSES_MODE`` at ``off`` or ``shadow`` every path here is a plain 404 —
-indistinguishable from a route that does not exist (§10.1).
-
-The gate in ``ProtectedRoute`` reads a **404 as "do not redirect"**, not as "not
-onboarded" (§6.1): otherwise turning the flag off mid-session would loop the user
-towards a route that no longer exists.
-"""
-
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter
 
 from src.deps.auth import CurrentUser
 from src.deps.db import DBSession
-from src.deps.features import require_dynamic_courses
 from src.models import Organization
 from src.repositories.learner_profile_repo import LearnerProfileRepository
 from src.repositories.learning_event_repo import LearningEventRepository
@@ -30,7 +20,6 @@ from src.services.learner_profile_service import LearnerProfileService
 router = APIRouter(
     prefix="/onboarding",
     tags=["Onboarding"],
-    dependencies=[Depends(require_dynamic_courses("employee"))],
 )
 
 

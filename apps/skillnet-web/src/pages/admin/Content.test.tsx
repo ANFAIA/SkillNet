@@ -4,15 +4,13 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Content } from './Content'
-import type { DynamicCoursesMode } from '../../api/health'
 
 /**
  * The per-course door to the schema screen, and the v1 course list it must not disturb.
  *
- * The gate under test is the **global flag**, not `delivery_mode`: a course only reads
- * `'dynamic'` once its schema is validated, so gating on it would hide the link from
- * every course whose schema is still a draft — which is every course that needs it.
- * With the flag `off` the list has to look exactly as it did before v2 existed.
+ * The schema button is always visible for every course: a course only reads
+ * `'dynamic'` once its schema is validated, and a `draft` or `proposed` schema is
+ * precisely what the schema link exists to reach.
  */
 
 const COURSE_ID = '11111111-1111-4111-8111-111111111111'
@@ -43,7 +41,7 @@ function course(overrides: Record<string, unknown> = {}) {
   }
 }
 
-function installFetch(mode: DynamicCoursesMode, items: unknown[] = [course()]) {
+function installFetch(items: unknown[] = [course()]) {
   mockFetch.mockImplementation((input: string) => {
     const url = String(input)
     if (url.endsWith('/health')) {
@@ -51,7 +49,6 @@ function installFetch(mode: DynamicCoursesMode, items: unknown[] = [course()]) {
         status: 'ok',
         version: '1',
         database: 'ok',
-        features: { dynamic_courses: mode },
       })
     }
     if (url.includes('/courses')) {
@@ -88,8 +85,8 @@ afterEach(() => {
 })
 
 describe('Content — the schema entry point', () => {
-  it('opens the schema screen of an existing course in shadow mode', async () => {
-    installFetch('shadow')
+  it('opens the schema screen of an existing course', async () => {
+    installFetch()
     renderPage()
 
     await userEvent.click(await screen.findByRole('button', { name: 'Esquema' }))
@@ -101,15 +98,8 @@ describe('Content — the schema entry point', () => {
     expect(await screen.findByText('ESQUEMA', {}, { timeout: 5000 })).toBeInTheDocument()
   })
 
-  it('offers the link with the flag on too', async () => {
-    installFetch('on')
-    renderPage()
-
-    expect(await screen.findByRole('button', { name: 'Esquema' })).toBeInTheDocument()
-  })
-
   it('offers it for a course with no modules, which has no other action at all', async () => {
-    installFetch('shadow', [course({ id: EMPTY_COURSE_ID, module_count: 0, status: 'draft' })])
+    installFetch([course({ id: EMPTY_COURSE_ID, module_count: 0, status: 'draft' })])
     renderPage()
 
     expect(await screen.findByRole('button', { name: 'Esquema' })).toBeInTheDocument()
@@ -117,21 +107,12 @@ describe('Content — the schema entry point', () => {
     expect(screen.queryByRole('button', { name: 'Ver curso' })).toBeNull()
   })
 
-  it('does not gate on delivery_mode: a draft schema still reads "static"', async () => {
-    installFetch('shadow', [course({ delivery_mode: 'static' })])
-    renderPage()
-
-    expect(await screen.findByRole('button', { name: 'Esquema' })).toBeInTheDocument()
-  })
-})
-
-describe('Content — flag off', () => {
-  it('shows no v2 affordance and leaves the v1 row intact', async () => {
-    installFetch('off')
+  it('shows the schema button alongside the v1 row', async () => {
+    installFetch()
     renderPage()
 
     expect(await screen.findByText('Devoluciones en tienda')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Esquema' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Esquema' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Ver curso' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Crear nuevo/ })).toBeInTheDocument()
   })

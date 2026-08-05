@@ -6,7 +6,6 @@ import { LessonContent } from '../../components/courses/LessonContent'
 import { ExerciseRenderer } from '../../components/exercises/ExerciseRenderer'
 import { useCourse, useUpdateCourse, usePublishCourse, useArchiveCourse } from '../../api/courses'
 import { useDocument } from '../../api/documents'
-import { useDynamicCoursesMode } from '../../api/health'
 import { slideVariants, staggerContainer, staggerItem, duration, ease, transition } from '../../lib/motion'
 
 const lessonSlide = slideVariants(48)
@@ -41,14 +40,6 @@ export function CoursePreview() {
   const updateCourse = useUpdateCourse()
   const publishCourse = usePublishCourse()
   const archiveCourse = useArchiveCourse()
-
-  /**
-   * Same gate as the course list (§11.1): the global flag, never `delivery_mode`. A
-   * course whose schema is still `draft` or `proposed` reads `'static'`, and that is
-   * exactly the course whose schema someone needs to open.
-   */
-  const { mode: dynamicMode } = useDynamicCoursesMode()
-  const schemaAvailable = dynamicMode === 'shadow' || dynamicMode === 'on'
 
   const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set())
   const [activeLessonId, setActiveLessonId] = useState<string>('')
@@ -218,15 +209,13 @@ export function CoursePreview() {
               <Button variant="secondary" size="sm" onClick={startEditing}>
                 Editar
               </Button>
-              {schemaAvailable && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => navigate(`/admin/curso/${id}/esquema`)}
-                >
-                  Esquema
-                </Button>
-              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate(`/admin/curso/${id}/esquema`)}
+              >
+                Esquema
+              </Button>
               {course.status === 'draft' && (
                 <Button
                   variant="accent"

@@ -120,7 +120,7 @@ Then <http://localhost:3000>, as `admin@skillnet.dev` / `admin123`.
 ### Try Gen UI (dynamic courses)
 
 Gen UI generates each learning screen on the fly, personalized for the learner.
-It's enabled by default in `.env.example` (`DYNAMIC_COURSES_MODE=on`).
+Both static (v1) and dynamic (v2) courses are always available — the choice is per-course.
 
 1. Run [step 4](#step-4--load-the-demo-data-recommended) if you have not already
 2. Log in as any employee (password: `espiga2026`)
@@ -141,24 +141,9 @@ cached renders are invalidated and the next visit regenerates.
 ### Dynamic courses (v2)
 
 v2 generates each screen for each learner at the moment they open it, instead of serving one
-static Markdown lesson to everybody. It ships **behind a flag** (`DYNAMIC_COURSES_MODE`).
-`.env.example` sets it to `on`; for a production upgrade where you want zero changes, set it
-to `off`.
-
-Set `DYNAMIC_COURSES_MODE` in `.env`:
-
-| Value | What happens |
-|---|---|
-| `off` | Every v2 route returns 404 and `delivery_mode` is ignored. Safe for production upgrades. |
-| `shadow` | Admin-only. Propose, edit and validate a course schema, and preview renders with `?preview=1`. Employees still see v1. |
-| `on` *(default in .env.example)* | Full v2. A course only takes the v2 path if it is `delivery_mode='dynamic'` **and** `schema_status='validated'`; every other course stays on v1. |
-
-The development compose overlay already sets `shadow` for you, so a developer gets the admin
-schema surface without exposing anything to employees:
-
-```bash
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
-```
+static Markdown lesson to everybody. Both modes are always available — the choice is
+per-course via `delivery_mode`. A course takes the v2 path only when it has
+`delivery_mode='dynamic'` **and** `schema_status='validated'`; every other course stays on v1.
 
 **No API key?** Put these two lines in your `.env` and start the stack normally:
 

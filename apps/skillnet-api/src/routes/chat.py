@@ -1,22 +1,10 @@
 """Chat routes: tutor SSE streaming, session listing, message history.
 
-**Chat is a v1 surface and stays one.** It is not wrapped in
-``require_dynamic_courses``: with ``DYNAMIC_COURSES_MODE=off`` these paths must keep
-answering exactly as they always have, for the organizations already using them, so a
-404 here would be a regression and not a feature flag.
-
-What *is* flagged is the generative-UI half of an answer, and this module is the one
-place that decides it. Two switches, in series, and they mean different things:
-
-* ``DYNAMIC_COURSES_MODE`` — the deployment's. Whether the v2 kit exists for employees at
-  all (the rule of ``src/services/course_delivery.py``: the flag is read by route guards
-  and by that one function, never scattered through the services).
-* ``chat_generative_ui`` in ``organizations.settings`` — the **admin's**, edited from
-  ``/admin/ajustes``. They choose the model, so they choose whether it is worth a second
-  call to ask that model for a layout.
-
-Either one off and ``ChatService`` never makes the layout call, never emits a ``ui`` event
-and costs exactly the tokens it cost yesterday.
+Generative UI is controlled by the organization's ``chat_generative_ui`` setting,
+edited from ``/admin/ajustes``. The admin chooses the model, so they choose whether
+it is worth a second call to ask that model for a layout. With it off,
+``ChatService`` never makes the layout call, never emits a ``ui`` event and costs
+exactly the tokens it cost yesterday.
 """
 
 from __future__ import annotations
@@ -28,7 +16,6 @@ from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 
-from src.config import settings
 from src.deps.auth import AdminUser, CurrentUser, EmployeeUser
 from src.deps.db import DBSession
 from src.deps.llm import EmbeddingDep, LLMDep, TutorLLMDep
@@ -44,15 +31,6 @@ _SSE_HEADERS = {
     "X-Accel-Buffering": "no",
     "Connection": "keep-alive",
 }
-
-
-def dynamic_courses_on() -> bool:
-    """Whether the v2 kit is exposed to employees at all.
-
-    ``on`` only, which is the employee row of the §10.1 table: the kit, its renderer and
-    its gate are v2 work, and ``shadow`` deliberately exposes nothing to an employee.
-    """
-    return settings.DYNAMIC_COURSES_MODE == "on"
 
 
 async def _org_settings(db: DBSession, org_id: uuid.UUID | None) -> dict[str, Any]:
@@ -76,7 +54,7 @@ async def chat(
     embeddings: EmbeddingDep,
 ) -> StreamingResponse:
     org_settings = await _org_settings(db, getattr(user, "org_id", None))
-    generative_ui = dynamic_courses_on() and chat_generative_ui_enabled(org_settings)
+    generative_ui = chat_generative_ui_enabled(org_settings)
     service = ChatService(db, tutor_llm, embeddings, generative_ui=generative_ui)
     stream = service.stream_tutor(
         user, request.message, request.session_id, request.context
@@ -94,13 +72,8 @@ async def admin_chat(
     llm: LLMDep,
     embeddings: EmbeddingDep,
 ) -> StreamingResponse:
-    # The same two switches, composed the same way, from the same two places. Until
-    # 2026-07-28 this route simply did not pass the flag, which was invisible while
-    # ``_should_lay_out`` excluded ``admin`` outright and became the whole feature the
-    # moment it stopped: an admin turn would have been the one surface where the
-    # organization's own ``chat_generative_ui`` setting decided nothing.
     org_settings = await _org_settings(db, getattr(user, "org_id", None))
-    generative_ui = dynamic_courses_on() and chat_generative_ui_enabled(org_settings)
+    generative_ui = chat_generative_ui_enabled(org_settings)
     service = ChatService(db, llm, embeddings, generative_ui=generative_ui)
     stream = service.stream_admin(
         user, request.message, request.session_id, request.context

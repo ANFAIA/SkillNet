@@ -6,7 +6,6 @@ import { LessonContent } from '../../components/courses/LessonContent'
 import { NodeList } from '../../components/courses/NodeList'
 import { ExerciseRenderer } from '../../components/exercises/ExerciseRenderer'
 import { useCourse, useCompleteLesson, useCourseProgress } from '../../api/courses'
-import { useDynamicCoursesMode } from '../../api/health'
 import { useCourseNodes } from '../../api/nodes'
 import { useEnrollments, useCompleteEnrollment } from '../../api/enrollments'
 import { useQueryClient } from '@tanstack/react-query'
@@ -96,22 +95,18 @@ export function CourseView() {
   const { data: courseProgress } = useCourseProgress(id)
   const queryClient = useQueryClient()
 
-  // --- the ONE v2 modification of this file (§13, B9) -------------------------
+  // --- v2 branch ---------------------------------------------------------------
   //
   // A dynamic course renders `NodeList`; anything else renders the v1 tree below,
-  // untouched. The discriminator is `GET /courses/{id}/nodes` and not
-  // `course.delivery_mode`, because `CourseRead` does not carry that field: §11.3 sketches
-  // it, but `src/schemas/course.py` is a v1 file no v2 batch may edit, so the field does
-  // not exist yet. The node list is a better signal anyway — it is the route that only
-  // answers for a dynamic course with a validated schema and the flag `on`, and it 404s
-  // in every other case, which is exactly the condition `resolve_delivery` computes.
-  const { mode: dynamicMode } = useDynamicCoursesMode()
-  const nodesQuery = useCourseNodes(id, { enabled: dynamicMode === 'on' })
+  // untouched. The discriminator is `GET /courses/{id}/nodes`: if the course has a
+  // validated dynamic schema the route returns the node list; otherwise it 404s, and
+  // the component falls through to the v1 module/lesson tree.
+  const nodesQuery = useCourseNodes(id)
   const dynamicNodes =
     nodesQuery.data?.delivery_mode === 'dynamic' ? nodesQuery.data : null
-  // With the flag on, wait for the answer before painting: showing the v1 tree and then
-  // replacing it with the node map is precisely the layout jump §5.5 forbids.
-  const dynamicPending = dynamicMode === 'on' && nodesQuery.isLoading
+  // Wait for the answer before painting: showing the v1 tree and then replacing it
+  // with the node map is precisely the layout jump §5.5 forbids.
+  const dynamicPending = nodesQuery.isLoading
 
   const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set())
   const [activeLessonId, setActiveLessonId] = useState<string>('')

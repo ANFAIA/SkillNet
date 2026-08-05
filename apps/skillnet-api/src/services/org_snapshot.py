@@ -55,7 +55,6 @@ from datetime import date, datetime, timezone
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.config import settings
 from src.core.logging import get_logger
 from src.models import (
     ContentStatus,
@@ -336,14 +335,13 @@ def _units_for(course, *, lessons: int, nodes: int) -> tuple[str, str, int]:
 
     Two different questions, answered from two different places, and conflating them is
     how the admin gets told a course is empty when it is not. **How it is served** is
-    ``resolve_delivery`` and nothing else — the single decision point, so with the flag
-    off every course is on the v1 path here exactly as it is everywhere else. **What
-    there is to count** is whatever the course actually has rows for: a schema-first
-    course has nodes and no lessons, and reporting "0 lecciones" for it would be a true
-    sentence that reads as a false one. Preference goes to the served unit when both
-    exist, because that is the one the learner's progress is measured in.
+    ``resolve_delivery`` and nothing else — the single decision point. **What there is
+    to count** is whatever the course actually has rows for: a schema-first course has
+    nodes and no lessons, and reporting "0 lecciones" for it would be a true sentence
+    that reads as a false one. Preference goes to the served unit when both exist,
+    because that is the one the learner's progress is measured in.
     """
-    served = "dinamico" if resolve_delivery(course, settings) == "dynamic" else "estatico"
+    served = "dinamico" if resolve_delivery(course) == "dynamic" else "estatico"
     if served == "dinamico" and nodes:
         return "nodos", served, nodes
     if lessons:

@@ -12,7 +12,6 @@ import { AccessibilityStep } from '../../components/onboarding/AccessibilityStep
 import { stepSlideVariants, transition } from '../../lib/motion'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
 import { ApiError } from '../../api/client'
-import { useDynamicCoursesMode } from '../../api/health'
 import {
   NO_ACCESSIBILITY,
   useOnboardingQuestions,
@@ -106,8 +105,7 @@ export function Onboarding() {
   const navigate = useNavigate()
   const reduceMotion = useReducedMotion()
 
-  const { mode, isLoading: flagLoading } = useDynamicCoursesMode()
-  const questionsQuery = useOnboardingQuestions({ enabled: mode === 'on' })
+  const questionsQuery = useOnboardingQuestions()
   const submit = useSubmitOnboarding()
   const skip = useSkipOnboarding()
 
@@ -205,14 +203,6 @@ export function Onboarding() {
   function toggleAccessibility(key: AccessibilityKey, enabled: boolean) {
     setAccessibility((previous) => ({ ...previous, [key]: enabled }))
   }
-
-  // The flag is unknown until `/health` answers. Waiting beats mounting a wizard
-  // whose endpoints may not exist.
-  if (flagLoading) return <LoadingShell />
-
-  // With the flag off or in `shadow`, every employee route of §11 is a 404 — there
-  // is nothing to answer here.
-  if (mode !== 'on') return <Navigate to={AFTER_ONBOARDING} replace />
 
   if (questionsQuery.isLoading) return <LoadingShell />
 

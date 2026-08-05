@@ -1,8 +1,5 @@
 """Admin course-schema routes (§11.1): propose, read, edit, validate, unvalidate.
 
-Every route is behind ``require_dynamic_courses("admin")``, so with the flag ``off``
-the whole surface 404s and is indistinguishable from routes that do not exist.
-
 ``SchemaError`` is translated into a plain ``HTTPException`` here rather than
 handled globally: §11.1 fixes a nested ``detail`` body
 (``{"detail": {"code": "schema_invalid", "errors": [...]}}``) and FastAPI's default
@@ -16,11 +13,10 @@ import contextlib
 import uuid
 from collections.abc import Iterator
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 
 from src.deps.auth import AdminUser
 from src.deps.db import DBSession
-from src.deps.features import require_dynamic_courses
 from src.repositories.audit_log_repo import AuditLogRepository
 from src.repositories.course_node_repo import CourseNodeRepository
 from src.repositories.course_repo import CourseRepository
@@ -44,7 +40,6 @@ from src.services.course_schema_service import (
 router = APIRouter(
     prefix="/courses",
     tags=["Course Schema"],
-    dependencies=[Depends(require_dynamic_courses("admin"))],
 )
 
 

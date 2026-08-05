@@ -29,16 +29,14 @@ Queda:
 | API | http://localhost:8000 — docs en `/docs` |
 | Postgres | `localhost:5432` |
 
-Para el recorrido completo hace falta `DYNAMIC_COURSES_MODE=on` en el `.env`. El fichero de
-desarrollo pone `shadow` por defecto, que abre la superficie del creador y deja al empleado
-en v1; el `.env` gana sobre el.
+Ambos modos (v1 estatico y v2 dinamico) estan siempre disponibles. La eleccion es por
+curso: un curso es dinamico cuando tiene `delivery_mode='dynamic'` y `schema_status='validated'`.
 
-Comprobacion en una linea — si esto no devuelve `"on"`, nada de §4 en adelante va a
-funcionar y no es culpa del codigo:
+Comprobacion en una linea:
 
 ```bash
 curl -s http://localhost:8000/health
-# {"status":"ok","version":"0.1.0","database":"connected","features":{"dynamic_courses":"on"}}
+# {"status":"ok","version":"0.1.0","database":"connected",...}
 ```
 
 ### Sin ninguna clave de API
@@ -104,8 +102,7 @@ Entrar en http://localhost:3000 con la cuenta de admin.
 
 1. **Contenido** → la lista de cursos. Los dos dinamicos tienen ahora un boton **Esquema**
    junto a "Ver curso". Antes no lo tenian: la unica forma de llegar al esquema era teclear
-   la URL. Con `DYNAMIC_COURSES_MODE=off` ese boton no aparece, y esa es la comprobacion
-   que protege v1.
+   la URL. Ahora el boton aparece siempre para cursos dinamicos.
 2. **Esquema** → el grafo de nodos que el creador valida. Mirar, en este orden:
    - cada nodo con su titulo, resultado, criticidad (`critical` / `recommended` /
      `contextual`) y los encabezados del documento de los que sale;
@@ -201,9 +198,8 @@ Cuatro invariantes. Cualquiera de ellas rota es un bloqueante, no una incidencia
 4. **La reactividad de OpenUI esta apagada.** Ninguna pantalla dispara consultas por su
    cuenta. Las razones, medidas, estan en `docs/design/openui-adoption.md`.
 
-Comprobacion rapida de la primera: poner `DYNAMIC_COURSES_MODE=off`, reiniciar el api y
-recorrer §4.3. Todo v1 sigue; los cursos dinamicos se sirven como v1 y las pantallas v2
-explican que estan apagadas en vez de romperse.
+Comprobacion rapida: crear un curso estatico (v1) y verificar que el recorrido §4.3 sigue
+intacto. Los cursos con `delivery_mode='static'` se sirven siempre por v1.
 
 ---
 

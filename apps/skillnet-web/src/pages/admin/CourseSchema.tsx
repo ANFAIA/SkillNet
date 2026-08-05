@@ -10,7 +10,6 @@ import type { PrerequisiteOption } from '../../components/schema/PrerequisitePic
 import { useCourse } from '../../api/courses'
 import { NodePreview } from '../../components/schema/NodePreview'
 import {
-  isSchemaSurfaceDisabled,
   schemaErrorMessage,
   schemaLockedMessage,
   schemaRuleErrors,
@@ -355,13 +354,7 @@ export function CourseSchema() {
   }
 
   if (schemaQuery.error || !server) {
-    return isSchemaSurfaceDisabled(schemaQuery.error) ? (
-      <EmptyState
-        title="Los cursos dinamicos estan desactivados"
-        description="Esta pantalla necesita DYNAMIC_COURSES_MODE en 'shadow' o 'on'. Mientras este apagada, los cursos siguen el flujo clasico de modulos y lecciones."
-        action={{ label: 'Volver a contenido', onClick: () => navigate('/admin/contenido') }}
-      />
-    ) : (
+    return (
       <EmptyState
         title="No se pudo cargar el esquema"
         description="Vuelve a intentarlo en unos segundos."

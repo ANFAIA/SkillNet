@@ -5,7 +5,6 @@ from typing import Annotated
 
 from fastapi import APIRouter, Query, Response
 
-from src.config import settings
 from src.core.exceptions import ForbiddenError, ValidationError
 from src.deps.auth import AdminUser, CurrentUser
 from src.deps.db import DBSession
@@ -38,10 +37,8 @@ def _parse_status(status: str | None) -> EnrollmentStatus | None:
 
 def _read(enrollment: Enrollment, progress: float | None) -> EnrollmentRead:
     course_title = enrollment.course.title if enrollment.course else None
-    # `resolve_delivery`, never the raw column: with the flag off this is `static` for
-    # every row, so the employee lists are byte-identical to what v1 served.
     delivery_mode = (
-        resolve_delivery(enrollment.course, settings) if enrollment.course else "static"
+        resolve_delivery(enrollment.course) if enrollment.course else "static"
     )
     return EnrollmentRead(
         id=enrollment.id,

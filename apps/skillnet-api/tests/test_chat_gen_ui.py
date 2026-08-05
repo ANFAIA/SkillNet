@@ -568,8 +568,8 @@ async def test_a_provider_failure_during_layout_degrades_to_the_prose(monkeypatc
     assert "done" in names
 
 
-async def test_the_flag_off_is_yesterdays_chat(monkeypatch) -> None:
-    """v1 with ``DYNAMIC_COURSES_MODE`` off: no second call, no new events."""
+async def test_generative_ui_off_is_yesterdays_chat(monkeypatch) -> None:
+    """With generative_ui off: no second call, no new events."""
     llm = _FakeLLM(LONG_ANSWER, layout=STEPS_PAYLOAD)
     events, _ = await _run(monkeypatch, llm, generative_ui=False)
     names = [name for name, _ in events]
@@ -588,8 +588,7 @@ async def test_the_admin_switch_off_costs_nothing_and_reads_the_same(monkeypatch
     same grounding label.
     """
     org_off = {"chat_generative_ui": False}
-    monkeypatch.setattr(chat_route.settings, "DYNAMIC_COURSES_MODE", "on")
-    generative_ui = chat_route.dynamic_courses_on() and chat_generative_ui_enabled(org_off)
+    generative_ui = chat_generative_ui_enabled(org_off)
     assert generative_ui is False
 
     off_llm = _FakeLLM(LONG_ANSWER, layout=STEPS_PAYLOAD)
@@ -614,35 +613,29 @@ async def test_the_admin_switch_off_costs_nothing_and_reads_the_same(monkeypatch
     assert answer(off_events) == answer(rejected_events)
 
 
-def test_the_admin_route_composes_the_switches_the_same_way_the_tutor_route_does() -> None:
-    """The route used to build ``ChatService`` without the flag at all.
+def test_the_admin_route_composes_the_switch_the_same_way_the_tutor_route_does() -> None:
+    """Both routes must read the same org setting.
 
-    Harmless while ``_should_lay_out`` refused every ``admin`` turn anyway, and the whole
-    feature the moment it stopped: the organization's ``chat_generative_ui`` would have
-    decided nothing on the one surface it was just enabled for. Asserted against the
-    source because both routes must keep reading the same two switches.
+    Asserted against the source because both routes must keep using
+    ``chat_generative_ui_enabled``.
     """
     source = inspect.getsource(chat_route.admin_chat)
-    assert "dynamic_courses_on() and chat_generative_ui_enabled(org_settings)" in source
+    assert "chat_generative_ui_enabled(org_settings)" in source
     assert "generative_ui=generative_ui" in source
 
 
 @pytest.mark.parametrize(
-    ("mode", "org_settings", "expected"),
+    ("org_settings", "expected"),
     [
-        ("on", None, True),
-        ("on", {}, True),
-        ("on", {"chat_generative_ui": True}, True),
-        ("on", {"chat_generative_ui": "si"}, True),  # malformed is not "off"
-        ("on", {"chat_generative_ui": False}, False),
-        ("shadow", {}, False),
-        ("off", {}, False),
-        ("off", {"chat_generative_ui": True}, False),
+        (None, True),
+        ({}, True),
+        ({"chat_generative_ui": True}, True),
+        ({"chat_generative_ui": "si"}, True),  # malformed is not "off"
+        ({"chat_generative_ui": False}, False),
     ],
 )
-def test_both_switches_have_to_agree(monkeypatch, mode, org_settings, expected) -> None:
-    monkeypatch.setattr(chat_route.settings, "DYNAMIC_COURSES_MODE", mode)
-    enabled = chat_route.dynamic_courses_on() and chat_generative_ui_enabled(org_settings)
+def test_the_org_switch_controls_generative_ui(org_settings, expected) -> None:
+    enabled = chat_generative_ui_enabled(org_settings)
     assert enabled is expected
 
 

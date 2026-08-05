@@ -110,9 +110,6 @@ class Settings(BaseSettings):
     # Agent-to-agent internal API key (auto-provisioned on startup)
     A2A_INTERNAL_API_KEY: str | None = None
 
-    # v2 dynamic courses. `off` = production exactly as it is today. Read only by the
-    # route guards and by src.services.course_delivery.resolve_delivery.
-    DYNAMIC_COURSES_MODE: Literal["off", "shadow", "on"] = "off"
     # Dialect asked of the LLM and parser used. One valid value in this PR.
     RENDER_BACKEND: Literal["openui"] = "openui"
     # OpenUI's reactive layer ($state, Query, Mutation, Action, builtins). OFF, and the

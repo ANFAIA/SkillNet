@@ -31,10 +31,6 @@ services:
       LOG_LEVEL: debug
       ENVIRONMENT: development
       COOKIE_SECURE: "false"
-      # `shadow` by default here and `off` in production (§13 B12): a developer gets the
-      # admin schema surface without exposing anything to employees. Still an override,
-      # so `DYNAMIC_COURSES_MODE=on` in .env wins when you want the full v2 path.
-      DYNAMIC_COURSES_MODE: ${DYNAMIC_COURSES_MODE:-shadow}
     volumes:
       - ./apps/skillnet-api:/app
       # An anonymous volume masking the bind mount, and it is load-bearing. The mount

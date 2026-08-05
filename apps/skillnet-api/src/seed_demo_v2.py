@@ -1978,7 +1978,7 @@ def _report(
             print(f"      esquema: /admin/curso/{course.id}/esquema")
         print(f"      alumno:  /empleado/curso/{course.id}")
     print()
-    print("  Recuerda: los cursos dinamicos solo se ven con DYNAMIC_COURSES_MODE=on.")
+    print("  Los cursos dinamicos se ven con delivery_mode='dynamic' y schema validado.")
     print("  Guia paso a paso: docs/TESTING.md")
     print(line)
     print()

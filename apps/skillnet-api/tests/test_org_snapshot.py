@@ -293,23 +293,20 @@ def test_a_static_course_does_not_say_static_on_every_line() -> None:
 
 
 @pytest.mark.parametrize(
-    ("mode", "delivery_mode", "lessons", "nodes", "expected"),
+    ("delivery_mode", "lessons", "nodes", "expected"),
     [
         # Served dynamically: measured in nodes, which is what the learner advances in.
-        ("on", "dynamic", 0, 5, ("nodos", "dinamico", 5)),
-        ("on", "dynamic", 3, 5, ("nodos", "dinamico", 5)),
-        # v1, or the flag off: the one decision point puts it on the static path.
-        ("off", "dynamic", 0, 5, ("nodos", "estatico", 5)),
-        ("on", "static", 4, 0, ("lecciones", "estatico", 4)),
+        ("dynamic", 0, 5, ("nodos", "dinamico", 5)),
+        ("dynamic", 3, 5, ("nodos", "dinamico", 5)),
+        ("static", 4, 0, ("lecciones", "estatico", 4)),
         # Nothing to count at all: no unit, rather than a "0 lecciones" that reads false.
-        ("on", "static", 0, 0, ("", "estatico", 0)),
+        ("static", 0, 0, ("", "estatico", 0)),
     ],
 )
 def test_a_course_is_counted_in_the_unit_it_actually_has(
-    monkeypatch, mode, delivery_mode, lessons, nodes, expected
+    delivery_mode, lessons, nodes, expected
 ) -> None:
     """A schema-first course has nodes and no lessons; "0 lecciones" would read as empty."""
-    monkeypatch.setattr(snapshot_module.settings, "DYNAMIC_COURSES_MODE", mode)
     course = SimpleNamespace(delivery_mode=delivery_mode, schema_status="validated")
 
     assert snapshot_module._units_for(course, lessons=lessons, nodes=nodes) == expected
