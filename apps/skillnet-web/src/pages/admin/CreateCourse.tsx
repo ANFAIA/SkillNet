@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { motion, AnimatePresence, LayoutGroup } from 'framer-motion'
+import { motion, AnimatePresence, LayoutGroup, useInstantLayoutTransition } from 'framer-motion'
 import { ease, duration } from '../../lib/motion'
 import { Button, Input, Textarea, Badge, EmptyState, FileUploadZone, ProgressBar } from '../../components/ui'
 import { GenerationProgress } from '../../components/generation/GenerationProgress'
@@ -74,13 +74,7 @@ function ChevronIcon({ open }: { open: boolean }) {
     </svg>
   )
 }
-function ArrowLeftIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" />
-    </svg>
-  )
-}
+
 
 // ── Inline editable lesson (unchanged logic) ─────────────────
 
@@ -266,25 +260,22 @@ function StepAssign({ selected, onToggle, deadline, onDeadline }: {
   )
 }
 
-// ── Layout transition for the morph ──────────────────────────
+// ── Transitions ──────────────────────────────────────────────
 
 const morphTransition = {
   layout: { type: 'spring' as const, stiffness: 200, damping: 28 },
 }
 
-const contentAppear = {
-  initial: { opacity: 0, filter: 'blur(8px)' },
+// Content inside cards — opacity + scale only, no blur.
+const contentReveal = {
+  initial: { opacity: 0 },
   animate: {
     opacity: 1,
-    filter: 'blur(0px)',
     transition: { duration: duration.normal, ease: ease.base, delay: 0.35 },
   },
-  exit: {
-    opacity: 0,
-    filter: 'blur(8px)',
-    transition: { duration: duration.fast, ease: ease.snapOut },
-  },
 }
+
+
 
 // ── Main component ───────────────────────────────────────────
 
@@ -295,6 +286,8 @@ export function CreateCourse() {
   const [phase, setPhase] = useState<Phase>('choose')
   const [source, setSource] = useState<SourceType>(null)
   const [deliveryChoice, setDeliveryChoice] = useState<DeliveryChoice>('dynamic')
+  // Official hook: state changes inside the callback skip layout animation
+  const startInstant = useInstantLayoutTransition()
 
   // Form state
   const [title, setTitle] = useState('')
@@ -348,10 +341,17 @@ export function CreateCourse() {
     }
   }, [phase, effective.step, effective.courseId])
 
-  // Source card confirmed → morph to details
   const confirmSource = useCallback(() => {
     if (source) setPhase('details')
   }, [source])
+
+  // Backward: useInstantLayoutTransition suppresses the reverse morph
+  const goBack = useCallback(() => {
+    startInstant(() => {
+      setPhase('choose')
+      setSource(null)
+    })
+  }, [startInstant])
 
   // Error helper
   function failMsg(err: unknown, fallback: string): string {
@@ -430,9 +430,7 @@ export function CreateCourse() {
     ? 'Escribiendo documento fuente...'
     : createCourse.isPending || generate.isPending
       ? 'Creando...'
-      : deliveryChoice === 'dynamic'
-        ? 'Crear y definir esquema'
-        : 'Crear y generar'
+      : 'Confirmar'
 
   // ── Render ─────────────────────────────────────────────────
 
@@ -491,28 +489,30 @@ export function CreateCourse() {
     <LayoutGroup>
       <div>
         {/* Header */}
-        <motion.div layout="position" transition={morphTransition.layout} className="mb-6 shrink-0">
-          <h2 className="text-xl font-semibold text-text">Crear curso</h2>
-          <AnimatePresence mode="wait">
-            {!expanded ? (
-              <motion.p key="choose-sub" className="text-sm text-text-muted mt-1" {...contentAppear}>
-                Elige como empezar
-              </motion.p>
-            ) : (
-              <motion.button
-                key="back-btn"
-                type="button"
-                onClick={() => { setPhase('choose'); setSource(null) }}
-                className="flex items-center gap-1.5 text-sm text-text-muted hover:text-text mt-1 transition-colors"
-                {...contentAppear}
+        <div className="mb-6 shrink-0 flex items-baseline gap-1.5">
+          <h2
+            className={`text-xl font-semibold transition-colors duration-200 ${expanded ? 'text-text-muted cursor-pointer hover:text-text' : 'text-text'}`}
+            onClick={expanded ? goBack : undefined}
+            role={expanded ? 'button' : undefined}
+          >
+            Crear curso
+          </h2>
+          <AnimatePresence>
+            {expanded && (
+              <motion.span
+                key="breadcrumb"
+                className="text-xl font-semibold text-text"
+                initial={{ opacity: 0, x: -8 }}
+                animate={{ opacity: 1, x: 0, transition: { duration: duration.normal, ease: ease.base } }}
+                exit={{ opacity: 0, x: -8, transition: { duration: duration.fast, ease: ease.snapOut } }}
               >
-                <ArrowLeftIcon /> Cambiar origen
-              </motion.button>
+                / {source === 'documentos' ? 'Documento' : 'Idea'}
+              </motion.span>
             )}
           </AnimatePresence>
-        </motion.div>
+        </div>
 
-        {/* Cards area */}
+        {/* Cards — conditional rendering so layoutId connects forward morphs */}
         <div className={expanded ? '' : 'grid grid-cols-1 sm:grid-cols-2 gap-4'}>
 
           {/* Card: Documentos */}
@@ -520,78 +520,66 @@ export function CreateCourse() {
             <motion.div
               layoutId="source-card-documentos"
               transition={morphTransition.layout}
-              className={`border rounded-lg p-6 flex flex-col ${
+              style={{ borderRadius: 8 }}
+              className={`border p-6 ${
                 expanded
-                  ? 'border-primary bg-bg cursor-default'
+                  ? 'border-primary bg-bg'
                   : source === 'documentos'
                     ? 'border-primary bg-primary-subtle cursor-pointer'
                     : 'border-border hover:border-primary cursor-pointer'
               }`}
-              onClick={() => {
-                if (!expanded) setSource(source === 'documentos' ? null : 'documentos')
-              }}
+              onClick={() => { if (!expanded) setSource(source === 'documentos' ? null : 'documentos') }}
+
             >
-              {!expanded ? (
-                /* Collapsed — centered in the fixed-height card */
-                <div className="flex-1 flex flex-col items-center justify-center text-center px-4">
-                  <div className="text-text-muted mb-4"><FileIcon /></div>
-                  <p className="text-sm font-medium text-text">Tengo un documento</p>
-                  <p className="text-xs text-text-muted mt-1.5">PDF, Word, Markdown o texto plano</p>
-                </div>
-              ) : (
-                /* Expanded: full details form */
-                <motion.div className="flex-1 flex flex-col overflow-hidden" {...contentAppear}>
-                  <div className="flex items-center gap-3 mb-6 shrink-0">
-                    <div className="text-primary"><FileIcon /></div>
-                    <div>
-                      <p className="text-sm font-medium text-text">A partir de un documento</p>
-                      <p className="text-xs text-text-muted">Sube el archivo y ponle nombre al curso</p>
+              <motion.div key={expanded ? 'doc-exp' : 'doc-col'} {...contentReveal}>
+                {!expanded ? (
+                  <div className="flex flex-col items-center justify-center text-center px-4 py-8">
+                    <div className="text-text-muted mb-4"><FileIcon /></div>
+                    <p className="text-sm font-medium text-text">Tengo un documento</p>
+                    <p className="text-xs text-text-muted mt-1.5">PDF, Word, Markdown o texto plano</p>
+                  </div>
+                ) : (
+                  <div>
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="text-primary"><FileIcon /></div>
+                      <div>
+                        <p className="text-sm font-medium text-text">A partir de un documento</p>
+                        <p className="text-xs text-text-muted">Sube el archivo y ponle nombre al curso</p>
+                      </div>
+                    </div>
+                    <div className="space-y-5">
+                      <FileUploadZone
+                        accept=".pdf,.docx,.md,.txt"
+                        maxSizeMB={20}
+                        onFilesSelected={(files) => uploader.uploadFile(files[0]).catch(() => {})}
+                      />
+                      {uploader.uploads.length > 0 && (
+                        <div className="space-y-2">
+                          {uploader.uploads.map((u, i) => (
+                            <div key={i} className="text-sm">
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-text truncate min-w-0">{u.file.name}</span>
+                                {u.status === 'ready' || u.status === 'processing' ? (
+                                  <span className="text-accent shrink-0"><CheckIcon /></span>
+                                ) : u.status === 'error' ? (
+                                  <span className="text-danger text-xs shrink-0">{u.error}</span>
+                                ) : null}
+                              </div>
+                              {u.status === 'uploading' && <ProgressBar value={u.progress} size="sm" className="mt-1" />}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <Input label="Nombre del curso" placeholder="Ej: Seguridad Alimentaria" value={title} onChange={(e) => setTitle(e.target.value)} />
+                      <DeliverySelector value={deliveryChoice} onChange={setDeliveryChoice} />
+                      {startError && <p className="text-sm text-danger">{startError}</p>}
+                      <div className="pt-4">
+                        <Button variant="primary" className="w-full" onClick={() => void handleCreate()} disabled={!canCreate}>{createButtonLabel}</Button>
+                      </div>
                     </div>
                   </div>
-
-                  <div className="space-y-5 flex-1 overflow-y-auto">
-                    <FileUploadZone
-                      accept=".pdf,.docx,.md,.txt"
-                      maxSizeMB={20}
-                      onFilesSelected={(files) => uploader.uploadFile(files[0]).catch(() => {})}
-                    />
-                    {uploader.uploads.length > 0 && (
-                      <div className="space-y-2">
-                        {uploader.uploads.map((u, i) => (
-                          <div key={i} className="text-sm">
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="text-text truncate min-w-0">{u.file.name}</span>
-                              {u.status === 'ready' || u.status === 'processing' ? (
-                                <span className="text-accent shrink-0"><CheckIcon /></span>
-                              ) : u.status === 'error' ? (
-                                <span className="text-danger text-xs shrink-0">{u.error}</span>
-                              ) : null}
-                            </div>
-                            {u.status === 'uploading' && <ProgressBar value={u.progress} size="sm" className="mt-1" />}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    <Input
-                      label="Nombre del curso"
-                      placeholder="Ej: Seguridad Alimentaria"
-                      value={title}
-                      onChange={(e) => setTitle(e.target.value)}
-                    />
-
-                    <DeliverySelector value={deliveryChoice} onChange={setDeliveryChoice} />
-
-                    {startError && <p className="text-sm text-danger">{startError}</p>}
-                  </div>
-
-                  <div className="flex justify-end pt-4">
-                    <Button variant="primary" onClick={() => void handleCreate()} disabled={!canCreate}>
-                      {createButtonLabel}
-                    </Button>
-                  </div>
-                </motion.div>
-              )}
+                )}
+              </motion.div>
             </motion.div>
           )}
 
@@ -600,63 +588,50 @@ export function CreateCourse() {
             <motion.div
               layoutId="source-card-cero"
               transition={morphTransition.layout}
-              className={`border rounded-lg p-6 flex flex-col ${
+              style={{ borderRadius: 8 }}
+              className={`border p-6 ${
                 expanded
-                  ? 'border-primary bg-bg cursor-default'
+                  ? 'border-primary bg-bg'
                   : source === 'cero'
                     ? 'border-primary bg-primary-subtle cursor-pointer'
                     : 'border-border hover:border-primary cursor-pointer'
               }`}
-              onClick={() => {
-                if (!expanded) setSource(source === 'cero' ? null : 'cero')
-              }}
+              onClick={() => { if (!expanded) setSource(source === 'cero' ? null : 'cero') }}
             >
-              {!expanded ? (
-                /* Collapsed — centered in the fixed-height card */
-                <div className="flex-1 flex flex-col items-center justify-center text-center px-4">
-                  <div className="text-text-muted mb-4"><EditIcon /></div>
-                  <p className="text-sm font-medium text-text">Tengo una idea</p>
-                  <p className="text-xs text-text-muted mt-1.5">Describe el tema y la IA escribe el contenido</p>
-                </div>
-              ) : (
-                /* Expanded: idea form */
-                <motion.div className="flex-1 flex flex-col overflow-hidden" {...contentAppear}>
-                  <div className="flex items-center gap-3 mb-6 shrink-0">
-                    <div className="text-primary"><EditIcon /></div>
-                    <div>
-                      <p className="text-sm font-medium text-text">A partir de una idea</p>
-                      <p className="text-xs text-text-muted">La IA escribe un documento fuente del que sale el curso</p>
+              <motion.div key={expanded ? 'cero-exp' : 'cero-col'} {...contentReveal}>
+                {!expanded ? (
+                  <div className="flex flex-col items-center justify-center text-center px-4 py-8">
+                    <div className="text-text-muted mb-4"><EditIcon /></div>
+                    <p className="text-sm font-medium text-text">Tengo una idea</p>
+                    <p className="text-xs text-text-muted mt-1.5">Describe el tema y la IA escribe el contenido</p>
+                  </div>
+                ) : (
+                  <div>
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="text-primary"><EditIcon /></div>
+                      <div>
+                        <p className="text-sm font-medium text-text">A partir de una idea</p>
+                        <p className="text-xs text-text-muted">La IA escribe un documento fuente del que sale el curso</p>
+                      </div>
+                    </div>
+                    <div className="space-y-5">
+                      <Input label="Nombre del curso" placeholder="Ej: Seguridad Alimentaria" value={title} onChange={(e) => setTitle(e.target.value)} />
+                      <Textarea
+                        label="Que quieres que cubra (opcional)"
+                        placeholder="Ej: como funciona una sinapsis, los neurotransmisores principales y la plasticidad. Nivel introductorio."
+                        hint="Con esto la IA escribe un documento fuente, editable despues, del que sale el curso."
+                        value={idea}
+                        onChange={(e) => setIdea(e.target.value)}
+                      />
+                      <DeliverySelector value={deliveryChoice} onChange={setDeliveryChoice} />
+                      {startError && <p className="text-sm text-danger">{startError}</p>}
+                      <div className="pt-4">
+                        <Button variant="primary" className="w-full" onClick={() => void handleCreate()} disabled={!canCreate}>{createButtonLabel}</Button>
+                      </div>
                     </div>
                   </div>
-
-                  <div className="space-y-5 flex-1 overflow-y-auto">
-                    <Input
-                      label="Nombre del curso"
-                      placeholder="Ej: Seguridad Alimentaria"
-                      value={title}
-                      onChange={(e) => setTitle(e.target.value)}
-                    />
-
-                    <Textarea
-                      label="Que quieres que cubra (opcional)"
-                      placeholder="Ej: como funciona una sinapsis, los neurotransmisores principales y la plasticidad. Nivel introductorio."
-                      hint="Con esto la IA escribe un documento fuente, editable despues, del que sale el curso."
-                      value={idea}
-                      onChange={(e) => setIdea(e.target.value)}
-                    />
-
-                    <DeliverySelector value={deliveryChoice} onChange={setDeliveryChoice} />
-
-                    {startError && <p className="text-sm text-danger">{startError}</p>}
-                  </div>
-
-                  <div className="flex justify-end pt-4">
-                    <Button variant="primary" onClick={() => void handleCreate()} disabled={!canCreate}>
-                      {createButtonLabel}
-                    </Button>
-                  </div>
-                </motion.div>
-              )}
+                )}
+              </motion.div>
             </motion.div>
           )}
         </div>
