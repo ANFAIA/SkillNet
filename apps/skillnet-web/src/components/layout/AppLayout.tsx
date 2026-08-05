@@ -90,7 +90,7 @@ function AppLayoutInner() {
               key={location.pathname}
               initial={pageTransition.initial}
               animate={pageTransition.animate}
-              className="p-4 md:p-6"
+              className="p-4 md:p-6 pb-12"
             >
               <Outlet />
             </motion.div>

@@ -59,7 +59,7 @@ function AdminLayoutInner() {
               key={location.pathname}
               initial={pageTransition.initial}
               animate={pageTransition.animate}
-              className="p-4 md:p-6 flex-1 min-h-0 flex flex-col"
+              className="p-4 md:p-6 pb-12 flex-1 min-h-0 flex flex-col"
             >
               <Outlet />
             </motion.div>

@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence, LayoutGroup, useInstantLayoutTransition } from 'framer-motion'
 import { ease, duration } from '../../lib/motion'
@@ -14,13 +14,23 @@ import { useCreateCourse, useGenerateContent, usePublishCourse, useCourse, useUp
 import { useGenerationProgress, useGenerationJobStatus, jobToProgress } from '../../api/generation'
 import { useUsers } from '../../api/users'
 import { useAssignCourse } from '../../api/enrollments'
-import { useProposeCourseSchema, useSchemaProposeJob, useCourseSchema } from '../../api/schema'
-import { ApiError } from '../../api/client'
-import type { GenerationProgress as GenProgress, User, Lesson, Exercise, CourseSchemaNode } from '../../types'
+import { ApiError, post, put } from '../../api/client'
+import type { GenerationProgress as GenProgress, User, Lesson, Exercise } from '../../types'
 
 type SourceType = 'documentos' | 'cero' | null
 type DeliveryChoice = 'dynamic' | 'static'
-type Phase = 'choose' | 'details' | 'proposing' | 'schema' | 'generating' | 'review' | 'assign'
+type Phase = 'choose' | 'details' | 'schema' | 'generating' | 'review' | 'assign'
+
+interface ProposedNode {
+  title: string
+  summary: string
+  outcome: string | null
+  criticality: string
+  default_ui_format: string
+  estimated_minutes: number
+  source_headings: string[]
+  prerequisites: number[]
+}
 
 // ── Icons ────────────────────────────────────────────────────
 
@@ -267,7 +277,7 @@ const morphTransition = {
   layout: { type: 'spring' as const, stiffness: 200, damping: 28 },
 }
 
-// Content inside cards — opacity + scale only, no blur.
+// Content inside cards — opacity only, no blur.
 const contentReveal = {
   initial: { opacity: 0 },
   animate: {
@@ -276,6 +286,14 @@ const contentReveal = {
   },
 }
 
+// Inner content swap (details <-> schema) — opacity only, no blur.
+const innerFadeOut = {
+  exit: { opacity: 0, transition: { duration: 0.2, ease: ease.base } },
+}
+const innerFadeIn = {
+  initial: { opacity: 0 },
+  animate: { opacity: 1, transition: { duration: 0.3, ease: ease.base } },
+}
 
 
 // ── Main component ───────────────────────────────────────────
@@ -302,11 +320,12 @@ export function CreateCourse() {
   const [assignSelected, setAssignSelected] = useState<Set<string>>(new Set())
   const [deadline, setDeadline] = useState('')
 
-  // Schema proposal state
-  const [schemaJobId, setSchemaJobId] = useState<string | null>(null)
-  const proposeSchema = useProposeCourseSchema(courseId ?? undefined)
-  const schemaJob = useSchemaProposeJob(courseId ?? undefined, schemaJobId)
-  const schemaQuery = useCourseSchema(phase === 'schema' ? (courseId ?? undefined) : undefined)
+  // Schema proposal state (direct post, no hooks)
+  const [proposedNodes, setProposedNodes] = useState<ProposedNode[]>([])
+  const [proposing, setProposing] = useState(false)
+  const [proposeError, setProposeError] = useState<string | null>(null)
+  const [density, setDensity] = useState(3)
+  const proposeAbortRef = useRef<AbortController | null>(null)
 
   // Hooks
   const uploader = useUploadDocument()
@@ -348,24 +367,76 @@ export function CreateCourse() {
     }
   }, [phase, effective.step, effective.courseId])
 
-  // Schema proposal finished → show results
-  useEffect(() => {
-    if (phase === 'proposing' && schemaJob.settled && !schemaJob.failed) {
-      setPhase('schema')
+  // Schema proposal: call POST /api/v1/ai/schema-propose directly
+  const proposeSchema = useCallback(async (d: number) => {
+    proposeAbortRef.current?.abort()
+    const abort = new AbortController()
+    proposeAbortRef.current = abort
+
+    setProposing(true)
+    setProposeError(null)
+
+    try {
+      const result = await post<{ nodes: ProposedNode[] }>('/ai/schema-propose', {
+        title: title.trim(),
+        description: idea.trim() || undefined,
+        intent_density: d,
+      })
+      if (!abort.signal.aborted) {
+        setProposedNodes(result.nodes)
+        setProposing(false)
+      }
+    } catch (err) {
+      if (!abort.signal.aborted) {
+        setProposing(false)
+        if (err instanceof ApiError) {
+          setProposeError(err.body.detail)
+        } else if (err instanceof Error) {
+          setProposeError(err.message)
+        } else {
+          setProposeError('No se pudo disenar el esquema')
+        }
+      }
     }
-  }, [phase, schemaJob.settled, schemaJob.failed])
+  }, [title, idea])
+
+  // Auto-propose when entering schema phase for the first time (no nodes yet)
+  const prevPhaseRef = useRef<Phase>('choose')
+  useEffect(() => {
+    if (phase === 'schema' && prevPhaseRef.current === 'details' && proposedNodes.length === 0) {
+      void proposeSchema(density)
+    }
+    prevPhaseRef.current = phase
+  }, [phase]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Re-propose when density changes in schema phase
+  const densityDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  function handleDensityChange(newDensity: number) {
+    setDensity(newDensity)
+    if (phase === 'schema') {
+      if (densityDebounceRef.current) clearTimeout(densityDebounceRef.current)
+      densityDebounceRef.current = setTimeout(() => {
+        void proposeSchema(newDensity)
+      }, 400)
+    }
+  }
 
   const confirmSource = useCallback(() => {
     if (source) setPhase('details')
   }, [source])
 
-  // Backward: useInstantLayoutTransition suppresses the reverse morph
-  const goBack = useCallback(() => {
+  // Backward from details: useInstantLayoutTransition suppresses the reverse morph
+  const goBackToChoose = useCallback(() => {
     startInstant(() => {
       setPhase('choose')
       setSource(null)
     })
   }, [startInstant])
+
+  // Backward from schema: same card, just swap content
+  const goBackToDetails = useCallback(() => {
+    setPhase('details')
+  }, [])
 
   // Error helper
   function failMsg(err: unknown, fallback: string): string {
@@ -388,14 +459,18 @@ export function CreateCourse() {
     }
   }
 
-  async function handleCreate() {
+  async function handleConfirmDetails() {
     setStartError(null)
-    try {
-      // "Desde idea" + dynamic: no document needed — schema proposer works from
-      // title + description + density alone. Skip the slow source generation.
-      const needsDocument = source === 'documentos' || deliveryChoice === 'static'
-      const sourceId = needsDocument ? await ensureSourceDocument() : undefined
 
+    if (deliveryChoice === 'dynamic') {
+      // Go to schema phase — proposal fires automatically via useEffect
+      setPhase('schema')
+      return
+    }
+
+    // Static path: create course + generate
+    try {
+      const sourceId = await ensureSourceDocument()
       const course = await createCourse.mutateAsync({
         title: title.trim(),
         description: idea.trim() || undefined,
@@ -403,23 +478,52 @@ export function CreateCourse() {
       })
       setCourseId(course.id)
 
-      if (deliveryChoice === 'dynamic') {
-        // Create course, propose schema, show results — all in this page
-        const job = await proposeSchema.mutateAsync({
-          intent_density: 3,
-          source_document_id: sourceId,
-        })
-        setSchemaJobId(job.job_id)
-        setPhase('proposing')
-      } else {
-        const job = await generate.mutateAsync({
-          courseId: course.id,
-          source_document_id: sourceId,
-          output_type: 'course_and_manual',
-        })
-        setJobId(job.job_id)
-        setPhase('generating')
-      }
+      const job = await generate.mutateAsync({
+        courseId: course.id,
+        source_document_id: sourceId,
+        output_type: 'course_and_manual',
+      })
+      setJobId(job.job_id)
+      setPhase('generating')
+    } catch (err) {
+      setStartError(failMsg(err, 'No se pudo crear el curso'))
+    }
+  }
+
+  async function handleCreateFromSchema() {
+    setStartError(null)
+    try {
+      const sourceId = source === 'documentos' ? documentId ?? undefined : undefined
+      const course = await createCourse.mutateAsync({
+        title: title.trim(),
+        description: idea.trim() || undefined,
+        source_document_id: sourceId,
+      })
+      setCourseId(course.id)
+
+      // Save the proposed nodes as the course schema
+      const schemaNodes = proposedNodes.map((n, i) => ({
+        title: n.title,
+        summary: n.summary,
+        outcome: n.outcome,
+        criticality: n.criticality,
+        position: i + 1,
+        mastery_threshold: n.criticality === 'critical' ? 0.9 : n.criticality === 'recommended' ? 0.8 : 0.7,
+        estimated_minutes: n.estimated_minutes,
+        default_ui_format: n.default_ui_format,
+        skill_id: null,
+        seed_lesson_id: null,
+        source_document_id: sourceId ?? null,
+        source_headings: n.source_headings,
+        prerequisite_node_ids: [],
+        archived: false,
+      }))
+      await put(`/courses/${course.id}/schema`, {
+        intent_density: density,
+        nodes: schemaNodes,
+      })
+
+      setPhase('assign')
     } catch (err) {
       setStartError(failMsg(err, 'No se pudo crear el curso'))
     }
@@ -447,11 +551,11 @@ export function CreateCourse() {
     )
   }
 
-  const busyStarting = writingSource || createCourse.isPending || generate.isPending || proposeSchema.isPending
+  const busyStarting = writingSource || createCourse.isPending || generate.isPending
   const documentReady = source !== 'documentos' || !!documentId
-  const canCreate = title.trim().length > 0 && documentReady && !busyStarting
+  const canConfirm = title.trim().length > 0 && documentReady && !busyStarting
 
-  const createButtonLabel = writingSource
+  const confirmButtonLabel = writingSource
     ? 'Escribiendo documento fuente...'
     : createCourse.isPending || generate.isPending
       ? 'Creando...'
@@ -460,97 +564,6 @@ export function CreateCourse() {
   // ── Render ─────────────────────────────────────────────────
 
   // Post-creation phases
-  if (phase === 'proposing') {
-    return (
-      <div>
-        <div className="mb-6">
-          <h2 className="text-xl font-semibold text-text">Crear curso</h2>
-        </div>
-        <div className="border rounded-lg p-8 text-center" style={{ borderRadius: 8 }}>
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1, transition: { duration: duration.normal } }}
-          >
-            <p className="text-sm font-medium text-text">Disenando el esquema del curso...</p>
-            <p className="text-xs text-text-muted mt-2">{title}</p>
-            {schemaJob.failed && (
-              <div className="mt-6">
-                <p className="text-sm text-danger mb-3">{schemaJob.error || 'No se pudo disenar el esquema'}</p>
-                <Button variant="secondary" onClick={() => { setPhase('details'); setSchemaJobId(null) }}>Volver a intentar</Button>
-              </div>
-            )}
-          </motion.div>
-        </div>
-      </div>
-    )
-  }
-
-  if (phase === 'schema') {
-    const nodes: CourseSchemaNode[] = schemaQuery.data?.nodes?.filter(n => !n.archived) ?? []
-    return (
-      <div>
-        <div className="mb-6">
-          <h2 className="text-sm text-text-muted">
-            <button type="button" onClick={() => { setPhase('details') }} className="hover:text-text transition-colors">Crear curso</button>
-            <span className="mx-1.5">/</span>
-            <span className="text-xl font-semibold text-text">Esquema</span>
-          </h2>
-        </div>
-
-        {nodes.length === 0 && schemaQuery.isLoading ? (
-          <p className="text-sm text-text-muted">Cargando esquema...</p>
-        ) : nodes.length === 0 ? (
-          <EmptyState title="No se generaron nodos" />
-        ) : (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1, transition: { duration: duration.normal } }}
-            className="space-y-3"
-          >
-            {nodes.map((node, i) => (
-              <div
-                key={node.id}
-                className="border border-border rounded-lg p-4 flex items-start gap-4"
-                style={{ borderRadius: 8 }}
-              >
-                <span className="text-xs font-medium text-text-muted bg-bg-muted rounded-full w-6 h-6 flex items-center justify-center shrink-0 mt-0.5">
-                  {i + 1}
-                </span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-text">{node.title}</p>
-                  <p className="text-xs text-text-muted mt-0.5">{node.summary}</p>
-                  <div className="flex items-center gap-2 mt-2">
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${
-                      node.criticality === 'critical' ? 'bg-primary-subtle text-primary'
-                      : node.criticality === 'recommended' ? 'bg-accent-subtle text-accent'
-                      : 'bg-bg-muted text-text-muted'
-                    }`}>
-                      {node.criticality === 'critical' ? 'Imprescindible'
-                       : node.criticality === 'recommended' ? 'Recomendado'
-                       : 'Contexto'}
-                    </span>
-                    {node.estimated_minutes && (
-                      <span className="text-xs text-text-muted">{node.estimated_minutes} min</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </motion.div>
-        )}
-
-        <div className="flex items-center justify-between mt-8 pt-5 border-t border-border">
-          <Button variant="ghost" onClick={() => navigate(`/admin/curso/${courseId}/esquema`)}>
-            Editar en detalle
-          </Button>
-          <Button variant="primary" onClick={() => setPhase('assign')}>
-            Continuar
-          </Button>
-        </div>
-      </div>
-    )
-  }
-
   if (phase === 'generating') {
     return (
       <div>
@@ -597,18 +610,23 @@ export function CreateCourse() {
     )
   }
 
-  // ── Choose + Details (morph flow) ──────────────────────────
+  // ── Choose + Details + Schema (morph flow) ────────────────
 
-  const expanded = phase === 'details'
+  const expanded = phase === 'details' || phase === 'schema'
+  const activeCard = source // which card is layoutId-morphed
+
+  // Stats for schema sidebar
+  const totalMinutes = proposedNodes.reduce((s, n) => s + n.estimated_minutes, 0)
+  const criticalCount = proposedNodes.filter(n => n.criticality === 'critical').length
 
   return (
     <LayoutGroup>
       <div>
-        {/* Header */}
+        {/* Header / Breadcrumb */}
         <div className="mb-6 shrink-0 flex items-baseline gap-1.5">
           <h2
             className={`text-xl font-semibold transition-colors duration-200 ${expanded ? 'text-text-muted cursor-pointer hover:text-text' : 'text-text'}`}
-            onClick={expanded ? goBack : undefined}
+            onClick={expanded ? goBackToChoose : undefined}
             role={expanded ? 'button' : undefined}
           >
             Crear curso
@@ -616,13 +634,28 @@ export function CreateCourse() {
           <AnimatePresence>
             {expanded && (
               <motion.span
-                key="breadcrumb"
+                key="breadcrumb-source"
+                className={`text-xl font-semibold transition-colors duration-200 ${phase === 'schema' ? 'text-text-muted cursor-pointer hover:text-text' : 'text-text'}`}
+                initial={{ opacity: 0, x: -8 }}
+                animate={{ opacity: 1, x: 0, transition: { duration: duration.normal, ease: ease.base } }}
+                exit={{ opacity: 0, x: -8, transition: { duration: duration.fast, ease: ease.snapOut } }}
+                onClick={phase === 'schema' ? goBackToDetails : undefined}
+                role={phase === 'schema' ? 'button' : undefined}
+              >
+                / {source === 'documentos' ? 'Documento' : 'Idea'}
+              </motion.span>
+            )}
+          </AnimatePresence>
+          <AnimatePresence>
+            {phase === 'schema' && (
+              <motion.span
+                key="breadcrumb-schema"
                 className="text-xl font-semibold text-text"
                 initial={{ opacity: 0, x: -8 }}
                 animate={{ opacity: 1, x: 0, transition: { duration: duration.normal, ease: ease.base } }}
                 exit={{ opacity: 0, x: -8, transition: { duration: duration.fast, ease: ease.snapOut } }}
               >
-                / {source === 'documentos' ? 'Documento' : 'Idea'}
+                / Esquema
               </motion.span>
             )}
           </AnimatePresence>
@@ -632,7 +665,7 @@ export function CreateCourse() {
         <div className={expanded ? '' : 'grid grid-cols-1 sm:grid-cols-2 gap-4'}>
 
           {/* Card: Documentos */}
-          {(source === 'documentos' || !expanded) && (
+          {(activeCard === 'documentos' || !expanded) && (
             <motion.div
               layoutId="source-card-documentos"
               transition={morphTransition.layout}
@@ -645,62 +678,83 @@ export function CreateCourse() {
                     : 'border-border hover:border-primary cursor-pointer'
               }`}
               onClick={() => { if (!expanded) setSource(source === 'documentos' ? null : 'documentos') }}
-
             >
-              <motion.div key={expanded ? 'doc-exp' : 'doc-col'} {...contentReveal}>
-                {!expanded ? (
+              {!expanded ? (
+                <motion.div key="doc-col" {...contentReveal}>
                   <div className="flex flex-col items-center justify-center text-center px-4 py-8">
                     <div className="text-text-muted mb-4"><FileIcon /></div>
                     <p className="text-sm font-medium text-text">Tengo un documento</p>
                     <p className="text-xs text-text-muted mt-1.5">PDF, Word, Markdown o texto plano</p>
                   </div>
-                ) : (
-                  <div>
-                    <div className="flex items-center gap-3 mb-6">
-                      <div className="text-primary"><FileIcon /></div>
-                      <div>
-                        <p className="text-sm font-medium text-text">A partir de un documento</p>
-                        <p className="text-xs text-text-muted">Sube el archivo y ponle nombre al curso</p>
-                      </div>
-                    </div>
-                    <div className="space-y-5">
-                      <FileUploadZone
-                        accept=".pdf,.docx,.md,.txt"
-                        maxSizeMB={20}
-                        onFilesSelected={(files) => uploader.uploadFile(files[0]).catch(() => {})}
-                      />
-                      {uploader.uploads.length > 0 && (
-                        <div className="space-y-2">
-                          {uploader.uploads.map((u, i) => (
-                            <div key={i} className="text-sm">
-                              <div className="flex items-center justify-between gap-2">
-                                <span className="text-text truncate min-w-0">{u.file.name}</span>
-                                {u.status === 'ready' || u.status === 'processing' ? (
-                                  <span className="text-accent shrink-0"><CheckIcon /></span>
-                                ) : u.status === 'error' ? (
-                                  <span className="text-danger text-xs shrink-0">{u.error}</span>
-                                ) : null}
-                              </div>
-                              {u.status === 'uploading' && <ProgressBar value={u.progress} size="sm" className="mt-1" />}
-                            </div>
-                          ))}
+                </motion.div>
+              ) : (
+                <AnimatePresence mode="wait">
+                  {phase === 'details' ? (
+                    <motion.div key="doc-details" {...innerFadeIn} {...innerFadeOut}>
+                      <div className="flex items-center gap-3 mb-6">
+                        <div className="text-primary"><FileIcon /></div>
+                        <div>
+                          <p className="text-sm font-medium text-text">A partir de un documento</p>
+                          <p className="text-xs text-text-muted">Sube el archivo y ponle nombre al curso</p>
                         </div>
-                      )}
-                      <Input label="Nombre del curso" placeholder="Ej: Seguridad Alimentaria" value={title} onChange={(e) => setTitle(e.target.value)} />
-                      <DeliverySelector value={deliveryChoice} onChange={setDeliveryChoice} />
-                      {startError && <p className="text-sm text-danger">{startError}</p>}
-                      <div className="pt-4">
-                        <Button variant="primary" className="w-full" onClick={() => void handleCreate()} disabled={!canCreate}>{createButtonLabel}</Button>
                       </div>
-                    </div>
-                  </div>
-                )}
-              </motion.div>
+                      <div className="space-y-5">
+                        <FileUploadZone
+                          accept=".pdf,.docx,.md,.txt"
+                          maxSizeMB={20}
+                          onFilesSelected={(files) => uploader.uploadFile(files[0]).catch(() => {})}
+                        />
+                        {uploader.uploads.length > 0 && (
+                          <div className="space-y-2">
+                            {uploader.uploads.map((u, i) => (
+                              <div key={i} className="text-sm">
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="text-text truncate min-w-0">{u.file.name}</span>
+                                  {u.status === 'ready' || u.status === 'processing' ? (
+                                    <span className="text-accent shrink-0"><CheckIcon /></span>
+                                  ) : u.status === 'error' ? (
+                                    <span className="text-danger text-xs shrink-0">{u.error}</span>
+                                  ) : null}
+                                </div>
+                                {u.status === 'uploading' && <ProgressBar value={u.progress} size="sm" className="mt-1" />}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        <Input label="Nombre del curso" placeholder="Ej: Seguridad Alimentaria" value={title} onChange={(e) => setTitle(e.target.value)} />
+                        <DeliverySelector value={deliveryChoice} onChange={setDeliveryChoice} />
+                        {startError && <p className="text-sm text-danger">{startError}</p>}
+                        <div className="pt-4">
+                          <Button variant="primary" className="w-full" onClick={() => void handleConfirmDetails()} disabled={!canConfirm}>{confirmButtonLabel}</Button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ) : (
+                    <motion.div key="doc-schema" {...innerFadeIn} {...innerFadeOut}>
+                      <SchemaContent
+                        proposing={proposing}
+                        proposeError={proposeError}
+                        nodes={proposedNodes}
+                        density={density}
+                        onDensityChange={handleDensityChange}
+                        totalMinutes={totalMinutes}
+                        criticalCount={criticalCount}
+                        title={title}
+                        onNodeTitleChange={(i, v) => setProposedNodes(ns => ns.map((n, j) => j === i ? { ...n, title: v } : n))}
+                        onNodeDelete={(i) => setProposedNodes(ns => ns.filter((_, j) => j !== i))}
+                        onCreateCourse={() => void handleCreateFromSchema()}
+                        creating={createCourse.isPending}
+                        startError={startError}
+                      />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              )}
             </motion.div>
           )}
 
           {/* Card: Desde cero */}
-          {(source === 'cero' || !expanded) && (
+          {(activeCard === 'cero' || !expanded) && (
             <motion.div
               layoutId="source-card-cero"
               transition={morphTransition.layout}
@@ -714,40 +768,62 @@ export function CreateCourse() {
               }`}
               onClick={() => { if (!expanded) setSource(source === 'cero' ? null : 'cero') }}
             >
-              <motion.div key={expanded ? 'cero-exp' : 'cero-col'} {...contentReveal}>
-                {!expanded ? (
+              {!expanded ? (
+                <motion.div key="cero-col" {...contentReveal}>
                   <div className="flex flex-col items-center justify-center text-center px-4 py-8">
                     <div className="text-text-muted mb-4"><EditIcon /></div>
                     <p className="text-sm font-medium text-text">Tengo una idea</p>
                     <p className="text-xs text-text-muted mt-1.5">Describe el tema y la IA escribe el contenido</p>
                   </div>
-                ) : (
-                  <div>
-                    <div className="flex items-center gap-3 mb-6">
-                      <div className="text-primary"><EditIcon /></div>
-                      <div>
-                        <p className="text-sm font-medium text-text">A partir de una idea</p>
-                        <p className="text-xs text-text-muted">La IA escribe un documento fuente del que sale el curso</p>
+                </motion.div>
+              ) : (
+                <AnimatePresence mode="wait">
+                  {phase === 'details' ? (
+                    <motion.div key="cero-details" {...innerFadeIn} {...innerFadeOut}>
+                      <div className="flex items-center gap-3 mb-6">
+                        <div className="text-primary"><EditIcon /></div>
+                        <div>
+                          <p className="text-sm font-medium text-text">A partir de una idea</p>
+                          <p className="text-xs text-text-muted">La IA escribe un documento fuente del que sale el curso</p>
+                        </div>
                       </div>
-                    </div>
-                    <div className="space-y-5">
-                      <Input label="Nombre del curso" placeholder="Ej: Seguridad Alimentaria" value={title} onChange={(e) => setTitle(e.target.value)} />
-                      <Textarea
-                        label="Que quieres que cubra (opcional)"
-                        placeholder="Ej: como funciona una sinapsis, los neurotransmisores principales y la plasticidad. Nivel introductorio."
-                        hint="Con esto la IA escribe un documento fuente, editable despues, del que sale el curso."
-                        value={idea}
-                        onChange={(e) => setIdea(e.target.value)}
+                      <div className="space-y-5">
+                        <Input label="Nombre del curso" placeholder="Ej: Seguridad Alimentaria" value={title} onChange={(e) => setTitle(e.target.value)} />
+                        <Textarea
+                          label="Que quieres que cubra (opcional)"
+                          placeholder="Ej: como funciona una sinapsis, los neurotransmisores principales y la plasticidad. Nivel introductorio."
+                          hint="Con esto la IA escribe un documento fuente, editable despues, del que sale el curso."
+                          value={idea}
+                          onChange={(e) => setIdea(e.target.value)}
+                        />
+                        <DeliverySelector value={deliveryChoice} onChange={setDeliveryChoice} />
+                        {startError && <p className="text-sm text-danger">{startError}</p>}
+                        <div className="pt-4">
+                          <Button variant="primary" className="w-full" onClick={() => void handleConfirmDetails()} disabled={!canConfirm}>{confirmButtonLabel}</Button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ) : (
+                    <motion.div key="cero-schema" {...innerFadeIn} {...innerFadeOut}>
+                      <SchemaContent
+                        proposing={proposing}
+                        proposeError={proposeError}
+                        nodes={proposedNodes}
+                        density={density}
+                        onDensityChange={handleDensityChange}
+                        totalMinutes={totalMinutes}
+                        criticalCount={criticalCount}
+                        title={title}
+                        onNodeTitleChange={(i, v) => setProposedNodes(ns => ns.map((n, j) => j === i ? { ...n, title: v } : n))}
+                        onNodeDelete={(i) => setProposedNodes(ns => ns.filter((_, j) => j !== i))}
+                        onCreateCourse={() => void handleCreateFromSchema()}
+                        creating={createCourse.isPending}
+                        startError={startError}
                       />
-                      <DeliverySelector value={deliveryChoice} onChange={setDeliveryChoice} />
-                      {startError && <p className="text-sm text-danger">{startError}</p>}
-                      <div className="pt-4">
-                        <Button variant="primary" className="w-full" onClick={() => void handleCreate()} disabled={!canCreate}>{createButtonLabel}</Button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </motion.div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              )}
             </motion.div>
           )}
         </div>
@@ -769,6 +845,161 @@ export function CreateCourse() {
         </AnimatePresence>
       </div>
     </LayoutGroup>
+  )
+}
+
+// ── Schema content (inside the expanded card) ────────────────
+
+function SchemaContent({
+  proposing,
+  proposeError,
+  nodes,
+  density,
+  onDensityChange,
+  totalMinutes,
+  criticalCount,
+  title,
+  onNodeTitleChange,
+  onNodeDelete,
+  onCreateCourse,
+  creating,
+  startError,
+}: {
+  proposing: boolean
+  proposeError: string | null
+  nodes: ProposedNode[]
+  density: number
+  onDensityChange: (v: number) => void
+  totalMinutes: number
+  criticalCount: number
+  title: string
+  onNodeTitleChange: (i: number, v: string) => void
+  onNodeDelete: (i: number) => void
+  onCreateCourse: () => void
+  creating: boolean
+  startError: string | null
+}) {
+  if (proposing) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-sm font-medium text-text">Disenando el esquema...</p>
+        <p className="text-xs text-text-muted mt-2">{title}</p>
+      </div>
+    )
+  }
+
+  if (proposeError) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-sm text-danger mb-3">{proposeError}</p>
+      </div>
+    )
+  }
+
+  if (nodes.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-sm text-text-muted">No se generaron nodos</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex gap-6">
+      {/* Left sidebar: density + stats + create button */}
+      <div className="shrink-0" style={{ width: 200 }}>
+        <div className="space-y-5">
+          <div>
+            <label className="block text-xs font-medium text-text-muted uppercase tracking-wide mb-2">Densidad</label>
+            <input
+              type="range"
+              min={1}
+              max={5}
+              step={1}
+              value={density}
+              onChange={(e) => onDensityChange(Number(e.target.value))}
+              className="w-full accent-primary"
+            />
+            <div className="flex justify-between text-xs text-text-muted mt-1">
+              <span>Breve</span>
+              <span>{density}</span>
+              <span>Detallado</span>
+            </div>
+          </div>
+
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-text-muted">Nodos</span>
+              <span className="text-text font-medium">{nodes.length}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-text-muted">Imprescindibles</span>
+              <span className="text-text font-medium">{criticalCount}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-text-muted">Tiempo est.</span>
+              <span className="text-text font-medium">{totalMinutes} min</span>
+            </div>
+          </div>
+
+          {startError && <p className="text-xs text-danger">{startError}</p>}
+
+          <Button
+            variant="primary"
+            className="w-full"
+            onClick={onCreateCourse}
+            disabled={creating || nodes.length === 0}
+          >
+            {creating ? 'Creando...' : 'Crear curso'}
+          </Button>
+        </div>
+      </div>
+
+      {/* Right: node list */}
+      <div className="flex-1 min-w-0 space-y-3">
+        {nodes.map((node, i) => (
+          <div
+            key={i}
+            className="border border-border rounded-lg p-4 flex items-start gap-4"
+            style={{ borderRadius: 8 }}
+          >
+            <span className="text-xs font-medium text-text-muted bg-bg-muted rounded-full w-6 h-6 flex items-center justify-center shrink-0 mt-0.5">
+              {i + 1}
+            </span>
+            <div className="flex-1 min-w-0">
+              <input
+                className="w-full text-sm font-medium text-text bg-transparent border-none focus:outline-none focus:ring-0 p-0"
+                value={node.title}
+                onChange={(e) => onNodeTitleChange(i, e.target.value)}
+              />
+              <p className="text-xs text-text-muted mt-0.5">{node.summary}</p>
+              <div className="flex items-center gap-2 mt-2">
+                <span className={`text-xs px-2 py-0.5 rounded-full ${
+                  node.criticality === 'critical' ? 'bg-primary-subtle text-primary'
+                  : node.criticality === 'recommended' ? 'bg-accent-subtle text-accent'
+                  : 'bg-bg-muted text-text-muted'
+                }`}>
+                  {node.criticality === 'critical' ? 'Imprescindible'
+                   : node.criticality === 'recommended' ? 'Recomendado'
+                   : 'Contexto'}
+                </span>
+                {node.estimated_minutes > 0 && (
+                  <span className="text-xs text-text-muted">{node.estimated_minutes} min</span>
+                )}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => onNodeDelete(i)}
+              className="text-text-muted hover:text-danger p-1 shrink-0"
+              title="Eliminar nodo"
+            >
+              <XIcon size={16} />
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
   )
 }
 
