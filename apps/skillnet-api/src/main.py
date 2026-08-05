@@ -19,6 +19,7 @@ from src.core.exceptions import AppError
 from src.core.logging import configure_logging, get_logger
 from src.deps.db import async_session_factory, engine
 from src.routes import (
+    ai,
     auth,
     chat,
     course_schema,
@@ -121,6 +122,7 @@ def create_app() -> FastAPI:
     # Health at the app root for the Docker healthcheck, and under /api/v1.
     app.include_router(health.router)
     app.include_router(health.router, prefix=prefix)
+    app.include_router(ai.router, prefix=prefix)
     app.include_router(auth.router, prefix=prefix)
     app.include_router(users.router, prefix=prefix)
     app.include_router(documents.router, prefix=prefix)

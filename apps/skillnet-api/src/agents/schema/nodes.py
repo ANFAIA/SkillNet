@@ -59,7 +59,7 @@ from src.services.course_schema_service import (
 logger = get_logger(__name__)
 
 SCHEMA_TEMPERATURE = 0.2
-SCHEMA_MAX_TOKENS = 4096
+SCHEMA_MAX_TOKENS = 8192
 EXTRACT_TEMPERATURE = 0.3
 EXTRACT_MAX_TOKENS = 4096
 # Hard ceiling on a proposal. A model that returns 300 "nodes" has misunderstood
