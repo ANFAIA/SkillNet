@@ -126,9 +126,21 @@ def build_schema_prompt(
             f"Resultado esperado: {course_outcome or '(sin definir)'}\n\n"
         )
 
+    # Courses created "from topic" have no document — relax the traceability rule.
+    topic_note = ""
+    if not source_metadata.get("doc_count"):
+        topic_note = (
+            "=== NOTA ===\n"
+            "Este curso se crea a partir del titulo y la descripcion, sin documento "
+            "de origen. Disena los nodos basandote en los temas y el titulo del curso. "
+            "La regla de rastrearse al material de origen no aplica; "
+            "source_headings sera [] en todos los nodos.\n\n"
+        )
+
     return (
         "Propon el esquema de nodos de este curso.\n\n"
         f"{course_block}"
+        f"{topic_note}"
         f"=== DENSIDAD PEDIDA (intent_density={intent_density}) ===\n"
         f"{density}\n\n"
         "=== METADATOS DE ORIGEN ===\n"

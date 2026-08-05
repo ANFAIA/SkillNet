@@ -255,17 +255,36 @@ async def _source_context(state: SchemaState) -> str:
 async def extract_themes_schema(state: SchemaState) -> dict:
     job_id = str(state["job_id"])
     org_id = uuid.UUID(state["org_id"])
-    llm = await _make_llm(org_id)
 
     context = await _source_context(state)
-    response = await llm.complete(
-        THEME_EXTRACTOR_SYSTEM,
-        build_extraction_prompt(context),
-        temperature=EXTRACT_TEMPERATURE,
-        max_tokens=EXTRACT_MAX_TOKENS,
-        json_mode=True,
-    )
-    themes = themes_list(parse_json_response(response))
+
+    if not context.strip():
+        # "From topic" course: no source document.  Synthesise themes from the
+        # course title and description so the designer has something to work with.
+        course_id = state.get("course_id")
+        if course_id:
+            async with async_session_factory() as db:
+                course = await db.get(Course, uuid.UUID(str(course_id)))
+                if course is not None:
+                    parts = [course.title or ""]
+                    if course.description:
+                        parts.append(course.description)
+                    if course.outcome:
+                        parts.append(course.outcome)
+                    context = "\n\n".join(p for p in parts if p.strip())
+
+    if context.strip():
+        llm = await _make_llm(org_id)
+        response = await llm.complete(
+            THEME_EXTRACTOR_SYSTEM,
+            build_extraction_prompt(context),
+            temperature=EXTRACT_TEMPERATURE,
+            max_tokens=EXTRACT_MAX_TOKENS,
+            json_mode=True,
+        )
+        themes = themes_list(parse_json_response(response))
+    else:
+        themes = []
 
     await _publish_step(job_id, "extracting_themes", "Identificando los temas clave...")
     return {"extracted_themes": themes, "current_step": "extracting_themes"}

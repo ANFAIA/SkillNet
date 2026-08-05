@@ -598,13 +598,10 @@ class CourseSchemaService:
             raise RuntimeError("propose() needs a GenerationJobRepository")
 
         document_id = source_document_id or course.source_document_id
-        if document_id is None:
-            raise ValidationError(
-                "A source document is required. Provide source_document_id or "
-                "create the course with document_ids.",
-                field="source_document_id",
-            )
-        if self.document_repo is not None:
+        # A source document is optional: courses created "from topic" have none
+        # and the schema graph handles that by synthesising themes from the
+        # course title.
+        if document_id is not None and self.document_repo is not None:
             document = await self.document_repo.get_scoped(document_id, org_id)
             if document is None:
                 raise NotFoundError("documents", str(document_id))
