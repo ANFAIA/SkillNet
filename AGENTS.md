@@ -38,6 +38,7 @@ skillnet/
 │   ├── design/
 │   │   ├── v1-scope.md               # What v1 is and isn't
 │   │   ├── v2-dynamic-courses.md     # The v2 design (Spanish) — implemented behind a flag
+│   │   ├── ai-course-design.md       # Stateless AI endpoints and multi-model routing for course design (Spanish)
 │   │   ├── openui-adoption.md        # Why OpenUI, and what its reactive layer would cost (Spanish)
 │   │   ├── tuning.md                 # The dials for generation quality, and what each does
 │   │   ├── architecture.md           # Architecture decisions (decided + deferred)
@@ -142,6 +143,7 @@ keys, set `LLM_MODEL=fixture/local` and `EMBEDDING_MODEL=fixture/local` in `.env
 
 - **v1 scope & decisions: `docs/design/v1-scope.md`** (defines the v1 product; wins on v1 questions)
 - **v2 dynamic courses: `docs/design/v2-dynamic-courses.md`** (design of record for everything behind the flag)
+- AI-assisted course design: `docs/design/ai-course-design.md` (stateless AI endpoints, commit-on-create, multi-model routing for the design phase)
 - Generation tuning: `docs/design/tuning.md` (the dials, with current values and what turning them does)
 - OpenUI adoption: `docs/design/openui-adoption.md` (why the real packages, and the cost of the reactive layer)
 - Screen specs: `docs/design/screens.md`

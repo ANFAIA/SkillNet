@@ -23,6 +23,7 @@
 | [mcp-external-api.md](mcp-external-api.md) | MCP Server, external REST API, webhooks, integrations |
 | [frontend-backend-integration.md](frontend-backend-integration.md) | TanStack Query, SSE, Level 2/3 UI, file upload |
 | [snml-spec.md](snml-spec.md) | SNML content format — Markdown + interactive components, dual render (doc/web) |
+| [ai-course-design.md](ai-course-design.md) | Stateless AI endpoints, commit-on-create, multi-model routing for course design |
 
 ---
 
