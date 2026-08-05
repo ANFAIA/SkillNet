@@ -43,8 +43,6 @@ export function Button({
         ${className}
       `}
       disabled={disabled}
-      whileHover={disabled ? undefined : { scale: 1.02 }}
-      whileTap={disabled ? undefined : { scale: 0.97 }}
       transition={transition.micro}
       {...props}
     >
