@@ -1,16 +1,27 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Button, Card, EmptyState, Skeleton, SkeletonText } from '../../components/ui'
+import { motion, AnimatePresence } from 'framer-motion'
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core'
+import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
+import { Button, Card, EmptyState, ProgressBar, Skeleton, SkeletonText } from '../../components/ui'
 import { CriticalityBadge } from '../../components/schema/CriticalityBadge'
 import { IntentDensitySlider } from '../../components/schema/IntentDensitySlider'
-import { NodeEditor, type DraftNode } from '../../components/schema/NodeEditor'
-import { ReviewChecklist } from '../../components/schema/ReviewChecklist'
+import type { DraftNode } from '../../components/schema/NodeEditor'
+import { SchemaTreeNode } from '../../components/schema/SchemaTreeNode'
 import { SchemaValidationPanel } from '../../components/schema/SchemaValidationPanel'
 import type { PrerequisiteOption } from '../../components/schema/PrerequisitePicker'
 import { useCourse } from '../../api/courses'
 import { useAssignCourse } from '../../api/enrollments'
 import { useAuth } from '../../hooks/useAuth'
 import { NodePreview } from '../../components/schema/NodePreview'
+import { duration, ease } from '../../lib/motion'
 import {
   schemaErrorMessage,
   schemaLockedMessage,
@@ -26,13 +37,13 @@ import {
 import type { CourseSchema as CourseSchemaRead, CourseSchemaNode } from '../../types'
 
 /**
- * The creator's gate (§3.2, §11.1).
+ * The creator's gate (S3.2, S11.1).
  *
  * This screen is the only place a course schema becomes servable, and everything on it
  * exists to make that irreversible-feeling step legible:
  *
  * - **Nothing is generated until validation.** The banner says so in those words,
- *   because the promise of §1.1 is that no learner ever receives generated content for
+ *   because the promise of S1.1 is that no learner ever receives generated content for
  *   a node no human signed off, and a creator who does not know validation is the
  *   switch will assume the AI already published something.
  * - **Validation is blocked until every node is reviewed.** `POST /schema/validate`
@@ -63,6 +74,15 @@ function StatusPill({ status }: { status: string }) {
     >
       {copy.label}
     </span>
+  )
+}
+
+function PlusIcon({ size = 14 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="12" y1="5" x2="12" y2="19" />
+      <line x1="5" y1="12" x2="19" y2="12" />
+    </svg>
   )
 }
 
@@ -133,7 +153,7 @@ export function CourseSchema() {
 
   const [draft, setDraft] = useState<DraftNode[]>([])
   const [density, setDensity] = useState(3)
-  const [selectedKey, setSelectedKey] = useState<string | null>(null)
+  const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set())
   const [proposeJobId, setProposeJobId] = useState<string | null>(null)
   const [previewNodeId, setPreviewNodeId] = useState<string | null>(null)
   const [previewOrigin, setPreviewOrigin] = useState<DOMRect | null>(null)
@@ -153,22 +173,7 @@ export function CourseSchema() {
     syncedSignature.current = signature
     setDraft(server.nodes.map(toDraft))
     setDensity(server.intent_density)
-    // Selected in the same pass as the draft, so the editor is on screen in the first
-    // render that has nodes rather than one render later.
-    setSelectedKey((previous) =>
-      server.nodes.some((node) => node.id === previous)
-        ? previous
-        : (server.nodes[0]?.id ?? null),
-    )
   }, [server, signature])
-
-  useEffect(() => {
-    if (draft.length === 0) {
-      if (selectedKey !== null) setSelectedKey(null)
-      return
-    }
-    if (!draft.some((node) => node.key === selectedKey)) setSelectedKey(draft[0].key)
-  }, [draft, selectedKey])
 
   const serverById = useMemo(() => {
     const map = new Map<string, CourseSchemaNode>()
@@ -201,10 +206,13 @@ export function CourseSchema() {
 
   const liveNodes = draft.filter((node) => !node.archived)
   const criticalCount = liveNodes.filter((node) => node.criticality === 'critical').length
-  const unreviewedCount = liveNodes.filter((node) => {
+  const reviewedCount = liveNodes.filter((node) => {
     const stamped = node.id ? serverById.get(node.id)?.reviewed_at : null
-    return !stamped || dirtyByKey.get(node.key)
+    return stamped && !dirtyByKey.get(node.key)
   }).length
+  const unreviewedCount = liveNodes.length - reviewedCount
+
+  const totalMinutes = liveNodes.reduce((sum, node) => sum + (node.estimatedMinutes ?? 0), 0)
 
   const nodeLabels = useMemo(() => {
     const labels: Record<string, string> = {}
@@ -234,18 +242,6 @@ export function CourseSchema() {
     setDraft((prev) => prev.map((node) => (node.key === key ? { ...node, ...patch } : node)))
   }
 
-  function moveNode(key: string, direction: -1 | 1) {
-    setDraft((prev) => {
-      const index = prev.findIndex((node) => node.key === key)
-      const target = index + direction
-      if (index < 0 || target < 0 || target >= prev.length) return prev
-      const next = [...prev]
-      const [moved] = next.splice(index, 1)
-      next.splice(target, 0, moved)
-      return next
-    })
-  }
-
   function addNode() {
     newNodeCounter.current += 1
     const key = `new-${newNodeCounter.current}`
@@ -263,23 +259,19 @@ export function CourseSchema() {
         defaultUiFormat: 'explanation',
         skillId: null,
         seedLessonId: null,
-        // Inherited so a hand-made node satisfies the "no source, no course" rule
-        // without the creator having to know it exists.
         sourceDocumentId: courseQuery.data?.source_document_id ?? null,
         sourceHeadings: [],
         prerequisiteNodeIds: [],
         archived: false,
       },
     ])
-    setSelectedKey(key)
+    setExpandedKeys((prev) => new Set(prev).add(key))
   }
 
   function removeNode(key: string) {
     setDraft((prev) => {
       const removed = prev.find((node) => node.key === key)
       const next = prev.filter((node) => node.key !== key)
-      // A removed node also stops being anybody's prerequisite, otherwise the next
-      // save would ask the server to validate an edge to a node that is gone.
       if (!removed?.id) return next
       return next.map((node) =>
         node.prerequisiteNodeIds.includes(removed.id as string)
@@ -290,20 +282,18 @@ export function CourseSchema() {
           : node,
       )
     })
+    setExpandedKeys((prev) => {
+      const next = new Set(prev)
+      next.delete(key)
+      return next
+    })
   }
 
-  /**
-   * Unvalidating is the fix for `schema_locked`, so it clears that notice on success —
-   * otherwise the alert telling the creator to unvalidate would still be on screen
-   * after they did.
-   */
   function unvalidate() {
     unvalidateSchema.mutate(undefined, { onSuccess: () => updateSchema.reset() })
   }
 
   function save() {
-    // Rule violations from a previous validate describe a schema that no longer
-    // exists once this save lands.
     validateSchema.reset()
     updateSchema.mutate({
       intent_density: density,
@@ -337,19 +327,47 @@ export function CourseSchema() {
     )
   }
 
+  // ── Drag and drop ────────────────────────────────────────
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor),
+  )
+  const nodeIds = draft.map((node) => `schema-node-${node.key}`)
+
+  function handleDragEnd(event: { active: { id: string | number }; over: { id: string | number } | null }) {
+    if (!event.over || event.active.id === event.over.id) return
+    const fromIdx = nodeIds.indexOf(String(event.active.id))
+    const toIdx = nodeIds.indexOf(String(event.over.id))
+    if (fromIdx !== -1 && toIdx !== -1) {
+      setDraft((prev) => arrayMove(prev, fromIdx, toIdx))
+    }
+  }
+
+  function toggleNode(key: string) {
+    setExpandedKeys((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
+  // ── Loading / error states ───────────────────────────────
+
   if (schemaQuery.isLoading) {
     return (
       <div>
         <Skeleton className="h-6 w-1/3 mb-6" />
         <div className="flex flex-col lg:flex-row gap-6">
-          <div className="w-full lg:w-80 lg:shrink-0">
-            <Card>
-              <SkeletonText lines={5} />
-            </Card>
-          </div>
           <div className="flex-1 min-w-0">
             <Card>
               <SkeletonText lines={8} />
+            </Card>
+          </div>
+          <div className="w-full lg:w-56 lg:shrink-0">
+            <Card>
+              <SkeletonText lines={5} />
             </Card>
           </div>
         </div>
@@ -367,9 +385,6 @@ export function CourseSchema() {
     )
   }
 
-  const selected = draft.find((node) => node.key === selectedKey) ?? null
-  const selectedIndex = selected ? draft.findIndex((node) => node.key === selected.key) : -1
-
   const validateBlockedReason = locked
     ? 'Este esquema ya esta validado.'
     : draft.length === 0
@@ -382,14 +397,9 @@ export function CourseSchema() {
             : `Quedan ${unreviewedCount} nodos sin revisar.`
           : null
 
-  const prerequisiteOptions: PrerequisiteOption[] = draft.flatMap((node, index) =>
-    node.key === selectedKey || node.archived
-      ? []
-      : [{ id: node.id, key: node.key, position: index + 1, title: node.title }],
-  )
-
   return (
     <div>
+      {/* ── Header ─────────────────────────────────────────── */}
       <div className="mb-6">
         <div className="flex items-center gap-2 min-w-0">
           <button
@@ -424,6 +434,7 @@ export function CourseSchema() {
         </p>
       </div>
 
+      {/* ── Locked / draft banner ──────────────────────────── */}
       {locked ? (
         <div className="border border-accent/40 bg-accent-subtle rounded-lg p-4 mb-5 min-w-0">
           <p className="text-sm font-medium text-text">Esquema validado y en servicio</p>
@@ -453,6 +464,7 @@ export function CourseSchema() {
         </div>
       )}
 
+      {/* ── Locked notice from server ──────────────────────── */}
       {lockedNotice && (
         <div role="alert" className="border border-danger/40 bg-danger/5 rounded-lg p-4 mb-5">
           <p className="text-sm font-medium text-danger">No se guardo nada</p>
@@ -482,6 +494,7 @@ export function CourseSchema() {
         className="mb-5"
       />
 
+      {/* ── Empty state ────────────────────────────────────── */}
       {draft.length === 0 ? (
         <Card>
           <EmptyState
@@ -515,107 +528,195 @@ export function CourseSchema() {
           </div>
         </Card>
       ) : (
+        /* ── Main layout: tree + sidebar ─────────────────── */
         <div className="flex flex-col lg:flex-row gap-6">
-          <div className="w-full lg:w-80 lg:shrink-0 space-y-5">
-            <ReviewChecklist
-              items={draft.map((node, index) => ({
-                key: node.key,
-                id: node.id,
-                position: index + 1,
-                title: node.title,
-                criticality: node.criticality,
-                reviewedAt: node.id ? serverById.get(node.id)?.reviewed_at ?? null : null,
-                archived: node.archived,
-                dirty: !!dirtyByKey.get(node.key),
-              }))}
-              selectedKey={selectedKey}
-              onSelect={setSelectedKey}
-              onMarkReviewed={(nodeId) => markReviewed.mutate(nodeId)}
-              pendingNodeId={markReviewed.isPending ? markReviewed.variables ?? null : null}
-              locked={!!locked}
-            />
+          {/* Tree */}
+          <div className="flex-1 min-w-0">
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <SortableContext items={nodeIds} strategy={verticalListSortingStrategy}>
+                <AnimatePresence initial={false}>
+                  {draft.map((node, index) => {
+                    const prerequisiteOptions: PrerequisiteOption[] = draft.flatMap((other, j) =>
+                      other.key === node.key || other.archived
+                        ? []
+                        : [{ id: other.id, key: other.key, position: j + 1, title: other.title }],
+                    )
+                    return (
+                      <motion.div
+                        key={node.key}
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{
+                          opacity: 1,
+                          y: 0,
+                          transition: { duration: duration.normal, ease: ease.base, delay: index * 0.02 },
+                        }}
+                        exit={{ opacity: 0, x: -32, transition: { duration: duration.fast, ease: ease.snapOut } }}
+                      >
+                        <SchemaTreeNode
+                          id={nodeIds[index]}
+                          index={index}
+                          node={node}
+                          total={draft.length}
+                          prerequisiteOptions={prerequisiteOptions}
+                          expanded={expandedKeys.has(node.key)}
+                          onToggle={() => toggleNode(node.key)}
+                          onChange={(patch) => patchNode(node.key, patch)}
+                          onArchiveToggle={() => patchNode(node.key, { archived: !node.archived })}
+                          onRemove={() => removeNode(node.key)}
+                          reviewedAt={node.id ? serverById.get(node.id)?.reviewed_at ?? null : null}
+                          dirty={!!dirtyByKey.get(node.key)}
+                          locked={!!locked}
+                          onMarkReviewed={(nodeId) => markReviewed.mutate(nodeId)}
+                          markReviewPending={
+                            markReviewed.isPending && markReviewed.variables === node.id
+                          }
+                          onPreview={(nodeId, rect) => {
+                            setPreviewOrigin(rect)
+                            setPreviewNodeId(nodeId)
+                          }}
+                        />
+                      </motion.div>
+                    )
+                  })}
+                </AnimatePresence>
+              </SortableContext>
+            </DndContext>
 
+            {/* Add node button */}
+            {!locked && (
+              <button
+                type="button"
+                onClick={addNode}
+                className="w-full mt-2 px-2 py-1.5 rounded-md text-sm text-text-muted hover:text-primary hover:bg-bg-muted transition-colors flex items-center gap-2"
+              >
+                <PlusIcon />
+                Anadir nodo
+              </button>
+            )}
+          </div>
+
+          {/* Sidebar */}
+          <div className="w-full lg:w-56 lg:shrink-0 space-y-4">
+            {/* Review progress */}
+            <Card>
+              <div className="flex items-baseline justify-between gap-2 mb-2">
+                <h3 className="text-sm font-medium text-text">Revision</h3>
+                <span className="text-xs text-text-muted shrink-0 tabular-nums">
+                  {reviewedCount} de {liveNodes.length}
+                </span>
+              </div>
+              <ProgressBar
+                value={liveNodes.length === 0 ? 0 : (reviewedCount / liveNodes.length) * 100}
+                size="sm"
+              />
+              <p className="text-xs text-text-secondary mt-2">
+                {unreviewedCount === 0 && liveNodes.length > 0
+                  ? 'Todos los nodos estan revisados.'
+                  : unreviewedCount === 1
+                    ? 'Queda 1 nodo por revisar.'
+                    : `Quedan ${unreviewedCount} nodos por revisar.`}
+              </p>
+            </Card>
+
+            {/* Stats */}
+            <Card>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-text-muted">Nodos</span>
+                  <span className="text-text font-medium">{liveNodes.length}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-text-muted">Imprescindibles</span>
+                  <span className="text-text font-medium">{criticalCount}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-text-muted">Tiempo est.</span>
+                  <span className="text-text font-medium">{totalMinutes} min</span>
+                </div>
+              </div>
+            </Card>
+
+            {/* Density slider + propose */}
             <Card>
               <IntentDensitySlider
                 value={density}
                 onChange={setDensity}
                 disabled={locked || proposeJob.running}
               />
-              <div className="flex flex-wrap items-center gap-2 mt-4">
-                <Button variant="secondary" size="sm" onClick={addNode} disabled={locked}>
-                  Anadir nodo
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={propose}
-                  disabled={locked || proposeSchema.isPending || proposeJob.running}
-                >
-                  {proposeJob.running || proposeSchema.isPending
-                    ? 'Proponiendo...'
-                    : 'Volver a proponer'}
-                </Button>
-              </div>
-              <p className="text-xs text-text-muted mt-2">
-                Volver a proponer reemplaza los nodos propuestos por una tanda nueva.
-              </p>
-            </Card>
-          </div>
-
-          <div className="flex-1 min-w-0">
-            <Card>
-              {selected && selectedIndex >= 0 ? (
-                <>
-                  <NodeEditor
-                    node={selected}
-                    index={selectedIndex}
-                    total={draft.length}
-                    prerequisiteOptions={prerequisiteOptions}
-                    reviewedAt={
-                      selected.id ? serverById.get(selected.id)?.reviewed_at ?? null : null
-                    }
-                    dirty={!!dirtyByKey.get(selected.key)}
-                    locked={!!locked}
-                    onChange={(patch) => patchNode(selected.key, patch)}
-                    onMove={(direction) => moveNode(selected.key, direction)}
-                    onArchiveToggle={() =>
-                      patchNode(selected.key, { archived: !selected.archived })
-                    }
-                    onRemove={() => removeNode(selected.key)}
-                  />
-                  {selected.id && !dirtyByKey.get(selected.key) && (
-                    <div className="mt-4 pt-4 border-t border-border">
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={(e) => {
-                          setPreviewOrigin(e.currentTarget.getBoundingClientRect())
-                          setPreviewNodeId(selected.id)
-                        }}
-                      >
-                        Previsualizar contenido
-                      </Button>
-                      <p className="text-xs text-text-muted mt-1.5">
-                        Genera el contenido como lo veria un empleado.
-                      </p>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <EmptyState
-                  title="Selecciona un nodo"
-                  description="Elige un nodo de la lista para revisarlo y editarlo."
-                />
+              {!locked && (
+                <div className="mt-3">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={propose}
+                    disabled={proposeSchema.isPending || proposeJob.running}
+                    className="w-full"
+                  >
+                    {proposeJob.running || proposeSchema.isPending
+                      ? 'Proponiendo...'
+                      : 'Volver a proponer'}
+                  </Button>
+                  <p className="text-xs text-text-muted mt-1">
+                    Reemplaza los nodos propuestos por una tanda nueva.
+                  </p>
+                </div>
+              )}
+              {proposeJob.failed && (
+                <p role="alert" className="text-xs text-danger mt-2">
+                  {proposeJob.error ?? 'La propuesta fallo.'}
+                </p>
               )}
             </Card>
+
+            {/* Action buttons */}
+            <div className="space-y-2">
+              <Button
+                variant="secondary"
+                className="w-full"
+                onClick={save}
+                disabled={locked || !dirty || updateSchema.isPending}
+              >
+                {updateSchema.isPending ? 'Guardando...' : 'Guardar cambios'}
+              </Button>
+              <Button
+                variant="accent"
+                className="w-full"
+                onClick={() => validateSchema.mutate()}
+                disabled={!!validateBlockedReason || validateSchema.isPending}
+                title={validateBlockedReason ?? 'Activa la entrega dinamica de este curso'}
+              >
+                {validateSchema.isPending ? 'Validando...' : 'Validar esquema'}
+              </Button>
+              {locked && id && (
+                <Button
+                  variant="primary"
+                  className="w-full"
+                  onClick={() => {
+                    if (!id || !currentUser) return
+                    assignCourse.mutate(
+                      { user_ids: [currentUser.id], course_id: id },
+                      {
+                        onSuccess: () => navigate(`/empleado/curso/${id}`),
+                        onError: () => navigate(`/empleado/curso/${id}`),
+                      },
+                    )
+                  }}
+                  disabled={assignCourse.isPending}
+                >
+                  {assignCourse.isPending ? 'Preparando...' : 'Probar curso'}
+                </Button>
+              )}
+              {validateBlockedReason && !locked && (
+                <p className="text-xs text-text-muted">{validateBlockedReason}</p>
+              )}
+            </div>
           </div>
         </div>
       )}
 
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-8 pt-4 border-t border-border">
-        {/* The set of live `critical` nodes is exactly the course closure condition
-            (§7.5), so the creator sees its size next to the button that freezes it. */}
-        <div className="flex items-center gap-2 min-w-0">
+      {/* ── Footer: critical count ─────────────────────────── */}
+      {draft.length > 0 && (
+        <div className="flex items-center gap-2 mt-6 pt-4 border-t border-border min-w-0">
           {criticalCount > 0 && (
             <>
               <CriticalityBadge criticality="critical" />
@@ -627,46 +728,9 @@ export function CourseSchema() {
             </>
           )}
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          {validateBlockedReason && !locked && (
-            <span className="text-xs text-text-muted">{validateBlockedReason}</span>
-          )}
-          <Button
-            variant="secondary"
-            onClick={save}
-            disabled={locked || !dirty || updateSchema.isPending}
-          >
-            {updateSchema.isPending ? 'Guardando...' : 'Guardar cambios'}
-          </Button>
-          <Button
-            variant="accent"
-            onClick={() => validateSchema.mutate()}
-            disabled={!!validateBlockedReason || validateSchema.isPending}
-            title={validateBlockedReason ?? 'Activa la entrega dinamica de este curso'}
-          >
-            {validateSchema.isPending ? 'Validando...' : 'Validar esquema'}
-          </Button>
-          {locked && id && (
-            <Button
-              variant="primary"
-              onClick={() => {
-                if (!id || !currentUser) return
-                assignCourse.mutate(
-                  { user_ids: [currentUser.id], course_id: id },
-                  {
-                    onSuccess: () => navigate(`/empleado/curso/${id}`),
-                    onError: () => navigate(`/empleado/curso/${id}`),
-                  },
-                )
-              }}
-              disabled={assignCourse.isPending}
-            >
-              {assignCourse.isPending ? 'Preparando...' : 'Probar curso'}
-            </Button>
-          )}
-        </div>
-      </div>
+      )}
 
+      {/* ── Preview modal ──────────────────────────────────── */}
       {previewNodeId && (
         <NodePreview
           nodeId={previewNodeId}

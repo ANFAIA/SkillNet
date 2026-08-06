@@ -1,0 +1,458 @@
+import { motion } from 'framer-motion'
+import { useSortable } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import { duration } from '../../lib/motion'
+import { InfoTooltip } from '../ui/InfoTooltip'
+import { Button } from '../ui'
+import {
+  CRITICALITY,
+  CRITICALITY_ORDER,
+  CriticalityBadge,
+  DEFAULT_MASTERY_THRESHOLD,
+} from './CriticalityBadge'
+import { PrerequisitePicker, type PrerequisiteOption } from './PrerequisitePicker'
+import { SELECTABLE_UI_FORMATS } from './NodeEditor'
+import type { DraftNode } from './NodeEditor'
+import type { NodeCriticality } from '../../types'
+import type { UiFormat } from '../../types/node-render'
+
+// ── Icons ──────────────────────────────────────────────────
+
+function ChevronIcon({ open }: { open: boolean }) {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={`transition-transform ${open ? 'rotate-90' : ''}`}
+    >
+      <polyline points="9 18 15 12 9 6" />
+    </svg>
+  )
+}
+
+function CheckIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  )
+}
+
+// ── Component ──────────────────────────────────────────────
+
+export interface SchemaTreeNodeProps {
+  id: string
+  index: number
+  node: DraftNode
+  total: number
+  prerequisiteOptions: PrerequisiteOption[]
+  expanded: boolean
+  onToggle: () => void
+  onChange: (patch: Partial<DraftNode>) => void
+  onArchiveToggle: () => void
+  onRemove: () => void
+  /** Server-side review stamp. */
+  reviewedAt: string | null
+  /** Local edits not yet saved. */
+  dirty: boolean
+  /** Schema is validated — all editing disabled. */
+  locked: boolean
+  /** Callback to mark the node reviewed on the server. */
+  onMarkReviewed: (nodeId: string) => void
+  /** Whether a review request is in flight for this node. */
+  markReviewPending: boolean
+  /** Callback to preview the node content. */
+  onPreview: (nodeId: string, rect: DOMRect) => void
+}
+
+export function SchemaTreeNode({
+  id,
+  index,
+  node,
+  total,
+  prerequisiteOptions,
+  expanded,
+  onToggle,
+  onChange,
+  onArchiveToggle,
+  onRemove,
+  reviewedAt,
+  dirty,
+  locked,
+  onMarkReviewed,
+  markReviewPending,
+  onPreview,
+}: SchemaTreeNodeProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition: dndTransition,
+    isDragging,
+  } = useSortable({ id, disabled: locked })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition: dndTransition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 10 : undefined,
+  }
+
+  const disabled = locked
+  const isReviewed = !!reviewedAt && !dirty
+  const canMark = !locked && !!node.id && !dirty
+
+  const critClass =
+    node.criticality === 'critical'
+      ? 'bg-primary-subtle text-primary'
+      : node.criticality === 'recommended'
+        ? 'bg-accent-subtle text-accent'
+        : 'bg-bg-muted text-text-muted'
+
+  const critLabel = CRITICALITY[node.criticality].label
+
+  function changeCriticality(next: NodeCriticality) {
+    const wasDefault =
+      Math.abs(node.masteryThreshold - DEFAULT_MASTERY_THRESHOLD[node.criticality]) < 0.001
+    onChange({
+      criticality: next,
+      masteryThreshold: wasDefault ? DEFAULT_MASTERY_THRESHOLD[next] : node.masteryThreshold,
+    })
+  }
+
+  const thresholdIsDefault =
+    Math.abs(node.masteryThreshold - DEFAULT_MASTERY_THRESHOLD[node.criticality]) < 0.001
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      {/* Row: always visible */}
+      <div
+        className={`flex items-start gap-0 px-2 py-1.5 rounded-md group transition-colors ${
+          expanded ? 'bg-bg-subtle' : 'hover:bg-bg-muted'
+        }`}
+      >
+        {/* Drag handle */}
+        {!locked && (
+          <button
+            {...attributes}
+            {...listeners}
+            className="w-5 shrink-0 flex flex-col items-center gap-0.5 cursor-grab text-text-muted opacity-0 group-hover:opacity-100 transition-opacity mt-0.5"
+            title="Arrastrar"
+          >
+            <span className="block w-2.5 h-0.5 bg-current rounded-full" />
+            <span className="block w-2.5 h-0.5 bg-current rounded-full" />
+            <span className="block w-2.5 h-0.5 bg-current rounded-full" />
+          </button>
+        )}
+        {locked && <span className="w-5 shrink-0" />}
+
+        {/* Toggle */}
+        <button type="button" onClick={onToggle} className="text-text-muted hover:text-text shrink-0 mt-0.5">
+          <ChevronIcon open={expanded} />
+        </button>
+
+        {/* Number dot (colored by criticality) */}
+        <span className={`text-xs font-medium rounded-full w-5 h-5 flex items-center justify-center shrink-0 ml-1 mt-0.5 ${critClass}`}>
+          {index + 1}
+        </span>
+
+        {/* Title + summary (collapsed) */}
+        <div className="flex-1 min-w-0 ml-2">
+          {locked ? (
+            <span className="text-sm font-medium text-text">{node.title || 'Nodo sin titulo'}</span>
+          ) : (
+            <input
+              className="w-full text-sm font-medium text-text bg-transparent border-none focus:outline-none focus:ring-0 p-0 focus:bg-bg focus:shadow-[0_0_0_1px_var(--color-primary)] focus:rounded focus:px-1 focus:-mx-1"
+              value={node.title}
+              onChange={(e) => onChange({ title: e.target.value })}
+              placeholder="Titulo del nodo"
+              disabled={disabled}
+            />
+          )}
+          {!expanded && node.summary && (
+            <p className="text-xs text-text-muted truncate mt-0.5">{node.summary}</p>
+          )}
+        </div>
+
+        {/* Meta indicators */}
+        <div className="flex items-center gap-2 shrink-0 ml-2 mt-0.5">
+          {/* Review status indicator */}
+          {isReviewed ? (
+            <span className="text-accent flex items-center gap-0.5" title="Revisado">
+              <CheckIcon />
+            </span>
+          ) : (
+            <span className="w-2 h-2 rounded-full bg-warning shrink-0" title="Sin revisar" />
+          )}
+
+          {/* Dirty indicator */}
+          {dirty && (
+            <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" title="Cambios sin guardar" />
+          )}
+
+          {!expanded && node.archived && (
+            <span className="text-xs text-text-muted">Arch.</span>
+          )}
+          {!expanded && critLabel && (
+            <span className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${critClass}`}>
+              {critLabel}
+            </span>
+          )}
+          {node.estimatedMinutes != null && (
+            <span className="text-xs text-text-muted whitespace-nowrap">{node.estimatedMinutes} min</span>
+          )}
+        </div>
+      </div>
+
+      {/* Expanded form */}
+      {expanded && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1, transition: { duration: duration.fast } }}
+          className="ml-[42px] pl-4 border-l border-border space-y-1 pb-3"
+        >
+          {/* Review status banner */}
+          <div className="px-2 py-1.5">
+            {isReviewed ? (
+              <span className="text-xs text-accent">
+                Revisado el {new Date(reviewedAt!).toLocaleDateString('es-ES')}
+              </span>
+            ) : dirty ? (
+              <span className="text-xs text-warning">
+                Cambios sin guardar. Guarda el esquema y vuelve a marcarlo como revisado.
+              </span>
+            ) : (
+              <span className="text-xs text-text-muted">
+                Sin revisar.
+              </span>
+            )}
+          </div>
+
+          {/* Summary */}
+          <div className="flex items-start gap-0 px-2 py-1 rounded hover:bg-bg-muted">
+            <span className="w-24 shrink-0 text-xs text-text-muted pt-0.5">Resumen</span>
+            <textarea
+              className="flex-1 min-w-0 text-sm text-text bg-transparent border-none focus:outline-none p-0 resize-none leading-relaxed focus:bg-bg focus:shadow-[0_0_0_1px_var(--color-primary)] focus:rounded focus:px-1.5 focus:py-0.5 focus:-mx-1.5 focus:-my-0.5 disabled:opacity-50"
+              value={node.summary}
+              onChange={(e) => onChange({ summary: e.target.value })}
+              rows={1}
+              disabled={disabled}
+              onInput={(e) => {
+                const t = e.target as HTMLTextAreaElement
+                t.style.height = 'auto'
+                t.style.height = t.scrollHeight + 'px'
+              }}
+            />
+          </div>
+
+          {/* Outcome */}
+          <div className="flex items-start gap-0 px-2 py-1 rounded hover:bg-bg-muted">
+            <span className="w-24 shrink-0 text-xs text-text-muted pt-0.5">Objetivo</span>
+            <input
+              className="flex-1 min-w-0 text-sm text-text bg-transparent border-none focus:outline-none p-0 focus:bg-bg focus:shadow-[0_0_0_1px_var(--color-primary)] focus:rounded focus:px-1.5 focus:-mx-1.5 disabled:opacity-50"
+              value={node.outcome}
+              onChange={(e) => onChange({ outcome: e.target.value })}
+              placeholder="Que sabra hacer el alumno"
+              disabled={disabled}
+            />
+          </div>
+
+          {/* Criticality */}
+          <div className="flex items-center gap-0 px-2 py-1 rounded hover:bg-bg-muted">
+            <span className="w-24 shrink-0 text-xs text-text-muted flex items-center">
+              Importancia
+              <InfoTooltip text="Imprescindible: el alumno debe dominar este tema para completar el curso. Recomendado: importante pero no obligatorio. Contexto: material complementario que enriquece pero no se evalua." />
+            </span>
+            <div className="flex gap-1">
+              {CRITICALITY_ORDER.map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => changeCriticality(value)}
+                  disabled={disabled}
+                  className={`text-xs px-2.5 py-0.5 rounded-full border transition-colors disabled:opacity-50 ${
+                    node.criticality === value
+                      ? value === 'critical'
+                        ? 'bg-primary-subtle text-primary border-primary'
+                        : value === 'recommended'
+                          ? 'bg-accent-subtle text-accent border-accent'
+                          : 'bg-bg-muted text-text-muted border-border-strong'
+                      : 'border-border text-text-muted hover:border-primary'
+                  }`}
+                >
+                  {CRITICALITY[value].label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Format */}
+          <div className="flex items-center gap-0 px-2 py-1 rounded hover:bg-bg-muted">
+            <span className="w-24 shrink-0 text-xs text-text-muted">Formato</span>
+            <div className="flex gap-1 flex-wrap">
+              {SELECTABLE_UI_FORMATS.map((f) => (
+                <button
+                  key={f.value}
+                  type="button"
+                  onClick={() => onChange({ defaultUiFormat: f.value })}
+                  disabled={disabled}
+                  title={f.hint}
+                  className={`text-xs px-2.5 py-0.5 rounded-full border transition-colors disabled:opacity-50 ${
+                    node.defaultUiFormat === f.value
+                      ? 'bg-primary-subtle text-primary border-primary'
+                      : 'border-border text-text-muted hover:border-primary'
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Minutes */}
+          <div className="flex items-center gap-0 px-2 py-1 rounded hover:bg-bg-muted">
+            <span className="w-24 shrink-0 text-xs text-text-muted">Minutos</span>
+            <input
+              type="number"
+              min={1}
+              max={240}
+              className="w-16 text-sm text-text bg-transparent border-none focus:outline-none p-0 focus:bg-bg focus:shadow-[0_0_0_1px_var(--color-primary)] focus:rounded focus:px-1.5 focus:-mx-1.5 disabled:opacity-50"
+              value={node.estimatedMinutes ?? ''}
+              disabled={disabled}
+              placeholder="-"
+              onChange={(e) => {
+                const raw = e.target.value.trim()
+                if (raw === '') {
+                  onChange({ estimatedMinutes: null })
+                  return
+                }
+                const parsed = Number(raw)
+                if (Number.isNaN(parsed)) return
+                onChange({ estimatedMinutes: parsed })
+              }}
+            />
+          </div>
+
+          {/* Mastery threshold */}
+          <div className="flex items-center gap-0 px-2 py-1 rounded hover:bg-bg-muted">
+            <span className="w-24 shrink-0 text-xs text-text-muted flex items-center">
+              Umbral
+              <InfoTooltip text="Porcentaje de maestria necesario para dar el nodo por completado. El valor por defecto depende de la criticidad." />
+            </span>
+            <input
+              type="number"
+              min={0.5}
+              max={1}
+              step={0.05}
+              className="w-16 text-sm text-text bg-transparent border-none focus:outline-none p-0 focus:bg-bg focus:shadow-[0_0_0_1px_var(--color-primary)] focus:rounded focus:px-1.5 focus:-mx-1.5 disabled:opacity-50"
+              value={node.masteryThreshold}
+              disabled={disabled}
+              onChange={(e) => {
+                const parsed = Number(e.target.value)
+                if (Number.isNaN(parsed)) return
+                onChange({ masteryThreshold: parsed })
+              }}
+            />
+            <span className="text-xs text-text-muted ml-2">
+              {thresholdIsDefault ? '(defecto)' : '(personalizado)'}
+            </span>
+          </div>
+
+          {/* Source headings */}
+          <div className="flex items-start gap-0 px-2 py-1 rounded hover:bg-bg-muted">
+            <span className="w-24 shrink-0 text-xs text-text-muted pt-0.5">Apartados</span>
+            <textarea
+              className="flex-1 min-w-0 text-xs text-text bg-transparent border-none focus:outline-none p-0 resize-none leading-relaxed font-mono focus:bg-bg focus:shadow-[0_0_0_1px_var(--color-primary)] focus:rounded focus:px-1.5 focus:py-0.5 focus:-mx-1.5 focus:-my-0.5 disabled:opacity-50"
+              rows={2}
+              value={node.sourceHeadings.join('\n')}
+              disabled={disabled}
+              placeholder="Un apartado por linea"
+              onChange={(e) =>
+                onChange({
+                  sourceHeadings: e.target.value
+                    .split('\n')
+                    .map((line) => line.trim())
+                    .filter(Boolean),
+                })
+              }
+              onInput={(e) => {
+                const t = e.target as HTMLTextAreaElement
+                t.style.height = 'auto'
+                t.style.height = t.scrollHeight + 'px'
+              }}
+            />
+          </div>
+
+          {/* Prerequisites */}
+          <div className="px-2 py-1">
+            <PrerequisitePicker
+              options={prerequisiteOptions}
+              selected={node.prerequisiteNodeIds}
+              onChange={(next) => onChange({ prerequisiteNodeIds: next })}
+              disabled={disabled}
+            />
+          </div>
+
+          {/* Action row */}
+          <div className="flex flex-wrap items-center gap-2 px-2 pt-2 border-t border-border mt-2">
+            {/* Mark reviewed */}
+            {!isReviewed && !node.archived && (
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={!canMark || markReviewPending}
+                onClick={() => node.id && onMarkReviewed(node.id)}
+              >
+                {markReviewPending ? 'Marcando...' : 'Marcar revisado'}
+              </Button>
+            )}
+
+            {/* Preview */}
+            {node.id && !dirty && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={(e) => {
+                  onPreview(node.id!, e.currentTarget.getBoundingClientRect())
+                }}
+              >
+                Previsualizar
+              </Button>
+            )}
+
+            {/* Archive / remove */}
+            {!locked && (
+              <>
+                <Button variant="ghost" size="sm" onClick={onArchiveToggle}>
+                  {node.archived ? 'Desarchivar' : 'Archivar'}
+                </Button>
+                <Button variant="ghost" size="sm" onClick={onRemove}>
+                  Quitar
+                </Button>
+              </>
+            )}
+          </div>
+
+          {/* Helper text for mark reviewed */}
+          {!isReviewed && !node.archived && !node.id && (
+            <p className="text-xs text-text-muted px-2">
+              Guarda el esquema para poder revisar este nodo nuevo.
+            </p>
+          )}
+          {!isReviewed && !node.archived && node.id && dirty && (
+            <p className="text-xs text-text-muted px-2">
+              Guarda los cambios primero: al guardar se borra la revision de los nodos que cambiaron.
+            </p>
+          )}
+        </motion.div>
+      )}
+    </div>
+  )
+}
