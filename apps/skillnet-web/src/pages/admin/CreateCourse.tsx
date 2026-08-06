@@ -507,13 +507,23 @@ export function CreateCourse() {
     if (source) setPhase('details')
   }, [source])
 
+  // Cleanup async operations on unmount
+  useEffect(() => {
+    return () => {
+      proposeAbortRef.current?.abort()
+      if (densityDebounceRef.current) clearTimeout(densityDebounceRef.current)
+    }
+  }, [])
+
   // Backward from details: useInstantLayoutTransition suppresses the reverse morph
   const goBackToChoose = useCallback(() => {
     startInstant(() => {
       setPhase('choose')
       setSource(null)
+      uploader.clearUploads()
+      setDocumentId(null)
     })
-  }, [startInstant])
+  }, [startInstant, uploader])
 
   // Backward from schema: same card, just swap content
   const goBackToDetails = useCallback(() => {
@@ -859,7 +869,7 @@ export function CreateCourse() {
                         {uploader.uploads.length > 0 && (
                           <div className="space-y-2">
                             {uploader.uploads.map((u, i) => (
-                              <UploadedFileRow key={i} upload={u} onRemove={() => { uploader.removeUpload(i); if (u.documentId === documentId) setDocumentId(null) }} />
+                              <UploadedFileRow key={u.id} upload={u} onRemove={() => { uploader.removeUpload(u.id); if (u.documentId === documentId) setDocumentId(null) }} />
                             ))}
                           </div>
                         )}
@@ -952,7 +962,7 @@ export function CreateCourse() {
                           {uploader.uploads.length > 0 && (
                             <div className="space-y-2 mt-3">
                               {uploader.uploads.map((u, i) => (
-                                <UploadedFileRow key={i} upload={u} onRemove={() => { uploader.removeUpload(i); if (u.documentId === documentId) setDocumentId(null) }} />
+                                <UploadedFileRow key={u.id} upload={u} onRemove={() => { uploader.removeUpload(u.id); if (u.documentId === documentId) setDocumentId(null) }} />
                               ))}
                             </div>
                           )}

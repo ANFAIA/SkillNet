@@ -23,6 +23,7 @@ export function useDocument(documentId: string | null | undefined) {
 }
 
 export interface UploadProgress {
+  id: string // stable key for React lists and removal
   file: File
   progress: number // 0-100
   status: 'uploading' | 'processing' | 'ready' | 'error'
@@ -37,7 +38,8 @@ export function useUploadDocument() {
 
   const uploadFile = useCallback(
     async (file: File): Promise<DocumentRead> => {
-      const entry: UploadProgress = { file, progress: 0, status: 'uploading' }
+      const uploadId = `upload-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+      const entry: UploadProgress = { id: uploadId, file, progress: 0, status: 'uploading' }
       setUploads((prev) => [...prev, entry])
 
       const formData = new FormData()
@@ -51,7 +53,7 @@ export function useUploadDocument() {
             if (e.lengthComputable) {
               const pct = Math.round((e.loaded / e.total) * 100)
               setUploads((prev) =>
-                prev.map((u) => (u.file === file ? { ...u, progress: pct } : u)),
+                prev.map((u) => (u.id === uploadId ? { ...u, progress: pct } : u)),
               )
             }
           })
@@ -79,7 +81,7 @@ export function useUploadDocument() {
 
         setUploads((prev) =>
           prev.map((u) =>
-            u.file === file
+            u.id === uploadId
               ? { ...u, progress: 100, status: 'processing', documentId: result.id }
               : u,
           ),
@@ -90,7 +92,7 @@ export function useUploadDocument() {
       } catch (err) {
         setUploads((prev) =>
           prev.map((u) =>
-            u.file === file ? { ...u, status: 'error', error: (err as Error).message } : u,
+            u.id === uploadId ? { ...u, status: 'error', error: (err as Error).message } : u,
           ),
         )
         throw err
@@ -105,8 +107,8 @@ export function useUploadDocument() {
     )
   }, [])
 
-  const removeUpload = useCallback((index: number) => {
-    setUploads((prev) => prev.filter((_, i) => i !== index))
+  const removeUpload = useCallback((id: string) => {
+    setUploads((prev) => prev.filter((u) => u.id !== id))
   }, [])
 
   const clearUploads = useCallback(() => setUploads([]), [])
