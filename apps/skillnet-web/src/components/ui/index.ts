@@ -16,6 +16,9 @@ export type { EmptyStateProps } from './EmptyState'
 export { FileUploadZone } from './FileUploadZone'
 export type { FileUploadZoneProps } from './FileUploadZone'
 
+export { InfoTooltip } from './InfoTooltip'
+export type { InfoTooltipProps } from './InfoTooltip'
+
 export { Input } from './Input'
 export type { InputProps } from './Input'
 export { Textarea } from './Textarea'
