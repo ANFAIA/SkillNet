@@ -237,7 +237,7 @@ export function SortableTreeNode({
               max={120}
               className="w-16 text-sm text-text bg-transparent border-none focus:outline-none p-0 focus:bg-bg focus:shadow-[0_0_0_1px_var(--color-primary)] focus:rounded focus:px-1.5 focus:-mx-1.5"
               value={node.estimated_minutes}
-              onChange={(e) => onChange({ estimated_minutes: Number(e.target.value) || 1 })}
+              onChange={(e) => onChange({ estimated_minutes: Math.max(1, Math.min(120, Number(e.target.value) || 1)) })}
             />
           </div>
 

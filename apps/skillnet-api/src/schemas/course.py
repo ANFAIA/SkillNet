@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from src.schemas.exercise import ExerciseRead
 
@@ -55,17 +55,35 @@ class CourseDetail(CourseRead):
 
 
 class CourseCreate(BaseModel):
-    title: str
+    title: str = Field(min_length=1, max_length=300)
     description: str | None = None
     outcome: str | None = None
     source_document_id: uuid.UUID | None = None
     document_ids: list[uuid.UUID] | None = None
 
+    @field_validator("title")
+    @classmethod
+    def _strip_title(cls, value: str) -> str:
+        stripped = value.strip()
+        if not stripped:
+            raise ValueError("must not be blank")
+        return stripped
+
 
 class CourseUpdate(BaseModel):
-    title: str | None = None
+    title: str | None = Field(default=None, min_length=1, max_length=300)
     description: str | None = None
     outcome: str | None = None
+
+    @field_validator("title")
+    @classmethod
+    def _strip_title(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        stripped = value.strip()
+        if not stripped:
+            raise ValueError("must not be blank")
+        return stripped
 
 
 class LessonUpdate(BaseModel):
