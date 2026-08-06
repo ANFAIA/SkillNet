@@ -722,7 +722,9 @@ export function CreateCourse() {
         })
       }
 
-      setPhase('assign')
+      // Navigate to the course schema page where the admin can review,
+      // validate, and test the course.
+      navigate(`/admin/curso/${course.id}/esquema`)
     } catch (err) {
       setStartError(failMsg(err, 'No se pudo crear el curso'))
     }
