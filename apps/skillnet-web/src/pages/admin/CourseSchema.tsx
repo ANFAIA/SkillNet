@@ -8,6 +8,8 @@ import { ReviewChecklist } from '../../components/schema/ReviewChecklist'
 import { SchemaValidationPanel } from '../../components/schema/SchemaValidationPanel'
 import type { PrerequisiteOption } from '../../components/schema/PrerequisitePicker'
 import { useCourse } from '../../api/courses'
+import { useAssignCourse } from '../../api/enrollments'
+import { useAuth } from '../../hooks/useAuth'
 import { NodePreview } from '../../components/schema/NodePreview'
 import {
   schemaErrorMessage,
@@ -126,6 +128,8 @@ export function CourseSchema() {
   const unvalidateSchema = useUnvalidateCourseSchema(id)
   const proposeSchema = useProposeCourseSchema(id)
   const markReviewed = useMarkNodeReviewed(id)
+  const assignCourse = useAssignCourse()
+  const { user: currentUser } = useAuth()
 
   const [draft, setDraft] = useState<DraftNode[]>([])
   const [density, setDensity] = useState(3)
@@ -642,6 +646,24 @@ export function CourseSchema() {
           >
             {validateSchema.isPending ? 'Validando...' : 'Validar esquema'}
           </Button>
+          {locked && id && (
+            <Button
+              variant="primary"
+              onClick={() => {
+                if (!id || !currentUser) return
+                assignCourse.mutate(
+                  { user_ids: [currentUser.id], course_id: id },
+                  {
+                    onSuccess: () => navigate(`/empleado/curso/${id}`),
+                    onError: () => navigate(`/empleado/curso/${id}`),
+                  },
+                )
+              }}
+              disabled={assignCourse.isPending}
+            >
+              {assignCourse.isPending ? 'Preparando...' : 'Probar curso'}
+            </Button>
+          )}
         </div>
       </div>
 

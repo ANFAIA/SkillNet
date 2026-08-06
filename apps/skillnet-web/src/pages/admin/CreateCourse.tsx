@@ -664,6 +664,22 @@ export function CreateCourse() {
 
   async function handleCreateFromSchema() {
     setStartError(null)
+
+    // Validate that every node has a non-empty title and summary before calling
+    // the API — the backend rejects empty strings and the generic "Validation
+    // failed" message is unhelpful.
+    for (let i = 0; i < proposedNodes.length; i++) {
+      const n = proposedNodes[i]
+      if (!n.title.trim()) {
+        setStartError(`El nodo ${i + 1} no tiene titulo.`)
+        return
+      }
+      if (!n.summary.trim()) {
+        setStartError(`El nodo ${i + 1} («${n.title.trim()}») no tiene resumen.`)
+        return
+      }
+    }
+
     try {
       const sourceId = source === 'importar' ? documentId ?? undefined : undefined
       const course = await createCourse.mutateAsync({
@@ -675,9 +691,9 @@ export function CreateCourse() {
 
       // Save the proposed nodes as the course schema (two-step: create nodes, then wire prerequisites)
       const toNodePayload = (n: ProposedNode, i: number, prereqIds: string[] = []) => ({
-        title: n.title,
-        summary: n.summary,
-        outcome: n.outcome,
+        title: n.title.trim(),
+        summary: n.summary.trim(),
+        outcome: n.outcome?.trim() || null,
         criticality: n.criticality,
         position: i + 1,
         mastery_threshold: n.criticality === 'critical' ? 0.9 : n.criticality === 'recommended' ? 0.8 : 0.7,
