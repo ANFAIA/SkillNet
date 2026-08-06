@@ -56,26 +56,6 @@ import type { CourseSchema as CourseSchemaRead, CourseSchemaNode } from '../../t
  *   the unvalidate button next to it rather than reporting a generic save failure.
  */
 
-const STATUS_COPY: Record<string, { label: string; className: string }> = {
-  draft: { label: 'Borrador', className: 'bg-bg-muted text-text-secondary' },
-  proposed: { label: 'Propuesto', className: 'bg-primary-subtle text-primary' },
-  validated: { label: 'Validado', className: 'bg-accent-subtle text-accent' },
-  archived: { label: 'Archivado', className: 'bg-bg-muted text-text-secondary' },
-}
-
-function StatusPill({ status }: { status: string }) {
-  const copy = STATUS_COPY[status] ?? {
-    label: status,
-    className: 'bg-bg-muted text-text-secondary',
-  }
-  return (
-    <span
-      className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full shrink-0 ${copy.className}`}
-    >
-      {copy.label}
-    </span>
-  )
-}
 
 function PlusIcon({ size = 14 }: { size?: number }) {
   return (
@@ -420,34 +400,13 @@ export function CourseSchema() {
           <h2 className="text-xl font-semibold text-text truncate min-w-0">
             {courseQuery.data?.title ?? 'Esquema del curso'}
           </h2>
-          <StatusPill status={server.schema_status} />
         </div>
         <p className="text-sm text-text-secondary mt-1">
-          Esquema v{server.schema_version} · {draft.length}{' '}
-          {draft.length === 1 ? 'nodo' : 'nodos'} ·{' '}
-          {server.delivery_mode === 'dynamic' ? 'entrega dinamica' : 'entrega estatica'}
+          {draft.length} {draft.length === 1 ? 'nodo' : 'nodos'}
+          {totalMinutes > 0 && ` · ${totalMinutes} min`}
         </p>
       </div>
 
-      {/* ── Status banner ────────────────────────────────── */}
-      {locked ? (
-        <div className="border border-accent/40 bg-accent-subtle rounded-lg p-4 mb-5 min-w-0">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-medium text-text">Curso activo</p>
-              <p className="text-xs text-text-secondary mt-0.5">Los empleados pueden cursarlo. Puedes editar sacandolo de validacion.</p>
-            </div>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={unvalidate}
-              disabled={unvalidateSchema.isPending}
-            >
-              {unvalidateSchema.isPending ? 'Sacando...' : 'Editar esquema'}
-            </Button>
-          </div>
-        </div>
-      ) : null}
 
       {/* ── Locked notice from server ──────────────────────── */}
       {lockedNotice && (
