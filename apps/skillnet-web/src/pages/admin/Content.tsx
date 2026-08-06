@@ -2,7 +2,8 @@ import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Card, Badge, Button, EmptyState, SkeletonCard } from '../../components/ui'
 import { useCourses } from '../../api/courses'
-import { ApiError } from '../../api/client'
+import { ApiError, post } from '../../api/client'
+import { useAuth } from '../../hooks/useAuth'
 import { staggerContainer, staggerItem } from '../../lib/motion'
 import type { CourseStatus } from '../../types'
 
@@ -37,6 +38,7 @@ function PlusIcon() {
 export function Content() {
   const navigate = useNavigate()
   const { data, isLoading, error } = useCourses()
+  const { user: currentUser } = useAuth()
 
   const courses = data?.items ?? []
   const published = courses.filter((c) => c.status === 'published')
@@ -113,12 +115,29 @@ export function Content() {
                       </Badge>
                     </div>
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-0.5 mt-1 text-xs text-text-muted">
-                      <span>{course.module_count} modulos</span>
+                      {course.delivery_mode === 'dynamic' ? (
+                        <span className="text-primary font-medium">Dinamico</span>
+                      ) : (
+                        <span>{course.module_count} modulos</span>
+                      )}
                       {course.outcome && <span className="truncate max-w-xs">{course.outcome}</span>}
                       <span>Creado: {new Date(course.created_at).toLocaleDateString()}</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
+                    {course.delivery_mode === 'dynamic' && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={async () => {
+                          if (!currentUser) return
+                          await post('/enrollments', { user_ids: [currentUser.id], course_id: course.id }).catch(() => {})
+                          navigate(`/empleado/curso/${course.id}`)
+                        }}
+                      >
+                        Probar
+                      </Button>
+                    )}
                     {course.module_count > 0 && course.delivery_mode !== 'dynamic' && (
                       <Button
                         variant="ghost"
