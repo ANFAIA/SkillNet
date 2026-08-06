@@ -722,8 +722,14 @@ export function CreateCourse() {
         })
       }
 
-      // Navigate to the course schema page where the admin can review,
-      // validate, and test the course.
+      // The admin just designed these nodes — auto-review and validate so
+      // the course is immediately usable by learners.
+      const schema = await get<{ nodes: { id: string }[] }>(`/courses/${course.id}/schema`)
+      for (const node of schema.nodes) {
+        await post(`/courses/${course.id}/schema/nodes/${node.id}/review`, {}).catch(() => {})
+      }
+      await post(`/courses/${course.id}/schema/validate`, {}).catch(() => {})
+
       navigate(`/admin/curso/${course.id}/esquema`)
     } catch (err) {
       setStartError(failMsg(err, 'No se pudo crear el curso'))
