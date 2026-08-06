@@ -436,35 +436,31 @@ export function CourseSchema() {
         </p>
       </div>
 
-      {/* ── Locked / draft banner ──────────────────────────── */}
+      {/* ── Status banner ────────────────────────────────── */}
       {locked ? (
         <div className="border border-accent/40 bg-accent-subtle rounded-lg p-4 mb-5 min-w-0">
-          <p className="text-sm font-medium text-text">Esquema validado y en servicio</p>
-          <p className="text-sm text-text-secondary mt-1">
-            Los aprendices matriculados reciben lecciones generadas nodo a nodo. Para editar
-            el esquema hay que sacarlo de validacion, lo que devuelve el curso al modo
-            estatico hasta que lo vuelvas a validar.
-          </p>
-          <Button
-            variant="secondary"
-            size="sm"
-            className="mt-3"
-            onClick={unvalidate}
-            disabled={unvalidateSchema.isPending}
-          >
-            {unvalidateSchema.isPending ? 'Sacando...' : 'Sacar de validacion'}
-          </Button>
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-medium text-text">Curso activo</p>
+              <p className="text-xs text-text-secondary mt-0.5">Los empleados pueden cursarlo. Puedes editar sacandolo de validacion.</p>
+            </div>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={unvalidate}
+              disabled={unvalidateSchema.isPending}
+            >
+              {unvalidateSchema.isPending ? 'Sacando...' : 'Editar esquema'}
+            </Button>
+          </div>
         </div>
-      ) : (
+      ) : draft.length > 0 ? (
         <div className="border border-border bg-bg-subtle rounded-lg p-4 mb-5 min-w-0">
-          <p className="text-sm font-medium text-text">Todavia no se genera nada</p>
-          <p className="text-sm text-text-secondary mt-1">
-            Hasta que valides este esquema, ningun aprendiz recibe contenido de este curso y
-            no se genera ninguna leccion. Revisa nodo a nodo y valida cuando el esquema te
-            convenza.
-          </p>
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm text-text-secondary">Curso en borrador. Valida el esquema para activarlo.</p>
+          </div>
         </div>
-      )}
+      ) : null}
 
       {/* ── Locked notice from server ──────────────────────── */}
       {lockedNotice && (
