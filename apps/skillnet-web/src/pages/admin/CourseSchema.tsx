@@ -391,13 +391,6 @@ export function CourseSchema() {
     )
   }
 
-  const validateBlockedReason = locked
-    ? 'Este esquema ya esta validado.'
-    : draft.length === 0
-      ? 'El esquema no tiene nodos.'
-      : dirty
-        ? 'Guarda los cambios antes de validar.'
-        : null
 
   return (
     <div>
@@ -452,12 +445,6 @@ export function CourseSchema() {
             >
               {unvalidateSchema.isPending ? 'Sacando...' : 'Editar esquema'}
             </Button>
-          </div>
-        </div>
-      ) : draft.length > 0 ? (
-        <div className="border border-border bg-bg-subtle rounded-lg p-4 mb-5 min-w-0">
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-sm text-text-secondary">Curso en borrador. Valida el esquema para activarlo.</p>
           </div>
         </div>
       ) : null}
@@ -656,44 +643,77 @@ export function CourseSchema() {
               >
                 {updateSchema.isPending ? 'Guardando...' : 'Guardar cambios'}
               </Button>
-              <Button
-                variant="accent"
-                className="w-full"
-                onClick={async () => {
-                  // Auto-review all nodes before validating
-                  if (server) {
-                    for (const node of server.nodes) {
-                      await new Promise<void>((resolve) => markReviewed.mutate(node.id, { onSettled: () => resolve() }))
-                    }
-                  }
-                  validateSchema.mutate()
-                }}
-                disabled={!!validateBlockedReason || validateSchema.isPending}
-                title={validateBlockedReason ?? 'Activa la entrega dinamica de este curso'}
-              >
-                {validateSchema.isPending ? 'Validando...' : 'Validar esquema'}
-              </Button>
-              {locked && id && (
-                <Button
-                  variant="primary"
-                  className="w-full"
-                  onClick={() => {
-                    if (!id || !currentUser) return
-                    assignCourse.mutate(
-                      { user_ids: [currentUser.id], course_id: id },
-                      {
-                        onSuccess: () => navigate(`/empleado/curso/${id}`),
-                        onError: () => navigate(`/empleado/curso/${id}`),
-                      },
-                    )
-                  }}
-                  disabled={assignCourse.isPending}
-                >
-                  {assignCourse.isPending ? 'Preparando...' : 'Probar curso'}
-                </Button>
-              )}
-              {validateBlockedReason && !locked && (
-                <p className="text-xs text-text-muted">{validateBlockedReason}</p>
+              {locked ? (
+                <>
+                  <Button
+                    variant="primary"
+                    className="w-full"
+                    onClick={() => {
+                      if (!id || !currentUser) return
+                      assignCourse.mutate(
+                        { user_ids: [currentUser.id], course_id: id },
+                        {
+                          onSuccess: () => navigate(`/empleado/curso/${id}`),
+                          onError: () => navigate(`/empleado/curso/${id}`),
+                        },
+                      )
+                    }}
+                    disabled={assignCourse.isPending}
+                  >
+                    {assignCourse.isPending ? 'Preparando...' : 'Probar curso'}
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button
+                    variant="accent"
+                    className="w-full"
+                    onClick={async () => {
+                      // Save first if dirty
+                      if (dirty) {
+                        await new Promise<void>((resolve, reject) => {
+                          updateSchema.mutate(
+                            {
+                              intent_density: density,
+                              nodes: draft.map((node, index) => ({
+                                ...(node.id ? { id: node.id } : {}),
+                                title: node.title.trim(),
+                                summary: node.summary.trim() || node.title.trim(),
+                                outcome: node.outcome.trim() ? node.outcome.trim() : null,
+                                criticality: node.criticality,
+                                position: index + 1,
+                                mastery_threshold: node.masteryThreshold,
+                                estimated_minutes: node.estimatedMinutes,
+                                default_ui_format: node.defaultUiFormat,
+                                skill_id: node.skillId,
+                                seed_lesson_id: node.seedLessonId,
+                                source_document_id: node.sourceDocumentId,
+                                source_headings: node.sourceHeadings,
+                                prerequisite_node_ids: node.prerequisiteNodeIds,
+                                archived: node.archived,
+                              })),
+                            },
+                            { onSuccess: () => resolve(), onError: (e) => reject(e) },
+                          )
+                        })
+                        // Wait for schema to refresh
+                        await schemaQuery.refetch()
+                      }
+                      // Auto-review all nodes
+                      const freshSchema = schemaQuery.data
+                      if (freshSchema) {
+                        for (const node of freshSchema.nodes) {
+                          await new Promise<void>((resolve) => markReviewed.mutate(node.id, { onSettled: () => resolve() }))
+                        }
+                      }
+                      // Validate
+                      validateSchema.mutate()
+                    }}
+                    disabled={draft.length === 0 || validateSchema.isPending}
+                  >
+                    {validateSchema.isPending ? 'Activando...' : 'Activar curso'}
+                  </Button>
+                </>
               )}
             </div>
           </div>
