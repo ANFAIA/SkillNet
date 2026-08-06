@@ -19,6 +19,7 @@ import { useGenerationProgress, useGenerationJobStatus, jobToProgress } from '..
 import { useUsers } from '../../api/users'
 import { useAssignCourse } from '../../api/enrollments'
 import { ApiError, post, put } from '../../api/client'
+import { useAuth } from '../../hooks/useAuth'
 import type { GenerationProgress as GenProgress, User, Lesson, Exercise } from '../../types'
 
 type SourceType = 'importar' | 'crear' | null
@@ -371,6 +372,7 @@ const innerFadeIn = {
 
 export function CreateCourse() {
   const navigate = useNavigate()
+  const { user: currentUser } = useAuth()
 
   // Phase state
   const [phase, setPhase] = useState<Phase>('choose')
@@ -763,9 +765,33 @@ export function CreateCourse() {
             <Button variant="ghost" onClick={() => navigate('/admin/contenido')}>
               Saltar
             </Button>
-            <Button variant="primary" onClick={finish} disabled={assign.isPending}>
-              {assign.isPending ? 'Asignando...' : assignSelected.size > 0 ? 'Asignar y finalizar' : 'Finalizar'}
-            </Button>
+            <div className="flex items-center gap-3">
+              {courseId && (
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    if (!courseId || !currentUser) return
+                    // Self-enroll admin to preview, then navigate to learner view
+                    assign.mutate(
+                      { user_ids: [currentUser.id], course_id: courseId },
+                      {
+                        onSuccess: () => navigate(`/empleado/curso/${courseId}`),
+                        onError: () => {
+                          // Already enrolled — just navigate
+                          navigate(`/empleado/curso/${courseId}`)
+                        },
+                      },
+                    )
+                  }}
+                  disabled={assign.isPending}
+                >
+                  Probar curso
+                </Button>
+              )}
+              <Button variant="primary" onClick={finish} disabled={assign.isPending}>
+                {assign.isPending ? 'Asignando...' : assignSelected.size > 0 ? 'Asignar y finalizar' : 'Finalizar'}
+              </Button>
+            </div>
           </div>
         </motion.div>
       </div>
