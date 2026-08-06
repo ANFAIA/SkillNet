@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
@@ -68,6 +68,18 @@ export function SchemaContent({
   startError,
 }: SchemaContentProps) {
   const [expandedNodes, setExpandedNodes] = useState<Set<number>>(new Set())
+  const [hasInteracted, setHasInteracted] = useState(false)
+  const hasEverHadNodes = useRef(false)
+  const [pendingDensity, setPendingDensity] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (nodes.length > 0) hasEverHadNodes.current = true
+  }, [nodes.length])
+
+  const handleNodeChange = (i: number, patch: Partial<ProposedNode>) => {
+    setHasInteracted(true)
+    onNodeChange(i, patch)
+  }
 
   const toggleNode = (i: number) => {
     setExpandedNodes((prev) => {
@@ -151,14 +163,28 @@ export function SchemaContent({
     )
   }
 
-  // Empty state
+  // Empty state — distinguish "never proposed" vs "user deleted all"
   if (nodes.length === 0) {
     return (
       <div className="text-center py-12">
-        <p className="text-sm text-text-muted">No se generaron nodos</p>
-        <button type="button" onClick={onNodeAdd} className="mt-3 text-sm text-primary hover:underline">
-          Anadir nodo manualmente
-        </button>
+        <p className="text-sm text-text">
+          {hasEverHadNodes.current ? 'Has eliminado todos los nodos' : 'No se generaron nodos'}
+        </p>
+        <p className="text-xs text-text-muted mt-1">
+          {hasEverHadNodes.current
+            ? 'Puedes reproponer el esquema o anadir nodos manualmente'
+            : 'Prueba a cambiar la densidad o el titulo del curso'}
+        </p>
+        <div className="flex items-center justify-center gap-3 mt-4">
+          {hasEverHadNodes.current && (
+            <Button variant="secondary" size="sm" onClick={() => onDensityChange(density)}>
+              Reproponer
+            </Button>
+          )}
+          <button type="button" onClick={onNodeAdd} className="text-sm text-primary hover:underline">
+            Anadir nodo
+          </button>
+        </div>
       </div>
     )
   }
@@ -177,15 +203,43 @@ export function SchemaContent({
               min={1}
               max={5}
               step={1}
-              value={density}
-              onChange={(e) => onDensityChange(Number(e.target.value))}
+              value={pendingDensity ?? density}
+              onChange={(e) => {
+                const v = Number(e.target.value)
+                if (hasInteracted) {
+                  setPendingDensity(v)
+                } else {
+                  onDensityChange(v)
+                }
+              }}
               className="w-full accent-primary"
             />
             <div className="flex justify-between text-xs text-text-muted mt-1">
               <span>Breve</span>
-              <span>{density}</span>
+              <span>{pendingDensity ?? density}</span>
               <span>Detallado</span>
             </div>
+            {pendingDensity !== null && (
+              <div className="mt-2">
+                <p className="text-xs text-warning">Esto reemplazara tus cambios</p>
+                <div className="flex gap-2 mt-1.5">
+                  <button
+                    type="button"
+                    onClick={() => { setHasInteracted(false); onDensityChange(pendingDensity); setPendingDensity(null) }}
+                    className="text-xs text-primary hover:underline"
+                  >
+                    Reproponer
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPendingDensity(null)}
+                    className="text-xs text-text-muted hover:underline"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="space-y-2 text-sm">
@@ -213,6 +267,20 @@ export function SchemaContent({
 
       {/* Right: tree */}
       <div className="flex-1 min-w-0">
+        {/* AI proposal banner — disappears after first edit */}
+        <AnimatePresence>
+          {!hasInteracted && nodes.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1, transition: { duration: duration.normal } }}
+              exit={{ opacity: 0, transition: { duration: duration.fast } }}
+              className="border-l-4 border-accent bg-accent-subtle px-4 py-2.5 rounded-r-md mb-4"
+            >
+              <p className="text-sm text-text">La IA propone {nodes.length} nodos. Revisalos y ajustalos antes de crear el curso.</p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={nodeIds} strategy={verticalListSortingStrategy}>
             <AnimatePresence initial={false}>
@@ -234,7 +302,7 @@ export function SchemaContent({
                     nodes={nodes}
                     expanded={expandedNodes.has(i)}
                     onToggle={() => toggleNode(i)}
-                    onChange={(patch) => onNodeChange(i, patch)}
+                    onChange={(patch) => handleNodeChange(i, patch)}
                     onDelete={() => handleDelete(i)}
                   />
                 </motion.div>
