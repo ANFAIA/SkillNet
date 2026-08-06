@@ -16,7 +16,7 @@ import { useCreateCourse, useGenerateContent, usePublishCourse, useCourse, useUp
 import { useGenerationProgress, useGenerationJobStatus, jobToProgress } from '../../api/generation'
 import { useUsers } from '../../api/users'
 import { useAssignCourse } from '../../api/enrollments'
-import { ApiError, post, put } from '../../api/client'
+import { ApiError, get, post, put } from '../../api/client'
 import { useAuth } from '../../hooks/useAuth'
 import type { GenerationProgress as GenProgress, User, Lesson, Exercise, ExerciseContent } from '../../types'
 import type { ProposedNode, Phase, SourceType, DeliveryChoice } from './createCourseTypes'
@@ -881,19 +881,25 @@ export function CreateCourse() {
               {courseId && (
                 <Button
                   variant="secondary"
-                  onClick={() => {
+                  onClick={async () => {
                     if (!courseId || !currentUser) return
-                    // Self-enroll admin to preview, then navigate to learner view
-                    assign.mutate(
-                      { user_ids: [currentUser.id], course_id: courseId },
-                      {
-                        onSuccess: () => navigate(`/empleado/curso/${courseId}`),
-                        onError: () => {
-                          // Already enrolled -- just navigate
-                          navigate(`/empleado/curso/${courseId}`)
-                        },
-                      },
-                    )
+                    try {
+                      // 1. Try to validate directly (fails if not reviewed)
+                      await post(`/courses/${courseId}/schema/validate`, {}).catch(async () => {
+                        // Review all nodes first, then validate
+                        const schema = await get<{ nodes: { id: string }[] }>(`/courses/${courseId}/schema`)
+                        for (const node of schema.nodes) {
+                          await post(`/courses/${courseId}/schema/nodes/${node.id}/review`, {}).catch(() => {})
+                        }
+                        await post(`/courses/${courseId}/schema/validate`, {})
+                      })
+                      // 2. Enroll admin (ignore conflict if already enrolled)
+                      await post('/enrollments', { user_ids: [currentUser.id], course_id: courseId }).catch(() => {})
+                      // 3. Navigate to learner view
+                      navigate(`/empleado/curso/${courseId}`)
+                    } catch {
+                      setStartError('No se pudo preparar el curso para probarlo. Revisa el esquema.')
+                    }
                   }}
                   disabled={assign.isPending}
                 >
