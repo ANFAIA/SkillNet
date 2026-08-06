@@ -7,14 +7,12 @@ import { Button } from '../ui'
 import {
   CRITICALITY,
   CRITICALITY_ORDER,
-  CriticalityBadge,
   DEFAULT_MASTERY_THRESHOLD,
 } from './CriticalityBadge'
 import { PrerequisitePicker, type PrerequisiteOption } from './PrerequisitePicker'
 import { SELECTABLE_UI_FORMATS } from './NodeEditor'
 import type { DraftNode } from './NodeEditor'
 import type { NodeCriticality } from '../../types'
-import type { UiFormat } from '../../types/node-render'
 
 // ── Icons ──────────────────────────────────────────────────
 
@@ -75,7 +73,7 @@ export function SchemaTreeNode({
   id,
   index,
   node,
-  total,
+  total: _total,
   prerequisiteOptions,
   expanded,
   onToggle,
