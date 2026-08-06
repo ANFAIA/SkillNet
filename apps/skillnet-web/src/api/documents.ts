@@ -105,9 +105,13 @@ export function useUploadDocument() {
     )
   }, [])
 
+  const removeUpload = useCallback((index: number) => {
+    setUploads((prev) => prev.filter((_, i) => i !== index))
+  }, [])
+
   const clearUploads = useCallback(() => setUploads([]), [])
 
-  return { uploadFile, uploads, markReady, clearUploads }
+  return { uploadFile, uploads, markReady, removeUpload, clearUploads }
 }
 
 /** How long to wait for a synthesised source to finish ingesting, and how often to ask. */

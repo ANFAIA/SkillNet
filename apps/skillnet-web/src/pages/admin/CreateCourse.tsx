@@ -115,6 +115,41 @@ function InfoTooltip({ text }: { text: string }) {
   )
 }
 
+function UploadedFileRow({ upload: u, onRemove }: { upload: { file: File; status: string; progress: number; error?: string; documentId?: string }; onRemove: () => void }) {
+  return (
+    <div className="flex items-center gap-3 border border-border rounded-lg px-3 py-2.5 group">
+      <div className="shrink-0 w-8 h-8 rounded bg-bg-muted flex items-center justify-center">
+        <FileIcon />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm text-text truncate">{u.file.name}</p>
+        <p className="text-xs text-text-muted">
+          {(u.file.size / 1024).toFixed(0)} KB
+          {u.status === 'uploading' && ' · Subiendo...'}
+          {u.status === 'processing' && ' · Procesando...'}
+          {u.status === 'ready' && ' · Listo'}
+          {u.status === 'error' && ' · Error'}
+        </p>
+        {u.status === 'uploading' && <ProgressBar value={u.progress} size="sm" className="mt-1.5" />}
+      </div>
+      {(u.status === 'ready' || u.status === 'processing') && (
+        <span className="text-accent shrink-0"><CheckIcon /></span>
+      )}
+      {u.status === 'error' && (
+        <span className="text-danger text-xs shrink-0">{u.error}</span>
+      )}
+      <button
+        type="button"
+        onClick={onRemove}
+        className="text-text-muted hover:text-danger p-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+        title="Eliminar"
+      >
+        <XIcon size={14} />
+      </button>
+    </div>
+  )
+}
+
 function PlusIcon({ size = 16 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -824,28 +859,7 @@ export function CreateCourse() {
                         {uploader.uploads.length > 0 && (
                           <div className="space-y-2">
                             {uploader.uploads.map((u, i) => (
-                              <div key={i} className="flex items-center gap-3 border border-border rounded-lg px-3 py-2.5">
-                                <div className="shrink-0 w-8 h-8 rounded bg-bg-muted flex items-center justify-center">
-                                  <FileIcon />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm text-text truncate">{u.file.name}</p>
-                                  <p className="text-xs text-text-muted">
-                                    {(u.file.size / 1024).toFixed(0)} KB
-                                    {u.status === 'uploading' && ` · Subiendo...`}
-                                    {u.status === 'processing' && ` · Procesando...`}
-                                    {u.status === 'ready' && ` · Listo`}
-                                    {u.status === 'error' && ` · Error`}
-                                  </p>
-                                  {u.status === 'uploading' && <ProgressBar value={u.progress} size="sm" className="mt-1.5" />}
-                                </div>
-                                {(u.status === 'ready' || u.status === 'processing') && (
-                                  <span className="text-accent shrink-0"><CheckIcon /></span>
-                                )}
-                                {u.status === 'error' && (
-                                  <span className="text-danger text-xs shrink-0">{u.error}</span>
-                                )}
-                              </div>
+                              <UploadedFileRow key={i} upload={u} onRemove={() => { uploader.removeUpload(i); if (u.documentId === documentId) setDocumentId(null) }} />
                             ))}
                           </div>
                         )}
@@ -925,6 +939,25 @@ export function CreateCourse() {
                           value={idea}
                           onChange={(e) => setIdea(e.target.value)}
                         />
+
+                        {/* Reference documents (optional) */}
+                        <div>
+                          <label className="block text-sm font-medium text-text mb-2">Material de referencia (opcional)</label>
+                          <p className="text-xs text-text-muted mb-3">Sube documentos que la IA usara como base. No es el curso, es material de apoyo.</p>
+                          <FileUploadZone
+                            accept=".pdf,.docx,.md,.txt"
+                            maxSizeMB={20}
+                            onFilesSelected={(files) => uploader.uploadFile(files[0]).catch(() => {})}
+                          />
+                          {uploader.uploads.length > 0 && (
+                            <div className="space-y-2 mt-3">
+                              {uploader.uploads.map((u, i) => (
+                                <UploadedFileRow key={i} upload={u} onRemove={() => { uploader.removeUpload(i); if (u.documentId === documentId) setDocumentId(null) }} />
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
                         <DeliverySelector value={deliveryChoice} onChange={setDeliveryChoice} />
                         {startError && <p className="text-sm text-danger">{startError}</p>}
                         <div className="pt-4">
