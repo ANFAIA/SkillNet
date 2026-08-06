@@ -42,12 +42,6 @@ const CRITICALITY_OPTIONS: { value: string; label: string }[] = [
   { value: 'contextual', label: 'Contexto' },
 ]
 
-const FORMAT_OPTIONS: { value: string; label: string }[] = [
-  { value: 'explanation', label: 'Explicacion' },
-  { value: 'exercise', label: 'Ejercicio' },
-  { value: 'chart', label: 'Grafico' },
-  { value: 'mixed', label: 'Mixto' },
-]
 
 // ── Component ───────────────────────────────────────────────
 
@@ -95,11 +89,13 @@ export function SortableTreeNode({
         ? 'bg-accent-subtle text-accent'
         : 'bg-bg-muted text-text-muted'
 
+  const critLabel = CRITICALITY_OPTIONS.find((o) => o.value === node.criticality)?.label ?? ''
+
   return (
     <div ref={setNodeRef} style={style}>
       {/* Row: always visible */}
       <div
-        className={`flex items-center gap-0 px-2 py-1.5 rounded-md group transition-colors ${
+        className={`flex items-start gap-0 px-2 py-1.5 rounded-md group transition-colors ${
           expanded ? 'bg-bg-subtle' : 'hover:bg-bg-muted'
         }`}
       >
@@ -107,7 +103,7 @@ export function SortableTreeNode({
         <button
           {...attributes}
           {...listeners}
-          className="w-5 shrink-0 flex flex-col items-center gap-0.5 cursor-grab text-text-muted opacity-0 group-hover:opacity-100 transition-opacity"
+          className="w-5 shrink-0 flex flex-col items-center gap-0.5 cursor-grab text-text-muted opacity-0 group-hover:opacity-100 transition-opacity mt-0.5"
           title="Arrastrar"
         >
           <span className="block w-2.5 h-0.5 bg-current rounded-full" />
@@ -116,25 +112,30 @@ export function SortableTreeNode({
         </button>
 
         {/* Toggle */}
-        <button type="button" onClick={onToggle} className="text-text-muted hover:text-text shrink-0">
+        <button type="button" onClick={onToggle} className="text-text-muted hover:text-text shrink-0 mt-0.5">
           <ChevronIcon open={expanded} />
         </button>
 
         {/* Number dot (colored by criticality) */}
-        <span className={`text-xs font-medium rounded-full w-5 h-5 flex items-center justify-center shrink-0 ml-1 ${critClass}`}>
+        <span className={`text-xs font-medium rounded-full w-5 h-5 flex items-center justify-center shrink-0 ml-1 mt-0.5 ${critClass}`}>
           {index + 1}
         </span>
 
-        {/* Title -- editable, looks like text */}
-        <input
-          className="flex-1 min-w-0 text-sm font-medium text-text bg-transparent border-none focus:outline-none focus:ring-0 p-0 ml-2 focus:bg-bg focus:shadow-[0_0_0_1px_var(--color-primary)] focus:rounded focus:px-1 focus:-mx-1"
-          value={node.title}
-          onChange={(e) => onChange({ title: e.target.value })}
-          placeholder="Titulo del nodo"
-        />
+        {/* Title + summary (collapsed: two-line block) */}
+        <div className="flex-1 min-w-0 ml-2">
+          <input
+            className="w-full text-sm font-medium text-text bg-transparent border-none focus:outline-none focus:ring-0 p-0 focus:bg-bg focus:shadow-[0_0_0_1px_var(--color-primary)] focus:rounded focus:px-1 focus:-mx-1"
+            value={node.title}
+            onChange={(e) => onChange({ title: e.target.value })}
+            placeholder="Titulo del nodo"
+          />
+          {!expanded && node.summary && (
+            <p className="text-xs text-text-muted truncate mt-0.5">{node.summary}</p>
+          )}
+        </div>
 
-        {/* Meta: prereq chips + time */}
-        <div className="flex items-center gap-2 shrink-0 ml-2">
+        {/* Meta: prereq chips + criticality pill + time */}
+        <div className="flex items-center gap-2 shrink-0 ml-2 mt-0.5">
           {!expanded && node.prerequisites.length > 0 && (
             <div className="flex gap-0.5">
               {node.prerequisites.map((idx) => (
@@ -147,6 +148,11 @@ export function SortableTreeNode({
                 </span>
               ))}
             </div>
+          )}
+          {!expanded && critLabel && (
+            <span className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${critClass}`}>
+              {critLabel}
+            </span>
           )}
           <span className="text-xs text-text-muted whitespace-nowrap">{node.estimated_minutes} min</span>
           <button
@@ -213,27 +219,6 @@ export function SortableTreeNode({
                         : o.value === 'recommended'
                           ? 'bg-accent-subtle text-accent border-accent'
                           : 'bg-bg-muted text-text-muted border-border-strong'
-                      : 'border-border text-text-muted hover:border-primary'
-                  }`}
-                >
-                  {o.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Format */}
-          <div className="flex items-center gap-0 px-2 py-1 rounded hover:bg-bg-muted">
-            <span className="w-24 shrink-0 text-xs text-text-muted">Formato</span>
-            <div className="flex gap-1">
-              {FORMAT_OPTIONS.map((o) => (
-                <button
-                  key={o.value}
-                  type="button"
-                  onClick={() => onChange({ default_ui_format: o.value })}
-                  className={`text-xs px-2.5 py-0.5 rounded-full border transition-colors ${
-                    node.default_ui_format === o.value
-                      ? 'bg-primary-subtle text-primary border-primary'
                       : 'border-border text-text-muted hover:border-primary'
                   }`}
                 >
