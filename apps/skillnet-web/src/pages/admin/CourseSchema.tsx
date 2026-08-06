@@ -10,7 +10,7 @@ import {
   useSensors,
 } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
-import { Button, Card, EmptyState, ProgressBar, Skeleton, SkeletonText } from '../../components/ui'
+import { Button, Card, EmptyState, Skeleton, SkeletonText } from '../../components/ui'
 import { CriticalityBadge } from '../../components/schema/CriticalityBadge'
 import { IntentDensitySlider } from '../../components/schema/IntentDensitySlider'
 import type { DraftNode } from '../../components/schema/NodeEditor'
@@ -206,11 +206,6 @@ export function CourseSchema() {
 
   const liveNodes = draft.filter((node) => !node.archived)
   const criticalCount = liveNodes.filter((node) => node.criticality === 'critical').length
-  const reviewedCount = liveNodes.filter((node) => {
-    const stamped = node.id ? serverById.get(node.id)?.reviewed_at : null
-    return stamped && !dirtyByKey.get(node.key)
-  }).length
-  const unreviewedCount = liveNodes.length - reviewedCount
 
   const totalMinutes = liveNodes.reduce((sum, node) => sum + (node.estimatedMinutes ?? 0), 0)
 
@@ -295,26 +290,37 @@ export function CourseSchema() {
 
   function save() {
     validateSchema.reset()
-    updateSchema.mutate({
-      intent_density: density,
-      nodes: draft.map((node, index) => ({
-        ...(node.id ? { id: node.id } : {}),
-        title: node.title.trim(),
-        summary: node.summary.trim(),
-        outcome: node.outcome.trim() ? node.outcome.trim() : null,
-        criticality: node.criticality,
-        position: index + 1,
-        mastery_threshold: node.masteryThreshold,
-        estimated_minutes: node.estimatedMinutes,
-        default_ui_format: node.defaultUiFormat,
-        skill_id: node.skillId,
-        seed_lesson_id: node.seedLessonId,
-        source_document_id: node.sourceDocumentId,
-        source_headings: node.sourceHeadings,
-        prerequisite_node_ids: node.prerequisiteNodeIds,
-        archived: node.archived,
-      })),
-    })
+    updateSchema.mutate(
+      {
+        intent_density: density,
+        nodes: draft.map((node, index) => ({
+          ...(node.id ? { id: node.id } : {}),
+          title: node.title.trim(),
+          summary: node.summary.trim() || node.title.trim(),
+          outcome: node.outcome.trim() ? node.outcome.trim() : null,
+          criticality: node.criticality,
+          position: index + 1,
+          mastery_threshold: node.masteryThreshold,
+          estimated_minutes: node.estimatedMinutes,
+          default_ui_format: node.defaultUiFormat,
+          skill_id: node.skillId,
+          seed_lesson_id: node.seedLessonId,
+          source_document_id: node.sourceDocumentId,
+          source_headings: node.sourceHeadings,
+          prerequisite_node_ids: node.prerequisiteNodeIds,
+          archived: node.archived,
+        })),
+      },
+      {
+        // Auto-review all nodes after saving — the admin just edited them,
+        // asking to "review" again is redundant.
+        onSuccess: (schema) => {
+          for (const node of schema.nodes) {
+            markReviewed.mutate(node.id)
+          }
+        },
+      },
+    )
   }
 
   function propose() {
@@ -390,12 +396,8 @@ export function CourseSchema() {
     : draft.length === 0
       ? 'El esquema no tiene nodos.'
       : dirty
-        ? 'Guarda los cambios antes de validar: se valida lo que hay en el servidor.'
-        : unreviewedCount > 0
-          ? unreviewedCount === 1
-            ? 'Queda 1 nodo sin revisar.'
-            : `Quedan ${unreviewedCount} nodos sin revisar.`
-          : null
+        ? 'Guarda los cambios antes de validar.'
+        : null
 
   return (
     <div>
@@ -598,26 +600,6 @@ export function CourseSchema() {
           {/* Sidebar */}
           <div className="w-full lg:w-56 lg:shrink-0 space-y-4">
             {/* Review progress */}
-            <Card>
-              <div className="flex items-baseline justify-between gap-2 mb-2">
-                <h3 className="text-sm font-medium text-text">Revision</h3>
-                <span className="text-xs text-text-muted shrink-0 tabular-nums">
-                  {reviewedCount} de {liveNodes.length}
-                </span>
-              </div>
-              <ProgressBar
-                value={liveNodes.length === 0 ? 0 : (reviewedCount / liveNodes.length) * 100}
-                size="sm"
-              />
-              <p className="text-xs text-text-secondary mt-2">
-                {unreviewedCount === 0 && liveNodes.length > 0
-                  ? 'Todos los nodos estan revisados.'
-                  : unreviewedCount === 1
-                    ? 'Queda 1 nodo por revisar.'
-                    : `Quedan ${unreviewedCount} nodos por revisar.`}
-              </p>
-            </Card>
-
             {/* Stats */}
             <Card>
               <div className="space-y-2 text-sm">
@@ -681,7 +663,15 @@ export function CourseSchema() {
               <Button
                 variant="accent"
                 className="w-full"
-                onClick={() => validateSchema.mutate()}
+                onClick={async () => {
+                  // Auto-review all nodes before validating
+                  if (server) {
+                    for (const node of server.nodes) {
+                      await new Promise<void>((resolve) => markReviewed.mutate(node.id, { onSettled: () => resolve() }))
+                    }
+                  }
+                  validateSchema.mutate()
+                }}
                 disabled={!!validateBlockedReason || validateSchema.isPending}
                 title={validateBlockedReason ?? 'Activa la entrega dinamica de este curso'}
               >

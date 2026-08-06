@@ -34,13 +34,7 @@ function ChevronIcon({ open }: { open: boolean }) {
   )
 }
 
-function CheckIcon() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="20 6 9 17 4 12" />
-    </svg>
-  )
-}
+
 
 // ── Component ──────────────────────────────────────────────
 
@@ -80,11 +74,11 @@ export function SchemaTreeNode({
   onChange,
   onArchiveToggle,
   onRemove,
-  reviewedAt,
+  reviewedAt: _reviewedAt,
   dirty,
   locked,
-  onMarkReviewed,
-  markReviewPending,
+  onMarkReviewed: _onMarkReviewed,
+  markReviewPending: _markReviewPending,
   onPreview,
 }: SchemaTreeNodeProps) {
   const {
@@ -104,8 +98,7 @@ export function SchemaTreeNode({
   }
 
   const disabled = locked
-  const isReviewed = !!reviewedAt && !dirty
-  const canMark = !locked && !!node.id && !dirty
+  // Review is now auto — these are kept for the interface but unused in the UI
 
   const critClass =
     node.criticality === 'critical'
@@ -181,15 +174,6 @@ export function SchemaTreeNode({
 
         {/* Meta indicators */}
         <div className="flex items-center gap-2 shrink-0 ml-2 mt-0.5">
-          {/* Review status indicator */}
-          {isReviewed ? (
-            <span className="text-accent flex items-center gap-0.5" title="Revisado">
-              <CheckIcon />
-            </span>
-          ) : (
-            <span className="w-2 h-2 rounded-full bg-warning shrink-0" title="Sin revisar" />
-          )}
-
           {/* Dirty indicator */}
           {dirty && (
             <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" title="Cambios sin guardar" />
@@ -216,23 +200,6 @@ export function SchemaTreeNode({
           animate={{ opacity: 1, transition: { duration: duration.fast } }}
           className="ml-[42px] pl-4 border-l border-border space-y-1 pb-3"
         >
-          {/* Review status banner */}
-          <div className="px-2 py-1.5">
-            {isReviewed ? (
-              <span className="text-xs text-accent">
-                Revisado el {new Date(reviewedAt!).toLocaleDateString('es-ES')}
-              </span>
-            ) : dirty ? (
-              <span className="text-xs text-warning">
-                Cambios sin guardar. Guarda el esquema y vuelve a marcarlo como revisado.
-              </span>
-            ) : (
-              <span className="text-xs text-text-muted">
-                Sin revisar.
-              </span>
-            )}
-          </div>
-
           {/* Summary */}
           <div className="flex items-start gap-0 px-2 py-1 rounded hover:bg-bg-muted">
             <span className="w-24 shrink-0 text-xs text-text-muted pt-0.5">Resumen</span>
@@ -400,18 +367,6 @@ export function SchemaTreeNode({
 
           {/* Action row */}
           <div className="flex flex-wrap items-center gap-2 px-2 pt-2 border-t border-border mt-2">
-            {/* Mark reviewed */}
-            {!isReviewed && !node.archived && (
-              <Button
-                variant="secondary"
-                size="sm"
-                disabled={!canMark || markReviewPending}
-                onClick={() => node.id && onMarkReviewed(node.id)}
-              >
-                {markReviewPending ? 'Marcando...' : 'Marcar revisado'}
-              </Button>
-            )}
-
             {/* Preview */}
             {node.id && !dirty && (
               <Button
@@ -438,17 +393,6 @@ export function SchemaTreeNode({
             )}
           </div>
 
-          {/* Helper text for mark reviewed */}
-          {!isReviewed && !node.archived && !node.id && (
-            <p className="text-xs text-text-muted px-2">
-              Guarda el esquema para poder revisar este nodo nuevo.
-            </p>
-          )}
-          {!isReviewed && !node.archived && node.id && dirty && (
-            <p className="text-xs text-text-muted px-2">
-              Guarda los cambios primero: al guardar se borra la revision de los nodos que cambiaron.
-            </p>
-          )}
         </motion.div>
       )}
     </div>
