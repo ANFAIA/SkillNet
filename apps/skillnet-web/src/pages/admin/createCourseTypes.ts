@@ -2,7 +2,7 @@
 
 export type SourceType = 'importar' | 'crear' | null
 export type DeliveryChoice = 'dynamic' | 'static'
-export type Phase = 'choose' | 'details' | 'schema' | 'created' | 'generating' | 'review' | 'assign'
+export type Phase = 'choose' | 'details' | 'schema' | 'creating' | 'created' | 'generating' | 'review' | 'assign'
 
 export interface ProposedNode {
   _key: number

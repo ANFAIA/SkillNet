@@ -738,16 +738,28 @@ export function CreateCourse() {
     }
   }
 
+  // Creation progress steps
+  const [creatingStep, setCreatingStep] = useState(0)
+  const creatingSteps = [
+    `Creando ${title.trim() || 'el curso'}...`,
+    `Guardando ${proposedNodes.length} nodos...`,
+    'Activando el curso...',
+    'Preparando la primera leccion...',
+  ]
+
   async function handleCreateFromSchema() {
     setStartError(null)
 
-    // Only title is required — summary, outcome, etc. are filled by the LLM if empty.
     for (let i = 0; i < proposedNodes.length; i++) {
       if (!proposedNodes[i].title.trim()) {
         setStartError(`El nodo ${i + 1} no tiene titulo.`)
         return
       }
     }
+
+    // Transition immediately — the user sees progress, not a dead button
+    setCreatingStep(0)
+    setPhase('creating')
 
     try {
       const sourceId = source === 'importar' ? documentId ?? undefined : undefined
@@ -758,7 +770,8 @@ export function CreateCourse() {
       })
       setCourseId(course.id)
 
-      // Save the proposed nodes as the course schema (two-step: create nodes, then wire prerequisites)
+      // Step 2: save nodes
+      setCreatingStep(1)
       const toNodePayload = (n: ProposedNode, i: number, prereqIds: string[] = []) => ({
         title: n.title.trim(),
         summary: n.summary.trim() || n.title.trim(),
@@ -776,13 +789,11 @@ export function CreateCourse() {
         archived: false,
       })
 
-      // Step 1: create nodes without prerequisites
       const created = await put<{ nodes: { id: string; position: number }[] }>(
         `/courses/${course.id}/schema`,
         { intent_density: density, nodes: proposedNodes.map((n, i) => toNodePayload(n, i)) },
       )
 
-      // Step 2: if any node has prerequisites, re-PUT with the real UUIDs
       const hasPrereqs = proposedNodes.some((n) => n.prerequisites.length > 0)
       if (hasPrereqs) {
         const idByPosition = new Map(created.nodes.map((n) => [n.position, n.id]))
@@ -798,8 +809,8 @@ export function CreateCourse() {
         })
       }
 
-      // The admin just designed these nodes — auto-review and validate so
-      // the course is immediately usable by learners.
+      // Step 3: activate
+      setCreatingStep(2)
       const schema = await get<{ nodes: { id: string }[] }>(`/courses/${course.id}/schema`)
       for (const node of schema.nodes) {
         await post(`/courses/${course.id}/schema/nodes/${node.id}/review`, {}).catch(() => {})
@@ -807,37 +818,22 @@ export function CreateCourse() {
       await post(`/courses/${course.id}/schema/validate`, {}).catch(() => {})
       await post(`/courses/${course.id}/publish`, {}).catch(() => {})
 
-      // Generate the first node NOW — every learner who opens this course
-      // will find content ready from the start. Nodes 2-3 fire in background.
+      // Step 4: pre-render first node (non-blocking — go to success after a few seconds)
+      setCreatingStep(3)
       const firstNode = schema.nodes[0]
       if (firstNode) {
-        const result = await post<{ request_id: string; cached: boolean }>(
-          `/nodes/${firstNode.id}/render`, { force: false },
-        ).catch(() => null)
-
-        // If not already cached, poll until the render is ready
-        if (result && result.request_id) {
-          for (let i = 0; i < 60; i++) {
-            const check = await get<{ status: string }>(
-              `/nodes/${firstNode.id}/render`,
-            ).catch(() => null)
-            if (check && (check.status === 'ready' || check.status === 'fallback')) break
-            await new Promise(r => setTimeout(r, 500))
-          }
-        }
+        post(`/nodes/${firstNode.id}/render`, { force: false }).catch(() => {})
+        // Give it a short window, then move on regardless
+        await new Promise(r => setTimeout(r, 2000))
       }
 
-      // Remaining nodes generate on-the-fly, adapted to each learner's
-      // profile as they progress. Only the first is pre-generated because
-      // there is no learner data yet at course creation time.
-
-      // Store summary for the success screen
       setCreatedTitle(title.trim())
       setCreatedNodeCount(proposedNodes.length)
       setCreatedMinutes(totalMinutes)
       setPhase('created')
     } catch (err) {
       setStartError(failMsg(err, 'No se pudo crear el curso'))
+      setPhase('schema') // go back to schema on error
     }
   }
 
@@ -935,6 +931,49 @@ export function CreateCourse() {
   // ── Render ────────────────────────────────────────────────
 
   // Post-creation phases
+  if (phase === 'creating') {
+    return (
+      <div className="flex flex-col items-center justify-center py-20">
+        <div className="w-full max-w-sm space-y-4">
+          {creatingSteps.map((label, i) => {
+            const done = i < creatingStep
+            const active = i === creatingStep
+            return (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: duration.normal, ease: [...ease.base], delay: i * 0.1 }}
+                className="flex items-center gap-3"
+              >
+                {done ? (
+                  <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  </div>
+                ) : active ? (
+                  <div className="w-5 h-5 rounded-full border-2 border-primary flex items-center justify-center">
+                    <motion.div
+                      className="w-2 h-2 rounded-full bg-primary"
+                      animate={{ scale: [1, 1.3, 1] }}
+                      transition={{ duration: 1, repeat: Infinity }}
+                    />
+                  </div>
+                ) : (
+                  <div className="w-5 h-5 rounded-full border-2 border-border" />
+                )}
+                <span className={`text-sm ${active ? 'text-text font-medium' : done ? 'text-text-muted' : 'text-text-muted/50'}`}>
+                  {label}
+                </span>
+              </motion.div>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
+
   if (phase === 'generating') {
     return (
       <div>
