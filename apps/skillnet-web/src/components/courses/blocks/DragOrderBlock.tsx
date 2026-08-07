@@ -16,6 +16,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import { useIntl } from 'react-intl'
 import { Button } from '../../ui'
 import { BLOCK_TITLE, INLINE_SURFACE } from './rhythm'
 import { useStepperAdvance } from './StepperContext'
@@ -60,6 +61,7 @@ function SortableItem({
   status: ValidationStatus
   index: number
 }) {
+  const intl = useIntl()
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: item.id,
   })
@@ -107,7 +109,7 @@ function SortableItem({
       {status === 'checked' && (
         <span
           className={`shrink-0 ml-auto text-xs font-medium ${correct ? 'text-accent' : 'text-danger'}`}
-          aria-label={correct ? 'Posicion correcta' : 'Posicion incorrecta'}
+          aria-label={correct ? intl.formatMessage({ id: 'drag.positionCorrect' }) : intl.formatMessage({ id: 'drag.positionIncorrect' })}
         >
           {correct ? '\u2713' : '\u2717'}
         </span>
@@ -117,6 +119,7 @@ function SortableItem({
 }
 
 export function DragOrderBlock({ instruction, items, correctOrder }: DragOrderBlockProps) {
+  const intl = useIntl()
   const safeItems = Array.isArray(items) ? items : []
   const safeCorrect = Array.isArray(correctOrder) ? correctOrder : []
   const stepperAdvance = useStepperAdvance()
@@ -220,10 +223,10 @@ export function DragOrderBlock({ instruction, items, correctOrder }: DragOrderBl
 
       <div className="flex items-center gap-3 mt-4">
         <Button size="sm" onClick={handleCheck} disabled={status === 'checked'}>
-          Comprobar
+          {intl.formatMessage({ id: 'drag.check' })}
         </Button>
         <Button size="sm" variant="secondary" onClick={handleReset}>
-          Reiniciar
+          {intl.formatMessage({ id: 'drag.reset' })}
         </Button>
       </div>
 
@@ -238,8 +241,11 @@ export function DragOrderBlock({ instruction, items, correctOrder }: DragOrderBl
             className={`text-sm font-medium ${allCorrect ? 'text-accent' : 'text-danger'}`}
           >
             {allCorrect
-              ? 'Orden correcto'
-              : `${correctMap ? [...correctMap.values()].filter(Boolean).length : 0} de ${safeCorrect.length} en la posicion correcta`}
+              ? intl.formatMessage({ id: 'drag.correctOrder' })
+              : intl.formatMessage({ id: 'drag.positionsCorrect' }, {
+                  count: correctMap ? [...correctMap.values()].filter(Boolean).length : 0,
+                  total: safeCorrect.length,
+                })}
           </span>
         </div>
       )}

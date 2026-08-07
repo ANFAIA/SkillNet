@@ -61,8 +61,22 @@ export const es: Record<string, string> = {
 
   // Quiz
   'quiz.check': 'Comprobar',
+  'quiz.checking': 'Comprobando...',
   'quiz.correct': 'Correcto',
   'quiz.incorrect': 'Incorrecto',
   'quiz.retry': 'Reintentar',
   'quiz.hint': 'Pedir una pista',
+  'quiz.mastery': 'Dominio: {pct}%',
+  'quiz.previewOnly': 'Vista previa: esta respuesta no se corrige.',
+  'quiz.submitError': 'No se pudo enviar la respuesta.',
+  'quiz.yourAnswer': 'Tu respuesta',
+  'quiz.answerPlaceholder': 'Escribe tu respuesta...',
+
+  // DragOrder
+  'drag.check': 'Comprobar',
+  'drag.reset': 'Reiniciar',
+  'drag.correctOrder': 'Orden correcto',
+  'drag.positionsCorrect': '{count} de {total} en la posicion correcta',
+  'drag.positionCorrect': 'Posicion correcta',
+  'drag.positionIncorrect': 'Posicion incorrecta',
 }

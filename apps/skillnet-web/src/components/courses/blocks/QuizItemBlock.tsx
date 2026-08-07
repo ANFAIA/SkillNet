@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useIntl } from 'react-intl'
 import { post } from '../../../api/client'
 import { Button } from '../../ui'
 import { HintLadder, WorkedSolution } from './QuizItemHints'
@@ -67,6 +68,7 @@ function ResultPanel({
   result: NodeAttemptResult
   onRetry?: () => void
 }) {
+  const intl = useIntl()
   return (
     <motion.div
       role="status"
@@ -81,10 +83,10 @@ function ResultPanel({
         <span
           className={`text-sm font-medium ${result.passed ? 'text-accent' : 'text-danger'}`}
         >
-          {result.passed ? 'Correcto' : 'Incorrecto'}
+          {result.passed ? intl.formatMessage({ id: 'quiz.correct' }) : intl.formatMessage({ id: 'quiz.incorrect' })}
         </span>
         <span className="text-xs text-text-secondary tabular-nums">
-          Dominio: {Math.round((result.mastery ?? 0) * 100)}%
+          {intl.formatMessage({ id: 'quiz.mastery' }, { pct: Math.round((result.mastery ?? 0) * 100) })}
         </span>
       </div>
       {result.feedback ? <p className="text-sm text-text mt-2">{result.feedback}</p> : null}
@@ -94,7 +96,7 @@ function ResultPanel({
           onClick={onRetry}
           className="mt-3 text-sm font-medium text-primary hover:text-primary/80 transition-colors"
         >
-          Reintentar
+          {intl.formatMessage({ id: 'quiz.retry' })}
         </button>
       ) : null}
     </motion.div>
@@ -149,14 +151,15 @@ function ConstructedAnswerItem({
   rows: number
   onChange: (value: string) => void
 }) {
+  const intl = useIntl()
   return (
     <textarea
       value={value}
       disabled={disabled}
       rows={rows}
       onChange={(e) => onChange(e.target.value)}
-      placeholder="Escribe tu respuesta..."
-      aria-label="Tu respuesta"
+      placeholder={intl.formatMessage({ id: 'quiz.answerPlaceholder' })}
+      aria-label={intl.formatMessage({ id: 'quiz.yourAnswer' })}
       className="w-full px-3 py-2 text-sm text-text border border-border rounded-lg bg-bg placeholder:text-text-muted focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-colors disabled:opacity-60 resize-y"
     />
   )
@@ -170,6 +173,7 @@ export function QuizItemBlock({
   nodeId,
   renderId,
 }: QuizItemBlockProps) {
+  const intl = useIntl()
   const [selected, setSelected] = useState<number | null>(null)
   const [text, setText] = useState('')
   const queryClient = useQueryClient()
@@ -286,7 +290,7 @@ export function QuizItemBlock({
 
       {readOnly ? (
         <p className="mt-4 text-xs text-text-muted">
-          Vista previa: esta respuesta no se corrige.
+          {intl.formatMessage({ id: 'quiz.previewOnly' })}
         </p>
       ) : (
         !locked && (
@@ -296,7 +300,7 @@ export function QuizItemBlock({
             disabled={!answer || submit.isPending}
             onClick={send}
           >
-            {submit.isPending ? 'Comprobando...' : 'Comprobar'}
+            {submit.isPending ? intl.formatMessage({ id: 'quiz.checking' }) : intl.formatMessage({ id: 'quiz.check' })}
           </Button>
         )
       )}
@@ -313,7 +317,7 @@ export function QuizItemBlock({
       ) : null}
 
       {submit.isError ? (
-        <p className="mt-3 text-sm text-danger">No se pudo enviar la respuesta.</p>
+        <p className="mt-3 text-sm text-danger">{intl.formatMessage({ id: 'quiz.submitError' })}</p>
       ) : null}
 
       {result ? <ResultPanel result={result} onRetry={locked ? undefined : retry} /> : null}
