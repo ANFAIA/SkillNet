@@ -60,17 +60,7 @@ function StepperStack({ children }: { children?: ReactNode }) {
 
   const next = useCallback(() => {
     if (!isLast) setStep((s) => s + 1)
-    else if (goNextNode) {
-      // Fade out before navigating — no jarring jump
-      const el = document.querySelector('[data-stepper-root]') as HTMLElement | null
-      if (el) {
-        el.style.transition = 'opacity 0.3s ease'
-        el.style.opacity = '0'
-        setTimeout(() => goNextNode(), 300)
-      } else {
-        goNextNode()
-      }
-    }
+    else if (goNextNode) goNextNode()
   }, [isLast, goNextNode])
 
   const back = useCallback(() => {
@@ -80,18 +70,8 @@ function StepperStack({ children }: { children?: ReactNode }) {
   // Auto-advance: interactive blocks call this after success (quiz correct, drag complete)
   const advance = useCallback(() => {
     setTimeout(() => {
-      if (!isLast) {
-        setStep((s) => s + 1)
-      } else if (goNextNode) {
-        const el = document.querySelector('[data-stepper-root]') as HTMLElement | null
-        if (el) {
-          el.style.transition = 'opacity 0.3s ease'
-          el.style.opacity = '0'
-          setTimeout(() => goNextNode(), 300)
-        } else {
-          goNextNode()
-        }
-      }
+      if (!isLast) setStep((s) => s + 1)
+      else if (goNextNode) goNextNode()
     }, 1200)
   }, [isLast, goNextNode])
 
