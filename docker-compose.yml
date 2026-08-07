@@ -60,6 +60,7 @@ services:
       LLM_RUNTIME_HEAVY_MODEL: ${LLM_RUNTIME_HEAVY_MODEL:-}
       LLM_FIXTURE_DIR: ${LLM_FIXTURE_DIR:-src/llm/fixture_data}
       LLM_FIXTURE_MODE: ${LLM_FIXTURE_MODE:-replay}
+      MULTI_AGENT_RENDER: ${MULTI_AGENT_RENDER:-false}
       UPLOAD_DIR: /data/uploads
       MAX_UPLOAD_SIZE_MB: ${MAX_UPLOAD_SIZE_MB:-50}
       CORS_ORIGINS: ${CORS_ORIGINS:-["http://localhost:3000"]}

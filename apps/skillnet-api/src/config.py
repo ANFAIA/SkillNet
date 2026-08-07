@@ -125,6 +125,11 @@ class Settings(BaseSettings):
     # re-verify on every @openuidev release. Read by src.render.gate.check_program.
     RENDER_ALLOW_REACTIVE: bool = False
 
+    # Multi-agent render pipeline (experimental). When true, genera_ui uses four
+    # specialized agents instead of one monolithic call. Falls back to monolithic
+    # on retry. Set MULTI_AGENT_RENDER=true in .env to activate.
+    MULTI_AGENT_RENDER: bool = False
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     @field_validator("SECRET_KEY")

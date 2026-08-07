@@ -93,7 +93,12 @@ def build_node_graph():
     graph.add_node("load_context", load_context)
     graph.add_node("probe_gate", probe_gate)
     graph.add_node("decide_formato", decide_formato)
-    graph.add_node("genera_ui", genera_ui)
+    from src.config import settings
+    if settings.MULTI_AGENT_RENDER:
+        from src.agents.runtime.nodes import genera_ui_multi
+        graph.add_node("genera_ui", genera_ui_multi)
+    else:
+        graph.add_node("genera_ui", genera_ui)
     graph.add_node("validate_ui", validate_ui)
     graph.add_node("persist_render", persist_render)
     graph.add_node("fallback_seed", fallback_seed)

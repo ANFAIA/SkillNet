@@ -144,9 +144,10 @@ class ShapeSignal:
             )
         if self.kind == "procedure":
             return (
-                f"La fuente describe un procedimiento de {self.count} pasos en orden. Eso "
-                f"es UN bloque {block}, un paso por elemento y en el orden de la fuente. "
-                "NO lo narres en un parrafo."
+                f"La fuente describe un procedimiento de {self.count} pasos en orden. "
+                f"Usa StepByStepReveal si cada paso necesita explicacion, o StepSequence "
+                "si son acciones breves sin explicacion. Cierra con DragOrder para que "
+                "el aprendiz ordene los pasos. NO lo narres en un parrafo."
             )
         if self.kind == "numeric_series":
             return (

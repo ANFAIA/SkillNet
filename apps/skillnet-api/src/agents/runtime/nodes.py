@@ -26,6 +26,7 @@ Three things in here are the security contract of §5.1 and are not negotiable:
 
 from __future__ import annotations
 
+import asyncio
 import time
 import uuid
 from typing import Any
@@ -796,6 +797,126 @@ async def _stream_program(
     return "".join(chunks)
 
 
+@runtime_node_error_wrapper("genera_ui")
+async def genera_ui_multi(state: NodeRuntimeState) -> dict:
+    """Multi-agent version of genera_ui. Same signature, same output.
+
+    Four agents: Blueprint -> Content Writer + Interaction Designer (parallel) -> Assembler.
+    On retry, falls back to the monolithic genera_ui (the repair prompt is optimized for it).
+
+    The retry calls ``genera_ui.__wrapped__`` (the un-decorated function) to avoid double
+    error-wrapping: this function already has ``@runtime_node_error_wrapper("genera_ui")``,
+    and calling the decorated ``genera_ui`` would mark the render ``failed`` and publish an
+    error SSE event before the graph's own fallback has a chance to run.
+    """
+    from src.agents.runtime.agents.assembler import assemble
+    from src.agents.runtime.agents.blueprint import run_blueprint
+    from src.agents.runtime.agents.content_writer import run_content_writer
+    from src.agents.runtime.agents.interaction_designer import run_interaction_designer
+
+    request_id = str(state["request_id"])
+    org_id = _uuid(state["org_id"])
+    node = state.get("node") or {}
+    profile = state.get("profile") or {}
+    node_state = state.get("node_state") or {}
+    tier = str(state.get("tier") or "fast")
+    ui_format = coerce_ui_format(state.get("ui_format"))
+    retry = int(state.get("retry_count") or 0)
+
+    # On retry, fall back to the monolithic genera_ui (repair prompt is optimized for it).
+    # __wrapped__ bypasses the inner error decorator — this function's own wrapper handles it.
+    if retry:
+        return await genera_ui.__wrapped__(state)  # type: ignore[attr-defined]
+
+    llm = await _make_llm(org_id, tier)
+    mastery = float(node_state.get("mastery") or 0.0)
+    threshold = threshold_for(
+        node.get("criticality") or "recommended", node.get("mastery_threshold")
+    )
+
+    await publish_step(request_id, "genera_ui", "Disenando la estructura...")
+    started = time.monotonic()
+
+    # --- Agent 1: Blueprint ---
+    blueprint = await run_blueprint(
+        title=str(node.get("title") or ""),
+        summary=str(node.get("summary") or ""),
+        outcome=node.get("outcome"),
+        criticality=str(node.get("criticality") or "recommended"),
+        ui_format=ui_format,
+        effective_density=int(state.get("effective_density") or 3),
+        scaffold_band=str(state.get("scaffold_band") or "neutral"),
+        role_title=profile.get("role_title"),
+        sector=profile.get("sector"),
+        experience_level=str(profile.get("experience_level") or "unknown"),
+        target_bloom=target_bloom(mastery, threshold),
+        shape_hints=list(state.get("shape_hints") or ()),
+        llm=llm,
+    )
+
+    await publish_step(request_id, "genera_ui", "Escribiendo el contenido...")
+
+    # --- Agents 2+3: Content Writer + Interaction Designer (PARALLEL) ---
+    content_coro = run_content_writer(
+        blueprint=blueprint,
+        title=str(node.get("title") or ""),
+        summary=str(node.get("summary") or ""),
+        source_context=str(state.get("source_context") or ""),
+        role_title=profile.get("role_title"),
+        sector=profile.get("sector"),
+        scaffold_band=str(state.get("scaffold_band") or "neutral"),
+        criticality=str(node.get("criticality") or "recommended"),
+        llm=llm,
+    )
+
+    interaction_coro = None
+    interaction_blocks = [b for b in blueprint.blocks if b.type in ("QuizItem", "DragOrder")]
+    if interaction_blocks:
+        interaction_coro = run_interaction_designer(
+            blueprint=blueprint,
+            content_declarations="",  # parallel: content not ready yet
+            title=str(node.get("title") or ""),
+            summary=str(node.get("summary") or ""),
+            source_context=str(state.get("source_context") or ""),
+            role_title=profile.get("role_title"),
+            sector=profile.get("sector"),
+            target_bloom=target_bloom(mastery, threshold),
+            scaffold_band=str(state.get("scaffold_band") or "neutral"),
+            llm=llm,
+        )
+
+    # Execute in parallel
+    if interaction_coro:
+        content_output, interaction_output = await asyncio.gather(
+            content_coro, interaction_coro
+        )
+    else:
+        content_output = await content_coro
+        interaction_output = None
+
+    # --- Agent 4: Assembler (no LLM) ---
+    raw_dsl, _answer_key = assemble(
+        blueprint=blueprint,
+        content_output=content_output,
+        interaction_output=interaction_output,
+        ui_format=ui_format,
+    )
+
+    duration_ms = int((time.monotonic() - started) * 1000)
+
+    # Token accounting: the agents discard individual usage (the fixture system
+    # reports None), so tokens_in/out stay at whatever decide_formato set.
+    # When a real provider reports usage, the individual agents should propagate it.
+    return {
+        "raw_dsl": raw_dsl,
+        "model": getattr(llm, "model", "unknown"),
+        "duration_ms": duration_ms + int(state.get("duration_ms") or 0),
+        "tokens_in": state.get("tokens_in"),
+        "tokens_out": state.get("tokens_out"),
+        "current_step": "genera_ui",
+    }
+
+
 # --------------------------------------------------------------------------- #
 # Node 5: validate_ui
 # --------------------------------------------------------------------------- #
@@ -1095,6 +1216,7 @@ __all__ = [
     "decide_formato",
     "fallback_seed",
     "genera_ui",
+    "genera_ui_multi",
     "load_context",
     "load_source_context",
     "missing_answer_keys",
