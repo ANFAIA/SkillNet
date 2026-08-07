@@ -3,7 +3,6 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { blockArrivalContext, useBlockArrival } from './blockArrival'
 import { stepperContext, useStepper, stepperAdvanceContext } from './StepperContext'
 import { useReducedMotion } from '../../../hooks/useReducedMotion'
-import { LessonBuddy } from './LessonBuddy'
 import { duration, ease } from '../../../lib/motion'
 import type { StackGap } from '../kit/schemas'
 
@@ -97,10 +96,8 @@ function StepperStack({ children }: { children?: ReactNode }) {
   return (
     <stepperAdvanceContext.Provider value={advance}>
       <div className="flex flex-col h-full min-w-0">
-        {/* Top: dots left, spider buddy right */}
-        <div className="shrink-0 flex items-start justify-between pb-4">
-          <div className="flex-1" />
-          <div className="flex items-center gap-2">
+        {/* Step dots — centered */}
+        <div className="shrink-0 flex items-center justify-center gap-2 pb-4">
           {items.map((_, i) => (
             <motion.div
               key={i}
@@ -115,10 +112,6 @@ function StepperStack({ children }: { children?: ReactNode }) {
               transition={{ duration: duration.fast }}
             />
           ))}
-          </div>
-          <div className="flex-1 flex justify-end">
-            <LessonBuddy stepIndex={safeStep} totalSteps={total} />
-          </div>
         </div>
 
         {/* Middle: chevrons on sides, content centered vertically */}

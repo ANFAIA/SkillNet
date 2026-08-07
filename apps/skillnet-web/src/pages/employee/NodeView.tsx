@@ -8,6 +8,7 @@ import { Card, EmptyState, ProgressBar } from '../../components/ui'
 import { ClickableSurface, NO_EXPLAIN_SELECTOR } from '../../components/courses/ClickableSurface'
 import { UiSpecRenderer } from '../../components/courses/UiSpecRenderer'
 import { stepperContext } from '../../components/courses/blocks/StepperContext'
+import { LessonBuddy } from '../../components/courses/blocks/LessonBuddy'
 import { NodeSkeleton, RESERVED_CONTENT_PX } from '../../components/courses/NodeSkeleton'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
 import { transition, duration, ease } from '../../lib/motion'
@@ -369,6 +370,18 @@ export function NodeView() {
           {index + 1} / {ordered.length}
         </span>
       </div>
+
+      {/* Spider buddy — positioned to the right of the content area */}
+      {served && (
+        <div className="absolute top-16 right-4" style={{ zIndex: 10 }}>
+          <LessonBuddy
+            nodeTitle={node?.title ?? undefined}
+            nodeSummary={node?.summary ?? undefined}
+            stepIndex={0}
+            totalSteps={1}
+          />
+        </div>
+      )}
 
       {/* Lesson content — fills the rest */}
       <div className="flex-1 min-h-0 flex flex-col px-6 pb-6 max-w-2xl mx-auto w-full">
