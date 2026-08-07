@@ -28,11 +28,13 @@ el documento fuente.
 - [ ] Intro del curso: titulo + outcomes en una pantalla
 - [ ] Componentes visuales: animaciones de entrada, feedback de quiz, charts
 
-Tendencias UX de Jose:
-- Le gustan las transiciones morph de framer-motion (layout animations, springs)
-- No le gustan los saltos bruscos ni las apariciones/desapariciones instantaneas
-- Opacidad y escala suaves, nunca blur
-- Todo debe fluir: de paso a paso, de nodo a nodo, de curso a leccion
+Normas de diseno (ver `design-system.md` y `motion-system.md`):
+- Morph desde el trigger con layoutId (nunca aparicion de la nada)
+- Opacity + scale, NUNCA blur
+- Secuencial: cada elemento espera al anterior
+- Chevrones, no flechas
+- Sin spinners: shimmer o pasos con nombre
+- Todo fluye: paso a paso, nodo a nodo, curso a leccion
 
 ## Slice 2B — Chat del tutor en las lecciones
 

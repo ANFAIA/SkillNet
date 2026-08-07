@@ -130,6 +130,37 @@ Lucide React. Size `w-4 h-4` (16px) for inline, `w-5 h-5` (20px) for standalone.
 
 ---
 
+## Transitions and interactions
+
+See `motion-system.md` for timing and easing curves. These are the rules:
+
+1. **No blur.** Nunca. Ni en transiciones, ni en modales, ni en overlays, ni en backdrops.
+2. **Morph from trigger.** Todo lo que se abre (modal, panel, chat, popover) se transforma
+   visualmente desde el elemento que lo abrio. Usar `layoutId` de Framer Motion.
+   - Card de lista -> fullscreen: morph con layoutId
+   - Pill del buddy -> card de chat: morph con layoutId
+   - Boton -> panel expandido: morph con layoutId
+   - NUNCA: modal centrado que aparece de la nada con backdrop
+3. **Opacity + scale para entradas.** `initial={{ opacity: 0, scale: 0.97 }}` es el patron
+   base. NO blur, NO translateY grande, NO rotate.
+4. **Secuencial.** Los elementos entran uno despues de otro. El siguiente espera a que el
+   anterior termine. `delay` suficiente para que no se solapen.
+5. **Chevrones, no flechas.** Los iconos de navegacion son chevrones (`<` / `>`), no flechas
+   (`←` / `→`). Coherente en toda la app.
+6. **Sin decoracion de carga.** No spinners, no "Cargando...", no barras de progreso
+   genericas. Si hay espera, mostrar el esqueleto del contenido (shimmer) o pasos con nombre.
+
+### Anti-patterns de transicion (DO NOT)
+
+- `backdrop-blur-sm` o cualquier blur en scrim/overlay
+- Modal que aparece centrado sin conexion visual con su trigger
+- `animate-spin` como indicador de carga
+- Fade-in en page load (animar lo que ya estaba ahi)
+- Elementos que entran todos a la vez (sin stagger)
+- Transicion de salida mas larga que la de entrada
+
+---
+
 ## Component patterns
 
 ### Card

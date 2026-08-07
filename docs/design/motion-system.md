@@ -8,11 +8,24 @@
 
 ## Principios
 
-1. **Blur, no fade.** Los elementos entran/salen con blur + opacity, nunca solo opacity. Esto crea profundidad de campo como en iOS.
-2. **Overshoot, no ease-in-out.** Las curvas de easing siempre sobrepasan ligeramente el destino y vuelven. Nunca usar `ease`, `ease-in-out` o `linear`.
-3. **Morph, no appear.** Cuando un elemento se convierte en otro (card -> modal, item -> detail), debe transformarse visualmente, no desaparecer y reaparecer.
-4. **Feedback rapido, estructura lenta.** Los cambios de color/estado son instantaneos (125ms). Los cambios de layout/posicion son lentos y fluidos (500-700ms).
-5. **Spring over duration.** Preferir springs de Framer Motion sobre duraciones fijas cuando sea posible. Los springs no tienen duracion fija — terminan cuando la fisica lo dicta.
+1. **Opacity y scale, nunca blur.** Los elementos entran/salen con opacity (y opcionalmente
+   scale). NUNCA blur ni backdrop-blur — ni en transiciones, ni en modales, ni en overlays.
+   Blur esta prohibido en toda la app.
+2. **Morph, no appear.** Cuando un elemento se convierte en otro (card -> fullscreen, pill ->
+   panel, word -> popover), debe transformarse visualmente desde el trigger. Nada aparece de
+   la nada. Usa `layoutId` de Framer Motion para conectar el estado colapsado con el expandido.
+3. **Overshoot, no ease-in-out.** Las curvas de easing sobrepasan ligeramente el destino y
+   vuelven. Nunca usar `ease`, `ease-in-out` o `linear`.
+4. **Feedback rapido, estructura lenta.** Los cambios de color/estado son instantaneos (125ms).
+   Los cambios de layout/posicion son lentos y fluidos (500-700ms).
+5. **Spring over duration.** Preferir springs de Framer Motion sobre duraciones fijas cuando
+   sea posible. Los springs no tienen duracion fija — terminan cuando la fisica lo dicta.
+6. **Secuencial, no simultaneo.** Los elementos entran UNO DESPUES DE OTRO, no todos a la vez.
+   Cada elemento espera a que la animacion anterior termine antes de empezar la suya. En
+   secuencias de entrada (stagger), el delay entre elementos es suficiente para que no se
+   solapen.
+7. **Todo debe fluir.** De paso a paso, de nodo a nodo, de curso a leccion — nunca un corte.
+   El usuario no debe percibir "cambio de pagina". Es una app que fluye entre estados.
 
 ---
 
