@@ -24,11 +24,13 @@
     "mafs": "^0.21.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
+    "react-intl": "^10.1.20",
     "react-markdown": "^10.1.0",
     "react-router-dom": "^7.18.1",
     "remark-gfm": "^4.0.1",
     "wavesurfer.js": "^7.12.11",
-    "zod": "4.4.3"
+    "zod": "4.4.3",
+    "zustand": "^5.0.14"
   },
   "devDependencies": {
     "@chromatic-com/storybook": "^5.2.1",

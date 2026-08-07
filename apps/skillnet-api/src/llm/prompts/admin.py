@@ -20,6 +20,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from src.llm.prompts.grounding import Grounding
+from src.llm.prompts.tools import FRONTEND_TOOLS_BLOCK
 
 #: Bumped when anything here changes in a way that changes an answer. Persisted on every
 #: admin message, so "which assistant wrote this" is answerable months later — which
@@ -174,6 +175,7 @@ def admin_genui_system_prompt(grounding: Grounding, *, org_data: bool = False) -
     sections = [ADMIN_PERSONA]
     if org_data:
         sections.append(ADMIN_DATA_BLOCK)
+    sections.append(FRONTEND_TOOLS_BLOCK)
     sections.append(chat_spec)
     grounding_table = _GROUNDING_BLOCKS if org_data else _STANDALONE_GROUNDING_BLOCKS
     sections.append(grounding_table[grounding])
@@ -188,8 +190,8 @@ def admin_system_prompt(grounding: Grounding, *, org_data: bool = False) -> str:
     reading the prompt it read before.
     """
     if not org_data:
-        return f"{ADMIN_PERSONA}\n\n{_STANDALONE_GROUNDING_BLOCKS[grounding]}"
-    return f"{ADMIN_PERSONA}\n\n{ADMIN_DATA_BLOCK}\n\n{_GROUNDING_BLOCKS[grounding]}"
+        return f"{ADMIN_PERSONA}\n\n{FRONTEND_TOOLS_BLOCK}\n\n{_STANDALONE_GROUNDING_BLOCKS[grounding]}"
+    return f"{ADMIN_PERSONA}\n\n{ADMIN_DATA_BLOCK}\n\n{FRONTEND_TOOLS_BLOCK}\n\n{_GROUNDING_BLOCKS[grounding]}"
 
 
 def build_admin_turn(

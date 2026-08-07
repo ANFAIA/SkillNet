@@ -14,6 +14,7 @@ import type { FormEvent, KeyboardEvent } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { ChatMarkdown } from '../../chat/ChatMarkdown'
 import { duration, ease } from '../../../lib/motion'
+import { executeTool } from '../../../lib/toolRegistry'
 
 // ── Types ──────────────────────────────────────────────────────
 
@@ -69,6 +70,11 @@ async function streamChat(
         try {
           const data = JSON.parse(raw) as Record<string, unknown>
           if (eventType === 'token') onToken(String(data.content ?? ''))
+          else if (eventType === 'action') {
+            const tool = String(data.tool ?? '')
+            const args = (data.args ?? {}) as Record<string, unknown>
+            if (tool) executeTool(tool, args)
+          }
         } catch { /* skip */ }
         eventType = ''
       }

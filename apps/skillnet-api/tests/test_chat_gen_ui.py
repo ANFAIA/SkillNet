@@ -41,9 +41,11 @@ from src.llm.prompts.tutor import (
 from src.routes import chat as chat_route
 from src.services import chat_service as chat_module
 from src.services.chat_service import (
+    ALLOWED_TOOLS,
     MIN_LAYOUT_CHARS,
     ChatService,
     emit_chat_program,
+    extract_actions,
     invented_figures,
     parse_layout_json,
     strip_no_ui,
@@ -807,3 +809,100 @@ async def test_a_user_with_nothing_still_gets_an_answer(monkeypatch) -> None:
     assert grounding["grounding"] == "general"
     assert "".join(data["content"] for name, data in events if name == "token").strip()
     assert repo.messages[-1].message_metadata["grounding"] == "general"
+
+
+# -- frontend tool calls (ACTION lines) ----------------------------------------
+
+def test_extract_actions_parses_a_valid_action_line() -> None:
+    text = (
+        "Listo, cambio el tema a oscuro.\n"
+        'ACTION: {"tool": "set_theme", "args": {"theme": "dark"}}'
+    )
+    clean, actions = extract_actions(text)
+    assert clean == "Listo, cambio el tema a oscuro."
+    assert len(actions) == 1
+    assert actions[0] == {"tool": "set_theme", "args": {"theme": "dark"}}
+
+
+def test_extract_actions_ignores_unknown_tools() -> None:
+    text = 'ACTION: {"tool": "delete_everything", "args": {}}'
+    clean, actions = extract_actions(text)
+    assert actions == []
+    assert clean == ""
+
+
+def test_extract_actions_ignores_malformed_json() -> None:
+    text = "ACTION: {not json}"
+    clean, actions = extract_actions(text)
+    assert actions == []
+    assert clean == ""
+
+
+def test_extract_actions_strips_the_line_even_when_invalid() -> None:
+    """The ACTION prefix is always stripped from visible text, valid or not."""
+    text = "Hola.\nACTION: {invalid}\nAdios."
+    clean, actions = extract_actions(text)
+    assert "ACTION" not in clean
+    assert actions == []
+
+
+def test_extract_actions_handles_no_action_lines() -> None:
+    text = "Los alergenos son catorce sustancias de declaracion obligatoria."
+    clean, actions = extract_actions(text)
+    assert clean == text
+    assert actions == []
+
+
+def test_extract_actions_requires_args_to_be_a_dict() -> None:
+    text = 'ACTION: {"tool": "set_locale", "args": "es"}'
+    _, actions = extract_actions(text)
+    assert actions == []
+
+
+def test_extract_actions_allows_all_registered_tools() -> None:
+    """Every tool in ``ALLOWED_TOOLS`` is accepted."""
+    for tool_name in ALLOWED_TOOLS:
+        text = f'ACTION: {{"tool": "{tool_name}", "args": {{}}}}'
+        _, actions = extract_actions(text)
+        assert len(actions) == 1
+        assert actions[0]["tool"] == tool_name
+
+
+def test_action_inside_prose_is_not_matched() -> None:
+    """The word ACTION inside a sentence is not a tool call."""
+    text = "El ACTION de este paso es importante para la seguridad alimentaria."
+    clean, actions = extract_actions(text)
+    assert actions == []
+    assert clean == text
+
+
+async def test_action_events_are_emitted_after_done(monkeypatch) -> None:
+    """End to end: the model emits an ACTION line and the stream delivers it."""
+    answer_with_action = (
+        "Listo, cambio el idioma a ingles.\n"
+        'ACTION: {"tool": "set_locale", "args": {"locale": "en"}}'
+    )
+    llm = _FakeLLM(answer_with_action)
+    events, repo = await _run(monkeypatch, llm, generative_ui=False)
+    names = [name for name, _ in events]
+
+    assert "action" in names
+    action_idx = names.index("action")
+    done_idx = names.index("done")
+    assert action_idx > done_idx
+
+    action_data = events[action_idx][1]
+    assert action_data["tool"] == "set_locale"
+    assert action_data["args"] == {"locale": "en"}
+
+    # The ACTION line is stripped from the persisted content.
+    stored = repo.messages[-1].content
+    assert "ACTION" not in stored
+    assert "Listo, cambio el idioma a ingles." in stored
+
+
+async def test_no_action_events_when_answer_has_none(monkeypatch) -> None:
+    llm = _FakeLLM("Los alergenos son catorce sustancias.")
+    events, _ = await _run(monkeypatch, llm, generative_ui=False)
+    names = [name for name, _ in events]
+    assert "action" not in names

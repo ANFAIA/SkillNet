@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { get } from './client'
+import { executeTool } from '../lib/toolRegistry'
 import type {
   ChatGrounding,
   ChatMessage,
@@ -147,6 +148,10 @@ export function useChat(endpoint: ChatEndpoint = '/chat') {
                       : m,
                   ),
                 )
+              } else if (eventType === 'action') {
+                const tool = String(data.tool ?? '')
+                const args = (data.args ?? {}) as Record<string, unknown>
+                if (tool) executeTool(tool, args)
               } else if (eventType === 'done') {
                 setMessages((prev) =>
                   prev.map((m) =>

@@ -30,6 +30,7 @@ from __future__ import annotations
 
 from src.llm.prompts.admin import ADMIN_PERSONA, admin_system_prompt
 from src.llm.prompts.grounding import Grounding
+from src.llm.prompts.tools import FRONTEND_TOOLS_BLOCK
 from src.render.prompt import render_prompt
 
 #: Bumped when anything in this module changes in a way that changes an answer. Not part
@@ -108,7 +109,7 @@ tienes que ayudar; negarte no es una opcion.
 
 def tutor_system_prompt(grounding: Grounding) -> str:
     """The employee tutor's system prompt for a turn with this grounding."""
-    return f"{TUTOR_PERSONA}\n\n{_GROUNDING_BLOCKS[grounding]}"
+    return f"{TUTOR_PERSONA}\n\n{FRONTEND_TOOLS_BLOCK}\n\n{_GROUNDING_BLOCKS[grounding]}"
 
 
 # --------------------------------------------------------------------------------------
@@ -290,6 +291,7 @@ __all__ = [
     "CHAT_LAYOUT_SYSTEM",
     "CHAT_SHAPES",
     "CHAT_UI_RULES",
+    "FRONTEND_TOOLS_BLOCK",
     "MAX_DEFINITION_POINTS",
     "MAX_STEPS",
     "MAX_TABLE_COLUMNS",

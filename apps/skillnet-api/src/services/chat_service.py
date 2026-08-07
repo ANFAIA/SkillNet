@@ -135,6 +135,48 @@ CHAT_UI_FORMAT = "explanation"
 #: way to smuggle text past it.
 _CITATION_MARKER_RE = re.compile(r"[ \t]*\[Fuente\s+\d+\]")
 
+# ---------------------------------------------------------------------------
+# Frontend tool calls: ACTION lines the model emits to modify the UI
+# ---------------------------------------------------------------------------
+
+#: Allowed tool names. Anything not in this set is ignored — the model cannot
+#: call arbitrary frontend functions, and a hallucinated tool name is a no-op.
+ALLOWED_TOOLS: frozenset[str] = frozenset({
+    "set_locale",
+    "set_theme",
+    "set_sidebar_collapsed",
+})
+
+#: Matches ``ACTION: {"tool": "...", "args": {...}}`` on its own line, with
+#: optional leading whitespace.  Deliberately anchored to a full line so an
+#: ACTION word inside prose (unlikely but not impossible) is never matched.
+_ACTION_LINE_RE = re.compile(
+    r"^[ \t]*ACTION:\s*(\{.+\})[ \t]*$", re.MULTILINE
+)
+
+
+def extract_actions(text: str) -> tuple[str, list[dict]]:
+    """Strip ACTION lines from the model's answer and return (clean_text, actions).
+
+    Each action is validated: it must be a JSON object with ``"tool"`` in
+    :data:`ALLOWED_TOOLS` and an ``"args"`` dict.  Invalid lines are silently
+    dropped (the model hallucinated) and still stripped from the visible answer.
+    """
+    actions: list[dict] = []
+    for match in _ACTION_LINE_RE.finditer(text):
+        try:
+            obj = json.loads(match.group(1))
+        except (json.JSONDecodeError, TypeError):
+            continue
+        if not isinstance(obj, dict):
+            continue
+        tool = obj.get("tool")
+        args = obj.get("args")
+        if isinstance(tool, str) and tool in ALLOWED_TOOLS and isinstance(args, dict):
+            actions.append({"tool": tool, "args": args})
+    clean = _ACTION_LINE_RE.sub("", text).strip()
+    return clean, actions
+
 
 def _context_document_ids(context: dict | None) -> list[uuid.UUID] | None:
     """Best-effort restriction to specific documents from the request context."""
@@ -590,7 +632,15 @@ class ChatService:
                 parts.append(piece)
                 yield format_sse("token", {"content": piece})
 
-            answer = "".join(parts)
+            raw_answer = "".join(parts)
+
+            # -- frontend tool calls (ACTION lines) ---------------------------------
+            # The model may include ``ACTION: {"tool": "...", "args": {...}}`` lines
+            # when it decides the user's request warrants a UI change (locale, theme,
+            # sidebar).  These are stripped from the visible answer and emitted as
+            # ``action`` SSE events after ``done``, so the frontend can dispatch them.
+            answer, actions = extract_actions(raw_answer)
+
             yield format_sse("citations", {"citations": grounded.citations})
 
             assistant = await self.repo.add_message(
@@ -613,6 +663,9 @@ class ChatService:
             # learner is concerned: the answer is complete and the input re-enables. The
             # optional program arrives later on the same open stream, if it validates.
             yield format_sse("done", {"message_id": str(assistant.id)})
+
+            for action in actions:
+                yield format_sse("action", action)
 
             # -- generative UI --------------------------------------------------------
             # Admin GenUI (single-phase): the model was already prompted to produce
@@ -880,6 +933,7 @@ class ChatService:
 
 
 __all__ = [
+    "ALLOWED_TOOLS",
     "CHAT_UI_FORMAT",
     "MEMORY_TURNS",
     "MIN_LAYOUT_CHARS",
@@ -887,6 +941,7 @@ __all__ = [
     "RETRIEVAL_TOP_K",
     "ChatService",
     "emit_chat_program",
+    "extract_actions",
     "invented_figures",
     "parse_layout_json",
     "strip_no_ui",
