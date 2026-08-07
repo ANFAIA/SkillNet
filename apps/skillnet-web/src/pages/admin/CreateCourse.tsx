@@ -1073,8 +1073,8 @@ export function CreateCourse() {
               >
                 {testingCourse ? 'Preparando...' : 'Probar curso'}
               </Button>
-              <Button variant="secondary" onClick={() => navigate(`/admin/curso/${courseId}/esquema`)}>
-                Ver esquema
+              <Button variant="secondary" onClick={() => setPhase('assign')}>
+                Asignar a empleados
               </Button>
               <Button variant="ghost" onClick={() => navigate('/admin/contenido')}>
                 Volver a contenido
