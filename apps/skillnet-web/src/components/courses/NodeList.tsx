@@ -1,8 +1,10 @@
 import { Link, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
+import type { MouseEvent } from 'react'
 import { Card, ProgressBar } from '../ui'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
 import { staggerContainer, staggerItem } from '../../lib/motion'
+import { useNodeMorph } from '../../stores/nodeMorph'
 import type { LearningNode, NodeList as NodeListRead, NodeState } from '../../types'
 
 /**
@@ -114,6 +116,13 @@ function NodeRow({
 
   const variants = animated ? staggerItem : undefined
 
+  const setMorphOrigin = useNodeMorph((s) => s.setOrigin)
+
+  function captureOrigin(e: MouseEvent<HTMLAnchorElement>) {
+    const rect = e.currentTarget.getBoundingClientRect()
+    setMorphOrigin({ top: rect.top, left: rect.left, width: rect.width, height: rect.height })
+  }
+
   if (node.locked) {
     return (
       <motion.li variants={variants}>
@@ -126,6 +135,7 @@ function NodeRow({
     <motion.li variants={variants}>
       <Link
         to={`${courseBasePath}/nodo/${node.id}`}
+        onClick={captureOrigin}
         className="block px-4 py-3 border-b border-border last:border-b-0 hover:bg-bg-subtle transition-colors"
       >
         {body}

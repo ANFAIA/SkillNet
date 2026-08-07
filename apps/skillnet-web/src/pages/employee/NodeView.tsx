@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import type { MouseEvent } from 'react'
+import { useIntl } from 'react-intl'
 import { useCourse } from '../../api/courses'
 import { Card, EmptyState, ProgressBar } from '../../components/ui'
 import { ClickableSurface, NO_EXPLAIN_SELECTOR } from '../../components/courses/ClickableSurface'
@@ -15,6 +16,7 @@ import { useReducedMotion } from '../../hooks/useReducedMotion'
 import { transition, duration, ease } from '../../lib/motion'
 import { useLearnerProfile } from '../../api/onboarding'
 import { post } from '../../api/client'
+import { useNodeMorph } from '../../stores/nodeMorph'
 import {
   elementForFormat,
   isNodeNotReviewed,
@@ -92,6 +94,14 @@ export function NodeView() {
   const { id: courseId, nodeId } = useParams<{ id: string; nodeId: string }>()
   const navigate = useNavigate()
 
+  // Morph origin — the rect of the node row that was clicked (set by NodeList).
+  // Captured in a ref on first mount so the animation target is stable.
+  const morphOrigin = useNodeMorph((s) => s.origin)
+  const clearMorph = useNodeMorph((s) => s.clear)
+  const morphRef = useRef(morphOrigin)
+  /** Whether the exit animation is playing (collapse back). */
+  const [exiting, setExiting] = useState(false)
+
   const nodes = useCourseNodes(courseId)
   const courseQuery = useCourse(courseId)
   const { data: profile } = useLearnerProfile()
@@ -149,6 +159,8 @@ export function NodeView() {
     prevNodeId.current = nodeId
     setPhase(null)
     setStreamFailure(null)
+    setExiting(false)
+    morphRef.current = null
     requestedRef.current = false
     programShownBefore.current = false
     viewedRenderRef.current = null
@@ -361,14 +373,61 @@ export function NodeView() {
 
   const shownKey = served?.render_id ?? 'none'
 
+  // Morph entry: if a morph origin was captured, animate from its rect to
+  // fullscreen using scale + translate (the FLIP technique). On exit, reverse
+  // the animation and then navigate.
+  const hasMorphOrigin = morphRef.current !== null && !reduceMotion
+  const origin = morphRef.current
+
+  // Compute FLIP values: what scale and translate bring fullscreen -> origin?
+  const vw = typeof window !== 'undefined' ? window.innerWidth : 1
+  const vh = typeof window !== 'undefined' ? window.innerHeight : 1
+  const flipFrom = hasMorphOrigin
+    ? {
+        scaleX: origin!.width / vw,
+        scaleY: origin!.height / vh,
+        x: origin!.left + origin!.width / 2 - vw / 2,
+        y: origin!.top + origin!.height / 2 - vh / 2,
+        borderRadius: 8,
+        opacity: 0.7,
+      }
+    : { scaleX: 1, scaleY: 1, x: 0, y: 0, borderRadius: 0, opacity: 0 }
+
+  const flipTo = { scaleX: 1, scaleY: 1, x: 0, y: 0, borderRadius: 0, opacity: 1 }
+
+  function handleBack() {
+    if (reduceMotion || !hasMorphOrigin) {
+      clearMorph()
+      navigate(backToCourse)
+      return
+    }
+    setExiting(true)
+  }
+
+  function onExitComplete() {
+    clearMorph()
+    navigate(backToCourse)
+  }
+
   return createPortal(
-    <div className="fixed inset-0 z-[200] bg-bg flex flex-col">
-    {/* No entry animation — node changes must be seamless, not re-animated */}
+    <motion.div
+      className="fixed inset-0 z-[200] bg-bg flex flex-col overflow-hidden"
+      initial={flipFrom}
+      animate={exiting ? flipFrom : flipTo}
+      transition={hasMorphOrigin
+        ? { duration: duration.slow, ease: ease.base }
+        : { duration: duration.normal, ease: ease.base }
+      }
+      onAnimationComplete={() => {
+        if (exiting) onExitComplete()
+        else clearMorph()
+      }}
+    >
       {/* Minimal top bar — just close + title + progress dots */}
       <div className="shrink-0 flex items-center gap-3 px-6 py-4" data-no-explain="">
         <button
           type="button"
-          onClick={() => navigate(backToCourse)}
+          onClick={handleBack}
           className="p-1.5 text-text-muted hover:text-text transition-colors"
           aria-label="Volver al curso"
         >
@@ -528,7 +587,7 @@ export function NodeView() {
           </div>
         )}
       </div>
-    </div>,
+    </motion.div>,
     document.body,
   )
 }
