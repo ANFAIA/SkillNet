@@ -75,12 +75,17 @@ function StepperStack({ children }: { children?: ReactNode }) {
     }, 1200)
   }, [isLast, goNextNode])
 
-  // Keyboard navigation: left/right arrow keys
+  // Keyboard navigation: same behavior as chevrons
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
+      // Don't hijack arrows when user is typing in an input/textarea
+      const tag = (e.target as HTMLElement)?.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+
       if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
         e.preventDefault()
         if (!isLast) setStep((s) => s + 1)
+        else if (goNextNode) goNextNode()
       } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
         e.preventDefault()
         setStep((s) => Math.max(0, s - 1))
@@ -88,7 +93,7 @@ function StepperStack({ children }: { children?: ReactNode }) {
     }
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
-  }, [isLast])
+  }, [isLast, goNextNode])
 
   if (total === 0) return null
   if (total === 1) {
