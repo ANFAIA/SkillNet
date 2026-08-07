@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { get, post } from '../../api/client'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   DndContext,
@@ -24,7 +25,6 @@ import { NodePreview } from '../../components/schema/NodePreview'
 import { duration, ease } from '../../lib/motion'
 import {
   schemaErrorMessage,
-  schemaLockedMessage,
   schemaRuleErrors,
   useCourseSchema,
   useMarkNodeReviewed,
@@ -161,7 +161,7 @@ export function CourseSchema() {
     return map
   }, [server])
 
-  const locked = server?.schema_status === 'validated'
+  const validated = server?.schema_status === 'validated'
 
   const dirtyByKey = useMemo(() => {
     const map = new Map<string, boolean>()
@@ -204,8 +204,6 @@ export function CourseSchema() {
     () => [...schemaRuleErrors(validateSchema.error), ...schemaRuleErrors(updateSchema.error)],
     [validateSchema.error, updateSchema.error],
   )
-  const lockedNotice =
-    schemaLockedMessage(updateSchema.error) ?? schemaLockedMessage(proposeSchema.error)
   const plainError =
     schemaErrorMessage(updateSchema.error) ??
     schemaErrorMessage(validateSchema.error) ??
@@ -264,43 +262,108 @@ export function CourseSchema() {
     })
   }
 
-  function unvalidate() {
-    unvalidateSchema.mutate(undefined, { onSuccess: () => updateSchema.reset() })
+  const draftPayload = () => ({
+    intent_density: density,
+    nodes: draft.map((node, index) => ({
+      ...(node.id ? { id: node.id } : {}),
+      title: node.title.trim(),
+      summary: node.summary.trim() || node.title.trim(),
+      outcome: node.outcome.trim() ? node.outcome.trim() : null,
+      criticality: node.criticality,
+      position: index + 1,
+      mastery_threshold: node.masteryThreshold,
+      estimated_minutes: node.estimatedMinutes,
+      default_ui_format: node.defaultUiFormat,
+      skill_id: node.skillId,
+      seed_lesson_id: node.seedLessonId,
+      source_document_id: node.sourceDocumentId,
+      source_headings: node.sourceHeadings,
+      prerequisite_node_ids: node.prerequisiteNodeIds,
+      archived: node.archived,
+    })),
+  })
+
+  /** Save, auto-review, and re-validate in one go. Unvalidates first if needed. */
+  async function saveAndActivate() {
+    validateSchema.reset()
+
+    // Unvalidate first if the schema is currently locked
+    if (validated) {
+      await new Promise<void>((resolve, reject) =>
+        unvalidateSchema.mutate(undefined, {
+          onSuccess: () => { updateSchema.reset(); resolve() },
+          onError: (e) => reject(e),
+        }),
+      )
+    }
+
+    // Save
+    const schema = await new Promise<{ nodes: { id: string }[] }>((resolve, reject) =>
+      updateSchema.mutate(draftPayload(), {
+        onSuccess: (s) => resolve(s),
+        onError: (e) => reject(e),
+      }),
+    )
+
+    // Auto-review all nodes
+    for (const node of schema.nodes) {
+      await new Promise<void>((resolve) =>
+        markReviewed.mutate(node.id, { onSettled: () => resolve() }),
+      )
+    }
+
+    // Re-validate (awaited so callers know when it's done)
+    await new Promise<void>((resolve, reject) =>
+      validateSchema.mutate(undefined, {
+        onSuccess: () => resolve(),
+        onError: (e) => reject(e),
+      }),
+    )
+
+    // Publish the course so it shows as "Publicado" instead of "Borrador"
+    if (id) await post(`/courses/${id}/publish`, {}).catch(() => {})
   }
 
-  function save() {
-    validateSchema.reset()
-    updateSchema.mutate(
-      {
-        intent_density: density,
-        nodes: draft.map((node, index) => ({
-          ...(node.id ? { id: node.id } : {}),
-          title: node.title.trim(),
-          summary: node.summary.trim() || node.title.trim(),
-          outcome: node.outcome.trim() ? node.outcome.trim() : null,
-          criticality: node.criticality,
-          position: index + 1,
-          mastery_threshold: node.masteryThreshold,
-          estimated_minutes: node.estimatedMinutes,
-          default_ui_format: node.defaultUiFormat,
-          skill_id: node.skillId,
-          seed_lesson_id: node.seedLessonId,
-          source_document_id: node.sourceDocumentId,
-          source_headings: node.sourceHeadings,
-          prerequisite_node_ids: node.prerequisiteNodeIds,
-          archived: node.archived,
-        })),
-      },
-      {
-        // Auto-review all nodes after saving — the admin just edited them,
-        // asking to "review" again is redundant.
-        onSuccess: (schema) => {
-          for (const node of schema.nodes) {
-            markReviewed.mutate(node.id)
+  /** Full "Probar curso" flow: save + validate + enroll + pre-render + navigate. */
+  async function testCourse() {
+    if (!id || !currentUser) return
+    try {
+      // Save + validate if there are unsaved changes or course isn't validated
+      if (dirty || !validated) {
+        await saveAndActivate()
+      }
+      // Enroll admin (ignore conflict if already enrolled)
+      await assignCourse.mutateAsync(
+        { user_ids: [currentUser.id], course_id: id },
+      ).catch(() => {})
+
+      // Generate the first node and wait — the admin (and every future learner)
+      // will find content ready from the start.
+      const freshSchema = await get<{ nodes: { id: string; position: number }[] }>(`/courses/${id}/schema`).catch(() => null)
+      if (freshSchema && freshSchema.nodes.length > 0) {
+        const firstNode = [...freshSchema.nodes].sort((a, b) => a.position - b.position)[0]
+        const result = await post<{ request_id: string; cached: boolean }>(
+          `/nodes/${firstNode.id}/render`, { force: false },
+        ).catch(() => null)
+
+        if (result && result.request_id) {
+          for (let i = 0; i < 60; i++) {
+            const check = await get<{ status: string }>(
+              `/nodes/${firstNode.id}/render`,
+            ).catch(() => null)
+            if (check && (check.status === 'ready' || check.status === 'fallback')) break
+            await new Promise(r => setTimeout(r, 500))
           }
-        },
-      },
-    )
+        }
+
+        // Remaining nodes generate on-the-fly, adapted to each learner
+      }
+
+      // Navigate to learner view
+      navigate(`/admin/probar-curso/${id}`)
+    } catch {
+      // saveAndActivate failed — errors are already shown by the mutation state
+    }
   }
 
   function propose() {
@@ -375,55 +438,35 @@ export function CourseSchema() {
   return (
     <div>
       {/* ── Header ─────────────────────────────────────────── */}
-      <div className="mb-6">
-        <div className="flex items-center gap-2 min-w-0">
-          <button
-            type="button"
+      <motion.div
+        className="mb-6"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: duration.normal, ease: ease.base }}
+      >
+        <div className="shrink-0 flex items-baseline gap-1.5">
+          <h2
+            className="text-xl font-semibold transition-colors duration-200 text-text-muted cursor-pointer hover:text-text"
             onClick={() => navigate('/admin/contenido')}
-            className="group shrink-0 p-1 -ml-1"
-            aria-label="Volver a contenido"
+            role="button"
           >
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="text-text-muted group-hover:text-primary group-hover:-translate-x-1 transition-all duration-200"
-            >
-              <polyline points="15 18 9 12 15 6" />
-            </svg>
-          </button>
-          <h2 className="text-xl font-semibold text-text truncate min-w-0">
-            {courseQuery.data?.title ?? 'Esquema del curso'}
+            Contenido
           </h2>
+          <motion.span
+            key="breadcrumb-course"
+            className="text-xl font-semibold text-text"
+            initial={{ opacity: 0, x: -8 }}
+            animate={{ opacity: 1, x: 0, transition: { duration: duration.normal, ease: ease.base } }}
+          >
+            / {courseQuery.data?.title ?? 'Esquema del curso'}
+          </motion.span>
         </div>
         <p className="text-sm text-text-secondary mt-1">
           {draft.length} {draft.length === 1 ? 'nodo' : 'nodos'}
           {totalMinutes > 0 && ` · ${totalMinutes} min`}
         </p>
-      </div>
+      </motion.div>
 
-
-      {/* ── Locked notice from server ──────────────────────── */}
-      {lockedNotice && (
-        <div role="alert" className="border border-danger/40 bg-danger/5 rounded-lg p-4 mb-5">
-          <p className="text-sm font-medium text-danger">No se guardo nada</p>
-          <p className="text-sm text-text mt-1">{lockedNotice}</p>
-          <Button
-            variant="secondary"
-            size="sm"
-            className="mt-3"
-            onClick={unvalidate}
-            disabled={unvalidateSchema.isPending}
-          >
-            {unvalidateSchema.isPending ? 'Sacando...' : 'Sacar de validacion'}
-          </Button>
-        </div>
-      )}
 
       {plainError && (
         <p role="alert" className="text-sm text-danger mb-5">
@@ -449,18 +492,18 @@ export function CourseSchema() {
             <IntentDensitySlider
               value={density}
               onChange={setDensity}
-              disabled={locked || proposeJob.running}
+              disabled={proposeJob.running}
             />
             <div className="flex flex-wrap items-center gap-2 mt-4">
               <Button
                 onClick={propose}
-                disabled={locked || proposeSchema.isPending || proposeJob.running}
+                disabled={proposeSchema.isPending || proposeJob.running}
               >
                 {proposeJob.running || proposeSchema.isPending
                   ? 'Proponiendo esquema...'
                   : 'Proponer esquema'}
               </Button>
-              <Button variant="secondary" onClick={addNode} disabled={locked}>
+              <Button variant="secondary" onClick={addNode}>
                 Anadir nodo a mano
               </Button>
             </div>
@@ -500,20 +543,14 @@ export function CourseSchema() {
                           id={nodeIds[index]}
                           index={index}
                           node={node}
-                          total={draft.length}
                           prerequisiteOptions={prerequisiteOptions}
                           expanded={expandedKeys.has(node.key)}
                           onToggle={() => toggleNode(node.key)}
                           onChange={(patch) => patchNode(node.key, patch)}
                           onArchiveToggle={() => patchNode(node.key, { archived: !node.archived })}
                           onRemove={() => removeNode(node.key)}
-                          reviewedAt={node.id ? serverById.get(node.id)?.reviewed_at ?? null : null}
                           dirty={!!dirtyByKey.get(node.key)}
-                          locked={!!locked}
-                          onMarkReviewed={(nodeId) => markReviewed.mutate(nodeId)}
-                          markReviewPending={
-                            markReviewed.isPending && markReviewed.variables === node.id
-                          }
+                          locked={false}
                           onPreview={(nodeId, rect) => {
                             setPreviewOrigin(rect)
                             setPreviewNodeId(nodeId)
@@ -527,20 +564,23 @@ export function CourseSchema() {
             </DndContext>
 
             {/* Add node button */}
-            {!locked && (
-              <button
-                type="button"
-                onClick={addNode}
-                className="w-full mt-2 px-2 py-1.5 rounded-md text-sm text-text-muted hover:text-primary hover:bg-bg-muted transition-colors flex items-center gap-2"
-              >
-                <PlusIcon />
-                Anadir nodo
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={addNode}
+              className="w-full mt-2 px-2 py-1.5 rounded-md text-sm text-text-muted hover:text-primary hover:bg-bg-muted transition-colors flex items-center gap-2"
+            >
+              <PlusIcon />
+              Anadir nodo
+            </button>
           </div>
 
           {/* Sidebar */}
-          <div className="w-full lg:w-56 lg:shrink-0 space-y-4">
+          <motion.div
+            className="w-full lg:w-56 lg:shrink-0 space-y-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: duration.normal, ease: ease.base, delay: 0.15 }}
+          >
             {/* Review progress */}
             {/* Stats */}
             <Card>
@@ -565,17 +605,16 @@ export function CourseSchema() {
               <IntentDensitySlider
                 value={density}
                 onChange={setDensity}
-                disabled={locked || proposeJob.running}
+                disabled={proposeJob.running}
               />
-              {!locked && (
-                <div className="mt-3">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={propose}
-                    disabled={proposeSchema.isPending || proposeJob.running}
-                    className="w-full"
-                  >
+              <div className="mt-3">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={propose}
+                  disabled={proposeSchema.isPending || proposeJob.running}
+                  className="w-full"
+                >
                     {proposeJob.running || proposeSchema.isPending
                       ? 'Proponiendo...'
                       : 'Volver a proponer'}
@@ -584,7 +623,6 @@ export function CourseSchema() {
                     Reemplaza los nodos propuestos por una tanda nueva.
                   </p>
                 </div>
-              )}
               {proposeJob.failed && (
                 <p role="alert" className="text-xs text-danger mt-2">
                   {proposeJob.error ?? 'La propuesta fallo.'}
@@ -594,88 +632,36 @@ export function CourseSchema() {
 
             {/* Action buttons */}
             <div className="space-y-2">
-              <Button
-                variant="secondary"
-                className="w-full"
-                onClick={save}
-                disabled={locked || !dirty || updateSchema.isPending}
-              >
-                {updateSchema.isPending ? 'Guardando...' : 'Guardar cambios'}
-              </Button>
-              {locked ? (
-                <>
-                  <Button
-                    variant="primary"
-                    className="w-full"
-                    onClick={() => {
-                      if (!id || !currentUser) return
-                      assignCourse.mutate(
-                        { user_ids: [currentUser.id], course_id: id },
-                        {
-                          onSuccess: () => navigate(`/empleado/curso/${id}`),
-                          onError: () => navigate(`/empleado/curso/${id}`),
-                        },
-                      )
-                    }}
-                    disabled={assignCourse.isPending}
-                  >
-                    {assignCourse.isPending ? 'Preparando...' : 'Probar curso'}
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <Button
-                    variant="accent"
-                    className="w-full"
-                    onClick={async () => {
-                      // Save first if dirty
-                      if (dirty) {
-                        await new Promise<void>((resolve, reject) => {
-                          updateSchema.mutate(
-                            {
-                              intent_density: density,
-                              nodes: draft.map((node, index) => ({
-                                ...(node.id ? { id: node.id } : {}),
-                                title: node.title.trim(),
-                                summary: node.summary.trim() || node.title.trim(),
-                                outcome: node.outcome.trim() ? node.outcome.trim() : null,
-                                criticality: node.criticality,
-                                position: index + 1,
-                                mastery_threshold: node.masteryThreshold,
-                                estimated_minutes: node.estimatedMinutes,
-                                default_ui_format: node.defaultUiFormat,
-                                skill_id: node.skillId,
-                                seed_lesson_id: node.seedLessonId,
-                                source_document_id: node.sourceDocumentId,
-                                source_headings: node.sourceHeadings,
-                                prerequisite_node_ids: node.prerequisiteNodeIds,
-                                archived: node.archived,
-                              })),
-                            },
-                            { onSuccess: () => resolve(), onError: (e) => reject(e) },
-                          )
-                        })
-                        // Wait for schema to refresh
-                        await schemaQuery.refetch()
-                      }
-                      // Auto-review all nodes
-                      const freshSchema = schemaQuery.data
-                      if (freshSchema) {
-                        for (const node of freshSchema.nodes) {
-                          await new Promise<void>((resolve) => markReviewed.mutate(node.id, { onSettled: () => resolve() }))
-                        }
-                      }
-                      // Validate
-                      validateSchema.mutate()
-                    }}
-                    disabled={draft.length === 0 || validateSchema.isPending}
-                  >
-                    {validateSchema.isPending ? 'Activando...' : 'Activar curso'}
-                  </Button>
-                </>
+              {dirty && (
+                <Button
+                  variant="accent"
+                  className="w-full"
+                  onClick={() => void saveAndActivate()}
+                  disabled={updateSchema.isPending || validateSchema.isPending || unvalidateSchema.isPending}
+                >
+                  {updateSchema.isPending || unvalidateSchema.isPending
+                    ? 'Guardando...'
+                    : validateSchema.isPending
+                      ? 'Activando...'
+                      : 'Guardar y activar'}
+                </Button>
               )}
+              <Button
+                variant="primary"
+                className="w-full"
+                onClick={() => void testCourse()}
+                disabled={draft.length === 0 || assignCourse.isPending || updateSchema.isPending || validateSchema.isPending}
+              >
+                {updateSchema.isPending || unvalidateSchema.isPending
+                  ? 'Guardando...'
+                  : validateSchema.isPending
+                    ? 'Activando...'
+                    : assignCourse.isPending
+                      ? 'Preparando...'
+                      : 'Probar curso'}
+              </Button>
             </div>
-          </div>
+          </motion.div>
         </div>
       )}
 

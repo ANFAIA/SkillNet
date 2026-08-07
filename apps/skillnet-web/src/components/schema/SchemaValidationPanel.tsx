@@ -27,11 +27,6 @@ export const SCHEMA_RULE_COPY: Record<string, RuleCopy> = {
     detail:
       'El tutor lee el arbol de resumenes para decidir que nodo es relevante: sin resumen ese nodo es invisible para el.',
   },
-  missing_source: {
-    title: 'Hay nodos sin fuente',
-    detail:
-      'Cada nodo necesita un documento de origen o una leccion semilla. Sin fuente no hay de donde generar contenido.',
-  },
   no_critical_node: {
     title: 'Ningun nodo es critico',
     detail:

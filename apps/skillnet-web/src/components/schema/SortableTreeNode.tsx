@@ -3,6 +3,7 @@ import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { duration } from '../../lib/motion'
 import { InfoTooltip } from '../ui/InfoTooltip'
+import { SELECTABLE_UI_FORMATS } from './NodeEditor'
 import type { ProposedNode } from '../../pages/admin/createCourseTypes'
 
 // ── Icons (local, not worth a separate file) ────────────────
@@ -171,7 +172,7 @@ export function SortableTreeNode({
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1, transition: { duration: duration.fast } }}
-          className="ml-[42px] pl-4 border-l border-border space-y-1 pb-2"
+          className="ml-[42px] pl-4 border-l border-border space-y-1 pb-3"
         >
           {/* Summary */}
           <div className="flex items-start gap-0 px-2 py-1 rounded hover:bg-bg-muted">
@@ -223,6 +224,28 @@ export function SortableTreeNode({
                   }`}
                 >
                   {o.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Format */}
+          <div className="flex items-center gap-0 px-2 py-1 rounded hover:bg-bg-muted">
+            <span className="w-24 shrink-0 text-xs text-text-muted">Formato</span>
+            <div className="flex gap-1 flex-wrap">
+              {SELECTABLE_UI_FORMATS.map((f) => (
+                <button
+                  key={f.value}
+                  type="button"
+                  onClick={() => onChange({ default_ui_format: f.value })}
+                  title={f.hint}
+                  className={`text-xs px-2.5 py-0.5 rounded-full border transition-colors ${
+                    node.default_ui_format === f.value
+                      ? 'bg-primary-subtle text-primary border-primary'
+                      : 'border-border text-text-muted hover:border-primary'
+                  }`}
+                >
+                  {f.label}
                 </button>
               ))}
             </div>

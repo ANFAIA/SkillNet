@@ -42,23 +42,16 @@ export interface SchemaTreeNodeProps {
   id: string
   index: number
   node: DraftNode
-  total: number
   prerequisiteOptions: PrerequisiteOption[]
   expanded: boolean
   onToggle: () => void
   onChange: (patch: Partial<DraftNode>) => void
   onArchiveToggle: () => void
   onRemove: () => void
-  /** Server-side review stamp. */
-  reviewedAt: string | null
   /** Local edits not yet saved. */
   dirty: boolean
   /** Schema is validated — all editing disabled. */
   locked: boolean
-  /** Callback to mark the node reviewed on the server. */
-  onMarkReviewed: (nodeId: string) => void
-  /** Whether a review request is in flight for this node. */
-  markReviewPending: boolean
   /** Callback to preview the node content. */
   onPreview: (nodeId: string, rect: DOMRect) => void
 }
@@ -67,18 +60,14 @@ export function SchemaTreeNode({
   id,
   index,
   node,
-  total: _total,
   prerequisiteOptions,
   expanded,
   onToggle,
   onChange,
   onArchiveToggle,
   onRemove,
-  reviewedAt: _reviewedAt,
   dirty,
   locked,
-  onMarkReviewed: _onMarkReviewed,
-  markReviewPending: _markReviewPending,
   onPreview,
 }: SchemaTreeNodeProps) {
   const {
@@ -98,7 +87,6 @@ export function SchemaTreeNode({
   }
 
   const disabled = locked
-  // Review is now auto — these are kept for the interface but unused in the UI
 
   const critClass =
     node.criticality === 'critical'

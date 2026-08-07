@@ -32,6 +32,8 @@ function PlusIcon({ size = 16 }: { size?: number }) {
 
 // ── Props ───────────────────────────────────────────────────
 
+export type StreamPhase = 'idle' | 'structure' | 'enriching' | 'done'
+
 export interface SchemaContentProps {
   proposing: boolean
   proposeError: string | null
@@ -47,6 +49,10 @@ export interface SchemaContentProps {
   onCreateCourse: () => void
   creating: boolean
   startError: string | null
+  /** Which nodes have received their detail enrichment (by index). */
+  enrichedNodes?: Set<number>
+  /** Current streaming phase for progressive UI. */
+  streamPhase?: StreamPhase
 }
 
 // ── Component ───────────────────────────────────────────────
@@ -66,6 +72,8 @@ export function SchemaContent({
   onCreateCourse,
   creating,
   startError,
+  enrichedNodes,
+  streamPhase = 'idle',
 }: SchemaContentProps) {
   const [expandedNodes, setExpandedNodes] = useState<Set<number>>(new Set())
   const [hasInteracted, setHasInteracted] = useState(false)
@@ -131,10 +139,21 @@ export function SchemaContent({
     }
   }
 
-  // Loading state
-  if (proposing) {
+  // Whether the stream is still working (structure arrived but enrichment is
+  // in progress). During this phase we show the tree but with shimmer details.
+  const isStreaming = streamPhase === 'structure' || streamPhase === 'enriching'
+
+  // Loading state: only show full skeleton when we have zero nodes AND are proposing.
+  // Once the structure arrives (nodes.length > 0) we render the tree progressively.
+  // The skeleton fades in with a delay so the container morph (layoutId) completes first.
+  if (proposing && nodes.length === 0 && !isStreaming) {
     return (
-      <div className="flex gap-6">
+      <motion.div
+        className="flex gap-6"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: duration.normal, ease: ease.base, delay: 0.35 }}
+      >
         <div className="shrink-0 space-y-4" style={{ width: 180 }}>
           <ShimmerSkeleton className="h-4 w-20" />
           <ShimmerSkeleton className="h-2 w-full rounded-full" />
@@ -150,7 +169,7 @@ export function SchemaContent({
             <TreeNodeSkeleton key={i} opacity={1 - i * 0.15} />
           ))}
         </div>
-      </div>
+      </motion.div>
     )
   }
 
@@ -269,7 +288,7 @@ export function SchemaContent({
       <div className="flex-1 min-w-0">
         {/* AI proposal banner — disappears after first edit */}
         <AnimatePresence>
-          {!hasInteracted && nodes.length > 0 && (
+          {!hasInteracted && nodes.length > 0 && !isStreaming && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1, transition: { duration: duration.normal } }}
@@ -281,45 +300,96 @@ export function SchemaContent({
           )}
         </AnimatePresence>
 
+        {/* Streaming phase indicator */}
+        <AnimatePresence>
+          {isStreaming && nodes.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1, transition: { duration: duration.normal } }}
+              exit={{ opacity: 0, transition: { duration: duration.fast } }}
+              className="border-l-4 border-primary bg-primary-subtle px-4 py-2.5 rounded-r-md mb-4"
+            >
+              <p className="text-sm text-text">
+                {streamPhase === 'structure' && 'Estructura lista. Enriqueciendo nodos...'}
+                {streamPhase === 'enriching' && `Completando detalles... (${enrichedNodes?.size ?? 0}/${nodes.length})`}
+              </p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={nodeIds} strategy={verticalListSortingStrategy}>
             <AnimatePresence initial={false}>
-              {nodes.map((node, i) => (
-                <motion.div
-                  key={`node-${node._key}`}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{
-                    opacity: 1,
-                    y: 0,
-                    transition: { duration: duration.normal, ease: ease.base, delay: i * 0.04 },
-                  }}
-                  exit={{ opacity: 0, x: -32, transition: { duration: duration.fast, ease: ease.snapOut } }}
-                >
-                  <SortableTreeNode
-                    id={nodeIds[i]}
-                    index={i}
-                    node={node}
-                    nodes={nodes}
-                    expanded={expandedNodes.has(i)}
-                    onToggle={() => toggleNode(i)}
-                    onChange={(patch) => handleNodeChange(i, patch)}
-                    onDelete={() => handleDelete(i)}
-                  />
-                </motion.div>
-              ))}
+              {nodes.map((node, i) => {
+                const isEnriched = enrichedNodes?.has(i) ?? true
+                const showShimmerDetail = isStreaming && !isEnriched
+
+                return (
+                  <motion.div
+                    key={`node-${node._key}`}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{
+                      opacity: 1,
+                      y: 0,
+                      transition: { duration: duration.normal, ease: ease.base, delay: i * 0.04 },
+                    }}
+                    exit={{ opacity: 0, x: -32, transition: { duration: duration.fast, ease: ease.snapOut } }}
+                  >
+                    {showShimmerDetail ? (
+                      /* Structure-only node: title visible, detail shimmer */
+                      <div className="flex items-start gap-0 px-2 py-1.5 rounded-md group hover:bg-bg-muted">
+                        <div className="w-5 shrink-0" />
+                        <span
+                          className={`text-xs font-medium rounded-full w-5 h-5 flex items-center justify-center shrink-0 ml-1 mt-0.5 ${
+                            node.criticality === 'critical'
+                              ? 'bg-primary-subtle text-primary'
+                              : node.criticality === 'recommended'
+                                ? 'bg-accent-subtle text-accent'
+                                : 'bg-bg-muted text-text-muted'
+                          }`}
+                        >
+                          {i + 1}
+                        </span>
+                        <div className="flex-1 min-w-0 ml-2">
+                          <p className="text-sm font-medium text-text">{node.title}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <ShimmerSkeleton className="h-3 rounded w-2/3" />
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0 ml-2 mt-0.5">
+                          <ShimmerSkeleton className="h-3 w-8 rounded" />
+                        </div>
+                      </div>
+                    ) : (
+                      <SortableTreeNode
+                        id={nodeIds[i]}
+                        index={i}
+                        node={node}
+                        nodes={nodes}
+                        expanded={expandedNodes.has(i)}
+                        onToggle={() => toggleNode(i)}
+                        onChange={(patch) => handleNodeChange(i, patch)}
+                        onDelete={() => handleDelete(i)}
+                      />
+                    )}
+                  </motion.div>
+                )
+              })}
             </AnimatePresence>
           </SortableContext>
         </DndContext>
 
         {/* Add node */}
-        <button
-          type="button"
-          onClick={onNodeAdd}
-          className="w-full mt-2 px-2 py-1.5 rounded-md text-sm text-text-muted hover:text-primary hover:bg-bg-muted transition-colors flex items-center gap-2"
-        >
-          <PlusIcon size={14} />
-          Anadir nodo
-        </button>
+        {!isStreaming && (
+          <button
+            type="button"
+            onClick={onNodeAdd}
+            className="w-full mt-2 px-2 py-1.5 rounded-md text-sm text-text-muted hover:text-primary hover:bg-bg-muted transition-colors flex items-center gap-2"
+          >
+            <PlusIcon size={14} />
+            Anadir nodo
+          </button>
+        )}
       </div>
     </div>
   )
