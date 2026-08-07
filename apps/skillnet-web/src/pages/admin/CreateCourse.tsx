@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence, LayoutGroup, useInstantLayoutTransition } from 'framer-motion'
 import { arrayMove } from '@dnd-kit/sortable'
+import { useIntl } from 'react-intl'
 import { ease, duration } from '../../lib/motion'
 import { Button, Input, Textarea, Badge, EmptyState, FileUploadZone, ProgressBar } from '../../components/ui'
 import { GenerationProgress } from '../../components/generation/GenerationProgress'
@@ -117,6 +118,7 @@ function UploadedFileRow({ upload: u, onRemove }: {
   upload: { file: File; status: string; progress: number; error?: string; documentId?: string }
   onRemove: () => void
 }) {
+  const intl = useIntl()
   return (
     <div className="flex items-center gap-3 border border-border rounded-lg px-3 py-2.5 group">
       <div className="shrink-0 w-8 h-8 rounded bg-bg-muted flex items-center justify-center">
@@ -126,10 +128,10 @@ function UploadedFileRow({ upload: u, onRemove }: {
         <p className="text-sm text-text truncate">{u.file.name}</p>
         <p className="text-xs text-text-muted">
           {(u.file.size / 1024).toFixed(0)} KB
-          {u.status === 'uploading' && ' · Subiendo...'}
-          {u.status === 'processing' && ' · Procesando...'}
-          {u.status === 'ready' && ' · Listo'}
-          {u.status === 'error' && ' · Error'}
+          {u.status === 'uploading' && ` · ${intl.formatMessage({ id: 'create.uploading' })}`}
+          {u.status === 'processing' && ` · ${intl.formatMessage({ id: 'create.processing' })}`}
+          {u.status === 'ready' && ` · ${intl.formatMessage({ id: 'create.uploadReady' })}`}
+          {u.status === 'error' && ` · ${intl.formatMessage({ id: 'create.uploadError' })}`}
         </p>
         {u.status === 'uploading' && <ProgressBar value={u.progress} size="sm" className="mt-1.5" />}
       </div>
@@ -143,7 +145,7 @@ function UploadedFileRow({ upload: u, onRemove }: {
         type="button"
         onClick={onRemove}
         className="text-text-muted hover:text-danger p-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-        title="Eliminar"
+        title={intl.formatMessage({ id: 'create.removeFile' })}
       >
         <XIcon size={14} />
       </button>
@@ -152,14 +154,15 @@ function UploadedFileRow({ upload: u, onRemove }: {
 }
 
 function DeliverySelector({ value, onChange }: { value: DeliveryChoice; onChange: (v: DeliveryChoice) => void }) {
+  const intl = useIntl()
   const options: { key: DeliveryChoice; label: string; desc: string }[] = [
-    { key: 'dynamic', label: 'Personalizado', desc: 'La IA adapta el contenido a cada alumno' },
-    { key: 'static', label: 'Clasico', desc: 'Genera el curso una vez, igual para todos' },
+    { key: 'dynamic', label: intl.formatMessage({ id: 'create.deliveryDynamic' }), desc: intl.formatMessage({ id: 'create.deliveryDynamicDesc' }) },
+    { key: 'static', label: intl.formatMessage({ id: 'create.deliveryStatic' }), desc: intl.formatMessage({ id: 'create.deliveryStaticDesc' }) },
   ]
 
   return (
     <div>
-      <label className="block text-sm font-medium text-text mb-2">Modo</label>
+      <label className="block text-sm font-medium text-text mb-2">{intl.formatMessage({ id: 'create.deliveryMode' })}</label>
       <div className="grid grid-cols-2 gap-3">
         {options.map((opt) => (
           <button
@@ -195,6 +198,7 @@ function exerciseSummary(content: ExerciseContent): string {
 // ── Inline editable lesson (unchanged logic) ────────────────
 
 function EditableLesson({ lesson }: { lesson: Lesson }) {
+  const intl = useIntl()
   const [editingTitle, setEditingTitle] = useState(false)
   const [editingContent, setEditingContent] = useState(false)
   const [titleDraft, setTitleDraft] = useState(lesson.title)
@@ -232,8 +236,8 @@ function EditableLesson({ lesson }: { lesson: Lesson }) {
               onKeyDown={(e) => { if (e.key === 'Enter') saveTitle(); if (e.key === 'Escape') cancelTitle() }}
               autoFocus
             />
-            <button type="button" onClick={saveTitle} className="text-accent hover:text-accent/80 p-0.5" title="Guardar"><SaveIcon /></button>
-            <button type="button" onClick={cancelTitle} className="text-text-muted hover:text-text p-0.5" title="Cancelar"><XIcon /></button>
+            <button type="button" onClick={saveTitle} className="text-accent hover:text-accent/80 p-0.5" title={intl.formatMessage({ id: 'create.save' })}><SaveIcon /></button>
+            <button type="button" onClick={cancelTitle} className="text-text-muted hover:text-text p-0.5" title={intl.formatMessage({ id: 'create.cancel' })}><XIcon /></button>
           </div>
         ) : (
           <div className="flex items-center gap-1.5 flex-1 min-w-0 group">
@@ -242,7 +246,7 @@ function EditableLesson({ lesson }: { lesson: Lesson }) {
               type="button"
               onClick={() => { setTitleDraft(lesson.title); setEditingTitle(true) }}
               className="text-text-muted hover:text-primary opacity-0 group-hover:opacity-100 transition-opacity p-0.5 shrink-0"
-              title="Editar titulo"
+              title={intl.formatMessage({ id: 'create.editTitle' })}
             >
               <PencilIcon />
             </button>
@@ -253,13 +257,13 @@ function EditableLesson({ lesson }: { lesson: Lesson }) {
         <div className="mt-3 ml-6">
           <div className="mb-2">
             <div className="flex items-center justify-between mb-1">
-              <span className="text-xs font-medium text-text-muted uppercase tracking-wide">Contenido</span>
+              <span className="text-xs font-medium text-text-muted uppercase tracking-wide">{intl.formatMessage({ id: 'create.contentLabel' })}</span>
               {!editingContent && (
                 <button
                   type="button"
                   onClick={() => { setContentDraft(lesson.content); setEditingContent(true) }}
                   className="text-text-muted hover:text-primary p-0.5"
-                  title="Editar contenido"
+                  title={intl.formatMessage({ id: 'create.editContent' })}
                 >
                   <PencilIcon />
                 </button>
@@ -275,9 +279,9 @@ function EditableLesson({ lesson }: { lesson: Lesson }) {
                 />
                 <div className="flex items-center gap-2 mt-1.5">
                   <Button size="sm" variant="primary" onClick={saveContent} disabled={updateLesson.isPending}>
-                    {updateLesson.isPending ? 'Guardando...' : 'Guardar'}
+                    {updateLesson.isPending ? intl.formatMessage({ id: 'create.saving' }) : intl.formatMessage({ id: 'create.save' })}
                   </Button>
-                  <Button size="sm" variant="secondary" onClick={cancelContent}>Cancelar</Button>
+                  <Button size="sm" variant="secondary" onClick={cancelContent}>{intl.formatMessage({ id: 'create.cancel' })}</Button>
                 </div>
               </div>
             ) : (
@@ -289,7 +293,7 @@ function EditableLesson({ lesson }: { lesson: Lesson }) {
           {lesson.exercises.length > 0 && (
             <div>
               <span className="text-xs font-medium text-text-muted uppercase tracking-wide">
-                Ejercicios ({lesson.exercises.length})
+                {intl.formatMessage({ id: 'create.exercisesLabel' }, { count: lesson.exercises.length })}
               </span>
               <div className="mt-1 space-y-2">
                 {lesson.exercises.map((ex) => <EditableExercise key={ex.id} exercise={ex} />)}
@@ -303,6 +307,7 @@ function EditableLesson({ lesson }: { lesson: Lesson }) {
 }
 
 function EditableExercise({ exercise }: { exercise: Exercise }) {
+  const intl = useIntl()
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(() => JSON.stringify(exercise.content, null, 2))
   const updateExercise = useUpdateExercise()
@@ -330,7 +335,7 @@ function EditableExercise({ exercise }: { exercise: Exercise }) {
             type="button"
             onClick={() => { setDraft(JSON.stringify(exercise.content, null, 2)); setEditing(true) }}
             className="text-text-muted hover:text-primary p-0.5 shrink-0"
-            title="Editar ejercicio"
+            title={intl.formatMessage({ id: 'create.editExercise' })}
           >
             <PencilIcon />
           </button>
@@ -346,9 +351,9 @@ function EditableExercise({ exercise }: { exercise: Exercise }) {
           />
           <div className="flex items-center gap-2 mt-1.5">
             <Button size="sm" variant="primary" onClick={save} disabled={updateExercise.isPending}>
-              {updateExercise.isPending ? 'Guardando...' : 'Guardar'}
+              {updateExercise.isPending ? intl.formatMessage({ id: 'create.saving' }) : intl.formatMessage({ id: 'create.save' })}
             </Button>
-            <Button size="sm" variant="secondary" onClick={cancel}>Cancelar</Button>
+            <Button size="sm" variant="secondary" onClick={cancel}>{intl.formatMessage({ id: 'create.cancel' })}</Button>
           </div>
         </div>
       )}
@@ -364,24 +369,25 @@ function StepReview({ courseId, onPublish, publishing, published }: {
   publishing: boolean
   published: boolean
 }) {
+  const intl = useIntl()
   const { data: course, isLoading } = useCourse(courseId)
-  if (isLoading) return <p className="text-sm text-text-secondary">Cargando...</p>
-  if (!course) return <EmptyState title="No se pudo cargar el curso generado" />
+  if (isLoading) return <p className="text-sm text-text-secondary">{intl.formatMessage({ id: 'create.loading' })}</p>
+  if (!course) return <EmptyState title={intl.formatMessage({ id: 'create.loadError' })} />
   const totalLessons = course.modules.reduce((acc, m) => acc + m.lessons.length, 0)
   return (
     <div>
       <div className="flex items-center justify-between gap-3">
-        <p className="text-sm text-text-secondary">{course.modules.length} modulos · {totalLessons} lecciones</p>
+        <p className="text-sm text-text-secondary">{intl.formatMessage({ id: 'create.modulesLessons' }, { modules: course.modules.length, lessons: totalLessons })}</p>
         <Button size="sm" variant="accent" onClick={onPublish} disabled={publishing || published}>
-          {published ? 'Publicado' : publishing ? 'Publicando...' : 'Publicar'}
+          {published ? intl.formatMessage({ id: 'create.published' }) : publishing ? intl.formatMessage({ id: 'create.publishing' }) : intl.formatMessage({ id: 'create.publish' })}
         </Button>
       </div>
       <div className="mt-6 space-y-3">
         {course.modules.map((mod, i) => (
           <div key={mod.id} className="border border-border rounded-lg p-5">
             <div className="flex items-center justify-between gap-2">
-              <h3 className="text-base font-medium text-text truncate min-w-0">Modulo {i + 1}: {mod.title}</h3>
-              <Badge variant="accent" badgeStyle="plain">{mod.lessons.length} lecciones</Badge>
+              <h3 className="text-base font-medium text-text truncate min-w-0">{intl.formatMessage({ id: 'create.moduleTitle' }, { num: i + 1, title: mod.title })}</h3>
+              <Badge variant="accent" badgeStyle="plain">{intl.formatMessage({ id: 'create.lessonsCount' }, { count: mod.lessons.length })}</Badge>
             </div>
             <ul className="mt-3 space-y-2">
               {mod.lessons.map((l) => <EditableLesson key={l.id} lesson={l} />)}
@@ -401,17 +407,18 @@ function StepAssign({ selected, onToggle, deadline, onDeadline }: {
   deadline: string
   onDeadline: (v: string) => void
 }) {
+  const intl = useIntl()
   const { data, isLoading } = useUsers({ role: 'employee' })
   const employees: User[] = data?.items ?? []
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       <div>
-        <label className="block text-sm font-medium text-text mb-2">Empleados</label>
+        <label className="block text-sm font-medium text-text mb-2">{intl.formatMessage({ id: 'create.employeesLabel' })}</label>
         <div className="border border-border rounded-lg max-h-64 overflow-y-auto">
           {isLoading ? (
-            <p className="text-sm text-text-muted p-4">Cargando...</p>
+            <p className="text-sm text-text-muted p-4">{intl.formatMessage({ id: 'create.loading' })}</p>
           ) : employees.length === 0 ? (
-            <p className="text-sm text-text-muted p-4">No hay empleados.</p>
+            <p className="text-sm text-text-muted p-4">{intl.formatMessage({ id: 'create.noEmployees' })}</p>
           ) : (
             employees.map((emp) => (
               <label
@@ -427,10 +434,10 @@ function StepAssign({ selected, onToggle, deadline, onDeadline }: {
             ))
           )}
         </div>
-        <p className="text-xs text-text-muted mt-1.5">{selected.size} seleccionados</p>
+        <p className="text-xs text-text-muted mt-1.5">{intl.formatMessage({ id: 'create.selectedCount' }, { count: selected.size })}</p>
       </div>
       <div>
-        <Input label="Fecha limite (opcional)" type="date" value={deadline} onChange={(e) => onDeadline(e.target.value)} />
+        <Input label={intl.formatMessage({ id: 'create.deadlineLabel' })} type="date" value={deadline} onChange={(e) => onDeadline(e.target.value)} />
       </div>
     </div>
   )
@@ -464,6 +471,7 @@ const innerFadeIn = {
 // ── Main component ──────────────────────────────────────────
 
 export function CreateCourse() {
+  const intl = useIntl()
   const navigate = useNavigate()
   const { user: currentUser } = useAuth()
 
@@ -734,17 +742,17 @@ export function CreateCourse() {
       setJobId(job.job_id)
       setPhase('generating')
     } catch (err) {
-      setStartError(failMsg(err, 'No se pudo crear el curso'))
+      setStartError(failMsg(err, intl.formatMessage({ id: 'create.courseError' })))
     }
   }
 
   // Creation progress steps
   const [creatingStep, setCreatingStep] = useState(0)
   const creatingSteps = [
-    `Creando ${title.trim() || 'el curso'}...`,
-    `Guardando ${proposedNodes.length} nodos...`,
-    'Activando el curso...',
-    'Preparando la primera leccion...',
+    intl.formatMessage({ id: 'create.creatingTitle' }, { title: title.trim() || intl.formatMessage({ id: 'create.title' }) }),
+    intl.formatMessage({ id: 'create.savingNodes' }, { count: proposedNodes.length }),
+    intl.formatMessage({ id: 'create.activating' }),
+    intl.formatMessage({ id: 'create.preparingFirst' }),
   ]
 
   async function handleCreateFromSchema() {
@@ -752,7 +760,7 @@ export function CreateCourse() {
 
     for (let i = 0; i < proposedNodes.length; i++) {
       if (!proposedNodes[i].title.trim()) {
-        setStartError(`El nodo ${i + 1} no tiene titulo.`)
+        setStartError(intl.formatMessage({ id: 'create.nodeNoTitle' }, { num: i + 1 }))
         return
       }
     }
@@ -832,7 +840,7 @@ export function CreateCourse() {
       setCreatedMinutes(totalMinutes)
       setPhase('created')
     } catch (err) {
-      setStartError(failMsg(err, 'No se pudo crear el curso'))
+      setStartError(failMsg(err, intl.formatMessage({ id: 'create.courseError' })))
       setPhase('schema') // go back to schema on error
     }
   }
@@ -919,10 +927,10 @@ export function CreateCourse() {
   const canConfirm = title.trim().length > 0 && documentReady && !busyStarting
 
   const confirmButtonLabel = writingSource
-    ? 'Escribiendo documento fuente...'
+    ? intl.formatMessage({ id: 'create.writingSource' })
     : createCourse.isPending || generate.isPending
-      ? 'Creando...'
-      : 'Confirmar'
+      ? intl.formatMessage({ id: 'create.creating' })
+      : intl.formatMessage({ id: 'create.confirm' })
 
   // Stats for schema sidebar
   const totalMinutes = proposedNodes.reduce((s, n) => s + n.estimated_minutes, 0)
@@ -993,12 +1001,12 @@ export function CreateCourse() {
     return (
       <div>
         <div className="flex items-center gap-3 mb-8">
-          <h2 className="text-xl font-semibold text-text">Generando curso</h2>
+          <h2 className="text-xl font-semibold text-text">{intl.formatMessage({ id: 'create.generatingTitle' })}</h2>
         </div>
         <GenerationProgress progress={effective} />
         {effective.step === 'failed' && (
           <div className="mt-6 text-center">
-            <Button variant="secondary" onClick={() => { setPhase('details'); setJobId(null) }}>Volver a intentar</Button>
+            <Button variant="secondary" onClick={() => { setPhase('details'); setJobId(null) }}>{intl.formatMessage({ id: 'create.retryGeneration' })}</Button>
           </div>
         )}
       </div>
@@ -1010,13 +1018,13 @@ export function CreateCourse() {
       <div>
         {/* Breadcrumb */}
         <div className="mb-6 flex items-baseline gap-1.5 text-xl font-semibold">
-          <span className="text-text-muted">Crear curso</span>
+          <span className="text-text-muted">{intl.formatMessage({ id: 'create.title' })}</span>
           <span className="text-text-muted">/</span>
-          <span className="text-text-muted">{source === 'importar' ? 'Importar' : 'Crear'}</span>
+          <span className="text-text-muted">{source === 'importar' ? intl.formatMessage({ id: 'create.breadcrumbImport' }) : intl.formatMessage({ id: 'create.breadcrumbCreate' })}</span>
           <span className="text-text-muted">/</span>
-          <span className="text-text-muted">Esquema</span>
+          <span className="text-text-muted">{intl.formatMessage({ id: 'create.breadcrumbSchema' })}</span>
           <span className="text-text-muted">/</span>
-          <span className="text-text">Listo</span>
+          <span className="text-text">{intl.formatMessage({ id: 'create.breadcrumbReady' })}</span>
         </div>
 
         <motion.div
@@ -1037,7 +1045,7 @@ export function CreateCourse() {
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0, transition: { duration: duration.normal, ease: ease.base, delay: 0.15 } }}
             >
-              Tu curso esta listo
+              {intl.formatMessage({ id: 'create.ready' })}
             </motion.h2>
 
             <motion.p
@@ -1053,7 +1061,7 @@ export function CreateCourse() {
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0, transition: { duration: duration.normal, ease: ease.base, delay: 0.35 } }}
             >
-              {createdNodeCount} nodos · {createdMinutes} min estimados
+              {intl.formatMessage({ id: 'create.nodesMinutes' }, { count: createdNodeCount, minutes: createdMinutes })}
             </motion.p>
 
             <motion.div
@@ -1086,13 +1094,13 @@ export function CreateCourse() {
                   }
                 }}
               >
-                {testingCourse ? 'Preparando...' : 'Probar curso'}
+                {testingCourse ? intl.formatMessage({ id: 'create.testing' }) : intl.formatMessage({ id: 'create.test' })}
               </Button>
               <Button variant="secondary" onClick={() => setPhase('assign')}>
-                Asignar a empleados
+                {intl.formatMessage({ id: 'create.assign' })}
               </Button>
               <Button variant="ghost" onClick={() => navigate('/admin/contenido')}>
-                Volver a contenido
+                {intl.formatMessage({ id: 'create.backToContent' })}
               </Button>
             </motion.div>
           </div>
@@ -1105,11 +1113,11 @@ export function CreateCourse() {
     return (
       <div>
         <div className="flex items-center gap-3 mb-8">
-          <h2 className="text-xl font-semibold text-text">Revisar curso</h2>
+          <h2 className="text-xl font-semibold text-text">{intl.formatMessage({ id: 'create.reviewTitle' })}</h2>
         </div>
         {courseId && <StepReview courseId={courseId} onPublish={handlePublish} publishing={publish.isPending} published={published} />}
         <div className="flex justify-end mt-8 pt-5 border-t border-border">
-          <Button variant="primary" onClick={() => setPhase('assign')}>Siguiente</Button>
+          <Button variant="primary" onClick={() => setPhase('assign')}>{intl.formatMessage({ id: 'create.next' })}</Button>
         </div>
       </div>
     )
@@ -1120,13 +1128,13 @@ export function CreateCourse() {
       <div>
         {/* Breadcrumb */}
         <div className="mb-6 flex items-baseline gap-1.5 text-xl font-semibold">
-          <span className="text-text-muted">Crear curso</span>
+          <span className="text-text-muted">{intl.formatMessage({ id: 'create.title' })}</span>
           <span className="text-text-muted">/</span>
-          <span className="text-text-muted">{source === 'importar' ? 'Importar' : 'Crear'}</span>
+          <span className="text-text-muted">{source === 'importar' ? intl.formatMessage({ id: 'create.breadcrumbImport' }) : intl.formatMessage({ id: 'create.breadcrumbCreate' })}</span>
           <span className="text-text-muted">/</span>
-          <span className="text-text-muted">Esquema</span>
+          <span className="text-text-muted">{intl.formatMessage({ id: 'create.breadcrumbSchema' })}</span>
           <span className="text-text-muted">/</span>
-          <span className="text-text">Asignar</span>
+          <span className="text-text">{intl.formatMessage({ id: 'create.breadcrumbAssign' })}</span>
         </div>
 
         <motion.div
@@ -1139,7 +1147,7 @@ export function CreateCourse() {
           {startError && <p className="text-sm text-danger mt-4">{startError}</p>}
           <div className="flex items-center justify-between mt-8 pt-5 border-t border-border">
             <Button variant="ghost" onClick={() => navigate('/admin/contenido')}>
-              Saltar
+              {intl.formatMessage({ id: 'create.skip' })}
             </Button>
             <div className="flex items-center gap-3">
               {courseId && (
@@ -1172,16 +1180,16 @@ export function CreateCourse() {
                         navigate(`/admin/probar-curso/${courseId}`)
                       }
                     } catch {
-                      setStartError('No se pudo preparar el curso para probarlo. Revisa el esquema.')
+                      setStartError(intl.formatMessage({ id: 'create.prepareError' }))
                     }
                   }}
                   disabled={assign.isPending}
                 >
-                  Probar curso
+                  {intl.formatMessage({ id: 'create.test' })}
                 </Button>
               )}
               <Button variant="primary" onClick={finish} disabled={assign.isPending}>
-                {assign.isPending ? 'Asignando...' : assignSelected.size > 0 ? 'Asignar y finalizar' : 'Finalizar'}
+                {assign.isPending ? intl.formatMessage({ id: 'create.assigning' }) : assignSelected.size > 0 ? intl.formatMessage({ id: 'create.assignFinish' }) : intl.formatMessage({ id: 'create.finish' })}
               </Button>
             </div>
           </div>
@@ -1205,7 +1213,7 @@ export function CreateCourse() {
             onClick={expanded ? goBackToChoose : undefined}
             role={expanded ? 'button' : undefined}
           >
-            Crear curso
+            {intl.formatMessage({ id: 'create.title' })}
           </h2>
           <AnimatePresence>
             {expanded && (
@@ -1220,7 +1228,7 @@ export function CreateCourse() {
                 onClick={phase === 'schema' ? goBackToDetails : undefined}
                 role={phase === 'schema' ? 'button' : undefined}
               >
-                / {source === 'importar' ? 'Importar' : 'Crear'}
+                / {source === 'importar' ? intl.formatMessage({ id: 'create.breadcrumbImport' }) : intl.formatMessage({ id: 'create.breadcrumbCreate' })}
               </motion.span>
             )}
           </AnimatePresence>
@@ -1233,7 +1241,7 @@ export function CreateCourse() {
                 animate={{ opacity: 1, x: 0, transition: { duration: duration.normal, ease: ease.base, delay: 0.35 } }}
                 exit={{ opacity: 0, x: -8, transition: { duration: duration.fast, ease: ease.snapOut } }}
               >
-                / Esquema
+                / {intl.formatMessage({ id: 'create.breadcrumbSchema' })}
               </motion.span>
             )}
           </AnimatePresence>
@@ -1261,8 +1269,8 @@ export function CreateCourse() {
                 <motion.div key="import-col" {...contentReveal}>
                   <div className="flex flex-col items-center justify-center text-center px-4 py-8">
                     <div className="text-text-muted mb-4"><FileIcon /></div>
-                    <p className="text-sm font-medium text-text">Importar curso</p>
-                    <p className="text-xs text-text-muted mt-1.5">Sube los materiales que ya tienes</p>
+                    <p className="text-sm font-medium text-text">{intl.formatMessage({ id: 'create.importCard' })}</p>
+                    <p className="text-xs text-text-muted mt-1.5">{intl.formatMessage({ id: 'create.importCardDesc' })}</p>
                   </div>
                 </motion.div>
               ) : (
@@ -1272,8 +1280,8 @@ export function CreateCourse() {
                       <div className="flex items-center gap-3 mb-6">
                         <div className="text-primary"><FileIcon /></div>
                         <div>
-                          <p className="text-sm font-medium text-text">Importar curso existente</p>
-                          <p className="text-xs text-text-muted">Sube tus materiales y la plataforma los estructura</p>
+                          <p className="text-sm font-medium text-text">{intl.formatMessage({ id: 'create.importCardExpanded' })}</p>
+                          <p className="text-xs text-text-muted">{intl.formatMessage({ id: 'create.importCardExpandedDesc' })}</p>
                         </div>
                       </div>
                       <div className="space-y-5">
@@ -1293,7 +1301,7 @@ export function CreateCourse() {
                             ))}
                           </div>
                         )}
-                        <Input label="Nombre del curso" placeholder="Ej: Seguridad Alimentaria" value={title} onChange={(e) => setTitle(e.target.value)} />
+                        <Input label={intl.formatMessage({ id: 'create.courseNameLabel' })} placeholder={intl.formatMessage({ id: 'create.courseNamePlaceholder' })} value={title} onChange={(e) => setTitle(e.target.value)} />
                         <DeliverySelector value={deliveryChoice} onChange={setDeliveryChoice} />
                         {startError && <p className="text-sm text-danger">{startError}</p>}
                         <div className="pt-4">
@@ -1349,8 +1357,8 @@ export function CreateCourse() {
                 <motion.div key="crear-col" {...contentReveal}>
                   <div className="flex flex-col items-center justify-center text-center px-4 py-8">
                     <div className="text-text-muted mb-4"><EditIcon /></div>
-                    <p className="text-sm font-medium text-text">Crear curso</p>
-                    <p className="text-xs text-text-muted mt-1.5">Describe el tema y la IA construye el curso</p>
+                    <p className="text-sm font-medium text-text">{intl.formatMessage({ id: 'create.createCard' })}</p>
+                    <p className="text-xs text-text-muted mt-1.5">{intl.formatMessage({ id: 'create.createCardDesc' })}</p>
                   </div>
                 </motion.div>
               ) : (
@@ -1360,24 +1368,24 @@ export function CreateCourse() {
                       <div className="flex items-center gap-3 mb-6">
                         <div className="text-primary"><EditIcon /></div>
                         <div>
-                          <p className="text-sm font-medium text-text">Crear curso nuevo</p>
-                          <p className="text-xs text-text-muted">Describe el tema y la IA construye el contenido</p>
+                          <p className="text-sm font-medium text-text">{intl.formatMessage({ id: 'create.createCardExpanded' })}</p>
+                          <p className="text-xs text-text-muted">{intl.formatMessage({ id: 'create.createCardExpandedDesc' })}</p>
                         </div>
                       </div>
                       <div className="space-y-5">
-                        <Input label="Nombre del curso" placeholder="Ej: Seguridad Alimentaria" value={title} onChange={(e) => setTitle(e.target.value)} />
+                        <Input label={intl.formatMessage({ id: 'create.courseNameLabel' })} placeholder={intl.formatMessage({ id: 'create.courseNamePlaceholder' })} value={title} onChange={(e) => setTitle(e.target.value)} />
                         <Textarea
-                          label="Que quieres que cubra (opcional)"
-                          placeholder="Ej: como funciona una sinapsis, los neurotransmisores principales y la plasticidad. Nivel introductorio."
-                          hint="Cuanto mas detalle, mejor sera el curso generado."
+                          label={intl.formatMessage({ id: 'create.ideaLabel' })}
+                          placeholder={intl.formatMessage({ id: 'create.ideaPlaceholder' })}
+                          hint={intl.formatMessage({ id: 'create.ideaHint' })}
                           value={idea}
                           onChange={(e) => setIdea(e.target.value)}
                         />
 
                         {/* Reference documents (optional) */}
                         <div>
-                          <label className="block text-sm font-medium text-text mb-2">Material de referencia (opcional)</label>
-                          <p className="text-xs text-text-muted mb-3">Sube documentos que la IA usara como base. No es el curso, es material de apoyo.</p>
+                          <label className="block text-sm font-medium text-text mb-2">{intl.formatMessage({ id: 'create.refMaterialLabel' })}</label>
+                          <p className="text-xs text-text-muted mb-3">{intl.formatMessage({ id: 'create.refMaterialDesc' })}</p>
                           <FileUploadZone
                             accept=".pdf,.docx,.md,.txt"
                             maxSizeMB={20}
@@ -1443,7 +1451,7 @@ export function CreateCourse() {
               exit={{ opacity: 0, y: 8, transition: { duration: duration.fast, ease: ease.snapOut } }}
             >
               <Button variant="primary" onClick={confirmSource}>
-                Continuar
+                {intl.formatMessage({ id: 'create.continue' })}
               </Button>
             </motion.div>
           )}
