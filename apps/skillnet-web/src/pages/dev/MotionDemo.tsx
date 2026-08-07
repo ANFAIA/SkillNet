@@ -81,7 +81,7 @@ function PageTransitionDemo() {
           </div>
           <div>
             <p className="font-medium mb-1">Ahora:</p>
-            <code className="block bg-bg-muted rounded p-2">opacity: 0, blur: 6px, duration: 0.3, curva firma</code>
+            <code className="block bg-bg-muted rounded p-2">opacity: 0, duration: 0.3, curva firma</code>
           </div>
         </div>
       </details>
@@ -137,12 +137,12 @@ function MorphModalDemo() {
                   <motion.p layoutId={`title-${selected}`} className="text-xl font-semibold text-text">{item.title}</motion.p>
                   <motion.p layoutId={`desc-${selected}`} className="text-sm text-text-secondary mt-1">{item.desc}</motion.p>
                   <motion.div
-                    initial={{ opacity: 0, filter: 'blur(8px)' }}
-                    animate={{ opacity: 1, filter: 'blur(0px)' }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
                     transition={{ delay: 0.2, duration: duration.normal, ease: ease.base }}
                     className="mt-6 space-y-3"
                   >
-                    <p className="text-sm text-text-secondary">Este contenido aparece con blur despues del morph.</p>
+                    <p className="text-sm text-text-secondary">Este contenido aparece con fade despues del morph.</p>
                     <div className="grid grid-cols-2 gap-3">
                       {[1, 2, 3, 4].map((i) => (
                         <div key={i} className="bg-bg border border-border rounded-lg p-3 text-xs text-text-secondary">
@@ -189,7 +189,7 @@ function StaggeredListDemo() {
   }
 
   return (
-    <Section title="3. Staggered Lists" description="Items aparecen secuencialmente con blur. Al eliminar, salen hacia la izquierda.">
+    <Section title="3. Staggered Lists" description="Items aparecen secuencialmente con fade. Al eliminar, salen hacia la izquierda.">
       <DemoButton onClick={reset}>Replay</DemoButton>
       <motion.ul
         key={key}
@@ -385,7 +385,7 @@ function WizardDemo() {
   }
 
   return (
-    <Section title="6. Wizard Steps" description="Slide direccional con blur. Enter lento, exit rapido.">
+    <Section title="6. Wizard Steps" description="Slide direccional con fade. Enter lento, exit rapido.">
       <div className="flex gap-2 mb-4">
         {steps.map((s, i) => (
           <DemoButton key={s} onClick={() => go(i)} active={step === i}>{s}</DemoButton>
@@ -463,7 +463,7 @@ function ContentSwapDemo() {
   const lessons = ['Introduccion', 'Conceptos basicos', 'Practica', 'Evaluacion']
 
   return (
-    <Section title="8. Content Swap" description="Cambio de leccion/tab con blur suave. Reemplaza el fade plano de CourseView.">
+    <Section title="8. Content Swap" description="Cambio de leccion/tab con fade suave. Reemplaza el fade plano de CourseView.">
       <div className="flex gap-2 mb-4">
         {lessons.map((l, i) => (
           <DemoButton key={l} onClick={() => setLesson(i)} active={lesson === i}>{l}</DemoButton>
@@ -480,7 +480,7 @@ function ContentSwapDemo() {
             <div className="text-center">
               <p className="text-base font-medium text-text">{lessons[lesson]}</p>
               <p className="text-sm text-text-secondary mt-2">
-                Contenido de la leccion con blur al entrar y salir
+                Contenido de la leccion con fade al entrar y salir
               </p>
             </div>
           </motion.div>
@@ -520,7 +520,7 @@ function ComparisonDemo() {
 
         {/* AFTER */}
         <div>
-          <p className="text-xs text-text-muted uppercase tracking-wide mb-2">Ahora (blur + scale)</p>
+          <p className="text-xs text-text-muted uppercase tracking-wide mb-2">Ahora (opacity fade)</p>
           <div className="relative h-28 bg-bg-subtle rounded-lg overflow-hidden">
             <AnimatePresence mode="wait">
               <motion.div
@@ -528,7 +528,7 @@ function ComparisonDemo() {
                 className="absolute inset-0 flex items-center justify-center"
                 {...pageTransition}
               >
-                <p className="text-sm text-text-secondary">blur + fade, 0.3s, curva firma</p>
+                <p className="text-sm text-text-secondary">opacity fade, 0.3s, curva firma</p>
               </motion.div>
             </AnimatePresence>
           </div>

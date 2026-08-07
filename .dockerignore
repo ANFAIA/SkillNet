@@ -5,6 +5,10 @@
 **/.pytest_cache
 **/.ruff_cache
 **/.mypy_cache
+**/.cache
+
+# Claude Code
+.claude
 
 # Node
 **/node_modules

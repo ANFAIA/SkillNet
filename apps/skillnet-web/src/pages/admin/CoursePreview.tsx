@@ -130,16 +130,6 @@ export function CoursePreview() {
   return (
     <div>
       <div className="mb-6">
-        <div className="flex items-center gap-3 mb-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate('/admin/contenido')}
-          >
-            ← Contenido
-          </Button>
-        </div>
-
         {editing ? (
           <div className="space-y-3">
             <Input
@@ -178,10 +168,23 @@ export function CoursePreview() {
           </div>
         ) : (
           <>
-            <div className="flex items-center gap-3 mb-2 min-w-0">
-              <span className="w-3 h-3 rounded-full shrink-0 bg-primary" />
-              <h2 className="text-xl font-semibold text-text truncate">{course.title}</h2>
-              <Badge variant={status.variant} badgeStyle="plain" className="shrink-0">
+            <div className="shrink-0 flex items-baseline gap-1.5 mb-2">
+              <h2
+                className="text-xl font-semibold transition-colors duration-200 text-text-muted cursor-pointer hover:text-text"
+                onClick={() => navigate('/admin/contenido')}
+                role="button"
+              >
+                Contenido
+              </h2>
+              <motion.span
+                key="breadcrumb-course"
+                className="text-xl font-semibold text-text"
+                initial={{ opacity: 0, x: -8 }}
+                animate={{ opacity: 1, x: 0, transition: { duration: duration.normal, ease: ease.base } }}
+              >
+                / {course.title}
+              </motion.span>
+              <Badge variant={status.variant} badgeStyle="plain" className="shrink-0 ml-1.5">
                 {status.label}
               </Badge>
             </div>

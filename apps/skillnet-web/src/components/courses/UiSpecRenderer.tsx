@@ -7,6 +7,7 @@ import { blockArrivalContext } from './blocks/blockArrival'
 import { gateProgram, type StaticViolation } from './kit/assertStaticOnly'
 import { nodeRenderContext } from './kit/NodeRenderContext'
 import { skillnetLibrary } from './kit/library'
+import type { NodeEventInput } from '../../types'
 import type { UiFormat } from '../../types/node-render'
 
 const WARN = '[UiSpecRenderer]'
@@ -63,6 +64,12 @@ export interface UiSpecRendererProps {
    * the repair loop of §5.4. Fired with `[]` once everything resolves.
    */
   onError?: (errors: OpenUIError[]) => void
+  /**
+   * Batched event recorder from `useNodeEvents` (§3.3). Threaded through
+   * `nodeRenderContext` so `QuizItemBlock` can emit `quiz_correct` /
+   * `quiz_wrong` without a direct prop path through the OpenUI runtime.
+   */
+  recordEvent?: (event: NodeEventInput) => void
 }
 
 /**
@@ -116,9 +123,10 @@ export function UiSpecRenderer({
   arriving = false,
   onViolations,
   onError,
+  recordEvent,
 }: UiSpecRendererProps) {
   const gate = useMemo(() => gateProgram(program, { streaming: isStreaming }), [program, isStreaming])
-  const target = useMemo(() => ({ nodeId, renderId }), [nodeId, renderId])
+  const target = useMemo(() => ({ nodeId, renderId, recordEvent }), [nodeId, renderId, recordEvent])
 
   const onViolationsRef = useRef(onViolations)
   onViolationsRef.current = onViolations

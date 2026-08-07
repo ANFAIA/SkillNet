@@ -89,6 +89,10 @@ function App() {
               schema routes 404 with the flag off and the screen says so, which beats
               a route that silently does not exist. */}
           <Route path="curso/:id/esquema" element={<CourseSchema />} />
+          {/* Admin course testing — same components the learner uses, rendered
+              inside AdminLayout so the admin stays in context. */}
+          <Route path="probar-curso/:id" element={<CourseView />} />
+          <Route path="probar-curso/:id/nodo/:nodeId" element={<NodeView />} />
           <Route path="chat" element={<AdminChat />} />
           <Route path="ajustes" element={<AdminSettings />} />
         </Route>

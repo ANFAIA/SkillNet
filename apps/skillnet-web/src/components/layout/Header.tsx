@@ -74,9 +74,9 @@ export function Header() {
           {open && (
             <motion.div
               role="menu"
-              initial={{ opacity: 0, scale: 0.95, y: -6, filter: 'blur(4px)' }}
-              animate={{ opacity: 1, scale: 1, y: 0, filter: 'blur(0px)' }}
-              exit={{ opacity: 0, scale: 0.96, y: -6, filter: 'blur(4px)' }}
+              initial={{ opacity: 0, scale: 0.95, y: -6 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: -6 }}
               transition={{ duration: duration.fast, ease: ease.base }}
               className="absolute right-0 top-11 w-56 origin-top-right bg-bg border border-border rounded-xl shadow-lg overflow-hidden"
             >

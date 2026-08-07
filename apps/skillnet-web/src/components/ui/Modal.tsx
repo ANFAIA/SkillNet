@@ -46,7 +46,7 @@ function flipToOrigin(panel: DOMRect, origin: DOMRect | null | undefined) {
  * Clean, native-feeling modal — modeled on stepbro.site's `<window>`:
  * a borderless surface with a large radius and deep soft shadow that **grows
  * from the trigger control** (FLIP zoom-from-origin) over the signature ease,
- * while the content **blurs in** once the box has settled. Portaled to
+ * while the content **fades in** once the box has settled. Portaled to
  * `document.body` so it escapes the page-transition transform.
  */
 export function Modal({ open, onClose, children, size = 'md', origin, hideClose = false }: ModalProps) {
@@ -138,10 +138,10 @@ export function Modal({ open, onClose, children, size = 'md', origin, hideClose 
             <CloseIcon />
           </button>
         )}
-        {/* Content blurs in once the box has grown. */}
+        {/* Content fades in once the box has grown. */}
         <motion.div
-          initial={{ opacity: 0, filter: 'blur(6px)' }}
-          animate={{ opacity: 1, filter: 'blur(0px)' }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
           transition={{ delay: 0.18, duration: duration.normal, ease: ease.base }}
         >
           {children}

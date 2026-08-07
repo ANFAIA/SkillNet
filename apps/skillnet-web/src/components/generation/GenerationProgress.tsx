@@ -192,8 +192,8 @@ export function GenerationProgress({ progress }: { progress: GenerationProgressD
                   className={`flex w-fit items-center gap-2 px-3 py-1 rounded-lg transition-colors duration-200 ${
                     isCurrent ? 'bg-bg-subtle' : ''
                   }`}
-                  initial={isCurrent && !reduceMotion ? { opacity: 0, y: 4, filter: 'blur(4px)' } : false}
-                  animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                  initial={isCurrent && !reduceMotion ? { opacity: 0, y: 4 } : false}
+                  animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: duration.normal, ease: ease.base }}
                 >
                   <span
@@ -230,9 +230,9 @@ export function GenerationProgress({ progress }: { progress: GenerationProgressD
             <motion.p
               key={progress.message}
               className="text-sm text-text-secondary"
-              initial={reduceMotion ? false : { opacity: 0, y: 4, filter: 'blur(4px)' }}
-              animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-              exit={reduceMotion ? undefined : { opacity: 0, filter: 'blur(4px)' }}
+              initial={reduceMotion ? false : { opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={reduceMotion ? undefined : { opacity: 0 }}
               transition={transition.content}
             >
               {progress.message}
@@ -244,8 +244,8 @@ export function GenerationProgress({ progress }: { progress: GenerationProgressD
       {isFailed && (
         <motion.div
           className="text-sm text-danger border border-danger/30 rounded-md p-3"
-          initial={reduceMotion ? false : { opacity: 0, y: 4, filter: 'blur(4px)' }}
-          animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+          initial={reduceMotion ? false : { opacity: 0, y: 4 }}
+          animate={{ opacity: 1, y: 0 }}
           transition={{ duration: duration.normal, ease: ease.base }}
         >
           {progress.error ?? 'No se pudo completar la generacion.'}

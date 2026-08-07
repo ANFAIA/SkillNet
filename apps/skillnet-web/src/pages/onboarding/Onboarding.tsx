@@ -293,7 +293,7 @@ export function Onboarding() {
             correction keeps the text undistorted while it does.
 
             Dropped entirely under reduced motion, where the plain swap below is the
-            accessible degradation: no travel, no blur, no resize. */}
+            accessible degradation: no travel, no fade, no resize. */}
         <motion.div
           className="overflow-hidden"
           layout={reduceMotion ? false : 'size'}

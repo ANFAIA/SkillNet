@@ -73,12 +73,12 @@ function AppLayoutInner() {
               again forces a fresh commit, which is why the second try always worked.
 
               Note this also means the old exit never showed the outgoing page: it was
-              blurring *the incoming page* out, then snapping it back to blur(6px) and
+              fading *the incoming page* out, then snapping it back to opacity 0 and
               fading it in again. So the 200 ms it cost bought a defect, not polish.
 
               Without `AnimatePresence` there is no exit phase, no presence
               bookkeeping and no `safeToRemove` — React swaps the keyed children in a
-              single commit, and the new page runs its blur-in. Nothing can fail to
+              single commit, and the new page runs its fade-in. Nothing can fail to
               complete because nothing has to report completion. Navigation also lands
               200 ms sooner (~300 ms total instead of 500 ms).
 

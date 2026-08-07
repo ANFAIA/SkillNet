@@ -116,7 +116,12 @@ export function Content() {
                     </div>
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-0.5 mt-1 text-xs text-text-muted">
                       {course.delivery_mode === 'dynamic' ? (
-                        <span className="text-primary font-medium">Dinamico</span>
+                        <>
+                          <span className="text-primary font-medium">Dinamico</span>
+                          {(course.node_count ?? 0) > 0 && (
+                            <span>{course.node_count} nodos</span>
+                          )}
+                        </>
                       ) : (
                         <span>{course.module_count} modulos</span>
                       )}
@@ -132,7 +137,7 @@ export function Content() {
                         onClick={async () => {
                           if (!currentUser) return
                           await post('/enrollments', { user_ids: [currentUser.id], course_id: course.id }).catch(() => {})
-                          navigate(`/empleado/curso/${course.id}`)
+                          navigate(`/admin/probar-curso/${course.id}`)
                         }}
                       >
                         Probar
