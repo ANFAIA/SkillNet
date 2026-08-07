@@ -366,14 +366,11 @@ export function NodeView() {
           </svg>
         </button>
         <span className="text-sm font-medium text-text flex-1 truncate">{node.title}</span>
-        <span className="text-xs text-text-muted tabular-nums">
-          {index + 1} / {ordered.length}
-        </span>
       </div>
 
-      {/* Spider buddy — positioned to the right of the content area */}
+      {/* Spider buddy — hangs from top-right, outside the content column */}
       {served && (
-        <div className="absolute top-16 right-4" style={{ zIndex: 10 }}>
+        <div className="absolute top-14 right-[max(1rem,calc(50%-22rem))]" style={{ zIndex: 10 }}>
           <LessonBuddy
             nodeTitle={node?.title ?? undefined}
             nodeSummary={node?.summary ?? undefined}
