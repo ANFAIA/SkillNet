@@ -1,23 +1,31 @@
 # Roadmap
 
-> Actualizado: 2026-08-07. Prioridades ordenadas. Cada fase construye sobre la anterior.
+> Actualizado: 2026-08-07. Organizado en slices paralelizables.
 
 ---
 
-## Fase 1 — Calidad del contenido generado (PRIORIDAD)
+## Slice 1 — Calidad del contenido generado (BLOQUEA TODO)
 
-Nada importa si los cursos son malos. El pipeline multi-agente esta implementado pero la
-calidad real del contenido generado no esta validada con usuarios.
+Nada importa si los cursos son malos. Se hace primero y solo.
 
-- [ ] Crear cursos reales con temas variados (no solo compliance)
-- [ ] Evaluar output: leads, contenido de concepto, preguntas
+- [ ] Subir PDFs reales de Ticketrona (manual entradas, ecosistema) como fuente
+- [ ] Generar cursos desde esos documentos con el pipeline multi-agente
+- [ ] Evaluar output: leads, contenido de concepto, preguntas, variedad de componentes
 - [ ] Iterar prompts de Blueprint, Content Writer e Interaction Designer
 - [ ] Correr quality_bench con LLM real, medir cobertura de componentes
 - [ ] Objetivo: first-pass >80%, preguntas de caso concreto, leads que enganchen
+- [ ] Probar con temas variados (no solo compliance)
 
-## Fase 2 — Visualizacion y experiencia de curso
+**Criterio para avanzar:** un curso generado desde un PDF real que un empleado de
+Ticketrona pueda usar sin que de verguenza.
 
-El stepper Brilliant-style esta implementado. Falta pulirlo con contenido real.
+---
+
+## Slice 2 — En paralelo (despues de que slice 1 sea aceptable)
+
+Tres lineas de trabajo independientes que pueden ir a la vez:
+
+### 2A — UX del stepper y visualizacion
 
 - [ ] Centrado vertical testeado con todos los tipos de bloque
 - [ ] Responsive: pantallas pequenas, tablets
@@ -26,34 +34,41 @@ El stepper Brilliant-style esta implementado. Falta pulirlo con contenido real.
 - [ ] Transiciones entre nodos: fluidas, sin parpadeo
 - [ ] Componentes visuales: animaciones de entrada, feedback de quiz, charts
 
-## Fase 3 — Chat del tutor en las lecciones
-
-La araña esta conectada al tutor pero no testeada de verdad.
+### 2B — Chat del tutor en las lecciones
 
 - [ ] Testear end-to-end: contexto del nodo llega, respuestas relevantes
 - [ ] Tono: companero cercano, no bot formal
 - [ ] Funciona con auth de empleado (no admin)
 - [ ] Reaccion a aciertos/errores del quiz (futuro: como Koji)
 
-## Fase 4 — Idiomas (i18n)
+### 2C — Idiomas (i18n)
 
 La infraestructura esta montada (react-intl + catalogos es/en + agent tool set_locale).
-Falta migrar los componentes.
 
 - [ ] Migrar sidebar, node view, stepper a useIntl() / FormattedMessage
 - [ ] Migrar create course, course view
 - [ ] Migrar componentes de bloque (quiz, drag, etc.)
 - [ ] El contenido de los cursos se genera en el idioma del admin
-- [ ] Futuro: traduccion on-demand del contenido para empleados en otro idioma
 
-## Fase 5 — Temas visuales predefinidos
+---
+
+## Slice 3 — Despues de slice 2
+
+### 3A — Temas visuales predefinidos
 
 - [ ] Disenar 3-5 sets de CSS variables (corporate, warm, minimal, dark...)
 - [ ] Tool set_theme en el agent para cambiar entre ellos
 - [ ] Persistencia en preferencias del usuario
-- [ ] Responsive: cada tema funciona en todos los layouts
 
-## Fase 6 — Generative UI personalization
+### 3B — Flujo de crear curso
+
+- [ ] Eliminar clicks innecesarios entre crear y probar
+- [ ] UX de la creacion: progreso, feedback, preview
+- [ ] Chat del admin con tools para modificar esquema (futuro)
+
+---
+
+## Slice 4 — Futuro
 
 Ver `docs/design/generative-ui-personalization.md` para el diseno completo.
 
@@ -67,7 +82,25 @@ Ver `docs/design/generative-ui-personalization.md` para el diseno completo.
 - [ ] Propone widgets, ajustes de sidebar, contenido adicional
 - [ ] Notificacion no intrusiva: el buddy lo sugiere, el usuario acepta o rechaza
 
+### Traduccion de contenido on-demand
+- [ ] Regenerar lecciones en el idioma del empleado
+- [ ] O traducir con modelo rapido al vuelo
+
 ---
+
+## Paralelismo
+
+```
+Slice 1 (calidad) ─────────────┐
+                                ├── Slice 2A (stepper UX)
+                                ├── Slice 2B (chat tutor)
+                                ├── Slice 2C (i18n)
+                                │
+                                ├── Slice 3A (temas) ── depende de 2C
+                                ├── Slice 3B (crear curso) ── depende de 1
+                                │
+                                └── Slice 4 (gen-ui, proactivo, traduccion)
+```
 
 ## Principios
 
