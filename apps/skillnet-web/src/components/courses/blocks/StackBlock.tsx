@@ -96,21 +96,32 @@ function StepperStack({ children }: { children?: ReactNode }) {
   return (
     <stepperAdvanceContext.Provider value={advance}>
       <div className="flex flex-col h-full min-w-0">
-        {/* Step dots — centered */}
-        <div className="shrink-0 flex items-center justify-center gap-2 pb-4">
+        {/* Step indicator — Brilliant style: active dot stretches into a progress bar */}
+        <div className="shrink-0 flex items-center justify-center gap-1.5 pb-4">
           {items.map((_, i) => (
             <motion.div
               key={i}
-              className={`rounded-full transition-colors ${
-                i === safeStep
-                  ? 'w-2 h-2 bg-primary'
-                  : i < safeStep
-                    ? 'w-1.5 h-1.5 bg-primary/40'
-                    : 'w-1.5 h-1.5 bg-border'
-              }`}
+              className="relative rounded-full overflow-hidden"
               layout
-              transition={{ duration: duration.fast }}
-            />
+              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+              style={{
+                width: i === safeStep ? 32 : 6,
+                height: 6,
+                backgroundColor: i < safeStep
+                  ? 'var(--color-primary)'
+                  : 'var(--color-border)',
+              }}
+            >
+              {i === safeStep && (
+                <motion.div
+                  className="absolute inset-y-0 left-0 rounded-full"
+                  style={{ backgroundColor: 'var(--color-primary)' }}
+                  initial={{ width: '0%' }}
+                  animate={{ width: '100%' }}
+                  transition={{ duration: 8, ease: 'linear' }}
+                />
+              )}
+            </motion.div>
           ))}
         </div>
 
