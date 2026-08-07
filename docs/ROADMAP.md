@@ -1,47 +1,47 @@
 # Roadmap
 
-> Actualizado: 2026-08-07. Organizado en slices paralelizables.
+> Actualizado: 2026-08-07. Organizado en slices paralelizables. Todos pueden ir a la vez.
 
 ---
 
-## Slice 1 — Calidad del contenido generado (BLOQUEA TODO)
+## Slice 1 — Calidad del contenido generado
 
-Nada importa si los cursos son malos. Se hace primero y solo.
+Testeable autonomamente: subir PDFs reales, generar cursos, comparar output contra
+el documento fuente.
 
 - [ ] Subir PDFs reales de Ticketrona (manual entradas, ecosistema) como fuente
 - [ ] Generar cursos desde esos documentos con el pipeline multi-agente
-- [ ] Evaluar output: leads, contenido de concepto, preguntas, variedad de componentes
+- [ ] Verificar fidelidad: datos coinciden con el PDF, no inventa, no falta nada
+- [ ] Verificar componentes: procedimiento -> StepByStepReveal, lista -> Table, etc.
+- [ ] Verificar leads: no copian el summary, enganchan
+- [ ] Verificar quizzes: preguntas respondibles con info del documento, caso concreto
 - [ ] Iterar prompts de Blueprint, Content Writer e Interaction Designer
-- [ ] Correr quality_bench con LLM real, medir cobertura de componentes
-- [ ] Objetivo: first-pass >80%, preguntas de caso concreto, leads que enganchen
-- [ ] Probar con temas variados (no solo compliance)
+- [ ] Correr quality_bench con LLM real
 
-**Criterio para avanzar:** un curso generado desde un PDF real que un empleado de
-Ticketrona pueda usar sin que de verguenza.
+## Slice 2A — UX del stepper y visualizacion
 
----
-
-## Slice 2 — En paralelo (despues de que slice 1 sea aceptable)
-
-Tres lineas de trabajo independientes que pueden ir a la vez:
-
-### 2A — UX del stepper y visualizacion
-
+- [ ] Transicion al entrar en un nodo: morph con framer-motion (no salto brusco)
+- [ ] Transicion al salir del nodo: morph inverso (no desaparicion)
 - [ ] Centrado vertical testeado con todos los tipos de bloque
 - [ ] Responsive: pantallas pequenas, tablets
 - [ ] Spider buddy: posicion en diferentes resoluciones
 - [ ] Intro del curso: titulo + outcomes en una pantalla
-- [ ] Transiciones entre nodos: fluidas, sin parpadeo
 - [ ] Componentes visuales: animaciones de entrada, feedback de quiz, charts
 
-### 2B — Chat del tutor en las lecciones
+Tendencias UX de Jose:
+- Le gustan las transiciones morph de framer-motion (layout animations, springs)
+- No le gustan los saltos bruscos ni las apariciones/desapariciones instantaneas
+- Opacidad y escala suaves, nunca blur
+- Todo debe fluir: de paso a paso, de nodo a nodo, de curso a leccion
+
+## Slice 2B — Chat del tutor en las lecciones
 
 - [ ] Testear end-to-end: contexto del nodo llega, respuestas relevantes
 - [ ] Tono: companero cercano, no bot formal
 - [ ] Funciona con auth de empleado (no admin)
 - [ ] Reaccion a aciertos/errores del quiz (futuro: como Koji)
 
-### 2C — Idiomas (i18n)
+## Slice 2C — Idiomas (i18n)
 
 La infraestructura esta montada (react-intl + catalogos es/en + agent tool set_locale).
 
@@ -80,26 +80,24 @@ Ver `docs/design/generative-ui-personalization.md` para el diseno completo.
 ### Nivel 3 — Agente proactivo
 - [ ] Cron que analiza patrones de uso (learning_events, llm_usage_log)
 - [ ] Propone widgets, ajustes de sidebar, contenido adicional
-- [ ] Notificacion no intrusiva: el buddy lo sugiere, el usuario acepta o rechaza
 
 ### Traduccion de contenido on-demand
 - [ ] Regenerar lecciones en el idioma del empleado
-- [ ] O traducir con modelo rapido al vuelo
 
 ---
 
 ## Paralelismo
 
 ```
-Slice 1 (calidad) ─────────────┐
-                                ├── Slice 2A (stepper UX)
-                                ├── Slice 2B (chat tutor)
-                                ├── Slice 2C (i18n)
-                                │
-                                ├── Slice 3A (temas) ── depende de 2C
-                                ├── Slice 3B (crear curso) ── depende de 1
-                                │
-                                └── Slice 4 (gen-ui, proactivo, traduccion)
+Slice 1 (calidad) ──────────────────┐
+Slice 2A (stepper UX, transiciones) ├── todos en paralelo
+Slice 2B (chat tutor) ──────────────┤
+Slice 2C (i18n) ────────────────────┘
+                                     │
+                            Slice 3A (temas) ── depende de 2C
+                            Slice 3B (crear curso)
+                                     │
+                            Slice 4 (gen-ui, proactivo, traduccion)
 ```
 
 ## Principios
@@ -108,3 +106,4 @@ Slice 1 (calidad) ─────────────┐
 2. **El usuario no configura.** La app aprende de el.
 3. **OpenUI Lang es el motor.** Lecciones, widgets, dashboards — todo son programas OpenUI.
 4. **El agente tiene tools, no opiniones.** Solo actua cuando se lo piden o cuando los datos lo justifican.
+5. **Transiciones morph.** Todo fluye, nada salta. Framer-motion layout animations.
