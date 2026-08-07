@@ -2,9 +2,7 @@
 // These are kept separate from the legacy mock-data types in src/data/*.
 
 // v2 render contract. Type-only imports, so they are erased at build time and no
-// import cycle exists at runtime. `BloomLevel` now comes from the UI Kit schemas,
-// which are the frontend's single declaration of the frozen catalogue (§5.3).
-import type { BloomLevel as BloomLevelType } from '../components/courses/kit/schemas'
+// import cycle exists at runtime.
 import type { UiFormat as UiFormatType } from './node-render'
 
 export type UserRole = 'admin' | 'employee'
@@ -70,6 +68,8 @@ export interface CourseRead {
   source_document_id: string | null
   created_at: string
   module_count: number
+  node_count: number | null
+  schema_status: string | null
   /**
    * The **effective** delivery path (§11.3), computed server-side by `resolve_delivery`.
    *
@@ -405,7 +405,6 @@ export type NodeCriticality = 'critical' | 'recommended' | 'contextual'
 
 export type NodeState =
   | 'not_started'
-  | 'probing'
   | 'learning'
   | 'mastered'
   | 'needs_review'
@@ -461,15 +460,6 @@ export interface LearnerProfile {
   onboarding_completed_at: string | null
   onboarding_skipped: boolean
   calibrating: boolean
-}
-
-/** One pre-assessment item from `POST /nodes/{node_id}/probe` (§7.1). Never carries the answer. */
-export interface ProbeItem {
-  item_id: string
-  item_type: ExerciseType
-  bloom_level: BloomLevelType
-  question: string
-  options?: string[]
 }
 
 // --- Course schema, design time (admin, §3.2 / §11.1) ---
@@ -609,78 +599,6 @@ export interface NodeRenderHistory {
   renders: NodeRenderVersion[]
 }
 
-/** One `node_probes` row as the learner may see it. Never carries the answer key. */
-export interface ProbeRow {
-  id: string
-  node_id: string
-  schema_version: number
-  attempt_no: number
-  /** `false` for the diagnostic probe of a declared novice (§7.1): nothing is recorded. */
-  scored: boolean
-  score: number | null
-  mastered: boolean | null
-  tiebreak_used: boolean
-  created_at: string | null
-  completed_at: string | null
-}
-
-/**
- * One served probe item, with the fields the constructed tie-break needs.
- *
- * A superset of `ProbeItem` rather than an extension of it: `question` is optional here
- * because a `fill_blank` item carries `template` (the sentence with `___`) and a
- * `practical_case` carries `context` + `question`, so requiring `question` would be a
- * lie for item `c`. The server sends `list[dict]` of answer-free props (`public_props`
- * runs over each one), so the shape is by item type, not uniform.
- */
-export interface ProbeItemDetail {
-  item_id: string
-  item_type: ExerciseType
-  bloom_level: BloomLevelType
-  question?: string
-  options?: string[]
-  /** `fill_blank`: the sentence with `___` where the missing piece goes. */
-  template?: string
-  /** `practical_case`: the situation the question is about. */
-  context?: string
-}
-
-/** `POST /nodes/{node_id}/probe` — `ProbeSessionRead`. */
-export interface ProbeSession {
-  /** `null` on the one path with no row to report (past the probe, nothing stored). */
-  probe: ProbeRow | null
-  items: ProbeItemDetail[]
-  reused: boolean
-  /** Already decided, when a stored probe is replayed. */
-  verdict: string | null
-  /** "Vamos a ver que te suena ya" framing: unscored, no failures persisted (§7.1). */
-  diagnostic: boolean
-}
-
-export interface ProbeAnswerBody {
-  probe_id: string
-  item_id: string
-  answer: unknown
-  latency_ms?: number
-}
-
-/** `POST /nodes/{node_id}/probe/answer` — `ProbeAnswerResult`. */
-export interface ProbeAnswerResult {
-  item_id: string
-  score: number
-  passed: boolean
-  /** `null` until every required item is answered. Then `mastered` / `learning` / `tiebreak`. */
-  verdict: string | null
-  estimate: number | null
-  next_item_id: string | null
-  /**
-   * `"prefetch"` → the **client** fires `POST /render` in the background; that overlap
-   * *is* the productive wait of §9.1. `"skip"` → the node was mastered.
-   */
-  render_hint: 'prefetch' | 'skip' | null
-  feedback: string | null
-}
-
 /**
  * `POST /nodes/{node_id}/answer` — `NodeAttemptResult`.
  *
@@ -740,7 +658,6 @@ export interface NodeStateRead {
   node_id: string
   state: NodeState
   mastery: number
-  probe_score: number | null
   consecutive_correct: number
   consecutive_failed: number
   hints_used: number
