@@ -13,9 +13,9 @@ export interface CalloutBlockProps {
 // status colours and their `*-subtle` tints — `warn` used to have no tint at all
 // (`bg-bg-subtle`), which left the loudest tone as the only silent surface.
 const toneClasses: Record<CalloutTone, string> = {
-  info: 'border-l-primary bg-primary-subtle',
-  warn: 'border-l-warning bg-warning-subtle',
-  success: 'border-l-accent bg-accent-subtle',
+  info: 'border-l-[3px] border-l-primary bg-primary-subtle',
+  warn: 'border-l-[4px] border-l-warning bg-warning-subtle',
+  success: 'border-l-[3px] border-l-accent bg-accent-subtle ring-1 ring-emerald-500/20',
 }
 
 const toneLabels: Record<CalloutTone, string> = {
@@ -78,7 +78,7 @@ export function CalloutBlock({ tone = 'info', text }: CalloutBlockProps) {
       // a colour-only cue would not.
       role="note"
       aria-label={toneLabels[resolved]}
-      className={`${INLINE_SURFACE} border-l-[3px] ${toneClasses[resolved]}`}
+      className={`${INLINE_SURFACE} ${toneClasses[resolved]}`}
     >
       {/* The tone label is chrome, not lesson prose: it is deliberately outside
           the ClickableText, so "Atencion" is not a term anyone can explain. */}
@@ -86,7 +86,7 @@ export function CalloutBlock({ tone = 'info', text }: CalloutBlockProps) {
         <ToneIcon tone={resolved} />
         <span className="font-semibold tracking-wide uppercase">{toneLabels[resolved]}</span>
       </div>
-      <ClickableText as="p" className="text-sm text-text leading-relaxed min-w-0">
+      <ClickableText as="p" className={`text-sm text-text leading-relaxed min-w-0 ${resolved === 'warn' ? 'font-medium' : ''}`}>
         <InlineMarkdown>{text}</InlineMarkdown>
       </ClickableText>
     </aside>

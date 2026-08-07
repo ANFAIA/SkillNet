@@ -26,7 +26,15 @@ export function StepSequenceBlock({ title, steps }: StepSequenceBlockProps) {
         {items.map((step, idx) => {
           const isLast = idx === items.length - 1
           return (
-            <li key={idx} className="flex gap-4 min-w-0">
+            <li
+              key={idx}
+              className="flex gap-4 min-w-0"
+              style={{
+                opacity: 0,
+                animation: `step-fade-in 0.3s ease forwards`,
+                animationDelay: `${idx * 60}ms`,
+              }}
+            >
               {/* Timeline column: circle + connecting line */}
               <div className="flex flex-col items-center shrink-0">
                 <span
@@ -40,12 +48,12 @@ export function StepSequenceBlock({ title, steps }: StepSequenceBlockProps) {
                 {!isLast && (
                   <div
                     aria-hidden="true"
-                    className="w-px flex-1 bg-border-strong mt-1"
+                    className="w-0.5 flex-1 bg-border-strong mt-1"
                   />
                 )}
               </div>
               {/* Step content */}
-              <div className={`text-sm text-text-secondary leading-relaxed min-w-0 ${isLast ? '' : 'pb-5'}`}>
+              <div className={`text-sm text-text leading-relaxed min-w-0 ${isLast ? '' : 'pb-5'}`}>
                 <InlineMarkdown>{step}</InlineMarkdown>
               </div>
             </li>

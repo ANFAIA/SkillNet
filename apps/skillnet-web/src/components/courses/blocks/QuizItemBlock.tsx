@@ -1,9 +1,13 @@
 import { useRef, useState } from 'react'
+import { motion } from 'framer-motion'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { post } from '../../../api/client'
 import { Button } from '../../ui'
 import { HintLadder, WorkedSolution } from './QuizItemHints'
+import { duration, ease } from '../../../lib/motion'
 import { BLOCK_TITLE, INLINE_SURFACE } from './rhythm'
+import { useNodeRenderTarget } from '../kit/NodeRenderContext'
+import { useStepperAdvance } from './StepperContext'
 import type { ExerciseType } from '../../../types'
 import type { BloomLevel } from '../kit/schemas'
 import type {
@@ -64,8 +68,11 @@ function ResultPanel({
   onRetry?: () => void
 }) {
   return (
-    <div
+    <motion.div
       role="status"
+      initial={{ opacity: 0, scale: 0.97 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: duration.normal, ease: [...ease.base] }}
       className={`mt-4 rounded-lg border p-4 ${
         result.passed ? 'border-accent bg-accent-subtle' : 'border-danger bg-danger/5'
       }`}
@@ -90,7 +97,7 @@ function ResultPanel({
           Reintentar
         </button>
       ) : null}
-    </div>
+    </motion.div>
   )
 }
 
@@ -114,7 +121,7 @@ function SingleChoiceItem({
           key={idx}
           className={`flex items-center gap-3 p-3 border rounded-lg transition-colors ${
             disabled ? 'cursor-default' : 'cursor-pointer'
-          } ${selected === idx && !disabled ? 'border-primary' : 'border-border'}`}
+          } ${selected === idx && !disabled ? 'border-2 border-primary' : 'border border-border'}`}
         >
           <input
             type="radio"
@@ -166,6 +173,8 @@ export function QuizItemBlock({
   const [selected, setSelected] = useState<number | null>(null)
   const [text, setText] = useState('')
   const queryClient = useQueryClient()
+  const { recordEvent } = useNodeRenderTarget()
+  const stepperAdvance = useStepperAdvance()
 
   // Latency is measured from mount, which is when the item became visible.
   const openedAt = useRef(Date.now())
@@ -173,11 +182,28 @@ export function QuizItemBlock({
   const submit = useMutation({
     mutationFn: (body: NodeAnswerRequest) =>
       post<NodeAttemptResult>(`/nodes/${nodeId}/answer`, body),
-    onSuccess: () => {
+    onSuccess: (result) => {
       // Mastery moved server-side; the node list and the enrollment progress
       // that depend on it are now stale.
       queryClient.invalidateQueries({ queryKey: ['nodes'] })
       queryClient.invalidateQueries({ queryKey: ['enrollments'] })
+
+      // §3.3: emit quiz_correct / quiz_wrong so the format_vector learns that
+      // this learner engages with exercises. The element is always `ejercicio`
+      // because a quiz item is an exercise component regardless of the lesson's
+      // overall ui_format.
+      if (recordEvent) {
+        recordEvent({
+          type: result.passed ? 'quiz_correct' : 'quiz_wrong',
+          element: 'ejercicio',
+          element_id: item_id,
+        })
+      }
+
+      // Auto-advance in stepper mode after a correct answer.
+      if (result.passed && stepperAdvance) {
+        stepperAdvance()
+      }
     },
   })
 

@@ -24,7 +24,7 @@ export function TableBlock({ headers, rows }: TableBlockProps) {
       <table className="w-full text-sm border-collapse">
         {head.length > 0 && (
           <thead>
-            <tr className="bg-bg-muted">
+            <tr className="bg-bg-muted sticky top-0 z-10">
               {head.map((header, idx) => (
                 <th
                   key={idx}
@@ -51,8 +51,8 @@ export function TableBlock({ headers, rows }: TableBlockProps) {
                   // `leading-relaxed` matches the prose blocks: a two-line cell used
                   // to set tighter than the paragraph right above the table.
                   className={`align-top py-2.5 px-4 text-text leading-relaxed ${
-                    rowIdx < body.length - 1 ? 'border-b border-border' : ''
-                  }`}
+                    cellIdx === 0 ? 'font-medium' : ''
+                  } ${rowIdx < body.length - 1 ? 'border-b border-border' : ''}`}
                 >
                   <InlineMarkdown>{String(cell ?? '')}</InlineMarkdown>
                 </td>

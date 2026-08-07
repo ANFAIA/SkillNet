@@ -1,4 +1,6 @@
+import { useEffect, useState } from 'react'
 import { BLOCK_TITLE } from './rhythm'
+import { ClickableText } from '../ClickableText'
 import type { ChartKind } from '../kit/schemas'
 
 export interface ChartBlockProps {
@@ -46,6 +48,12 @@ function toPoints(labels: unknown, values: unknown): Array<{ label: string; valu
  */
 function BarChart({ points }: { points: Array<{ label: string; value: number }> }) {
   const maxAbs = points.reduce((acc, p) => Math.max(acc, Math.abs(p.value)), 0)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setMounted(true))
+    return () => cancelAnimationFrame(id)
+  }, [])
 
   return (
     <ul className="space-y-3 min-w-0">
@@ -61,9 +69,10 @@ function BarChart({ points }: { points: Array<{ label: string; value: number }> 
             </div>
             <div className="h-2.5 w-full rounded-full bg-bg-muted overflow-hidden">
               <div
-                className="h-full rounded-full transition-all duration-300"
+                className="h-full rounded-full"
                 style={{
-                  width: `${pct}%`,
+                  width: mounted ? `${pct}%` : '0%',
+                  transition: 'width 0.6s ease',
                   background: 'linear-gradient(90deg, var(--color-primary), var(--color-primary) 60%, color-mix(in srgb, var(--color-primary) 70%, transparent))',
                 }}
               />
@@ -89,6 +98,13 @@ function LineChart({
   points: Array<{ label: string; value: number }>
   title: string
 }) {
+  const [dashOffset, setDashOffset] = useState<number | null>(null)
+
+  useEffect(() => {
+    // Trigger the draw-on animation after mount
+    requestAnimationFrame(() => setDashOffset(0))
+  }, [])
+
   const values = points.map((p) => p.value)
   const max = Math.max(...values, 0)
   const min = Math.min(...values, 0)
@@ -104,6 +120,14 @@ function LineChart({
 
   const polyline = coords.map(({ x, y }) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ')
   const summary = points.map((p) => `${p.label}: ${formatValue(p.value)}`).join('; ')
+
+  // Total polyline length for stroke-dasharray draw animation
+  const totalLength = coords.reduce((acc, c, i) => {
+    if (i === 0) return 0
+    const dx = c.x - coords[i - 1].x
+    const dy = c.y - coords[i - 1].y
+    return acc + Math.sqrt(dx * dx + dy * dy)
+  }, 0)
 
   // Build the area fill path: line path + close down to baseline + back
   const baseline = VIEW_H - PAD_Y
@@ -172,6 +196,9 @@ function LineChart({
             strokeLinejoin="round"
             strokeLinecap="round"
             vectorEffect="non-scaling-stroke"
+            strokeDasharray={totalLength}
+            strokeDashoffset={dashOffset === null ? totalLength : 0}
+            style={{ transition: 'stroke-dashoffset 0.8s ease' }}
           />
         )}
         {/* Dots — larger for visibility, with white center ring */}
@@ -217,7 +244,7 @@ export function ChartBlock({ kind, title, labels, values }: ChartBlockProps) {
   return (
     <figure className="min-w-0 m-0">
       {title ? (
-        <figcaption className={BLOCK_TITLE}>{title}</figcaption>
+        <ClickableText as="p" className={BLOCK_TITLE}>{title}</ClickableText>
       ) : null}
       {points.length === 0 ? (
         <p className="text-xs text-text-muted">Sin datos para representar.</p>

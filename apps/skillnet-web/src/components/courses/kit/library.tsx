@@ -44,6 +44,8 @@ import { createLibrary, defineComponent } from '@openuidev/react-lang'
 import type { ComponentRenderProps } from '@openuidev/react-lang'
 
 import {
+  AccordionBlock,
+  AccordionItemBlock,
   AudioExplanationBlock,
   BeforeAfterBlock,
   CalloutBlock,
@@ -60,6 +62,8 @@ import {
   StackBlock,
   StepByStepRevealBlock,
   StepSequenceBlock,
+  TabItemBlock,
+  TabsBlock,
   TableBlock,
   TextContentBlock,
 } from '../blocks'
@@ -83,6 +87,8 @@ import {
   STACK_GAPS,
   TEXT_VARIANTS,
   VOICE_STYLES,
+  accordionItemProps,
+  accordionProps,
   audioExplanationProps,
   beforeAfterProps,
   calloutProps,
@@ -100,6 +106,8 @@ import {
   stackProps,
   stepByStepRevealProps,
   stepSequenceProps,
+  tabItemProps,
+  tabsProps,
   tableProps,
   textContentProps,
 } from './schemas'
@@ -376,6 +384,46 @@ const DiagramBuilder = defineComponent({
   ),
 })
 
+const Tabs = defineComponent({
+  name: 'Tabs',
+  description: KIT_DESCRIPTIONS.Tabs,
+  props: tabsProps,
+  component: ({ props, renderNode }: ComponentRenderProps<{ children: unknown[] }>) => (
+    <TabsBlock>{renderKids(renderNode, props.children)}</TabsBlock>
+  ),
+})
+
+const TabItem = defineComponent({
+  name: 'TabItem',
+  description: KIT_DESCRIPTIONS.TabItem,
+  props: tabItemProps,
+  component: ({ props, renderNode }: ComponentRenderProps<{ trigger: string; children: unknown[] }>) => (
+    <TabItemBlock trigger={readString(props.trigger)}>
+      {renderKids(renderNode, props.children)}
+    </TabItemBlock>
+  ),
+})
+
+const Accordion = defineComponent({
+  name: 'Accordion',
+  description: KIT_DESCRIPTIONS.Accordion,
+  props: accordionProps,
+  component: ({ props, renderNode }: ComponentRenderProps<{ children: unknown[] }>) => (
+    <AccordionBlock>{renderKids(renderNode, props.children)}</AccordionBlock>
+  ),
+})
+
+const AccordionItem = defineComponent({
+  name: 'AccordionItem',
+  description: KIT_DESCRIPTIONS.AccordionItem,
+  props: accordionItemProps,
+  component: ({ props, renderNode }: ComponentRenderProps<{ trigger: string; children: unknown[] }>) => (
+    <AccordionItemBlock trigger={readString(props.trigger)}>
+      {renderKids(renderNode, props.children)}
+    </AccordionItemBlock>
+  ),
+})
+
 /**
  * The render library.
  *
@@ -411,6 +459,10 @@ export const skillnetLibrary = createLibrary({
     AudioExplanation,
     PronunciationExercise,
     DiagramBuilder,
+    Tabs,
+    TabItem,
+    Accordion,
+    AccordionItem,
   ],
 })
 

@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { BLOCK_TITLE, INLINE_SURFACE } from './rhythm'
+import { ClickableText } from '../ClickableText'
 
 export interface SliderExplorationBlockProps {
   title: string
@@ -61,8 +62,19 @@ export function SliderExplorationBlock({
   const clampedMax = Number.isFinite(max) ? max : 100
   const clampedStep = Number.isFinite(step) && step > 0 ? step : 1
   const [value, setValue] = useState(clampedMin)
+  const [flash, setFlash] = useState(false)
+  const prevDisplay = useRef('')
 
   const display = formula ? evaluateFormula(formula, variable || 'x', value) : ''
+
+  useEffect(() => {
+    if (display && display !== prevDisplay.current) {
+      prevDisplay.current = display
+      setFlash(true)
+      const timer = setTimeout(() => setFlash(false), 200)
+      return () => clearTimeout(timer)
+    }
+  }, [display])
 
   return (
     <div className={INLINE_SURFACE}>
@@ -82,13 +94,20 @@ export function SliderExplorationBlock({
             step={clampedStep}
             value={value}
             onChange={(e) => setValue(Number(e.target.value))}
-            className="w-full h-1.5 bg-bg-muted rounded-full appearance-none cursor-pointer
+            className="w-full h-1.5 rounded-full appearance-none cursor-pointer
               [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4
               [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full
               [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:shadow-sm
               [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4
               [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-primary
               [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:shadow-sm"
+            style={{
+              background: `linear-gradient(to right, var(--color-primary) 0%, var(--color-primary) ${
+                clampedMax === clampedMin ? 0 : ((value - clampedMin) / (clampedMax - clampedMin)) * 100
+              }%, var(--color-bg-muted) ${
+                clampedMax === clampedMin ? 0 : ((value - clampedMin) / (clampedMax - clampedMin)) * 100
+              }%, var(--color-bg-muted) 100%)`,
+            }}
             aria-label={`${variable}: ${value}`}
           />
           <div className="flex justify-between text-xs text-text-muted">
@@ -99,14 +118,18 @@ export function SliderExplorationBlock({
 
         {/* Formula result */}
         {display ? (
-          <div className="bg-bg-subtle border border-border rounded-lg px-4 py-3">
+          <div
+            className={`border border-border rounded-lg px-4 py-3 transition-colors duration-200 ${
+              flash ? 'bg-primary/10' : 'bg-bg-subtle'
+            }`}
+          >
             <p className="text-sm text-text font-mono">{display}</p>
           </div>
         ) : null}
 
         {/* Description */}
         {description ? (
-          <p className="text-sm text-text-secondary">{description}</p>
+          <ClickableText as="p" className="text-sm text-text-secondary">{description}</ClickableText>
         ) : null}
       </div>
     </div>

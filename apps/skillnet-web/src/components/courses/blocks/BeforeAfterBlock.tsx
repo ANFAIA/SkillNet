@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { BLOCK_TITLE, INLINE_SURFACE } from './rhythm'
+import { ClickableText } from '../ClickableText'
 
 export interface BeforeAfterBlockProps {
   title: string
@@ -65,27 +66,27 @@ export function BeforeAfterBlock({
       >
         {/* Before side (full width, clipped) */}
         <div
-          className="absolute inset-0 bg-bg"
+          className="absolute inset-0 bg-red-50/40 dark:bg-red-950/20"
           style={{ clipPath: `inset(0 ${100 - position}% 0 0)` }}
         >
           <div className="p-4 h-full">
             <span className="text-xs font-medium text-text-muted uppercase tracking-wide">
               {beforeLabel || 'Antes'}
             </span>
-            <p className="text-sm text-text mt-2 whitespace-pre-wrap">{beforeContent}</p>
+            <ClickableText as="p" className="text-sm text-text mt-2 whitespace-pre-wrap">{beforeContent}</ClickableText>
           </div>
         </div>
 
         {/* After side (full width, clipped) */}
         <div
-          className="absolute inset-0 bg-bg-subtle"
+          className="absolute inset-0 bg-emerald-50/40 dark:bg-emerald-950/20"
           style={{ clipPath: `inset(0 0 0 ${position}%)` }}
         >
           <div className="p-4 h-full">
             <span className="text-xs font-medium text-text-muted uppercase tracking-wide">
               {afterLabel || 'Despues'}
             </span>
-            <p className="text-sm text-text mt-2 whitespace-pre-wrap">{afterContent}</p>
+            <ClickableText as="p" className="text-sm text-text mt-2 whitespace-pre-wrap">{afterContent}</ClickableText>
           </div>
         </div>
 

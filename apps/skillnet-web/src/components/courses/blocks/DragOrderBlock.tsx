@@ -7,7 +7,7 @@ import {
   useSensor,
   useSensors,
 } from '@dnd-kit/core'
-import type { DragEndEvent } from '@dnd-kit/core'
+import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core'
 import {
   arrayMove,
   SortableContext,
@@ -18,6 +18,7 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import { Button } from '../../ui'
 import { BLOCK_TITLE, INLINE_SURFACE } from './rhythm'
+import { useStepperAdvance } from './StepperContext'
 
 // Design decision (v1): correctOrder is in the program text (browser-visible).
 // Unlike QuizItem (server-side grading), DragOrder validates locally because
@@ -52,10 +53,12 @@ function SortableItem({
   item,
   correct,
   status,
+  index,
 }: {
   item: ItemState
   correct: boolean | null
   status: ValidationStatus
+  index: number
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: item.id,
@@ -75,7 +78,12 @@ function SortableItem({
   return (
     <div
       ref={setNodeRef}
-      style={style}
+      style={{
+        ...style,
+        transitionProperty: 'border-color, background-color, opacity, transform',
+        transitionDuration: '200ms',
+        transitionDelay: status === 'checked' ? `${index * 100}ms` : '0ms',
+      }}
       className={`flex items-center gap-3 p-3 border rounded-lg bg-bg select-none ${borderClass} ${isDragging ? 'shadow-md opacity-75' : ''}`}
       {...attributes}
       {...listeners}
@@ -111,6 +119,7 @@ function SortableItem({
 export function DragOrderBlock({ instruction, items, correctOrder }: DragOrderBlockProps) {
   const safeItems = Array.isArray(items) ? items : []
   const safeCorrect = Array.isArray(correctOrder) ? correctOrder : []
+  const stepperAdvance = useStepperAdvance()
 
   const buildItemStates = useCallback(
     () =>
@@ -126,6 +135,7 @@ export function DragOrderBlock({ instruction, items, correctOrder }: DragOrderBl
 
   const [itemStates, setItemStates] = useState<ItemState[]>(buildItemStates)
   const [status, setStatus] = useState<ValidationStatus>('idle')
+  const [activeId, setActiveId] = useState<string | null>(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -142,7 +152,12 @@ export function DragOrderBlock({ instruction, items, correctOrder }: DragOrderBl
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, itemStates])
 
+  function handleDragStart(event: DragStartEvent) {
+    setActiveId(String(event.active.id))
+  }
+
   function handleDragEnd(event: DragEndEvent) {
+    setActiveId(null)
     const { active, over } = event
     if (!over || active.id === over.id) return
 
@@ -157,6 +172,11 @@ export function DragOrderBlock({ instruction, items, correctOrder }: DragOrderBl
 
   function handleCheck() {
     setStatus('checked')
+    // Auto-advance in stepper mode if all correct
+    const isAllCorrect = itemStates.every((item, i) => item.text === safeCorrect[i])
+    if (isAllCorrect && stepperAdvance) {
+      stepperAdvance()
+    }
   }
 
   function handleReset() {
@@ -175,16 +195,24 @@ export function DragOrderBlock({ instruction, items, correctOrder }: DragOrderBl
     <div data-no-explain="" className={`${INLINE_SURFACE} bg-bg-subtle`}>
       {instruction ? <p className={BLOCK_TITLE}>{instruction}</p> : null}
 
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         <SortableContext items={itemStates.map((s) => s.id)} strategy={verticalListSortingStrategy}>
           <div className="space-y-2">
-            {itemStates.map((item) => (
-              <SortableItem
+            {itemStates.map((item, idx) => (
+              <div
                 key={item.id}
-                item={item}
-                correct={correctMap?.get(item.id) ?? null}
-                status={status}
-              />
+                style={{
+                  opacity: activeId && activeId !== item.id ? 0.5 : 1,
+                  transition: 'opacity 150ms ease',
+                }}
+              >
+                <SortableItem
+                  item={item}
+                  correct={correctMap?.get(item.id) ?? null}
+                  status={status}
+                  index={idx}
+                />
+              </div>
             ))}
           </div>
         </SortableContext>

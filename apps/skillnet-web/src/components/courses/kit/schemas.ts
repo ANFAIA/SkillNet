@@ -197,6 +197,24 @@ export const diagramBuilderProps = z.object({
   steps: z.array(z.array(z.string())).describe('Pasos: [[etiqueta, svgFragment, explicacion], ...]'),
 })
 
+export const tabsProps = z.object({
+  children: z.array(z.any()).describe('Ids de los TabItem hijos'),
+})
+
+export const tabItemProps = z.object({
+  trigger: z.string().describe('Etiqueta de la pestana'),
+  children: z.array(z.any()).describe('Ids de los bloques del panel'),
+})
+
+export const accordionProps = z.object({
+  children: z.array(z.any()).describe('Ids de los AccordionItem hijos'),
+})
+
+export const accordionItemProps = z.object({
+  trigger: z.string().describe('Titulo de la seccion plegable'),
+  children: z.array(z.any()).describe('Ids de los bloques de contenido'),
+})
+
 /** The frozen names, in the order of the §5.3 table. */
 export const KIT_COMPONENT_NAMES = [
   'Stack',
@@ -218,6 +236,10 @@ export const KIT_COMPONENT_NAMES = [
   'AudioExplanation',
   'PronunciationExercise',
   'DiagramBuilder',
+  'Tabs',
+  'TabItem',
+  'Accordion',
+  'AccordionItem',
 ] as const
 
 export type KitComponentName = (typeof KIT_COMPONENT_NAMES)[number]
@@ -259,6 +281,10 @@ export const KIT_DESCRIPTIONS = {
   AudioExplanation: 'Texto leido en voz alta con resaltado de palabras',
   PronunciationExercise: 'Escuchar y practicar pronunciacion con comparacion de ondas',
   DiagramBuilder: 'Diagrama SVG que se construye paso a paso',
+  Tabs: 'Pestanas para mostrar contenido alternativo en el mismo espacio',
+  TabItem: 'Panel de una pestana dentro de Tabs',
+  Accordion: 'Secciones plegables de revelacion progresiva',
+  AccordionItem: 'Seccion plegable dentro de Accordion',
 } satisfies Record<KitComponentName, string>
 
 /** Name → prop schema, so a consumer can walk the catalogue without React. */
@@ -282,6 +308,10 @@ export const KIT_PROP_SCHEMAS = {
   AudioExplanation: audioExplanationProps,
   PronunciationExercise: pronunciationExerciseProps,
   DiagramBuilder: diagramBuilderProps,
+  Tabs: tabsProps,
+  TabItem: tabItemProps,
+  Accordion: accordionProps,
+  AccordionItem: accordionItemProps,
 } satisfies Record<KitComponentName, z.ZodObject>
 
 /**
@@ -289,7 +319,7 @@ export const KIT_PROP_SCHEMAS = {
  * them). `Stack` is the library root, so the parser resolves a bare program
  * against it.
  */
-export const CONTAINER_NAMES = ['Stack', 'Card'] as const
+export const CONTAINER_NAMES = ['Stack', 'Card', 'Tabs', 'TabItem', 'Accordion', 'AccordionItem'] as const
 
 /** Contract rule 4 (§5.2), the only one of the seven checkable from a ParseResult. */
 export const MAX_COMPONENTS = 12
