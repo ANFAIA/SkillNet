@@ -49,7 +49,23 @@ export const es: Record<string, string> = {
   // Node view
   'node.backToCourse': 'Volver al curso',
   'node.pendingReview': 'Este nodo esta pendiente de revision',
+  'node.pendingReviewDesc': 'Una persona responsable tiene que revisarlo antes de que se pueda estudiar. No es un error temporal: volver a intentarlo no lo desbloquea.',
   'node.mastered': 'Ya dominas este nodo',
+  'node.masteredDesc': 'Tus respuestas muestran que ya lo sabes, asi que no te hacemos leerlo. Puedes seguir con el siguiente.',
+  'node.notFound': 'Nodo no encontrado',
+  'node.notFoundDesc': 'Puede que se haya archivado o que el curso haya cambiado de esquema.',
+  'node.notNodeBased': 'Este curso no funciona por nodos',
+  'node.notNodeBasedDesc': 'Abrelo desde la lista de cursos para verlo en su formato habitual.',
+  'node.renderFailed': 'No se pudo preparar esta leccion.',
+  'node.renderFailedFallback': 'Vuelve a intentarlo mas tarde o avisa a la persona responsable.',
+  'node.counter': 'Nodo {current} de {total}',
+  'node.mastery': 'Dominio: {pct}%',
+  'node.previousMastered': 'Ya dominas {title}. Esto es el siguiente paso.',
+  'node.introSubtitle': '{count} nodos \u00b7 {minutes} min',
+  'node.goalOnboarding': 'Esto te sirve para ponerte al dia en tu puesto.',
+  'node.goalSpecificGap': 'Esto te sirve para dominar lo que viniste a resolver.',
+  'node.goalAssigned': 'Esto te sirve para completar la formacion que te han asignado.',
+  'node.goalCustom': 'Esto te sirve para: {goal}',
 
   // Create course
   'create.title': 'Crear Curso',

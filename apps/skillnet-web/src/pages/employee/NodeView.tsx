@@ -67,21 +67,24 @@ import type { UiFormat } from '../../types/node-render'
  *   retry loop against a blank screen is worse than a sentence explaining it.
  */
 
-/** Deterministic "esto te sirve para X" by `goal` value (§6.2 Q2 options). */
-const GOAL_LINES: Record<string, string> = {
-  onboarding: 'Esto te sirve para ponerte al dia en tu puesto.',
-  specific_gap: 'Esto te sirve para dominar lo que viniste a resolver.',
-  assigned: 'Esto te sirve para completar la formacion que te han asignado.',
+/** i18n key for the deterministic "esto te sirve para X" by `goal` value (§6.2 Q2 options). */
+const GOAL_KEY: Record<string, string> = {
+  onboarding: 'node.goalOnboarding',
+  specific_gap: 'node.goalSpecificGap',
+  assigned: 'node.goalAssigned',
 }
 
-function openingLineFor(profile: LearnerProfileRead | null | undefined): string | null {
+function openingLineFor(
+  profile: LearnerProfileRead | null | undefined,
+  intl: ReturnType<typeof useIntl>,
+): string | null {
   const goal = profile?.goal?.trim()
   if (!goal) return null
-  const canned = GOAL_LINES[goal]
-  if (canned) return canned
+  const key = GOAL_KEY[goal]
+  if (key) return intl.formatMessage({ id: key })
   // "Otro" is free text the learner wrote about themselves. It is echoed, never sent to
   // the model, and never used as anything but this sentence.
-  return `Esto te sirve para: ${goal}`
+  return intl.formatMessage({ id: 'node.goalCustom' }, { goal })
 }
 
 /** Dwell under this reads as `scroll_fast`; over `SLOW_MS`, as `scroll_slow` (§3.3). */
@@ -91,6 +94,7 @@ const SLOW_MS = 3000
 type Phase = 'content' | 'mastered'
 
 export function NodeView() {
+  const intl = useIntl()
   const { id: courseId, nodeId } = useParams<{ id: string; nodeId: string }>()
   const navigate = useNavigate()
 
@@ -128,11 +132,11 @@ export function NodeView() {
     if (!isFirstNode || !hasNoProgress || !courseQuery.data) return null
     return {
       title: courseQuery.data.title,
-      subtitle: `${ordered.length} nodos · ${totalMinutes} min`,
+      subtitle: intl.formatMessage({ id: 'node.introSubtitle' }, { count: ordered.length, minutes: totalMinutes }),
       outcomes: ordered.slice(0, 4).map((n) => n.summary).filter((s): s is string => Boolean(s)),
       buddyMessage: 'Vamos a por ello.',
     }
-  }, [isFirstNode, hasNoProgress, courseQuery.data, ordered, totalMinutes])
+  }, [isFirstNode, hasNoProgress, courseQuery.data, ordered, totalMinutes, intl])
 
   const initialPhase: Phase | null = node ? 'content' : null
 
@@ -186,7 +190,7 @@ export function NodeView() {
       if (reason === 'error' && !fallbackAvailable) {
         // Nothing was persisted and nothing will be. Asking again is the loop this
         // branch exists to avoid.
-        setStreamFailure('No se pudo preparar esta leccion.')
+        setStreamFailure(intl.formatMessage({ id: 'node.renderFailed' }))
         return
       }
       // `done`, or `error` with a seed waiting: both mean `GET /render` now has
@@ -319,7 +323,7 @@ export function NodeView() {
 
   // --- frame ------------------------------------------------------------------
 
-  const openingLine = openingLineFor(profile)
+  const openingLine = openingLineFor(profile, intl)
   const { pathname } = useLocation()
   // Derive base from current URL so links work for both /empleado/curso/:id
   // and /admin/probar-curso/:id
@@ -342,9 +346,9 @@ export function NodeView() {
   if (nodes.isError && isNodeSurfaceDisabled(nodes.error)) {
     return (
       <EmptyState
-        title="Este curso no funciona por nodos"
-        description="Abrelo desde la lista de cursos para verlo en su formato habitual."
-        action={{ label: 'Volver al curso', onClick: () => navigate(backToCourse) }}
+        title={intl.formatMessage({ id: 'node.notNodeBased' })}
+        description={intl.formatMessage({ id: 'node.notNodeBasedDesc' })}
+        action={{ label: intl.formatMessage({ id: 'node.backToCourse' }), onClick: () => navigate(backToCourse) }}
       />
     )
   }
@@ -352,9 +356,9 @@ export function NodeView() {
   if (!node) {
     return (
       <EmptyState
-        title="Nodo no encontrado"
-        description="Puede que se haya archivado o que el curso haya cambiado de esquema."
-        action={{ label: 'Volver al curso', onClick: () => navigate(backToCourse) }}
+        title={intl.formatMessage({ id: 'node.notFound' })}
+        description={intl.formatMessage({ id: 'node.notFoundDesc' })}
+        action={{ label: intl.formatMessage({ id: 'node.backToCourse' }), onClick: () => navigate(backToCourse) }}
       />
     )
   }
@@ -429,7 +433,7 @@ export function NodeView() {
           type="button"
           onClick={handleBack}
           className="p-1.5 text-text-muted hover:text-text transition-colors"
-          aria-label="Volver al curso"
+          aria-label={intl.formatMessage({ id: 'node.backToCourse' })}
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="15 18 9 12 15 6" />
@@ -454,18 +458,16 @@ export function NodeView() {
       <div className="flex-1 min-h-0 flex flex-col px-6 pb-6 max-w-2xl mx-auto w-full">
         {notReviewed ? (
           <div className="space-y-2">
-            <p className="text-sm font-medium text-text">Este nodo esta pendiente de revision</p>
+            <p className="text-sm font-medium text-text">{intl.formatMessage({ id: 'node.pendingReview' })}</p>
             <p className="text-sm text-text-secondary">
-              Una persona responsable tiene que revisarlo antes de que se pueda estudiar. No es un
-              error temporal: volver a intentarlo no lo desbloquea.
+              {intl.formatMessage({ id: 'node.pendingReviewDesc' })}
             </p>
           </div>
         ) : phase === 'mastered' ? (
           <div className="space-y-3" role="status">
-            <p className="text-base font-medium text-text">Ya dominas este nodo</p>
+            <p className="text-base font-medium text-text">{intl.formatMessage({ id: 'node.mastered' })}</p>
             <p className="text-sm text-text-secondary">
-              Tus respuestas muestran que ya lo sabes, asi que no te hacemos leerlo. Puedes seguir
-              con el siguiente.
+              {intl.formatMessage({ id: 'node.masteredDesc' })}
             </p>
             {node.summary && <p className="text-sm text-text-secondary">{node.summary}</p>}
           </div>
@@ -473,7 +475,7 @@ export function NodeView() {
           <div className="space-y-2">
             <p className="text-sm font-medium text-text">{streamFailure}</p>
             <p className="text-sm text-text-secondary">
-              {node.summary ?? 'Vuelve a intentarlo mas tarde o avisa a la persona responsable.'}
+              {node.summary ?? intl.formatMessage({ id: 'node.renderFailedFallback' })}
             </p>
           </div>
         ) : (
@@ -554,12 +556,12 @@ export function NodeView() {
                   <div className="bg-bg-subtle rounded-lg p-4 space-y-3">
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-text-muted">
-                        Nodo {index + 1} de {ordered.length}
+                        {intl.formatMessage({ id: 'node.counter' }, { current: index + 1, total: ordered.length })}
                         {node.estimated_minutes ? ` · ${node.estimated_minutes} min` : ''}
                       </span>
                       {node.mastery > 0 && (
                         <span className="text-text-secondary font-medium">
-                          Dominio: {Math.round(node.mastery * 100)}%
+                          {intl.formatMessage({ id: 'node.mastery' }, { pct: Math.round(node.mastery * 100) })}
                         </span>
                       )}
                     </div>
@@ -567,7 +569,7 @@ export function NodeView() {
                     {/* Prereq context — what they already know */}
                     {previousNode && previousNode.state === 'mastered' && (
                       <p className="text-sm text-text-secondary">
-                        Ya dominas <span className="font-medium text-text">{previousNode.title}</span>. Esto es el siguiente paso.
+                        {intl.formatMessage({ id: 'node.previousMastered' }, { title: previousNode.title })}
                       </p>
                     )}
 

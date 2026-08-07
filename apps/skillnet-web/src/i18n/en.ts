@@ -49,7 +49,23 @@ export const en: Record<string, string> = {
   // Node view
   'node.backToCourse': 'Back to course',
   'node.pendingReview': 'This node is pending review',
+  'node.pendingReviewDesc': 'A responsible person must review it before it can be studied. This is not a temporary error: retrying will not unblock it.',
   'node.mastered': 'You\'ve mastered this node',
+  'node.masteredDesc': 'Your answers show you already know this, so we skip the lesson. You can move on to the next one.',
+  'node.notFound': 'Node not found',
+  'node.notFoundDesc': 'It may have been archived or the course schema may have changed.',
+  'node.notNodeBased': 'This course is not node-based',
+  'node.notNodeBasedDesc': 'Open it from the course list to view it in its standard format.',
+  'node.renderFailed': 'Could not prepare this lesson.',
+  'node.renderFailedFallback': 'Try again later or contact the responsible person.',
+  'node.counter': 'Node {current} of {total}',
+  'node.mastery': 'Mastery: {pct}%',
+  'node.previousMastered': 'You\'ve mastered {title}. This is the next step.',
+  'node.introSubtitle': '{count} nodes \u00b7 {minutes} min',
+  'node.goalOnboarding': 'This helps you get up to speed in your role.',
+  'node.goalSpecificGap': 'This helps you master what you came to solve.',
+  'node.goalAssigned': 'This helps you complete the training assigned to you.',
+  'node.goalCustom': 'This helps you with: {goal}',
 
   // Create course
   'create.title': 'Create Course',
