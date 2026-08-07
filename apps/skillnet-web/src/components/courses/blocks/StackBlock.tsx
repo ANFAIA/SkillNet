@@ -54,21 +54,18 @@ function StepperStack({ children }: { children?: ReactNode }) {
   const intro = useCourseIntro()
   const nodeItems = Children.toArray(children).filter(Boolean)
 
-  // Prepend course intro slides if this is the first node with no progress
+  // Prepend one course intro slide if this is the first node with no progress
   const introSlides: ReactNode[] = intro ? [
-    // Slide 1: Course title + meta
-    <div key="intro-title" className="text-center space-y-3">
-      <h1 className="text-2xl font-semibold text-text">{intro.title}</h1>
-      <p className="text-sm text-text-muted">{intro.subtitle}</p>
-    </div>,
-    // Slide 2: What you'll learn
-    <div key="intro-outcomes" className="space-y-4 max-w-md mx-auto">
-      <h2 className="text-base font-medium text-text text-center">Que vas a aprender</h2>
-      <ul className="space-y-2">
-        {intro.outcomes.map((outcome, i) => (
+    <div key="intro" className="text-center space-y-5 max-w-md mx-auto">
+      <div className="space-y-1.5">
+        <h1 className="text-2xl font-semibold text-text">{intro.title}</h1>
+        <p className="text-sm text-text-muted">{intro.subtitle}</p>
+      </div>
+      <ul className="space-y-2 text-left">
+        {intro.outcomes.slice(0, 3).map((outcome, i) => (
           <li key={i} className="flex gap-2.5 text-sm text-text-secondary">
             <span className="shrink-0 w-5 h-5 rounded-full bg-primary/10 text-primary text-xs flex items-center justify-center font-medium">{i + 1}</span>
-            {outcome}
+            <span className="line-clamp-2">{outcome}</span>
           </li>
         ))}
       </ul>
