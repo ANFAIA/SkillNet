@@ -1,7 +1,7 @@
 import { Children, useState, useCallback, useEffect, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { blockArrivalContext, useBlockArrival } from './blockArrival'
-import { stepperContext, useStepper, stepperAdvanceContext } from './StepperContext'
+import { stepperContext, useStepper, stepperAdvanceContext, useCoursePosition } from './StepperContext'
 import { useReducedMotion } from '../../../hooks/useReducedMotion'
 import { duration, ease } from '../../../lib/motion'
 import type { StackGap } from '../kit/schemas'
@@ -96,34 +96,8 @@ function StepperStack({ children }: { children?: ReactNode }) {
   return (
     <stepperAdvanceContext.Provider value={advance}>
       <div className="flex flex-col h-full min-w-0">
-        {/* Step indicator — Brilliant style: active dot stretches into a progress bar */}
-        <div className="shrink-0 flex items-center justify-center gap-1.5 pb-4">
-          {items.map((_, i) => (
-            <motion.div
-              key={i}
-              className="relative rounded-full overflow-hidden"
-              layout
-              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-              style={{
-                width: i === safeStep ? 32 : 6,
-                height: 6,
-                backgroundColor: i < safeStep
-                  ? 'var(--color-primary)'
-                  : 'var(--color-border)',
-              }}
-            >
-              {i === safeStep && (
-                <motion.div
-                  className="absolute inset-y-0 left-0 rounded-full"
-                  style={{ backgroundColor: 'var(--color-primary)' }}
-                  initial={{ width: '0%' }}
-                  animate={{ width: '100%' }}
-                  transition={{ duration: 8, ease: 'linear' }}
-                />
-              )}
-            </motion.div>
-          ))}
-        </div>
+        {/* Course progress — one dot per node, active node stretches and fills by step */}
+        <CourseProgress currentStep={safeStep} totalSteps={total} />
 
         {/* Middle: chevrons on sides, content centered vertically */}
         <div className="flex-1 min-h-0 flex items-center justify-center gap-2">
@@ -175,5 +149,54 @@ function StepperStack({ children }: { children?: ReactNode }) {
 
       </div>
     </stepperAdvanceContext.Provider>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Course progress — dots per node, active stretches and fills by step
+// ---------------------------------------------------------------------------
+
+const morphSpring = { type: 'spring' as const, stiffness: 300, damping: 30 }
+const DOT_SIZE = 8
+const BAR_WIDTH = 40
+
+function CourseProgress({ currentStep, totalSteps }: { currentStep: number; totalSteps: number }) {
+  const course = useCoursePosition()
+  const nodeCount = course?.nodeCount ?? 1
+  const currentNode = course?.currentNodeIndex ?? 0
+  const fillPct = totalSteps > 1 ? (currentStep / (totalSteps - 1)) * 100 : 0
+
+  return (
+    <div className="shrink-0 flex items-center justify-center gap-2 pb-4">
+      {Array.from({ length: nodeCount }, (_, i) => {
+        const isActive = i === currentNode
+        const isDone = i < currentNode
+
+        return (
+          <motion.div
+            key={i}
+            className="relative rounded-full overflow-hidden"
+            layout
+            transition={morphSpring}
+            style={{
+              width: isActive ? BAR_WIDTH : DOT_SIZE,
+              height: DOT_SIZE,
+              backgroundColor: isDone
+                ? 'var(--color-primary)'
+                : 'var(--color-border)',
+            }}
+          >
+            {isActive && (
+              <motion.div
+                className="absolute inset-y-0 left-0 rounded-full"
+                style={{ backgroundColor: 'var(--color-primary)' }}
+                animate={{ width: `${fillPct}%` }}
+                transition={{ duration: duration.normal, ease: [...ease.base] }}
+              />
+            )}
+          </motion.div>
+        )
+      })}
+    </div>
   )
 }

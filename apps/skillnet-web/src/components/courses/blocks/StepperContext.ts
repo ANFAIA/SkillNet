@@ -19,3 +19,18 @@ export const stepperAdvanceContext = createContext<(() => void) | null>(null)
 export function useStepperAdvance(): (() => void) | null {
   return useContext(stepperAdvanceContext)
 }
+
+/**
+ * Course-level position so the stepper can show node-level dots.
+ * Set by NodeView, read by StackBlock's progress indicator.
+ */
+export interface CoursePosition {
+  nodeCount: number
+  currentNodeIndex: number
+}
+
+export const coursePositionContext = createContext<CoursePosition | null>(null)
+
+export function useCoursePosition(): CoursePosition | null {
+  return useContext(coursePositionContext)
+}

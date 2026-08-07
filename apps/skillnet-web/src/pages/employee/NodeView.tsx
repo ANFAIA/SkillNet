@@ -7,7 +7,7 @@ import { useCourse } from '../../api/courses'
 import { Card, EmptyState, ProgressBar } from '../../components/ui'
 import { ClickableSurface, NO_EXPLAIN_SELECTOR } from '../../components/courses/ClickableSurface'
 import { UiSpecRenderer } from '../../components/courses/UiSpecRenderer'
-import { stepperContext } from '../../components/courses/blocks/StepperContext'
+import { stepperContext, coursePositionContext } from '../../components/courses/blocks/StepperContext'
 import { LessonBuddy } from '../../components/courses/blocks/LessonBuddy'
 import { NodeSkeleton, RESERVED_CONTENT_PX } from '../../components/courses/NodeSkeleton'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
@@ -432,6 +432,7 @@ export function NodeView() {
                     transition={transition.resize}
                   >
                     <ClickableSurface nodeId={node.id} className="flex-1 min-h-0 flex flex-col">
+                      <coursePositionContext.Provider value={{ nodeCount: ordered.length, currentNodeIndex: index }}>
                       <stepperContext.Provider value={true}>
                         <UiSpecRenderer
                           program={shownProgram}
@@ -442,6 +443,7 @@ export function NodeView() {
                           recordEvent={events.record}
                         />
                       </stepperContext.Provider>
+                      </coursePositionContext.Provider>
                     </ClickableSurface>
                   </motion.div>
                 </motion.div>
