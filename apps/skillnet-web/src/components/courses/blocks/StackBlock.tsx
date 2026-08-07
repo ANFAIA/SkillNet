@@ -3,7 +3,6 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { blockArrivalContext, useBlockArrival } from './blockArrival'
 import { stepperContext, useStepper, stepperAdvanceContext } from './StepperContext'
 import { useReducedMotion } from '../../../hooks/useReducedMotion'
-import { LessonBuddy } from './LessonBuddy'
 import { duration, ease } from '../../../lib/motion'
 import type { StackGap } from '../kit/schemas'
 
@@ -115,10 +114,8 @@ function StepperStack({ children }: { children?: ReactNode }) {
           ))}
         </div>
 
-        {/* Lesson buddy + current step */}
+        {/* Current step */}
         <div className="flex-1 flex flex-col justify-center min-h-[40vh]">
-          <LessonBuddy stepIndex={safeStep} totalSteps={total} />
-
           <AnimatePresence mode="wait">
             <motion.div
               key={safeStep}

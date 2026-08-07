@@ -7,6 +7,7 @@ import { Card, EmptyState, ProgressBar } from '../../components/ui'
 import { ClickableSurface, NO_EXPLAIN_SELECTOR } from '../../components/courses/ClickableSurface'
 import { UiSpecRenderer } from '../../components/courses/UiSpecRenderer'
 import { stepperContext } from '../../components/courses/blocks/StepperContext'
+import { LessonBuddy } from '../../components/courses/blocks/LessonBuddy'
 import { NodeSkeleton, RESERVED_CONTENT_PX } from '../../components/courses/NodeSkeleton'
 import { NodeFeedback } from '../../components/courses/NodeFeedback'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
@@ -510,8 +511,15 @@ export function NodeView() {
         )}
       </Card>
 
-      {/* Node-level navigation removed — the stepper handles intra-node flow
-          and the course view handles inter-node navigation. */}
+      {/* AI lesson buddy — floating chat bubble */}
+      {served && (
+        <LessonBuddy
+          nodeTitle={node?.title ?? undefined}
+          nodeSummary={node?.summary ?? undefined}
+          stepIndex={0}
+          totalSteps={1}
+        />
+      )}
     </div>
   )
 }
