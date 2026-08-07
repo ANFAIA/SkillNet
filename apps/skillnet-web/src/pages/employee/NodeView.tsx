@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import type { MouseEvent } from 'react'
@@ -90,7 +91,8 @@ export function NodeView() {
   const navigate = useNavigate()
 
   const nodes = useCourseNodes(courseId)
-  const courseQuery = useCourse(courseId)
+  // Course title used by the sliding-window pre-render; kept for that.
+  useCourse(courseId)
   const { data: profile } = useLearnerProfile()
   const events = useNodeEvents(nodeId)
 
@@ -343,36 +345,33 @@ export function NodeView() {
 
   const shownKey = served?.render_id ?? 'none'
 
-  return (
-    <div className="flex flex-col gap-6" style={{ height: 'calc(100vh - 6rem)' }}>
-      {/* Zona congelada (§5.5): nothing in this header moves while the node is open. */}
-      <div className="shrink-0" data-no-explain="">
-        <div className="shrink-0 flex items-baseline gap-1.5">
-          <h2
-            className="text-xl font-semibold transition-colors duration-200 text-text-muted cursor-pointer hover:text-text"
-            onClick={() => navigate(backToCourse)}
-            role="button"
-          >
-            {courseQuery.data?.title ?? 'Curso'}
-          </h2>
-          <motion.span
-            key="breadcrumb-node"
-            className="text-xl font-semibold text-text"
-            initial={{ opacity: 0, x: -8 }}
-            animate={{ opacity: 1, x: 0, transition: { duration: duration.normal, ease: ease.base } }}
-          >
-            / {node.title}
-          </motion.span>
-        </div>
-        <div className="mt-2">
-          <ProgressBar value={Math.round(node.mastery * 100)} variant="auto" size="lg" showLabel />
-        </div>
-        <p className="mt-1 text-xs text-text-muted tabular-nums">
-          Nodo {index + 1} de {ordered.length} · {node.estimated_minutes} min
-        </p>
+  return createPortal(
+    <motion.div
+      className="fixed inset-0 z-[200] bg-bg flex flex-col"
+      initial={{ opacity: 0, scale: 0.97 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: duration.medium, ease: [...ease.base] }}
+    >
+      {/* Minimal top bar — just close + title + progress dots */}
+      <div className="shrink-0 flex items-center gap-3 px-6 py-4" data-no-explain="">
+        <button
+          type="button"
+          onClick={() => navigate(backToCourse)}
+          className="p-1.5 text-text-muted hover:text-text transition-colors"
+          aria-label="Volver al curso"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+        </button>
+        <span className="text-sm font-medium text-text flex-1 truncate">{node.title}</span>
+        <span className="text-xs text-text-muted tabular-nums">
+          {index + 1} / {ordered.length}
+        </span>
       </div>
 
-      <Card className="flex-1 min-h-0 flex flex-col">
+      {/* Lesson content — fills the rest */}
+      <div className="flex-1 min-h-0 flex flex-col px-6 pb-6 max-w-2xl mx-auto w-full">
         {notReviewed ? (
           <div className="space-y-2">
             <p className="text-sm font-medium text-text">Este nodo esta pendiente de revision</p>
@@ -501,9 +500,8 @@ export function NodeView() {
 
           </div>
         )}
-      </Card>
-
-
-    </div>
+      </div>
+    </motion.div>,
+    document.body,
   )
 }
