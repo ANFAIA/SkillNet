@@ -35,14 +35,15 @@ export interface LessonBuddyProps {
 
 async function streamChat(
   message: string,
+  context: Record<string, unknown> | undefined,
   signal: AbortSignal,
   onToken: (chunk: string) => void,
 ): Promise<void> {
-  const res = await fetch('/api/v1/chat/admin', {
+  const res = await fetch('/api/v1/chat', {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message }),
+    body: JSON.stringify({ message, context }),
     signal,
   })
   if (!res.ok || !res.body) throw new Error(`${res.status}`)
@@ -122,12 +123,15 @@ export function LessonBuddy({
       setMessages((prev) => [...prev, userMsg, aMsg])
       setIsStreaming(true)
 
-      const seeded = messages.length === 0
-        ? `Contexto: el alumno esta en el paso ${stepIndex + 1} de ${totalSteps} del nodo "${nodeTitle || ''}". Resumen: "${nodeSummary || ''}". Pregunta: ${text}`
+      // On the first message, seed the LLM with node context so it knows
+      // what the learner is studying. Subsequent messages rely on session
+      // history for continuity.
+      const enriched = messages.length === 0
+        ? `[Contexto: el alumno esta en el paso ${stepIndex + 1}/${totalSteps} del nodo "${nodeTitle ?? ''}". Resumen: "${nodeSummary ?? ''}"]\n\n${text}`
         : text
 
       try {
-        await streamChat(seeded, controller.signal, (chunk) => {
+        await streamChat(enriched, undefined, controller.signal, (chunk) => {
           if (controller.signal.aborted) return
           setMessages((prev) =>
             prev.map((m) => m.id === aId ? { ...m, content: m.content + chunk } : m),

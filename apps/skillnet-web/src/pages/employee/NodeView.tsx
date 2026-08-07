@@ -348,12 +348,8 @@ export function NodeView() {
   const shownKey = served?.render_id ?? 'none'
 
   return createPortal(
-    <motion.div
-      className="fixed inset-0 z-[200] bg-bg flex flex-col"
-      initial={{ opacity: 0, scale: 0.97 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: duration.medium, ease: [...ease.base] }}
-    >
+    <div className="fixed inset-0 z-[200] bg-bg flex flex-col">
+    {/* No entry animation — node changes must be seamless, not re-animated */}
       {/* Minimal top bar — just close + title + progress dots */}
       <div className="shrink-0 flex items-center gap-3 px-6 py-4" data-no-explain="">
         <button
@@ -516,7 +512,7 @@ export function NodeView() {
           </div>
         )}
       </div>
-    </motion.div>,
+    </div>,
     document.body,
   )
 }
