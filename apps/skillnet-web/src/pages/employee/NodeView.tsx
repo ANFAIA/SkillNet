@@ -7,7 +7,8 @@ import { useCourse } from '../../api/courses'
 import { Card, EmptyState, ProgressBar } from '../../components/ui'
 import { ClickableSurface, NO_EXPLAIN_SELECTOR } from '../../components/courses/ClickableSurface'
 import { UiSpecRenderer } from '../../components/courses/UiSpecRenderer'
-import { stepperContext, coursePositionContext, nextNodeContext } from '../../components/courses/blocks/StepperContext'
+import { stepperContext, coursePositionContext, nextNodeContext, courseIntroContext } from '../../components/courses/blocks/StepperContext'
+import type { CourseIntro } from '../../components/courses/blocks/StepperContext'
 import { LessonBuddy } from '../../components/courses/blocks/LessonBuddy'
 import { NodeSkeleton, RESERVED_CONTENT_PX } from '../../components/courses/NodeSkeleton'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
@@ -92,8 +93,7 @@ export function NodeView() {
   const navigate = useNavigate()
 
   const nodes = useCourseNodes(courseId)
-  // Course title used by the sliding-window pre-render; kept for that.
-  useCourse(courseId)
+  const courseQuery = useCourse(courseId)
   const { data: profile } = useLearnerProfile()
   const events = useNodeEvents(nodeId)
 
@@ -109,6 +109,20 @@ export function NodeView() {
   const index = ordered.findIndex((entry) => entry.id === nodeId)
   const previousNode = index > 0 ? ordered[index - 1] : null
   const nextNode = index >= 0 && index < ordered.length - 1 ? ordered[index + 1] : null
+
+  // Course intro — only on the first node when learner has zero progress
+  const isFirstNode = index === 0
+  const hasNoProgress = ordered.every((n) => n.mastery === 0)
+  const totalMinutes = ordered.reduce((sum, n) => sum + (n.estimated_minutes ?? 0), 0)
+  const courseIntro: CourseIntro | null = useMemo(() => {
+    if (!isFirstNode || !hasNoProgress || !courseQuery.data) return null
+    return {
+      title: courseQuery.data.title,
+      subtitle: `${ordered.length} nodos · ${totalMinutes} min`,
+      outcomes: ordered.slice(0, 4).map((n) => n.summary).filter((s): s is string => Boolean(s)),
+      buddyMessage: 'Vamos a por ello.',
+    }
+  }, [isFirstNode, hasNoProgress, courseQuery.data, ordered, totalMinutes])
 
   const initialPhase: Phase | null = node ? 'content' : null
 
@@ -429,6 +443,7 @@ export function NodeView() {
                     transition={transition.resize}
                   >
                     <ClickableSurface nodeId={node.id} className="flex-1 min-h-0 flex flex-col">
+                      <courseIntroContext.Provider value={courseIntro}>
                       <nextNodeContext.Provider value={nextNode ? () => navigate(`${backToCourse}/nodo/${nextNode.id}`) : null}>
                       <coursePositionContext.Provider value={{ nodeCount: ordered.length, currentNodeIndex: index }}>
                       <stepperContext.Provider value={true}>
@@ -443,6 +458,7 @@ export function NodeView() {
                       </stepperContext.Provider>
                       </coursePositionContext.Provider>
                       </nextNodeContext.Provider>
+                      </courseIntroContext.Provider>
                     </ClickableSurface>
                   </motion.div>
                 </motion.div>

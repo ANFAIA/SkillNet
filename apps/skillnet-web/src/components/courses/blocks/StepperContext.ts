@@ -43,3 +43,20 @@ export const nextNodeContext = createContext<(() => void) | null>(null)
 export function useNextNode(): (() => void) | null {
   return useContext(nextNodeContext)
 }
+
+/**
+ * Course intro slides to prepend before the node content.
+ * Only set for the first node when the learner has no progress.
+ */
+export interface CourseIntro {
+  title: string
+  subtitle: string // "X nodos · Y min"
+  outcomes: string[] // learning objectives
+  buddyMessage: string
+}
+
+export const courseIntroContext = createContext<CourseIntro | null>(null)
+
+export function useCourseIntro(): CourseIntro | null {
+  return useContext(courseIntroContext)
+}

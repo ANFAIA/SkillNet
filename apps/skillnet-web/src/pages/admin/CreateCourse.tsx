@@ -1015,7 +1015,18 @@ export function CreateCourse() {
                   setTestingCourse(true)
                   try {
                     await post('/enrollments', { user_ids: [currentUser.id], course_id: courseId }).catch(() => {})
-                    navigate(`/admin/probar-curso/${courseId}`)
+                    // Go directly to the first node — no intermediate CourseView
+                    try {
+                      const nodesData = await get<{ nodes: { id: string; position: number }[] }>(`/courses/${courseId}/nodes`)
+                      const first = [...nodesData.nodes].sort((a, b) => a.position - b.position)[0]
+                      if (first) {
+                        navigate(`/admin/probar-curso/${courseId}/nodo/${first.id}`)
+                      } else {
+                        navigate(`/admin/probar-curso/${courseId}`)
+                      }
+                    } catch {
+                      navigate(`/admin/probar-curso/${courseId}`)
+                    }
                   } catch {
                     setTestingCourse(false)
                   }
@@ -1093,8 +1104,18 @@ export function CreateCourse() {
                       })
                       // 2. Enroll admin (ignore conflict if already enrolled)
                       await post('/enrollments', { user_ids: [currentUser.id], course_id: courseId }).catch(() => {})
-                      // 3. Navigate to learner view
-                      navigate(`/admin/probar-curso/${courseId}`)
+                      // 3. Navigate directly to first node
+                      try {
+                        const nodesData = await get<{ nodes: { id: string; position: number }[] }>(`/courses/${courseId}/nodes`)
+                        const first = [...nodesData.nodes].sort((a, b) => a.position - b.position)[0]
+                        if (first) {
+                          navigate(`/admin/probar-curso/${courseId}/nodo/${first.id}`)
+                        } else {
+                          navigate(`/admin/probar-curso/${courseId}`)
+                        }
+                      } catch {
+                        navigate(`/admin/probar-curso/${courseId}`)
+                      }
                     } catch {
                       setStartError('No se pudo preparar el curso para probarlo. Revisa el esquema.')
                     }
