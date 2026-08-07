@@ -133,7 +133,7 @@ function SidebarContent({ collapsed, pillId }: { collapsed: boolean; pillId: str
           <p className="text-white/45 text-xs leading-relaxed mb-4 relative">Pregunta al tutor sobre cualquier tema del curso</p>
           <span className="inline-flex items-center gap-1.5 text-xs font-medium text-white/70 group-hover:text-white transition-colors relative">
             Abrir chat
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="transition-transform group-hover:translate-x-1"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="transition-transform group-hover:translate-x-0.5"><polyline points="9 18 15 12 9 6"/></svg>
           </span>
         </NavLink>
       )}
