@@ -933,42 +933,57 @@ export function CreateCourse() {
   // Post-creation phases
   if (phase === 'creating') {
     return (
-      <div className="flex flex-col items-center justify-center py-20">
-        <div className="w-full max-w-sm space-y-4">
-          {creatingSteps.map((label, i) => {
-            const done = i < creatingStep
-            const active = i === creatingStep
-            return (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: duration.normal, ease: [...ease.base], delay: i * 0.1 }}
-                className="flex items-center gap-3"
-              >
-                {done ? (
-                  <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                  </div>
-                ) : active ? (
-                  <div className="w-5 h-5 rounded-full border-2 border-primary flex items-center justify-center">
+      <div>
+        {/* Breadcrumb */}
+        <div className="mb-6 flex items-baseline gap-1.5 text-xl font-semibold">
+          <span className="text-text-muted">Crear curso</span>
+          <span className="text-text-muted">/</span>
+          <span className="text-text-muted">{source === 'importar' ? 'Importar' : 'Crear'}</span>
+          <span className="text-text-muted">/</span>
+          <span className="text-text-muted">Esquema</span>
+          <span className="text-text-muted">/</span>
+          <span className="text-text">Creando</span>
+        </div>
+
+        <div className="flex flex-col items-center justify-center py-16">
+          <div className="w-full max-w-sm space-y-4">
+            {creatingSteps.map((label, i) => {
+              const done = i < creatingStep
+              const active = i === creatingStep
+              return (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: duration.normal, ease: [...ease.base], delay: i * 0.06 }}
+                  className="flex items-center gap-3"
+                >
+                  {done ? (
                     <motion.div
-                      className="w-2 h-2 rounded-full bg-primary"
-                      animate={{ scale: [1, 1.3, 1] }}
-                      transition={{ duration: 1, repeat: Infinity }}
-                    />
-                  </div>
-                ) : (
-                  <div className="w-5 h-5 rounded-full border-2 border-border" />
-                )}
-                <span className={`text-sm ${active ? 'text-text font-medium' : done ? 'text-text-muted' : 'text-text-muted/50'}`}>
-                  {label}
-                </span>
-              </motion.div>
-            )
-          })}
+                      className="w-5 h-5 rounded-full bg-primary flex items-center justify-center"
+                      initial={{ scale: 0.5, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ duration: duration.fast, ease: ease.bounce }}
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    </motion.div>
+                  ) : active ? (
+                    <div className="w-5 h-5 rounded-full border-2 border-primary flex items-center justify-center">
+                      <span className="w-2 h-2 rounded-full bg-primary" />
+                    </div>
+                  ) : (
+                    <div className="w-5 h-5 rounded-full border-2 border-border" />
+                  )}
+                  <span className={`text-sm ${active ? 'text-text font-medium' : done ? 'text-text-muted' : 'text-text-muted/50'}`}>
+                    {label}
+                  </span>
+                  {active && <span className="typing-dots text-primary" aria-hidden="true"><span /><span /><span /></span>}
+                </motion.div>
+              )
+            })}
+          </div>
         </div>
       </div>
     )
@@ -1020,7 +1035,7 @@ export function CreateCourse() {
             <motion.h2
               className="text-2xl font-semibold text-text mt-6"
               initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0, transition: { duration: duration.normal, ease: ease.base, delay: 0.3 } }}
+              animate={{ opacity: 1, y: 0, transition: { duration: duration.normal, ease: ease.base, delay: 0.15 } }}
             >
               Tu curso esta listo
             </motion.h2>
@@ -1028,7 +1043,7 @@ export function CreateCourse() {
             <motion.p
               className="text-lg font-medium text-text-secondary mt-2"
               initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0, transition: { duration: duration.normal, ease: ease.base, delay: 0.6 } }}
+              animate={{ opacity: 1, y: 0, transition: { duration: duration.normal, ease: ease.base, delay: 0.25 } }}
             >
               {createdTitle}
             </motion.p>
@@ -1036,7 +1051,7 @@ export function CreateCourse() {
             <motion.p
               className="text-sm text-text-muted mt-1.5"
               initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0, transition: { duration: duration.normal, ease: ease.base, delay: 0.9 } }}
+              animate={{ opacity: 1, y: 0, transition: { duration: duration.normal, ease: ease.base, delay: 0.35 } }}
             >
               {createdNodeCount} nodos · {createdMinutes} min estimados
             </motion.p>
@@ -1044,7 +1059,7 @@ export function CreateCourse() {
             <motion.div
               className="flex flex-col sm:flex-row items-center gap-3 mt-10"
               initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0, transition: { duration: duration.normal, ease: ease.base, delay: 1.2 } }}
+              animate={{ opacity: 1, y: 0, transition: { duration: duration.normal, ease: ease.base, delay: 0.5 } }}
             >
               <Button
                 variant="primary"
@@ -1116,11 +1131,12 @@ export function CreateCourse() {
 
         <motion.div
           initial={{ opacity: 0 }}
-          animate={{ opacity: 1, transition: { duration: duration.normal } }}
+          animate={{ opacity: 1, transition: { duration: duration.normal, ease: ease.base } }}
           className="border border-border p-6"
           style={{ borderRadius: 8 }}
         >
           <StepAssign selected={assignSelected} onToggle={toggleAssign} deadline={deadline} onDeadline={setDeadline} />
+          {startError && <p className="text-sm text-danger mt-4">{startError}</p>}
           <div className="flex items-center justify-between mt-8 pt-5 border-t border-border">
             <Button variant="ghost" onClick={() => navigate('/admin/contenido')}>
               Saltar
