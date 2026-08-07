@@ -815,13 +815,13 @@ async def test_a_user_with_nothing_still_gets_an_answer(monkeypatch) -> None:
 
 def test_extract_actions_parses_a_valid_action_line() -> None:
     text = (
-        "Listo, cambio el tema a oscuro.\n"
-        'ACTION: {"tool": "set_theme", "args": {"theme": "dark"}}'
+        "Listo, cambio el idioma a ingles.\n"
+        'ACTION: {"tool": "set_locale", "args": {"locale": "en"}}'
     )
     clean, actions = extract_actions(text)
-    assert clean == "Listo, cambio el tema a oscuro."
+    assert clean == "Listo, cambio el idioma a ingles."
     assert len(actions) == 1
-    assert actions[0] == {"tool": "set_theme", "args": {"theme": "dark"}}
+    assert actions[0] == {"tool": "set_locale", "args": {"locale": "en"}}
 
 
 def test_extract_actions_ignores_unknown_tools() -> None:
