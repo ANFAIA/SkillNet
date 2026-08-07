@@ -343,14 +343,6 @@ def validate_schema_graph(
     if missing_summary:
         errors.append({"code": "missing_summary", "node_ids": missing_summary})
 
-    missing_source = [
-        str(node.id)
-        for node in live
-        if node.source_document_id is None and node.seed_lesson_id is None
-    ]
-    if missing_source:
-        errors.append({"code": "missing_source", "node_ids": missing_source})
-
     if not any(
         _criticality_value(node.criticality) == NodeCriticality.CRITICAL.value
         for node in live

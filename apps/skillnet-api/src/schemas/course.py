@@ -40,6 +40,8 @@ class CourseRead(BaseModel):
     source_document_id: uuid.UUID | None = None
     created_at: datetime
     module_count: int | None = None
+    node_count: int | None = None
+    schema_status: str | None = None
     #: The **effective** delivery path of §11.3, not the raw ``courses.delivery_mode``
     #: column. It is whatever ``resolve_delivery`` computes, which checks the column and
     #: the schema status — so with the schema not yet validated every course reads

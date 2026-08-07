@@ -56,7 +56,11 @@ def _parse_status(status: str | None) -> ContentStatus | None:
         raise ValidationError(f"Invalid status: {status}", field="status") from exc
 
 
-def _summary(course: Course, module_count: int | None) -> CourseRead:
+def _summary(
+    course: Course,
+    module_count: int | None,
+    node_count: int | None = None,
+) -> CourseRead:
     return CourseRead(
         id=course.id,
         title=course.title,
@@ -66,6 +70,8 @@ def _summary(course: Course, module_count: int | None) -> CourseRead:
         source_document_id=course.source_document_id,
         created_at=course.created_at,
         module_count=module_count,
+        node_count=node_count,
+        schema_status=course.schema_status.value if course.schema_status else None,
         delivery_mode=_delivery(course),
     )
 
@@ -136,7 +142,7 @@ async def list_courses(
         limit=limit,
     )
     return PaginatedResponse[CourseRead](
-        items=[_summary(course, count) for course, count in pairs],
+        items=[_summary(course, mod_count, node_count) for course, mod_count, node_count in pairs],
         total=total,
         offset=offset,
         limit=limit,
