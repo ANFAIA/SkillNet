@@ -143,7 +143,6 @@ _CITATION_MARKER_RE = re.compile(r"[ \t]*\[Fuente\s+\d+\]")
 #: call arbitrary frontend functions, and a hallucinated tool name is a no-op.
 ALLOWED_TOOLS: frozenset[str] = frozenset({
     "set_locale",
-    "set_theme",
     "set_sidebar_collapsed",
 })
 

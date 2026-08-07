@@ -21,7 +21,6 @@ ACTION: {"tool": "<nombre>", "args": {<argumentos>}}
 
 Herramientas disponibles:
 - set_locale: cambia el idioma. args: {"locale": "es"} o {"locale": "en"}
-- set_theme: cambia el tema visual. args: {"theme": "light"}, {"theme": "dark"} o {"theme": "system"}
 - set_sidebar_collapsed: colapsa o expande la barra lateral. args: {"collapsed": true} o {"collapsed": false}
 
 Reglas:
