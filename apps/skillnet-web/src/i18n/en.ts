@@ -1,12 +1,25 @@
 export const en: Record<string, string> = {
-  // Sidebar
+  // Sidebar (employee)
   'nav.home': 'Home',
   'nav.courses': 'My Courses',
   'nav.skillmap': 'Skill Map',
   'nav.chat': 'Chat',
-  'nav.help.title': 'Need help?',
-  'nav.help.description': 'Ask the assistant about the platform',
+  'nav.help.title': 'Got questions?',
+  'nav.help.description': 'Ask the tutor about any course topic',
   'nav.help.action': 'Open chat',
+
+  // Sidebar (admin)
+  'admin.nav.home': 'Home',
+  'admin.nav.employees': 'Employees',
+  'admin.nav.content': 'Content',
+  'admin.nav.createCourse': 'Create Course',
+  'admin.nav.chat': 'Chat',
+  'admin.nav.settings': 'Settings',
+  'admin.nav.roleLabel': 'Admin',
+  'admin.nav.roleLabelShort': 'ADM',
+  'admin.nav.help.title': 'Need help?',
+  'admin.nav.help.description': 'Ask the assistant about the platform',
+  'admin.nav.help.action': 'Open chat',
 
   // Course view
   'course.start': 'Start',
