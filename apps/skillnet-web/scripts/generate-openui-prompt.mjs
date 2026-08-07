@@ -85,6 +85,10 @@ const CATALOGUE = [
   ['AudioExplanation', 'audioExplanationProps', 'Texto leido en voz alta con resaltado de palabras'],
   ['PronunciationExercise', 'pronunciationExerciseProps', 'Escuchar y practicar pronunciacion con comparacion de ondas'],
   ['DiagramBuilder', 'diagramBuilderProps', 'Diagrama SVG que se construye paso a paso'],
+  ['Tabs', 'tabsProps', 'Pestanas para mostrar contenido alternativo en el mismo espacio'],
+  ['TabItem', 'tabItemProps', 'Panel de una pestana dentro de Tabs'],
+  ['Accordion', 'accordionProps', 'Secciones plegables de revelacion progresiva'],
+  ['AccordionItem', 'accordionItemProps', 'Seccion plegable dentro de Accordion'],
 ]
 
 // ---------------------------------------------------------------------------------

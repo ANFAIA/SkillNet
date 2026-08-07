@@ -36,6 +36,10 @@ StepByStepReveal(title: string, steps: string[][]) — Revelacion progresiva de 
 AudioExplanation(text: string, voice: "neutral" | "warm" | "formal") — Texto leido en voz alta con resaltado de palabras
 PronunciationExercise(targetText: string, language: string) — Escuchar y practicar pronunciacion con comparacion de ondas
 DiagramBuilder(title: string, steps: string[][]) — Diagrama SVG que se construye paso a paso
+Tabs(children: any[]) — Pestanas para mostrar contenido alternativo en el mismo espacio
+TabItem(trigger: string, children: any[]) — Panel de una pestana dentro de Tabs
+Accordion(children: any[]) — Secciones plegables de revelacion progresiva
+AccordionItem(trigger: string, children: any[]) — Seccion plegable dentro de Accordion
 
 ## Hoisting & Streaming (CRITICAL)
 

@@ -323,6 +323,40 @@ UI_KIT = UIKit(
                 ),
             ),
         ),
+        ComponentSpec(
+            name="Tabs",
+            purpose="Pestanas para mostrar contenido alternativo en el mismo espacio",
+            is_container=True,
+            props=(
+                PropSpec("children", PropKind.REFS, "Ids de los TabItem hijos"),
+            ),
+        ),
+        ComponentSpec(
+            name="TabItem",
+            purpose="Panel de una pestana dentro de Tabs",
+            is_container=True,
+            props=(
+                PropSpec("trigger", PropKind.STRING, "Etiqueta de la pestana"),
+                PropSpec("children", PropKind.REFS, "Ids de los bloques del panel"),
+            ),
+        ),
+        ComponentSpec(
+            name="Accordion",
+            purpose="Secciones plegables de revelacion progresiva",
+            is_container=True,
+            props=(
+                PropSpec("children", PropKind.REFS, "Ids de los AccordionItem hijos"),
+            ),
+        ),
+        ComponentSpec(
+            name="AccordionItem",
+            purpose="Seccion plegable dentro de Accordion",
+            is_container=True,
+            props=(
+                PropSpec("trigger", PropKind.STRING, "Titulo de la seccion plegable"),
+                PropSpec("children", PropKind.REFS, "Ids de los bloques de contenido"),
+            ),
+        ),
     )
 )
 
