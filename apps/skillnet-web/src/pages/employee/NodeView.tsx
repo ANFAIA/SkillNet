@@ -1,16 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
-import { motion } from 'framer-motion'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
 import type { MouseEvent } from 'react'
-import { Button, Card, EmptyState, ProgressBar } from '../../components/ui'
+import { useCourse } from '../../api/courses'
+import { Card, EmptyState, ProgressBar } from '../../components/ui'
 import { ClickableSurface, NO_EXPLAIN_SELECTOR } from '../../components/courses/ClickableSurface'
 import { UiSpecRenderer } from '../../components/courses/UiSpecRenderer'
+import { stepperContext } from '../../components/courses/blocks/StepperContext'
 import { NodeSkeleton, RESERVED_CONTENT_PX } from '../../components/courses/NodeSkeleton'
 import { NodeFeedback } from '../../components/courses/NodeFeedback'
-import { ProbeRunner } from '../../components/courses/ProbeRunner'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
-import { transition } from '../../lib/motion'
+import { transition, duration, ease } from '../../lib/motion'
 import { useLearnerProfile } from '../../api/onboarding'
+import { post } from '../../api/client'
 import {
   elementForFormat,
   isNodeNotReviewed,
@@ -30,15 +32,9 @@ import type { UiFormat } from '../../types/node-render'
 /**
  * One node of a dynamic course — where the learner finally sees generation happen.
  *
- * ## The three things this screen is
+ * ## The two things this screen is
  *
- * 1. **The productive wait** (§9.1). The pre-assessment is not a gate in front of the
- *    lesson, it *is* the loading screen: `ProbeRunner` asks item A, the server answers
- *    `render_hint: "prefetch"` as soon as mastery is out of reach, this component fires
- *    `POST /render` in the background, and by the time item B is answered the blocks are
- *    usually there. If the verdict comes out `mastered` the node is skipped and the
- *    server cancels the render it had started.
- * 2. **A stable frame** (§5.5). Title, progress and the previous/next buttons never move.
+ * 1. **A stable frame** (§5.5). Title, progress and the previous/next buttons never move.
  *    `NodeSkeleton` reserves the content area so the footer does not jump when the
  *    program lands, and the content itself is the *pinned* render: answering an item or
  *    coming back tomorrow returns the same bytes.
@@ -50,7 +46,7 @@ import type { UiFormat } from '../../types/node-render'
  *    the learner has not asked for less motion — `useReducedMotion()` is the OS setting
  *    *or* the answer given in the onboarding wizard, and it is the only thing that
  *    silences the cadence since `fc6a348` removed the held previous version.
- * 3. **The deterministic opening line** (§6.2 Q2, §3.3). `goal` never travels to the LLM;
+ * 2. **The deterministic opening line** (§6.2 Q2, §3.3). `goal` never travels to the LLM;
  *    it is rendered here, above the lesson, from a template. Rule 7 of §5.2 guarantees
  *    the program itself starts with a `lead` block, so the injected line reads as the
  *    first sentence instead of colliding with one.
@@ -88,13 +84,14 @@ function openingLineFor(profile: LearnerProfileRead | null | undefined): string 
 const FAST_MS = 1000
 const SLOW_MS = 3000
 
-type Phase = 'probe' | 'content' | 'mastered'
+type Phase = 'content' | 'mastered'
 
 export function NodeView() {
   const { id: courseId, nodeId } = useParams<{ id: string; nodeId: string }>()
   const navigate = useNavigate()
 
   const nodes = useCourseNodes(courseId)
+  const courseQuery = useCourse(courseId)
   const { data: profile } = useLearnerProfile()
   const events = useNodeEvents(nodeId)
 
@@ -109,11 +106,7 @@ export function NodeView() {
   )
   const index = ordered.findIndex((entry) => entry.id === nodeId)
   const previousNode = index > 0 ? ordered[index - 1] : null
-  const nextNode = index >= 0 && index < ordered.length - 1 ? ordered[index + 1] : null
 
-  // BYPASS: pre-assessment probe disabled — always start in content phase.
-  // To re-enable, restore the original condition:
-  //   node.state === 'not_started' || node.state === 'probing' ? 'probe' : 'content'
   const initialPhase: Phase | null = node ? 'content' : null
 
   const [phase, setPhase] = useState<Phase | null>(null)
@@ -129,6 +122,23 @@ export function NodeView() {
   const viewedRenderRef = useRef<string | null>(null)
   const dwellStartRef = useRef<number | null>(null)
   const formatRef = useRef<UiFormat | null>(null)
+
+  // Reset all per-node state when navigating between nodes. React Router does NOT
+  // remount NodeView when only :nodeId changes, so state from the previous node
+  // would carry over (wrong phase, stale errors, missed render requests).
+  const prevNodeId = useRef(nodeId)
+  useEffect(() => {
+    if (prevNodeId.current === nodeId) return
+    prevNodeId.current = nodeId
+    setPhase(null)
+    setStreamFailure(null)
+    requestedRef.current = false
+    programShownBefore.current = false
+    viewedRenderRef.current = null
+    dwellStartRef.current = null
+    formatRef.current = null
+    // prefetchedRef is defined later but initialized to null anyway
+  }, [nodeId])
 
   const render = useNodeRender(nodeId, { enabled: phase === 'content' })
   const requestRender = useRequestRender(nodeId)
@@ -185,26 +195,8 @@ export function NodeView() {
     [nodeId, requestRender, render, stream],
   )
 
-  // The prefetch of §9.1: fired by the probe, not by the server.
-  const onPrefetch = useCallback(() => {
-    if (requestedRef.current) return
-    startRender()
-  }, [startRender])
-
-  const onVerdict = useCallback(
-    (verdict: 'mastered' | 'learning') => {
-      if (verdict === 'mastered') {
-        setPhase('mastered')
-        return
-      }
-      setPhase('content')
-    },
-    [],
-  )
-
-  // In the content phase, make sure *something* is on its way: either the prefetch
-  // already started it, or another tab owns a request we can listen to, or nothing has
-  // been asked for yet.
+  // In the content phase, make sure *something* is on its way: either another tab owns
+  // a request we can listen to, or nothing has been asked for yet.
   useEffect(() => {
     if (phase !== 'content' || !nodeId) return
     if (served || streamFailure) return
@@ -272,10 +264,37 @@ export function NodeView() {
     [events],
   )
 
+  // --- prefetch next node (fire-and-forget) ------------------------------------
+  //
+  // When the current node's render is served, pre-render the next unlocked node
+  // so the learner does not wait when they navigate forward. The backend is
+  // idempotent: if the render already exists or is in-flight, it returns
+  // immediately. One fire per node visit, tracked by ref.
+  // Sliding window: pre-render the next 3 nodes ahead of the current position.
+  // As the learner advances, the window slides forward.
+  const prefetchedRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (!served || !node) return
+    const ahead = ordered
+      .filter((n) => n.position > node.position)
+      .slice(0, 3)
+    if (ahead.length === 0) return
+    const key = ahead.map(n => n.id).join(',')
+    if (prefetchedRef.current === key) return
+    prefetchedRef.current = key
+    for (const n of ahead) {
+      void post(`/nodes/${n.id}/render`, { force: false }).catch(() => undefined)
+    }
+  }, [served, ordered, node])
+
   // --- frame ------------------------------------------------------------------
 
   const openingLine = openingLineFor(profile)
-  const backToCourse = `/empleado/curso/${courseId}`
+  const { pathname } = useLocation()
+  // Derive base from current URL so links work for both /empleado/curso/:id
+  // and /admin/probar-curso/:id
+  const backToCourse = pathname.replace(/\/nodo\/[^/]+$/, '')
 
   if (nodes.isLoading) {
     return (
@@ -329,15 +348,22 @@ export function NodeView() {
     <div className="space-y-6">
       {/* Zona congelada (§5.5): nothing in this header moves while the node is open. */}
       <div data-no-explain="">
-        <Link
-          to={backToCourse}
-          className="text-xs font-medium text-primary hover:text-primary/80 transition-colors"
-        >
-          {'←'} Volver al curso
-        </Link>
-        <div className="mt-2 flex items-center gap-3 min-w-0">
-          <span className="w-3 h-3 rounded-full shrink-0 bg-primary" />
-          <h2 className="text-xl font-semibold text-text truncate">{node.title}</h2>
+        <div className="shrink-0 flex items-baseline gap-1.5">
+          <h2
+            className="text-xl font-semibold transition-colors duration-200 text-text-muted cursor-pointer hover:text-text"
+            onClick={() => navigate(backToCourse)}
+            role="button"
+          >
+            {courseQuery.data?.title ?? 'Curso'}
+          </h2>
+          <motion.span
+            key="breadcrumb-node"
+            className="text-xl font-semibold text-text"
+            initial={{ opacity: 0, x: -8 }}
+            animate={{ opacity: 1, x: 0, transition: { duration: duration.normal, ease: ease.base } }}
+          >
+            / {node.title}
+          </motion.span>
         </div>
         <div className="mt-2">
           <ProgressBar value={Math.round(node.mastery * 100)} variant="auto" size="lg" showLabel />
@@ -365,14 +391,6 @@ export function NodeView() {
             </p>
             {node.summary && <p className="text-sm text-text-secondary">{node.summary}</p>}
           </div>
-        ) : phase === 'probe' ? (
-          <ProbeRunner
-            nodeId={node.id}
-            node={node}
-            openingLine={openingLine}
-            onPrefetch={onPrefetch}
-            onVerdict={onVerdict}
-          />
         ) : streamFailure && !shownProgram ? (
           <div className="space-y-2">
             <p className="text-sm font-medium text-text">{streamFailure}</p>
@@ -382,75 +400,118 @@ export function NodeView() {
           </div>
         ) : (
           <>
-            {openingLine && (
-              <p className="text-base text-text mb-4" data-testid="opening-line">
-                {openingLine}
-              </p>
-            )}
+            <AnimatePresence mode="wait">
+              {shownProgram ? (
+                <motion.div
+                  key="content"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: duration.normal, ease: ease.base }}
+                >
+                  {openingLine && (
+                    <p className="text-base text-text mb-4" data-testid="opening-line">
+                      {openingLine}
+                    </p>
+                  )}
+                  {/* `ClickableSurface` keeps wrapping the tree (§8.5): a click on prose
+                    * explains, a click on a button or a quiz option does not. The hit test
+                    * lives in the surface; the wrapper only counts the event. */}
+                  <motion.div
+                    key={shownKey}
+                    onClick={onSurfaceClick}
+                    className="min-w-0"
+                    // Hands the skeleton's reserved height back over half a second instead
+                    // of in one frame. `false` means "no entrance": the box is simply the
+                    // size of its content from the start.
+                    initial={arriving && fromSkeleton ? { minHeight: RESERVED_CONTENT_PX } : false}
+                    animate={{ minHeight: 0 }}
+                    transition={transition.resize}
+                  >
+                    <ClickableSurface nodeId={node.id} className="min-w-0">
+                      <stepperContext.Provider value={true}>
+                        <UiSpecRenderer
+                          program={shownProgram}
+                          nodeId={node.id}
+                          renderId={served?.render_id}
+                          format={shownFormat ?? undefined}
+                          arriving={arriving}
+                          recordEvent={events.record}
+                        />
+                      </stepperContext.Provider>
+                    </ClickableSurface>
+                  </motion.div>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="intro"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: duration.normal, ease: ease.base }}
+                  className="space-y-6"
+                  data-testid="node-intro"
+                >
+                  {/* Opening line — feels like the start of a lesson */}
+                  {openingLine && (
+                    <p className="text-base text-text-secondary leading-relaxed">
+                      {openingLine}
+                    </p>
+                  )}
 
-            {shownProgram ? (
-              // `ClickableSurface` keeps wrapping the tree (§8.5): a click on prose
-              // explains, a click on a button or a quiz option does not. The hit test
-              // lives in the surface; the wrapper only counts the event.
-              <motion.div
-                key={shownKey}
-                onClick={onSurfaceClick}
-                className="min-w-0"
-                // Hands the skeleton's reserved height back over half a second instead
-                // of in one frame. `false` means "no entrance": the box is simply the
-                // size of its content from the start.
-                initial={arriving && fromSkeleton ? { minHeight: RESERVED_CONTENT_PX } : false}
-                animate={{ minHeight: 0 }}
-                transition={transition.resize}
-              >
-                <ClickableSurface nodeId={node.id} className="min-w-0">
-                  <UiSpecRenderer
-                    program={shownProgram}
-                    nodeId={node.id}
-                    renderId={served?.render_id}
-                    format={shownFormat ?? undefined}
-                    arriving={arriving}
-                  />
-                </ClickableSurface>
-              </motion.div>
-            ) : (
-              <NodeSkeleton
-                format={stream.format}
-                message={stream.message}
-                blocksReady={stream.blocks}
-              />
-            )}
+                  {/* Topic overview — the actual educational content */}
+                  <div>
+                    <h3 className="text-lg font-semibold text-text mb-3">
+                      {node.title}
+                    </h3>
+                    {node.summary && (
+                      <p className="text-base text-text leading-relaxed">
+                        {node.summary}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Context from the course — where this fits */}
+                  <div className="bg-bg-subtle rounded-lg p-4 space-y-3">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-text-muted">
+                        Nodo {index + 1} de {ordered.length}
+                        {node.estimated_minutes ? ` · ${node.estimated_minutes} min` : ''}
+                      </span>
+                      {node.mastery > 0 && (
+                        <span className="text-text-secondary font-medium">
+                          Dominio: {Math.round(node.mastery * 100)}%
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Prereq context — what they already know */}
+                    {previousNode && previousNode.state === 'mastered' && (
+                      <p className="text-sm text-text-secondary">
+                        Ya dominas <span className="font-medium text-text">{previousNode.title}</span>. Esto es el siguiente paso.
+                      </p>
+                    )}
+
+                    {/* Mastery bar only if they have progress */}
+                    {node.mastery > 0 && (
+                      <ProgressBar
+                        value={Math.round(node.mastery * 100)}
+                        variant="auto"
+                        size="sm"
+                      />
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {served && <NodeFeedback nodeId={node.id} />}
           </>
         )}
       </Card>
 
-      {/* Zona congelada: the two navigation buttons keep their place in every phase. */}
-      <div className="flex items-center justify-between gap-3" data-no-explain="">
-        <Button
-          variant="secondary"
-          size="sm"
-          disabled={!previousNode}
-          onClick={() =>
-            previousNode && navigate(`/empleado/curso/${courseId}/nodo/${previousNode.id}`)
-          }
-        >
-          Anterior
-        </Button>
-        {nextNode ? (
-          <Button
-            size="sm"
-            onClick={() => navigate(`/empleado/curso/${courseId}/nodo/${nextNode.id}`)}
-          >
-            Siguiente
-          </Button>
-        ) : (
-          <Button size="sm" variant="secondary" onClick={() => navigate(backToCourse)}>
-            Volver al curso
-          </Button>
-        )}
-      </div>
+      {/* Node-level navigation removed — the stepper handles intra-node flow
+          and the course view handles inter-node navigation. */}
     </div>
   )
 }

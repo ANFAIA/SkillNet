@@ -1,4 +1,5 @@
 import { createContext, useContext } from 'react'
+import type { NodeEventInput } from '../../../types'
 
 /**
  * Where a `QuizItem` posts its answers.
@@ -18,6 +19,12 @@ export interface NodeRenderTarget {
    * posting an ungradeable attempt.
    */
   renderId?: string
+  /**
+   * Batched event recorder (§3.3). Absent in previews where no node is open.
+   * Used by `QuizItemBlock` to emit `quiz_correct` / `quiz_wrong` events that
+   * feed the `format_vector`.
+   */
+  recordEvent?: (event: NodeEventInput) => void
 }
 
 /**

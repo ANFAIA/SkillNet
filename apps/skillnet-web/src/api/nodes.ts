@@ -1,27 +1,18 @@
 /**
  * Runtime employee API for dynamic courses (§11.3) — the client half of B5.
  *
- * Five things here are load bearing and not stylistic:
+ * Three things here are load bearing and not stylistic:
  *
  * 1. **`useNodeRender` never refetches on window focus.** The server already pins
  *    `active_render_id` and recomputes nothing on `GET /render` (§5.5), so a refetch
  *    returns the same bytes; the flag is belt over braces, and it also documents that
  *    the "Estable" row of the spatial-stability table is not maintained by luck.
- * 2. **`GET /nodes/{id}/render` answers `202` with a body.** `pending` means "nothing
- *    pinned and nothing running", `generating` means "somebody's task owns it". Both are
- *    successes for `fetch`, so the query resolves to a union and callers discriminate
- *    with `isServedRender`. Treating a `202` as data instead of an error is what keeps
- *    the view from showing an error card while the lesson is being written.
- * 3. **The productive wait is client-driven** (§9.1). `POST /probe/answer` returns
- *    `render_hint: "prefetch"`, and *we* fire `POST /render` in the background from it.
- *    The server does not start it by itself, and if the final verdict comes out
- *    `mastered` the server cancels whatever is in flight.
- * 4. **`POST /render` may answer without a stream.** `request_id === ''` with
+ * 2. **`POST /render` may answer without a stream.** `request_id === ''` with
  *    `cached: true` means the render was already pinned or hit the cache: subscribing
  *    then would hang on a channel nobody will ever publish to. Only a non-empty
  *    `request_id` has work to listen to, and the subscription must happen immediately
  *    (the runner waits 0.5 s for a subscriber and this pub/sub keeps no backlog).
- * 5. **`ui_block` events are progress, never content.** They come from
+ * 3. **`ui_block` events are progress, never content.** They come from
  *    `backend.parse_partial` *before* `validate_ui` runs, so the components in them have
  *    not been through the gate. The only text the browser parses is `program` from
  *    `GET /render`, which is re-serialized from the validated `UISpec` (§5.1). This hook
@@ -44,9 +35,6 @@ import type {
   NodeRenderAccepted,
   NodeRenderHistory,
   NodeRenderPending,
-  ProbeAnswerBody,
-  ProbeAnswerResult,
-  ProbeSession,
 } from '../types'
 import type { UiFormat } from '../types/node-render'
 
@@ -119,38 +107,6 @@ export function useCourseNodes(
     queryFn: () => get<NodeList>(`/courses/${courseId}/nodes`),
     enabled: !!courseId && enabled,
     retry: false,
-  })
-}
-
-// --------------------------------------------------------------------------- //
-// Probe — the productive wait (§9.1)
-// --------------------------------------------------------------------------- //
-
-/**
- * `POST /nodes/{node_id}/probe`.
- *
- * A mutation rather than a query even though it reads like one: it creates (or reuses)
- * a `node_probes` row, and it must fire exactly once when the node opens rather than
- * whenever a cache decides it is stale. `ProbeRunner` guards the single call.
- */
-export function useProbe(nodeId: string | undefined) {
-  return useMutation({
-    mutationFn: (input: { reprobe?: boolean } = {}) =>
-      post<ProbeSession>(`/nodes/${nodeId}/probe${input.reprobe ? '?reprobe=true' : ''}`),
-  })
-}
-
-/** `POST /nodes/{node_id}/probe/answer`. One item at a time; the server closes the probe. */
-export function useSubmitProbeAnswer(nodeId: string | undefined) {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (body: ProbeAnswerBody) =>
-      post<ProbeAnswerResult>(`/nodes/${nodeId}/probe/answer`, body),
-    onSuccess: (result) => {
-      // A closing verdict moved `learner_node_states`, so every node list is stale —
-      // including the "mastered" badge of a node the probe just skipped.
-      if (result.verdict) queryClient.invalidateQueries({ queryKey: ['nodes'] })
-    },
   })
 }
 

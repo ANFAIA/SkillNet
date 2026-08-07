@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button, Card, ProgressBar, EmptyState, Skeleton, SkeletonText } from '../../components/ui'
@@ -7,6 +7,7 @@ import { NodeList } from '../../components/courses/NodeList'
 import { ExerciseRenderer } from '../../components/exercises/ExerciseRenderer'
 import { useCourse, useCompleteLesson, useCourseProgress } from '../../api/courses'
 import { useCourseNodes } from '../../api/nodes'
+import { post } from '../../api/client'
 import { useEnrollments, useCompleteEnrollment } from '../../api/enrollments'
 import { useQueryClient } from '@tanstack/react-query'
 import { slideVariants, staggerContainer, staggerItem, duration, ease, transition } from '../../lib/motion'
@@ -108,6 +109,36 @@ export function CourseView() {
   // with the node map is precisely the layout jump §5.5 forbids.
   const dynamicPending = nodesQuery.isLoading
 
+  // --- prefetch first unlocked nodes on course open (fire-and-forget) ---------
+  //
+  // When the dynamic node list arrives, pre-render the first 2-3 unlocked nodes
+  // that are `not_started` or `learning`. The backend is idempotent: if a render
+  // already exists or is in-flight, it returns immediately. Tracked by ref to
+  // avoid re-firing on re-renders.
+  const prefetchedCourseRef = useRef<string | null>(null)
+
+  const nodesToPrefetch = useMemo(() => {
+    if (!dynamicNodes) return []
+    // Pre-render the next unlocked node the learner is likely to open.
+    // Only 1 ahead — remaining nodes generate on-the-fly adapted to the
+    // learner's profile. Future: auto-adjust lookahead based on model speed.
+    return [...dynamicNodes.nodes]
+      .sort((a, b) => a.position - b.position)
+      .filter((n) => !n.locked && (n.state === 'not_started' || n.state === 'learning'))
+      .slice(0, 3)
+  }, [dynamicNodes])
+
+  useEffect(() => {
+    if (!id || nodesToPrefetch.length === 0) return
+    if (prefetchedCourseRef.current === id) return
+    prefetchedCourseRef.current = id
+    for (const n of nodesToPrefetch) {
+      void post(`/nodes/${n.id}/render`, { force: false }).catch(() => undefined)
+    }
+  }, [id, nodesToPrefetch])
+
+  const [showWelcome, setShowWelcome] = useState(true)
+
   const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set())
   const [activeLessonId, setActiveLessonId] = useState<string>('')
   const [direction, setDirection] = useState<1 | -1>(1)
@@ -149,15 +180,80 @@ export function CourseView() {
   }
 
   if (dynamicNodes && id) {
+    const totalNodes = dynamicNodes.nodes.length
+    const totalMinutes = dynamicNodes.nodes.reduce((s, n) => s + n.estimated_minutes, 0)
+    const masteredCount = dynamicNodes.nodes.filter(n => n.state === 'mastered').length
+    const courseTitle = course?.title ?? 'Curso'
+    const courseDescription = course?.description
+
+    // Welcome screen — shown on first open, gives time for pre-render
+    if (showWelcome && masteredCount === 0) {
+      return (
+        <div>
+          <div className="mb-6 flex items-center gap-3 min-w-0">
+            <span className="w-3 h-3 rounded-full shrink-0 bg-primary" />
+            <h2 className="text-xl font-semibold text-text truncate">{courseTitle}</h2>
+          </div>
+
+          <Card>
+            <div className="space-y-6 py-4">
+              <div>
+                <h3 className="text-lg font-semibold text-text">
+                  Bienvenido a este curso
+                </h3>
+                {courseDescription && (
+                  <p className="text-base text-text-secondary mt-2 leading-relaxed">
+                    {courseDescription}
+                  </p>
+                )}
+              </div>
+
+              <div className="border-l-4 border-primary pl-4 py-1">
+                <p className="text-sm font-medium text-text mb-1">En este curso</p>
+                <p className="text-sm text-text-secondary">
+                  {totalNodes} {totalNodes === 1 ? 'tema' : 'temas'} · {totalMinutes} minutos estimados
+                </p>
+              </div>
+
+              {/* Node overview — a preview of what's coming */}
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-text-muted">Temas del curso</p>
+                <div className="space-y-1.5">
+                  {[...dynamicNodes.nodes]
+                    .sort((a, b) => a.position - b.position)
+                    .slice(0, 6)
+                    .map((node, i) => (
+                      <div key={node.id} className="flex items-center gap-3 px-3 py-2 rounded-md bg-bg-subtle">
+                        <span className="text-xs font-medium text-text-muted w-5 text-center">{i + 1}</span>
+                        <span className="text-sm text-text">{node.title}</span>
+                        <span className="text-xs text-text-muted ml-auto">{node.estimated_minutes} min</span>
+                      </div>
+                    ))}
+                  {totalNodes > 6 && (
+                    <p className="text-xs text-text-muted pl-8">
+                      y {totalNodes - 6} {totalNodes - 6 === 1 ? 'tema' : 'temas'} mas
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <Button variant="primary" className="w-full" onClick={() => setShowWelcome(false)}>
+                Empezar
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )
+    }
+
+    // Node map — the main course view
     return (
       <div>
         <div className="mb-6 flex items-center gap-3 min-w-0">
           <span className="w-3 h-3 rounded-full shrink-0 bg-primary" />
-          <h2 className="text-xl font-semibold text-text truncate">
-            {course?.title ?? 'Curso'}
-          </h2>
+          <h2 className="text-xl font-semibold text-text truncate">{courseTitle}</h2>
         </div>
-        <NodeList courseId={id} data={dynamicNodes} />
+        <NodeList data={dynamicNodes} />
       </div>
     )
   }
@@ -167,7 +263,7 @@ export function CourseView() {
       <EmptyState
         title="Curso no encontrado"
         description="No se pudo cargar este curso"
-        action={{ label: 'Volver a cursos', onClick: () => navigate('/empleado/cursos') }}
+        action={{ label: 'Volver a cursos', onClick: () => navigate(-1) }}
       />
     )
   }
@@ -362,7 +458,7 @@ export function CourseView() {
                             try { await completeLessonMutation.mutateAsync(activeLesson.id) } catch { /* already completed */ }
                           }
                           completeMutation.mutate(enrollment.id, {
-                            onSuccess: () => navigate('/empleado/cursos'),
+                            onSuccess: () => navigate(-1),
                           })
                         }}
                       >

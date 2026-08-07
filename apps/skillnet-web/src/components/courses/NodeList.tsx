@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Card, ProgressBar } from '../ui'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
@@ -25,13 +25,11 @@ import type { LearningNode, NodeList as NodeListRead, NodeState } from '../../ty
  */
 
 export interface NodeListProps {
-  courseId: string
   data: NodeListRead
 }
 
 const STATE_LABEL: Record<NodeState, string> = {
   not_started: 'Sin empezar',
-  probing: 'En diagnostico',
   learning: 'En curso',
   mastered: 'Dominado',
   needs_review: 'Para practicar',
@@ -39,7 +37,6 @@ const STATE_LABEL: Record<NodeState, string> = {
 
 const STATE_CLASS: Record<NodeState, string> = {
   not_started: 'text-text-muted',
-  probing: 'text-primary',
   learning: 'text-primary',
   mastered: 'text-accent',
   needs_review: 'text-warning',
@@ -72,16 +69,17 @@ function LockIcon() {
 }
 
 function NodeRow({
-  courseId,
   node,
   titleById,
   animated,
+  courseBasePath,
 }: {
-  courseId: string
   node: LearningNode
   titleById: Map<string, string>
   /** Off under reduced motion, and off for the parent that is not staggering. */
   animated: boolean
+  /** Base path to the course view, derived from current location. */
+  courseBasePath: string
 }) {
   const blockers = node.locked_by
     .map((id) => titleById.get(id))
@@ -127,7 +125,7 @@ function NodeRow({
   return (
     <motion.li variants={variants}>
       <Link
-        to={`/empleado/curso/${courseId}/nodo/${node.id}`}
+        to={`${courseBasePath}/nodo/${node.id}`}
         className="block px-4 py-3 border-b border-border last:border-b-0 hover:bg-bg-subtle transition-colors"
       >
         {body}
@@ -136,8 +134,11 @@ function NodeRow({
   )
 }
 
-export function NodeList({ courseId, data }: NodeListProps) {
+export function NodeList({ data }: NodeListProps) {
   const reduceMotion = useReducedMotion()
+  const { pathname } = useLocation()
+  // Works for /empleado/curso/:id and /admin/probar-curso/:id
+  const courseBasePath = pathname.replace(/\/$/, '')
   /**
    * The map is the last thing the learner sees before a node opens, so it is half of
    * the course → node transition. Rows resolving 60 ms apart give the list a reading
@@ -185,10 +186,10 @@ export function NodeList({ courseId, data }: NodeListProps) {
           {main.map((node) => (
             <NodeRow
               key={node.id}
-              courseId={courseId}
               node={node}
               titleById={titleById}
               animated={!reduceMotion}
+              courseBasePath={courseBasePath}
             />
           ))}
         </motion.ul>
@@ -206,10 +207,10 @@ export function NodeList({ courseId, data }: NodeListProps) {
               {practice.map((node) => (
                 <NodeRow
                   key={node.id}
-                  courseId={courseId}
                   node={node}
                   titleById={titleById}
                   animated={!reduceMotion}
+                  courseBasePath={courseBasePath}
                 />
               ))}
             </motion.ul>

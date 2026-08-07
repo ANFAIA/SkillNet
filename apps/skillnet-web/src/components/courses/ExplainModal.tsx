@@ -211,6 +211,7 @@ function ExplanationPanel({
                 setContent(tokens)
               } else if (eventType === 'ui') {
                 setProgram(String(data.program ?? ''))
+                setContent('')  // clear raw tokens so DSL never leaks through the fallback
               }
               eventType = ''
             }
@@ -239,10 +240,11 @@ function ExplanationPanel({
     <span className="typing-dots" aria-label="Generando explicacion">
       <span /><span /><span />
     </span>
-  ) : content ? (
+  ) : content && !program ? (
+    // Only show content as markdown if no program was attempted
     <ChatMarkdown content={content} isStreaming={false} />
   ) : (
-    <p className="text-sm text-text-muted">Sin contenido.</p>
+    <p className="text-sm text-text-muted">No se pudo generar la explicacion. Prueba de nuevo.</p>
   )
 
   return <div aria-live="polite">{body}</div>
