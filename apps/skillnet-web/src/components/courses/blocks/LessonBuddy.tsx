@@ -12,6 +12,7 @@ import {
 } from 'react'
 import type { FormEvent, KeyboardEvent } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
+import { useIntl } from 'react-intl'
 import { ChatMarkdown } from '../../chat/ChatMarkdown'
 import { duration, ease } from '../../../lib/motion'
 import { executeTool } from '../../../lib/toolRegistry'
@@ -84,11 +85,11 @@ async function streamChat(
 
 // ── Proactive hints ────────────────────────────────────────────
 
-function proactiveHint(stepIndex: number, totalSteps: number): string {
-  if (stepIndex === 0) return 'Veamos de que va esto...'
-  if (stepIndex === totalSteps - 1) return 'A ver que tal se te da!'
-  if (stepIndex === 1) return 'Fijate bien en esto.'
-  return 'Sigue asi!'
+function proactiveHintId(stepIndex: number, totalSteps: number): string {
+  if (stepIndex === 0) return 'buddy.hint.start'
+  if (stepIndex === totalSteps - 1) return 'buddy.hint.last'
+  if (stepIndex === 1) return 'buddy.hint.middle'
+  return 'buddy.hint.default'
 }
 
 // ── Component ──────────────────────────────────────────────────
@@ -99,6 +100,7 @@ export function LessonBuddy({
   stepIndex,
   totalSteps,
 }: LessonBuddyProps) {
+  const intl = useIntl()
   const [open, setOpen] = useState(false)
   const [messages, setMessages] = useState<Message[]>([])
   const [isStreaming, setIsStreaming] = useState(false)
@@ -173,7 +175,7 @@ export function LessonBuddy({
     }
   }
 
-  const hint = proactiveHint(stepIndex, totalSteps)
+  const hint = intl.formatMessage({ id: proactiveHintId(stepIndex, totalSteps) })
 
   return (
     <div className="flex items-end justify-end gap-3">
@@ -190,7 +192,7 @@ export function LessonBuddy({
             exit={{ opacity: 0, scale: 0.9 }}
             transition={{ duration: duration.normal, ease: [...ease.base] }}
             className="relative bg-bg border border-border rounded-2xl rounded-br-sm px-3 py-2 text-xs text-text-muted hover:text-text hover:border-primary/30 transition-colors max-w-[200px] text-left"
-            aria-label="Abrir asistente"
+            aria-label={intl.formatMessage({ id: 'buddy.assistant' })}
           >
             <AnimatePresence mode="wait">
               <motion.span
@@ -205,24 +207,24 @@ export function LessonBuddy({
             </AnimatePresence>
           </motion.button>
         ) : (
-          /* Expanded: chat card */
+          /* Expanded: chat card — max-width prevents overflow on small screens */
           <motion.div
             key="chat"
             initial={{ opacity: 0, scale: 0.9, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 10 }}
             transition={{ duration: duration.normal, ease: [...ease.base] }}
-            className="w-72 border border-border rounded-2xl rounded-br-sm bg-bg overflow-hidden flex flex-col"
+            className="w-72 max-w-[calc(100vw-5rem)] border border-border rounded-2xl rounded-br-sm bg-bg overflow-hidden flex flex-col"
             style={{ maxHeight: 'min(50vh, 360px)' }}
           >
             {/* Header */}
             <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
-              <span className="text-sm font-medium text-text flex-1">Asistente</span>
+              <span className="text-sm font-medium text-text flex-1">{intl.formatMessage({ id: 'buddy.assistant' })}</span>
               <button
                 type="button"
                 onClick={() => setOpen(false)}
                 className="text-text-muted hover:text-text transition-colors text-base leading-none p-1"
-                aria-label="Cerrar"
+                aria-label={intl.formatMessage({ id: 'buddy.close' })}
               >
                 &times;
               </button>
@@ -236,7 +238,7 @@ export function LessonBuddy({
             >
               {messages.length === 0 && (
                 <p className="text-xs text-text-muted">
-                  Preguntame lo que quieras.
+                  {intl.formatMessage({ id: 'buddy.askAnything' })}
                 </p>
               )}
               {messages.map((msg) => (
@@ -263,14 +265,14 @@ export function LessonBuddy({
                 ref={inputRef}
                 onKeyDown={onKeyDown}
                 rows={1}
-                placeholder="Escribe tu pregunta..."
+                placeholder={intl.formatMessage({ id: 'buddy.placeholder' })}
                 disabled={isStreaming}
                 className="flex-1 min-h-[32px] max-h-[72px] resize-none rounded-xl bg-bg-subtle px-3 py-1.5 text-sm text-text outline-none placeholder:text-text-muted disabled:opacity-50"
               />
               <button
                 type="submit"
                 disabled={isStreaming}
-                aria-label="Enviar"
+                aria-label={intl.formatMessage({ id: 'buddy.send' })}
                 className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-white disabled:opacity-30 transition-colors"
               >
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -292,7 +294,7 @@ export function LessonBuddy({
           onClick={() => setOpen((o) => !o)}
           animate={{ y: [0, 3, 0] }}
           transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-          aria-label="Mascota SkillNet"
+          aria-label="SkillNet mascot"
         >
           <img src="/spider.svg" alt="" className="w-full h-full" />
         </motion.div>

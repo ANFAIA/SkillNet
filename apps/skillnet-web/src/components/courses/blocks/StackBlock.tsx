@@ -1,5 +1,6 @@
 import { Children, useState, useCallback, useEffect, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
+import { useIntl } from 'react-intl'
 import { blockArrivalContext, useBlockArrival } from './blockArrival'
 import { stepperContext, useStepper, stepperAdvanceContext, useCoursePosition, useNextNode, useCourseIntro } from './StepperContext'
 import { useReducedMotion } from '../../../hooks/useReducedMotion'
@@ -51,6 +52,7 @@ export function StackBlock({ gap = 'md', children }: StackBlockProps) {
 // ---------------------------------------------------------------------------
 
 function StepperStack({ children }: { children?: ReactNode }) {
+  const intl = useIntl()
   const intro = useCourseIntro()
   const nodeItems = Children.toArray(children).filter(Boolean)
 
@@ -135,7 +137,7 @@ function StepperStack({ children }: { children?: ReactNode }) {
             onClick={back}
             disabled={safeStep === 0}
             className="shrink-0 p-2 text-text-muted hover:text-text disabled:opacity-0 disabled:pointer-events-none transition-all"
-            aria-label="Paso anterior"
+            aria-label={intl.formatMessage({ id: 'stepper.previousStep' })}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="15 18 9 12 15 6" />
@@ -164,7 +166,7 @@ function StepperStack({ children }: { children?: ReactNode }) {
             onClick={next}
             disabled={isLast && !goNextNode}
             className="shrink-0 p-2 text-text-muted hover:text-text disabled:opacity-0 disabled:pointer-events-none transition-all"
-            aria-label={isLast ? 'Siguiente nodo' : 'Siguiente paso'}
+            aria-label={isLast ? intl.formatMessage({ id: 'stepper.nextNode' }) : intl.formatMessage({ id: 'stepper.nextStep' })}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="9 18 15 12 9 6" />

@@ -32,6 +32,8 @@ export const en: Record<string, string> = {
   'stepper.back': 'Back',
   'stepper.next': 'Next',
   'stepper.nextNode': 'Next node',
+  'stepper.previousStep': 'Previous step',
+  'stepper.nextStep': 'Next step',
 
   // Lesson buddy
   'buddy.placeholder': 'Type your question...',
