@@ -221,7 +221,7 @@ def test_changing_only_the_heavy_model_changes_the_key(
 
 
 def test_the_expensive_tier_gets_the_bigger_budget() -> None:
-    """§4.2: 1200 tokens fast, 2400 heavy. A ``chart`` or ``mixed`` screen needs the room."""
-    assert ui_max_tokens("fast") == UI_MAX_TOKENS["fast"] == 1200
-    assert ui_max_tokens("heavy") == UI_MAX_TOKENS["heavy"] == 2400
+    """§4.2: 1400 tokens fast, 2800 heavy. A ``chart`` or ``mixed`` screen needs the room."""
+    assert ui_max_tokens("fast") == UI_MAX_TOKENS["fast"] == 1400
+    assert ui_max_tokens("heavy") == UI_MAX_TOKENS["heavy"] == 2800
     assert ui_max_tokens("nonsense") == UI_MAX_TOKENS["fast"]

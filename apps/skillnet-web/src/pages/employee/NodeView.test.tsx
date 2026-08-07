@@ -9,12 +9,10 @@ import type {
   LearningNode,
   NodeList,
   NodeRenderAccepted,
-  ProbeAnswerResult,
-  ProbeSession,
 } from '../../types'
 
 /**
- * The node view, from the three angles where it can fail silently.
+ * The node view, from the angles where it can fail silently.
  *
  * 1. **A truncated stream must not explode.** The connection can end at any byte — mid
  *    `data:` line, after an `event:` with no payload, on invalid JSON — and every one of
@@ -22,38 +20,12 @@ import type {
  *    truth. This is not a hypothetical: the pub/sub of §9.2 is in-memory, single worker,
  *    and keeps no backlog, so a reload or a redeploy cuts streams in the middle by
  *    construction.
- * 2. **A probe that declares mastery skips the node.** No render is ever requested, so no
- *    lesson is generated and no attempt is recorded — which is also what keeps
- *    `nodes_completed` where it was (transition 2 of §7.3 increments it only on
- *    `learning → mastered`; a skipped node produced no interaction event, and counting it
- *    would drop the learner out of calibration with an empty `format_vector`). The
- *    counter itself lives server-side; what is asserted here is the client half: nothing
- *    is posted that could count the node as worked.
- * 3. **The wait is productive** (§9.1). `render_hint: "prefetch"` fires `POST /render` in
- *    the background *while item B is still on screen*. If that stopped happening the
- *    product would still work and would simply be slow in a way no other test notices.
- *
- * ## Two features this screen no longer has
- *
- * Points 2 and 3 are **parked**, not abandoned. `b9a06c3` disabled the pre-assessment on
- * both sides — `runtime/nodes.py` always routes to generation and `NodeView` hardcodes
- * `initialPhase = 'content'` — and kept every other line "preserved for re-enablement".
- * The probe suite below is skipped in the same spirit: `ProbeRunner` still has its own
- * unit tests, but nothing else covers how this screen wires the prefetch and the
- * `mastered` verdict to it, and rewriting that from scratch later is the expensive half.
- * Restoring the one commented-out line in `NodeView.tsx` should turn it green again.
- *
- * The §5.5 control affordances — "Actualizar esta leccion" and the version history it
- * gave access to — are **gone**, not parked: `fc6a348` removed the button and the held
- * previous version outright. Their tests went with them, and `RenderControls.tsx` is
- * now unreferenced.
  */
 
 const COURSE_ID = '11111111-1111-4111-8111-111111111111'
 const NODE_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
 const NEXT_NODE_ID = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
 const RENDER_ID = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc'
-const PROBE_ID = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'
 
 const PROGRAM = [
   'root = Stack([intro], "md")',
@@ -106,57 +78,6 @@ function nodeList(node: LearningNode): NodeList {
   }
 }
 
-function probeSession(overrides: Partial<ProbeSession> = {}): ProbeSession {
-  return {
-    probe: {
-      id: PROBE_ID,
-      node_id: NODE_ID,
-      schema_version: 3,
-      attempt_no: 1,
-      scored: true,
-      score: null,
-      mastered: null,
-      tiebreak_used: false,
-      created_at: '2026-07-26T09:00:00Z',
-      completed_at: null,
-    },
-    items: [
-      {
-        item_id: 'a',
-        item_type: 'test',
-        bloom_level: 'apply',
-        question: 'Un cliente vuelve a los 20 dias con el ticket. Que aplicas?',
-        options: ['Devolucion', 'Garantia', 'Nada', 'Vale'],
-      },
-      {
-        item_id: 'b',
-        item_type: 'test',
-        bloom_level: 'understand',
-        question: 'Cuantos dias dura el plazo?',
-        options: ['7', '15', '30', '60'],
-      },
-    ],
-    reused: false,
-    verdict: null,
-    diagnostic: false,
-    ...overrides,
-  }
-}
-
-function probeAnswer(overrides: Partial<ProbeAnswerResult> = {}): ProbeAnswerResult {
-  return {
-    item_id: 'a',
-    score: 1,
-    passed: true,
-    verdict: null,
-    estimate: null,
-    next_item_id: 'b',
-    render_hint: null,
-    feedback: null,
-    ...overrides,
-  }
-}
-
 // --------------------------------------------------------------------------- //
 // fetch harness
 // --------------------------------------------------------------------------- //
@@ -171,8 +92,6 @@ interface Scenario {
   accepted?: NodeRenderAccepted[]
   /** Raw SSE text chunks, delivered one `read()` at a time, then `done`. */
   streamChunks?: string[]
-  probe?: ProbeSession
-  probeAnswers?: ProbeAnswerResult[]
   renders?: Array<{ render_id: string; created_at: string | null; ui_format: string; status: string }>
   goal?: string | null
 }
@@ -218,7 +137,6 @@ function servedRender(program: string, renderId = RENDER_ID) {
 function installFetch(scenario: Scenario) {
   const renderQueue = [...scenario.renderResponses]
   const acceptedQueue = [...(scenario.accepted ?? [])]
-  const answerQueue = [...(scenario.probeAnswers ?? [])]
 
   mockFetch.mockImplementation((input: string, init?: RequestInit) => {
     const url = String(input)
@@ -242,13 +160,6 @@ function installFetch(scenario: Scenario) {
         onboarding_skipped: false,
         calibrating: false,
       })
-    }
-    if (url.endsWith(`/nodes/${NODE_ID}/probe`) && method === 'POST') {
-      return jsonResponse(200, scenario.probe ?? probeSession())
-    }
-    if (url.endsWith(`/nodes/${NODE_ID}/probe/answer`)) {
-      const next = answerQueue.length > 1 ? answerQueue.shift() : answerQueue[0]
-      return jsonResponse(200, next ?? probeAnswer())
     }
     if (url.endsWith(`/nodes/${NODE_ID}/render`) && method === 'POST') {
       const next = acceptedQueue.length > 1 ? acceptedQueue.shift() : acceptedQueue[0]
@@ -329,9 +240,12 @@ describe('NodeView — the frozen frame', () => {
     })
     renderPage()
 
-    // Probe phase: the frame is already there, before any content exists.
-    expect(await screen.findByRole('heading', { name: 'Plazo de devolucion' })).toBeInTheDocument()
-    expect(screen.getByText('Nodo 1 de 2 · 6 min')).toBeInTheDocument()
+    // The node title appears in the breadcrumb and in the intro screen.
+    const titles = await screen.findAllByText(/Plazo de devolucion/)
+    expect(titles.length).toBeGreaterThan(0)
+    // "Nodo 1 de 2" appears in both the header and the intro screen.
+    const nodeLabels = screen.getAllByText(/Nodo 1 de 2/)
+    expect(nodeLabels.length).toBeGreaterThan(0)
     expect(screen.getByRole('button', { name: 'Anterior' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Siguiente' })).toBeInTheDocument()
   })
@@ -375,7 +289,7 @@ describe('NodeView — streaming', () => {
     expect(screen.queryByTestId('node-skeleton')).not.toBeInTheDocument()
   })
 
-  it('shows the step message and the format-shaped skeleton while it waits', async () => {
+  it('shows the intro screen while it waits for the render', async () => {
     installFetch({
       node: learningNode(),
       renderResponses: [[202, { status: 'pending', request_id: null }]],
@@ -388,14 +302,15 @@ describe('NodeView — streaming', () => {
     })
     renderPage()
 
-    // Re-queried inside `waitFor`: the first skeleton on screen belongs to the node-list
-    // loading state, and the content one is a different element.
+    // While streaming, the intro screen (with topic overview) is shown instead
+    // of the old format-shaped skeleton.
     await waitFor(() =>
-      expect(screen.getByTestId('node-skeleton')).toHaveAttribute('data-ui-format', 'exercise'),
+      expect(screen.getByTestId('node-intro')).toBeInTheDocument(),
     )
-    const skeleton = screen.getByTestId('node-skeleton')
-    expect(skeleton).toHaveTextContent('Escribiendo la leccion...')
-    expect(skeleton).toHaveTextContent('1 bloque listo')
+    const intro = screen.getByTestId('node-intro')
+    // The intro shows the node title and summary
+    expect(intro).toHaveTextContent('Plazo de devolucion')
+    expect(intro).toHaveTextContent('Cuantos dias tiene el cliente para devolver.')
   })
 
   /**
@@ -486,83 +401,6 @@ describe('NodeView — streaming', () => {
 
     await waitFor(() => expect(container).toHaveTextContent('El plazo de devolucion es de 30 dias.'))
     expect(callsTo('/render/stream')).toHaveLength(0)
-  })
-})
-
-// Skipped, not deleted: the pre-assessment is switched off at the routing level
-// (`b9a06c3`), and `NodeView.tsx` marks the one line to restore. See the header note.
-describe.skip('NodeView — the probe is the productive wait', () => {
-  it('fires the background render while item B is still on screen', async () => {
-    installFetch({
-      node: learningNode({ state: 'not_started' }),
-      renderResponses: [[202, { status: 'pending', request_id: null }]],
-      accepted: [{ request_id: 'req-1', cached: false, render_id: null }],
-      probeAnswers: [
-        probeAnswer({ item_id: 'a', score: 0, passed: false, render_hint: 'prefetch' }),
-      ],
-      streamChunks: [],
-    })
-    renderPage()
-
-    await screen.findByTestId('probe-runner')
-    expect(callsTo(`/nodes/${NODE_ID}/render`, 'POST')).toHaveLength(0)
-
-    await userEvent.click(screen.getByText('Garantia'))
-    await userEvent.click(screen.getByRole('button', { name: 'Responder' }))
-
-    // Item B is on screen and the render is already being generated behind it. That
-    // overlap is the whole latency strategy of §9.1.
-    expect(await screen.findByText('Cuantos dias dura el plazo?')).toBeInTheDocument()
-    await waitFor(() => expect(callsTo(`/nodes/${NODE_ID}/render`, 'POST')).toHaveLength(1))
-  })
-
-  it('skips the node when the probe declares mastery, and generates nothing', async () => {
-    installFetch({
-      node: learningNode({ state: 'not_started' }),
-      renderResponses: [[202, { status: 'pending', request_id: null }]],
-      probeAnswers: [
-        probeAnswer({ item_id: 'a', next_item_id: 'b' }),
-        probeAnswer({
-          item_id: 'b',
-          verdict: 'mastered',
-          estimate: 1,
-          next_item_id: null,
-          render_hint: 'skip',
-        }),
-      ],
-    })
-    renderPage()
-
-    await screen.findByTestId('probe-runner')
-    await userEvent.click(screen.getByText('Devolucion'))
-    await userEvent.click(screen.getByRole('button', { name: 'Responder' }))
-
-    await screen.findByText('Cuantos dias dura el plazo?')
-    await userEvent.click(screen.getByText('30'))
-    await userEvent.click(screen.getByRole('button', { name: 'Responder' }))
-
-    expect(await screen.findByText('Ya dominas este nodo')).toBeInTheDocument()
-
-    // Nothing was generated, nothing was streamed, and nothing was graded: a node skipped
-    // by the probe is exactly the node that must not count as worked (§3.3, §7.3 rule 2).
-    expect(callsTo(`/nodes/${NODE_ID}/render`, 'POST')).toHaveLength(0)
-    expect(callsTo(`/nodes/${NODE_ID}/render`)).toHaveLength(0)
-    expect(callsTo('/render/stream')).toHaveLength(0)
-    expect(callsTo(`/nodes/${NODE_ID}/answer`, 'POST')).toHaveLength(0)
-  })
-
-  it('frames the unscored diagnostic probe as such', async () => {
-    installFetch({
-      node: learningNode({ state: 'not_started' }),
-      renderResponses: [[202, { status: 'pending', request_id: null }]],
-      probe: probeSession({ diagnostic: true }),
-    })
-    renderPage()
-
-    expect(await screen.findByText('Vamos a ver que te suena ya')).toBeInTheDocument()
-    expect(
-      screen.getByText('No cuenta para tu nota: solo sirve para no explicarte lo que ya sabes.'),
-    ).toBeInTheDocument()
   })
 })
 

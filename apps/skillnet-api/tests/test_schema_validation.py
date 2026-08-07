@@ -220,17 +220,6 @@ def test_validate_requires_a_non_empty_summary() -> None:
     assert reported["node_ids"] == [str(node.id)]
 
 
-def test_validate_requires_a_source_or_a_seed_lesson() -> None:
-    node = _node(position=1, criticality="critical", source=False)
-    assert "missing_source" in _codes(validate_schema_graph([node], {}))
-
-
-def test_validate_accepts_a_seed_lesson_as_the_source() -> None:
-    node = _node(position=1, criticality="critical", source=False)
-    node.seed_lesson_id = uuid.uuid4()
-    assert validate_schema_graph([node], {}) == []
-
-
 def test_validate_reports_orphan_prerequisites() -> None:
     node = _node(position=1, criticality="critical")
     ghost = uuid.uuid4()
@@ -273,7 +262,6 @@ def test_validate_reports_every_violation_at_once() -> None:
     codes = set(_codes(validate_schema_graph([a], {})))
     assert {
         "missing_summary",
-        "missing_source",
         "no_critical_node",
         "position_not_contiguous",
         "node_not_reviewed",

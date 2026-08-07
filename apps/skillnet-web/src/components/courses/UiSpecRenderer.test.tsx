@@ -173,8 +173,9 @@ describe('UiSpecRenderer — valid programs', () => {
   })
 
   it('renders a Chart without a chart library', () => {
-    renderWithQuery(<UiSpecRenderer program={validPrograms.chart_data} nodeId="node-1" />)
-    expect(screen.getByText('Variacion mensual de devoluciones')).toBeInTheDocument()
+    const { container } = renderWithQuery(<UiSpecRenderer program={validPrograms.chart_data} nodeId="node-1" />)
+    // The chart title is rendered via ClickableText, which splits into entity spans.
+    expectText(container, 'Variacion mensual de devoluciones')
     expect(screen.getByText('Febrero')).toBeInTheDocument()
   })
 

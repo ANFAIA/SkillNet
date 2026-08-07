@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { CourseView } from './CourseView'
@@ -188,6 +189,10 @@ describe('CourseView — the dynamic branch', () => {
     installFetch({ nodes: nodeList('dynamic') })
     renderPage()
 
+    // A fresh course (0 mastered) shows a welcome screen first; click "Empezar"
+    // to get past it to the node list.
+    await userEvent.click(await screen.findByRole('button', { name: 'Empezar' }))
+
     expect(await screen.findByTestId('node-list')).toBeInTheDocument()
     expect(screen.getByText('Plazo de devolucion')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /Plazo de devolucion/ })).toHaveAttribute(
@@ -209,6 +214,8 @@ describe('CourseView — the dynamic branch', () => {
     // While the node list is in flight the screen is the skeleton, never the module tree:
     // painting v1 and replacing it is the layout jump §5.5 forbids.
     expect(screen.queryByText('Modulo de devoluciones')).toBeNull()
+    // The welcome screen comes first for fresh courses (0 mastered); dismiss it.
+    await userEvent.click(await screen.findByRole('button', { name: 'Empezar' }))
     await waitFor(() => expect(screen.getByTestId('node-list')).toBeInTheDocument())
     expect(screen.queryByText('Modulo de devoluciones')).toBeNull()
   })

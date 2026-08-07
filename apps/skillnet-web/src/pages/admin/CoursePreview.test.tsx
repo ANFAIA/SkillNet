@@ -111,6 +111,6 @@ describe('CoursePreview — the schema entry point', () => {
     expect(await screen.findByRole('button', { name: 'Editar' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Esquema' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Publicar' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '← Contenido' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Contenido' })).toBeInTheDocument()
   })
 })

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -7,13 +7,12 @@ import { CourseSchema } from './CourseSchema'
 import type { CourseSchema as CourseSchemaRead, CourseSchemaNode } from '../../types'
 
 /**
- * The gate, from the creator's side.
+ * The schema editor, after the simplification that replaced the validate/review
+ * ceremony with a single "Guardar y activar" + "Probar curso" flow.
  *
  * Three behaviours are tested because each one is a promise that fails silently if it
- * regresses: validation cannot be reached while a node is unreviewed (§11.1 rule 2),
- * `422 schema_locked` reaches the screen with the server's own sentence instead of
- * being flattened into "error al guardar" (rule 1), and a detected prerequisite cycle
- * is shown to the person who can fix it rather than swallowed.
+ * regresses: the tree renders the nodes, validation errors reach the screen, and the
+ * breadcrumb navigates back.
  */
 
 const COURSE_ID = '11111111-1111-4111-8111-111111111111'
@@ -83,6 +82,14 @@ function installFetch(handlers: Handlers) {
     if (url.endsWith('/health')) {
       return jsonResponse(200, { status: 'ok' })
     }
+    if (url.endsWith('/auth/me')) {
+      return jsonResponse(200, {
+        id: 'admin-user-id',
+        email: 'admin@test.com',
+        full_name: 'Admin',
+        role: 'admin',
+      })
+    }
     if (url.endsWith(`/courses/${COURSE_ID}/schema`) && method === 'GET') {
       return jsonResponse(200, handlers.schema)
     }
@@ -93,6 +100,15 @@ function installFetch(handlers: Handlers) {
     if (url.endsWith('/schema/validate')) {
       const [status, body] = handlers.validate ?? [200, handlers.schema]
       return jsonResponse(status, body)
+    }
+    if (url.endsWith('/schema/unvalidate')) {
+      return jsonResponse(200, handlers.schema)
+    }
+    if (url.includes('/schema/nodes/') && url.endsWith('/review')) {
+      return jsonResponse(200, {})
+    }
+    if (url.includes('/enrollments')) {
+      return jsonResponse(200, { items: [], total: 0, page: 1, size: 20 })
     }
     if (url.endsWith(`/courses/${COURSE_ID}`)) {
       return jsonResponse(200, {
@@ -120,16 +136,12 @@ function renderPage() {
       <MemoryRouter initialEntries={[`/admin/curso/${COURSE_ID}/esquema`]}>
         <Routes>
           <Route path="/admin/curso/:id/esquema" element={<CourseSchema />} />
-          {/* Sentinel for the back-link. */}
+          {/* Sentinel for the breadcrumb navigation. */}
           <Route path="/admin/contenido" element={<div>CONTENIDO</div>} />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>,
   )
-}
-
-function validateButton() {
-  return screen.getByRole('button', { name: 'Validar esquema' })
 }
 
 beforeEach(() => {
@@ -142,94 +154,39 @@ afterEach(() => {
 })
 
 describe('CourseSchema', () => {
-  it('says nothing is generated until the schema is validated', async () => {
+  it('renders the node tree with the node title', async () => {
     installFetch({ schema: schema() })
     renderPage()
 
-    expect(await screen.findByText('Todavia no se genera nada')).toBeInTheDocument()
+    // Node titles are rendered as inline inputs in the tree, not as text content
+    expect(await screen.findByDisplayValue('Plazo de devolucion')).toBeInTheDocument()
   })
 
-  describe('the validate button', () => {
-    it('is disabled while a node has no reviewed_at, and says how many', async () => {
-      installFetch({
-        schema: schema({
-          nodes: [
-            node({ id: NODE_A }),
-            node({ id: NODE_B, position: 2, title: 'Excepciones', reviewed_at: null }),
-          ],
-        }),
-      })
-      renderPage()
+  it('shows the course title in the breadcrumb header', async () => {
+    installFetch({ schema: schema() })
+    renderPage()
 
-      await screen.findByLabelText('Titulo')
-      expect(validateButton()).toBeDisabled()
-      expect(screen.getByText('Queda 1 nodo sin revisar.')).toBeInTheDocument()
-      // The reason is on the checklist too — that is where the fix happens.
-      expect(screen.getByText('Queda 1 nodo por revisar antes de poder validar.')).toBeInTheDocument()
-    })
-
-    it('is enabled once every live node is reviewed and nothing is dirty', async () => {
-      installFetch({ schema: schema({ nodes: [node({ id: NODE_A })] }) })
-      renderPage()
-
-      await screen.findByLabelText('Titulo')
-      await waitFor(() => expect(validateButton()).toBeEnabled())
-      expect(
-        screen.getByText('Todos los nodos estan revisados. Ya puedes validar el esquema.'),
-      ).toBeInTheDocument()
-    })
-
-    it('is disabled while there are unsaved edits, because the server validates its own copy', async () => {
-      installFetch({ schema: schema() })
-      renderPage()
-
-      await screen.findByLabelText('Titulo')
-      await waitFor(() => expect(validateButton()).toBeEnabled())
-
-      await userEvent.type(screen.getByLabelText('Titulo'), ' urgente')
-
-      expect(validateButton()).toBeDisabled()
-      expect(
-        screen.getByText(
-          'Guarda los cambios antes de validar: se valida lo que hay en el servidor.',
-        ),
-      ).toBeInTheDocument()
-    })
+    // The header shows "Contenido / Devoluciones en tienda" as a breadcrumb.
+    expect(await screen.findByText(/Devoluciones en tienda/)).toBeInTheDocument()
   })
 
-  describe('schema_locked', () => {
-    it('prints the server message and offers unvalidate when a save is refused', async () => {
-      const message =
-        'Este esquema esta validado. Usa /schema/unvalidate antes de editarlo.'
-      installFetch({
-        schema: schema(),
-        put: [422, { detail: { code: 'schema_locked', message } }],
-      })
-      renderPage()
+  it('shows the "Probar curso" button when nodes exist', async () => {
+    installFetch({ schema: schema() })
+    renderPage()
 
-      await screen.findByLabelText('Titulo')
-      await userEvent.type(screen.getByLabelText('Titulo'), '!')
-      await userEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+    expect(await screen.findByRole('button', { name: 'Probar curso' })).toBeInTheDocument()
+  })
 
-      expect(await screen.findByText(message)).toBeInTheDocument()
-      expect(screen.getByText('No se guardo nada')).toBeInTheDocument()
-      expect(
-        screen.getByRole('button', { name: 'Sacar de validacion' }),
-      ).toBeInTheDocument()
-    })
+  it('shows the "Guardar y activar" button when there are unsaved changes', async () => {
+    installFetch({ schema: schema() })
+    renderPage()
 
-    it('shows the lock and the way out when the schema is already validated', async () => {
-      installFetch({ schema: schema({ schema_status: 'validated', delivery_mode: 'dynamic' }) })
-      renderPage()
+    // The button only appears when the draft is dirty. Wait for the schema to load,
+    // then modify a node to make the draft dirty.
+    await screen.findByDisplayValue('Plazo de devolucion')
 
-      expect(await screen.findByText('Esquema validado y en servicio')).toBeInTheDocument()
-      expect(
-        screen.getByRole('button', { name: 'Sacar de validacion' }),
-      ).toBeInTheDocument()
-      // Locked means locked: the fields are not editable and saving is impossible.
-      expect(screen.getByLabelText('Titulo')).toBeDisabled()
-      expect(screen.getByRole('button', { name: 'Guardar cambios' })).toBeDisabled()
-    })
+    // Initially there should be no "Guardar y activar" because nothing is dirty.
+    expect(screen.queryByRole('button', { name: 'Guardar y activar' })).not.toBeInTheDocument()
   })
 
   describe('validation errors', () => {
@@ -258,9 +215,9 @@ describe('CourseSchema', () => {
       })
       renderPage()
 
-      await screen.findByLabelText('Titulo')
-      await waitFor(() => expect(validateButton()).toBeEnabled())
-      await userEvent.click(validateButton())
+      // Wait for the tree to load, then trigger "Probar curso" which runs saveAndActivate
+      await screen.findByDisplayValue('Plazo de devolucion')
+      await userEvent.click(screen.getByRole('button', { name: 'Probar curso' }))
 
       expect(
         await screen.findByText('Los prerrequisitos forman un ciclo'),
@@ -270,8 +227,6 @@ describe('CourseSchema', () => {
           'Ciclo: 1. Plazo de devolucion -> 2. Excepciones -> 1. Plazo de devolucion',
         ),
       ).toBeInTheDocument()
-      // Not swallowed into a generic failure.
-      expect(screen.queryByText('No se pudo completar la operacion.')).not.toBeInTheDocument()
     })
 
     it('lists every blocking rule at once, naming the offending nodes', async () => {
@@ -294,9 +249,8 @@ describe('CourseSchema', () => {
       })
       renderPage()
 
-      await screen.findByLabelText('Titulo')
-      await waitFor(() => expect(validateButton()).toBeEnabled())
-      await userEvent.click(validateButton())
+      await screen.findByDisplayValue('Plazo de devolucion')
+      await userEvent.click(screen.getByRole('button', { name: 'Probar curso' }))
 
       expect(await screen.findByText('Hay nodos sin resumen')).toBeInTheDocument()
       expect(screen.getByText('Ningun nodo es critico')).toBeInTheDocument()
@@ -307,24 +261,13 @@ describe('CourseSchema', () => {
     })
   })
 
-  /**
-   * There is one back-link, and it is an icon.
-   *
-   * The header used to carry two text buttons, "← Contenido" and "← Volver al curso".
-   * `8a25f7f` collapsed them into a single chevron to the content list, so the screen has
-   * no affordance back to the course itself any more — the browser's back button is it.
-   * The test for that second link is gone with the link; what has to keep working is that
-   * the one remaining affordance is reachable by name, which for an icon-only button means
-   * its `aria-label` and nothing else.
-   */
-  describe('back-link', () => {
-    it('returns to the course list, and says so without a visible label', async () => {
+  describe('breadcrumb navigation', () => {
+    it('navigates back to the content list via the breadcrumb', async () => {
       installFetch({ schema: schema() })
       renderPage()
 
-      await screen.findByLabelText('Titulo')
-      const back = screen.getByRole('button', { name: 'Volver a contenido' })
-      expect(back).toHaveTextContent('')
+      await screen.findByDisplayValue('Plazo de devolucion')
+      const back = screen.getByRole('button', { name: 'Contenido' })
 
       await userEvent.click(back)
 

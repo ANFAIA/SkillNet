@@ -1648,10 +1648,11 @@ def test_the_repair_prompt_pairs_every_mistake_with_its_correction() -> None:
     teaches the mistake and never shows the fix, and it is the kind of thing that survives
     a careless edit. The repair system prompt is the header **plus the whole generator
     tail**, so the total spans both — four in the header (the three of ``_REPAIR_BAD`` and
-    the accented id) and one in the tail (SkillNet 17's bare array declaration).
+    the accented id), one in the tail (SkillNet 17's bare array declaration), and one in
+    the BeforeAfter worked example (``"MAL"`` / ``"BIEN"`` as labels, not counterexamples).
     """
     system = ui_repair_system()
-    assert system.count("MAL") == len(_REPAIR_BAD) + 2
+    assert system.count("MAL") == len(_REPAIR_BAD) + 3
     assert system.count("BIEN") == system.count("MAL")
     assert "argumentos con nombre" in system
     assert "tilde en el id" in system
@@ -1710,7 +1711,7 @@ def test_the_node_criticality_never_travels_as_its_enum_token() -> None:
     critical = build_ui_prompt(
         title="T", summary="S", criticality="critical", ui_format="explanation"
     )
-    assert "obligado cumplimiento" in critical
+    assert "cumplimiento obligatorio" in critical
     assert 'Callout("warn"' in critical
 
 
