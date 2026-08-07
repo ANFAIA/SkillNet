@@ -97,8 +97,10 @@ function StepperStack({ children }: { children?: ReactNode }) {
   return (
     <stepperAdvanceContext.Provider value={advance}>
       <div className="flex flex-col h-full min-w-0">
-        {/* Top: step dots */}
-        <div className="shrink-0 flex items-center justify-center gap-2 pb-4">
+        {/* Top: dots left, spider buddy right */}
+        <div className="shrink-0 flex items-start justify-between pb-4">
+          <div className="flex-1" />
+          <div className="flex items-center gap-2">
           {items.map((_, i) => (
             <motion.div
               key={i}
@@ -113,6 +115,10 @@ function StepperStack({ children }: { children?: ReactNode }) {
               transition={{ duration: duration.fast }}
             />
           ))}
+          </div>
+          <div className="flex-1 flex justify-end">
+            <LessonBuddy stepIndex={safeStep} totalSteps={total} />
+          </div>
         </div>
 
         {/* Middle: chevrons on sides, content centered vertically */}
@@ -163,10 +169,6 @@ function StepperStack({ children }: { children?: ReactNode }) {
           )}
         </div>
 
-        {/* Bottom: buddy — always pinned at the bottom */}
-        <div className="shrink-0 pt-4">
-          <LessonBuddy stepIndex={safeStep} totalSteps={total} />
-        </div>
       </div>
     </stepperAdvanceContext.Provider>
   )

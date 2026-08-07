@@ -1,7 +1,7 @@
 /**
- * Inline AI lesson buddy — Curio-style: a small avatar that morphs into a
- * chat bubble when tapped. Uses the same visual language as ExplainPopover
- * (floating card, rounded, border) and layout animation for the morph.
+ * Lesson buddy — SkillNet's spider mascot hanging from a thread in the
+ * top-right corner with a speech bubble. Click to open an AI chat.
+ * Inspired by Brilliant's Koji: proactive, inline, contextual.
  */
 
 import {
@@ -11,7 +11,7 @@ import {
   useState,
 } from 'react'
 import type { FormEvent, KeyboardEvent } from 'react'
-import { AnimatePresence, LayoutGroup, motion } from 'framer-motion'
+import { AnimatePresence, motion } from 'framer-motion'
 import { ChatMarkdown } from '../../chat/ChatMarkdown'
 import { duration, ease } from '../../../lib/motion'
 
@@ -29,14 +29,6 @@ export interface LessonBuddyProps {
   nodeSummary?: string
   stepIndex: number
   totalSteps: number
-}
-
-/** Proactive hints by step position — the buddy speaks first, like Koji. */
-function proactiveHint(stepIndex: number, totalSteps: number): string {
-  if (stepIndex === 0) return 'Veamos de que va esto...'
-  if (stepIndex === totalSteps - 1) return 'A ver que tal se te da!'
-  if (stepIndex === 1) return 'Fijate bien, esto es lo importante.'
-  return 'Sigue asi, ya queda poco.'
 }
 
 // ── SSE streaming ──────────────────────────────────────────────
@@ -83,9 +75,14 @@ async function streamChat(
   }
 }
 
-// ── Morph transition ───────────────────────────────────────────
+// ── Proactive hints ────────────────────────────────────────────
 
-const morphSpring = { type: 'spring' as const, stiffness: 300, damping: 30 }
+function proactiveHint(stepIndex: number, totalSteps: number): string {
+  if (stepIndex === 0) return 'Veamos de que va esto...'
+  if (stepIndex === totalSteps - 1) return 'A ver que tal se te da!'
+  if (stepIndex === 1) return 'Fijate bien en esto.'
+  return 'Sigue asi!'
+}
 
 // ── Component ──────────────────────────────────────────────────
 
@@ -166,58 +163,50 @@ export function LessonBuddy({
     }
   }
 
+  const hint = proactiveHint(stepIndex, totalSteps)
+
   return (
-    <LayoutGroup id="lesson-buddy">
+    <div className="flex items-end justify-end gap-3">
+      {/* Speech bubble + chat */}
       <AnimatePresence mode="wait">
         {!open ? (
-          /* ── Collapsed: pill with avatar + proactive hint ── */
+          /* Collapsed: speech bubble with proactive hint */
           <motion.button
-            key="collapsed"
-            layoutId="buddy-container"
+            key="bubble"
             type="button"
             onClick={() => setOpen(true)}
-            className="flex items-center gap-2 px-3 py-2 rounded-full border border-border bg-bg hover:bg-bg-subtle transition-colors"
-            transition={morphSpring}
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            transition={{ duration: duration.normal, ease: [...ease.base] }}
+            className="relative bg-bg border border-border rounded-2xl rounded-br-sm px-3 py-2 text-xs text-text-muted hover:text-text hover:border-primary/30 transition-colors max-w-[200px] text-left"
             aria-label="Abrir asistente"
           >
-            <motion.img
-              layoutId="buddy-avatar"
-              src="/logo.png"
-              alt=""
-              className="w-5 h-5"
-              transition={morphSpring}
-            />
             <AnimatePresence mode="wait">
               <motion.span
                 key={`hint-${stepIndex}`}
-                initial={{ opacity: 0, x: -4 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 4 }}
-                transition={{ duration: duration.normal, ease: [...ease.base] }}
-                className="text-xs text-text-muted"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: duration.fast }}
               >
-                {proactiveHint(stepIndex, totalSteps)}
+                {hint}
               </motion.span>
             </AnimatePresence>
           </motion.button>
         ) : (
-          /* ── Expanded: chat card ── */
+          /* Expanded: chat card */
           <motion.div
-            key="expanded"
-            layoutId="buddy-container"
-            className="w-full max-w-sm border border-border rounded-2xl bg-bg overflow-hidden flex flex-col"
-            style={{ maxHeight: 'min(50vh, 400px)' }}
-            transition={morphSpring}
+            key="chat"
+            initial={{ opacity: 0, scale: 0.9, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: 10 }}
+            transition={{ duration: duration.normal, ease: [...ease.base] }}
+            className="w-72 border border-border rounded-2xl rounded-br-sm bg-bg overflow-hidden flex flex-col"
+            style={{ maxHeight: 'min(50vh, 360px)' }}
           >
             {/* Header */}
-            <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border">
-              <motion.img
-                layoutId="buddy-avatar"
-                src="/logo.png"
-                alt=""
-                className="w-5 h-5"
-                transition={morphSpring}
-              />
+            <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
               <span className="text-sm font-medium text-text flex-1">Asistente</span>
               <button
                 type="button"
@@ -232,12 +221,12 @@ export function LessonBuddy({
             {/* Messages */}
             <div
               ref={scrollRef}
-              className="flex-1 overflow-y-auto px-3 py-3 space-y-2.5"
+              className="flex-1 overflow-y-auto px-3 py-2.5 space-y-2"
               style={{ scrollbarWidth: 'thin' }}
             >
               {messages.length === 0 && (
-                <p className="text-xs text-text-muted leading-relaxed">
-                  Preguntame lo que quieras sobre esta leccion.
+                <p className="text-xs text-text-muted">
+                  Preguntame lo que quieras.
                 </p>
               )}
               {messages.map((msg) => (
@@ -259,7 +248,7 @@ export function LessonBuddy({
             </div>
 
             {/* Input */}
-            <form onSubmit={handleSubmit} className="flex items-end gap-2 px-3 pb-2.5 pt-1 border-t border-border">
+            <form onSubmit={handleSubmit} className="flex items-end gap-2 px-3 pb-2 pt-1 border-t border-border">
               <textarea
                 ref={inputRef}
                 onKeyDown={onKeyDown}
@@ -282,6 +271,22 @@ export function LessonBuddy({
           </motion.div>
         )}
       </AnimatePresence>
-    </LayoutGroup>
+
+      {/* Spider hanging from thread */}
+      <div className="flex flex-col items-center shrink-0">
+        {/* Thread */}
+        <div className="w-px h-8 bg-border" />
+        {/* Spider */}
+        <motion.div
+          className="w-10 h-10 cursor-pointer"
+          onClick={() => setOpen((o) => !o)}
+          animate={{ y: [0, 3, 0] }}
+          transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+          aria-label="Mascota SkillNet"
+        >
+          <img src="/spider.svg" alt="" className="w-full h-full" />
+        </motion.div>
+      </div>
+    </div>
   )
 }

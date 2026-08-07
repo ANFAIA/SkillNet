@@ -1,0 +1,132 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <title>SkillNet Spider Web Logo v3</title>
+
+  <!-- WEB -->
+  <g id="web" fill="none" stroke="#2D8C4E" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+
+    <!-- Radial Lines from center outward -->
+    <g id="web-radials">
+      <line x1="200" y1="200" x2="200" y2="30"/>   <!-- N -->
+      <line x1="200" y1="200" x2="320" y2="55"/>   <!-- NE -->
+      <line x1="200" y1="200" x2="370" y2="200"/>  <!-- E -->
+      <line x1="200" y1="200" x2="320" y2="345"/>  <!-- SE -->
+      <line x1="200" y1="200" x2="200" y2="370"/>  <!-- S -->
+      <line x1="200" y1="200" x2="80" y2="345"/>   <!-- SW -->
+      <line x1="200" y1="200" x2="30" y2="200"/>   <!-- W -->
+      <line x1="200" y1="200" x2="80" y2="55"/>    <!-- NW -->
+    </g>
+
+    <!-- Inner ring (ring-1): small irregular polygon near center -->
+    <g id="web-ring-1">
+      <path d="M 200,165
+               Q 210,162 225,172
+               Q 230,180 228,200
+               Q 228,215 220,228
+               Q 210,233 200,235
+               Q 190,233 180,228
+               Q 172,215 172,200
+               Q 172,180 175,172
+               Q 185,162 200,165 Z"/>
+    </g>
+
+    <!-- Middle ring (ring-2): medium irregular polygon -->
+    <g id="web-ring-2">
+      <path d="M 200,115
+               Q 218,108 265,130
+               Q 282,148 290,200
+               Q 288,248 265,275
+               Q 240,292 200,300
+               Q 160,292 135,275
+               Q 115,248 110,200
+               Q 115,148 135,130
+               Q 158,108 200,115 Z"/>
+    </g>
+
+    <!-- Outer ring (ring-3): large irregular polygon, roughly octagonal -->
+    <g id="web-ring-3">
+      <path d="M 200,38
+               Q 225,35 315,58
+               Q 345,82 365,195
+               Q 360,285 318,340
+               Q 280,362 200,365
+               Q 120,362 82,340
+               Q 48,285 38,200
+               Q 45,82 85,58
+               Q 155,35 200,38 Z"/>
+    </g>
+  </g>
+
+  <!-- SPIDER -->
+  <g id="spider">
+
+    <!-- Spider Body: abdomen + thorax -->
+    <g id="spider-body" fill="#3B73B9" stroke="none">
+      <!-- Abdomen: large egg/teardrop, wider at bottom -->
+      <ellipse cx="200" cy="225" rx="38" ry="48"/>
+      <!-- Slight bottom-heaviness overlay -->
+      <ellipse cx="200" cy="232" rx="40" ry="42"/>
+      <!-- Thorax/head: smaller rounded shape on top, overlapping abdomen -->
+      <ellipse cx="200" cy="178" rx="22" ry="26"/>
+    </g>
+
+    <!-- Spider Legs: 8 legs, 4 per side -->
+    <g id="spider-legs" fill="none" stroke="#3B73B9" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
+
+      <!-- RIGHT SIDE LEGS (facing up = viewer's perspective, spider faces up) -->
+
+      <!-- Leg 1: top-right, curves UP and outward -->
+      <g id="leg-1">
+        <polyline points="210,172  240,140  275,100  290,75"/>
+      </g>
+
+      <!-- Leg 2: upper-right, curves UP and outward -->
+      <g id="leg-2">
+        <polyline points="215,182  252,158  290,140  310,128"/>
+      </g>
+
+      <!-- Leg 3: lower-right, curves DOWN and outward -->
+      <g id="leg-3">
+        <polyline points="220,215  258,230  290,255  305,280"/>
+      </g>
+
+      <!-- Leg 4: bottom-right, curves DOWN and outward -->
+      <g id="leg-4">
+        <polyline points="215,240  245,265  270,295  278,320"/>
+      </g>
+
+      <!-- LEFT SIDE LEGS -->
+
+      <!-- Leg 5: top-left, curves UP and outward -->
+      <g id="leg-5">
+        <polyline points="190,172  160,140  125,100  110,75"/>
+      </g>
+
+      <!-- Leg 6: upper-left, curves UP and outward -->
+      <g id="leg-6">
+        <polyline points="185,182  148,158  110,140  90,128"/>
+      </g>
+
+      <!-- Leg 7: lower-left, curves DOWN and outward -->
+      <g id="leg-7">
+        <polyline points="180,215  142,230  110,255  95,280"/>
+      </g>
+
+      <!-- Leg 8: bottom-left, curves DOWN and outward -->
+      <g id="leg-8">
+        <polyline points="185,240  155,265  130,295  122,320"/>
+      </g>
+    </g>
+
+    <!-- Spider Eyes -->
+    <g id="spider-eyes">
+      <circle id="eye-left" cx="192" cy="163" r="4" fill="#1A4A80"/>
+      <circle id="eye-right" cx="208" cy="163" r="4" fill="#1A4A80"/>
+    </g>
+
+    <!-- Spider Fangs/Pedipalps -->
+    <g id="spider-fangs" fill="none" stroke="#3B73B9" stroke-width="5" stroke-linecap="round">
+      <line id="fang-left" x1="193" y1="155" x2="186" y2="140"/>
+      <line id="fang-right" x1="207" y1="155" x2="214" y2="140"/>
+    </g>
+  </g>
+</svg>
