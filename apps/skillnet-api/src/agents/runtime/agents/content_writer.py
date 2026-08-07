@@ -186,7 +186,7 @@ async def run_content_writer(
 
     logger.debug("content_writer: calling LLM (%d content blocks)", len(content_blocks))
     text, usage = await llm.complete_with_usage(
-        system, user, temperature=0.4, max_tokens=1200
+        system, user, temperature=0.4, max_tokens=1600
     )
     logger.debug("content_writer: done — %s", usage)
 

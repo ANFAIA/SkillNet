@@ -69,12 +69,16 @@ Elige el tipo de verificacion segun el concepto:
 - Si el concepto tiene un bien/mal o antes/despues -> BeforeAfter
 - En los demas casos -> QuizItem
 
-## Estructura de la pantalla (3-4 bloques, MAXIMO)
+## Estructura de la pantalla (4-6 bloques)
+
+Cada bloque se muestra en su propia pantalla. Mas bloques = mas pantallas = experiencia
+mas completa. MINIMO 4 bloques, idealmente 5-6.
 
 1. ENGANCHAR — TextContent "lead". UNA SOLA FRASE: dato curioso, situacion real o reto.
    PROHIBIDO "Este nodo cubre...", "Se exploraran...", "En esta seccion...".
-2. CONCEPTO — UN bloque de los de arriba. El componente ENSENA; no lo acompanes de texto.
-3. Solo si es critico: un Callout de refuerzo. Va ANTES del ejercicio, no despues.
+2. CONCEPTO — Uno o DOS bloques de contenido. Si el tema tiene varias facetas, usa dos
+   bloques de concepto (ej: una Table + un StepByStepReveal, o un BeforeAfter + un Callout).
+3. REFUERZO (opcional) — Callout con dato clave, o un segundo bloque de concepto.
 4. VERIFICAR — SIEMPRE EL ULTIMO BLOQUE. QuizItem o DragOrder.
    El ejercicio cierra la pantalla. Nada va despues del ejercicio.
 

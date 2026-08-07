@@ -60,7 +60,17 @@ function StepperStack({ children }: { children?: ReactNode }) {
 
   const next = useCallback(() => {
     if (!isLast) setStep((s) => s + 1)
-    else if (goNextNode) goNextNode()
+    else if (goNextNode) {
+      // Fade out before navigating — no jarring jump
+      const el = document.querySelector('[data-stepper-root]') as HTMLElement | null
+      if (el) {
+        el.style.transition = 'opacity 0.3s ease'
+        el.style.opacity = '0'
+        setTimeout(() => goNextNode(), 300)
+      } else {
+        goNextNode()
+      }
+    }
   }, [isLast, goNextNode])
 
   const back = useCallback(() => {
@@ -70,8 +80,18 @@ function StepperStack({ children }: { children?: ReactNode }) {
   // Auto-advance: interactive blocks call this after success (quiz correct, drag complete)
   const advance = useCallback(() => {
     setTimeout(() => {
-      if (!isLast) setStep((s) => s + 1)
-      else if (goNextNode) goNextNode()
+      if (!isLast) {
+        setStep((s) => s + 1)
+      } else if (goNextNode) {
+        const el = document.querySelector('[data-stepper-root]') as HTMLElement | null
+        if (el) {
+          el.style.transition = 'opacity 0.3s ease'
+          el.style.opacity = '0'
+          setTimeout(() => goNextNode(), 300)
+        } else {
+          goNextNode()
+        }
+      }
     }, 1200)
   }, [isLast, goNextNode])
 
@@ -97,7 +117,7 @@ function StepperStack({ children }: { children?: ReactNode }) {
 
   return (
     <stepperAdvanceContext.Provider value={advance}>
-      <div className="flex flex-col h-full min-w-0">
+      <div className="flex flex-col h-full min-w-0" data-stepper-root>
         {/* Course progress — one dot per node, active node stretches and fills by step */}
         <CourseProgress currentStep={safeStep} totalSteps={total} />
 
