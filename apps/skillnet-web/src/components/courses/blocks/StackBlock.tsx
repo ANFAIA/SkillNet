@@ -1,7 +1,7 @@
 import { Children, useState, useCallback, useEffect, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { blockArrivalContext, useBlockArrival } from './blockArrival'
-import { stepperContext, useStepper, stepperAdvanceContext, useCoursePosition } from './StepperContext'
+import { stepperContext, useStepper, stepperAdvanceContext, useCoursePosition, useNextNode } from './StepperContext'
 import { useReducedMotion } from '../../../hooks/useReducedMotion'
 import { duration, ease } from '../../../lib/motion'
 import type { StackGap } from '../kit/schemas'
@@ -56,10 +56,12 @@ function StepperStack({ children }: { children?: ReactNode }) {
   const [step, setStep] = useState(0)
   const safeStep = Math.min(step, total - 1)
   const isLast = safeStep >= total - 1
+  const goNextNode = useNextNode()
 
   const next = useCallback(() => {
     if (!isLast) setStep((s) => s + 1)
-  }, [isLast])
+    else if (goNextNode) goNextNode()
+  }, [isLast, goNextNode])
 
   const back = useCallback(() => {
     setStep((s) => Math.max(0, s - 1))
@@ -67,11 +69,11 @@ function StepperStack({ children }: { children?: ReactNode }) {
 
   // Auto-advance: interactive blocks call this after success (quiz correct, drag complete)
   const advance = useCallback(() => {
-    // Small delay so the learner sees the success feedback before moving on
     setTimeout(() => {
       if (!isLast) setStep((s) => s + 1)
+      else if (goNextNode) goNextNode()
     }, 1200)
-  }, [isLast])
+  }, [isLast, goNextNode])
 
   // Keyboard navigation: left/right arrow keys
   useEffect(() => {
@@ -130,21 +132,18 @@ function StepperStack({ children }: { children?: ReactNode }) {
             </AnimatePresence>
           </div>
 
-          {/* Right chevron */}
-          {!isLast ? (
-            <button
-              type="button"
-              onClick={next}
-              className="shrink-0 p-2 text-text-muted hover:text-text transition-all"
-              aria-label="Siguiente paso"
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="9 18 15 12 9 6" />
-              </svg>
-            </button>
-          ) : (
-            <span className="shrink-0 w-9" />
-          )}
+          {/* Right chevron — advances step or goes to next node */}
+          <button
+            type="button"
+            onClick={next}
+            disabled={isLast && !goNextNode}
+            className="shrink-0 p-2 text-text-muted hover:text-text disabled:opacity-0 disabled:pointer-events-none transition-all"
+            aria-label={isLast ? 'Siguiente nodo' : 'Siguiente paso'}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+          </button>
         </div>
 
       </div>

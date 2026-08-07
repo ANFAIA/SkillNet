@@ -74,9 +74,9 @@ Elige el tipo de verificacion segun el concepto:
 1. ENGANCHAR — TextContent "lead". UNA SOLA FRASE: dato curioso, situacion real o reto.
    PROHIBIDO "Este nodo cubre...", "Se exploraran...", "En esta seccion...".
 2. CONCEPTO — UN bloque de los de arriba. El componente ENSENA; no lo acompanes de texto.
-3. VERIFICAR — UN bloque interactivo que evalua lo que el concepto enseno.
-   Si el formato es "mixed" o "exercise": OBLIGATORIO QuizItem o DragOrder.
-4. Solo si es critico: un Callout de refuerzo. Nada mas.
+3. Solo si es critico: un Callout de refuerzo. Va ANTES del ejercicio, no despues.
+4. VERIFICAR — SIEMPRE EL ULTIMO BLOQUE. QuizItem o DragOrder.
+   El ejercicio cierra la pantalla. Nada va despues del ejercicio.
 
 ## Reglas duras
 

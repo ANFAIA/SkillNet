@@ -7,7 +7,7 @@ import { useCourse } from '../../api/courses'
 import { Card, EmptyState, ProgressBar } from '../../components/ui'
 import { ClickableSurface, NO_EXPLAIN_SELECTOR } from '../../components/courses/ClickableSurface'
 import { UiSpecRenderer } from '../../components/courses/UiSpecRenderer'
-import { stepperContext, coursePositionContext } from '../../components/courses/blocks/StepperContext'
+import { stepperContext, coursePositionContext, nextNodeContext } from '../../components/courses/blocks/StepperContext'
 import { LessonBuddy } from '../../components/courses/blocks/LessonBuddy'
 import { NodeSkeleton, RESERVED_CONTENT_PX } from '../../components/courses/NodeSkeleton'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
@@ -108,6 +108,7 @@ export function NodeView() {
   )
   const index = ordered.findIndex((entry) => entry.id === nodeId)
   const previousNode = index > 0 ? ordered[index - 1] : null
+  const nextNode = index >= 0 && index < ordered.length - 1 ? ordered[index + 1] : null
 
   const initialPhase: Phase | null = node ? 'content' : null
 
@@ -432,6 +433,7 @@ export function NodeView() {
                     transition={transition.resize}
                   >
                     <ClickableSurface nodeId={node.id} className="flex-1 min-h-0 flex flex-col">
+                      <nextNodeContext.Provider value={nextNode ? () => navigate(`${backToCourse}/nodo/${nextNode.id}`) : null}>
                       <coursePositionContext.Provider value={{ nodeCount: ordered.length, currentNodeIndex: index }}>
                       <stepperContext.Provider value={true}>
                         <UiSpecRenderer
@@ -444,6 +446,7 @@ export function NodeView() {
                         />
                       </stepperContext.Provider>
                       </coursePositionContext.Provider>
+                      </nextNodeContext.Provider>
                     </ClickableSurface>
                   </motion.div>
                 </motion.div>

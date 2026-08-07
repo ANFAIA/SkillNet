@@ -34,3 +34,12 @@ export const coursePositionContext = createContext<CoursePosition | null>(null)
 export function useCoursePosition(): CoursePosition | null {
   return useContext(coursePositionContext)
 }
+
+/**
+ * Navigate to the next node when the stepper finishes.
+ */
+export const nextNodeContext = createContext<(() => void) | null>(null)
+
+export function useNextNode(): (() => void) | null {
+  return useContext(nextNodeContext)
+}
