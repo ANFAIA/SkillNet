@@ -40,10 +40,49 @@ from src.render.prompt import render_prompt
 from src.render.spec import FORMATS_REQUIRING_LEAD
 
 #: Bumped whenever any prompt in this module changes in a way that changes output.
-#: Enters the ``cache_key`` (§3.4). ``runtime/4`` (2026-07-28): the generator prompt stopped
-#: leaving the choice of block to the model's taste. It now carries a content-to-block map
-#: with worked examples (:data:`_BLOCK_CHOICE`), SkillNet 15 stopped offering the flattened
-#: paragraph as a peer of ``Table``/``StepSequence``, and ``build_ui_prompt`` grew a
+#: Enters the ``cache_key`` (§3.4).
+#: ``runtime/12`` (2026-08-07): multi-agent render pipeline. genera_ui is split into four
+#: specialized agents (Blueprint Architect, Content Writer, Interaction Designer, Assembler)
+#: under the MULTI_AGENT_RENDER feature flag. The monolithic path is unchanged.
+#:
+#: ``runtime/11`` (2026-08-07): five iterations of
+#: prompt engineering measured via ``quality_bench.py --repeat 2`` against gpt-4o-mini.
+#:
+#: Baseline (runtime/6): 7/22 component types used (32 %), zero DragOrder/StepByStepReveal/
+#: BeforeAfter. The model produced Stack + TextContent + Callout + Table + StepSequence +
+#: QuizItem on every render. The criticality rule text appeared verbatim in Callout blocks.
+#:
+#: Changes across the five iterations:
+#: (1) :data:`_CRITICALITY_RULES` rewritten as instructions the model cannot copy as
+#: content — the old text ("Este nodo es de obligado cumplimiento...") was pasted into
+#: Callout blocks. Now says "TRATAMIENTO DEL NODO: ..." which is an instruction, not text.
+#: (2) The pedagogical structure section is restructured as "TRES BLOQUES": ENGANCHAR
+#: (TextContent lead), CONCEPTO (Table/StepByStepReveal/BeforeAfter/Tabs/StepSequence),
+#: VERIFICAR (DragOrder for procedures, BeforeAfter for comparisons, QuizItem otherwise).
+#: TextContent("body") is explicitly prohibited for concepts.
+#: (3) Worked examples reordered: the first example (A) now uses StepByStepReveal +
+#: DragOrder (not Table + QuizItem), because gpt-4o-mini follows the first example most.
+#: New examples: BeforeAfter (B), Tabs + DragOrder (C). Table + QuizItem demoted to D.
+#: (4) ``shape.py`` procedure hint changed from "UN bloque StepSequence" to offering the
+#: choice of StepByStepReveal vs StepSequence and suggesting DragOrder to verify.
+#: (5) SkillNet 20-21 added: explicit argument-count rules for DragOrder (3 args) and
+#: QuizItem (5 args) to prevent the two most common syntax errors.
+#:
+#: Result (runtime/11): 9/22 component types (41 %), DragOrder 9 %, StepByStepReveal 5 %,
+#: BeforeAfter 1 %. First-pass rate 85-95 % (model-dependent). Zero fallbacks.
+#:
+#: ``runtime/5`` (2026-08-06): the component catalogue
+#: in :data:`_BLOCK_CHOICE` is reorganised into named groups (Layout, Contenido,
+#: Visualizacion, Interaccion, Evaluacion) with usage notes, so the model sees which
+#: components work together instead of a flat list. The content-to-block mapping is
+#: extended with ``BeforeAfter``, ``StepByStepReveal`` and ``DragOrder``. SkillNet 19
+#: adds a viewport-fitting rule: group with ``Card`` or use ``StepByStepReveal`` instead
+#: of overflowing the screen.
+#:
+#: ``runtime/4`` (2026-07-28): the generator prompt stopped leaving the choice of block
+#: to the model's taste. It now carries a content-to-block map with worked examples
+#: (:data:`_BLOCK_CHOICE`), SkillNet 15 stopped offering the flattened paragraph as a
+#: peer of ``Table``/``StepSequence``, and ``build_ui_prompt`` grew a
 #: ``LA FORMA DEL MATERIAL`` section fed by ``src/agents/runtime/shape.py``.
 #:
 #: The measurement behind it: the first node of the seeded ``Alergenos`` course served the
@@ -57,11 +96,11 @@ from src.render.spec import FORMATS_REQUIRING_LEAD
 #: stopped travelling as its bare enum token (:data:`_CRITICALITY_RULES` — 8 rejections,
 #: the largest single class), and SkillNet 17 and 18 name the two syntax habits behind the
 #: rest (a bare ``opciones = [...]`` declaration, and the same id declared twice).
-PROMPT_VERSION = "runtime/4"
+PROMPT_VERSION = "runtime/14"
 
 # --- budgets (§4.2) ----------------------------------------------------------------
 
-DECIDE_MAX_TOKENS = 256
+DECIDE_MAX_TOKENS = 512
 DECIDE_TEMPERATURE = 0.0
 DECIDE_USE_CASE = "decide_formato"
 
@@ -70,7 +109,7 @@ UI_USE_CASE = "genera_ui"
 #: ``max_tokens`` per tier. A ``chart``/``mixed`` screen needs the room; a plain
 #: explanation does not, and paying for it on 90 % of renders is the whole point of the
 #: two-tier router.
-UI_MAX_TOKENS: dict[str, int] = {"fast": 1200, "heavy": 2400}
+UI_MAX_TOKENS: dict[str, int] = {"fast": 1400, "heavy": 2800}
 
 #: One repair attempt, then the seed fallback. A second retry costs another full
 #: generation for a model that has already failed twice on the same instructions.
@@ -144,16 +183,18 @@ _SCAFFOLD_RULES: dict[str, str] = {
 #: pattern :data:`_SCAFFOLD_RULES` and :data:`_ERROR_RULES` already use in this module.
 _CRITICALITY_RULES: dict[str, str] = {
     "critical": (
-        "Este nodo es de obligado cumplimiento y equivocarse tiene consecuencias reales. "
-        "Si la fuente marca un limite, una prohibicion o un caso en que hay que parar, "
-        'dale su propio aviso con Callout("warn", "..."). Uno, no tres.'
+        "TRATAMIENTO DEL NODO: es de cumplimiento obligatorio. Incluye un "
+        'Callout("warn", "<texto tuyo resumiendo la prohibicion o limite>") si la fuente '
+        "marca un limite o prohibicion. Solo uno. El texto del Callout lo redactas tu a "
+        "partir de la fuente, no copies esta instruccion."
     ),
     "recommended": (
-        "Nodo recomendado: explica bien y no dramatices. Un Callout solo si la fuente "
-        "senala de verdad una excepcion."
+        "TRATAMIENTO DEL NODO: importancia media. No dramatices. Usa Callout solo si la "
+        "fuente contiene una excepcion real que el aprendiz deba recordar."
     ),
     "contextual": (
-        "Nodo de contexto: no hace falta ningun aviso salvo que la fuente lo pida."
+        "TRATAMIENTO DEL NODO: contexto complementario. No hace falta ningun Callout "
+        "salvo que la fuente contenga una advertencia explicita."
     ),
 }
 
@@ -317,6 +358,45 @@ def build_format_prompt(
 #: tier completely. What survives is the part that carries the instruction — the mapping
 #: and three written-out calls — with the prose around it deleted.
 _BLOCK_CHOICE = """
+## Grupos de componentes
+
+### Layout (estructura de la pantalla)
+- Stack: apila bloques verticalmente. Es la raiz obligatoria.
+- Card: agrupa contenido relacionado con borde.
+- Tabs: pestanas para mostrar varias secciones en un viewport. USA TABS para que el
+  contenido quepa en una pantalla sin scroll.
+- Accordion: secciones colapsables, una abierta a la vez. Para contenido de profundidad
+  opcional que no debe ocupar espacio por defecto.
+
+### Contenido (explicar conceptos)
+- TextContent: texto con variantes lead/body/caption. El primer bloque siempre es
+  TextContent("...", "lead").
+- Callout: aviso importante (info/warn/success). Para reglas criticas o datos clave.
+- Table: datos tabulares, comparativas, listas de propiedades.
+- StepSequence: procedimientos paso a paso (2-7 pasos).
+- CodeBlock: codigo con syntax highlighting.
+
+### Visualizacion (mostrar datos y relaciones)
+- Chart: graficos de barras o lineas. Usar cuando hay numeros que comparar.
+- ManipulableGraph: graficas interactivas con puntos movibles.
+- DiagramBuilder: diagramas SVG construidos paso a paso.
+- BeforeAfter: comparacion visual con slider.
+
+### Interaccion (explorar y practicar)
+- SliderExploration: slider que cambia un valor y muestra el resultado.
+- DragOrder: ordenar elementos arrastrando.
+- HotspotImage: imagen con zonas clicables.
+- StepByStepReveal: contenido que se revela paso a paso. Para contenido de
+  profundidad opcional: el aprendiz abre cada paso cuando quiere.
+
+### Evaluacion (verificar comprension)
+- QuizItem: pregunta con opciones. Integrada en el flujo, no separada.
+
+REGLA: Cada pantalla combina AL MENOS un bloque de Contenido + un bloque de Interaccion
+o Evaluacion. La pantalla SIEMPRE acaba con QuizItem, DragOrder o BeforeAfter: nunca
+terminar solo con texto. Si el formato es "mixed" o "exercise", el bloque final es
+OBLIGATORIAMENTE un QuizItem o un DragOrder.
+
 ## SkillNet: que bloque para que contenido
 
 Elige el bloque por lo que ES el material. Un contenido en el bloque equivocado es una
@@ -331,11 +411,84 @@ pantalla mal hecha aunque el programa sea valido.
   Chart("bar", "Temperatura por camara", ["Carne", "Pescado"], [4, 2])
 - REGLA CRITICA o excepcion -> UN Callout. Bloques que se leen juntos -> UN Card.
 - TextContent es prosa: la frase de entrada y el matiz. NUNCA una lista.
+- COMPARACION de dos estados (bien/mal, antes/despues, correcto/incorrecto) -> BeforeAfter.
+  BeforeAfter("Titulo", "Mal", "descripcion del caso incorrecto", "Bien", "descripcion del caso correcto")
+- PROCEDIMIENTO con explicacion por paso -> StepByStepReveal.
+- TAREA DE ORDENAR pasos o prioridades -> DragOrder.
+- MULTIPLES ASPECTOS de un tema (tipos de residuos, categorias de EPI, fases de un
+  proceso) -> Tabs con un TabItem por aspecto. Tabs cabe en un viewport sin scroll.
+
+## SkillNet: estructura pedagogica de la pantalla
+
+TRES BLOQUES, en este orden:
+
+1. ENGANCHAR — TextContent("lead"). Una situacion real del puesto, una frase.
+2. CONCEPTO — UN bloque de estos (elige segun el material):
+   - Listas de cosas -> Table
+   - Procedimiento con explicaciones -> StepByStepReveal
+   - Comparacion bien/mal, antes/despues -> BeforeAfter
+   - 3+ aspectos independientes -> Tabs con TabItem
+   - Procedimiento simple sin explicaciones -> StepSequence
+   PROHIBIDO usar TextContent("body") para el concepto. El concepto SIEMPRE va en
+   un bloque propio (Table, StepByStepReveal, Tabs, BeforeAfter, StepSequence).
+3. VERIFICAR — UN bloque de practica:
+   - Si el concepto es un procedimiento -> DragOrder
+   - Si el concepto tiene un bien/mal -> BeforeAfter
+   - En los demas casos -> QuizItem
+   REGLA DURA: si el formato es "mixed" o "exercise", el programa DEBE tener
+   QuizItem o DragOrder. Sin el, el validador lo rechaza.
+
+MAXIMO 4 bloques (intro + concepto + practica + opcionalmente un Callout). Nada mas.
+
+## SkillNet: ejemplos completos
+
+Ejemplo A — Procedimiento con StepByStepReveal + DragOrder (SIN QuizItem):
+root = Stack([intro, pasos, ejercicio], "md")
+intro = TextContent("Un conato de fuego en el almacen: tienes 10 segundos de extintor.", "lead")
+pasos = StepByStepReveal("Regla PAS", [["P - Quitar el Pasador", "Tira de la anilla con un gesto seco."], ["A - Apuntar a la base", "Nunca a las llamas."], ["S - Barrer en zigzag", "Desde 2-3 metros, de lado a lado."]])
+ejercicio = DragOrder("Ordena los pasos del extintor:", ["Apuntar a la base", "Quitar el pasador", "Barrer en zigzag"], ["Quitar el pasador", "Apuntar a la base", "Barrer en zigzag"])
+
+Ejemplo B — Comparacion con BeforeAfter + QuizItem:
+root = Stack([intro, comparacion, q1], "md")
+intro = TextContent("Un companyero guarda la carne y el pescado juntos. Que esta mal?", "lead")
+comparacion = BeforeAfter("Almacenamiento en camara", "MAL", "Todo junto: carne y pescado en la misma balda, sin tapar.", "BIEN", "Separados por baldas, cada uno en recipiente tapado y etiquetado.")
+q1 = QuizItem("q1", "test", "apply", "Recibes una entrega de pollo y de merluza. Donde los colocas?", ["Juntos en la balda de abajo", "Pollo arriba, merluza abajo", "En baldas separadas, tapados y etiquetados", "Da igual si estan bien envueltos"])
+---ANSWER-KEY---
+{"q1": {"correct": 2, "explanation": "Carne y pescado van en baldas separadas, tapados y con fecha, para evitar contaminacion cruzada."}}
+
+Ejemplo C — Multiples aspectos con Tabs + DragOrder:
+root = Stack([intro, aspectos, ejercicio], "md")
+intro = TextContent("Tres residuos, tres contenedores. Confundirlos es una sancion.", "lead")
+tab1 = TabItem("Organico", [t1])
+t1 = TextContent("Restos de comida, servilletas usadas, posos de cafe. Contenedor **marron**.", "body")
+tab2 = TabItem("Envases", [t2])
+t2 = TextContent("Plasticos, latas, bricks. Contenedor **amarillo**. Enjuagar antes.", "body")
+tab3 = TabItem("Aceite usado", [t3])
+t3 = TextContent("Nunca por el fregadero. Bidon homologado, recogida por gestor autorizado.", "body")
+aspectos = Tabs([tab1, tab2, tab3])
+ejercicio = DragOrder("A que contenedor va cada residuo?", ["Posos de cafe -> marron", "Lata de atun -> amarillo", "Aceite de freidora -> bidon", "Servilleta usada -> marron"], ["Posos de cafe -> marron", "Lata de atun -> amarillo", "Aceite de freidora -> bidon", "Servilleta usada -> marron"])
+
+Ejemplo D — Lista como Table + QuizItem:
+root = Stack([intro, tabla, q1], "md")
+intro = TextContent("Cuando un cliente pregunta 'lleva gluten?', tienes que saberlo sin mirar la carpeta.", "lead")
+tabla = Table(["Alergeno", "Donde aparece"], [["Cereales con gluten", "Masa de pizza, empanado"], ["Crustaceos", "Paella"], ["Huevos", "Tortilla, rebozados"], ["Leche", "Bechamel, postres"]])
+q1 = QuizItem("q1", "test", "apply", "Un cliente celiaco pide una fritura. El aceite se uso antes para rebozados con harina. Que le dices?", ["Que si, el aceite no retiene gluten", "Que no es apto: el aceite tiene trazas de gluten", "Que pregunte al cocinero", "Que solo es peligroso si es alergico"])
+---ANSWER-KEY---
+{"q1": {"correct": 1, "explanation": "El aceite que frio un rebozado con harina contiene trazas de gluten por contaminacion cruzada."}}
+
+## SkillNet: como hacer buenas preguntas
+
+Reglas para QuizItem de tipo "test":
+- SIEMPRE 4 opciones.
+- Los DISTRACTORES son errores reales que un empleado cometeria, no tonterias.
+- La pregunta plantea un CASO CONCRETO: "Un cliente te dice...", nunca "Cual es...".
+- La explicacion dice POR QUE la correcta es correcta.
+Para DragOrder: 4-6 elementos, acciones concretas.
 """
 
 _UI_GENERATOR_TAIL = f"""
 {_BLOCK_CHOICE}
-## SkillNet: tres reglas que el catalogo de arriba no dice
+## SkillNet: reglas que el catalogo de arriba no dice
 
 - SkillNet 14 — El id de un bloque se escribe en ASCII, sin tildes ni enes: `conclusion`,
   nunca `conclusión`; `manana`, nunca `mañana`. Es solo el nombre interno del bloque y el
@@ -356,6 +509,15 @@ _UI_GENERATOR_TAIL = f"""
   BIEN: q1 = QuizItem("q1", "test", "apply", "Cual?", ["A", "B"])
 - SkillNet 18 — Cada id se declara UNA sola vez, `root` incluido. Dos lineas con el mismo
   id invalidan el programa: usa nombres distintos (`pregunta1`, `pregunta2`).
+- SkillNet 19 — El contenido DEBE caber en un viewport sin scroll. Si necesitas mas
+  espacio, usa Tabs para dividir en pestanas o Accordion para secciones colapsables.
+  Nunca generes mas de 5 bloques en un Stack sin usar Tabs o Accordion.
+- SkillNet 20 — DragOrder tiene EXACTAMENTE 3 argumentos: DragOrder("instruccion",
+  ["item1", "item2", "item3"], ["item2", "item1", "item3"]). El tercero es el orden
+  correcto. Sin el, el programa se rechaza.
+- SkillNet 21 — QuizItem tiene EXACTAMENTE 5 argumentos: QuizItem("id", "test",
+  "apply", "pregunta?", ["A", "B", "C", "D"]). Las opciones se pasan UNA sola vez,
+  como quinto argumento. Si escribes 6 argumentos, el programa se rechaza.
 
 ## SkillNet: la clave de respuestas
 

@@ -1072,6 +1072,67 @@ _OFFLINE_INVALID = (
 )
 
 
+
+#: Blueprints JSON per format for the multi-agent offline bench.
+_OFFLINE_BLUEPRINTS: dict[str, str] = {
+    "explanation": json.dumps({"blocks": [
+        {"id": "intro", "type": "TextContent", "intent": "enganchar", "variant": "lead"},
+        {"id": "pasos", "type": "StepSequence", "intent": "concepto"},
+        {"id": "aviso", "type": "Callout", "intent": "refuerzo"},
+    ]}, ensure_ascii=False),
+    "exercise": json.dumps({"blocks": [
+        {"id": "enunciado", "type": "TextContent", "intent": "enganchar", "variant": "lead"},
+        {"id": "q1", "type": "QuizItem", "intent": "verificar", "item_type": "test", "bloom": "apply"},
+    ]}, ensure_ascii=False),
+    "chart": json.dumps({"blocks": [
+        {"id": "intro", "type": "TextContent", "intent": "enganchar", "variant": "lead"},
+        {"id": "grafico", "type": "Chart", "intent": "concepto"},
+    ]}, ensure_ascii=False),
+    "mixed": json.dumps({"blocks": [
+        {"id": "intro", "type": "TextContent", "intent": "enganchar", "variant": "lead"},
+        {"id": "aviso", "type": "Callout", "intent": "refuerzo"},
+        {"id": "q1", "type": "QuizItem", "intent": "verificar", "item_type": "test", "bloom": "understand"},
+    ]}, ensure_ascii=False),
+}
+
+#: Content-only declarations per format (no root, no QuizItem/DragOrder).
+_OFFLINE_CONTENT: dict[str, str] = {
+    "explanation": (
+        'intro = TextContent("Esto te sirve para resolverlo tu sin preguntar.", "lead")\n'
+        'pasos = StepSequence("Como se hace", ["Comprobar la condicion", '
+        '"Aplicar la regla", "Registrar lo hecho"])\n'
+        'aviso = Callout("warn", "Fuera de plazo la regla cambia: consulta antes de decidir.")\n'
+    ),
+    "exercise": (
+        'enunciado = TextContent("Un caso real de tu puesto, para resolverlo ahora.", "lead")\n'
+    ),
+    "chart": (
+        'intro = TextContent("Los numeros que tienes que reconocer de un vistazo.", "lead")\n'
+        'grafico = Chart("bar", "Valores de referencia", ["A", "B", "C"], [4, 2, 6])\n'
+    ),
+    "mixed": (
+        'intro = TextContent("Primero la regla, y despues la compruebas.", "lead")\n'
+        'aviso = Callout("info", "La regla se aplica siempre, tambien cuando hay prisa.")\n'
+    ),
+}
+
+#: Interaction-only declarations + answer key per format.
+_OFFLINE_INTERACTION: dict[str, str] = {
+    "exercise": (
+        'q1 = QuizItem("q1", "test", "apply", "Que haces primero?", '
+        '["Aplicar la regla", "Avisar al responsable", "Dejarlo para luego", "Ignorarlo"])\n'
+        "---ANSWER-KEY---\n"
+        '{"q1": {"correct": 0, "explanation": "La regla se aplica antes de escalar."}}\n'
+    ),
+    "mixed": (
+        'q1 = QuizItem("q1", "true_false", "understand", '
+        '"La regla admite excepciones por prisa?", ["Verdadero", "Falso", "Depende del caso", "Solo si es urgente"])\n'
+        "---ANSWER-KEY---\n"
+        '{"q1": {"correct": 1, "explanation": "La prisa no es una excepcion."}}\n'
+    ),
+}
+
+
 class _OfflinePlan:
     """El guion del encargo en curso: cuantos intentos salen mal antes de salir bien."""
 
@@ -1091,6 +1152,15 @@ class _OfflinePlan:
         if index < self.bad_attempts:
             return _OFFLINE_INVALID
         return _OFFLINE_PROGRAMS.get(self.ui_format, _OFFLINE_PROGRAMS["explanation"])
+
+    def blueprint_json(self) -> str:
+        return _OFFLINE_BLUEPRINTS.get(self.ui_format, _OFFLINE_BLUEPRINTS["explanation"])
+
+    def content_declarations(self) -> str:
+        return _OFFLINE_CONTENT.get(self.ui_format, _OFFLINE_CONTENT["explanation"])
+
+    def interaction_declarations(self) -> str:
+        return _OFFLINE_INTERACTION.get(self.ui_format, "")
 
     def decide_json(self) -> str:
         return json.dumps(
@@ -1118,6 +1188,12 @@ def install_offline_llm(fixture_dir: Path) -> None:
     from src.llm import fixtures as fixtures_module
     from src.llm.prompts.runtime import FORMAT_DECIDER_SYSTEM
 
+    #: Substrings that identify the multi-agent prompts without importing the
+    #: full system prompt (which would pull in ``render_prompt()``).
+    _BLUEPRINT_MARKER = "SkillNet. Tu trabajo es decidir la ESTRUCTURA"
+    _CONTENT_WRITER_MARKER = "SkillNet Content Writer: tu tarea especifica"
+    _INTERACTION_MARKER = "SkillNet Interaction Designer: tu tarea especifica"
+
     fixture_dir.mkdir(parents=True, exist_ok=True)
     settings.LLM_FIXTURE_DIR = str(fixture_dir)
     base = fixtures_module.FixtureLLMService
@@ -1127,17 +1203,27 @@ def install_offline_llm(fixture_dir: Path) -> None:
             key = fixtures_module.FixtureLLMService.key_for(system_prompt, user_prompt)
             if key not in fixtures_module.load_index(self._dir):
                 is_decider = system_prompt.strip() == FORMAT_DECIDER_SYSTEM.strip()
-                response = (
-                    OFFLINE_PLAN.decide_json()
-                    if is_decider
-                    else OFFLINE_PLAN.next_program()
-                )
+                if is_decider:
+                    response = OFFLINE_PLAN.decide_json()
+                    use_case = "decide_formato"
+                elif _BLUEPRINT_MARKER in system_prompt:
+                    response = OFFLINE_PLAN.blueprint_json()
+                    use_case = "blueprint"
+                elif _CONTENT_WRITER_MARKER in system_prompt:
+                    response = OFFLINE_PLAN.content_declarations()
+                    use_case = "content_writer"
+                elif _INTERACTION_MARKER in system_prompt:
+                    response = OFFLINE_PLAN.interaction_declarations()
+                    use_case = "interaction_designer"
+                else:
+                    response = OFFLINE_PLAN.next_program()
+                    use_case = "genera_ui"
                 fixtures_module.write_fixture(
                     system_prompt=system_prompt,
                     user_prompt=user_prompt,
                     response=response,
                     relative_path=f"bench/{key}.txt",
-                    use_case="decide_formato" if is_decider else "genera_ui",
+                    use_case=use_case,
                     directory=self._dir,
                 )
             return super()._resolve(system_prompt, user_prompt)
