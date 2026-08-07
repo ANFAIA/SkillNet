@@ -29,7 +29,7 @@ export const duration = {
   instant: 0.125,
   /** Fast — tooltips, dropdowns, focus rings */
   fast: 0.2,
-  /** Normal — blur/fade content transitions */
+  /** Normal — fade content transitions */
   normal: 0.3,
   /** Medium — page transitions, list stagger */
   medium: 0.5,
@@ -53,7 +53,7 @@ export const spring = {
 
 // ── Reusable transition presets ──────────────────────────────
 export const transition = {
-  /** Page/route transitions — quick blur-in, no scale (keeps nav snappy) */
+  /** Page/route transitions — opacity fade, no scale (keeps nav snappy) */
   page: { duration: duration.normal, ease: ease.base },
   /**
    * Route *exit*. Deliberately shorter and accelerating: entering a screen is a
@@ -84,9 +84,8 @@ export const transition = {
 // ── Reusable animation states ────────────────────────────────
 
 /**
- * Page transition: quick blur-in (no scale). The scale read as "too much" on
- * every route change; blur alone keeps the iOS depth-of-field feel while staying
- * snappy and not competing with the sliding nav pill.
+ * Page transition: opacity fade (no scale, no blur). Keeps things snappy and
+ * does not compete with the sliding nav pill.
  *
  * ⚠️ `exit` is for an `AnimatePresence` whose children are **stable** — content you
  * hand it directly, as MotionDemo does. Do **not** spread the whole preset into an
@@ -102,19 +101,19 @@ export const transition = {
  * `initial`/`animate` explicitly rather than spreading. See `AppLayout.tsx`.
  */
 export const pageTransition = {
-  initial: { opacity: 0, filter: 'blur(6px)' },
-  animate: { opacity: 1, filter: 'blur(0px)', transition: transition.page },
-  exit: { opacity: 0, filter: 'blur(6px)', transition: transition.pageOut },
+  initial: { opacity: 0 },
+  animate: { opacity: 1, transition: transition.page },
+  exit: { opacity: 0, transition: transition.pageOut },
   // Kept as the element-level default for anything the two variants above do not
   // name; the per-variant transitions are what make the exit the fast half.
   transition: transition.page,
 } as const
 
-/** Content swap: blur + slight Y offset */
+/** Content swap: opacity + slight Y offset */
 export const contentSwap = {
-  initial: { opacity: 0, filter: 'blur(6px)', y: 8 },
-  animate: { opacity: 1, filter: 'blur(0px)', y: 0 },
-  exit: { opacity: 0, filter: 'blur(6px)', y: -8 },
+  initial: { opacity: 0, y: 8 },
+  animate: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: -8 },
   transition: transition.content,
 } as const
 
@@ -124,21 +123,19 @@ export const staggerContainer = {
   visible: { transition: { staggerChildren: 0.06 } },
 } as const
 
-/** Stagger item — blur + slide up */
+/** Stagger item — opacity + slide up */
 export const staggerItem = {
-  hidden: { opacity: 0, y: 12, filter: 'blur(6px)' },
+  hidden: { opacity: 0, y: 12 },
   visible: {
     opacity: 1,
     y: 0,
-    filter: 'blur(0px)',
     transition: { duration: duration.normal, ease: ease.base },
   },
 } as const
 
-/** Item exit — blur + slide left */
+/** Item exit — opacity + slide left */
 export const itemExit = {
   opacity: 0,
-  filter: 'blur(16px)',
   x: -64,
   transition: { duration: duration.normal, ease: ease.snapOut },
 } as const
@@ -149,13 +146,11 @@ export function slideVariants(distance: number | string = 80) {
     enter: (dir: 1 | -1) => ({
       x: dir > 0 ? distance : typeof distance === 'number' ? -distance : `-${distance}`,
       opacity: 0,
-      filter: 'blur(6px)',
     }),
-    center: { x: 0, opacity: 1, filter: 'blur(0px)' },
+    center: { x: 0, opacity: 1 },
     exit: (dir: 1 | -1) => ({
       x: dir > 0 ? (typeof distance === 'number' ? -distance : `-${distance}`) : distance,
       opacity: 0,
-      filter: 'blur(6px)',
     }),
   }
 }
@@ -185,7 +180,7 @@ export function stepSlideVariants(distance: number | string = 64) {
  * Implemented in CSS (`.block-arrival` in `index.css`) rather than as framer
  * variants, because the children being staggered are produced by OpenUI's runtime:
  * we never hold a mappable child array, only the container. These are the numbers
- * that file mirrors — the same 60 ms cadence and the same blur + rise as
+ * that file mirrors — the same 60 ms cadence and the same opacity + rise as
  * `staggerItem`, so a generated lesson and a hand-written list arrive alike.
  */
 export const blockArrival = {

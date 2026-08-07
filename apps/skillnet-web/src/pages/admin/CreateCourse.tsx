@@ -6,6 +6,7 @@ import { ease, duration } from '../../lib/motion'
 import { Button, Input, Textarea, Badge, EmptyState, FileUploadZone, ProgressBar } from '../../components/ui'
 import { GenerationProgress } from '../../components/generation/GenerationProgress'
 import { SchemaContent } from '../../components/schema/SchemaContent'
+import type { StreamPhase } from '../../components/schema/SchemaContent'
 import {
   useUploadDocument,
   useProcessDocument,
@@ -14,6 +15,7 @@ import {
 } from '../../api/documents'
 import { useCreateCourse, useGenerateContent, usePublishCourse, useCourse, useUpdateLesson, useUpdateExercise } from '../../api/courses'
 import { useGenerationProgress, useGenerationJobStatus, jobToProgress } from '../../api/generation'
+import { streamSchemaProposal } from '../../api/schemaStream'
 import { useUsers } from '../../api/users'
 import { useAssignCourse } from '../../api/enrollments'
 import { ApiError, get, post, put } from '../../api/client'
@@ -88,6 +90,23 @@ function ChevronIcon({ open }: { open: boolean }) {
       className={`transition-transform ${open ? 'rotate-90' : ''}`}
     >
       <polyline points="9 18 15 12 9 6" />
+    </svg>
+  )
+}
+
+function SuccessIcon() {
+  return (
+    <svg width="56" height="56" viewBox="0 0 56 56" fill="none">
+      <circle cx="28" cy="28" r="28" className="fill-accent/10" />
+      <circle cx="28" cy="28" r="20" className="fill-accent/20" />
+      <path
+        d="M20 28.5L25.5 34L36 23"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="text-accent"
+      />
     </svg>
   )
 }
@@ -433,12 +452,13 @@ const contentReveal = {
 }
 
 // Inner content swap (details <-> schema) -- opacity only, no blur.
+// The delay lets the layout morph spring settle (~350ms) before content fades in.
 const innerFadeOut = {
   exit: { opacity: 0, transition: { duration: duration.fast, ease: ease.base } },
 }
 const innerFadeIn = {
   initial: { opacity: 0 },
-  animate: { opacity: 1, transition: { duration: duration.normal, ease: ease.base } },
+  animate: { opacity: 1, transition: { duration: duration.normal, ease: ease.base, delay: 0.35 } },
 }
 
 // ── Main component ──────────────────────────────────────────
@@ -466,11 +486,19 @@ export function CreateCourse() {
   const [assignSelected, setAssignSelected] = useState<Set<string>>(new Set())
   const [deadline, setDeadline] = useState('')
 
-  // Schema proposal state (direct post, no hooks)
+  // Created course summary (for the success screen)
+  const [createdTitle, setCreatedTitle] = useState('')
+  const [createdNodeCount, setCreatedNodeCount] = useState(0)
+  const [createdMinutes, setCreatedMinutes] = useState(0)
+  const [testingCourse, setTestingCourse] = useState(false)
+
+  // Schema proposal state (streaming)
   const [proposedNodes, setProposedNodes] = useState<ProposedNode[]>([])
   const [proposing, setProposing] = useState(false)
   const [proposeError, setProposeError] = useState<string | null>(null)
   const [density, setDensity] = useState(3)
+  const [streamPhase, setStreamPhase] = useState<StreamPhase>('idle')
+  const [enrichedNodes, setEnrichedNodes] = useState<Set<number>>(new Set())
   const proposeAbortRef = useRef<AbortController | null>(null)
   const nodeKeyCounter = useRef(0)
   const assignKeys = useCallback(
@@ -522,37 +550,78 @@ export function CreateCourse() {
     }
   }, [phase, effective.step, effective.courseId])
 
-  // Schema proposal: call POST /api/v1/ai/schema-propose directly
-  const proposeSchema = useCallback(async (d: number) => {
+  // Schema proposal: two-phase SSE streaming
+  const proposeSchema = useCallback((d: number) => {
     proposeAbortRef.current?.abort()
-    const abort = new AbortController()
-    proposeAbortRef.current = abort
 
     setProposing(true)
     setProposeError(null)
+    setProposedNodes([])
+    setStreamPhase('idle')
+    setEnrichedNodes(new Set())
 
-    try {
-      const result = await post<{ nodes: Omit<ProposedNode, '_key'>[] }>('/ai/schema-propose', {
+    // Track structure nodes by ref so enrichment callbacks can read them
+    // without depending on stale closures over proposedNodes.
+    const structureRef: { nodes: ProposedNode[] } = { nodes: [] }
+
+    const controller = streamSchemaProposal(
+      {
         title: title.trim(),
         description: idea.trim() || undefined,
         intent_density: d,
-      })
-      if (!abort.signal.aborted) {
-        setProposedNodes(assignKeys(result.nodes))
-        setProposing(false)
-      }
-    } catch (err) {
-      if (!abort.signal.aborted) {
-        setProposing(false)
-        if (err instanceof ApiError) {
-          setProposeError(err.body.detail)
-        } else if (err instanceof Error) {
-          setProposeError(err.message)
-        } else {
-          setProposeError('No se pudo disenar el esquema')
-        }
-      }
-    }
+      },
+      {
+        onStructure: (nodes) => {
+          const proposed = assignKeys(
+            nodes.map((n) => ({
+              title: n.title,
+              summary: '',
+              outcome: null,
+              criticality: n.criticality || 'recommended',
+              default_ui_format: 'explanation',
+              estimated_minutes: 10,
+              source_headings: [],
+              prerequisites: n.prerequisites || [],
+            })),
+          )
+          structureRef.nodes = proposed
+          setProposedNodes(proposed)
+          setStreamPhase('structure')
+        },
+        onNodeDetail: (result) => {
+          const { index, detail } = result
+          setProposedNodes((prev) => {
+            const updated = [...prev]
+            if (index >= 0 && index < updated.length) {
+              updated[index] = {
+                ...updated[index],
+                summary: detail.summary || updated[index].summary,
+                outcome: detail.outcome || updated[index].outcome,
+                estimated_minutes: detail.estimated_minutes ?? updated[index].estimated_minutes,
+                default_ui_format: detail.default_ui_format || updated[index].default_ui_format,
+              }
+            }
+            return updated
+          })
+          setEnrichedNodes((prev) => {
+            const next = new Set(prev)
+            next.add(index)
+            return next
+          })
+          setStreamPhase('enriching')
+        },
+        onDone: () => {
+          setProposing(false)
+          setStreamPhase('done')
+        },
+        onError: (message) => {
+          setProposing(false)
+          setStreamPhase('idle')
+          setProposeError(message)
+        },
+      },
+    )
+    proposeAbortRef.current = controller
   }, [title, idea, assignKeys])
 
   // Auto-propose when entering schema from details -- re-propose if title/idea changed
@@ -594,6 +663,13 @@ export function CreateCourse() {
       if (densityDebounceRef.current) clearTimeout(densityDebounceRef.current)
     }
   }, [])
+
+  // Reset stream phase when leaving schema phase
+  useEffect(() => {
+    if (phase !== 'schema') {
+      setStreamPhase('idle')
+    }
+  }, [phase])
 
   // Backward from details: useInstantLayoutTransition suppresses the reverse morph
   const goBackToChoose = useCallback(() => {
@@ -729,8 +805,37 @@ export function CreateCourse() {
         await post(`/courses/${course.id}/schema/nodes/${node.id}/review`, {}).catch(() => {})
       }
       await post(`/courses/${course.id}/schema/validate`, {}).catch(() => {})
+      await post(`/courses/${course.id}/publish`, {}).catch(() => {})
 
-      navigate(`/admin/curso/${course.id}/esquema`)
+      // Generate the first node NOW — every learner who opens this course
+      // will find content ready from the start. Nodes 2-3 fire in background.
+      const firstNode = schema.nodes[0]
+      if (firstNode) {
+        const result = await post<{ request_id: string; cached: boolean }>(
+          `/nodes/${firstNode.id}/render`, { force: false },
+        ).catch(() => null)
+
+        // If not already cached, poll until the render is ready
+        if (result && result.request_id) {
+          for (let i = 0; i < 60; i++) {
+            const check = await get<{ status: string }>(
+              `/nodes/${firstNode.id}/render`,
+            ).catch(() => null)
+            if (check && (check.status === 'ready' || check.status === 'fallback')) break
+            await new Promise(r => setTimeout(r, 500))
+          }
+        }
+      }
+
+      // Remaining nodes generate on-the-fly, adapted to each learner's
+      // profile as they progress. Only the first is pre-generated because
+      // there is no learner data yet at course creation time.
+
+      // Store summary for the success screen
+      setCreatedTitle(title.trim())
+      setCreatedNodeCount(proposedNodes.length)
+      setCreatedMinutes(totalMinutes)
+      setPhase('created')
     } catch (err) {
       setStartError(failMsg(err, 'No se pudo crear el curso'))
     }
@@ -846,6 +951,91 @@ export function CreateCourse() {
     )
   }
 
+  if (phase === 'created') {
+    return (
+      <div>
+        {/* Breadcrumb */}
+        <div className="mb-6 flex items-baseline gap-1.5 text-xl font-semibold">
+          <span className="text-text-muted">Crear curso</span>
+          <span className="text-text-muted">/</span>
+          <span className="text-text-muted">{source === 'importar' ? 'Importar' : 'Crear'}</span>
+          <span className="text-text-muted">/</span>
+          <span className="text-text-muted">Esquema</span>
+          <span className="text-text-muted">/</span>
+          <span className="text-text">Listo</span>
+        </div>
+
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1, transition: { duration: duration.normal, ease: ease.base } }}
+          className="border border-border rounded-lg"
+        >
+          <div className="flex flex-col items-center text-center px-6 py-16">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1, transition: { duration: duration.normal, ease: ease.bounce } }}
+            >
+              <SuccessIcon />
+            </motion.div>
+
+            <motion.h2
+              className="text-2xl font-semibold text-text mt-6"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0, transition: { duration: duration.normal, ease: ease.base, delay: 0.3 } }}
+            >
+              Tu curso esta listo
+            </motion.h2>
+
+            <motion.p
+              className="text-lg font-medium text-text-secondary mt-2"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0, transition: { duration: duration.normal, ease: ease.base, delay: 0.6 } }}
+            >
+              {createdTitle}
+            </motion.p>
+
+            <motion.p
+              className="text-sm text-text-muted mt-1.5"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0, transition: { duration: duration.normal, ease: ease.base, delay: 0.9 } }}
+            >
+              {createdNodeCount} nodos · {createdMinutes} min estimados
+            </motion.p>
+
+            <motion.div
+              className="flex flex-col sm:flex-row items-center gap-3 mt-10"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0, transition: { duration: duration.normal, ease: ease.base, delay: 1.2 } }}
+            >
+              <Button
+                variant="primary"
+                disabled={testingCourse}
+                onClick={async () => {
+                  if (!courseId || !currentUser) return
+                  setTestingCourse(true)
+                  try {
+                    await post('/enrollments', { user_ids: [currentUser.id], course_id: courseId }).catch(() => {})
+                    navigate(`/admin/probar-curso/${courseId}`)
+                  } catch {
+                    setTestingCourse(false)
+                  }
+                }}
+              >
+                {testingCourse ? 'Preparando...' : 'Probar curso'}
+              </Button>
+              <Button variant="secondary" onClick={() => navigate(`/admin/curso/${courseId}/esquema`)}>
+                Ver esquema
+              </Button>
+              <Button variant="ghost" onClick={() => navigate('/admin/contenido')}>
+                Volver a contenido
+              </Button>
+            </motion.div>
+          </div>
+        </motion.div>
+      </div>
+    )
+  }
+
   if (phase === 'review') {
     return (
       <div>
@@ -904,7 +1094,7 @@ export function CreateCourse() {
                       // 2. Enroll admin (ignore conflict if already enrolled)
                       await post('/enrollments', { user_ids: [currentUser.id], course_id: courseId }).catch(() => {})
                       // 3. Navigate to learner view
-                      navigate(`/empleado/curso/${courseId}`)
+                      navigate(`/admin/probar-curso/${courseId}`)
                     } catch {
                       setStartError('No se pudo preparar el curso para probarlo. Revisa el esquema.')
                     }
@@ -949,7 +1139,7 @@ export function CreateCourse() {
                   phase === 'schema' ? 'text-text-muted cursor-pointer hover:text-text' : 'text-text'
                 }`}
                 initial={{ opacity: 0, x: -8 }}
-                animate={{ opacity: 1, x: 0, transition: { duration: duration.normal, ease: ease.base } }}
+                animate={{ opacity: 1, x: 0, transition: { duration: duration.normal, ease: ease.base, delay: 0.35 } }}
                 exit={{ opacity: 0, x: -8, transition: { duration: duration.fast, ease: ease.snapOut } }}
                 onClick={phase === 'schema' ? goBackToDetails : undefined}
                 role={phase === 'schema' ? 'button' : undefined}
@@ -964,7 +1154,7 @@ export function CreateCourse() {
                 key="breadcrumb-schema"
                 className="text-xl font-semibold text-text"
                 initial={{ opacity: 0, x: -8 }}
-                animate={{ opacity: 1, x: 0, transition: { duration: duration.normal, ease: ease.base } }}
+                animate={{ opacity: 1, x: 0, transition: { duration: duration.normal, ease: ease.base, delay: 0.35 } }}
                 exit={{ opacity: 0, x: -8, transition: { duration: duration.fast, ease: ease.snapOut } }}
               >
                 / Esquema
@@ -1054,6 +1244,8 @@ export function CreateCourse() {
                         onCreateCourse={() => void handleCreateFromSchema()}
                         creating={createCourse.isPending}
                         startError={startError}
+                        enrichedNodes={enrichedNodes}
+                        streamPhase={streamPhase}
                       />
                     </motion.div>
                   )}
@@ -1154,6 +1346,8 @@ export function CreateCourse() {
                         onCreateCourse={() => void handleCreateFromSchema()}
                         creating={createCourse.isPending}
                         startError={startError}
+                        enrichedNodes={enrichedNodes}
+                        streamPhase={streamPhase}
                       />
                     </motion.div>
                   )}
