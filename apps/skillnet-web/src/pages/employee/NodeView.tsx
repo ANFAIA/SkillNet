@@ -7,9 +7,7 @@ import { Card, EmptyState, ProgressBar } from '../../components/ui'
 import { ClickableSurface, NO_EXPLAIN_SELECTOR } from '../../components/courses/ClickableSurface'
 import { UiSpecRenderer } from '../../components/courses/UiSpecRenderer'
 import { stepperContext } from '../../components/courses/blocks/StepperContext'
-import { LessonBuddy } from '../../components/courses/blocks/LessonBuddy'
 import { NodeSkeleton, RESERVED_CONTENT_PX } from '../../components/courses/NodeSkeleton'
-import { NodeFeedback } from '../../components/courses/NodeFeedback'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
 import { transition, duration, ease } from '../../lib/motion'
 import { useLearnerProfile } from '../../api/onboarding'
@@ -346,9 +344,9 @@ export function NodeView() {
   const shownKey = served?.render_id ?? 'none'
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6" style={{ height: 'calc(100vh - 6rem)' }}>
       {/* Zona congelada (§5.5): nothing in this header moves while the node is open. */}
-      <div data-no-explain="">
+      <div className="shrink-0" data-no-explain="">
         <div className="shrink-0 flex items-baseline gap-1.5">
           <h2
             className="text-xl font-semibold transition-colors duration-200 text-text-muted cursor-pointer hover:text-text"
@@ -374,7 +372,7 @@ export function NodeView() {
         </p>
       </div>
 
-      <Card>
+      <Card className="flex-1 min-h-0 flex flex-col">
         {notReviewed ? (
           <div className="space-y-2">
             <p className="text-sm font-medium text-text">Este nodo esta pendiente de revision</p>
@@ -400,36 +398,31 @@ export function NodeView() {
             </p>
           </div>
         ) : (
-          <>
+          <div className="flex-1 min-h-0 flex flex-col">
             <AnimatePresence mode="wait">
               {shownProgram ? (
                 <motion.div
                   key="content"
+                  className="flex-1 min-h-0 flex flex-col"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: duration.normal, ease: ease.base }}
                 >
                   {openingLine && (
-                    <p className="text-base text-text mb-4" data-testid="opening-line">
+                    <p className="text-base text-text mb-4 shrink-0" data-testid="opening-line">
                       {openingLine}
                     </p>
                   )}
-                  {/* `ClickableSurface` keeps wrapping the tree (§8.5): a click on prose
-                    * explains, a click on a button or a quiz option does not. The hit test
-                    * lives in the surface; the wrapper only counts the event. */}
                   <motion.div
                     key={shownKey}
                     onClick={onSurfaceClick}
-                    className="min-w-0"
-                    // Hands the skeleton's reserved height back over half a second instead
-                    // of in one frame. `false` means "no entrance": the box is simply the
-                    // size of its content from the start.
+                    className="flex-1 min-h-0 flex flex-col"
                     initial={arriving && fromSkeleton ? { minHeight: RESERVED_CONTENT_PX } : false}
                     animate={{ minHeight: 0 }}
                     transition={transition.resize}
                   >
-                    <ClickableSurface nodeId={node.id} className="min-w-0">
+                    <ClickableSurface nodeId={node.id} className="flex-1 min-h-0 flex flex-col">
                       <stepperContext.Provider value={true}>
                         <UiSpecRenderer
                           program={shownProgram}
@@ -506,20 +499,11 @@ export function NodeView() {
               )}
             </AnimatePresence>
 
-            {served && <NodeFeedback nodeId={node.id} />}
-          </>
+          </div>
         )}
       </Card>
 
-      {/* AI lesson buddy — floating chat bubble */}
-      {served && (
-        <LessonBuddy
-          nodeTitle={node?.title ?? undefined}
-          nodeSummary={node?.summary ?? undefined}
-          stepIndex={0}
-          totalSteps={1}
-        />
-      )}
+
     </div>
   )
 }

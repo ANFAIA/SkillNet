@@ -1,3 +1,9 @@
+/**
+ * Inline AI lesson buddy — Curio-style: a small avatar that morphs into a
+ * chat bubble when tapped. Uses the same visual language as ExplainPopover
+ * (floating card, rounded, border) and layout animation for the morph.
+ */
+
 import {
   useCallback,
   useEffect,
@@ -5,7 +11,7 @@ import {
   useState,
 } from 'react'
 import type { FormEvent, KeyboardEvent } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
+import { AnimatePresence, LayoutGroup, motion } from 'framer-motion'
 import { ChatMarkdown } from '../../chat/ChatMarkdown'
 import { duration, ease } from '../../../lib/motion'
 
@@ -19,17 +25,21 @@ interface Message {
 }
 
 export interface LessonBuddyProps {
-  /** Current node title — gives the AI context. */
   nodeTitle?: string
-  /** Current node summary. */
   nodeSummary?: string
-  /** Step index in the stepper (0-based). */
   stepIndex: number
-  /** Total steps. */
   totalSteps: number
 }
 
-// ── SSE streaming (same pattern as ExplainModal) ───────────────
+/** Proactive hints by step position — the buddy speaks first, like Koji. */
+function proactiveHint(stepIndex: number, totalSteps: number): string {
+  if (stepIndex === 0) return 'Veamos de que va esto...'
+  if (stepIndex === totalSteps - 1) return 'A ver que tal se te da!'
+  if (stepIndex === 1) return 'Fijate bien, esto es lo importante.'
+  return 'Sigue asi, ya queda poco.'
+}
+
+// ── SSE streaming ──────────────────────────────────────────────
 
 async function streamChat(
   message: string,
@@ -73,6 +83,10 @@ async function streamChat(
   }
 }
 
+// ── Morph transition ───────────────────────────────────────────
+
+const morphSpring = { type: 'spring' as const, stiffness: 300, damping: 30 }
+
 // ── Component ──────────────────────────────────────────────────
 
 export function LessonBuddy({
@@ -88,17 +102,14 @@ export function LessonBuddy({
   const scrollRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
-  // Scroll to bottom on new messages
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight
   }, [messages])
 
-  // Focus input when opening
   useEffect(() => {
-    if (open) setTimeout(() => inputRef.current?.focus(), 100)
+    if (open) setTimeout(() => inputRef.current?.focus(), 200)
   }, [open])
 
-  // Clean up on unmount
   useEffect(() => () => abortRef.current?.abort(), [])
 
   const send = useCallback(
@@ -108,33 +119,32 @@ export function LessonBuddy({
       abortRef.current = controller
 
       const userMsg: Message = { id: crypto.randomUUID(), role: 'user', content: text }
-      const assistantId = crypto.randomUUID()
-      const assistantMsg: Message = { id: assistantId, role: 'assistant', content: '', isStreaming: true }
+      const aId = crypto.randomUUID()
+      const aMsg: Message = { id: aId, role: 'assistant', content: '', isStreaming: true }
 
-      setMessages((prev) => [...prev, userMsg, assistantMsg])
+      setMessages((prev) => [...prev, userMsg, aMsg])
       setIsStreaming(true)
 
-      // Seed context on first message
       const seeded = messages.length === 0
-        ? `Contexto: el alumno esta en el paso ${stepIndex + 1} de ${totalSteps} del nodo "${nodeTitle || 'sin titulo'}". Resumen del nodo: "${nodeSummary || ''}". Su pregunta: ${text}`
+        ? `Contexto: el alumno esta en el paso ${stepIndex + 1} de ${totalSteps} del nodo "${nodeTitle || ''}". Resumen: "${nodeSummary || ''}". Pregunta: ${text}`
         : text
 
       try {
         await streamChat(seeded, controller.signal, (chunk) => {
           if (controller.signal.aborted) return
           setMessages((prev) =>
-            prev.map((m) => m.id === assistantId ? { ...m, content: m.content + chunk } : m),
+            prev.map((m) => m.id === aId ? { ...m, content: m.content + chunk } : m),
           )
         })
       } catch (err) {
         if ((err as Error).name === 'AbortError') return
         setMessages((prev) =>
-          prev.map((m) => m.id === assistantId ? { ...m, content: m.content || 'Error al conectar.', isStreaming: false } : m),
+          prev.map((m) => m.id === aId ? { ...m, content: m.content || 'Error.', isStreaming: false } : m),
         )
       } finally {
         if (abortRef.current === controller) {
           setIsStreaming(false)
-          setMessages((prev) => prev.map((m) => m.id === assistantId ? { ...m, isStreaming: false } : m))
+          setMessages((prev) => prev.map((m) => m.id === aId ? { ...m, isStreaming: false } : m))
         }
       }
     },
@@ -157,45 +167,62 @@ export function LessonBuddy({
   }
 
   return (
-    <>
-      {/* Floating avatar button */}
-      <AnimatePresence>
-        {!open && (
+    <LayoutGroup id="lesson-buddy">
+      <AnimatePresence mode="wait">
+        {!open ? (
+          /* ── Collapsed: pill with avatar + proactive hint ── */
           <motion.button
+            key="collapsed"
+            layoutId="buddy-container"
             type="button"
             onClick={() => setOpen(true)}
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.8, opacity: 0 }}
-            transition={{ duration: duration.normal, ease: [...ease.bounce] }}
-            className="fixed bottom-6 right-6 z-50 w-12 h-12 rounded-full bg-primary shadow-lg flex items-center justify-center hover:scale-105 transition-transform"
+            className="flex items-center gap-2 px-3 py-2 rounded-full border border-border bg-bg hover:bg-bg-subtle transition-colors"
+            transition={morphSpring}
             aria-label="Abrir asistente"
           >
-            <img src="/logo.png" alt="" className="w-7 h-7" />
+            <motion.img
+              layoutId="buddy-avatar"
+              src="/logo.png"
+              alt=""
+              className="w-5 h-5"
+              transition={morphSpring}
+            />
+            <AnimatePresence mode="wait">
+              <motion.span
+                key={`hint-${stepIndex}`}
+                initial={{ opacity: 0, x: -4 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 4 }}
+                transition={{ duration: duration.normal, ease: [...ease.base] }}
+                className="text-xs text-text-muted"
+              >
+                {proactiveHint(stepIndex, totalSteps)}
+              </motion.span>
+            </AnimatePresence>
           </motion.button>
-        )}
-      </AnimatePresence>
-
-      {/* Chat bubble */}
-      <AnimatePresence>
-        {open && (
+        ) : (
+          /* ── Expanded: chat card ── */
           <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            transition={{ duration: duration.normal, ease: [...ease.base] }}
-            className="fixed bottom-6 right-6 z-50 w-80 max-h-[60vh] bg-bg border border-border rounded-2xl shadow-xl flex flex-col overflow-hidden"
+            key="expanded"
+            layoutId="buddy-container"
+            className="w-full max-w-sm border border-border rounded-2xl bg-bg overflow-hidden flex flex-col"
+            style={{ maxHeight: 'min(50vh, 400px)' }}
+            transition={morphSpring}
           >
             {/* Header */}
-            <div className="flex items-center gap-2.5 px-4 py-3 border-b border-border">
-              <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
-                <img src="/logo.png" alt="" className="w-4 h-4" />
-              </div>
+            <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border">
+              <motion.img
+                layoutId="buddy-avatar"
+                src="/logo.png"
+                alt=""
+                className="w-5 h-5"
+                transition={morphSpring}
+              />
               <span className="text-sm font-medium text-text flex-1">Asistente</span>
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="text-text-muted hover:text-text transition-colors text-lg leading-none"
+                className="text-text-muted hover:text-text transition-colors text-base leading-none p-1"
                 aria-label="Cerrar"
               >
                 &times;
@@ -205,18 +232,18 @@ export function LessonBuddy({
             {/* Messages */}
             <div
               ref={scrollRef}
-              className="flex-1 overflow-y-auto px-4 py-3 space-y-3"
+              className="flex-1 overflow-y-auto px-3 py-3 space-y-2.5"
               style={{ scrollbarWidth: 'thin' }}
             >
               {messages.length === 0 && (
-                <p className="text-xs text-text-muted">
+                <p className="text-xs text-text-muted leading-relaxed">
                   Preguntame lo que quieras sobre esta leccion.
                 </p>
               )}
               {messages.map((msg) => (
                 <div key={msg.id} className={msg.role === 'user' ? 'text-right' : ''}>
                   {msg.role === 'user' ? (
-                    <span className="inline-block bg-primary/10 px-3 py-1.5 rounded-2xl text-sm text-text max-w-[90%]">
+                    <span className="inline-block bg-primary/10 px-3 py-1.5 rounded-2xl text-sm text-text max-w-[85%]">
                       {msg.content}
                     </span>
                   ) : (
@@ -232,22 +259,22 @@ export function LessonBuddy({
             </div>
 
             {/* Input */}
-            <form onSubmit={handleSubmit} className="flex items-end gap-2 px-3 pb-3 pt-1 border-t border-border">
+            <form onSubmit={handleSubmit} className="flex items-end gap-2 px-3 pb-2.5 pt-1 border-t border-border">
               <textarea
                 ref={inputRef}
                 onKeyDown={onKeyDown}
                 rows={1}
                 placeholder="Escribe tu pregunta..."
                 disabled={isStreaming}
-                className="flex-1 min-h-[36px] max-h-[80px] resize-none rounded-xl bg-bg-subtle px-3 py-2 text-sm text-text outline-none placeholder:text-text-muted disabled:opacity-50"
+                className="flex-1 min-h-[32px] max-h-[72px] resize-none rounded-xl bg-bg-subtle px-3 py-1.5 text-sm text-text outline-none placeholder:text-text-muted disabled:opacity-50"
               />
               <button
                 type="submit"
                 disabled={isStreaming}
                 aria-label="Enviar"
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-white disabled:opacity-30 transition-colors"
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-white disabled:opacity-30 transition-colors"
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M5 12h13" /><path d="M12 5l7 7-7 7" />
                 </svg>
               </button>
@@ -255,6 +282,6 @@ export function LessonBuddy({
           </motion.div>
         )}
       </AnimatePresence>
-    </>
+    </LayoutGroup>
   )
 }

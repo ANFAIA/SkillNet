@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { blockArrivalContext, useBlockArrival } from './blockArrival'
 import { stepperContext, useStepper, stepperAdvanceContext } from './StepperContext'
 import { useReducedMotion } from '../../../hooks/useReducedMotion'
+import { LessonBuddy } from './LessonBuddy'
 import { duration, ease } from '../../../lib/motion'
 import type { StackGap } from '../kit/schemas'
 
@@ -95,9 +96,9 @@ function StepperStack({ children }: { children?: ReactNode }) {
 
   return (
     <stepperAdvanceContext.Provider value={advance}>
-      <div className="flex flex-col min-w-0">
-        {/* Step dots */}
-        <div className="flex items-center justify-center gap-2 mb-6">
+      <div className="flex flex-col h-full min-w-0">
+        {/* Top: step dots */}
+        <div className="shrink-0 flex items-center justify-center gap-2 pb-4">
           {items.map((_, i) => (
             <motion.div
               key={i}
@@ -114,29 +115,14 @@ function StepperStack({ children }: { children?: ReactNode }) {
           ))}
         </div>
 
-        {/* Current step */}
-        <div className="flex-1 flex flex-col justify-center min-h-[40vh]">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={safeStep}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: duration.normal, ease: [...ease.base] }}
-              className="min-w-0"
-            >
-              {items[safeStep]}
-            </motion.div>
-          </AnimatePresence>
-        </div>
-
-        {/* Navigation — chevrons, one forward one back */}
-        <div className="flex items-center justify-between mt-6">
+        {/* Middle: chevrons on sides, content centered vertically */}
+        <div className="flex-1 min-h-0 flex items-center justify-center gap-2">
+          {/* Left chevron */}
           <button
             type="button"
             onClick={back}
             disabled={safeStep === 0}
-            className="p-2 text-text-muted hover:text-text disabled:opacity-0 disabled:pointer-events-none transition-all"
+            className="shrink-0 p-2 text-text-muted hover:text-text disabled:opacity-0 disabled:pointer-events-none transition-all"
             aria-label="Paso anterior"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -144,11 +130,28 @@ function StepperStack({ children }: { children?: ReactNode }) {
             </svg>
           </button>
 
+          {/* Content */}
+          <div className="flex-1 min-w-0 overflow-y-auto max-h-full">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={safeStep}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: duration.normal, ease: [...ease.base] }}
+                className="min-w-0"
+              >
+                {items[safeStep]}
+              </motion.div>
+            </AnimatePresence>
+          </div>
+
+          {/* Right chevron */}
           {!isLast ? (
             <button
               type="button"
               onClick={next}
-              className="p-2 text-text-muted hover:text-text transition-all"
+              className="shrink-0 p-2 text-text-muted hover:text-text transition-all"
               aria-label="Siguiente paso"
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -156,8 +159,13 @@ function StepperStack({ children }: { children?: ReactNode }) {
               </svg>
             </button>
           ) : (
-            <span className="w-9" />
+            <span className="shrink-0 w-9" />
           )}
+        </div>
+
+        {/* Bottom: buddy — always pinned at the bottom */}
+        <div className="shrink-0 pt-4">
+          <LessonBuddy stepIndex={safeStep} totalSteps={total} />
         </div>
       </div>
     </stepperAdvanceContext.Provider>

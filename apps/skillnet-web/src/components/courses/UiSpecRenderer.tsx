@@ -146,7 +146,10 @@ export function UiSpecRenderer({
   return (
     <nodeRenderContext.Provider value={target}>
       <blockArrivalContext.Provider value={arriving}>
-        <div className="min-w-0" data-ui-format={format}>
+        <div
+          className="min-w-0 flex-1 flex flex-col [&>div]:flex [&>div]:flex-col [&>div]:flex-1 [&>div]:min-h-0 [&>div>div]:flex [&>div>div]:flex-col [&>div>div]:flex-1 [&>div>div]:min-h-0"
+          data-ui-format={format}
+        >
           <ErrorBoundary fallback={() => null}>
             <Renderer
               response={program}
