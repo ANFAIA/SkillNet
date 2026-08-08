@@ -656,13 +656,11 @@ export function NodeView() {
           )}
         </AnimatePresence>
 
-        {/* Right sidebar — morphs from icon bar (w-12) to panel (w-[400px]) */}
+        {/* Right sidebar — width animated directly (no layoutId/scale = no distortion) */}
         <motion.div
-          layoutId="node-sidebar"
+          animate={{ width: activePanel ? 400 : 48 }}
           transition={{ type: 'spring', stiffness: 200, damping: 28 }}
-          className={`hidden md:flex shrink-0 flex-col border-l border-border ${
-            activePanel ? 'w-[400px]' : 'w-12'
-          }`}
+          className="hidden md:flex shrink-0 flex-col border-l border-border overflow-hidden"
           data-no-explain=""
         >
           {activePanel ? (
