@@ -476,12 +476,8 @@ export function NodeView() {
 
       {/* Main area — flex row for content + spider + sidebar + panel */}
       <div className="flex-1 flex min-h-0 relative overflow-hidden">
-        {/* Lesson content — slides left when panel is open */}
-        <motion.div
-          className="flex-1 min-h-0 flex flex-col shrink-0"
-          animate={{ x: activePanel ? '-40%' : '0%' }}
-          transition={activePanel ? transition.pushIn : transition.pushOut}
-        >
+        {/* Lesson content — stays in place when panel opens (panel overlays the right side) */}
+        <div className="flex-1 min-h-0 flex flex-col">
           <div className="flex-1 min-h-0 flex flex-col overflow-y-auto">
             {/* X + title — inside the content area, with proper spacing */}
             <div className="flex items-center gap-3 px-6 pt-6 pb-4 shrink-0" data-no-explain="">
@@ -627,11 +623,11 @@ export function NodeView() {
               )}
             </div>
           </div>
-        </motion.div>
+        </div>
 
         {/* Spider — hangs between content and sidebar (desktop only) */}
         {served && activePanel !== 'chat' && (
-          <div className="hidden md:flex shrink-0 w-10 flex-col items-center pt-0 relative">
+          <div className="hidden md:flex shrink-0 w-16 flex-col items-center pt-0 relative -ml-6">
             {/* Thread line from top */}
             <div className="w-px bg-border flex-none" style={{ height: '40px' }} />
             {/* Spider */}
@@ -672,16 +668,16 @@ export function NodeView() {
           </button>
         </div>
 
-        {/* Slide panel — enters from the right, covers the sidebar */}
+        {/* Slide panel — overlays the right side, content stays visible underneath */}
         <AnimatePresence>
           {activePanel && (
             <motion.div
               key={activePanel}
-              className="absolute right-0 top-0 bottom-0 w-[60%] max-md:w-[85%] bg-bg border-l border-border flex flex-col"
-              initial={{ x: '100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '100%' }}
-              transition={transition.pushIn}
+              className="absolute right-0 top-0 bottom-0 w-[340px] max-md:w-[85%] bg-bg border-l border-border flex flex-col shadow-lg"
+              initial={{ x: '100%', opacity: 0.8 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: '100%', opacity: 0.8 }}
+              transition={{ type: 'spring', stiffness: 200, damping: 28 }}
             >
               {/* Panel header */}
               <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
