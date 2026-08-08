@@ -9,6 +9,7 @@ from src.core.exceptions import ForbiddenError, NotFoundError, ValidationError
 from src.deps.auth import AdminUser, CurrentUser
 from src.deps.db import DBSession
 from src.models import Course, ContentStatus, UserRole
+from src.repositories.course_node_repo import CourseNodeRepository
 from src.repositories.course_repo import CourseRepository
 from src.repositories.enrollment_repo import EnrollmentRepository
 from src.repositories.exercise_repo import ExerciseRepository
@@ -76,7 +77,12 @@ def _summary(
     )
 
 
-def _detail(course: Course, *, strip: bool) -> CourseDetail:
+def _detail(
+    course: Course,
+    *,
+    strip: bool,
+    node_count: int | None = None,
+) -> CourseDetail:
     modules = []
     for module in course.modules:
         lessons = []
@@ -121,6 +127,8 @@ def _detail(course: Course, *, strip: bool) -> CourseDetail:
         source_document_id=course.source_document_id,
         created_at=course.created_at,
         module_count=len(course.modules),
+        node_count=node_count,
+        schema_status=course.schema_status.value if course.schema_status else None,
         delivery_mode=_delivery(course),
         modules=modules,
     )
@@ -179,7 +187,8 @@ async def get_course(
         enrollment = await enrollment_repo.get_by_user_and_course(user.id, course_id)
         if enrollment is None:
             raise ForbiddenError("You are not enrolled in this course")
-    return _detail(course, strip=strip)
+    node_count = len(await CourseNodeRepository(db).list_for_course(course_id))
+    return _detail(course, strip=strip, node_count=node_count)
 
 
 @router.get("/{course_id}/progress")
