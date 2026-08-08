@@ -79,7 +79,8 @@ function StepperStack({ children }: { children?: ReactNode }) {
   const [step, setStep] = useState(0)
   const safeStep = Math.min(step, total - 1)
   const isLast = safeStep >= total - 1
-  const goNextNode = useNextNode()
+  const nextNodeInfo = useNextNode()
+  const goNextNode = nextNodeInfo?.navigate ?? null
 
   const next = useCallback(() => {
     if (!isLast) setStep((s) => s + 1)
@@ -173,6 +174,34 @@ function StepperStack({ children }: { children?: ReactNode }) {
             </svg>
           </button>
         </div>
+
+        {/* Next-node CTA — prominent button at end of lesson */}
+        <AnimatePresence>
+          {isLast && (
+            <motion.div
+              key="next-cta"
+              className="shrink-0 px-4 pb-4"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: duration.normal, ease: [...ease.base] }}
+            >
+              {nextNodeInfo ? (
+                <button
+                  type="button"
+                  onClick={nextNodeInfo.navigate}
+                  className="w-full bg-primary hover:bg-primary-hover text-white text-sm font-medium px-4 py-3 rounded-md transition-colors"
+                >
+                  {intl.formatMessage({ id: 'node.nextNode' }, { title: nextNodeInfo.title })}
+                </button>
+              ) : (
+                <div className="w-full text-center text-sm font-medium text-text-secondary bg-bg-subtle rounded-md px-4 py-3">
+                  {intl.formatMessage({ id: 'node.courseComplete' })}
+                </div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
       </div>
     </stepperAdvanceContext.Provider>

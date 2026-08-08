@@ -67,6 +67,8 @@ export const es: Record<string, string> = {
   'node.goalAssigned': 'Esto te sirve para completar la formacion que te han asignado.',
   'node.goalCustom': 'Esto te sirve para: {goal}',
   'node.buddyMessage': 'Vamos a por ello.',
+  'node.nextNode': 'Siguiente: {title}',
+  'node.courseComplete': 'Has completado el curso',
 
   // Create course
   'create.title': 'Crear curso',

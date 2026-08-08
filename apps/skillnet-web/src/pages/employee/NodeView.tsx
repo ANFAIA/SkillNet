@@ -480,10 +480,11 @@ export function NodeView() {
           type="button"
           onClick={handleBack}
           className="p-1.5 text-text-muted hover:text-text transition-colors"
-          aria-label={intl.formatMessage({ id: 'node.backToCourse' })}
+          aria-label={intl.formatMessage({ id: 'panel.close' })}
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="15 18 9 12 15 6" />
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
           </svg>
         </button>
         <span
@@ -563,7 +564,7 @@ export function NodeView() {
                       >
                         <ClickableSurface nodeId={node.id} className="flex-1 min-h-0 flex flex-col">
                           <courseIntroContext.Provider value={courseIntro}>
-                          <nextNodeContext.Provider value={nextNode ? () => navigate(`${backToCourse}/nodo/${nextNode.id}`) : null}>
+                          <nextNodeContext.Provider value={nextNode ? { navigate: () => navigate(`${backToCourse}/nodo/${nextNode.id}`), title: nextNode.title } : null}>
                           <coursePositionContext.Provider value={{ nodeCount: ordered.length, currentNodeIndex: index }}>
                           <stepperContext.Provider value={true}>
                             <UiSpecRenderer

@@ -37,10 +37,17 @@ export function useCoursePosition(): CoursePosition | null {
 
 /**
  * Navigate to the next node when the stepper finishes.
+ * Carries the navigation callback and the next node's title so the stepper
+ * can render a descriptive CTA ("Siguiente: [title]").
  */
-export const nextNodeContext = createContext<(() => void) | null>(null)
+export interface NextNodeInfo {
+  navigate: () => void
+  title: string
+}
 
-export function useNextNode(): (() => void) | null {
+export const nextNodeContext = createContext<NextNodeInfo | null>(null)
+
+export function useNextNode(): NextNodeInfo | null {
   return useContext(nextNodeContext)
 }
 
