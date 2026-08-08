@@ -474,31 +474,31 @@ export function NodeView() {
   return (
     <div className="flex flex-col flex-1 min-h-0 bg-bg overflow-hidden">
 
+      {/* Top bar — X + title, same height as sidebar icons row */}
+      <div className="shrink-0 flex items-center gap-3 h-12 px-6 border-b border-border" data-no-explain="">
+        <button
+          type="button"
+          onClick={handleBack}
+          className="p-1.5 text-text-muted hover:text-text transition-colors"
+          aria-label={intl.formatMessage({ id: 'panel.close' })}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+        <span className="text-sm font-medium text-text flex-1 truncate">
+          {node.title}
+        </span>
+      </div>
+
       {/* Main area — flex row for content + spider + sidebar + panel */}
       <div className="flex-1 flex min-h-0 relative overflow-hidden">
-        {/* Lesson content — stays in place when panel opens (panel overlays the right side) */}
+        {/* Lesson content — stays in place when panel opens */}
         <div className="flex-1 min-h-0 flex flex-col">
           <div className="flex-1 min-h-0 flex flex-col overflow-y-auto">
-            {/* X + title — inside the content area, with proper spacing */}
-            <div className="flex items-center gap-3 px-6 pt-6 pb-4 shrink-0" data-no-explain="">
-              <button
-                type="button"
-                onClick={handleBack}
-                className="p-1.5 text-text-muted hover:text-text transition-colors"
-                aria-label={intl.formatMessage({ id: 'panel.close' })}
-              >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
-              </button>
-              <span className="text-sm font-medium text-text flex-1 truncate">
-                {node.title}
-              </span>
-            </div>
-
-            {/* Lesson content below */}
-            <div className="flex-1 min-h-0 flex flex-col px-6 pb-6 max-w-2xl w-full mx-auto">
+            {/* Lesson content */}
+            <div className="flex-1 min-h-0 flex flex-col px-6 py-6 max-w-2xl w-full mx-auto">
               {notReviewed ? (
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-text">{intl.formatMessage({ id: 'node.pendingReview' })}</p>
