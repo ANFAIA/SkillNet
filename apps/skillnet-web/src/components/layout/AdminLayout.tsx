@@ -1,8 +1,12 @@
 import { Outlet, useLocation } from 'react-router-dom'
+import { motion, LayoutGroup } from 'framer-motion'
 import { AdminSidebar } from './AdminSidebar'
 import { Header } from './Header'
 import { ErrorBoundary } from '../ErrorBoundary'
 import { SidebarProvider, useSidebar } from '../../contexts/SidebarContext'
+import { ease, duration } from '../../lib/motion'
+
+const morphSpring = { type: 'spring' as const, stiffness: 200, damping: 28 }
 
 function AdminLayoutInner() {
   const location = useLocation()
@@ -10,6 +14,7 @@ function AdminLayoutInner() {
   const isNodeView = /\/nodo\/[^/]+$/.test(location.pathname)
 
   return (
+    <LayoutGroup>
     <div className="flex h-screen overflow-hidden">
       {!isNodeView && <AdminSidebar />}
 
@@ -20,11 +25,13 @@ function AdminLayoutInner() {
       >
         {!isNodeView && <Header />}
 
-        <main
+        <motion.main
+          layoutId="admin-main"
+          animate={{ borderTopLeftRadius: isNodeView ? 0 : 12 }}
+          transition={morphSpring}
           className={`flex-1 bg-bg overflow-x-clip overflow-y-auto flex flex-col ${
             isNodeView ? '' : 'mt-[50px]'
           }`}
-          style={{ borderTopLeftRadius: isNodeView ? 0 : 12 }}
         >
           <ErrorBoundary
             fallback={(error, reset) => (
@@ -48,13 +55,20 @@ function AdminLayoutInner() {
               </div>
             )}
           >
-            <div className={isNodeView ? 'flex-1 min-h-0 flex flex-col' : 'p-4 md:p-6 pb-12 flex-1 min-h-0 flex flex-col'}>
+            <motion.div
+              key={location.pathname}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: duration.normal, ease: ease.base, delay: 0.35 }}
+              className={isNodeView ? 'flex-1 min-h-0 flex flex-col' : 'p-4 md:p-6 pb-12 flex-1 min-h-0 flex flex-col'}
+            >
               <Outlet />
-            </div>
+            </motion.div>
           </ErrorBoundary>
-        </main>
+        </motion.main>
       </div>
     </div>
+    </LayoutGroup>
   )
 }
 

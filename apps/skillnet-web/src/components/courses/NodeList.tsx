@@ -93,10 +93,7 @@ function NodeRow({
     <>
       <div className="flex items-center gap-2 min-w-0">
         {node.locked && <LockIcon />}
-        <span
-          className="text-sm font-medium text-text truncate min-w-0"
-          style={{ viewTransitionName: node.locked ? undefined : `node-title-${node.id}` }}
-        >
+        <span className="text-sm font-medium text-text truncate min-w-0">
           {node.title}
         </span>
         <span className={`text-xs shrink-0 ${STATE_CLASS[node.state]}`}>
@@ -142,7 +139,6 @@ function NodeRow({
     <motion.li variants={variants}>
       <Link
         to={`${courseBasePath}/nodo/${node.id}`}
-        viewTransition
         onClick={captureOrigin}
         className="block px-4 py-3 border-b border-border last:border-b-0 hover:bg-bg-subtle transition-colors"
       >

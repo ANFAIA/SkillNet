@@ -14,7 +14,6 @@ import { LessonBuddy } from '../../components/courses/blocks/LessonBuddy'
 import { NodeSkeleton, RESERVED_CONTENT_PX } from '../../components/courses/NodeSkeleton'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
 import { transition, duration, ease } from '../../lib/motion'
-import { withViewTransition } from '../../lib/viewTransition'
 import { useLearnerProfile } from '../../api/onboarding'
 import { post } from '../../api/client'
 import { useNodeMorph } from '../../stores/nodeMorph'
@@ -469,7 +468,7 @@ export function NodeView() {
 
   function handleBack() {
     clearMorph()
-    withViewTransition(() => navigate(backToCourse, { state: { fromNode: true } }))
+    navigate(backToCourse, { state: { fromNode: true } })
   }
 
   return (
@@ -489,7 +488,6 @@ export function NodeView() {
         </button>
         <span
           className="text-sm font-medium text-text flex-1 truncate"
-          style={{ viewTransitionName: `node-title-${nodeId}` }}
         >
           {node.title}
         </span>
@@ -565,7 +563,7 @@ export function NodeView() {
                       >
                         <ClickableSurface nodeId={node.id} className="flex-1 min-h-0 flex flex-col">
                           <courseIntroContext.Provider value={courseIntro}>
-                          <nextNodeContext.Provider value={nextNode ? () => withViewTransition(() => navigate(`${backToCourse}/nodo/${nextNode.id}`)) : null}>
+                          <nextNodeContext.Provider value={nextNode ? () => navigate(`${backToCourse}/nodo/${nextNode.id}`) : null}>
                           <coursePositionContext.Provider value={{ nodeCount: ordered.length, currentNodeIndex: index }}>
                           <stepperContext.Provider value={true}>
                             <UiSpecRenderer
