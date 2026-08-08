@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
-import { useParams, useNavigate, useLocation } from 'react-router-dom'
+import { useParams, useNavigate, useLocation, useNavigationType } from 'react-router-dom'
 import { useIntl } from 'react-intl'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button, Card, ProgressBar, EmptyState, Skeleton, SkeletonText } from '../../components/ui'
@@ -142,9 +142,10 @@ export function CourseView() {
   // Auto-navigate refs — must be above any early return to satisfy the Rules of Hooks.
   const location = useLocation()
   const pathname = location.pathname
-  // Skip auto-navigate when the user deliberately came back from NodeView.
-  const cameFromNode = (location.state as { fromNode?: boolean } | null)?.fromNode === true
-  const autoNavigatedRef = useRef(cameFromNode)
+  const navType = useNavigationType()
+  // Skip auto-navigate when the user came back (browser back = POP, or chevron = fromNode state).
+  const cameBack = navType === 'POP' || (location.state as { fromNode?: boolean } | null)?.fromNode === true
+  const autoNavigatedRef = useRef(cameBack)
 
   const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set())
   const [activeLessonId, setActiveLessonId] = useState<string>('')
@@ -191,7 +192,7 @@ export function CourseView() {
       // Derive base from current URL — works for both /empleado/curso/:id
       // and /admin/probar-curso/:id
       const base = pathname.replace(/\/$/, '')
-      navigate(`${base}/nodo/${target.id}`, { replace: true })
+      navigate(`${base}/nodo/${target.id}`)
     }
   }, [dynamicNodes, id, navigate, pathname])
 
