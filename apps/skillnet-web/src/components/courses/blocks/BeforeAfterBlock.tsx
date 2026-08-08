@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react'
+import { useIntl } from 'react-intl'
 import { motion } from 'framer-motion'
 import { BLOCK_TITLE, INLINE_SURFACE } from './rhythm'
 import { ClickableText } from '../ClickableText'
@@ -18,6 +19,7 @@ export function BeforeAfterBlock({
   afterLabel,
   afterContent,
 }: BeforeAfterBlockProps) {
+  const intl = useIntl()
   const containerRef = useRef<HTMLDivElement>(null)
   const [position, setPosition] = useState(50)
 
@@ -71,7 +73,7 @@ export function BeforeAfterBlock({
         >
           <div className="p-4 h-full">
             <span className="text-xs font-medium text-text-muted uppercase tracking-wide">
-              {beforeLabel || 'Antes'}
+              {beforeLabel || intl.formatMessage({ id: 'beforeafter.before' })}
             </span>
             <ClickableText as="p" className="text-sm text-text mt-2 whitespace-pre-wrap">{beforeContent}</ClickableText>
           </div>
@@ -84,7 +86,7 @@ export function BeforeAfterBlock({
         >
           <div className="p-4 h-full">
             <span className="text-xs font-medium text-text-muted uppercase tracking-wide">
-              {afterLabel || 'Despues'}
+              {afterLabel || intl.formatMessage({ id: 'beforeafter.after' })}
             </span>
             <ClickableText as="p" className="text-sm text-text mt-2 whitespace-pre-wrap">{afterContent}</ClickableText>
           </div>

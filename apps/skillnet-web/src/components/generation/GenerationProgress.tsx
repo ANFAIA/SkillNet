@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { useIntl } from 'react-intl'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
 import { duration, ease, transition } from '../../lib/motion'
@@ -31,16 +32,16 @@ import type { GenerationProgress as GenerationProgressData, GenerationStep } fro
  * component already holds.
  */
 
-const STEPS: { key: GenerationStep; label: string }[] = [
-  { key: 'pending', label: 'En cola' },
-  { key: 'extracting', label: 'Extrayendo temas' },
-  { key: 'structuring', label: 'Disenando estructura' },
-  { key: 'generating', label: 'Escribiendo contenido' },
-  { key: 'reviewing', label: 'Revision de calidad' },
-  { key: 'published', label: 'Publicado' },
+const STEP_KEYS: { key: GenerationStep; labelId: string }[] = [
+  { key: 'pending', labelId: 'generation.stepPending' },
+  { key: 'extracting', labelId: 'generation.stepExtracting' },
+  { key: 'structuring', labelId: 'generation.stepStructuring' },
+  { key: 'generating', labelId: 'generation.stepGenerating' },
+  { key: 'reviewing', labelId: 'generation.stepReviewing' },
+  { key: 'published', labelId: 'generation.stepPublished' },
 ]
 
-const STEP_ORDER = STEPS.map((s) => s.key)
+const STEP_ORDER = STEP_KEYS.map((s) => s.key)
 
 function CheckIcon() {
   return (
@@ -71,7 +72,9 @@ function TypingDots() {
 }
 
 export function GenerationProgress({ progress }: { progress: GenerationProgressData }) {
+  const intl = useIntl()
   const reduceMotion = useReducedMotion()
+  const STEPS = STEP_KEYS.map((s) => ({ key: s.key, label: intl.formatMessage({ id: s.labelId }) }))
 
   const isFailed = progress.step === 'failed'
   const isDone = progress.step === 'published'
@@ -100,12 +103,12 @@ export function GenerationProgress({ progress }: { progress: GenerationProgressD
   const activeIndex = isFailed ? -1 : Math.max(index >= 0 ? index : lastKnownIndex.current, 0)
   const completedThrough = isFailed ? failedIndex : activeIndex
 
-  const title = isFailed ? 'La generacion fallo' : isDone ? 'Curso generado' : 'Generando curso'
+  const title = isFailed ? intl.formatMessage({ id: 'generation.failed' }) : isDone ? intl.formatMessage({ id: 'generation.done' }) : intl.formatMessage({ id: 'generation.inProgress' })
   const status = isFailed
     ? null
     : isDone
-      ? 'Ya se puede revisar'
-      : `Paso ${activeIndex + 1} de ${STEPS.length} · esto puede tomar unos momentos`
+      ? intl.formatMessage({ id: 'generation.readyReview' })
+      : intl.formatMessage({ id: 'generation.stepOf' }, { current: activeIndex + 1, total: STEPS.length })
 
   return (
     <div className="max-w-md mx-auto space-y-5" data-reduced-motion={reduceMotion || undefined}>
@@ -211,7 +214,7 @@ export function GenerationProgress({ progress }: { progress: GenerationProgressD
                   </span>
                   {isCurrent && <TypingDots />}
                   <span className="sr-only">
-                    {isCompleted ? 'completado' : isFailedHere ? 'fallo aqui' : isCurrent ? 'en curso' : 'pendiente'}
+                    {isCompleted ? intl.formatMessage({ id: 'generation.srCompleted' }) : isFailedHere ? intl.formatMessage({ id: 'generation.srFailed' }) : isCurrent ? intl.formatMessage({ id: 'generation.srCurrent' }) : intl.formatMessage({ id: 'generation.srPending' })}
                   </span>
                 </motion.div>
               </div>
@@ -248,7 +251,7 @@ export function GenerationProgress({ progress }: { progress: GenerationProgressD
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: duration.normal, ease: ease.base }}
         >
-          {progress.error ?? 'No se pudo completar la generacion.'}
+          {progress.error ?? intl.formatMessage({ id: 'generation.defaultError' })}
         </motion.div>
       )}
     </div>

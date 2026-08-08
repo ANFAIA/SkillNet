@@ -1,4 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'
+import { useIntl } from 'react-intl'
 import { motion } from 'framer-motion'
 import type { MouseEvent } from 'react'
 import { Card, ProgressBar } from '../ui'
@@ -30,25 +31,12 @@ export interface NodeListProps {
   data: NodeListRead
 }
 
-const STATE_LABEL: Record<NodeState, string> = {
-  not_started: 'Sin empezar',
-  learning: 'En curso',
-  mastered: 'Dominado',
-  needs_review: 'Para practicar',
-}
-
 const STATE_CLASS: Record<NodeState, string> = {
   not_started: 'text-text-muted',
   learning: 'text-primary',
   mastered: 'text-accent',
   needs_review: 'text-warning',
 }
-
-const CRITICALITY_LABEL = {
-  critical: 'Imprescindible',
-  recommended: 'Recomendado',
-  contextual: 'Contexto',
-} as const
 
 function LockIcon() {
   return (
@@ -83,9 +71,23 @@ function NodeRow({
   /** Base path to the course view, derived from current location. */
   courseBasePath: string
 }) {
+  const intl = useIntl()
   const blockers = node.locked_by
     .map((id) => titleById.get(id))
     .filter((title): title is string => !!title)
+
+  const STATE_LABEL: Record<NodeState, string> = {
+    not_started: intl.formatMessage({ id: 'nodelist.stateNotStarted' }),
+    learning: intl.formatMessage({ id: 'nodelist.stateLearning' }),
+    mastered: intl.formatMessage({ id: 'nodelist.stateMastered' }),
+    needs_review: intl.formatMessage({ id: 'nodelist.stateNeedsReview' }),
+  }
+
+  const CRITICALITY_LABEL: Record<string, string> = {
+    critical: intl.formatMessage({ id: 'nodelist.criticalityCritical' }),
+    recommended: intl.formatMessage({ id: 'nodelist.criticalityRecommended' }),
+    contextual: intl.formatMessage({ id: 'nodelist.criticalityContextual' }),
+  }
 
   const body = (
     <>
@@ -102,13 +104,13 @@ function NodeRow({
       <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-text-muted">
         <span>{CRITICALITY_LABEL[node.criticality]}</span>
         <span className="tabular-nums">{node.estimated_minutes} min</span>
-        <span className="tabular-nums">Dominio {Math.round(node.mastery * 100)}%</span>
+        <span className="tabular-nums">{intl.formatMessage({ id: 'nodelist.mastery' }, { pct: Math.round(node.mastery * 100) })}</span>
       </div>
       {node.locked && (
         <p className="mt-2 text-xs text-text-muted">
           {blockers.length > 0
-            ? `Necesitas antes: ${blockers.join(', ')}`
-            : 'Necesitas completar antes otro nodo de este curso.'}
+            ? intl.formatMessage({ id: 'nodelist.lockedBy' }, { titles: blockers.join(', ') })
+            : intl.formatMessage({ id: 'nodelist.lockedGeneric' })}
         </p>
       )}
     </>
@@ -145,6 +147,7 @@ function NodeRow({
 }
 
 export function NodeList({ data }: NodeListProps) {
+  const intl = useIntl()
   const reduceMotion = useReducedMotion()
   const { pathname } = useLocation()
   // Works for /empleado/curso/:id and /admin/probar-curso/:id
@@ -172,7 +175,7 @@ export function NodeList({ data }: NodeListProps) {
     return (
       <Card>
         <p className="text-sm text-text-muted">
-          Este curso todavia no tiene nodos publicados.
+          {intl.formatMessage({ id: 'nodelist.empty' })}
         </p>
       </Card>
     )
@@ -184,10 +187,10 @@ export function NodeList({ data }: NodeListProps) {
         <ProgressBar value={data.progress_percent} variant="auto" size="lg" showLabel />
         <p className="mt-2 text-sm text-text-secondary">
           {data.can_complete
-            ? 'Has dominado todo lo imprescindible de este curso.'
+            ? intl.formatMessage({ id: 'nodelist.canComplete' })
             : blockedTitles.length > 0
-              ? `Para completar el curso te falta: ${blockedTitles.join(', ')}.`
-              : 'Completa los nodos imprescindibles para cerrar el curso.'}
+              ? intl.formatMessage({ id: 'nodelist.blockedBy' }, { titles: blockedTitles.join(', ') })
+              : intl.formatMessage({ id: 'nodelist.completeRequired' })}
         </p>
       </div>
 
@@ -207,10 +210,9 @@ export function NodeList({ data }: NodeListProps) {
 
       {practice.length > 0 && (
         <div>
-          <h3 className="text-sm font-medium text-text mb-2">Para practicar</h3>
+          <h3 className="text-sm font-medium text-text mb-2">{intl.formatMessage({ id: 'nodelist.practiceTitle' })}</h3>
           <p className="text-sm text-text-secondary mb-2">
-            Estos nodos siguen abiertos: puedes volver cuando quieras y, pasados 7 dias,
-            repetir el diagnostico.
+            {intl.formatMessage({ id: 'nodelist.practiceDesc' })}
           </p>
           <Card className="p-0 overflow-hidden">
             <motion.ul {...listMotion}>

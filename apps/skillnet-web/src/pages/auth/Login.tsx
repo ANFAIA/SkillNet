@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useIntl } from 'react-intl'
 import { Button, Card, Input } from '../../components/ui'
 import { useLogin } from '../../api/auth'
 import { useAuth } from '../../hooks/useAuth'
@@ -13,6 +14,7 @@ const HOME_BY_ROLE = {
 
 export function Login() {
   const navigate = useNavigate()
+  const intl = useIntl()
   const login = useLogin()
   const { user } = useAuth()
 
@@ -40,10 +42,10 @@ export function Login() {
   const errorMessage =
     login.error instanceof ApiError
       ? login.error.status === 400 || login.error.status === 401
-        ? 'Correo o contraseña incorrectos'
+        ? intl.formatMessage({ id: 'login.wrongCredentials' })
         : login.error.body.detail
       : login.error
-        ? 'No se pudo iniciar sesion. Intentalo de nuevo.'
+        ? intl.formatMessage({ id: 'login.genericError' })
         : null
 
   return (
@@ -52,21 +54,21 @@ export function Login() {
         <div className="flex flex-col items-center mb-6">
           <img src="/logo.png" alt="SkillNet" className="w-12 h-12 drop-shadow" />
           <h1 className="text-lg font-semibold text-text mt-3">SkillNet</h1>
-          <p className="text-sm text-text-secondary mt-0.5">Inicia sesion para continuar</p>
+          <p className="text-sm text-text-secondary mt-0.5">{intl.formatMessage({ id: 'login.subtitle' })}</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input
-            label="Correo electronico"
+            label={intl.formatMessage({ id: 'login.emailLabel' })}
             type="email"
             autoComplete="email"
-            placeholder="tucorreo@empresa.com"
+            placeholder={intl.formatMessage({ id: 'login.emailPlaceholder' })}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             disabled={login.isPending}
           />
           <Input
-            label="Contraseña"
+            label={intl.formatMessage({ id: 'login.passwordLabel' })}
             type="password"
             autoComplete="current-password"
             placeholder="••••••••"
@@ -83,7 +85,7 @@ export function Login() {
             className="w-full"
             disabled={login.isPending || !email.trim() || !password}
           >
-            {login.isPending ? 'Entrando...' : 'Entrar'}
+            {login.isPending ? intl.formatMessage({ id: 'login.loggingIn' }) : intl.formatMessage({ id: 'login.submit' })}
           </Button>
         </form>
       </Card>

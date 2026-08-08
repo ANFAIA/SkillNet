@@ -1,3 +1,4 @@
+import { useIntl } from 'react-intl'
 import { InlineMarkdown } from './InlineMarkdown'
 import { ClickableText } from '../ClickableText'
 import { BLOCK_EYEBROW, INLINE_SURFACE } from './rhythm'
@@ -18,10 +19,10 @@ const toneClasses: Record<CalloutTone, string> = {
   success: 'border-l-[3px] border-l-accent bg-accent-subtle ring-1 ring-emerald-500/20',
 }
 
-const toneLabels: Record<CalloutTone, string> = {
-  info: 'Importante',
-  warn: 'Atencion',
-  success: 'Correcto',
+const TONE_LABEL_KEYS: Record<CalloutTone, string> = {
+  info: 'callout.info',
+  warn: 'callout.warn',
+  success: 'callout.success',
 }
 
 /** Inline SVG icons per tone — lightweight, no dependency needed. */
@@ -69,7 +70,9 @@ const toneLabelColor: Record<CalloutTone, string> = {
 }
 
 export function CalloutBlock({ tone = 'info', text }: CalloutBlockProps) {
+  const intl = useIntl()
   const resolved = toneClasses[tone] ? tone : 'info'
+  const toneLabel = intl.formatMessage({ id: TONE_LABEL_KEYS[resolved] })
 
   return (
     <aside
@@ -77,14 +80,14 @@ export function CalloutBlock({ tone = 'info', text }: CalloutBlockProps) {
       // aside; the visible label carries the tone for non-sighted users, which
       // a colour-only cue would not.
       role="note"
-      aria-label={toneLabels[resolved]}
+      aria-label={toneLabel}
       className={`${INLINE_SURFACE} ${toneClasses[resolved]}`}
     >
       {/* The tone label is chrome, not lesson prose: it is deliberately outside
           the ClickableText, so "Atencion" is not a term anyone can explain. */}
       <div className={`flex items-center gap-1.5 ${BLOCK_EYEBROW} ${toneLabelColor[resolved]}`}>
         <ToneIcon tone={resolved} />
-        <span className="font-semibold tracking-wide uppercase">{toneLabels[resolved]}</span>
+        <span className="font-semibold tracking-wide uppercase">{toneLabel}</span>
       </div>
       <ClickableText as="p" className={`text-sm text-text leading-relaxed min-w-0 ${resolved === 'warn' ? 'font-medium' : ''}`}>
         <InlineMarkdown>{text}</InlineMarkdown>

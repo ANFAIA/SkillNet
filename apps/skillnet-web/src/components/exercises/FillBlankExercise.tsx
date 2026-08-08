@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useIntl } from 'react-intl'
 import { Button } from '../ui'
 import { useSubmitAttempt, useCorrectExercise } from '../../api/exercises'
 import { ExerciseResult } from './ExerciseResult'
@@ -8,6 +9,7 @@ import type { Exercise, FillBlankContent } from '../../types'
 const BLANK_RE = /_{2,}|\{\{.*?\}\}/g
 
 export function FillBlankExercise({ exercise }: { exercise: Exercise }) {
+  const intl = useIntl()
   const content = exercise.content as FillBlankContent
   const submit = useSubmitAttempt()
   const correctMut = useCorrectExercise()
@@ -65,12 +67,12 @@ export function FillBlankExercise({ exercise }: { exercise: Exercise }) {
           disabled={!allFilled || submit.isPending}
           onClick={() => submit.mutate({ exerciseId: exercise.id, answer: { answers } })}
         >
-          {submit.isPending ? 'Comprobando...' : 'Comprobar'}
+          {submit.isPending ? intl.formatMessage({ id: 'exercise.checking' }) : intl.formatMessage({ id: 'exercise.check' })}
         </Button>
       )}
 
       {submit.isError && (
-        <p className="mt-3 text-sm text-danger">No se pudo enviar la respuesta.</p>
+        <p className="mt-3 text-sm text-danger">{intl.formatMessage({ id: 'exercise.submitError' })}</p>
       )}
       {result && <ExerciseResult result={result} onRetry={!result.passed ? retry : undefined} onCorrect={!result.passed ? correct : undefined} />}
     </div>

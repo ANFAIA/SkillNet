@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useIntl } from 'react-intl'
 import { motion } from 'framer-motion'
 import { Card, CardTitle, Badge, Button, Input, EmptyState, SkeletonRow, Modal } from '../../components/ui'
 import { useUsers, useCreateUser, useResetPassword } from '../../api/users'
@@ -18,6 +19,7 @@ function SearchIcon() {
 }
 
 function CreateEmployeeForm({ onDone }: { onDone: () => void }) {
+  const intl = useIntl()
   const create = useCreateUser()
   const [email, setEmail] = useState('')
   const [fullName, setFullName] = useState('')
@@ -39,16 +41,16 @@ function CreateEmployeeForm({ onDone }: { onDone: () => void }) {
     const shownPassword = created.temporary_password ?? password
     return (
       <div>
-        <CardTitle className="mb-2">Empleado creado</CardTitle>
+        <CardTitle className="mb-2">{intl.formatMessage({ id: 'employees.created' })}</CardTitle>
         <p className="text-sm text-text-secondary mb-3">
-          Comparte estas credenciales con {created.full_name}. La contraseña no se volvera a mostrar.
+          {intl.formatMessage({ id: 'employees.createdShareCreds' }, { name: created.full_name })}
         </p>
         <div className="rounded-lg border border-border bg-bg-subtle p-3 text-sm space-y-1">
-          <div><span className="text-text-muted">Correo:</span> <span className="font-medium text-text">{created.email}</span></div>
-          <div><span className="text-text-muted">Contraseña:</span> <span className="font-mono font-medium text-text">{shownPassword}</span></div>
+          <div><span className="text-text-muted">{intl.formatMessage({ id: 'employees.email' })}</span> <span className="font-medium text-text">{created.email}</span></div>
+          <div><span className="text-text-muted">{intl.formatMessage({ id: 'employees.password' })}</span> <span className="font-mono font-medium text-text">{shownPassword}</span></div>
         </div>
         <div className="flex gap-2 mt-4">
-          <Button size="sm" onClick={onDone}>Listo</Button>
+          <Button size="sm" onClick={onDone}>{intl.formatMessage({ id: 'employees.done' })}</Button>
         </div>
       </div>
     )
@@ -56,37 +58,38 @@ function CreateEmployeeForm({ onDone }: { onDone: () => void }) {
 
   return (
     <div>
-      <CardTitle className="mb-3">Nuevo empleado</CardTitle>
+      <CardTitle className="mb-3">{intl.formatMessage({ id: 'employees.newEmployee' })}</CardTitle>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Input label="Nombre completo" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Ej: Laura Martinez" />
-        <Input label="Correo" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="laura@empresa.com" />
+        <Input label={intl.formatMessage({ id: 'employees.fullNameLabel' })} value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder={intl.formatMessage({ id: 'employees.fullNamePlaceholder' })} />
+        <Input label={intl.formatMessage({ id: 'employees.headerEmail' })} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={intl.formatMessage({ id: 'employees.emailPlaceholder' })} />
         <Input
-          label="Contraseña (opcional)"
+          label={intl.formatMessage({ id: 'employees.passwordLabel' })}
           type="text"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          placeholder="Se genera una si la dejas vacia"
+          placeholder={intl.formatMessage({ id: 'employees.passwordPlaceholder' })}
         />
       </div>
       {passwordTooShort && (
-        <p className="text-sm text-danger mt-2">La contraseña debe tener al menos 8 caracteres.</p>
+        <p className="text-sm text-danger mt-2">{intl.formatMessage({ id: 'employees.passwordTooShort' })}</p>
       )}
       {create.isError && (
         <p className="text-sm text-danger mt-2">
-          {create.error instanceof ApiError ? create.error.body.detail : 'No se pudo crear el empleado'}
+          {create.error instanceof ApiError ? create.error.body.detail : intl.formatMessage({ id: 'employees.createError' })}
         </p>
       )}
       <div className="flex gap-2 mt-4">
         <Button size="sm" onClick={submit} disabled={create.isPending || !email.trim() || !fullName.trim() || passwordTooShort}>
-          {create.isPending ? 'Creando...' : 'Crear empleado'}
+          {create.isPending ? intl.formatMessage({ id: 'employees.creating' }) : intl.formatMessage({ id: 'employees.createBtn' })}
         </Button>
-        <Button size="sm" variant="ghost" onClick={onDone}>Cancelar</Button>
+        <Button size="sm" variant="ghost" onClick={onDone}>{intl.formatMessage({ id: 'employees.cancel' })}</Button>
       </div>
     </div>
   )
 }
 
 function AssignCourseForm({ user }: { user: User }) {
+  const intl = useIntl()
   const { data: courseData } = useCourses({ status: 'published' })
   const assign = useAssignCourse()
   const [courseId, setCourseId] = useState('')
@@ -109,33 +112,34 @@ function AssignCourseForm({ user }: { user: User }) {
   return (
     <div className="mt-3 space-y-3">
       <div>
-        <label className="block text-sm font-medium text-text mb-1">Curso</label>
+        <label className="block text-sm font-medium text-text mb-1">{intl.formatMessage({ id: 'employees.courseLabel' })}</label>
         <select
           value={courseId}
           onChange={(e) => setCourseId(e.target.value)}
           className="w-full px-3 py-2 text-sm text-text border border-border rounded-lg bg-bg focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-colors"
         >
-          <option value="">Selecciona un curso</option>
+          <option value="">{intl.formatMessage({ id: 'employees.selectCourse' })}</option>
           {courses.map((c) => (
             <option key={c.id} value={c.id}>{c.title}</option>
           ))}
         </select>
       </div>
-      <Input label="Fecha limite (opcional)" type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
+      <Input label={intl.formatMessage({ id: 'employees.deadlineLabel' })} type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
       {assign.isError && (
         <p className="text-sm text-danger">
-          {assign.error instanceof ApiError ? assign.error.body.detail : 'No se pudo asignar el curso'}
+          {assign.error instanceof ApiError ? assign.error.body.detail : intl.formatMessage({ id: 'employees.assignError' })}
         </p>
       )}
-      {assign.isSuccess && <p className="text-sm text-accent">Curso asignado correctamente.</p>}
+      {assign.isSuccess && <p className="text-sm text-accent">{intl.formatMessage({ id: 'employees.assignSuccess' })}</p>}
       <Button size="sm" onClick={submit} disabled={!courseId || assign.isPending}>
-        {assign.isPending ? 'Asignando...' : 'Asignar curso'}
+        {assign.isPending ? intl.formatMessage({ id: 'employees.assigning' }) : intl.formatMessage({ id: 'employees.assignCourse' })}
       </Button>
     </div>
   )
 }
 
 function ResetPasswordForm({ employee, onDone }: { employee: User; onDone: () => void }) {
+  const intl = useIntl()
   const [password, setPassword] = useState('')
   const reset = useResetPassword()
   const tooShort = password.length > 0 && password.length < 6
@@ -151,12 +155,12 @@ function ResetPasswordForm({ employee, onDone }: { employee: User; onDone: () =>
   if (reset.isSuccess) {
     return (
       <div>
-        <CardTitle className="mb-2">Contraseña actualizada</CardTitle>
+        <CardTitle className="mb-2">{intl.formatMessage({ id: 'employees.passwordUpdated' })}</CardTitle>
         <p className="text-sm text-text-secondary">
-          La contraseña de {employee.full_name} fue cambiada correctamente.
+          {intl.formatMessage({ id: 'employees.passwordUpdatedDesc' }, { name: employee.full_name })}
         </p>
         <div className="flex justify-end mt-4">
-          <Button size="sm" onClick={onDone}>Cerrar</Button>
+          <Button size="sm" onClick={onDone}>{intl.formatMessage({ id: 'employees.close' })}</Button>
         </div>
       </div>
     )
@@ -164,29 +168,29 @@ function ResetPasswordForm({ employee, onDone }: { employee: User; onDone: () =>
 
   return (
     <div>
-      <CardTitle className="mb-3">Restablecer contraseña</CardTitle>
+      <CardTitle className="mb-3">{intl.formatMessage({ id: 'employees.resetPasswordTitle' })}</CardTitle>
       <p className="text-sm text-text-secondary mb-3">
-        Nueva contraseña para {employee.full_name}
+        {intl.formatMessage({ id: 'employees.newPasswordFor' }, { name: employee.full_name })}
       </p>
       <Input
-        label="Nueva contraseña"
+        label={intl.formatMessage({ id: 'employees.newPasswordLabel' })}
         type="text"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
-        placeholder="Minimo 6 caracteres"
+        placeholder={intl.formatMessage({ id: 'employees.newPasswordPlaceholder' })}
       />
       {tooShort && (
-        <p className="text-sm text-danger mt-2">La contraseña debe tener al menos 6 caracteres.</p>
+        <p className="text-sm text-danger mt-2">{intl.formatMessage({ id: 'employees.passwordTooShort6' })}</p>
       )}
       {reset.isError && (
         <p className="text-sm text-danger mt-2">
-          {reset.error instanceof ApiError ? reset.error.body.detail : 'No se pudo restablecer la contraseña'}
+          {reset.error instanceof ApiError ? reset.error.body.detail : intl.formatMessage({ id: 'employees.resetError' })}
         </p>
       )}
       <div className="flex gap-2 mt-4 justify-end">
-        <Button size="sm" variant="ghost" onClick={onDone}>Cancelar</Button>
+        <Button size="sm" variant="ghost" onClick={onDone}>{intl.formatMessage({ id: 'employees.cancel' })}</Button>
         <Button size="sm" onClick={submit} disabled={reset.isPending || !password.trim() || tooShort}>
-          {reset.isPending ? 'Guardando...' : 'Restablecer'}
+          {reset.isPending ? intl.formatMessage({ id: 'employees.saving' }) : intl.formatMessage({ id: 'employees.resetBtn' })}
         </Button>
       </div>
     </div>
@@ -194,6 +198,7 @@ function ResetPasswordForm({ employee, onDone }: { employee: User; onDone: () =>
 }
 
 function EmployeeDetail({ employee }: { employee: User }) {
+  const intl = useIntl()
   const { data: enrollmentData, isLoading } = useEnrollments({ user_id: employee.id })
   const enrollments = enrollmentData?.items ?? []
   const [showResetPw, setShowResetPw] = useState(false)
@@ -206,17 +211,17 @@ function EmployeeDetail({ employee }: { employee: User }) {
           <p className="text-sm text-text-secondary truncate">{employee.email}</p>
         </div>
         <Button size="sm" variant="ghost" onClick={() => setShowResetPw(true)}>
-          Restablecer contraseña
+          {intl.formatMessage({ id: 'employees.resetPassword' })}
         </Button>
       </div>
 
       <div className="mt-6">
-        <CardTitle>Cursos asignados</CardTitle>
+        <CardTitle>{intl.formatMessage({ id: 'employees.assignedCourses' })}</CardTitle>
         <div className="mt-3">
           {isLoading ? (
             <SkeletonRow />
           ) : enrollments.length === 0 ? (
-            <p className="text-sm text-text-muted">Sin cursos asignados.</p>
+            <p className="text-sm text-text-muted">{intl.formatMessage({ id: 'employees.noAssigned' })}</p>
           ) : (
             <div className="space-y-0">
               {enrollments.map((e) => (
@@ -231,7 +236,7 @@ function EmployeeDetail({ employee }: { employee: User }) {
       </div>
 
       <div className="mt-5 border-t border-border pt-5">
-        <CardTitle>Asignar nuevo curso</CardTitle>
+        <CardTitle>{intl.formatMessage({ id: 'employees.assignNewCourse' })}</CardTitle>
         <AssignCourseForm user={employee} />
       </div>
 
@@ -245,6 +250,7 @@ function EmployeeDetail({ employee }: { employee: User }) {
 }
 
 export function Employees() {
+  const intl = useIntl()
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<User | null>(null)
   const [creating, setCreating] = useState(false)
@@ -258,13 +264,14 @@ export function Employees() {
   }
 
   const employees = data?.items ?? []
+  const roleLabel = (role: string) => role === 'admin' ? intl.formatMessage({ id: 'employees.roleAdmin' }) : intl.formatMessage({ id: 'employees.roleEmployee' })
 
   return (
     <div className="flex flex-col" style={{ maxHeight: 'calc(100vh - 50px - 3rem)' }}>
       <div className="shrink-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-semibold text-text">Empleados</h2>
-          <p className="text-sm text-text-secondary mt-1">{data?.total ?? employees.length} miembros del equipo</p>
+          <h2 className="text-xl font-semibold text-text">{intl.formatMessage({ id: 'employees.title' })}</h2>
+          <p className="text-sm text-text-secondary mt-1">{intl.formatMessage({ id: 'employees.teamCount' }, { count: data?.total ?? employees.length })}</p>
         </div>
         <Button
           variant="primary"
@@ -274,7 +281,7 @@ export function Employees() {
             setCreating(true)
           }}
         >
-          Agregar empleado
+          {intl.formatMessage({ id: 'employees.add' })}
         </Button>
       </div>
 
@@ -284,7 +291,7 @@ export function Employees() {
         </div>
         <input
           type="text"
-          placeholder="Buscar por nombre o correo..."
+          placeholder={intl.formatMessage({ id: 'employees.searchPlaceholder' })}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="w-full pl-9 pr-3 py-2 text-sm text-text border border-border rounded-lg bg-bg placeholder:text-text-muted focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-colors"
@@ -300,17 +307,17 @@ export function Employees() {
             <SkeletonRow />
           </div>
         ) : error ? (
-          <EmptyState title="No se pudieron cargar los empleados" />
+          <EmptyState title={intl.formatMessage({ id: 'employees.loadError' })} />
         ) : employees.length === 0 ? (
-          <EmptyState title="No se encontraron empleados" description="Agrega tu primer empleado" />
+          <EmptyState title={intl.formatMessage({ id: 'employees.emptyTitle' })} description={intl.formatMessage({ id: 'employees.emptyDesc' })} />
         ) : (
           <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0">
             <table className="w-full text-sm">
               <thead className="sticky top-0 z-10">
                 <tr className="border-b border-border bg-bg-subtle">
-                  <th className="text-left py-3 px-5 font-medium text-text-secondary rounded-tl-xl">Nombre</th>
-                  <th className="text-left py-3 px-4 font-medium text-text-secondary">Correo</th>
-                  <th className="text-left py-3 px-4 font-medium text-text-secondary rounded-tr-xl">Rol</th>
+                  <th className="text-left py-3 px-5 font-medium text-text-secondary rounded-tl-xl">{intl.formatMessage({ id: 'employees.headerName' })}</th>
+                  <th className="text-left py-3 px-4 font-medium text-text-secondary">{intl.formatMessage({ id: 'employees.headerEmail' })}</th>
+                  <th className="text-left py-3 px-4 font-medium text-text-secondary rounded-tr-xl">{intl.formatMessage({ id: 'employees.headerRole' })}</th>
                 </tr>
               </thead>
               <motion.tbody initial="hidden" animate="visible" variants={staggerContainer}>
@@ -324,7 +331,7 @@ export function Employees() {
                     <td className="py-3 px-5"><span className="font-medium text-text">{emp.full_name}</span></td>
                     <td className="py-3 px-4 text-text-secondary">{emp.email}</td>
                     <td className="py-3 px-4">
-                      <Badge variant="primary" badgeStyle="plain">{emp.role === 'admin' ? 'Admin' : 'Empleado'}</Badge>
+                      <Badge variant="primary" badgeStyle="plain">{roleLabel(emp.role)}</Badge>
                     </td>
                   </motion.tr>
                 ))}
@@ -355,7 +362,7 @@ export function Employees() {
                     <p className="font-medium text-text truncate">{emp.full_name}</p>
                     <p className="text-sm text-text-secondary mt-0.5 truncate">{emp.email}</p>
                   </div>
-                  <Badge variant="primary" badgeStyle="plain">{emp.role === 'admin' ? 'Admin' : 'Empleado'}</Badge>
+                  <Badge variant="primary" badgeStyle="plain">{roleLabel(emp.role)}</Badge>
                 </div>
               </Card>
             </motion.div>

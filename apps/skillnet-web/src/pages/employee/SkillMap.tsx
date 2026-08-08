@@ -1,8 +1,10 @@
+import { useIntl } from 'react-intl'
 import { Card, CardTitle, SkillBars, EmptyState, SkeletonRow } from '../../components/ui'
 import { useMySkills } from '../../api/users'
 import type { UserSkillRead } from '../../types'
 
 export function SkillMap() {
+  const intl = useIntl()
   const { data: userSkills, isLoading, error } = useMySkills()
 
   const skills = userSkills ?? []
@@ -19,9 +21,9 @@ export function SkillMap() {
   }
 
   const levelLabels: Record<string, string> = {
-    low: 'Basico',
-    medium: 'Intermedio',
-    high: 'Avanzado',
+    low: intl.formatMessage({ id: 'skillmap.levelLow' }),
+    medium: intl.formatMessage({ id: 'skillmap.levelMedium' }),
+    high: intl.formatMessage({ id: 'skillmap.levelHigh' }),
   }
 
   const levelOrder = ['high', 'medium', 'low']
@@ -30,9 +32,9 @@ export function SkillMap() {
   return (
     <div>
       <div className="mb-6">
-        <h2 className="text-xl font-semibold text-text">Skill Map</h2>
+        <h2 className="text-xl font-semibold text-text">{intl.formatMessage({ id: 'skillmap.title' })}</h2>
         <p className="text-sm text-text-secondary mt-0.5">
-          Tu mapa de competencias profesionales
+          {intl.formatMessage({ id: 'skillmap.subtitle' })}
         </p>
       </div>
 
@@ -48,7 +50,7 @@ export function SkillMap() {
 
       {isLoading ? (
         <Card>
-          <CardTitle className="mb-4">Cargando...</CardTitle>
+          <CardTitle className="mb-4">{intl.formatMessage({ id: 'skillmap.loading' })}</CardTitle>
           <div className="space-y-1">
             <SkeletonRow />
             <SkeletonRow />
@@ -57,13 +59,13 @@ export function SkillMap() {
         </Card>
       ) : error ? (
         <Card>
-          <EmptyState title="Error al cargar tus skills" description="Intenta recargar la pagina" />
+          <EmptyState title={intl.formatMessage({ id: 'skillmap.loadError' })} description={intl.formatMessage({ id: 'skillmap.loadErrorDesc' })} />
         </Card>
       ) : skills.length === 0 ? (
         <Card>
           <EmptyState
-            title="Sin skills registradas"
-            description="Completa cursos y ejercicios para desarrollar tus competencias profesionales"
+            title={intl.formatMessage({ id: 'skillmap.emptyTitle' })}
+            description={intl.formatMessage({ id: 'skillmap.emptyDesc' })}
           />
         </Card>
       ) : (

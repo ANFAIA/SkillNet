@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useIntl } from 'react-intl'
 import { AnimatePresence, motion } from 'framer-motion'
 import { duration, ease } from '../../../lib/motion'
 import { INLINE_SURFACE } from './rhythm'
@@ -13,6 +14,7 @@ type PlayState = 'idle' | 'loading' | 'playing' | 'paused'
 const BASE = '/api/v1'
 
 export function AudioExplanationBlock({ text, voice }: AudioExplanationBlockProps) {
+  const intl = useIntl()
   const safeText = typeof text === 'string' ? text : ''
   const words = safeText.split(/\s+/).filter(Boolean)
 
@@ -89,7 +91,7 @@ export function AudioExplanationBlock({ text, voice }: AudioExplanationBlockProp
 
       audio.addEventListener('error', () => {
         setState('idle')
-        setError('Audio no disponible')
+        setError(intl.formatMessage({ id: 'audio.unavailable' }))
         clearHighlightInterval()
         URL.revokeObjectURL(url)
       })
@@ -100,9 +102,9 @@ export function AudioExplanationBlock({ text, voice }: AudioExplanationBlockProp
       startHighlighting(0)
     } catch {
       setState('idle')
-      setError('Audio no disponible')
+      setError(intl.formatMessage({ id: 'audio.unavailable' }))
     }
-  }, [safeText, voice, startHighlighting, clearHighlightInterval])
+  }, [safeText, voice, startHighlighting, clearHighlightInterval, intl])
 
   const handlePlayPause = useCallback(() => {
     if (state === 'idle' || state === 'loading') {
@@ -136,12 +138,12 @@ export function AudioExplanationBlock({ text, voice }: AudioExplanationBlockProp
 
   const buttonLabel =
     state === 'loading'
-      ? 'Cargando...'
+      ? intl.formatMessage({ id: 'audio.loading' })
       : state === 'playing'
-        ? 'Pausar'
+        ? intl.formatMessage({ id: 'audio.pause' })
         : state === 'paused'
-          ? 'Continuar'
-          : 'Escuchar'
+          ? intl.formatMessage({ id: 'audio.resume' })
+          : intl.formatMessage({ id: 'audio.listen' })
 
   return (
     <div data-no-explain="" className={`${INLINE_SURFACE} bg-bg-subtle`}>
@@ -181,7 +183,7 @@ export function AudioExplanationBlock({ text, voice }: AudioExplanationBlockProp
 
         {voice && (
           <span className="text-xs text-text-muted">
-            Voz: {voice}
+            {intl.formatMessage({ id: 'audio.voice' }, { voice })}
           </span>
         )}
       </div>

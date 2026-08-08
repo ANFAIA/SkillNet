@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
+import { useIntl } from 'react-intl'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button, Card, ProgressBar, EmptyState, Skeleton, SkeletonText } from '../../components/ui'
 import { LessonContent } from '../../components/courses/LessonContent'
@@ -87,6 +88,7 @@ function AlertOverlay({ message, onDismiss }: { message: string; onDismiss: () =
 export function CourseView() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const intl = useIntl()
   const { data: course, isLoading, error } = useCourse(id)
   const { data: enrollmentData } = useEnrollments(id ? { course_id: id } : undefined)
   const enrollment = enrollmentData?.items[0] ?? null
@@ -137,8 +139,6 @@ export function CourseView() {
     }
   }, [id, nodesToPrefetch])
 
-  const [showWelcome, setShowWelcome] = useState(true)
-
   const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set())
   const [activeLessonId, setActiveLessonId] = useState<string>('')
   const [direction, setDirection] = useState<1 | -1>(1)
@@ -179,74 +179,38 @@ export function CourseView() {
     )
   }
 
-  if (dynamicNodes && id) {
-    const totalNodes = dynamicNodes.nodes.length
-    const totalMinutes = dynamicNodes.nodes.reduce((s, n) => s + n.estimated_minutes, 0)
-    const masteredCount = dynamicNodes.nodes.filter(n => n.state === 'mastered').length
-    const courseTitle = course?.title ?? 'Curso'
-    const courseDescription = course?.description
+  // --- Auto-navigate: skip welcome + node list, go straight to the lesson ---
+  //
+  // The old flow was: MyCourses → Welcome → NodeList → NodeView (3 clicks).
+  // Now: MyCourses → NodeView (0 extra clicks). The NodeView already renders
+  // the course intro on the first node when progress is zero, so the welcome
+  // screen was redundant. The NodeList is still reachable via the back chevron
+  // in NodeView.
+  const { pathname } = useLocation()
+  const autoNavigatedRef = useRef(false)
 
-    // Welcome screen — shown on first open, gives time for pre-render
-    if (showWelcome && masteredCount === 0) {
-      return (
-        <div>
-          <div className="mb-6 flex items-center gap-3 min-w-0">
-            <span className="w-3 h-3 rounded-full shrink-0 bg-primary" />
-            <h2 className="text-xl font-semibold text-text truncate">{courseTitle}</h2>
-          </div>
+  useEffect(() => {
+    if (!dynamicNodes || !id || autoNavigatedRef.current) return
+    autoNavigatedRef.current = true
 
-          <Card>
-            <div className="space-y-6 py-4">
-              <div>
-                <h3 className="text-lg font-semibold text-text">
-                  Bienvenido a este curso
-                </h3>
-                {courseDescription && (
-                  <p className="text-base text-text-secondary mt-2 leading-relaxed">
-                    {courseDescription}
-                  </p>
-                )}
-              </div>
+    const ordered = [...dynamicNodes.nodes].sort((a, b) => a.position - b.position)
+    const target =
+      ordered.find((n) => n.state === 'learning' && !n.locked) ??
+      ordered.find((n) => n.state === 'not_started' && !n.locked) ??
+      ordered.find((n) => !n.locked)
 
-              <div className="border-l-4 border-primary pl-4 py-1">
-                <p className="text-sm font-medium text-text mb-1">En este curso</p>
-                <p className="text-sm text-text-secondary">
-                  {totalNodes} {totalNodes === 1 ? 'tema' : 'temas'} · {totalMinutes} minutos estimados
-                </p>
-              </div>
-
-              {/* Node overview — a preview of what's coming */}
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-text-muted">Temas del curso</p>
-                <div className="space-y-1.5">
-                  {[...dynamicNodes.nodes]
-                    .sort((a, b) => a.position - b.position)
-                    .slice(0, 6)
-                    .map((node, i) => (
-                      <div key={node.id} className="flex items-center gap-3 px-3 py-2 rounded-md bg-bg-subtle">
-                        <span className="text-xs font-medium text-text-muted w-5 text-center">{i + 1}</span>
-                        <span className="text-sm text-text">{node.title}</span>
-                        <span className="text-xs text-text-muted ml-auto">{node.estimated_minutes} min</span>
-                      </div>
-                    ))}
-                  {totalNodes > 6 && (
-                    <p className="text-xs text-text-muted pl-8">
-                      y {totalNodes - 6} {totalNodes - 6 === 1 ? 'tema' : 'temas'} mas
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <Button variant="primary" className="w-full" onClick={() => setShowWelcome(false)}>
-                Empezar
-              </Button>
-            </div>
-          </Card>
-        </div>
-      )
+    if (target) {
+      // Derive base from current URL — works for both /empleado/curso/:id
+      // and /admin/probar-curso/:id
+      const base = pathname.replace(/\/$/, '')
+      navigate(`${base}/nodo/${target.id}`, { replace: true })
     }
+  }, [dynamicNodes, id, navigate, pathname])
 
-    // Node map — the main course view
+  if (dynamicNodes && id) {
+    const courseTitle = course?.title ?? intl.formatMessage({ id: 'courseview.notFound' })
+
+    // Node map — shown when the learner navigates back from NodeView
     return (
       <div>
         <div className="mb-6 flex items-center gap-3 min-w-0">
@@ -261,9 +225,9 @@ export function CourseView() {
   if (error || !course) {
     return (
       <EmptyState
-        title="Curso no encontrado"
-        description="No se pudo cargar este curso"
-        action={{ label: 'Volver a cursos', onClick: () => navigate(-1) }}
+        title={intl.formatMessage({ id: 'courseview.notFound' })}
+        description={intl.formatMessage({ id: 'courseview.notFoundDesc' })}
+        action={{ label: intl.formatMessage({ id: 'courseview.backToCourses' }), onClick: () => navigate(-1) }}
       />
     )
   }
@@ -288,7 +252,7 @@ export function CourseView() {
     // Prevent navigation to locked lessons.
     const targetProgress = lessonProgressMap.get(lessonId)
     if (targetProgress?.locked) {
-      setToastMessage('Completa la leccion anterior primero')
+      setToastMessage(intl.formatMessage({ id: 'courseview.lockPrevious' }))
       return
     }
     // Record progress for the lesson the user is leaving.
@@ -327,7 +291,7 @@ export function CourseView() {
       ? currentProgress.exercises_passed >= currentProgress.exercises_total
       : false // If no progress data and has exercises, block
     if (hasExercises && !exercisesDone) {
-      setToastMessage('Completa los ejercicios de esta leccion para continuar')
+      setToastMessage(intl.formatMessage({ id: 'courseview.lockExercises' }))
       return
     }
     // Record progress for the lesson the user is leaving.
@@ -355,7 +319,7 @@ export function CourseView() {
           <ProgressBar value={Math.round(progress * 100)} variant="auto" size="lg" showLabel />
         ) : (
           <p className="text-sm text-text-secondary">
-            {course.modules.length} modulos · {allLessons.length} lecciones
+            {intl.formatMessage({ id: 'courseview.modulesLessons' }, { modules: course.modules.length, lessons: allLessons.length })}
           </p>
         )}
       </div>
@@ -364,7 +328,7 @@ export function CourseView() {
         <div className="w-full lg:w-72 lg:shrink-0">
           <Card className="p-0 overflow-hidden">
             {course.modules.length === 0 ? (
-              <div className="p-4 text-sm text-text-muted">Este curso aun no tiene contenido.</div>
+              <div className="p-4 text-sm text-text-muted">{intl.formatMessage({ id: 'courseview.noContent' })}</div>
             ) : (
               course.modules.map((mod) => {
                 const isExpanded = expandedModules.has(mod.id)
@@ -439,14 +403,14 @@ export function CourseView() {
                     .sort((a, b) => a.position - b.position)
                     .map((exercise, i) => (
                       <div key={exercise.id} className="mt-6 border-t border-border pt-6">
-                        <h4 className="text-sm font-medium text-text mb-3">Ejercicio {i + 1}</h4>
+                        <h4 className="text-sm font-medium text-text mb-3">{intl.formatMessage({ id: 'courseview.exerciseNum' }, { num: i + 1 })}</h4>
                         <ExerciseRenderer exercise={exercise} />
                       </div>
                     ))}
 
                   <div className="mt-6 flex justify-end">
                     {currentIndex < allLessons.length - 1 ? (
-                      <Button onClick={goToNext}>Siguiente</Button>
+                      <Button onClick={goToNext}>{intl.formatMessage({ id: 'courseview.next' })}</Button>
                     ) : courseProgress?.can_complete && enrollment?.status !== 'completed' ? (
                       <Button
                         variant="accent"
@@ -462,15 +426,15 @@ export function CourseView() {
                           })
                         }}
                       >
-                        {completeMutation.isPending ? 'Finalizando...' : 'Finalizar curso'}
+                        {completeMutation.isPending ? intl.formatMessage({ id: 'courseview.finalizing' }) : intl.formatMessage({ id: 'courseview.finishCourse' })}
                       </Button>
                     ) : enrollment?.status === 'completed' ? (
                       <Button variant="accent" disabled>
-                        Curso completado
+                        {intl.formatMessage({ id: 'courseview.courseCompleted' })}
                       </Button>
                     ) : (
                       <Button disabled>
-                        Completa todas las lecciones
+                        {intl.formatMessage({ id: 'courseview.completeLessons' })}
                       </Button>
                     )}
                   </div>

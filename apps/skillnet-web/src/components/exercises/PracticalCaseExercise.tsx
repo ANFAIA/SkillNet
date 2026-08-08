@@ -1,10 +1,12 @@
 import { useState } from 'react'
+import { useIntl } from 'react-intl'
 import { Button } from '../ui'
 import { useSubmitAttempt } from '../../api/exercises'
 import { ExerciseResult } from './ExerciseResult'
 import type { Exercise, PracticalCaseContent } from '../../types'
 
 export function PracticalCaseExercise({ exercise }: { exercise: Exercise }) {
+  const intl = useIntl()
   const content = exercise.content as PracticalCaseContent
   const [response, setResponse] = useState('')
   const submit = useSubmitAttempt()
@@ -27,7 +29,7 @@ export function PracticalCaseExercise({ exercise }: { exercise: Exercise }) {
         disabled={done}
         onChange={(e) => setResponse(e.target.value)}
         rows={5}
-        placeholder="Escribe tu respuesta..."
+        placeholder={intl.formatMessage({ id: 'exercise.responsePlaceholder' })}
         className="w-full px-3 py-2 text-sm text-text border border-border rounded-lg bg-bg placeholder:text-text-muted focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-colors disabled:opacity-60 resize-y"
       />
 
@@ -40,12 +42,12 @@ export function PracticalCaseExercise({ exercise }: { exercise: Exercise }) {
             submit.mutate({ exerciseId: exercise.id, answer: { response: response.trim() } })
           }
         >
-          {submit.isPending ? 'Enviando...' : 'Enviar respuesta'}
+          {submit.isPending ? intl.formatMessage({ id: 'exercise.submitting' }) : intl.formatMessage({ id: 'exercise.submitResponse' })}
         </Button>
       )}
 
       {submit.isError && (
-        <p className="mt-3 text-sm text-danger">No se pudo enviar la respuesta.</p>
+        <p className="mt-3 text-sm text-danger">{intl.formatMessage({ id: 'exercise.submitError' })}</p>
       )}
       {result && <ExerciseResult result={result} onRetry={!result.passed ? retry : undefined} />}
     </div>

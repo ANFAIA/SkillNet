@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useIntl } from 'react-intl'
 import { motion, LayoutGroup } from 'framer-motion'
 import { Badge, Card, CardTitle, CourseItem, EmptyState, SkeletonRow } from '../../components/ui'
 import { useEnrollments } from '../../api/enrollments'
@@ -9,48 +10,42 @@ import type { EnrollmentRead } from '../../types'
 
 type Tab = 'in_progress' | 'completed' | 'not_started'
 
-const tabs: { key: Tab; label: string }[] = [
-  { key: 'not_started', label: 'Pendientes' },
-  { key: 'in_progress', label: 'En progreso' },
-  { key: 'completed', label: 'Completados' },
-]
-
-const statusLabel: Record<string, string> = {
-  not_started: 'Pendiente',
-  assigned: 'Pendiente',
-  in_progress: 'En progreso',
-  completed: 'Completado',
-  overdue: 'Atrasado',
-}
-
-/**
- * A node-based course opens as a map of nodes instead of a list of lessons, so the
- * learner is told which of the two they are about to open. `delivery_mode` comes on the
- * enrollment because an employee cannot read `GET /courses`, and it only says
- * `'dynamic'` when the schema is validated and the flag is `on` — so no extra gate is
- * needed here.
- */
-function dynamicBadge(e: EnrollmentRead) {
-  if (e.delivery_mode !== 'dynamic') return undefined
-  return (
-    <Badge variant="primary" badgeStyle="plain">
-      Por nodos
-    </Badge>
-  )
-}
-
-function subtitleFor(e: EnrollmentRead): string {
-  const label = statusLabel[e.status] ?? e.status
-  if (e.deadline) {
-    return `${label} · Fecha limite ${new Date(e.deadline).toLocaleDateString()}`
-  }
-  return label
-}
-
 export function MyCourses() {
+  const intl = useIntl()
   const [activeTab, setActiveTab] = useState<Tab>('not_started')
   const navigate = useNavigate()
   const { data, isLoading, error } = useEnrollments()
+
+  const tabs: { key: Tab; label: string }[] = [
+    { key: 'not_started', label: intl.formatMessage({ id: 'mycourses.notStarted' }) },
+    { key: 'in_progress', label: intl.formatMessage({ id: 'mycourses.inProgress' }) },
+    { key: 'completed', label: intl.formatMessage({ id: 'mycourses.completed' }) },
+  ]
+
+  const statusLabel: Record<string, string> = {
+    not_started: intl.formatMessage({ id: 'mycourses.statusPending' }),
+    assigned: intl.formatMessage({ id: 'mycourses.statusPending' }),
+    in_progress: intl.formatMessage({ id: 'mycourses.statusInProgress' }),
+    completed: intl.formatMessage({ id: 'mycourses.statusCompleted' }),
+    overdue: intl.formatMessage({ id: 'mycourses.statusOverdue' }),
+  }
+
+  function dynamicBadge(e: EnrollmentRead) {
+    if (e.delivery_mode !== 'dynamic') return undefined
+    return (
+      <Badge variant="primary" badgeStyle="plain">
+        {intl.formatMessage({ id: 'mycourses.byNodes' })}
+      </Badge>
+    )
+  }
+
+  function subtitleFor(e: EnrollmentRead): string {
+    const label = statusLabel[e.status] ?? e.status
+    if (e.deadline) {
+      return intl.formatMessage({ id: 'mycourses.deadline' }, { label, date: new Date(e.deadline).toLocaleDateString() })
+    }
+    return label
+  }
 
   const items = data?.items ?? []
   const filtered = items.filter((e) => {
@@ -63,7 +58,7 @@ export function MyCourses() {
 
   return (
     <div>
-      <h2 className="text-xl font-semibold text-text mb-6">Mis Cursos</h2>
+      <h2 className="text-xl font-semibold text-text mb-6">{intl.formatMessage({ id: 'mycourses.title' })}</h2>
 
       <LayoutGroup>
         <div className="flex gap-1 mb-6 border-b border-border">
@@ -101,19 +96,19 @@ export function MyCourses() {
           </div>
         ) : error ? (
           <EmptyState
-            title="No se pudieron cargar los cursos"
+            title={intl.formatMessage({ id: 'mycourses.loadError' })}
             description={
               error instanceof ApiError
-                ? error.body?.detail ?? 'Error del servidor'
+                ? error.body?.detail ?? intl.formatMessage({ id: 'mycourses.serverError' })
                 : error instanceof Error
                   ? error.message
-                  : 'Comprueba tu conexion e intentalo de nuevo'
+                  : intl.formatMessage({ id: 'mycourses.connectionError' })
             }
           />
         ) : filtered.length === 0 ? (
           <EmptyState
-            title="No hay cursos en esta categoria"
-            description="Los cursos apareceran aqui cuando esten disponibles"
+            title={intl.formatMessage({ id: 'mycourses.emptyTitle' })}
+            description={intl.formatMessage({ id: 'mycourses.emptyDesc' })}
           />
         ) : (
           <>

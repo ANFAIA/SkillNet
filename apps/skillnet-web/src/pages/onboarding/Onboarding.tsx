@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
+import { useIntl } from 'react-intl'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Button, Card, StepIndicator } from '../../components/ui'
 import { ShimmerSkeleton } from '../../components/ui/ShimmerSkeleton'
@@ -103,6 +104,7 @@ function LoadingShell() {
  */
 export function Onboarding() {
   const navigate = useNavigate()
+  const intl = useIntl()
   const reduceMotion = useReducedMotion()
 
   const questionsQuery = useOnboardingQuestions()
@@ -214,13 +216,13 @@ export function Onboarding() {
     }
     return (
       <Shell>
-        <p className="text-sm text-text">No hemos podido cargar las preguntas.</p>
+        <p className="text-sm text-text">{intl.formatMessage({ id: 'onboarding.loadError' })}</p>
         <div className="flex items-center gap-2 mt-4">
           <Button variant="secondary" onClick={() => questionsQuery.refetch()}>
-            Reintentar
+            {intl.formatMessage({ id: 'onboarding.retry' })}
           </Button>
           <Button variant="ghost" onClick={() => navigate(AFTER_ONBOARDING, { replace: true })}>
-            Lo hago luego
+            {intl.formatMessage({ id: 'onboarding.skipForNow' })}
           </Button>
         </div>
       </Shell>
@@ -265,7 +267,7 @@ export function Onboarding() {
 
   const stepBody = (
     <>
-      <h1 className="sr-only">Personaliza tu formación</h1>
+      <h1 className="sr-only">{intl.formatMessage({ id: 'onboarding.srTitle' })}</h1>
       {renderQuestion(currentQuestion)}
     </>
   )
@@ -279,7 +281,7 @@ export function Onboarding() {
             <StepIndicator current={step} total={total} />
           </div>
           <p role="status" className="sr-only">
-            Paso {step + 1} de {total}
+            {intl.formatMessage({ id: 'onboarding.stepOf' }, { current: step + 1, total })}
           </p>
         </>
       }
@@ -326,12 +328,12 @@ export function Onboarding() {
           <p className="text-sm text-danger mt-4">
             {submit.error instanceof ApiError
               ? submit.error.body.detail
-              : 'No hemos podido guardar tus respuestas.'}
+              : intl.formatMessage({ id: 'onboarding.submitError' })}
           </p>
         )}
         {skip.isError && (
           <p className="text-sm text-danger mt-4">
-            No hemos podido continuar. Inténtalo de nuevo.
+            {intl.formatMessage({ id: 'onboarding.skipError' })}
           </p>
         )}
 
@@ -339,18 +341,18 @@ export function Onboarding() {
           <div>
             {step > 0 && (
               <Button type="button" variant="secondary" onClick={handleBack} disabled={pending}>
-                Atrás
+                {intl.formatMessage({ id: 'onboarding.back' })}
               </Button>
             )}
           </div>
           <Button type="submit" variant="primary" disabled={pending || !isAnswered(currentQuestion)}>
-            {isLastStep ? (submit.isPending ? 'Guardando...' : 'Finalizar') : 'Continuar'}
+            {isLastStep ? (submit.isPending ? intl.formatMessage({ id: 'onboarding.saving' }) : intl.formatMessage({ id: 'onboarding.finish' })) : intl.formatMessage({ id: 'onboarding.continue' })}
           </Button>
         </div>
 
         <div className="flex justify-center mt-3">
           <Button type="button" variant="ghost" size="sm" onClick={handleSkip} disabled={pending}>
-            Lo hago luego
+            {intl.formatMessage({ id: 'onboarding.skipForNow' })}
           </Button>
         </div>
       </form>

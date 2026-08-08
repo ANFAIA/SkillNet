@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { useIntl } from 'react-intl'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button, Badge, Card, EmptyState, Input, Skeleton, SkeletonText } from '../../components/ui'
 import { LessonContent } from '../../components/courses/LessonContent'
@@ -22,15 +23,20 @@ function ChevronDown({ open }: { open: boolean }) {
   )
 }
 
-const statusConfig: Record<string, { label: string; variant: 'accent' | 'warning' | 'primary' }> = {
-  published: { label: 'Publicado', variant: 'accent' },
-  draft: { label: 'Borrador', variant: 'warning' },
-  archived: { label: 'Archivado', variant: 'primary' },
+function useStatusConfig() {
+  const intl = useIntl()
+  return {
+    published: { label: intl.formatMessage({ id: 'status.published' }), variant: 'accent' as const },
+    draft: { label: intl.formatMessage({ id: 'status.draft' }), variant: 'warning' as const },
+    archived: { label: intl.formatMessage({ id: 'status.archived' }), variant: 'primary' as const },
+  }
 }
 
 export function CoursePreview() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const intl = useIntl()
+  const statusConfig = useStatusConfig()
   const { data: course, isLoading, error } = useCourse(id)
   // Where the content came from. A course built on a source the model wrote is not the
   // same claim as one built on the company's own material, and the creator has to be
@@ -78,14 +84,14 @@ export function CoursePreview() {
   if (error || !course) {
     return (
       <EmptyState
-        title="Curso no encontrado"
-        description="No se pudo cargar este curso"
-        action={{ label: 'Volver a contenido', onClick: () => navigate('/admin/contenido') }}
+        title={intl.formatMessage({ id: 'preview.notFound' })}
+        description={intl.formatMessage({ id: 'preview.notFoundDesc' })}
+        action={{ label: intl.formatMessage({ id: 'preview.backToContent' }), onClick: () => navigate('/admin/contenido') }}
       />
     )
   }
 
-  const status = statusConfig[course.status] ?? { label: course.status, variant: 'primary' as const }
+  const status = statusConfig[course.status as keyof typeof statusConfig] ?? { label: course.status, variant: 'primary' as const }
 
   function startEditing() {
     if (!course) return
@@ -133,12 +139,12 @@ export function CoursePreview() {
         {editing ? (
           <div className="space-y-3">
             <Input
-              label="Titulo"
+              label={intl.formatMessage({ id: 'preview.titleLabel' })}
               value={editTitle}
               onChange={(e) => setEditTitle(e.target.value)}
             />
             <div className="space-y-1">
-              <label className="block text-sm font-medium text-text">Descripcion</label>
+              <label className="block text-sm font-medium text-text">{intl.formatMessage({ id: 'preview.descLabel' })}</label>
               <textarea
                 className="w-full px-3 py-2 text-sm text-text border border-border rounded-lg bg-bg placeholder:text-text-muted focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-colors duration-150 min-h-[80px] resize-y"
                 value={editDescription}
@@ -146,7 +152,7 @@ export function CoursePreview() {
               />
             </div>
             <Input
-              label="Objetivo de aprendizaje"
+              label={intl.formatMessage({ id: 'preview.outcomeLabel' })}
               value={editOutcome}
               onChange={(e) => setEditOutcome(e.target.value)}
             />
@@ -156,13 +162,13 @@ export function CoursePreview() {
                 onClick={saveEditing}
                 disabled={updateCourse.isPending || !editTitle.trim()}
               >
-                {updateCourse.isPending ? 'Guardando...' : 'Guardar'}
+                {updateCourse.isPending ? intl.formatMessage({ id: 'preview.saving' }) : intl.formatMessage({ id: 'preview.save' })}
               </Button>
               <Button variant="ghost" size="sm" onClick={cancelEditing} disabled={updateCourse.isPending}>
-                Cancelar
+                {intl.formatMessage({ id: 'preview.cancel' })}
               </Button>
               {updateCourse.isError && (
-                <span className="text-xs text-danger">Error al guardar</span>
+                <span className="text-xs text-danger">{intl.formatMessage({ id: 'preview.saveError' })}</span>
               )}
             </div>
           </div>
@@ -174,7 +180,7 @@ export function CoursePreview() {
                 onClick={() => navigate('/admin/contenido')}
                 role="button"
               >
-                Contenido
+                {intl.formatMessage({ id: 'content.title' })}
               </h2>
               <motion.span
                 key="breadcrumb-course"
@@ -192,32 +198,32 @@ export function CoursePreview() {
               <p className="text-sm text-text-secondary mb-1">{course.description}</p>
             )}
             {course.outcome && (
-              <p className="text-sm text-text-muted mb-1">Objetivo: {course.outcome}</p>
+              <p className="text-sm text-text-muted mb-1">{intl.formatMessage({ id: 'preview.objective' }, { outcome: course.outcome })}</p>
             )}
             <p className="text-sm text-text-secondary">
-              {course.modules.length} modulos · {allLessons.length} lecciones
+              {intl.formatMessage({ id: 'preview.modulesLessons' }, { modules: course.modules.length, lessons: allLessons.length })}
             </p>
             {sourceDoc && (
               <p className="text-sm text-text-secondary mt-1 flex items-center gap-2 flex-wrap">
-                <span className="text-text-muted">Fuente:</span>
+                <span className="text-text-muted">{intl.formatMessage({ id: 'preview.source' })}</span>
                 <span className="truncate">{sourceDoc.title}</span>
                 {sourceDoc.origin === 'generated' && (
                   <Badge variant="warning" badgeStyle="plain" className="shrink-0">
-                    Documento generado con IA
+                    {intl.formatMessage({ id: 'preview.aiGenerated' })}
                   </Badge>
                 )}
               </p>
             )}
             <div className="flex items-center gap-2 mt-3">
               <Button variant="secondary" size="sm" onClick={startEditing}>
-                Editar
+                {intl.formatMessage({ id: 'preview.edit' })}
               </Button>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => navigate(`/admin/curso/${id}/esquema`)}
               >
-                Esquema
+                {intl.formatMessage({ id: 'preview.schema' })}
               </Button>
               {course.status === 'draft' && (
                 <Button
@@ -226,7 +232,7 @@ export function CoursePreview() {
                   onClick={() => id && publishCourse.mutate(id)}
                   disabled={publishCourse.isPending}
                 >
-                  {publishCourse.isPending ? 'Publicando...' : 'Publicar'}
+                  {publishCourse.isPending ? intl.formatMessage({ id: 'preview.publishing' }) : intl.formatMessage({ id: 'preview.publish' })}
                 </Button>
               )}
               {course.status === 'published' && (
@@ -236,11 +242,11 @@ export function CoursePreview() {
                   onClick={() => id && archiveCourse.mutate(id)}
                   disabled={archiveCourse.isPending}
                 >
-                  {archiveCourse.isPending ? 'Archivando...' : 'Archivar'}
+                  {archiveCourse.isPending ? intl.formatMessage({ id: 'preview.archiving' }) : intl.formatMessage({ id: 'preview.archive' })}
                 </Button>
               )}
               {(publishCourse.isError || archiveCourse.isError) && (
-                <span className="text-xs text-danger">Error al cambiar estado</span>
+                <span className="text-xs text-danger">{intl.formatMessage({ id: 'preview.statusError' })}</span>
               )}
             </div>
           </>
@@ -251,7 +257,7 @@ export function CoursePreview() {
         <div className="w-full lg:w-72 lg:shrink-0">
           <Card className="p-0 overflow-hidden">
             {course.modules.length === 0 ? (
-              <div className="p-4 text-sm text-text-muted">Este curso aun no tiene contenido.</div>
+              <div className="p-4 text-sm text-text-muted">{intl.formatMessage({ id: 'preview.noContent' })}</div>
             ) : (
               course.modules.map((mod) => {
                 const isExpanded = expandedModules.has(mod.id)
@@ -317,7 +323,7 @@ export function CoursePreview() {
                     .sort((a, b) => a.position - b.position)
                     .map((exercise, i) => (
                       <div key={exercise.id} className="mt-6 border-t border-border pt-6">
-                        <h4 className="text-sm font-medium text-text mb-3">Ejercicio {i + 1}</h4>
+                        <h4 className="text-sm font-medium text-text mb-3">{intl.formatMessage({ id: 'preview.exerciseNum' }, { num: i + 1 })}</h4>
                         <ExerciseRenderer exercise={exercise} />
                       </div>
                     ))}
@@ -331,7 +337,7 @@ export function CoursePreview() {
                           setActiveLessonId(allLessons[currentIndex - 1].id)
                         }}
                       >
-                        ← Anterior
+                        {intl.formatMessage({ id: 'preview.previous' })}
                       </Button>
                     ) : <div />}
                     {currentIndex < allLessons.length - 1 ? (
@@ -341,11 +347,11 @@ export function CoursePreview() {
                           setActiveLessonId(allLessons[currentIndex + 1].id)
                         }}
                       >
-                        Siguiente →
+                        {intl.formatMessage({ id: 'preview.next' })}
                       </Button>
                     ) : (
                       <Button variant="ghost" onClick={() => navigate('/admin/contenido')}>
-                        Volver a contenido
+                        {intl.formatMessage({ id: 'preview.backToContent' })}
                       </Button>
                     )}
                   </div>

@@ -1,10 +1,12 @@
 import { useState } from 'react'
+import { useIntl } from 'react-intl'
 import { Button } from '../ui'
 import { useSubmitAttempt, useCorrectExercise } from '../../api/exercises'
 import { ExerciseResult } from './ExerciseResult'
 import type { Exercise, TrueFalseContent } from '../../types'
 
 export function TrueFalseExercise({ exercise }: { exercise: Exercise }) {
+  const intl = useIntl()
   const content = exercise.content as TrueFalseContent
   const [answer, setAnswer] = useState<boolean | null>(null)
   const submit = useSubmitAttempt()
@@ -27,8 +29,8 @@ export function TrueFalseExercise({ exercise }: { exercise: Exercise }) {
   }
 
   const options: { label: string; value: boolean }[] = [
-    { label: 'Verdadero', value: true },
-    { label: 'Falso', value: false },
+    { label: intl.formatMessage({ id: 'exercise.true' }), value: true },
+    { label: intl.formatMessage({ id: 'exercise.false' }), value: false },
   ]
 
   return (
@@ -63,12 +65,12 @@ export function TrueFalseExercise({ exercise }: { exercise: Exercise }) {
             submit.mutate({ exerciseId: exercise.id, answer: { answer } })
           }
         >
-          {submit.isPending ? 'Comprobando...' : 'Comprobar'}
+          {submit.isPending ? intl.formatMessage({ id: 'exercise.checking' }) : intl.formatMessage({ id: 'exercise.check' })}
         </Button>
       )}
 
       {submit.isError && (
-        <p className="mt-3 text-sm text-danger">No se pudo enviar la respuesta.</p>
+        <p className="mt-3 text-sm text-danger">{intl.formatMessage({ id: 'exercise.submitError' })}</p>
       )}
       {result && <ExerciseResult result={result} onRetry={!result.passed ? retry : undefined} onCorrect={!result.passed ? correct : undefined} />}
     </div>

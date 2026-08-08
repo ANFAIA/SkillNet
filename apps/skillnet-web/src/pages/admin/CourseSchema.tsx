@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { useIntl } from 'react-intl'
 import { get, post } from '../../api/client'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -120,6 +121,7 @@ function isNodeDirty(node: DraftNode, position: number, server: CourseSchemaNode
 export function CourseSchema() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const intl = useIntl()
 
   const schemaQuery = useCourseSchema(id)
   const courseQuery = useCourse(id)
@@ -192,7 +194,7 @@ export function CourseSchema() {
   const nodeLabels = useMemo(() => {
     const labels: Record<string, string> = {}
     draft.forEach((node, index) => {
-      if (node.id) labels[node.id] = `${index + 1}. ${node.title || 'Nodo sin titulo'}`
+      if (node.id) labels[node.id] = `${index + 1}. ${node.title || intl.formatMessage({ id: 'schema.nodeNoTitle' })}`
     })
     for (const node of server?.nodes ?? []) {
       if (!labels[node.id]) labels[node.id] = `${node.position}. ${node.title}`
@@ -427,9 +429,9 @@ export function CourseSchema() {
   if (schemaQuery.error || !server) {
     return (
       <EmptyState
-        title="No se pudo cargar el esquema"
-        description="Vuelve a intentarlo en unos segundos."
-        action={{ label: 'Reintentar', onClick: () => void schemaQuery.refetch() }}
+        title={intl.formatMessage({ id: 'schema.loadError' })}
+        description={intl.formatMessage({ id: 'schema.loadErrorDesc' })}
+        action={{ label: intl.formatMessage({ id: 'schema.retry' }), onClick: () => void schemaQuery.refetch() }}
       />
     )
   }
@@ -450,7 +452,7 @@ export function CourseSchema() {
             onClick={() => navigate('/admin/contenido')}
             role="button"
           >
-            Contenido
+            {intl.formatMessage({ id: 'content.title' })}
           </h2>
           <motion.span
             key="breadcrumb-course"
@@ -458,11 +460,11 @@ export function CourseSchema() {
             initial={{ opacity: 0, x: -8 }}
             animate={{ opacity: 1, x: 0, transition: { duration: duration.normal, ease: ease.base } }}
           >
-            / {courseQuery.data?.title ?? 'Esquema del curso'}
+            / {courseQuery.data?.title ?? intl.formatMessage({ id: 'content.schema' })}
           </motion.span>
         </div>
         <p className="text-sm text-text-secondary mt-1">
-          {draft.length} {draft.length === 1 ? 'nodo' : 'nodos'}
+          {intl.formatMessage({ id: draft.length === 1 ? 'schema.nodesSingular' : 'schema.nodesPlural' }, { count: draft.length })}
           {totalMinutes > 0 && ` · ${totalMinutes} min`}
         </p>
       </motion.div>
@@ -485,8 +487,8 @@ export function CourseSchema() {
       {draft.length === 0 ? (
         <Card>
           <EmptyState
-            title="Este curso no tiene esquema todavia"
-            description="Propon un esquema a partir del documento de origen y luego revisa nodo a nodo, o construyelo a mano."
+            title={intl.formatMessage({ id: 'schema.emptyTitle' })}
+            description={intl.formatMessage({ id: 'schema.emptyDesc' })}
           />
           <div className="max-w-md mx-auto">
             <IntentDensitySlider
@@ -500,16 +502,16 @@ export function CourseSchema() {
                 disabled={proposeSchema.isPending || proposeJob.running}
               >
                 {proposeJob.running || proposeSchema.isPending
-                  ? 'Proponiendo esquema...'
-                  : 'Proponer esquema'}
+                  ? intl.formatMessage({ id: 'schema.proposing' })
+                  : intl.formatMessage({ id: 'schema.propose' })}
               </Button>
               <Button variant="secondary" onClick={addNode}>
-                Anadir nodo a mano
+                {intl.formatMessage({ id: 'schema.addNodeManual' })}
               </Button>
             </div>
             {proposeJob.failed && (
               <p role="alert" className="text-sm text-danger mt-3">
-                {proposeJob.error ?? 'La propuesta de esquema fallo.'}
+                {proposeJob.error ?? intl.formatMessage({ id: 'schema.proposeFailed' })}
               </p>
             )}
           </div>
@@ -570,7 +572,7 @@ export function CourseSchema() {
               className="w-full mt-2 px-2 py-1.5 rounded-md text-sm text-text-muted hover:text-primary hover:bg-bg-muted transition-colors flex items-center gap-2"
             >
               <PlusIcon />
-              Anadir nodo
+              {intl.formatMessage({ id: 'schema.addNode' })}
             </button>
           </div>
 
@@ -586,15 +588,15 @@ export function CourseSchema() {
             <Card>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-text-muted">Nodos</span>
+                  <span className="text-text-muted">{intl.formatMessage({ id: 'schema.nodesLabel' })}</span>
                   <span className="text-text font-medium">{liveNodes.length}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-text-muted">Imprescindibles</span>
+                  <span className="text-text-muted">{intl.formatMessage({ id: 'schema.criticalLabel' })}</span>
                   <span className="text-text font-medium">{criticalCount}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-text-muted">Tiempo est.</span>
+                  <span className="text-text-muted">{intl.formatMessage({ id: 'schema.estimatedTime' })}</span>
                   <span className="text-text font-medium">{totalMinutes} min</span>
                 </div>
               </div>
@@ -616,16 +618,16 @@ export function CourseSchema() {
                   className="w-full"
                 >
                     {proposeJob.running || proposeSchema.isPending
-                      ? 'Proponiendo...'
-                      : 'Volver a proponer'}
+                      ? intl.formatMessage({ id: 'schema.reproposing' })
+                      : intl.formatMessage({ id: 'schema.repropose' })}
                   </Button>
                   <p className="text-xs text-text-muted mt-1">
-                    Reemplaza los nodos propuestos por una tanda nueva.
+                    {intl.formatMessage({ id: 'schema.reproposeHint' })}
                   </p>
                 </div>
               {proposeJob.failed && (
                 <p role="alert" className="text-xs text-danger mt-2">
-                  {proposeJob.error ?? 'La propuesta fallo.'}
+                  {proposeJob.error ?? intl.formatMessage({ id: 'schema.reproposeFailed' })}
                 </p>
               )}
             </Card>
@@ -640,10 +642,10 @@ export function CourseSchema() {
                   disabled={updateSchema.isPending || validateSchema.isPending || unvalidateSchema.isPending}
                 >
                   {updateSchema.isPending || unvalidateSchema.isPending
-                    ? 'Guardando...'
+                    ? intl.formatMessage({ id: 'schema.savingSchema' })
                     : validateSchema.isPending
-                      ? 'Activando...'
-                      : 'Guardar y activar'}
+                      ? intl.formatMessage({ id: 'schema.activating' })
+                      : intl.formatMessage({ id: 'schema.saveAndActivate' })}
                 </Button>
               )}
               <Button
@@ -653,12 +655,12 @@ export function CourseSchema() {
                 disabled={draft.length === 0 || assignCourse.isPending || updateSchema.isPending || validateSchema.isPending}
               >
                 {updateSchema.isPending || unvalidateSchema.isPending
-                  ? 'Guardando...'
+                  ? intl.formatMessage({ id: 'schema.savingSchema' })
                   : validateSchema.isPending
-                    ? 'Activando...'
+                    ? intl.formatMessage({ id: 'schema.activating' })
                     : assignCourse.isPending
-                      ? 'Preparando...'
-                      : 'Probar curso'}
+                      ? intl.formatMessage({ id: 'schema.preparing' })
+                      : intl.formatMessage({ id: 'schema.testCourse' })}
               </Button>
             </div>
           </motion.div>
@@ -673,8 +675,8 @@ export function CourseSchema() {
               <CriticalityBadge criticality="critical" />
               <span className="text-xs text-text-muted">
                 {criticalCount === 1
-                  ? '1 nodo decide el cierre del curso'
-                  : `${criticalCount} nodos deciden el cierre del curso`}
+                  ? intl.formatMessage({ id: 'schema.criticalSingular' })
+                  : intl.formatMessage({ id: 'schema.criticalPlural' }, { count: criticalCount })}
               </span>
             </>
           )}
@@ -685,7 +687,7 @@ export function CourseSchema() {
       {previewNodeId && (
         <NodePreview
           nodeId={previewNodeId}
-          nodeTitle={draft.find((n) => n.id === previewNodeId)?.title ?? 'Nodo'}
+          nodeTitle={draft.find((n) => n.id === previewNodeId)?.title ?? intl.formatMessage({ id: 'schema.nodeDefaultTitle' })}
           open={!!previewNodeId}
           onClose={() => setPreviewNodeId(null)}
           origin={previewOrigin}

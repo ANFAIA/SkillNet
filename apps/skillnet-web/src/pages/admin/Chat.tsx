@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { FormEvent, KeyboardEvent } from 'react'
+import { useIntl } from 'react-intl'
 import { ChatAnswer } from '../../components/chat'
 import { useChat } from '../../api/chat'
 import type { ChatMessage } from '../../types'
@@ -7,6 +8,7 @@ import type { ChatMessage } from '../../types'
 const COMPOSER_MAX_HEIGHT = 200
 
 function Bubble({ message }: { message: ChatMessage }) {
+  const intl = useIntl()
   const isUser = message.role === 'user'
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
@@ -17,7 +19,7 @@ function Bubble({ message }: { message: ChatMessage }) {
       >
         {!isUser && message.grounding === 'general' && (
           <p className="text-xs text-text-muted mb-1.5" data-grounding="general">
-            Conocimiento general: no sale de la documentacion subida
+            {intl.formatMessage({ id: 'chat.grounding' })}
           </p>
         )}
 
@@ -32,6 +34,7 @@ function Bubble({ message }: { message: ChatMessage }) {
 }
 
 export function AdminChat() {
+  const intl = useIntl()
   const { messages, sendMessage, cancel, isStreaming } = useChat('/chat/admin')
   const [input, setInput] = useState('')
   const [focused, setFocused] = useState(false)
@@ -89,8 +92,8 @@ export function AdminChat() {
   return (
     <div className="flex flex-col flex-1 min-h-0">
       <div className="shrink-0 mb-4">
-        <h2 className="text-xl font-semibold text-text">Asistente</h2>
-        <p className="text-sm text-text-secondary mt-0.5">Pregunta sobre cursos, empleados o la plataforma</p>
+        <h2 className="text-xl font-semibold text-text">{intl.formatMessage({ id: 'chat.title' })}</h2>
+        <p className="text-sm text-text-secondary mt-0.5">{intl.formatMessage({ id: 'chat.subtitle' })}</p>
       </div>
 
       <div
@@ -101,8 +104,8 @@ export function AdminChat() {
         <div className="space-y-4 pb-4">
           {messages.length === 0 && (
             <div className="text-center py-12 px-4">
-              <p className="text-sm font-medium text-text">¿En que puedo ayudarte?</p>
-              <p className="text-sm text-text-secondary mt-1">Gestion de cursos, empleados y la plataforma.</p>
+              <p className="text-sm font-medium text-text">{intl.formatMessage({ id: 'chat.emptyTitle' })}</p>
+              <p className="text-sm text-text-secondary mt-1">{intl.formatMessage({ id: 'chat.emptySubtitle' })}</p>
             </div>
           )}
           {messages.map((msg) => (
@@ -122,7 +125,7 @@ export function AdminChat() {
               onFocus={() => setFocused(true)}
               onBlur={() => setFocused(false)}
               rows={1}
-              placeholder="Escribe tu consulta..."
+              placeholder={intl.formatMessage({ id: 'chat.placeholder' })}
               className="min-h-[44px] max-h-[200px] flex-1 resize-none overflow-y-hidden rounded-3xl bg-bg-muted px-4 py-[11px] text-sm leading-normal text-text outline-none placeholder:text-text-muted"
               style={{
                 marginRight: active ? 52 : 0,
@@ -142,7 +145,7 @@ export function AdminChat() {
                 type={isStreaming ? 'button' : 'submit'}
                 onClick={isStreaming ? cancel : undefined}
                 disabled={!isStreaming && !input.trim()}
-                aria-label={isStreaming ? 'Detener' : 'Enviar'}
+                aria-label={isStreaming ? intl.formatMessage({ id: 'chat.stop' }) : intl.formatMessage({ id: 'chat.send' })}
                 className="flex h-11 w-11 items-center justify-center rounded-full bg-bg-muted text-text-muted transition-colors hover:bg-primary hover:text-white disabled:text-text-muted disabled:hover:bg-bg-muted"
               >
                 {isStreaming ? (

@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useIntl } from 'react-intl'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useMe, useLogout } from '../../api/auth'
 import { useSidebar } from '../../contexts/SidebarContext'
 import { transition, duration, ease } from '../../lib/motion'
 
 export function Header() {
+  const intl = useIntl()
   const { data: user } = useMe()
   const logout = useLogout()
   const navigate = useNavigate()
@@ -40,7 +42,7 @@ export function Header() {
       <motion.button
         type="button"
         onClick={() => setMobileOpen(true)}
-        aria-label="Abrir menu"
+        aria-label={intl.formatMessage({ id: 'header.openMenu' })}
         className="md:hidden w-9 h-9 -ml-1 flex items-center justify-center rounded-lg text-white/90 hover:text-white cursor-pointer"
         whileTap={{ scale: 0.9 }}
         transition={transition.micro}
@@ -57,7 +59,7 @@ export function Header() {
           type="button"
           onClick={() => setOpen((v) => !v)}
           className="w-8 h-8 rounded-full border border-white/30 flex items-center justify-center text-white hover:border-white/60 transition-colors cursor-pointer"
-          aria-label="Cuenta"
+          aria-label={intl.formatMessage({ id: 'header.account' })}
           aria-haspopup="menu"
           aria-expanded={open}
           whileHover={{ scale: 1.05 }}
@@ -98,7 +100,7 @@ export function Header() {
                   whileTap={{ scale: 0.98 }}
                   transition={transition.micro}
                 >
-                  Preferencias de aprendizaje
+                  {intl.formatMessage({ id: 'header.learningPreferences' })}
                 </motion.button>
               )}
               <motion.button
@@ -110,7 +112,7 @@ export function Header() {
                 whileTap={{ scale: 0.98 }}
                 transition={transition.micro}
               >
-                {logout.isPending ? 'Cerrando...' : 'Cerrar sesion'}
+                {logout.isPending ? intl.formatMessage({ id: 'header.loggingOut' }) : intl.formatMessage({ id: 'header.logout' })}
               </motion.button>
             </motion.div>
           )}

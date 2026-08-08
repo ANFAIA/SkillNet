@@ -31,6 +31,7 @@ import {
   useState,
 } from 'react'
 import type { ElementType, KeyboardEvent, ReactElement, ReactNode } from 'react'
+import { useIntl } from 'react-intl'
 import { tokenize } from '../../lib/tokenize'
 
 /** Class the surface's hit-test looks for. */
@@ -144,9 +145,6 @@ export interface ClickableTextProps {
   as?: 'span' | 'div' | 'p'
 }
 
-const DEFAULT_LABEL =
-  'Texto explorable. Usa las flechas para elegir una palabra y Enter para ver su explicacion.'
-
 /**
  * Wrap rendered prose so its words are clickable and reachable from the keyboard.
  * One tab stop per block; `aria-activedescendant` tells assistive tech which word
@@ -158,6 +156,8 @@ export function ClickableText({
   label,
   as = 'span',
 }: ClickableTextProps) {
+  const intl = useIntl()
+  const defaultLabel = intl.formatMessage({ id: 'clickabletext.ariaLabel' })
   const ref = useRef<HTMLElement>(null)
   const groupId = useId().replace(/:/g, '')
   const [cursor, setCursor] = useState(-1)
@@ -233,7 +233,7 @@ export function ClickableText({
         ref={ref}
         role="group"
         tabIndex={0}
-        aria-label={label ?? DEFAULT_LABEL}
+        aria-label={label ?? defaultLabel}
         aria-activedescendant={activeId}
         onKeyDown={onKeyDown}
         onBlur={() => setCursor(-1)}

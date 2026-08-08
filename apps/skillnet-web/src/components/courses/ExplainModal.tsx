@@ -19,6 +19,7 @@ import {
 } from 'react'
 import type { FormEvent, KeyboardEvent } from 'react'
 import { createPortal } from 'react-dom'
+import { useIntl } from 'react-intl'
 import { ClickableSurface } from './ClickableSurface'
 import { ExplainLayer, EXPLAIN_LAYER_MODAL } from './explainLayer'
 import { UiSpecRenderer } from './UiSpecRenderer'
@@ -153,6 +154,7 @@ function ExplanationPanel({
   context,
   language,
 }: ExplanationPanelProps) {
+  const intl = useIntl()
   const [content, setContent] = useState('')
   const [program, setProgram] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -220,7 +222,7 @@ function ExplanationPanel({
         setIsLoading(false)
       } catch {
         if (controller.signal.aborted) return
-        setError('No se pudo generar la explicacion.')
+        setError(intl.formatMessage({ id: 'explain.error' }))
         setIsLoading(false)
       }
     })()
@@ -237,14 +239,14 @@ function ExplanationPanel({
   ) : showBlocks ? (
     <UiSpecRenderer program={program!} nodeId="" format="explanation" arriving />
   ) : isLoading ? (
-    <span className="typing-dots" aria-label="Generando explicacion">
+    <span className="typing-dots" aria-label={intl.formatMessage({ id: 'explain.generating' })}>
       <span /><span /><span />
     </span>
   ) : content && !program ? (
     // Only show content as markdown if no program was attempted
     <ChatMarkdown content={content} isStreaming={false} />
   ) : (
-    <p className="text-sm text-text-muted">No se pudo generar la explicacion. Prueba de nuevo.</p>
+    <p className="text-sm text-text-muted">{intl.formatMessage({ id: 'explain.errorRetry' })}</p>
   )
 
   return <div aria-live="polite">{body}</div>
@@ -336,6 +338,7 @@ function FollowUpMessages({ messages }: { messages: FollowUpMessage[] }) {
 
 // Composer input — outside the scroll, sticky at bottom of the card
 function FollowUpInput({ onSend }: { onSend: (text: string) => void }) {
+  const intl = useIntl()
   const [input, setInput] = useState('')
 
   function handleSubmit(e: FormEvent) {
@@ -360,13 +363,13 @@ function FollowUpInput({ onSend }: { onSend: (text: string) => void }) {
         onChange={(e) => setInput(e.target.value)}
         onKeyDown={onKeyDown}
         rows={1}
-        placeholder="Pregunta algo mas..."
+        placeholder={intl.formatMessage({ id: 'explain.followUpPlaceholder' })}
         className="flex-1 min-h-[36px] max-h-[100px] resize-none rounded-2xl bg-bg-muted px-3 py-2 text-sm text-text outline-none placeholder:text-text-muted"
       />
       <button
         type="submit"
         disabled={!input.trim()}
-        aria-label="Enviar"
+        aria-label={intl.formatMessage({ id: 'explain.sendFollowUp' })}
         className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-bg-muted text-text-muted hover:bg-primary hover:text-white disabled:opacity-30 transition-colors"
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -387,6 +390,7 @@ export function ExplainModal({
   open,
   onClose,
 }: ExplainModalProps) {
+  const intl = useIntl()
   const cardRef = useRef<HTMLDivElement>(null)
   const closeRef = useRef<HTMLButtonElement>(null)
   const returnFocusTo = useRef<Element | null>(null)
@@ -509,7 +513,7 @@ export function ExplainModal({
           aria-modal="true"
           // Distinct from the popover's "Explicacion de X": the two are both dialogs
           // and both on screen at once, so they must not answer to the same name.
-          aria-label={`Explicacion ampliada de ${current.term}`}
+          aria-label={intl.formatMessage({ id: 'explain.expandedLabel' }, { term: current.term })}
           className="pointer-events-auto flex flex-col w-full max-w-[560px] bg-bg border border-border overflow-hidden"
           style={{ maxHeight: 'min(80vh, 640px)', borderRadius: 16 }}
         >
@@ -519,7 +523,7 @@ export function ExplainModal({
               <button
                 type="button"
                 onClick={goBack}
-                aria-label="Volver"
+                aria-label={intl.formatMessage({ id: 'explain.back' })}
                 className="shrink-0 p-1 text-text-muted hover:text-text transition-colors"
               >
                 <BackIcon />
@@ -531,7 +535,7 @@ export function ExplainModal({
             <button
               ref={closeRef}
               onClick={onClose}
-              aria-label="Cerrar"
+              aria-label={intl.formatMessage({ id: 'explain.close' })}
               className="shrink-0 p-1 text-xl leading-none text-text-muted hover:text-text transition-colors"
             >
               &times;

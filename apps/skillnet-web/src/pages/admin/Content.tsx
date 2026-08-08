@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom'
+import { useIntl } from 'react-intl'
 import { motion } from 'framer-motion'
 import { Card, Badge, Button, EmptyState, SkeletonCard } from '../../components/ui'
 import { useCourses } from '../../api/courses'
@@ -7,14 +8,14 @@ import { useAuth } from '../../hooks/useAuth'
 import { staggerContainer, staggerItem } from '../../lib/motion'
 import type { CourseStatus } from '../../types'
 
-const statusConfig: Record<string, { label: string; variant: 'accent' | 'warning' | 'primary' }> = {
-  published: { label: 'Publicado', variant: 'accent' },
-  draft: { label: 'Borrador', variant: 'warning' },
-  archived: { label: 'Archivado', variant: 'primary' },
-}
-
-function statusOf(status: CourseStatus) {
-  return statusConfig[status] ?? { label: status, variant: 'primary' as const }
+function useStatusConfig() {
+  const intl = useIntl()
+  const config: Record<string, { label: string; variant: 'accent' | 'warning' | 'primary' }> = {
+    published: { label: intl.formatMessage({ id: 'status.published' }), variant: 'accent' },
+    draft: { label: intl.formatMessage({ id: 'status.draft' }), variant: 'warning' },
+    archived: { label: intl.formatMessage({ id: 'status.archived' }), variant: 'primary' },
+  }
+  return (status: CourseStatus) => config[status] ?? { label: status, variant: 'primary' as const }
 }
 
 function BookIcon() {
@@ -37,8 +38,10 @@ function PlusIcon() {
 
 export function Content() {
   const navigate = useNavigate()
+  const intl = useIntl()
   const { data, isLoading, error } = useCourses()
   const { user: currentUser } = useAuth()
+  const statusOf = useStatusConfig()
 
   const courses = data?.items ?? []
   const published = courses.filter((c) => c.status === 'published')
@@ -49,28 +52,28 @@ export function Content() {
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-semibold text-text">Contenido</h2>
-          <p className="text-sm text-text-secondary mt-1">{courses.length} cursos en total</p>
+          <h2 className="text-xl font-semibold text-text">{intl.formatMessage({ id: 'content.title' })}</h2>
+          <p className="text-sm text-text-secondary mt-1">{intl.formatMessage({ id: 'content.totalCourses' }, { count: courses.length })}</p>
         </div>
         <Button variant="primary" size="md" onClick={() => navigate('/admin/crear-curso')}>
           <span className="flex items-center gap-1.5">
             <PlusIcon />
-            Crear nuevo
+            {intl.formatMessage({ id: 'content.createNew' })}
           </span>
         </Button>
       </div>
 
       <div className="grid grid-cols-3 gap-2 sm:gap-4 mt-4">
         <div className="border border-border rounded-lg px-3 sm:px-4 py-3">
-          <p className="text-xs text-text-muted">Publicados</p>
+          <p className="text-xs text-text-muted">{intl.formatMessage({ id: 'content.published' })}</p>
           <p className="text-lg font-semibold text-text">{published.length}</p>
         </div>
         <div className="border border-border rounded-lg px-3 sm:px-4 py-3">
-          <p className="text-xs text-text-muted">Borradores</p>
+          <p className="text-xs text-text-muted">{intl.formatMessage({ id: 'content.drafts' })}</p>
           <p className="text-lg font-semibold text-text">{drafts.length}</p>
         </div>
         <div className="border border-border rounded-lg px-3 sm:px-4 py-3">
-          <p className="text-xs text-text-muted">Archivados</p>
+          <p className="text-xs text-text-muted">{intl.formatMessage({ id: 'content.archived' })}</p>
           <p className="text-lg font-semibold text-text">{archived.length}</p>
         </div>
       </div>
@@ -85,16 +88,16 @@ export function Content() {
         ) : error ? (
           <Card>
             <EmptyState
-              title="No se pudieron cargar los cursos"
-              description={error instanceof ApiError ? error.body.detail : 'Intentalo de nuevo'}
+              title={intl.formatMessage({ id: 'content.loadError' })}
+              description={error instanceof ApiError ? error.body.detail : intl.formatMessage({ id: 'content.loadErrorRetry' })}
             />
           </Card>
         ) : courses.length === 0 ? (
           <Card>
             <EmptyState
-              title="Aun no hay cursos"
-              description="Crea tu primer curso a partir de un documento"
-              action={{ label: 'Crear curso', onClick: () => navigate('/admin/crear-curso') }}
+              title={intl.formatMessage({ id: 'content.emptyTitle' })}
+              description={intl.formatMessage({ id: 'content.emptyDesc' })}
+              action={{ label: intl.formatMessage({ id: 'content.emptyAction' }), onClick: () => navigate('/admin/crear-curso') }}
             />
           </Card>
         ) : (
@@ -117,16 +120,16 @@ export function Content() {
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-0.5 mt-1 text-xs text-text-muted">
                       {course.delivery_mode === 'dynamic' ? (
                         <>
-                          <span className="text-primary font-medium">Dinamico</span>
+                          <span className="text-primary font-medium">{intl.formatMessage({ id: 'content.dynamic' })}</span>
                           {(course.node_count ?? 0) > 0 && (
-                            <span>{course.node_count} nodos</span>
+                            <span>{intl.formatMessage({ id: 'content.nodesCount' }, { count: course.node_count })}</span>
                           )}
                         </>
                       ) : (
-                        <span>{course.module_count} modulos</span>
+                        <span>{intl.formatMessage({ id: 'content.modulesCount' }, { count: course.module_count })}</span>
                       )}
                       {course.outcome && <span className="truncate max-w-xs">{course.outcome}</span>}
-                      <span>Creado: {new Date(course.created_at).toLocaleDateString()}</span>
+                      <span>{intl.formatMessage({ id: 'content.createdAt' }, { date: new Date(course.created_at).toLocaleDateString() })}</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
@@ -140,7 +143,7 @@ export function Content() {
                           navigate(`/admin/probar-curso/${course.id}`)
                         }}
                       >
-                        Probar
+                        {intl.formatMessage({ id: 'content.test' })}
                       </Button>
                     )}
                     {course.module_count > 0 && course.delivery_mode !== 'dynamic' && (
@@ -149,7 +152,7 @@ export function Content() {
                         size="sm"
                         onClick={() => navigate(`/admin/curso/${course.id}`)}
                       >
-                        Ver curso
+                        {intl.formatMessage({ id: 'content.viewCourse' })}
                       </Button>
                     )}
                     <Button
@@ -157,7 +160,7 @@ export function Content() {
                       size="sm"
                       onClick={() => navigate(`/admin/curso/${course.id}/esquema`)}
                     >
-                      Esquema
+                      {intl.formatMessage({ id: 'content.schema' })}
                     </Button>
                   </div>
                 </div>

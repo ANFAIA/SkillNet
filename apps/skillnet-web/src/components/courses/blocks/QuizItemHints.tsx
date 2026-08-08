@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useIntl } from 'react-intl'
 import { useMutation } from '@tanstack/react-query'
 import { ApiError, post } from '../../../api/client'
 import type { ExerciseType, NodeHintResult } from '../../../types'
@@ -49,6 +50,7 @@ export interface HintLadderProps {
 }
 
 export function HintLadder({ nodeId, renderId, itemId, disabled = false }: HintLadderProps) {
+  const intl = useIntl()
   const [hints, setHints] = useState<NodeHintResult[]>([])
   const [refusal, setRefusal] = useState<string | null>(null)
 
@@ -65,7 +67,7 @@ export function HintLadder({ nodeId, renderId, itemId, disabled = false }: HintL
       setRefusal(
         error instanceof ApiError
           ? error.body.detail
-          : 'No se pudo pedir la pista. Intentalo de nuevo.',
+          : intl.formatMessage({ id: 'hints.requestError' }),
       )
     },
   })
@@ -84,7 +86,7 @@ export function HintLadder({ nodeId, renderId, itemId, disabled = false }: HintL
           className="rounded-lg border border-border bg-bg px-3 py-2"
         >
           <p className="text-xs font-medium text-text-secondary">
-            Pista {entry.hints_used} de {entry.hints_used + entry.hints_remaining}
+            {intl.formatMessage({ id: 'hints.hintOf' }, { used: entry.hints_used, total: entry.hints_used + entry.hints_remaining })}
           </p>
           <p className="mt-1 text-sm text-text">{entry.hint}</p>
         </div>
@@ -95,8 +97,7 @@ export function HintLadder({ nodeId, renderId, itemId, disabled = false }: HintL
       {!disabled &&
         (exhausted ? (
           <p className="text-xs text-text-muted">
-            Has usado las {HINT_LIMIT} pistas de este item. Si vuelves a fallar te
-            ensenamos la solucion paso a paso.
+            {intl.formatMessage({ id: 'hints.exhausted' }, { limit: HINT_LIMIT })}
           </p>
         ) : (
           <div className="flex flex-wrap items-baseline gap-2">
@@ -106,12 +107,12 @@ export function HintLadder({ nodeId, renderId, itemId, disabled = false }: HintL
               disabled={ask.isPending}
               className="text-sm font-medium text-primary hover:text-primary/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {ask.isPending ? 'Pidiendo pista...' : 'Pedir una pista'}
+              {ask.isPending ? intl.formatMessage({ id: 'hints.requesting' }) : intl.formatMessage({ id: 'hints.request' })}
             </button>
             <span className="text-xs text-text-muted">
               {last
-                ? `Te quedan ${last.hints_remaining}`
-                : `Hasta ${HINT_LIMIT}, cada una dice un poco mas`}
+                ? intl.formatMessage({ id: 'hints.remaining' }, { count: last.hints_remaining })
+                : intl.formatMessage({ id: 'hints.available' }, { limit: HINT_LIMIT })}
             </span>
           </div>
         ))}
@@ -145,6 +146,7 @@ function optionAt(options: string[] | undefined, index: unknown): string | null 
  * kept, and if a field is missing the line is simply not printed.
  */
 export function WorkedSolution({ itemType, correctAnswer, options }: WorkedSolutionProps) {
+  const intl = useIntl()
   if (!correctAnswer) return null
 
   const explanation =
@@ -152,7 +154,7 @@ export function WorkedSolution({ itemType, correctAnswer, options }: WorkedSolut
 
   let solution: string | null = null
   if (itemType === 'true_false' && typeof correctAnswer.correct === 'boolean') {
-    solution = correctAnswer.correct ? 'Verdadero' : 'Falso'
+    solution = correctAnswer.correct ? intl.formatMessage({ id: 'hints.true' }) : intl.formatMessage({ id: 'hints.false' })
   } else if (itemType === 'test') {
     solution = optionAt(options, correctAnswer.correct)
   } else if (itemType === 'fill_blank' && Array.isArray(correctAnswer.blanks)) {
@@ -168,17 +170,16 @@ export function WorkedSolution({ itemType, correctAnswer, options }: WorkedSolut
 
   return (
     <div className="mt-4 rounded-lg border border-border bg-bg-subtle p-4" role="note">
-      <p className="text-sm font-medium text-text">Solucion paso a paso</p>
+      <p className="text-sm font-medium text-text">{intl.formatMessage({ id: 'hints.solutionTitle' })}</p>
       {solution ? (
         <p className="mt-2 text-sm text-text">
-          <span className="text-text-secondary">Respuesta correcta: </span>
+          <span className="text-text-secondary">{intl.formatMessage({ id: 'hints.correctAnswer' })}</span>
           {solution}
         </p>
       ) : null}
       {explanation ? <p className="mt-2 text-sm text-text">{explanation}</p> : null}
       <p className="mt-3 text-xs text-text-muted">
-        Este item queda cerrado. El nodo pasa a &quot;Para practicar&quot;: puedes volver
-        cuando quieras y, pasados 7 dias, repetir el diagnostico.
+        {intl.formatMessage({ id: 'hints.closedNote' })}
       </p>
     </div>
   )

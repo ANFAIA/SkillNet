@@ -1,10 +1,12 @@
 import { useState } from 'react'
+import { useIntl } from 'react-intl'
 import { Button } from '../ui'
 import { useSubmitAttempt, useCorrectExercise } from '../../api/exercises'
 import { ExerciseResult } from './ExerciseResult'
 import type { Exercise, TestContent } from '../../types'
 
 export function TestExercise({ exercise }: { exercise: Exercise }) {
+  const intl = useIntl()
   const content = exercise.content as TestContent
   const [selected, setSelected] = useState<number | null>(null)
   const submit = useSubmitAttempt()
@@ -61,12 +63,12 @@ export function TestExercise({ exercise }: { exercise: Exercise }) {
             submit.mutate({ exerciseId: exercise.id, answer: { selected } })
           }
         >
-          {submit.isPending ? 'Comprobando...' : 'Comprobar'}
+          {submit.isPending ? intl.formatMessage({ id: 'exercise.checking' }) : intl.formatMessage({ id: 'exercise.check' })}
         </Button>
       )}
 
       {submit.isError && (
-        <p className="mt-3 text-sm text-danger">No se pudo enviar la respuesta.</p>
+        <p className="mt-3 text-sm text-danger">{intl.formatMessage({ id: 'exercise.submitError' })}</p>
       )}
       {result && <ExerciseResult result={result} onRetry={!result.passed ? retry : undefined} onCorrect={!result.passed ? correct : undefined} />}
     </div>

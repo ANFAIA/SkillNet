@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useIntl } from 'react-intl'
 import { Button } from '../ui'
 import { useNodeFeedback } from '../../api/nodes'
 
@@ -24,14 +25,15 @@ export interface NodeFeedbackProps {
   nodeId: string
 }
 
-const OPTIONS: { value: 'easy' | 'ok' | 'hard'; label: string }[] = [
-  { value: 'easy', label: 'Facil' },
-  { value: 'ok', label: 'Bien' },
-  { value: 'hard', label: 'Dificil' },
-]
-
 export function NodeFeedback({ nodeId }: NodeFeedbackProps) {
+  const intl = useIntl()
   const feedback = useNodeFeedback(nodeId)
+
+  const OPTIONS: { value: 'easy' | 'ok' | 'hard'; label: string }[] = [
+    { value: 'easy', label: intl.formatMessage({ id: 'feedback.easy' }) },
+    { value: 'ok', label: intl.formatMessage({ id: 'feedback.ok' }) },
+    { value: 'hard', label: intl.formatMessage({ id: 'feedback.hard' }) },
+  ]
   const [difficulty, setDifficulty] = useState<'easy' | 'ok' | 'hard' | null>(null)
   const [unclear, setUnclear] = useState('')
   const [showUnclear, setShowUnclear] = useState(false)
@@ -43,7 +45,7 @@ export function NodeFeedback({ nodeId }: NodeFeedbackProps) {
 
   return (
     <div className="mt-6 space-y-3" data-no-explain="" data-testid="node-feedback">
-      <p className="text-sm text-text-secondary">Como te ha resultado este nodo?</p>
+      <p className="text-sm text-text-secondary">{intl.formatMessage({ id: 'feedback.question' })}</p>
 
       <div className="flex flex-wrap items-center gap-2">
         {OPTIONS.map((option) => (
@@ -63,7 +65,7 @@ export function NodeFeedback({ nodeId }: NodeFeedbackProps) {
         ))}
         {difficulty !== null && !feedback.isPending && !feedback.isError && (
           <span className="text-xs text-text-muted" role="status">
-            Gracias, lo tendremos en cuenta en el siguiente nodo.
+            {intl.formatMessage({ id: 'feedback.thanks' })}
           </span>
         )}
       </div>
@@ -74,12 +76,12 @@ export function NodeFeedback({ nodeId }: NodeFeedbackProps) {
           onClick={() => setShowUnclear(true)}
           className="text-xs font-medium text-primary hover:text-primary/80 transition-colors"
         >
-          Algo no ha quedado claro
+          {intl.formatMessage({ id: 'feedback.unclear' })}
         </button>
       ) : (
         <div className="space-y-2">
           <label htmlFor={`unclear-${nodeId}`} className="block text-xs text-text-secondary">
-            Que parte no ha quedado clara? (opcional)
+            {intl.formatMessage({ id: 'feedback.unclearLabel' })}
           </label>
           <textarea
             id={`unclear-${nodeId}`}
@@ -95,13 +97,13 @@ export function NodeFeedback({ nodeId }: NodeFeedbackProps) {
             disabled={!unclear.trim() || feedback.isPending}
             onClick={() => send(difficulty ?? 'ok', unclear)}
           >
-            Enviar
+            {intl.formatMessage({ id: 'feedback.send' })}
           </Button>
         </div>
       )}
 
       {feedback.isError && (
-        <p className="text-sm text-danger">No se pudo enviar tu valoracion.</p>
+        <p className="text-sm text-danger">{intl.formatMessage({ id: 'feedback.error' })}</p>
       )}
     </div>
   )

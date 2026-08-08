@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useIntl } from 'react-intl'
 import WaveSurfer from 'wavesurfer.js'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Button } from '../../ui'
@@ -50,6 +51,7 @@ function useWaveSurfer(containerRef: React.RefObject<HTMLDivElement | null>) {
 }
 
 export function PronunciationExerciseBlock({ targetText, language }: PronunciationExerciseBlockProps) {
+  const intl = useIntl()
   const safeText = typeof targetText === 'string' ? targetText : ''
   const safeLang = typeof language === 'string' ? language : 'es'
 
@@ -116,7 +118,7 @@ export function PronunciationExerciseBlock({ targetText, language }: Pronunciati
 
       ws.on('error', () => {
         setState('idle')
-        setError('Audio no disponible')
+        setError(intl.formatMessage({ id: 'pronunciation.audioError' }))
         URL.revokeObjectURL(url)
       })
     } catch {
@@ -160,7 +162,7 @@ export function PronunciationExerciseBlock({ targetText, language }: Pronunciati
       recorder.start()
       setState('recording')
     } catch {
-      setMicError('No se pudo acceder al microfono. Verifica los permisos del navegador.')
+      setMicError(intl.formatMessage({ id: 'pronunciation.micError' }))
       setState('idle')
     }
   }, [userWs])
@@ -190,26 +192,26 @@ export function PronunciationExerciseBlock({ targetText, language }: Pronunciati
 
   return (
     <div data-no-explain="" className={`${INLINE_SURFACE} bg-bg-subtle`}>
-      <p className={BLOCK_TITLE}>Ejercicio de pronunciacion</p>
+      <p className={BLOCK_TITLE}>{intl.formatMessage({ id: 'pronunciation.title' })}</p>
 
       {/* Target text display */}
       <div className="mb-4 p-3 rounded-lg border border-border bg-bg">
         <p className="text-sm text-text leading-relaxed">{safeText}</p>
         {safeLang && (
-          <span className="text-xs text-text-muted mt-1 block">Idioma: {safeLang}</span>
+          <span className="text-xs text-text-muted mt-1 block">{intl.formatMessage({ id: 'pronunciation.language' }, { lang: safeLang })}</span>
         )}
       </div>
 
       {/* Escucha section */}
       <div className="mb-4">
-        <p className="text-xs font-medium text-text-secondary mb-2">Escucha</p>
+        <p className="text-xs font-medium text-text-secondary mb-2">{intl.formatMessage({ id: 'pronunciation.listenSection' })}</p>
         <div className="flex items-center gap-3 mb-2">
           <Button
             size="sm"
             onClick={state === 'idle' || state === 'comparing' ? handleListen : handlePlayTarget}
             disabled={state === 'recording'}
           >
-            {state === 'listening' ? 'Reproduciendo...' : 'Escuchar'}
+            {state === 'listening' ? intl.formatMessage({ id: 'pronunciation.playing' }) : intl.formatMessage({ id: 'pronunciation.listen' })}
           </Button>
         </div>
         <div
@@ -220,7 +222,7 @@ export function PronunciationExerciseBlock({ targetText, language }: Pronunciati
 
       {/* Practica section */}
       <div>
-        <p className="text-xs font-medium text-text-secondary mb-2">Practica</p>
+        <p className="text-xs font-medium text-text-secondary mb-2">{intl.formatMessage({ id: 'pronunciation.practiceSection' })}</p>
         <div className="flex items-center gap-3 mb-2">
           {state !== 'recording' ? (
             <Button
@@ -229,20 +231,20 @@ export function PronunciationExerciseBlock({ targetText, language }: Pronunciati
               onClick={handleRecord}
               disabled={state === 'listening'}
             >
-              {state === 'comparing' ? 'Grabar de nuevo' : 'Grabar'}
+              {state === 'comparing' ? intl.formatMessage({ id: 'pronunciation.reRecord' }) : intl.formatMessage({ id: 'pronunciation.record' })}
             </Button>
           ) : (
             <Button size="sm" variant="danger" onClick={handleStopRecording}>
-              Detener
+              {intl.formatMessage({ id: 'pronunciation.stop' })}
             </Button>
           )}
           {state === 'comparing' && (
             <>
               <Button size="sm" variant="secondary" onClick={handlePlayUser}>
-                Reproducir
+                {intl.formatMessage({ id: 'pronunciation.play' })}
               </Button>
               <Button size="sm" variant="ghost" onClick={handleReset}>
-                Reiniciar
+                {intl.formatMessage({ id: 'pronunciation.reset' })}
               </Button>
             </>
           )}
@@ -259,7 +261,7 @@ export function PronunciationExerciseBlock({ targetText, language }: Pronunciati
               className="flex items-center gap-2 mb-2 text-xs text-danger"
             >
               <span className="h-2 w-2 rounded-full bg-danger animate-pulse" />
-              Grabando...
+              {intl.formatMessage({ id: 'pronunciation.recording' })}
             </motion.div>
           )}
         </AnimatePresence>
