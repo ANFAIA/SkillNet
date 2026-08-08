@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import type { MouseEvent } from 'react'
@@ -187,13 +186,7 @@ export function NodeView() {
   const { id: courseId, nodeId } = useParams<{ id: string; nodeId: string }>()
   const navigate = useNavigate()
 
-  // Morph origin — the rect of the node row that was clicked (set by NodeList).
-  // Captured in a ref on first mount so the animation target is stable.
-  const morphOrigin = useNodeMorph((s) => s.origin)
   const clearMorph = useNodeMorph((s) => s.clear)
-  const morphRef = useRef(morphOrigin)
-  /** Whether the exit animation is playing (collapse back). */
-  const [exiting, setExiting] = useState(false)
   /** Which slide panel is open, if any. */
   const [activePanel, setActivePanel] = useState<PanelType | null>(null)
 
@@ -254,9 +247,7 @@ export function NodeView() {
     prevNodeId.current = nodeId
     setPhase(null)
     setStreamFailure(null)
-    setExiting(false)
     setActivePanel(null)
-    morphRef.current = null
     requestedRef.current = false
     programShownBefore.current = false
     viewedRenderRef.current = null
@@ -475,39 +466,14 @@ export function NodeView() {
 
   const shownKey = served?.render_id ?? 'none'
 
-  // Entry/exit animation — same spring feel as CreateCourse's card expansion.
-  // Scale + opacity with spring physics (stiffness 200, damping 28), content
-  // fades in after the container settles. No clip-path, no FLIP.
-  const springTransition = { type: 'spring' as const, stiffness: 200, damping: 28 }
-
   function handleBack() {
-    if (reduceMotion) {
-      clearMorph()
-      navigate(backToCourse, { state: { fromNode: true } })
-      return
-    }
-    setExiting(true)
-  }
-
-  function onExitComplete() {
     clearMorph()
     navigate(backToCourse, { state: { fromNode: true } })
   }
 
-  return createPortal(
-    <motion.div
-      className="fixed inset-0 z-[200] bg-bg flex flex-col overflow-hidden"
-      initial={{ opacity: 0, scale: 0.96, y: 12 }}
-      animate={exiting
-        ? { opacity: 0, scale: 0.96, y: 12 }
-        : { opacity: 1, scale: 1, y: 0 }
-      }
-      transition={springTransition}
-      onAnimationComplete={() => {
-        if (exiting) onExitComplete()
-        else clearMorph()
-      }}
-    >
+  return (
+    <div className="flex flex-col flex-1 min-h-0 bg-bg overflow-hidden">
+
       {/* Minimal top bar — just close + title */}
       <div className="shrink-0 flex items-center gap-3 px-6 py-4" data-no-explain="">
         <button
@@ -743,7 +709,6 @@ export function NodeView() {
           <ConfigIcon active={activePanel === 'config'} />
         </button>
       </div>
-    </motion.div>,
-    document.body,
+    </div>
   )
 }

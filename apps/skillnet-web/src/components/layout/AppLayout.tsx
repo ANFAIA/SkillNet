@@ -6,31 +6,44 @@ import { ErrorBoundary } from '../ErrorBoundary'
 import { SidebarProvider, useSidebar } from '../../contexts/SidebarContext'
 import { pageTransition } from '../../lib/motion'
 
+const morphSpring = { type: 'spring' as const, stiffness: 200, damping: 28 }
+
 function AppLayoutInner() {
   const location = useLocation()
   const { collapsed } = useSidebar()
 
+  // NodeView renders as a normal Outlet child — the layout goes fullscreen
+  // by collapsing the sidebar and header with the same spring as CreateCourse.
+  const isNodeView = /\/nodo\/[^/]+$/.test(location.pathname)
+
   return (
     <div className="flex h-screen overflow-hidden">
-      <Sidebar />
+      {/* Sidebar — slides out when NodeView is active */}
+      <motion.div
+        animate={{ opacity: isNodeView ? 0 : 1, x: isNodeView ? -20 : 0 }}
+        transition={morphSpring}
+        style={{ pointerEvents: isNodeView ? 'none' : 'auto' }}
+      >
+        <Sidebar />
+      </motion.div>
 
       <div
-        className={`flex-1 flex flex-col min-w-0 transition-[margin-left] duration-300 ease-in-out ml-0 ${
-          collapsed ? 'md:ml-16' : 'md:ml-[248px]'
+        className={`flex-1 flex flex-col min-w-0 transition-[margin-left] duration-300 ease-in-out ${
+          isNodeView ? 'ml-0' : collapsed ? 'ml-0 md:ml-16' : 'ml-0 md:ml-[248px]'
         }`}
       >
-        <Header />
+        {/* Header — hides when NodeView is active */}
+        <motion.div
+          animate={{ opacity: isNodeView ? 0 : 1, y: isNodeView ? -50 : 0 }}
+          transition={morphSpring}
+          style={{ pointerEvents: isNodeView ? 'none' : 'auto' }}
+        >
+          <Header />
+        </motion.div>
 
-        {/* No `overflow-y-auto`: this element grows with its content and the *page*
-            scrolls. It used to be a scroll box, which put a second scrollbar inside the
-            layout — most obvious on Empleados, where a long list scrolled inside a panel
-            while the window stayed still. Nothing needed it: the sidebar is
-            `fixed left-0 top-0 bottom-0` and the header is `fixed top-0`, so both stay
-            put under page scroll on their own. `overflow-x-clip` and not `hidden`: per spec,
-            `overflow-x: hidden` forces the other axis from `visible` to `auto`, which
-            would quietly recreate the scroll container we just removed. `clip` does
-            not, and still stops a wide child blowing out the layout sideways. */}
-        <main className="flex-1 mt-[50px] bg-bg md:rounded-tl-xl overflow-x-clip overflow-y-auto">
+        <main className={`flex-1 bg-bg overflow-x-clip overflow-y-auto ${
+          isNodeView ? '' : 'mt-[50px] md:rounded-tl-xl'
+        }`}>
           <ErrorBoundary
             fallback={(error, reset) => (
               <div className="p-4 md:p-6">
@@ -90,7 +103,7 @@ function AppLayoutInner() {
               key={location.pathname}
               initial={pageTransition.initial}
               animate={pageTransition.animate}
-              className="p-4 md:p-6 pb-12"
+              className={isNodeView ? 'flex-1 min-h-0 flex flex-col' : 'p-4 md:p-6 pb-12'}
             >
               <Outlet />
             </motion.div>
