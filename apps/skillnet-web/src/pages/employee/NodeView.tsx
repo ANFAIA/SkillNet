@@ -45,7 +45,7 @@ const PANEL_TITLE_KEY: Record<PanelType, string> = {
   config: 'panel.config',
 }
 
-// ── Icons for the bottom bar ────────────────────────────────────
+// ── Icons for the sidebar / bottom bar ──────────────────────────
 
 function MapIcon({ active }: { active: boolean }) {
   return (
@@ -474,173 +474,205 @@ export function NodeView() {
   return (
     <div className="flex flex-col flex-1 min-h-0 bg-bg overflow-hidden">
 
-      {/* Minimal top bar — just close + title */}
-      <div className="shrink-0 flex items-center gap-3 px-6 py-4" data-no-explain="">
-        <button
-          type="button"
-          onClick={handleBack}
-          className="p-1.5 text-text-muted hover:text-text transition-colors"
-          aria-label={intl.formatMessage({ id: 'panel.close' })}
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-        </button>
-        <span
-          className="text-sm font-medium text-text flex-1 truncate"
-        >
-          {node.title}
-        </span>
-      </div>
-
-      {/* Main area — flex row for lesson + panel push */}
+      {/* Main area — flex row for content + spider + sidebar + panel */}
       <div className="flex-1 flex min-h-0 relative overflow-hidden">
         {/* Lesson content — slides left when panel is open */}
         <motion.div
-          className="w-full min-h-0 flex flex-col shrink-0"
+          className="flex-1 min-h-0 flex flex-col shrink-0"
           animate={{ x: activePanel ? '-40%' : '0%' }}
           transition={activePanel ? transition.pushIn : transition.pushOut}
         >
-          {/* Spider buddy — hangs from top-right, only when chat panel is closed */}
-          {served && activePanel !== 'chat' && (
-            <div className="absolute top-0 right-[max(1rem,calc(50%-22rem))]" style={{ zIndex: 10 }}>
-              <LessonBuddy
-                nodeTitle={node?.title ?? undefined}
-                nodeSummary={node?.summary ?? undefined}
-                stepIndex={0}
-                totalSteps={1}
-              />
+          <div className="flex-1 min-h-0 flex flex-col overflow-y-auto">
+            {/* X + title — inside the content area, with proper spacing */}
+            <div className="flex items-center gap-3 px-6 pt-6 pb-4 shrink-0" data-no-explain="">
+              <button
+                type="button"
+                onClick={handleBack}
+                className="p-1.5 text-text-muted hover:text-text transition-colors"
+                aria-label={intl.formatMessage({ id: 'panel.close' })}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+              <span className="text-sm font-medium text-text flex-1 truncate">
+                {node.title}
+              </span>
             </div>
-          )}
 
-          <div className="flex-1 min-h-0 flex flex-col px-6 pb-6 max-w-2xl mx-auto w-full overflow-y-auto">
-            {notReviewed ? (
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-text">{intl.formatMessage({ id: 'node.pendingReview' })}</p>
-                <p className="text-sm text-text-secondary">
-                  {intl.formatMessage({ id: 'node.pendingReviewDesc' })}
-                </p>
-              </div>
-            ) : phase === 'mastered' ? (
-              <div className="space-y-3" role="status">
-                <p className="text-base font-medium text-text">{intl.formatMessage({ id: 'node.mastered' })}</p>
-                <p className="text-sm text-text-secondary">
-                  {intl.formatMessage({ id: 'node.masteredDesc' })}
-                </p>
-                {node.summary && <p className="text-sm text-text-secondary">{node.summary}</p>}
-              </div>
-            ) : streamFailure && !shownProgram ? (
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-text">{streamFailure}</p>
-                <p className="text-sm text-text-secondary">
-                  {node.summary ?? intl.formatMessage({ id: 'node.renderFailedFallback' })}
-                </p>
-              </div>
-            ) : (
-              <div className="flex-1 min-h-0 flex flex-col">
-                <AnimatePresence mode="wait">
-                  {shownProgram ? (
-                    <motion.div
-                      key="content"
-                      className="flex-1 min-h-0 flex flex-col"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      transition={{ duration: duration.normal, ease: ease.base }}
-                    >
-                      {openingLine && (
-                        <p className="text-base text-text mb-4 shrink-0" data-testid="opening-line">
-                          {openingLine}
-                        </p>
-                      )}
+            {/* Lesson content below */}
+            <div className="flex-1 min-h-0 flex flex-col px-6 pb-6 max-w-2xl w-full mx-auto">
+              {notReviewed ? (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-text">{intl.formatMessage({ id: 'node.pendingReview' })}</p>
+                  <p className="text-sm text-text-secondary">
+                    {intl.formatMessage({ id: 'node.pendingReviewDesc' })}
+                  </p>
+                </div>
+              ) : phase === 'mastered' ? (
+                <div className="space-y-3" role="status">
+                  <p className="text-base font-medium text-text">{intl.formatMessage({ id: 'node.mastered' })}</p>
+                  <p className="text-sm text-text-secondary">
+                    {intl.formatMessage({ id: 'node.masteredDesc' })}
+                  </p>
+                  {node.summary && <p className="text-sm text-text-secondary">{node.summary}</p>}
+                </div>
+              ) : streamFailure && !shownProgram ? (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-text">{streamFailure}</p>
+                  <p className="text-sm text-text-secondary">
+                    {node.summary ?? intl.formatMessage({ id: 'node.renderFailedFallback' })}
+                  </p>
+                </div>
+              ) : (
+                <div className="flex-1 min-h-0 flex flex-col">
+                  <AnimatePresence mode="wait">
+                    {shownProgram ? (
                       <motion.div
-                        key={shownKey}
-                        onClick={onSurfaceClick}
+                        key="content"
                         className="flex-1 min-h-0 flex flex-col"
-                        initial={arriving && fromSkeleton ? { minHeight: RESERVED_CONTENT_PX } : false}
-                        animate={{ minHeight: 0 }}
-                        transition={transition.resize}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: duration.normal, ease: ease.base }}
                       >
-                        <ClickableSurface nodeId={node.id} className="flex-1 min-h-0 flex flex-col">
-                          <courseIntroContext.Provider value={courseIntro}>
-                          <nextNodeContext.Provider value={nextNode ? { navigate: () => navigate(`${backToCourse}/nodo/${nextNode.id}`), title: nextNode.title } : null}>
-                          <coursePositionContext.Provider value={{ nodeCount: ordered.length, currentNodeIndex: index }}>
-                          <stepperContext.Provider value={true}>
-                            <UiSpecRenderer
-                              program={shownProgram}
-                              nodeId={node.id}
-                              renderId={served?.render_id}
-                              format={shownFormat ?? undefined}
-                              arriving={arriving}
-                              recordEvent={events.record}
-                            />
-                          </stepperContext.Provider>
-                          </coursePositionContext.Provider>
-                          </nextNodeContext.Provider>
-                          </courseIntroContext.Provider>
-                        </ClickableSurface>
-                      </motion.div>
-                    </motion.div>
-                  ) : (
-                    <motion.div
-                      key="intro"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      transition={{ duration: duration.normal, ease: ease.base }}
-                      className="space-y-6"
-                      data-testid="node-intro"
-                    >
-                      {openingLine && (
-                        <p className="text-base text-text-secondary leading-relaxed">
-                          {openingLine}
-                        </p>
-                      )}
-                      <div>
-                        <h3 className="text-lg font-semibold text-text mb-3">
-                          {node.title}
-                        </h3>
-                        {node.summary && (
-                          <p className="text-base text-text leading-relaxed">
-                            {node.summary}
+                        {openingLine && (
+                          <p className="text-base text-text mb-4 shrink-0" data-testid="opening-line">
+                            {openingLine}
                           </p>
                         )}
-                      </div>
-                      <div className="bg-bg-subtle rounded-lg p-4 space-y-3">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-text-muted">
-                            {intl.formatMessage({ id: 'node.counter' }, { current: index + 1, total: ordered.length })}
-                            {node.estimated_minutes ? ` · ${node.estimated_minutes} min` : ''}
-                          </span>
-                          {node.mastery > 0 && (
-                            <span className="text-text-secondary font-medium">
-                              {intl.formatMessage({ id: 'node.mastery' }, { pct: Math.round(node.mastery * 100) })}
-                            </span>
+                        <motion.div
+                          key={shownKey}
+                          onClick={onSurfaceClick}
+                          className="flex-1 min-h-0 flex flex-col"
+                          initial={arriving && fromSkeleton ? { minHeight: RESERVED_CONTENT_PX } : false}
+                          animate={{ minHeight: 0 }}
+                          transition={transition.resize}
+                        >
+                          <ClickableSurface nodeId={node.id} className="flex-1 min-h-0 flex flex-col">
+                            <courseIntroContext.Provider value={courseIntro}>
+                            <nextNodeContext.Provider value={nextNode ? { navigate: () => navigate(`${backToCourse}/nodo/${nextNode.id}`), title: nextNode.title } : null}>
+                            <coursePositionContext.Provider value={{ nodeCount: ordered.length, currentNodeIndex: index }}>
+                            <stepperContext.Provider value={true}>
+                              <UiSpecRenderer
+                                program={shownProgram}
+                                nodeId={node.id}
+                                renderId={served?.render_id}
+                                format={shownFormat ?? undefined}
+                                arriving={arriving}
+                                recordEvent={events.record}
+                              />
+                            </stepperContext.Provider>
+                            </coursePositionContext.Provider>
+                            </nextNodeContext.Provider>
+                            </courseIntroContext.Provider>
+                          </ClickableSurface>
+                        </motion.div>
+                      </motion.div>
+                    ) : (
+                      <motion.div
+                        key="intro"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: duration.normal, ease: ease.base }}
+                        className="space-y-6"
+                        data-testid="node-intro"
+                      >
+                        {openingLine && (
+                          <p className="text-base text-text-secondary leading-relaxed">
+                            {openingLine}
+                          </p>
+                        )}
+                        <div>
+                          <h3 className="text-lg font-semibold text-text mb-3">
+                            {node.title}
+                          </h3>
+                          {node.summary && (
+                            <p className="text-base text-text leading-relaxed">
+                              {node.summary}
+                            </p>
                           )}
                         </div>
-                        {previousNode && previousNode.state === 'mastered' && (
-                          <p className="text-sm text-text-secondary">
-                            {intl.formatMessage({ id: 'node.previousMastered' }, { title: previousNode.title })}
-                          </p>
-                        )}
-                        {node.mastery > 0 && (
-                          <ProgressBar
-                            value={Math.round(node.mastery * 100)}
-                            variant="auto"
-                            size="sm"
-                          />
-                        )}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            )}
+                        <div className="bg-bg-subtle rounded-lg p-4 space-y-3">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-text-muted">
+                              {intl.formatMessage({ id: 'node.counter' }, { current: index + 1, total: ordered.length })}
+                              {node.estimated_minutes ? ` · ${node.estimated_minutes} min` : ''}
+                            </span>
+                            {node.mastery > 0 && (
+                              <span className="text-text-secondary font-medium">
+                                {intl.formatMessage({ id: 'node.mastery' }, { pct: Math.round(node.mastery * 100) })}
+                              </span>
+                            )}
+                          </div>
+                          {previousNode && previousNode.state === 'mastered' && (
+                            <p className="text-sm text-text-secondary">
+                              {intl.formatMessage({ id: 'node.previousMastered' }, { title: previousNode.title })}
+                            </p>
+                          )}
+                          {node.mastery > 0 && (
+                            <ProgressBar
+                              value={Math.round(node.mastery * 100)}
+                              variant="auto"
+                              size="sm"
+                            />
+                          )}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              )}
+            </div>
           </div>
         </motion.div>
 
-        {/* Slide panel — enters from the right */}
+        {/* Spider — hangs between content and sidebar (desktop only) */}
+        {served && activePanel !== 'chat' && (
+          <div className="hidden md:flex shrink-0 w-10 flex-col items-center pt-0 relative">
+            {/* Thread line from top */}
+            <div className="w-px bg-border flex-none" style={{ height: '40px' }} />
+            {/* Spider */}
+            <LessonBuddy
+              nodeTitle={node?.title ?? undefined}
+              nodeSummary={node?.summary ?? undefined}
+              stepIndex={0}
+              totalSteps={1}
+            />
+          </div>
+        )}
+
+        {/* Right icon sidebar — desktop only */}
+        <div className="hidden md:flex shrink-0 w-12 flex-col items-center justify-center gap-4 border-l border-border" data-no-explain="">
+          <button
+            type="button"
+            onClick={() => togglePanel('map')}
+            className={`p-2 rounded-md transition-colors ${activePanel === 'map' ? 'bg-primary-subtle' : 'hover:bg-bg-muted'}`}
+            aria-label={intl.formatMessage({ id: 'panel.map' })}
+          >
+            <MapIcon active={activePanel === 'map'} />
+          </button>
+          <button
+            type="button"
+            onClick={() => togglePanel('chat')}
+            className={`p-2 rounded-md transition-colors ${activePanel === 'chat' ? 'bg-primary-subtle' : 'hover:bg-bg-muted'}`}
+            aria-label={intl.formatMessage({ id: 'panel.chat' })}
+          >
+            <ChatIcon active={activePanel === 'chat'} />
+          </button>
+          <button
+            type="button"
+            onClick={() => togglePanel('config')}
+            className={`p-2 rounded-md transition-colors ${activePanel === 'config' ? 'bg-primary-subtle' : 'hover:bg-bg-muted'}`}
+            aria-label={intl.formatMessage({ id: 'panel.config' })}
+          >
+            <ConfigIcon active={activePanel === 'config'} />
+          </button>
+        </div>
+
+        {/* Slide panel — enters from the right, covers the sidebar */}
         <AnimatePresence>
           {activePanel && (
             <motion.div
@@ -687,8 +719,8 @@ export function NodeView() {
         </AnimatePresence>
       </div>
 
-      {/* Bottom icon bar */}
-      <div className="shrink-0 flex justify-center gap-6 py-2 border-t border-border" data-no-explain="">
+      {/* Bottom icon bar — mobile only */}
+      <div className="flex md:hidden shrink-0 justify-center gap-6 py-2 border-t border-border" data-no-explain="">
         <button
           type="button"
           onClick={() => togglePanel('map')}
