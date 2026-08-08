@@ -479,8 +479,8 @@ export function NodeView() {
         {/* Lesson content — stays in place when panel opens */}
         <div className="flex-1 min-h-0 flex flex-col">
           <div className="flex-1 min-h-0 flex flex-col overflow-y-auto">
-            {/* X + title — inside content, lowered to align with sidebar icons */}
-            <div className="flex items-center gap-3 px-6 pt-3 pb-3 shrink-0" data-no-explain="">
+            {/* X + title — no extra top padding, aligns with stepper progress dots */}
+            <div className="flex items-center gap-3 px-6 py-2 shrink-0" data-no-explain="">
               <button
                 type="button"
                 onClick={handleBack}
