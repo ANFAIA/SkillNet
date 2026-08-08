@@ -10,7 +10,7 @@ import { UiSpecRenderer } from '../../components/courses/UiSpecRenderer'
 import { NodeList } from '../../components/courses/NodeList'
 import { stepperContext, coursePositionContext, nextNodeContext, courseIntroContext } from '../../components/courses/blocks/StepperContext'
 import type { CourseIntro } from '../../components/courses/blocks/StepperContext'
-import { LessonBuddy } from '../../components/courses/blocks/LessonBuddy'
+import { NodeChat } from '../../components/courses/NodeChat'
 import { NodeSkeleton, RESERVED_CONTENT_PX } from '../../components/courses/NodeSkeleton'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
 import { transition, duration, ease } from '../../lib/motion'
@@ -685,20 +685,16 @@ export function NodeView() {
                   <CloseIcon />
                 </button>
               </div>
-              {/* Panel content */}
-              <div className="flex-1 overflow-y-auto p-4">
+              {/* Panel content — chat manages its own scroll; others use the wrapper's */}
+              <div className={`flex-1 min-h-0 p-4 ${activePanel === 'chat' ? 'flex flex-col' : 'overflow-y-auto'}`}>
                 {activePanel === 'map' && nodes.data && (
                   <NodeList data={nodes.data} />
                 )}
                 {activePanel === 'chat' && (
-                  <div className="h-full">
-                    <LessonBuddy
-                      nodeTitle={node?.title ?? undefined}
-                      nodeSummary={node?.summary ?? undefined}
-                      stepIndex={0}
-                      totalSteps={1}
-                    />
-                  </div>
+                  <NodeChat
+                    nodeTitle={node?.title ?? undefined}
+                    nodeSummary={node?.summary ?? undefined}
+                  />
                 )}
                 {activePanel === 'config' && <ConfigPanel />}
               </div>

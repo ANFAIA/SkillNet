@@ -18,6 +18,9 @@ import type {
  */
 type ChatEndpoint = '/chat' | '/chat/admin'
 
+/** Extra context sent on the first message only (e.g. node title/summary for lesson chat). */
+export type ChatContext = Record<string, unknown>
+
 /**
  * Chat streams over `fetch` + `ReadableStream` (not EventSource) so we can POST
  * the message body and cancel cleanly with an AbortController.
@@ -35,10 +38,11 @@ type ChatEndpoint = '/chat' | '/chat/admin'
  * - The loop keeps reading afterwards. A layout that fails sends
  *   `layout_skipped` and nothing changes; the prose is the answer either way.
  */
-export function useChat(endpoint: ChatEndpoint = '/chat') {
+export function useChat(endpoint: ChatEndpoint = '/chat', firstMessageContext?: ChatContext) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [isStreaming, setIsStreaming] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
+  const sentCountRef = useRef(0)
 
   const sendMessage = useCallback(
     async (text: string) => {
@@ -65,11 +69,18 @@ export function useChat(endpoint: ChatEndpoint = '/chat') {
       abortRef.current = controller
 
       try {
+        // Send context only on the first message so the backend can ground the
+        // conversation without polluting the session title.
+        const isFirst = sentCountRef.current === 0
+        sentCountRef.current += 1
+        const payload: Record<string, unknown> = { message: text }
+        if (isFirst && firstMessageContext) payload.context = firstMessageContext
+
         const res = await fetch(`/api/v1${endpoint}`, {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: text }),
+          body: JSON.stringify(payload),
           signal: controller.signal,
         })
 
@@ -216,7 +227,7 @@ export function useChat(endpoint: ChatEndpoint = '/chat') {
         }
       }
     },
-    [endpoint],
+    [endpoint, firstMessageContext],
   )
 
   const cancel = useCallback(() => {

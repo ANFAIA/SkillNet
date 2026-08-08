@@ -46,6 +46,12 @@ export const en: Record<string, string> = {
   'buddy.hint.last': 'Let\'s see how you do!',
   'buddy.hint.default': 'Keep going!',
 
+  // Node chat (sidebar panel)
+  'nodeChat.empty': 'Ask me anything about this lesson.',
+  'nodeChat.placeholder': 'Type your question...',
+  'nodeChat.send': 'Send',
+  'nodeChat.stop': 'Stop',
+
   // Node view
   'node.backToCourse': 'Back to course',
   'node.pendingReview': 'This node is pending review',
