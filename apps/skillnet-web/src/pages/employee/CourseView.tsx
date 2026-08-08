@@ -167,22 +167,6 @@ export function CourseView() {
     setActiveLessonId(firstModule?.lessons[0]?.id ?? '')
   }, [course])
 
-  if (isLoading || dynamicPending) {
-    return (
-      <div>
-        <Skeleton className="h-6 w-1/3 mb-6" />
-        <div className="flex flex-col lg:flex-row gap-6">
-          <div className="w-full lg:w-72 lg:shrink-0">
-            <Card><SkeletonText lines={5} /></Card>
-          </div>
-          <div className="flex-1 min-w-0">
-            <Card><SkeletonText lines={8} /></Card>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
   // --- Auto-navigate: skip welcome + node list, go straight to the lesson ---
   //
   // The old flow was: MyCourses → Welcome → NodeList → NodeView (3 clicks).
@@ -207,6 +191,22 @@ export function CourseView() {
       navigate(`${base}/nodo/${target.id}`, { replace: true })
     }
   }, [dynamicNodes, id, navigate, pathname])
+
+  if (isLoading || dynamicPending) {
+    return (
+      <div>
+        <Skeleton className="h-6 w-1/3 mb-6" />
+        <div className="flex flex-col lg:flex-row gap-6">
+          <div className="w-full lg:w-72 lg:shrink-0">
+            <Card><SkeletonText lines={5} /></Card>
+          </div>
+          <div className="flex-1 min-w-0">
+            <Card><SkeletonText lines={8} /></Card>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   if (dynamicNodes && id) {
     const courseTitle = course?.title ?? intl.formatMessage({ id: 'courseview.notFound' })
