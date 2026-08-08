@@ -640,44 +640,22 @@ export function NodeView() {
           </div>
         )}
 
-        {/* Right icon sidebar — desktop only */}
-        <div className="hidden md:flex shrink-0 w-12 flex-col items-center justify-center gap-4 border-l border-border" data-no-explain="">
-          <button
-            type="button"
-            onClick={() => togglePanel('map')}
-            className={`p-2 rounded-md transition-colors ${activePanel === 'map' ? 'bg-primary-subtle' : 'hover:bg-bg-muted'}`}
-            aria-label={intl.formatMessage({ id: 'panel.map' })}
-          >
-            <MapIcon active={activePanel === 'map'} />
-          </button>
-          <button
-            type="button"
-            onClick={() => togglePanel('chat')}
-            className={`p-2 rounded-md transition-colors ${activePanel === 'chat' ? 'bg-primary-subtle' : 'hover:bg-bg-muted'}`}
-            aria-label={intl.formatMessage({ id: 'panel.chat' })}
-          >
-            <ChatIcon active={activePanel === 'chat'} />
-          </button>
-          <button
-            type="button"
-            onClick={() => togglePanel('config')}
-            className={`p-2 rounded-md transition-colors ${activePanel === 'config' ? 'bg-primary-subtle' : 'hover:bg-bg-muted'}`}
-            aria-label={intl.formatMessage({ id: 'panel.config' })}
-          >
-            <ConfigIcon active={activePanel === 'config'} />
-          </button>
-        </div>
-
-        {/* Slide panel — overlays the right side, content stays visible underneath */}
-        <AnimatePresence>
-          {activePanel && (
+        {/* Right sidebar — morphs from icon bar (w-12) to panel (w-[400px]) */}
+        <motion.div
+          layoutId="node-sidebar"
+          transition={{ type: 'spring', stiffness: 200, damping: 28 }}
+          className={`hidden md:flex shrink-0 flex-col border-l border-border ${
+            activePanel ? 'w-[400px]' : 'w-12'
+          }`}
+          data-no-explain=""
+        >
+          {activePanel ? (
             <motion.div
               key={activePanel}
-              className="absolute right-0 top-0 bottom-0 w-[340px] max-md:w-[85%] bg-bg border-l border-border flex flex-col shadow-lg"
-              initial={{ x: '100%', opacity: 0.8 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: '100%', opacity: 0.8 }}
-              transition={{ type: 'spring', stiffness: 200, damping: 28 }}
+              className="flex-1 flex flex-col min-h-0"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.3, ease: [0.38, 0.49, 0, 1], delay: 0.25 }}
             >
               {/* Panel header */}
               <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
@@ -711,8 +689,35 @@ export function NodeView() {
                 {activePanel === 'config' && <ConfigPanel />}
               </div>
             </motion.div>
+          ) : (
+            <div className="flex-1 flex flex-col items-center justify-center gap-4">
+              <button
+                type="button"
+                onClick={() => togglePanel('map')}
+                className="p-2 rounded-md transition-colors hover:bg-bg-muted"
+                aria-label={intl.formatMessage({ id: 'panel.map' })}
+              >
+                <MapIcon active={false} />
+              </button>
+              <button
+                type="button"
+                onClick={() => togglePanel('chat')}
+                className="p-2 rounded-md transition-colors hover:bg-bg-muted"
+                aria-label={intl.formatMessage({ id: 'panel.chat' })}
+              >
+                <ChatIcon active={false} />
+              </button>
+              <button
+                type="button"
+                onClick={() => togglePanel('config')}
+                className="p-2 rounded-md transition-colors hover:bg-bg-muted"
+                aria-label={intl.formatMessage({ id: 'panel.config' })}
+              >
+                <ConfigIcon active={false} />
+              </button>
+            </div>
           )}
-        </AnimatePresence>
+        </motion.div>
       </div>
 
       {/* Bottom icon bar — mobile only */}
