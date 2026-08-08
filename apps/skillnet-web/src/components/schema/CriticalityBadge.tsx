@@ -1,3 +1,4 @@
+import { useIntl } from 'react-intl'
 import type { NodeCriticality } from '../../types'
 
 /**
@@ -11,27 +12,28 @@ export const DEFAULT_MASTERY_THRESHOLD: Record<NodeCriticality, number> = {
   contextual: 0.7,
 }
 
+
 interface Descriptor {
-  label: string
-  hint: string
+  labelKey: string
+  hintKey: string
   /** Status-pill colours only, per the design system: no decorative badges. */
   className: string
 }
 
 export const CRITICALITY: Record<NodeCriticality, Descriptor> = {
   critical: {
-    label: 'Critico',
-    hint: 'Obligatorio: el curso no se cierra hasta que se domina',
+    labelKey: 'criticality.critical',
+    hintKey: 'criticality.criticalHint',
     className: 'bg-primary-subtle text-primary',
   },
   recommended: {
-    label: 'Recomendado',
-    hint: 'No bloquea el cierre del curso',
+    labelKey: 'criticality.recommended',
+    hintKey: 'criticality.recommendedHint',
     className: 'bg-accent-subtle text-accent',
   },
   contextual: {
-    label: 'Contextual',
-    hint: 'Contexto de apoyo: no bloquea el cierre del curso',
+    labelKey: 'criticality.contextual',
+    hintKey: 'criticality.contextualHint',
     className: 'bg-bg-muted text-text-secondary',
   },
 }
@@ -49,14 +51,15 @@ export function CriticalityBadge({
   criticality: NodeCriticality
   className?: string
 }) {
+  const intl = useIntl()
   const descriptor = CRITICALITY[criticality]
 
   return (
     <span
-      title={descriptor.hint}
+      title={intl.formatMessage({ id: descriptor.hintKey })}
       className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full shrink-0 ${descriptor.className} ${className}`}
     >
-      {descriptor.label}
+      {intl.formatMessage({ id: descriptor.labelKey })}
     </span>
   )
 }
