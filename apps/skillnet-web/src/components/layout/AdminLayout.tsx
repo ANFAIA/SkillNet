@@ -1,5 +1,6 @@
 import { Outlet, useLocation } from 'react-router-dom'
 import { motion, LayoutGroup } from 'framer-motion'
+import { useIntl } from 'react-intl'
 import { AdminSidebar } from './AdminSidebar'
 import { Header } from './Header'
 import { ErrorBoundary } from '../ErrorBoundary'
@@ -10,6 +11,7 @@ const morphSpring = { type: 'spring' as const, stiffness: 200, damping: 28 }
 
 function AdminLayoutInner() {
   const location = useLocation()
+  const intl = useIntl()
   const { collapsed } = useSidebar()
   const isNodeView = /\/nodo\/[^/]+$/.test(location.pathname)
 
@@ -37,9 +39,9 @@ function AdminLayoutInner() {
             fallback={(error, reset) => (
               <div className="p-4 md:p-6">
                 <div className="max-w-md mx-auto mt-12 text-center space-y-4">
-                  <h2 className="text-lg font-semibold text-text">Algo salio mal</h2>
+                  <h2 className="text-lg font-semibold text-text">{intl.formatMessage({ id: 'error.title' })}</h2>
                   <p className="text-sm text-text-secondary">
-                    No se pudo cargar esta pagina. Intenta de nuevo.
+                    {intl.formatMessage({ id: 'error.description' })}
                   </p>
                   <pre className="text-xs text-text-muted bg-bg-subtle rounded-lg p-3 overflow-x-auto text-left">
                     {error.message}
@@ -49,7 +51,7 @@ function AdminLayoutInner() {
                     onClick={reset}
                     className="px-4 py-2 text-sm font-medium rounded-lg bg-primary text-white hover:opacity-90 transition-opacity"
                   >
-                    Reintentar
+                    {intl.formatMessage({ id: 'error.retry' })}
                   </button>
                 </div>
               </div>

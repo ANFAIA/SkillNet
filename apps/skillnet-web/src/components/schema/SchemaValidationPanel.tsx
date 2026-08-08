@@ -1,3 +1,4 @@
+import { useIntl } from 'react-intl'
 import type { SchemaRuleError } from '../../types'
 
 /**
@@ -17,58 +18,39 @@ interface RuleCopy {
   detail: string
 }
 
-export const SCHEMA_RULE_COPY: Record<string, RuleCopy> = {
-  empty_schema: {
-    title: 'El esquema no tiene ningun nodo',
-    detail: 'Propon un esquema desde el documento o anade nodos a mano.',
-  },
-  missing_summary: {
-    title: 'Hay nodos sin resumen',
-    detail:
-      'El tutor lee el arbol de resumenes para decidir que nodo es relevante: sin resumen ese nodo es invisible para el.',
-  },
-  no_critical_node: {
-    title: 'Ningun nodo es critico',
-    detail:
-      'El curso se cierra cuando se dominan todos los nodos criticos. Sin ninguno, nunca podria completarse.',
-  },
-  orphan_prerequisite: {
-    title: 'Hay prerrequisitos imposibles',
-    detail:
-      'Estos prerrequisitos apuntan a nodos que ya no estan en el esquema, asi que nunca se podrian cumplir.',
-  },
-  cycle: {
-    title: 'Los prerrequisitos forman un ciclo',
-    detail:
-      'Cada nodo del ciclo espera a otro del mismo ciclo, asi que ninguno podria empezar nunca. Quita uno de los prerrequisitos de la cadena.',
-  },
-  position_not_contiguous: {
-    title: 'El orden de los nodos tiene huecos',
-    detail: 'Las posiciones deben ir del 1 al ultimo nodo sin saltos.',
-  },
-  node_not_reviewed: {
-    title: 'Hay nodos sin revisar',
-    detail:
-      'Un nodo sin revisar no se sirve nunca. Marcalos como revisados en la lista de revision.',
-  },
-  node_has_progress: {
-    title: 'Hay nodos con progreso de aprendices',
-    detail:
-      'Archivalos en lugar de borrarlos: borrarlos tiraria la maestria y el rastro de auditoria de quien ya trabajo en ellos.',
-  },
-  unknown_node: {
-    title: 'El esquema referencia nodos que este curso no tiene',
-    detail: 'Recarga la pantalla para volver a leer el esquema del servidor.',
-  },
-}
+const KNOWN_RULES = [
+  'empty_schema',
+  'missing_summary',
+  'no_critical_node',
+  'orphan_prerequisite',
+  'cycle',
+  'position_not_contiguous',
+  'node_not_reviewed',
+  'node_has_progress',
+  'unknown_node',
+] as const
 
-function ruleCopy(code: string): RuleCopy {
-  return (
-    SCHEMA_RULE_COPY[code] ?? {
-      title: `El servidor rechazo el esquema (${code})`,
-      detail: 'No se pudo traducir este error. Revisa el esquema completo.',
+/** Kept for tests that import SCHEMA_RULE_COPY — keys only, values come from i18n now. */
+export const SCHEMA_RULE_COPY: Record<string, RuleCopy> = Object.fromEntries(
+  KNOWN_RULES.map((code) => [code, { title: code, detail: `${code}.detail` }]),
+)
+
+function useRuleCopy() {
+  const intl = useIntl()
+  return (code: string): RuleCopy => {
+    const titleKey = `schemaRule.${code}`
+    const detailKey = `schemaRule.${code}.detail`
+    if ((KNOWN_RULES as readonly string[]).includes(code)) {
+      return {
+        title: intl.formatMessage({ id: titleKey }),
+        detail: intl.formatMessage({ id: detailKey }),
+      }
     }
-  )
+    return {
+      title: intl.formatMessage({ id: 'schemaValidation.unknownError' }, { code }),
+      detail: intl.formatMessage({ id: 'schemaValidation.unknownErrorDetail' }),
+    }
+  }
 }
 
 export function SchemaValidationPanel({
@@ -83,10 +65,13 @@ export function SchemaValidationPanel({
   nodeLabels: Record<string, string>
   className?: string
 }) {
+  const intl = useIntl()
+  const ruleCopy = useRuleCopy()
+
   if (errors.length === 0 && warnings.length === 0) return null
 
   function label(id: string): string {
-    return nodeLabels[id] ?? `Nodo desconocido (${id.slice(0, 8)})`
+    return nodeLabels[id] ?? intl.formatMessage({ id: 'schemaValidation.unknownNode' }, { id: id.slice(0, 8) })
   }
 
   return (
@@ -98,8 +83,8 @@ export function SchemaValidationPanel({
         >
           <p className="text-sm font-medium text-danger">
             {errors.length === 1
-              ? 'No se puede validar todavia: 1 problema'
-              : `No se puede validar todavia: ${errors.length} problemas`}
+              ? intl.formatMessage({ id: 'schemaValidation.problemsSingular' })
+              : intl.formatMessage({ id: 'schemaValidation.problemsPlural' }, { count: errors.length })}
           </p>
           <ul className="mt-3 space-y-3">
             {errors.map((error, index) => {
@@ -113,7 +98,7 @@ export function SchemaValidationPanel({
                     // repeat the first id, so the chain is closed here to make the
                     // loop visible instead of reading as a straight line.
                     <p className="text-xs text-text mt-1 break-words">
-                      Ciclo:{' '}
+                      {intl.formatMessage({ id: 'schemaValidation.cycleLabel' })}{' '}
                       {[...error.node_ids, error.node_ids[0]]
                         .map((id) => label(id))
                         .join(' -> ')}
@@ -140,7 +125,7 @@ export function SchemaValidationPanel({
       {warnings.length > 0 && (
         <div className="border border-warning/40 bg-warning/5 rounded-lg p-4 min-w-0">
           <p className="text-sm font-medium text-warning">
-            Avisos del disenador (no bloquean la validacion)
+            {intl.formatMessage({ id: 'schemaValidation.warnings' })}
           </p>
           <ul className="mt-2 space-y-1">
             {warnings.map((warning, index) => (

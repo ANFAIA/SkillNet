@@ -1,4 +1,6 @@
 import type { Preview } from '@storybook/react-vite'
+import { IntlProvider } from 'react-intl'
+import { es } from '../src/i18n/es'
 import '../src/index.css'
 
 const preview: Preview = {
@@ -26,11 +28,17 @@ const preview: Preview = {
      * of these components sits inside the white `main`. Judging a Callout's tint or a
      * Table's borders against a dark blue is judging the wrong picture, and the block
      * stories are the thing the kit is reviewed on.
+     *
+     * IntlProvider wraps all stories because most components (ClickableText,
+     * QuizItemBlock, DragOrderBlock, etc.) call `useIntl()`. Without it the story
+     * crashes immediately with "Could not find required `intl` object".
      */
     (Story) => (
-      <div className="bg-bg text-text min-h-screen p-4">
-        <Story />
-      </div>
+      <IntlProvider locale="es" messages={es} defaultLocale="es">
+        <div className="bg-bg text-text min-h-screen p-4">
+          <Story />
+        </div>
+      </IntlProvider>
     ),
   ],
 };

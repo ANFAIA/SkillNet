@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useIntl } from 'react-intl'
 import { Button } from '../ui'
 import { Modal } from '../ui/Modal'
 import { NodeSkeleton } from '../courses/NodeSkeleton'
@@ -28,6 +29,7 @@ interface NodePreviewProps {
 }
 
 export function NodePreview({ nodeId, nodeTitle, open, onClose, origin }: NodePreviewProps) {
+  const intl = useIntl()
   const requestRender = useRequestRender(nodeId)
   const [program, setProgram] = useState<string | null>(null)
   const [format, setFormat] = useState<import('../../types/node-render').UiFormat | null>(null)
@@ -39,7 +41,7 @@ export function NodePreview({ nodeId, nodeTitle, open, onClose, origin }: NodePr
       if (reason === 'done' && renderId) {
         fetchRender(renderId)
       } else if (reason === 'error') {
-        setError('No se pudo generar la previsualizacion.')
+        setError(intl.formatMessage({ id: 'nodePreview.generateError' }))
       }
     },
   })
@@ -54,7 +56,7 @@ export function NodePreview({ nodeId, nodeTitle, open, onClose, origin }: NodePr
         setFormat(render.ui_format)
       }
     } catch {
-      setError('No se pudo cargar el contenido generado.')
+      setError(intl.formatMessage({ id: 'nodePreview.loadError' }))
     }
   }, [nodeId])
 
@@ -76,7 +78,7 @@ export function NodePreview({ nodeId, nodeTitle, open, onClose, origin }: NodePr
           }
         },
         onError: () => {
-          setError('No se pudo iniciar la generacion. Asegurate de que el esquema esta guardado.')
+          setError(intl.formatMessage({ id: 'nodePreview.startError' }))
         },
       },
     )
@@ -91,7 +93,7 @@ export function NodePreview({ nodeId, nodeTitle, open, onClose, origin }: NodePr
       <div className="pr-6">
         <h3 className="text-lg font-semibold text-text">{nodeTitle}</h3>
         <p className="text-xs text-text-muted mt-1">
-          Previsualizacion como empleado · no se guarda en cache
+          {intl.formatMessage({ id: 'nodePreview.subtitle' })}
         </p>
       </div>
 
@@ -116,12 +118,12 @@ export function NodePreview({ nodeId, nodeTitle, open, onClose, origin }: NodePr
                         stream.start(nodeId, accepted.request_id)
                       }
                     },
-                    onError: () => setError('No se pudo reintentar.'),
+                    onError: () => setError(intl.formatMessage({ id: 'nodePreview.retryError' })),
                   },
                 )
               }}
             >
-              Reintentar
+              {intl.formatMessage({ id: 'nodePreview.retry' })}
             </Button>
           </div>
         ) : isGenerating ? (

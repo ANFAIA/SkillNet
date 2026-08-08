@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useIntl } from 'react-intl'
 import { Button } from '../ui'
 import type { NodeRenderVersion } from '../../types'
 
@@ -47,11 +48,11 @@ export interface RenderControlsProps {
   adapted: boolean
 }
 
-function formatDate(value: string | null): string {
-  if (!value) return 'sin fecha'
+function formatDate(value: string | null, locale: string, noDateLabel: string): string {
+  if (!value) return noDateLabel
   const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return 'sin fecha'
-  return date.toLocaleString('es-ES', {
+  if (Number.isNaN(date.getTime())) return noDateLabel
+  return date.toLocaleString(locale === 'es' ? 'es-ES' : 'en-US', {
     day: '2-digit',
     month: 'short',
     hour: '2-digit',
@@ -70,8 +71,10 @@ export function RenderControls({
   viewingPrevious,
   adapted,
 }: RenderControlsProps) {
+  const intl = useIntl()
   const [open, setOpen] = useState(false)
   const viewable = useMemo(() => new Set(viewableRenderIds), [viewableRenderIds])
+  const noDateLabel = intl.formatMessage({ id: 'renderControls.noDate' })
 
   const previous = versions.filter((version) => version.render_id !== activeRenderId)
   const hasHistory = previous.length > 0
@@ -85,26 +88,26 @@ export function RenderControls({
     >
       {adapted && !viewingPrevious && (
         <p className="text-sm text-text-secondary" role="status">
-          Esta leccion se ha adaptado a tus ultimas respuestas.
+          {intl.formatMessage({ id: 'renderControls.adapted' })}
         </p>
       )}
 
       {viewingPrevious && (
         <div className="flex flex-wrap items-center gap-3">
-          <p className="text-sm text-text">Estas viendo una version anterior.</p>
+          <p className="text-sm text-text">{intl.formatMessage({ id: 'renderControls.viewingPrevious' })}</p>
           <button
             type="button"
             onClick={onViewCurrent}
             className="text-sm font-medium text-primary hover:text-primary/80 transition-colors"
           >
-            Volver a la actual
+            {intl.formatMessage({ id: 'renderControls.backToCurrent' })}
           </button>
         </div>
       )}
 
       <div className="flex flex-wrap items-center gap-3">
         <Button size="sm" variant="secondary" disabled={refreshing} onClick={onRefresh}>
-          {refreshing ? 'Actualizando...' : 'Actualizar esta leccion'}
+          {refreshing ? intl.formatMessage({ id: 'renderControls.refreshing' }) : intl.formatMessage({ id: 'renderControls.refresh' })}
         </Button>
 
         {hasHistory && (
@@ -114,14 +117,13 @@ export function RenderControls({
             aria-expanded={open}
             className="text-sm font-medium text-primary hover:text-primary/80 transition-colors"
           >
-            Ver la version anterior
+            {intl.formatMessage({ id: 'renderControls.viewPrevious' })}
           </button>
         )}
       </div>
 
       <p className="text-xs text-text-muted">
-        Solo este boton cambia el contenido de este nodo. Responder o volver mas tarde te
-        devuelve exactamente la misma leccion.
+        {intl.formatMessage({ id: 'renderControls.stabilityNote' })}
       </p>
 
       {open && hasHistory && (
@@ -136,17 +138,17 @@ export function RenderControls({
                     onClick={() => onViewVersion(version.render_id)}
                     className="font-medium text-primary hover:text-primary/80 transition-colors"
                   >
-                    Version del {formatDate(version.created_at)}
+                    {intl.formatMessage({ id: 'renderControls.versionOf' }, { date: formatDate(version.created_at, intl.locale, noDateLabel) })}
                   </button>
                 ) : (
                   <span className="text-text-secondary">
-                    Version del {formatDate(version.created_at)}
+                    {intl.formatMessage({ id: 'renderControls.versionOf' }, { date: formatDate(version.created_at, intl.locale, noDateLabel) })}
                   </span>
                 )}
                 <span className="text-xs text-text-muted">{version.ui_format}</span>
                 {!canView && (
                   <span className="text-xs text-text-muted">
-                    no disponible en esta sesion
+                    {intl.formatMessage({ id: 'renderControls.notAvailable' })}
                   </span>
                 )}
               </li>
