@@ -466,9 +466,19 @@ export function NodeView() {
 
   const shownKey = served?.render_id ?? 'none'
 
+  /** Navigate with View Transitions API crossfade when available. */
+  const smoothNavigate = useCallback((to: string, opts?: { state?: unknown }) => {
+    const go = () => navigate(to, opts)
+    if (typeof document !== 'undefined' && 'startViewTransition' in document) {
+      (document as unknown as { startViewTransition: (cb: () => void) => void }).startViewTransition(go)
+    } else {
+      go()
+    }
+  }, [navigate])
+
   function handleBack() {
     clearMorph()
-    navigate(backToCourse, { state: { fromNode: true } })
+    smoothNavigate(backToCourse, { state: { fromNode: true } })
   }
 
   return (
@@ -559,7 +569,7 @@ export function NodeView() {
                       >
                         <ClickableSurface nodeId={node.id} className="flex-1 min-h-0 flex flex-col">
                           <courseIntroContext.Provider value={courseIntro}>
-                          <nextNodeContext.Provider value={nextNode ? () => navigate(`${backToCourse}/nodo/${nextNode.id}`) : null}>
+                          <nextNodeContext.Provider value={nextNode ? () => smoothNavigate(`${backToCourse}/nodo/${nextNode.id}`) : null}>
                           <coursePositionContext.Provider value={{ nodeCount: ordered.length, currentNodeIndex: index }}>
                           <stepperContext.Provider value={true}>
                             <UiSpecRenderer
