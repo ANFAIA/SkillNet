@@ -131,15 +131,15 @@ export function LessonBuddy({
       setMessages((prev) => [...prev, userMsg, aMsg])
       setIsStreaming(true)
 
-      // On the first message, seed the LLM with node context so it knows
-      // what the learner is studying. Subsequent messages rely on session
-      // history for continuity.
-      const enriched = messages.length === 0
-        ? `[Contexto: el alumno esta en el paso ${stepIndex + 1}/${totalSteps} del nodo "${nodeTitle ?? ''}". Resumen: "${nodeSummary ?? ''}"]\n\n${text}`
-        : text
+      // On the first message, send node context via the `context` field so
+      // the backend can use it for grounding without polluting the session
+      // title (which is derived from the message text).
+      const ctx = messages.length === 0
+        ? { step: stepIndex + 1, totalSteps, nodeTitle: nodeTitle ?? '', nodeSummary: nodeSummary ?? '' }
+        : undefined
 
       try {
-        await streamChat(enriched, undefined, controller.signal, (chunk) => {
+        await streamChat(text, ctx, controller.signal, (chunk) => {
           if (controller.signal.aborted) return
           setMessages((prev) =>
             prev.map((m) => m.id === aId ? { ...m, content: m.content + chunk } : m),

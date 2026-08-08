@@ -205,6 +205,26 @@ def _context_course_id(context: dict | None) -> uuid.UUID | None:
         return None
 
 
+def _node_context_prefix(context: dict | None) -> str:
+    """Build a learner-context preamble from the LessonBuddy's ``context`` dict.
+
+    Returned as a bracketed block identical in shape to what the frontend used to
+    prepend inline, so existing tutor prompts handle it the same way.
+    """
+    if not context:
+        return ""
+    node_title = context.get("nodeTitle")
+    if not node_title:
+        return ""
+    step = context.get("step", "?")
+    total = context.get("totalSteps", "?")
+    summary = context.get("nodeSummary", "")
+    return (
+        f'[Contexto: el alumno esta en el paso {step}/{total} del nodo '
+        f'"{node_title}". Resumen: "{summary}"]'
+    )
+
+
 def strip_no_ui(raw: str) -> str:
     """The model's layout answer with the ``NO_UI`` verdict removed.
 
@@ -624,8 +644,16 @@ class ChatService:
             if org_data is not None:
                 yield format_sse("org_data", org_data)
 
+            # Enrich the question with node context from the LessonBuddy (if
+            # present) so the LLM knows what the learner is studying.  This is
+            # kept separate from `message` so the session title stays clean.
+            llm_question = message
+            node_ctx = _node_context_prefix(context)
+            if node_ctx:
+                llm_question = f"{node_ctx}\n\n{message}"
+
             messages = self._build_messages(
-                history, grounded, message, agent_type, snapshot_block
+                history, grounded, llm_question, agent_type, snapshot_block
             )
             async for piece in self.tutor_llm.stream(messages):
                 parts.append(piece)
