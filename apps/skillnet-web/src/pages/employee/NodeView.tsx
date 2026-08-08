@@ -625,18 +625,25 @@ export function NodeView() {
           </div>
         </div>
 
-        {/* Spider — hangs between content and sidebar (desktop only) */}
+        {/* Spider — floats over content, clicking opens the chat sidebar panel */}
         {served && activePanel !== 'chat' && (
-          <div className="hidden md:flex shrink-0 w-16 flex-col items-center pt-0 relative -ml-6">
-            {/* Thread line from top */}
-            <div className="w-px bg-border flex-none" style={{ height: '40px' }} />
-            {/* Spider */}
-            <LessonBuddy
-              nodeTitle={node?.title ?? undefined}
-              nodeSummary={node?.summary ?? undefined}
-              stepIndex={0}
-              totalSteps={1}
-            />
+          <div className="hidden md:block absolute right-16 top-0 z-10">
+            <div className="flex flex-col items-center">
+              {/* Thread from top */}
+              <div className="w-px bg-border" style={{ height: 48 }} />
+              {/* Spider — clickable, opens chat */}
+              <motion.button
+                type="button"
+                onClick={() => togglePanel('chat')}
+                className="w-10 h-10 cursor-pointer"
+                whileHover={{ scale: 1.1, y: 2 }}
+                whileTap={{ scale: 0.95 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                aria-label={intl.formatMessage({ id: 'panel.chat' })}
+              >
+                <img src="/spider.svg" alt="" className="w-full h-full" />
+              </motion.button>
+            </div>
           </div>
         )}
 
