@@ -625,27 +625,36 @@ export function NodeView() {
           </div>
         </div>
 
-        {/* Spider — floats over content, clicking opens the chat sidebar panel */}
-        {served && activePanel !== 'chat' && (
-          <div className="hidden md:block absolute right-16 top-0 z-10">
-            <div className="flex flex-col items-center">
-              {/* Thread from top */}
-              <div className="w-px bg-border" style={{ height: 48 }} />
-              {/* Spider — clickable, opens chat */}
-              <motion.button
-                type="button"
-                onClick={() => togglePanel('chat')}
-                className="w-10 h-10 cursor-pointer"
-                whileHover={{ scale: 1.1, y: 2 }}
-                whileTap={{ scale: 0.95 }}
-                transition={{ type: 'spring', stiffness: 400, damping: 20 }}
-                aria-label={intl.formatMessage({ id: 'panel.chat' })}
-              >
-                <img src="/spider.svg" alt="" className="w-full h-full" />
-              </motion.button>
-            </div>
-          </div>
-        )}
+        {/* Spider — floats over content, fades out when any panel opens */}
+        <AnimatePresence>
+          {served && !activePanel && (
+            <motion.div
+              key="spider"
+              className="hidden md:block absolute right-16 top-0 z-10"
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+            >
+              <div className="flex flex-col items-center">
+                {/* Thread from top */}
+                <div className="w-px bg-border" style={{ height: 48 }} />
+                {/* Spider — clickable, opens chat */}
+                <motion.button
+                  type="button"
+                  onClick={() => togglePanel('chat')}
+                  className="w-10 h-10 cursor-pointer"
+                  whileHover={{ scale: 1.1, y: 2 }}
+                  whileTap={{ scale: 0.95 }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                  aria-label={intl.formatMessage({ id: 'panel.chat' })}
+                >
+                  <img src="/spider.svg" alt="" className="w-full h-full" />
+                </motion.button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Right sidebar — morphs from icon bar (w-12) to panel (w-[400px]) */}
         <motion.div
@@ -697,7 +706,13 @@ export function NodeView() {
               </div>
             </motion.div>
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center gap-4">
+            <motion.div
+              key="icons"
+              className="flex-1 flex flex-col items-center justify-center gap-4"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.25, ease: [0.38, 0.49, 0, 1], delay: 0.2 }}
+            >
               <button
                 type="button"
                 onClick={() => togglePanel('map')}
@@ -722,7 +737,7 @@ export function NodeView() {
               >
                 <ConfigIcon active={false} />
               </button>
-            </div>
+            </motion.div>
           )}
         </motion.div>
       </div>
