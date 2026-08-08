@@ -475,32 +475,13 @@ export function NodeView() {
 
   const shownKey = served?.render_id ?? 'none'
 
-  // Morph entry: clip-path reveal. The portal is always fullscreen; clip-path
-  // "windows" only the origin rect at first, then expands to show everything.
-  // Content is never scaled (no deformation), just progressively revealed.
-  const hasMorphOrigin = morphRef.current !== null && !reduceMotion
-  const origin = morphRef.current
-
-  const vw = typeof window !== 'undefined' ? window.innerWidth : 1
-  const vh = typeof window !== 'undefined' ? window.innerHeight : 1
-
-  // clip-path morph: when we have an origin rect (user clicked a node row),
-  // reveal from that rect. Otherwise, a gentle scale+opacity entrance.
-  const clipFrom = hasMorphOrigin
-    ? `inset(${origin!.top}px ${vw - origin!.left - origin!.width}px ${vh - origin!.top - origin!.height}px ${origin!.left}px round 8px)`
-    : undefined
-  const clipTo = 'inset(0px 0px 0px 0px round 0px)'
-
-  // Two animation modes: clip-path morph (from node row) or scale+opacity (auto-navigate)
-  const portalInitial = hasMorphOrigin
-    ? { clipPath: clipFrom, opacity: 1 }
-    : { opacity: 0, scale: 0.97 }
-  const portalAnimate = hasMorphOrigin
-    ? { clipPath: exiting ? clipFrom : clipTo, opacity: 1 }
-    : { opacity: exiting ? 0 : 1, scale: exiting ? 0.97 : 1 }
+  // Entry/exit animation — same spring feel as CreateCourse's card expansion.
+  // Scale + opacity with spring physics (stiffness 200, damping 28), content
+  // fades in after the container settles. No clip-path, no FLIP.
+  const springTransition = { type: 'spring' as const, stiffness: 200, damping: 28 }
 
   function handleBack() {
-    if (reduceMotion || !hasMorphOrigin) {
+    if (reduceMotion) {
       clearMorph()
       navigate(backToCourse, { state: { fromNode: true } })
       return
@@ -516,9 +497,12 @@ export function NodeView() {
   return createPortal(
     <motion.div
       className="fixed inset-0 z-[200] bg-bg flex flex-col overflow-hidden"
-      initial={portalInitial}
-      animate={portalAnimate}
-      transition={{ duration: hasMorphOrigin ? duration.slow : duration.normal, ease: ease.base }}
+      initial={{ opacity: 0, scale: 0.96, y: 12 }}
+      animate={exiting
+        ? { opacity: 0, scale: 0.96, y: 12 }
+        : { opacity: 1, scale: 1, y: 0 }
+      }
+      transition={springTransition}
       onAnimationComplete={() => {
         if (exiting) onExitComplete()
         else clearMorph()
