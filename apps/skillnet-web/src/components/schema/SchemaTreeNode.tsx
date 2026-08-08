@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import { useIntl } from 'react-intl'
 import { duration } from '../../lib/motion'
 import { InfoTooltip } from '../ui/InfoTooltip'
 import { Button } from '../ui'
@@ -70,6 +71,7 @@ export function SchemaTreeNode({
   locked,
   onPreview,
 }: SchemaTreeNodeProps) {
+  const intl = useIntl()
   const {
     attributes,
     listeners,
@@ -95,7 +97,7 @@ export function SchemaTreeNode({
         ? 'bg-accent-subtle text-accent'
         : 'bg-bg-muted text-text-muted'
 
-  const critLabel = CRITICALITY[node.criticality].label
+  const critLabel = intl.formatMessage({ id: CRITICALITY[node.criticality].labelKey })
 
   function changeCriticality(next: NodeCriticality) {
     const wasDefault =
@@ -123,7 +125,7 @@ export function SchemaTreeNode({
             {...attributes}
             {...listeners}
             className="w-5 shrink-0 flex flex-col items-center gap-0.5 cursor-grab text-text-muted opacity-0 group-hover:opacity-100 transition-opacity mt-0.5"
-            title="Arrastrar"
+            title={intl.formatMessage({ id: 'schemaNode.drag' })}
           >
             <span className="block w-2.5 h-0.5 bg-current rounded-full" />
             <span className="block w-2.5 h-0.5 bg-current rounded-full" />
@@ -145,13 +147,13 @@ export function SchemaTreeNode({
         {/* Title + summary (collapsed) */}
         <div className="flex-1 min-w-0 ml-2">
           {locked ? (
-            <span className="text-sm font-medium text-text">{node.title || 'Nodo sin titulo'}</span>
+            <span className="text-sm font-medium text-text">{node.title || intl.formatMessage({ id: 'schema.nodeNoTitle' })}</span>
           ) : (
             <input
               className="w-full text-sm font-medium text-text bg-transparent border-none focus:outline-none focus:ring-0 p-0 focus:bg-bg focus:shadow-[0_0_0_1px_var(--color-primary)] focus:rounded focus:px-1 focus:-mx-1"
               value={node.title}
               onChange={(e) => onChange({ title: e.target.value })}
-              placeholder="Titulo del nodo"
+              placeholder={intl.formatMessage({ id: 'schemaNode.titlePlaceholder' })}
               disabled={disabled}
             />
           )}
@@ -164,7 +166,7 @@ export function SchemaTreeNode({
         <div className="flex items-center gap-2 shrink-0 ml-2 mt-0.5">
           {/* Dirty indicator */}
           {dirty && (
-            <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" title="Cambios sin guardar" />
+            <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" title={intl.formatMessage({ id: 'schemaNode.unsavedChanges' })} />
           )}
 
           {!expanded && node.archived && (
@@ -190,7 +192,7 @@ export function SchemaTreeNode({
         >
           {/* Summary */}
           <div className="flex items-start gap-0 px-2 py-1 rounded hover:bg-bg-muted">
-            <span className="w-24 shrink-0 text-xs text-text-muted pt-0.5">Resumen</span>
+            <span className="w-24 shrink-0 text-xs text-text-muted pt-0.5">{intl.formatMessage({ id: 'schemaNode.summary' })}</span>
             <textarea
               className="flex-1 min-w-0 text-sm text-text bg-transparent border-none focus:outline-none p-0 resize-none leading-relaxed focus:bg-bg focus:shadow-[0_0_0_1px_var(--color-primary)] focus:rounded focus:px-1.5 focus:py-0.5 focus:-mx-1.5 focus:-my-0.5 disabled:opacity-50"
               value={node.summary}
@@ -207,12 +209,12 @@ export function SchemaTreeNode({
 
           {/* Outcome */}
           <div className="flex items-start gap-0 px-2 py-1 rounded hover:bg-bg-muted">
-            <span className="w-24 shrink-0 text-xs text-text-muted pt-0.5">Objetivo</span>
+            <span className="w-24 shrink-0 text-xs text-text-muted pt-0.5">{intl.formatMessage({ id: 'schemaNode.outcome' })}</span>
             <input
               className="flex-1 min-w-0 text-sm text-text bg-transparent border-none focus:outline-none p-0 focus:bg-bg focus:shadow-[0_0_0_1px_var(--color-primary)] focus:rounded focus:px-1.5 focus:-mx-1.5 disabled:opacity-50"
               value={node.outcome}
               onChange={(e) => onChange({ outcome: e.target.value })}
-              placeholder="Que sabra hacer el alumno"
+              placeholder={intl.formatMessage({ id: 'schemaNode.outcomePlaceholder' })}
               disabled={disabled}
             />
           </div>
@@ -220,8 +222,8 @@ export function SchemaTreeNode({
           {/* Criticality */}
           <div className="flex items-center gap-0 px-2 py-1 rounded hover:bg-bg-muted">
             <span className="w-24 shrink-0 text-xs text-text-muted flex items-center">
-              Importancia
-              <InfoTooltip text="Imprescindible: el alumno debe dominar este tema para completar el curso. Recomendado: importante pero no obligatorio. Contexto: material complementario que enriquece pero no se evalua." />
+              {intl.formatMessage({ id: 'schemaNode.criticality' })}
+              <InfoTooltip text={intl.formatMessage({ id: 'schemaNode.criticalityTooltip' })} />
             </span>
             <div className="flex gap-1">
               {CRITICALITY_ORDER.map((value) => (
@@ -240,7 +242,7 @@ export function SchemaTreeNode({
                       : 'border-border text-text-muted hover:border-primary'
                   }`}
                 >
-                  {CRITICALITY[value].label}
+                  {intl.formatMessage({ id: CRITICALITY[value].labelKey })}
                 </button>
               ))}
             </div>
@@ -248,7 +250,7 @@ export function SchemaTreeNode({
 
           {/* Format */}
           <div className="flex items-center gap-0 px-2 py-1 rounded hover:bg-bg-muted">
-            <span className="w-24 shrink-0 text-xs text-text-muted">Formato</span>
+            <span className="w-24 shrink-0 text-xs text-text-muted">{intl.formatMessage({ id: 'schemaNode.format' })}</span>
             <div className="flex gap-1 flex-wrap">
               {SELECTABLE_UI_FORMATS.map((f) => (
                 <button
@@ -271,7 +273,7 @@ export function SchemaTreeNode({
 
           {/* Minutes */}
           <div className="flex items-center gap-0 px-2 py-1 rounded hover:bg-bg-muted">
-            <span className="w-24 shrink-0 text-xs text-text-muted">Minutos</span>
+            <span className="w-24 shrink-0 text-xs text-text-muted">{intl.formatMessage({ id: 'schemaNode.minutes' })}</span>
             <input
               type="number"
               min={1}
@@ -296,8 +298,8 @@ export function SchemaTreeNode({
           {/* Mastery threshold */}
           <div className="flex items-center gap-0 px-2 py-1 rounded hover:bg-bg-muted">
             <span className="w-24 shrink-0 text-xs text-text-muted flex items-center">
-              Umbral
-              <InfoTooltip text="Porcentaje de maestria necesario para dar el nodo por completado. El valor por defecto depende de la criticidad." />
+              {intl.formatMessage({ id: 'schemaNode.threshold' })}
+              <InfoTooltip text={intl.formatMessage({ id: 'schemaNode.thresholdTooltip' })} />
             </span>
             <input
               type="number"
@@ -314,19 +316,21 @@ export function SchemaTreeNode({
               }}
             />
             <span className="text-xs text-text-muted ml-2">
-              {thresholdIsDefault ? '(defecto)' : '(personalizado)'}
+              {thresholdIsDefault
+                ? intl.formatMessage({ id: 'schemaNode.thresholdDefault' })
+                : intl.formatMessage({ id: 'schemaNode.thresholdCustom' })}
             </span>
           </div>
 
           {/* Source headings */}
           <div className="flex items-start gap-0 px-2 py-1 rounded hover:bg-bg-muted">
-            <span className="w-24 shrink-0 text-xs text-text-muted pt-0.5">Apartados</span>
+            <span className="w-24 shrink-0 text-xs text-text-muted pt-0.5">{intl.formatMessage({ id: 'schemaNode.sourceHeadings' })}</span>
             <textarea
               className="flex-1 min-w-0 text-xs text-text bg-transparent border-none focus:outline-none p-0 resize-none leading-relaxed font-mono focus:bg-bg focus:shadow-[0_0_0_1px_var(--color-primary)] focus:rounded focus:px-1.5 focus:py-0.5 focus:-mx-1.5 focus:-my-0.5 disabled:opacity-50"
               rows={2}
               value={node.sourceHeadings.join('\n')}
               disabled={disabled}
-              placeholder="Un apartado por linea"
+              placeholder={intl.formatMessage({ id: 'schemaNode.sourceHeadingsPlaceholder' })}
               onChange={(e) =>
                 onChange({
                   sourceHeadings: e.target.value
@@ -364,7 +368,7 @@ export function SchemaTreeNode({
                   onPreview(node.id!, e.currentTarget.getBoundingClientRect())
                 }}
               >
-                Previsualizar
+                {intl.formatMessage({ id: 'schemaNode.preview' })}
               </Button>
             )}
 
@@ -372,10 +376,12 @@ export function SchemaTreeNode({
             {!locked && (
               <>
                 <Button variant="ghost" size="sm" onClick={onArchiveToggle}>
-                  {node.archived ? 'Desarchivar' : 'Archivar'}
+                  {node.archived
+                    ? intl.formatMessage({ id: 'schemaNode.unarchive' })
+                    : intl.formatMessage({ id: 'schemaNode.archive' })}
                 </Button>
                 <Button variant="ghost" size="sm" onClick={onRemove}>
-                  Quitar
+                  {intl.formatMessage({ id: 'schemaNode.remove' })}
                 </Button>
               </>
             )}

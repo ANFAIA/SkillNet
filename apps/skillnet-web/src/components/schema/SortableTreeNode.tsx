@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import { useIntl } from 'react-intl'
 import { duration } from '../../lib/motion'
 import { InfoTooltip } from '../ui/InfoTooltip'
 import { SELECTABLE_UI_FORMATS } from './NodeEditor'
@@ -37,10 +38,10 @@ function XIcon({ size = 14 }: { size?: number }) {
 
 // ── Option constants ────────────────────────────────────────
 
-const CRITICALITY_OPTIONS: { value: string; label: string }[] = [
-  { value: 'critical', label: 'Imprescindible' },
-  { value: 'recommended', label: 'Recomendado' },
-  { value: 'contextual', label: 'Contexto' },
+const CRITICALITY_OPTIONS: { value: string; labelKey: string }[] = [
+  { value: 'critical', labelKey: 'criticality.critical' },
+  { value: 'recommended', labelKey: 'criticality.recommended' },
+  { value: 'contextual', labelKey: 'criticality.contextual' },
 ]
 
 
@@ -67,6 +68,7 @@ export function SortableTreeNode({
   onChange,
   onDelete,
 }: SortableTreeNodeProps) {
+  const intl = useIntl()
   const {
     attributes,
     listeners,
@@ -90,7 +92,8 @@ export function SortableTreeNode({
         ? 'bg-accent-subtle text-accent'
         : 'bg-bg-muted text-text-muted'
 
-  const critLabel = CRITICALITY_OPTIONS.find((o) => o.value === node.criticality)?.label ?? ''
+  const critOption = CRITICALITY_OPTIONS.find((o) => o.value === node.criticality)
+  const critLabel = critOption ? intl.formatMessage({ id: critOption.labelKey }) : ''
 
   return (
     <div ref={setNodeRef} style={style}>
@@ -105,7 +108,7 @@ export function SortableTreeNode({
           {...attributes}
           {...listeners}
           className="w-5 shrink-0 flex flex-col items-center gap-0.5 cursor-grab text-text-muted opacity-0 group-hover:opacity-100 transition-opacity mt-0.5"
-          title="Arrastrar"
+          title={intl.formatMessage({ id: 'schemaNode.drag' })}
         >
           <span className="block w-2.5 h-0.5 bg-current rounded-full" />
           <span className="block w-2.5 h-0.5 bg-current rounded-full" />
@@ -128,7 +131,7 @@ export function SortableTreeNode({
             className="w-full text-sm font-medium text-text bg-transparent border-none focus:outline-none focus:ring-0 p-0 focus:bg-bg focus:shadow-[0_0_0_1px_var(--color-primary)] focus:rounded focus:px-1 focus:-mx-1"
             value={node.title}
             onChange={(e) => onChange({ title: e.target.value })}
-            placeholder="Titulo del nodo"
+            placeholder={intl.formatMessage({ id: 'schemaNode.titlePlaceholder' })}
           />
           {!expanded && node.summary && (
             <p className="text-xs text-text-muted truncate mt-0.5">{node.summary}</p>
@@ -143,7 +146,7 @@ export function SortableTreeNode({
                 <span
                   key={idx}
                   className="w-4 h-4 rounded-full text-[9px] font-semibold border border-border text-text-muted flex items-center justify-center"
-                  title={`Depende de: ${nodes[idx]?.title || `Nodo ${idx + 1}`}`}
+                  title={intl.formatMessage({ id: 'schemaNode.dependsOnNode' }, { title: nodes[idx]?.title || `${intl.formatMessage({ id: 'schema.nodeDefaultTitle' })} ${idx + 1}` })}
                 >
                   {idx + 1}
                 </span>
@@ -160,7 +163,7 @@ export function SortableTreeNode({
             type="button"
             onClick={onDelete}
             className="text-text-muted hover:text-danger p-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-            title="Eliminar nodo"
+            title={intl.formatMessage({ id: 'schemaNode.delete' })}
           >
             <XIcon size={14} />
           </button>
@@ -176,7 +179,7 @@ export function SortableTreeNode({
         >
           {/* Summary */}
           <div className="flex items-start gap-0 px-2 py-1 rounded hover:bg-bg-muted">
-            <span className="w-24 shrink-0 text-xs text-text-muted pt-0.5">Resumen</span>
+            <span className="w-24 shrink-0 text-xs text-text-muted pt-0.5">{intl.formatMessage({ id: 'schemaNode.summary' })}</span>
             <textarea
               className="flex-1 min-w-0 text-sm text-text bg-transparent border-none focus:outline-none p-0 resize-none leading-relaxed focus:bg-bg focus:shadow-[0_0_0_1px_var(--color-primary)] focus:rounded focus:px-1.5 focus:py-0.5 focus:-mx-1.5 focus:-my-0.5"
               value={node.summary}
@@ -192,20 +195,20 @@ export function SortableTreeNode({
 
           {/* Outcome */}
           <div className="flex items-start gap-0 px-2 py-1 rounded hover:bg-bg-muted">
-            <span className="w-24 shrink-0 text-xs text-text-muted pt-0.5">Objetivo</span>
+            <span className="w-24 shrink-0 text-xs text-text-muted pt-0.5">{intl.formatMessage({ id: 'schemaNode.outcome' })}</span>
             <input
               className="flex-1 min-w-0 text-sm text-text bg-transparent border-none focus:outline-none p-0 focus:bg-bg focus:shadow-[0_0_0_1px_var(--color-primary)] focus:rounded focus:px-1.5 focus:-mx-1.5"
               value={node.outcome ?? ''}
               onChange={(e) => onChange({ outcome: e.target.value || null })}
-              placeholder="Que sabra hacer el alumno"
+              placeholder={intl.formatMessage({ id: 'schemaNode.outcomePlaceholder' })}
             />
           </div>
 
           {/* Criticality */}
           <div className="flex items-center gap-0 px-2 py-1 rounded hover:bg-bg-muted">
             <span className="w-24 shrink-0 text-xs text-text-muted flex items-center">
-              Importancia
-              <InfoTooltip text="Imprescindible: el alumno debe dominar este tema para completar el curso. Recomendado: importante pero no obligatorio. Contexto: material complementario que enriquece pero no se evalua." />
+              {intl.formatMessage({ id: 'schemaNode.criticality' })}
+              <InfoTooltip text={intl.formatMessage({ id: 'schemaNode.criticalityTooltip' })} />
             </span>
             <div className="flex gap-1">
               {CRITICALITY_OPTIONS.map((o) => (
@@ -223,7 +226,7 @@ export function SortableTreeNode({
                       : 'border-border text-text-muted hover:border-primary'
                   }`}
                 >
-                  {o.label}
+                  {intl.formatMessage({ id: o.labelKey })}
                 </button>
               ))}
             </div>
@@ -231,7 +234,7 @@ export function SortableTreeNode({
 
           {/* Format */}
           <div className="flex items-center gap-0 px-2 py-1 rounded hover:bg-bg-muted">
-            <span className="w-24 shrink-0 text-xs text-text-muted">Formato</span>
+            <span className="w-24 shrink-0 text-xs text-text-muted">{intl.formatMessage({ id: 'schemaNode.format' })}</span>
             <div className="flex gap-1 flex-wrap">
               {SELECTABLE_UI_FORMATS.map((f) => (
                 <button
@@ -253,7 +256,7 @@ export function SortableTreeNode({
 
           {/* Minutes */}
           <div className="flex items-center gap-0 px-2 py-1 rounded hover:bg-bg-muted">
-            <span className="w-24 shrink-0 text-xs text-text-muted">Minutos</span>
+            <span className="w-24 shrink-0 text-xs text-text-muted">{intl.formatMessage({ id: 'schemaNode.minutes' })}</span>
             <input
               type="number"
               min={1}
@@ -266,11 +269,11 @@ export function SortableTreeNode({
 
           {/* Prerequisites */}
           <div className="flex items-center gap-0 px-2 py-1 rounded hover:bg-bg-muted">
-            <span className="w-24 shrink-0 text-xs text-text-muted">Depende de</span>
+            <span className="w-24 shrink-0 text-xs text-text-muted">{intl.formatMessage({ id: 'schemaNode.dependsOn' })}</span>
             <div className="flex flex-wrap gap-1">
               {node.prerequisites.map((idx) => (
                 <span key={idx} className="text-xs bg-primary-subtle text-primary px-2 py-0.5 rounded-full inline-flex items-center gap-1">
-                  {idx + 1}. {nodes[idx]?.title ? nodes[idx].title.slice(0, 20) : `Nodo ${idx + 1}`}
+                  {idx + 1}. {nodes[idx]?.title ? nodes[idx].title.slice(0, 20) : `${intl.formatMessage({ id: 'schema.nodeDefaultTitle' })} ${idx + 1}`}
                   <button
                     type="button"
                     onClick={() => onChange({ prerequisites: node.prerequisites.filter((p) => p !== idx) })}
@@ -290,7 +293,7 @@ export function SortableTreeNode({
                 }}
                 className="text-xs border border-dashed border-border text-text-muted px-2 py-0.5 rounded-full hover:border-primary hover:text-primary transition-colors"
               >
-                + Anadir
+                {intl.formatMessage({ id: 'schemaNode.addPrereq' })}
               </button>
             </div>
           </div>

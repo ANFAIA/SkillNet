@@ -29,6 +29,26 @@ logger = get_logger(__name__)
 _ERROR_MESSAGE_MAX = 500
 
 
+def _safe_error_message(exc: Exception) -> str:
+    """Return a user-facing error message that never exposes raw SQL or stack traces.
+
+    Known error patterns are mapped to friendly messages. Anything unrecognised
+    is replaced with a generic sentence so internal details never leak.
+    """
+    raw = str(exc)
+    lower = raw.lower()
+    if "dimension" in lower or "expected" in lower and "got" in lower:
+        return "Error processing document: embedding dimension mismatch. Check that the embedding model matches the database schema."
+    if "does not exist" in lower and ("relation" in lower or "table" in lower):
+        return "Error processing document: database table not found. Run migrations first."
+    if "duplicate key" in lower:
+        return "Error processing document: duplicate record detected."
+    if "connect" in lower or "connection" in lower:
+        return "Error processing document: database connection failed."
+    # Generic fallback — no raw SQL leaks.
+    return "Error processing document. Check the server logs for details."
+
+
 async def _describe_pdf_images(
     path: Path, sections: list[ParsedSection], org_settings: dict,
 ) -> list[ParsedSection]:
@@ -176,7 +196,7 @@ async def ingest_document(document_id: uuid.UUID | str) -> None:
                 failed = await session.get(Document, doc_id)
                 if failed is not None:
                     failed.status = DocumentStatus.ERROR
-                    failed.error_message = str(exc)[:_ERROR_MESSAGE_MAX]
+                    failed.error_message = _safe_error_message(exc)[:_ERROR_MESSAGE_MAX]
                     await session.commit()
             except Exception as inner:  # noqa: BLE001
                 logger.error("Could not mark document %s as error: %s", doc_id, inner)

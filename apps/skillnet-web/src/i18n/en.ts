@@ -66,6 +66,7 @@ export const en: Record<string, string> = {
   'node.goalSpecificGap': 'This helps you master what you came to solve.',
   'node.goalAssigned': 'This helps you complete the training assigned to you.',
   'node.goalCustom': 'This helps you with: {goal}',
+  'node.buddyMessage': 'Let\'s do this.',
 
   // Create course
   'create.title': 'Create course',
@@ -155,6 +156,40 @@ export const en: Record<string, string> = {
   'create.noEmployees': 'No employees.',
   'create.selectedCount': '{count} selected',
   'create.deadlineLabel': 'Deadline (optional)',
+
+  // Criticality labels (shared between schema components)
+  'criticality.critical': 'Critical',
+  'criticality.recommended': 'Recommended',
+  'criticality.contextual': 'Context',
+  'criticality.criticalHint': 'Required: the course does not close until mastered',
+  'criticality.recommendedHint': 'Does not block course completion',
+  'criticality.contextualHint': 'Supporting context: does not block course completion',
+
+  // Schema node editor (SchemaTreeNode / SortableTreeNode)
+  'schemaNode.drag': 'Drag',
+  'schemaNode.titlePlaceholder': 'Node title',
+  'schemaNode.unsavedChanges': 'Unsaved changes',
+  'schemaNode.summary': 'Summary',
+  'schemaNode.outcome': 'Outcome',
+  'schemaNode.outcomePlaceholder': 'What the learner will be able to do',
+  'schemaNode.criticality': 'Importance',
+  'schemaNode.criticalityTooltip': 'Critical: the learner must master this topic to complete the course. Recommended: important but not required. Context: supplementary material that enriches but is not assessed.',
+  'schemaNode.format': 'Format',
+  'schemaNode.minutes': 'Minutes',
+  'schemaNode.threshold': 'Threshold',
+  'schemaNode.thresholdTooltip': 'Mastery percentage needed to mark the node as complete. The default depends on criticality.',
+  'schemaNode.thresholdDefault': '(default)',
+  'schemaNode.thresholdCustom': '(custom)',
+  'schemaNode.sourceHeadings': 'Sections',
+  'schemaNode.sourceHeadingsPlaceholder': 'One section per line',
+  'schemaNode.preview': 'Preview',
+  'schemaNode.archive': 'Archive',
+  'schemaNode.unarchive': 'Unarchive',
+  'schemaNode.remove': 'Remove',
+  'schemaNode.dependsOn': 'Depends on',
+  'schemaNode.dependsOnNode': 'Depends on: {title}',
+  'schemaNode.addPrereq': '+ Add',
+  'schemaNode.delete': 'Delete node',
 
   // Quiz
   'quiz.check': 'Check',

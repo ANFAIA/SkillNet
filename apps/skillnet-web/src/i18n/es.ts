@@ -66,6 +66,7 @@ export const es: Record<string, string> = {
   'node.goalSpecificGap': 'Esto te sirve para dominar lo que viniste a resolver.',
   'node.goalAssigned': 'Esto te sirve para completar la formacion que te han asignado.',
   'node.goalCustom': 'Esto te sirve para: {goal}',
+  'node.buddyMessage': 'Vamos a por ello.',
 
   // Create course
   'create.title': 'Crear curso',
@@ -155,6 +156,40 @@ export const es: Record<string, string> = {
   'create.noEmployees': 'No hay empleados.',
   'create.selectedCount': '{count} seleccionados',
   'create.deadlineLabel': 'Fecha limite (opcional)',
+
+  // Criticality labels (shared between schema components)
+  'criticality.critical': 'Imprescindible',
+  'criticality.recommended': 'Recomendado',
+  'criticality.contextual': 'Contexto',
+  'criticality.criticalHint': 'Obligatorio: el curso no se cierra hasta que se domina',
+  'criticality.recommendedHint': 'No bloquea el cierre del curso',
+  'criticality.contextualHint': 'Contexto de apoyo: no bloquea el cierre del curso',
+
+  // Schema node editor (SchemaTreeNode / SortableTreeNode)
+  'schemaNode.drag': 'Arrastrar',
+  'schemaNode.titlePlaceholder': 'Titulo del nodo',
+  'schemaNode.unsavedChanges': 'Cambios sin guardar',
+  'schemaNode.summary': 'Resumen',
+  'schemaNode.outcome': 'Objetivo',
+  'schemaNode.outcomePlaceholder': 'Que sabra hacer el alumno',
+  'schemaNode.criticality': 'Importancia',
+  'schemaNode.criticalityTooltip': 'Imprescindible: el alumno debe dominar este tema para completar el curso. Recomendado: importante pero no obligatorio. Contexto: material complementario que enriquece pero no se evalua.',
+  'schemaNode.format': 'Formato',
+  'schemaNode.minutes': 'Minutos',
+  'schemaNode.threshold': 'Umbral',
+  'schemaNode.thresholdTooltip': 'Porcentaje de maestria necesario para dar el nodo por completado. El valor por defecto depende de la criticidad.',
+  'schemaNode.thresholdDefault': '(defecto)',
+  'schemaNode.thresholdCustom': '(personalizado)',
+  'schemaNode.sourceHeadings': 'Apartados',
+  'schemaNode.sourceHeadingsPlaceholder': 'Un apartado por linea',
+  'schemaNode.preview': 'Previsualizar',
+  'schemaNode.archive': 'Archivar',
+  'schemaNode.unarchive': 'Desarchivar',
+  'schemaNode.remove': 'Quitar',
+  'schemaNode.dependsOn': 'Depende de',
+  'schemaNode.dependsOnNode': 'Depende de: {title}',
+  'schemaNode.addPrereq': '+ Anadir',
+  'schemaNode.delete': 'Eliminar nodo',
 
   // Quiz
   'quiz.check': 'Comprobar',
