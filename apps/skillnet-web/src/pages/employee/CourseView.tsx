@@ -139,6 +139,10 @@ export function CourseView() {
     }
   }, [id, nodesToPrefetch])
 
+  // Auto-navigate refs — must be above any early return to satisfy the Rules of Hooks.
+  const { pathname } = useLocation()
+  const autoNavigatedRef = useRef(false)
+
   const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set())
   const [activeLessonId, setActiveLessonId] = useState<string>('')
   const [direction, setDirection] = useState<1 | -1>(1)
@@ -186,9 +190,6 @@ export function CourseView() {
   // the course intro on the first node when progress is zero, so the welcome
   // screen was redundant. The NodeList is still reachable via the back chevron
   // in NodeView.
-  const { pathname } = useLocation()
-  const autoNavigatedRef = useRef(false)
-
   useEffect(() => {
     if (!dynamicNodes || !id || autoNavigatedRef.current) return
     autoNavigatedRef.current = true
