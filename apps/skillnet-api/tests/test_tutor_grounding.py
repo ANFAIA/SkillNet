@@ -226,7 +226,7 @@ async def test_admin_reads_the_whole_org_not_enrolments(monkeypatch) -> None:
 
 
 # -- the prompts -------------------------------------------------------------------
-@pytest.mark.parametrize("grounding", ["chunks", "document", "general"])
+@pytest.mark.parametrize("grounding", ["chunks", "chunks_fts", "document", "general"])
 def test_no_grounding_mode_can_produce_the_refusal(grounding: str) -> None:
     """The sentence that started all of this is not in any prompt any more."""
     for prompt in (tutor_system_prompt(grounding), admin_system_prompt(grounding)):
@@ -234,7 +234,7 @@ def test_no_grounding_mode_can_produce_the_refusal(grounding: str) -> None:
         assert "di exactamente" not in prompt
 
 
-@pytest.mark.parametrize("grounding", ["chunks", "document", "general"])
+@pytest.mark.parametrize("grounding", ["chunks", "chunks_fts", "document", "general"])
 def test_every_mode_carries_the_persona(grounding: str) -> None:
     prompt = tutor_system_prompt(grounding)
     assert "tutor de SkillNet" in prompt
@@ -260,6 +260,14 @@ def test_context_modes_paste_the_context_and_the_question() -> None:
     turn = build_user_turn("document", "[Fuente 1: Manual (documento completo)]\ngluten", "¿y?")
     assert "gluten" in turn
     assert "¿y?" in turn
+
+
+def test_chunks_fts_uses_the_same_prompt_as_chunks() -> None:
+    """Lexical chunks and vector chunks use the same prompt blocks."""
+    assert tutor_system_prompt("chunks_fts") == tutor_system_prompt("chunks")
+    turn_fts = build_user_turn("chunks_fts", "contexto fts", "¿pregunta?")
+    turn_vec = build_user_turn("chunks", "contexto fts", "¿pregunta?")
+    assert turn_fts == turn_vec
 
 
 def test_no_ui_sentinel_is_a_bare_token() -> None:

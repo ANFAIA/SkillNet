@@ -25,7 +25,8 @@ Herramientas disponibles:
 
 Reglas:
 - Solo una linea ACTION por respuesta, siempre al final.
-- Solo cuando el usuario pida el cambio. No lo hagas por tu cuenta.
+- SOLO cuando el usuario PIDA EXPRESAMENTE el cambio ("cambia el idioma", "oculta la barra").
+  NUNCA emitas ACTION por tu cuenta. Si el usuario no menciona la interfaz, no escribas ACTION.
 - Responde confirmando el cambio en texto normal ANTES de la linea ACTION."""
 
 __all__ = ["FRONTEND_TOOLS_BLOCK"]

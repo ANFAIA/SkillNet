@@ -15,6 +15,6 @@ from typing import Literal
 #: ``chat_messages.metadata`` and sent to the browser as a ``grounding`` SSE event, so the
 #: bubble can say where the answer came from without the model having to be trusted to
 #: say it.
-Grounding = Literal["chunks", "document", "general"]
+Grounding = Literal["chunks", "chunks_fts", "document", "general"]
 
 __all__ = ["Grounding"]

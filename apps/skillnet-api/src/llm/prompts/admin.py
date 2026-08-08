@@ -163,6 +163,11 @@ def _load_chat_spec() -> str:
     return _CHAT_SPEC
 
 
+def _block_key(grounding: Grounding) -> str:
+    """Normalize ``chunks_fts`` to ``chunks``: same prompt, different retriever."""
+    return "chunks" if grounding == "chunks_fts" else grounding
+
+
 def admin_genui_system_prompt(grounding: Grounding, *, org_data: bool = False) -> str:
     """Single-phase GenUI prompt: persona + data-block + chat OpenUI spec + grounding.
 
@@ -178,7 +183,7 @@ def admin_genui_system_prompt(grounding: Grounding, *, org_data: bool = False) -
     sections.append(FRONTEND_TOOLS_BLOCK)
     sections.append(chat_spec)
     grounding_table = _GROUNDING_BLOCKS if org_data else _STANDALONE_GROUNDING_BLOCKS
-    sections.append(grounding_table[grounding])
+    sections.append(grounding_table[_block_key(grounding)])
     return "\n\n".join(sections)
 
 
@@ -190,8 +195,8 @@ def admin_system_prompt(grounding: Grounding, *, org_data: bool = False) -> str:
     reading the prompt it read before.
     """
     if not org_data:
-        return f"{ADMIN_PERSONA}\n\n{FRONTEND_TOOLS_BLOCK}\n\n{_STANDALONE_GROUNDING_BLOCKS[grounding]}"
-    return f"{ADMIN_PERSONA}\n\n{ADMIN_DATA_BLOCK}\n\n{FRONTEND_TOOLS_BLOCK}\n\n{_GROUNDING_BLOCKS[grounding]}"
+        return f"{ADMIN_PERSONA}\n\n{FRONTEND_TOOLS_BLOCK}\n\n{_STANDALONE_GROUNDING_BLOCKS[_block_key(grounding)]}"
+    return f"{ADMIN_PERSONA}\n\n{ADMIN_DATA_BLOCK}\n\n{FRONTEND_TOOLS_BLOCK}\n\n{_GROUNDING_BLOCKS[_block_key(grounding)]}"
 
 
 def build_admin_turn(
@@ -207,7 +212,7 @@ def build_admin_turn(
     if snapshot_block:
         sections.append(snapshot_block)
     if grounding != "general" and context_block:
-        sections.append(f"{_CONTEXT_HEADERS[grounding]}\n\n{context_block}")
+        sections.append(f"{_CONTEXT_HEADERS[_block_key(grounding)]}\n\n{context_block}")
     if not sections:
         return (
             f"Pregunta: {question}\n\n"

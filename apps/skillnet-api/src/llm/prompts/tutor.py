@@ -107,9 +107,14 @@ tienes que ayudar; negarte no es una opcion.
 }
 
 
+def _block_key(grounding: Grounding) -> str:
+    """Normalize ``chunks_fts`` to ``chunks``: same prompt, different retriever."""
+    return "chunks" if grounding == "chunks_fts" else grounding
+
+
 def tutor_system_prompt(grounding: Grounding) -> str:
     """The employee tutor's system prompt for a turn with this grounding."""
-    return f"{TUTOR_PERSONA}\n\n{FRONTEND_TOOLS_BLOCK}\n\n{_GROUNDING_BLOCKS[grounding]}"
+    return f"{TUTOR_PERSONA}\n\n{FRONTEND_TOOLS_BLOCK}\n\n{_GROUNDING_BLOCKS[_block_key(grounding)]}"
 
 
 # --------------------------------------------------------------------------------------
@@ -137,7 +142,7 @@ def build_user_turn(grounding: Grounding, context_block: str, question: str) -> 
             "documentacion de la empresa."
         )
     return (
-        f"{_CONTEXT_HEADERS[grounding]}\n\n{context_block}\n\n"
+        f"{_CONTEXT_HEADERS[_block_key(grounding)]}\n\n{context_block}\n\n"
         "---\n\n"
         f"Pregunta: {question}"
     )
