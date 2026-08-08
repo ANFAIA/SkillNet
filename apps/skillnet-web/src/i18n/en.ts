@@ -415,6 +415,12 @@ export const en: Record<string, string> = {
   'header.loggingOut': 'Signing out...',
   'header.logout': 'Sign out',
 
+  // Slide panels (NodeView)
+  'panel.map': 'Course map',
+  'panel.chat': 'Chat',
+  'panel.config': 'Preferences',
+  'panel.close': 'Close panel',
+
   // NodeList component
   'nodelist.stateNotStarted': 'Not started',
   'nodelist.stateLearning': 'In progress',

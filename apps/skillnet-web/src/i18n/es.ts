@@ -415,6 +415,12 @@ export const es: Record<string, string> = {
   'header.loggingOut': 'Cerrando...',
   'header.logout': 'Cerrar sesion',
 
+  // Slide panels (NodeView)
+  'panel.map': 'Mapa del curso',
+  'panel.chat': 'Chat',
+  'panel.config': 'Preferencias',
+  'panel.close': 'Cerrar panel',
+
   // NodeList component
   'nodelist.stateNotStarted': 'Sin empezar',
   'nodelist.stateLearning': 'En curso',

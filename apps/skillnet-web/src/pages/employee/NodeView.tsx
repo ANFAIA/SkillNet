@@ -8,6 +8,7 @@ import { useCourse } from '../../api/courses'
 import { Card, EmptyState, ProgressBar } from '../../components/ui'
 import { ClickableSurface, NO_EXPLAIN_SELECTOR } from '../../components/courses/ClickableSurface'
 import { UiSpecRenderer } from '../../components/courses/UiSpecRenderer'
+import { NodeList } from '../../components/courses/NodeList'
 import { stepperContext, coursePositionContext, nextNodeContext, courseIntroContext } from '../../components/courses/blocks/StepperContext'
 import type { CourseIntro } from '../../components/courses/blocks/StepperContext'
 import { LessonBuddy } from '../../components/courses/blocks/LessonBuddy'
@@ -17,6 +18,8 @@ import { transition, duration, ease } from '../../lib/motion'
 import { useLearnerProfile } from '../../api/onboarding'
 import { post } from '../../api/client'
 import { useNodeMorph } from '../../stores/nodeMorph'
+import { usePreferences } from '../../stores/preferences'
+import type { Locale } from '../../stores/preferences'
 import {
   elementForFormat,
   isNodeNotReviewed,
@@ -32,6 +35,92 @@ import {
 import type { LearnerProfileRead } from '../../api/onboarding'
 import type { LearningNode } from '../../types'
 import type { UiFormat } from '../../types/node-render'
+
+// ── Slide panel types & helpers ─────────────────────────────────
+
+type PanelType = 'map' | 'chat' | 'config'
+
+const PANEL_TITLE_KEY: Record<PanelType, string> = {
+  map: 'panel.map',
+  chat: 'panel.chat',
+  config: 'panel.config',
+}
+
+// ── Icons for the bottom bar ────────────────────────────────────
+
+function MapIcon({ active }: { active: boolean }) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+      className={active ? 'text-primary' : 'text-text-secondary'}
+    >
+      <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" />
+      <rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" />
+    </svg>
+  )
+}
+
+function ChatIcon({ active }: { active: boolean }) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+      className={active ? 'text-primary' : 'text-text-secondary'}
+    >
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    </svg>
+  )
+}
+
+function ConfigIcon({ active }: { active: boolean }) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+      className={active ? 'text-primary' : 'text-text-secondary'}
+    >
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+    </svg>
+  )
+}
+
+function CloseIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+    >
+      <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  )
+}
+
+// ── Config panel ────────────────────────────────────────────────
+
+function ConfigPanel() {
+  const intl = useIntl()
+  const locale = usePreferences((s) => s.locale)
+  const setLocale = usePreferences((s) => s.setLocale)
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <label className="text-sm font-medium text-text block mb-1">
+          {intl.formatMessage({ id: 'settings.language' })}
+        </label>
+        <p className="text-xs text-text-muted mb-2">
+          {intl.formatMessage({ id: 'settings.languageDesc' })}
+        </p>
+        <select
+          value={locale}
+          onChange={(e) => setLocale(e.target.value as Locale)}
+          className="w-full border border-border rounded-md px-3 py-2 text-sm bg-bg text-text focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+        >
+          <option value="es">{intl.formatMessage({ id: 'settings.langEs' })}</option>
+          <option value="en">{intl.formatMessage({ id: 'settings.langEn' })}</option>
+        </select>
+      </div>
+    </div>
+  )
+}
 
 /**
  * One node of a dynamic course — where the learner finally sees generation happen.
@@ -105,6 +194,8 @@ export function NodeView() {
   const morphRef = useRef(morphOrigin)
   /** Whether the exit animation is playing (collapse back). */
   const [exiting, setExiting] = useState(false)
+  /** Which slide panel is open, if any. */
+  const [activePanel, setActivePanel] = useState<PanelType | null>(null)
 
   const nodes = useCourseNodes(courseId)
   const courseQuery = useCourse(courseId)
@@ -164,6 +255,7 @@ export function NodeView() {
     setPhase(null)
     setStreamFailure(null)
     setExiting(false)
+    setActivePanel(null)
     morphRef.current = null
     requestedRef.current = false
     programShownBefore.current = false
@@ -321,6 +413,12 @@ export function NodeView() {
     }
   }, [served, ordered, node])
 
+  // --- slide panels -----------------------------------------------------------
+
+  const togglePanel = useCallback((panel: PanelType) => {
+    setActivePanel((prev) => (prev === panel ? null : panel))
+  }, [])
+
   // --- frame ------------------------------------------------------------------
 
   const openingLine = openingLineFor(profile, intl)
@@ -417,7 +515,7 @@ export function NodeView() {
         else clearMorph()
       }}
     >
-      {/* Minimal top bar — just close + title + progress dots */}
+      {/* Minimal top bar — just close + title */}
       <div className="shrink-0 flex items-center gap-3 px-6 py-4" data-no-explain="">
         <button
           type="button"
@@ -432,152 +530,225 @@ export function NodeView() {
         <span className="text-sm font-medium text-text flex-1 truncate">{node.title}</span>
       </div>
 
-      {/* Spider buddy — hangs from top-right, outside the content column */}
-      {served && (
-        <div className="absolute top-14 right-[max(1rem,calc(50%-22rem))]" style={{ zIndex: 10 }}>
-          <LessonBuddy
-            nodeTitle={node?.title ?? undefined}
-            nodeSummary={node?.summary ?? undefined}
-            stepIndex={0}
-            totalSteps={1}
-          />
-        </div>
-      )}
+      {/* Main area — flex row for lesson + panel push */}
+      <div className="flex-1 flex min-h-0 relative overflow-hidden">
+        {/* Lesson content — slides left when panel is open */}
+        <motion.div
+          className="w-full min-h-0 flex flex-col shrink-0"
+          animate={{ x: activePanel ? '-40%' : '0%' }}
+          transition={activePanel ? transition.pushIn : transition.pushOut}
+        >
+          {/* Spider buddy — hangs from top-right, only when chat panel is closed */}
+          {served && activePanel !== 'chat' && (
+            <div className="absolute top-0 right-[max(1rem,calc(50%-22rem))]" style={{ zIndex: 10 }}>
+              <LessonBuddy
+                nodeTitle={node?.title ?? undefined}
+                nodeSummary={node?.summary ?? undefined}
+                stepIndex={0}
+                totalSteps={1}
+              />
+            </div>
+          )}
 
-      {/* Lesson content — fills the rest */}
-      <div className="flex-1 min-h-0 flex flex-col px-6 pb-6 max-w-2xl mx-auto w-full">
-        {notReviewed ? (
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-text">{intl.formatMessage({ id: 'node.pendingReview' })}</p>
-            <p className="text-sm text-text-secondary">
-              {intl.formatMessage({ id: 'node.pendingReviewDesc' })}
-            </p>
-          </div>
-        ) : phase === 'mastered' ? (
-          <div className="space-y-3" role="status">
-            <p className="text-base font-medium text-text">{intl.formatMessage({ id: 'node.mastered' })}</p>
-            <p className="text-sm text-text-secondary">
-              {intl.formatMessage({ id: 'node.masteredDesc' })}
-            </p>
-            {node.summary && <p className="text-sm text-text-secondary">{node.summary}</p>}
-          </div>
-        ) : streamFailure && !shownProgram ? (
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-text">{streamFailure}</p>
-            <p className="text-sm text-text-secondary">
-              {node.summary ?? intl.formatMessage({ id: 'node.renderFailedFallback' })}
-            </p>
-          </div>
-        ) : (
-          <div className="flex-1 min-h-0 flex flex-col">
-            <AnimatePresence mode="wait">
-              {shownProgram ? (
-                <motion.div
-                  key="content"
-                  className="flex-1 min-h-0 flex flex-col"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: duration.normal, ease: ease.base }}
-                >
-                  {openingLine && (
-                    <p className="text-base text-text mb-4 shrink-0" data-testid="opening-line">
-                      {openingLine}
-                    </p>
-                  )}
-                  <motion.div
-                    key={shownKey}
-                    onClick={onSurfaceClick}
-                    className="flex-1 min-h-0 flex flex-col"
-                    initial={arriving && fromSkeleton ? { minHeight: RESERVED_CONTENT_PX } : false}
-                    animate={{ minHeight: 0 }}
-                    transition={transition.resize}
-                  >
-                    <ClickableSurface nodeId={node.id} className="flex-1 min-h-0 flex flex-col">
-                      <courseIntroContext.Provider value={courseIntro}>
-                      <nextNodeContext.Provider value={nextNode ? () => navigate(`${backToCourse}/nodo/${nextNode.id}`) : null}>
-                      <coursePositionContext.Provider value={{ nodeCount: ordered.length, currentNodeIndex: index }}>
-                      <stepperContext.Provider value={true}>
-                        <UiSpecRenderer
-                          program={shownProgram}
-                          nodeId={node.id}
-                          renderId={served?.render_id}
-                          format={shownFormat ?? undefined}
-                          arriving={arriving}
-                          recordEvent={events.record}
-                        />
-                      </stepperContext.Provider>
-                      </coursePositionContext.Provider>
-                      </nextNodeContext.Provider>
-                      </courseIntroContext.Provider>
-                    </ClickableSurface>
-                  </motion.div>
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="intro"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: duration.normal, ease: ease.base }}
-                  className="space-y-6"
-                  data-testid="node-intro"
-                >
-                  {/* Opening line — feels like the start of a lesson */}
-                  {openingLine && (
-                    <p className="text-base text-text-secondary leading-relaxed">
-                      {openingLine}
-                    </p>
-                  )}
-
-                  {/* Topic overview — the actual educational content */}
-                  <div>
-                    <h3 className="text-lg font-semibold text-text mb-3">
-                      {node.title}
-                    </h3>
-                    {node.summary && (
-                      <p className="text-base text-text leading-relaxed">
-                        {node.summary}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Context from the course — where this fits */}
-                  <div className="bg-bg-subtle rounded-lg p-4 space-y-3">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-text-muted">
-                        {intl.formatMessage({ id: 'node.counter' }, { current: index + 1, total: ordered.length })}
-                        {node.estimated_minutes ? ` · ${node.estimated_minutes} min` : ''}
-                      </span>
-                      {node.mastery > 0 && (
-                        <span className="text-text-secondary font-medium">
-                          {intl.formatMessage({ id: 'node.mastery' }, { pct: Math.round(node.mastery * 100) })}
-                        </span>
+          <div className="flex-1 min-h-0 flex flex-col px-6 pb-6 max-w-2xl mx-auto w-full overflow-y-auto">
+            {notReviewed ? (
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-text">{intl.formatMessage({ id: 'node.pendingReview' })}</p>
+                <p className="text-sm text-text-secondary">
+                  {intl.formatMessage({ id: 'node.pendingReviewDesc' })}
+                </p>
+              </div>
+            ) : phase === 'mastered' ? (
+              <div className="space-y-3" role="status">
+                <p className="text-base font-medium text-text">{intl.formatMessage({ id: 'node.mastered' })}</p>
+                <p className="text-sm text-text-secondary">
+                  {intl.formatMessage({ id: 'node.masteredDesc' })}
+                </p>
+                {node.summary && <p className="text-sm text-text-secondary">{node.summary}</p>}
+              </div>
+            ) : streamFailure && !shownProgram ? (
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-text">{streamFailure}</p>
+                <p className="text-sm text-text-secondary">
+                  {node.summary ?? intl.formatMessage({ id: 'node.renderFailedFallback' })}
+                </p>
+              </div>
+            ) : (
+              <div className="flex-1 min-h-0 flex flex-col">
+                <AnimatePresence mode="wait">
+                  {shownProgram ? (
+                    <motion.div
+                      key="content"
+                      className="flex-1 min-h-0 flex flex-col"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: duration.normal, ease: ease.base }}
+                    >
+                      {openingLine && (
+                        <p className="text-base text-text mb-4 shrink-0" data-testid="opening-line">
+                          {openingLine}
+                        </p>
                       )}
-                    </div>
-
-                    {/* Prereq context — what they already know */}
-                    {previousNode && previousNode.state === 'mastered' && (
-                      <p className="text-sm text-text-secondary">
-                        {intl.formatMessage({ id: 'node.previousMastered' }, { title: previousNode.title })}
-                      </p>
-                    )}
-
-                    {/* Mastery bar only if they have progress */}
-                    {node.mastery > 0 && (
-                      <ProgressBar
-                        value={Math.round(node.mastery * 100)}
-                        variant="auto"
-                        size="sm"
-                      />
-                    )}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
+                      <motion.div
+                        key={shownKey}
+                        onClick={onSurfaceClick}
+                        className="flex-1 min-h-0 flex flex-col"
+                        initial={arriving && fromSkeleton ? { minHeight: RESERVED_CONTENT_PX } : false}
+                        animate={{ minHeight: 0 }}
+                        transition={transition.resize}
+                      >
+                        <ClickableSurface nodeId={node.id} className="flex-1 min-h-0 flex flex-col">
+                          <courseIntroContext.Provider value={courseIntro}>
+                          <nextNodeContext.Provider value={nextNode ? () => navigate(`${backToCourse}/nodo/${nextNode.id}`) : null}>
+                          <coursePositionContext.Provider value={{ nodeCount: ordered.length, currentNodeIndex: index }}>
+                          <stepperContext.Provider value={true}>
+                            <UiSpecRenderer
+                              program={shownProgram}
+                              nodeId={node.id}
+                              renderId={served?.render_id}
+                              format={shownFormat ?? undefined}
+                              arriving={arriving}
+                              recordEvent={events.record}
+                            />
+                          </stepperContext.Provider>
+                          </coursePositionContext.Provider>
+                          </nextNodeContext.Provider>
+                          </courseIntroContext.Provider>
+                        </ClickableSurface>
+                      </motion.div>
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="intro"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: duration.normal, ease: ease.base }}
+                      className="space-y-6"
+                      data-testid="node-intro"
+                    >
+                      {openingLine && (
+                        <p className="text-base text-text-secondary leading-relaxed">
+                          {openingLine}
+                        </p>
+                      )}
+                      <div>
+                        <h3 className="text-lg font-semibold text-text mb-3">
+                          {node.title}
+                        </h3>
+                        {node.summary && (
+                          <p className="text-base text-text leading-relaxed">
+                            {node.summary}
+                          </p>
+                        )}
+                      </div>
+                      <div className="bg-bg-subtle rounded-lg p-4 space-y-3">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-text-muted">
+                            {intl.formatMessage({ id: 'node.counter' }, { current: index + 1, total: ordered.length })}
+                            {node.estimated_minutes ? ` · ${node.estimated_minutes} min` : ''}
+                          </span>
+                          {node.mastery > 0 && (
+                            <span className="text-text-secondary font-medium">
+                              {intl.formatMessage({ id: 'node.mastery' }, { pct: Math.round(node.mastery * 100) })}
+                            </span>
+                          )}
+                        </div>
+                        {previousNode && previousNode.state === 'mastered' && (
+                          <p className="text-sm text-text-secondary">
+                            {intl.formatMessage({ id: 'node.previousMastered' }, { title: previousNode.title })}
+                          </p>
+                        )}
+                        {node.mastery > 0 && (
+                          <ProgressBar
+                            value={Math.round(node.mastery * 100)}
+                            variant="auto"
+                            size="sm"
+                          />
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            )}
           </div>
-        )}
+        </motion.div>
+
+        {/* Slide panel — enters from the right */}
+        <AnimatePresence>
+          {activePanel && (
+            <motion.div
+              key={activePanel}
+              className="absolute right-0 top-0 bottom-0 w-[60%] max-md:w-[85%] bg-bg border-l border-border flex flex-col"
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={transition.pushIn}
+            >
+              {/* Panel header */}
+              <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
+                <span className="font-medium text-sm text-text">
+                  {intl.formatMessage({ id: PANEL_TITLE_KEY[activePanel] })}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setActivePanel(null)}
+                  className="p-1.5 text-text-muted hover:text-text transition-colors"
+                  aria-label={intl.formatMessage({ id: 'panel.close' })}
+                >
+                  <CloseIcon />
+                </button>
+              </div>
+              {/* Panel content */}
+              <div className="flex-1 overflow-y-auto p-4">
+                {activePanel === 'map' && nodes.data && (
+                  <NodeList data={nodes.data} />
+                )}
+                {activePanel === 'chat' && (
+                  <div className="h-full">
+                    <LessonBuddy
+                      nodeTitle={node?.title ?? undefined}
+                      nodeSummary={node?.summary ?? undefined}
+                      stepIndex={0}
+                      totalSteps={1}
+                    />
+                  </div>
+                )}
+                {activePanel === 'config' && <ConfigPanel />}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Bottom icon bar */}
+      <div className="shrink-0 flex justify-center gap-6 py-2 border-t border-border" data-no-explain="">
+        <button
+          type="button"
+          onClick={() => togglePanel('map')}
+          className={`p-2 rounded-md transition-colors ${activePanel === 'map' ? 'bg-primary-subtle' : 'hover:bg-bg-muted'}`}
+          aria-label={intl.formatMessage({ id: 'panel.map' })}
+        >
+          <MapIcon active={activePanel === 'map'} />
+        </button>
+        <button
+          type="button"
+          onClick={() => togglePanel('chat')}
+          className={`p-2 rounded-md transition-colors ${activePanel === 'chat' ? 'bg-primary-subtle' : 'hover:bg-bg-muted'}`}
+          aria-label={intl.formatMessage({ id: 'panel.chat' })}
+        >
+          <ChatIcon active={activePanel === 'chat'} />
+        </button>
+        <button
+          type="button"
+          onClick={() => togglePanel('config')}
+          className={`p-2 rounded-md transition-colors ${activePanel === 'config' ? 'bg-primary-subtle' : 'hover:bg-bg-muted'}`}
+          aria-label={intl.formatMessage({ id: 'panel.config' })}
+        >
+          <ConfigIcon active={activePanel === 'config'} />
+        </button>
       </div>
     </motion.div>,
     document.body,
