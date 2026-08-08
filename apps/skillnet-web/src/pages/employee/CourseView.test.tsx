@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { CourseView } from './CourseView'
@@ -130,15 +129,17 @@ function nodeList(deliveryMode: 'static' | 'dynamic') {
   }
 }
 
-function renderPage() {
+function renderPage({ fromNode = false }: { fromNode?: boolean } = {}) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   })
+  const initialState = fromNode ? { fromNode: true } : undefined
   return render(
     <QueryClientProvider client={client}>
-      <MemoryRouter initialEntries={[`/empleado/curso/${COURSE_ID}`]}>
+      <MemoryRouter initialEntries={[{ pathname: `/empleado/curso/${COURSE_ID}`, state: initialState }]}>
         <Routes>
           <Route path="/empleado/curso/:id" element={<CourseView />} />
+          <Route path="/empleado/curso/:id/nodo/:nodeId" element={<div data-testid="node-view">NodeView</div>} />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>,
@@ -185,13 +186,20 @@ describe('CourseView — v1 non-regression', () => {
 })
 
 describe('CourseView — the dynamic branch', () => {
-  it('renders the node map, linking each node to its own screen', async () => {
+  it('auto-navigates to the first unlocked node on first visit', async () => {
     installFetch({ nodes: nodeList('dynamic') })
     renderPage()
 
-    // A fresh course (0 mastered) shows a welcome screen first; click "Empezar"
-    // to get past it to the node list.
-    await userEvent.click(await screen.findByRole('button', { name: 'Empezar' }))
+    // A fresh dynamic course auto-navigates to the first unlocked node — no
+    // welcome screen, no extra clicks. The NodeView route catches the navigation.
+    expect(await screen.findByTestId('node-view')).toBeInTheDocument()
+  })
+
+  it('renders the node map when the learner comes back from a node', async () => {
+    installFetch({ nodes: nodeList('dynamic') })
+    // `fromNode: true` simulates the learner pressing back from NodeView.
+    // The auto-navigate is skipped, and the NodeList is shown instead.
+    renderPage({ fromNode: true })
 
     expect(await screen.findByTestId('node-list')).toBeInTheDocument()
     expect(screen.getByText('Plazo de devolucion')).toBeInTheDocument()
@@ -209,13 +217,11 @@ describe('CourseView — the dynamic branch', () => {
 
   it('never flashes the v1 tree before the node map lands', async () => {
     installFetch({ nodes: nodeList('dynamic') })
-    renderPage()
+    renderPage({ fromNode: true })
 
     // While the node list is in flight the screen is the skeleton, never the module tree:
     // painting v1 and replacing it is the layout jump §5.5 forbids.
     expect(screen.queryByText('Modulo de devoluciones')).toBeNull()
-    // The welcome screen comes first for fresh courses (0 mastered); dismiss it.
-    await userEvent.click(await screen.findByRole('button', { name: 'Empezar' }))
     await waitFor(() => expect(screen.getByTestId('node-list')).toBeInTheDocument())
     expect(screen.queryByText('Modulo de devoluciones')).toBeNull()
   })
