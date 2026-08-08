@@ -4,9 +4,9 @@ import { AdminSidebar } from './AdminSidebar'
 import { Header } from './Header'
 import { ErrorBoundary } from '../ErrorBoundary'
 import { SidebarProvider, useSidebar } from '../../contexts/SidebarContext'
-import { pageTransition } from '../../lib/motion'
+import { ease, duration } from '../../lib/motion'
 
-const morphSpring = { type: 'spring' as const, stiffness: 120, damping: 20 }
+const morphSpring = { type: 'spring' as const, stiffness: 200, damping: 28 }
 
 function AdminLayoutInner() {
   const location = useLocation()
@@ -27,8 +27,8 @@ function AdminLayoutInner() {
 
         <motion.main
           layoutId="admin-main"
+          animate={{ borderTopLeftRadius: isNodeView ? 0 : 12 }}
           transition={morphSpring}
-          style={{ borderTopLeftRadius: isNodeView ? 0 : 12 }}
           className={`flex-1 bg-bg overflow-x-clip overflow-y-auto flex flex-col ${
             isNodeView ? '' : 'mt-[50px]'
           }`}>
@@ -54,17 +54,12 @@ function AdminLayoutInner() {
               </div>
             )}
           >
-            {/*
-              Enter-only, no `AnimatePresence`. Same fix, same reason as
-              `AppLayout` — see the long comment there. This layout had the identical
-              `AnimatePresence mode="wait"` + unfrozen `<Outlet />` shape, so it had
-              the identical blank-main bug latent in it: any admin page that mounts a
-              `layoutId` would strand the exiting node at `opacity: 0`.
-            */}
+            {/* Content reveal — same pattern as AppLayout and CreateCourse. */}
             <motion.div
               key={location.pathname}
-              initial={pageTransition.initial}
-              animate={pageTransition.animate}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: duration.normal, ease: ease.base, delay: 0.35 }}
               className={isNodeView ? 'flex-1 min-h-0 flex flex-col' : 'p-4 md:p-6 pb-12 flex-1 min-h-0 flex flex-col'}
             >
               <Outlet />
