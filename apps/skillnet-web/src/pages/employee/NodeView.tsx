@@ -502,7 +502,7 @@ export function NodeView() {
   function handleBack() {
     if (reduceMotion || !hasMorphOrigin) {
       clearMorph()
-      navigate(backToCourse)
+      navigate(backToCourse, { state: { fromNode: true } })
       return
     }
     setExiting(true)
@@ -510,7 +510,7 @@ export function NodeView() {
 
   function onExitComplete() {
     clearMorph()
-    navigate(backToCourse)
+    navigate(backToCourse, { state: { fromNode: true } })
   }
 
   return createPortal(

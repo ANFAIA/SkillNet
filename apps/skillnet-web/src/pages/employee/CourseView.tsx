@@ -140,8 +140,11 @@ export function CourseView() {
   }, [id, nodesToPrefetch])
 
   // Auto-navigate refs — must be above any early return to satisfy the Rules of Hooks.
-  const { pathname } = useLocation()
-  const autoNavigatedRef = useRef(false)
+  const location = useLocation()
+  const pathname = location.pathname
+  // Skip auto-navigate when the user deliberately came back from NodeView.
+  const cameFromNode = (location.state as { fromNode?: boolean } | null)?.fromNode === true
+  const autoNavigatedRef = useRef(cameFromNode)
 
   const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set())
   const [activeLessonId, setActiveLessonId] = useState<string>('')
