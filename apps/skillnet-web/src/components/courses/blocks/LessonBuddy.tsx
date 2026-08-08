@@ -10,9 +10,9 @@ import {
   useRef,
   useState,
 } from 'react'
-import type { FormEvent, KeyboardEvent } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useIntl } from 'react-intl'
+import { ChatInput } from '../../chat/ChatInput'
 import { ChatMarkdown } from '../../chat/ChatMarkdown'
 import { duration, ease } from '../../../lib/motion'
 import { executeTool } from '../../../lib/toolRegistry'
@@ -104,17 +104,13 @@ export function LessonBuddy({
   const [open, setOpen] = useState(false)
   const [messages, setMessages] = useState<Message[]>([])
   const [isStreaming, setIsStreaming] = useState(false)
+  const [buddyInput, setBuddyInput] = useState('')
   const abortRef = useRef<AbortController | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
-  const inputRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight
   }, [messages])
-
-  useEffect(() => {
-    if (open) setTimeout(() => inputRef.current?.focus(), 200)
-  }, [open])
 
   useEffect(() => () => abortRef.current?.abort(), [])
 
@@ -160,19 +156,11 @@ export function LessonBuddy({
     [messages.length, stepIndex, totalSteps, nodeTitle, nodeSummary],
   )
 
-  function handleSubmit(e: FormEvent) {
-    e.preventDefault()
-    const text = inputRef.current?.value.trim()
+  function handleBuddySend() {
+    const text = buddyInput.trim()
     if (!text) return
-    if (inputRef.current) inputRef.current.value = ''
+    setBuddyInput('')
     send(text)
-  }
-
-  function onKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      handleSubmit(e)
-    }
   }
 
   const hint = intl.formatMessage({ id: proactiveHintId(stepIndex, totalSteps) })
@@ -260,25 +248,17 @@ export function LessonBuddy({
             </div>
 
             {/* Input */}
-            <form onSubmit={handleSubmit} className="flex items-end gap-2 px-3 pb-2 pt-1 border-t border-border">
-              <textarea
-                ref={inputRef}
-                onKeyDown={onKeyDown}
-                rows={1}
+            <form onSubmit={(e) => { e.preventDefault(); handleBuddySend() }} className="px-3 pb-2 pt-1 border-t border-border">
+              <ChatInput
+                value={buddyInput}
+                onChange={setBuddyInput}
+                onSend={handleBuddySend}
+                isStreaming={isStreaming}
+                disabled={isStreaming}
                 placeholder={intl.formatMessage({ id: 'buddy.placeholder' })}
-                disabled={isStreaming}
-                className="flex-1 min-h-[32px] max-h-[72px] resize-none rounded-xl bg-bg-subtle px-3 py-1.5 text-sm text-text outline-none placeholder:text-text-muted disabled:opacity-50"
+                size="sm"
+                autoFocus
               />
-              <button
-                type="submit"
-                disabled={isStreaming}
-                aria-label={intl.formatMessage({ id: 'buddy.send' })}
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-white disabled:opacity-30 transition-colors"
-              >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M5 12h13" /><path d="M12 5l7 7-7 7" />
-                </svg>
-              </button>
             </form>
           </motion.div>
         )}

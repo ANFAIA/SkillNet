@@ -366,6 +366,11 @@ export const en: Record<string, string> = {
   'schema.nodeNoTitle': 'Untitled node',
   'schema.nodeDefaultTitle': 'Node',
 
+  // Shared chat input
+  'chatInput.placeholder': 'Type your question...',
+  'chatInput.send': 'Send',
+  'chatInput.stop': 'Stop',
+
   // Admin: Chat page
   'chat.title': 'Assistant',
   'chat.subtitle': 'Ask about courses, employees or the platform',
@@ -572,6 +577,58 @@ export const en: Record<string, string> = {
   'generation.srCurrent': 'in progress',
   'generation.srPending': 'pending',
   'generation.defaultError': 'Could not complete the generation.',
+
+  // Error boundary
+  'error.title': 'Something went wrong',
+  'error.description': 'Could not load this page. Try again.',
+  'error.retry': 'Retry',
+
+  // NodePreview (admin)
+  'nodePreview.subtitle': 'Employee preview \u00b7 not cached',
+  'nodePreview.generateError': 'Could not generate the preview.',
+  'nodePreview.loadError': 'Could not load the generated content.',
+  'nodePreview.startError': 'Could not start generation. Make sure the schema is saved.',
+  'nodePreview.retryError': 'Could not retry.',
+  'nodePreview.retry': 'Retry',
+
+  // RenderControls (NodeView footer)
+  'renderControls.adapted': 'This lesson has been adapted to your latest answers.',
+  'renderControls.viewingPrevious': 'You are viewing a previous version.',
+  'renderControls.backToCurrent': 'Back to current',
+  'renderControls.refreshing': 'Updating...',
+  'renderControls.refresh': 'Update this lesson',
+  'renderControls.viewPrevious': 'View previous version',
+  'renderControls.stabilityNote': 'Only this button changes this node\'s content. Answering or coming back later returns the exact same lesson.',
+  'renderControls.versionOf': 'Version of {date}',
+  'renderControls.notAvailable': 'not available in this session',
+  'renderControls.noDate': 'no date',
+
+  // SchemaValidationPanel
+  'schemaValidation.problemsSingular': 'Cannot validate yet: 1 problem',
+  'schemaValidation.problemsPlural': 'Cannot validate yet: {count} problems',
+  'schemaValidation.warnings': 'Designer warnings (do not block validation)',
+  'schemaValidation.unknownNode': 'Unknown node ({id})',
+  'schemaValidation.unknownError': 'The server rejected the schema ({code})',
+  'schemaValidation.unknownErrorDetail': 'Could not translate this error. Review the full schema.',
+  'schemaValidation.cycleLabel': 'Cycle:',
+  'schemaRule.empty_schema': 'The schema has no nodes',
+  'schemaRule.empty_schema.detail': 'Propose a schema from the document or add nodes manually.',
+  'schemaRule.missing_summary': 'Some nodes have no summary',
+  'schemaRule.missing_summary.detail': 'The tutor reads the summary tree to decide which node is relevant: without a summary that node is invisible to it.',
+  'schemaRule.no_critical_node': 'No node is critical',
+  'schemaRule.no_critical_node.detail': 'The course closes when all critical nodes are mastered. Without any, it could never be completed.',
+  'schemaRule.orphan_prerequisite': 'There are impossible prerequisites',
+  'schemaRule.orphan_prerequisite.detail': 'These prerequisites point to nodes no longer in the schema, so they could never be met.',
+  'schemaRule.cycle': 'Prerequisites form a cycle',
+  'schemaRule.cycle.detail': 'Each node in the cycle waits for another in the same cycle, so none could ever start. Remove one of the prerequisites in the chain.',
+  'schemaRule.position_not_contiguous': 'Node order has gaps',
+  'schemaRule.position_not_contiguous.detail': 'Positions must go from 1 to the last node without gaps.',
+  'schemaRule.node_not_reviewed': 'Some nodes are not reviewed',
+  'schemaRule.node_not_reviewed.detail': 'An unreviewed node is never served. Mark them as reviewed in the review list.',
+  'schemaRule.node_has_progress': 'Some nodes have learner progress',
+  'schemaRule.node_has_progress.detail': 'Archive them instead of deleting: deleting would discard the mastery and audit trail of learners who already worked on them.',
+  'schemaRule.unknown_node': 'The schema references nodes this course does not have',
+  'schemaRule.unknown_node.detail': 'Reload the page to re-read the schema from the server.',
 
   // ExerciseResult component
   'exercise.correct': 'Correct',

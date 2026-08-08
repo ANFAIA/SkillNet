@@ -1,19 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import type { FormEvent } from 'react'
-import { Button } from '../../components/ui'
-import { ChatAnswer } from '../../components/chat'
+import { ChatAnswer, ChatInput } from '../../components/chat'
 import { ClickableSurface } from '../../components/courses/ClickableSurface'
 import { useChat } from '../../api/chat'
 import type { ChatGrounding, ChatMessage } from '../../types'
-
-function SendIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="22" y1="2" x2="11" y2="13" />
-      <polygon points="22 2 15 22 11 13 2 9 22 2" />
-    </svg>
-  )
-}
 
 /**
  * What the answer stands on, in one line, in the learner's words.
@@ -98,8 +87,7 @@ export function Chat() {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  function handleSubmit(e: FormEvent) {
-    e.preventDefault()
+  function handleSend() {
     const text = input.trim()
     if (!text || isStreaming) return
     void sendMessage(text)
@@ -135,26 +123,16 @@ export function Chat() {
       {/* Sticky, so removing the inner scroll does not bury the composer at the bottom
           of a long conversation. It stays on screen; the messages scroll behind it. */}
       <form
-        onSubmit={handleSubmit}
-        className="sticky bottom-0 flex gap-2 py-4 border-t border-border bg-bg"
+        onSubmit={(e) => { e.preventDefault(); handleSend() }}
+        className="sticky bottom-0 py-4 bg-bg"
       >
-        <input
-          type="text"
+        <ChatInput
           value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Escribe tu pregunta..."
-          disabled={isStreaming}
-          className="flex-1 px-3 py-2 text-sm text-text border border-border rounded-lg bg-bg placeholder:text-text-muted focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-colors disabled:opacity-50"
+          onChange={setInput}
+          onSend={handleSend}
+          onStop={cancel}
+          isStreaming={isStreaming}
         />
-        {isStreaming ? (
-          <Button type="button" variant="secondary" size="md" onClick={cancel}>
-            Detener
-          </Button>
-        ) : (
-          <Button type="submit" size="md" disabled={!input.trim()}>
-            <SendIcon />
-          </Button>
-        )}
       </form>
     </div>
   )

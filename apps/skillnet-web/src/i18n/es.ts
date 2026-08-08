@@ -366,6 +366,11 @@ export const es: Record<string, string> = {
   'schema.nodeNoTitle': 'Nodo sin titulo',
   'schema.nodeDefaultTitle': 'Nodo',
 
+  // Shared chat input
+  'chatInput.placeholder': 'Escribe tu pregunta...',
+  'chatInput.send': 'Enviar',
+  'chatInput.stop': 'Detener',
+
   // Admin: Chat page
   'chat.title': 'Asistente',
   'chat.subtitle': 'Pregunta sobre cursos, empleados o la plataforma',
@@ -572,6 +577,58 @@ export const es: Record<string, string> = {
   'generation.srCurrent': 'en curso',
   'generation.srPending': 'pendiente',
   'generation.defaultError': 'No se pudo completar la generacion.',
+
+  // Error boundary
+  'error.title': 'Algo salio mal',
+  'error.description': 'No se pudo cargar esta pagina. Intenta de nuevo.',
+  'error.retry': 'Reintentar',
+
+  // NodePreview (admin)
+  'nodePreview.subtitle': 'Previsualizacion como empleado \u00b7 no se guarda en cache',
+  'nodePreview.generateError': 'No se pudo generar la previsualizacion.',
+  'nodePreview.loadError': 'No se pudo cargar el contenido generado.',
+  'nodePreview.startError': 'No se pudo iniciar la generacion. Asegurate de que el esquema esta guardado.',
+  'nodePreview.retryError': 'No se pudo reintentar.',
+  'nodePreview.retry': 'Reintentar',
+
+  // RenderControls (NodeView footer)
+  'renderControls.adapted': 'Esta leccion se ha adaptado a tus ultimas respuestas.',
+  'renderControls.viewingPrevious': 'Estas viendo una version anterior.',
+  'renderControls.backToCurrent': 'Volver a la actual',
+  'renderControls.refreshing': 'Actualizando...',
+  'renderControls.refresh': 'Actualizar esta leccion',
+  'renderControls.viewPrevious': 'Ver la version anterior',
+  'renderControls.stabilityNote': 'Solo este boton cambia el contenido de este nodo. Responder o volver mas tarde te devuelve exactamente la misma leccion.',
+  'renderControls.versionOf': 'Version del {date}',
+  'renderControls.notAvailable': 'no disponible en esta sesion',
+  'renderControls.noDate': 'sin fecha',
+
+  // SchemaValidationPanel
+  'schemaValidation.problemsSingular': 'No se puede validar todavia: 1 problema',
+  'schemaValidation.problemsPlural': 'No se puede validar todavia: {count} problemas',
+  'schemaValidation.warnings': 'Avisos del disenador (no bloquean la validacion)',
+  'schemaValidation.unknownNode': 'Nodo desconocido ({id})',
+  'schemaValidation.unknownError': 'El servidor rechazo el esquema ({code})',
+  'schemaValidation.unknownErrorDetail': 'No se pudo traducir este error. Revisa el esquema completo.',
+  'schemaValidation.cycleLabel': 'Ciclo:',
+  'schemaRule.empty_schema': 'El esquema no tiene ningun nodo',
+  'schemaRule.empty_schema.detail': 'Propon un esquema desde el documento o anade nodos a mano.',
+  'schemaRule.missing_summary': 'Hay nodos sin resumen',
+  'schemaRule.missing_summary.detail': 'El tutor lee el arbol de resumenes para decidir que nodo es relevante: sin resumen ese nodo es invisible para el.',
+  'schemaRule.no_critical_node': 'Ningun nodo es critico',
+  'schemaRule.no_critical_node.detail': 'El curso se cierra cuando se dominan todos los nodos criticos. Sin ninguno, nunca podria completarse.',
+  'schemaRule.orphan_prerequisite': 'Hay prerrequisitos imposibles',
+  'schemaRule.orphan_prerequisite.detail': 'Estos prerrequisitos apuntan a nodos que ya no estan en el esquema, asi que nunca se podrian cumplir.',
+  'schemaRule.cycle': 'Los prerrequisitos forman un ciclo',
+  'schemaRule.cycle.detail': 'Cada nodo del ciclo espera a otro del mismo ciclo, asi que ninguno podria empezar nunca. Quita uno de los prerrequisitos de la cadena.',
+  'schemaRule.position_not_contiguous': 'El orden de los nodos tiene huecos',
+  'schemaRule.position_not_contiguous.detail': 'Las posiciones deben ir del 1 al ultimo nodo sin saltos.',
+  'schemaRule.node_not_reviewed': 'Hay nodos sin revisar',
+  'schemaRule.node_not_reviewed.detail': 'Un nodo sin revisar no se sirve nunca. Marcalos como revisados en la lista de revision.',
+  'schemaRule.node_has_progress': 'Hay nodos con progreso de aprendices',
+  'schemaRule.node_has_progress.detail': 'Archivalos en lugar de borrarlos: borrarlos tiraria la maestria y el rastro de auditoria de quien ya trabajo en ellos.',
+  'schemaRule.unknown_node': 'El esquema referencia nodos que este curso no tiene',
+  'schemaRule.unknown_node.detail': 'Recarga la pantalla para volver a leer el esquema del servidor.',
 
   // ExerciseResult component
   'exercise.correct': 'Correcto',

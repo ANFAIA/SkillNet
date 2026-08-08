@@ -17,13 +17,13 @@ import {
   useRef,
   useState,
 } from 'react'
-import type { FormEvent, KeyboardEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { useIntl } from 'react-intl'
 import { ClickableSurface } from './ClickableSurface'
 import { ExplainLayer, EXPLAIN_LAYER_MODAL } from './explainLayer'
 import { UiSpecRenderer } from './UiSpecRenderer'
 import { gateProgram } from './kit'
+import { ChatInput } from '../chat/ChatInput'
 import { ChatMarkdown } from '../chat/ChatMarkdown'
 
 /** Focus-trap candidates inside the card. */
@@ -337,45 +337,27 @@ function FollowUpMessages({ messages }: { messages: FollowUpMessage[] }) {
 }
 
 // Composer input — outside the scroll, sticky at bottom of the card
-function FollowUpInput({ onSend }: { onSend: (text: string) => void }) {
+function FollowUpInput({ onSend, isStreaming }: { onSend: (text: string) => void; isStreaming?: boolean }) {
   const intl = useIntl()
   const [input, setInput] = useState('')
 
-  function handleSubmit(e: FormEvent) {
-    e.preventDefault()
+  function handleSend() {
     const text = input.trim()
     if (!text) return
     onSend(text)
     setInput('')
   }
 
-  function onKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      handleSubmit(e)
-    }
-  }
-
   return (
-    <form onSubmit={handleSubmit} className="shrink-0 flex items-end gap-2 px-4 pb-4 pt-2">
-      <textarea
+    <form onSubmit={(e) => { e.preventDefault(); handleSend() }} className="shrink-0 px-4 pb-4 pt-2">
+      <ChatInput
         value={input}
-        onChange={(e) => setInput(e.target.value)}
-        onKeyDown={onKeyDown}
-        rows={1}
+        onChange={setInput}
+        onSend={handleSend}
+        isStreaming={isStreaming}
         placeholder={intl.formatMessage({ id: 'explain.followUpPlaceholder' })}
-        className="flex-1 min-h-[36px] max-h-[100px] resize-none rounded-2xl bg-bg-muted px-3 py-2 text-sm text-text outline-none placeholder:text-text-muted"
+        size="sm"
       />
-      <button
-        type="submit"
-        disabled={!input.trim()}
-        aria-label={intl.formatMessage({ id: 'explain.sendFollowUp' })}
-        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-bg-muted text-text-muted hover:bg-primary hover:text-white disabled:opacity-30 transition-colors"
-      >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M5 12h13" /><path d="M12 5l7 7-7 7" />
-        </svg>
-      </button>
     </form>
   )
 }
@@ -586,7 +568,7 @@ export function ExplainModal({
           </div>
 
           {/* Composer — outside scroll, sticky at bottom */}
-          <FollowUpInput onSend={followUpState.send} />
+          <FollowUpInput onSend={followUpState.send} isStreaming={followUpState.isStreaming} />
         </div>
       </div>
     </ExplainLayer>,
