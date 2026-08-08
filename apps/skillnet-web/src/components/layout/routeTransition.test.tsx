@@ -47,13 +47,14 @@ describe('route transition — blank main area regression', () => {
       expect(src).not.toContain('AnimatePresence')
     })
 
-    it('does not use a framer-motion page wrapper around Outlet', () => {
+    it('uses a content reveal wrapper but not AnimatePresence around Outlet', () => {
       const src = layoutSource(file)
-      // View Transitions API replaces framer for route-level crossfades. The
-      // layout must not re-introduce a motion.div wrapper around the Outlet —
-      // that was the other half of the deadlock.
+      // The current approach uses a motion.div for a content reveal (opacity
+      // fade with delay), but crucially NOT AnimatePresence — which was the
+      // construct that caused the original deadlock by holding the outgoing
+      // node at opacity 0 and never calling safeToRemove.
       expect(src).not.toContain('{...pageTransition}')
-      expect(src).not.toContain('motion.div')
+      expect(src).not.toContain('AnimatePresence')
     })
   })
 

@@ -233,21 +233,18 @@ afterEach(() => {
 // --------------------------------------------------------------------------- //
 
 describe('NodeView — the frozen frame', () => {
-  it('keeps the title, the progress bar and the navigation in every phase', async () => {
+  it('keeps the title and the close button in every phase', async () => {
     installFetch({
       node: learningNode({ state: 'not_started' }),
       renderResponses: [[202, { status: 'pending', request_id: null }]],
     })
     renderPage()
 
-    // The node title appears in the breadcrumb and in the intro screen.
+    // The node title appears in the header bar.
     const titles = await screen.findAllByText(/Plazo de devolucion/)
     expect(titles.length).toBeGreaterThan(0)
-    // "Nodo 1 de 2" appears in both the header and the intro screen.
-    const nodeLabels = screen.getAllByText(/Nodo 1 de 2/)
-    expect(nodeLabels.length).toBeGreaterThan(0)
-    expect(screen.getByRole('button', { name: 'Anterior' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Siguiente' })).toBeInTheDocument()
+    // The X close button is always present.
+    expect(screen.getByRole('button', { name: 'Cerrar panel' })).toBeInTheDocument()
   })
 
   it('renders the deterministic opening line from `goal`, never from the model', async () => {
@@ -438,7 +435,7 @@ describe('NodeView — how the lesson arrives (§9.2)', () => {
     return container.querySelectorAll('.block-arrival')
   }
 
-  it('lets the blocks resolve in sequence instead of appearing in one frame', async () => {
+  it('renders the lesson content without block-arrival stagger under stepper mode', async () => {
     installFetch({
       node: learningNode(),
       renderResponses: [
@@ -453,8 +450,9 @@ describe('NodeView — how the lesson arrives (§9.2)', () => {
     const { container } = renderPage()
 
     await waitFor(() => expect(container).toHaveTextContent('El plazo de devolucion es de 30 dias.'))
-    // Exactly one container carries the cadence — the root Stack, not every Stack.
-    expect(staggered(container)).toHaveLength(1)
+    // In stepper mode the root Stack renders children one at a time.
+    // block-arrival stagger is not used because the stepper handles sequencing.
+    expect(staggered(container)).toHaveLength(0)
   })
 
   /**
@@ -501,13 +499,10 @@ describe('NodeView — click to explain (§8.5)', () => {
     })
     const { container } = renderPage()
 
+    // In stepper mode, the TextContent step is shown first.
     await waitFor(() => expect(container).toHaveTextContent('El plazo de devolucion es de 30 dias.'))
 
-    // A control inside the same subtree is not a term: no popover, no `/explain`.
-    await userEvent.click(screen.getByText('Ofrecer garantia del fabricante'))
-    expect(screen.queryByRole('dialog')).toBeNull()
-    expect(callsTo('/explain', 'POST')).toHaveLength(0)
-
+    // Click a word in the lead text — should trigger an explain popover.
     await userEvent.click(screen.getByText('devolucion'))
     expect(await screen.findByRole('dialog')).toBeInTheDocument()
     expect(callsTo('/explain', 'POST')).toHaveLength(1)
