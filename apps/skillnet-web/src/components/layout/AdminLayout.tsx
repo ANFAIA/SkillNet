@@ -6,7 +6,7 @@ import { ErrorBoundary } from '../ErrorBoundary'
 import { SidebarProvider, useSidebar } from '../../contexts/SidebarContext'
 import { pageTransition } from '../../lib/motion'
 
-const morphSpring = { type: 'spring' as const, stiffness: 200, damping: 28 }
+const morphSpring = { type: 'spring' as const, stiffness: 120, damping: 20 }
 
 function AdminLayoutInner() {
   const location = useLocation()
@@ -28,8 +28,9 @@ function AdminLayoutInner() {
         <motion.main
           layoutId="admin-main"
           transition={morphSpring}
+          style={{ borderTopLeftRadius: isNodeView ? 0 : 12 }}
           className={`flex-1 bg-bg overflow-x-clip overflow-y-auto flex flex-col ${
-            isNodeView ? '' : 'mt-[50px] md:rounded-tl-xl'
+            isNodeView ? '' : 'mt-[50px]'
           }`}>
           <ErrorBoundary
             fallback={(error, reset) => (
