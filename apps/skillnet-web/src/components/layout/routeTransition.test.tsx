@@ -1,11 +1,10 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter, Route, Routes, Outlet, Link, useLocation } from 'react-router-dom'
+import { MemoryRouter, Route, Routes, Outlet, Link } from 'react-router-dom'
 import { motion, LayoutGroup } from 'framer-motion'
-import { pageTransition } from '../../lib/motion'
 
 /**
  * The blank main area on route change.
@@ -13,24 +12,15 @@ import { pageTransition } from '../../lib/motion'
  * Symptom: clicking "Mis Cursos" sometimes left the whole main area blank — right URL,
  * responsive app, nothing painted — and a second click always fixed it.
  *
- * Cause: both route layouts wrapped `<Outlet />` in `AnimatePresence mode="wait"` with
- * an exit variant. `Outlet` is not frozen, so while the outgoing element stayed mounted
- * to play its 200 ms exit, React re-rendered its subtree against the *new* location and
- * the incoming page mounted **inside the node that was exiting**. When that page
- * registered a `layoutId` from in there — `MyCourses` has a `LayoutGroup` tab underline
- * and was the only employee page that did — framer never called `safeToRemove` for the
- * exiting key, so the incoming child was never swapped in and the exiting node was left
- * at its exit end-state, `opacity: 0`, holding the new page's DOM.
+ * Root cause: both route layouts wrapped `<Outlet />` in `AnimatePresence mode="wait"`
+ * with an exit variant. `Outlet` is not frozen, so the incoming page mounted inside the
+ * exiting node. When that page registered a `layoutId`, framer never called
+ * `safeToRemove` and the outgoing node lingered at `opacity: 0`.
  *
- * Fix: the layouts are enter-only. No `AnimatePresence`, so no exit phase and nothing
- * that has to report completion.
- *
- * Honesty about coverage: the deadlock itself is a real-browser, production-build
- * timing bug — it does not reproduce under jsdom (nor under the Vite dev server), so no
- * unit test can *provoke* it. It was reproduced and the fix verified with Playwright
- * against the production bundle: 4/16 plain navigations and 12/12 rapid-click sequences
- * blanked before, 0/28 after. What these tests pin is the invariant that makes the
- * deadlock impossible, so it cannot be reintroduced by editing the layouts.
+ * Fix (original): enter-only framer wrapper, no `AnimatePresence`.
+ * Fix (current): View Transitions API handles crossfades natively. The layouts use a
+ * plain `<div>` around `<Outlet />` — no framer-motion at all for the page wrapper. The
+ * structural invariant is stricter: no AnimatePresence, no motion wrapper, no exit phase.
  */
 
 const LAYOUTS = ['AppLayout.tsx', 'AdminLayout.tsx'] as const
@@ -57,37 +47,31 @@ describe('route transition — blank main area regression', () => {
       expect(src).not.toContain('AnimatePresence')
     })
 
-    it('does not spread the exit variant onto the page wrapper', () => {
+    it('does not use a framer-motion page wrapper around Outlet', () => {
       const src = layoutSource(file)
-      // `{...pageTransition}` would pull in `exit`, which is only safe for an
-      // AnimatePresence with stable children.
+      // View Transitions API replaces framer for route-level crossfades. The
+      // layout must not re-introduce a motion.div wrapper around the Outlet —
+      // that was the other half of the deadlock.
       expect(src).not.toContain('{...pageTransition}')
-      expect(src).toContain('initial={pageTransition.initial}')
-      expect(src).toContain('animate={pageTransition.animate}')
+      expect(src).not.toContain('motion.div')
     })
   })
 
   /**
-   * The behavioural half: a layout shaped exactly like the real ones, with a
-   * `layoutId` on the destination page — the ingredient that triggered the deadlock.
-   * The new page must end up in the document *and* fully visible.
+   * The behavioural half: a layout shaped like the real ones — plain div around
+   * the Outlet, with a `layoutId` on the destination page (the ingredient that
+   * triggered the original deadlock). The new page must always end up visible.
    */
   function Layout() {
-    const location = useLocation()
     return (
       <main>
         <nav>
           <Link to="/">home</Link>
           <Link to="/cursos">cursos</Link>
         </nav>
-        <motion.div
-          key={location.pathname}
-          initial={pageTransition.initial}
-          animate={pageTransition.animate}
-          data-testid="page-wrapper"
-        >
+        <div data-testid="page-wrapper">
           <Outlet />
-        </motion.div>
+        </div>
       </main>
     )
   }
@@ -103,7 +87,7 @@ describe('route transition — blank main area regression', () => {
     )
   }
 
-  it('shows the destination page, visible, after navigating', async () => {
+  it('shows the destination page after navigating', async () => {
     const user = userEvent.setup()
     render(
       <MemoryRouter initialEntries={['/']}>
@@ -121,10 +105,6 @@ describe('route transition — blank main area regression', () => {
     await user.click(screen.getByRole('link', { name: 'cursos' }))
 
     expect(await screen.findByRole('heading', { name: 'Mis Cursos' })).toBeInTheDocument()
-    // The failure was never "no heading" — it was a heading nobody could see.
-    await waitFor(() => {
-      expect(screen.getByTestId('page-wrapper')).toHaveStyle({ opacity: '1' })
-    })
   })
 
   it('renders exactly one page wrapper — the outgoing one is gone in the same commit', async () => {
@@ -142,8 +122,6 @@ describe('route transition — blank main area regression', () => {
 
     await user.click(screen.getByRole('link', { name: 'cursos' }))
 
-    // With `mode="wait"` the outgoing wrapper lingers for the length of the exit;
-    // without an exit phase the swap is a single commit and there is only ever one.
     expect(screen.getAllByTestId('page-wrapper')).toHaveLength(1)
     expect(screen.queryByRole('heading', { name: 'Inicio' })).not.toBeInTheDocument()
   })

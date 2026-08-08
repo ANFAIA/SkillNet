@@ -14,6 +14,7 @@ import { LessonBuddy } from '../../components/courses/blocks/LessonBuddy'
 import { NodeSkeleton, RESERVED_CONTENT_PX } from '../../components/courses/NodeSkeleton'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
 import { transition, duration, ease } from '../../lib/motion'
+import { withViewTransition } from '../../lib/viewTransition'
 import { useLearnerProfile } from '../../api/onboarding'
 import { post } from '../../api/client'
 import { useNodeMorph } from '../../stores/nodeMorph'
@@ -466,19 +467,9 @@ export function NodeView() {
 
   const shownKey = served?.render_id ?? 'none'
 
-  /** Navigate with View Transitions API crossfade when available. */
-  const smoothNavigate = useCallback((to: string, opts?: { state?: unknown }) => {
-    const go = () => navigate(to, opts)
-    if (typeof document !== 'undefined' && 'startViewTransition' in document) {
-      (document as unknown as { startViewTransition: (cb: () => void) => void }).startViewTransition(go)
-    } else {
-      go()
-    }
-  }, [navigate])
-
   function handleBack() {
     clearMorph()
-    smoothNavigate(backToCourse, { state: { fromNode: true } })
+    withViewTransition(() => navigate(backToCourse, { state: { fromNode: true } }))
   }
 
   return (
@@ -496,7 +487,12 @@ export function NodeView() {
             <polyline points="15 18 9 12 15 6" />
           </svg>
         </button>
-        <span className="text-sm font-medium text-text flex-1 truncate">{node.title}</span>
+        <span
+          className="text-sm font-medium text-text flex-1 truncate"
+          style={{ viewTransitionName: `node-title-${nodeId}` }}
+        >
+          {node.title}
+        </span>
       </div>
 
       {/* Main area — flex row for lesson + panel push */}
@@ -569,7 +565,7 @@ export function NodeView() {
                       >
                         <ClickableSurface nodeId={node.id} className="flex-1 min-h-0 flex flex-col">
                           <courseIntroContext.Provider value={courseIntro}>
-                          <nextNodeContext.Provider value={nextNode ? () => smoothNavigate(`${backToCourse}/nodo/${nextNode.id}`) : null}>
+                          <nextNodeContext.Provider value={nextNode ? () => withViewTransition(() => navigate(`${backToCourse}/nodo/${nextNode.id}`)) : null}>
                           <coursePositionContext.Provider value={{ nodeCount: ordered.length, currentNodeIndex: index }}>
                           <stepperContext.Provider value={true}>
                             <UiSpecRenderer

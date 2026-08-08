@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
+import { withViewTransition } from '../../lib/viewTransition'
 import { useIntl } from 'react-intl'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button, Card, ProgressBar, EmptyState, Skeleton, SkeletonText } from '../../components/ui'
@@ -196,7 +197,7 @@ export function CourseView() {
       // and /admin/probar-curso/:id
       const base = pathname.replace(/\/$/, '')
       try { sessionStorage.setItem(storageKey, '1') } catch { /* SSR/private */ }
-      navigate(`${base}/nodo/${target.id}`)
+      withViewTransition(() => navigate(`${base}/nodo/${target.id}`))
     }
   }, [dynamicNodes, id, navigate, pathname, storageKey])
 
