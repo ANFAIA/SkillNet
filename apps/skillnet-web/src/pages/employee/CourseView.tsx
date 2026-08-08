@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
-import { useParams, useNavigate, useLocation, useNavigationType } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { useIntl } from 'react-intl'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button, Card, ProgressBar, EmptyState, Skeleton, SkeletonText } from '../../components/ui'
@@ -142,10 +142,13 @@ export function CourseView() {
   // Auto-navigate refs — must be above any early return to satisfy the Rules of Hooks.
   const location = useLocation()
   const pathname = location.pathname
-  const navType = useNavigationType()
-  // Skip auto-navigate when the user came back (browser back = POP, or chevron = fromNode state).
-  const cameBack = navType === 'POP' || (location.state as { fromNode?: boolean } | null)?.fromNode === true
-  const autoNavigatedRef = useRef(cameBack)
+  // Skip auto-navigate when the user came back from NodeView (chevron or browser back).
+  // sessionStorage tracks whether we already auto-navigated for this course so browser
+  // back doesn't re-trigger the redirect. Cleared when navigating to a different course.
+  const cameFromNode = (location.state as { fromNode?: boolean } | null)?.fromNode === true
+  const storageKey = `auto-nav-${id}`
+  const alreadyAutoNavigated = typeof sessionStorage !== 'undefined' && sessionStorage.getItem(storageKey) === '1'
+  const autoNavigatedRef = useRef(cameFromNode || alreadyAutoNavigated)
 
   const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set())
   const [activeLessonId, setActiveLessonId] = useState<string>('')
@@ -192,9 +195,10 @@ export function CourseView() {
       // Derive base from current URL — works for both /empleado/curso/:id
       // and /admin/probar-curso/:id
       const base = pathname.replace(/\/$/, '')
+      try { sessionStorage.setItem(storageKey, '1') } catch { /* SSR/private */ }
       navigate(`${base}/nodo/${target.id}`)
     }
-  }, [dynamicNodes, id, navigate, pathname])
+  }, [dynamicNodes, id, navigate, pathname, storageKey])
 
   if (isLoading || dynamicPending) {
     return (
