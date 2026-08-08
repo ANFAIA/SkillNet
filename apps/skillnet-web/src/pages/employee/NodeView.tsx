@@ -225,7 +225,7 @@ export function NodeView() {
       title: courseQuery.data.title,
       subtitle: intl.formatMessage({ id: 'node.introSubtitle' }, { count: ordered.length, minutes: totalMinutes }),
       outcomes: ordered.slice(0, 4).map((n) => n.summary).filter((s): s is string => Boolean(s)),
-      buddyMessage: 'Vamos a por ello.',
+      buddyMessage: intl.formatMessage({ id: 'node.buddyMessage' }),
     }
   }, [isFirstNode, hasNoProgress, courseQuery.data, ordered, totalMinutes, intl])
 
@@ -484,11 +484,20 @@ export function NodeView() {
   const vw = typeof window !== 'undefined' ? window.innerWidth : 1
   const vh = typeof window !== 'undefined' ? window.innerHeight : 1
 
-  // clip-path: inset(top right bottom left round radius)
+  // clip-path morph: when we have an origin rect (user clicked a node row),
+  // reveal from that rect. Otherwise, a gentle scale+opacity entrance.
   const clipFrom = hasMorphOrigin
     ? `inset(${origin!.top}px ${vw - origin!.left - origin!.width}px ${vh - origin!.top - origin!.height}px ${origin!.left}px round 8px)`
-    : 'inset(0px 0px 0px 0px)'
+    : undefined
   const clipTo = 'inset(0px 0px 0px 0px round 0px)'
+
+  // Two animation modes: clip-path morph (from node row) or scale+opacity (auto-navigate)
+  const portalInitial = hasMorphOrigin
+    ? { clipPath: clipFrom, opacity: 1 }
+    : { opacity: 0, scale: 0.97 }
+  const portalAnimate = hasMorphOrigin
+    ? { clipPath: exiting ? clipFrom : clipTo, opacity: 1 }
+    : { opacity: exiting ? 0 : 1, scale: exiting ? 0.97 : 1 }
 
   function handleBack() {
     if (reduceMotion || !hasMorphOrigin) {
@@ -507,9 +516,9 @@ export function NodeView() {
   return createPortal(
     <motion.div
       className="fixed inset-0 z-[200] bg-bg flex flex-col overflow-hidden"
-      initial={{ clipPath: clipFrom }}
-      animate={{ clipPath: exiting ? clipFrom : clipTo }}
-      transition={{ duration: duration.slow, ease: ease.base }}
+      initial={portalInitial}
+      animate={portalAnimate}
+      transition={{ duration: hasMorphOrigin ? duration.slow : duration.normal, ease: ease.base }}
       onAnimationComplete={() => {
         if (exiting) onExitComplete()
         else clearMorph()
