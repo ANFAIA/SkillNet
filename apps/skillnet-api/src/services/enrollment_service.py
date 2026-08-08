@@ -189,17 +189,28 @@ class EnrollmentService:
     async def compute_progress(
         self, *, enrollment: Enrollment, org_id: uuid.UUID
     ) -> float | None:
-        """Fraction of lessons completed.
+        """Fraction of lessons completed (v1) or mastered critical nodes (v2).
 
+        **v1 (static):**
         A lesson is "completed" when:
         - it has been visited (a ``LessonProgress`` row exists), AND
         - all its exercises (if any) have a passing attempt.
-
         Progress = completed_lessons / total_lessons.
+
+        **v2 (dynamic):**
+        Progress = mastered_critical_nodes / total_critical_nodes (§7.5).
+        Falls back to 0.0 when the course has neither modules nor nodes.
         """
         course = await self.course_repo.get_detail(enrollment.course_id, org_id)
         if course is None or not course.modules:
-            return 1.0
+            # No modules: check if this is a dynamic course with nodes.
+            if course is not None and resolve_delivery(course) == "dynamic":
+                completion = await self.evaluate_dynamic(
+                    course_id=enrollment.course_id, user_id=enrollment.user_id
+                )
+                return completion.progress_percent / 100.0
+            # Neither modules nor dynamic nodes — genuinely empty course.
+            return 0.0
 
         all_lessons = [
             lesson
