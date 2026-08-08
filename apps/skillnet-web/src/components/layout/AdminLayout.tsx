@@ -1,5 +1,5 @@
 import { Outlet, useLocation } from 'react-router-dom'
-import { motion } from 'framer-motion'
+import { motion, LayoutGroup } from 'framer-motion'
 import { AdminSidebar } from './AdminSidebar'
 import { Header } from './Header'
 import { ErrorBoundary } from '../ErrorBoundary'
@@ -14,31 +14,23 @@ function AdminLayoutInner() {
   const isNodeView = /\/nodo\/[^/]+$/.test(location.pathname)
 
   return (
+    <LayoutGroup>
     <div className="flex h-screen overflow-hidden">
-      <motion.div
-        animate={{ opacity: isNodeView ? 0 : 1, x: isNodeView ? -20 : 0 }}
-        transition={morphSpring}
-        style={{ pointerEvents: isNodeView ? 'none' : 'auto' }}
-      >
-        <AdminSidebar />
-      </motion.div>
+      {!isNodeView && <AdminSidebar />}
 
       <div
         className={`flex-1 flex flex-col min-w-0 transition-[margin-left] duration-300 ease-in-out ${
           isNodeView ? 'ml-0' : collapsed ? 'ml-0 md:ml-16' : 'ml-0 md:ml-[248px]'
         }`}
       >
-        <motion.div
-          animate={{ opacity: isNodeView ? 0 : 1, y: isNodeView ? -50 : 0 }}
-          transition={morphSpring}
-          style={{ pointerEvents: isNodeView ? 'none' : 'auto' }}
-        >
-          <Header />
-        </motion.div>
+        {!isNodeView && <Header />}
 
-        <main className={`flex-1 bg-bg overflow-x-clip overflow-y-auto flex flex-col ${
-          isNodeView ? '' : 'mt-[50px] md:rounded-tl-xl'
-        }`}>
+        <motion.main
+          layoutId="admin-main"
+          transition={morphSpring}
+          className={`flex-1 bg-bg overflow-x-clip overflow-y-auto flex flex-col ${
+            isNodeView ? '' : 'mt-[50px] md:rounded-tl-xl'
+          }`}>
           <ErrorBoundary
             fallback={(error, reset) => (
               <div className="p-4 md:p-6">
@@ -77,9 +69,10 @@ function AdminLayoutInner() {
               <Outlet />
             </motion.div>
           </ErrorBoundary>
-        </main>
+        </motion.main>
       </div>
     </div>
+    </LayoutGroup>
   )
 }
 

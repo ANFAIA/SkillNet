@@ -1,5 +1,5 @@
 import { Outlet, useLocation } from 'react-router-dom'
-import { motion } from 'framer-motion'
+import { motion, LayoutGroup } from 'framer-motion'
 import { Sidebar } from './Sidebar'
 import { Header } from './Header'
 import { ErrorBoundary } from '../ErrorBoundary'
@@ -12,38 +12,31 @@ function AppLayoutInner() {
   const location = useLocation()
   const { collapsed } = useSidebar()
 
-  // NodeView renders as a normal Outlet child — the layout goes fullscreen
-  // by collapsing the sidebar and header with the same spring as CreateCourse.
+  // NodeView renders as a normal Outlet child — the layout goes fullscreen.
+  // A single layoutId on <main> lets framer-motion morph from its current
+  // size/position to fullscreen in one coordinated spring, like CreateCourse.
   const isNodeView = /\/nodo\/[^/]+$/.test(location.pathname)
 
   return (
+    <LayoutGroup>
     <div className="flex h-screen overflow-hidden">
-      {/* Sidebar — slides out when NodeView is active */}
-      <motion.div
-        animate={{ opacity: isNodeView ? 0 : 1, x: isNodeView ? -20 : 0 }}
-        transition={morphSpring}
-        style={{ pointerEvents: isNodeView ? 'none' : 'auto' }}
-      >
-        <Sidebar />
-      </motion.div>
+      {/* Sidebar — hidden when NodeView is active (no animation, just gone) */}
+      {!isNodeView && <Sidebar />}
 
       <div
         className={`flex-1 flex flex-col min-w-0 transition-[margin-left] duration-300 ease-in-out ${
           isNodeView ? 'ml-0' : collapsed ? 'ml-0 md:ml-16' : 'ml-0 md:ml-[248px]'
         }`}
       >
-        {/* Header — hides when NodeView is active */}
-        <motion.div
-          animate={{ opacity: isNodeView ? 0 : 1, y: isNodeView ? -50 : 0 }}
-          transition={morphSpring}
-          style={{ pointerEvents: isNodeView ? 'none' : 'auto' }}
-        >
-          <Header />
-        </motion.div>
+        {/* Header — hidden when NodeView is active */}
+        {!isNodeView && <Header />}
 
-        <main className={`flex-1 bg-bg overflow-x-clip overflow-y-auto ${
-          isNodeView ? '' : 'mt-[50px] md:rounded-tl-xl'
-        }`}>
+        <motion.main
+          layoutId="app-main"
+          transition={morphSpring}
+          className={`flex-1 bg-bg overflow-x-clip overflow-y-auto ${
+            isNodeView ? '' : 'mt-[50px] md:rounded-tl-xl'
+          }`}>
           <ErrorBoundary
             fallback={(error, reset) => (
               <div className="p-4 md:p-6">
@@ -108,9 +101,10 @@ function AppLayoutInner() {
               <Outlet />
             </motion.div>
           </ErrorBoundary>
-        </main>
+        </motion.main>
       </div>
     </div>
+    </LayoutGroup>
   )
 }
 
