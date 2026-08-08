@@ -377,27 +377,20 @@ export function NodeView() {
 
   const shownKey = served?.render_id ?? 'none'
 
-  // Morph entry: if a morph origin was captured, animate from its rect to
-  // fullscreen using scale + translate (the FLIP technique). On exit, reverse
-  // the animation and then navigate.
+  // Morph entry: clip-path reveal. The portal is always fullscreen; clip-path
+  // "windows" only the origin rect at first, then expands to show everything.
+  // Content is never scaled (no deformation), just progressively revealed.
   const hasMorphOrigin = morphRef.current !== null && !reduceMotion
   const origin = morphRef.current
 
-  // Compute FLIP values: what scale and translate bring fullscreen -> origin?
   const vw = typeof window !== 'undefined' ? window.innerWidth : 1
   const vh = typeof window !== 'undefined' ? window.innerHeight : 1
-  const flipFrom = hasMorphOrigin
-    ? {
-        scaleX: origin!.width / vw,
-        scaleY: origin!.height / vh,
-        x: origin!.left + origin!.width / 2 - vw / 2,
-        y: origin!.top + origin!.height / 2 - vh / 2,
-        borderRadius: 8,
-        opacity: 0.7,
-      }
-    : { scaleX: 1, scaleY: 1, x: 0, y: 0, borderRadius: 0, opacity: 0 }
 
-  const flipTo = { scaleX: 1, scaleY: 1, x: 0, y: 0, borderRadius: 0, opacity: 1 }
+  // clip-path: inset(top right bottom left round radius)
+  const clipFrom = hasMorphOrigin
+    ? `inset(${origin!.top}px ${vw - origin!.left - origin!.width}px ${vh - origin!.top - origin!.height}px ${origin!.left}px round 8px)`
+    : 'inset(0px 0px 0px 0px)'
+  const clipTo = 'inset(0px 0px 0px 0px round 0px)'
 
   function handleBack() {
     if (reduceMotion || !hasMorphOrigin) {
@@ -416,12 +409,9 @@ export function NodeView() {
   return createPortal(
     <motion.div
       className="fixed inset-0 z-[200] bg-bg flex flex-col overflow-hidden"
-      initial={flipFrom}
-      animate={exiting ? flipFrom : flipTo}
-      transition={hasMorphOrigin
-        ? { duration: duration.slow, ease: ease.base }
-        : { duration: duration.normal, ease: ease.base }
-      }
+      initial={{ clipPath: clipFrom }}
+      animate={{ clipPath: exiting ? clipFrom : clipTo }}
+      transition={{ duration: duration.slow, ease: ease.base }}
       onAnimationComplete={() => {
         if (exiting) onExitComplete()
         else clearMorph()

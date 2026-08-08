@@ -944,13 +944,13 @@ export function CreateCourse() {
       <div>
         {/* Breadcrumb */}
         <div className="mb-6 flex items-baseline gap-1.5 text-xl font-semibold">
-          <span className="text-text-muted">Crear curso</span>
+          <span className="text-text-muted">{intl.formatMessage({ id: 'create.title' })}</span>
           <span className="text-text-muted">/</span>
-          <span className="text-text-muted">{source === 'importar' ? 'Importar' : 'Crear'}</span>
+          <span className="text-text-muted">{source === 'importar' ? intl.formatMessage({ id: 'create.breadcrumbImport' }) : intl.formatMessage({ id: 'create.breadcrumbCreate' })}</span>
           <span className="text-text-muted">/</span>
-          <span className="text-text-muted">Esquema</span>
+          <span className="text-text-muted">{intl.formatMessage({ id: 'create.breadcrumbSchema' })}</span>
           <span className="text-text-muted">/</span>
-          <span className="text-text">Creando</span>
+          <span className="text-text">{intl.formatMessage({ id: 'create.breadcrumbCreating' })}</span>
         </div>
 
         <div className="flex flex-col items-center justify-center py-16">

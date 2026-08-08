@@ -1,6 +1,9 @@
+import { useIntl } from 'react-intl'
 import { SkeletonRow } from '../../components/ui'
 import { useSettings, useUpdateFeatures } from '../../api/settings'
 import { ApiError } from '../../api/client'
+import { usePreferences } from '../../stores/preferences'
+import type { Locale } from '../../stores/preferences'
 import type { OrgSettings } from '../../types'
 
 /**
@@ -71,15 +74,16 @@ function SettingRow({
 }
 
 export function Settings() {
+  const intl = useIntl()
   const { data: settings, isLoading, error } = useSettings()
   const features = useUpdateFeatures()
 
   return (
     <div>
       <div className="mb-2">
-        <h2 className="text-xl font-semibold text-text">Ajustes</h2>
+        <h2 className="text-xl font-semibold text-text">{intl.formatMessage({ id: 'settings.title' })}</h2>
         <p className="text-sm text-text-secondary mt-0.5">
-          Como se comporta SkillNet para tu organizacion.
+          {intl.formatMessage({ id: 'settings.subtitle' })}
         </p>
       </div>
 
@@ -88,7 +92,7 @@ export function Settings() {
           <SkeletonRow />
         </div>
       ) : error ? (
-        <p className="text-sm text-danger py-5">No se pudieron cargar los ajustes.</p>
+        <p className="text-sm text-danger py-5">{intl.formatMessage({ id: 'settings.loadError' })}</p>
       ) : settings ? (
         <SettingsBody settings={settings} features={features} />
       ) : null}
@@ -103,32 +107,50 @@ function SettingsBody({
   settings: OrgSettings
   features: ReturnType<typeof useUpdateFeatures>
 }) {
+  const intl = useIntl()
+  const locale = usePreferences((s) => s.locale)
+  const setLocale = usePreferences((s) => s.setLocale)
+
   return (
     <>
       {!settings.llm_configured && (
         <div className="mt-4 rounded-lg border border-warning/40 bg-warning/5 p-3">
           <p className="text-sm text-text">
-            No hay ningun modelo de IA configurado, asi que no se puede generar contenido
-            ni responder en el chat.
+            {intl.formatMessage({ id: 'settings.noModel' })}
           </p>
           <p className="text-xs text-text-muted mt-1">
-            Se configura en el <span className="font-mono">.env</span> del despliegue:{' '}
-            <span className="font-mono">LLM_MODEL</span> y{' '}
-            <span className="font-mono">LLM_API_KEY</span>.
+            {intl.formatMessage({ id: 'settings.noModelHint' })}
           </p>
         </div>
       )}
 
       <div className="mt-2 border-t border-border">
+        {/* Language selector */}
         <SettingRow
-          title="Maquetar las respuestas del tutor"
-          description="El tutor contesta con pasos, tablas o avisos cuando encajan mejor que un parrafo. Si el modelo no acierta, la respuesta sale en texto."
+          title={intl.formatMessage({ id: 'settings.language' })}
+          description={intl.formatMessage({ id: 'settings.languageDesc' })}
+        >
+          <select
+            value={locale}
+            onChange={(e) => setLocale(e.target.value as Locale)}
+            className="text-sm border border-border rounded-lg px-3 py-1.5 bg-bg text-text
+              focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+          >
+            <option value="es">{intl.formatMessage({ id: 'settings.langEs' })}</option>
+            <option value="en">{intl.formatMessage({ id: 'settings.langEn' })}</option>
+          </select>
+        </SettingRow>
+
+        {/* Generative UI toggle */}
+        <SettingRow
+          title={intl.formatMessage({ id: 'settings.chatGenUi' })}
+          description={intl.formatMessage({ id: 'settings.chatGenUiDesc' })}
         >
           <Toggle
             checked={settings.chat_generative_ui}
             disabled={features.isPending}
             onChange={(next) => features.mutate({ chat_generative_ui: next })}
-            label="Maquetar las respuestas del tutor"
+            label={intl.formatMessage({ id: 'settings.chatGenUi' })}
           />
         </SettingRow>
       </div>
@@ -137,7 +159,7 @@ function SettingsBody({
         <p className="text-sm text-danger mt-3">
           {features.error instanceof ApiError
             ? features.error.body.detail
-            : 'No se pudo guardar el ajuste'}
+            : intl.formatMessage({ id: 'settings.saveError' })}
         </p>
       )}
     </>
