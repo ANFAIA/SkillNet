@@ -54,15 +54,18 @@ La pregunta evalua si el aprendiz APRENDIO el contenido, no si leyo la pantalla.
 QuizItem de tipo "test":
 - SIEMPRE 4 opciones.
 - Los DISTRACTORES son errores plausibles, no tonterias.
-- La pregunta pide un DATO CONCRETO o plantea un CASO:
-  BIEN: "En que ano se celebro el primer UFC?"
-  BIEN: "Que tecnica uso Royce Gracie para ganar UFC 1?"
-  BIEN: "Un companero dice que el jab viene del karate. Tiene razon?"
+- La pregunta plantea una SITUACION CONCRETA o pide un DATO ESPECIFICO de la fuente:
+  BIEN: "Un cliente llama porque no recibio su entrada. Que haces primero?"
+  BIEN: "Si buscas por email y no aparece, cual es el siguiente paso?"
+  BIEN: "Cual es la diferencia entre descargar por Codigo y por Referencia?"
 - PROHIBIDO preguntar sobre "el nodo", "la leccion", "el enfoque", "el objetivo",
   "lo que se explora", "el proposito de esta seccion". Eso no evalua nada.
   MAL: "Cual es el enfoque principal del nodo sobre la historia del MMA?"
   MAL: "Que se explora en esta leccion?"
+  MAL: "Cual es el primer paso que debes seguir para acceder a...?" (demasiado literal)
+- La respuesta correcta SIEMPRE se puede verificar con la fuente o el contenido escrito.
 - La explicacion cita un DATO CONCRETO del contenido que justifica la respuesta.
+- Las 4 opciones deben ser PLAUSIBLES: el aprendiz que no aprendio debe dudar.
 - QuizItem: EXACTAMENTE 5 argumentos: QuizItem("id", "tipo", "bloom", "pregunta?", ["A", "B", "C", "D"]).
 
 Para DragOrder:

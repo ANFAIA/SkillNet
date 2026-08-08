@@ -79,14 +79,18 @@ mas completa. MINIMO 4 bloques, idealmente 5-6.
 2. CONCEPTO — Uno o DOS bloques de contenido. Si el tema tiene varias facetas, usa dos
    bloques de concepto (ej: una Table + un StepByStepReveal, o un BeforeAfter + un Callout).
 3. REFUERZO (opcional) — Callout con dato clave, o un segundo bloque de concepto.
-4. VERIFICAR — SIEMPRE EL ULTIMO BLOQUE. QuizItem o DragOrder.
+4. VERIFICAR — OBLIGATORIO, SIEMPRE EL ULTIMO BLOQUE. QuizItem o DragOrder.
    El ejercicio cierra la pantalla. Nada va despues del ejercicio.
+   TODOS los nodos DEBEN tener exactamente UN bloque QuizItem o DragOrder al final.
+   Sin excepcion. Un nodo sin ejercicio no evalua nada.
 
 ## Reglas duras
 
 - Los ids son ASCII sin tildes: "intro", "tabla", "q1".
 - Cada id es unico.
 - El primer bloque siempre es TextContent con variant "lead".
+- El ULTIMO bloque siempre es QuizItem o DragOrder. NO HAY EXCEPCIONES.
+  Un JSON sin un bloque de intent "verificar" al final es INVALIDO y sera rechazado.
 - NO uses Tabs, TabItem, Card, Accordion ni AccordionItem.
 - El campo "note" es una instruccion breve para el agente que rellene el contenido.\
 """
@@ -210,14 +214,37 @@ async def run_blueprint(
     )
 
     # --- Parse response ---------------------------------------------------
+    blueprint = None
     try:
-        return Blueprint.model_validate_json(raw)
+        blueprint = Blueprint.model_validate_json(raw)
     except (ValidationError, ValueError):
-        pass
+        try:
+            data = parse_json_response(raw, context="blueprint")
+            blueprint = Blueprint.model_validate(data)
+        except Exception:
+            log.warning("blueprint: LLM response unparseable, using default. raw=%s", raw[:300])
+            blueprint = default_blueprint(ui_format, shape_hints)
 
-    try:
-        data = parse_json_response(raw, context="blueprint")
-        return Blueprint.model_validate(data)
-    except Exception:
-        log.warning("blueprint: LLM response unparseable, using default. raw=%s", raw[:300])
-        return default_blueprint(ui_format, shape_hints)
+    # --- Post-validation: ensure a verification block exists ---------------
+    blueprint = _ensure_verification(blueprint, ui_format, target_bloom)
+    return blueprint
+
+
+def _ensure_verification(
+    blueprint: Blueprint, ui_format: str, target_bloom: str
+) -> Blueprint:
+    """Append a QuizItem if the LLM omitted the mandatory verification block."""
+    has_verification = any(
+        b.type in ("QuizItem", "DragOrder") for b in blueprint.blocks
+    )
+    if has_verification:
+        return blueprint
+    log.warning("blueprint: no verification block, injecting QuizItem")
+    bloom = "apply" if ui_format in ("exercise", "mixed") else "understand"
+    blocks = list(blueprint.blocks) + [
+        BlueprintBlock(
+            id="q1", type="QuizItem", intent="verificar",
+            item_type="test", bloom=target_bloom or bloom,
+        ),
+    ]
+    return Blueprint(blocks=blocks)

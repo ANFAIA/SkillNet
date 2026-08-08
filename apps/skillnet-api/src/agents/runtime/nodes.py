@@ -34,6 +34,7 @@ from typing import Any
 from sqlalchemy import select
 
 from src.agents.content.helpers import (
+    CHARS_PER_PAGE,
     FULL_TEXT_PAGE_THRESHOLD,
     assemble_chunk_text,
     estimate_pages,
@@ -162,7 +163,18 @@ async def load_source_context(db: Any, node: CourseNode, org_id: uuid.UUID) -> s
     if document is None:
         return ""
 
-    if estimate_pages(document) <= FULL_TEXT_PAGE_THRESHOLD and document.full_text:
+    # A document whose full_text fits in the prompt window goes in whole. The threshold
+    # uses character count as a secondary signal: a 10-slide PDF may report 10 "pages"
+    # but carry fewer characters than a dense 3-page manual. When the text is small
+    # enough to fit comfortably, the full-text path is more reliable and avoids an
+    # embedding call that may not be available.
+    full_text_chars = len(document.full_text or "")
+    pages = estimate_pages(document)
+    use_full_text = (
+        document.full_text
+        and (pages <= FULL_TEXT_PAGE_THRESHOLD or full_text_chars <= CHARS_PER_PAGE * FULL_TEXT_PAGE_THRESHOLD)
+    )
+    if use_full_text:
         # Scoped to the node's own headings, exactly like the chunked branch below.
         # The asymmetry was invisible and expensive: a document of <= 5 pages went in
         # WHOLE, so all three nodes of the seeded ``Alergenos`` course were handed the
@@ -173,9 +185,17 @@ async def load_source_context(db: Any, node: CourseNode, org_id: uuid.UUID) -> s
         return clip_source(_scoped_full_text(document.full_text, node.source_headings))
 
     repo = DocumentChunkRepository(db)
-    embedder = maybe_fixture_embedder(resolve_embedding_config(await _org_settings(db, org_id)))
-    query = f"{node.title}\n{node.summary}"
-    embedding = await embedder.embed_query(query)
+    try:
+        embedder = maybe_fixture_embedder(resolve_embedding_config(await _org_settings(db, org_id)))
+        query = f"{node.title}\n{node.summary}"
+        embedding = await embedder.embed_query(query)
+    except Exception:
+        logger.warning(
+            "Embedding failed for node %s; falling back to full_text", node.id
+        )
+        if document.full_text:
+            return clip_source(_scoped_full_text(document.full_text, node.source_headings))
+        return ""
     headings = list(node.source_headings or [])
     rows = await repo.similarity_search_by_headings(
         org_id=org_id,
