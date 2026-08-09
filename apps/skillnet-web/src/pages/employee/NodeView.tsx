@@ -297,11 +297,21 @@ export function NodeView() {
 
   const requestedRef = useRef(false)
   /**
-   * La ultima leccion que estuvo en pantalla. Declarado aqui arriba con el resto de
-   * hooks: mas abajo hay returns tempranos y un `useRef` detras de ellos se llamaria
-   * de forma condicional.
+   * Lo que hay EN PANTALLA: el nodo y su leccion, juntos.
+   *
+   * El parpadeo al cambiar de nodo venia de que la vista se derivaba de dos fuentes que
+   * podian discrepar — la URL decia que nodo y la query decia que render — y al saltar,
+   * la segunda se quedaba vacia un instante. Con un solo valor no hay hueco posible: la
+   * pantalla no cambia hasta que hay una leccion nueva que poner, y cuando cambia lo
+   * hace entera, cabecera incluida. Sin esto la cabecera anunciaba "Pantalla 4" sobre el
+   * contenido de la 3 mientras durase la espera.
    */
-  const previous = useRef<{ program: string; format: string | null; key: string } | null>(null)
+  const [shown, setShown] = useState<{
+    node: LearningNode
+    program: string
+    format: UiFormat | null
+    key: string
+  } | null>(null)
 
   /** Set once any lesson has been on screen — see `fromSkeleton` further down. */
   const programShownBefore = useRef(false)
@@ -332,6 +342,28 @@ export function NodeView() {
   const requestRender = useRequestRender(nodeId)
 
   const served = isServedRender(render.data) ? render.data : null
+
+  /**
+   * Las dos unicas transiciones de `shown`, y no hay una tercera.
+   *
+   * Entra cuando hay leccion servida para el nodo pedido: el cambio es atomico, nodo y
+   * programa a la vez. Sale cuando el nodo pedido falla, que es el agujero de sostener
+   * la anterior sin condiciones — sin esto, un render que nunca llega deja al aprendiz
+   * leyendo la pantalla anterior para siempre.
+   */
+  useEffect(() => {
+    if (!served || !node) return
+    setShown({
+      node,
+      program: served.program,
+      format: served.ui_format,
+      key: served.render_id,
+    })
+  }, [served, node])
+
+  useEffect(() => {
+    if (streamFailure) setShown(null)
+  }, [streamFailure])
   const pending = isPendingRender(render.data) ? render.data : null
 
   const reduceMotion = useReducedMotion()
@@ -549,17 +581,17 @@ export function NodeView() {
    * cambiar de paso dentro del nodo: el mismo `AnimatePresence` cruza de una a otra
    * cuando la nueva llega.
    */
-  if (served) {
-    previous.current = {
-      program: served.program,
-      format: served.ui_format,
-      key: served.render_id,
-    }
-  }
-  const held = served ? null : previous.current
+  /**
+   * La cabecera anuncia el nodo que el aprendiz esta VIENDO, no el que se ha pedido.
+   * Mientras la leccion nueva se genera, el titulo, los puntos y el contador siguen
+   * siendo los de la que sigue en pantalla. Cuando no hay ninguna —primera carga o
+   * fallo— coinciden, porque `shown` es null y se cae al nodo de la URL.
+   */
+  const headerNode = shown?.node ?? node
+  const headerIndex = ordered.findIndex((entry) => entry.id === headerNode.id)
 
-  const shownProgram = served?.program ?? held?.program ?? null
-  const shownFormat = served?.ui_format ?? held?.format ?? null
+  const shownProgram = shown?.program ?? null
+  const shownFormat = shown?.format ?? null
 
   const arriving = !reduceMotion
 
@@ -569,7 +601,7 @@ export function NodeView() {
    */
   const fromSkeleton = !programShownBefore.current
 
-  const shownKey = served?.render_id ?? held?.key ?? 'none'
+  const shownKey = shown?.key ?? 'none'
 
   function handleBack() {
     clearMorph()
@@ -597,14 +629,14 @@ export function NodeView() {
               </svg>
             </button>
             <span className="shrink-0 text-sm font-medium text-text truncate">
-              {node.title}
+              {headerNode.title}
             </span>
           </div>
           {/* Progress dots — aligned with content column */}
           <div className="shrink-0 px-6 pb-3 max-w-7xl w-full mx-auto">
             <CourseProgress
               nodeCount={ordered.length}
-              currentNodeIndex={index}
+              currentNodeIndex={headerIndex}
               currentStep={stepProgress?.currentStep ?? 0}
               totalSteps={stepProgress?.totalSteps ?? 1}
             />
@@ -664,7 +696,7 @@ export function NodeView() {
                           <stepperProgressContext.Provider value={reportStepProgress}>
                           <courseIntroContext.Provider value={courseIntro}>
                             <nextNodeContext.Provider value={nextNode ? { navigate: () => navigate(`${backToCourse}/nodo/${nextNode.id}`), title: nextNode.title } : null}>
-                            <coursePositionContext.Provider value={{ nodeCount: ordered.length, currentNodeIndex: index }}>
+                            <coursePositionContext.Provider value={{ nodeCount: ordered.length, currentNodeIndex: headerIndex }}>
                             <stepperContext.Provider value={true}>
                               <UiSpecRenderer
                                 program={shownProgram}
