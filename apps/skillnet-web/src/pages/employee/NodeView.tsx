@@ -296,6 +296,13 @@ export function NodeView() {
   const [streamFailure, setStreamFailure] = useState<string | null>(null)
 
   const requestedRef = useRef(false)
+  /**
+   * La ultima leccion que estuvo en pantalla. Declarado aqui arriba con el resto de
+   * hooks: mas abajo hay returns tempranos y un `useRef` detras de ellos se llamaria
+   * de forma condicional.
+   */
+  const previous = useRef<{ program: string; format: string | null; key: string } | null>(null)
+
   /** Set once any lesson has been on screen — see `fromSkeleton` further down. */
   const programShownBefore = useRef(false)
   const viewedRenderRef = useRef<string | null>(null)
@@ -533,8 +540,26 @@ export function NodeView() {
   }
 
   const notReviewed = isNodeNotReviewed(render.error) || isNodeNotReviewed(requestRender.error)
-  const shownProgram = served?.program ?? null
-  const shownFormat = served?.ui_format ?? null
+  /**
+   * La ultima leccion que estuvo en pantalla.
+   *
+   * Al cambiar de nodo, la query del render nuevo aun no tiene datos: `served` es `null`
+   * y sin esto se caia a la pantalla de titulo. Ese hueco entre soltar lo viejo y recibir
+   * lo nuevo es el parpadeo. Sosteniendo la anterior, cambiar de nodo se ve igual que
+   * cambiar de paso dentro del nodo: el mismo `AnimatePresence` cruza de una a otra
+   * cuando la nueva llega.
+   */
+  if (served) {
+    previous.current = {
+      program: served.program,
+      format: served.ui_format,
+      key: served.render_id,
+    }
+  }
+  const held = served ? null : previous.current
+
+  const shownProgram = served?.program ?? held?.program ?? null
+  const shownFormat = served?.ui_format ?? held?.format ?? null
 
   const arriving = !reduceMotion
 
@@ -544,7 +569,7 @@ export function NodeView() {
    */
   const fromSkeleton = !programShownBefore.current
 
-  const shownKey = served?.render_id ?? 'none'
+  const shownKey = served?.render_id ?? held?.key ?? 'none'
 
   function handleBack() {
     clearMorph()
