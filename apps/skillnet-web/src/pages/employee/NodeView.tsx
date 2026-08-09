@@ -156,6 +156,23 @@ function ConfigPanel() {
  */
 
 // ---------------------------------------------------------------------------
+// The content column
+// ---------------------------------------------------------------------------
+
+/**
+ * La columna de contenido, definida UNA vez.
+ *
+ * Estaba escrita en dos sitios con el mismo valor, que es justo la forma de que un dia
+ * dejen de tenerlo: cambiar uno y olvidar el otro desalinea la pantalla sin que nada
+ * falle. Con una sola constante ese desajuste no es representable.
+ *
+ * La cabecera NO la usa: va a ancho completo con el mismo `px-6`, para que la X siga
+ * pegada al borde. Los puntos coinciden igual con el contenido porque `1fr auto 1fr` y
+ * `mx-auto` se centran en el mismo eje.
+ */
+const CONTENT_COLUMN = 'w-full max-w-5xl mx-auto px-6'
+
+// ---------------------------------------------------------------------------
 // Course progress dots — one dot per node, active node stretches and fills
 // ---------------------------------------------------------------------------
 
@@ -615,36 +632,54 @@ export function NodeView() {
       <div className="flex-1 flex min-h-0 relative overflow-hidden">
         {/* Lesson content — stays in place when panel opens */}
         <div className="flex-1 min-h-0 flex flex-col">
-          {/* Top bar — X and title */}
-          <div className="shrink-0 flex items-center gap-3 px-6 pt-4 pb-1" data-no-explain="">
-            <button
-              type="button"
-              onClick={handleBack}
-              className="shrink-0 p-1.5 text-text-muted hover:text-text transition-colors"
-              aria-label={intl.formatMessage({ id: 'panel.close' })}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
-            </button>
-            <span className="shrink-0 text-sm font-medium text-text truncate">
-              {headerNode.title}
-            </span>
-          </div>
-          {/* Progress dots — aligned with content column */}
-          <div className="shrink-0 px-6 pb-3 max-w-7xl w-full mx-auto">
+          {/*
+            Cabecera: cerrar, titulo y puntos en UNA fila.
+            Eran dos filas apiladas, asi que no habia ninguna linea que compartir — de
+            ahi que la X quedase por encima de los puntos. Una rejilla de tres columnas
+            `1fr auto 1fr` lo resuelve por estructura: `items-center` da la linea comun a
+            los tres, y las dos columnas elasticas iguales dejan los puntos centrados sin
+            depender de lo que ocupe el titulo. La fila sigue a ancho completo con `px-6`,
+            asi que la X no se mueve de donde estaba.
+          */}
+          <div className="shrink-0 grid grid-cols-[1fr_auto_1fr] items-center gap-3 px-6 pt-4 pb-3" data-no-explain="">
+            <div className="flex items-center gap-3 min-w-0">
+              <button
+                type="button"
+                onClick={handleBack}
+                className="shrink-0 p-1.5 text-text-muted hover:text-text transition-colors"
+                aria-label={intl.formatMessage({ id: 'panel.close' })}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+              <span className="text-sm font-medium text-text truncate">
+                {headerNode.title}
+              </span>
+            </div>
             <CourseProgress
               nodeCount={ordered.length}
               currentNodeIndex={headerIndex}
               currentStep={stepProgress?.currentStep ?? 0}
               totalSteps={stepProgress?.totalSteps ?? 1}
             />
+            {/* Contrapeso de la tercera columna: sin el, los puntos se centran en el
+                hueco que sobra a la derecha del titulo, no en la fila. */}
+            <div aria-hidden="true" />
           </div>
 
           <div className="flex-1 min-h-0 flex flex-col overflow-y-auto">
             {/* Lesson content */}
-            <div className="flex-1 min-h-0 flex flex-col justify-center px-6 pb-6 max-w-7xl w-full mx-auto">
+            {/*
+              La leccion, centrada en los dos ejes.
+              Horizontal: `mx-auto` sobre la columna. Vertical: `justify-center` en cada
+              envoltorio hasta el contenido. No es redundante — un hijo que crece
+              (`flex-1`, el caso del stepper) ignora `justify-center` y ocupa todo el
+              alto, y uno que no crece (intro, dominado, fallo) queda centrado. La misma
+              regla sirve para los dos sin tener que preguntar cual es.
+            */}
+            <div className={`flex-1 min-h-0 flex flex-col justify-center pb-6 ${CONTENT_COLUMN}`}>
               {notReviewed ? (
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-text">{intl.formatMessage({ id: 'node.pendingReview' })}</p>
@@ -668,12 +703,12 @@ export function NodeView() {
                   </p>
                 </div>
               ) : (
-                <div className="flex-1 min-h-0 flex flex-col">
+                <div className="flex-1 min-h-0 flex flex-col justify-center">
                   <AnimatePresence mode="wait">
                     {shownProgram ? (
                       <motion.div
                         key="content"
-                        className="flex-1 min-h-0 flex flex-col"
+                        className="flex-1 min-h-0 flex flex-col justify-center"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
@@ -687,12 +722,12 @@ export function NodeView() {
                         <motion.div
                           key={shownKey}
                           onClick={onSurfaceClick}
-                          className="flex-1 min-h-0 flex flex-col"
+                          className="flex-1 min-h-0 flex flex-col justify-center"
                           initial={arriving && fromSkeleton ? { minHeight: RESERVED_CONTENT_PX } : false}
                           animate={{ minHeight: 0 }}
                           transition={transition.resize}
                         >
-                          <ClickableSurface nodeId={node.id} className="flex-1 min-h-0 flex flex-col">
+                          <ClickableSurface nodeId={node.id} className="flex-1 min-h-0 flex flex-col justify-center">
                           <stepperProgressContext.Provider value={reportStepProgress}>
                           <courseIntroContext.Provider value={courseIntro}>
                             <nextNodeContext.Provider value={nextNode ? { navigate: () => navigate(`${backToCourse}/nodo/${nextNode.id}`), title: nextNode.title } : null}>
