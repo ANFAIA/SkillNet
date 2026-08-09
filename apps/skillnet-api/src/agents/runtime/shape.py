@@ -60,6 +60,8 @@ import unicodedata
 from collections.abc import Sequence
 from dataclasses import dataclass
 
+from src.render.kit import UI_KIT, ContentFunction
+
 # --- thresholds ---------------------------------------------------------------------
 #
 # Every one of these is a false-positive guard, measured against the ten briefs of
@@ -107,10 +109,23 @@ class ShapeSignal:
     #: How many items/rows/steps/points were counted. Travels into the prompt: "14" is a
     #: far stronger instruction than "several".
     count: int
-    #: The block this becomes. Always one name from the frozen kit (§5.3).
-    block: str
-    #: The block to use instead when the screen is a ``chart``.
+    #: What the material *does*. The detector no longer names a block: the registry
+    #: resolves the function to one (`docs/design/arquitectura-componentes-funcional.md`).
+    function: ContentFunction
+    #: The block to use instead when the screen is a ``chart``. Still a name and not a
+    #: function: it is a format override, not a claim, and phase 2 does not change it.
     chart_block: str = ""
+
+    @property
+    def block(self) -> str:
+        """The kit block this signal resolves to, best claim first.
+
+        Derived instead of stored so that adding a component is a local edit in the
+        catalogue. The three functions the detectors emit resolve to exactly the names
+        this field used to hold, which is what makes phase 2 a refactor and not a change
+        of behaviour.
+        """
+        return UI_KIT.primary_for(self.function)
 
     def instruction(self, ui_format: str = "explanation") -> str:
         """The prompt line, naming the block and forbidding the two known wrong answers."""
@@ -267,7 +282,7 @@ def _detect_enumeration(source: str) -> ShapeSignal | None:
         best = max(best, _score_run(run))
     if best < MIN_ENUM_ITEMS:
         return None
-    return ShapeSignal(kind="enumeration", count=best, block="Table")
+    return ShapeSignal(kind="enumeration", count=best, function=ContentFunction.ENUMERAR)
 
 
 def _score_run(run: Sequence[int]) -> int:
@@ -316,7 +331,7 @@ def _detect_inline_enumeration(source: str) -> ShapeSignal | None:
                 best = max(best, len(pieces))
     if best < MIN_ENUM_ITEMS:
         return None
-    return ShapeSignal(kind="enumeration", count=best, block="Table")
+    return ShapeSignal(kind="enumeration", count=best, function=ContentFunction.ENUMERAR)
 
 
 def _labelled_rows(source: str) -> list[tuple[str, str]]:
@@ -338,7 +353,7 @@ def _detect_labelled(source: str) -> ShapeSignal | None:
     rows = _labelled_rows(source)
     if len(rows) < MIN_LABELLED_ROWS:
         return None
-    return ShapeSignal(kind="labelled_list", count=len(rows), block="Table")
+    return ShapeSignal(kind="labelled_list", count=len(rows), function=ContentFunction.ENUMERAR)
 
 
 def _detect_numeric_series(source: str) -> ShapeSignal | None:
@@ -355,7 +370,8 @@ def _detect_numeric_series(source: str) -> ShapeSignal | None:
     if len(points) < MIN_SERIES_POINTS:
         return None
     return ShapeSignal(
-        kind="numeric_series", count=len(points), block="Table", chart_block="Chart"
+        kind="numeric_series", count=len(points), function=ContentFunction.CUANTIFICAR,
+        chart_block="Chart"
     )
 
 
@@ -364,14 +380,14 @@ def _detect_procedure(source: str) -> ShapeSignal | None:
     numbered = _NUMBERED_RE.findall(source)
     if len(numbered) >= MIN_PROCEDURE_STEPS:
         return ShapeSignal(
-            kind="procedure", count=len(numbered), block="StepSequence"
+            kind="procedure", count=len(numbered), function=ContentFunction.PROCEDIMENTAR
         )
     worded = _WORD_STEP_RE.findall(fold(source))
     if len(worded) >= MIN_PROCEDURE_STEPS:
-        return ShapeSignal(kind="procedure", count=len(worded), block="StepSequence")
+        return ShapeSignal(kind="procedure", count=len(worded), function=ContentFunction.PROCEDIMENTAR)
     lettered = _LETTER_STEP_RE.findall(source)
     if len(lettered) >= MIN_PROCEDURE_STEPS:
-        return ShapeSignal(kind="procedure", count=len(lettered), block="StepSequence")
+        return ShapeSignal(kind="procedure", count=len(lettered), function=ContentFunction.PROCEDIMENTAR)
     return None
 
 

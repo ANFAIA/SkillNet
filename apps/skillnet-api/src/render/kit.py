@@ -52,6 +52,43 @@ class PropKind(str, enum.Enum):
     REFS = "ref[]"
 
 
+class ContentFunction(str, enum.Enum):
+    """What a piece of source material *does*, independent of which block renders it.
+
+    The layer `docs/design/arquitectura-componentes-funcional.md` introduces: a detector
+    says "this enumerates", not "use a Table". The mapping to blocks lives in the
+    components themselves (``ComponentSpec.functions``), so adding a component becomes a
+    local edit instead of teaching ``shape.py`` one more name.
+
+    Only ENUMERAR, PROCEDIMENTAR and CUANTIFICAR are reachable today: they are what the
+    four detectors of ``shape.py`` emit. The rest are declared so components can already
+    claim them, but nothing routes there until a detector or a classifier does (phases 3
+    and 4). A function no detector emits is dead weight in the registry, not a bug.
+    """
+
+    ENUMERAR = "enumerar"
+    PROCEDIMENTAR = "procedimentar"
+    CUANTIFICAR = "cuantificar"
+    CONTRASTAR = "contrastar"
+    VARIAR = "variar"
+    EXPLORAR = "explorar"
+    LOCALIZAR = "localizar"
+    EVALUAR = "evaluar"
+
+
+@dataclass(frozen=True, slots=True)
+class FunctionFit:
+    """A component's claim on one function, and how strongly it wants it.
+
+    ``rank`` breaks ties, lower first. It belongs to the *pair* and not to the component
+    because a block can be the obvious answer for one function and the fallback for
+    another: ``Table`` is the default for ENUMERAR and a poor second for CONTRASTAR.
+    """
+
+    function: ContentFunction
+    rank: int = 50
+
+
 @dataclass(frozen=True, slots=True)
 class PropSpec:
     name: str
@@ -78,6 +115,9 @@ class ComponentSpec:
     is_container: bool = False
     #: ``Markdown`` is reachable from ``fallback_seed`` only; the LLM cannot emit it.
     llm_emittable: bool = True
+    #: The functions this component competes for. Empty = it is never proposed by the
+    #: function layer and can only arrive by an explicit rule in a prompt.
+    functions: tuple[FunctionFit, ...] = ()
 
     @property
     def prop_names(self) -> tuple[str, ...]:
@@ -133,6 +173,26 @@ class UIKit:
     def container_names(self) -> tuple[str, ...]:
         return tuple(c.name for c in self.components if c.is_container)
 
+    def candidates_for(self, function: ContentFunction) -> tuple[str, ...]:
+        """Components that claim ``function``, best first.
+
+        The registry lookup that replaces the block name hard-coded in ``shape.py``.
+        Ties break on catalogue order, so the result is deterministic and a component
+        added at the end never displaces an incumbent by accident.
+        """
+        claims = [
+            (fit.rank, index, component.name)
+            for index, component in enumerate(self.components)
+            for fit in component.functions
+            if fit.function is function and component.llm_emittable
+        ]
+        return tuple(name for _, _, name in sorted(claims))
+
+    def primary_for(self, function: ContentFunction) -> str:
+        """The component a function resolves to when nobody declines. ``""`` if none."""
+        candidates = self.candidates_for(function)
+        return candidates[0] if candidates else ""
+
 
 # --------------------------------------------------------------------------------------
 # The frozen catalogue. Order of the tuple = order of the table in §5.3.
@@ -160,6 +220,7 @@ UI_KIT = UIKit(
         ),
         ComponentSpec(
             name="Card",
+            functions=(FunctionFit(ContentFunction.ENUMERAR, 60), FunctionFit(ContentFunction.VARIAR, 40)),
             purpose="Agrupa bajo un titulo propio un caso practico o un ejemplo cerrado",
             is_container=True,
             props=(
@@ -169,6 +230,7 @@ UI_KIT = UIKit(
         ),
         ComponentSpec(
             name="Callout",
+            functions=(FunctionFit(ContentFunction.CONTRASTAR, 70),),
             purpose="Una regla critica o excepcion que no se puede pasar por alto. Uno por pantalla",
             props=(
                 PropSpec("tone", PropKind.ENUM, "Intencion del aviso", CALLOUT_TONES),
@@ -177,6 +239,7 @@ UI_KIT = UIKit(
         ),
         ComponentSpec(
             name="StepSequence",
+            functions=(FunctionFit(ContentFunction.PROCEDIMENTAR, 10),),
             purpose="Pasos en orden que se entienden solos. Prefierelo con 3-7 pasos cortos",
             props=(
                 PropSpec("title", PropKind.STRING, "Nombre del procedimiento"),
@@ -185,6 +248,7 @@ UI_KIT = UIKit(
         ),
         ComponentSpec(
             name="Table",
+            functions=(FunctionFit(ContentFunction.ENUMERAR, 10), FunctionFit(ContentFunction.CUANTIFICAR, 10), FunctionFit(ContentFunction.CONTRASTAR, 60)),
             purpose="Varios elementos comparados por varios atributos. Si solo contrastas DOS estados usa BeforeAfter",
             props=(
                 PropSpec("headers", PropKind.STRING_LIST, "Cabeceras de columna"),
@@ -201,6 +265,7 @@ UI_KIT = UIKit(
         ),
         ComponentSpec(
             name="Chart",
+            functions=(FunctionFit(ContentFunction.CUANTIFICAR, 20),),
             purpose="Cifras comparables entre categorias. Solo si las cifras estan en la fuente",
             props=(
                 PropSpec("kind", PropKind.ENUM, "Tipo de grafico", CHART_KINDS),
@@ -211,6 +276,7 @@ UI_KIT = UIKit(
         ),
         ComponentSpec(
             name="QuizItem",
+            functions=(FunctionFit(ContentFunction.EVALUAR, 10),),
             purpose="Pregunta de evaluacion sobre un caso concreto",
             props=(
                 PropSpec("item_id", PropKind.STRING, "Id corto y unico dentro del spec"),
@@ -222,6 +288,7 @@ UI_KIT = UIKit(
         ),
         ComponentSpec(
             name="SliderExploration",
+            functions=(FunctionFit(ContentFunction.EXPLORAR, 10),),
             purpose="El aprendiz mueve una variable y ve como cambia el resultado. Requiere una relacion causa-efecto enunciada en la fuente",
             props=(
                 PropSpec("title", PropKind.STRING, "Titulo del explorador"),
@@ -238,6 +305,7 @@ UI_KIT = UIKit(
         ),
         ComponentSpec(
             name="ManipulableGraph",
+            functions=(FunctionFit(ContentFunction.EXPLORAR, 20),),
             purpose="Plano cartesiano donde el aprendiz mueve puntos o funciones",
             props=(
                 PropSpec("title", PropKind.STRING, "Titulo del grafico"),
@@ -252,6 +320,7 @@ UI_KIT = UIKit(
         ),
         ComponentSpec(
             name="BeforeAfter",
+            functions=(FunctionFit(ContentFunction.CONTRASTAR, 10),),
             purpose="Contrasta exactamente DOS estados: correcto frente a incorrecto, antes frente a despues. Prefierelo a Table cuando la comparacion es de dos",
             props=(
                 PropSpec("title", PropKind.STRING, "Titulo de la comparacion"),
@@ -269,6 +338,7 @@ UI_KIT = UIKit(
         ),
         ComponentSpec(
             name="DragOrder",
+            functions=(FunctionFit(ContentFunction.EVALUAR, 20),),
             purpose="Evaluar reordenando pasos o prioridades arrastrando",
             props=(
                 PropSpec("instruction", PropKind.STRING, "Enunciado de la tarea de ordenar"),
@@ -278,6 +348,7 @@ UI_KIT = UIKit(
         ),
         ComponentSpec(
             name="HotspotImage",
+            functions=(FunctionFit(ContentFunction.LOCALIZAR, 10),),
             purpose="Marcar zonas sobre una imagen. Requiere una URL de imagen real; no lo uses si no la hay",
             props=(
                 PropSpec("imageUrl", PropKind.STRING, "URL de la imagen"),
@@ -290,6 +361,7 @@ UI_KIT = UIKit(
         ),
         ComponentSpec(
             name="StepByStepReveal",
+            functions=(FunctionFit(ContentFunction.PROCEDIMENTAR, 20),),
             purpose="Procedimiento cuyos pasos necesitan explicacion propia. Prefierelo a StepSequence cuando un paso no se entiende solo",
             props=(
                 PropSpec("title", PropKind.STRING, "Titulo del bloque"),
@@ -314,6 +386,7 @@ UI_KIT = UIKit(
         ),
         ComponentSpec(
             name="DiagramBuilder",
+            functions=(FunctionFit(ContentFunction.PROCEDIMENTAR, 60),),
             purpose="Diagrama que se dibuja paso a paso para mostrar como se relacionan las partes",
             props=(
                 PropSpec("title", PropKind.STRING, "Titulo del diagrama"),
@@ -325,6 +398,7 @@ UI_KIT = UIKit(
         ),
         ComponentSpec(
             name="Tabs",
+            functions=(FunctionFit(ContentFunction.VARIAR, 10),),
             purpose="Variantes del MISMO proceso que el aprendiz elige: por turno, por tipo de cliente, por caso. 2-3 pestanas",
             is_container=True,
             props=(
@@ -342,6 +416,7 @@ UI_KIT = UIKit(
         ),
         ComponentSpec(
             name="Accordion",
+            functions=(FunctionFit(ContentFunction.VARIAR, 20),),
             purpose="Excepciones o detalles que no todo el mundo necesita leer",
             is_container=True,
             props=(
