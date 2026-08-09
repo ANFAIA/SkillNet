@@ -11,25 +11,27 @@ export function useStepper(): boolean {
 }
 
 /**
- * La compuerta del paso actual.
+ * Aviso de que el ejercicio del paso actual ya esta resuelto.
  *
- * Un bloque de evaluacion llama a `block()` al montarse y a `unblock()` cuando el
- * aprendiz acierta. Mientras este bloqueado, el stepper no avanza: ni el chevron, ni
- * las flechas del teclado, ni el boton de pasar al nodo siguiente. Es UNA regla y cubre
- * los dos casos, porque avanzar de bloque y avanzar de nodo son el mismo `next()`.
+ * El stepper NO pregunta a los bloques si hay que cerrar el paso: eso ya lo sabe antes
+ * de pintar, porque `StackItem` viene etiquetado con si el paso lleva un ejercicio
+ * dentro (ver `kit/solvableSteps.ts`). Un paso con ejercicio nace cerrado y esta unica
+ * llamada es lo unico que lo abre.
+ *
+ * Esa direccion —cerrado por defecto, abierto solo por un acierto— es lo que hace el
+ * parpadeo imposible: el boton de nodo siguiente nunca puede aparecer y retirarse,
+ * porque la transicion contraria (abierto → cerrado dentro del mismo paso) no existe.
+ * La version anterior de esto era una compuerta imperativa (`block()` al montar,
+ * `unblock()` al acertar) y tenia el defecto inverso: el paso nacia abierto y se cerraba
+ * un efecto —o una animacion de salida entera— mas tarde.
  *
  * `null` fuera del stepper (vista de admin, Storybook, tests): ahi los bloques se
- * pintan sueltos y no hay nada que bloquear.
+ * pintan sueltos y no hay ningun paso que abrir.
  */
-export interface StepperGate {
-  block: () => void
-  unblock: () => void
-}
+export const stepperSolveContext = createContext<(() => void) | null>(null)
 
-export const stepperGateContext = createContext<StepperGate | null>(null)
-
-export function useStepperGate(): StepperGate | null {
-  return useContext(stepperGateContext)
+export function useStepperSolve(): (() => void) | null {
+  return useContext(stepperSolveContext)
 }
 
 /**

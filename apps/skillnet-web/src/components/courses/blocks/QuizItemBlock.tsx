@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useIntl } from 'react-intl'
@@ -8,7 +8,7 @@ import { HintLadder, WorkedSolution } from './QuizItemHints'
 import { duration, ease } from '../../../lib/motion'
 import { BLOCK_TITLE, INLINE_SURFACE } from './rhythm'
 import { useNodeRenderTarget } from '../kit/NodeRenderContext'
-import { useStepperAdvance, useStepperGate } from './StepperContext'
+import { useStepperAdvance, useStepperSolve } from './StepperContext'
 import type { ExerciseType } from '../../../types'
 import type { BloomLevel } from '../kit/schemas'
 import type {
@@ -179,13 +179,11 @@ export function QuizItemBlock({
   const queryClient = useQueryClient()
   const { recordEvent } = useNodeRenderTarget()
   const stepperAdvance = useStepperAdvance()
-  // Un ejercicio cierra el paso hasta que se acierta: nadie pasa de pantalla — ni de
-  // nodo — sin haberlo resuelto.
-  const gate = useStepperGate()
-  useEffect(() => {
-    gate?.block()
-    return () => gate?.unblock()
-  }, [gate])
+  // El paso ya nace cerrado por llevar este bloque dentro (`kit/solvableSteps.ts`), asi
+  // que aqui no hay nada que cerrar: solo se avisa de que se ha abierto. Si este bloque
+  // deja de llamar a `useStepperSolve`, o aparece otro que lo llame, hay que mover
+  // `SOLVABLE_COMPONENTS` con el — `solvableSteps.test.ts` lo comprueba.
+  const solveStep = useStepperSolve()
 
   // Latency is measured from mount, which is when the item became visible.
   const openedAt = useRef(Date.now())
@@ -211,10 +209,19 @@ export function QuizItemBlock({
         })
       }
 
-      // Acertar abre la compuerta; fallar la deja cerrada para que se reintente.
+      // Acertar abre el paso; fallar lo deja cerrado para que se reintente.
+      //
+      // `show_worked_solution` tambien lo abre, y no es un detalle: el servidor lo manda
+      // cuando se acaban los intentos y le enseña la solucion al aprendiz. Ahi el item
+      // queda bloqueado SIN haber pasado nunca por `passed`, asi que sin esta rama no hay
+      // quien abra el paso y el aprendiz se queda encerrado en el nodo, sin nada que
+      // pulsar. Solo avanza solo cuando acierta: si esta leyendo la solucion, que decida
+      // el cuando pasar.
       if (result.passed) {
-        gate?.unblock()
+        solveStep?.()
         stepperAdvance?.()
+      } else if (result.show_worked_solution === true) {
+        solveStep?.()
       }
     },
   })

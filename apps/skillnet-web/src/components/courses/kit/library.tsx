@@ -58,6 +58,7 @@ import {
   PronunciationExerciseBlock,
   SliderExplorationBlock,
   StackBlock,
+  StackItem,
   StepSequenceBlock,
   TableBlock,
   TextContentBlock,
@@ -74,6 +75,7 @@ import {
   readStringMatrix,
 } from './coerce'
 import { QuizItemRenderer } from './QuizItemRenderer'
+import { hasSolvableItem } from './solvableSteps'
 import {
   CALLOUT_TONES,
   CHART_KINDS,
@@ -109,13 +111,24 @@ function renderKids(
   return renderNode(readChildren(children))
 }
 
+/**
+ * El unico contenedor que NO usa `renderKids`: sus hijos se rinden de uno en uno para
+ * poder etiquetar cada uno con si lleva un ejercicio dentro. Cuando este `Stack` es la
+ * raiz de una leccion, cada hijo es un paso del stepper, y el stepper necesita esa
+ * etiqueta en render —no un frame despues— para no enseñar el boton de nodo siguiente
+ * encima de un ejercicio sin resolver. Ver `solvableSteps.ts` y `blocks/StackBlock.tsx`.
+ */
 const Stack = defineComponent({
   name: 'Stack',
   description: KIT_DESCRIPTIONS.Stack,
   props: stackProps,
   component: ({ props, renderNode }: ComponentRenderProps<{ children: unknown[]; gap: string }>) => (
     <StackBlock gap={readEnum(props.gap, STACK_GAPS, 'md')}>
-      {renderKids(renderNode, props.children)}
+      {readChildren(props.children).map((child, i) => (
+        <StackItem key={i} solvable={hasSolvableItem(child)}>
+          {renderNode(child)}
+        </StackItem>
+      ))}
     </StackBlock>
   ),
 })

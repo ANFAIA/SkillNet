@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import {
   closestCenter,
   DndContext,
@@ -19,7 +19,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { useIntl } from 'react-intl'
 import { Button } from '../../ui'
 import { BLOCK_TITLE, INLINE_SURFACE } from './rhythm'
-import { useStepperAdvance, useStepperGate } from './StepperContext'
+import { useStepperAdvance, useStepperSolve } from './StepperContext'
 
 // Design decision (v1): correctOrder is in the program text (browser-visible).
 // Unlike QuizItem (server-side grading), DragOrder validates locally because
@@ -123,12 +123,9 @@ export function DragOrderBlock({ instruction, items, correctOrder }: DragOrderBl
   const safeItems = Array.isArray(items) ? items : []
   const safeCorrect = Array.isArray(correctOrder) ? correctOrder : []
   const stepperAdvance = useStepperAdvance()
-  // Igual que QuizItem: el paso queda cerrado hasta que el orden es el correcto.
-  const gate = useStepperGate()
-  useEffect(() => {
-    gate?.block()
-    return () => gate?.unblock()
-  }, [gate])
+  // Igual que QuizItem: el paso nace cerrado por llevar este bloque dentro
+  // (`kit/solvableSteps.ts`) y solo lo abre acertar el orden.
+  const solveStep = useStepperSolve()
 
   const buildItemStates = useCallback(
     () =>
@@ -184,7 +181,7 @@ export function DragOrderBlock({ instruction, items, correctOrder }: DragOrderBl
     // Auto-advance in stepper mode if all correct
     const isAllCorrect = itemStates.every((item, i) => item.text === safeCorrect[i])
     if (isAllCorrect) {
-      gate?.unblock()
+      solveStep?.()
       stepperAdvance?.()
     }
   }

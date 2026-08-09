@@ -1,8 +1,8 @@
 // The SkillNet UI Kit — React side. The list is frozen (§5.3); it must stay in
 // lockstep with `src/render/kit.py` on the backend.
 
-export { StackBlock } from './StackBlock'
-export type { StackBlockProps } from './StackBlock'
+export { StackBlock, StackItem } from './StackBlock'
+export type { StackBlockProps, StackItemProps } from './StackBlock'
 
 export { TextContentBlock } from './TextContentBlock'
 export type { TextContentBlockProps } from './TextContentBlock'
