@@ -576,7 +576,7 @@ export function NodeView() {
             </span>
           </div>
           {/* Progress dots — aligned with content column */}
-          <div className="shrink-0 px-6 pb-3 max-w-2xl w-full mx-auto">
+          <div className="shrink-0 px-6 pb-3 max-w-7xl w-full mx-auto">
             <CourseProgress
               nodeCount={ordered.length}
               currentNodeIndex={index}
@@ -587,7 +587,7 @@ export function NodeView() {
 
           <div className="flex-1 min-h-0 flex flex-col overflow-y-auto">
             {/* Lesson content */}
-            <div className="flex-1 min-h-0 flex flex-col justify-center px-6 pb-6 max-w-2xl w-full mx-auto">
+            <div className="flex-1 min-h-0 flex flex-col justify-center px-6 pb-6 max-w-7xl w-full mx-auto">
               {notReviewed ? (
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-text">{intl.formatMessage({ id: 'node.pendingReview' })}</p>

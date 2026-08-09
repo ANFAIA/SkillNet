@@ -29,11 +29,16 @@ export function TableBlock({ headers, rows }: TableBlockProps) {
           (axe `scrollable-region-focusable`). Antes no saltaba porque `overflow-hidden`
           impedia el scroll del todo — la tabla ancha se recortaba en vez de desplazarse. */}
       <div className="overflow-x-auto [scrollbar-gutter:auto]" tabIndex={0} role="group" aria-label="Tabla">
-        {/* `w-max min-w-full`, no `w-full`: dentro de un contenedor con scroll, `w-full` es
-            el ancho del CONTENEDOR, asi que el fondo de las filas se acababa donde acaba la
-            caja y al desplazarse a la derecha quedaba un hueco sin pintar. `w-max` la hace
-            crecer con su contenido y `min-w-full` la mantiene llena cuando es estrecha. */}
-        <table className="w-max min-w-full text-sm border-collapse">
+        {/* `w-full`, y el ancho lo resuelve el salto de linea de las celdas. El fondo de
+            las filas se quedaba corto porque una celda traia una URL entera
+            (`https://backend.ticketrona.com/dashboard`): una palabra que no se puede
+            partir empuja la tabla mas alla de su caja y el `tr` deja de pintar ahi. Se
+            arregla dejando que esa palabra se rompa, no haciendo la tabla mas ancha —
+            `w-max` lo "arreglaba" quitando el salto de linea a TODAS las celdas, que
+            convierte cualquier frase en una linea larguisima y manda la tabla al scroll.
+            El envoltorio sigue desplazando por si algun dia llega una tabla de verdad
+            ancha (muchas columnas), pero el caso normal ya no lo necesita. */}
+        <table className="w-full text-sm border-collapse">
         {head.length > 0 && (
           <thead>
             <tr className="bg-bg-muted sticky top-0 z-10">
@@ -41,7 +46,7 @@ export function TableBlock({ headers, rows }: TableBlockProps) {
                 <th
                   key={idx}
                   scope="col"
-                  className="text-left align-top py-2.5 px-4 border-b border-border font-semibold text-text text-xs uppercase tracking-wide leading-relaxed"
+                  className="text-left align-top py-2.5 px-4 border-b border-border font-semibold text-text text-xs uppercase tracking-wide leading-relaxed [overflow-wrap:anywhere]"
                 >
                   <InlineMarkdown>{header}</InlineMarkdown>
                 </th>
@@ -62,7 +67,7 @@ export function TableBlock({ headers, rows }: TableBlockProps) {
                   key={cellIdx}
                   // `leading-relaxed` matches the prose blocks: a two-line cell used
                   // to set tighter than the paragraph right above the table.
-                  className={`align-top py-2.5 px-4 text-text leading-relaxed ${
+                  className={`align-top py-2.5 px-4 text-text leading-relaxed [overflow-wrap:anywhere] ${
                     cellIdx === 0 ? 'font-medium' : ''
                   } ${rowIdx < body.length - 1 ? 'border-b border-border' : ''}`}
                 >
