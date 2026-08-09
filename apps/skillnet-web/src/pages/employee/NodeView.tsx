@@ -8,7 +8,7 @@ import { Card, EmptyState, ProgressBar } from '../../components/ui'
 import { ClickableSurface, NO_EXPLAIN_SELECTOR } from '../../components/courses/ClickableSurface'
 import { UiSpecRenderer } from '../../components/courses/UiSpecRenderer'
 import { NodeList } from '../../components/courses/NodeList'
-import { stepperContext, coursePositionContext, nextNodeContext, courseIntroContext } from '../../components/courses/blocks/StepperContext'
+import { stepperContext, coursePositionContext, nextNodeContext, courseIntroContext, nodeHeaderContext } from '../../components/courses/blocks/StepperContext'
 import type { CourseIntro } from '../../components/courses/blocks/StepperContext'
 import { NodeChat } from '../../components/courses/NodeChat'
 import { NodeSkeleton, RESERVED_CONTENT_PX } from '../../components/courses/NodeSkeleton'
@@ -479,24 +479,6 @@ export function NodeView() {
         {/* Lesson content — stays in place when panel opens */}
         <div className="flex-1 min-h-0 flex flex-col">
           <div className="flex-1 min-h-0 flex flex-col overflow-y-auto">
-            {/* X + title — no extra top padding, aligns with stepper progress dots */}
-            <div className="flex items-center gap-3 px-6 py-2 shrink-0" data-no-explain="">
-              <button
-                type="button"
-                onClick={handleBack}
-                className="p-1.5 text-text-muted hover:text-text transition-colors"
-                aria-label={intl.formatMessage({ id: 'panel.close' })}
-              >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
-              </button>
-              <span className="text-sm font-medium text-text flex-1 truncate">
-                {node.title}
-              </span>
-            </div>
-
             {/* Lesson content */}
             <div className="flex-1 min-h-0 flex flex-col px-6 pb-6 max-w-2xl w-full mx-auto">
               {notReviewed ? (
@@ -547,7 +529,8 @@ export function NodeView() {
                           transition={transition.resize}
                         >
                           <ClickableSurface nodeId={node.id} className="flex-1 min-h-0 flex flex-col">
-                            <courseIntroContext.Provider value={courseIntro}>
+                            <nodeHeaderContext.Provider value={{ title: node.title, onClose: handleBack }}>
+                          <courseIntroContext.Provider value={courseIntro}>
                             <nextNodeContext.Provider value={nextNode ? { navigate: () => navigate(`${backToCourse}/nodo/${nextNode.id}`), title: nextNode.title } : null}>
                             <coursePositionContext.Provider value={{ nodeCount: ordered.length, currentNodeIndex: index }}>
                             <stepperContext.Provider value={true}>
@@ -563,6 +546,7 @@ export function NodeView() {
                             </coursePositionContext.Provider>
                             </nextNodeContext.Provider>
                             </courseIntroContext.Provider>
+                          </nodeHeaderContext.Provider>
                           </ClickableSurface>
                         </motion.div>
                       </motion.div>

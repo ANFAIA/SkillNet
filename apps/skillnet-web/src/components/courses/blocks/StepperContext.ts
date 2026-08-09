@@ -67,3 +67,18 @@ export const courseIntroContext = createContext<CourseIntro | null>(null)
 export function useCourseIntro(): CourseIntro | null {
   return useContext(courseIntroContext)
 }
+
+/**
+ * Node header info (X close + title) so the stepper's progress bar can
+ * render them in the same row as the dots.
+ */
+export interface NodeHeader {
+  title: string
+  onClose: () => void
+}
+
+export const nodeHeaderContext = createContext<NodeHeader | null>(null)
+
+export function useNodeHeader(): NodeHeader | null {
+  return useContext(nodeHeaderContext)
+}
