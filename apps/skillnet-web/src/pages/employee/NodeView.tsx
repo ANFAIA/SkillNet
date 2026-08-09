@@ -479,8 +479,8 @@ export function NodeView() {
         {/* Lesson content — stays in place when panel opens */}
         <div className="flex-1 min-h-0 flex flex-col">
           <div className="flex-1 min-h-0 flex flex-col overflow-y-auto">
-            {/* X + title — same horizontal padding as lesson content */}
-            <div className="flex items-center gap-3 px-6 pb-2 max-w-2xl w-full mx-auto shrink-0" data-no-explain="">
+            {/* X + title — left edge, compact vertical spacing to sit near the dots */}
+            <div className="flex items-center gap-3 px-6 pt-4 pb-0 shrink-0" data-no-explain="">
               <button
                 type="button"
                 onClick={handleBack}
