@@ -248,7 +248,7 @@ export function LessonBuddy({
             </div>
 
             {/* Input */}
-            <form onSubmit={(e) => { e.preventDefault(); handleBuddySend() }} className="px-3 pb-2 pt-1 border-t border-border">
+            <form onSubmit={(e) => { e.preventDefault(); handleBuddySend() }} className="px-3 pb-2 pt-1">
               <ChatInput
                 value={buddyInput}
                 onChange={setBuddyInput}

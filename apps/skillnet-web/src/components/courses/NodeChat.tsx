@@ -112,7 +112,7 @@ export function NodeChat({ nodeTitle, nodeSummary }: NodeChatProps) {
       </div>
 
       {/* Composer */}
-      <form onSubmit={(e) => { e.preventDefault(); handleSend() }} className="shrink-0 pt-2 border-t border-border">
+      <form onSubmit={(e) => { e.preventDefault(); handleSend() }} className="shrink-0 pt-2">
         <ChatInput
           value={input}
           onChange={setInput}
@@ -120,7 +120,7 @@ export function NodeChat({ nodeTitle, nodeSummary }: NodeChatProps) {
           onStop={cancel}
           isStreaming={isStreaming}
           placeholder={intl.formatMessage({ id: 'nodeChat.placeholder' })}
-          size="sm"
+          size="md"
           autoFocus
         />
       </form>
