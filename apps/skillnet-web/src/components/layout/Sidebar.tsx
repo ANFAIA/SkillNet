@@ -1,8 +1,15 @@
-import { useMemo } from 'react'
+import { useMemo, useCallback } from 'react'
 import { NavLink } from 'react-router-dom'
-import { AnimatePresence, motion } from 'framer-motion'
+import {
+  AnimatePresence,
+  motion,
+  useMotionValue,
+  useTransform,
+  type PanInfo,
+} from 'framer-motion'
 import { useIntl } from 'react-intl'
 import { useSidebar } from '../../contexts/SidebarContext'
+import { useReducedMotion } from '../../hooks/useReducedMotion'
 import { NavPill } from './NavPill'
 import { backdrop, sidebarSlide } from '../../lib/motion'
 
@@ -78,11 +85,11 @@ function SidebarContent({ collapsed, pillId }: { collapsed: boolean; pillId: str
         <img
           src="/logo.png"
           alt="SkillNet"
-          className="drop-shadow-lg transition-all duration-300 ease-in-out"
+          className="drop-shadow-lg transition-[width,height] duration-300 [transition-timing-function:var(--ease-base)]"
           style={{ width: collapsed ? 32 : 40, height: collapsed ? 32 : 40 }}
         />
         <span
-          className={`text-white text-sm font-semibold tracking-wide transition-all duration-300 ease-in-out overflow-hidden whitespace-nowrap ${
+          className={`text-white text-sm font-semibold tracking-wide transition-[max-width,max-height,opacity] duration-300 [transition-timing-function:var(--ease-base)] overflow-hidden whitespace-nowrap ${
             collapsed ? 'max-w-0 max-h-0 opacity-0' : 'max-w-[120px] max-h-6 opacity-100'
           }`}
         >
@@ -116,7 +123,7 @@ function SidebarContent({ collapsed, pillId }: { collapsed: boolean; pillId: str
                 {isActive && <NavPill layoutId={pillId} collapsed={collapsed} />}
                 <span className="relative z-10 shrink-0">{item.icon}</span>
                 <span
-                  className={`relative z-10 transition-all duration-300 ease-in-out overflow-hidden whitespace-nowrap ${
+                  className={`relative z-10 transition-[max-width,opacity,margin] duration-300 [transition-timing-function:var(--ease-base)] overflow-hidden whitespace-nowrap ${
                     collapsed ? 'max-w-0 opacity-0 ml-0' : 'max-w-[160px] opacity-100 ml-3'
                   }`}
                 >
@@ -150,12 +157,27 @@ function SidebarContent({ collapsed, pillId }: { collapsed: boolean; pillId: str
 
 export function Sidebar() {
   const { collapsed, mobileOpen, closeMobile } = useSidebar()
+  const reducedMotion = useReducedMotion()
+
+  // Drag position drives backdrop opacity: fully open = 1, dragged away = dimmer
+  const dragX = useMotionValue(0)
+  const backdropOpacity = useTransform(dragX, [-248, 0], [0, 1])
+
+  const handleDragEnd = useCallback(
+    (_: unknown, info: PanInfo) => {
+      // Dismiss if swiped fast enough OR dragged far enough to the left
+      if (info.velocity.x < -100 || info.offset.x < -100) {
+        closeMobile()
+      }
+    },
+    [closeMobile],
+  )
 
   return (
     <>
       {/* Desktop / Tablet sidebar */}
       <aside
-        className={`group/sidebar fixed left-0 top-0 bottom-0 frame-surface flex-col z-20 transition-[width] duration-300 ease-in-out hidden md:flex ${
+        className={`group/sidebar fixed left-0 top-0 bottom-0 frame-surface flex-col z-20 transition-[width] duration-300 [transition-timing-function:var(--ease-base)] hidden md:flex ${
           collapsed ? 'w-16' : 'w-[248px]'
         }`}
       >
@@ -169,13 +191,20 @@ export function Sidebar() {
             {/* Backdrop — frosted glass, not heavy black */}
             <motion.div
               {...backdrop}
+              style={{ opacity: backdropOpacity }}
               className="fixed inset-0 bg-black/10 backdrop-blur-sm z-30 md:hidden"
               onClick={closeMobile}
             />
-            {/* Slide-in sidebar — spring physics */}
+            {/* Slide-in sidebar — spring physics + swipe to dismiss */}
             <motion.aside
               {...sidebarSlide}
-              className="fixed left-0 top-0 bottom-0 w-[248px] frame-surface flex flex-col z-40 md:hidden"
+              style={{ x: dragX }}
+              drag={reducedMotion ? false : 'x'}
+              dragConstraints={{ left: -248, right: 0 }}
+              dragElastic={0.1}
+              dragSnapToOrigin
+              onDragEnd={handleDragEnd}
+              className="fixed left-0 top-0 bottom-0 w-[248px] frame-surface flex flex-col z-40 md:hidden touch-none"
             >
               <SidebarContent collapsed={false} pillId="employee-nav-pill-mobile" />
             </motion.aside>

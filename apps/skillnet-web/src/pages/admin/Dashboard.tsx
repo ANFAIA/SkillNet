@@ -1,5 +1,7 @@
+import { motion } from 'framer-motion'
 import { useStats } from '../../api/stats'
 import { Card, CardTitle, MetricCard, Skeleton } from '../../components/ui'
+import { staggerContainer, staggerItem } from '../../lib/motion'
 import type { RecentActivityItem } from '../../types'
 
 function UsersIcon() {
@@ -125,7 +127,12 @@ export function Dashboard() {
       <p className="text-sm text-text-secondary mt-1">Vista general del equipo y formacion</p>
 
       {/* Metric cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
+      <motion.div
+        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-6"
+        variants={staggerContainer}
+        initial="hidden"
+        animate="visible"
+      >
         {isLoading ? (
           <>
             <MetricCardSkeleton />
@@ -135,33 +142,41 @@ export function Dashboard() {
           </>
         ) : (
           <>
-            <MetricCard
-              value={`${stats!.active_employees}/${stats!.total_employees}`}
-              label="Empleados activos"
-              icon={<UsersIcon />}
-              color="blue"
-            />
-            <MetricCard
-              value={String(stats!.published_courses)}
-              label="Cursos publicados"
-              icon={<BookIcon />}
-              color="green"
-            />
-            <MetricCard
-              value={String(stats!.total_enrollments)}
-              label="Inscripciones"
-              icon={<TargetIcon />}
-              color="purple"
-            />
-            <MetricCard
-              value={stats!.avg_score != null ? `${Math.round(stats!.avg_score * 100)}%` : '--'}
-              label="Puntuacion media"
-              icon={<ChartIcon />}
-              color="orange"
-            />
+            <motion.div variants={staggerItem}>
+              <MetricCard
+                value={`${stats!.active_employees}/${stats!.total_employees}`}
+                label="Empleados activos"
+                icon={<UsersIcon />}
+                color="blue"
+              />
+            </motion.div>
+            <motion.div variants={staggerItem}>
+              <MetricCard
+                value={String(stats!.published_courses)}
+                label="Cursos publicados"
+                icon={<BookIcon />}
+                color="green"
+              />
+            </motion.div>
+            <motion.div variants={staggerItem}>
+              <MetricCard
+                value={String(stats!.total_enrollments)}
+                label="Inscripciones"
+                icon={<TargetIcon />}
+                color="purple"
+              />
+            </motion.div>
+            <motion.div variants={staggerItem}>
+              <MetricCard
+                value={stats!.avg_score != null ? `${Math.round(stats!.avg_score * 100)}%` : '--'}
+                label="Puntuacion media"
+                icon={<ChartIcon />}
+                color="orange"
+              />
+            </motion.div>
           </>
         )}
-      </div>
+      </motion.div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
         {/* Enrollment summary */}
@@ -205,12 +220,18 @@ export function Dashboard() {
           ) : stats!.recent_activity.length === 0 ? (
             <p className="mt-3 text-sm text-text-muted">Sin actividad reciente.</p>
           ) : (
-            <div className="mt-3 space-y-0">
+            <motion.div
+              className="mt-3 space-y-0"
+              variants={staggerContainer}
+              initial="hidden"
+              animate="visible"
+            >
               {stats!.recent_activity.map((activity, i) => {
                 const { employee, action, detail } = formatActivityLabel(activity)
                 return (
-                  <div
+                  <motion.div
                     key={i}
+                    variants={staggerItem}
                     className="flex items-center justify-between py-3 border-b border-border last:border-b-0"
                   >
                     <div className="min-w-0 flex-1">
@@ -225,10 +246,10 @@ export function Dashboard() {
                     <span className="text-xs text-text-muted shrink-0 ml-4">
                       {formatRelativeTime(activity.at)}
                     </span>
-                  </div>
+                  </motion.div>
                 )
               })}
-            </div>
+            </motion.div>
           )}
         </Card>
       </div>

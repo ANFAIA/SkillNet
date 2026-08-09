@@ -26,6 +26,7 @@ export function Card({
     <motion.div
       className={`${variantClasses[variant]} ${className}`}
       whileHover={interactive ? { scale: 1.02, boxShadow: '0 8px 32px -8px rgba(0,0,0,0.12)' } : undefined}
+      whileTap={interactive ? { scale: 0.98 } : undefined}
       transition={{
         scale: spring.default,
         boxShadow: { duration: duration.normal, ease: ease.base },

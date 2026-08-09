@@ -35,8 +35,10 @@ function AppLayoutInner() {
           layoutId="app-main"
           animate={{ borderTopLeftRadius: isNodeView ? 0 : 12 }}
           transition={morphSpring}
-          className={`flex-1 bg-bg overflow-x-clip overflow-y-auto ${
-            isNodeView ? '' : 'mt-[50px]'
+          className={`flex-1 bg-bg ${
+            isNodeView
+              ? 'flex flex-col overflow-hidden'
+              : 'overflow-x-clip overflow-y-auto mt-[50px]'
           }`}
         >
           <ErrorBoundary

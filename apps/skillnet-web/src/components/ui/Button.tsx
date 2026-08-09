@@ -43,6 +43,7 @@ export function Button({
         ${className}
       `}
       disabled={disabled}
+      whileTap={disabled ? undefined : { scale: 0.97 }}
       transition={transition.micro}
       {...props}
     >

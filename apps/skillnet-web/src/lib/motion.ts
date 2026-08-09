@@ -21,6 +21,8 @@ export const ease = {
   snapOut: [0.1, 0, 0.7, 1] as const,
   /** Shape morph — border-radius on modals */
   morph: [0.56, 0.27, 0, 1] as const,
+  /** Gooey — elastic overshoot for the chat input button morph */
+  gooey: [0.32, 0.72, 0, 1] as const,
 } as const
 
 // ── Durations (seconds) ──────────────────────────────────────

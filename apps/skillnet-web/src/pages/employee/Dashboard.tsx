@@ -1,8 +1,10 @@
 import { useNavigate } from 'react-router-dom'
+import { motion } from 'framer-motion'
 import { Badge, Card, CardTitle, MetricCard, CourseItem, SkillBars, EmptyState, SkeletonRow } from '../../components/ui'
 import { useMe } from '../../api/auth'
 import { useEnrollments } from '../../api/enrollments'
 import { useMySkills } from '../../api/users'
+import { staggerContainer, staggerItem } from '../../lib/motion'
 
 function BookIcon() {
   return (
@@ -64,12 +66,25 @@ export function Dashboard() {
         <p className="text-sm text-text-secondary mt-0.5">Lo que toca hoy</p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <MetricCard value={String(active.length)} label="Cursos activos" icon={<BookIcon />} color="blue" />
-        <MetricCard value={String(completed.length)} label="Completados" icon={<CheckIcon />} color="green" />
-        <MetricCard value={String(pending.length)} label="Pendientes" icon={<ClockIcon />} color="orange" />
-        <MetricCard value={`${avgScore}`} label="Nota media" icon={<TrendUpIcon />} color="purple" />
-      </div>
+      <motion.div
+        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6"
+        variants={staggerContainer}
+        initial="hidden"
+        animate="visible"
+      >
+        <motion.div variants={staggerItem}>
+          <MetricCard value={String(active.length)} label="Cursos activos" icon={<BookIcon />} color="blue" />
+        </motion.div>
+        <motion.div variants={staggerItem}>
+          <MetricCard value={String(completed.length)} label="Completados" icon={<CheckIcon />} color="green" />
+        </motion.div>
+        <motion.div variants={staggerItem}>
+          <MetricCard value={String(pending.length)} label="Pendientes" icon={<ClockIcon />} color="orange" />
+        </motion.div>
+        <motion.div variants={staggerItem}>
+          <MetricCard value={`${avgScore}`} label="Nota media" icon={<TrendUpIcon />} color="purple" />
+        </motion.div>
+      </motion.div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Card>

@@ -175,9 +175,9 @@ export function LessonBuddy({
             key="bubble"
             type="button"
             onClick={() => setOpen(true)}
-            initial={{ opacity: 0, scale: 0.9 }}
+            initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
+            exit={{ opacity: 0, scale: 0.95 }}
             transition={{ duration: duration.normal, ease: [...ease.base] }}
             className="relative bg-bg border border-border rounded-2xl rounded-br-sm px-3 py-2 text-xs text-text-muted hover:text-text hover:border-primary/30 transition-colors max-w-[200px] text-left"
             aria-label={intl.formatMessage({ id: 'buddy.assistant' })}
@@ -198,9 +198,9 @@ export function LessonBuddy({
           /* Expanded: chat card — max-width prevents overflow on small screens */
           <motion.div
             key="chat"
-            initial={{ opacity: 0, scale: 0.9, y: 10 }}
+            initial={{ opacity: 0, scale: 0.95, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.9, y: 10 }}
+            exit={{ opacity: 0, scale: 0.95, y: 10 }}
             transition={{ duration: duration.normal, ease: [...ease.base] }}
             className="w-72 max-w-[calc(100vw-5rem)] border border-border rounded-2xl rounded-br-sm bg-bg overflow-hidden flex flex-col"
             style={{ maxHeight: 'min(50vh, 360px)' }}

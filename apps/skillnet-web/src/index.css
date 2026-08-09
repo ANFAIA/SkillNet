@@ -58,6 +58,7 @@
   --ease-snap-in: cubic-bezier(0.1, 0.8, 0, 1);
   --ease-snap-out: cubic-bezier(0.1, 0, 0.7, 1);
   --ease-morph: cubic-bezier(0.56, 0.27, 0, 1);
+  --ease-gooey: cubic-bezier(0.32, 0.72, 0, 1);
 
   /* Motion — durations (mirror `duration` in src/lib/motion.ts). `--dur-fast` was
      already being referenced below with a hardcoded fallback and was never defined;
@@ -73,11 +74,6 @@
 
 *, *::before, *::after {
   min-width: 0;
-}
-
-/* GPU acceleration — pre-promote interactive elements that scale/translate */
-a, button {
-  will-change: transform;
 }
 
 /* Input focus ring — signature-curve box-shadow transition (CSS-only) */
@@ -97,6 +93,17 @@ input:focus {
   .glass-panel {
     background: rgba(0, 0, 0, 0.8);
   }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .glass-panel {
+    background: var(--color-bg-surface, white);
+    backdrop-filter: none;
+  }
+}
+
+h1, h2, h3, .text-xl, .text-2xl, .text-3xl {
+  letter-spacing: -0.01em;
 }
 
 body {

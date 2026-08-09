@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, type ReactNode } from 'react'
+import { useState, useCallback, useId, useRef, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { duration, ease } from '../../../lib/motion'
 import { INLINE_SURFACE } from './rhythm'
@@ -37,6 +37,7 @@ export function TabItemBlock({ children }: TabItemBlockProps) {
  * - Keyboard accessible: arrow keys cycle tabs, Enter/Space activate.
  */
 export function TabsBlock({ children }: TabsBlockProps) {
+  const instanceId = useId()
   const [activeIndex, setActiveIndex] = useState(0)
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([])
 
@@ -115,7 +116,7 @@ export function TabsBlock({ children }: TabsBlockProps) {
               {/* Active indicator bar */}
               {isActive && (
                 <motion.span
-                  layoutId="tab-indicator"
+                  layoutId={`${instanceId}-tab-indicator`}
                   className="absolute inset-x-0 -bottom-px h-0.5 bg-primary rounded-full"
                   transition={{ duration: duration.fast, ease: ease.base }}
                 />

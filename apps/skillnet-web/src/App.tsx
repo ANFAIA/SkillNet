@@ -1,10 +1,12 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { Toaster } from 'sonner'
 import { AppLayout } from './components/layout/AppLayout'
 import { AdminLayout } from './components/layout/AdminLayout'
 import { ProtectedRoute } from './components/layout/ProtectedRoute'
 import { useAuth } from './hooks/useAuth'
 import { IntlProvider } from './i18n/IntlProvider'
 import { useRegisterDefaultTools } from './stores/registerDefaultTools'
+import { usePreferences } from './stores/preferences'
 import { Login } from './pages/auth/Login'
 import { Onboarding } from './pages/onboarding/Onboarding'
 import { Dashboard } from './pages/employee/Dashboard'
@@ -35,11 +37,17 @@ function RootRedirect() {
   return <Navigate to={HOME_BY_ROLE[user.role]} replace />
 }
 
+function SonnerToaster() {
+  const theme = usePreferences((s) => s.theme)
+  return <Toaster richColors position="top-center" theme={theme} />
+}
+
 function App() {
   useRegisterDefaultTools()
 
   return (
     <IntlProvider>
+      <SonnerToaster />
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<RootRedirect />} />

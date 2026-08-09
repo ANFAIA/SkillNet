@@ -25,6 +25,11 @@ backups/
 # Output of scripts/quality_bench.py: run summaries and raw model dumps.
 apps/skillnet-api/bench_out/
 
+# Agent workspace
+.claude/
+AGENTS.md
+CLAUDE.md
+
 # Editor / OS
 .DS_Store
 .idea/

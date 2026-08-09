@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { useIntl } from 'react-intl'
+import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button, Card, ProgressBar, EmptyState, Skeleton, SkeletonText } from '../../components/ui'
 import { LessonContent } from '../../components/courses/LessonContent'
@@ -50,38 +51,6 @@ function CheckIcon() {
     >
       <polyline points="20 6 9 17 4 12" />
     </svg>
-  )
-}
-
-function AlertOverlay({ message, onDismiss }: { message: string; onDismiss: () => void }) {
-  useEffect(() => {
-    const timer = setTimeout(onDismiss, 2500)
-    return () => clearTimeout(timer)
-  }, [onDismiss])
-
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.15 }}
-      className="fixed inset-0 z-50 flex items-center justify-center"
-      onClick={onDismiss}
-    >
-      <div className="absolute inset-0 bg-black/30" />
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9, y: 10 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 10 }}
-        transition={{ duration: 0.2, ease: [0.2, 0, 0, 1] }}
-        className="relative bg-bg border border-border rounded-xl shadow-xl px-6 py-4 max-w-sm mx-4 text-center"
-      >
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mx-auto mb-2 text-primary">
-          <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
-        </svg>
-        <p className="text-sm text-text">{message}</p>
-      </motion.div>
-    </motion.div>
   )
 }
 
@@ -153,9 +122,6 @@ export function CourseView() {
   const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set())
   const [activeLessonId, setActiveLessonId] = useState<string>('')
   const [direction, setDirection] = useState<1 | -1>(1)
-  const [toastMessage, setToastMessage] = useState<string | null>(null)
-
-  const dismissToast = useCallback(() => setToastMessage(null), [])
 
   // Build a lookup map for lesson progress
   const lessonProgressMap = new Map<string, LessonProgress>(
@@ -261,7 +227,7 @@ export function CourseView() {
     // Prevent navigation to locked lessons.
     const targetProgress = lessonProgressMap.get(lessonId)
     if (targetProgress?.locked) {
-      setToastMessage(intl.formatMessage({ id: 'courseview.lockPrevious' }))
+      toast.warning(intl.formatMessage({ id: 'courseview.lockPrevious' }))
       return
     }
     // Record progress for the lesson the user is leaving.
@@ -300,7 +266,7 @@ export function CourseView() {
       ? currentProgress.exercises_passed >= currentProgress.exercises_total
       : false // If no progress data and has exercises, block
     if (hasExercises && !exercisesDone) {
-      setToastMessage(intl.formatMessage({ id: 'courseview.lockExercises' }))
+      toast.warning(intl.formatMessage({ id: 'courseview.lockExercises' }))
       return
     }
     // Record progress for the lesson the user is leaving.
@@ -314,9 +280,6 @@ export function CourseView() {
 
   return (
     <div>
-      <AnimatePresence>
-        {toastMessage && <AlertOverlay message={toastMessage} onDismiss={dismissToast} />}
-      </AnimatePresence>
       <div className="mb-6">
         <div className="flex items-center gap-3 mb-2 min-w-0">
           <span className="w-3 h-3 rounded-full shrink-0 bg-primary" />

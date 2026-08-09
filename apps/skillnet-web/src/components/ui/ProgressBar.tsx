@@ -47,7 +47,7 @@ export function ProgressBar({
       )}
       <div className={`bg-bg-muted rounded-full overflow-hidden ${sizeClasses[size]}`}>
         <div
-          className={`h-full rounded-full transition-all duration-300 ${barColor ?? ''}`}
+          className={`h-full rounded-full transition-[width] duration-300 ${barColor ?? ''}`}
           style={{
             width: `${clamped}%`,
             ...(color ? { backgroundColor: color } : {}),

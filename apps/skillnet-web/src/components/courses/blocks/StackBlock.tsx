@@ -140,7 +140,7 @@ function StepperStack({ children }: { children?: ReactNode }) {
             type="button"
             onClick={back}
             disabled={safeStep === 0}
-            className="shrink-0 p-2 text-text-muted hover:text-text disabled:opacity-0 disabled:pointer-events-none transition-all"
+            className="shrink-0 p-2 text-text-muted hover:text-text disabled:opacity-0 disabled:pointer-events-none transition-opacity"
             aria-label={intl.formatMessage({ id: 'stepper.previousStep' })}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -169,7 +169,7 @@ function StepperStack({ children }: { children?: ReactNode }) {
             type="button"
             onClick={next}
             disabled={isLast && !goNextNode}
-            className="shrink-0 p-2 text-text-muted hover:text-text disabled:opacity-0 disabled:pointer-events-none transition-all"
+            className="shrink-0 p-2 text-text-muted hover:text-text disabled:opacity-0 disabled:pointer-events-none transition-opacity"
             aria-label={isLast ? intl.formatMessage({ id: 'stepper.nextNode' }) : intl.formatMessage({ id: 'stepper.nextStep' })}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

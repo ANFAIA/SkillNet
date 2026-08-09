@@ -83,7 +83,7 @@ function HotspotMarker({
         {!isActive && (
           <span
             aria-hidden="true"
-            className="absolute inset-0 rounded-full border-2 border-primary animate-ping opacity-20"
+            className="absolute inset-0 rounded-full border-2 border-primary motion-safe:animate-ping opacity-20"
           />
         )}
       </button>

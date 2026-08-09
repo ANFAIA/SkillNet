@@ -37,7 +37,7 @@ export function Header() {
   }, [open])
 
   return (
-    <header className={`fixed top-0 left-0 right-0 h-[50px] frame-surface flex items-center justify-between md:justify-end px-4 md:px-6 z-10 transition-[left] duration-300 ease-in-out ${collapsed ? 'md:left-16' : 'md:left-[248px]'}`}>
+    <header className={`fixed top-0 left-0 right-0 h-[50px] frame-surface flex items-center justify-between md:justify-end px-4 md:px-6 z-10 transition-[left] duration-300 [transition-timing-function:var(--ease-base)] ${collapsed ? 'md:left-16' : 'md:left-[248px]'}`}>
       {/* Mobile menu trigger — opens the sidebar overlay */}
       <motion.button
         type="button"

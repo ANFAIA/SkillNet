@@ -125,7 +125,13 @@ export function Modal({ open, onClose, children, size = 'md', origin, hideClose 
         aria-modal="true"
         initial={false}
         animate={panel}
-        style={{ borderRadius: 28, transformOrigin: 'center', willChange: 'transform' }}
+        style={{
+          borderRadius: 28,
+          transformOrigin: origin
+            ? `${origin.left + origin.width / 2}px ${origin.top + origin.height / 2}px`
+            : 'center',
+          willChange: 'transform',
+        }}
         className={`relative z-10 w-full ${sizeClasses[size]} max-h-[calc(100vh-2rem)] overflow-y-auto bg-bg shadow-[0_32px_80px_-24px_rgba(15,23,42,0.45)] p-6 sm:p-7`}
       >
         {!hideClose && (

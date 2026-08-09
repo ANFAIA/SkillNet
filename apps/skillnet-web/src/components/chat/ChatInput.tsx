@@ -113,7 +113,7 @@ export function ChatInput({
           className={`${minH} max-h-[${maxH}px] flex-1 resize-none overflow-y-hidden ${rounding} bg-bg-muted ${px} ${py} text-sm leading-normal text-text outline-none placeholder:text-text-muted disabled:opacity-50`}
           style={{
             marginRight: active || isStreaming ? (size === 'sm' ? 40 : 52) : 0,
-            transition: 'margin-right 0.5s cubic-bezier(0.32, 0.72, 0, 1)',
+            transition: 'margin-right 0.5s var(--ease-gooey)',
           }}
         />
         <div
@@ -122,7 +122,7 @@ export function ChatInput({
             right: 0,
             bottom: 0,
             transform: active || isStreaming ? 'translateX(0)' : 'translateX(-4px)',
-            transition: 'transform 0.5s cubic-bezier(0.32, 0.72, 0, 1)',
+            transition: 'transform 0.5s var(--ease-gooey)',
           }}
         >
           <button

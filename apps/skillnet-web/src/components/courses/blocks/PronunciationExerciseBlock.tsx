@@ -260,7 +260,7 @@ export function PronunciationExerciseBlock({ targetText, language }: Pronunciati
               transition={{ duration: duration.fast, ease: ease.base }}
               className="flex items-center gap-2 mb-2 text-xs text-danger"
             >
-              <span className="h-2 w-2 rounded-full bg-danger animate-pulse" />
+              <span className="h-2 w-2 rounded-full bg-danger motion-safe:animate-pulse motion-reduce:animate-none" />
               {intl.formatMessage({ id: 'pronunciation.recording' })}
             </motion.div>
           )}

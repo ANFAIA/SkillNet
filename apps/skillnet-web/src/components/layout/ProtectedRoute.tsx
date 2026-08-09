@@ -14,9 +14,9 @@ function AppSkeleton() {
   return (
     <div className="flex min-h-screen items-center justify-center">
       <div className="flex flex-col items-center gap-4">
-        <img src="/logo.png" alt="SkillNet" className="w-10 h-10 drop-shadow-lg animate-pulse" />
+        <img src="/logo.png" alt="SkillNet" className="w-10 h-10 drop-shadow-lg motion-safe:animate-pulse motion-reduce:animate-none" />
         <div className="h-1.5 w-40 rounded-full bg-white/20 overflow-hidden">
-          <div className="h-full w-1/2 rounded-full bg-white/60 animate-pulse" />
+          <div className="h-full w-1/2 rounded-full bg-white/60 motion-safe:animate-pulse motion-reduce:animate-none" />
         </div>
       </div>
     </div>

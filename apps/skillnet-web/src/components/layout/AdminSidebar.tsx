@@ -104,11 +104,11 @@ function AdminSidebarContent({ collapsed, pillId }: { collapsed: boolean; pillId
         <img
           src="/logo.png"
           alt="SkillNet"
-          className="drop-shadow-lg transition-all duration-300 ease-in-out"
+          className="drop-shadow-lg transition-[width,height] duration-300 [transition-timing-function:var(--ease-base)]"
           style={{ width: collapsed ? 32 : 40, height: collapsed ? 32 : 40 }}
         />
         <span
-          className={`text-white text-sm font-semibold tracking-wide transition-all duration-300 ease-in-out overflow-hidden whitespace-nowrap ${
+          className={`text-white text-sm font-semibold tracking-wide transition-[max-width,max-height,opacity] duration-300 [transition-timing-function:var(--ease-base)] overflow-hidden whitespace-nowrap ${
             collapsed ? 'max-w-0 max-h-0 opacity-0' : 'max-w-[120px] max-h-6 opacity-100'
           }`}
         >
@@ -118,12 +118,12 @@ function AdminSidebarContent({ collapsed, pillId }: { collapsed: boolean; pillId
 
       {/* Role label — always rendered, transitions opacity/size */}
       <div
-        className={`transition-all duration-300 ease-in-out overflow-hidden ${
+        className={`transition-[padding,opacity] duration-300 [transition-timing-function:var(--ease-base)] overflow-hidden ${
           collapsed ? 'flex justify-center mt-2 mb-4 px-0' : 'px-10 mt-2 mb-4'
         }`}
       >
         <span
-          className={`uppercase tracking-wider font-medium transition-all duration-300 ease-in-out ${
+          className={`uppercase tracking-wider font-medium transition-[font-size] duration-300 [transition-timing-function:var(--ease-base)] ${
             collapsed ? 'text-[10px] text-white/50' : 'text-xs text-white/50'
           }`}
         >
@@ -157,7 +157,7 @@ function AdminSidebarContent({ collapsed, pillId }: { collapsed: boolean; pillId
                 {isActive && <NavPill layoutId={pillId} collapsed={collapsed} />}
                 <span className="relative z-10 shrink-0">{item.icon}</span>
                 <span
-                  className={`relative z-10 transition-all duration-300 ease-in-out overflow-hidden whitespace-nowrap ${
+                  className={`relative z-10 transition-[max-width,opacity,margin] duration-300 [transition-timing-function:var(--ease-base)] overflow-hidden whitespace-nowrap ${
                     collapsed ? 'max-w-0 opacity-0 ml-0' : 'max-w-[160px] opacity-100 ml-3'
                   }`}
                 >
@@ -196,7 +196,7 @@ export function AdminSidebar() {
     <>
       {/* Desktop / Tablet sidebar */}
       <aside
-        className={`group/sidebar fixed left-0 top-0 bottom-0 frame-surface flex-col z-20 transition-[width] duration-300 ease-in-out hidden md:flex ${
+        className={`group/sidebar fixed left-0 top-0 bottom-0 frame-surface flex-col z-20 transition-[width] duration-300 [transition-timing-function:var(--ease-base)] hidden md:flex ${
           collapsed ? 'w-16' : 'w-[248px]'
         }`}
       >
