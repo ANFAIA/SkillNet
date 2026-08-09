@@ -20,8 +20,20 @@ export function TableBlock({ headers, rows }: TableBlockProps) {
   const body = Array.isArray(rows) ? rows : []
 
   return (
-    <ClickableText as="div" className="overflow-x-auto min-w-0 rounded-lg border border-border overflow-hidden [scrollbar-gutter:auto]">
-      <table className="w-full text-sm border-collapse">
+    // Dos envoltorios, y cada uno hace UNA cosa. Juntarlos era el defecto: `overflow-hidden`
+    // es la forma corta y pisa el eje X, asi que recortaba el scroll que `overflow-x-auto`
+    // pedia en el mismo elemento.
+    <ClickableText as="div" className="min-w-0 rounded-lg border border-border overflow-hidden">
+      {/* `tabIndex` no es adorno: una region que desplaza y no se puede enfocar deja la
+          mitad derecha de la tabla fuera del alcance de quien navega con teclado
+          (axe `scrollable-region-focusable`). Antes no saltaba porque `overflow-hidden`
+          impedia el scroll del todo — la tabla ancha se recortaba en vez de desplazarse. */}
+      <div className="overflow-x-auto [scrollbar-gutter:auto]" tabIndex={0} role="group" aria-label="Tabla">
+        {/* `w-max min-w-full`, no `w-full`: dentro de un contenedor con scroll, `w-full` es
+            el ancho del CONTENEDOR, asi que el fondo de las filas se acababa donde acaba la
+            caja y al desplazarse a la derecha quedaba un hueco sin pintar. `w-max` la hace
+            crecer con su contenido y `min-w-full` la mantiene llena cuando es estrecha. */}
+        <table className="w-max min-w-full text-sm border-collapse">
         {head.length > 0 && (
           <thead>
             <tr className="bg-bg-muted sticky top-0 z-10">
@@ -59,8 +71,9 @@ export function TableBlock({ headers, rows }: TableBlockProps) {
               ))}
             </tr>
           ))}
-        </tbody>
-      </table>
+          </tbody>
+        </table>
+      </div>
     </ClickableText>
   )
 }
