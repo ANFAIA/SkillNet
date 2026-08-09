@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from functools import cache
 from typing import Any
 
@@ -140,6 +141,7 @@ def build_content_prompt(
     sector: str | None,
     scaffold_band: str,
     criticality: str,
+    siblings: Sequence[str] = (),
 ) -> str:
     content_blocks = [
         b for b in blueprint.blocks if b.type not in ("QuizItem", "DragOrder")
@@ -177,6 +179,16 @@ def build_content_prompt(
     else:
         lines.append("NO HAY FUENTE. Limitate al resumen del nodo.")
 
+    if siblings:
+        lines.append("")
+        lines.append("OTRAS PANTALLAS DEL CURSO (ya cubren esto)")
+        lines.extend(f"- {sibling}" for sibling in siblings)
+        lines.append(
+            "El lead abre TU pantalla, no el curso: si tu frase valdria igual para "
+            "cualquiera de las de arriba, esta mal y hay que reescribirla. Escribe sobre "
+            "lo tuyo y no resumas lo que cubren las demas."
+        )
+
     lines.append("")
     lines.append("Escribe las declaraciones, una por linea. Nada mas.")
     return "\n".join(lines)
@@ -196,6 +208,7 @@ async def run_content_writer(
     scaffold_band: str,
     criticality: str,
     llm: Any,
+    siblings: Sequence[str] = (),
 ) -> ContentOutput:
     """Generate OpenUI Lang declarations for content blocks."""
 
@@ -216,6 +229,7 @@ async def run_content_writer(
         sector=sector,
         scaffold_band=scaffold_band,
         criticality=criticality,
+        siblings=siblings,
     )
 
     logger.debug("content_writer: calling LLM (%d content blocks)", len(content_blocks))

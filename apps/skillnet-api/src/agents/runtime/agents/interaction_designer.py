@@ -7,6 +7,8 @@ works from the blueprint and source context, not from the written content.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 from functools import cache
 from typing import Any
 
@@ -111,6 +113,7 @@ def build_interaction_prompt(
     sector: str | None,
     target_bloom: str,
     scaffold_band: str,
+    siblings: Sequence[str] = (),
 ) -> str:
     """Build the user prompt for the interaction designer.
 
@@ -160,6 +163,16 @@ def build_interaction_prompt(
         parts.append("FUENTE ORIGINAL (para verificar que la respuesta es correcta)")
         parts.append(clip_source(source_context, limit=3000))
 
+    if siblings:
+        parts.append("")
+        parts.append("OTRAS PANTALLAS DEL CURSO (tienen su propia pregunta)")
+        parts.extend(f"- {sibling}" for sibling in siblings)
+        parts.append(
+            "Tu pregunta evalua ESTA pantalla. Si valdria igual en cualquiera de las de "
+            "arriba, esta mal: no preguntes por el proceso entero ni por 'el primer paso' "
+            "salvo que este nodo trate justo de eso."
+        )
+
     parts.append("")
     parts.append("Escribe las declaraciones y la clave de respuestas. Nada mas.")
     return "\n".join(parts)
@@ -200,6 +213,7 @@ async def run_interaction_designer(
     target_bloom: str,
     scaffold_band: str,
     llm: Any,
+    siblings: Sequence[str] = (),
 ) -> InteractionOutput:
     """Run the Interaction Designer agent.
 
@@ -217,6 +231,7 @@ async def run_interaction_designer(
         sector=sector,
         target_bloom=target_bloom,
         scaffold_band=scaffold_band,
+        siblings=siblings,
     )
 
     if not user_prompt:

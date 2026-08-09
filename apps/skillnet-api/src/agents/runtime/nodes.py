@@ -373,6 +373,33 @@ async def load_context(state: NodeRuntimeState) -> dict:
         course = await db.get(Course, node.course_id)
         if course is None:
             raise ValueError(f"Course {node.course_id} not found")
+        # Lo que cubren las OTRAS pantallas del curso. Sin esto cada nodo se genera a
+        # ciegas, y con un documento corto los seis extraen la misma idea principal:
+        # medido el 2026-08-09 sobre el manual real del partner, la misma frase de
+        # apertura salio en cuatro de seis pantallas y practicamente la misma pregunta en
+        # las seis. Es propiedad del esquema, no del aprendiz, asi que no toca el
+        # `cache_key` (ya lleva `schema_version`) ni el periodo de calibracion de §6.4.
+        siblings_rows = (
+            (
+                await db.execute(
+                    select(CourseNode)
+                    .where(
+                        CourseNode.course_id == node.course_id,
+                        CourseNode.id != node_id,
+                        CourseNode.archived.is_(False),
+                    )
+                    .order_by(CourseNode.position)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        siblings = [
+            f"{row.position}. {row.title}"
+            + (f" — {row.summary.strip()}" if (row.summary or "").strip() else "")
+            for row in siblings_rows
+        ]
+
         user = await db.get(User, user_id)
         profile = await LearnerProfileRepository(db).get_by_user(user_id)
         node_state = await LearnerNodeStateRepository(db).get_by_user_and_node(
@@ -465,6 +492,7 @@ async def load_context(state: NodeRuntimeState) -> dict:
         "profile": profile_payload,
         "node_state": state_payload,
         "source_context": source_context,
+        "siblings": siblings,
         "backend": str(state.get("backend") or "openui"),
         "effective_density": key.effective_density,
         "scaffold_band": key.scaffold_band,
@@ -923,6 +951,7 @@ async def genera_ui_multi(state: NodeRuntimeState) -> dict:
         experience_level=str(profile.get("experience_level") or "unknown"),
         target_bloom=target_bloom(mastery, threshold),
         shape_hints=list(state.get("shape_hints") or ()),
+        siblings=list(state.get("siblings") or ()),
         llm=llm,
     )
 
@@ -938,6 +967,7 @@ async def genera_ui_multi(state: NodeRuntimeState) -> dict:
         sector=profile.get("sector"),
         scaffold_band=str(state.get("scaffold_band") or "neutral"),
         criticality=str(node.get("criticality") or "recommended"),
+        siblings=list(state.get("siblings") or ()),
         llm=llm,
     )
 
@@ -954,6 +984,7 @@ async def genera_ui_multi(state: NodeRuntimeState) -> dict:
             sector=profile.get("sector"),
             target_bloom=target_bloom(mastery, threshold),
             scaffold_band=str(state.get("scaffold_band") or "neutral"),
+            siblings=list(state.get("siblings") or ()),
             llm=llm,
         )
 

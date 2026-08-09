@@ -285,6 +285,9 @@ class FakeSession:
     node: CourseNode
     course: Course
     user: FakeUser
+    #: Las OTRAS pantallas del curso, que `load_context` lee para que un nodo no repita
+    #: lo que cubren sus hermanos. Vacio por defecto: un curso de un solo nodo.
+    siblings: list[CourseNode] = field(default_factory=list)
     profile: LearnerProfile | None = None
     node_state: LearnerNodeState | None = None
     document: FakeDocument | None = None
@@ -318,6 +321,8 @@ class FakeSession:
             return FakeResult(rows)
         if "FROM document_chunks" in sql:
             return FakeResult([])
+        if "FROM course_nodes" in sql:
+            return FakeResult(list(self.siblings))
         raise AssertionError(f"unexpected query: {sql}")
 
     async def get(self, model, pk):

@@ -121,6 +121,7 @@ def build_blueprint_prompt(
     experience_level: str,
     target_bloom: str,
     shape_hints: Sequence[str],
+    siblings: Sequence[str] = (),
 ) -> str:
     lines: list[str] = [
         f"FORMATO: {ui_format}",
@@ -147,6 +148,15 @@ def build_blueprint_prompt(
         lines.append("FORMA DEL MATERIAL (leido de la fuente)")
         for hint in shape_hints:
             lines.append(f"- {hint}")
+
+    if siblings:
+        lines.append("")
+        lines.append("OTRAS PANTALLAS DEL CURSO (ya cubren esto: NO lo repitas)")
+        lines.extend(f"- {sibling}" for sibling in siblings)
+        lines.append(
+            "Tu pantalla cubre UNICAMENTE su propio titulo. El resto del manual es "
+            "contexto que ya tiene otra pantalla; no lo resumas ni lo introduzcas."
+        )
 
     lines.append("")
     lines.append("Responde solo con el JSON.")
@@ -195,6 +205,7 @@ async def run_blueprint(
     target_bloom: str,
     shape_hints: Sequence[str],
     llm: Any,
+    siblings: Sequence[str] = (),
 ) -> Blueprint:
     """Run the Blueprint Architect agent and return a screen structure."""
 
@@ -211,6 +222,7 @@ async def run_blueprint(
         experience_level=experience_level,
         target_bloom=target_bloom,
         shape_hints=shape_hints,
+        siblings=siblings,
     )
 
     raw, _usage = await llm.complete_with_usage(

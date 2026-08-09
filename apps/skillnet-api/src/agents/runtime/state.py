@@ -31,6 +31,10 @@ class NodeRuntimeState(TypedDict, total=False):
     # nodes_completed, tutor_notes  (never `goal`: it does not reach the LLM)
     node_state: dict  # mastery, state, consecutive_*, last_error_kind, scaffold_band
     source_context: str  # source text (RAG or full_text), already clipped
+    #: Titulo y resumen de las OTRAS pantallas del curso, en orden de posicion. Lo que
+    #: evita que seis nodos generados por separado abran con la misma frase y hagan la
+    #: misma pregunta. Propiedad del esquema, identica para todos los aprendices.
+    siblings: list[str]
 
     # --- Gate ---
     mastered: bool
