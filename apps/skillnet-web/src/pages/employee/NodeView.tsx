@@ -543,8 +543,8 @@ export function NodeView() {
       <div className="flex-1 flex min-h-0 relative overflow-hidden">
         {/* Lesson content — stays in place when panel opens */}
         <div className="flex-1 min-h-0 flex flex-col">
-          {/* Top bar — X, title, and progress dots share one row */}
-          <div className="shrink-0 flex items-center gap-3 px-6 pt-4 pb-3" data-no-explain="">
+          {/* Top bar — X and title */}
+          <div className="shrink-0 flex items-center gap-3 px-6 pt-4 pb-1" data-no-explain="">
             <button
               type="button"
               onClick={handleBack}
@@ -556,18 +556,18 @@ export function NodeView() {
                 <line x1="6" y1="6" x2="18" y2="18" />
               </svg>
             </button>
-            <span className="shrink-0 text-sm font-medium text-text truncate max-w-[40%]">
+            <span className="shrink-0 text-sm font-medium text-text truncate">
               {node.title}
             </span>
-            {/* Progress dots — centered in remaining space */}
-            <div className="flex-1 min-w-0">
-              <CourseProgress
-                nodeCount={ordered.length}
-                currentNodeIndex={index}
-                currentStep={stepProgress?.currentStep ?? 0}
-                totalSteps={stepProgress?.totalSteps ?? 1}
-              />
-            </div>
+          </div>
+          {/* Progress dots — aligned with content column */}
+          <div className="shrink-0 px-6 pb-3 max-w-2xl w-full mx-auto">
+            <CourseProgress
+              nodeCount={ordered.length}
+              currentNodeIndex={index}
+              currentStep={stepProgress?.currentStep ?? 0}
+              totalSteps={stepProgress?.totalSteps ?? 1}
+            />
           </div>
 
           <div className="flex-1 min-h-0 flex flex-col overflow-y-auto">
