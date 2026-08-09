@@ -18,27 +18,27 @@ van en el idioma del aprendiz (por defecto, espanol).
 
 Arguments marked with ? are optional. Sub-components can be inline or referenced; prefer references for better streaming.
 
-Stack(children: any[], gap: "sm" | "md" | "lg") — Contenedor vertical
-TextContent(text: string, variant: "body" | "lead" | "caption") — Prosa
-Card(title: string, children: any[]) — Agrupar
-Callout(tone: "info" | "warn" | "success", text: string) — Regla critica, excepcion
-StepSequence(title: string, steps: string[]) — Procedimiento (2-7 pasos)
-Table(headers: string[], rows: string[][]) — Comparar conceptos
-CodeBlock(language: string, code: string) — Ejemplo de codigo
-Chart(kind: "bar" | "line", title: string, labels: string[], values: number[]) — Dato cuantitativo
-QuizItem(item_id: string, item_type: "test" | "true_false" | "fill_blank" | "order_steps" | "practical_case" | "dialogue", bloom_level: "remember" | "understand" | "apply" | "analyze" | "evaluate" | "create", question: string, options: string[]) — Ejercicio
-SliderExploration(title: string, variable: string, min: number, max: number, step: number, formula: string, description: string) — Explorar un parametro con slider interactivo
-ManipulableGraph(title: string, xLabel: string, yLabel: string, points: string[][], functions: string[]) — Plano cartesiano interactivo con puntos y funciones
-BeforeAfter(title: string, beforeLabel: string, beforeContent: string, afterLabel: string, afterContent: string) — Comparar dos estados con divisor deslizante
-DragOrder(instruction: string, items: string[], correctOrder: string[]) — Reordenar arrastrando
-HotspotImage(imageUrl: string, alt: string, hotspots: string[][]) — Imagen con zonas interactivas
-StepByStepReveal(title: string, steps: string[][]) — Revelacion progresiva de pasos
+Stack(children: any[], gap: "sm" | "md" | "lg") — Contenedor vertical. Envuelve la pantalla entera; siempre es el root
+TextContent(text: string, variant: "body" | "lead" | "caption") — Prosa breve: el gancho inicial o una transicion. No vuelques aqui el contenido
+Card(title: string, children: any[]) — Agrupa bajo un titulo propio un caso practico o un ejemplo cerrado
+Callout(tone: "info" | "warn" | "success", text: string) — Una regla critica o excepcion que no se puede pasar por alto. Uno por pantalla
+StepSequence(title: string, steps: string[]) — Pasos en orden que se entienden solos. Prefierelo con 3-7 pasos cortos
+Table(headers: string[], rows: string[][]) — Varios elementos comparados por varios atributos. Si solo contrastas DOS estados usa BeforeAfter
+CodeBlock(language: string, code: string) — Fragmento de codigo de ejemplo
+Chart(kind: "bar" | "line", title: string, labels: string[], values: number[]) — Cifras comparables entre categorias. Solo si las cifras estan en la fuente
+QuizItem(item_id: string, item_type: "test" | "true_false" | "fill_blank" | "order_steps" | "practical_case" | "dialogue", bloom_level: "remember" | "understand" | "apply" | "analyze" | "evaluate" | "create", question: string, options: string[]) — Pregunta de evaluacion sobre un caso concreto
+SliderExploration(title: string, variable: string, min: number, max: number, step: number, formula: string, description: string) — El aprendiz mueve una variable y ve como cambia el resultado. Requiere una relacion causa-efecto enunciada en la fuente
+ManipulableGraph(title: string, xLabel: string, yLabel: string, points: string[][], functions: string[]) — Plano cartesiano donde el aprendiz mueve puntos o funciones
+BeforeAfter(title: string, beforeLabel: string, beforeContent: string, afterLabel: string, afterContent: string) — Contrasta exactamente DOS estados: correcto frente a incorrecto, antes frente a despues. Prefierelo a Table cuando la comparacion es de dos
+DragOrder(instruction: string, items: string[], correctOrder: string[]) — Evaluar reordenando pasos o prioridades arrastrando
+HotspotImage(imageUrl: string, alt: string, hotspots: string[][]) — Marcar zonas sobre una imagen. Requiere una URL de imagen real; no lo uses si no la hay
+StepByStepReveal(title: string, steps: string[][]) — Procedimiento cuyos pasos necesitan explicacion propia. Prefierelo a StepSequence cuando un paso no se entiende solo
 AudioExplanation(text: string, voice: "neutral" | "warm" | "formal") — Texto leido en voz alta con resaltado de palabras
-PronunciationExercise(targetText: string, language: string) — Escuchar y practicar pronunciacion con comparacion de ondas
-DiagramBuilder(title: string, steps: string[][]) — Diagrama SVG que se construye paso a paso
-Tabs(children: any[]) — Pestanas para mostrar contenido alternativo en el mismo espacio
-TabItem(trigger: string, children: any[]) — Panel de una pestana dentro de Tabs
-Accordion(children: any[]) — Secciones plegables de revelacion progresiva
+PronunciationExercise(targetText: string, language: string) — Escuchar y practicar la pronunciacion de un termino
+DiagramBuilder(title: string, steps: string[][]) — Diagrama que se dibuja paso a paso para mostrar como se relacionan las partes
+Tabs(children: any[]) — Variantes del MISMO proceso que el aprendiz elige: por turno, por tipo de cliente, por caso. 2-3 pestanas
+TabItem(trigger: string, children: any[]) — Una variante dentro de Tabs
+Accordion(children: any[]) — Excepciones o detalles que no todo el mundo necesita leer
 AccordionItem(trigger: string, children: any[]) — Seccion plegable dentro de Accordion
 
 ## Hoisting & Streaming (CRITICAL)

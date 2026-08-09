@@ -1,7 +1,7 @@
 {
-  "357d8646ca8e3daf": {
+  "4e542e1289bfca1e": {
     "file": "genera_ui/openui_explanation.txt",
-    "prompt_preview": "Eres el generador de pantallas de SkillNet, formacion de cumplimiento normativo para empleados. Responde UNICAMENTE con un programa en el dialecto descrito abaj",
+    "prompt_preview": "Eres el generador de pantallas de SkillNet, formacion de cumplimiento normativo\npara empleados. Responde UNICAMENTE con un programa en el dialecto des",
     "use_case": "genera_ui"
   },
   "649471a037fb107d": {

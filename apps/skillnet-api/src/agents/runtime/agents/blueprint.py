@@ -59,6 +59,12 @@ REGLA: el bloque de CONCEPTO siempre es interactivo o estructurado, NUNCA prosa.
 - Chart: datos numericos comparables. Solo si hay cifras en la fuente.
 - Callout: aviso critico o excepcion importante. Solo uno por pantalla.
 
+Elige el bloque de CONCEPTO por la forma del contenido:
+- Contrasta lo correcto con lo incorrecto, o un antes con un despues -> BeforeAfter
+- Varios elementos comparados por varios atributos -> Table
+- Pasos en orden que se entienden solos -> StepSequence
+- Pasos que necesitan explicacion propia -> StepByStepReveal
+
 ## Componentes para el slot VERIFICAR
 
 - QuizItem: pregunta con 4 opciones sobre un CASO CONCRETO. Indica item_type y bloom.
@@ -66,7 +72,6 @@ REGLA: el bloque de CONCEPTO siempre es interactivo o estructurado, NUNCA prosa.
 
 Elige el tipo de verificacion segun el concepto:
 - Si el concepto es un procedimiento (StepSequence/StepByStepReveal) -> DragOrder
-- Si el concepto tiene un bien/mal o antes/despues -> BeforeAfter
 - En los demas casos -> QuizItem
 
 ## Estructura de la pantalla (4-6 bloques)

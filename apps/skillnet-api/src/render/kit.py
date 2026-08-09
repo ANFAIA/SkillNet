@@ -143,7 +143,7 @@ UI_KIT = UIKit(
     components=(
         ComponentSpec(
             name="Stack",
-            purpose="Contenedor vertical",
+            purpose="Contenedor vertical. Envuelve la pantalla entera; siempre es el root",
             is_container=True,
             props=(
                 PropSpec("children", PropKind.REFS, "Ids de los bloques hijos, en orden"),
@@ -152,7 +152,7 @@ UI_KIT = UIKit(
         ),
         ComponentSpec(
             name="TextContent",
-            purpose="Prosa",
+            purpose="Prosa breve: el gancho inicial o una transicion. No vuelques aqui el contenido",
             props=(
                 PropSpec("text", PropKind.STRING, "Texto plano o marcado inline"),
                 PropSpec("variant", PropKind.ENUM, "Rol del texto", TEXT_VARIANTS),
@@ -160,7 +160,7 @@ UI_KIT = UIKit(
         ),
         ComponentSpec(
             name="Card",
-            purpose="Agrupar",
+            purpose="Agrupa bajo un titulo propio un caso practico o un ejemplo cerrado",
             is_container=True,
             props=(
                 PropSpec("title", PropKind.STRING, "Titulo del grupo"),
@@ -169,7 +169,7 @@ UI_KIT = UIKit(
         ),
         ComponentSpec(
             name="Callout",
-            purpose="Regla critica, excepcion",
+            purpose="Una regla critica o excepcion que no se puede pasar por alto. Uno por pantalla",
             props=(
                 PropSpec("tone", PropKind.ENUM, "Intencion del aviso", CALLOUT_TONES),
                 PropSpec("text", PropKind.STRING, "Texto del aviso"),
@@ -177,7 +177,7 @@ UI_KIT = UIKit(
         ),
         ComponentSpec(
             name="StepSequence",
-            purpose="Procedimiento (2-7 pasos)",
+            purpose="Pasos en orden que se entienden solos. Prefierelo con 3-7 pasos cortos",
             props=(
                 PropSpec("title", PropKind.STRING, "Nombre del procedimiento"),
                 PropSpec("steps", PropKind.STRING_LIST, "Un paso por elemento"),
@@ -185,7 +185,7 @@ UI_KIT = UIKit(
         ),
         ComponentSpec(
             name="Table",
-            purpose="Comparar conceptos",
+            purpose="Varios elementos comparados por varios atributos. Si solo contrastas DOS estados usa BeforeAfter",
             props=(
                 PropSpec("headers", PropKind.STRING_LIST, "Cabeceras de columna"),
                 PropSpec("rows", PropKind.STRING_MATRIX, "Filas: array de arrays de texto"),
@@ -193,7 +193,7 @@ UI_KIT = UIKit(
         ),
         ComponentSpec(
             name="CodeBlock",
-            purpose="Ejemplo de codigo",
+            purpose="Fragmento de codigo de ejemplo",
             props=(
                 PropSpec("language", PropKind.STRING, "Lenguaje, en minusculas"),
                 PropSpec("code", PropKind.STRING, "Codigo, con \\n para los saltos"),
@@ -201,7 +201,7 @@ UI_KIT = UIKit(
         ),
         ComponentSpec(
             name="Chart",
-            purpose="Dato cuantitativo",
+            purpose="Cifras comparables entre categorias. Solo si las cifras estan en la fuente",
             props=(
                 PropSpec("kind", PropKind.ENUM, "Tipo de grafico", CHART_KINDS),
                 PropSpec("title", PropKind.STRING, "Titulo del grafico"),
@@ -211,7 +211,7 @@ UI_KIT = UIKit(
         ),
         ComponentSpec(
             name="QuizItem",
-            purpose="Ejercicio",
+            purpose="Pregunta de evaluacion sobre un caso concreto",
             props=(
                 PropSpec("item_id", PropKind.STRING, "Id corto y unico dentro del spec"),
                 PropSpec("item_type", PropKind.ENUM, "Tipo de ejercicio", ITEM_TYPES),
@@ -222,7 +222,7 @@ UI_KIT = UIKit(
         ),
         ComponentSpec(
             name="SliderExploration",
-            purpose="Explorar un parametro con slider interactivo",
+            purpose="El aprendiz mueve una variable y ve como cambia el resultado. Requiere una relacion causa-efecto enunciada en la fuente",
             props=(
                 PropSpec("title", PropKind.STRING, "Titulo del explorador"),
                 PropSpec("variable", PropKind.STRING, "Nombre de la variable"),
@@ -238,7 +238,7 @@ UI_KIT = UIKit(
         ),
         ComponentSpec(
             name="ManipulableGraph",
-            purpose="Plano cartesiano interactivo con puntos y funciones",
+            purpose="Plano cartesiano donde el aprendiz mueve puntos o funciones",
             props=(
                 PropSpec("title", PropKind.STRING, "Titulo del grafico"),
                 PropSpec("xLabel", PropKind.STRING, "Etiqueta del eje X"),
@@ -252,7 +252,7 @@ UI_KIT = UIKit(
         ),
         ComponentSpec(
             name="BeforeAfter",
-            purpose="Comparar dos estados con divisor deslizante",
+            purpose="Contrasta exactamente DOS estados: correcto frente a incorrecto, antes frente a despues. Prefierelo a Table cuando la comparacion es de dos",
             props=(
                 PropSpec("title", PropKind.STRING, "Titulo de la comparacion"),
                 PropSpec("beforeLabel", PropKind.STRING, "Etiqueta del estado anterior"),
@@ -269,7 +269,7 @@ UI_KIT = UIKit(
         ),
         ComponentSpec(
             name="DragOrder",
-            purpose="Reordenar arrastrando",
+            purpose="Evaluar reordenando pasos o prioridades arrastrando",
             props=(
                 PropSpec("instruction", PropKind.STRING, "Enunciado de la tarea de ordenar"),
                 PropSpec("items", PropKind.STRING_LIST, "Elementos a ordenar (desordenados)"),
@@ -278,7 +278,7 @@ UI_KIT = UIKit(
         ),
         ComponentSpec(
             name="HotspotImage",
-            purpose="Imagen con zonas interactivas",
+            purpose="Marcar zonas sobre una imagen. Requiere una URL de imagen real; no lo uses si no la hay",
             props=(
                 PropSpec("imageUrl", PropKind.STRING, "URL de la imagen"),
                 PropSpec("alt", PropKind.STRING, "Texto alternativo"),
@@ -290,7 +290,7 @@ UI_KIT = UIKit(
         ),
         ComponentSpec(
             name="StepByStepReveal",
-            purpose="Revelacion progresiva de pasos",
+            purpose="Procedimiento cuyos pasos necesitan explicacion propia. Prefierelo a StepSequence cuando un paso no se entiende solo",
             props=(
                 PropSpec("title", PropKind.STRING, "Titulo del bloque"),
                 PropSpec("steps", PropKind.STRING_MATRIX, "Pasos: [[enunciado, explicacion], ...]"),
@@ -306,7 +306,7 @@ UI_KIT = UIKit(
         ),
         ComponentSpec(
             name="PronunciationExercise",
-            purpose="Escuchar y practicar pronunciacion con comparacion de ondas",
+            purpose="Escuchar y practicar la pronunciacion de un termino",
             props=(
                 PropSpec("targetText", PropKind.STRING, "Texto objetivo para practicar"),
                 PropSpec("language", PropKind.STRING, "Codigo de idioma, p.ej. \"es\""),
@@ -314,7 +314,7 @@ UI_KIT = UIKit(
         ),
         ComponentSpec(
             name="DiagramBuilder",
-            purpose="Diagrama SVG que se construye paso a paso",
+            purpose="Diagrama que se dibuja paso a paso para mostrar como se relacionan las partes",
             props=(
                 PropSpec("title", PropKind.STRING, "Titulo del diagrama"),
                 PropSpec(
@@ -325,7 +325,7 @@ UI_KIT = UIKit(
         ),
         ComponentSpec(
             name="Tabs",
-            purpose="Pestanas para mostrar contenido alternativo en el mismo espacio",
+            purpose="Variantes del MISMO proceso que el aprendiz elige: por turno, por tipo de cliente, por caso. 2-3 pestanas",
             is_container=True,
             props=(
                 PropSpec("children", PropKind.REFS, "Ids de los TabItem hijos"),
@@ -333,7 +333,7 @@ UI_KIT = UIKit(
         ),
         ComponentSpec(
             name="TabItem",
-            purpose="Panel de una pestana dentro de Tabs",
+            purpose="Una variante dentro de Tabs",
             is_container=True,
             props=(
                 PropSpec("trigger", PropKind.STRING, "Etiqueta de la pestana"),
@@ -342,7 +342,7 @@ UI_KIT = UIKit(
         ),
         ComponentSpec(
             name="Accordion",
-            purpose="Secciones plegables de revelacion progresiva",
+            purpose="Excepciones o detalles que no todo el mundo necesita leer",
             is_container=True,
             props=(
                 PropSpec("children", PropKind.REFS, "Ids de los AccordionItem hijos"),

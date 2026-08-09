@@ -11,7 +11,7 @@
   "prompt_components": [
     {
       "name": "Stack",
-      "description": "Contenedor vertical",
+      "description": "Contenedor vertical. Envuelve la pantalla entera; siempre es el root",
       "signature": "Stack(children: any[], gap: \"sm\" | \"md\" | \"lg\")",
       "props": [
         {
@@ -34,7 +34,7 @@
     },
     {
       "name": "TextContent",
-      "description": "Prosa",
+      "description": "Prosa breve: el gancho inicial o una transicion. No vuelques aqui el contenido",
       "signature": "TextContent(text: string, variant: \"body\" | \"lead\" | \"caption\")",
       "props": [
         {
@@ -57,7 +57,7 @@
     },
     {
       "name": "Card",
-      "description": "Agrupar",
+      "description": "Agrupa bajo un titulo propio un caso practico o un ejemplo cerrado",
       "signature": "Card(title: string, children: any[])",
       "props": [
         {
@@ -76,7 +76,7 @@
     },
     {
       "name": "Callout",
-      "description": "Regla critica, excepcion",
+      "description": "Una regla critica o excepcion que no se puede pasar por alto. Uno por pantalla",
       "signature": "Callout(tone: \"info\" | \"warn\" | \"success\", text: string)",
       "props": [
         {
@@ -99,7 +99,7 @@
     },
     {
       "name": "StepSequence",
-      "description": "Procedimiento (2-7 pasos)",
+      "description": "Pasos en orden que se entienden solos. Prefierelo con 3-7 pasos cortos",
       "signature": "StepSequence(title: string, steps: string[])",
       "props": [
         {
@@ -118,7 +118,7 @@
     },
     {
       "name": "Table",
-      "description": "Comparar conceptos",
+      "description": "Varios elementos comparados por varios atributos. Si solo contrastas DOS estados usa BeforeAfter",
       "signature": "Table(headers: string[], rows: string[][])",
       "props": [
         {
@@ -137,7 +137,7 @@
     },
     {
       "name": "CodeBlock",
-      "description": "Ejemplo de codigo",
+      "description": "Fragmento de codigo de ejemplo",
       "signature": "CodeBlock(language: string, code: string)",
       "props": [
         {
@@ -156,7 +156,7 @@
     },
     {
       "name": "Chart",
-      "description": "Dato cuantitativo",
+      "description": "Cifras comparables entre categorias. Solo si las cifras estan en la fuente",
       "signature": "Chart(kind: \"bar\" | \"line\", title: string, labels: string[], values: number[])",
       "props": [
         {
@@ -190,7 +190,7 @@
     },
     {
       "name": "QuizItem",
-      "description": "Ejercicio",
+      "description": "Pregunta de evaluacion sobre un caso concreto",
       "signature": "QuizItem(item_id: string, item_type: \"test\" | \"true_false\" | \"fill_blank\" | \"order_steps\" | \"practical_case\" | \"dialogue\", bloom_level: \"remember\" | \"understand\" | \"apply\" | \"analyze\" | \"evaluate\" | \"create\", question: string, options: string[])",
       "props": [
         {
@@ -241,7 +241,7 @@
     },
     {
       "name": "SliderExploration",
-      "description": "Explorar un parametro con slider interactivo",
+      "description": "El aprendiz mueve una variable y ve como cambia el resultado. Requiere una relacion causa-efecto enunciada en la fuente",
       "signature": "SliderExploration(title: string, variable: string, min: number, max: number, step: number, formula: string, description: string)",
       "props": [
         {
@@ -290,7 +290,7 @@
     },
     {
       "name": "ManipulableGraph",
-      "description": "Plano cartesiano interactivo con puntos y funciones",
+      "description": "Plano cartesiano donde el aprendiz mueve puntos o funciones",
       "signature": "ManipulableGraph(title: string, xLabel: string, yLabel: string, points: string[][], functions: string[])",
       "props": [
         {
@@ -327,7 +327,7 @@
     },
     {
       "name": "BeforeAfter",
-      "description": "Comparar dos estados con divisor deslizante",
+      "description": "Contrasta exactamente DOS estados: correcto frente a incorrecto, antes frente a despues. Prefierelo a Table cuando la comparacion es de dos",
       "signature": "BeforeAfter(title: string, beforeLabel: string, beforeContent: string, afterLabel: string, afterContent: string)",
       "props": [
         {
@@ -364,7 +364,7 @@
     },
     {
       "name": "DragOrder",
-      "description": "Reordenar arrastrando",
+      "description": "Evaluar reordenando pasos o prioridades arrastrando",
       "signature": "DragOrder(instruction: string, items: string[], correctOrder: string[])",
       "props": [
         {
@@ -389,7 +389,7 @@
     },
     {
       "name": "HotspotImage",
-      "description": "Imagen con zonas interactivas",
+      "description": "Marcar zonas sobre una imagen. Requiere una URL de imagen real; no lo uses si no la hay",
       "signature": "HotspotImage(imageUrl: string, alt: string, hotspots: string[][])",
       "props": [
         {
@@ -414,7 +414,7 @@
     },
     {
       "name": "StepByStepReveal",
-      "description": "Revelacion progresiva de pasos",
+      "description": "Procedimiento cuyos pasos necesitan explicacion propia. Prefierelo a StepSequence cuando un paso no se entiende solo",
       "signature": "StepByStepReveal(title: string, steps: string[][])",
       "props": [
         {
@@ -456,7 +456,7 @@
     },
     {
       "name": "PronunciationExercise",
-      "description": "Escuchar y practicar pronunciacion con comparacion de ondas",
+      "description": "Escuchar y practicar la pronunciacion de un termino",
       "signature": "PronunciationExercise(targetText: string, language: string)",
       "props": [
         {
@@ -475,7 +475,7 @@
     },
     {
       "name": "DiagramBuilder",
-      "description": "Diagrama SVG que se construye paso a paso",
+      "description": "Diagrama que se dibuja paso a paso para mostrar como se relacionan las partes",
       "signature": "DiagramBuilder(title: string, steps: string[][])",
       "props": [
         {
@@ -494,7 +494,7 @@
     },
     {
       "name": "Tabs",
-      "description": "Pestanas para mostrar contenido alternativo en el mismo espacio",
+      "description": "Variantes del MISMO proceso que el aprendiz elige: por turno, por tipo de cliente, por caso. 2-3 pestanas",
       "signature": "Tabs(children: any[])",
       "props": [
         {
@@ -507,7 +507,7 @@
     },
     {
       "name": "TabItem",
-      "description": "Panel de una pestana dentro de Tabs",
+      "description": "Una variante dentro de Tabs",
       "signature": "TabItem(trigger: string, children: any[])",
       "props": [
         {
@@ -526,7 +526,7 @@
     },
     {
       "name": "Accordion",
-      "description": "Secciones plegables de revelacion progresiva",
+      "description": "Excepciones o detalles que no todo el mundo necesita leer",
       "signature": "Accordion(children: any[])",
       "props": [
         {
@@ -585,6 +585,6 @@
   "canonical_catalog": "catalog: skillnet-ui/1\nroot: Stack\nStack(children:ref[], gap:enum(sm|md|lg))\nTextContent(text:string, variant:enum(body|lead|caption))\nCard(title:string, children:ref[])\nCallout(tone:enum(info|warn|success), text:string)\nStepSequence(title:string, steps:string[])\nTable(headers:string[], rows:string[][])\nCodeBlock(language:string, code:string)\nChart(kind:enum(bar|line), title:string, labels:string[], values:number[])\nQuizItem(item_id:string, item_type:enum(test|true_false|fill_blank|order_steps|practical_case|dialogue), bloom_level:enum(remember|understand|apply|analyze|evaluate|create), question:string, options:string[])\nSliderExploration(title:string, variable:string, min:number, max:number, step:number, formula:string, description:string)\nManipulableGraph(title:string, xLabel:string, yLabel:string, points:string[][], functions:string[])\nBeforeAfter(title:string, beforeLabel:string, beforeContent:string, afterLabel:string, afterContent:string)\nDragOrder(instruction:string, items:string[], correctOrder:string[])\nHotspotImage(imageUrl:string, alt:string, hotspots:string[][])\nStepByStepReveal(title:string, steps:string[][])\nAudioExplanation(text:string, voice:enum(neutral|warm|formal))\nPronunciationExercise(targetText:string, language:string)\nDiagramBuilder(title:string, steps:string[][])\nTabs(children:ref[])\nTabItem(trigger:string, children:ref[])\nAccordion(children:ref[])\nAccordionItem(trigger:string, children:ref[])\n",
   "catalog_digest": "8ada94696eb821f707b2ca36d90a0d5ec94c829c16a3f5371d4de5a6d01db320",
   "catalog_version": "skillnet-ui/1+8ada94696eb8",
-  "prompt_sha256": "995957e2107caf6545bd0c7b51f51997557e2da18ca645a46d1e5852e8fde432",
-  "prompt_chars": 8184
+  "prompt_sha256": "466d899fa51158952932f126932951a17a82e8420615ce7757da392b0a9037b8",
+  "prompt_chars": 9076
 }
