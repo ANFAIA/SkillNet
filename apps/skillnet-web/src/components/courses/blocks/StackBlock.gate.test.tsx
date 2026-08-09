@@ -7,7 +7,7 @@ import type { ReactNode } from 'react'
 
 import { StackBlock } from './StackBlock'
 import { nextNodeContext, stepperContext, useStepperGate } from './StepperContext'
-import { messages } from '../../../i18n/es'
+import { es as messages } from '../../../i18n/es'
 
 /**
  * La compuerta, sin el quiz de por medio.
@@ -74,6 +74,12 @@ describe('la compuerta del stepper', () => {
 
     await userEvent.click(siguiente(), { pointerEventsCheck: 0 })
     expect(irAlSiguienteNodo).not.toHaveBeenCalled()
+
+    // La flecha del teclado es otro camino y tenia su propio agujero: el listener se
+    // registraba sin `isGated` en las dependencias y leia un valor congelado.
+    await userEvent.keyboard('{ArrowRight}')
+    expect(irAlSiguienteNodo).not.toHaveBeenCalled()
+    expect(screen.getByText('ejercicio')).toBeInTheDocument()
   })
 
   it('lo abre cuando el ejercicio se resuelve', async () => {

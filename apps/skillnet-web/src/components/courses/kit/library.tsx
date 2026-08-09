@@ -69,7 +69,6 @@ import {
   readHotspots,
   readNumber,
   readNumberArray,
-  readStepPairs,
   readString,
   readStringArray,
   readStringMatrix,

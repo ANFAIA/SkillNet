@@ -108,6 +108,21 @@ function StepperStack({ children }: { children?: ReactNode }) {
   )
   const isGated = gatedStep === safeStep
 
+  /**
+   * El paso cuyos hijos ya han corrido sus efectos.
+   *
+   * Sin esto, el boton de nodo siguiente se pinta en el primer frame del ultimo paso
+   * —cuando el ejercicio todavia no ha pedido cerrar— y desaparece al frame siguiente:
+   * un parpadeo muy visible. React ejecuta los efectos de los hijos antes que los del
+   * padre, asi que cuando este se marca, el `block()` del ejercicio ya ocurrio. Un boton
+   * que tarda un frame en aparecer no se nota; uno que aparece y se va, si.
+   */
+  const [settledStep, setSettledStep] = useState<number | null>(null)
+  useEffect(() => {
+    setSettledStep(safeStep)
+  }, [safeStep])
+  const settled = settledStep === safeStep
+
   const next = useCallback(() => {
     if (isGated) return
     if (!isLast) setStep((s) => s + 1)
@@ -145,7 +160,9 @@ function StepperStack({ children }: { children?: ReactNode }) {
     }
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
-  }, [isLast, goNextNode])
+    // `isGated` va en las dependencias o el listener se queda con el valor de cuando se
+    // registro —falso— y la flecha derecha salta el ejercicio aunque el chevron no.
+  }, [isGated, isLast, goNextNode])
 
   if (total === 0) return null
   if (total === 1) {
@@ -203,7 +220,7 @@ function StepperStack({ children }: { children?: ReactNode }) {
 
         {/* Next-node CTA — prominent button at end of lesson */}
         <AnimatePresence>
-          {isLast && !isGated && (
+          {isLast && settled && !isGated && (
             <motion.div
               key="next-cta"
               className="shrink-0 px-4 pb-4"
