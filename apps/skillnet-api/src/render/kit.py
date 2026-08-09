@@ -360,15 +360,6 @@ UI_KIT = UIKit(
             ),
         ),
         ComponentSpec(
-            name="StepByStepReveal",
-            functions=(FunctionFit(ContentFunction.PROCEDIMENTAR, 20),),
-            purpose="Procedimiento cuyos pasos necesitan explicacion propia. Prefierelo a StepSequence cuando un paso no se entiende solo",
-            props=(
-                PropSpec("title", PropKind.STRING, "Titulo del bloque"),
-                PropSpec("steps", PropKind.STRING_MATRIX, "Pasos: [[enunciado, explicacion], ...]"),
-            ),
-        ),
-        ComponentSpec(
             name="AudioExplanation",
             purpose="Texto leido en voz alta con resaltado de palabras",
             props=(
@@ -394,24 +385,6 @@ UI_KIT = UIKit(
                     "steps", PropKind.STRING_MATRIX,
                     "Pasos: [[etiqueta, svgFragment, explicacion], ...]",
                 ),
-            ),
-        ),
-        ComponentSpec(
-            name="Accordion",
-            functions=(FunctionFit(ContentFunction.VARIAR, 20),),
-            purpose="Excepciones o detalles que no todo el mundo necesita leer",
-            is_container=True,
-            props=(
-                PropSpec("children", PropKind.REFS, "Ids de los AccordionItem hijos"),
-            ),
-        ),
-        ComponentSpec(
-            name="AccordionItem",
-            purpose="Seccion plegable dentro de Accordion",
-            is_container=True,
-            props=(
-                PropSpec("trigger", PropKind.STRING, "Titulo de la seccion plegable"),
-                PropSpec("children", PropKind.REFS, "Ids de los bloques de contenido"),
             ),
         ),
     )

@@ -32,12 +32,9 @@ ManipulableGraph(title: string, xLabel: string, yLabel: string, points: string[]
 BeforeAfter(title: string, beforeLabel: string, beforeContent: string, afterLabel: string, afterContent: string) — Contrasta exactamente DOS estados: correcto frente a incorrecto, antes frente a despues. Prefierelo a Table cuando la comparacion es de dos
 DragOrder(instruction: string, items: string[], correctOrder: string[]) — Evaluar reordenando pasos o prioridades arrastrando
 HotspotImage(imageUrl: string, alt: string, hotspots: string[][]) — Marcar zonas sobre una imagen. Requiere una URL de imagen real; no lo uses si no la hay
-StepByStepReveal(title: string, steps: string[][]) — Procedimiento cuyos pasos necesitan explicacion propia. Prefierelo a StepSequence cuando un paso no se entiende solo
 AudioExplanation(text: string, voice: "neutral" | "warm" | "formal") — Texto leido en voz alta con resaltado de palabras
 PronunciationExercise(targetText: string, language: string) — Escuchar y practicar la pronunciacion de un termino
 DiagramBuilder(title: string, steps: string[][]) — Diagrama que se dibuja paso a paso para mostrar como se relacionan las partes
-Accordion(children: any[]) — Excepciones o detalles que no todo el mundo necesita leer
-AccordionItem(trigger: string, children: any[]) — Seccion plegable dentro de Accordion
 
 ## Hoisting & Streaming (CRITICAL)
 

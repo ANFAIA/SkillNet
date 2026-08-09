@@ -177,11 +177,6 @@ export const hotspotImageProps = z.object({
   hotspots: z.array(z.array(z.string())).describe('Puntos: [[x, y, label, detail], ...]'),
 })
 
-export const stepByStepRevealProps = z.object({
-  title: z.string().describe('Titulo del bloque'),
-  steps: z.array(z.array(z.string())).describe('Pasos: [[enunciado, explicacion], ...]'),
-})
-
 export const audioExplanationProps = z.object({
   text: z.string().describe('Texto que se leera en voz alta'),
   voice: z.enum(VOICE_STYLES).describe('Estilo de voz'),
@@ -195,15 +190,6 @@ export const pronunciationExerciseProps = z.object({
 export const diagramBuilderProps = z.object({
   title: z.string().describe('Titulo del diagrama'),
   steps: z.array(z.array(z.string())).describe('Pasos: [[etiqueta, svgFragment, explicacion], ...]'),
-})
-
-export const accordionProps = z.object({
-  children: z.array(z.any()).describe('Ids de los AccordionItem hijos'),
-})
-
-export const accordionItemProps = z.object({
-  trigger: z.string().describe('Titulo de la seccion plegable'),
-  children: z.array(z.any()).describe('Ids de los bloques de contenido'),
 })
 
 /** The frozen names, in the order of the §5.3 table. */
@@ -223,12 +209,9 @@ export const KIT_COMPONENT_NAMES = [
   'Markdown',
   'DragOrder',
   'HotspotImage',
-  'StepByStepReveal',
   'AudioExplanation',
   'PronunciationExercise',
   'DiagramBuilder',
-  'Accordion',
-  'AccordionItem',
 ] as const
 
 export type KitComponentName = (typeof KIT_COMPONENT_NAMES)[number]
@@ -266,12 +249,9 @@ export const KIT_DESCRIPTIONS = {
   Markdown: 'Solo para fallback_seed; el modelo no puede emitirlo',
   DragOrder: 'Evaluar reordenando pasos o prioridades arrastrando',
   HotspotImage: 'Marcar zonas sobre una imagen. Requiere una URL de imagen real; no lo uses si no la hay',
-  StepByStepReveal: 'Procedimiento cuyos pasos necesitan explicacion propia. Prefierelo a StepSequence cuando un paso no se entiende solo',
   AudioExplanation: 'Texto leido en voz alta con resaltado de palabras',
   PronunciationExercise: 'Escuchar y practicar la pronunciacion de un termino',
   DiagramBuilder: 'Diagrama que se dibuja paso a paso para mostrar como se relacionan las partes',
-  Accordion: 'Excepciones o detalles que no todo el mundo necesita leer',
-  AccordionItem: 'Seccion plegable dentro de Accordion',
 } satisfies Record<KitComponentName, string>
 
 /** Name → prop schema, so a consumer can walk the catalogue without React. */
@@ -291,12 +271,9 @@ export const KIT_PROP_SCHEMAS = {
   Markdown: markdownProps,
   DragOrder: dragOrderProps,
   HotspotImage: hotspotImageProps,
-  StepByStepReveal: stepByStepRevealProps,
   AudioExplanation: audioExplanationProps,
   PronunciationExercise: pronunciationExerciseProps,
   DiagramBuilder: diagramBuilderProps,
-  Accordion: accordionProps,
-  AccordionItem: accordionItemProps,
 } satisfies Record<KitComponentName, z.ZodObject>
 
 /**
@@ -304,7 +281,7 @@ export const KIT_PROP_SCHEMAS = {
  * them). `Stack` is the library root, so the parser resolves a bare program
  * against it.
  */
-export const CONTAINER_NAMES = ['Stack', 'Card', 'Accordion', 'AccordionItem'] as const
+export const CONTAINER_NAMES = ['Stack', 'Card'] as const
 
 /** Contract rule 4 (§5.2), the only one of the seven checkable from a ParseResult. */
 export const MAX_COMPONENTS = 12

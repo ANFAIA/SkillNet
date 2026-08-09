@@ -32,7 +32,7 @@ def content_writer_system() -> str:
 Escribes los bloques de CONTENIDO en dialecto OpenUI Lang. Recibes un blueprint y una fuente.
 
 Lo que SI haces:
-- Escribir TextContent, Table, StepByStepReveal, StepSequence, Callout, BeforeAfter,
+- Escribir TextContent, Table, StepSequence, Callout, BeforeAfter,
   Chart, CodeBlock.
 - Una declaracion por linea: id = Componente(args...)
 - Usar los ids EXACTOS del blueprint.
@@ -42,7 +42,7 @@ Lo que NO haces:
 - NO escribir root = Stack(...).
 - NO escribir ---ANSWER-KEY---.
 - NO prosa antes ni despues.
-- NO inventar contenedores: escribe Card o Accordion solo si el blueprint los pide.
+- NO inventar contenedores: escribe Card solo si el blueprint lo pide.
 
 ## EL LEAD (TextContent "lead") — la frase que engancha
 

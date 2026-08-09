@@ -103,7 +103,7 @@ from src.render.spec import FORMATS_REQUIRING_LEAD
 #: stopped travelling as its bare enum token (:data:`_CRITICALITY_RULES` — 8 rejections,
 #: the largest single class), and SkillNet 17 and 18 name the two syntax habits behind the
 #: rest (a bare ``opciones = [...]`` declaration, and the same id declared twice).
-PROMPT_VERSION = "runtime/18"
+PROMPT_VERSION = "runtime/19"
 
 # --- budgets (§4.2) ----------------------------------------------------------------
 
@@ -370,8 +370,6 @@ _BLOCK_CHOICE = """
 ### Layout (estructura de la pantalla)
 - Stack: apila bloques verticalmente. Es la raiz obligatoria.
 - Card: agrupa contenido relacionado con borde.
-- Accordion: secciones colapsables, una abierta a la vez. Para contenido de profundidad
-  opcional que no debe ocupar espacio por defecto.
 
 ### Contenido (explicar conceptos)
 - TextContent: texto con variantes lead/body/caption. El primer bloque siempre es
@@ -391,8 +389,6 @@ _BLOCK_CHOICE = """
 - SliderExploration: slider que cambia un valor y muestra el resultado.
 - DragOrder: ordenar elementos arrastrando.
 - HotspotImage: imagen con zonas clicables.
-- StepByStepReveal: contenido que se revela paso a paso. Para contenido de
-  profundidad opcional: el aprendiz abre cada paso cuando quiere.
 
 ### Evaluacion (verificar comprension)
 - QuizItem: pregunta con opciones. Integrada en el flujo, no separada.
@@ -418,7 +414,7 @@ pantalla mal hecha aunque el programa sea valido.
 - TextContent es prosa: la frase de entrada y el matiz. NUNCA una lista.
 - COMPARACION de dos estados (bien/mal, antes/despues, correcto/incorrecto) -> BeforeAfter.
   BeforeAfter("Titulo", "Mal", "descripcion del caso incorrecto", "Bien", "descripcion del caso correcto")
-- PROCEDIMIENTO con explicacion por paso -> StepByStepReveal.
+- PROCEDIMIENTO en pasos -> StepSequence, con los pasos visibles a la vez.
 - TAREA DE ORDENAR pasos o prioridades -> DragOrder.
 - MULTIPLES ASPECTOS de un tema (tipos de residuos, categorias de EPI, fases de un
   proceso) -> una Table con una fila por aspecto, todos visibles a la vez.
@@ -430,11 +426,10 @@ TRES BLOQUES, en este orden:
 1. ENGANCHAR — TextContent("lead"). Una situacion real del puesto, una frase.
 2. CONCEPTO — UN bloque de estos (elige segun el material):
    - Listas de cosas -> Table
-   - Procedimiento con explicaciones -> StepByStepReveal
    - Comparacion bien/mal, antes/despues -> BeforeAfter
    - Procedimiento simple sin explicaciones -> StepSequence
    PROHIBIDO usar TextContent("body") para el concepto. El concepto SIEMPRE va en
-   un bloque propio (Table, StepByStepReveal, BeforeAfter, StepSequence).
+   un bloque propio (Table, BeforeAfter, StepSequence).
 3. VERIFICAR — UN bloque de practica:
    - Si el concepto es un procedimiento -> DragOrder
    - Si el concepto tiene un bien/mal -> BeforeAfter
@@ -446,10 +441,10 @@ MAXIMO 4 bloques (intro + concepto + practica + opcionalmente un Callout). Nada 
 
 ## SkillNet: ejemplos completos
 
-Ejemplo A — Procedimiento con StepByStepReveal + DragOrder (SIN QuizItem):
+Ejemplo A — Procedimiento con StepSequence + DragOrder (SIN QuizItem):
 root = Stack([intro, pasos, ejercicio], "md")
 intro = TextContent("Un conato de fuego en el almacen: tienes 10 segundos de extintor.", "lead")
-pasos = StepByStepReveal("Regla PAS", [["P - Quitar el Pasador", "Tira de la anilla con un gesto seco."], ["A - Apuntar a la base", "Nunca a las llamas."], ["S - Barrer en zigzag", "Desde 2-3 metros, de lado a lado."]])
+pasos = StepSequence("Regla PAS", ["P - Quitar el Pasador: tira de la anilla con un gesto seco.", "A - Apuntar a la base, nunca a las llamas.", "S - Barrer en zigzag desde 2-3 metros, de lado a lado."])
 ejercicio = DragOrder("Ordena los pasos del extintor:", ["Apuntar a la base", "Quitar el pasador", "Barrer en zigzag"], ["Quitar el pasador", "Apuntar a la base", "Barrer en zigzag"])
 
 Ejemplo B — Comparacion con BeforeAfter + QuizItem:

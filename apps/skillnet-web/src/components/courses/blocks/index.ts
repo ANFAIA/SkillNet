@@ -46,8 +46,6 @@ export type { DragOrderBlockProps } from './DragOrderBlock'
 export { HotspotImageBlock } from './HotspotImageBlock'
 export type { HotspotImageBlockProps } from './HotspotImageBlock'
 
-export { StepByStepRevealBlock } from './StepByStepRevealBlock'
-export type { StepByStepRevealBlockProps } from './StepByStepRevealBlock'
 
 export { AudioExplanationBlock } from './AudioExplanationBlock'
 export type { AudioExplanationBlockProps } from './AudioExplanationBlock'
@@ -59,7 +57,5 @@ export { DiagramBuilderBlock } from './DiagramBuilderBlock'
 export type { DiagramBuilderBlockProps } from './DiagramBuilderBlock'
 
 
-export { AccordionBlock, AccordionItemBlock } from './AccordionBlock'
-export type { AccordionBlockProps, AccordionItemBlockProps } from './AccordionBlock'
 
 export { InlineMarkdown } from './InlineMarkdown'

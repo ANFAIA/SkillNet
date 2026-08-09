@@ -33,12 +33,9 @@ EXPECTED_CATALOGUE: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("Markdown", ("content",)),
     ("DragOrder", ("instruction", "items", "correctOrder")),
     ("HotspotImage", ("imageUrl", "alt", "hotspots")),
-    ("StepByStepReveal", ("title", "steps")),
     ("AudioExplanation", ("text", "voice")),
     ("PronunciationExercise", ("targetText", "language")),
     ("DiagramBuilder", ("title", "steps")),
-    ("Accordion", ("children",)),
-    ("AccordionItem", ("trigger", "children")),
 )
 
 # Explicitly out of the kit (§5.3), plus the names the spec renamed away from.
@@ -86,11 +83,11 @@ def test_positional_prop_order_matches_the_spec_table(name: str, props: tuple[st
 
 def test_only_markdown_is_off_limits_to_the_model() -> None:
     assert UI_KIT.llm_names == tuple(n for n, _ in EXPECTED_CATALOGUE if n != "Markdown")
-    assert len(UI_KIT.llm_names) == 20
+    assert len(UI_KIT.llm_names) == 17
 
 
 def test_containers_are_stack_and_card() -> None:
-    assert UI_KIT.container_names == ("Stack", "Card", "Accordion", "AccordionItem")
+    assert UI_KIT.container_names == ("Stack", "Card")
 
 
 def test_item_type_choices_are_the_existing_exercise_type_enum() -> None:

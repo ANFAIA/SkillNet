@@ -85,12 +85,9 @@ const CATALOGUE = [
   ['Markdown', 'markdownProps', 'Solo para fallback_seed; el modelo no puede emitirlo'],
   ['DragOrder', 'dragOrderProps', 'Evaluar reordenando pasos o prioridades arrastrando'],
   ['HotspotImage', 'hotspotImageProps', 'Marcar zonas sobre una imagen. Requiere una URL de imagen real; no lo uses si no la hay'],
-  ['StepByStepReveal', 'stepByStepRevealProps', 'Procedimiento cuyos pasos necesitan explicacion propia. Prefierelo a StepSequence cuando un paso no se entiende solo'],
   ['AudioExplanation', 'audioExplanationProps', 'Texto leido en voz alta con resaltado de palabras'],
   ['PronunciationExercise', 'pronunciationExerciseProps', 'Escuchar y practicar la pronunciacion de un termino'],
   ['DiagramBuilder', 'diagramBuilderProps', 'Diagrama que se dibuja paso a paso para mostrar como se relacionan las partes'],
-  ['Accordion', 'accordionProps', 'Excepciones o detalles que no todo el mundo necesita leer'],
-  ['AccordionItem', 'accordionItemProps', 'Seccion plegable dentro de Accordion'],
 ]
 
 // ---------------------------------------------------------------------------------

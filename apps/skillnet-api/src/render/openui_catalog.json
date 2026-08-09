@@ -413,25 +413,6 @@
       ]
     },
     {
-      "name": "StepByStepReveal",
-      "description": "Procedimiento cuyos pasos necesitan explicacion propia. Prefierelo a StepSequence cuando un paso no se entiende solo",
-      "signature": "StepByStepReveal(title: string, steps: string[][])",
-      "props": [
-        {
-          "name": "title",
-          "kind": "string",
-          "choices": [],
-          "optional": false
-        },
-        {
-          "name": "steps",
-          "kind": "string[][]",
-          "choices": [],
-          "optional": false
-        }
-      ]
-    },
-    {
       "name": "AudioExplanation",
       "description": "Texto leido en voz alta con resaltado de palabras",
       "signature": "AudioExplanation(text: string, voice: \"neutral\" | \"warm\" | \"formal\")",
@@ -491,38 +472,6 @@
           "optional": false
         }
       ]
-    },
-    {
-      "name": "Accordion",
-      "description": "Excepciones o detalles que no todo el mundo necesita leer",
-      "signature": "Accordion(children: any[])",
-      "props": [
-        {
-          "name": "children",
-          "kind": "ref[]",
-          "choices": [],
-          "optional": false
-        }
-      ]
-    },
-    {
-      "name": "AccordionItem",
-      "description": "Seccion plegable dentro de Accordion",
-      "signature": "AccordionItem(trigger: string, children: any[])",
-      "props": [
-        {
-          "name": "trigger",
-          "kind": "string",
-          "choices": [],
-          "optional": false
-        },
-        {
-          "name": "children",
-          "kind": "ref[]",
-          "choices": [],
-          "optional": false
-        }
-      ]
     }
   ],
   "render_components": [
@@ -541,16 +490,13 @@
     "Markdown",
     "DragOrder",
     "HotspotImage",
-    "StepByStepReveal",
     "AudioExplanation",
     "PronunciationExercise",
-    "DiagramBuilder",
-    "Accordion",
-    "AccordionItem"
+    "DiagramBuilder"
   ],
-  "canonical_catalog": "catalog: skillnet-ui/1\nroot: Stack\nStack(children:ref[], gap:enum(sm|md|lg))\nTextContent(text:string, variant:enum(body|lead|caption))\nCard(title:string, children:ref[])\nCallout(tone:enum(info|warn|success), text:string)\nStepSequence(title:string, steps:string[])\nTable(headers:string[], rows:string[][])\nCodeBlock(language:string, code:string)\nChart(kind:enum(bar|line), title:string, labels:string[], values:number[])\nQuizItem(item_id:string, item_type:enum(test|true_false|fill_blank|order_steps|practical_case|dialogue), bloom_level:enum(remember|understand|apply|analyze|evaluate|create), question:string, options:string[])\nSliderExploration(title:string, variable:string, min:number, max:number, step:number, formula:string, description:string)\nManipulableGraph(title:string, xLabel:string, yLabel:string, points:string[][], functions:string[])\nBeforeAfter(title:string, beforeLabel:string, beforeContent:string, afterLabel:string, afterContent:string)\nDragOrder(instruction:string, items:string[], correctOrder:string[])\nHotspotImage(imageUrl:string, alt:string, hotspots:string[][])\nStepByStepReveal(title:string, steps:string[][])\nAudioExplanation(text:string, voice:enum(neutral|warm|formal))\nPronunciationExercise(targetText:string, language:string)\nDiagramBuilder(title:string, steps:string[][])\nAccordion(children:ref[])\nAccordionItem(trigger:string, children:ref[])\n",
-  "catalog_digest": "34cf99e66408b0cd881b51db623a1b823384d04802d148dbb3c3d08dc259c07d",
-  "catalog_version": "skillnet-ui/1+34cf99e66408",
-  "prompt_sha256": "347f3bd7e10c935ca5a00bf1078bfe5387dd745886060424fddcf15c00d7ecae",
-  "prompt_chars": 8874
+  "canonical_catalog": "catalog: skillnet-ui/1\nroot: Stack\nStack(children:ref[], gap:enum(sm|md|lg))\nTextContent(text:string, variant:enum(body|lead|caption))\nCard(title:string, children:ref[])\nCallout(tone:enum(info|warn|success), text:string)\nStepSequence(title:string, steps:string[])\nTable(headers:string[], rows:string[][])\nCodeBlock(language:string, code:string)\nChart(kind:enum(bar|line), title:string, labels:string[], values:number[])\nQuizItem(item_id:string, item_type:enum(test|true_false|fill_blank|order_steps|practical_case|dialogue), bloom_level:enum(remember|understand|apply|analyze|evaluate|create), question:string, options:string[])\nSliderExploration(title:string, variable:string, min:number, max:number, step:number, formula:string, description:string)\nManipulableGraph(title:string, xLabel:string, yLabel:string, points:string[][], functions:string[])\nBeforeAfter(title:string, beforeLabel:string, beforeContent:string, afterLabel:string, afterContent:string)\nDragOrder(instruction:string, items:string[], correctOrder:string[])\nHotspotImage(imageUrl:string, alt:string, hotspots:string[][])\nAudioExplanation(text:string, voice:enum(neutral|warm|formal))\nPronunciationExercise(targetText:string, language:string)\nDiagramBuilder(title:string, steps:string[][])\n",
+  "catalog_digest": "68c642719e549d1e675c67af4648f0d071df3cbcf7f829518dc7cf0acd61b5a3",
+  "catalog_version": "skillnet-ui/1+68c642719e54",
+  "prompt_sha256": "df3c4af716beaea5a90f0577a8824b6836ae54893194f192d93e476b6f7ab31c",
+  "prompt_chars": 8530
 }

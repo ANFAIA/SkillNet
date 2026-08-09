@@ -44,8 +44,6 @@ import { createLibrary, defineComponent } from '@openuidev/react-lang'
 import type { ComponentRenderProps } from '@openuidev/react-lang'
 
 import {
-  AccordionBlock,
-  AccordionItemBlock,
   AudioExplanationBlock,
   BeforeAfterBlock,
   CalloutBlock,
@@ -60,7 +58,6 @@ import {
   PronunciationExerciseBlock,
   SliderExplorationBlock,
   StackBlock,
-  StepByStepRevealBlock,
   StepSequenceBlock,
   TableBlock,
   TextContentBlock,
@@ -85,8 +82,6 @@ import {
   STACK_GAPS,
   TEXT_VARIANTS,
   VOICE_STYLES,
-  accordionItemProps,
-  accordionProps,
   audioExplanationProps,
   beforeAfterProps,
   calloutProps,
@@ -102,7 +97,6 @@ import {
   quizItemProps,
   sliderExplorationProps,
   stackProps,
-  stepByStepRevealProps,
   stepSequenceProps,
   tableProps,
   textContentProps,
@@ -332,18 +326,6 @@ const HotspotImage = defineComponent({
   ),
 })
 
-const StepByStepReveal = defineComponent({
-  name: 'StepByStepReveal',
-  description: KIT_DESCRIPTIONS.StepByStepReveal,
-  props: stepByStepRevealProps,
-  component: ({ props }: ComponentRenderProps<{ title: string; steps: string[][] }>) => (
-    <StepByStepRevealBlock
-      title={readString(props.title)}
-      steps={readStepPairs(props.steps)}
-    />
-  ),
-})
-
 const AudioExplanation = defineComponent({
   name: 'AudioExplanation',
   description: KIT_DESCRIPTIONS.AudioExplanation,
@@ -380,26 +362,6 @@ const DiagramBuilder = defineComponent({
   ),
 })
 
-const Accordion = defineComponent({
-  name: 'Accordion',
-  description: KIT_DESCRIPTIONS.Accordion,
-  props: accordionProps,
-  component: ({ props, renderNode }: ComponentRenderProps<{ children: unknown[] }>) => (
-    <AccordionBlock>{renderKids(renderNode, props.children)}</AccordionBlock>
-  ),
-})
-
-const AccordionItem = defineComponent({
-  name: 'AccordionItem',
-  description: KIT_DESCRIPTIONS.AccordionItem,
-  props: accordionItemProps,
-  component: ({ props, renderNode }: ComponentRenderProps<{ trigger: string; children: unknown[] }>) => (
-    <AccordionItemBlock trigger={readString(props.trigger)}>
-      {renderKids(renderNode, props.children)}
-    </AccordionItemBlock>
-  ),
-})
-
 /**
  * The render library.
  *
@@ -431,12 +393,9 @@ export const skillnetLibrary = createLibrary({
     Markdown,
     DragOrder,
     HotspotImage,
-    StepByStepReveal,
     AudioExplanation,
     PronunciationExercise,
     DiagramBuilder,
-    Accordion,
-    AccordionItem,
   ],
 })
 

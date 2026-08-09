@@ -891,13 +891,10 @@ def test_the_parser_accepts_exactly_the_emittable_components() -> None:
         "BeforeAfter",
         "DragOrder",
         "HotspotImage",
-        "StepByStepReveal",
         "AudioExplanation",
         "PronunciationExercise",
         "DiagramBuilder",
         # Layout containers for viewport-fitting (runtime/6).
-        "Accordion",
-        "AccordionItem",
     }
     # ``Markdown`` is in the kit but ``llm_emittable=False``: reachable from
     # ``fallback_seed`` only, so the parser must refuse it like any unknown name.

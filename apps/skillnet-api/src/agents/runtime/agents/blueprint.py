@@ -53,7 +53,6 @@ REGLA: el bloque de CONCEPTO siempre es interactivo o estructurado, NUNCA prosa.
 ## Componentes para el slot CONCEPTO (elige segun el material)
 
 - Table: datos, listas, comparativas, propiedades. Indica columns: 1 o 2.
-- StepByStepReveal: procedimiento con explicacion paso a paso. El aprendiz abre cada paso.
 - BeforeAfter: comparacion visual de correcto vs incorrecto, antes vs despues.
 - StepSequence: procedimiento corto de 3-7 pasos sin explicaciones largas.
 - Chart: datos numericos comparables. Solo si hay cifras en la fuente.
@@ -63,7 +62,6 @@ Elige el bloque de CONCEPTO por la forma del contenido:
 - Contrasta lo correcto con lo incorrecto, o un antes con un despues -> BeforeAfter
 - Varios elementos comparados por varios atributos -> Table
 - Pasos en orden que se entienden solos -> StepSequence
-- Pasos que necesitan explicacion propia -> StepByStepReveal
 
 ## Componentes para el slot VERIFICAR
 
@@ -71,7 +69,7 @@ Elige el bloque de CONCEPTO por la forma del contenido:
 - DragOrder: ordenar pasos o prioridades arrastrando.
 
 Elige el tipo de verificacion segun el concepto:
-- Si el concepto es un procedimiento (StepSequence/StepByStepReveal) -> DragOrder
+- Si el concepto es un procedimiento (StepSequence) -> DragOrder
 - En los demas casos -> QuizItem
 
 ## Estructura de la pantalla (4-6 bloques)
@@ -82,7 +80,7 @@ mas completa. MINIMO 4 bloques, idealmente 5-6.
 1. ENGANCHAR — TextContent "lead". UNA SOLA FRASE: dato curioso, situacion real o reto.
    PROHIBIDO "Este nodo cubre...", "Se exploraran...", "En esta seccion...".
 2. CONCEPTO — Uno o DOS bloques de contenido. Si el tema tiene varias facetas, usa dos
-   bloques de concepto (ej: una Table + un StepByStepReveal, o un BeforeAfter + un Callout).
+   bloques de concepto (ej: una Table + una StepSequence, o un BeforeAfter + un Callout).
 3. REFUERZO (opcional) — Callout con dato clave, o un segundo bloque de concepto.
 4. VERIFICAR — OBLIGATORIO, SIEMPRE EL ULTIMO BLOQUE. QuizItem o DragOrder.
    El ejercicio cierra la pantalla. Nada va despues del ejercicio.
@@ -96,10 +94,8 @@ mas completa. MINIMO 4 bloques, idealmente 5-6.
 - El primer bloque siempre es TextContent con variant "lead".
 - El ULTIMO bloque siempre es QuizItem o DragOrder. NO HAY EXCEPCIONES.
   Un JSON sin un bloque de intent "verificar" al final es INVALIDO y sera rechazado.
-- Card y Accordion son contenedores: uselos SOLO cuando agrupan de verdad. Card para
-  un caso practico cerrado; Accordion para excepciones que no todo el mundo necesita
-  leer. Si no agrupan nada, no los pongas: esconden contenido tras un clic y el
-  aprendiz no lee lo que no pulsa.
+- Card es el unico contenedor: agrupa un caso practico cerrado bajo su titulo. Nada
+  de esconder contenido detras de un clic — el aprendiz no lee lo que no pulsa.
 - El campo "note" es una instruccion breve para el agente que rellene el contenido.\
 """
 

@@ -85,7 +85,7 @@ def assemble(
     for block in blueprint.blocks:
         if block.id in declarations:
             ordered_lines.append(declarations[block.id])
-    # Append extra declarations not in blueprint (e.g. AccordionItem helpers)
+    # Append extra declarations not in blueprint (e.g. Card helpers)
     for did, line in declarations.items():
         if did not in blueprint_ids:
             ordered_lines.append(line)
