@@ -170,7 +170,30 @@ class ShapeSignal:
                 f"bloque {block} con esas cifras EXACTAS, sin redondear y sin anadir "
                 "ninguna que no este en la fuente."
             )
-        return ""  # pragma: no cover - the four kinds above are the closed set
+        # --- funciones del router semantico (prototipo, fase 3/4) ---
+        # Sin ``count``: el router clasifica, no cuenta. La cifra que hace fuerte a una
+        # pista determinista ("unos 14 elementos") aqui no existe, asi que la instruccion
+        # se apoya en nombrar el bloque y en prohibir la respuesta equivocada conocida,
+        # que en los tres casos es la misma: aplanarlo a Table o a prosa.
+        if self.kind == "contrast":
+            return (
+                f"La fuente enfrenta DOS estados: como ocurre cuando sale mal y como "
+                f"cuando sale bien. Eso es UN bloque {block} con un estado en cada lado. "
+                "NO lo pongas como una Table de dos filas ni como dos parrafos seguidos."
+            )
+        if self.kind == "variants":
+            return (
+                f"La fuente describe variantes del MISMO proceso segun el caso. Eso es "
+                f"UN bloque {block}, una variante por panel. NO hagas un parrafo por "
+                "variante ni las mezcles en una sola lista."
+            )
+        if self.kind == "explore":
+            return (
+                f"La fuente enuncia una relacion entre una variable y su efecto. Eso es "
+                f"UN bloque {block} usando SOLO la relacion que la fuente enuncia. Si la "
+                "fuente no da la relacion completa, no lo uses."
+            )
+        return ""  # pragma: no cover - the kinds above are the closed set
 
 
 @dataclass(frozen=True)

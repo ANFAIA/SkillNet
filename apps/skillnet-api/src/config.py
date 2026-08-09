@@ -130,6 +130,14 @@ class Settings(BaseSettings):
     # on retry. Set MULTI_AGENT_RENDER=true in .env to activate.
     MULTI_AGENT_RENDER: bool = False
 
+    # Router semantico de funciones de contenido (prototipo, fases 3/4 de
+    # docs/design/arquitectura-componentes-funcional.md). Cuando esta activo,
+    # decide_formato hace una llamada corta que clasifica QUE HACE el material
+    # (contrastar / variar / explorar) y antepone esa senal a las deterministas. Las tres
+    # funciones que ya cubren las regex no se le preguntan: son gratis y estan calibradas.
+    # Set SEMANTIC_ROUTER=true en .env para activarlo.
+    SEMANTIC_ROUTER: bool = False
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     @field_validator("SECRET_KEY")

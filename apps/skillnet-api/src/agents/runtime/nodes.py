@@ -53,7 +53,15 @@ from src.agents.runtime.router import (
     tier_config,
     tier_llm,
 )
-from src.agents.runtime.shape import analyze_shape, focus_on_headings, refine_format
+from src.agents.runtime.classify import classify_function
+from src.agents.runtime.shape import (
+    ShapePlan,
+    ShapeSignal,
+    analyze_shape,
+    focus_on_headings,
+    refine_format,
+)
+from src.render.kit import ContentFunction
 from src.agents.runtime.state import NodeRuntimeState
 from src.core import sse
 from src.core.logging import get_logger
@@ -504,6 +512,49 @@ async def probe_gate(state: NodeRuntimeState) -> dict:
 # --------------------------------------------------------------------------- #
 # Node 3: decide_formato
 # --------------------------------------------------------------------------- #
+#: ``ContentFunction`` -> el ``kind`` que ``ShapeSignal.instruction()`` sabe redactar.
+_ROUTED_KINDS = {
+    ContentFunction.CONTRASTAR: "contrast",
+    ContentFunction.VARIAR: "variants",
+    ContentFunction.EXPLORAR: "explore",
+}
+
+
+async def _route_function(state: NodeRuntimeState, node: dict, plan: ShapePlan) -> ShapePlan:
+    """Antepone al plan la funcion que el router semantico reconozca (fases 3/4).
+
+    Devuelve el plan intacto si la flag esta apagada, si el router no ve nada claro o si
+    falla. **Se antepone y no se anade** porque ``MAX_HINTS`` corta a dos: una funcion
+    reconocida por significado es mas especifica que "aqui hay una lista", asi que si
+    compiten por la plaza gana la semantica. Esa es justamente la hipotesis que este
+    prototipo esta midiendo.
+    """
+    # Import local, como en ``graph.py``: la flag se lee en cada llamada para que un test
+    # pueda encenderla con monkeypatch sin reimportar el modulo.
+    from src.config import settings
+
+    if not settings.SEMANTIC_ROUTER:
+        return plan
+    source = str(state.get("source_context") or "")
+    llm = await _make_llm(_uuid(state["org_id"]), "fast")
+    function, _usage = await classify_function(
+        title=str(node.get("title") or ""),
+        summary=str(node.get("summary") or ""),
+        source=source,
+        llm=llm,
+    )
+    if function is None:
+        return plan
+    signal = ShapeSignal(kind=_ROUTED_KINDS[function], count=0, function=function)
+    logger.info(
+        "router semantico: nodo %s -> %s (%s)",
+        node.get("id"),
+        function.value,
+        signal.block or "sin componente",
+    )
+    return ShapePlan(signals=(signal, *plan.signals), has_numbers=plan.has_numbers)
+
+
 @runtime_node_error_wrapper("decide_formato")
 async def decide_formato(state: NodeRuntimeState) -> dict:
     """Pick ``ui_format``, then the tier (§4.3).
@@ -543,6 +594,7 @@ async def decide_formato(state: NodeRuntimeState) -> dict:
         summary=str(node.get("summary") or ""),
         headings=list(node.get("source_headings") or ()),
     )
+    plan = await _route_function(state, node, plan)
 
     if is_calibrating(int(profile.get("nodes_completed") or 0)):
         ui_format, correction = refine_format(
