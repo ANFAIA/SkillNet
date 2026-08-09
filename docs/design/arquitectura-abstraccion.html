@@ -1,0 +1,499 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SkillNet — La abstracción de componentes, antes y ahora</title>
+<style>
+  :root {
+    --bg: #fbfaf8;
+    --panel: #ffffff;
+    --ink: #1a1a1a;
+    --muted: #6b6b6b;
+    --line: #e2e0dc;
+    --accent: #2f6fb3;
+    --bad: #b3402f;
+    --good: #2f7d4f;
+    --code-bg: #f4f2ef;
+    --dead: #cfcbc5;
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #16171a;
+      --panel: #1d1f23;
+      --ink: #e8e6e3;
+      --muted: #9a9894;
+      --line: #2f3237;
+      --accent: #6fa8dc;
+      --bad: #e08b7a;
+      --good: #7dc79b;
+      --code-bg: #232629;
+      --dead: #45484d;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 0;
+    background: var(--bg); color: var(--ink);
+    font: 16px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  .wrap { max-width: 940px; margin: 0 auto; padding: 48px 24px 96px; }
+  header { border-bottom: 2px solid var(--ink); padding-bottom: 20px; margin-bottom: 40px; }
+  h1 { font-size: 2rem; margin: 0 0 6px; letter-spacing: -0.02em; }
+  .sub { color: var(--muted); margin: 0; font-size: 1.02rem; }
+  h2 {
+    font-size: 1.35rem; margin: 56px 0 6px; letter-spacing: -0.01em;
+    padding-bottom: 6px; border-bottom: 1px solid var(--line);
+  }
+  h3 { font-size: 1.02rem; margin: 28px 0 8px; }
+  p { margin: 12px 0; }
+  .lead { font-size: 1.08rem; }
+  code, pre { font-family: var(--mono); font-size: 0.86rem; }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: 6px;
+    padding: 14px 16px; overflow-x: auto; line-height: 1.55; margin: 14px 0;
+  }
+  code.inline { background: var(--code-bg); padding: 1px 5px; border-radius: 3px; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0; }
+  @media (max-width: 760px) { .cols { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 8px; padding: 18px 20px;
+  }
+  .card.antes { border-top: 3px solid var(--bad); }
+  .card.ahora { border-top: 3px solid var(--good); }
+  .tag {
+    display: inline-block; font-size: 0.7rem; letter-spacing: 0.09em;
+    text-transform: uppercase; font-weight: 700; margin-bottom: 8px;
+  }
+  .tag.antes { color: var(--bad); }
+  .tag.ahora { color: var(--good); }
+  figure { margin: 24px 0; }
+  figcaption { color: var(--muted); font-size: 0.85rem; margin-top: 8px; }
+  .scroll { overflow-x: auto; }
+  svg { display: block; max-width: 100%; height: auto; }
+  table { border-collapse: collapse; width: 100%; margin: 16px 0; font-size: 0.92rem; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); }
+  th { font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+  td.num { font-family: var(--mono); }
+  .win { color: var(--good); font-weight: 600; }
+  .zero { color: var(--muted); }
+  .note {
+    border-left: 3px solid var(--accent); padding: 2px 0 2px 16px;
+    margin: 20px 0; color: var(--muted);
+  }
+  .note strong { color: var(--ink); }
+  ul { margin: 12px 0; padding-left: 22px; }
+  li { margin: 7px 0; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0; }
+  .chip {
+    font-family: var(--mono); font-size: 0.76rem; padding: 3px 9px;
+    border-radius: 20px; border: 1px solid var(--line); background: var(--panel);
+  }
+  .chip.dead { color: var(--dead); border-color: var(--dead); text-decoration: line-through; }
+  .chip.live { color: var(--good); border-color: var(--good); font-weight: 600; }
+  footer { margin-top: 72px; padding-top: 20px; border-top: 1px solid var(--line); color: var(--muted); font-size: 0.88rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>La abstracción de componentes</h1>
+  <p class="sub">Cómo funcionaba antes, cómo funciona ahora, y qué se midió · SkillNet · 9 de agosto de 2026</p>
+</header>
+
+<p class="lead">
+  De 22 componentes del kit, sólo salían 7. Los otros 15 no se emitieron <strong>ni una vez</strong>
+  en 71 renders sobre siete documentos de tres géneros distintos. Esto explica por qué, qué se
+  cambió, y qué pasó al medirlo.
+</p>
+
+<h2>El problema, en una imagen</h2>
+
+<figure class="scroll">
+<svg viewBox="0 0 900 200" role="img" aria-label="Los 22 componentes del kit; sólo 7 se emiten">
+  <text x="0" y="16" font-size="13" font-weight="700" fill="currentColor">EL KIT: 22 componentes emitibles</text>
+  <g font-family="ui-monospace, monospace" font-size="11">
+    <g fill="#2f7d4f">
+      <rect x="0"   y="30" width="104" height="26" rx="4" fill="none" stroke="#2f7d4f" stroke-width="1.5"/>
+      <text x="10" y="47">Stack</text>
+      <rect x="112" y="30" width="104" height="26" rx="4" fill="none" stroke="#2f7d4f" stroke-width="1.5"/>
+      <text x="122" y="47">TextContent</text>
+      <rect x="224" y="30" width="104" height="26" rx="4" fill="none" stroke="#2f7d4f" stroke-width="1.5"/>
+      <text x="234" y="47">Table</text>
+      <rect x="336" y="30" width="104" height="26" rx="4" fill="none" stroke="#2f7d4f" stroke-width="1.5"/>
+      <text x="346" y="47">StepSequence</text>
+      <rect x="448" y="30" width="104" height="26" rx="4" fill="none" stroke="#2f7d4f" stroke-width="1.5"/>
+      <text x="458" y="47">DragOrder</text>
+      <rect x="560" y="30" width="104" height="26" rx="4" fill="none" stroke="#2f7d4f" stroke-width="1.5"/>
+      <text x="570" y="47">Callout</text>
+      <rect x="672" y="30" width="128" height="26" rx="4" fill="none" stroke="#2f7d4f" stroke-width="1.5"/>
+      <text x="682" y="47">StepByStepReveal</text>
+    </g>
+    <text x="0" y="82" font-size="12" font-weight="700" fill="#2f7d4f" font-family="sans-serif">↑ los 7 que se emiten</text>
+
+    <g fill="#a8a49e">
+      <rect x="0"   y="100" width="104" height="24" rx="4" fill="none" stroke="#cfcbc5"/>
+      <text x="10" y="116">BeforeAfter</text>
+      <rect x="112" y="100" width="104" height="24" rx="4" fill="none" stroke="#cfcbc5"/>
+      <text x="122" y="116">Tabs</text>
+      <rect x="224" y="100" width="104" height="24" rx="4" fill="none" stroke="#cfcbc5"/>
+      <text x="234" y="116">Accordion</text>
+      <rect x="336" y="100" width="104" height="24" rx="4" fill="none" stroke="#cfcbc5"/>
+      <text x="346" y="116">Card</text>
+      <rect x="448" y="100" width="104" height="24" rx="4" fill="none" stroke="#cfcbc5"/>
+      <text x="458" y="116">Chart</text>
+      <rect x="560" y="100" width="128" height="24" rx="4" fill="none" stroke="#cfcbc5"/>
+      <text x="570" y="116">SliderExploration</text>
+      <rect x="696" y="100" width="128" height="24" rx="4" fill="none" stroke="#cfcbc5"/>
+      <text x="706" y="116">HotspotImage</text>
+
+      <rect x="0"   y="132" width="128" height="24" rx="4" fill="none" stroke="#cfcbc5"/>
+      <text x="10" y="148">ManipulableGraph</text>
+      <rect x="136" y="132" width="120" height="24" rx="4" fill="none" stroke="#cfcbc5"/>
+      <text x="146" y="148">DiagramBuilder</text>
+      <rect x="264" y="132" width="128" height="24" rx="4" fill="none" stroke="#cfcbc5"/>
+      <text x="274" y="148">AudioExplanation</text>
+      <rect x="400" y="132" width="104" height="24" rx="4" fill="none" stroke="#cfcbc5"/>
+      <text x="410" y="148">CodeBlock</text>
+      <rect x="512" y="132" width="104" height="24" rx="4" fill="none" stroke="#cfcbc5"/>
+      <text x="522" y="148">QuizItem*</text>
+      <rect x="624" y="132" width="176" height="24" rx="4" fill="none" stroke="#cfcbc5"/>
+      <text x="634" y="148">+ 4 más</text>
+    </g>
+    <text x="0" y="180" font-size="12" font-weight="700" fill="#8a8680" font-family="sans-serif">↑ los 15 que no salían nunca</text>
+  </g>
+</svg>
+<figcaption>Ninguno estaba roto. Todos estaban implementados en React, validados y anunciados en el prompt.</figcaption>
+</figure>
+
+<h2>Antes: el detector nombraba el componente</h2>
+
+<p>
+  Un módulo llamado <code class="inline">shape.py</code> leía el texto de la fuente con expresiones
+  regulares y decidía, él solito, qué bloque usar. El nombre del componente iba
+  <strong>escrito dentro de la señal</strong>:
+</p>
+
+<pre>ShapeSignal(kind="enumeration", count=14, <span style="color:#b3402f;font-weight:700">block="Table"</span>)
+                                          ↑
+                       el nombre del componente, cableado en el detector</pre>
+
+<p>Y solo sabía producir cuatro señales:</p>
+
+<table>
+  <thead><tr><th>Señal</th><th>Componente que nombra</th></tr></thead>
+  <tbody>
+    <tr><td><code>enumeration</code></td><td class="num">Table</td></tr>
+    <tr><td><code>labelled_list</code></td><td class="num">Table</td></tr>
+    <tr><td><code>numeric_series</code></td><td class="num">Table</td></tr>
+    <tr><td><code>procedure</code></td><td class="num">StepSequence</td></tr>
+  </tbody>
+</table>
+
+<p>
+  <strong>Tres de cuatro apuntan a <code class="inline">Table</code>.</strong> Y cualquier prosa en
+  español con alguna estructura enumerable dispara alguna de ellas. Por eso <code class="inline">Table</code>
+  salía en el 100% de los nodos, y por eso los otros 15 componentes eran inalcanzables: nadie los
+  nombraba jamás.
+</p>
+
+<div class="note">
+  <strong>No estaban prohibidos: nadie los proponía.</strong> Para que un componente nuevo pudiera
+  salir había que abrir <code class="inline">shape.py</code> y enseñarle un nombre más. Esa edición
+  central nunca se pagó por ellos, y por eso el catálogo se congeló solo.
+</div>
+
+<h3>Lo que probamos primero, y no funcionó</h3>
+
+<table>
+  <thead><tr><th>Intervención</th><th>Efecto sobre los 15 muertos</th></tr></thead>
+  <tbody>
+    <tr><td>Quitar el veto a <code>Tabs</code>, <code>Card</code> y <code>Accordion</code> en los prompts</td><td class="zero">ninguno</td></tr>
+    <tr><td>Reescribir las 22 descripciones como pistas discriminantes</td><td class="zero">ninguno</td></tr>
+    <tr><td>Añadir una regla explícita apuntando a <code>BeforeAfter</code></td><td class="zero">ninguno</td></tr>
+  </tbody>
+</table>
+
+<p>
+  Idéntico incluso con documentos escritos a propósito para pedir <code class="inline">BeforeAfter</code>.
+  Ante uno de ellos el modelo emitió
+  <code class="inline">Table(["Situacion","Resultado"], …)</code>: <strong>entendió perfectamente la
+  semántica y no tenía por dónde sacarla.</strong>
+</p>
+
+<h2>Ahora: el detector dice la función, el componente se declara</h2>
+
+<figure class="scroll">
+<svg viewBox="0 0 900 260" role="img" aria-label="Comparación del flujo antes y después">
+  <g font-family="sans-serif" font-size="12">
+    <text x="0" y="14" font-size="12" font-weight="700" fill="#b3402f">ANTES</text>
+    <rect x="0" y="26" width="150" height="40" rx="6" fill="none" stroke="currentColor"/>
+    <text x="20" y="51" fill="currentColor">fuente</text>
+    <path d="M155 46 H205" stroke="currentColor" stroke-width="1.5" marker-end="url(#a)"/>
+    <rect x="210" y="26" width="180" height="40" rx="6" fill="none" stroke="#b3402f" stroke-width="2"/>
+    <text x="226" y="44" fill="#b3402f" font-size="11">detector (4 reglas)</text>
+    <text x="226" y="58" fill="#b3402f" font-size="11" font-weight="700">"usa Table"</text>
+    <path d="M395 46 H445" stroke="currentColor" stroke-width="1.5" marker-end="url(#a)"/>
+    <rect x="450" y="26" width="150" height="40" rx="6" fill="none" stroke="currentColor"/>
+    <text x="470" y="51" fill="currentColor">blueprint</text>
+    <path d="M605 46 H655" stroke="currentColor" stroke-width="1.5" marker-end="url(#a)"/>
+    <rect x="660" y="26" width="150" height="40" rx="6" fill="none" stroke="currentColor"/>
+    <text x="686" y="51" fill="currentColor">Table</text>
+    <text x="210" y="88" font-size="11" fill="#b3402f">el detector conoce los componentes ✗</text>
+
+    <text x="0" y="140" font-size="12" font-weight="700" fill="#2f7d4f">AHORA</text>
+    <rect x="0" y="152" width="150" height="40" rx="6" fill="none" stroke="currentColor"/>
+    <text x="20" y="177" fill="currentColor">fuente</text>
+    <path d="M155 172 H205" stroke="currentColor" stroke-width="1.5" marker-end="url(#a)"/>
+    <rect x="210" y="152" width="180" height="40" rx="6" fill="none" stroke="#2f7d4f" stroke-width="2"/>
+    <text x="226" y="170" fill="#2f7d4f" font-size="11">detector o router</text>
+    <text x="226" y="184" fill="#2f7d4f" font-size="11" font-weight="700">"esto CONTRASTA"</text>
+    <path d="M395 172 H445" stroke="currentColor" stroke-width="1.5" marker-end="url(#a)"/>
+    <rect x="450" y="152" width="150" height="40" rx="6" fill="none" stroke="#2f6fb3" stroke-width="2"/>
+    <text x="466" y="170" fill="#2f6fb3" font-size="11">registro</text>
+    <text x="466" y="184" fill="#2f6fb3" font-size="11">¿quién sabe?</text>
+    <path d="M605 172 H655" stroke="currentColor" stroke-width="1.5" marker-end="url(#a)"/>
+    <rect x="660" y="152" width="150" height="40" rx="6" fill="none" stroke="#2f7d4f" stroke-width="2"/>
+    <text x="676" y="177" fill="#2f7d4f" font-weight="700">BeforeAfter</text>
+    <text x="210" y="214" font-size="11" fill="#2f7d4f">el detector no sabe qué componentes existen ✓</text>
+  </g>
+  <defs>
+    <marker id="a" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 z" fill="currentColor"/>
+    </marker>
+  </defs>
+</svg>
+</figure>
+
+<div class="cols">
+  <div class="card antes">
+    <span class="tag antes">Antes</span>
+    <p>El detector <strong>conocía los 22 componentes</strong> y decidía por todos.</p>
+    <p>Añadir uno = abrir el detector y enseñarle un nombre más. Edición central, cada vez más enredada.</p>
+  </div>
+  <div class="card ahora">
+    <span class="tag ahora">Ahora</span>
+    <p>El detector <strong>no conoce ninguno</strong>. Sólo dice qué hace el material.</p>
+    <p>Añadir uno = ponerle su etiqueta al lado. Edición local, no toca el centro.</p>
+  </div>
+</div>
+
+<h3>1 · El vocabulario de funciones</h3>
+<pre>class ContentFunction(str, enum.Enum):
+    ENUMERAR       PROCEDIMENTAR   CUANTIFICAR   CONTRASTAR
+    VARIAR         EXPLORAR        LOCALIZAR     EVALUAR</pre>
+
+<h3>2 · Cada componente declara a qué se presenta</h3>
+<pre>ComponentSpec(
+    name="BeforeAfter",
+    functions=(FunctionFit(ContentFunction.CONTRASTAR, 10),),
+)
+
+ComponentSpec(
+    name="Table",
+    functions=(FunctionFit(ContentFunction.ENUMERAR,    10),
+               FunctionFit(ContentFunction.CUANTIFICAR, 10),
+               FunctionFit(ContentFunction.CONTRASTAR,  60)),   <span style="color:#6b6b6b"># el recurso pobre</span>
+)</pre>
+<p>
+  El número es el <strong>rango</strong>, y va por pareja componente-función. Por eso
+  <code class="inline">Table</code> puede ser la respuesta obvia de <em>enumerar</em> y el último
+  recurso de <em>contrastar</em> al mismo tiempo.
+</p>
+
+<h3>3 · El registro responde “¿quién sabe hacer esto?”</h3>
+<pre>candidates_for(CONTRASTAR) → ('BeforeAfter', 'Table', 'Callout')
+candidates_for(VARIAR)     → ('Tabs', 'Accordion', 'Card')
+candidates_for(EXPLORAR)   → ('SliderExploration', 'ManipulableGraph')</pre>
+
+<h3>4 · La señal dejó de llevar el nombre dentro</h3>
+<pre>ShapeSignal(kind="enumeration", count=14, <span style="color:#2f7d4f;font-weight:700">function=ContentFunction.ENUMERAR</span>)
+
+@property
+def block(self) -> str:
+    return UI_KIT.primary_for(self.function)   <span style="color:#6b6b6b"># derivado, no guardado</span></pre>
+
+<div class="note">
+  <strong>Ese <code class="inline">block</code> derivado en vez de guardado es la abstracción entera.</strong>
+  Todo lo demás es consecuencia.
+</div>
+
+<h2>El router: decidir por significado</h2>
+
+<p>
+  Con el registro puesto, faltaba quien dijera funciones que ninguna regex sabe ver. Una llamada
+  corta que lee el material y responde <em>qué hace</em>:
+</p>
+
+<pre>{"funcion": "contrastar", "evidencia": "&lt;cita literal del material&gt;"}</pre>
+
+<ul>
+  <li><strong>Sólo se le pregunta por lo que las regex no cubren</strong> — contrastar, variar, explorar. Las tres que ya funcionan siguen siendo deterministas: son gratis y están calibradas contra fallos reales.</li>
+  <li><strong>Sin cita literal no hay función.</strong> Y lo comprueba el servidor, no se fía de que el modelo se acuerde.</li>
+  <li><strong>Nunca nombra un componente.</strong> Que <em>contrastar</em> acabe en <code class="inline">BeforeAfter</code> lo decide el registro.</li>
+</ul>
+
+<h2>¿Y esto qué tiene que ver con OpenUI?</h2>
+
+<p>
+  Nada de esto sustituye a OpenUI ni lo toca. Es una capa <strong>por encima</strong>, y las dos
+  responden preguntas distintas:
+</p>
+
+<figure class="scroll">
+<svg viewBox="0 0 900 210" role="img" aria-label="Las capas: función encima, OpenUI debajo">
+  <g font-family="sans-serif" font-size="12">
+    <rect x="0" y="10" width="880" height="54" rx="8" fill="none" stroke="#2f7d4f" stroke-width="2"/>
+    <text x="18" y="32" font-weight="700" fill="#2f7d4f">CAPA DE FUNCIÓN — nuestra, nueva</text>
+    <text x="18" y="52" fill="currentColor" font-size="11.5">¿QUÉ componente pide este contenido?   ·   detector / router → registro → BeforeAfter</text>
+
+    <path d="M440 68 V92" stroke="currentColor" stroke-width="1.5" marker-end="url(#b)"/>
+
+    <rect x="0" y="98" width="880" height="54" rx="8" fill="none" stroke="#2f6fb3" stroke-width="2"/>
+    <text x="18" y="120" font-weight="700" fill="#2f6fb3">OPENUI LANG — de ellos, sin tocar</text>
+    <text x="18" y="140" fill="currentColor" font-size="11.5">¿CÓMO se escribe esa llamada?   ·   BeforeAfter("La llegada", "Mal", "…", "Bien", "…")</text>
+
+    <path d="M440 156 V180" stroke="currentColor" stroke-width="1.5" marker-end="url(#b)"/>
+    <text x="18" y="196" fill="currentColor" font-size="11.5">parser → UISpec → &lt;Renderer&gt; en el navegador</text>
+  </g>
+  <defs>
+    <marker id="b" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 z" fill="currentColor"/>
+    </marker>
+  </defs>
+</svg>
+</figure>
+
+<p>
+  OpenUI define <strong>la gramática y el catálogo</strong>: cómo se escribe una llamada a
+  componente, qué props lleva, en qué orden. Eso sigue igual — <code class="inline">BeforeAfter(…)</code>
+  se emite exactamente como se emitía <code class="inline">Table(…)</code>. No hemos cambiado el
+  dialecto, ni el parser, ni el renderer, ni la decisión de adoptar el nivel (c) sin reactividad.
+</p>
+
+<p>
+  Lo que OpenUI <strong>no</strong> responde es cuál de sus componentes pide un texto concreto. Y no
+  es un olvido suyo: en Vercel AI SDK, Tambo, OpenAI Apps SDK y MCP Apps <em>la decisión es la
+  llamada a herramienta</em> y los props son sus argumentos; en OpenUI, LangChain, A2UI y Thesys el
+  árbol se emite directo. <strong>Nadie separa decidir de rellenar.</strong> Ese hueco es el que
+  ocupa la capa de función, y por eso es terreno propio.
+</p>
+
+<h3>Tres consecuencias concretas</h3>
+
+<ul>
+  <li>
+    <strong>Las descripciones que reescribimos son las de OpenUI.</strong> Viven en el catálogo del
+    frontend y viajan en el prompt que genera <code class="inline">library.prompt()</code>. Ahí
+    <code class="inline">Table</code> decía <em>“Comparar conceptos”</em> y
+    <code class="inline">BeforeAfter</code> <em>“Comparar dos estados”</em> — el modelo elegía
+    <code class="inline">Table</code> <strong>haciendo caso a la descripción</strong>. Ahora cada una
+    dice cuándo preferirla sobre su competidora.
+  </li>
+  <li>
+    <strong>El campo <code class="inline">functions</code> no cruza al frontend.</strong> Vive sólo
+    en el catálogo del servidor y queda fuera del contrato compartido — el test de deriva sigue en
+    verde sin tocarlo. Es lo correcto: “qué componente pide este contenido” es una decisión
+    pedagógica, no de renderizado, y el navegador no tiene por qué enterarse.
+  </li>
+  <li>
+    <strong>El catálogo no es grande, es pequeño.</strong> El prompt de benchmark de OpenUI lleva
+    <strong>53 firmas en 13 KB</strong>; A2UI, 18 componentes más 14 funciones; Khan Perseus, 34
+    widgets. Nosotros tenemos 22 en 8 KB. La idea de que “si pones muchos el agente responde peor”
+    no se sostiene a este tamaño — y el problema medido nunca fue el número, sino que 15 no tenían
+    quien los propusiera.
+  </li>
+</ul>
+
+<div class="note">
+  <strong>Y una que queda pendiente:</strong> OpenUI recomienda registrar un componente
+  <em>sandbox</em> dentro del catálogo declarativo como forma canónica de cubrir lo que no se
+  anticipó — justo lo que se rechazó en <code class="inline">openui-adoption.md</code>. La capa de
+  función le da un sitio natural el día que se retome: sería el componente que responde a una
+  función que ningún otro reclama.
+</div>
+
+<h2>Qué pasó al medirlo</h2>
+
+<table>
+  <thead><tr><th>Documento</th><th>Antes</th><th>Con el router</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>Contraste (bien / mal)</td>
+      <td class="num zero">Table ×6</td>
+      <td class="num win">BeforeAfter 6 de 6</td>
+    </tr>
+    <tr>
+      <td>Variantes del mismo proceso</td>
+      <td class="num zero">Table ×6</td>
+      <td class="num win">Tabs + TabItem en 4 de 6</td>
+    </tr>
+    <tr>
+      <td>Conceptual (causa-efecto)</td>
+      <td class="num zero">Table ×6</td>
+      <td class="num zero">Table ×6</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="chips">
+  <span class="chip live">BeforeAfter ✓ despierta</span>
+  <span class="chip live">Tabs ✓ despierta</span>
+  <span class="chip live">TabItem ✓ despierta</span>
+  <span class="chip dead">SliderExploration</span>
+</div>
+
+<p>
+  Es la primera vez en 71 renders que sale algo que no sea <code class="inline">Table</code> o
+  <code class="inline">StepSequence</code> de un documento real. El router clasificó 17 de 18 nodos
+  y acertó el documento en los tres casos.
+</p>
+
+<h3>Y dos costes que salieron a la luz</h3>
+
+<div class="cols">
+  <div class="card antes">
+    <span class="tag antes">Coste 1</span>
+    <p><strong>Los contenedores rompen más.</strong> <code class="inline">Tabs</code> anida por
+    referencias y <strong>2 de 6</strong> generaciones cayeron al respaldo.</p>
+    <p>Un bloque más rico es también un bloque que falla más. Eso no lo arregla el enrutado.</p>
+  </div>
+  <div class="card antes">
+    <span class="tag antes">Coste 2</span>
+    <p><strong>Falta poder decir “yo no”.</strong> El router acertó <em>explorar</em> en 5 nodos,
+    pero <code class="inline">SliderExploration</code> necesita una fórmula que el documento no
+    enuncia.</p>
+    <p>Degradó a <code class="inline">Table</code> <strong>por accidente, no por contrato</strong>.</p>
+  </div>
+</div>
+
+<h2>Lo que falta</h2>
+
+<ul>
+  <li><strong>Productores por función.</strong> Sigue habiendo un solo generador que lo escribe todo. El “agente de diagramas hace el diagrama” no existe todavía — y el 33% de fallos con contenedores dice para qué serviría.</li>
+  <li><strong>Vía de rechazo.</strong> El registro devuelve tres candidatos y nadie prueba el segundo si el primero no encaja.</li>
+  <li><strong>Ámbito por dominio.</strong> El campo existe y está vacío en los 22. Es lo que permitiría tener 200 componentes y que en cada curso compitan sólo doce.</li>
+</ul>
+
+<div class="note">
+  <strong>La métrica que decide si esto sirvió</strong> no es “¿son más ricos los cursos?”, que acaba
+  siempre en opiniones. Es <strong>cuánto cuesta añadir el componente número 30</strong>. Antes eran
+  seis ediciones, dos de ellas en el centro del sistema. Esa cifra se mide la primera vez que se
+  añada uno.
+</div>
+
+<footer>
+  <p>
+    Detalle completo en <code>docs/design/arquitectura-componentes-funcional.md</code>.
+    Mediciones en <code>testing_cursos/</code>. El registro está en <code>main</code>;
+    el router, en la rama <code>feat/router-semantico</code> tras la flag
+    <code>SEMANTIC_ROUTER</code>, apagada por defecto.
+  </p>
+</footer>
+
+</div>
+</body>
+</html>
