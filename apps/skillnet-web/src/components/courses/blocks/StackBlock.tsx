@@ -2,7 +2,7 @@ import { Children, useState, useCallback, useEffect, type ReactNode } from 'reac
 import { AnimatePresence, motion } from 'framer-motion'
 import { useIntl } from 'react-intl'
 import { blockArrivalContext, useBlockArrival } from './blockArrival'
-import { stepperContext, useStepper, stepperAdvanceContext, useCoursePosition, useNextNode, useCourseIntro } from './StepperContext'
+import { stepperContext, useStepper, stepperAdvanceContext, useNextNode, useCourseIntro, useStepperProgressReport } from './StepperContext'
 import { useReducedMotion } from '../../../hooks/useReducedMotion'
 import { duration, ease } from '../../../lib/motion'
 import type { StackGap } from '../kit/schemas'
@@ -54,6 +54,7 @@ export function StackBlock({ gap = 'md', children }: StackBlockProps) {
 function StepperStack({ children }: { children?: ReactNode }) {
   const intl = useIntl()
   const intro = useCourseIntro()
+  const reportProgress = useStepperProgressReport()
   const nodeItems = Children.toArray(children).filter(Boolean)
 
   // Prepend one course intro slide if this is the first node with no progress
@@ -81,6 +82,11 @@ function StepperStack({ children }: { children?: ReactNode }) {
   const isLast = safeStep >= total - 1
   const nextNodeInfo = useNextNode()
   const goNextNode = nextNodeInfo?.navigate ?? null
+
+  // Report step progress up to NodeView so it can render the dots in its top bar
+  useEffect(() => {
+    reportProgress?.({ currentStep: safeStep, totalSteps: total })
+  }, [safeStep, total, reportProgress])
 
   const next = useCallback(() => {
     if (!isLast) setStep((s) => s + 1)
@@ -127,9 +133,6 @@ function StepperStack({ children }: { children?: ReactNode }) {
   return (
     <stepperAdvanceContext.Provider value={advance}>
       <div className="flex flex-col h-full min-w-0" data-stepper-root>
-        {/* Course progress — one dot per node, active node stretches and fills by step */}
-        <CourseProgress currentStep={safeStep} totalSteps={total} />
-
         {/* Middle: chevrons on sides, content centered vertically */}
         <div className="flex-1 min-h-0 flex items-center justify-center gap-2">
           {/* Left chevron */}
@@ -205,54 +208,5 @@ function StepperStack({ children }: { children?: ReactNode }) {
 
       </div>
     </stepperAdvanceContext.Provider>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// Course progress — dots per node, active stretches and fills by step
-// ---------------------------------------------------------------------------
-
-const morphSpring = { type: 'spring' as const, stiffness: 300, damping: 30 }
-const DOT_SIZE = 8
-const BAR_WIDTH = 40
-
-function CourseProgress({ currentStep, totalSteps }: { currentStep: number; totalSteps: number }) {
-  const course = useCoursePosition()
-  const nodeCount = course?.nodeCount ?? 1
-  const currentNode = course?.currentNodeIndex ?? 0
-  const fillPct = totalSteps > 1 ? (currentStep / (totalSteps - 1)) * 100 : 0
-
-  return (
-    <div className="shrink-0 flex items-center justify-center gap-2 pb-4">
-      {Array.from({ length: nodeCount }, (_, i) => {
-        const isActive = i === currentNode
-        const isDone = i < currentNode
-
-        return (
-          <motion.div
-            key={i}
-            className="relative rounded-full overflow-hidden"
-            layout
-            transition={morphSpring}
-            style={{
-              width: isActive ? BAR_WIDTH : DOT_SIZE,
-              height: DOT_SIZE,
-              backgroundColor: isDone
-                ? 'var(--color-primary)'
-                : 'var(--color-border)',
-            }}
-          >
-            {isActive && (
-              <motion.div
-                className="absolute inset-y-0 left-0 rounded-full"
-                style={{ backgroundColor: 'var(--color-primary)' }}
-                animate={{ width: `${fillPct}%` }}
-                transition={{ duration: duration.normal, ease: [...ease.base] }}
-              />
-            )}
-          </motion.div>
-        )
-      })}
-    </div>
   )
 }

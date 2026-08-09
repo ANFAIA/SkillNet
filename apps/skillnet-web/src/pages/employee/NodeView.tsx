@@ -8,8 +8,8 @@ import { Card, EmptyState, ProgressBar } from '../../components/ui'
 import { ClickableSurface, NO_EXPLAIN_SELECTOR } from '../../components/courses/ClickableSurface'
 import { UiSpecRenderer } from '../../components/courses/UiSpecRenderer'
 import { NodeList } from '../../components/courses/NodeList'
-import { stepperContext, coursePositionContext, nextNodeContext, courseIntroContext, nodeHeaderContext } from '../../components/courses/blocks/StepperContext'
-import type { CourseIntro } from '../../components/courses/blocks/StepperContext'
+import { stepperContext, coursePositionContext, nextNodeContext, courseIntroContext, stepperProgressContext } from '../../components/courses/blocks/StepperContext'
+import type { CourseIntro, StepperProgress, StepperProgressCallback } from '../../components/courses/blocks/StepperContext'
 import { NodeChat } from '../../components/courses/NodeChat'
 import { NodeSkeleton, RESERVED_CONTENT_PX } from '../../components/courses/NodeSkeleton'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
@@ -155,6 +155,64 @@ function ConfigPanel() {
  *   retry loop against a blank screen is worse than a sentence explaining it.
  */
 
+// ---------------------------------------------------------------------------
+// Course progress dots — one dot per node, active node stretches and fills
+// ---------------------------------------------------------------------------
+
+const morphSpring = { type: 'spring' as const, stiffness: 300, damping: 30 }
+const DOT_SIZE = 8
+const BAR_WIDTH = 40
+
+function CourseProgress({
+  nodeCount,
+  currentNodeIndex,
+  currentStep,
+  totalSteps,
+}: {
+  nodeCount: number
+  currentNodeIndex: number
+  currentStep: number
+  totalSteps: number
+}) {
+  const fillPct = totalSteps > 1 ? (currentStep / (totalSteps - 1)) * 100 : 0
+
+  return (
+    <div className="flex items-center justify-center gap-2">
+      {Array.from({ length: nodeCount }, (_, i) => {
+        const isActive = i === currentNodeIndex
+        const isDone = i < currentNodeIndex
+
+        return (
+          <motion.div
+            key={i}
+            className="relative rounded-full overflow-hidden"
+            layout
+            transition={morphSpring}
+            style={{
+              width: isActive ? BAR_WIDTH : DOT_SIZE,
+              height: DOT_SIZE,
+              backgroundColor: isDone
+                ? 'var(--color-primary)'
+                : 'var(--color-border)',
+            }}
+          >
+            {isActive && (
+              <motion.div
+                className="absolute inset-y-0 left-0 rounded-full"
+                style={{ backgroundColor: 'var(--color-primary)' }}
+                animate={{ width: `${fillPct}%` }}
+                transition={{ duration: duration.normal, ease: [...ease.base] }}
+              />
+            )}
+          </motion.div>
+        )
+      })}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+
 /** i18n key for the deterministic "esto te sirve para X" by `goal` value (§6.2 Q2 options). */
 const GOAL_KEY: Record<string, string> = {
   onboarding: 'node.goalOnboarding',
@@ -189,6 +247,12 @@ export function NodeView() {
   const clearMorph = useNodeMorph((s) => s.clear)
   /** Which slide panel is open, if any. */
   const [activePanel, setActivePanel] = useState<PanelType | null>(null)
+  /** Step progress reported by StepperStack — drives the dots in the top bar. */
+  const [stepProgress, setStepProgress] = useState<StepperProgress | null>(null)
+  const reportStepProgress = useCallback<StepperProgressCallback>(
+    (progress) => setStepProgress(progress),
+    [],
+  )
 
   const nodes = useCourseNodes(courseId)
   const courseQuery = useCourse(courseId)
@@ -248,6 +312,7 @@ export function NodeView() {
     setPhase(null)
     setStreamFailure(null)
     setActivePanel(null)
+    setStepProgress(null)
     requestedRef.current = false
     programShownBefore.current = false
     viewedRenderRef.current = null
@@ -478,25 +543,34 @@ export function NodeView() {
       <div className="flex-1 flex min-h-0 relative overflow-hidden">
         {/* Lesson content — stays in place when panel opens */}
         <div className="flex-1 min-h-0 flex flex-col">
-          <div className="flex-1 min-h-0 flex flex-col overflow-y-auto">
-            {/* X + title — left edge, compact vertical spacing to sit near the dots */}
-            <div className="flex items-center gap-3 px-6 pt-4 pb-0 shrink-0" data-no-explain="">
-              <button
-                type="button"
-                onClick={handleBack}
-                className="p-1.5 text-text-muted hover:text-text transition-colors"
-                aria-label={intl.formatMessage({ id: 'panel.close' })}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
-              </button>
-              <span className="text-sm font-medium text-text flex-1 truncate">
-                {node.title}
-              </span>
+          {/* Top bar — X, title, and progress dots share one row */}
+          <div className="shrink-0 flex items-center gap-3 px-6 pt-4 pb-3" data-no-explain="">
+            <button
+              type="button"
+              onClick={handleBack}
+              className="shrink-0 p-1.5 text-text-muted hover:text-text transition-colors"
+              aria-label={intl.formatMessage({ id: 'panel.close' })}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+            <span className="shrink-0 text-sm font-medium text-text truncate max-w-[40%]">
+              {node.title}
+            </span>
+            {/* Progress dots — centered in remaining space */}
+            <div className="flex-1 min-w-0">
+              <CourseProgress
+                nodeCount={ordered.length}
+                currentNodeIndex={index}
+                currentStep={stepProgress?.currentStep ?? 0}
+                totalSteps={stepProgress?.totalSteps ?? 1}
+              />
             </div>
+          </div>
 
+          <div className="flex-1 min-h-0 flex flex-col overflow-y-auto">
             {/* Lesson content */}
             <div className="flex-1 min-h-0 flex flex-col px-6 pb-6 max-w-2xl w-full mx-auto">
               {notReviewed ? (
@@ -547,7 +621,7 @@ export function NodeView() {
                           transition={transition.resize}
                         >
                           <ClickableSurface nodeId={node.id} className="flex-1 min-h-0 flex flex-col">
-                            <nodeHeaderContext.Provider value={{ title: node.title, onClose: handleBack }}>
+                          <stepperProgressContext.Provider value={reportStepProgress}>
                           <courseIntroContext.Provider value={courseIntro}>
                             <nextNodeContext.Provider value={nextNode ? { navigate: () => navigate(`${backToCourse}/nodo/${nextNode.id}`), title: nextNode.title } : null}>
                             <coursePositionContext.Provider value={{ nodeCount: ordered.length, currentNodeIndex: index }}>
@@ -564,7 +638,7 @@ export function NodeView() {
                             </coursePositionContext.Provider>
                             </nextNodeContext.Provider>
                             </courseIntroContext.Provider>
-                          </nodeHeaderContext.Provider>
+                          </stepperProgressContext.Provider>
                           </ClickableSurface>
                         </motion.div>
                       </motion.div>

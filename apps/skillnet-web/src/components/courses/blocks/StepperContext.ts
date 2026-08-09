@@ -21,8 +21,8 @@ export function useStepperAdvance(): (() => void) | null {
 }
 
 /**
- * Course-level position so the stepper can show node-level dots.
- * Set by NodeView, read by StackBlock's progress indicator.
+ * Course-level position: which node the learner is on and how many there are.
+ * Set by NodeView, available to any component inside the lesson tree.
  */
 export interface CoursePosition {
   nodeCount: number
@@ -69,16 +69,18 @@ export function useCourseIntro(): CourseIntro | null {
 }
 
 /**
- * Node header info (X close + title) so the stepper's progress bar can
- * render them in the same row as the dots.
+ * Callback that StepperStack calls to report its step progress up to NodeView.
+ * NodeView renders the progress dots in its top bar, so it needs this data.
  */
-export interface NodeHeader {
-  title: string
-  onClose: () => void
+export interface StepperProgress {
+  currentStep: number
+  totalSteps: number
 }
 
-export const nodeHeaderContext = createContext<NodeHeader | null>(null)
+export type StepperProgressCallback = (progress: StepperProgress) => void
 
-export function useNodeHeader(): NodeHeader | null {
-  return useContext(nodeHeaderContext)
+export const stepperProgressContext = createContext<StepperProgressCallback | null>(null)
+
+export function useStepperProgressReport(): StepperProgressCallback | null {
+  return useContext(stepperProgressContext)
 }
