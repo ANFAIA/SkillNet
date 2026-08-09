@@ -2,7 +2,7 @@ import { Children, useState, useCallback, useEffect, type ReactNode } from 'reac
 import { AnimatePresence, motion } from 'framer-motion'
 import { useIntl } from 'react-intl'
 import { blockArrivalContext, useBlockArrival } from './blockArrival'
-import { stepperContext, useStepper, stepperAdvanceContext, useCoursePosition, useNextNode, useCourseIntro, useNodeHeader } from './StepperContext'
+import { stepperContext, useStepper, stepperAdvanceContext, useCoursePosition, useNextNode, useCourseIntro } from './StepperContext'
 import { useReducedMotion } from '../../../hooks/useReducedMotion'
 import { duration, ease } from '../../../lib/motion'
 import type { StackGap } from '../kit/schemas'
