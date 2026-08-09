@@ -6,10 +6,23 @@
   --color-bg-subtle: #f8fafc;
   --color-bg-muted: #f1f5f9;
 
-  /* Text */
+  /* Text
+     Contraste medido sobre --color-bg (#ffffff). WCAG AA pide 4.5:1 en texto normal
+     y 3.0:1 en texto grande; casi todo el uso de estos tokens es text-xs y text-sm,
+     asi que el listón real es 4.5.
+     y sobre los dos fondos tintados donde tambien se usa (bg-subtle #f8fafc y
+     bg-muted #f1f5f9), que es lo que decide el valor final:
+                        bg      subtle   muted
+       text           17.85     17.11    16.31
+       text-secondary  4.76      4.55     4.34   (justo, y solo se usa en texto normal)
+       text-muted      5.01      4.79     4.58
+     `text-muted` estaba en #94a3b8 = 2.56:1 sobre blanco, por debajo incluso del
+     umbral de texto grande. Era el origen de la mayoria de las 75 violaciones
+     `color-contrast` que axe reportaba en la libreria de bloques del curso: un token,
+     no 75 componentes. */
   --color-text: #0f172a;
   --color-text-secondary: #64748b;
-  --color-text-muted: #94a3b8;
+  --color-text-muted: #66707f;
 
   /* Border */
   --color-border: #e2e8f0;
