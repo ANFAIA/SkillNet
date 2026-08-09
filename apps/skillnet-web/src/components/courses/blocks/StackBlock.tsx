@@ -217,39 +217,13 @@ const DOT_SIZE = 8
 const BAR_WIDTH = 40
 
 function CourseProgress({ currentStep, totalSteps }: { currentStep: number; totalSteps: number }) {
-  const intl = useIntl()
   const course = useCoursePosition()
-  const header = useNodeHeader()
   const nodeCount = course?.nodeCount ?? 1
   const currentNode = course?.currentNodeIndex ?? 0
   const fillPct = totalSteps > 1 ? (currentStep / (totalSteps - 1)) * 100 : 0
 
   return (
-    <div className="shrink-0 flex items-center gap-3 px-4 pb-4" data-no-explain="">
-      {/* X close button */}
-      {header && (
-        <button
-          type="button"
-          onClick={header.onClose}
-          className="shrink-0 p-1.5 text-text-muted hover:text-text transition-colors"
-          aria-label={intl.formatMessage({ id: 'panel.close' })}
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-        </button>
-      )}
-
-      {/* Node title */}
-      {header && (
-        <span className="shrink-0 text-sm font-medium text-text truncate max-w-[200px]">
-          {header.title}
-        </span>
-      )}
-
-      {/* Dots — take remaining space, centered */}
-      <div className="flex-1 flex items-center justify-center gap-2">
+    <div className="shrink-0 flex items-center justify-center gap-2 pb-4">
       {Array.from({ length: nodeCount }, (_, i) => {
         const isActive = i === currentNode
         const isDone = i < currentNode
@@ -279,7 +253,6 @@ function CourseProgress({ currentStep, totalSteps }: { currentStep: number; tota
           </motion.div>
         )
       })}
-      </div>
     </div>
   )
 }
