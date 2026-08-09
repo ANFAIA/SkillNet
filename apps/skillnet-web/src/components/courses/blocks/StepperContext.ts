@@ -11,6 +11,28 @@ export function useStepper(): boolean {
 }
 
 /**
+ * La compuerta del paso actual.
+ *
+ * Un bloque de evaluacion llama a `block()` al montarse y a `unblock()` cuando el
+ * aprendiz acierta. Mientras este bloqueado, el stepper no avanza: ni el chevron, ni
+ * las flechas del teclado, ni el boton de pasar al nodo siguiente. Es UNA regla y cubre
+ * los dos casos, porque avanzar de bloque y avanzar de nodo son el mismo `next()`.
+ *
+ * `null` fuera del stepper (vista de admin, Storybook, tests): ahi los bloques se
+ * pintan sueltos y no hay nada que bloquear.
+ */
+export interface StepperGate {
+  block: () => void
+  unblock: () => void
+}
+
+export const stepperGateContext = createContext<StepperGate | null>(null)
+
+export function useStepperGate(): StepperGate | null {
+  return useContext(stepperGateContext)
+}
+
+/**
  * Callback the stepper provides so interactive blocks (QuizItem, DragOrder)
  * can auto-advance to the next step on successful completion.
  */

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useIntl } from 'react-intl'
@@ -8,7 +8,7 @@ import { HintLadder, WorkedSolution } from './QuizItemHints'
 import { duration, ease } from '../../../lib/motion'
 import { BLOCK_TITLE, INLINE_SURFACE } from './rhythm'
 import { useNodeRenderTarget } from '../kit/NodeRenderContext'
-import { useStepperAdvance } from './StepperContext'
+import { useStepperAdvance, useStepperGate } from './StepperContext'
 import type { ExerciseType } from '../../../types'
 import type { BloomLevel } from '../kit/schemas'
 import type {
@@ -179,6 +179,13 @@ export function QuizItemBlock({
   const queryClient = useQueryClient()
   const { recordEvent } = useNodeRenderTarget()
   const stepperAdvance = useStepperAdvance()
+  // Un ejercicio cierra el paso hasta que se acierta: nadie pasa de pantalla — ni de
+  // nodo — sin haberlo resuelto.
+  const gate = useStepperGate()
+  useEffect(() => {
+    gate?.block()
+    return () => gate?.unblock()
+  }, [gate])
 
   // Latency is measured from mount, which is when the item became visible.
   const openedAt = useRef(Date.now())
@@ -204,9 +211,10 @@ export function QuizItemBlock({
         })
       }
 
-      // Auto-advance in stepper mode after a correct answer.
-      if (result.passed && stepperAdvance) {
-        stepperAdvance()
+      // Acertar abre la compuerta; fallar la deja cerrada para que se reintente.
+      if (result.passed) {
+        gate?.unblock()
+        stepperAdvance?.()
       }
     },
   })

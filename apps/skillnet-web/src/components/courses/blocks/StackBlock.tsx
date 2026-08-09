@@ -1,8 +1,8 @@
-import { Children, useState, useCallback, useEffect, type ReactNode } from 'react'
+import { Children, useState, useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useIntl } from 'react-intl'
 import { blockArrivalContext, useBlockArrival } from './blockArrival'
-import { stepperContext, useStepper, stepperAdvanceContext, useNextNode, useCourseIntro, useStepperProgressReport } from './StepperContext'
+import { stepperContext, useStepper, stepperAdvanceContext, stepperGateContext, useNextNode, useCourseIntro, useStepperProgressReport } from './StepperContext'
 import { useReducedMotion } from '../../../hooks/useReducedMotion'
 import { duration, ease } from '../../../lib/motion'
 import type { StackGap } from '../kit/schemas'
@@ -88,10 +88,31 @@ function StepperStack({ children }: { children?: ReactNode }) {
     reportProgress?.({ currentStep: safeStep, totalSteps: total })
   }, [safeStep, total, reportProgress])
 
+  /**
+   * El paso que el aprendiz tiene bloqueado, o `null`.
+   *
+   * Se guarda el INDICE y no un booleano a proposito: al cambiar de paso, React ejecuta
+   * los efectos de los hijos antes que los del padre, asi que un `setGated(false)` en el
+   * padre borraria el `block()` que el ejercicio recien montado acaba de pedir. Comparando
+   * indices el bloqueo caduca solo cuando cambia el paso, sin depender de ese orden.
+   */
+  const [gatedStep, setGatedStep] = useState<number | null>(null)
+  const stepRef = useRef(safeStep)
+  stepRef.current = safeStep
+  const gate = useMemo(
+    () => ({
+      block: () => setGatedStep(stepRef.current),
+      unblock: () => setGatedStep(null),
+    }),
+    [],
+  )
+  const isGated = gatedStep === safeStep
+
   const next = useCallback(() => {
+    if (isGated) return
     if (!isLast) setStep((s) => s + 1)
     else if (goNextNode) goNextNode()
-  }, [isLast, goNextNode])
+  }, [isGated, isLast, goNextNode])
 
   const back = useCallback(() => {
     setStep((s) => Math.max(0, s - 1))
@@ -114,6 +135,7 @@ function StepperStack({ children }: { children?: ReactNode }) {
 
       if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
         e.preventDefault()
+        if (isGated) return
         if (!isLast) setStep((s) => s + 1)
         else if (goNextNode) goNextNode()
       } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
@@ -132,6 +154,7 @@ function StepperStack({ children }: { children?: ReactNode }) {
 
   return (
     <stepperAdvanceContext.Provider value={advance}>
+      <stepperGateContext.Provider value={gate}>
       <div className="flex flex-col h-full min-w-0" data-stepper-root>
         {/* Middle: chevrons on sides, content centered vertically */}
         <div className="flex-1 min-h-0 flex items-center justify-center gap-2">
@@ -168,7 +191,7 @@ function StepperStack({ children }: { children?: ReactNode }) {
           <button
             type="button"
             onClick={next}
-            disabled={isLast && !goNextNode}
+            disabled={isGated || (isLast && !goNextNode)}
             className="shrink-0 p-2 text-text-muted hover:text-text disabled:opacity-0 disabled:pointer-events-none transition-opacity"
             aria-label={isLast ? intl.formatMessage({ id: 'stepper.nextNode' }) : intl.formatMessage({ id: 'stepper.nextStep' })}
           >
@@ -180,7 +203,7 @@ function StepperStack({ children }: { children?: ReactNode }) {
 
         {/* Next-node CTA — prominent button at end of lesson */}
         <AnimatePresence>
-          {isLast && (
+          {isLast && !isGated && (
             <motion.div
               key="next-cta"
               className="shrink-0 px-4 pb-4"
@@ -207,6 +230,7 @@ function StepperStack({ children }: { children?: ReactNode }) {
         </AnimatePresence>
 
       </div>
+      </stepperGateContext.Provider>
     </stepperAdvanceContext.Provider>
   )
 }
