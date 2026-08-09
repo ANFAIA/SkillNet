@@ -38,10 +38,17 @@ export function ChatAnswer({ message }: ChatAnswerProps) {
   // Generative mode: dots for the WHOLE generation. Content is OpenUI Lang code
   // that must not be shown raw. Dots stay until `program` arrives via `ui` event.
   if (message.generative && (message.isStreaming || !message.program)) {
-    // Streaming done but no program yet — still waiting for `ui` event, or
-    // validation failed. If content looks like code, keep dots. If it's clearly
-    // not code (validation failed, model wrote prose), show it as markdown.
-    if (!message.isStreaming && message.content && !/^\s*root\s*=/.test(message.content)) {
+    // Streaming done but no program yet. While a two-phase layout is still in flight
+    // (`isLayingOut`, the tutor path), keep dots — revealing the prose now only to
+    // replace it with blocks a beat later is exactly the mid-answer re-render we are
+    // avoiding. Once layout is settled with no program (validation failed, or the model
+    // wrote prose), reveal it as markdown. Code-looking content always stays behind dots.
+    if (
+      !message.isStreaming &&
+      !message.isLayingOut &&
+      message.content &&
+      !/^\s*root\s*=/.test(message.content)
+    ) {
       // Same surface as the prose branch below, for the same reason: `ChatMarkdown`
       // paints every word as an `.entity` with `cursor: pointer`, so rendering it bare
       // makes the answer *look* click-to-explain and do nothing. This branch is the

@@ -9,7 +9,7 @@
  * sidebars, modals and the lesson buddy bubble).
  */
 
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useLayoutEffect, useRef, useState } from 'react'
 import type { FormEvent, KeyboardEvent } from 'react'
 import { useIntl } from 'react-intl'
 
@@ -65,14 +65,36 @@ export function ChatInput({
     return () => clearTimeout(t)
   }, [autoFocus])
 
-  // Auto-grow textarea.
-  useLayoutEffect(() => {
+  // Auto-grow textarea: shrink to `auto`, then take the content height capped at maxH.
+  const resize = useCallback(() => {
     const el = taRef.current
     if (!el) return
     el.style.height = 'auto'
     el.style.height = `${Math.min(el.scrollHeight, maxH)}px`
     el.style.overflowY = el.scrollHeight > maxH ? 'auto' : 'hidden'
-  }, [value, maxH])
+  }, [maxH])
+
+  // Recompute on every value change.
+  useLayoutEffect(resize, [value, resize])
+
+  // Recompute when the textarea's own width changes. Without this, a composer that
+  // mounts inside an animating container (e.g. the NodeView chat panel sliding from
+  // 48px to 400px) measures scrollHeight while the box is still narrow — the
+  // placeholder wraps into many lines and the height sticks at maxH forever, since
+  // the value-driven effect above never re-fires. Also covers window resize and
+  // late font loads. Guarded on width so our own height writes don't loop.
+  useLayoutEffect(() => {
+    const el = taRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    let lastWidth = el.clientWidth
+    const observer = new ResizeObserver(() => {
+      if (el.clientWidth === lastWidth) return
+      lastWidth = el.clientWidth
+      resize()
+    })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [resize])
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -110,7 +132,7 @@ export function ChatInput({
           rows={1}
           disabled={disabled}
           placeholder={resolvedPlaceholder}
-          className={`${minH} max-h-[${maxH}px] flex-1 resize-none overflow-y-hidden ${rounding} bg-bg-muted ${px} ${py} text-sm leading-normal text-text outline-none placeholder:text-text-muted disabled:opacity-50`}
+          className={`${minH} flex-1 resize-none overflow-y-hidden ${rounding} bg-bg-muted ${px} ${py} text-sm leading-normal text-text outline-none placeholder:text-text-muted disabled:opacity-50`}
           style={{
             marginRight: active || isStreaming ? (size === 'sm' ? 40 : 52) : 0,
             transition: 'margin-right 0.5s var(--ease-gooey)',

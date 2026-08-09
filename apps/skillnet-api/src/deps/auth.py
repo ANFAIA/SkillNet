@@ -35,5 +35,20 @@ def require_employee(user: CurrentUser) -> User:
     return user
 
 
+def require_employee_or_admin(user: CurrentUser) -> User:
+    """The learner tutor, open to admins previewing a course (``/admin/probar-curso``).
+
+    An admin testing a course walks the same node screens as the learner, so they
+    need the same lesson tutor — not the org assistant on ``/chat/admin``. Both roles
+    are the only ones that exist, so this is "any active user"; it stays an explicit
+    allow-list rather than dropping the guard, so a future third role is denied by
+    default.
+    """
+    if _role_value(user.role) not in (UserRole.EMPLOYEE.value, UserRole.ADMIN.value):
+        raise ForbiddenError("Employee access required")
+    return user
+
+
 AdminUser = Annotated[User, Depends(require_admin)]
 EmployeeUser = Annotated[User, Depends(require_employee)]
+EmployeeOrAdminUser = Annotated[User, Depends(require_employee_or_admin)]

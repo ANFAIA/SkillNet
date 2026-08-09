@@ -475,6 +475,21 @@ export function NodeView() {
     setActivePanel((prev) => (prev === panel ? null : panel))
   }, [])
 
+  // Click-outside to dismiss. While a panel is open, a mousedown anywhere outside the
+  // sidebar (i.e. on the lesson content) closes it — the spider that reopens chat is
+  // hidden whenever a panel is open, and the mobile bar is `md:hidden`, so neither
+  // fights this on the surface it applies to.
+  const sidebarRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!activePanel) return
+    function onPointerDown(event: PointerEvent) {
+      if (sidebarRef.current?.contains(event.target as Node)) return
+      setActivePanel(null)
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    return () => document.removeEventListener('pointerdown', onPointerDown)
+  }, [activePanel])
+
   // --- frame ------------------------------------------------------------------
 
   const openingLine = openingLineFor(profile, intl)
@@ -734,21 +749,26 @@ export function NodeView() {
 
         {/* Right sidebar — width animated directly (no layoutId/scale = no distortion) */}
         <motion.div
+          ref={sidebarRef}
           animate={{ width: activePanel ? 400 : 48 }}
           transition={{ type: 'spring', stiffness: 200, damping: 28 }}
           className="hidden md:flex shrink-0 flex-col border-l border-border overflow-hidden"
           data-no-explain=""
         >
+          {/* mode="wait" makes the close mirror the open: the panel fades out before the
+              icons return, instead of snapping away while the width is still collapsing. */}
+          <AnimatePresence mode="wait" initial={false}>
           {activePanel ? (
             <motion.div
               key={activePanel}
               className="flex-1 flex flex-col min-h-0"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ duration: 0.3, ease: [0.38, 0.49, 0, 1], delay: 0.25 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.22, ease: [0.38, 0.49, 0, 1] }}
             >
               {/* Panel header */}
-              <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
+              <div className="flex items-center justify-between px-4 py-3 shrink-0">
                 <span className="font-medium text-sm text-text">
                   {intl.formatMessage({ id: PANEL_TITLE_KEY[activePanel] })}
                 </span>
@@ -768,8 +788,12 @@ export function NodeView() {
                 )}
                 {activePanel === 'chat' && (
                   <NodeChat
+                    nodeId={node?.id ?? undefined}
+                    courseId={courseId}
                     nodeTitle={node?.title ?? undefined}
                     nodeSummary={node?.summary ?? undefined}
+                    step={stepProgress?.currentStep}
+                    totalSteps={stepProgress?.totalSteps}
                   />
                 )}
                 {activePanel === 'config' && <ConfigPanel />}
@@ -781,7 +805,8 @@ export function NodeView() {
               className="flex-1 flex flex-col items-center justify-center gap-4"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ duration: 0.25, ease: [0.38, 0.49, 0, 1], delay: 0.2 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.22, ease: [0.38, 0.49, 0, 1] }}
             >
               <button
                 type="button"
@@ -809,6 +834,7 @@ export function NodeView() {
               </button>
             </motion.div>
           )}
+          </AnimatePresence>
         </motion.div>
       </div>
 

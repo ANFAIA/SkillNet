@@ -109,6 +109,12 @@ MEMORY_TURNS = 8
 TITLE_MAX_CHARS = 40
 RETRIEVAL_TOP_K = 5
 
+#: The on-screen lesson body (the pinned render's OpenUI dialect) is injected into the
+#: tutor's context so it can answer about exactly what the learner is looking at. Capped
+#: so a long node does not blow the turn's token budget — the lead blocks carry the gist,
+#: and anything past this is almost always the tail of a long StepSequence.
+LESSON_BODY_MAX_CHARS = 2_500
+
 #: Below this many characters an answer is one idea, and a ``Stack`` around one idea is
 #: worse than the paragraph it replaces. Also the cheap half of the rate-limit story: the
 #: short answers are the frequent ones, and skipping them skips most of the second calls.
@@ -193,10 +199,8 @@ def _context_document_ids(context: dict | None) -> list[uuid.UUID] | None:
     return ids or None
 
 
-def _context_course_id(context: dict | None) -> uuid.UUID | None:
-    if not context:
-        return None
-    raw = context.get("course_id")
+def _coerce_uuid(raw: object) -> uuid.UUID | None:
+    """A UUID from whatever the client sent, or ``None`` — never raises."""
     if raw is None:
         return None
     try:
@@ -205,9 +209,17 @@ def _context_course_id(context: dict | None) -> uuid.UUID | None:
         return None
 
 
-def _node_context_prefix(context: dict | None) -> str:
-    """Build a learner-context preamble from the LessonBuddy's ``context`` dict.
+def _context_course_id(context: dict | None) -> uuid.UUID | None:
+    if not context:
+        return None
+    return _coerce_uuid(context.get("course_id"))
 
+
+def _node_context_prefix(context: dict | None) -> str:
+    """Fallback preamble built purely from the client ``context`` dict.
+
+    Used only when no ``node_id`` travels (an older caller, or a chat opened outside a
+    node): the DB-loaded :meth:`ChatService._node_context_block` is the primary path.
     Returned as a bracketed block identical in shape to what the frontend used to
     prepend inline, so existing tutor prompts handle it the same way.
     """
@@ -549,6 +561,94 @@ class ChatService:
         self.generative_ui = generative_ui
         self.repo = ChatRepository(db)
 
+    async def _node_context_block(self, user: User, context: dict | None) -> str:
+        """A DB-loaded preamble describing the exact lesson the learner is looking at.
+
+        The frontend sends stable ids (``node_id``, ``course_id``) plus the ephemeral
+        in-node step; everything the model reads is (re)loaded here, org-scoped, so it
+        matches what is really on screen and cannot be spoofed by a stale client dict.
+        Falls back to the old client-string preamble (``_node_context_prefix``) when no
+        ``node_id`` travels — an older caller, or a chat opened outside a node.
+        """
+        if not context:
+            return ""
+        node_id = _coerce_uuid(context.get("node_id"))
+        if node_id is None:
+            return _node_context_prefix(context)
+
+        # Local imports: these repos/services pull in the render stack, and a turn that
+        # carries no node id never needs them.
+        from src.repositories.course_node_repo import CourseNodeRepository
+        from src.repositories.course_repo import CourseRepository
+
+        node_repo = CourseNodeRepository(self.db)
+        node = await node_repo.get_scoped(node_id, user.org_id)
+        if node is None:
+            # Stale or cross-org id: degrade to the client strings rather than lie.
+            return _node_context_prefix(context)
+
+        siblings = await node_repo.list_for_course(
+            node.course_id, include_archived=False
+        )
+        total_nodes = len(siblings)
+        position = next(
+            (i + 1 for i, n in enumerate(siblings) if n.id == node.id), node.position
+        )
+
+        course = await CourseRepository(self.db).get_scoped(node.course_id, user.org_id)
+        course_title = course.title if course else "?"
+
+        lines = [
+            "[Contexto de la leccion que el alumno esta viendo ahora mismo]",
+            f'Curso: "{course_title}" (nodo {position} de {total_nodes}).',
+            f'Nodo: "{node.title}".',
+        ]
+        if (objective := (node.outcome or "").strip()):
+            lines.append(f"Objetivo del nodo: {objective}")
+        if (summary := (node.summary or "").strip()):
+            lines.append(f"Resumen: {summary}")
+        step, total_steps = context.get("step"), context.get("totalSteps")
+        if isinstance(step, int) and isinstance(total_steps, int) and total_steps > 0:
+            lines.append(
+                f"El alumno va por el paso {step + 1}/{total_steps} dentro del nodo."
+            )
+
+        if (lesson := await self._served_lesson_body(user, node.id)):
+            lines += [
+                "",
+                "Contenido en pantalla (dialecto OpenUI; el alumno lo ve renderizado):",
+                lesson,
+            ]
+
+        lines += [
+            "",
+            "Responde teniendo en cuenta exactamente lo que el alumno tiene delante.",
+        ]
+        return "\n".join(lines)
+
+    async def _served_lesson_body(self, user: User, node_id: uuid.UUID) -> str:
+        """The pinned render's program text for this learner/node, capped. Best-effort.
+
+        Context is a nice-to-have: a render that has not been pinned yet, or a lookup
+        that fails, must never take the answer down — it just means the model reasons
+        from the node's title and summary alone.
+        """
+        from src.services.node_render_service import NodeRenderService
+
+        try:
+            render = await NodeRenderService(self.db).pinned_render(
+                user_id=user.id, node_id=node_id
+            )
+        except Exception:  # noqa: BLE001 - see docstring; context is never fatal
+            logger.warning(
+                "Could not load pinned render for node %s", node_id, exc_info=True
+            )
+            return ""
+        body = ((render.dialect if render else None) or "").strip()
+        if len(body) > LESSON_BODY_MAX_CHARS:
+            body = body[:LESSON_BODY_MAX_CHARS].rstrip() + "\n… (contenido recortado)"
+        return body
+
     async def stream_tutor(
         self,
         user: User,
@@ -648,7 +748,7 @@ class ChatService:
             # present) so the LLM knows what the learner is studying.  This is
             # kept separate from `message` so the session title stays clean.
             llm_question = message
-            node_ctx = _node_context_prefix(context)
+            node_ctx = await self._node_context_block(user, context)
             if node_ctx:
                 llm_question = f"{node_ctx}\n\n{message}"
 

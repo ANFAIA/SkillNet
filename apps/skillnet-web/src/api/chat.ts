@@ -38,11 +38,29 @@ export type ChatContext = Record<string, unknown>
  * - The loop keeps reading afterwards. A layout that fails sends
  *   `layout_skipped` and nothing changes; the prose is the answer either way.
  */
-export function useChat(endpoint: ChatEndpoint = '/chat', firstMessageContext?: ChatContext) {
+export interface UseChatOptions {
+  /**
+   * Render with the "reveal at once" pattern: dots for the whole generation, then the
+   * final answer (OpenUI blocks, or prose if layout was skipped) in one go — no visible
+   * token stream that later re-renders into blocks. Defaults to `true` for the admin
+   * endpoint. The lesson tutor sets it too, so its two-phase (prose → layout) answer
+   * does not flash the prose before the blocks.
+   */
+  generative?: boolean
+}
+
+export function useChat(
+  endpoint: ChatEndpoint = '/chat',
+  firstMessageContext?: ChatContext,
+  options?: UseChatOptions,
+) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [isStreaming, setIsStreaming] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
   const sentCountRef = useRef(0)
+  // Derived to a stable boolean so a fresh `options` object each render does not churn
+  // the `sendMessage` callback identity.
+  const generativeMode = options?.generative ?? endpoint === '/chat/admin'
 
   const sendMessage = useCallback(
     async (text: string) => {
@@ -60,7 +78,7 @@ export function useChat(endpoint: ChatEndpoint = '/chat', firstMessageContext?: 
         content: '',
         citations: [],
         isStreaming: true,
-        generative: endpoint === '/chat/admin',
+        generative: generativeMode,
       }
       setMessages((prev) => [...prev, assistantMsg])
       setIsStreaming(true)
@@ -227,7 +245,7 @@ export function useChat(endpoint: ChatEndpoint = '/chat', firstMessageContext?: 
         }
       }
     },
-    [endpoint, firstMessageContext],
+    [endpoint, firstMessageContext, generativeMode],
   )
 
   const cancel = useCallback(() => {

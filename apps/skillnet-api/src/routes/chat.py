@@ -16,7 +16,7 @@ from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 
-from src.deps.auth import AdminUser, CurrentUser, EmployeeUser
+from src.deps.auth import AdminUser, CurrentUser, EmployeeOrAdminUser
 from src.deps.db import DBSession
 from src.deps.llm import EmbeddingDep, LLMDep, TutorLLMDep
 from src.models import Organization
@@ -48,7 +48,7 @@ async def _org_settings(db: DBSession, org_id: uuid.UUID | None) -> dict[str, An
 @router.post("")
 async def chat(
     request: ChatRequest,
-    user: EmployeeUser,
+    user: EmployeeOrAdminUser,
     db: DBSession,
     tutor_llm: TutorLLMDep,
     embeddings: EmbeddingDep,
