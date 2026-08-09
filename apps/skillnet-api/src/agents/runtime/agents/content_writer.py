@@ -41,7 +41,7 @@ Lo que NO haces:
 - NO escribir root = Stack(...).
 - NO escribir ---ANSWER-KEY---.
 - NO prosa antes ni despues.
-- NO usar Tabs, TabItem, Card, Accordion ni AccordionItem.
+- NO inventar contenedores: escribe Tabs, Card o Accordion solo si el blueprint los pide.
 
 ## EL LEAD (TextContent "lead") — la frase que engancha
 
