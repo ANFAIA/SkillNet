@@ -197,15 +197,6 @@ export const diagramBuilderProps = z.object({
   steps: z.array(z.array(z.string())).describe('Pasos: [[etiqueta, svgFragment, explicacion], ...]'),
 })
 
-export const tabsProps = z.object({
-  children: z.array(z.any()).describe('Ids de los TabItem hijos'),
-})
-
-export const tabItemProps = z.object({
-  trigger: z.string().describe('Etiqueta de la pestana'),
-  children: z.array(z.any()).describe('Ids de los bloques del panel'),
-})
-
 export const accordionProps = z.object({
   children: z.array(z.any()).describe('Ids de los AccordionItem hijos'),
 })
@@ -236,8 +227,6 @@ export const KIT_COMPONENT_NAMES = [
   'AudioExplanation',
   'PronunciationExercise',
   'DiagramBuilder',
-  'Tabs',
-  'TabItem',
   'Accordion',
   'AccordionItem',
 ] as const
@@ -281,8 +270,6 @@ export const KIT_DESCRIPTIONS = {
   AudioExplanation: 'Texto leido en voz alta con resaltado de palabras',
   PronunciationExercise: 'Escuchar y practicar la pronunciacion de un termino',
   DiagramBuilder: 'Diagrama que se dibuja paso a paso para mostrar como se relacionan las partes',
-  Tabs: 'Variantes del MISMO proceso que el aprendiz elige: por turno, por tipo de cliente, por caso. 2-3 pestanas',
-  TabItem: 'Una variante dentro de Tabs',
   Accordion: 'Excepciones o detalles que no todo el mundo necesita leer',
   AccordionItem: 'Seccion plegable dentro de Accordion',
 } satisfies Record<KitComponentName, string>
@@ -308,8 +295,6 @@ export const KIT_PROP_SCHEMAS = {
   AudioExplanation: audioExplanationProps,
   PronunciationExercise: pronunciationExerciseProps,
   DiagramBuilder: diagramBuilderProps,
-  Tabs: tabsProps,
-  TabItem: tabItemProps,
   Accordion: accordionProps,
   AccordionItem: accordionItemProps,
 } satisfies Record<KitComponentName, z.ZodObject>
@@ -319,7 +304,7 @@ export const KIT_PROP_SCHEMAS = {
  * them). `Stack` is the library root, so the parser resolves a bare program
  * against it.
  */
-export const CONTAINER_NAMES = ['Stack', 'Card', 'Tabs', 'TabItem', 'Accordion', 'AccordionItem'] as const
+export const CONTAINER_NAMES = ['Stack', 'Card', 'Accordion', 'AccordionItem'] as const
 
 /** Contract rule 4 (§5.2), the only one of the seven checkable from a ParseResult. */
 export const MAX_COMPONENTS = 12

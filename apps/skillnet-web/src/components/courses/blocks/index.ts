@@ -58,8 +58,6 @@ export type { PronunciationExerciseBlockProps } from './PronunciationExerciseBlo
 export { DiagramBuilderBlock } from './DiagramBuilderBlock'
 export type { DiagramBuilderBlockProps } from './DiagramBuilderBlock'
 
-export { TabsBlock, TabItemBlock } from './TabsBlock'
-export type { TabsBlockProps, TabItemBlockProps } from './TabsBlock'
 
 export { AccordionBlock, AccordionItemBlock } from './AccordionBlock'
 export type { AccordionBlockProps, AccordionItemBlockProps } from './AccordionBlock'

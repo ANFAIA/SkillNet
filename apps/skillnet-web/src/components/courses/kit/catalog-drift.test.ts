@@ -156,8 +156,6 @@ describe('the kit is the catalogue of §5.3', () => {
     expect(propOrder('AudioExplanation')).toEqual(['text', 'voice'])
     expect(propOrder('PronunciationExercise')).toEqual(['targetText', 'language'])
     expect(propOrder('DiagramBuilder')).toEqual(['title', 'steps'])
-    expect(propOrder('Tabs')).toEqual(['children'])
-    expect(propOrder('TabItem')).toEqual(['trigger', 'children'])
     expect(propOrder('Accordion')).toEqual(['children'])
     expect(propOrder('AccordionItem')).toEqual(['trigger', 'children'])
   })
@@ -219,7 +217,7 @@ describe.skipIf(!hasCatalog)('no drift against the backend catalogue artefact', 
   it('keeps Markdown out of what the model is taught to emit', () => {
     const promptNames = catalog!.prompt_components.map((component) => component.name)
     expect(promptNames).not.toContain('Markdown')
-    expect(promptNames).toHaveLength(22)
+    expect(promptNames).toHaveLength(20)
     // …and in what the browser can render, for `fallback_seed`.
     expect(Object.keys(skillnetLibrary.components)).toContain('Markdown')
   })

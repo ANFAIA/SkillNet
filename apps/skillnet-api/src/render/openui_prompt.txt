@@ -36,8 +36,6 @@ StepByStepReveal(title: string, steps: string[][]) — Procedimiento cuyos pasos
 AudioExplanation(text: string, voice: "neutral" | "warm" | "formal") — Texto leido en voz alta con resaltado de palabras
 PronunciationExercise(targetText: string, language: string) — Escuchar y practicar la pronunciacion de un termino
 DiagramBuilder(title: string, steps: string[][]) — Diagrama que se dibuja paso a paso para mostrar como se relacionan las partes
-Tabs(children: any[]) — Variantes del MISMO proceso que el aprendiz elige: por turno, por tipo de cliente, por caso. 2-3 pestanas
-TabItem(trigger: string, children: any[]) — Una variante dentro de Tabs
 Accordion(children: any[]) — Excepciones o detalles que no todo el mundo necesita leer
 AccordionItem(trigger: string, children: any[]) — Seccion plegable dentro de Accordion
 

@@ -41,6 +41,13 @@ from src.render.spec import FORMATS_REQUIRING_LEAD
 
 #: Bumped whenever any prompt in this module changes in a way that changes output.
 #: Enters the ``cache_key`` (§3.4).
+#: ``runtime/18`` (2026-08-09): ``Tabs``/``TabItem`` se eliminan del kit, no se desactivan.
+#: Esconden contenido detras de un clic, y un aprendiz no lee lo que no pulsa: en el curso
+#: generado desde el manual real del partner las pestanas salieron etiquetadas "Tab 1" y
+#: "Tab 2" y el texto solo aparecia al pulsarlas. Ademas eran el bloque que mas rompia: 2
+#: de 6 generaciones con pestanas cayeron a ``fallback_seed`` por el anidado por referencias.
+#: Con ellos se va el ejemplo C del prompt monolitico y la parte de SkillNet 19 que
+#: recomendaba pestanas para que el contenido cupiese en un viewport: si no cabe, se recorta.
 #: ``runtime/12`` (2026-08-07): multi-agent render pipeline. genera_ui is split into four
 #: specialized agents (Blueprint Architect, Content Writer, Interaction Designer, Assembler)
 #: under the MULTI_AGENT_RENDER feature flag. The monolithic path is unchanged.
@@ -96,7 +103,7 @@ from src.render.spec import FORMATS_REQUIRING_LEAD
 #: stopped travelling as its bare enum token (:data:`_CRITICALITY_RULES` — 8 rejections,
 #: the largest single class), and SkillNet 17 and 18 name the two syntax habits behind the
 #: rest (a bare ``opciones = [...]`` declaration, and the same id declared twice).
-PROMPT_VERSION = "runtime/17"
+PROMPT_VERSION = "runtime/18"
 
 # --- budgets (§4.2) ----------------------------------------------------------------
 
@@ -363,8 +370,6 @@ _BLOCK_CHOICE = """
 ### Layout (estructura de la pantalla)
 - Stack: apila bloques verticalmente. Es la raiz obligatoria.
 - Card: agrupa contenido relacionado con borde.
-- Tabs: pestanas para mostrar varias secciones en un viewport. USA TABS para que el
-  contenido quepa en una pantalla sin scroll.
 - Accordion: secciones colapsables, una abierta a la vez. Para contenido de profundidad
   opcional que no debe ocupar espacio por defecto.
 
@@ -416,7 +421,7 @@ pantalla mal hecha aunque el programa sea valido.
 - PROCEDIMIENTO con explicacion por paso -> StepByStepReveal.
 - TAREA DE ORDENAR pasos o prioridades -> DragOrder.
 - MULTIPLES ASPECTOS de un tema (tipos de residuos, categorias de EPI, fases de un
-  proceso) -> Tabs con un TabItem por aspecto. Tabs cabe en un viewport sin scroll.
+  proceso) -> una Table con una fila por aspecto, todos visibles a la vez.
 
 ## SkillNet: estructura pedagogica de la pantalla
 
@@ -427,10 +432,9 @@ TRES BLOQUES, en este orden:
    - Listas de cosas -> Table
    - Procedimiento con explicaciones -> StepByStepReveal
    - Comparacion bien/mal, antes/despues -> BeforeAfter
-   - 3+ aspectos independientes -> Tabs con TabItem
    - Procedimiento simple sin explicaciones -> StepSequence
    PROHIBIDO usar TextContent("body") para el concepto. El concepto SIEMPRE va en
-   un bloque propio (Table, StepByStepReveal, Tabs, BeforeAfter, StepSequence).
+   un bloque propio (Table, StepByStepReveal, BeforeAfter, StepSequence).
 3. VERIFICAR — UN bloque de practica:
    - Si el concepto es un procedimiento -> DragOrder
    - Si el concepto tiene un bien/mal -> BeforeAfter
@@ -456,19 +460,7 @@ q1 = QuizItem("q1", "test", "apply", "Recibes una entrega de pollo y de merluza.
 ---ANSWER-KEY---
 {"q1": {"correct": 2, "explanation": "Carne y pescado van en baldas separadas, tapados y con fecha, para evitar contaminacion cruzada."}}
 
-Ejemplo C — Multiples aspectos con Tabs + DragOrder:
-root = Stack([intro, aspectos, ejercicio], "md")
-intro = TextContent("Tres residuos, tres contenedores. Confundirlos es una sancion.", "lead")
-tab1 = TabItem("Organico", [t1])
-t1 = TextContent("Restos de comida, servilletas usadas, posos de cafe. Contenedor **marron**.", "body")
-tab2 = TabItem("Envases", [t2])
-t2 = TextContent("Plasticos, latas, bricks. Contenedor **amarillo**. Enjuagar antes.", "body")
-tab3 = TabItem("Aceite usado", [t3])
-t3 = TextContent("Nunca por el fregadero. Bidon homologado, recogida por gestor autorizado.", "body")
-aspectos = Tabs([tab1, tab2, tab3])
-ejercicio = DragOrder("A que contenedor va cada residuo?", ["Posos de cafe -> marron", "Lata de atun -> amarillo", "Aceite de freidora -> bidon", "Servilleta usada -> marron"], ["Posos de cafe -> marron", "Lata de atun -> amarillo", "Aceite de freidora -> bidon", "Servilleta usada -> marron"])
-
-Ejemplo D — Lista como Table + QuizItem:
+Ejemplo C — Lista como Table + QuizItem:
 root = Stack([intro, tabla, q1], "md")
 intro = TextContent("Cuando un cliente pregunta 'lleva gluten?', tienes que saberlo sin mirar la carpeta.", "lead")
 tabla = Table(["Alergeno", "Donde aparece"], [["Cereales con gluten", "Masa de pizza, empanado"], ["Crustaceos", "Paella"], ["Huevos", "Tortilla, rebozados"], ["Leche", "Bechamel, postres"]])
@@ -509,9 +501,9 @@ _UI_GENERATOR_TAIL = f"""
   BIEN: q1 = QuizItem("q1", "test", "apply", "Cual?", ["A", "B"])
 - SkillNet 18 — Cada id se declara UNA sola vez, `root` incluido. Dos lineas con el mismo
   id invalidan el programa: usa nombres distintos (`pregunta1`, `pregunta2`).
-- SkillNet 19 — El contenido DEBE caber en un viewport sin scroll. Si necesitas mas
-  espacio, usa Tabs para dividir en pestanas o Accordion para secciones colapsables.
-  Nunca generes mas de 5 bloques en un Stack sin usar Tabs o Accordion.
+- SkillNet 19 — El contenido DEBE caber en un viewport sin scroll. Si no cabe, no lo
+  escondas: recorta. Un bloque menos y frases mas cortas, no una pestana que el
+  aprendiz tiene que pulsar para ver lo que le estas ensenando.
 - SkillNet 20 — DragOrder tiene EXACTAMENTE 3 argumentos: DragOrder("instruccion",
   ["item1", "item2", "item3"], ["item2", "item1", "item3"]). El tercero es el orden
   correcto. Sin el, el programa se rechaza.

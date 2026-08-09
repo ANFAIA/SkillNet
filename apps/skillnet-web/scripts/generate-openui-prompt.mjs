@@ -65,6 +65,10 @@ const SCHEMAS_CANDIDATES = [
 // name -> [zod export in kit/schemas.ts, description]. The order is the order of the §5.3
 // table and therefore of the prompt catalogue. `Markdown` is last and is excluded from the
 // prompt: the server authors it for fallback_seed, the model may not emit it.
+// Componentes que existen en el kit y el modelo NO puede emitir. `Markdown` lo escribe
+// el servidor para `fallback_seed`.
+const NOT_EMITTABLE = new Set(['Markdown'])
+
 const CATALOGUE = [
   ['Stack', 'stackProps', 'Contenedor vertical. Envuelve la pantalla entera; siempre es el root'],
   ['TextContent', 'textContentProps', 'Prosa breve: el gancho inicial o una transicion. No vuelques aqui el contenido'],
@@ -85,8 +89,6 @@ const CATALOGUE = [
   ['AudioExplanation', 'audioExplanationProps', 'Texto leido en voz alta con resaltado de palabras'],
   ['PronunciationExercise', 'pronunciationExerciseProps', 'Escuchar y practicar la pronunciacion de un termino'],
   ['DiagramBuilder', 'diagramBuilderProps', 'Diagrama que se dibuja paso a paso para mostrar como se relacionan las partes'],
-  ['Tabs', 'tabsProps', 'Variantes del MISMO proceso que el aprendiz elige: por turno, por tipo de cliente, por caso. 2-3 pestanas'],
-  ['TabItem', 'tabItemProps', 'Una variante dentro de Tabs'],
   ['Accordion', 'accordionProps', 'Excepciones o detalles que no todo el mundo necesita leer'],
   ['AccordionItem', 'accordionItemProps', 'Seccion plegable dentro de Accordion'],
 ]
@@ -324,7 +326,7 @@ function componentsFromSchemas(schemas, { defineComponent }) {
     )
   }
   return {
-    emittable: built.filter((component) => component.name !== 'Markdown'),
+    emittable: built.filter((component) => !NOT_EMITTABLE.has(component.name)),
     all: built,
   }
 }
@@ -425,7 +427,7 @@ async function main() {
     if (!promptLibrary && rendered) {
       // Only a full library is exported: drop the components the model may not emit.
       const emittable = Object.values(rendered.components).filter(
-        (component) => component.name !== 'Markdown',
+        (component) => !NOT_EMITTABLE.has(component.name),
       )
       promptLibrary = core.createLibrary({ id: rendered.id, root: rendered.root, components: emittable })
     }

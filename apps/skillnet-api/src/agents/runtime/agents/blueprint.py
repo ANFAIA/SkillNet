@@ -96,10 +96,10 @@ mas completa. MINIMO 4 bloques, idealmente 5-6.
 - El primer bloque siempre es TextContent con variant "lead".
 - El ULTIMO bloque siempre es QuizItem o DragOrder. NO HAY EXCEPCIONES.
   Un JSON sin un bloque de intent "verificar" al final es INVALIDO y sera rechazado.
-- Tabs, Card y Accordion son contenedores: uselos SOLO cuando agrupan de verdad.
-  Card para un caso practico cerrado. Tabs para 2-3 variantes del mismo procedimiento
-  (por turno, por tipo de cliente). Accordion para excepciones que no todo el mundo
-  necesita leer. Si no agrupan nada, no los pongas: esconden contenido tras un clic.
+- Card y Accordion son contenedores: uselos SOLO cuando agrupan de verdad. Card para
+  un caso practico cerrado; Accordion para excepciones que no todo el mundo necesita
+  leer. Si no agrupan nada, no los pongas: esconden contenido tras un clic y el
+  aprendiz no lee lo que no pulsa.
 - El campo "note" es una instruccion breve para el agente que rellene el contenido.\
 """
 

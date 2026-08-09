@@ -17,7 +17,7 @@ export interface AccordionItemBlockProps {
 /**
  * Individual accordion pane. Rendered inside `AccordionBlock` — never standalone.
  *
- * Like `TabItemBlock`, this is a presentational wrapper: the open/close logic
+ * A presentational wrapper: the open/close logic
  * lives in `AccordionBlock`, which reads the `trigger` from the React element.
  */
 export function AccordionItemBlock({ children }: AccordionItemBlockProps) {

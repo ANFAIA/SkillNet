@@ -397,24 +397,6 @@ UI_KIT = UIKit(
             ),
         ),
         ComponentSpec(
-            name="Tabs",
-            functions=(FunctionFit(ContentFunction.VARIAR, 10),),
-            purpose="Variantes del MISMO proceso que el aprendiz elige: por turno, por tipo de cliente, por caso. 2-3 pestanas",
-            is_container=True,
-            props=(
-                PropSpec("children", PropKind.REFS, "Ids de los TabItem hijos"),
-            ),
-        ),
-        ComponentSpec(
-            name="TabItem",
-            purpose="Una variante dentro de Tabs",
-            is_container=True,
-            props=(
-                PropSpec("trigger", PropKind.STRING, "Etiqueta de la pestana"),
-                PropSpec("children", PropKind.REFS, "Ids de los bloques del panel"),
-            ),
-        ),
-        ComponentSpec(
             name="Accordion",
             functions=(FunctionFit(ContentFunction.VARIAR, 20),),
             purpose="Excepciones o detalles que no todo el mundo necesita leer",

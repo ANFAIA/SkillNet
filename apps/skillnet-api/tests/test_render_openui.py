@@ -896,8 +896,6 @@ def test_the_parser_accepts_exactly_the_emittable_components() -> None:
         "PronunciationExercise",
         "DiagramBuilder",
         # Layout containers for viewport-fitting (runtime/6).
-        "Tabs",
-        "TabItem",
         "Accordion",
         "AccordionItem",
     }
