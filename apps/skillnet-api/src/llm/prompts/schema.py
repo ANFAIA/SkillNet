@@ -75,20 +75,19 @@ Reglas, todas obligatorias:
    convertiria en incumplimiento, riesgo o coste real. No marques todo critical.
 4. Ordena los nodos de lo fundamental a lo avanzado. Un prerrequisito debe
    aparecer ANTES en la lista que el nodo que lo necesita.
-5. El numero de la guia de densidad es un TECHO, no un objetivo. Crea SOLO los
-   nodos que el material sostiene: usa MENOS si no da para mas y NUNCA anadas un
-   nodo de relleno (teoria generica, "fundamentos de...", "introduccion a...",
-   "tecnicas de...") para llegar a una cifra. Toda afirmacion debe rastrearse al
-   material; si el material no lo cubre, no hay nodo. Esta regla manda sobre la
-   densidad.
+5. El numero de la guia de densidad es un TECHO, no un objetivo. ANTES de listar
+   nodos, identifica las secciones o procedimientos REALES del documento y crea UN
+   nodo por cada uno; no anadas ninguno mas. Usa MENOS nodos si el material es fino
+   (un manual corto puede dar solo 3-4 nodos) y no rellenes para llegar a una cifra.
+   Toda afirmacion debe rastrearse al material. Esta regla manda sobre la densidad.
 6. Escribe title, summary y outcome en el MISMO IDIOMA que el documento de origen.
    Si el documento esta en espanol, responde en espanol; si esta en ingles, en
    ingles. Nunca traduzcas ni cambies de idioma.
 7. Prefiere anclar cada nodo a un heading de "HEADINGS DISPONIBLES" (source_headings
    no vacio). Un nodo SIN heading solo se justifica si cubre una seccion REAL del
    documento cuyo heading falta o quedo mal extraido (p.ej. un PDF a dos columnas);
-   NUNCA si es teoria generica que el documento no menciona ("fundamentos de...",
-   "introduccion a...", "tecnicas de..."). Ante la duda: ancla, o no crees el nodo.
+   no lo crees si no corresponde a algo concreto que el documento diga. Ante la
+   duda: ancla, o no crees el nodo.
 8. Cubre TODAS las secciones o procedimientos del documento antes de desglosar uno
    solo. Si el documento describe varios procedimientos o plataformas equivalentes,
    da un nodo a cada uno; no sobre-detalles el primero dejando los demas sin cubrir.
