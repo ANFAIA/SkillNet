@@ -730,6 +730,12 @@ class BenchSession:
             return _Result(rows)
         if "FROM document_chunks" in sql:
             return _Result([])
+        if "FROM course_nodes" in sql:
+            # Nodos-hermanos (nodes.py:load_context, para no repetir ideas entre
+            # pantallas). El banco monta UN solo nodo por encargo, asi que no hay
+            # hermanos: lista vacia. Sin esta rama el runtime nuevo rompe los 10
+            # encargos con AssertionError y el banco deja de medir nada.
+            return _Result([])
         raise AssertionError(f"consulta inesperada en el banco: {sql}")
 
     async def get(self, model: type, pk: Any) -> Any:
