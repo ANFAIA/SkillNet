@@ -2,7 +2,7 @@ import { Children, isValidElement, useState, useCallback, useEffect, useRef, typ
 import { AnimatePresence, motion } from 'framer-motion'
 import { useIntl } from 'react-intl'
 import { blockArrivalContext, useBlockArrival } from './blockArrival'
-import { stepperContext, useStepper, stepperAdvanceContext, stepperSolveContext, useNextNode, useCourseIntro, useStepperProgressReport } from './StepperContext'
+import { stepperContext, useStepper, stepperSolveContext, useNextNode, useCourseIntro, useStepperProgressReport } from './StepperContext'
 import { useReducedMotion } from '../../../hooks/useReducedMotion'
 import { duration, ease } from '../../../lib/motion'
 import type { StackGap } from '../kit/schemas'
@@ -175,14 +175,6 @@ function StepperStack({ children }: { children?: ReactNode }) {
     move(-1)
   }, [move])
 
-  // Auto-advance: interactive blocks call this after success (quiz correct, drag complete)
-  const advance = useCallback(() => {
-    setTimeout(() => {
-      if (!isLast) move(1)
-      else if (goNextNode) goNextNode()
-    }, 1200)
-  }, [isLast, goNextNode, move])
-
   // Keyboard navigation: same behavior as chevrons
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
@@ -213,8 +205,7 @@ function StepperStack({ children }: { children?: ReactNode }) {
   // chevron izquierdo nace deshabilitado y la CTA sale por ser el ultimo paso.
 
   return (
-    <stepperAdvanceContext.Provider value={advance}>
-      <stepperSolveContext.Provider value={solve}>
+    <stepperSolveContext.Provider value={solve}>
       <div className="flex flex-col h-full min-w-0" data-stepper-root>
         {/* Middle: chevrons on sides, content centered vertically */}
         <div className="flex-1 min-h-0 flex items-center justify-center gap-2">
@@ -291,6 +282,5 @@ function StepperStack({ children }: { children?: ReactNode }) {
 
       </div>
       </stepperSolveContext.Provider>
-    </stepperAdvanceContext.Provider>
   )
 }

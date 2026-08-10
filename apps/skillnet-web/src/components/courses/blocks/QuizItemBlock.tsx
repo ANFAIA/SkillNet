@@ -8,7 +8,7 @@ import { HintLadder, WorkedSolution } from './QuizItemHints'
 import { duration, ease } from '../../../lib/motion'
 import { INLINE_SURFACE } from './rhythm'
 import { useNodeRenderTarget } from '../kit/NodeRenderContext'
-import { useStepperAdvance, useStepperSolve } from './StepperContext'
+import { useStepperSolve } from './StepperContext'
 import type { ExerciseType } from '../../../types'
 import type { BloomLevel } from '../kit/schemas'
 import type {
@@ -190,7 +190,6 @@ export function QuizItemBlock({
   const [text, setText] = useState('')
   const queryClient = useQueryClient()
   const { recordEvent } = useNodeRenderTarget()
-  const stepperAdvance = useStepperAdvance()
   // El paso ya nace cerrado por llevar este bloque dentro (`kit/solvableSteps.ts`), asi
   // que aqui no hay nada que cerrar: solo se avisa de que se ha abierto. Si este bloque
   // deja de llamar a `useStepperSolve`, o aparece otro que lo llame, hay que mover
@@ -221,17 +220,17 @@ export function QuizItemBlock({
         })
       }
 
-      // Acertar abre el paso; fallar lo deja cerrado para que se reintente.
+      // Acertar abre el paso (aparece el boton de avanzar); fallar lo deja cerrado
+      // para que se reintente. Abrir el paso NO avanza solo: el aprendiz pulsa el
+      // boton cuando quiere — antes auto-avanzaba a 1.2s y ademas salia el boton, que
+      // quedaba raro.
       //
       // `show_worked_solution` tambien lo abre, y no es un detalle: el servidor lo manda
       // cuando se acaban los intentos y le enseña la solucion al aprendiz. Ahi el item
       // queda bloqueado SIN haber pasado nunca por `passed`, asi que sin esta rama no hay
-      // quien abra el paso y el aprendiz se queda encerrado en el nodo, sin nada que
-      // pulsar. Solo avanza solo cuando acierta: si esta leyendo la solucion, que decida
-      // el cuando pasar.
+      // quien abra el paso y el aprendiz se queda encerrado en el nodo, sin nada que pulsar.
       if (result.passed) {
         solveStep?.()
-        stepperAdvance?.()
       } else if (result.show_worked_solution === true) {
         solveStep?.()
       }

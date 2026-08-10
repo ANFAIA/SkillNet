@@ -35,16 +35,6 @@ export function useStepperSolve(): (() => void) | null {
 }
 
 /**
- * Callback the stepper provides so interactive blocks (QuizItem, DragOrder)
- * can auto-advance to the next step on successful completion.
- */
-export const stepperAdvanceContext = createContext<(() => void) | null>(null)
-
-export function useStepperAdvance(): (() => void) | null {
-  return useContext(stepperAdvanceContext)
-}
-
-/**
  * Course-level position: which node the learner is on and how many there are.
  * Set by NodeView, available to any component inside the lesson tree.
  */
