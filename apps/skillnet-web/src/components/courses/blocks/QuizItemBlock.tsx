@@ -6,7 +6,7 @@ import { post } from '../../../api/client'
 import { Button } from '../../ui'
 import { HintLadder, WorkedSolution } from './QuizItemHints'
 import { duration, ease } from '../../../lib/motion'
-import { BLOCK_TITLE, INLINE_SURFACE } from './rhythm'
+import { INLINE_SURFACE } from './rhythm'
 import { useNodeRenderTarget } from '../kit/NodeRenderContext'
 import { useStepperAdvance, useStepperSolve } from './StepperContext'
 import type { ExerciseType } from '../../../types'
@@ -75,21 +75,21 @@ function ResultPanel({
       initial={{ opacity: 0, scale: 0.97 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: duration.normal, ease: [...ease.base] }}
-      className={`mt-4 rounded-lg border p-4 ${
+      className={`mt-4 rounded-xl border p-4 ${
         result.passed ? 'border-accent bg-accent-subtle' : 'border-danger bg-danger/5'
       }`}
     >
       <div className="flex items-center justify-between gap-2">
         <span
-          className={`text-sm font-medium ${result.passed ? 'text-accent' : 'text-danger'}`}
+          className={`text-lesson-body font-medium ${result.passed ? 'text-accent' : 'text-danger'}`}
         >
           {result.passed ? intl.formatMessage({ id: 'quiz.correct' }) : intl.formatMessage({ id: 'quiz.incorrect' })}
         </span>
-        <span className="text-xs text-text-secondary tabular-nums">
+        <span className="text-lesson-caption text-text-secondary tabular-nums">
           {intl.formatMessage({ id: 'quiz.mastery' }, { pct: Math.round((result.mastery ?? 0) * 100) })}
         </span>
       </div>
-      {result.feedback ? <p className="text-sm text-text mt-2">{result.feedback}</p> : null}
+      {result.feedback ? <p className="text-lesson-body text-text mt-2">{result.feedback}</p> : null}
       {onRetry ? (
         <button
           type="button"
@@ -117,25 +117,37 @@ function SingleChoiceItem({
   onSelect: (index: number) => void
 }) {
   return (
-    <div className="space-y-2">
-      {options.map((option, idx) => (
-        <label
-          key={idx}
-          className={`flex items-center gap-3 p-3 border rounded-lg transition-colors ${
-            disabled ? 'cursor-default' : 'cursor-pointer'
-          } ${selected === idx && !disabled ? 'border-2 border-primary' : 'border border-border'}`}
-        >
-          <input
-            type="radio"
-            name={name}
-            checked={selected === idx}
-            onChange={() => !disabled && onSelect(idx)}
-            disabled={disabled}
-            className="accent-primary"
-          />
-          <span className="text-sm text-text break-words min-w-0">{option}</span>
-        </label>
-      ))}
+    <div className="space-y-3">
+      {options.map((option, idx) => {
+        const active = selected === idx && !disabled
+        return (
+          <label
+            key={idx}
+            // Each option is a full-width, tappable hairline panel. The selected
+            // state is a full border in the primary colour plus a restrained tint
+            // (`bg-primary-subtle`) — never a left edge, never a heavier ring. The
+            // border width stays 1px in every state so selecting one never nudges
+            // the layout.
+            className={`flex w-full items-center gap-3 rounded-xl border p-4 transition-colors ${
+              disabled ? 'cursor-default' : 'cursor-pointer'
+            } ${
+              active
+                ? 'border-primary bg-primary-subtle'
+                : `border-border ${disabled ? '' : 'hover:border-border-strong'}`
+            }`}
+          >
+            <input
+              type="radio"
+              name={name}
+              checked={selected === idx}
+              onChange={() => !disabled && onSelect(idx)}
+              disabled={disabled}
+              className="accent-primary"
+            />
+            <span className="text-lesson-body text-text break-words min-w-0">{option}</span>
+          </label>
+        )
+      })}
     </div>
   )
 }
@@ -160,7 +172,7 @@ function ConstructedAnswerItem({
       onChange={(e) => onChange(e.target.value)}
       placeholder={intl.formatMessage({ id: 'quiz.answerPlaceholder' })}
       aria-label={intl.formatMessage({ id: 'quiz.yourAnswer' })}
-      className="w-full px-3 py-2 text-sm text-text border border-border rounded-lg bg-bg placeholder:text-text-muted focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-colors disabled:opacity-60 resize-y"
+      className="w-full p-4 text-lesson-body text-text border border-border rounded-xl bg-bg placeholder:text-text-muted focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-colors disabled:opacity-60 resize-y"
     />
   )
 }
@@ -279,10 +291,10 @@ export function QuizItemBlock({
       data-no-explain=""
       className={`${INLINE_SURFACE} bg-bg-subtle`}
     >
-      {/* The stem is a block title, not a heavier thing: it used to sit on `mb-4`
-          while every other block's title sat on `mb-3`, so a quiz next to a
-          StepSequence was visibly on a different grid. */}
-      <p className={BLOCK_TITLE}>{question}</p>
+      {/* The question stem leads the exercise, so it is the lead of the lesson
+          scale — a step up from a block title — with generous room before the
+          options. Full contrast, medium weight; hierarchy from size, not dimming. */}
+      <p className="text-lesson-lead font-medium text-text mb-5">{question}</p>
 
       {isSingleChoice ? (
         <SingleChoiceItem

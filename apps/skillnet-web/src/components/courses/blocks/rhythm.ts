@@ -30,7 +30,7 @@
  */
 
 /** A block titling itself. `text-text`, medium — it competes with prose, not with h2. */
-export const BLOCK_TITLE = 'text-sm font-medium text-text mb-3'
+export const BLOCK_TITLE = 'text-base font-semibold text-text mb-3'
 
 /**
  * A classifying label above the content. Colour is left to the caller: the tone label
@@ -40,4 +40,4 @@ export const BLOCK_TITLE = 'text-sm font-medium text-text mb-3'
 export const BLOCK_EYEBROW = 'text-xs font-medium mb-1.5'
 
 /** A panel inside the lesson flow. Callout, QuizItem, the code slab, the probe item. */
-export const INLINE_SURFACE = 'rounded-lg border border-border p-4 min-w-0'
+export const INLINE_SURFACE = 'rounded-xl border border-border p-5 min-w-0'

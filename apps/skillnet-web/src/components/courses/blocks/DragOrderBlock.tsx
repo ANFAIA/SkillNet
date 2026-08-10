@@ -86,7 +86,7 @@ function SortableItem({
         transitionDuration: '200ms',
         transitionDelay: status === 'checked' ? `${index * 100}ms` : '0ms',
       }}
-      className={`flex items-center gap-3 p-3 border rounded-lg bg-bg select-none ${borderClass} ${isDragging ? 'shadow-md opacity-75' : ''}`}
+      className={`flex items-center gap-3 p-4 border rounded-xl bg-bg select-none ${borderClass} ${isDragging ? 'opacity-90' : ''}`}
       {...attributes}
       {...listeners}
     >
@@ -105,7 +105,7 @@ function SortableItem({
           <circle cx="11" cy="13" r="1.5" />
         </svg>
       </span>
-      <span className="text-sm text-text min-w-0 break-words">{item.text}</span>
+      <span className="text-lesson-body text-text min-w-0 break-words">{item.text}</span>
       {status === 'checked' && (
         <span
           className={`shrink-0 ml-auto text-xs font-medium ${correct ? 'text-accent' : 'text-danger'}`}
@@ -204,7 +204,7 @@ export function DragOrderBlock({ instruction, items, correctOrder }: DragOrderBl
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         <SortableContext items={itemStates.map((s) => s.id)} strategy={verticalListSortingStrategy}>
-          <div className="space-y-2">
+          <div className="space-y-3">
             {itemStates.map((item, idx) => (
               <div
                 key={item.id}
@@ -237,12 +237,12 @@ export function DragOrderBlock({ instruction, items, correctOrder }: DragOrderBl
       {status === 'checked' && (
         <div
           role="status"
-          className={`mt-4 rounded-lg border p-3 ${
+          className={`mt-4 rounded-xl border p-4 ${
             allCorrect ? 'border-accent bg-accent-subtle' : 'border-danger bg-danger/5'
           }`}
         >
           <span
-            className={`text-sm font-medium ${allCorrect ? 'text-accent' : 'text-danger'}`}
+            className={`text-lesson-body font-medium ${allCorrect ? 'text-accent' : 'text-danger'}`}
           >
             {allCorrect
               ? intl.formatMessage({ id: 'drag.correctOrder' })

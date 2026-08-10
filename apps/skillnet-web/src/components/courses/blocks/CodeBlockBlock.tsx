@@ -1,3 +1,5 @@
+import { BLOCK_EYEBROW } from './rhythm'
+
 export interface CodeBlockBlockProps {
   language: string
   code: string
@@ -10,22 +12,27 @@ export interface CodeBlockBlockProps {
  * `data-no-explain` is load-bearing — §8.5 excludes code from click-to-explain,
  * and `ClickableSurface` (B7) hit-tests with `closest('[data-no-explain]')`.
  *
- * Visual improvements: the language label is now a small badge pinned to the
- * top-right corner of the code slab (inside the border), and the background
- * uses a slightly darker shade for better contrast.
+ * A calm code slab: a hairline-outlined panel on the `bg-bg-muted` surface tone,
+ * with the language as a quiet eyebrow in its own header strip (divided by the
+ * same 1px border) rather than a badge floating over the first line of code. The
+ * muted surface + full-contrast text read cleanly in both lesson modes.
  */
 export function CodeBlockBlock({ language, code }: CodeBlockBlockProps) {
   return (
-    <div data-no-explain="" className="min-w-0 relative">
-      <pre className="rounded-lg border border-border p-4 pt-5 min-w-0 bg-bg-muted overflow-x-auto text-[13px] leading-relaxed font-mono text-text">
+    <div
+      data-no-explain=""
+      className="min-w-0 overflow-hidden rounded-xl border border-border bg-bg-muted"
+    >
+      {language ? (
+        <div className="flex items-center border-b border-border px-4 py-2">
+          <span className={`${BLOCK_EYEBROW} mb-0 font-mono lowercase text-text-muted`}>
+            {language}
+          </span>
+        </div>
+      ) : null}
+      <pre className="min-w-0 overflow-x-auto p-4 font-mono text-[13px] leading-relaxed text-text">
         <code>{code}</code>
       </pre>
-      {/* Language badge pinned to the top-right corner, inside the border radius */}
-      {language ? (
-        <span className="absolute top-2 right-2 px-2 py-0.5 rounded-md bg-bg-subtle border border-border text-[10px] font-mono font-medium text-text-muted select-none">
-          {language}
-        </span>
-      ) : null}
     </div>
   )
 }

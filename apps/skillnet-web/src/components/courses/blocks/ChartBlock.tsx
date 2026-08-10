@@ -148,10 +148,9 @@ function LineChart({
     <div className="min-w-0">
       <svg
         viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
-        preserveAspectRatio="none"
         role="img"
         aria-label={`${title}. ${summary}`}
-        className="w-full h-32 block"
+        className="w-full h-auto block"
       >
         <defs>
           <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">

@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react'
-import { Card, CardTitle } from '../../ui'
 import { ClickableText } from '../ClickableText'
 
 export interface CardBlockProps {
@@ -8,25 +7,28 @@ export interface CardBlockProps {
 }
 
 /**
- * Grouping container. Reuses the v1 `Card` primitive rather than restyling a
- * div, so a spec block and a v1 panel are visually the same object.
+ * Grouping container. The one block that is *outer* chrome around other blocks,
+ * so it stays a size larger than what it holds: `p-6` and `gap-4`, against the
+ * `p-5` (`INLINE_SURFACE`) of a Callout or a QuizItem sitting inside it.
  *
- * §8.5 says "titulos incluidos": the title is the one piece of text a Card owns,
- * and it is where the unfamiliar noun usually is. The children clickify
- * themselves — each is another block.
+ * Depth is a hairline outline on the theater's base surface (`bg-bg`), not a
+ * shadow — the inline blocks it wraps carry the raised `bg-bg-subtle` tone, so
+ * the layering reads on its own. The title is a lesson heading (`text-lesson-title`),
+ * divided from the body by the same 1px border as the frame.
  *
- * The extra className adds a subtle shadow at rest that lifts on hover, giving
- * the card a sense of elevation without modifying the shared Card primitive.
+ * §8.5 "titulos incluidos": the title is the one piece of text a Card owns and is
+ * where the unfamiliar noun usually is, so it is a `ClickableText`. The children
+ * clickify themselves — each is another block.
  */
 export function CardBlock({ title, children }: CardBlockProps) {
   return (
-    <Card className="shadow-sm hover:shadow-md transition-shadow duration-200">
+    <section className="min-w-0 w-full rounded-xl border border-border bg-bg p-6">
       {title ? (
-        <CardTitle className="mb-3 pb-3 border-b border-border">
+        <h3 className="text-lesson-title text-text mb-5 pb-5 border-b border-border">
           <ClickableText>{title}</ClickableText>
-        </CardTitle>
+        </h3>
       ) : null}
-      <div className="flex flex-col gap-3 min-w-0">{children}</div>
-    </Card>
+      <div className="flex flex-col gap-4 min-w-0">{children}</div>
+    </section>
   )
 }

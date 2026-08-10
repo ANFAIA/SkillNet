@@ -13,9 +13,9 @@ export const CodigoRefactorizado = () => (
     <BeforeAfterBlock
       title="Refactorizacion: extraccion de metodo"
       beforeLabel="Antes"
-      beforeContent={`function process(data) {\n  let total = 0;\n  for (let i = 0; i < data.length; i++) {\n    total += data[i].price * data[i].qty;\n  }\n  return total;\n}`}
+      beforeContent={"```js\nfunction process(data) {\n  let total = 0;\n  for (let i = 0; i < data.length; i++) {\n    total += data[i].price * data[i].qty;\n  }\n  return total;\n}\n```"}
       afterLabel="Despues"
-      afterContent={`function lineTotal(item) {\n  return item.price * item.qty;\n}\n\nfunction process(data) {\n  return data.reduce((sum, item) => sum + lineTotal(item), 0);\n}`}
+      afterContent={"```js\nfunction lineTotal(item) {\n  return item.price * item.qty;\n}\n\nfunction process(data) {\n  return data.reduce((sum, item) => sum + lineTotal(item), 0);\n}\n```"}
     />
   </div>
 )

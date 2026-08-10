@@ -22,43 +22,32 @@ export function StepSequenceBlock({ title, steps }: StepSequenceBlockProps) {
   return (
     <ClickableText as="div" className="min-w-0">
       {title ? <p className={BLOCK_TITLE}>{title}</p> : null}
-      <ol className="min-w-0">
-        {items.map((step, idx) => {
-          const isLast = idx === items.length - 1
-          return (
-            <li
-              key={idx}
-              className="flex gap-4 min-w-0"
-              style={{
-                opacity: 0,
-                animation: `step-fade-in 0.3s ease forwards`,
-                animationDelay: `${idx * 60}ms`,
-              }}
+      <ol className="flex flex-col gap-4 min-w-0">
+        {items.map((step, idx) => (
+          <li
+            key={idx}
+            className="flex gap-4 min-w-0"
+            style={{
+              opacity: 0,
+              animation: `step-fade-in 0.3s ease forwards`,
+              animationDelay: `${idx * 60}ms`,
+            }}
+          >
+            {/* Quiet numbered badge: a hairline outline, not a filled chip —
+                depth from the border, never a shadow. */}
+            <span
+              aria-hidden="true"
+              data-no-explain=""
+              className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-border text-xs font-semibold tabular-nums text-text-muted"
             >
-              {/* Timeline column: circle + connecting line */}
-              <div className="flex flex-col items-center shrink-0">
-                <span
-                  aria-hidden="true"
-                  data-no-explain=""
-                  className="w-7 h-7 rounded-full bg-primary text-white text-xs font-semibold flex items-center justify-center shadow-sm"
-                >
-                  {idx + 1}
-                </span>
-                {/* Vertical connector line between steps */}
-                {!isLast && (
-                  <div
-                    aria-hidden="true"
-                    className="w-0.5 flex-1 bg-border-strong mt-1"
-                  />
-                )}
-              </div>
-              {/* Step content */}
-              <div className={`text-sm text-text leading-relaxed min-w-0 ${isLast ? '' : 'pb-5'}`}>
-                <InlineMarkdown>{step}</InlineMarkdown>
-              </div>
-            </li>
-          )
-        })}
+              {idx + 1}
+            </span>
+            {/* Step content — full-contrast lesson body, not dimmed prose. */}
+            <div className="text-lesson-body text-text min-w-0">
+              <InlineMarkdown>{step}</InlineMarkdown>
+            </div>
+          </li>
+        ))}
       </ol>
     </ClickableText>
   )

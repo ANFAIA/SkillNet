@@ -19,27 +19,62 @@ const preview: Preview = {
       test: 'todo'
     }
   },
+
+  /**
+   * A toolbar toggle for the two surfaces a block actually lives on:
+   *
+   * - `app` — the white `main` of the admin/employee shell (the default; how the
+   *   kit has always been reviewed).
+   * - `theater` — the dark, focused course canvas (fullscreen NodeView), centred
+   *   to `--lesson-measure`. This is the Brilliant-style lesson surface; flip to
+   *   it to judge a block the way a learner sees it inside a lesson.
+   */
+  globalTypes: {
+    surface: {
+      description: 'Surface the block sits on',
+      defaultValue: 'app',
+      toolbar: {
+        title: 'Surface',
+        icon: 'browser',
+        items: [
+          { value: 'app', title: 'App (light)' },
+          { value: 'theater-dark', title: 'Lesson (dark)' },
+          { value: 'theater-light', title: 'Lesson (light)' },
+        ],
+        dynamicTitle: true,
+      },
+    },
+  },
+
   decorators: [
     /**
-     * Put every story on the surface it actually lives on.
-     *
-     * `src/index.css` paints `body` with the L-frame blue gradient, and Storybook
-     * imports that file, so the canvas was the gradient — while in the app every one
-     * of these components sits inside the white `main`. Judging a Callout's tint or a
-     * Table's borders against a dark blue is judging the wrong picture, and the block
-     * stories are the thing the kit is reviewed on.
-     *
      * IntlProvider wraps all stories because most components (ClickableText,
      * QuizItemBlock, DragOrderBlock, etc.) call `useIntl()`. Without it the story
      * crashes immediately with "Could not find required `intl` object".
+     *
+     * The surface decorator then puts the story on the chosen ground: the light
+     * app `main`, or the dark lesson theater centred to the reading measure.
      */
-    (Story) => (
-      <IntlProvider locale="es" messages={es} defaultLocale="es">
-        <div className="bg-bg text-text min-h-screen p-4">
-          <Story />
-        </div>
-      </IntlProvider>
-    ),
+    (Story, context) => {
+      const surface = context.globals.surface
+      const theaterMode =
+        surface === 'theater-dark' ? 'mode-dark' : surface === 'theater-light' ? 'mode-light' : null
+      return (
+        <IntlProvider locale="es" messages={es} defaultLocale="es">
+          {theaterMode ? (
+            <div className={`lesson-theater ${theaterMode} min-h-screen flex items-center justify-center p-8`}>
+              <div className="w-full flex flex-col gap-6" style={{ maxWidth: 'var(--lesson-measure)' }}>
+                <Story />
+              </div>
+            </div>
+          ) : (
+            <div className="bg-bg text-text min-h-screen p-4">
+              <Story />
+            </div>
+          )}
+        </IntlProvider>
+      )
+    },
   ],
 };
 

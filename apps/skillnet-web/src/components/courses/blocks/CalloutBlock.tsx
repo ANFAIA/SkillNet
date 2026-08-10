@@ -9,14 +9,14 @@ export interface CalloutBlockProps {
   text: string
 }
 
-// Hierarchy through a left rule + a subtle surface, not a pastel block with a
-// coloured icon circle (design-system.md anti-patterns). The tones are the existing
-// status colours and their `*-subtle` tints — `warn` used to have no tint at all
-// (`bg-bg-subtle`), which left the loudest tone as the only silent surface.
+// One quiet neutral surface for every tone; the tone speaks through the FULL
+// border in its colour plus the coloured eyebrow icon+label. A colour on one
+// edge only reads as a template accent — the whole outline carries it instead.
+// No pastel fills, no rings — the aside stays calm, just framed in its colour.
 const toneClasses: Record<CalloutTone, string> = {
-  info: 'border-l-[3px] border-l-primary bg-primary-subtle',
-  warn: 'border-l-[4px] border-l-warning bg-warning-subtle',
-  success: 'border-l-[3px] border-l-accent bg-accent-subtle ring-1 ring-emerald-500/20',
+  info: 'border-primary',
+  warn: 'border-warning',
+  success: 'border-accent',
 }
 
 const TONE_LABEL_KEYS: Record<CalloutTone, string> = {
@@ -81,7 +81,7 @@ export function CalloutBlock({ tone = 'info', text }: CalloutBlockProps) {
       // a colour-only cue would not.
       role="note"
       aria-label={toneLabel}
-      className={`${INLINE_SURFACE} ${toneClasses[resolved]}`}
+      className={`${INLINE_SURFACE} bg-bg-subtle ${toneClasses[resolved]}`}
     >
       {/* The tone label is chrome, not lesson prose: it is deliberately outside
           the ClickableText, so "Atencion" is not a term anyone can explain. */}
@@ -89,7 +89,7 @@ export function CalloutBlock({ tone = 'info', text }: CalloutBlockProps) {
         <ToneIcon tone={resolved} />
         <span className="font-semibold tracking-wide uppercase">{toneLabel}</span>
       </div>
-      <ClickableText as="p" className={`text-sm text-text leading-relaxed min-w-0 ${resolved === 'warn' ? 'font-medium' : ''}`}>
+      <ClickableText as="p" className={`text-lesson-body text-text min-w-0 ${resolved === 'warn' ? 'font-medium' : ''}`}>
         <InlineMarkdown>{text}</InlineMarkdown>
       </ClickableText>
     </aside>

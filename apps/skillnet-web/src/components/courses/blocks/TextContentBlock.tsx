@@ -7,19 +7,19 @@ export interface TextContentBlockProps {
   variant?: TextVariant
 }
 
-// `lead` is the first-child slot of §5.2 rule 7 — the "esto te sirve para X"
-// line. It gets weight and the primary text colour; body stays secondary so a
-// wall of prose does not compete with it.
+// The lesson type scale (see `--text-lesson-*` in index.css): a course screen
+// is read like a page, not like UI chrome, so these are larger and airier than
+// the app's text-sm/text-xs. Hierarchy is carried by size and weight, never by
+// dimming the body — a single paragraph on its own screen must read at full
+// contrast.
 //
-// Visual improvements:
-// - `lead`: slightly larger (text-base), medium weight, primary-coloured left
-//   accent border so it reads as the "hook" paragraph
-// - `body`: generous line-height (leading-7) for comfortable reading
-// - `caption`: italic to distinguish it from body
+// - `lead`: the "esto te sirve para X" hook (§5.2 rule 7). Larger, medium weight.
+// - `body`: the paragraph. Full colour, generous line-height.
+// - `caption`: a muted aside / pie de figura.
 const variantClasses: Record<TextVariant, string> = {
-  lead: 'text-base font-medium text-text leading-relaxed',
-  body: 'text-sm text-text-secondary leading-7',
-  caption: 'text-xs text-text-muted leading-relaxed',
+  lead: 'text-lesson-lead font-medium text-text',
+  body: 'text-lesson-body text-text',
+  caption: 'text-lesson-caption text-text-muted',
 }
 
 /**

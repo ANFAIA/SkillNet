@@ -1,8 +1,7 @@
-import { useState, useRef } from 'react'
 import { useIntl } from 'react-intl'
-import { motion } from 'framer-motion'
-import { BLOCK_TITLE, INLINE_SURFACE } from './rhythm'
+import { BLOCK_TITLE } from './rhythm'
 import { ClickableText } from '../ClickableText'
+import { InlineMarkdown } from './InlineMarkdown'
 
 export interface BeforeAfterBlockProps {
   title: string
@@ -10,6 +9,43 @@ export interface BeforeAfterBlockProps {
   beforeContent: string
   afterLabel: string
   afterContent: string
+}
+
+/**
+ * A two-state contrast shown **side by side, both always visible** (the Curio
+ * "Heliocentric vs Geocentric" pattern). It used to be a drag-to-reveal slider —
+ * that hid half the content behind an action that taught nothing, so it is gone:
+ * a comparison the reader has to uncover is a comparison they cannot make.
+ *
+ * Two calm panels. The "after" is framed by a full accent border (not a single
+ * coloured edge, which reads as template slop) to mark the improved state.
+ * Stacks on narrow widths, side by side from `sm` up.
+ */
+
+/** A whole-content fenced code block, e.g. a before/after refactor. */
+const CODE_FENCE = /^\s*```[\w-]*\n([\s\S]*?)```\s*$/
+
+/** Render one side: code as code (monospace slab), everything else as prose. */
+function SideContent({ content, muted }: { content: string; muted: boolean }) {
+  const fence = content.match(CODE_FENCE)
+  if (fence) {
+    return (
+      <pre
+        data-no-explain=""
+        className="min-w-0 overflow-x-auto rounded-lg border border-border bg-bg-muted p-3 font-mono text-[13px] leading-relaxed text-text"
+      >
+        <code>{fence[1].replace(/\n$/, '')}</code>
+      </pre>
+    )
+  }
+  return (
+    <ClickableText
+      as="p"
+      className={`text-lesson-body whitespace-pre-wrap min-w-0 ${muted ? 'text-text-secondary' : 'text-text'}`}
+    >
+      <InlineMarkdown>{content}</InlineMarkdown>
+    </ClickableText>
+  )
 }
 
 export function BeforeAfterBlock({
@@ -20,99 +56,35 @@ export function BeforeAfterBlock({
   afterContent,
 }: BeforeAfterBlockProps) {
   const intl = useIntl()
-  const containerRef = useRef<HTMLDivElement>(null)
-  const [position, setPosition] = useState(50)
+  const before = beforeLabel || intl.formatMessage({ id: 'beforeafter.before' })
+  const after = afterLabel || intl.formatMessage({ id: 'beforeafter.after' })
 
-  function handlePointerDown(e: React.PointerEvent) {
-    e.preventDefault()
-    const target = e.currentTarget as HTMLElement
-    target.setPointerCapture(e.pointerId)
-  }
-
-  function handlePointerMove(e: React.PointerEvent) {
-    const target = e.currentTarget as HTMLElement
-    if (!target.hasPointerCapture(e.pointerId)) return
-    if (!containerRef.current) return
-    const rect = containerRef.current.getBoundingClientRect()
-    const x = e.clientX - rect.left
-    const pct = Math.max(0, Math.min(100, (x / rect.width) * 100))
-    setPosition(pct)
-  }
-
-  function handlePointerUp(e: React.PointerEvent) {
-    const target = e.currentTarget as HTMLElement
-    target.releasePointerCapture(e.pointerId)
-  }
+  // A code slab needs the full column width to stay readable — squeezed into a
+  // ~245px half it clips and scrolls sideways, unreadable. So when EITHER side is
+  // a fenced code block the two panels stack (one column, full width each); short
+  // prose comparisons keep the side-by-side two-column layout from `sm` up.
+  const hasCode = CODE_FENCE.test(beforeContent) || CODE_FENCE.test(afterContent)
 
   return (
-    <div className={INLINE_SURFACE}>
+    <div className="min-w-0">
       {title ? <p className={BLOCK_TITLE}>{title}</p> : null}
 
-      <div
-        ref={containerRef}
-        className="relative select-none overflow-hidden rounded-lg border border-border"
-        style={{ minHeight: 120 }}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        role="slider"
-        aria-label={`Comparar ${beforeLabel} y ${afterLabel}`}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-valuenow={Math.round(position)}
-        tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.key === 'ArrowLeft') setPosition((p) => Math.max(0, p - 2))
-          if (e.key === 'ArrowRight') setPosition((p) => Math.min(100, p + 2))
-        }}
-      >
-        {/* Before side (full width, clipped) */}
-        <div
-          className="absolute inset-0 bg-red-50/40 dark:bg-red-950/20"
-          style={{ clipPath: `inset(0 ${100 - position}% 0 0)` }}
-        >
-          <div className="p-4 h-full">
-            <span className="text-xs font-medium text-text-muted uppercase tracking-wide">
-              {beforeLabel || intl.formatMessage({ id: 'beforeafter.before' })}
-            </span>
-            <ClickableText as="p" className="text-sm text-text mt-2 whitespace-pre-wrap">{beforeContent}</ClickableText>
-          </div>
-        </div>
-
-        {/* After side (full width, clipped) */}
-        <div
-          className="absolute inset-0 bg-emerald-50/40 dark:bg-emerald-950/20"
-          style={{ clipPath: `inset(0 0 0 ${position}%)` }}
-        >
-          <div className="p-4 h-full">
-            <span className="text-xs font-medium text-text-muted uppercase tracking-wide">
-              {afterLabel || intl.formatMessage({ id: 'beforeafter.after' })}
-            </span>
-            <ClickableText as="p" className="text-sm text-text mt-2 whitespace-pre-wrap">{afterContent}</ClickableText>
-          </div>
-        </div>
-
-        {/* Invisible spacer for natural height */}
-        <div className="invisible p-4">
-          <span className="text-xs font-medium uppercase tracking-wide">&nbsp;</span>
-          <p className="text-sm mt-2 whitespace-pre-wrap">
-            {beforeContent.length > afterContent.length ? beforeContent : afterContent}
+      <div className={`grid grid-cols-1 gap-3 ${hasCode ? '' : 'sm:grid-cols-2'}`}>
+        {/* Before — neutral frame */}
+        <section className="min-w-0 rounded-xl border border-border bg-bg-subtle p-4">
+          <p className="text-lesson-caption font-medium tracking-wide text-text-muted mb-2">
+            {before}
           </p>
-        </div>
+          <SideContent content={beforeContent} muted />
+        </section>
 
-        {/* Divider */}
-        <motion.div
-          className="absolute top-0 bottom-0 w-px bg-border-strong z-10"
-          style={{ left: `${position}%` }}
-          aria-hidden
-        >
-          {/* Handle */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-bg border-2 border-border-strong flex items-center justify-center shadow-sm cursor-ew-resize">
-            <svg width="8" height="12" viewBox="0 0 8 12" fill="none" aria-hidden>
-              <path d="M1 0v12M4 0v12M7 0v12" stroke="currentColor" strokeWidth="1" className="text-text-muted" />
-            </svg>
-          </div>
-        </motion.div>
+        {/* After — full accent frame marks the improved / correct state */}
+        <section className="min-w-0 rounded-xl border border-accent bg-bg-subtle p-4">
+          <p className="text-lesson-caption font-medium tracking-wide text-accent mb-2">
+            {after}
+          </p>
+          <SideContent content={afterContent} muted={false} />
+        </section>
       </div>
     </div>
   )

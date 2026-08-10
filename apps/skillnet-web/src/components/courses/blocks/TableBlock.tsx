@@ -23,30 +23,35 @@ export function TableBlock({ headers, rows }: TableBlockProps) {
     // Dos envoltorios, y cada uno hace UNA cosa. Juntarlos era el defecto: `overflow-hidden`
     // es la forma corta y pisa el eje X, asi que recortaba el scroll que `overflow-x-auto`
     // pedia en el mismo elemento.
-    <ClickableText as="div" className="min-w-0 rounded-lg border border-border overflow-hidden">
+    // A calm panel, not a data grid: one soft surface, a barely-there border, a
+    // large radius, and faint row dividers instead of zebra stripes or a boxed
+    // grid (the "composed, not dumped" reference). The header is a quiet label
+    // row, not a shouted uppercase bar.
+    <ClickableText as="div" className="w-full min-w-0 rounded-xl border border-border bg-bg-subtle overflow-hidden">
       {/* `tabIndex` no es adorno: una region que desplaza y no se puede enfocar deja la
           mitad derecha de la tabla fuera del alcance de quien navega con teclado
           (axe `scrollable-region-focusable`). Antes no saltaba porque `overflow-hidden`
           impedia el scroll del todo — la tabla ancha se recortaba en vez de desplazarse. */}
-      <div className="overflow-x-auto [scrollbar-gutter:auto]" tabIndex={0} role="group" aria-label="Tabla">
-        {/* `w-full`, y el ancho lo resuelve el salto de linea de las celdas. El fondo de
-            las filas se quedaba corto porque una celda traia una URL entera
-            (`https://backend.ticketrona.com/dashboard`): una palabra que no se puede
-            partir empuja la tabla mas alla de su caja y el `tr` deja de pintar ahi. Se
-            arregla dejando que esa palabra se rompa, no haciendo la tabla mas ancha —
-            `w-max` lo "arreglaba" quitando el salto de linea a TODAS las celdas, que
-            convierte cualquier frase en una linea larguisima y manda la tabla al scroll.
-            El envoltorio sigue desplazando por si algun dia llega una tabla de verdad
-            ancha (muchas columnas), pero el caso normal ya no lo necesita. */}
-        <table className="w-full text-sm border-collapse">
+      <div className="w-full overflow-x-auto [scrollbar-gutter:auto]" tabIndex={0} role="group" aria-label="Tabla">
+        {/* `w-full`, y el ancho lo resuelve el salto de linea de las celdas. Una palabra
+            que no se puede partir (una URL entera) empuja la tabla mas alla de su caja;
+            se arregla dejando que esa palabra se rompa (`overflow-wrap:anywhere`), no
+            haciendo la tabla mas ancha. El envoltorio sigue desplazando por si algun dia
+            llega una tabla de verdad ancha (muchas columnas). */}
+        {/* `w-full` sobre la tabla: con `table-auto` el navegador reparte el ancho
+            sobrante del panel entre las columnas, asi que la tabla llena hasta el
+            borde sin banda oscura a la derecha. Forzar una sola columna a `100%`
+            colapsaba las demas a una letra por linea (con `overflow-wrap:anywhere`),
+            asi que NO se hace: el reparto natural es el correcto. */}
+        <table className="w-full border-collapse table-auto">
         {head.length > 0 && (
           <thead>
-            <tr className="bg-bg-muted sticky top-0 z-10">
+            <tr className="sticky top-0 z-10 bg-bg-muted">
               {head.map((header, idx) => (
                 <th
                   key={idx}
                   scope="col"
-                  className="text-left align-top py-2.5 px-4 border-b border-border font-semibold text-text text-xs uppercase tracking-wide leading-relaxed [overflow-wrap:anywhere]"
+                  className="text-left align-top py-3 px-5 border-b border-border font-medium text-text-secondary text-lesson-caption [overflow-wrap:anywhere]"
                 >
                   <InlineMarkdown>{header}</InlineMarkdown>
                 </th>
@@ -56,19 +61,12 @@ export function TableBlock({ headers, rows }: TableBlockProps) {
         )}
         <tbody>
           {body.map((row, rowIdx) => (
-            <tr
-              key={rowIdx}
-              className={`transition-colors duration-150 hover:bg-primary-subtle ${
-                rowIdx % 2 === 1 ? 'bg-bg-subtle' : 'bg-bg'
-              }`}
-            >
+            <tr key={rowIdx}>
               {(Array.isArray(row) ? row : []).map((cell, cellIdx) => (
                 <td
                   key={cellIdx}
-                  // `leading-relaxed` matches the prose blocks: a two-line cell used
-                  // to set tighter than the paragraph right above the table.
-                  className={`align-top py-2.5 px-4 text-text leading-relaxed [overflow-wrap:anywhere] ${
-                    cellIdx === 0 ? 'font-medium' : ''
+                  className={`align-top py-3 px-5 text-lesson-body [overflow-wrap:anywhere] ${
+                    cellIdx === 0 ? 'font-medium text-text' : 'text-text-secondary'
                   } ${rowIdx < body.length - 1 ? 'border-b border-border' : ''}`}
                 >
                   <InlineMarkdown>{String(cell ?? '')}</InlineMarkdown>
