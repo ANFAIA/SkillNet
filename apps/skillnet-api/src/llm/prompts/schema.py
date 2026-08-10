@@ -31,12 +31,16 @@ _UI_FORMAT_VALUES = ", ".join(
 MAX_HEADINGS_IN_PROMPT = 120
 
 # Length budget per intent_density step (§3.1: 1 = condensed, 5 = expanded).
+# Son TECHOS, no objetivos: medido en manuales procedimentales reales, un objetivo
+# de "6-10 nodos" empuja al modelo a rellenar con nodos genericos ("Fundamentos del
+# servicio al cliente") cuando el material solo da para 3. La cifra es un maximo; el
+# material manda.
 _DENSITY_GUIDANCE: dict[int, str] = {
-    1: "Muy condensado: 3-5 nodos, solo lo imprescindible.",
-    2: "Condensado: 4-7 nodos.",
-    3: "Equilibrado: 6-10 nodos.",
-    4: "Extenso: 8-14 nodos, admite nodos contextuales.",
-    5: "Muy extenso: 10-18 nodos, desglosa cada procedimiento.",
+    1: "Muy condensado: hasta 5 nodos, solo lo imprescindible.",
+    2: "Condensado: hasta 7 nodos.",
+    3: "Equilibrado: hasta 10 nodos.",
+    4: "Extenso: hasta 14 nodos, admite nodos contextuales.",
+    5: "Muy extenso: hasta 18 nodos, desglosa cada procedimiento.",
 }
 
 
@@ -71,11 +75,23 @@ Reglas, todas obligatorias:
    convertiria en incumplimiento, riesgo o coste real. No marques todo critical.
 4. Ordena los nodos de lo fundamental a lo avanzado. Un prerrequisito debe
    aparecer ANTES en la lista que el nodo que lo necesita.
-5. Toda afirmacion debe poder rastrearse al material de origen. Si el material no
-   cubre algo, no inventes un nodo para ello.
+5. El numero de la guia de densidad es un TECHO, no un objetivo. Crea SOLO los
+   nodos que el material sostiene: usa MENOS si no da para mas y NUNCA anadas un
+   nodo de relleno (teoria generica, "fundamentos de...", "introduccion a...",
+   "tecnicas de...") para llegar a una cifra. Toda afirmacion debe rastrearse al
+   material; si el material no lo cubre, no hay nodo. Esta regla manda sobre la
+   densidad.
 6. Escribe title, summary y outcome en el MISMO IDIOMA que el documento de origen.
    Si el documento esta en espanol, responde en espanol; si esta en ingles, en
    ingles. Nunca traduzcas ni cambies de idioma.
+7. Si el mensaje incluye "HEADINGS DISPONIBLES", cada nodo debe respaldarse en al
+   menos UN heading de esa lista (source_headings no vacio). Un nodo que no puedas
+   anclar a ningun heading es senal de relleno: no lo crees.
+8. Cubre TODAS las secciones o procedimientos del documento antes de desglosar uno
+   solo. Si el documento describe varios procedimientos o plataformas equivalentes,
+   da un nodo a cada uno; no sobre-detalles el primero dejando los demas sin cubrir.
+   En un documento que es un procedimiento con pasos, crea un nodo por procedimiento
+   y no anadas nodos de teoria que el documento no contiene.
 
 Responde en JSON valido, sin texto alrededor, con la forma:
 {{"nodes": [{{"title": str, "summary": str, "outcome": str,
