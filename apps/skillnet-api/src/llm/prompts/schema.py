@@ -84,9 +84,11 @@ Reglas, todas obligatorias:
 6. Escribe title, summary y outcome en el MISMO IDIOMA que el documento de origen.
    Si el documento esta en espanol, responde en espanol; si esta en ingles, en
    ingles. Nunca traduzcas ni cambies de idioma.
-7. Si el mensaje incluye "HEADINGS DISPONIBLES", cada nodo debe respaldarse en al
-   menos UN heading de esa lista (source_headings no vacio). Un nodo que no puedas
-   anclar a ningun heading es senal de relleno: no lo crees.
+7. Prefiere anclar cada nodo a un heading de "HEADINGS DISPONIBLES" (source_headings
+   no vacio). Un nodo SIN heading solo se justifica si cubre una seccion REAL del
+   documento cuyo heading falta o quedo mal extraido (p.ej. un PDF a dos columnas);
+   NUNCA si es teoria generica que el documento no menciona ("fundamentos de...",
+   "introduccion a...", "tecnicas de..."). Ante la duda: ancla, o no crees el nodo.
 8. Cubre TODAS las secciones o procedimientos del documento antes de desglosar uno
    solo. Si el documento describe varios procedimientos o plataformas equivalentes,
    da un nodo a cada uno; no sobre-detalles el primero dejando los demas sin cubrir.
