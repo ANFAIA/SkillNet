@@ -577,6 +577,12 @@ export const en: Record<string, string> = {
   'slides.noSources': 'No cited sources',
   'slides.page': 'p. {page}',
 
+  // Infographic component (Infographic, media spine §2d)
+  'infographic.title': 'Infographic',
+  'infographic.sources': 'Sources',
+  'infographic.noSources': 'No cited sources',
+  'infographic.page': 'p. {page}',
+
   // PronunciationExerciseBlock component
   'pronunciation.title': 'Pronunciation exercise',
   'pronunciation.language': 'Language: {lang}',

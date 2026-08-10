@@ -125,11 +125,13 @@ class Settings(BaseSettings):
     PODCAST_VOICE_A: str = "EXAVITQu4vr4xnSDxMaL"
     PODCAST_VOICE_B: str = "ErXwobaYiN019PkySvjV"
 
-    # Slide Deck content agent (roadmap §2c). Like the podcast script agent, a small
-    # strict-JSON litellm call that defaults to the cheap gpt-4o-mini rather than the
-    # course-generation model. The facts it produces are structured JSON we render
-    # ourselves — never text baked into a generated image.
+    # Slide Deck and Infographic content agents (roadmap §2c / §2d). Like the podcast
+    # script agent, each is a small strict-JSON litellm call and defaults to the cheap
+    # gpt-4o-mini rather than the course-generation model. The KEY discipline (§2d): the
+    # facts these produce are structured JSON we render ourselves — never text baked into a
+    # generated image.
     SLIDES_MODEL: str = "gpt-4o-mini"
+    INFOGRAPHIC_MODEL: str = "gpt-4o-mini"
 
     # File uploads
     UPLOAD_DIR: str = "./uploads"
