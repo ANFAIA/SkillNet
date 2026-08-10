@@ -46,6 +46,21 @@ _HEADING_MAX_CHARS = 120
 #: Deepest heading level, matching the ``#{1,6}`` the markdown path can express.
 _MAX_HEADING_LEVEL = 6
 
+#: Minimum width of the whitespace gap, in points, that separates two text columns.
+#: A gap this wide straddling the page's gutter is a column break; anything narrower is
+#: the ordinary space between two words on one full-width line. Tuned so a wrapped title
+#: with normal word spacing stays a single line while genuine side-by-side columns split.
+_MIN_COLUMN_GAP = 20.0
+
+#: A page is only treated as multi-column when at least this many of its lines actually
+#: split across the gutter. Below it the "column" is a coincidence — a lone indented line
+#: or a stray gap — and forcing a split would scramble a single-column page.
+_MIN_COLUMN_ROWS = 3
+
+#: The gutter is searched only in the page's interior, ignoring this fraction of the width
+#: at each margin, so the empty page margins are never mistaken for a column separator.
+_COLUMN_MARGIN_FRAC = 0.12
+
 #: How many lines at each edge of a page are candidates for a running header/footer.
 _EDGE_LINES = 2
 
@@ -164,6 +179,146 @@ def _inside(word: dict, bbox: tuple[float, float, float, float]) -> bool:
     return x0 <= cx <= x1 and top <= cy <= bottom
 
 
+def _line_from_words(words: list[dict], page_num: int, top: float) -> _Line | None:
+    """Build one ``_Line`` from a run of words, or ``None`` if the run is blank."""
+    ordered = sorted(words, key=lambda w: float(w["x0"]))
+    text = " ".join(str(w["text"]) for w in ordered).strip()
+    if not text:
+        return None
+    sizes = [float(w.get("size") or 0.0) for w in ordered]
+    fonts = [str(w.get("fontname") or "") for w in ordered]
+    return _Line(
+        text=text,
+        size=max(sizes) if sizes else 0.0,
+        # Every run bold, not merely one: a sentence with one bold term is prose.
+        bold=bool(fonts) and all("bold" in f.lower() for f in fonts),
+        page=page_num,
+        top=top,
+    )
+
+
+def _detect_gutter(rows: list[dict], width: float) -> float | None:
+    """The x of a vertical whitespace corridor splitting the page into columns, or None.
+
+    Built from a projection profile: for each x, how many *rows* have any word covering
+    it. In a two-column layout the corridor between the columns is clear on every
+    two-column row and covered only by the occasional full-width line (a title, an intro,
+    a footer), so it shows up as a deep interior valley flanked by two peaks of comparable
+    height. A single-column page has no such valley and returns None, so its lines are
+    left exactly as a top-only grouping produced them — no behaviour change.
+
+    Rows, not raw words, are counted so that a column of many short lines does not
+    out-vote a column of few long ones: what matters is *how many lines* clear the gutter.
+    """
+    if len(rows) < 6:
+        return None
+    span = int(width) + 2
+    coverage = [0] * span
+    for row in rows:
+        covered: set[int] = set()
+        for word in row["words"]:
+            lo = max(0, int(float(word["x0"])))
+            hi = min(span - 1, int(float(word["x1"])))
+            covered.update(range(lo, hi + 1))
+        for x in covered:
+            coverage[x] += 1
+
+    margin = int(width * _COLUMN_MARGIN_FRAC)
+    interior = range(margin, int(width) - margin)
+    peak = max((coverage[x] for x in interior), default=0)
+    if peak == 0:
+        return None
+
+    # Widest interior run where coverage sits at or below half the peak: the gutter.
+    threshold = peak * 0.5
+    best: tuple[int, int] | None = None
+    start: int | None = None
+    for x in interior:
+        if coverage[x] <= threshold:
+            start = x if start is None else start
+        elif start is not None:
+            if best is None or (x - start) > (best[1] - best[0]):
+                best = (start, x)
+            start = None
+    if start is not None:
+        end = int(width) - margin
+        if best is None or (end - start) > (best[1] - best[0]):
+            best = (start, end)
+    if best is None or (best[1] - best[0]) < 10:
+        return None
+
+    glo, ghi = best
+    left_peak = max((coverage[x] for x in range(margin, glo)), default=0)
+    right_peak = max((coverage[x] for x in range(ghi, int(width) - margin)), default=0)
+    # Real columns on *both* sides, or the "valley" is just the page running out of text.
+    if left_peak < peak * 0.5 or right_peak < peak * 0.5:
+        return None
+
+    gutter = (glo + ghi) / 2
+    splits = sum(1 for row in rows if _split_at_gutter(row["words"], gutter) is not None)
+    if splits < _MIN_COLUMN_ROWS:
+        return None
+    return gutter
+
+
+def _split_at_gutter(
+    words: list[dict], gutter: float
+) -> tuple[list[dict], list[dict]] | None:
+    """Split a line's words where a wide gap straddles the gutter, else ``None``.
+
+    The gap has to be at least ``_MIN_COLUMN_GAP`` wide *and* contain the gutter, which is
+    what tells a genuine column break apart from the ordinary space between two words: a
+    wrapped full-width title keeps normal word spacing across the gutter and is left whole.
+    """
+    ordered = sorted(words, key=lambda w: float(w["x0"]))
+    for index in range(len(ordered) - 1):
+        left_edge = float(ordered[index]["x1"])
+        right_edge = float(ordered[index + 1]["x0"])
+        if left_edge <= gutter <= right_edge and right_edge - left_edge >= _MIN_COLUMN_GAP:
+            return ordered[: index + 1], ordered[index + 1 :]
+    return None
+
+
+def _column_order(rows: list[dict], page_num: int, gutter: float) -> list[_Line]:
+    """Order a multi-column page's lines column by column, never merging across the gutter.
+
+    Consecutive column lines accumulate into a band; a full-width line (one that neither
+    splits at the gutter nor sits wholly in one column) closes the band, at which point the
+    whole left column is emitted top-to-bottom, then the whole right column. So a heading
+    and body in the left column stay together and never inherit text from the right.
+    """
+    lines: list[_Line] = []
+    band: list[tuple[list[dict], list[dict], float]] = []
+
+    def flush() -> None:
+        for left, _right, top in band:
+            line = _line_from_words(left, page_num, top) if left else None
+            if line:
+                lines.append(line)
+        for _left, right, top in band:
+            line = _line_from_words(right, page_num, top) if right else None
+            if line:
+                lines.append(line)
+        band.clear()
+
+    for row in rows:
+        top = row["top"]
+        split = _split_at_gutter(row["words"], gutter)
+        if split is not None:
+            band.append((split[0], split[1], top))
+        elif all(float(w["x1"]) <= gutter for w in row["words"]):
+            band.append((row["words"], [], top))
+        elif all(float(w["x0"]) >= gutter for w in row["words"]):
+            band.append(([], row["words"], top))
+        else:
+            flush()
+            line = _line_from_words(row["words"], page_num, top)
+            if line:
+                lines.append(line)
+    flush()
+    return lines
+
+
 def _page_lines(page, page_num: int) -> list[_Line]:
     """Group a page's words into visual lines, keeping tables out of the text flow.
 
@@ -171,6 +326,11 @@ def _page_lines(page, page_num: int) -> list[_Line]:
     live inside a table's bounding box are dropped from the ordinary flow. Doing both is
     the point: emitting the table *and* its loose words would duplicate every cell, which
     is worse for retrieval than the scrambled text this replaces.
+
+    Line-building is column-aware: on a two-column page, left- and right-column text at the
+    same height would otherwise stitch into one line, merging two headings into a garbled
+    third. When a gutter is detected, lines are read down one column then the other; a
+    single-column page (no gutter) keeps the plain top-ordered grouping unchanged.
     """
     try:
         tables = page.find_tables()
@@ -189,25 +349,17 @@ def _page_lines(page, page_num: int) -> list[_Line]:
                 break
         else:
             grouped.append({"top": float(word["top"]), "words": [word]})
+    grouped.sort(key=lambda row: row["top"])
 
-    lines: list[_Line] = []
-    for row in grouped:
-        ordered = sorted(row["words"], key=lambda w: float(w["x0"]))
-        text = " ".join(str(w["text"]) for w in ordered).strip()
-        if not text:
-            continue
-        sizes = [float(w.get("size") or 0.0) for w in ordered]
-        fonts = [str(w.get("fontname") or "") for w in ordered]
-        lines.append(
-            _Line(
-                text=text,
-                size=max(sizes) if sizes else 0.0,
-                # Every run bold, not merely one: a sentence with one bold term is prose.
-                bold=bool(fonts) and all("bold" in f.lower() for f in fonts),
-                page=page_num,
-                top=row["top"],
-            )
-        )
+    gutter = _detect_gutter(grouped, float(page.width))
+    if gutter is None:
+        lines = [
+            line
+            for row in grouped
+            if (line := _line_from_words(row["words"], page_num, row["top"]))
+        ]
+    else:
+        lines = _column_order(grouped, page_num, gutter)
 
     for table, box in zip(tables, boxes, strict=True):
         try:
@@ -219,7 +371,9 @@ def _page_lines(page, page_num: int) -> list[_Line]:
                 _Line(text=markdown, size=0.0, bold=False, page=page_num, top=box[1], is_table=True)
             )
 
-    lines.sort(key=lambda line: line.top)
+    if gutter is None:
+        # Single-column: tables interleave by vertical position, exactly as before.
+        lines.sort(key=lambda line: line.top)
     return lines
 
 
