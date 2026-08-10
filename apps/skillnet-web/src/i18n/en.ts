@@ -583,6 +583,22 @@ export const en: Record<string, string> = {
   'infographic.noSources': 'No cited sources',
   'infographic.page': 'p. {page}',
 
+  // VideoOverview component (narrated slides, media spine §2b)
+  'video.title': 'Video overview',
+  'video.empty': 'No slides',
+  'video.counter': '{current} of {total}',
+  'video.loading': 'Preparing audio...',
+  'video.unavailable': 'Audio unavailable',
+  'video.play': 'Play',
+  'video.pause': 'Pause',
+  'video.prev': 'Previous',
+  'video.next': 'Next',
+  'video.goToSlide': 'Go to slide {current} of {total}',
+  'video.captions': 'Narration',
+  'video.sources': 'Sources',
+  'video.noSources': 'No cited sources',
+  'video.page': 'p. {page}',
+
   // PronunciationExerciseBlock component
   'pronunciation.title': 'Pronunciation exercise',
   'pronunciation.language': 'Language: {lang}',
