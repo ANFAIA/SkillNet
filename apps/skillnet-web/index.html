@@ -5,6 +5,20 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>skillnet-web</title>
+    <!-- Apply the saved theme before first paint so there is no light->dark
+         flash. Reads the persisted preferences store; `system` leaves
+         data-theme unset so the prefers-color-scheme block in index.css wins. -->
+    <script>
+      (function () {
+        try {
+          var raw = localStorage.getItem('skillnet-preferences')
+          var theme = raw ? JSON.parse(raw).state.theme : 'system'
+          if (theme === 'light' || theme === 'dark') {
+            document.documentElement.dataset.theme = theme
+          }
+        } catch (e) {}
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>

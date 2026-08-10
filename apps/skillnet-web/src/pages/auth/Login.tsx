@@ -50,7 +50,7 @@ export function Login() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
-      <Card className="w-full max-w-sm bg-bg">
+      <Card className="w-full max-w-sm bg-surface">
         <div className="flex flex-col items-center mb-6">
           <img src="/logo.png" alt="SkillNet" className="w-12 h-12 drop-shadow" />
           <h1 className="text-lg font-semibold text-text mt-3">SkillNet</h1>

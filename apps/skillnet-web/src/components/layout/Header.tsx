@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useIntl } from 'react-intl'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useMe, useLogout } from '../../api/auth'
+import { ThemeToggle } from '../ui/ThemeToggle'
 import { useSidebar } from '../../contexts/SidebarContext'
 import { transition, duration, ease } from '../../lib/motion'
 
@@ -37,7 +38,7 @@ export function Header() {
   }, [open])
 
   return (
-    <header className={`fixed top-0 left-0 right-0 h-[50px] frame-surface flex items-center justify-between md:justify-end px-4 md:px-6 z-10 transition-[left] duration-300 [transition-timing-function:var(--ease-base)] ${collapsed ? 'md:left-16' : 'md:left-[248px]'}`}>
+    <header className={`fixed top-0 left-0 right-0 h-[50px] frame-surface border-b border-[var(--frame-border)] flex items-center justify-between md:justify-end px-4 md:px-6 z-10 transition-[left] duration-300 [transition-timing-function:var(--ease-base)] ${collapsed ? 'md:left-16' : 'md:left-[248px]'}`}>
       {/* Mobile menu trigger — opens the sidebar overlay */}
       <motion.button
         type="button"
@@ -80,7 +81,7 @@ export function Header() {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96, y: -6 }}
               transition={{ duration: duration.fast, ease: ease.base }}
-              className="absolute right-0 top-11 w-56 origin-top-right bg-bg border border-border rounded-xl shadow-lg overflow-hidden"
+              className="absolute right-0 top-11 w-56 origin-top-right bg-surface border border-border rounded-xl shadow-lg overflow-hidden"
             >
               {user && (
                 <div className="px-4 py-3 border-b border-border">
@@ -103,6 +104,12 @@ export function Header() {
                   {intl.formatMessage({ id: 'header.learningPreferences' })}
                 </motion.button>
               )}
+              <div className="px-4 py-3 border-b border-border">
+                <p className="text-xs font-medium text-text-secondary mb-2">
+                  {intl.formatMessage({ id: 'settings.theme' })}
+                </p>
+                <ThemeToggle compact />
+              </div>
               <motion.button
                 type="button"
                 role="menuitem"

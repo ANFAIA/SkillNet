@@ -41,3 +41,5 @@ export type { SkillBarsProps } from './SkillBars'
 
 export { StepIndicator } from './StepIndicator'
 export type { StepIndicatorProps } from './StepIndicator'
+
+export { ThemeToggle } from './ThemeToggle'

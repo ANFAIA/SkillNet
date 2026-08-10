@@ -112,7 +112,7 @@ function SidebarContent({ collapsed, pillId }: { collapsed: boolean; pillId: str
                   : 'ml-10 pl-4 pr-4 rounded-l-xl'
               } ${
                 isActive
-                  ? 'text-primary'
+                  ? 'text-[var(--frame-pill-text)]'
                   : 'text-white/80 hover:text-white'
               }`
             }
@@ -140,7 +140,7 @@ function SidebarContent({ collapsed, pillId }: { collapsed: boolean; pillId: str
         <NavLink
           to="/empleado/chat"
           onClick={closeMobile}
-          className="mx-4 mb-5 p-5 rounded-2xl block group bg-[#162844] hover:bg-[#1C3254] transition-colors relative overflow-hidden"
+          className="mx-4 mb-5 p-5 rounded-2xl block group bg-[var(--frame-card-bg)] hover:bg-[var(--frame-card-hover)] transition-colors relative overflow-hidden"
         >
           <SpiderIcon />
           <p className="text-white/90 text-sm font-semibold mb-1.5 relative">{intl.formatMessage({ id: 'nav.help.title' })}</p>
@@ -177,7 +177,7 @@ export function Sidebar() {
     <>
       {/* Desktop / Tablet sidebar */}
       <aside
-        className={`group/sidebar fixed left-0 top-0 bottom-0 frame-surface flex-col z-20 transition-[width] duration-300 [transition-timing-function:var(--ease-base)] hidden md:flex ${
+        className={`group/sidebar fixed left-0 top-0 bottom-0 frame-surface border-r border-[var(--frame-border)] flex-col z-20 transition-[width] duration-300 [transition-timing-function:var(--ease-base)] hidden md:flex ${
           collapsed ? 'w-16' : 'w-[248px]'
         }`}
       >
@@ -204,7 +204,7 @@ export function Sidebar() {
               dragElastic={0.1}
               dragSnapToOrigin
               onDragEnd={handleDragEnd}
-              className="fixed left-0 top-0 bottom-0 w-[248px] frame-surface flex flex-col z-40 md:hidden touch-none"
+              className="fixed left-0 top-0 bottom-0 w-[248px] frame-surface border-r border-[var(--frame-border)] flex flex-col z-40 md:hidden touch-none"
             >
               <SidebarContent collapsed={false} pillId="employee-nav-pill-mobile" />
             </motion.aside>

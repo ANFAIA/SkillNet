@@ -7,6 +7,7 @@ import { useAuth } from './hooks/useAuth'
 import { IntlProvider } from './i18n/IntlProvider'
 import { useRegisterDefaultTools } from './stores/registerDefaultTools'
 import { usePreferences } from './stores/preferences'
+import { useTheme } from './hooks/useTheme'
 import { Login } from './pages/auth/Login'
 import { Onboarding } from './pages/onboarding/Onboarding'
 import { Dashboard } from './pages/employee/Dashboard'
@@ -44,6 +45,9 @@ function SonnerToaster() {
 
 function App() {
   useRegisterDefaultTools()
+  // Installs the effect that keeps <html data-theme> in sync with the stored
+  // preference (and follows the OS while on `system`).
+  useTheme()
 
   return (
     <IntlProvider>

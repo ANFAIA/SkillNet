@@ -1,5 +1,5 @@
 import { useIntl } from 'react-intl'
-import { SkeletonRow } from '../../components/ui'
+import { SkeletonRow, ThemeToggle } from '../../components/ui'
 import { useSettings, useUpdateFeatures } from '../../api/settings'
 import { ApiError } from '../../api/client'
 import { usePreferences } from '../../stores/preferences'
@@ -139,6 +139,14 @@ function SettingsBody({
             <option value="es">{intl.formatMessage({ id: 'settings.langEs' })}</option>
             <option value="en">{intl.formatMessage({ id: 'settings.langEn' })}</option>
           </select>
+        </SettingRow>
+
+        {/* Theme selector */}
+        <SettingRow
+          title={intl.formatMessage({ id: 'settings.theme' })}
+          description={intl.formatMessage({ id: 'settings.themeDesc' })}
+        >
+          <ThemeToggle />
         </SettingRow>
 
         {/* Generative UI toggle */}

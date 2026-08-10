@@ -57,7 +57,7 @@ const KNOWN_STEP_IDS: readonly string[] = [
 function Shell({ children, indicator }: { children: ReactNode; indicator?: ReactNode }) {
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
-      <Card className="w-full max-w-lg bg-bg">
+      <Card className="w-full max-w-lg bg-surface">
         <div className="flex items-center justify-between gap-4 mb-6">
           <img src="/logo.png" alt="SkillNet" className="w-8 h-8" />
           {indicator}

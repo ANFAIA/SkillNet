@@ -225,6 +225,12 @@ export const en: Record<string, string> = {
   'settings.languageDesc': 'Change the interface language.',
   'settings.langEs': 'Espanol',
   'settings.langEn': 'English',
+  'settings.theme': 'Theme',
+  'settings.themeDesc': 'Light, dark or match your system.',
+  'settings.themeLight': 'Light',
+  'settings.themeDark': 'Dark',
+  'settings.themeSystem': 'System',
+  'settings.themeToggleLabel': 'Interface theme',
 
   // DragOrder
   'drag.check': 'Check',

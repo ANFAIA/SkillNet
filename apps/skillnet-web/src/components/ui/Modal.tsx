@@ -132,7 +132,7 @@ export function Modal({ open, onClose, children, size = 'md', origin, hideClose 
             : 'center',
           willChange: 'transform',
         }}
-        className={`relative z-10 w-full ${sizeClasses[size]} max-h-[calc(100vh-2rem)] overflow-y-auto bg-bg shadow-[0_32px_80px_-24px_rgba(15,23,42,0.45)] p-6 sm:p-7`}
+        className={`relative z-10 w-full ${sizeClasses[size]} max-h-[calc(100vh-2rem)] overflow-y-auto bg-surface border border-border shadow-[0_32px_80px_-24px_rgba(15,23,42,0.45)] p-6 sm:p-7`}
       >
         {!hideClose && (
           <button

@@ -113,7 +113,7 @@ export function Dashboard() {
         <h2 className="text-xl font-semibold text-text">Panel de Empresa</h2>
         <p className="text-sm text-text-secondary mt-1">Vista general del equipo y formacion</p>
         <Card className="mt-6">
-          <p className="text-sm text-red-500">
+          <p className="text-sm text-danger">
             Error al cargar las estadisticas. Intenta recargar la pagina.
           </p>
         </Card>

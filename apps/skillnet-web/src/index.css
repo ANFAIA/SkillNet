@@ -1,32 +1,46 @@
 @import "tailwindcss";
 
 @theme {
+  /* ── Neutral palette (LIGHT default) ──────────────────────────────────────
+     The app is now themeable. These `@theme` values are the LIGHT palette (the
+     `:root` default Tailwind emits); the DARK values live below under
+     `:root[data-theme="dark"]` and a `prefers-color-scheme` block. See the
+     "App theme" section after this block for the full mechanism.
+
+     Palette is the neutral zinc stack shared with `.lesson-theater.mode-light`
+     (Curio-style, hairline-driven, no shadows), so the whole app and the course
+     canvas read as one system. This replaced the earlier slate-tinted stack.
+
+     WCAG AA over --color-bg (#ffffff). AA asks 4.5:1 for normal text and 3.0:1
+     for large; almost every use of these tokens is text-xs/text-sm, so the real
+     bar is 4.5. Contrast over the two tinted surfaces they also sit on
+     (bg-subtle #fafafa, bg-muted #f4f4f5) is what decides the final value:
+                        bg      subtle   muted
+       text           16.10     15.86    15.36
+       text-secondary  7.53      7.42     7.19
+       text-muted      4.83      4.76     4.61
+     `text-muted` (#71717a) clears 4.5 on all three; `text-secondary` (#52525b)
+     is comfortable. */
   /* Background */
   --color-bg: #ffffff;
-  --color-bg-subtle: #f8fafc;
-  --color-bg-muted: #f1f5f9;
+  --color-bg-subtle: #fafafa;
+  --color-bg-muted: #f4f4f5;
 
-  /* Text
-     Contraste medido sobre --color-bg (#ffffff). WCAG AA pide 4.5:1 en texto normal
-     y 3.0:1 en texto grande; casi todo el uso de estos tokens es text-xs y text-sm,
-     asi que el listón real es 4.5.
-     y sobre los dos fondos tintados donde tambien se usa (bg-subtle #f8fafc y
-     bg-muted #f1f5f9), que es lo que decide el valor final:
-                        bg      subtle   muted
-       text           17.85     17.11    16.31
-       text-secondary  4.76      4.55     4.34   (justo, y solo se usa en texto normal)
-       text-muted      5.01      4.79     4.58
-     `text-muted` estaba en #94a3b8 = 2.56:1 sobre blanco, por debajo incluso del
-     umbral de texto grande. Era el origen de la mayoria de las 75 violaciones
-     `color-contrast` que axe reportaba en la libreria de bloques del curso: un token,
-     no 75 componentes. */
-  --color-text: #0f172a;
-  --color-text-secondary: #64748b;
-  --color-text-muted: #66707f;
+  /* Card / panel surface. In LIGHT this equals `--color-bg` (white), so the airy
+     hairline-on-white look is unchanged; in DARK it is lifted a step above the
+     near-black page so panels read as surfaces rather than voids (the reason a
+     dark UI needs elevation where a light one gets away with pure hairlines).
+     Cards, the modal panel and the auth/onboarding shells read this token. */
+  --color-surface: #ffffff;
+
+  /* Text */
+  --color-text: #18181b;
+  --color-text-secondary: #52525b;
+  --color-text-muted: #71717a;
 
   /* Border */
-  --color-border: #e2e8f0;
-  --color-border-strong: #cbd5e1;
+  --color-border: #e4e4e7;
+  --color-border-strong: #d4d4d8;
 
   /* Primary — brand blue (spider) */
   --color-primary: #3661A5;
@@ -83,6 +97,309 @@
   --dur-medium: 0.5s;
   --dur-slow: 0.7s;
   --dur-morph-slow: 1s;
+
+  /* Lesson typography — a scale that only the course canvas uses.
+     The rest of the app reads at UI sizes (text-sm/text-xs); a lesson is read
+     like a page, so it gets bigger type, a generous line-height and a capped
+     measure. Registered in the `--text-*` namespace so each one is a Tailwind
+     utility (`text-lesson-body`, …) with its line-height paired in. */
+  --text-lesson-title: 1.75rem;
+  --text-lesson-title--line-height: 1.2;
+  --text-lesson-title--font-weight: 600;
+  --text-lesson-lead: 1.1875rem;
+  --text-lesson-lead--line-height: 1.6;
+  --text-lesson-body: 1.0625rem;
+  --text-lesson-body--line-height: 1.65;
+  --text-lesson-caption: 0.875rem;
+  --text-lesson-caption--line-height: 1.6;
+
+  /* The comfortable reading width for a lesson screen. One number so every
+     block lines up to the same column. */
+  --lesson-measure: 32rem;
+}
+
+/* ── Chrome (frame) surface tokens ────────────────────────────────────────
+   The sidebar + header ("L-frame") are their own surface, distinct from the
+   content palette. In LIGHT that surface is the branded spider-blue gradient;
+   in DARK it must NOT stay bright blue slammed against a near-black content
+   area — it becomes a deep, desaturated near-black navy that harmonises with
+   the neutral content while keeping a whisper of brand hue. These tokens are
+   the single seam both look through; the values are set per theme below.
+
+   Defined here on bare :root as the LIGHT default so they always exist even
+   with no `data-theme` set under a light OS; the dark blocks override them. */
+:root {
+  /* The gradient the `.frame-surface` chrome and the page `body` both paint. */
+  --frame-gradient: linear-gradient(170deg, #4171B5 0%, #2D5490 40%, #1E3D6E 100%);
+  /* Hairline where the frame meets the content pane. Transparent in light —
+     the blue-to-white tone break defines the seam on its own. */
+  --frame-border: transparent;
+  /* Active-nav pill: in light it is the content colour punching into the rail. */
+  --frame-pill-bg: #ffffff;
+  --frame-pill-text: #3661A5;
+  /* Help card nested in the rail. */
+  --frame-card-bg: #162844;
+  --frame-card-hover: #1C3254;
+}
+
+/* ── App theme (light / dark) ─────────────────────────────────────────────
+   The whole app is themeable through the SAME `--color-*` tokens the utilities
+   already read (`bg-bg`, `text-text-secondary`, `border-border`, …). LIGHT is
+   the default, defined in `@theme` above. DARK is defined twice on purpose:
+
+     1. `:root[data-theme="dark"]`   — the explicit user choice (useTheme sets
+        `document.documentElement.dataset.theme`).
+     2. `@media (prefers-color-scheme: dark)` scoped `:root:not([data-theme="light"])`
+        — the *system default* when the user has made no choice. The `:not`
+        guard is what lets an explicit `data-theme="light"` beat the OS, because
+        the media-query rule simply stops matching once that attribute is set.
+
+   The dark values are the exact neutral near-black stack from
+   `.lesson-theater.mode-dark`, so app chrome and the course canvas are one
+   palette. Brand hues (spider blue, web green) are lifted for the dark ground.
+
+   Contrast over dark --color-bg (#0a0a0a): text ~17:1, secondary ~9:1,
+   muted ~5.8:1 — all clear AA. */
+:root[data-theme="dark"] {
+  /* Neutral near-black stack (Curio): depth is surface-tone layering, not blue.
+     A monotonic elevation scale so every layer reads correctly on dark:
+       page 0a0a0a  <  card 151518  <  inset 1c1c20  <  chip/track 26262b. */
+  --color-bg: #0a0a0a;
+  --color-surface: #151518;
+  --color-bg-subtle: #1c1c20;
+  --color-bg-muted: #26262b;
+
+  --color-text: #f4f4f5;
+  --color-text-secondary: #a1a1aa;
+  --color-text-muted: #8b8b93;
+
+  /* Hairlines carry the structure on dark, so they are a touch crisper than the
+     old #26262a which barely cleared the page tone. */
+  --color-border: #2d2d33;
+  --color-border-strong: #3d3d45;
+
+  /* SkillNet brand hues, lifted for a dark ground (spider blue + web green). */
+  --color-primary: #6f9bec;
+  --color-primary-hover: #93c5fd;
+  --color-primary-subtle: #16233d;
+
+  --color-accent: #5ec77a;
+  --color-accent-hover: #74d38d;
+  --color-accent-subtle: #14251a;
+
+  --color-success: #5ec77a;
+  --color-warning: #e0a34a;
+  --color-warning-subtle: #241d10;
+  --color-danger: #ef5b5b;
+
+  /* Skill + decorative tokens the theater does not touch but the app uses.
+     Lifted to the same family so bars and the empty track read on dark. */
+  --color-skill-high: #5ec77a;
+  --color-skill-medium: #e0a34a;
+  --color-skill-low: #ef5b5b;
+  --color-skill-none: #3d3d45;
+
+  /* Metric tiles: deepened + desaturated so the four solid tiles sit calmly on
+     the near-black dashboard instead of glowing against it. White text on each
+     still clears AA comfortably. */
+  --color-metric-blue: #3f6096;
+  --color-metric-green: #3f8a56;
+  --color-metric-orange: #b9772e;
+  --color-metric-purple: #6849b8;
+
+  /* Chrome: deep desaturated navy rail, not the bright light-mode blue. Slightly
+     lifted off the #0a0a0a content at the top and settling toward it, so the
+     rail reads as elevated and the rounded-corner reveal of `body` matches it. */
+  --frame-gradient: linear-gradient(170deg, #16181f 0%, #111319 45%, #0d0e13 100%);
+  --frame-border: rgba(255, 255, 255, 0.06);
+  --frame-pill-bg: rgba(255, 255, 255, 0.09);
+  --frame-pill-text: #cdd9f4;
+  --frame-card-bg: #191c24;
+  --frame-card-hover: #20242e;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-bg: #0a0a0a;
+    --color-surface: #151518;
+    --color-bg-subtle: #1c1c20;
+    --color-bg-muted: #26262b;
+
+    --color-text: #f4f4f5;
+    --color-text-secondary: #a1a1aa;
+    --color-text-muted: #8b8b93;
+
+    --color-border: #2d2d33;
+    --color-border-strong: #3d3d45;
+
+    --color-primary: #6f9bec;
+    --color-primary-hover: #93c5fd;
+    --color-primary-subtle: #16233d;
+
+    --color-accent: #5ec77a;
+    --color-accent-hover: #74d38d;
+    --color-accent-subtle: #14251a;
+
+    --color-success: #5ec77a;
+    --color-warning: #e0a34a;
+    --color-warning-subtle: #241d10;
+    --color-danger: #ef5b5b;
+
+    --color-skill-high: #5ec77a;
+    --color-skill-medium: #e0a34a;
+    --color-skill-low: #ef5b5b;
+    --color-skill-none: #3d3d45;
+
+    --color-metric-blue: #3f6096;
+    --color-metric-green: #3f8a56;
+    --color-metric-orange: #b9772e;
+    --color-metric-purple: #6849b8;
+
+    --frame-gradient: linear-gradient(170deg, #16181f 0%, #111319 45%, #0d0e13 100%);
+    --frame-border: rgba(255, 255, 255, 0.06);
+    --frame-pill-bg: rgba(255, 255, 255, 0.09);
+    --frame-pill-text: #cdd9f4;
+    --frame-card-bg: #191c24;
+    --frame-card-hover: #20242e;
+  }
+}
+
+/* Explicit light restated so it always beats the media query above.
+   (The values equal `@theme`; this block only raises specificity/order.) */
+:root[data-theme="light"] {
+  --color-bg: #ffffff;
+  --color-surface: #ffffff;
+  --color-bg-subtle: #fafafa;
+  --color-bg-muted: #f4f4f5;
+
+  --color-text: #18181b;
+  --color-text-secondary: #52525b;
+  --color-text-muted: #71717a;
+
+  --color-border: #e4e4e7;
+  --color-border-strong: #d4d4d8;
+
+  --color-primary: #3661a5;
+  --color-primary-hover: #2b4f8a;
+  --color-primary-subtle: #ebf0f7;
+
+  --color-accent: #4ba862;
+  --color-accent-hover: #3d8c51;
+  --color-accent-subtle: #edf7ef;
+
+  --color-success: #4ba862;
+  --color-warning: #d97706;
+  --color-warning-subtle: #fdf4e7;
+  --color-danger: #dc2626;
+
+  --color-skill-high: #4ba862;
+  --color-skill-medium: #d97706;
+  --color-skill-low: #dc2626;
+  --color-skill-none: #e4e4e7;
+
+  --color-metric-blue: #3661A5;
+  --color-metric-green: #4BA862;
+  --color-metric-orange: #d97706;
+  --color-metric-purple: #7c3aed;
+
+  --frame-gradient: linear-gradient(170deg, #4171B5 0%, #2D5490 40%, #1E3D6E 100%);
+  --frame-border: transparent;
+  --frame-pill-bg: #ffffff;
+  --frame-pill-text: #3661A5;
+  --frame-card-bg: #162844;
+  --frame-card-hover: #1C3254;
+}
+
+/* No-flash on theme swap: `useTheme` adds `.theme-switching` to <html> for a
+   couple of RAFs while the tokens change, so every colour/background/border
+   transition is suppressed for that one frame and the swap is instant rather
+   than a slow cross-fade of the whole page. Removed right after. */
+html.theme-switching,
+html.theme-switching *,
+html.theme-switching *::before,
+html.theme-switching *::after {
+  transition: none !important;
+}
+
+/* ── Lesson theater ──────────────────────────────────────────────────────
+   The course canvas (fullscreen NodeView) is a focused, themeable surface.
+   Rather than teach every block a second palette, we remap the SAME colour
+   tokens inside this scope, so `text-text` / `bg-bg-subtle` / `border-border`
+   keep working and simply resolve to the active theme's values here.
+
+   A *mode* class carries the palette; the theater carries only the container
+   role. This is the seam the theme system (and the agent's set_theme tool)
+   plugs into — a new theme is one more `.mode-*` block, nothing in the blocks
+   changes. Dark is the default (Brilliant-style) when no mode is set. */
+.lesson-theater {
+  color: var(--color-text);
+  background: var(--color-bg);
+  /* Inter's stylistic sets — the refined, slightly humanist cut Curio uses.
+     cv02/03/04 open up a/g/l, ss01 the single-storey a. Antialiased so hairline
+     type stays crisp on the dark ground. */
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'ss01';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Dark — default. `:not(.mode-light)` so a bare `.lesson-theater` is dark.
+   Contrast re-tuned: text ~17:1, secondary ~9:1, muted ~5:1 over --color-bg. */
+.lesson-theater.mode-dark,
+.lesson-theater:not(.mode-light) {
+  /* Neutral near-black stack (Curio): depth is surface-tone layering, not blue. */
+  --color-bg: #0a0a0a;
+  --color-bg-subtle: #111112;
+  --color-bg-muted: #18181b;
+
+  --color-text: #f4f4f5;
+  --color-text-secondary: #a1a1aa;
+  --color-text-muted: #8b8b93;
+
+  --color-border: #26262a;
+  --color-border-strong: #34343a;
+
+  /* SkillNet brand hues, lifted for a dark ground (spider blue + web green). */
+  --color-primary: #6f9bec;
+  --color-primary-hover: #93c5fd;
+  --color-primary-subtle: #16233d;
+
+  --color-accent: #5ec77a;
+  --color-accent-hover: #74d38d;
+  --color-accent-subtle: #14251a;
+
+  --color-success: #5ec77a;
+  --color-warning: #e0a34a;
+  --color-warning-subtle: #241d10;
+  --color-danger: #ef5b5b;
+}
+
+/* Light — same family as the app, restated so the canvas is self-contained
+   and a theme swap is a single class change. */
+.lesson-theater.mode-light {
+  /* Neutral zinc stack (Curio light). */
+  --color-bg: #ffffff;
+  --color-bg-subtle: #fafafa;
+  --color-bg-muted: #f4f4f5;
+
+  --color-text: #18181b;
+  --color-text-secondary: #52525b;
+  --color-text-muted: #71717a;
+
+  --color-border: #e4e4e7;
+  --color-border-strong: #d4d4d8;
+
+  --color-primary: #3661a5;
+  --color-primary-hover: #2b4f8a;
+  --color-primary-subtle: #ebf0f7;
+
+  --color-accent: #4ba862;
+  --color-accent-hover: #3d8c51;
+  --color-accent-subtle: #edf7ef;
+
+  --color-success: #4ba862;
+  --color-warning: #d97706;
+  --color-warning-subtle: #fdf4e7;
+  --color-danger: #dc2626;
 }
 
 *, *::before, *::after {
@@ -124,8 +441,9 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background:
-    linear-gradient(170deg, #4171B5 0%, #2D5490 40%, #1E3D6E 100%);
+  /* The frame gradient shows through the content pane's rounded top-left corner
+     and behind the login / onboarding shells, so it must track the theme too. */
+  background: var(--frame-gradient);
   background-attachment: fixed;
 }
 
@@ -461,9 +779,12 @@ body {
   }
 }
 
+/* The L-frame chrome. The cobweb texture (faint white threads) rides on top of
+   the themed `--frame-gradient`, so light gets the bright spider-blue rail and
+   dark gets the deep desaturated navy — one class, two intentional looks. */
 .frame-surface {
   background:
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 100 100' fill='none' stroke='rgba(255,255,255,0.035)' stroke-width='0.5'%3E%3Cline x1='0' y1='0' x2='100' y2='100'/%3E%3Cline x1='50' y1='0' x2='100' y2='50'/%3E%3Cline x1='0' y1='50' x2='50' y2='100'/%3E%3Cpath d='M25 0 A25 25 0 0 1 0 25'/%3E%3Cpath d='M75 0 A75 75 0 0 1 0 75'/%3E%3C/svg%3E"),
-    linear-gradient(170deg, #4171B5 0%, #2D5490 40%, #1E3D6E 100%);
+    var(--frame-gradient);
   background-attachment: fixed;
 }

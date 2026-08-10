@@ -225,6 +225,12 @@ export const es: Record<string, string> = {
   'settings.languageDesc': 'Cambia el idioma de la interfaz.',
   'settings.langEs': 'Espanol',
   'settings.langEn': 'English',
+  'settings.theme': 'Tema',
+  'settings.themeDesc': 'Claro, oscuro o el del sistema.',
+  'settings.themeLight': 'Claro',
+  'settings.themeDark': 'Oscuro',
+  'settings.themeSystem': 'Sistema',
+  'settings.themeToggleLabel': 'Tema de la interfaz',
 
   // DragOrder
   'drag.check': 'Comprobar',

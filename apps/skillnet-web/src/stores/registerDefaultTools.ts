@@ -8,7 +8,7 @@ import type { Locale } from './preferences'
  * Call this once at the app root (e.g., in App.tsx).
  */
 export function useRegisterDefaultTools() {
-  const { setLocale, setSidebarCollapsed } = usePreferences()
+  const { setLocale, setSidebarCollapsed, setTheme } = usePreferences()
 
   useEffect(() => {
     registerTool('set_locale', (args) => {
@@ -19,5 +19,10 @@ export function useRegisterDefaultTools() {
     registerTool('set_sidebar_collapsed', (args) => {
       setSidebarCollapsed(Boolean(args.collapsed))
     })
-  }, [setLocale, setSidebarCollapsed])
+
+    registerTool('set_theme', (args) => {
+      const theme = args.theme
+      if (theme === 'light' || theme === 'dark' || theme === 'system') setTheme(theme)
+    })
+  }, [setLocale, setSidebarCollapsed, setTheme])
 }
