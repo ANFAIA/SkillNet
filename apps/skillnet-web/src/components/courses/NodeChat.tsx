@@ -7,6 +7,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
 import { useIntl } from 'react-intl'
 import { ChatInput } from '../chat/ChatInput'
 import { ChatAnswer } from '../chat/ChatAnswer'
@@ -14,6 +15,8 @@ import { Mascota } from '../mascota'
 import { useChat } from '../../api/chat'
 import type { ChatContext } from '../../api/chat'
 import type { ChatMessage } from '../../types'
+import { useReducedMotion } from '../../hooks/useReducedMotion'
+import { duration, ease } from '../../lib/motion'
 
 export interface NodeChatProps {
   /** Stable ids: the backend reloads title/summary/lesson body from these, org-scoped. */
@@ -27,6 +30,7 @@ export interface NodeChatProps {
 }
 
 function Bubble({ message }: { message: ChatMessage }) {
+  const intl = useIntl()
   const isUser = message.role === 'user'
 
   if (isUser) {
@@ -45,6 +49,14 @@ function Bubble({ message }: { message: ChatMessage }) {
   return (
     <div className="flex justify-start">
       <div className="w-full text-sm leading-relaxed text-text">
+        {/* Same provenance note the admin chat shows: when nothing in the company's
+            material covered the question the tutor answered from general knowledge,
+            and the label keeps that honest (see ChatGrounding). */}
+        {message.grounding === 'general' && (
+          <p className="text-xs text-text-muted mb-1.5" data-grounding="general">
+            {intl.formatMessage({ id: 'chat.grounding' })}
+          </p>
+        )}
         <ChatAnswer message={message} />
         {message.citations && message.citations.length > 0 && (
           <div className="mt-2 space-y-0.5">
@@ -71,6 +83,7 @@ export function NodeChat({
   totalSteps,
 }: NodeChatProps) {
   const intl = useIntl()
+  const reduceMotion = useReducedMotion()
   const [input, setInput] = useState('')
   const scrollRef = useRef<HTMLDivElement>(null)
   const atBottomRef = useRef(true)
@@ -128,26 +141,55 @@ export function NodeChat({
 
   return (
     <div className="flex flex-col h-full min-h-0">
-      {/* Messages */}
+      {/* Messages. `relative` so the greeting can leave as an absolute overlay while
+          the conversation fades in underneath it — a Curio-style hand-off, not a cut. */}
       <div
         ref={scrollRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto min-h-0 space-y-3 pb-2"
+        className="relative flex-1 overflow-y-auto min-h-0 pb-2"
         style={{ scrollbarWidth: 'thin' }}
       >
-        {messages.length === 0 && (
-          // El chat vacío ya no es una línea de texto suelta: la mascota saluda con
-          // un bocadillo, así que la compañera está presente desde el principio.
-          <div className="h-full flex flex-col items-center justify-center gap-3 px-4 text-center">
-            <Mascota anim="saludar" size={88} followCursor />
-            <p className="text-sm text-text-secondary max-w-[15rem]">
-              {intl.formatMessage({ id: 'nodeChat.empty' })}
-            </p>
-          </div>
+        {/* The empty state does not just vanish when the first message lands: it fades
+            and drifts up (opacity + translate + scale, no blur) while the conversation
+            fades in, so the mascota's greeting reads as handing off to the chat.
+            Under reduced motion it is a plain opacity swap — no transform. */}
+        <AnimatePresence initial={false}>
+          {messages.length === 0 && (
+            <motion.div
+              key="empty"
+              // La mascota saluda: la compañera está presente desde el principio.
+              className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-4 text-center"
+              exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -12, scale: 0.96 }}
+              transition={{
+                duration: reduceMotion ? duration.fast : duration.normal,
+                ease: ease.base,
+              }}
+            >
+              <Mascota anim="saludar" size={88} followCursor />
+              <p className="text-sm text-text-secondary max-w-[15rem]">
+                {intl.formatMessage({ id: 'nodeChat.empty' })}
+              </p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {messages.length > 0 && (
+          <motion.div
+            className="space-y-3"
+            initial={reduceMotion ? false : { opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{
+              duration: duration.normal,
+              ease: ease.base,
+              // A beat behind the greeting's exit so it reads as a hand-off, not a crossfade.
+              delay: reduceMotion ? 0 : duration.fast,
+            }}
+          >
+            {messages.map((msg) => (
+              <Bubble key={msg.id} message={msg} />
+            ))}
+          </motion.div>
         )}
-        {messages.map((msg) => (
-          <Bubble key={msg.id} message={msg} />
-        ))}
       </div>
 
       {/* Composer */}
