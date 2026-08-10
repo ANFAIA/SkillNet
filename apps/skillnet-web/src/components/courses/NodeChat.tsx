@@ -138,13 +138,11 @@ export function NodeChat({
         {messages.length === 0 && (
           // El chat vacío ya no es una línea de texto suelta: la mascota saluda con
           // un bocadillo, así que la compañera está presente desde el principio.
-          <div className="h-full flex flex-col items-center justify-center px-2">
-            <Mascota
-              anim="talk"
-              say={intl.formatMessage({ id: 'nodeChat.empty' })}
-              size={104}
-              followCursor
-            />
+          <div className="h-full flex flex-col items-center justify-center gap-3 px-4 text-center">
+            <Mascota anim="saludar" size={88} followCursor />
+            <p className="text-sm text-text-secondary max-w-[15rem]">
+              {intl.formatMessage({ id: 'nodeChat.empty' })}
+            </p>
           </div>
         )}
         {messages.map((msg) => (
