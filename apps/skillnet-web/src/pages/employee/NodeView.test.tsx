@@ -217,6 +217,16 @@ function renderPage({ declaredReducedMotion = false } = {}) {
   )
 }
 
+/**
+ * The node's intro is now a deliberate start gate: the lesson content mounts only
+ * after the learner clicks "Empezar", which is enabled once the render is ready
+ * (before that it is a disabled "Preparando lección…"). Any test that asserts on the
+ * lesson content has to pass through the gate first.
+ */
+async function enterLesson() {
+  await userEvent.click(await screen.findByRole('button', { name: 'Empezar' }))
+}
+
 let warnSpy: ReturnType<typeof vi.spyOn>
 
 beforeEach(() => {
@@ -255,6 +265,8 @@ describe('NodeView — the frozen frame', () => {
     })
     renderPage()
 
+    // The opening line lives in the lesson content, past the start gate.
+    await enterLesson()
     expect(await screen.findByTestId('opening-line')).toHaveTextContent(
       'Esto te sirve para dominar lo que viniste a resolver.',
     )
@@ -279,6 +291,7 @@ describe('NodeView — streaming', () => {
     })
     const { container } = renderPage()
 
+    await enterLesson()
     await waitFor(() => expect(container).toHaveTextContent('El plazo de devolucion es de 30 dias.'))
     // The `ui_block` payload is a pre-gate component dict; it must never be rendered, so
     // its own type name cannot appear on screen.
@@ -308,6 +321,25 @@ describe('NodeView — streaming', () => {
     // The intro shows the node title and summary
     expect(intro).toHaveTextContent('Plazo de devolucion')
     expect(intro).toHaveTextContent('Cuantos dias tiene el cliente para devolver.')
+  })
+
+  it('holds the intro as a start gate until the learner clicks "Empezar"', async () => {
+    installFetch({
+      node: learningNode(),
+      renderResponses: [[200, servedRender(PROGRAM)]],
+    })
+    const { container } = renderPage()
+
+    // The render is ready, but the lesson must not mount on its own: the intro stays,
+    // now offering an enabled "Empezar" the learner controls.
+    const start = await screen.findByRole('button', { name: 'Empezar' })
+    expect(screen.getByTestId('node-intro')).toBeInTheDocument()
+    expect(container).not.toHaveTextContent('El plazo de devolucion es de 30 dias.')
+
+    // Clicking it, and only then, enters the lesson content.
+    await userEvent.click(start)
+    await waitFor(() => expect(container).toHaveTextContent('El plazo de devolucion es de 30 dias.'))
+    expect(screen.queryByTestId('node-intro')).not.toBeInTheDocument()
   })
 
   /**
@@ -363,6 +395,7 @@ describe('NodeView — streaming', () => {
     })
     const { container } = renderPage()
 
+    await enterLesson()
     await waitFor(() => expect(container).toHaveTextContent('El plazo de devolucion es de 30 dias.'))
   })
 
@@ -396,6 +429,7 @@ describe('NodeView — streaming', () => {
     })
     const { container } = renderPage()
 
+    await enterLesson()
     await waitFor(() => expect(container).toHaveTextContent('El plazo de devolucion es de 30 dias.'))
     expect(callsTo('/render/stream')).toHaveLength(0)
   })
@@ -419,6 +453,7 @@ describe('NodeView — the pinned render is the lesson (§5.5)', () => {
     })
     const { container } = renderPage()
 
+    await enterLesson()
     await waitFor(() => expect(container).toHaveTextContent('El plazo de devolucion es de 30 dias.'))
 
     // A render that is already pinned is served, not re-requested — with or without force.
@@ -449,6 +484,7 @@ describe('NodeView — how the lesson arrives (§9.2)', () => {
     })
     const { container } = renderPage()
 
+    await enterLesson()
     await waitFor(() => expect(container).toHaveTextContent('El plazo de devolucion es de 30 dias.'))
     // In stepper mode the root Stack renders children one at a time.
     // block-arrival stagger is not used because the stepper handles sequencing.
@@ -478,6 +514,7 @@ describe('NodeView — how the lesson arrives (§9.2)', () => {
     })
     const { container } = renderPage({ declaredReducedMotion: true })
 
+    await enterLesson()
     await waitFor(() => expect(container).toHaveTextContent('El plazo de devolucion es de 30 dias.'))
     expect(staggered(container)).toHaveLength(0)
   })
@@ -499,6 +536,7 @@ describe('NodeView — click to explain (§8.5)', () => {
     })
     const { container } = renderPage()
 
+    await enterLesson()
     // In stepper mode, the TextContent step is shown first.
     await waitFor(() => expect(container).toHaveTextContent('El plazo de devolucion es de 30 dias.'))
 

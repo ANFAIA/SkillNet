@@ -67,6 +67,8 @@ export const en: Record<string, string> = {
   'node.counter': 'Node {current} of {total}',
   'node.mastery': 'Mastery: {pct}%',
   'node.previousMastered': 'You\'ve mastered {title}. This is the next step.',
+  'node.start': 'Start',
+  'node.preparing': 'Preparing lesson\u2026',
   'node.introSubtitle': '{count} nodes \u00b7 {minutes} min',
   'node.goalOnboarding': 'This helps you get up to speed in your role.',
   'node.goalSpecificGap': 'This helps you master what you came to solve.',

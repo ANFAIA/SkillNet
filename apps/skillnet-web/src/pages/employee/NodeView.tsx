@@ -297,6 +297,11 @@ export function NodeView() {
   useEffect(() => { setFinished(false) }, [nodeId])
   const finishCourse = useCallback(() => setFinished(true), [])
 
+  // Compuerta de arranque: la pantalla de intro es del aprendiz hasta que pulsa
+  // "Empezar". Sin esto, la leccion aparecia sola en cuanto el render estaba listo,
+  // sin poder quedarse ni avanzar a voluntad. Se reinicia por nodo (mas abajo).
+  const [entered, setEntered] = useState(false)
+
   const nodes = useCourseNodes(courseId)
   const courseQuery = useCourse(courseId)
   const { data: profile } = useLearnerProfile()
@@ -377,6 +382,7 @@ export function NodeView() {
     setStreamFailure(null)
     setActivePanel(null)
     setStepProgress(null)
+    setEntered(false)
     requestedRef.current = false
     programShownBefore.current = false
     viewedRenderRef.current = null
@@ -735,7 +741,7 @@ export function NodeView() {
               ) : (
                 <div className="flex-1 min-h-0 flex flex-col justify-center">
                   <AnimatePresence mode="wait">
-                    {shownProgram ? (
+                    {shownProgram && entered ? (
                       <motion.div
                         key="content"
                         className="flex-1 min-h-0 flex flex-col justify-center"
@@ -833,6 +839,22 @@ export function NodeView() {
                             />
                           )}
                         </div>
+                        {/*
+                          La compuerta de arranque. Mientras el render se genera es un
+                          boton inhabilitado ("Preparando...") que dice que hay algo en
+                          camino; cuando la leccion esta lista pasa a "Empezar" y montar
+                          el stepper es una decision del aprendiz, no un salto automatico.
+                        */}
+                        <button
+                          type="button"
+                          onClick={() => setEntered(true)}
+                          disabled={!shownProgram}
+                          className="bg-primary hover:bg-primary-hover text-white text-sm font-medium px-5 py-3 rounded-md transition-colors disabled:opacity-50 disabled:pointer-events-none"
+                        >
+                          {shownProgram
+                            ? intl.formatMessage({ id: 'node.start' })
+                            : intl.formatMessage({ id: 'node.preparing' })}
+                        </button>
                       </motion.div>
                     )}
                   </AnimatePresence>
