@@ -838,7 +838,7 @@ export function NodeView() {
           {served && !activePanel && (
             <motion.div
               key="spider"
-              className="hidden md:block absolute left-12 bottom-8 z-10"
+              className="absolute left-4 bottom-6 md:left-12 md:bottom-8 z-10"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 20 }}
@@ -847,7 +847,7 @@ export function NodeView() {
               <motion.button
                 type="button"
                 onClick={() => togglePanel('chat')}
-                className="w-[72px] h-[72px] cursor-pointer"
+                className="w-14 h-14 md:w-[72px] md:h-[72px] cursor-pointer"
                 whileHover={{ scale: 1.08, y: -2 }}
                 whileTap={{ scale: 0.95 }}
                 transition={{ type: 'spring', stiffness: 400, damping: 20 }}
@@ -865,6 +865,10 @@ export function NodeView() {
           resultado={glow?.resultado ?? null}
           intento={glow?.nonce}
           definitivo={glow?.definitivo}
+          // Solo la luz ambiental, sin el pill de texto: flotaba abajo-centro y se
+          // superponia al boton. El resultado ya lo dicen la opcion marcada del
+          // ejercicio y la reaccion de la mascota, asi que la etiqueta sobra aqui.
+          mostrarEtiqueta={false}
         />
 
         {/* Right sidebar — width animated directly (no layoutId/scale = no distortion) */}
