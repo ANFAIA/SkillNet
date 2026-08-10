@@ -71,6 +71,14 @@ services:
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
       ORG_NAME: ${ORG_NAME:-SkillNet}
       A2A_INTERNAL_API_KEY: ${A2A_INTERNAL_API_KEY:-}
+      # TTS + Vision follow the same rule as the models above: `.env` is dockerignored,
+      # no service declares `env_file`, so a key only reaches the container if it is
+      # listed here. Without these lines `TTS_PROVIDER` defaulted to `disabled` and the
+      # audio endpoint 503'd even with a valid ElevenLabs key in `.env`.
+      TTS_PROVIDER: ${TTS_PROVIDER:-disabled}
+      TTS_API_KEY: ${TTS_API_KEY:-}
+      VISION_MODEL: ${VISION_MODEL:-}
+      VISION_API_KEY: ${VISION_API_KEY:-}
     volumes:
       - uploads:/data/uploads
     depends_on:
