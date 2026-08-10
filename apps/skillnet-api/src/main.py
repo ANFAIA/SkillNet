@@ -44,10 +44,12 @@ from src.routes import (
 )
 from src.routes.ext import skills as ext_skills
 
-# Importing the podcast package registers its MediaGenerator under MediaKind.PODCAST,
-# overriding the echo default (media spine, roadmap §2a). Kept as an explicit side-effect
-# import so the registry is populated wherever the app is imported, tests included.
+# Importing the media generator packages registers each MediaGenerator under its kind,
+# overriding the echo default (media spine, roadmap §2). Kept as explicit side-effect
+# imports so the registry is populated wherever the app is imported, tests included:
+# podcast (§2a), slides (§2c).
 from src.services.media import podcast as _podcast  # noqa: F401
+from src.services.media import slides as _slides  # noqa: F401
 from src.services.embedding_check import check_embedding_dimensions
 
 configure_logging(settings.LOG_LEVEL)

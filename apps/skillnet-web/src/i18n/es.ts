@@ -567,6 +567,16 @@ export const es: Record<string, string> = {
   'podcast.format.critique': 'Critica',
   'podcast.format.debate': 'Debate',
 
+  // SlideDeck component (Slide Deck, spine de media §2c)
+  'slides.title': 'Diapositivas',
+  'slides.empty': 'No hay diapositivas',
+  'slides.counter': '{current} de {total}',
+  'slides.prev': 'Anterior',
+  'slides.next': 'Siguiente',
+  'slides.sources': 'Fuentes',
+  'slides.noSources': 'Sin fuentes citadas',
+  'slides.page': 'pag. {page}',
+
   // PronunciationExerciseBlock component
   'pronunciation.title': 'Ejercicio de pronunciacion',
   'pronunciation.language': 'Idioma: {lang}',

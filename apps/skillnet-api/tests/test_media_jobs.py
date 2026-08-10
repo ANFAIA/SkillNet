@@ -101,16 +101,25 @@ async def test_cancellation_propagates_not_swallowed(tmp_path: Path) -> None:
         await execute_generation(_ctx(), _CancelGenerator(), AssetStore(tmp_path))
 
 
-def test_registry_overrides_default_echo_for_a_kind() -> None:
-    # Before registration, any kind resolves to the echo default.
-    assert isinstance(get_generator(MediaKind.SLIDES), EchoGenerator)
+class _CoverGenerator:
+    # A kind with no real generator, so registering here does not clobber a shipped one
+    # (podcast/slides/infographic all self-register on import).
+    kind = MediaKind.COVER_IMAGE
 
-    gen = _BytesGenerator()
+    async def generate(self, ctx: MediaJobContext) -> GeneratedArtifact:
+        return GeneratedArtifact(spec_json={"ok": True}, data=b"PNGDATA", ext="png")
+
+
+def test_registry_overrides_default_echo_for_a_kind() -> None:
+    # A kind that nothing registers a generator for resolves to the echo default.
+    assert isinstance(get_generator(MediaKind.MINDMAP), EchoGenerator)
+
+    gen = _CoverGenerator()
     register_generator(gen)
 
-    assert get_generator(MediaKind.INFOGRAPHIC) is gen
+    assert get_generator(MediaKind.COVER_IMAGE) is gen
     # A kind still without a real generator keeps the echo default.
-    assert isinstance(get_generator(MediaKind.SLIDES), EchoGenerator)
+    assert isinstance(get_generator(MediaKind.MINDMAP), EchoGenerator)
 
 
 def test_register_generator_rejects_missing_kind() -> None:
