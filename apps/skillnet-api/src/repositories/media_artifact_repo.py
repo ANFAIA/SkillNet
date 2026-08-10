@@ -31,15 +31,22 @@ class MediaArtifactRepository(BaseRepository[MediaArtifact]):
         return (await self.session.execute(query)).scalar_one_or_none()
 
     async def list_for_course(
-        self, course_id: uuid.UUID, org_id: uuid.UUID
+        self,
+        course_id: uuid.UUID,
+        org_id: uuid.UUID,
+        node_id: uuid.UUID | None = None,
     ) -> Sequence[MediaArtifact]:
-        """Every artifact of a course, newest first."""
-        query = (
-            select(MediaArtifact)
-            .where(
-                MediaArtifact.course_id == course_id,
-                MediaArtifact.org_id == org_id,
-            )
-            .order_by(MediaArtifact.created_at.desc())
+        """Every artifact of a course, newest first.
+
+        With ``node_id`` set, narrows to the artifacts of that node; left ``None`` the whole
+        course is returned (both node-scoped and course-level artifacts). Org-scoped like
+        every read here, so the caller only ever sees its own organization's rows.
+        """
+        query = select(MediaArtifact).where(
+            MediaArtifact.course_id == course_id,
+            MediaArtifact.org_id == org_id,
         )
+        if node_id is not None:
+            query = query.where(MediaArtifact.node_id == node_id)
+        query = query.order_by(MediaArtifact.created_at.desc())
         return (await self.session.execute(query)).scalars().all()
