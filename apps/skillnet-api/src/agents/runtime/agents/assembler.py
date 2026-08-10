@@ -4,10 +4,12 @@ complete OpenUI Lang program.  Pure Python, no LLM calls."""
 from __future__ import annotations
 
 import json
+import re
 
 from src.agents.runtime.agents.types import Blueprint, ContentOutput, InteractionOutput
 from src.core.logging import get_logger
 from src.llm.prompts.runtime import ANSWER_KEY_SENTINEL
+from src.render.spec import MAX_ROOT_CHILDREN
 
 logger = get_logger(__name__)
 
@@ -68,14 +70,45 @@ def assemble(
                 block.type,
             )
 
-    # Extra ids not in blueprint are included as declarations but not in root
+    # Extra ids not in the blueprint fall into two kinds:
+    #   - HELPERS nested inside another block (a Card's child, an item referenced
+    #     from a children array). They ARE referenced by another declaration, so
+    #     they render through their parent and must NOT be added to root.
+    #   - true ORPHANS: declared, valid, but unreachable from root — the learner
+    #     would never see them. This silently dropped real content (measured: a
+    #     `warn` Callout carrying a critical rule vanished from a Ticketrona node).
+    # Wire the orphans into root instead of losing them, placed just before the
+    # last child (normally the exercise) so an informational block lands with the
+    # content it belongs to. Respect the root fan-out cap so re-wiring never makes
+    # the whole render fail validation — which would drop even more than the orphan.
     blueprint_ids = {b.id for b in blueprint.blocks}
-    for did in declarations:
-        if did not in blueprint_ids:
-            logger.warning(
-                "Agent declared id %r not in blueprint; emitted but not in root",
-                did,
-            )
+
+    def _referenced_elsewhere(target: str) -> bool:
+        pattern = re.compile(rf"\b{re.escape(target)}\b")
+        for other_id, line in declarations.items():
+            if other_id == target:
+                continue
+            rhs = line.split("=", 1)[1] if "=" in line else line
+            if pattern.search(rhs):
+                return True
+        return False
+
+    orphans = [
+        did
+        for did in declarations
+        if did not in blueprint_ids and not _referenced_elsewhere(did)
+    ]
+    room = max(0, MAX_ROOT_CHILDREN - len(root_children))
+    for did in orphans[room:]:
+        logger.warning("Orphan id %r dropped: root fan-out cap reached", did)
+    wire = orphans[:room]
+    for did in wire:
+        logger.warning("Orphan id %r not in blueprint; wiring into root", did)
+    if wire:
+        if root_children:
+            root_children[-1:-1] = wire  # before the last child (the exercise)
+        else:
+            root_children = list(wire)
 
     gap = "md"
     root_line = f'root = Stack([{", ".join(root_children)}], "{gap}")'
