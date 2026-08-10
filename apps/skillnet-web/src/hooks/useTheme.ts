@@ -40,11 +40,14 @@ export function applyTheme(theme: Theme) {
     delete root.dataset.theme
   }
 
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      root.classList.remove('theme-switching')
-    })
-  })
+  // Remove after the swap has painted. Double-rAF is the happy path, but rAF is
+  // throttled/paused on a backgrounded tab — and if it never fires, the class
+  // sticks and `transition: none !important` silently disables every transition
+  // in the app. A setTimeout is the fallback that fires even when rAF is frozen;
+  // whichever runs first clears it (removing a class twice is a no-op).
+  const clear = () => root.classList.remove('theme-switching')
+  requestAnimationFrame(() => requestAnimationFrame(clear))
+  setTimeout(clear, 150)
 }
 
 /**
