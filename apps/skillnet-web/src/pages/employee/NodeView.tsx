@@ -838,7 +838,7 @@ export function NodeView() {
           {served && !activePanel && (
             <motion.div
               key="spider"
-              className="hidden md:block absolute left-6 bottom-6 z-10"
+              className="hidden md:block absolute left-12 bottom-8 z-10"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 20 }}
