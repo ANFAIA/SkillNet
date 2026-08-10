@@ -1,4 +1,5 @@
 import { createContext, useContext } from 'react'
+import type { Resultado } from '../feedback/ResultGlow'
 
 /**
  * When true, the root StackBlock renders its children one at a time (Brilliant-style)
@@ -97,4 +98,21 @@ export const stepperProgressContext = createContext<StepperProgressCallback | nu
 
 export function useStepperProgressReport(): StepperProgressCallback | null {
   return useContext(stepperProgressContext)
+}
+
+/**
+ * Feedback de la lección: un bloque interactivo (QuizItem, DragOrder) cuenta lo que
+ * ha pasado —acertó, falló, casi— y NodeView lo traduce a respuesta ambiental: el
+ * `ResultGlow` en el borde y la reacción de la mascota (celebra / ups). El bloque no
+ * sabe nada de luces ni de arañas; solo dice una de tres palabras. `definitivo` marca
+ * el fallo sin reintento (se acabaron los intentos). `null` fuera de la lección.
+ */
+export interface LessonFeedback {
+  report: (result: Resultado, opts?: { definitivo?: boolean }) => void
+}
+
+export const lessonFeedbackContext = createContext<LessonFeedback | null>(null)
+
+export function useLessonFeedback(): LessonFeedback | null {
+  return useContext(lessonFeedbackContext)
 }

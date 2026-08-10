@@ -8,10 +8,13 @@ import { Card, EmptyState, ProgressBar } from '../../components/ui'
 import { ClickableSurface, NO_EXPLAIN_SELECTOR } from '../../components/courses/ClickableSurface'
 import { UiSpecRenderer } from '../../components/courses/UiSpecRenderer'
 import { NodeList } from '../../components/courses/NodeList'
-import { stepperContext, coursePositionContext, nextNodeContext, courseIntroContext, stepperProgressContext } from '../../components/courses/blocks/StepperContext'
+import { stepperContext, coursePositionContext, nextNodeContext, courseIntroContext, stepperProgressContext, lessonFeedbackContext } from '../../components/courses/blocks/StepperContext'
 import type { CourseIntro, StepperProgress, StepperProgressCallback } from '../../components/courses/blocks/StepperContext'
 import { NodeChat } from '../../components/courses/NodeChat'
 import { NodeSkeleton, RESERVED_CONTENT_PX } from '../../components/courses/NodeSkeleton'
+import { Mascota } from '../../components/mascota'
+import { ResultGlow } from '../../components/courses/feedback/ResultGlow'
+import type { Resultado } from '../../components/courses/feedback/ResultGlow'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
 import { transition, duration, ease } from '../../lib/motion'
 import { useLearnerProfile } from '../../api/onboarding'
@@ -270,6 +273,23 @@ export function NodeView() {
     (progress) => setStepProgress(progress),
     [],
   )
+
+  // Feedback ambiental al responder: la luz del borde (ResultGlow) y la reaccion de
+  // la mascota. Un bloque interactivo llama a `report`; aqui se traduce a una y otra.
+  // `nonce` sube en cada reporte para re-disparar la animacion aunque el resultado
+  // sea el mismo (fallar dos veces seguidas debe verse dos veces).
+  const [glow, setGlow] = useState<{ resultado: Resultado; nonce: number; definitivo: boolean } | null>(null)
+  const [mascotaFx, setMascotaFx] = useState<'celebrar' | 'ups' | null>(null)
+  const fxTimer = useRef<number | null>(null)
+  const reportResult = useCallback((resultado: Resultado, opts?: { definitivo?: boolean }) => {
+    setGlow((prev) => ({ resultado, definitivo: opts?.definitivo ?? false, nonce: (prev?.nonce ?? 0) + 1 }))
+    setMascotaFx(resultado === 'fallo' ? 'ups' : 'celebrar')
+    if (fxTimer.current) window.clearTimeout(fxTimer.current)
+    // La reaccion es un gesto, no un estado: la mascota vuelve a `idle` sola.
+    fxTimer.current = window.setTimeout(() => setMascotaFx(null), 1800)
+  }, [])
+  useEffect(() => () => { if (fxTimer.current) window.clearTimeout(fxTimer.current) }, [])
+  const lessonFeedback = useMemo(() => ({ report: reportResult }), [reportResult])
 
   const nodes = useCourseNodes(courseId)
   const courseQuery = useCourse(courseId)
@@ -733,6 +753,7 @@ export function NodeView() {
                             <nextNodeContext.Provider value={nextNode ? { navigate: () => navigate(`${backToCourse}/nodo/${nextNode.id}`), title: nextNode.title } : null}>
                             <coursePositionContext.Provider value={{ nodeCount: ordered.length, currentNodeIndex: headerIndex }}>
                             <stepperContext.Provider value={true}>
+                            <lessonFeedbackContext.Provider value={lessonFeedback}>
                               <UiSpecRenderer
                                 program={shownProgram}
                                 nodeId={node.id}
@@ -741,6 +762,7 @@ export function NodeView() {
                                 arriving={arriving}
                                 recordEvent={events.record}
                               />
+                            </lessonFeedbackContext.Provider>
                             </stepperContext.Provider>
                             </coursePositionContext.Provider>
                             </nextNodeContext.Provider>
@@ -832,12 +854,22 @@ export function NodeView() {
                   transition={{ type: 'spring', stiffness: 400, damping: 20 }}
                   aria-label={intl.formatMessage({ id: 'panel.chat' })}
                 >
-                  <img src="/spider.svg" alt="" className="w-full h-full" />
+                  {/* La mascota reacciona al resultado: celebra al acertar, `ups` al
+                      fallar; vuelve sola a idle. Antes era un SVG estatico. */}
+                  <Mascota anim={mascotaFx ?? 'idle'} size="100%" followCursor />
                 </motion.button>
               </div>
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Feedback ambiental al responder: luz en el borde inferior de la ventana.
+            Independiente del bloque; se auto-oculta e inerte mientras no haya resultado. */}
+        <ResultGlow
+          resultado={glow?.resultado ?? null}
+          intento={glow?.nonce}
+          definitivo={glow?.definitivo}
+        />
 
         {/* Right sidebar — width animated directly (no layoutId/scale = no distortion) */}
         <motion.div

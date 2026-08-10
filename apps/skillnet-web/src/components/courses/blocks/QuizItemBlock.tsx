@@ -8,7 +8,7 @@ import { HintLadder, WorkedSolution } from './QuizItemHints'
 import { duration, ease } from '../../../lib/motion'
 import { INLINE_SURFACE } from './rhythm'
 import { useNodeRenderTarget } from '../kit/NodeRenderContext'
-import { useStepperSolve } from './StepperContext'
+import { useLessonFeedback, useStepperSolve } from './StepperContext'
 import type { ExerciseType } from '../../../types'
 import type { BloomLevel } from '../kit/schemas'
 import type {
@@ -195,6 +195,8 @@ export function QuizItemBlock({
   // deja de llamar a `useStepperSolve`, o aparece otro que lo llame, hay que mover
   // `SOLVABLE_COMPONENTS` con el — `solvableSteps.test.ts` lo comprueba.
   const solveStep = useStepperSolve()
+  // Feedback ambiental (ResultGlow + mascota). Independiente de si abre el paso.
+  const feedback = useLessonFeedback()
 
   // Latency is measured from mount, which is when the item became visible.
   const openedAt = useRef(Date.now())
@@ -230,9 +232,15 @@ export function QuizItemBlock({
       // queda bloqueado SIN haber pasado nunca por `passed`, asi que sin esta rama no hay
       // quien abra el paso y el aprendiz se queda encerrado en el nodo, sin nada que pulsar.
       if (result.passed) {
+        feedback?.report('acierto')
         solveStep?.()
       } else if (result.show_worked_solution === true) {
+        // Se acabaron los intentos: fallo sin reintento -> rojo reservado + mascota ups.
+        feedback?.report('fallo', { definitivo: true })
         solveStep?.()
+      } else {
+        // Fallo con reintento: ambar "todavia no", no rojo.
+        feedback?.report('fallo')
       }
     },
   })

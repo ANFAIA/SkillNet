@@ -19,7 +19,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { useIntl } from 'react-intl'
 import { Button } from '../../ui'
 import { BLOCK_TITLE, INLINE_SURFACE } from './rhythm'
-import { useStepperSolve } from './StepperContext'
+import { useLessonFeedback, useStepperSolve } from './StepperContext'
 
 // Design decision (v1): correctOrder is in the program text (browser-visible).
 // Unlike QuizItem (server-side grading), DragOrder validates locally because
@@ -126,6 +126,7 @@ export function DragOrderBlock({ instruction, items, correctOrder }: DragOrderBl
   // (`kit/solvableSteps.ts`) y solo lo abre acertar el orden. Abrir el paso NO
   // avanza: el aprendiz pulsa el boton cuando quiere.
   const solveStep = useStepperSolve()
+  const feedback = useLessonFeedback()
 
   const buildItemStates = useCallback(
     () =>
@@ -181,7 +182,10 @@ export function DragOrderBlock({ instruction, items, correctOrder }: DragOrderBl
     // Acertar abre el paso (aparece el boton); no avanza solo.
     const isAllCorrect = itemStates.every((item, i) => item.text === safeCorrect[i])
     if (isAllCorrect) {
+      feedback?.report('acierto')
       solveStep?.()
+    } else {
+      feedback?.report('fallo')
     }
   }
 
