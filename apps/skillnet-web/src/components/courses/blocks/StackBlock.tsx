@@ -2,7 +2,7 @@ import { Children, isValidElement, useState, useCallback, useEffect, useRef, typ
 import { AnimatePresence, motion } from 'framer-motion'
 import { useIntl } from 'react-intl'
 import { blockArrivalContext, useBlockArrival } from './blockArrival'
-import { stepperContext, useStepper, stepperSolveContext, useNextNode, useCourseIntro, useStepperProgressReport } from './StepperContext'
+import { stepperContext, useStepper, stepperSolveContext, useNextNode, useCourseIntro, useStepperProgressReport, useCourseFinish } from './StepperContext'
 import { useReducedMotion } from '../../../hooks/useReducedMotion'
 import { duration, ease } from '../../../lib/motion'
 import type { StackGap } from '../kit/schemas'
@@ -136,6 +136,7 @@ function StepperStack({ children }: { children?: ReactNode }) {
   const isLast = safeStep >= total - 1
   const nextNodeInfo = useNextNode()
   const goNextNode = nextNodeInfo?.navigate ?? null
+  const finishCourse = useCourseFinish()
 
   // Report step progress up to NodeView so it can render the dots in its top bar
   useEffect(() => {
@@ -270,6 +271,16 @@ function StepperStack({ children }: { children?: ReactNode }) {
                   className="w-full bg-primary hover:bg-primary-hover text-white text-sm font-medium px-4 py-3 rounded-md transition-colors"
                 >
                   {intl.formatMessage({ id: 'node.nextNode' }, { title: nextNodeInfo.title })}
+                </button>
+              ) : finishCourse ? (
+                // Ultimo nodo del curso: el CTA cierra el curso -> NodeView muestra la
+                // pantalla de celebracion. Verde, no un texto plano gris.
+                <button
+                  type="button"
+                  onClick={finishCourse}
+                  className="w-full bg-accent hover:bg-accent-hover text-white text-sm font-medium px-4 py-3 rounded-md transition-colors"
+                >
+                  {intl.formatMessage({ id: 'node.finishCourse' })}
                 </button>
               ) : (
                 <div className="w-full text-center text-sm font-medium text-text-secondary bg-bg-subtle rounded-md px-4 py-3">

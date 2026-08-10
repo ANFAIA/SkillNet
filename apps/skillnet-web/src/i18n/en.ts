@@ -75,6 +75,8 @@ export const en: Record<string, string> = {
   'node.buddyMessage': 'Let\'s do this.',
   'node.nextNode': 'Next: {title}',
   'node.courseComplete': 'Course completed',
+  'node.finishCourse': 'Finish course',
+  'node.courseCompleteTitle': 'Course completed!',
 
   // Create course
   'create.title': 'Create course',

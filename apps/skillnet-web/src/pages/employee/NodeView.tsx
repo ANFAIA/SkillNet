@@ -8,7 +8,7 @@ import { Card, EmptyState, ProgressBar } from '../../components/ui'
 import { ClickableSurface, NO_EXPLAIN_SELECTOR } from '../../components/courses/ClickableSurface'
 import { UiSpecRenderer } from '../../components/courses/UiSpecRenderer'
 import { NodeList } from '../../components/courses/NodeList'
-import { stepperContext, coursePositionContext, nextNodeContext, courseIntroContext, stepperProgressContext, lessonFeedbackContext } from '../../components/courses/blocks/StepperContext'
+import { stepperContext, coursePositionContext, nextNodeContext, courseIntroContext, stepperProgressContext, lessonFeedbackContext, courseFinishContext } from '../../components/courses/blocks/StepperContext'
 import type { CourseIntro, StepperProgress, StepperProgressCallback } from '../../components/courses/blocks/StepperContext'
 import { NodeChat } from '../../components/courses/NodeChat'
 import { NodeSkeleton, RESERVED_CONTENT_PX } from '../../components/courses/NodeSkeleton'
@@ -291,6 +291,12 @@ export function NodeView() {
   useEffect(() => () => { if (fxTimer.current) window.clearTimeout(fxTimer.current) }, [])
   const lessonFeedback = useMemo(() => ({ report: reportResult }), [reportResult])
 
+  // Pantalla de fin de curso: el CTA del ultimo nodo la dispara; se reinicia al
+  // cambiar de nodo (por si se vuelve a entrar al curso).
+  const [finished, setFinished] = useState(false)
+  useEffect(() => { setFinished(false) }, [nodeId])
+  const finishCourse = useCallback(() => setFinished(true), [])
+
   const nodes = useCourseNodes(courseId)
   const courseQuery = useCourse(courseId)
   const { data: profile } = useLearnerProfile()
@@ -308,6 +314,10 @@ export function NodeView() {
   const index = ordered.findIndex((entry) => entry.id === nodeId)
   const previousNode = index > 0 ? ordered[index - 1] : null
   const nextNode = index >= 0 && index < ordered.length - 1 ? ordered[index + 1] : null
+  // Dominio medio del curso, para la pantalla de fin de curso.
+  const avgMastery = ordered.length
+    ? Math.round((ordered.reduce((sum, n) => sum + (n.mastery ?? 0), 0) / ordered.length) * 100)
+    : 0
 
   // Course intro — only on the first node when learner has zero progress
   const isFirstNode = index === 0
@@ -754,6 +764,7 @@ export function NodeView() {
                             <coursePositionContext.Provider value={{ nodeCount: ordered.length, currentNodeIndex: headerIndex }}>
                             <stepperContext.Provider value={true}>
                             <lessonFeedbackContext.Provider value={lessonFeedback}>
+                            <courseFinishContext.Provider value={finishCourse}>
                               <UiSpecRenderer
                                 program={shownProgram}
                                 nodeId={node.id}
@@ -762,6 +773,7 @@ export function NodeView() {
                                 arriving={arriving}
                                 recordEvent={events.record}
                               />
+                            </courseFinishContext.Provider>
                             </lessonFeedbackContext.Provider>
                             </stepperContext.Provider>
                             </coursePositionContext.Provider>
@@ -870,6 +882,40 @@ export function NodeView() {
           // ejercicio y la reaccion de la mascota, asi que la etiqueta sobra aqui.
           mostrarEtiqueta={false}
         />
+
+        {/* Pantalla de fin de curso: celebracion + dominio + volver. Antes solo salia
+            un texto plano "Has completado el curso". Sin blur (solo opacidad). */}
+        <AnimatePresence>
+          {finished && (
+            <motion.div
+              key="course-complete"
+              className="absolute inset-0 z-30 flex items-center justify-center bg-bg px-6"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: duration.normal, ease: ease.base }}
+            >
+              <div className="flex flex-col items-center text-center gap-5 max-w-sm">
+                <Mascota anim="celebrar" size={128} followCursor={false} />
+                <h2 className="text-2xl font-semibold text-text">
+                  {intl.formatMessage({ id: 'node.courseCompleteTitle' })}
+                </h2>
+                {avgMastery > 0 && (
+                  <p className="text-text-secondary">
+                    {intl.formatMessage({ id: 'node.mastery' }, { pct: avgMastery })}
+                  </p>
+                )}
+                <button
+                  type="button"
+                  onClick={() => navigate(backToCourse, { state: { fromNode: true } })}
+                  className="mt-1 bg-primary hover:bg-primary-hover text-white text-sm font-medium px-5 py-3 rounded-md transition-colors"
+                >
+                  {intl.formatMessage({ id: 'node.backToCourse' })}
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Right sidebar — width animated directly (no layoutId/scale = no distortion) */}
         <motion.div

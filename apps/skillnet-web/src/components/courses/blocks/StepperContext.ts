@@ -116,3 +116,14 @@ export const lessonFeedbackContext = createContext<LessonFeedback | null>(null)
 export function useLessonFeedback(): LessonFeedback | null {
   return useContext(lessonFeedbackContext)
 }
+
+/**
+ * Terminar el curso: se llama al pulsar el CTA del último paso del último nodo
+ * (cuando ya no hay siguiente). NodeView lo traduce a la pantalla de celebración
+ * de fin de curso. `null` fuera de la lección o si no es el último nodo.
+ */
+export const courseFinishContext = createContext<(() => void) | null>(null)
+
+export function useCourseFinish(): (() => void) | null {
+  return useContext(courseFinishContext)
+}
