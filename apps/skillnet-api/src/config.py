@@ -133,6 +133,13 @@ class Settings(BaseSettings):
     SLIDES_MODEL: str = "gpt-4o-mini"
     INFOGRAPHIC_MODEL: str = "gpt-4o-mini"
 
+    # Video Overview generator (roadmap §2b): narrated slides as HTML, NOT a real video
+    # model. It reuses the slide deck content stage, then a small strict-JSON litellm call
+    # writes one short narration line per slide (grounded, carrying citation_ids). Defaults
+    # to the cheap gpt-4o-mini, like the other media content agents. The per-slide voice
+    # reuses the podcast TTS path (single host = PODCAST_VOICE_A); no separate voice config.
+    VIDEO_NARRATION_MODEL: str = "gpt-4o-mini"
+
     # File uploads
     UPLOAD_DIR: str = "./uploads"
     MAX_UPLOAD_SIZE_MB: int = 50

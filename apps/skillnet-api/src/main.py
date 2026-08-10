@@ -47,10 +47,11 @@ from src.routes.ext import skills as ext_skills
 # Importing the media generator packages registers each MediaGenerator under its kind,
 # overriding the echo default (media spine, roadmap §2). Kept as explicit side-effect
 # imports so the registry is populated wherever the app is imported, tests included:
-# podcast (§2a), slides (§2c), infographic (§2d).
+# podcast (§2a), slides (§2c), infographic (§2d), video (§2b).
 from src.services.media import podcast as _podcast  # noqa: F401
 from src.services.media import slides as _slides  # noqa: F401
 from src.services.media import infographic as _infographic  # noqa: F401
+from src.services.media import video as _video  # noqa: F401
 from src.services.embedding_check import check_embedding_dimensions
 
 configure_logging(settings.LOG_LEVEL)
