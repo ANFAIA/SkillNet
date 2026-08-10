@@ -554,6 +554,19 @@ export const es: Record<string, string> = {
   'audio.voice': 'Voz: {voice}',
   'audio.unavailable': 'Audio no disponible',
 
+  // PodcastPlayer component (Audio Overview / Podcast, spine de media)
+  'podcast.title': 'Audio del curso',
+  'podcast.loading': 'Preparando audio...',
+  'podcast.unavailable': 'Audio no disponible',
+  'podcast.transcript': 'Transcripcion',
+  'podcast.sources': 'Fuentes',
+  'podcast.noSources': 'Sin fuentes citadas',
+  'podcast.page': 'pag. {page}',
+  'podcast.format.deep_dive': 'Analisis a fondo',
+  'podcast.format.the_brief': 'Resumen breve',
+  'podcast.format.critique': 'Critica',
+  'podcast.format.debate': 'Debate',
+
   // PronunciationExerciseBlock component
   'pronunciation.title': 'Ejercicio de pronunciacion',
   'pronunciation.language': 'Idioma: {lang}',

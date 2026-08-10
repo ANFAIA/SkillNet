@@ -554,6 +554,19 @@ export const en: Record<string, string> = {
   'audio.voice': 'Voice: {voice}',
   'audio.unavailable': 'Audio unavailable',
 
+  // PodcastPlayer component (Audio Overview / Podcast, media spine)
+  'podcast.title': 'Course audio',
+  'podcast.loading': 'Preparing audio...',
+  'podcast.unavailable': 'Audio unavailable',
+  'podcast.transcript': 'Transcript',
+  'podcast.sources': 'Sources',
+  'podcast.noSources': 'No cited sources',
+  'podcast.page': 'p. {page}',
+  'podcast.format.deep_dive': 'Deep Dive',
+  'podcast.format.the_brief': 'The Brief',
+  'podcast.format.critique': 'Critique',
+  'podcast.format.debate': 'Debate',
+
   // PronunciationExerciseBlock component
   'pronunciation.title': 'Pronunciation exercise',
   'pronunciation.language': 'Language: {lang}',
