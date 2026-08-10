@@ -319,10 +319,6 @@ export function NodeView() {
   const index = ordered.findIndex((entry) => entry.id === nodeId)
   const previousNode = index > 0 ? ordered[index - 1] : null
   const nextNode = index >= 0 && index < ordered.length - 1 ? ordered[index + 1] : null
-  // Dominio medio del curso, para la pantalla de fin de curso.
-  const avgMastery = ordered.length
-    ? Math.round((ordered.reduce((sum, n) => sum + (n.mastery ?? 0), 0) / ordered.length) * 100)
-    : 0
 
   // Course intro — only on the first node when learner has zero progress
   const isFirstNode = index === 0
@@ -922,10 +918,8 @@ export function NodeView() {
                 <h2 className="text-2xl font-semibold text-text">
                   {intl.formatMessage({ id: 'node.courseCompleteTitle' })}
                 </h2>
-                {avgMastery > 0 && (
-                  <p className="text-text-secondary">
-                    {intl.formatMessage({ id: 'node.mastery' }, { pct: avgMastery })}
-                  </p>
+                {courseQuery.data?.title && (
+                  <p className="text-text-secondary">{courseQuery.data.title}</p>
                 )}
                 <button
                   type="button"
