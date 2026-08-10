@@ -13,6 +13,7 @@ artifact is shared by the whole organization (like ``node_renders``), so authori
 
 from __future__ import annotations
 
+import re
 import uuid
 from collections.abc import AsyncIterator
 from pathlib import Path
@@ -60,6 +61,32 @@ _MEDIA_TYPES = {
 def _media_type(asset_path: str) -> str:
     ext = Path(asset_path).suffix.lstrip(".").lower()
     return _MEDIA_TYPES.get(ext, "application/octet-stream")
+
+
+#: A content-hash sub-asset ref is a bare sha256 hex digest — anchored so no path segment,
+#: separator or traversal can ever reach the asset store's ``path_for``.
+_REF_RE = re.compile(r"^[0-9a-f]{64}$")
+
+
+def _sub_assets(spec_json: dict | None) -> dict[str, str]:
+    """Map each per-slide clip's ``audio_ref`` (content hash) to its extension.
+
+    The allow-list for :func:`get_artifact_sub_asset`: only refs this artifact's own spec
+    lists are servable, so the route can never be coaxed into reading an unrelated file.
+    Additive — non-video artifacts simply have no ``slides[].audio_ref`` and yield ``{}``.
+    """
+    slides = (spec_json or {}).get("slides")
+    if not isinstance(slides, list):
+        return {}
+    refs: dict[str, str] = {}
+    for slide in slides:
+        if not isinstance(slide, dict):
+            continue
+        ref = slide.get("audio_ref")
+        if isinstance(ref, str) and _REF_RE.match(ref):
+            ext = slide.get("audio_ext")
+            refs[ref] = ext if isinstance(ext, str) and ext else "mp3"
+    return refs
 
 
 @router.post("/artifacts", response_model=MediaArtifactAccepted, status_code=202)
@@ -155,5 +182,40 @@ async def get_artifact_asset(
     return Response(
         content=data,
         media_type=_media_type(artifact.asset_path),
+        headers={"Cache-Control": "private, max-age=31536000, immutable"},
+    )
+
+
+@router.get("/artifacts/{artifact_id}/asset/{ref}")
+async def get_artifact_sub_asset(
+    user: CurrentUser, db: DBSession, artifact_id: uuid.UUID, ref: str
+) -> Response:
+    """One named sub-asset of an artifact, addressed by content hash (``ref``).
+
+    The Video Overview stores **one mp3 clip per slide** rather than a single rendered file
+    (roadmap §2b: the frontend player sequences the slides, no ffmpeg). Each slide's
+    ``audio_ref`` in ``spec_json`` is served here. ``ref`` must be a sha256 hex digest that
+    the artifact's own spec lists — anything else is a ``404``, so the route can only ever
+    serve clips this artifact produced. Additive and consistent with the single-asset route.
+    """
+    artifact = await MediaArtifactRepository(db).get_scoped(artifact_id, user.org_id)
+    if artifact is None:
+        raise NotFoundError("media_artifacts", str(artifact_id))
+
+    allowed = _sub_assets(artifact.spec_json)
+    ext = allowed.get(ref)
+    if ext is None:
+        raise NotFoundError("media_artifacts", str(artifact_id))
+
+    store = AssetStore()
+    path = store.path_for(ref, ext)
+    try:
+        data = store.read(path)
+    except FileNotFoundError as exc:
+        raise NotFoundError("media_artifacts", str(artifact_id)) from exc
+
+    return Response(
+        content=data,
+        media_type=_MEDIA_TYPES.get(ext, "application/octet-stream"),
         headers={"Cache-Control": "private, max-age=31536000, immutable"},
     )
