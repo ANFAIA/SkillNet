@@ -27,15 +27,11 @@ EXPECTED_CATALOGUE: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("CodeBlock", ("language", "code")),
     ("Chart", ("kind", "title", "labels", "values")),
     ("QuizItem", ("item_id", "item_type", "bloom_level", "question", "options")),
-    ("SliderExploration", ("title", "variable", "min", "max", "step", "formula", "description")),
-    ("ManipulableGraph", ("title", "xLabel", "yLabel", "points", "functions")),
     ("BeforeAfter", ("title", "beforeLabel", "beforeContent", "afterLabel", "afterContent")),
     ("Markdown", ("content",)),
     ("DragOrder", ("instruction", "items", "correctOrder")),
-    ("HotspotImage", ("imageUrl", "alt", "hotspots")),
     ("AudioExplanation", ("text", "voice")),
     ("PronunciationExercise", ("targetText", "language")),
-    ("DiagramBuilder", ("title", "steps")),
 )
 
 # Explicitly out of the kit (§5.3), plus the names the spec renamed away from.
@@ -83,7 +79,7 @@ def test_positional_prop_order_matches_the_spec_table(name: str, props: tuple[st
 
 def test_only_markdown_is_off_limits_to_the_model() -> None:
     assert UI_KIT.llm_names == tuple(n for n, _ in EXPECTED_CATALOGUE if n != "Markdown")
-    assert len(UI_KIT.llm_names) == 17
+    assert len(UI_KIT.llm_names) == 13
 
 
 def test_containers_are_stack_and_card() -> None:

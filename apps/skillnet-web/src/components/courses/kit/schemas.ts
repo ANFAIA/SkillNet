@@ -135,24 +135,6 @@ export const quizItemProps = z.object({
   options: z.array(z.string()).describe('Opciones; [] si no aplica'),
 })
 
-export const sliderExplorationProps = z.object({
-  title: z.string().describe('Titulo del explorador'),
-  variable: z.string().describe('Nombre de la variable'),
-  min: z.number().describe('Valor minimo del slider'),
-  max: z.number().describe('Valor maximo del slider'),
-  step: z.number().describe('Incremento del slider'),
-  formula: z.string().describe('Formula con la variable, p.ej. "y = 2 * x + 3"'),
-  description: z.string().describe('Texto explicativo'),
-})
-
-export const manipulableGraphProps = z.object({
-  title: z.string().describe('Titulo del grafico'),
-  xLabel: z.string().describe('Etiqueta del eje X'),
-  yLabel: z.string().describe('Etiqueta del eje Y'),
-  points: z.array(z.array(z.string())).describe('Puntos: [label, x, y, draggable?]'),
-  functions: z.array(z.string()).describe('Funciones matematicas, p.ej. "Math.sin(x)"'),
-})
-
 export const beforeAfterProps = z.object({
   title: z.string().describe('Titulo de la comparacion'),
   beforeLabel: z.string().describe('Etiqueta del estado anterior'),
@@ -171,12 +153,6 @@ export const dragOrderProps = z.object({
   correctOrder: z.array(z.string()).describe('Secuencia correcta'),
 })
 
-export const hotspotImageProps = z.object({
-  imageUrl: z.string().describe('URL de la imagen'),
-  alt: z.string().describe('Texto alternativo'),
-  hotspots: z.array(z.array(z.string())).describe('Puntos: [[x, y, label, detail], ...]'),
-})
-
 export const audioExplanationProps = z.object({
   text: z.string().describe('Texto que se leera en voz alta'),
   voice: z.enum(VOICE_STYLES).describe('Estilo de voz'),
@@ -185,11 +161,6 @@ export const audioExplanationProps = z.object({
 export const pronunciationExerciseProps = z.object({
   targetText: z.string().describe('Texto objetivo para practicar'),
   language: z.string().describe('Codigo de idioma, p.ej. "es"'),
-})
-
-export const diagramBuilderProps = z.object({
-  title: z.string().describe('Titulo del diagrama'),
-  steps: z.array(z.array(z.string())).describe('Pasos: [[etiqueta, svgFragment, explicacion], ...]'),
 })
 
 /** The frozen names, in the order of the §5.3 table. */
@@ -203,15 +174,11 @@ export const KIT_COMPONENT_NAMES = [
   'CodeBlock',
   'Chart',
   'QuizItem',
-  'SliderExploration',
-  'ManipulableGraph',
   'BeforeAfter',
   'Markdown',
   'DragOrder',
-  'HotspotImage',
   'AudioExplanation',
   'PronunciationExercise',
-  'DiagramBuilder',
 ] as const
 
 export type KitComponentName = (typeof KIT_COMPONENT_NAMES)[number]
@@ -243,15 +210,11 @@ export const KIT_DESCRIPTIONS = {
   CodeBlock: 'Fragmento de codigo de ejemplo',
   Chart: 'Cifras comparables entre categorias. Solo si las cifras estan en la fuente',
   QuizItem: 'Pregunta de evaluacion sobre un caso concreto',
-  SliderExploration: 'El aprendiz mueve una variable y ve como cambia el resultado. Requiere una relacion causa-efecto enunciada en la fuente',
-  ManipulableGraph: 'Plano cartesiano donde el aprendiz mueve puntos o funciones',
   BeforeAfter: 'Contrasta exactamente DOS estados: correcto frente a incorrecto, antes frente a despues. Prefierelo a Table cuando la comparacion es de dos',
   Markdown: 'Solo para fallback_seed; el modelo no puede emitirlo',
   DragOrder: 'Evaluar reordenando pasos o prioridades arrastrando',
-  HotspotImage: 'Marcar zonas sobre una imagen. Requiere una URL de imagen real; no lo uses si no la hay',
   AudioExplanation: 'Texto leido en voz alta con resaltado de palabras',
   PronunciationExercise: 'Escuchar y practicar la pronunciacion de un termino',
-  DiagramBuilder: 'Diagrama que se dibuja paso a paso para mostrar como se relacionan las partes',
 } satisfies Record<KitComponentName, string>
 
 /** Name → prop schema, so a consumer can walk the catalogue without React. */
@@ -265,15 +228,11 @@ export const KIT_PROP_SCHEMAS = {
   CodeBlock: codeBlockProps,
   Chart: chartProps,
   QuizItem: quizItemProps,
-  SliderExploration: sliderExplorationProps,
-  ManipulableGraph: manipulableGraphProps,
   BeforeAfter: beforeAfterProps,
   Markdown: markdownProps,
   DragOrder: dragOrderProps,
-  HotspotImage: hotspotImageProps,
   AudioExplanation: audioExplanationProps,
   PronunciationExercise: pronunciationExerciseProps,
-  DiagramBuilder: diagramBuilderProps,
 } satisfies Record<KitComponentName, z.ZodObject>
 
 /**

@@ -66,7 +66,7 @@ pregunta = TextContent("Tengo datos de empleados, cursos y documentos. Que quier
 
 ## Rules
 
-- NUNCA uses QuizItem, SliderExploration, ManipulableGraph, BeforeAfter, DragOrder, HotspotImage, StepByStepReveal, AudioExplanation, PronunciationExercise ni DiagramBuilder. Esos son para cursos, no para chat
+- NUNCA uses QuizItem, BeforeAfter, DragOrder, StepByStepReveal, AudioExplanation ni PronunciationExercise. Esos son para cursos, no para chat
 - NO inventes cifras ni datos sobre empleados o cursos que no esten en el contexto. SI puedes sugerir ideas, recomendar cursos nuevos o asesorar con conocimiento general
 - NO copies marcadores [Fuente N] — las citas se pintan aparte
 - Table.rows es array de arrays: Table(["A", "B"], [["1", "2"], ["3", "4"]])

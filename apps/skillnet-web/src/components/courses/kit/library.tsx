@@ -50,13 +50,9 @@ import {
   CardBlock,
   ChartBlock,
   CodeBlockBlock,
-  DiagramBuilderBlock,
   DragOrderBlock,
-  HotspotImageBlock,
-  ManipulableGraphBlock,
   MarkdownBlock,
   PronunciationExerciseBlock,
-  SliderExplorationBlock,
   StackBlock,
   StackItem,
   StepSequenceBlock,
@@ -65,10 +61,7 @@ import {
 } from '../blocks'
 import {
   readChildren,
-  readDiagramSteps,
   readEnum,
-  readHotspots,
-  readNumber,
   readNumberArray,
   readString,
   readStringArray,
@@ -89,14 +82,10 @@ import {
   cardProps,
   chartProps,
   codeBlockProps,
-  diagramBuilderProps,
   dragOrderProps,
-  hotspotImageProps,
-  manipulableGraphProps,
   markdownProps,
   pronunciationExerciseProps,
   quizItemProps,
-  sliderExplorationProps,
   stackProps,
   stepSequenceProps,
   tableProps,
@@ -225,56 +214,6 @@ const QuizItem = defineComponent({
   component: QuizItemRenderer,
 })
 
-const SliderExploration = defineComponent({
-  name: 'SliderExploration',
-  description: KIT_DESCRIPTIONS.SliderExploration,
-  props: sliderExplorationProps,
-  component: ({
-    props,
-  }: ComponentRenderProps<{
-    title: string
-    variable: string
-    min: number
-    max: number
-    step: number
-    formula: string
-    description: string
-  }>) => (
-    <SliderExplorationBlock
-      title={readString(props.title)}
-      variable={readString(props.variable, 'x')}
-      min={readNumber(props.min, 0)}
-      max={readNumber(props.max, 100)}
-      step={readNumber(props.step, 1)}
-      formula={readString(props.formula)}
-      description={readString(props.description)}
-    />
-  ),
-})
-
-const ManipulableGraph = defineComponent({
-  name: 'ManipulableGraph',
-  description: KIT_DESCRIPTIONS.ManipulableGraph,
-  props: manipulableGraphProps,
-  component: ({
-    props,
-  }: ComponentRenderProps<{
-    title: string
-    xLabel: string
-    yLabel: string
-    points: string[][]
-    functions: string[]
-  }>) => (
-    <ManipulableGraphBlock
-      title={readString(props.title)}
-      xLabel={readString(props.xLabel, 'x')}
-      yLabel={readString(props.yLabel, 'y')}
-      points={readStringMatrix(props.points)}
-      functions={readStringArray(props.functions)}
-    />
-  ),
-})
-
 const BeforeAfter = defineComponent({
   name: 'BeforeAfter',
   description: KIT_DESCRIPTIONS.BeforeAfter,
@@ -325,19 +264,6 @@ const DragOrder = defineComponent({
   ),
 })
 
-const HotspotImage = defineComponent({
-  name: 'HotspotImage',
-  description: KIT_DESCRIPTIONS.HotspotImage,
-  props: hotspotImageProps,
-  component: ({ props }: ComponentRenderProps<{ imageUrl: string; alt: string; hotspots: string[][] }>) => (
-    <HotspotImageBlock
-      imageUrl={readString(props.imageUrl)}
-      alt={readString(props.alt)}
-      hotspots={readHotspots(props.hotspots)}
-    />
-  ),
-})
-
 const AudioExplanation = defineComponent({
   name: 'AudioExplanation',
   description: KIT_DESCRIPTIONS.AudioExplanation,
@@ -358,18 +284,6 @@ const PronunciationExercise = defineComponent({
     <PronunciationExerciseBlock
       targetText={readString(props.targetText)}
       language={readString(props.language, 'es')}
-    />
-  ),
-})
-
-const DiagramBuilder = defineComponent({
-  name: 'DiagramBuilder',
-  description: KIT_DESCRIPTIONS.DiagramBuilder,
-  props: diagramBuilderProps,
-  component: ({ props }: ComponentRenderProps<{ title: string; steps: string[][] }>) => (
-    <DiagramBuilderBlock
-      title={readString(props.title)}
-      steps={readDiagramSteps(props.steps)}
     />
   ),
 })
@@ -399,15 +313,11 @@ export const skillnetLibrary = createLibrary({
     CodeBlock,
     Chart,
     QuizItem,
-    SliderExploration,
-    ManipulableGraph,
     BeforeAfter,
     Markdown,
     DragOrder,
-    HotspotImage,
     AudioExplanation,
     PronunciationExercise,
-    DiagramBuilder,
   ],
 })
 

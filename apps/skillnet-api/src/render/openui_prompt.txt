@@ -27,14 +27,10 @@ Table(headers: string[], rows: string[][]) — Varios elementos comparados por v
 CodeBlock(language: string, code: string) — Fragmento de codigo de ejemplo
 Chart(kind: "bar" | "line", title: string, labels: string[], values: number[]) — Cifras comparables entre categorias. Solo si las cifras estan en la fuente
 QuizItem(item_id: string, item_type: "test" | "true_false" | "fill_blank" | "order_steps" | "practical_case" | "dialogue", bloom_level: "remember" | "understand" | "apply" | "analyze" | "evaluate" | "create", question: string, options: string[]) — Pregunta de evaluacion sobre un caso concreto
-SliderExploration(title: string, variable: string, min: number, max: number, step: number, formula: string, description: string) — El aprendiz mueve una variable y ve como cambia el resultado. Requiere una relacion causa-efecto enunciada en la fuente
-ManipulableGraph(title: string, xLabel: string, yLabel: string, points: string[][], functions: string[]) — Plano cartesiano donde el aprendiz mueve puntos o funciones
 BeforeAfter(title: string, beforeLabel: string, beforeContent: string, afterLabel: string, afterContent: string) — Contrasta exactamente DOS estados: correcto frente a incorrecto, antes frente a despues. Prefierelo a Table cuando la comparacion es de dos
 DragOrder(instruction: string, items: string[], correctOrder: string[]) — Evaluar reordenando pasos o prioridades arrastrando
-HotspotImage(imageUrl: string, alt: string, hotspots: string[][]) — Marcar zonas sobre una imagen. Requiere una URL de imagen real; no lo uses si no la hay
 AudioExplanation(text: string, voice: "neutral" | "warm" | "formal") — Texto leido en voz alta con resaltado de palabras
 PronunciationExercise(targetText: string, language: string) — Escuchar y practicar la pronunciacion de un termino
-DiagramBuilder(title: string, steps: string[][]) — Diagrama que se dibuja paso a paso para mostrar como se relacionan las partes
 
 ## Hoisting & Streaming (CRITICAL)
 

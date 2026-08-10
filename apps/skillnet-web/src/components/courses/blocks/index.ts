@@ -31,31 +31,16 @@ export type { QuizItemBlockProps } from './QuizItemBlock'
 export { MarkdownBlock } from './MarkdownBlock'
 export type { MarkdownBlockProps } from './MarkdownBlock'
 
-export { SliderExplorationBlock } from './SliderExplorationBlock'
-export type { SliderExplorationBlockProps } from './SliderExplorationBlock'
-
-export { ManipulableGraphBlock } from './ManipulableGraphBlock'
-export type { ManipulableGraphBlockProps } from './ManipulableGraphBlock'
-
 export { BeforeAfterBlock } from './BeforeAfterBlock'
 export type { BeforeAfterBlockProps } from './BeforeAfterBlock'
 
 export { DragOrderBlock } from './DragOrderBlock'
 export type { DragOrderBlockProps } from './DragOrderBlock'
 
-export { HotspotImageBlock } from './HotspotImageBlock'
-export type { HotspotImageBlockProps } from './HotspotImageBlock'
-
-
 export { AudioExplanationBlock } from './AudioExplanationBlock'
 export type { AudioExplanationBlockProps } from './AudioExplanationBlock'
 
 export { PronunciationExerciseBlock } from './PronunciationExerciseBlock'
 export type { PronunciationExerciseBlockProps } from './PronunciationExerciseBlock'
-
-export { DiagramBuilderBlock } from './DiagramBuilderBlock'
-export type { DiagramBuilderBlockProps } from './DiagramBuilderBlock'
-
-
 
 export { InlineMarkdown } from './InlineMarkdown'

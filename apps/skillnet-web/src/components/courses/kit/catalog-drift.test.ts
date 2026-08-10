@@ -126,22 +126,6 @@ describe('the kit is the catalogue of §5.3', () => {
       'question',
       'options',
     ])
-    expect(propOrder('SliderExploration')).toEqual([
-      'title',
-      'variable',
-      'min',
-      'max',
-      'step',
-      'formula',
-      'description',
-    ])
-    expect(propOrder('ManipulableGraph')).toEqual([
-      'title',
-      'xLabel',
-      'yLabel',
-      'points',
-      'functions',
-    ])
     expect(propOrder('BeforeAfter')).toEqual([
       'title',
       'beforeLabel',
@@ -151,10 +135,8 @@ describe('the kit is the catalogue of §5.3', () => {
     ])
     expect(propOrder('Markdown')).toEqual(['content'])
     expect(propOrder('DragOrder')).toEqual(['instruction', 'items', 'correctOrder'])
-    expect(propOrder('HotspotImage')).toEqual(['imageUrl', 'alt', 'hotspots'])
     expect(propOrder('AudioExplanation')).toEqual(['text', 'voice'])
     expect(propOrder('PronunciationExercise')).toEqual(['targetText', 'language'])
-    expect(propOrder('DiagramBuilder')).toEqual(['title', 'steps'])
   })
 
   it('declares every prop required — the kit has no optional props', () => {
@@ -214,7 +196,7 @@ describe.skipIf(!hasCatalog)('no drift against the backend catalogue artefact', 
   it('keeps Markdown out of what the model is taught to emit', () => {
     const promptNames = catalog!.prompt_components.map((component) => component.name)
     expect(promptNames).not.toContain('Markdown')
-    expect(promptNames).toHaveLength(17)
+    expect(promptNames).toHaveLength(13)
     // …and in what the browser can render, for `fallback_seed`.
     expect(Object.keys(skillnetLibrary.components)).toContain('Markdown')
   })

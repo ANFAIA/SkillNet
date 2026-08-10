@@ -79,15 +79,11 @@ const CATALOGUE = [
   ['CodeBlock', 'codeBlockProps', 'Fragmento de codigo de ejemplo'],
   ['Chart', 'chartProps', 'Cifras comparables entre categorias. Solo si las cifras estan en la fuente'],
   ['QuizItem', 'quizItemProps', 'Pregunta de evaluacion sobre un caso concreto'],
-  ['SliderExploration', 'sliderExplorationProps', 'El aprendiz mueve una variable y ve como cambia el resultado. Requiere una relacion causa-efecto enunciada en la fuente'],
-  ['ManipulableGraph', 'manipulableGraphProps', 'Plano cartesiano donde el aprendiz mueve puntos o funciones'],
   ['BeforeAfter', 'beforeAfterProps', 'Contrasta exactamente DOS estados: correcto frente a incorrecto, antes frente a despues. Prefierelo a Table cuando la comparacion es de dos'],
   ['Markdown', 'markdownProps', 'Solo para fallback_seed; el modelo no puede emitirlo'],
   ['DragOrder', 'dragOrderProps', 'Evaluar reordenando pasos o prioridades arrastrando'],
-  ['HotspotImage', 'hotspotImageProps', 'Marcar zonas sobre una imagen. Requiere una URL de imagen real; no lo uses si no la hay'],
   ['AudioExplanation', 'audioExplanationProps', 'Texto leido en voz alta con resaltado de palabras'],
   ['PronunciationExercise', 'pronunciationExerciseProps', 'Escuchar y practicar la pronunciacion de un termino'],
-  ['DiagramBuilder', 'diagramBuilderProps', 'Diagrama que se dibuja paso a paso para mostrar como se relacionan las partes'],
 ]
 
 // ---------------------------------------------------------------------------------

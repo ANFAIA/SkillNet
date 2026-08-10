@@ -886,14 +886,10 @@ def test_the_parser_accepts_exactly_the_emittable_components() -> None:
         "Chart",
         "QuizItem",
         # The interactive half, added since.
-        "SliderExploration",
-        "ManipulableGraph",
         "BeforeAfter",
         "DragOrder",
-        "HotspotImage",
         "AudioExplanation",
         "PronunciationExercise",
-        "DiagramBuilder",
         # Layout containers for viewport-fitting (runtime/6).
     }
     # ``Markdown`` is in the kit but ``llm_emittable=False``: reachable from

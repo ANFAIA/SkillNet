@@ -64,26 +64,6 @@ export function readChildren(value: unknown): unknown[] {
   return Array.isArray(value) ? value : []
 }
 
-import type { Hotspot } from '../blocks/HotspotImageBlock'
-
-function clampPct(value: number): number {
-  if (!Number.isFinite(value)) return 0
-  return Math.max(0, Math.min(100, value))
-}
-
-/** Parses hotspot matrix: each row is [x, y, label, detail] with x,y as number strings. */
-export function readHotspots(value: unknown): Hotspot[] {
-  if (!Array.isArray(value)) return []
-  return value
-    .filter((entry) => Array.isArray(entry) && entry.length >= 4)
-    .map((entry) => ({
-      x: clampPct(Number(entry[0])),
-      y: clampPct(Number(entry[1])),
-      label: typeof entry[2] === 'string' ? entry[2] : String(entry[2] ?? ''),
-      detail: typeof entry[3] === 'string' ? entry[3] : String(entry[3] ?? ''),
-    }))
-}
-
 /** Parses step matrix: each row is [statement, explanation]. */
 export function readStepPairs(value: unknown): Array<{ statement: string; explanation: string }> {
   if (!Array.isArray(value)) return []
@@ -92,17 +72,5 @@ export function readStepPairs(value: unknown): Array<{ statement: string; explan
     .map((entry) => ({
       statement: typeof entry[0] === 'string' ? entry[0] : String(entry[0] ?? ''),
       explanation: typeof entry[1] === 'string' ? entry[1] : String(entry[1] ?? ''),
-    }))
-}
-
-/** Parses diagram step matrix: each row is [label, svgFragment, explanation]. */
-export function readDiagramSteps(value: unknown): Array<{ label: string; svgFragment: string; explanation: string }> {
-  if (!Array.isArray(value)) return []
-  return value
-    .filter((entry) => Array.isArray(entry) && entry.length >= 3)
-    .map((entry) => ({
-      label: typeof entry[0] === 'string' ? entry[0] : String(entry[0] ?? ''),
-      svgFragment: typeof entry[1] === 'string' ? entry[1] : String(entry[1] ?? ''),
-      explanation: typeof entry[2] === 'string' ? entry[2] : String(entry[2] ?? ''),
     }))
 }

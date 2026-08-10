@@ -381,14 +381,10 @@ _BLOCK_CHOICE = """
 
 ### Visualizacion (mostrar datos y relaciones)
 - Chart: graficos de barras o lineas. Usar cuando hay numeros que comparar.
-- ManipulableGraph: graficas interactivas con puntos movibles.
-- DiagramBuilder: diagramas SVG construidos paso a paso.
 - BeforeAfter: comparacion visual con slider.
 
 ### Interaccion (explorar y practicar)
-- SliderExploration: slider que cambia un valor y muestra el resultado.
 - DragOrder: ordenar elementos arrastrando.
-- HotspotImage: imagen con zonas clicables.
 
 ### Evaluacion (verificar comprension)
 - QuizItem: pregunta con opciones. Integrada en el flujo, no separada.

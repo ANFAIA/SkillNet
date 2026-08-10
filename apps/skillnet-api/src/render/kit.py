@@ -287,38 +287,6 @@ UI_KIT = UIKit(
             ),
         ),
         ComponentSpec(
-            name="SliderExploration",
-            functions=(FunctionFit(ContentFunction.EXPLORAR, 10),),
-            purpose="El aprendiz mueve una variable y ve como cambia el resultado. Requiere una relacion causa-efecto enunciada en la fuente",
-            props=(
-                PropSpec("title", PropKind.STRING, "Titulo del explorador"),
-                PropSpec("variable", PropKind.STRING, "Nombre de la variable"),
-                PropSpec("min", PropKind.NUMBER, "Valor minimo del slider"),
-                PropSpec("max", PropKind.NUMBER, "Valor maximo del slider"),
-                PropSpec("step", PropKind.NUMBER, "Incremento del slider"),
-                PropSpec(
-                    "formula", PropKind.STRING,
-                    'Formula con la variable, p.ej. "y = 2 * x + 3"',
-                ),
-                PropSpec("description", PropKind.STRING, "Texto explicativo"),
-            ),
-        ),
-        ComponentSpec(
-            name="ManipulableGraph",
-            functions=(FunctionFit(ContentFunction.EXPLORAR, 20),),
-            purpose="Plano cartesiano donde el aprendiz mueve puntos o funciones",
-            props=(
-                PropSpec("title", PropKind.STRING, "Titulo del grafico"),
-                PropSpec("xLabel", PropKind.STRING, "Etiqueta del eje X"),
-                PropSpec("yLabel", PropKind.STRING, "Etiqueta del eje Y"),
-                PropSpec("points", PropKind.STRING_MATRIX, "Puntos: [label, x, y, draggable?]"),
-                PropSpec(
-                    "functions", PropKind.STRING_LIST,
-                    'Funciones matematicas, p.ej. "Math.sin(x)"',
-                ),
-            ),
-        ),
-        ComponentSpec(
             name="BeforeAfter",
             functions=(FunctionFit(ContentFunction.CONTRASTAR, 10),),
             purpose="Contrasta exactamente DOS estados: correcto frente a incorrecto, antes frente a despues. Prefierelo a Table cuando la comparacion es de dos",
@@ -347,19 +315,6 @@ UI_KIT = UIKit(
             ),
         ),
         ComponentSpec(
-            name="HotspotImage",
-            functions=(FunctionFit(ContentFunction.LOCALIZAR, 10),),
-            purpose="Marcar zonas sobre una imagen. Requiere una URL de imagen real; no lo uses si no la hay",
-            props=(
-                PropSpec("imageUrl", PropKind.STRING, "URL de la imagen"),
-                PropSpec("alt", PropKind.STRING, "Texto alternativo"),
-                PropSpec(
-                    "hotspots", PropKind.STRING_MATRIX,
-                    "Puntos: [[x, y, label, detail], ...]",
-                ),
-            ),
-        ),
-        ComponentSpec(
             name="AudioExplanation",
             purpose="Texto leido en voz alta con resaltado de palabras",
             props=(
@@ -373,18 +328,6 @@ UI_KIT = UIKit(
             props=(
                 PropSpec("targetText", PropKind.STRING, "Texto objetivo para practicar"),
                 PropSpec("language", PropKind.STRING, "Codigo de idioma, p.ej. \"es\""),
-            ),
-        ),
-        ComponentSpec(
-            name="DiagramBuilder",
-            functions=(FunctionFit(ContentFunction.PROCEDIMENTAR, 60),),
-            purpose="Diagrama que se dibuja paso a paso para mostrar como se relacionan las partes",
-            props=(
-                PropSpec("title", PropKind.STRING, "Titulo del diagrama"),
-                PropSpec(
-                    "steps", PropKind.STRING_MATRIX,
-                    "Pasos: [[etiqueta, svgFragment, explicacion], ...]",
-                ),
             ),
         ),
     )
