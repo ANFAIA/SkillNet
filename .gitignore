@@ -21,6 +21,9 @@ dist/
 
 # Data
 apps/skillnet-api/uploads/
+# Generated media assets (podcast mp3, infographic/cover png, video mp4) — runtime, deduped
+# on disk by content hash, never source.
+apps/skillnet-api/data/media_assets/
 backups/
 # Output of scripts/quality_bench.py: run summaries and raw model dumps.
 apps/skillnet-api/bench_out/
