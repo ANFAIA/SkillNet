@@ -356,17 +356,59 @@ async def persist_schema(state: SchemaState) -> dict:
     available = list(state.get("available_headings") or [])
     warnings = list(state.get("schema_warnings") or [])
 
-    raw_nodes = [
+    # Nodos a conservar y poda de relleno, en un solo paso que REMAPEA los
+    # prerequisitos (indices base-0). Dos motivos para dropear:
+    #   a) sin titulo o sin summary: el summary es obligatorio para validar.
+    #   b) RELLENO: en un curso con documento rico en headings, un nodo que el propio
+    #      modelo devuelve SIN source_headings es andamiaje generico inventado (medido:
+    #      gpt-4o-mini cuela "Fundamentos de atencion al cliente" pese al prompt). No es
+    #      rastreable a la fuente, asi que se poda. En cursos por tema (sin doc) o docs
+    #      con pocos headings NO se toca: ahi el vacio es esperado, no una senal.
+    # Remapear es imprescindible: podar por el medio sin remapear descoloca las
+    # dependencias de los nodos que sobreviven (los prerequisitos se resuelven por
+    # indice mas abajo). Guarda: nunca se poda hasta dejar 0 nodos anclados.
+    available_clean = [h for h in available if h and h.strip()]
+    proposed_all = list(state.get("proposed_nodes") or [])
+    with_text = [
         node
-        for node in (state.get("proposed_nodes") or [])
-        if str(node.get("title") or "").strip()
-        and str(node.get("summary") or "").strip()
+        for node in proposed_all
+        if str(node.get("title") or "").strip() and str(node.get("summary") or "").strip()
     ]
-    dropped = len(state.get("proposed_nodes") or []) - len(raw_nodes)
-    if dropped:
+    dropped_meta = len(proposed_all) - len(with_text)
+    grounded = sum(1 for n in with_text if (n.get("source_headings") or []))
+    prune_filler = len(available_clean) >= 3 and grounded >= 1
+
+    kept: list[dict] = []
+    old_to_new: dict[int, int] = {}
+    dropped_filler = 0
+    for old_index, node in enumerate(with_text):
+        if prune_filler and not (node.get("source_headings") or []):
+            dropped_filler += 1
+            continue
+        old_to_new[old_index] = len(kept)
+        kept.append(node)
+
+    raw_nodes: list[dict] = []
+    for node in kept:
+        remapped: list[int] = []
+        for candidate in node.get("prerequisites") or []:
+            try:
+                prereq = int(candidate)
+            except (TypeError, ValueError):
+                continue
+            if prereq in old_to_new:
+                remapped.append(old_to_new[prereq])
+        raw_nodes.append({**node, "prerequisites": remapped})
+
+    if dropped_meta:
         warnings.append(
-            f"Se descartaron {dropped} nodo(s) sin titulo o sin summary: el summary "
+            f"Se descartaron {dropped_meta} nodo(s) sin titulo o sin summary: el summary "
             "es obligatorio para la validacion."
+        )
+    if dropped_filler:
+        warnings.append(
+            f"Se podaron {dropped_filler} nodo(s) de relleno sin anclar a la fuente "
+            "(source_headings vacio en un documento con headings)."
         )
 
     # Cycles are pruned, never fatal: one bad arrow must not throw away a whole
