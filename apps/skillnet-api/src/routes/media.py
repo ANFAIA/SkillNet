@@ -124,6 +124,29 @@ async def create_artifact(
     )
 
 
+@router.get("/artifacts", response_model=list[MediaArtifactRead])
+async def list_artifacts(
+    user: CurrentUser,
+    db: DBSession,
+    course_id: uuid.UUID = Query(...),
+    node_id: uuid.UUID | None = Query(default=None),
+) -> list[MediaArtifactRead]:
+    """Every media artifact of a course (newest first), org-scoped.
+
+    The course-home overviews panel reads this to list what has already been generated and
+    show each one's status. ``node_id`` optionally narrows the list to a single node. Static
+    path (``/artifacts``) so it never shadows ``/artifacts/{artifact_id}``.
+    """
+    course = await CourseRepository(db).get_scoped(course_id, user.org_id)
+    if course is None:
+        raise NotFoundError("courses", str(course_id))
+
+    artifacts = await MediaArtifactRepository(db).list_for_course(
+        course_id, user.org_id, node_id=node_id
+    )
+    return [MediaArtifactRead.of(artifact) for artifact in artifacts]
+
+
 @router.get("/artifacts/{artifact_id}", response_model=MediaArtifactRead)
 async def get_artifact(
     user: CurrentUser, db: DBSession, artifact_id: uuid.UUID
