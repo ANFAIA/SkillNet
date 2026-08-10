@@ -1,0 +1,123 @@
+:root{--mas-blue:#3F7EE0;--mas-navy:#0A1A3E}
+.skn-mascota{display:inline-block;line-height:0;overflow:visible}
+.skn-mascota .mas-svg{width:100%;height:auto;overflow:visible;cursor:inherit;user-select:none}
+.skn-mascota .m-body{fill:var(--mas-blue)}
+.skn-mascota .m-leg{fill:none;stroke:var(--mas-blue);stroke-width:17;stroke-linecap:round;stroke-linejoin:round}
+.skn-mascota .m-white{fill:#ffffff} .skn-mascota .m-pupil{fill:var(--mas-navy)} .skn-mascota .m-hl{fill:#fff}
+.skn-mascota .m-mouth{fill:none;stroke:var(--mas-navy);stroke-width:6;stroke-linecap:round}
+.skn-mascota .m-talk,.skn-mascota .m-grin{fill:var(--mas-navy);display:none}
+.skn-mascota .m-flat{fill:none;stroke:var(--mas-navy);stroke-width:6;stroke-linecap:round;display:none}
+.skn-mascota .eye-sleep{fill:none;stroke:var(--mas-navy);stroke-width:6;stroke-linecap:round;display:none}
+.skn-mascota .m-shadow{fill:#0A1A3E;opacity:.10}
+.skn-mascota .thread{stroke:#8fa4c6;stroke-width:1.3;display:none}
+.skn-mascota .bubble{display:none} .skn-mascota .bubble-box{fill:#fff}
+.skn-mascota .bubble-txt{fill:#12203f;font:700 15px system-ui,sans-serif}
+.skn-mascota .ray{stroke:#FFC53D;stroke-width:6;stroke-linecap:round}
+.skn-mascota .confetti,.skn-mascota .hearts,.skn-mascota .flame,
+.skn-mascota .bulb,.skn-mascota .think,.skn-mascota .sweat{display:none}
+.skn-mascota .conf{transform-box:fill-box;transform-origin:center}
+.skn-mascota .look{transform:translate(var(--lx,0px),var(--ly,0px));transition:transform .08s linear}
+.skn-mascota .mas-root,.skn-mascota .mas-legs-l,.skn-mascota .mas-legs-r,.skn-mascota .leg-wave,
+.skn-mascota .mas-sway,.skn-mascota .mas-hang,.skn-mascota .mas-mouth,
+.skn-mascota .bubble,.skn-mascota .heart,.skn-mascota .flame{transform-box:view-box}
+
+/* idle */
+.skn-mascota[data-anim="idle"] .mas-root{transform-origin:120px 190px;animation:mas-idle 3.4s ease-in-out infinite}
+@keyframes mas-idle{0%,100%{transform:translateY(0) scaleY(1)}50%{transform:translateY(-4px) scaleY(1.01)}}
+
+/* hablar / animar */
+.skn-mascota[data-anim="talk"] .m-smile,.skn-mascota[data-anim="animar"] .m-smile{display:none}
+.skn-mascota[data-anim="talk"] .m-talk{display:block;transform-origin:120px 158px;animation:mas-talk .75s ease-in-out infinite}
+.skn-mascota[data-anim="animar"] .m-grin{display:block}
+.skn-mascota[data-anim="talk"] .bubble,.skn-mascota[data-anim="animar"] .bubble{display:block;transform-origin:150px -8px;animation:mas-pop .5s cubic-bezier(.2,.9,.3,1.2) both}
+.skn-mascota[data-anim="talk"] .mas-root{transform-origin:120px 190px;animation:mas-idle 3.4s ease-in-out infinite}
+.skn-mascota[data-anim="animar"] .mas-root{transform-origin:120px 190px;animation:mas-cheer .5s ease-in-out infinite}
+@keyframes mas-talk{0%,100%{transform:scaleY(.5)}50%{transform:scaleY(1)}}
+@keyframes mas-cheer{0%,100%{transform:translateY(0) scale(1,1)}50%{transform:translateY(-14px) scale(1.03,.97)}}
+@keyframes mas-pop{0%{transform:scale(.2);opacity:0}70%{transform:scale(1.05);opacity:1}100%{transform:scale(1)}}
+
+/* celebrar */
+.skn-mascota[data-anim="celebrar"] .m-smile{display:none} .skn-mascota[data-anim="celebrar"] .m-grin{display:block}
+.skn-mascota[data-anim="celebrar"] .confetti{display:block}
+.skn-mascota[data-anim="celebrar"] .mas-root{transform-origin:120px 190px;animation:mas-celebrate 1.1s ease-in-out infinite}
+@keyframes mas-celebrate{0%{transform:translateY(0) scale(1,1)}12%{transform:translateY(-4px) scale(1.06,.94)}
+  32%{transform:translateY(-34px) scale(.95,1.06)}55%{transform:translateY(0) scale(1.06,.94)}
+  70%{transform:translateY(-14px)}88%{transform:translateY(0)}100%{transform:translateY(0)}}
+.skn-mascota .conf{animation:mas-conf 1.3s ease-out infinite}
+@keyframes mas-conf{0%{transform:translate(0,0) rotate(0);opacity:0}10%{opacity:1}
+  35%{transform:translate(calc(var(--tx)*.5),-42px) rotate(calc(var(--rot)*.4))}
+  100%{transform:translate(var(--tx),var(--ty)) rotate(var(--rot));opacity:0}}
+
+/* idea */
+.skn-mascota[data-anim="idea"] .bulb{display:block;transform-origin:120px -14px;animation:mas-pop .55s cubic-bezier(.2,.9,.3,1.3) both}
+.skn-mascota[data-anim="idea"] .mas-root{transform-origin:120px 190px;animation:mas-hop .55s ease}
+.skn-mascota[data-anim="idea"] .ray{animation:mas-flash .55s ease}
+@keyframes mas-hop{0%{transform:translateY(0)}40%{transform:translateY(-14px)}100%{transform:translateY(0)}}
+@keyframes mas-flash{0%,100%{opacity:0}50%{opacity:1}}
+
+/* pensar */
+.skn-mascota[data-anim="pensar"] .think{display:block}
+.skn-mascota[data-anim="pensar"] .mas-root{transform-origin:120px 190px;animation:mas-ponder 3s ease-in-out infinite}
+@keyframes mas-ponder{0%,100%{transform:rotate(-2deg)}50%{transform:rotate(2deg)}}
+.skn-mascota .d{animation:mas-dot 1.2s ease-in-out infinite} .skn-mascota .d2{animation-delay:.2s} .skn-mascota .d3{animation-delay:.4s}
+@keyframes mas-dot{0%,100%{opacity:.3}50%{opacity:1}}
+
+/* ups */
+.skn-mascota[data-anim="ups"] .m-smile{display:none} .skn-mascota[data-anim="ups"] .m-flat{display:block}
+.skn-mascota[data-anim="ups"] .sweat{display:block}
+.skn-mascota[data-anim="ups"] .mas-root{animation:mas-wobble 1.6s ease-in-out infinite}
+@keyframes mas-wobble{0%,100%{transform:rotate(0)}25%{transform:rotate(-2.5deg)}75%{transform:rotate(2.5deg)}}
+.skn-mascota .sweat{animation:mas-drip 1.8s ease-in-out infinite}
+@keyframes mas-drip{0%{transform:translateY(-4px);opacity:0}25%{opacity:1}100%{transform:translateY(14px);opacity:0}}
+
+/* amor */
+.skn-mascota[data-anim="amor"] .m-smile{display:none} .skn-mascota[data-anim="amor"] .m-grin{display:block}
+.skn-mascota[data-anim="amor"] .hearts{display:block}
+.skn-mascota[data-anim="amor"] .mas-root{transform-origin:120px 190px;animation:mas-idle 2.6s ease-in-out infinite}
+.skn-mascota .heart{animation:mas-floatup 2.2s ease-in infinite}
+@keyframes mas-floatup{0%{transform:translate(0,0) scale(.5);opacity:0}20%{opacity:1}
+  100%{transform:translate(var(--hx),-72px) scale(1);opacity:0}}
+
+/* racha / fuego */
+.skn-mascota[data-anim="fuego"] .m-smile{display:none} .skn-mascota[data-anim="fuego"] .m-grin{display:block}
+.skn-mascota[data-anim="fuego"] .flame{display:block}
+.skn-mascota[data-anim="fuego"] .mas-root{transform-origin:120px 190px;animation:mas-cheer .42s ease-in-out infinite}
+.skn-mascota .flame{transform-origin:120px 8px;animation:mas-flick .3s ease-in-out infinite alternate}
+@keyframes mas-flick{0%{transform:scaleY(1) scaleX(1)}100%{transform:scaleY(1.14) scaleX(.94)}}
+
+/* saltar / temblar / saludar */
+.skn-mascota[data-anim="saltar"] .mas-root{transform-origin:120px 190px;animation:mas-jump .72s ease}
+@keyframes mas-jump{0%{transform:translateY(0) scale(1,1)}18%{transform:translateY(0) scale(1.08,.92)}
+  45%{transform:translateY(-52px) scale(.95,1.07)}72%{transform:translateY(0) scale(1.07,.93)}100%{transform:translateY(0) scale(1,1)}}
+.skn-mascota[data-anim="temblar"] .mas-root{animation:mas-shake .5s ease}
+@keyframes mas-shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-7px)}40%{transform:translateX(7px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}
+.skn-mascota[data-anim="saludar"] .leg-wave{transform-origin:58px 116px;animation:mas-wave .9s ease-in-out}
+@keyframes mas-wave{0%,100%{transform:rotate(0)}25%{transform:rotate(38deg)}50%{transform:rotate(22deg)}75%{transform:rotate(38deg)}}
+
+/* caminar */
+.skn-mascota[data-anim="caminar"] .mas-hang{transform-origin:120px 120px;animation:mas-travel 3.8s ease-in-out infinite}
+.skn-mascota[data-anim="caminar"] .mas-root{transform-origin:120px 190px;animation:mas-walkbob .5s ease-in-out infinite}
+@keyframes mas-travel{0%{transform:translateX(-55px)}50%{transform:translateX(55px)}100%{transform:translateX(-55px)}}
+@keyframes mas-walkbob{0%,100%{transform:translateY(0) rotate(-1.5deg)}50%{transform:translateY(-3px) rotate(1.5deg)}}
+.skn-mascota[data-anim="caminar"] .mas-legs-l{transform-origin:60px 120px;animation:mas-stepA .5s ease-in-out infinite}
+.skn-mascota[data-anim="caminar"] .mas-legs-r{transform-origin:180px 120px;animation:mas-stepB .5s ease-in-out infinite}
+@keyframes mas-stepA{0%,100%{transform:rotate(0)}50%{transform:rotate(9deg)}}
+@keyframes mas-stepB{0%,100%{transform:rotate(0)}50%{transform:rotate(-9deg)}}
+
+/* dormir */
+.skn-mascota[data-anim="dormir"] .mas-root{transform-origin:120px 190px;animation:mas-sleepbob 3.6s ease-in-out infinite}
+@keyframes mas-sleepbob{0%,100%{transform:translateY(0) scaleY(1)}50%{transform:translateY(-3px) scaleY(1.02)}}
+.skn-mascota[data-anim="dormir"] .eye-open{display:none} .skn-mascota[data-anim="dormir"] .eye-sleep{display:block}
+.skn-mascota[data-anim="dormir"] .zzz{display:block}
+.skn-mascota .zzz{display:none;fill:var(--mas-navy);font:700 20px system-ui;transform-box:fill-box;transform-origin:center;animation:mas-zzz 3s ease-in-out infinite}
+.skn-mascota .zzz.z2{animation-delay:1s} .skn-mascota .zzz.z3{animation-delay:2s}
+@keyframes mas-zzz{0%{opacity:0;transform:translate(0,6px) scale(.6)}30%{opacity:1}70%{opacity:1;transform:translate(10px,-16px) scale(1)}100%{opacity:0;transform:translate(18px,-30px) scale(1.1)}}
+
+/* colgarse */
+.skn-mascota[data-anim="web"] .thread{display:block}
+.skn-mascota[data-anim="web"] .mas-hang{animation:mas-webdrop 1.5s cubic-bezier(.22,.8,.3,1) both}
+.skn-mascota[data-anim="web"] .mas-sway{transform-origin:120px 0px;animation:mas-websway 3.4s ease-in-out .2s infinite}
+@keyframes mas-webdrop{0%{transform:translateY(-215px)}60%{transform:translateY(8px)}80%{transform:translateY(-4px)}100%{transform:translateY(0)}}
+@keyframes mas-websway{0%,100%{transform:rotate(-3.2deg)}50%{transform:rotate(3.2deg)}}
+
+@media(prefers-reduced-motion:reduce){.skn-mascota *{animation:none!important}}
