@@ -26,6 +26,132 @@ const NODE_STATE_CLASS: Record<NodeState, string> = {
   needs_review: 'text-warning',
 }
 
+// ─── Inline icons (repo stroke style: viewBox 0 0 24 24, round caps/joins) ────
+
+interface GlyphProps {
+  className?: string
+  size?: number
+}
+
+function glyphProps(size: number, className: string) {
+  return {
+    width: size,
+    height: size,
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: 2,
+    strokeLinecap: 'round' as const,
+    strokeLinejoin: 'round' as const,
+    className,
+    'aria-hidden': true,
+  }
+}
+
+/** Completed node — check-circle. */
+function CheckCircleGlyph({ className = '', size = 16 }: GlyphProps) {
+  return (
+    <svg {...glyphProps(size, className)}>
+      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+      <polyline points="22 4 12 14.01 9 11.01" />
+    </svg>
+  )
+}
+
+/** In-progress / needs-review node — a filled dot inside a ring. */
+function CurrentDotGlyph({ className = '', size = 16 }: GlyphProps) {
+  return (
+    <svg {...glyphProps(size, className)}>
+      <circle cx="12" cy="12" r="9" />
+      <circle cx="12" cy="12" r="4" fill="currentColor" stroke="none" />
+    </svg>
+  )
+}
+
+/** Not-started node — an outline circle. */
+function CircleGlyph({ className = '', size = 16 }: GlyphProps) {
+  return (
+    <svg {...glyphProps(size, className)}>
+      <circle cx="12" cy="12" r="9" />
+    </svg>
+  )
+}
+
+/** Locked node — a padlock. */
+function LockGlyph({ className = '', size = 16 }: GlyphProps) {
+  return (
+    <svg {...glyphProps(size, className)}>
+      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+    </svg>
+  )
+}
+
+/** State glyph for one index node — a padlock wins over the mastery state. */
+function NodeStateIcon({ node }: { node: LearningNode }) {
+  if (node.locked) return <LockGlyph className="text-text-muted shrink-0" />
+  switch (node.state) {
+    case 'mastered':
+      return <CheckCircleGlyph className="text-accent shrink-0" />
+    case 'learning':
+      return <CurrentDotGlyph className="text-primary shrink-0" />
+    case 'needs_review':
+      return <CurrentDotGlyph className="text-warning shrink-0" />
+    default:
+      return <CircleGlyph className="text-text-muted shrink-0" />
+  }
+}
+
+/** Node count — a stack of layers. */
+function LayersGlyph({ className = '', size = 14 }: GlyphProps) {
+  return (
+    <svg {...glyphProps(size, className)}>
+      <polygon points="12 2 2 7 12 12 22 7 12 2" />
+      <polyline points="2 17 12 22 22 17" />
+      <polyline points="2 12 12 17 22 12" />
+    </svg>
+  )
+}
+
+/** Dynamic delivery — a lightning bolt. */
+function ZapGlyph({ className = '', size = 14 }: GlyphProps) {
+  return (
+    <svg {...glyphProps(size, className)}>
+      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+    </svg>
+  )
+}
+
+/** Static delivery — a document. */
+function FileGlyph({ className = '', size = 14 }: GlyphProps) {
+  return (
+    <svg {...glyphProps(size, className)}>
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <polyline points="14 2 14 8 20 8" />
+    </svg>
+  )
+}
+
+/** Validated schema — a badge check. */
+function BadgeCheckGlyph({ className = '', size = 14 }: GlyphProps) {
+  return (
+    <svg {...glyphProps(size, className)}>
+      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+      <polyline points="22 4 12 14.01 9 11.01" />
+    </svg>
+  )
+}
+
+/** A bordered inline stat pill with a tiny leading icon. */
+function StatPill({ icon, children, className = 'text-text-secondary' }: { icon: React.ReactNode; children: React.ReactNode; className?: string }) {
+  return (
+    <span className={`inline-flex items-center gap-1.5 rounded-md border border-border px-2 py-0.5 text-xs font-medium ${className}`}>
+      {icon}
+      {children}
+    </span>
+  )
+}
+
 /** The course index — the ordered node outline, the same list the course views render. */
 function CourseIndex({ courseId }: { courseId: string }) {
   const intl = useIntl()
@@ -61,7 +187,8 @@ function CourseIndex({ courseId }: { courseId: string }) {
                   variants={staggerItem}
                   className="flex items-center gap-3 px-4 py-3 border-b border-border last:border-b-0"
                 >
-                  <span className="text-xs tabular-nums text-text-muted w-5 shrink-0">{i + 1}</span>
+                  <NodeStateIcon node={node} />
+                  <span className="text-xs tabular-nums text-text-muted w-4 shrink-0">{i + 1}</span>
                   <span className="text-sm text-text truncate min-w-0 flex-1">{node.title}</span>
                   <span className={`text-xs shrink-0 ${NODE_STATE_CLASS[node.state]}`}>
                     {stateLabel[node.state]}
@@ -216,21 +343,25 @@ export function CourseStudio() {
               <p className="text-sm text-text-muted mb-1">{intl.formatMessage({ id: 'preview.objective' }, { outcome: course.outcome })}</p>
             )}
             {/* Meta: node count + delivery mode / validated */}
-            <div className="flex items-center gap-2 flex-wrap mt-1">
+            <div className="flex items-center gap-2 flex-wrap mt-2">
               {course.node_count != null && (
-                <span className="text-sm text-text-secondary">
+                <StatPill icon={<LayersGlyph />}>
                   {intl.formatMessage({ id: 'preview.metaNodes' }, { count: course.node_count })}
-                </span>
+                </StatPill>
               )}
-              <Badge variant="primary" badgeStyle="plain" className="shrink-0">
-                {course.delivery_mode === 'dynamic'
-                  ? intl.formatMessage({ id: 'preview.metaDynamic' })
-                  : intl.formatMessage({ id: 'preview.metaStatic' })}
-              </Badge>
+              {course.delivery_mode === 'dynamic' ? (
+                <StatPill icon={<ZapGlyph />} className="text-primary">
+                  {intl.formatMessage({ id: 'preview.metaDynamic' })}
+                </StatPill>
+              ) : (
+                <StatPill icon={<FileGlyph />}>
+                  {intl.formatMessage({ id: 'preview.metaStatic' })}
+                </StatPill>
+              )}
               {course.schema_status === 'validated' && (
-                <Badge variant="accent" badgeStyle="plain" className="shrink-0">
+                <StatPill icon={<BadgeCheckGlyph />} className="text-accent">
                   {intl.formatMessage({ id: 'preview.metaValidated' })}
-                </Badge>
+                </StatPill>
               )}
             </div>
             {sourceDoc && (
