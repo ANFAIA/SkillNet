@@ -112,6 +112,19 @@ class Settings(BaseSettings):
     # Read by litellm for openrouter/* models. Lives in the repo-root .env.
     OPENROUTER_API_KEY: str = ""
 
+    # Audio Overview / Podcast generator (roadmap §2a).
+    #
+    # The script agent goes through litellm like every other LLM call; a small, cheap
+    # model is plenty for a short dialogue, so it defaults to gpt-4o-mini rather than the
+    # (possibly larger/pricier) course-generation model.
+    PODCAST_SCRIPT_MODEL: str = "gpt-4o-mini"
+    # ElevenLabs Text-to-Dialogue model id for the primary (single-call) voice path.
+    PODCAST_DIALOGUE_MODEL: str = "eleven_v3"
+    # The two fixed demo voices. Config-overridable so a deployment can pick its own hosts.
+    # Defaults are ElevenLabs multilingual voices (Sarah / Antoni) that speak Spanish well.
+    PODCAST_VOICE_A: str = "EXAVITQu4vr4xnSDxMaL"
+    PODCAST_VOICE_B: str = "ErXwobaYiN019PkySvjV"
+
     # File uploads
     UPLOAD_DIR: str = "./uploads"
     MAX_UPLOAD_SIZE_MB: int = 50

@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import asyncio
 import uuid
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import Protocol, runtime_checkable
 
@@ -54,6 +55,12 @@ SUBSCRIBER_WAIT_SECONDS = 0.5
 #: How much of a failure reaches the stored ``error`` column and the client.
 _ERROR_CHARS = 500
 
+#: A generator's optional progress reporter: ``(step, extra) -> awaitable``. The runner
+#: binds one to the job's SSE channel and hands it to the generator via the context, so a
+#: multi-stage generator (podcast: guion -> voz -> listo) can stream its own steps without
+#: knowing anything about SSE, the channel, or the artifact id.
+ProgressFn = Callable[[str, dict], Awaitable[None]]
+
 
 def media_channel(artifact_id: str | uuid.UUID) -> str:
     """The SSE channel of one media job. Never shared with node-render's ``node:{id}``."""
@@ -77,6 +84,20 @@ class MediaJobContext:
     bundle: GroundedBundle
     course: Course | None = None
     node: CourseNode | None = None
+    #: Optional per-stage progress reporter, bound to the job's SSE channel by the runner.
+    #: ``None`` off the hot path (unit tests, the echo default) — use :meth:`emit`, which
+    #: is a no-op when it is unset, rather than calling this directly.
+    progress: ProgressFn | None = None
+
+    async def emit(self, step: str, **extra: object) -> None:
+        """Publish one intermediate progress step, or do nothing if unwired.
+
+        Additive and safe to call from any generator: the runner injects the reporter, and
+        every caller that builds a context without one (tests, the echo default) simply
+        gets a silent no-op.
+        """
+        if self.progress is not None:
+            await self.progress(step, dict(extra))
 
 
 @dataclass(frozen=True)
@@ -296,8 +317,16 @@ async def run_media_job(artifact_id: uuid.UUID) -> None:
                 {"step": "grounded", "mode": bundle.mode, "passages": len(bundle.passages)},
             )
 
+            async def _report(step: str, extra: dict) -> None:
+                await sse.publish(channel, "media_step", {"step": step, **extra})
+
             ctx = MediaJobContext(
-                kind=kind, spec=spec, bundle=bundle, course=course, node=node
+                kind=kind,
+                spec=spec,
+                bundle=bundle,
+                course=course,
+                node=node,
+                progress=_report,
             )
             result = await execute_generation(ctx, get_generator(kind), AssetStore())
 
@@ -334,6 +363,7 @@ async def run_media_job(artifact_id: uuid.UUID) -> None:
 
 __all__ = [
     "media_channel",
+    "ProgressFn",
     "MediaJobContext",
     "GeneratedArtifact",
     "MediaGenerator",
