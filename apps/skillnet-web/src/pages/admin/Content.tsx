@@ -158,6 +158,13 @@ export function Content() {
                     <Button
                       variant="ghost"
                       size="sm"
+                      onClick={() => navigate(`/admin/curso/${course.id}/estudio`)}
+                    >
+                      {intl.formatMessage({ id: 'content.overviews' })}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       onClick={() => navigate(`/admin/curso/${course.id}/esquema`)}
                     >
                       {intl.formatMessage({ id: 'content.schema' })}

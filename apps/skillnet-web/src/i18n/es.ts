@@ -262,6 +262,7 @@ export const es: Record<string, string> = {
   'content.createdAt': 'Creado: {date}',
   'content.test': 'Probar',
   'content.viewCourse': 'Ver curso',
+  'content.overviews': 'Overviews',
   'content.schema': 'Esquema',
   'status.published': 'Publicado',
   'status.draft': 'Borrador',
@@ -609,6 +610,7 @@ export const es: Record<string, string> = {
   'preview.metaValidated': 'Validado',
 
   // CourseOverviews panel (rich-media Studio)
+  'overviews.studio': 'Estudio',
   'overviews.title': 'Resumenes',
   'overviews.subtitle': 'Genera un podcast, video, infografia o diapositivas del curso.',
   'overviews.generate': 'Generar',
