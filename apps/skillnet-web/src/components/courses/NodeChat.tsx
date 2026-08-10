@@ -10,6 +10,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useIntl } from 'react-intl'
 import { ChatInput } from '../chat/ChatInput'
 import { ChatAnswer } from '../chat/ChatAnswer'
+import { Mascota } from '../mascota'
 import { useChat } from '../../api/chat'
 import type { ChatContext } from '../../api/chat'
 import type { ChatMessage } from '../../types'
@@ -135,9 +136,16 @@ export function NodeChat({
         style={{ scrollbarWidth: 'thin' }}
       >
         {messages.length === 0 && (
-          <p className="text-xs text-text-muted py-4">
-            {intl.formatMessage({ id: 'nodeChat.empty' })}
-          </p>
+          // El chat vacío ya no es una línea de texto suelta: la mascota saluda con
+          // un bocadillo, así que la compañera está presente desde el principio.
+          <div className="h-full flex flex-col items-center justify-center px-2">
+            <Mascota
+              anim="talk"
+              say={intl.formatMessage({ id: 'nodeChat.empty' })}
+              size={104}
+              followCursor
+            />
+          </div>
         )}
         {messages.map((msg) => (
           <Bubble key={msg.id} message={msg} />
