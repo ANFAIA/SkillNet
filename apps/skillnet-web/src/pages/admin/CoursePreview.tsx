@@ -1,14 +1,27 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useIntl } from 'react-intl'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { Button, Badge, Card, EmptyState, Input, Skeleton, SkeletonText } from '../../components/ui'
-import { CourseOverviews } from '../../components/courses/CourseOverviews'
+import { LessonContent } from '../../components/courses/LessonContent'
+import { ExerciseRenderer } from '../../components/exercises/ExerciseRenderer'
 import { useCourse, useUpdateCourse, usePublishCourse, useArchiveCourse } from '../../api/courses'
 import { useDocument } from '../../api/documents'
-import { useCourseNodes } from '../../api/nodes'
-import { duration, ease, staggerContainer, staggerItem } from '../../lib/motion'
-import type { LearningNode, NodeState } from '../../types'
+import { slideVariants, staggerContainer, staggerItem, duration, ease, transition } from '../../lib/motion'
+
+const lessonSlide = slideVariants(48)
+
+function ChevronDown({ open }: { open: boolean }) {
+  return (
+    <svg
+      width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+      className={`transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+    >
+      <polyline points="6 9 12 15 18 9" />
+    </svg>
+  )
+}
 
 function useStatusConfig() {
   const intl = useIntl()
@@ -19,69 +32,6 @@ function useStatusConfig() {
   }
 }
 
-const NODE_STATE_CLASS: Record<NodeState, string> = {
-  not_started: 'text-text-muted',
-  learning: 'text-primary',
-  mastered: 'text-accent',
-  needs_review: 'text-warning',
-}
-
-/** The course index — the ordered node outline, the same list the course views render. */
-function CourseIndex({ courseId }: { courseId: string }) {
-  const intl = useIntl()
-  const nodesQuery = useCourseNodes(courseId)
-  const nodes = nodesQuery.data?.nodes
-
-  const stateLabel: Record<NodeState, string> = {
-    not_started: intl.formatMessage({ id: 'nodelist.stateNotStarted' }),
-    learning: intl.formatMessage({ id: 'nodelist.stateLearning' }),
-    mastered: intl.formatMessage({ id: 'nodelist.stateMastered' }),
-    needs_review: intl.formatMessage({ id: 'nodelist.stateNeedsReview' }),
-  }
-
-  return (
-    <div>
-      <h3 className="text-base font-medium text-text mb-3">
-        {intl.formatMessage({ id: 'preview.index' })}
-      </h3>
-      <Card className="p-0 overflow-hidden">
-        {nodesQuery.isLoading ? (
-          <div className="p-4"><SkeletonText lines={4} /></div>
-        ) : !nodes || nodes.length === 0 ? (
-          <p className="p-4 text-sm text-text-muted">
-            {intl.formatMessage({ id: 'preview.indexEmpty' })}
-          </p>
-        ) : (
-          <motion.ul initial="hidden" animate="visible" variants={staggerContainer}>
-            {[...nodes]
-              .sort((a: LearningNode, b: LearningNode) => a.position - b.position)
-              .map((node, i) => (
-                <motion.li
-                  key={node.id}
-                  variants={staggerItem}
-                  className="flex items-center gap-3 px-4 py-3 border-b border-border last:border-b-0"
-                >
-                  <span className="text-xs tabular-nums text-text-muted w-5 shrink-0">{i + 1}</span>
-                  <span className="text-sm text-text truncate min-w-0 flex-1">{node.title}</span>
-                  <span className={`text-xs shrink-0 ${NODE_STATE_CLASS[node.state]}`}>
-                    {stateLabel[node.state]}
-                  </span>
-                </motion.li>
-              ))}
-          </motion.ul>
-        )}
-      </Card>
-    </div>
-  )
-}
-
-/**
- * Admin course home for `/admin/curso/:id` — the hub of one course.
- *
- * Header (title + meta), an action row (Probar / Esquema / edit / publish), the course
- * index (the node outline the runtime serves), and the Overviews panel that generates and
- * plays the rich-media artifacts. Admin only for now.
- */
 export function CoursePreview() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -97,18 +47,35 @@ export function CoursePreview() {
   const publishCourse = usePublishCourse()
   const archiveCourse = useArchiveCourse()
 
+  const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set())
+  const [activeLessonId, setActiveLessonId] = useState<string>('')
+  const [direction, setDirection] = useState<1 | -1>(1)
+
   const [editing, setEditing] = useState(false)
   const [editTitle, setEditTitle] = useState('')
   const [editDescription, setEditDescription] = useState('')
   const [editOutcome, setEditOutcome] = useState('')
+
+  const initializedRef = useRef(false)
+  useEffect(() => {
+    if (!course || initializedRef.current) return
+    initializedRef.current = true
+    const firstModule = course.modules[0]
+    setExpandedModules(new Set(firstModule ? [firstModule.id] : []))
+    setActiveLessonId(firstModule?.lessons[0]?.id ?? '')
+  }, [course])
 
   if (isLoading) {
     return (
       <div>
         <Skeleton className="h-6 w-1/3 mb-6" />
         <div className="flex flex-col lg:flex-row gap-6">
-          <div className="flex-1 min-w-0"><Card><SkeletonText lines={5} /></Card></div>
-          <div className="flex-1 min-w-0"><Card><SkeletonText lines={5} /></Card></div>
+          <div className="w-full lg:w-72 lg:shrink-0">
+            <Card><SkeletonText lines={5} /></Card>
+          </div>
+          <div className="flex-1 min-w-0">
+            <Card><SkeletonText lines={8} /></Card>
+          </div>
         </div>
       </div>
     )
@@ -134,6 +101,10 @@ export function CoursePreview() {
     setEditing(true)
   }
 
+  function cancelEditing() {
+    setEditing(false)
+  }
+
   function saveEditing() {
     if (!id) return
     updateCourse.mutate(
@@ -142,9 +113,28 @@ export function CoursePreview() {
     )
   }
 
+  const allLessons = (course.modules ?? []).flatMap((m) => m.lessons ?? [])
+  const currentIndex = allLessons.findIndex((l) => l.id === activeLessonId)
+  const activeLesson = allLessons[currentIndex]
+
+  function toggleModule(moduleId: string) {
+    setExpandedModules((prev) => {
+      const next = new Set(prev)
+      if (next.has(moduleId)) next.delete(moduleId)
+      else next.add(moduleId)
+      return next
+    })
+  }
+
+  function selectLesson(lessonId: string) {
+    if (lessonId === activeLessonId) return
+    const targetIndex = allLessons.findIndex((l) => l.id === lessonId)
+    setDirection(targetIndex >= currentIndex ? 1 : -1)
+    setActiveLessonId(lessonId)
+  }
+
   return (
     <div>
-      {/* Header */}
       <div className="mb-6">
         {editing ? (
           <div className="space-y-3">
@@ -167,10 +157,14 @@ export function CoursePreview() {
               onChange={(e) => setEditOutcome(e.target.value)}
             />
             <div className="flex items-center gap-2">
-              <Button size="sm" onClick={saveEditing} disabled={updateCourse.isPending || !editTitle.trim()}>
+              <Button
+                size="sm"
+                onClick={saveEditing}
+                disabled={updateCourse.isPending || !editTitle.trim()}
+              >
                 {updateCourse.isPending ? intl.formatMessage({ id: 'preview.saving' }) : intl.formatMessage({ id: 'preview.save' })}
               </Button>
-              <Button variant="ghost" size="sm" onClick={() => setEditing(false)} disabled={updateCourse.isPending}>
+              <Button variant="ghost" size="sm" onClick={cancelEditing} disabled={updateCourse.isPending}>
                 {intl.formatMessage({ id: 'preview.cancel' })}
               </Button>
               {updateCourse.isError && (
@@ -206,24 +200,9 @@ export function CoursePreview() {
             {course.outcome && (
               <p className="text-sm text-text-muted mb-1">{intl.formatMessage({ id: 'preview.objective' }, { outcome: course.outcome })}</p>
             )}
-            {/* Meta: node count + delivery mode / validated */}
-            <div className="flex items-center gap-2 flex-wrap mt-1">
-              {course.node_count != null && (
-                <span className="text-sm text-text-secondary">
-                  {intl.formatMessage({ id: 'preview.metaNodes' }, { count: course.node_count })}
-                </span>
-              )}
-              <Badge variant="primary" badgeStyle="plain" className="shrink-0">
-                {course.delivery_mode === 'dynamic'
-                  ? intl.formatMessage({ id: 'preview.metaDynamic' })
-                  : intl.formatMessage({ id: 'preview.metaStatic' })}
-              </Badge>
-              {course.schema_status === 'validated' && (
-                <Badge variant="accent" badgeStyle="plain" className="shrink-0">
-                  {intl.formatMessage({ id: 'preview.metaValidated' })}
-                </Badge>
-              )}
-            </div>
+            <p className="text-sm text-text-secondary">
+              {intl.formatMessage({ id: 'preview.modulesLessons' }, { modules: course.modules.length, lessons: allLessons.length })}
+            </p>
             {sourceDoc && (
               <p className="text-sm text-text-secondary mt-1 flex items-center gap-2 flex-wrap">
                 <span className="text-text-muted">{intl.formatMessage({ id: 'preview.source' })}</span>
@@ -235,17 +214,16 @@ export function CoursePreview() {
                 )}
               </p>
             )}
-
-            {/* Action row */}
-            <div className="flex items-center gap-2 mt-3 flex-wrap">
-              <Button variant="secondary" size="sm" onClick={() => navigate(`/admin/probar-curso/${id}`)}>
-                {intl.formatMessage({ id: 'preview.test' })}
-              </Button>
-              <Button variant="secondary" size="sm" onClick={() => navigate(`/admin/curso/${id}/esquema`)}>
-                {intl.formatMessage({ id: 'preview.schema' })}
-              </Button>
-              <Button variant="ghost" size="sm" onClick={startEditing}>
+            <div className="flex items-center gap-2 mt-3">
+              <Button variant="secondary" size="sm" onClick={startEditing}>
                 {intl.formatMessage({ id: 'preview.edit' })}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate(`/admin/curso/${id}/esquema`)}
+              >
+                {intl.formatMessage({ id: 'preview.schema' })}
               </Button>
               {course.status === 'draft' && (
                 <Button
@@ -275,13 +253,112 @@ export function CoursePreview() {
         )}
       </div>
 
-      {/* Body: index + overviews */}
-      <div className="flex flex-col lg:flex-row gap-6 items-start">
-        <div className="w-full lg:w-80 lg:shrink-0">
-          {id && <CourseIndex courseId={id} />}
+      <div className="flex flex-col lg:flex-row gap-6">
+        <div className="w-full lg:w-72 lg:shrink-0">
+          <Card className="p-0 overflow-hidden">
+            {course.modules.length === 0 ? (
+              <div className="p-4 text-sm text-text-muted">{intl.formatMessage({ id: 'preview.noContent' })}</div>
+            ) : (
+              course.modules.map((mod) => {
+                const isExpanded = expandedModules.has(mod.id)
+                return (
+                  <div key={mod.id}>
+                    <button
+                      type="button"
+                      onClick={() => toggleModule(mod.id)}
+                      className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-text hover:bg-bg-subtle transition-colors border-b border-border"
+                    >
+                      <span className="text-left truncate min-w-0">{mod.title}</span>
+                      <ChevronDown open={isExpanded} />
+                    </button>
+                    {isExpanded && (
+                      <motion.div initial="hidden" animate="visible" variants={staggerContainer}>
+                        {(mod.lessons ?? []).map((lesson) => (
+                          <motion.button
+                            key={lesson.id}
+                            type="button"
+                            variants={staggerItem}
+                            onClick={() => selectLesson(lesson.id)}
+                            className={`w-full text-left px-6 py-2.5 text-sm transition-colors border-b border-border last:border-b-0 flex items-center gap-2 ${
+                              activeLessonId === lesson.id
+                                ? 'bg-primary-subtle text-primary font-medium'
+                                : 'text-text-secondary hover:bg-bg-subtle'
+                            }`}
+                          >
+                            <span className="truncate min-w-0">{lesson.title}</span>
+                          </motion.button>
+                        ))}
+                      </motion.div>
+                    )}
+                  </div>
+                )
+              })
+            )}
+          </Card>
         </div>
+
         <div className="flex-1 min-w-0">
-          {id && <CourseOverviews courseId={id} />}
+          <AnimatePresence mode="wait" custom={direction} initial={false}>
+            {activeLesson && (
+              <motion.div
+                key={activeLesson.id}
+                custom={direction}
+                variants={lessonSlide}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={{
+                  x: direction > 0 ? transition.pushIn : transition.pushOut,
+                  opacity: { duration: duration.normal, ease: ease.base },
+                  filter: { duration: duration.normal, ease: ease.base },
+                }}
+              >
+                <Card>
+                  <h3 className="text-base font-medium text-text mb-4">{activeLesson.title}</h3>
+
+                  <LessonContent markdown={activeLesson.content} />
+
+                  {(activeLesson.exercises ?? [])
+                    .slice()
+                    .sort((a, b) => a.position - b.position)
+                    .map((exercise, i) => (
+                      <div key={exercise.id} className="mt-6 border-t border-border pt-6">
+                        <h4 className="text-sm font-medium text-text mb-3">{intl.formatMessage({ id: 'preview.exerciseNum' }, { num: i + 1 })}</h4>
+                        <ExerciseRenderer exercise={exercise} />
+                      </div>
+                    ))}
+
+                  <div className="mt-6 flex justify-between">
+                    {currentIndex > 0 ? (
+                      <Button
+                        variant="ghost"
+                        onClick={() => {
+                          setDirection(-1)
+                          setActiveLessonId(allLessons[currentIndex - 1].id)
+                        }}
+                      >
+                        {intl.formatMessage({ id: 'preview.previous' })}
+                      </Button>
+                    ) : <div />}
+                    {currentIndex < allLessons.length - 1 ? (
+                      <Button
+                        onClick={() => {
+                          setDirection(1)
+                          setActiveLessonId(allLessons[currentIndex + 1].id)
+                        }}
+                      >
+                        {intl.formatMessage({ id: 'preview.next' })}
+                      </Button>
+                    ) : (
+                      <Button variant="ghost" onClick={() => navigate('/admin/contenido')}>
+                        {intl.formatMessage({ id: 'preview.backToContent' })}
+                      </Button>
+                    )}
+                  </div>
+                </Card>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
     </div>
