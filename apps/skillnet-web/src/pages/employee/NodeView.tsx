@@ -830,35 +830,31 @@ export function NodeView() {
           </div>
         </div>
 
-        {/* Spider — floats over content, fades out when any panel opens */}
+        {/* Mascota — compañera abajo a la izquierda, fuera de la columna de lectura
+            centrada. Se atenúa cuando se abre un panel. Reacciona al resultado
+            (celebrar/ups) y abre el chat al pulsarla. Antes colgaba de un hilo arriba
+            a la derecha; abajo se posa (sin hilo) y es más grande. */}
         <AnimatePresence>
           {served && !activePanel && (
             <motion.div
               key="spider"
-              className="hidden md:block absolute right-16 top-0 z-10"
-              initial={{ opacity: 0, y: -20 }}
+              className="hidden md:block absolute left-6 bottom-6 z-10"
+              initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
+              exit={{ opacity: 0, y: 20 }}
               transition={{ type: 'spring', stiffness: 300, damping: 25 }}
             >
-              <div className="flex flex-col items-center">
-                {/* Thread from top */}
-                <div className="w-px bg-border" style={{ height: 48 }} />
-                {/* Spider — clickable, opens chat */}
-                <motion.button
-                  type="button"
-                  onClick={() => togglePanel('chat')}
-                  className="w-10 h-10 cursor-pointer"
-                  whileHover={{ scale: 1.1, y: 2 }}
-                  whileTap={{ scale: 0.95 }}
-                  transition={{ type: 'spring', stiffness: 400, damping: 20 }}
-                  aria-label={intl.formatMessage({ id: 'panel.chat' })}
-                >
-                  {/* La mascota reacciona al resultado: celebra al acertar, `ups` al
-                      fallar; vuelve sola a idle. Antes era un SVG estatico. */}
-                  <Mascota anim={mascotaFx ?? 'idle'} size="100%" followCursor />
-                </motion.button>
-              </div>
+              <motion.button
+                type="button"
+                onClick={() => togglePanel('chat')}
+                className="w-[72px] h-[72px] cursor-pointer"
+                whileHover={{ scale: 1.08, y: -2 }}
+                whileTap={{ scale: 0.95 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                aria-label={intl.formatMessage({ id: 'panel.chat' })}
+              >
+                <Mascota anim={mascotaFx ?? 'idle'} size="100%" followCursor />
+              </motion.button>
             </motion.div>
           )}
         </AnimatePresence>
