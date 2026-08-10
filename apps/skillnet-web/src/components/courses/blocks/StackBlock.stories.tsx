@@ -1,6 +1,7 @@
 import type { Meta } from '@storybook/react-vite'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { StackBlock } from './StackBlock'
+import { StackBlock, StackItem } from './StackBlock'
+import { stepperContext } from './StepperContext'
 import { TextContentBlock } from './TextContentBlock'
 import { CalloutBlock } from './CalloutBlock'
 import { CardBlock } from './CardBlock'
@@ -23,6 +24,63 @@ const Sample = () => (
     <TextContentBlock text="Segundo bloque, cuerpo de la explicacion." variant="body" />
     <TextContentBlock text="Manual de atencion al cliente, pagina 3." variant="caption" />
   </>
+)
+
+/**
+ * The stepper's "one idea per screen" grouping. In `stepperContext`, consecutive
+ * PRESENTATIONAL blocks collapse into a single screen (paragraph + list + callout
+ * shown together), while each exercise (`StackItem solvable`) stays on its own
+ * gated screen. Here: screen 1 = lead + body + callout together; screen 2 = the
+ * quiz (must be answered to advance); screen 3 = the closing paragraph.
+ * View it with the toolbar Surface set to "Lesson (dark/light)".
+ */
+export const PasosAgrupados = () => (
+  <QueryClientProvider client={client}>
+    <stepperContext.Provider value={true}>
+      <div className="h-[560px]">
+        <StackBlock gap="lg">
+          <StackItem>
+            <TextContentBlock
+              text="Predecir la siguiente palabra es como escribir un email: el modelo apuesta por lo más probable."
+              variant="lead"
+            />
+          </StackItem>
+          <StackItem>
+            <TextContentBlock
+              text="Un modelo de lenguaje asigna una probabilidad a cada palabra posible y elige entre las más altas, no siempre la primera."
+              variant="body"
+            />
+          </StackItem>
+          <StackItem>
+            <CalloutBlock
+              tone="info"
+              text="La probabilidad depende del corpus con el que se entrenó y de las palabras anteriores de la frase."
+            />
+          </StackItem>
+          <StackItem solvable>
+            <QuizItemBlock
+              item_id="demo-group"
+              item_type="test"
+              bloom_level="understand"
+              question="¿Cómo elige un modelo la siguiente palabra?"
+              options={[
+                'Siempre la palabra más común del corpus',
+                'La más probable según el corpus y las palabras previas',
+                'Una palabra al azar',
+              ]}
+              nodeId="demo"
+            />
+          </StackItem>
+          <StackItem>
+            <TextContentBlock
+              text="Ya sabes lo básico: el modelo predice por probabilidad. En el siguiente paso lo probarás tú."
+              variant="body"
+            />
+          </StackItem>
+        </StackBlock>
+      </div>
+    </stepperContext.Provider>
+  </QueryClientProvider>
 )
 
 export const Separaciones = () => (

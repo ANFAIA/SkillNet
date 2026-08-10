@@ -64,14 +64,15 @@ describe('el boton de nodo siguiente sobre el runtime de OpenUI', () => {
     // frase no tiene ningun elemento propio al que apuntar: se mira el subarbol.
     const { container } = renderLeccion()
 
-    await userEvent.click(siguiente())
-    await waitFor(() => expect(container).toHaveTextContent('Proceso de devolucion'))
+    // "Una idea por pantalla": intro y pasos (ambos presentacionales) van JUNTOS en
+    // la primera pantalla, no uno por paso. Solo el ejercicio abre pantalla propia.
+    expect(container).toHaveTextContent('Proceso de devolucion')
     expect(ctaSiguienteNodo()).toBeNull()
 
     await userEvent.click(siguiente())
-    // El ultimo paso. El `QuizItemBlock` todavia no ha montado —`AnimatePresence
-    // mode="wait"` espera a la salida del anterior— y aun asi el paso ya esta cerrado.
-    expect(container).not.toHaveTextContent('Un cliente vuelve')
+    // El ultimo paso es el ejercicio. El `QuizItemBlock` todavia no ha montado
+    // —`AnimatePresence mode="wait"` espera a la salida del anterior— y aun asi el
+    // paso ya esta cerrado (el `solvable` se sabe en render, no al montar).
     expect(ctaSiguienteNodo()).toBeNull()
     expect(siguiente()).toBeDisabled()
 
@@ -83,8 +84,8 @@ describe('el boton de nodo siguiente sobre el runtime de OpenUI', () => {
     expect(irAlSiguienteNodo).not.toHaveBeenCalled()
   })
 
-  it('lo enseña en un ultimo paso que no es ejercicio', async () => {
-    render(
+  it('lo enseña en un nodo de solo prosa, que es una sola pantalla', async () => {
+    const { container } = render(
       <QueryClientProvider client={new QueryClient()}>
         <nextNodeContext.Provider value={{ navigate: irAlSiguienteNodo, title: 'Nodo 2' }}>
           <stepperContext.Provider value={true}>
@@ -102,7 +103,10 @@ describe('el boton de nodo siguiente sobre el runtime de OpenUI', () => {
       </QueryClientProvider>,
     )
 
-    await userEvent.click(siguiente())
+    // Dos bloques de prosa se agrupan en UNA pantalla, que ademas es la ultima, asi
+    // que la CTA al siguiente nodo sale de entrada, sin necesidad de avanzar.
+    expect(container).toHaveTextContent('Uno.')
+    expect(container).toHaveTextContent('Dos.')
     expect(ctaSiguienteNodo()).toBeInTheDocument()
   })
 })

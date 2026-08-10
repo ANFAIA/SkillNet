@@ -109,8 +109,28 @@ function StepperStack({ children }: { children?: ReactNode }) {
     </div>,
   ] : []
 
-  const items = [...introSlides, ...nodeItems]
-  const total = items.length
+  // Group consecutive PRESENTATIONAL blocks into ONE screen; each exercise
+  // (solvable) stays on its own. This is the "one idea per screen" rule: a run of
+  // text/callout/table/… is shown together — paragraph + list + callout as a
+  // single readable screen — instead of one sentence at a time, and only an
+  // exercise breaks the flow onto its own step (so the stepper gate still works).
+  const nodeGroups: ReactNode[][] = []
+  const nodeGroupSolvable: boolean[] = []
+  for (const item of nodeItems) {
+    const solvable = stepNeedsSolving(item)
+    const lastIdx = nodeGroups.length - 1
+    if (!solvable && lastIdx >= 0 && !nodeGroupSolvable[lastIdx]) {
+      nodeGroups[lastIdx].push(item)
+    } else {
+      nodeGroups.push([item])
+      nodeGroupSolvable.push(solvable)
+    }
+  }
+
+  // The intro slide (if any) is its own screen, never grouped or gated.
+  const screens: ReactNode[][] = [...introSlides.map((s) => [s]), ...nodeGroups]
+  const screenSolvable: boolean[] = [...introSlides.map(() => false), ...nodeGroupSolvable]
+  const total = screens.length
   const [step, setStep] = useState(0)
   const safeStep = Math.min(step, total - 1)
   const isLast = safeStep >= total - 1
@@ -138,7 +158,7 @@ function StepperStack({ children }: { children?: ReactNode }) {
   const stepRef = useRef(safeStep)
   stepRef.current = safeStep
   const solve = useCallback(() => setSolvedStep(stepRef.current), [])
-  const isGated = stepNeedsSolving(items[safeStep]) && solvedStep !== safeStep
+  const isGated = screenSolvable[safeStep] === true && solvedStep !== safeStep
 
   const move = useCallback((delta: number) => {
     setSolvedStep(null)
@@ -187,11 +207,10 @@ function StepperStack({ children }: { children?: ReactNode }) {
   }, [isGated, isLast, goNextNode, move])
 
   if (total === 0) return null
-  if (total === 1) {
-    // `justify-center` como en el stepper: `UiSpecRenderer` fuerza `flex-1 min-h-0`
-    // sobre este div, asi que llena el alto y sin esto su contenido queda pegado arriba.
-    return <div className="flex flex-col justify-center min-w-0">{items[0]}</div>
-  }
+  // No hay caso especial para `total === 1`: con la agrupacion, un nodo de solo
+  // prosa es UNA pantalla, y aun asi tiene que ofrecer la CTA al siguiente nodo
+  // (si no, no habria forma de salir). El render unico de abajo ya lo hace —el
+  // chevron izquierdo nace deshabilitado y la CTA sale por ser el ultimo paso.
 
   return (
     <stepperAdvanceContext.Provider value={advance}>
@@ -221,9 +240,9 @@ function StepperStack({ children }: { children?: ReactNode }) {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: duration.normal, ease: [...ease.base] }}
-                className="min-w-0"
+                className="flex flex-col gap-6 min-w-0"
               >
-                {items[safeStep]}
+                {screens[safeStep]}
               </motion.div>
             </AnimatePresence>
           </div>
