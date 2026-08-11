@@ -28,7 +28,7 @@ function jsonResponse(status: number, body: unknown) {
 }
 
 function installFetch(role: 'employee' | 'admin') {
-  mockFetch.mockImplementation((input: string) => {
+  mockFetch.mockImplementation((input: string, options?: RequestInit) => {
     const url = String(input)
     if (url.endsWith('/health')) {
       return jsonResponse(200, {
@@ -44,6 +44,9 @@ function installFetch(role: 'employee' | 'admin') {
         full_name: role === 'admin' ? 'Admin Ejemplo' : 'Empleada Ejemplo',
         role,
       })
+    }
+    if (url.endsWith('/auth/logout') && options?.method === 'POST') {
+      return jsonResponse(204, undefined)
     }
     return jsonResponse(404, { detail: 'Not Found', code: 'NOT_FOUND' })
   })
@@ -115,5 +118,20 @@ describe('Header — the admin gate', () => {
     await openMenu('Admin Ejemplo')
     expect(screen.queryByRole('menuitem', { name: 'Preferencias de aprendizaje' })).toBeNull()
     expect(screen.getByRole('menuitem', { name: 'Cerrar sesion' })).toBeInTheDocument()
+  })
+})
+
+describe('Header — logout', () => {
+  it('posts to the session logout endpoint when the menu item is clicked', async () => {
+    installFetch('employee')
+    renderHeader()
+
+    await openMenu('Empleada Ejemplo')
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Cerrar sesion' }))
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      '/api/v1/auth/logout',
+      expect.objectContaining({ method: 'POST', credentials: 'include' }),
+    )
   })
 })

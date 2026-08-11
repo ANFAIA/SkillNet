@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>SkillNet — informe E2E de personalización</title>
+  <style>
+    body{font:16px/1.55 system-ui,sans-serif;max-width:1080px;margin:40px auto;padding:0 24px;color:#182033;background:#f7f8fa}
+    h1,h2{color:#101828} .lead{font-size:1.15rem}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px}
+    figure{margin:0;background:white;border:1px solid #d9dee8;padding:12px;border-radius:10px}img{width:100%;height:auto}figcaption{margin-top:8px;color:#475467}
+    table{width:100%;border-collapse:collapse;background:white}th,td{padding:10px;border:1px solid #d9dee8;text-align:left}th{background:#eef2f7}
+    .bug{background:#fff4ed;border-left:4px solid #e04f16;padding:12px 16px}code{background:#eef2f7;padding:2px 5px}
+  </style>
+</head>
+<body>
+  <h1>Informe E2E de personalización</h1>
+  <p class="lead">La personalización es visible en formato y estructura, pero el rol concreto todavía se percibe poco. Similitud media Aitana↔Diego: <strong>0,4233</strong>; formato distinto en <strong>3 de 4</strong> nodos comparables.</p>
+  <h2>Matriz resumida</h2>
+  <table><tr><th>Dimensión</th><th>Resultado</th></tr><tr><td>Tono</td><td>Visible y coherente</td></tr><tr><td>Formato</td><td>Diverge en 75 %</td></tr><tr><td>Profundidad</td><td>Diego +13,3 % de texto</td></tr><tr><td>Rol explícito</td><td>Débil/no reconocible</td></tr><tr><td>Ejercicios</td><td>Retry incorrecto y avance correcto funcionan</td></tr></table>
+  <h2>Evidencia visual</h2>
+  <div class="grid">
+    <figure><img src="evidencia-testing/2026-08-11/browser/diego_nodo1_tabla.png" alt="Tabla del nodo 1 de Diego"><figcaption>Diego, nodo 1: tabla de cuatro comprobaciones.</figcaption></figure>
+    <figure><img src="evidencia-testing/2026-08-11/browser/diego_tutor_action_leak.png" alt="Directiva interna visible en el tutor"><figcaption>Bug reproducido: directiva ACTION interna visible; corregido con regresión.</figcaption></figure>
+    <figure><img src="evidencia-testing/2026-08-11/browser/noa_onboarding_step1.png" alt="Primer paso de onboarding de Noa"><figcaption>Noa: inicio del onboarding de cinco pasos.</figcaption></figure>
+  </div>
+  <h2>Hallazgos principales</h2>
+  <p class="bug"><strong>Corregido:</strong> colisión de caché para mismo rol y sectores distintos, con riesgo de servir a un usuario el render generado para otro sector.</p>
+  <p class="bug"><strong>Corregido:</strong> fuga visual de <code>ACTION: set_sidebar_collapsed</code> en el texto del tutor.</p>
+  <p><strong>Diseño recomendado:</strong> conservar señales estructuradas mínimas. No inyectar <code>memory_md</code> crudo en renders compartidos; derivar un bucket semántico allowlisted si se activa en el futuro.</p>
+  <p>Detalles, matriz, límites y comandos de validación en <a href="informe-testing-personalizacion.md">el informe Markdown</a>. Datos completos en <a href="evidencia-testing/2026-08-11/api-sweep/report.md">el barrido API</a>.</p>
+</body>
+</html>
