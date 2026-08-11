@@ -53,6 +53,7 @@ from src.agents.runtime.router import (
     tier_config,
     tier_llm,
 )
+from src.agents.runtime.assessment import plan_assessment
 from src.agents.runtime.classify import classify_function
 from src.agents.runtime.shape import (
     ShapePlan,
@@ -707,6 +708,13 @@ async def decide_formato(state: NodeRuntimeState) -> dict:
             if value is not None
         }
 
+    # Cómo se verifica el nodo: determinista, propiedad del nodo (no del aprendiz), estable
+    # en cada visita. Es lo que reparte la variedad de evaluación entre nodos hermanos en
+    # vez de caer siempre en un QuizItem de tipo "test".
+    assessment = plan_assessment(
+        plan, ui_format=ui_format, node_id=str(node.get("id") or "")
+    )
+
     await publish_step(request_id, "decide_formato", STEP_MESSAGES["decide_formato"])
     await sse.publish(
         node_channel(request_id), "ui_format", {"format": ui_format, "tier": tier}
@@ -715,6 +723,9 @@ async def decide_formato(state: NodeRuntimeState) -> dict:
         "ui_format": ui_format,
         "tier": tier,
         "format_rationale": rationale,
+        "assessment_block": assessment.block,
+        "assessment_item_type": assessment.item_type,
+        "assessment_hint": assessment.instruction(),
         # Computed once here and carried, so `genera_ui` and its one repair attempt read
         # the same analysis. Re-deriving it in the retry would re-scan the source for a
         # result that cannot have changed.
@@ -791,6 +802,7 @@ async def genera_ui(state: NodeRuntimeState) -> dict:
             tutor_signals=tuple(profile.get("tutor_signals") or ()),
             source_context=str(state.get("source_context") or ""),
             shape_hints=shape_hints,
+            assessment_hint=str(state.get("assessment_hint") or ""),
         )
 
     await publish_step(request_id, "genera_ui", STEP_MESSAGES["genera_ui"])
@@ -913,6 +925,7 @@ async def genera_ui_multi(state: NodeRuntimeState) -> dict:
     from src.agents.runtime.agents.blueprint import run_blueprint
     from src.agents.runtime.agents.content_writer import run_content_writer
     from src.agents.runtime.agents.interaction_designer import run_interaction_designer
+    from src.agents.runtime.assessment import AssessmentPlan
 
     request_id = str(state["request_id"])
     org_id = _uuid(state["org_id"])
@@ -937,6 +950,16 @@ async def genera_ui_multi(state: NodeRuntimeState) -> dict:
     await publish_step(request_id, "genera_ui", "Disenando la estructura...")
     started = time.monotonic()
 
+    # El plan de evaluacion (decidido en decide_formato) se reconstruye aqui para imponerlo
+    # en el blueprint. Reconstruir desde el estado en vez de recalcular mantiene una sola
+    # fuente de verdad: la rotacion ya quedo fijada por node_id.
+    assessment = None
+    if state.get("assessment_block"):
+        assessment = AssessmentPlan(
+            block=str(state["assessment_block"]),
+            item_type=state.get("assessment_item_type"),
+        )
+
     # --- Agent 1: Blueprint ---
     blueprint = await run_blueprint(
         title=str(node.get("title") or ""),
@@ -953,6 +976,7 @@ async def genera_ui_multi(state: NodeRuntimeState) -> dict:
         shape_hints=list(state.get("shape_hints") or ()),
         siblings=list(state.get("siblings") or ()),
         llm=llm,
+        assessment=assessment,
     )
 
     await publish_step(request_id, "genera_ui", "Escribiendo el contenido...")
