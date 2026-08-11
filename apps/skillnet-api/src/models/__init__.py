@@ -44,6 +44,11 @@ from src.models.learner_profile import (
 from src.models.learning_event import LearningEvent
 from src.models.lesson import Lesson
 from src.models.lesson_progress import LessonProgress
+from src.models.media_artifact import (
+    MediaArtifact,
+    MediaArtifactStatus,
+    MediaKind,
+)
 from src.models.llm_usage_log import USE_CASES, LlmUsageLog
 from src.models.module import Module
 from src.models.node_attempt import BLOOM_LEVELS, NodeAttempt
@@ -130,4 +135,8 @@ __all__ = [
     "USE_CASES",
     "AuditLog",
     "AUDIT_ACTIONS",
+    # --- rich media artifacts (NotebookLM spine) ---
+    "MediaArtifact",
+    "MediaKind",
+    "MediaArtifactStatus",
 ]

@@ -101,6 +101,16 @@ class LearnerProfile(UUIDMixin, TimestampMixin, Base):
     tutor_notes: Mapped[dict] = mapped_column(
         JSONB, nullable=False, server_default=text("'{}'::jsonb")
     )
+    # The narrative memory ("user.md"): a sectioned, human-readable markdown notebook of how
+    # this learner uses the app, maintained by LearnerMemoryService and read back by the
+    # tutor and (future) generators. This field DELIBERATELY reverses the "tutor_notes = no
+    # LLM prose" rule for the one place it is worth it — see docs/learner-memory.md. It is
+    # employee-private (the admin never reads it) and erased with the rest of the profile
+    # row (learner_profiles is deleted whole in LearnerProfileRepository.erase_user_data).
+    memory_md: Mapped[str | None] = mapped_column(Text, nullable=True)
+    memory_updated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     onboarding_completed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )

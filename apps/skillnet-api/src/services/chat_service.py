@@ -109,6 +109,12 @@ MEMORY_TURNS = 8
 TITLE_MAX_CHARS = 40
 RETRIEVAL_TOP_K = 5
 
+#: The learner's narrative memory ("user.md") is injected into the TUTOR turn only, capped to
+#: this many characters so a long notebook cannot crowd out the lesson body or the grounded
+#: passages. The admin assistant is never given it — the notebook is employee-private and the
+#: admin surface must not read another person's prose (``src/services/learner_memory.py``).
+LEARNER_MEMORY_MAX_CHARS = 1_200
+
 #: The on-screen lesson body (the pinned render's OpenUI dialect) is injected into the
 #: tutor's context so it can answer about exactly what the learner is looking at. Capped
 #: so a long node does not blow the turn's token budget — the lead blocks carry the gist,
@@ -181,6 +187,58 @@ def extract_actions(text: str) -> tuple[str, list[dict]]:
             actions.append({"tool": tool, "args": args})
     clean = _ACTION_LINE_RE.sub("", text).strip()
     return clean, actions
+
+
+class _VisibleAnswerFilter:
+    """Keep standalone ACTION directives out of the token stream.
+
+    ``extract_actions`` runs after the model finishes, which is too late for text
+    already sent to the browser.  This filter only holds characters while they
+    could still be the start of an ACTION line; ordinary prose continues to
+    stream as soon as that possibility is ruled out.
+    """
+
+    def __init__(self) -> None:
+        self._pending = ""
+        self._action_candidate = False
+        self._passthrough = False
+
+    def feed(self, piece: str) -> str:
+        visible: list[str] = []
+        for char in piece:
+            if self._passthrough:
+                visible.append(char)
+                if char == "\n":
+                    self._passthrough = False
+                continue
+
+            self._pending += char
+            if char == "\n":
+                visible.append(self._finish_line())
+                continue
+
+            stripped = self._pending.lstrip(" \t")
+            if not self._action_candidate and "ACTION:".startswith(stripped):
+                self._action_candidate = stripped == "ACTION:"
+                continue
+            if self._action_candidate:
+                continue
+
+            visible.append(self._pending)
+            self._pending = ""
+            self._passthrough = True
+        return "".join(visible)
+
+    def finish(self) -> str:
+        return self._finish_line()
+
+    def _finish_line(self) -> str:
+        pending = self._pending
+        self._pending = ""
+        self._action_candidate = False
+        self._passthrough = False
+        line = pending[:-1] if pending.endswith("\n") else pending
+        return "" if _ACTION_LINE_RE.fullmatch(line) else pending
 
 
 def _context_document_ids(context: dict | None) -> list[uuid.UUID] | None:
@@ -649,6 +707,61 @@ class ChatService:
             body = body[:LESSON_BODY_MAX_CHARS].rstrip() + "\n… (contenido recortado)"
         return body
 
+    async def _learner_memory_block(self, user: User) -> str:
+        """The learner's narrative memory as a labelled context block, or ``""``.
+
+        Best-effort and read-only: a lookup that fails, or a learner with an empty notebook,
+        just means the tutor reasons without it — context is never worth taking the answer
+        down for. Trimmed to :data:`LEARNER_MEMORY_MAX_CHARS` (empty sections dropped).
+        """
+        try:
+            from src.repositories.learner_profile_repo import LearnerProfileRepository
+            from src.services.learner_memory import LearnerMemoryService
+
+            memory = await LearnerMemoryService(
+                LearnerProfileRepository(self.db)
+            ).get_for_prompt(user.id, max_chars=LEARNER_MEMORY_MAX_CHARS)
+        except Exception:  # noqa: BLE001 - context is never fatal (see docstring)
+            logger.warning("Could not load learner memory for %s", user.id, exc_info=True)
+            return ""
+        if not memory:
+            return ""
+        return (
+            "[Lo que sabemos de este alumno por su uso de la plataforma "
+            "(su memoria personal; úsala para personalizar, no la cites literalmente)]\n"
+            f"{memory}"
+        )
+
+    async def _remember_chat_topic(self, user: User, context: dict | None) -> None:
+        """Note the lesson topic the learner consulted the tutor about (best-effort).
+
+        Distilled, not verbatim: it records the **node title** (app content), never the
+        learner's own words — the one writer that keeps user text is media steering. Employee
+        -only, and it fires only when a lesson title travels in the client ``context`` (a chat
+        opened inside a node), so no extra query is needed and a general chat writes nothing.
+        """
+        try:
+            if str(getattr(user.role, "value", getattr(user, "role", ""))) != "employee":
+                return
+            node_title = (context or {}).get("nodeTitle")
+            if not isinstance(node_title, str) or not node_title.strip():
+                return
+            from src.repositories.learner_profile_repo import LearnerProfileRepository
+            from src.services.learner_memory import LearnerMemoryService
+
+            service = LearnerMemoryService(LearnerProfileRepository(self.db))
+            await service.note(
+                user_id=user.id,
+                org_id=user.org_id,
+                section="Le cuesta / dudas frecuentes",
+                text=f"Consultó al tutor mientras estudiaba «{node_title.strip()}»",
+                source="tutor",
+            )
+            await self.db.commit()
+        except Exception as exc:  # noqa: BLE001 - the learner already has their answer
+            logger.warning("Could not record chat topic in learner memory: %s", exc)
+            await self.db.rollback()
+
     async def stream_tutor(
         self,
         user: User,
@@ -747,17 +860,30 @@ class ChatService:
             # Enrich the question with node context from the LessonBuddy (if
             # present) so the LLM knows what the learner is studying.  This is
             # kept separate from `message` so the session title stays clean.
-            llm_question = message
+            preamble: list[str] = []
+            # The learner's narrative memory personalizes the TUTOR only (employee-private;
+            # the admin assistant never reads another person's prose).
+            if agent_type == "tutor":
+                memory_block = await self._learner_memory_block(user)
+                if memory_block:
+                    preamble.append(memory_block)
             node_ctx = await self._node_context_block(user, context)
             if node_ctx:
-                llm_question = f"{node_ctx}\n\n{message}"
+                preamble.append(node_ctx)
+            llm_question = "\n\n".join([*preamble, message])
 
             messages = self._build_messages(
                 history, grounded, llm_question, agent_type, snapshot_block
             )
+            visible_filter = _VisibleAnswerFilter()
             async for piece in self.tutor_llm.stream(messages):
                 parts.append(piece)
-                yield format_sse("token", {"content": piece})
+                visible_piece = visible_filter.feed(piece)
+                if visible_piece:
+                    yield format_sse("token", {"content": visible_piece})
+            visible_tail = visible_filter.finish()
+            if visible_tail:
+                yield format_sse("token", {"content": visible_tail})
 
             raw_answer = "".join(parts)
 
@@ -790,6 +916,13 @@ class ChatService:
             # learner is concerned: the answer is complete and the input re-enables. The
             # optional program arrives later on the same open stream, if it validates.
             yield format_sse("done", {"message_id": str(assistant.id)})
+
+            # Distil one cheap, non-verbatim observation into the learner's memory: which
+            # lesson topic they consulted the tutor about. Done after ``done`` so it never
+            # delays a token, employee-only, and best-effort — a failure here is invisible to
+            # the learner, who already has their answer.
+            if agent_type == "tutor":
+                await self._remember_chat_topic(user, context)
 
             for action in actions:
                 yield format_sse("action", action)

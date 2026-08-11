@@ -53,6 +53,7 @@ from src.agents.runtime.router import (
     tier_config,
     tier_llm,
 )
+from src.agents.runtime.assessment import plan_assessment
 from src.agents.runtime.classify import classify_function
 from src.agents.runtime.shape import (
     ShapePlan,
@@ -464,6 +465,15 @@ async def load_context(state: NodeRuntimeState) -> dict:
             "tutor_signals": list(
                 signal_actions_for_node(getattr(profile, "tutor_notes", None), node.id)
             ),
+            # The learner's narrative memory, trimmed, made available to the render context.
+            # It is DELIBERATELY not fed into the generation prompt here: the render is cached
+            # under a `cache_key` that (correctly) excludes `user_id`, so injecting one
+            # learner's prose into the shared prompt would leak their personalization into a
+            # row served to everyone in the same bucket. Activating generator personalization
+            # needs a coarse, non-identifying memory bucket in the cache_key — see
+            # docs/learner-memory.md ("CONFIRMAR con Jose"). Exposed now so the plumbing is in
+            # place; read today only by the tutor, whose turn is per-user and uncached.
+            "memory_md": _render_memory_for_prompt(getattr(profile, "memory_md", None)),
         }
         state_payload = {
             "state": _plain(getattr(node_state, "state", "not_started")),
@@ -511,6 +521,18 @@ def _plain_or_none(value: object) -> str | None:
     if value is None:
         return None
     return str(getattr(value, "value", value))
+
+
+#: Ceiling on the learner-memory slice carried in the render context (chars). Small: it is
+#: not fed into the (cached) generation prompt today — see the note in ``load_context``.
+_MEMORY_CONTEXT_MAX_CHARS = 800
+
+
+def _render_memory_for_prompt(memory_md: str | None) -> str:
+    """The learner's narrative memory trimmed for the render context; ``""`` when empty."""
+    from src.services.learner_memory import render_for_prompt
+
+    return render_for_prompt(memory_md, max_chars=_MEMORY_CONTEXT_MAX_CHARS)
 
 
 # --------------------------------------------------------------------------- #
@@ -707,6 +729,13 @@ async def decide_formato(state: NodeRuntimeState) -> dict:
             if value is not None
         }
 
+    # Cómo se verifica el nodo: determinista, propiedad del nodo (no del aprendiz), estable
+    # en cada visita. Es lo que reparte la variedad de evaluación entre nodos hermanos en
+    # vez de caer siempre en un QuizItem de tipo "test".
+    assessment = plan_assessment(
+        plan, ui_format=ui_format, node_id=str(node.get("id") or "")
+    )
+
     await publish_step(request_id, "decide_formato", STEP_MESSAGES["decide_formato"])
     await sse.publish(
         node_channel(request_id), "ui_format", {"format": ui_format, "tier": tier}
@@ -715,6 +744,9 @@ async def decide_formato(state: NodeRuntimeState) -> dict:
         "ui_format": ui_format,
         "tier": tier,
         "format_rationale": rationale,
+        "assessment_block": assessment.block,
+        "assessment_item_type": assessment.item_type,
+        "assessment_hint": assessment.instruction(),
         # Computed once here and carried, so `genera_ui` and its one repair attempt read
         # the same analysis. Re-deriving it in the retry would re-scan the source for a
         # result that cannot have changed.
@@ -791,6 +823,7 @@ async def genera_ui(state: NodeRuntimeState) -> dict:
             tutor_signals=tuple(profile.get("tutor_signals") or ()),
             source_context=str(state.get("source_context") or ""),
             shape_hints=shape_hints,
+            assessment_hint=str(state.get("assessment_hint") or ""),
         )
 
     await publish_step(request_id, "genera_ui", STEP_MESSAGES["genera_ui"])
@@ -913,6 +946,7 @@ async def genera_ui_multi(state: NodeRuntimeState) -> dict:
     from src.agents.runtime.agents.blueprint import run_blueprint
     from src.agents.runtime.agents.content_writer import run_content_writer
     from src.agents.runtime.agents.interaction_designer import run_interaction_designer
+    from src.agents.runtime.assessment import AssessmentPlan
 
     request_id = str(state["request_id"])
     org_id = _uuid(state["org_id"])
@@ -937,6 +971,16 @@ async def genera_ui_multi(state: NodeRuntimeState) -> dict:
     await publish_step(request_id, "genera_ui", "Disenando la estructura...")
     started = time.monotonic()
 
+    # El plan de evaluacion (decidido en decide_formato) se reconstruye aqui para imponerlo
+    # en el blueprint. Reconstruir desde el estado en vez de recalcular mantiene una sola
+    # fuente de verdad: la rotacion ya quedo fijada por node_id.
+    assessment = None
+    if state.get("assessment_block"):
+        assessment = AssessmentPlan(
+            block=str(state["assessment_block"]),
+            item_type=state.get("assessment_item_type"),
+        )
+
     # --- Agent 1: Blueprint ---
     blueprint = await run_blueprint(
         title=str(node.get("title") or ""),
@@ -953,6 +997,7 @@ async def genera_ui_multi(state: NodeRuntimeState) -> dict:
         shape_hints=list(state.get("shape_hints") or ()),
         siblings=list(state.get("siblings") or ()),
         llm=llm,
+        assessment=assessment,
     )
 
     await publish_step(request_id, "genera_ui", "Escribiendo el contenido...")

@@ -30,8 +30,10 @@ from src.routes import (
     explain,
     generation_jobs,
     health,
+    learner_memory,
     learner_profile,
     lessons,
+    media,
     nodes,
     onboarding,
     stats,
@@ -42,6 +44,15 @@ from src.routes import (
     settings as settings_routes,
 )
 from src.routes.ext import skills as ext_skills
+
+# Importing the media generator packages registers each MediaGenerator under its kind,
+# overriding the echo default (media spine, roadmap §2). Kept as explicit side-effect
+# imports so the registry is populated wherever the app is imported, tests included:
+# podcast (§2a), slides (§2c), infographic (§2d), video (§2b).
+from src.services.media import podcast as _podcast  # noqa: F401
+from src.services.media import slides as _slides  # noqa: F401
+from src.services.media import infographic as _infographic  # noqa: F401
+from src.services.media import video as _video  # noqa: F401
 from src.services.embedding_check import check_embedding_dimensions
 
 configure_logging(settings.LOG_LEVEL)
@@ -135,12 +146,18 @@ def create_app() -> FastAPI:
     app.include_router(stats.router, prefix=prefix)
     app.include_router(settings_routes.router, prefix=prefix)
     app.include_router(tts.router, prefix=prefix)
+    # Rich-media artifacts (NotebookLM spine). Additive, own /media prefix.
+    app.include_router(media.router, prefix=prefix)
     # v2 click-to-explain (B7). Its own guard 404s the route unless the flag is `on`.
     app.include_router(explain.router, prefix=prefix)
     # v2 onboarding and learner profile (B3). Both routers carry the employee-surface
     # flag guard, so every path is a 404 unless the flag is `on`.
     app.include_router(onboarding.router, prefix=prefix)
     app.include_router(learner_profile.router, prefix=prefix)
+    # The learner's own narrative memory ("user.md"): GDPR self-service, employee-only. The
+    # extra /memory segment cannot be shadowed by /users/{user_id} — same reasoning as
+    # learner_profile above.
+    app.include_router(learner_memory.router, prefix=prefix)
     # v2 admin course schema (B2). Registered after `courses` so the more specific
     # /courses/{id}/schema* paths are matched by their own router; the admin-surface
     # guard 404s every path unless the flag is `shadow` or `on`.

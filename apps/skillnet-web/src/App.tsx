@@ -22,6 +22,7 @@ import { Content } from './pages/admin/Content'
 import { CreateCourse } from './pages/admin/CreateCourse'
 import { AdminChat } from './pages/admin/Chat'
 import { CoursePreview } from './pages/admin/CoursePreview'
+import { CourseStudio } from './pages/admin/CourseStudio'
 import { CourseSchema } from './pages/admin/CourseSchema'
 import { Settings as AdminSettings } from './pages/admin/Settings'
 import { MotionDemo } from './pages/dev/MotionDemo'
@@ -102,6 +103,9 @@ function App() {
             <Route path="contenido" element={<Content />} />
             <Route path="crear-curso" element={<CreateCourse />} />
             <Route path="curso/:id" element={<CoursePreview />} />
+            {/* Course Studio — the media hub (overviews). A separate screen from the
+                course preview, reached from the Contenido page. */}
+            <Route path="curso/:id/estudio" element={<CourseStudio />} />
             {/* The creator's gate (§11.1, B10). Mounted unconditionally: the admin
                 schema routes 404 with the flag off and the screen says so, which beats
                 a route that silently does not exist. */}

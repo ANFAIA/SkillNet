@@ -9,12 +9,14 @@ not share a key.
 No DB, no network.
 """
 
+import hashlib
 import inspect
 import uuid
 
 import pytest
 
 from src.models import LearnerExperience, LearningProfile
+from src.llm.prompts.runtime import build_ui_prompt
 from src.services.cache_key import (
     ROLE_BUCKET_MAX_LENGTH,
     build_cache_key,
@@ -68,7 +70,7 @@ def test_material_has_the_eleven_fields_of_the_formula_in_order():
         "3",
         "standard",
         "some",
-        "dependiente",
+        hashlib.sha256(b"dependiente|retail").hexdigest()[:ROLE_BUCKET_MAX_LENGTH],
         "neutral",
         "",
         "3",
@@ -113,6 +115,27 @@ def test_two_role_titles_do_not_share_a_key():
     """The bug this field was added to fix: a shop assistant and a shift manager
     used to share a row, so the second got the first one's role framing."""
     assert key(role_title="Dependiente") != key(role_title="Cajero")
+
+
+def test_same_role_in_different_sectors_does_not_reuse_a_different_prompt():
+    """Every learner string in the prompt must also partition the shared cache."""
+    retail_prompt = build_ui_prompt(
+        title="Atencion al cliente",
+        summary="Resolver una incidencia",
+        role_title="Dependiente",
+        sector="retail",
+    )
+    hospitality_prompt = build_ui_prompt(
+        title="Atencion al cliente",
+        summary="Resolver una incidencia",
+        role_title="Dependiente",
+        sector="hosteleria",
+    )
+
+    assert retail_prompt != hospitality_prompt
+    assert key(role_title="Dependiente", sector="retail") != key(
+        role_title="Dependiente", sector="hosteleria"
+    )
 
 
 def test_scaffold_band_partitions_the_three_bands():
@@ -187,15 +210,15 @@ def test_slug_of_nothing_is_empty():
 
 def test_role_bucket_falls_back_to_sector_then_to_empty():
     assert role_bucket("Cajero", "retail") == "cajero"
-    assert role_bucket(None, "Retail") == "retail"
+    assert role_bucket(None, "Retail") == role_bucket(None, "retail")
     assert role_bucket(None, None) == ""
 
 
-def test_role_bucket_is_truncated_to_twenty_four_characters():
+def test_role_bucket_keeps_the_legacy_slug_contract():
     long_title = "Responsable de prevencion de riesgos laborales"
     bucket = role_bucket(long_title)
+    assert bucket == slug(long_title)[:ROLE_BUCKET_MAX_LENGTH]
     assert len(bucket) == ROLE_BUCKET_MAX_LENGTH == 24
-    assert bucket == slug(long_title)[:24]
 
 
 def test_no_onboarding_means_an_empty_role_bucket_not_a_missing_field():

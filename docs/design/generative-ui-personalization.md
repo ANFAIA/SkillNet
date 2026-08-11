@@ -106,3 +106,17 @@ cambios) pero nunca tiene que buscar la opcion en un menu.
 - **react-intl** — ya implementado, es la i18n basica
 - **Dashboard widget table** — por crear (modelo + API + frontend)
 - **Usage analytics agent** — por crear (cron + LangGraph + trigger rules)
+
+## Autoridad del usuario sobre la presentación
+
+La personalización inferida nunca contradice una petición explícita. Si una persona pide una
+explicación con imágenes, audio, vídeo o texto y el kit dispone de esa modalidad, esa elección
+prevalece sobre el `format_vector`, las heurísticas y las recomendaciones del agente.
+
+Eso no obliga a convertir toda la experiencia en una sola forma. Dentro de la modalidad solicitada,
+SkillNet puede combinar funciones pedagógicas distintas —por ejemplo, explicación visual,
+recuperación activa, autoexplicación y escenario— siempre que no oculte ni sustituya lo que la
+persona pidió. El sistema puede sugerir alternativas, pero el cambio requiere aceptación.
+
+La separación entre preferencia de presentación, accesibilidad, estrategia pedagógica y componente
+se define en [`adaptive-learning.md`](adaptive-learning.md).

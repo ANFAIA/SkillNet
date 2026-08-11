@@ -53,12 +53,26 @@ def slug(value: str | None) -> str:
 
 
 def role_bucket(role_title: str | None = None, sector: str | None = None) -> str:
-    """``slug(role_title or sector or "")[:24]`` — ``""`` when there is no onboarding.
+    """Stable legacy bucket used by prompt context and diagnostics."""
+    role = slug(role_title)
+    industry = slug(sector)
+    return (role or industry)[:ROLE_BUCKET_MAX_LENGTH]
 
-    Falling back to ``sector`` keeps *some* framing for a learner who skipped
-    question 1 but whose org has a sector.
+
+def _profile_cache_bucket(
+    role_title: str | None = None, sector: str | None = None
+) -> str:
+    """Partition cache by every declared string that reaches the prompt.
+
+    Keep :func:`role_bucket` stable because it is also prompt context.  The cache-only
+    bucket can safely add sector without invalidating packaged LLM fixtures.
     """
-    return slug(role_title or sector or "")[:ROLE_BUCKET_MAX_LENGTH]
+    role = slug(role_title)
+    industry = slug(sector)
+    if not role or not industry:
+        return role_bucket(role_title, sector)
+    material = f"{role}|{industry}"
+    return hashlib.sha256(material.encode("utf-8")).hexdigest()[:ROLE_BUCKET_MAX_LENGTH]
 
 
 def effective_density(
@@ -96,7 +110,7 @@ def cache_key_material(
             str(schema_version),
             _plain(preset),
             _plain(experience_level),
-            role_bucket(role_title, sector),
+            _profile_cache_bucket(role_title, sector),
             _plain(scaffold_band),
             vector_bucket or "",
             str(effective_density),

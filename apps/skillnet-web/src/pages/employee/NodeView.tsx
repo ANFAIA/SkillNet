@@ -12,7 +12,7 @@ import { stepperContext, coursePositionContext, nextNodeContext, courseIntroCont
 import type { CourseIntro, StepperProgress, StepperProgressCallback } from '../../components/courses/blocks/StepperContext'
 import { NodeChat } from '../../components/courses/NodeChat'
 import { NodeSkeleton, RESERVED_CONTENT_PX } from '../../components/courses/NodeSkeleton'
-import { Mascota } from '../../components/mascota'
+import { Mascota, MascotaCompanion } from '../../components/mascota'
 import { ResultGlow } from '../../components/courses/feedback/ResultGlow'
 import type { Resultado } from '../../components/courses/feedback/ResultGlow'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
@@ -862,8 +862,10 @@ export function NodeView() {
 
         {/* Mascota — compañera abajo a la izquierda, fuera de la columna de lectura
             centrada. Se atenúa cuando se abre un panel. Reacciona al resultado
-            (celebrar/ups) y abre el chat al pulsarla. Antes colgaba de un hilo arriba
-            a la derecha; abajo se posa (sin hilo) y es más grande. */}
+            (celebrar/ups), abre el chat al pulsarla y, al entrar en cada nodo,
+            saluda con una burbuja contextual que ofrece leer la introducción en voz
+            alta (estilo "Koji" de Brilliant). Antes colgaba de un hilo arriba a la
+            derecha; abajo se posa (sin hilo) y es más grande. */}
         <AnimatePresence>
           {served && !activePanel && (
             <motion.div
@@ -874,17 +876,13 @@ export function NodeView() {
               exit={{ opacity: 0, y: 20 }}
               transition={{ type: 'spring', stiffness: 300, damping: 25 }}
             >
-              <motion.button
-                type="button"
-                onClick={() => togglePanel('chat')}
-                className="w-14 h-14 md:w-[72px] md:h-[72px] cursor-pointer"
-                whileHover={{ scale: 1.08, y: -2 }}
-                whileTap={{ scale: 0.95 }}
-                transition={{ type: 'spring', stiffness: 400, damping: 20 }}
-                aria-label={intl.formatMessage({ id: 'panel.chat' })}
-              >
-                <Mascota anim={mascotaFx ?? 'idle'} size="100%" followCursor />
-              </motion.button>
+              <MascotaCompanion
+                nodeId={node.id}
+                title={node.title}
+                summary={node.summary}
+                fx={mascotaFx}
+                onOpenChat={() => togglePanel('chat')}
+              />
             </motion.div>
           )}
         </AnimatePresence>

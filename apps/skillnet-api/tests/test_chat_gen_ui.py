@@ -901,6 +901,24 @@ async def test_action_events_are_emitted_after_done(monkeypatch) -> None:
     assert "Listo, cambio el idioma a ingles." in stored
 
 
+async def test_sidebar_action_is_not_streamed_as_visible_text(monkeypatch) -> None:
+    """Regression: LessonBuddy receives prose tokens and the actionable SSE event only."""
+    answer_with_action = (
+        "He ocultado la barra lateral.\n"
+        'ACTION: {"tool":"set_sidebar_collapsed","args":{"collapsed":true}}'
+    )
+    llm = _FakeLLM(answer_with_action)
+    events, _ = await _run(monkeypatch, llm, generative_ui=False)
+
+    visible = "".join(data["content"] for name, data in events if name == "token")
+    assert visible == "He ocultado la barra lateral.\n"
+    assert "ACTION:" not in visible
+    assert (
+        "action",
+        {"tool": "set_sidebar_collapsed", "args": {"collapsed": True}},
+    ) in events
+
+
 async def test_no_action_events_when_answer_has_none(monkeypatch) -> None:
     llm = _FakeLLM("Los alergenos son catorce sustancias.")
     events, _ = await _run(monkeypatch, llm, generative_ui=False)

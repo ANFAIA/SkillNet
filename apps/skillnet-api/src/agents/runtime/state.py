@@ -50,6 +50,13 @@ class NodeRuntimeState(TypedDict, total=False):
     shape_hints: list[str]
     #: One line of evidence for the log and the rationale — never for a prompt.
     shape_summary: str
+    #: Cómo se VERIFICA este nodo, decidido por ``src/agents/runtime/assessment.py`` a
+    #: partir de la forma del material y el ``node_id`` (estable, propiedad del nodo). Es
+    #: lo que reparte la variedad de evaluación entre los nodos de un curso en vez de
+    #: caer siempre en un ``QuizItem`` de tipo ``test``.
+    assessment_block: str  # "QuizItem" | "DragOrder"
+    assessment_item_type: str | None  # el item_type cuando es QuizItem
+    assessment_hint: str  # la línea de prompt ya redactada
 
     # --- Generation ---
     backend: str  # "openui" (the only dialect in this PR)

@@ -14,6 +14,19 @@ from src.render.spec import MAX_ROOT_CHILDREN
 logger = get_logger(__name__)
 
 
+#: A declaration whose right-hand side is a verification component. Matched on the raw
+#: line rather than on the blueprint because the id an agent actually emits may not match
+#: the blueprint id (the interaction designer's DragOrder example hard-codes ``ejercicio``,
+#: so a blueprint verify block named ``q1``/``drag_order`` comes back under a different id
+#: and lands as an orphan). The pedagogy — "the exercise is always the last block" — has
+#: to hold on the id that got written, not the one the blueprint hoped for.
+_VERIFICATION_RE = re.compile(r"=\s*(QuizItem|DragOrder)\s*\(")
+
+
+def _is_verification_line(line: str) -> bool:
+    return bool(_VERIFICATION_RE.search(line))
+
+
 def _collect_declarations(text: str) -> list[tuple[str, str]]:
     """Parse declaration lines from agent output.
 
@@ -109,6 +122,20 @@ def assemble(
             root_children[-1:-1] = wire  # before the last child (the exercise)
         else:
             root_children = list(wire)
+
+    # The verification block is always the last child, no matter how it got into root.
+    # Two ways it ends up mislaid: the blueprint verify id was omitted (undeclared) and the
+    # real exercise arrived as an orphan wired *before* the last child, or a content block
+    # (a StepSequence whose steps ARE the answer) sits after the DragOrder that asks the
+    # learner to order them — measured on the seeded "Cobro y cierre" node, where
+    # `[lead, callout, ejercicio, step_sequence]` spoiled the drag exercise and left the
+    # screen ending on content instead of the exercise. Move the last verification child to
+    # the end; §blueprint contract already says a screen ends on QuizItem/DragOrder.
+    verify_positions = [
+        i for i, cid in enumerate(root_children) if _is_verification_line(declarations[cid])
+    ]
+    if verify_positions and verify_positions[-1] != len(root_children) - 1:
+        root_children.append(root_children.pop(verify_positions[-1]))
 
     gap = "md"
     root_line = f'root = Stack([{", ".join(root_children)}], "{gap}")'

@@ -87,7 +87,16 @@ function stepNeedsSolving(item: ReactNode): boolean {
 
 function StepperStack({ children }: { children?: ReactNode }) {
   const intl = useIntl()
-  const intro = useCourseIntro()
+  // El intro es una condicion de ENTRADA, no un estado vivo: decide si el nodo abre con
+  // una diapositiva de bienvenida y se congela al montar el stepper. Leerlo en vivo era el
+  // bug de "acierto el test y me lo vuelve a pedir": responder un ejercicio sube el mastery
+  // del nodo e invalida la lista de nodos, con lo que NodeView recalculaba `courseIntro` a
+  // null. La diapositiva 0 desaparecia a mitad de leccion y TODOS los indices de pantalla
+  // bajaban uno; el paso recien resuelto dejaba de coincidir con `solvedStep`, se volvia a
+  // cerrar y `AnimatePresence` remontaba el ejercicio desde cero, sin respuesta. Congelarlo
+  // mantiene fijo el conjunto de pantallas mientras el stepper esta montado (una sesion de
+  // nodo); al cambiar de nodo el stepper remonta por `key` y el intro se vuelve a capturar.
+  const [intro] = useState(useCourseIntro())
   const reportProgress = useStepperProgressReport()
   const nodeItems = Children.toArray(children).filter(Boolean)
 

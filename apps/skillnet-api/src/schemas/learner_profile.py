@@ -68,5 +68,29 @@ class LearnerProfileUpdate(BaseModel):
     goal: str | None = Field(default=None, max_length=200)
 
 
+class LearnerMemoryRead(BaseModel):
+    """The narrative memory the learner may read: the notebook markdown and its timestamp.
+
+    Unlike ``format_vector``/``tutor_notes``, this field IS exposed — it is the learner's own
+    prose memory, and the whole point is that they can see and edit it (GDPR access). The
+    admin has no route to it.
+    """
+
+    memory_md: str
+    memory_updated_at: datetime | None = None
+
+
+class LearnerMemoryUpdate(BaseModel):
+    """``PUT`` body: the learner's edited notebook (GDPR rectification).
+
+    Stored normalized back to the five canonical sections and size-capped by
+    :func:`src.services.learner_memory.normalize_for_storage`.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    memory_md: str = Field(max_length=20_000)
+
+
 def _plain(value: object) -> str:
     return str(getattr(value, "value", value))

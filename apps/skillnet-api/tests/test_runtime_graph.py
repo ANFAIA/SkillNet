@@ -56,6 +56,8 @@ from src.agents.runtime.nodes import (
 )
 from src.config import settings
 from src.llm.client import LLMConfig, Usage
+from src.agents.runtime.assessment import plan_assessment
+from src.agents.runtime.shape import analyze_shape
 from src.llm.fixtures import FixtureLLMService, write_fixture
 from src.llm.prompts.runtime import (
     ANSWER_KEY_SENTINEL,
@@ -156,6 +158,16 @@ def canonical_format_prompt() -> str:
     )
 
 
+def canonical_assessment_hint(ui_format: str = "explanation") -> str:
+    """The ``CÓMO VERIFICAR`` line the graph injects, rebuilt exactly as ``decide_formato``
+    does so the fixture key matches the real prompt (§ variedad-evaluacion-diagnostico.md).
+
+    Depends only on the canonical source shape and ``NODE_ID`` — both deterministic — so the
+    canonical prompt stays reproducible even though the hint now varies per node."""
+    plan = analyze_shape(source_context=CANON_SOURCE, summary=CANON_SUMMARY, headings=[])
+    return plan_assessment(plan, ui_format=ui_format, node_id=str(NODE_ID)).instruction()
+
+
 def canonical_ui_prompt(ui_format: str = "explanation") -> str:
     return build_ui_prompt(
         title=CANON_TITLE,
@@ -176,6 +188,7 @@ def canonical_ui_prompt(ui_format: str = "explanation") -> str:
         consecutive_correct=0,
         tutor_signals=(),
         source_context=CANON_SOURCE,
+        assessment_hint=canonical_assessment_hint(ui_format),
     )
 
 
