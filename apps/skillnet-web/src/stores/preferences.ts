@@ -9,17 +9,19 @@ interface PreferencesState {
   theme: Theme
   sidebarCollapsed: boolean
   /**
-   * When on, the mascot reads each node's opening aloud on entry. Off by default:
-   * audio is opt-in and only starts after a user gesture (browsers block autoplay,
-   * and it is intrusive). Enabling it is itself a gesture, which is what lets the
-   * following nodes read without a fresh click.
+   * When `false` (the default) the mascot reads each node's opening aloud on
+   * entry. Clicking the mascot's speaker mutes it, which stops any playback and
+   * suppresses the auto-read on later nodes until the learner un-mutes. Reading
+   * is on by default; the browser autoplay policy may silence the very first
+   * node until any user gesture occurs, and the reading resumes on its own from
+   * the next node.
    */
-  readAloud: boolean
+  mascotaMuted: boolean
 
   setLocale: (locale: Locale) => void
   setTheme: (theme: Theme) => void
   setSidebarCollapsed: (collapsed: boolean) => void
-  setReadAloud: (on: boolean) => void
+  setMascotaMuted: (muted: boolean) => void
 }
 
 export const usePreferences = create<PreferencesState>()(
@@ -28,12 +30,12 @@ export const usePreferences = create<PreferencesState>()(
       locale: 'es',
       theme: 'system',
       sidebarCollapsed: false,
-      readAloud: false,
+      mascotaMuted: false,
 
       setLocale: (locale) => set({ locale }),
       setTheme: (theme) => set({ theme }),
       setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
-      setReadAloud: (on) => set({ readAloud: on }),
+      setMascotaMuted: (muted) => set({ mascotaMuted: muted }),
     }),
     { name: 'skillnet-preferences' },
   ),
