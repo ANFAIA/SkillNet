@@ -224,6 +224,13 @@ async def test_generator_persists_slides_narration_and_stores_clips(
             data=f"MP3-{text}".encode(), ext="mp3", voice_path="fallback"
         )
 
+    image_sizes: list[str] = []
+
+    async def fake_image(prompt, *, size, **kwargs):
+        image_sizes.append(size)
+        # Distinct bytes per slide title -> distinct content hashes / image_refs.
+        return f"PNG-{prompt[:48]}".encode()
+
     monkeypatch.setattr(generator_mod.slides_spec, "generate_deck", fake_generate_deck)
     monkeypatch.setattr(
         generator_mod.narration_mod, "generate_narration", fake_generate_narration
@@ -231,6 +238,7 @@ async def test_generator_persists_slides_narration_and_stores_clips(
     monkeypatch.setattr(
         generator_mod.voice_mod, "synthesize_narration", fake_synthesize
     )
+    monkeypatch.setattr(generator_mod, "generate_image", fake_image)
 
     steps: list[tuple[str, dict]] = []
 
@@ -268,10 +276,22 @@ async def test_generator_persists_slides_narration_and_stores_clips(
     # Distinct lines -> distinct clips.
     assert slides[0]["audio_ref"] != slides[1]["audio_ref"]
 
+    # Each slide also references a landscape illustration stored on disk.
+    assert image_sizes == ["1536x1024", "1536x1024"]
+    for s in slides:
+        assert s["image_ext"] == "png"
+        assert store.path_for(s["image_ref"], "png").exists()
+
     # Citation metadata resolves each id.
     assert {c["citation_id"] for c in spec["citations"]} == {"c1", "c2"}
-    # The four progress steps fired in order.
-    assert [s[0] for s in steps] == ["diapositivas", "narracion", "voz", "listo"]
+    # The five progress steps fired in order (voz + ilustraciones between narracion/listo).
+    assert [s[0] for s in steps] == [
+        "diapositivas",
+        "narracion",
+        "voz",
+        "ilustraciones",
+        "listo",
+    ]
     assert steps[-1][1]["voice_path"] == "fallback"
     assert seen_texts == ["Locucion 1", "Locucion 2"]
 
@@ -291,6 +311,9 @@ async def test_generator_without_progress_reporter_is_silent(
     async def fake_synthesize(text, **kwargs):
         return SynthesisResult(data=b"X", ext="mp3", voice_path="dialogue")
 
+    async def fake_image(prompt, *, size, **kwargs):
+        return b"PNG"
+
     monkeypatch.setattr(generator_mod.slides_spec, "generate_deck", fake_generate_deck)
     monkeypatch.setattr(
         generator_mod.narration_mod, "generate_narration", fake_generate_narration
@@ -298,6 +321,7 @@ async def test_generator_without_progress_reporter_is_silent(
     monkeypatch.setattr(
         generator_mod.voice_mod, "synthesize_narration", fake_synthesize
     )
+    monkeypatch.setattr(generator_mod, "generate_image", fake_image)
 
     # No progress reporter: emit() must be a no-op, not a crash.
     ctx = MediaJobContext(kind=MediaKind.VIDEO, spec={}, bundle=_bundle())
