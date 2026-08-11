@@ -71,6 +71,46 @@ def test_nested_helper_is_not_wired_into_root() -> None:
     assert "helper = TextContent" in program, "but its declaration is still emitted"
 
 
+def test_verification_orphan_lands_last_not_before_a_content_block() -> None:
+    """A DragOrder that arrives under an id the blueprint did not list must still close
+    the screen — never sit before the StepSequence whose steps are its own answer.
+
+    The seeded ``Cobro y cierre`` node produced exactly this: the blueprint verify block
+    was forced to DragOrder, the interaction designer emitted it as ``ejercicio`` (an
+    orphan), and the old before-last wiring left ``[lead, callout, ejercicio, pasos]`` —
+    the drag exercise ahead of the step list that reveals the correct order.
+    """
+    blueprint = _bp(
+        ("lead", "TextContent", "enganchar"),
+        ("callout", "Callout", "refuerzo"),
+        ("pasos", "StepSequence", "concepto"),
+        ("drag_order", "DragOrder", "verificar"),  # never declared under this id
+    )
+    content = ContentOutput(
+        declarations=(
+            'lead = TextContent("Un cierre mal hecho descuadra el arqueo.", "lead")\n'
+            'callout = Callout("warn", "Entrega el ticket antes de cerrar la mesa.")\n'
+            'pasos = StepSequence("Cobro", ["Pedir la cuenta", "Cobrar", "Cerrar mesa"])'
+        )
+    )
+    interaction = InteractionOutput(
+        declarations=(
+            'ejercicio = DragOrder("Ordena los pasos:", '
+            '["Pedir la cuenta", "Cobrar", "Cerrar mesa"], '
+            '["Pedir la cuenta", "Cobrar", "Cerrar mesa"])'
+        ),
+        answer_key={},
+    )
+
+    program, _ = assemble(
+        blueprint=blueprint, content_output=content, interaction_output=interaction, ui_format="exercise"
+    )
+    children = _root_children(program)
+
+    assert children[-1] == "ejercicio", "the exercise must be the last block on the screen"
+    assert children == ["lead", "callout", "pasos", "ejercicio"]
+
+
 def test_orphans_beyond_the_root_cap_are_dropped_not_overflowed() -> None:
     # Five blueprint blocks already fill the root fan-out cap (MAX_ROOT_CHILDREN=5).
     blueprint = _bp(
