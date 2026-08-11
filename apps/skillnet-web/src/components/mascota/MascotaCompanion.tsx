@@ -9,14 +9,15 @@ import { usePreferences } from '../../stores/preferences'
 /**
  * The mascot as a proactive companion (inspired by Brilliant's "Koji").
  *
- * On entering a node, unless muted, it auto-reads the node's opening sentence
- * aloud through the TTS endpoint (`POST /api/v1/tts/synthesize`, cached
- * server-side) — no click needed. While unmuted a minimal bubble shows the very
- * text being read (the node's opening), with a single SVG speaker icon tucked
- * into the bubble's top-right corner as the only control: a normal speaker while
- * unmuted, a slashed speaker when muted. Clicking it mutes — stopping any playback at once, hiding the read
- * text and suppressing the auto-read on later nodes — and clicking again
- * un-mutes and reads the current node. The muted state is persisted
+ * On entering a node a minimal bubble always shows the very text the mascot
+ * "says" (the node's opening) — muted or not, the companion still speaks in
+ * text. A single SVG speaker icon tucked into the bubble's top-right corner
+ * controls only the audio: unmuted it shows a normal speaker and auto-reads the
+ * text aloud through the TTS endpoint (`POST /api/v1/tts/synthesize`, cached
+ * server-side, no click needed); muted it shows a slashed speaker and plays
+ * nothing, but the text and bubble stay. Clicking it mutes — stopping any
+ * playback at once and suppressing the auto-read on later nodes — and clicking
+ * again un-mutes and reads the current node. The muted state is persisted
  * (`mascotaMuted`); default is not muted.
  *
  * Browser autoplay policy: `audio.play()` may reject before any user gesture,
@@ -154,30 +155,6 @@ export function MascotaCompanion({ nodeId, title, summary, fx, onOpenChat }: Mas
 
   const anim: MascotaAnim = fx ?? (playing ? 'talk' : 'idle')
 
-  // The one control: an SVG speaker that toggles mute. `extraClass` places it —
-  // tucked into the bubble's top-right while unmuted, standalone when muted.
-  const muteToggle = (extraClass: string) => (
-    <button
-      type="button"
-      onClick={handleToggleMute}
-      aria-pressed={muted}
-      aria-label={intl.formatMessage({ id: muted ? 'mascota.unmute' : 'mascota.mute' })}
-      className={`inline-flex h-7 w-7 items-center justify-center rounded-full transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-1 ${extraClass}`}
-    >
-      {muted ? (
-        <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-          <line x1="23" y1="9" x2="17" y2="15" /><line x1="17" y1="9" x2="23" y2="15" />
-        </svg>
-      ) : (
-        <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-          <path d="M15.54 8.46a5 5 0 0 1 0 7.07" /><path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
-        </svg>
-      )}
-    </button>
-  )
-
   return (
     <div className="flex items-end gap-2 md:gap-3" data-no-explain="">
       {/* Mascot — keeps its original job of opening the tutor chat. */}
@@ -193,21 +170,35 @@ export function MascotaCompanion({ nodeId, title, summary, fx, onOpenChat }: Mas
         <Mascota anim={anim} size="100%" followCursor />
       </motion.button>
 
-      {muted ? (
-        // Muted: just the toggle so it can be un-muted. No text, no bubble.
-        muteToggle('mb-1 shrink-0 border border-border bg-bg shadow-sm text-text-muted hover:text-text')
-      ) : (
-        // Unmuted: a minimal bubble with the very text being read; the speaker
-        // sits tucked in the top-right corner, clear of the text.
-        <div className="relative mb-1 max-w-[210px] md:max-w-[260px] rounded-2xl rounded-bl-sm border border-border bg-bg shadow-sm px-3 py-2">
-          <p className="pr-6 text-xs leading-relaxed text-text" role="status">
-            {readText}
-          </p>
-          <div className="absolute top-1 right-1 text-primary hover:text-primary/80">
-            {muteToggle('')}
-          </div>
-        </div>
-      )}
+      {/* The bubble with what the mascot "says" is always shown. The speaker in
+          its top-right corner controls only the audio: mute silences the read
+          (icon slashed) but the text stays; un-muting reads the current node. */}
+      <div className="relative mb-1 max-w-[210px] md:max-w-[260px] rounded-2xl rounded-bl-sm border border-border bg-bg shadow-sm px-3 py-2">
+        <p className="pr-6 text-xs leading-relaxed text-text" role="status">
+          {readText}
+        </p>
+        <button
+          type="button"
+          onClick={handleToggleMute}
+          aria-pressed={muted}
+          aria-label={intl.formatMessage({ id: muted ? 'mascota.unmute' : 'mascota.mute' })}
+          className={`absolute top-1 right-1 inline-flex h-7 w-7 items-center justify-center rounded-full transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-1 ${
+            muted ? 'text-text-muted hover:text-text' : 'text-primary hover:text-primary/80'
+          }`}
+        >
+          {muted ? (
+            <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+              <line x1="23" y1="9" x2="17" y2="15" /><line x1="17" y1="9" x2="23" y2="15" />
+            </svg>
+          ) : (
+            <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+              <path d="M15.54 8.46a5 5 0 0 1 0 7.07" /><path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+            </svg>
+          )}
+        </button>
+      </div>
     </div>
   )
 }
