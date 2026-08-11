@@ -30,6 +30,7 @@ from src.routes import (
     explain,
     generation_jobs,
     health,
+    learner_memory,
     learner_profile,
     lessons,
     media,
@@ -153,6 +154,10 @@ def create_app() -> FastAPI:
     # flag guard, so every path is a 404 unless the flag is `on`.
     app.include_router(onboarding.router, prefix=prefix)
     app.include_router(learner_profile.router, prefix=prefix)
+    # The learner's own narrative memory ("user.md"): GDPR self-service, employee-only. The
+    # extra /memory segment cannot be shadowed by /users/{user_id} — same reasoning as
+    # learner_profile above.
+    app.include_router(learner_memory.router, prefix=prefix)
     # v2 admin course schema (B2). Registered after `courses` so the more specific
     # /courses/{id}/schema* paths are matched by their own router; the admin-surface
     # guard 404s every path unless the flag is `shadow` or `on`.
