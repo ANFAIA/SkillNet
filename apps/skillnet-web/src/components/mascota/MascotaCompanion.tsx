@@ -11,12 +11,13 @@ import { usePreferences } from '../../stores/preferences'
  *
  * On entering a node, unless muted, it auto-reads the node's opening sentence
  * aloud through the TTS endpoint (`POST /api/v1/tts/synthesize`, cached
- * server-side) — no click needed. The only control is a single SVG speaker
- * icon next to the mascot: a normal speaker while unmuted, a slashed speaker
- * when muted. Clicking it mutes — stopping any playback at once and suppressing
- * the auto-read on later nodes — and clicking again un-mutes and reads the
- * current node. The muted state is persisted (`mascotaMuted`); default is
- * not muted.
+ * server-side) — no click needed. While unmuted a minimal bubble shows the very
+ * text being read (the node's opening), and beside it a single SVG speaker icon
+ * is the only control: a normal speaker while unmuted, a slashed speaker when
+ * muted. Clicking it mutes — stopping any playback at once, hiding the read
+ * text and suppressing the auto-read on later nodes — and clicking again
+ * un-mutes and reads the current node. The muted state is persisted
+ * (`mascotaMuted`); default is not muted.
  *
  * Browser autoplay policy: `audio.play()` may reject before any user gesture,
  * so the very first node can stay silent. We attempt the read best-effort and
@@ -167,6 +168,16 @@ export function MascotaCompanion({ nodeId, title, summary, fx, onOpenChat }: Mas
       >
         <Mascota anim={anim} size="100%" followCursor />
       </motion.button>
+
+      {/* Minimal bubble: the very text being read. Only while unmuted. */}
+      {!muted && (
+        <p
+          className="mb-1 max-w-[210px] md:max-w-[260px] rounded-2xl rounded-bl-sm border border-border bg-bg shadow-sm px-3 py-2 text-xs leading-relaxed text-text"
+          role="status"
+        >
+          {readText}
+        </p>
+      )}
 
       {/* The one control: an SVG speaker that toggles mute. */}
       <button
