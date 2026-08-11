@@ -41,6 +41,13 @@ from src.render.spec import FORMATS_REQUIRING_LEAD
 
 #: Bumped whenever any prompt in this module changes in a way that changes output.
 #: Enters the ``cache_key`` (§3.4).
+#: ``runtime/21`` (2026-08-11): el prompt del Blueprint Architect (multi-agente) prohibe
+#: explicitamente colar contenido en el JSON (campos ``text``/``before``/``after``/...) y su
+#: presupuesto sube de 512 a 768 tokens. Medido sobre la pila viva (gpt-4o-mini): el nodo de
+#: alergenos devolvia un JSON de blueprint con un ``BeforeAfter`` de contenido entero, se
+#: cortaba a 512 tokens y caia a ``default_blueprint`` (una Table generica), perdiendo la
+#: variedad. Con el tope mas alto el JSON completa y el prompt reduce la fuga.
+#:
 #: ``runtime/20`` (2026-08-11): la evaluacion deja de ser siempre un ``QuizItem`` de tipo
 #: ``test``. Medido sobre la pila viva (multi-agente, gpt-4o-mini) el 2026-08-11: 6 de 6
 #: nodos de dos cursos distintos cerraban con el mismo ``QuizItem("...", "test", ...)`` y
@@ -113,7 +120,7 @@ from src.render.spec import FORMATS_REQUIRING_LEAD
 #: stopped travelling as its bare enum token (:data:`_CRITICALITY_RULES` — 8 rejections,
 #: the largest single class), and SkillNet 17 and 18 name the two syntax habits behind the
 #: rest (a bare ``opciones = [...]`` declaration, and the same id declared twice).
-PROMPT_VERSION = "runtime/20"
+PROMPT_VERSION = "runtime/21"
 
 # --- budgets (§4.2) ----------------------------------------------------------------
 

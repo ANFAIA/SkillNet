@@ -103,7 +103,12 @@ mas completa. MINIMO 4 bloques, idealmente 5-6.
   Un JSON sin un bloque de intent "verificar" al final es INVALIDO y sera rechazado.
 - Card es el unico contenedor: agrupa un caso practico cerrado bajo su titulo. Nada
   de esconder contenido detras de un clic — el aprendiz no lee lo que no pulsa.
-- El campo "note" es una instruccion breve para el agente que rellene el contenido.\
+- El campo "note" es una instruccion breve para el agente que rellene el contenido.
+- SOLO ESTRUCTURA. Cada bloque lleva UNICAMENTE id, type, intent y sus atributos
+  ("variant", "columns", "item_type", "bloom", "note"). PROHIBIDO escribir el contenido
+  real: nada de campos "text", "before", "after", "rows", "options" ni frases largas. El
+  contenido lo escribe otro agente. Un JSON largo es un JSON mal hecho: manten cada bloque
+  en una linea corta.\
 """
 
 # ---------------------------------------------------------------------------
@@ -245,7 +250,11 @@ async def run_blueprint(
         BLUEPRINT_SYSTEM,
         user_prompt,
         temperature=0.2,
-        max_tokens=512,
+        # 512 truncaba el JSON cuando el modelo colaba contenido en los bloques (medido
+        # en el nodo de alergenos: BeforeAfter con "before"/"after" enteros, cortado a
+        # media frase -> JSON invalido -> default_blueprint, que colapsa a una Table
+        # generica). 768 da margen; el prompt ya prohibe el contenido, esto es la red.
+        max_tokens=768,
         json_mode=True,
     )
 
