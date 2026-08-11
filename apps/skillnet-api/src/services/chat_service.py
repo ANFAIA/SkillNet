@@ -189,6 +189,58 @@ def extract_actions(text: str) -> tuple[str, list[dict]]:
     return clean, actions
 
 
+class _VisibleAnswerFilter:
+    """Keep standalone ACTION directives out of the token stream.
+
+    ``extract_actions`` runs after the model finishes, which is too late for text
+    already sent to the browser.  This filter only holds characters while they
+    could still be the start of an ACTION line; ordinary prose continues to
+    stream as soon as that possibility is ruled out.
+    """
+
+    def __init__(self) -> None:
+        self._pending = ""
+        self._action_candidate = False
+        self._passthrough = False
+
+    def feed(self, piece: str) -> str:
+        visible: list[str] = []
+        for char in piece:
+            if self._passthrough:
+                visible.append(char)
+                if char == "\n":
+                    self._passthrough = False
+                continue
+
+            self._pending += char
+            if char == "\n":
+                visible.append(self._finish_line())
+                continue
+
+            stripped = self._pending.lstrip(" \t")
+            if not self._action_candidate and "ACTION:".startswith(stripped):
+                self._action_candidate = stripped == "ACTION:"
+                continue
+            if self._action_candidate:
+                continue
+
+            visible.append(self._pending)
+            self._pending = ""
+            self._passthrough = True
+        return "".join(visible)
+
+    def finish(self) -> str:
+        return self._finish_line()
+
+    def _finish_line(self) -> str:
+        pending = self._pending
+        self._pending = ""
+        self._action_candidate = False
+        self._passthrough = False
+        line = pending[:-1] if pending.endswith("\n") else pending
+        return "" if _ACTION_LINE_RE.fullmatch(line) else pending
+
+
 def _context_document_ids(context: dict | None) -> list[uuid.UUID] | None:
     """Best-effort restriction to specific documents from the request context."""
     if not context:
@@ -823,9 +875,15 @@ class ChatService:
             messages = self._build_messages(
                 history, grounded, llm_question, agent_type, snapshot_block
             )
+            visible_filter = _VisibleAnswerFilter()
             async for piece in self.tutor_llm.stream(messages):
                 parts.append(piece)
-                yield format_sse("token", {"content": piece})
+                visible_piece = visible_filter.feed(piece)
+                if visible_piece:
+                    yield format_sse("token", {"content": visible_piece})
+            visible_tail = visible_filter.finish()
+            if visible_tail:
+                yield format_sse("token", {"content": visible_tail})
 
             raw_answer = "".join(parts)
 
