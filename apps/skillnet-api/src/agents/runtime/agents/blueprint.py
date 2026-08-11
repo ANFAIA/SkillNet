@@ -15,6 +15,7 @@ from pydantic import ValidationError
 from src.core.logging import get_logger
 from src.llm.parsing import parse_json_response
 
+from src.agents.runtime.assessment import AssessmentPlan
 from src.agents.runtime.agents.types import (
     Blueprint,
     BlueprintBlock,
@@ -65,12 +66,18 @@ Elige el bloque de CONCEPTO por la forma del contenido:
 
 ## Componentes para el slot VERIFICAR
 
-- QuizItem: pregunta con 4 opciones sobre un CASO CONCRETO. Indica item_type y bloom.
-- DragOrder: ordenar pasos o prioridades arrastrando.
+- QuizItem: pregunta sobre un CASO CONCRETO. Indica item_type y bloom. El item_type NO es
+  siempre "test"; elige segun lo que se evalua:
+    - "test": 4 opciones, aplicar una regla a un caso.
+    - "true_false": juzgar si una afirmacion es verdadera o falsa.
+    - "fill_blank": recordar un termino o cifra clave rellenando un hueco.
+- DragOrder: ordenar los pasos de un procedimiento arrastrando.
 
 Elige el tipo de verificacion segun el concepto:
 - Si el concepto es un procedimiento (StepSequence) -> DragOrder
-- En los demas casos -> QuizItem
+- Si hay que recordar un dato o termino exacto -> QuizItem "fill_blank"
+- Si hay que juzgar una regla como cierta o falsa -> QuizItem "true_false"
+- Si hay que aplicar una regla a una situacion -> QuizItem "test"
 
 ## Estructura de la pantalla (4-6 bloques)
 
@@ -118,6 +125,7 @@ def build_blueprint_prompt(
     target_bloom: str,
     shape_hints: Sequence[str],
     siblings: Sequence[str] = (),
+    assessment_hint: str = "",
 ) -> str:
     lines: list[str] = [
         f"FORMATO: {ui_format}",
@@ -145,6 +153,14 @@ def build_blueprint_prompt(
         for hint in shape_hints:
             lines.append(f"- {hint}")
 
+    if assessment_hint.strip():
+        # El bloque de cierre lo fija el planificador (assessment.py); el blueprint tiene
+        # que estructurar la pantalla en consecuencia (p.ej. una StepSequence si el cierre
+        # es un DragOrder). Ademas se impone despues por si el LLM no lo respeta.
+        lines.append("")
+        lines.append("CÓMO CIERRA LA PANTALLA (el bloque VERIFICAR ya esta decidido)")
+        lines.append(f"- {assessment_hint.strip()}")
+
     if siblings:
         lines.append("")
         lines.append("OTRAS PANTALLAS DEL CURSO (ya cubren esto: NO lo repitas)")
@@ -169,8 +185,10 @@ def default_blueprint(ui_format: str, shape_hints: Sequence[str]) -> Blueprint:
     ]
     if any("Table" in h for h in shape_hints):
         blocks.append(BlueprintBlock(id="concepto", type="Table", intent="concepto", columns=2))
-    elif any("StepSequence" in h or "StepByStepReveal" in h for h in shape_hints):
-        blocks.append(BlueprintBlock(id="concepto", type="StepByStepReveal", intent="concepto"))
+    elif any("StepSequence" in h for h in shape_hints):
+        # StepSequence, no StepByStepReveal: este ultimo no existe en el kit y el validador
+        # lo rechazaria como componente desconocido, tirando el nodo al fallback.
+        blocks.append(BlueprintBlock(id="concepto", type="StepSequence", intent="concepto"))
     else:
         blocks.append(BlueprintBlock(id="concepto", type="Table", intent="concepto", columns=1))
 
@@ -202,6 +220,7 @@ async def run_blueprint(
     shape_hints: Sequence[str],
     llm: Any,
     siblings: Sequence[str] = (),
+    assessment: AssessmentPlan | None = None,
 ) -> Blueprint:
     """Run the Blueprint Architect agent and return a screen structure."""
 
@@ -219,6 +238,7 @@ async def run_blueprint(
         target_bloom=target_bloom,
         shape_hints=shape_hints,
         siblings=siblings,
+        assessment_hint=assessment.instruction() if assessment else "",
     )
 
     raw, _usage = await llm.complete_with_usage(
@@ -243,7 +263,50 @@ async def run_blueprint(
 
     # --- Post-validation: ensure a verification block exists ---------------
     blueprint = _ensure_verification(blueprint, ui_format, target_bloom)
+    # Impone el plan de evaluacion sin importar lo que el LLM decidiera: es lo que
+    # garantiza la variedad en vez de dejarla al capricho del modelo.
+    if assessment is not None:
+        blueprint = _apply_assessment(blueprint, assessment, target_bloom)
     return blueprint
+
+
+def _apply_assessment(
+    blueprint: Blueprint, assessment: AssessmentPlan, target_bloom: str
+) -> Blueprint:
+    """Force the closing verification block to match the deterministic plan.
+
+    Rewrites the LAST QuizItem/DragOrder block to the planned type. ``_ensure_verification``
+    guarantees at least one exists, so the ``else`` branch only fires defensively.
+    """
+    blocks = list(blueprint.blocks)
+    idx = next(
+        (
+            i
+            for i in range(len(blocks) - 1, -1, -1)
+            if blocks[i].type in ("QuizItem", "DragOrder")
+        ),
+        None,
+    )
+    if assessment.block == "DragOrder":
+        new_block = BlueprintBlock(
+            id=blocks[idx].id if idx is not None else "ejercicio",
+            type="DragOrder",
+            intent="verificar",
+            bloom=(blocks[idx].bloom if idx is not None else None) or target_bloom,
+        )
+    else:
+        new_block = BlueprintBlock(
+            id=blocks[idx].id if idx is not None else "q1",
+            type="QuizItem",
+            intent="verificar",
+            item_type=assessment.item_type or "test",
+            bloom=(blocks[idx].bloom if idx is not None else None) or target_bloom,
+        )
+    if idx is not None:
+        blocks[idx] = new_block
+    else:
+        blocks.append(new_block)
+    return Blueprint(blocks=blocks)
 
 
 def _ensure_verification(

@@ -41,6 +41,16 @@ from src.render.spec import FORMATS_REQUIRING_LEAD
 
 #: Bumped whenever any prompt in this module changes in a way that changes output.
 #: Enters the ``cache_key`` (§3.4).
+#: ``runtime/20`` (2026-08-11): la evaluacion deja de ser siempre un ``QuizItem`` de tipo
+#: ``test``. Medido sobre la pila viva (multi-agente, gpt-4o-mini) el 2026-08-11: 6 de 6
+#: nodos de dos cursos distintos cerraban con el mismo ``QuizItem("...", "test", ...)`` y
+#: cero ``DragOrder``, aun en nodos procedimentales. El generador nunca elegia entre los
+#: formatos que el kit ya sabia pintar. Ahora ``src/agents/runtime/assessment.py`` decide
+#: de forma determinista y estable por nodo (procedimiento -> ``DragOrder``; en otro caso
+#: rota ``test``/``true_false``/``fill_blank``), la decision viaja como la linea "CÓMO
+#: VERIFICAR" del prompt de ``genera_ui``, y ``_BLOCK_CHOICE`` enseña los cuatro item_type
+#: con ejemplos resueltos (D true_false, E fill_blank) en vez de solo ``test``.
+#:
 #: ``runtime/18`` (2026-08-09): ``Tabs``/``TabItem`` se eliminan del kit, no se desactivan.
 #: Esconden contenido detras de un clic, y un aprendiz no lee lo que no pulsa: en el curso
 #: generado desde el manual real del partner las pestanas salieron etiquetadas "Tab 1" y
@@ -103,7 +113,7 @@ from src.render.spec import FORMATS_REQUIRING_LEAD
 #: stopped travelling as its bare enum token (:data:`_CRITICALITY_RULES` — 8 rejections,
 #: the largest single class), and SkillNet 17 and 18 name the two syntax habits behind the
 #: rest (a bare ``opciones = [...]`` declaration, and the same id declared twice).
-PROMPT_VERSION = "runtime/19"
+PROMPT_VERSION = "runtime/20"
 
 # --- budgets (§4.2) ----------------------------------------------------------------
 
@@ -426,10 +436,13 @@ TRES BLOQUES, en este orden:
    - Procedimiento simple sin explicaciones -> StepSequence
    PROHIBIDO usar TextContent("body") para el concepto. El concepto SIEMPRE va en
    un bloque propio (Table, BeforeAfter, StepSequence).
-3. VERIFICAR — UN bloque de practica:
-   - Si el concepto es un procedimiento -> DragOrder
-   - Si el concepto tiene un bien/mal -> BeforeAfter
-   - En los demas casos -> QuizItem
+3. VERIFICAR — UN bloque de practica. Si el prompt trae una linea "CÓMO VERIFICAR",
+   OBEDECELA: dice exactamente que bloque y que item_type usar. El QuizItem NO es siempre
+   de tipo "test"; tiene cuatro formas y se elige por lo que se evalua:
+   - "test": 4 opciones sobre un caso concreto. Para aplicar una regla a una situacion.
+   - "true_false": una afirmacion verdadera o falsa. options = []. Para juzgar una regla.
+   - "fill_blank": una frase con UN hueco ____ que se rellena con un termino o cifra clave.
+   - order_steps / DragOrder: ordenar los pasos de un procedimiento.
    REGLA DURA: si el formato es "mixed" o "exercise", el programa DEBE tener
    QuizItem o DragOrder. Sin el, el validador lo rechaza.
 
@@ -461,12 +474,24 @@ q1 = QuizItem("q1", "test", "apply", "Un cliente celiaco pide una fritura. El ac
 
 ## SkillNet: como hacer buenas preguntas
 
-Reglas para QuizItem de tipo "test":
-- SIEMPRE 4 opciones.
-- Los DISTRACTORES son errores reales que un empleado cometeria, no tonterias.
-- La pregunta plantea un CASO CONCRETO: "Un cliente te dice...", nunca "Cual es...".
-- La explicacion dice POR QUE la correcta es correcta.
-Para DragOrder: 4-6 elementos, acciones concretas.
+La pregunta plantea un CASO CONCRETO ("Un cliente te dice..."), nunca "Cual es...", y la
+explicacion dice POR QUE la correcta es correcta. Segun el item_type:
+- "test": SIEMPRE 4 opciones. Los DISTRACTORES son errores reales que un empleado
+  cometeria, no tonterias.
+- "true_false": una sola afirmacion, verdadera o falsa de forma inequivoca. options = [].
+- "fill_blank": la pregunta lleva UN hueco escrito ____ y se rellena con un termino o
+  cifra EXACTA de la fuente. Un solo hueco.
+- DragOrder: 4-6 elementos, acciones concretas.
+
+Ejemplo D — Verificar con true_false:
+q1 = QuizItem("q1", "true_false", "understand", "El aceite que frio un rebozado con harina puede contaminar una fritura para un celiaco.", [])
+---ANSWER-KEY---
+{"q1": {"correct": true, "explanation": "El aceite retiene trazas de gluten del rebozado anterior."}}
+
+Ejemplo E — Verificar con fill_blank:
+q1 = QuizItem("q1", "fill_blank", "remember", "Un alergeno debe declararse siempre que aparezca en la carta o cuando lo pregunte el ____.", [])
+---ANSWER-KEY---
+{"q1": {"blanks": ["cliente"], "explanation": "La informacion se da al cliente que la solicita."}}
 """
 
 _UI_GENERATOR_TAIL = f"""
@@ -620,6 +645,7 @@ def build_ui_prompt(
     tutor_signals: Sequence[str] = (),
     source_context: str = "",
     shape_hints: Sequence[str] = (),
+    assessment_hint: str = "",
 ) -> str:
     """The user prompt for ``genera_ui``.
 
@@ -685,6 +711,16 @@ def build_ui_prompt(
     if shape_section:
         parts.append("")
         parts.extend(shape_section)
+
+    if assessment_hint.strip() and ui_format in _FORMATS_WITH_QUIZ | {"explanation", "chart"}:
+        # Cómo cierra la pantalla, decidido por ``assessment.py`` a partir de la forma del
+        # material y del ``node_id``: es lo que reparte la variedad entre nodos en vez de
+        # caer siempre en el mismo QuizItem "test". Va junto a la forma del material, lo
+        # último antes de la fuente, porque en un modelo pequeño gana la instrucción más
+        # cercana al contenido.
+        parts.append("")
+        parts.append("CÓMO VERIFICAR (elegido por la forma del nodo, no es opcional)")
+        parts.append(f"- {assessment_hint.strip()}")
 
     parts.append("")
     if source_context.strip():

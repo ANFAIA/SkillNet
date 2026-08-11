@@ -70,14 +70,37 @@ QuizItem de tipo "test":
 - Las 4 opciones deben ser PLAUSIBLES: el aprendiz que no aprendio debe dudar.
 - QuizItem: EXACTAMENTE 5 argumentos: QuizItem("id", "tipo", "bloom", "pregunta?", ["A", "B", "C", "D"]).
 
+RESPETA EL item_type QUE PIDE EL BLUEPRINT. No lo cambies a "test" por costumbre. Cada
+tipo se escribe distinto:
+- "test": 4 opciones. La clave lleva {{"correct": <indice 0-based>}}.
+- "true_false": una sola afirmacion verdadera o falsa. El quinto argumento es []. La clave
+  lleva {{"correct": true|false}}.
+- "fill_blank": la pregunta lleva UN hueco escrito ____ y se rellena con un termino o cifra
+  EXACTA de la fuente. El quinto argumento es []. La clave lleva {{"blanks": ["<texto>"]}}.
+
 Para DragOrder:
 - EXACTAMENTE 3 argumentos: DragOrder("instruccion", ["items..."], ["orden correcto..."]).
-- 4-6 elementos, acciones concretas.
+- 4-6 elementos, acciones concretas. DragOrder no lleva entrada en la clave de respuestas.
 
-Ejemplo completo de salida:
+Ejemplos completos de salida, uno por item_type:
+
+test:
 q1 = QuizItem("q1", "test", "apply", "Un cliente celiaco pide una fritura. El aceite se uso antes para rebozados con harina. Que le dices?", ["Que si, el aceite no retiene gluten", "Que no es apto: el aceite tiene trazas de gluten", "Que pregunte al cocinero", "Que solo es peligroso si es alergico severo"])
 ---ANSWER-KEY---
 {{"q1": {{"correct": 1, "explanation": "El aceite que frio un rebozado con harina contiene trazas de gluten por contaminacion cruzada."}}}}
+
+true_false:
+q1 = QuizItem("q1", "true_false", "understand", "Se puede freir la comida de un celiaco en el mismo aceite que se uso para un rebozado con harina.", [])
+---ANSWER-KEY---
+{{"q1": {{"correct": false, "explanation": "El aceite retiene trazas de gluten del rebozado anterior."}}}}
+
+fill_blank:
+q1 = QuizItem("q1", "fill_blank", "remember", "La informacion sobre alergenos se le da siempre al ____ que la solicita.", [])
+---ANSWER-KEY---
+{{"q1": {{"blanks": ["cliente"], "explanation": "El alergeno se declara a quien lo pregunta."}}}}
+
+DragOrder:
+ejercicio = DragOrder("Ordena los pasos para tomar la comanda en el TPV:", ["Seleccionar la mesa", "Anadir los platos", "Marcar alergenos", "Enviar a cocina"], ["Seleccionar la mesa", "Anadir los platos", "Marcar alergenos", "Enviar a cocina"])
 
 Formato de la clave de respuestas:
 Despues de las declaraciones, una linea con exactamente {ANSWER_KEY_SENTINEL} y a continuacion
