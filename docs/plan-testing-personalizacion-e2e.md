@@ -135,7 +135,89 @@ del sistema de personalización (¿"solo un `.md`"? ¿qué señales conservar? �
 > Nota: esta fase **cambia código/config** (backend de generación). Debe hacerse en la rama de trabajo,
 > con commits por experimento (sin co-author), y coordinándose con cualquier otra sesión activa.
 
-## 10. Riesgos / notas conocidas
+## 10. Técnicas de simulación (no solo navegador)
+El navegador es la prueba "humana", pero es lenta. Un buen plan combina **varias capas**, de la más
+barata/escalable a la más realista:
+
+1. **API-driven / programática (rápida, escalable).** Simular sesiones directamente contra la API sin
+   navegador: `POST /auth/login` (cookie), render de nodo, `POST` de intento de ejercicio, chat del
+   tutor, generar/consumir media, emitir eventos. Permite recorrer **decenas de perfiles × nodos** en
+   minutos y sacar la matriz de personalización a escala. (Endpoints en `src/routes/`.)
+2. **Perfiles sintéticos a escala.** Crear N `learner_profiles` variados por script (rol/sector/
+   experiencia/preset/`format_vector`/`memory_md`) y **diferenciar el mismo nodo entre todos** → mapa
+   masivo de divergencia atribuible al perfil.
+3. **"Calentar" perfiles (salir de calibración).** Inyectar `learning_events`/attempts sintéticos para
+   mover el `format_vector` fuera del `""` de los 3 primeros nodos y simular un aprendiz **con historial**
+   (necesario para ver la personalización *por comportamiento*, no solo la declarada).
+4. **Snapshot + diff de renders.** Capturar el render por `(nodo × perfil)` y **diffear** texto/estructura;
+   medir cuánto cambia y si el cambio es coherente con el perfil. Es la evidencia cuantitativa.
+5. **LLM-as-judge (evaluación a escala y consistente).** Un evaluador LLM que puntúa cada render con la
+   rúbrica de §5 (personalización, grounding, variedad, "una idea por pantalla") → puntuaciones
+   comparables entre perfiles/experimentos sin sesgo humano.
+6. **Bancos existentes.** `scripts/quality_bench.py` y `scripts/retrieval_bench.py`, ampliados con la
+   **dimensión de perfil** (correr cada encargo bajo varios perfiles y comparar).
+7. **Aprendiz simulado (agente de comportamiento).** Un agente que *decide* como un tipo de aprendiz
+   (rápido / que se atasca / que salta / que pregunta mucho) recorriendo el curso —por API o navegador—
+   para poblar señales realistas y ver cómo evoluciona su personalización a lo largo del curso.
+8. **Navegador (Claude in Chrome).** La capa humana de §3 — para validar la experiencia real (mascota,
+   voz, transiciones, overviews) que la API no captura.
+
+> Recomendación de orquestación: **API + perfiles sintéticos + diff + LLM-judge** para barrer amplio y
+> barato (encontrar dónde NO personaliza), y el **navegador** para confirmar en profundidad los casos
+> interesantes y la experiencia. La **fase experimental (§9)** usa estas mismas técnicas para medir cada cambio.
+
+## 11. Catálogo extenso de escenarios a simular
+Combinar **persona × comportamiento × estado del perfil × contexto × edge cases**. No hace falta el
+producto cartesiano completo; sí cubrir cada eje y los cruces interesantes.
+
+### 11.1 Personas (perfil declarado)
+- Camarero/a **novato** (experiencia `none`), sector hostelería.
+- Encargado/a **experto** (experiencia `experienced`), mismo sector → contraste de andamiaje/profundidad.
+- Cocinero/a, dependiente/a de panadería, repartidor/a → distinto **rol** para ver ejemplos por rol.
+- Perfil de **otro sector** (p.ej. retail, oficina) sobre el mismo curso → ¿cambia el encuadre?
+- Perfil **sin declarar** (onboarding saltado / `unknown`) → línea base neutra.
+- **Admin** ("Probar") → **control negativo** (render genérico, sin `learner_profile`).
+- Perfil con **accesibilidad** `short_blocks` on → ¿baja la densidad?
+
+### 11.2 Comportamientos durante el curso
+- Acierta **a la primera** (verificar que NO obliga a repetir — bug ya arreglado, dejar en regresión).
+- Se **equivoca y reintenta** (¿deja reintentar? ¿el feedback ayuda?).
+- **Salta** lo que ya sabe (sonda `node_probe`) → ¿se le ahorra contenido?
+- **Abandona** a mitad y vuelve → ¿retoma bien? ¿estado consistente?
+- **Prefiere audio** (usa la mascota/overviews) vs **prefiere ejercicios** → mover `format_vector`.
+- Usa **mucho el tutor** (chat) → ¿alimenta `user.md`? ¿el tono acompaña?
+- **Genera overviews** con "info extra" → ¿queda en `Preferencias de contenido` del `user.md`?
+- Lee **rápido/lento** (tiempos en eventos) → ¿afecta densidad/ritmo?
+
+### 11.3 Estado del perfil
+- **Frío** (calibración, `format_vector=""`, sin `user.md`) → primeros nodos.
+- **Caliente** (con historial de eventos, `format_vector` poblado) → nodos posteriores.
+- Con **`user.md` rico** (varias notas por sección) vs vacío → ¿cambia la generación si se activa?
+
+### 11.4 Contexto de contenido
+- Cursos **distintos**: Alérgenos (3 nodos) vs Servicio de sala (7 nodos).
+- Temas **variados**: compliance vs conocimiento general vs técnico (crear con `POST /documents/from-idea`).
+- **Doc fuente rico vs pobre** (muchos headings vs 2 frases) → calidad/relleno.
+- **Idioma** (es por defecto; probar otro si aplica).
+
+### 11.5 Multi-usuario y cache
+- **Dos perfiles idénticos** → deben **compartir render** (mismo `cache_key`).
+- **Dos perfiles distintos** → deben **divergir**. Verificar que el `cache_key` bucketiza como se espera.
+- Confirmar que **`user_id` NO** entra en el cache (no fragmenta) y que la prosa del `user.md` **no** filtra.
+
+### 11.6 Edge cases y bugs a provocar
+- Acertar → repetir (regresión), **tabla + ejercicio** en misma pantalla (regresión), pantalla vacía/rota.
+- **TTS falla / sin SDK de diálogo** → ruta fallback; imagen que **garabatea texto** (defecto conocido).
+- **Onboarding**: completarlo, saltarlo, y perfil a medias.
+- Curso **sin validar** (`schema_status != validated`) → debe servir por v1, no v2.
+- **`document_chunks` vacía** (tras migraciones) → el tutor responde sin citar; ¿degrada bien?
+- **Rate-limit** del proveedor → retroceso exponencial (el banco ya lo trae).
+
+### 11.7 Qué registrar por escenario
+`persona · comportamiento · estado · curso/nodo · técnica usada · captura/texto · puntuación de rúbrica ·
+divergencia vs otro perfil · veredicto`.
+
+## 12. Riesgos / notas conocidas
 - **Vite en background se muere** en el entorno del agente → arrancarlo en un **terminal real** aparte.
 - La **extensión debe estar conectada**; si no, el agente no puede manejar el navegador (bloqueante).
 - **Admin = render genérico** (control negativo), no confundir con "no personaliza".
