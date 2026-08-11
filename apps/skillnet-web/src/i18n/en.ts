@@ -614,6 +614,8 @@ export const en: Record<string, string> = {
   'overviews.title': 'Overviews',
   'overviews.subtitle': 'Generate a podcast, video, infographic or slides from the course.',
   'overviews.generate': 'Generate',
+  'overviews.steeringPlaceholder': 'Add a focus or extra info (optional)',
+  'overviews.steeringLabel': 'Focus or extra info for the generation',
   'overviews.kind.podcast': 'Podcast',
   'overviews.kind.video': 'Video',
   'overviews.kind.infographic': 'Infographic',
