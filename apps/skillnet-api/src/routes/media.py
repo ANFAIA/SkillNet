@@ -69,11 +69,14 @@ _REF_RE = re.compile(r"^[0-9a-f]{64}$")
 
 
 def _sub_assets(spec_json: dict | None) -> dict[str, str]:
-    """Map each per-slide clip's ``audio_ref`` (content hash) to its extension.
+    """Map each per-slide sub-asset's content-hash ref to its extension.
 
     The allow-list for :func:`get_artifact_sub_asset`: only refs this artifact's own spec
     lists are servable, so the route can never be coaxed into reading an unrelated file.
-    Additive — non-video artifacts simply have no ``slides[].audio_ref`` and yield ``{}``.
+    Covers both the per-slide **audio** clip (``audio_ref``, mp3 by default) and the
+    per-slide **illustration** (``image_ref``, png by default) — the Video Overview carries
+    both, the slide deck carries only images. Additive — an artifact with neither yields
+    ``{}``.
     """
     slides = (spec_json or {}).get("slides")
     if not isinstance(slides, list):
@@ -82,10 +85,14 @@ def _sub_assets(spec_json: dict | None) -> dict[str, str]:
     for slide in slides:
         if not isinstance(slide, dict):
             continue
-        ref = slide.get("audio_ref")
-        if isinstance(ref, str) and _REF_RE.match(ref):
+        audio = slide.get("audio_ref")
+        if isinstance(audio, str) and _REF_RE.match(audio):
             ext = slide.get("audio_ext")
-            refs[ref] = ext if isinstance(ext, str) and ext else "mp3"
+            refs[audio] = ext if isinstance(ext, str) and ext else "mp3"
+        image = slide.get("image_ref")
+        if isinstance(image, str) and _REF_RE.match(image):
+            ext = slide.get("image_ext")
+            refs[image] = ext if isinstance(ext, str) and ext else "png"
     return refs
 
 

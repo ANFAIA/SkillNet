@@ -32,6 +32,7 @@ from collections import Counter
 from src.core.logging import get_logger
 from src.models import MediaKind
 from src.services.media.assets import AssetStore
+from src.services.media.images import generate_image
 from src.services.media.jobs import (
     GeneratedArtifact,
     MediaJobContext,
@@ -40,8 +41,12 @@ from src.services.media.jobs import (
 from src.services.media.slides import spec as slides_spec
 from src.services.media.video import narration as narration_mod
 from src.services.media.video import voice as voice_mod
+from src.services.media.visuals import slide_prompt
 
 logger = get_logger(__name__)
+
+#: Landscape 16:9 for the per-slide illustrations (the approved gallery look).
+_SLIDE_SIZE = "1536x1024"
 
 
 def _summarize_voice_paths(paths: list[str]) -> str:
@@ -88,11 +93,15 @@ class VideoGenerator:
             deck, ctx.bundle, language=language, steering=steering
         )
 
-        # Stage 3: one mp3 clip per slide via the podcast TTS path, stored + cached.
+        # Stage 3: one mp3 clip per slide via the podcast TTS path, stored + cached, plus one
+        # NotebookLM-style landscape illustration per slide (best-effort), stored the same
+        # content-addressed way and referenced from spec_json by image_ref.
         await ctx.emit("voz", slides=len(deck.slides))
+        await ctx.emit("ilustraciones", slides=len(deck.slides))
         store = self._asset_store or AssetStore()
         slides_out: list[dict] = []
         voice_paths: list[str] = []
+        images = 0
         for slide, line in zip(deck.slides, narration.lines):
             result = await voice_mod.synthesize_narration(line.text, language=language)
             stored = store.store(result.data, result.ext)
@@ -103,13 +112,20 @@ class VideoGenerator:
             slide_dict["narration_citation_ids"] = line.citation_ids
             slide_dict["audio_ref"] = stored.content_hash
             slide_dict["audio_ext"] = stored.ext
+
+            image = await self._render_slide(slide, store)
+            if image is not None:
+                slide_dict["image_ref"] = image[0]
+                slide_dict["image_ext"] = image[1]
+                images += 1
             slides_out.append(slide_dict)
 
         voice_path = _summarize_voice_paths(voice_paths)
         await ctx.emit("listo", slides=len(slides_out), voice_path=voice_path)
         logger.info(
-            "Video overview generated: slides=%d voice_path=%s grounding=%s clips=%s",
+            "Video overview generated: slides=%d images=%d voice_path=%s grounding=%s clips=%s",
             len(slides_out),
+            images,
             voice_path,
             ctx.bundle.mode,
             Counter(voice_paths),
@@ -127,9 +143,22 @@ class VideoGenerator:
             # The citation metadata (document/section/page) each id resolves to.
             "citations": ctx.bundle.citations_payload(),
         }
-        # Spec-only to the spine: the per-slide clips are stored above, not one top-level
-        # file, so there is no single ``data`` to hand back.
+        # Spec-only to the spine: the per-slide clips and illustrations are stored above,
+        # not one top-level file, so there is no single ``data`` to hand back.
         return GeneratedArtifact(spec_json=spec_json)
+
+    async def _render_slide(
+        self, slide: slides_spec.Slide, store: AssetStore
+    ) -> tuple[str, str] | None:
+        """Best-effort per-slide illustration. Returns ``(image_ref, image_ext)`` or ``None``."""
+        prompt = slide_prompt(slide)
+        try:
+            data = await generate_image(prompt, size=_SLIDE_SIZE)
+        except Exception as exc:  # noqa: BLE001 - per-slide visual is best-effort, not fatal
+            logger.warning("Video slide illustration generation failed, skipping: %s", exc)
+            return None
+        stored = store.store(data, "png")
+        return stored.content_hash, stored.ext
 
 
 def register() -> None:

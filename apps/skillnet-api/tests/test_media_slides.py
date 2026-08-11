@@ -11,8 +11,10 @@ import json
 import pytest
 
 from src.models import MediaKind
+from src.services.media.assets import AssetStore
 from src.services.media.grounding import GroundedBundle, GroundedPassage
 from src.services.media.jobs import MediaJobContext
+from src.services.media.slides import generator as generator_mod
 from src.services.media.slides import spec as spec_mod
 from src.services.media.slides.generator import SlidesGenerator
 from src.services.media.slides.spec import (
@@ -182,8 +184,8 @@ def test_build_prompts_handles_empty_bundle() -> None:
 # SlidesGenerator.generate — spec_json shape, citation persistence, progress
 # --------------------------------------------------------------------------------------
 @pytest.mark.asyncio
-async def test_generator_persists_slides_citations_and_emits_progress(
-    monkeypatch: pytest.MonkeyPatch,
+async def test_generator_persists_slides_citations_images_and_emits_progress(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
 ) -> None:
     async def fake_generate_deck(bundle, **kwargs):
         assert kwargs["language"] == "es"
@@ -191,20 +193,30 @@ async def test_generator_persists_slides_citations_and_emits_progress(
 
     monkeypatch.setattr(spec_mod, "generate_deck", fake_generate_deck)
 
+    sizes: list[str] = []
+
+    async def fake_image(prompt, *, size, **kwargs):
+        sizes.append(size)
+        # Distinct bytes per slide title -> distinct content hashes / image_refs.
+        return f"PNG-{prompt[:40]}".encode()
+
+    monkeypatch.setattr(generator_mod, "generate_image", fake_image)
+
     steps: list[tuple[str, dict]] = []
 
     async def report(step: str, extra: dict) -> None:
         steps.append((step, extra))
 
+    store = AssetStore(tmp_path)
     ctx = MediaJobContext(
         kind=MediaKind.SLIDES,
         spec={"language": "es", "theme": "default"},
         bundle=_bundle("c1", "c2"),
         progress=report,
     )
-    produced = await SlidesGenerator().generate(ctx)
+    produced = await SlidesGenerator(asset_store=store).generate(ctx)
 
-    # Spec-only by default (no cover requested).
+    # Spec-only to the spine (no cover): the per-slide images are stored, not handed back.
     assert produced.data is None
     spec = produced.spec_json
     assert spec["generator"] == "slides"
@@ -213,21 +225,52 @@ async def test_generator_persists_slides_citations_and_emits_progress(
     assert spec["has_cover"] is False
     # Per-slide citation ids persisted for the parallel panel.
     assert [s["citation_ids"] for s in spec["slides"]] == [["c1"], ["c2"]]
+    # Each slide references a landscape illustration stored on disk.
+    assert sizes == ["1536x1024", "1536x1024"]
+    for s in spec["slides"]:
+        assert s["image_ext"] == "png"
+        assert store.path_for(s["image_ref"], "png").exists()
     # Citation metadata resolves each id.
     assert {c["citation_id"] for c in spec["citations"]} == {"c1", "c2"}
-    # Progress fired in order.
-    assert [s[0] for s in steps] == ["guion", "listo"]
+    # Progress fired in order: guion, one ilustracion per slide, listo.
+    assert [s[0] for s in steps] == ["guion", "ilustracion", "ilustracion", "listo"]
+
+
+@pytest.mark.asyncio
+async def test_generator_skips_slide_image_when_it_fails(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    async def fake_generate_deck(bundle, **kwargs):
+        return parse_deck(json.dumps(_valid_payload()), valid_ids=["c1", "c2"])
+
+    async def failing_image(prompt, *, size, **kwargs):
+        raise RuntimeError("image provider down")
+
+    monkeypatch.setattr(spec_mod, "generate_deck", fake_generate_deck)
+    monkeypatch.setattr(generator_mod, "generate_image", failing_image)
+
+    ctx = MediaJobContext(
+        kind=MediaKind.SLIDES, spec={"language": "es"}, bundle=_bundle("c1", "c2")
+    )
+    produced = await SlidesGenerator(asset_store=AssetStore(tmp_path)).generate(ctx)
+    # A failed illustration is not a failed deck: the slide simply carries no image_ref.
+    for s in produced.spec_json["slides"]:
+        assert "image_ref" not in s
 
 
 @pytest.mark.asyncio
 async def test_generator_without_progress_reporter_is_silent(
-    monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: pytest.MonkeyPatch, tmp_path
 ) -> None:
     async def fake_generate_deck(bundle, **kwargs):
         return parse_deck(json.dumps(_valid_payload()), valid_ids=[])
 
+    async def fake_image(prompt, *, size, **kwargs):
+        return b"PNG"
+
     monkeypatch.setattr(spec_mod, "generate_deck", fake_generate_deck)
+    monkeypatch.setattr(generator_mod, "generate_image", fake_image)
 
     ctx = MediaJobContext(kind=MediaKind.SLIDES, spec={}, bundle=_bundle())
-    produced = await SlidesGenerator().generate(ctx)
+    produced = await SlidesGenerator(asset_store=AssetStore(tmp_path)).generate(ctx)
     assert produced.spec_json["generator"] == "slides"
