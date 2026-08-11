@@ -635,6 +635,9 @@ export const en: Record<string, string> = {
   'overviews.step.datos': 'Extracting data',
   'overviews.step.diapositivas': 'Creating slides',
   'overviews.step.narracion': 'Writing narration',
+  'overviews.step.imagen': 'Illustrating',
+  'overviews.step.ilustracion': 'Illustrating slides',
+  'overviews.step.ilustraciones': 'Illustrating slides',
   'overviews.step.listo': 'Ready',
 
   // PronunciationExerciseBlock component

@@ -43,6 +43,9 @@ export interface VideoSlideSpec {
   narration_citation_ids: string[]
   audio_ref: string
   audio_ext?: string
+  /** Content hash of this slide's generated illustration, served as a sub-asset. */
+  image_ref?: string
+  image_ext?: string
 }
 
 export interface VideoOverviewProps {
@@ -108,28 +111,35 @@ export function VideoOverview({
     [total],
   )
 
-  // Fetch every slide clip through the credentialed sub-asset route into blob URLs. A plain
-  // <audio src> cannot send the auth cookie the API needs, so we fetch then object-URL each.
+  // Fetch every slide asset through the credentialed sub-asset route into blob URLs. A plain
+  // <audio>/<img src> cannot send the auth cookie the API needs, so we fetch then object-URL
+  // each. Audio clips are required (a failure surfaces as an error); the per-slide
+  // illustrations are best-effort (a missing one just falls back to the kit blocks).
   useEffect(() => {
     let cancelled = false
     setLoading(true)
     setError(null)
-    const refs = Array.from(new Set(slides.map((s) => s.audio_ref).filter(Boolean)))
+    const audioRefs = Array.from(new Set(slides.map((s) => s.audio_ref).filter(Boolean)))
+    const imageRefs = Array.from(
+      new Set(slides.map((s) => s.image_ref).filter((r): r is string => !!r)),
+    )
     ;(async () => {
       const map: Record<string, string> = {}
+      const fetchInto = async (ref: string) => {
+        const res = await fetch(
+          `${BASE}/media/artifacts/${artifactId}/asset/${ref}`,
+          { credentials: 'include' },
+        )
+        if (!res.ok) throw new Error('asset fetch failed')
+        const url = URL.createObjectURL(await res.blob())
+        urlsRef.current.push(url)
+        map[ref] = url
+      }
       try {
+        await Promise.all(audioRefs.map(fetchInto))
+        // Illustrations are optional: never let one sink the player.
         await Promise.all(
-          refs.map(async (ref) => {
-            const res = await fetch(
-              `${BASE}/media/artifacts/${artifactId}/asset/${ref}`,
-              { credentials: 'include' },
-            )
-            if (!res.ok) throw new Error('clip fetch failed')
-            const blob = await res.blob()
-            const url = URL.createObjectURL(blob)
-            urlsRef.current.push(url)
-            map[ref] = url
-          }),
+          imageRefs.map((ref) => fetchInto(ref).catch(() => undefined)),
         )
         if (!cancelled) setClipUrls(map)
       } catch {
@@ -147,6 +157,8 @@ export function VideoOverview({
 
   const current = slides[clamp(index)]
   const currentUrl = current ? clipUrls[current.audio_ref] : undefined
+  const currentImageUrl =
+    current && current.image_ref ? clipUrls[current.image_ref] : undefined
 
   // Drive the <audio> element from the playing/index state: when playing, (re)start the
   // current clip; when paused, hold. The element is keyed by index below so switching
@@ -284,18 +296,38 @@ export function VideoOverview({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.15 }}
-            className="rounded-xl border border-border bg-bg p-5 min-h-[16rem]"
+            className="rounded-xl border border-border bg-bg overflow-hidden min-h-[16rem]"
             aria-label={current.title}
           >
-            <h4 className="text-lg font-semibold text-text">{current.title}</h4>
-            {current.subtitle && (
-              <p className="text-sm text-text-muted mt-1">{current.subtitle}</p>
+            {currentImageUrl ? (
+              // The generated illustration is the slide visual; the title stays as a caption.
+              <>
+                <img
+                  src={currentImageUrl}
+                  alt={current.title}
+                  className="block w-full h-auto"
+                />
+                <div className="p-5 pt-4">
+                  <h4 className="text-lg font-semibold text-text">{current.title}</h4>
+                  {current.subtitle && (
+                    <p className="text-sm text-text-muted mt-1">{current.subtitle}</p>
+                  )}
+                </div>
+              </>
+            ) : (
+              // No illustration (not generated / failed): fall back to the kit blocks.
+              <div className="p-5">
+                <h4 className="text-lg font-semibold text-text">{current.title}</h4>
+                {current.subtitle && (
+                  <p className="text-sm text-text-muted mt-1">{current.subtitle}</p>
+                )}
+                <div className="mt-4 space-y-4">
+                  {current.blocks.map((block, i) => (
+                    <SlideBlock key={i} block={block} />
+                  ))}
+                </div>
+              </div>
             )}
-            <div className="mt-4 space-y-4">
-              {current.blocks.map((block, i) => (
-                <SlideBlock key={i} block={block} />
-              ))}
-            </div>
           </motion.article>
 
           {/* Hidden audio element for the current clip, keyed so each slide remounts. */}

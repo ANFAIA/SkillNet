@@ -216,16 +216,19 @@ function ArtifactView({ artifact }: { artifact: MediaArtifactRead }) {
     case 'infographic':
       return (
         <Infographic
+          artifactId={artifact.id}
           title={(spec.title as string) ?? ''}
           subtitle={spec.subtitle as string | null | undefined}
           sections={(spec.sections as InfographicSectionSpec[]) ?? []}
           citations={(spec.citations as InfographicCitation[]) ?? []}
           orientation={spec.orientation as 'portrait' | 'landscape' | undefined}
+          hasImage={(spec.has_image as boolean | undefined) ?? false}
         />
       )
     case 'slides':
       return (
         <SlideDeck
+          artifactId={artifact.id}
           slides={(spec.slides as SlideSpec[]) ?? []}
           citations={(spec.citations as SlideCitation[]) ?? []}
           theme={spec.theme as string | undefined}
