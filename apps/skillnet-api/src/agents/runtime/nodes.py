@@ -465,6 +465,15 @@ async def load_context(state: NodeRuntimeState) -> dict:
             "tutor_signals": list(
                 signal_actions_for_node(getattr(profile, "tutor_notes", None), node.id)
             ),
+            # The learner's narrative memory, trimmed, made available to the render context.
+            # It is DELIBERATELY not fed into the generation prompt here: the render is cached
+            # under a `cache_key` that (correctly) excludes `user_id`, so injecting one
+            # learner's prose into the shared prompt would leak their personalization into a
+            # row served to everyone in the same bucket. Activating generator personalization
+            # needs a coarse, non-identifying memory bucket in the cache_key — see
+            # docs/learner-memory.md ("CONFIRMAR con Jose"). Exposed now so the plumbing is in
+            # place; read today only by the tutor, whose turn is per-user and uncached.
+            "memory_md": _render_memory_for_prompt(getattr(profile, "memory_md", None)),
         }
         state_payload = {
             "state": _plain(getattr(node_state, "state", "not_started")),
@@ -512,6 +521,18 @@ def _plain_or_none(value: object) -> str | None:
     if value is None:
         return None
     return str(getattr(value, "value", value))
+
+
+#: Ceiling on the learner-memory slice carried in the render context (chars). Small: it is
+#: not fed into the (cached) generation prompt today — see the note in ``load_context``.
+_MEMORY_CONTEXT_MAX_CHARS = 800
+
+
+def _render_memory_for_prompt(memory_md: str | None) -> str:
+    """The learner's narrative memory trimmed for the render context; ``""`` when empty."""
+    from src.services.learner_memory import render_for_prompt
+
+    return render_for_prompt(memory_md, max_chars=_MEMORY_CONTEXT_MAX_CHARS)
 
 
 # --------------------------------------------------------------------------- #

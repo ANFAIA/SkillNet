@@ -22,18 +22,24 @@ from fastapi import APIRouter, Query
 from fastapi.responses import Response, StreamingResponse
 
 from src.core.exceptions import NotFoundError, ValidationError
+from src.core.logging import get_logger
 from src.core.sse import format_sse, subscribe
 from src.deps.auth import CurrentUser
 from src.deps.db import DBSession
+from src.models import User, UserRole
 from src.repositories.course_repo import CourseRepository
+from src.repositories.learner_profile_repo import LearnerProfileRepository
 from src.repositories.media_artifact_repo import MediaArtifactRepository
 from src.schemas.media import (
     MediaArtifactAccepted,
     MediaArtifactCreate,
     MediaArtifactRead,
 )
+from src.services.learner_memory import LearnerMemoryService
 from src.services.media.assets import AssetStore
 from src.services.media.jobs import enqueue_artifact, media_channel, spawn_media_job
+
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/media", tags=["Media"])
 
@@ -96,6 +102,45 @@ def _sub_assets(spec_json: dict | None) -> dict[str, str]:
     return refs
 
 
+async def _remember_media_steering(
+    db: DBSession, user: User, body: MediaArtifactCreate
+) -> None:
+    """Record the learner's steering note in their narrative memory (best-effort).
+
+    This is the ONE writer that keeps a short slice of the user's own text verbatim: the
+    "extra info" they typed to steer a generation is exactly the kind of preference the tutor
+    and future generators should honour, so it is worth keeping literally (capped and
+    curated by :class:`LearnerMemoryService`). See ``docs/learner-memory.md``.
+
+    Employee-only (the memory is a learner concept), and never fatal: a failure here must not
+    take down the ``202`` for a generation that is already enqueued and running.
+    """
+    if _role(user) != UserRole.EMPLOYEE.value:
+        return
+    spec = body.spec or {}
+    steering = spec.get("prompt") or spec.get("steering")
+    if not isinstance(steering, str) or not steering.strip():
+        return
+    kind = str(getattr(body.kind, "value", body.kind))
+    try:
+        service = LearnerMemoryService(LearnerProfileRepository(db))
+        await service.note(
+            user_id=user.id,
+            org_id=user.org_id,
+            section="Preferencias de contenido",
+            text=f"Pidió enfoque: «{steering.strip()}» al generar {kind}",
+            source="media",
+        )
+        await db.commit()
+    except Exception as exc:  # noqa: BLE001 - the artifact is already enqueued
+        logger.warning("Could not record media steering in learner memory: %s", exc)
+        await db.rollback()
+
+
+def _role(user: User) -> str:
+    return str(getattr(user.role, "value", user.role))
+
+
 @router.post("/artifacts", response_model=MediaArtifactAccepted, status_code=202)
 async def create_artifact(
     user: CurrentUser, db: DBSession, body: MediaArtifactCreate
@@ -123,6 +168,8 @@ async def create_artifact(
         db, course=course, node=node, kind=body.kind, spec=body.spec
     )
     await db.commit()
+
+    await _remember_media_steering(db, user, body)
 
     spawn_media_job(artifact.id)
     return MediaArtifactAccepted(
