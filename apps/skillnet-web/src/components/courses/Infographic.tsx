@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useIntl } from 'react-intl'
 import { motion } from 'framer-motion'
 import { INLINE_SURFACE, BLOCK_TITLE, BLOCK_EYEBROW } from './blocks/rhythm'
@@ -6,18 +6,19 @@ import { INLINE_SURFACE, BLOCK_TITLE, BLOCK_EYEBROW } from './blocks/rhythm'
 /**
  * Infographic viewer (NotebookLM imitation, roadmap §2d).
  *
- * Renders the grounded content spec as a single stylized HTML/SVG sheet — a title, an
- * optional subtitle, and a grid of stat/section cards. The **key rule of §2d**: the facts
- * and numbers are structured data (`stat`, `one_line`) and are **drawn by us as crisp
- * text**, never baked into a generated image. Any decorative background would be art only.
- * Text comes from enumerated fields; nothing is injected as raw HTML.
+ * The backend renders the grounded spec as one NotebookLM-style **portrait poster** (the
+ * approved gallery look) and serves it as the artifact's main asset. This viewer shows that
+ * image as the visual sheet, fetched through the credentialed asset route into a blob URL
+ * (a plain `<img src>` cannot send the auth cookie the API needs). If the poster is missing
+ * or fails to load, it falls back to the structured stat/section grid drawn from the same
+ * spec, so the artifact is never blank.
  *
- * Theme-aware (design tokens, so light/dark both work) and responsive — it reads like a
- * print-ready sheet. Carries the same **parallel citations panel** as the podcast/slides:
- * each section keeps its `citation_ids` as chips, and the Sources aside resolves each id.
+ * The **parallel citations panel** is kept regardless: each section keeps its `citation_ids`
+ * and the Sources aside resolves each id — the grounding lives in `spec_json`, not the
+ * image. Text comes from enumerated fields; nothing is injected as raw HTML.
  *
  * Additive and self-contained: fed the `spec_json` shape the backend persists (`title`,
- * `sections`, `citations`).
+ * `sections`, `citations`, `has_image`) and the `artifactId`.
  */
 
 export interface InfographicCitation {
@@ -36,25 +37,63 @@ export interface InfographicSectionSpec {
 }
 
 export interface InfographicProps {
+  /** MediaArtifact id — the poster is fetched from `/media/artifacts/{id}/asset`. */
+  artifactId: string
   title: string
   subtitle?: string | null
   sections: InfographicSectionSpec[]
   citations?: InfographicCitation[]
   orientation?: 'portrait' | 'landscape'
+  /** Whether a generated poster image is available as the main asset. */
+  hasImage?: boolean
   /** Called when a citation is activated, so the host can scroll to the passage. */
   onJumpToCitation?: (citationId: string) => void
 }
 
+const BASE = '/api/v1'
+
 export function Infographic({
+  artifactId,
   title,
   subtitle,
   sections,
   citations = [],
   orientation = 'portrait',
+  hasImage = false,
   onJumpToCitation,
 }: InfographicProps) {
   const intl = useIntl()
   const [activeCitation, setActiveCitation] = useState<string | null>(null)
+  const [posterUrl, setPosterUrl] = useState<string | null>(null)
+  const posterRef = useRef<string | null>(null)
+
+  // Fetch the poster through the credentialed asset route into a blob URL. A plain
+  // <img src> cannot send the auth cookie the API needs, so we fetch then object-URL it.
+  useEffect(() => {
+    if (!hasImage) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch(`${BASE}/media/artifacts/${artifactId}/asset`, {
+          credentials: 'include',
+        })
+        if (!res.ok) throw new Error('poster fetch failed')
+        const url = URL.createObjectURL(await res.blob())
+        posterRef.current = url
+        if (!cancelled) setPosterUrl(url)
+        else URL.revokeObjectURL(url)
+      } catch {
+        if (!cancelled) setPosterUrl(null)
+      }
+    })()
+    return () => {
+      cancelled = true
+      if (posterRef.current) {
+        URL.revokeObjectURL(posterRef.current)
+        posterRef.current = null
+      }
+    }
+  }, [artifactId, hasImage])
 
   const usedCitations = useMemo(() => {
     const referenced = new Set(sections.flatMap((s) => s.citation_ids))
@@ -102,8 +141,21 @@ export function Infographic({
       </div>
 
       <div className="grid gap-4 md:grid-cols-[1fr_minmax(0,15rem)]">
-        {/* The sheet */}
+        {/* The sheet — the generated poster when available, else the structured grid */}
         <div className="min-w-0">
+          {posterUrl ? (
+            <figure className="rounded-xl border border-border bg-bg overflow-hidden">
+              <motion.img
+                key={posterUrl}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.2 }}
+                src={posterUrl}
+                alt={title}
+                className="block w-full h-auto"
+              />
+            </figure>
+          ) : (
           <section
             className="rounded-xl border border-border bg-bg p-6"
             aria-label={title}
@@ -168,6 +220,7 @@ export function Infographic({
               })}
             </div>
           </section>
+          )}
         </div>
 
         {/* Sources panel */}

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useIntl } from 'react-intl'
 import { motion } from 'framer-motion'
 import {
@@ -46,15 +46,22 @@ export interface SlideSpec {
   subtitle?: string | null
   blocks: SlideBlockSpec[]
   citation_ids: string[]
+  /** Content hash of this slide's generated illustration, served as a sub-asset. */
+  image_ref?: string
+  image_ext?: string
 }
 
 export interface SlideDeckProps {
+  /** MediaArtifact id — each illustration is fetched from `/media/artifacts/{id}/asset/{ref}`. */
+  artifactId: string
   slides: SlideSpec[]
   citations?: SlideCitation[]
   theme?: string
   /** Called when a citation is activated, so the host can scroll to the passage. */
   onJumpToCitation?: (citationId: string) => void
 }
+
+const BASE = '/api/v1'
 
 /** Map one kit-block spec to the matching frozen kit component. Unknown types render null. */
 function SlideBlock({ block }: { block: SlideBlockSpec }) {
@@ -82,6 +89,7 @@ function SlideBlock({ block }: { block: SlideBlockSpec }) {
 }
 
 export function SlideDeck({
+  artifactId,
   slides,
   citations = [],
   theme,
@@ -90,6 +98,43 @@ export function SlideDeck({
   const intl = useIntl()
   const [index, setIndex] = useState(0)
   const [activeCitation, setActiveCitation] = useState<string | null>(null)
+  // ref -> blob URL for every slide illustration, filled once on mount.
+  const [imageUrls, setImageUrls] = useState<Record<string, string>>({})
+  const urlsRef = useRef<string[]>([])
+
+  // Fetch every slide illustration through the credentialed sub-asset route into blob URLs.
+  // A plain <img src> cannot send the auth cookie the API needs, so we fetch then object-URL.
+  useEffect(() => {
+    let cancelled = false
+    const refs = Array.from(
+      new Set(slides.map((s) => s.image_ref).filter((r): r is string => !!r)),
+    )
+    if (refs.length === 0) return
+    ;(async () => {
+      const map: Record<string, string> = {}
+      await Promise.all(
+        refs.map(async (ref) => {
+          try {
+            const res = await fetch(`${BASE}/media/artifacts/${artifactId}/asset/${ref}`, {
+              credentials: 'include',
+            })
+            if (!res.ok) return
+            const url = URL.createObjectURL(await res.blob())
+            urlsRef.current.push(url)
+            map[ref] = url
+          } catch {
+            /* a missing illustration falls back to the kit blocks */
+          }
+        }),
+      )
+      if (!cancelled) setImageUrls(map)
+    })()
+    return () => {
+      cancelled = true
+      for (const url of urlsRef.current) URL.revokeObjectURL(url)
+      urlsRef.current = []
+    }
+  }, [artifactId, slides])
 
   const total = slides.length
   const clamp = useCallback(
@@ -205,18 +250,38 @@ export function SlideDeck({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.15 }}
-            className="rounded-xl border border-border bg-bg p-5 min-h-[16rem]"
+            className="rounded-xl border border-border bg-bg overflow-hidden min-h-[16rem]"
             aria-label={current.title}
           >
-            <h4 className="text-lg font-semibold text-text">{current.title}</h4>
-            {current.subtitle && (
-              <p className="text-sm text-text-muted mt-1">{current.subtitle}</p>
+            {current.image_ref && imageUrls[current.image_ref] ? (
+              // The generated illustration is the slide; the title stays as a caption.
+              <>
+                <img
+                  src={imageUrls[current.image_ref]}
+                  alt={current.title}
+                  className="block w-full h-auto"
+                />
+                <div className="p-5 pt-4">
+                  <h4 className="text-lg font-semibold text-text">{current.title}</h4>
+                  {current.subtitle && (
+                    <p className="text-sm text-text-muted mt-1">{current.subtitle}</p>
+                  )}
+                </div>
+              </>
+            ) : (
+              // No illustration (not generated / failed): fall back to the kit blocks.
+              <div className="p-5">
+                <h4 className="text-lg font-semibold text-text">{current.title}</h4>
+                {current.subtitle && (
+                  <p className="text-sm text-text-muted mt-1">{current.subtitle}</p>
+                )}
+                <div className="mt-4 space-y-4">
+                  {current.blocks.map((block, i) => (
+                    <SlideBlock key={i} block={block} />
+                  ))}
+                </div>
+              </div>
             )}
-            <div className="mt-4 space-y-4">
-              {current.blocks.map((block, i) => (
-                <SlideBlock key={i} block={block} />
-              ))}
-            </div>
           </motion.article>
 
           {/* Footnote citation chips for the current slide */}
