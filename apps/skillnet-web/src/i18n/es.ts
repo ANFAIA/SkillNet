@@ -46,6 +46,15 @@ export const es: Record<string, string> = {
   'buddy.hint.last': 'A ver que tal se te da!',
   'buddy.hint.default': 'Sigue asi!',
 
+  // Mascota companion (saludo + lectura en voz al entrar en un nodo)
+  'mascota.greeting': 'Vamos con «{title}». Si quieres, te leo la idea.',
+  'mascota.listen': 'Escuchar',
+  'mascota.stop': 'Parar',
+  'mascota.reading': 'Leyendo...',
+  'mascota.dismiss': 'Cerrar mensaje',
+  'mascota.readAloudToggle': 'Leer en voz',
+  'mascota.unavailable': 'Audio no disponible',
+
   // Node chat (sidebar panel)
   'nodeChat.empty': 'Preguntame lo que quieras sobre esta leccion.',
   'nodeChat.placeholder': 'Escribe tu pregunta...',
