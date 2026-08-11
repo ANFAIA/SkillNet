@@ -9,6 +9,7 @@ import {
   TextContentBlock,
 } from './blocks'
 import { INLINE_SURFACE, BLOCK_TITLE, BLOCK_EYEBROW } from './blocks/rhythm'
+import { SourcesDisclosure } from './SourcesDisclosure'
 import type { SlideBlockSpec, SlideCitation } from './SlideDeck'
 
 /**
@@ -288,7 +289,7 @@ export function VideoOverview({
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-[1fr_minmax(0,15rem)]">
+      <div>
         <div className="min-w-0">
           {/* The stage: the current slide */}
           <motion.article
@@ -454,11 +455,11 @@ export function VideoOverview({
           </div>
         </div>
 
-        {/* Sources panel */}
-        <aside className="min-w-0 md:border-l md:border-border md:pl-4">
-          <p className={BLOCK_EYEBROW + ' text-text-muted'}>
-            {intl.formatMessage({ id: 'video.sources' })}
-          </p>
+        {/* Sources — collapsed by default */}
+        <SourcesDisclosure
+          label={intl.formatMessage({ id: 'video.sources' })}
+          count={usedCitations.length}
+        >
           {usedCitations.length === 0 ? (
             <p className="text-xs text-text-muted">
               {intl.formatMessage({ id: 'video.noSources' })}
@@ -494,7 +495,7 @@ export function VideoOverview({
               })}
             </ul>
           )}
-        </aside>
+        </SourcesDisclosure>
       </div>
     </div>
   )

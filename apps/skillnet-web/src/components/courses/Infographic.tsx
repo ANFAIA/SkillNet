@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useIntl } from 'react-intl'
 import { motion } from 'framer-motion'
-import { INLINE_SURFACE, BLOCK_TITLE, BLOCK_EYEBROW } from './blocks/rhythm'
+import { INLINE_SURFACE, BLOCK_TITLE } from './blocks/rhythm'
+import { SourcesDisclosure } from './SourcesDisclosure'
 
 /**
  * Infographic viewer (NotebookLM imitation, roadmap §2d).
@@ -140,7 +141,7 @@ export function Infographic({
         </h3>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-[1fr_minmax(0,15rem)]">
+      <div>
         {/* The sheet — the generated poster when available, else the structured grid */}
         <div className="min-w-0">
           {posterUrl ? (
@@ -223,11 +224,11 @@ export function Infographic({
           )}
         </div>
 
-        {/* Sources panel */}
-        <aside className="min-w-0 md:border-l md:border-border md:pl-4">
-          <p className={BLOCK_EYEBROW + ' text-text-muted'}>
-            {intl.formatMessage({ id: 'infographic.sources' })}
-          </p>
+        {/* Sources — collapsed by default */}
+        <SourcesDisclosure
+          label={intl.formatMessage({ id: 'infographic.sources' })}
+          count={usedCitations.length}
+        >
           {usedCitations.length === 0 ? (
             <p className="text-xs text-text-muted">
               {intl.formatMessage({ id: 'infographic.noSources' })}
@@ -258,7 +259,7 @@ export function Infographic({
               ))}
             </ul>
           )}
-        </aside>
+        </SourcesDisclosure>
       </div>
     </div>
   )

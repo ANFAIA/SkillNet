@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useIntl } from 'react-intl'
 import { motion } from 'framer-motion'
 import { INLINE_SURFACE, BLOCK_TITLE, BLOCK_EYEBROW } from './blocks/rhythm'
+import { SourcesDisclosure } from './SourcesDisclosure'
 
 /**
  * Course-level Audio Overview / Podcast player (NotebookLM imitation, roadmap §2a).
@@ -172,8 +173,8 @@ export function PodcastPlayer({
         )}
       </div>
 
-      {/* Parallel layout: transcript | sources */}
-      <div className="grid gap-4 md:grid-cols-[1fr_minmax(0,15rem)]">
+      {/* The transcript up front; provenance on demand in the disclosure below */}
+      <div>
         {/* Transcript */}
         <div className="min-w-0">
           <p className={BLOCK_EYEBROW + ' text-text-muted'}>
@@ -223,11 +224,11 @@ export function PodcastPlayer({
           </ol>
         </div>
 
-        {/* Sources panel */}
-        <aside className="min-w-0 md:border-l md:border-border md:pl-4">
-          <p className={BLOCK_EYEBROW + ' text-text-muted'}>
-            {intl.formatMessage({ id: 'podcast.sources' })}
-          </p>
+        {/* Sources — collapsed by default */}
+        <SourcesDisclosure
+          label={intl.formatMessage({ id: 'podcast.sources' })}
+          count={usedCitations.length}
+        >
           {usedCitations.length === 0 ? (
             <p className="text-xs text-text-muted">
               {intl.formatMessage({ id: 'podcast.noSources' })}
@@ -258,7 +259,7 @@ export function PodcastPlayer({
               ))}
             </ul>
           )}
-        </aside>
+        </SourcesDisclosure>
       </div>
     </div>
   )
