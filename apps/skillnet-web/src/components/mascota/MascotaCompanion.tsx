@@ -1,25 +1,22 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { useIntl } from 'react-intl'
 import { Mascota } from './Mascota'
 import type { MascotaAnim } from './Mascota'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
-import { duration, ease } from '../../lib/motion'
 import { usePreferences } from '../../stores/preferences'
 
 /**
  * The mascot as a proactive companion (inspired by Brilliant's "Koji").
  *
- * On entering a node it does two things without being asked:
- *  1. shows a short, contextual speech bubble that names the node, and
- *  2. auto-reads the node's opening sentence aloud through the TTS endpoint
- *     (`POST /api/v1/tts/synthesize`, cached server-side) — no click needed.
- *
- * Read-aloud is on by default. A single speaker button in the bubble is the
- * mute toggle: a normal speaker icon while reading, a slashed speaker when
- * muted. Clicking it mutes — stopping any playback at once and suppressing the
- * auto-read on later nodes — and clicking again un-mutes. The muted state is
- * persisted (`mascotaMuted` in the preferences store).
+ * On entering a node, unless muted, it auto-reads the node's opening sentence
+ * aloud through the TTS endpoint (`POST /api/v1/tts/synthesize`, cached
+ * server-side) — no click needed. The only control is a single SVG speaker
+ * icon next to the mascot: a normal speaker while unmuted, a slashed speaker
+ * when muted. Clicking it mutes — stopping any playback at once and suppressing
+ * the auto-read on later nodes — and clicking again un-mutes and reads the
+ * current node. The muted state is persisted (`mascotaMuted`); default is
+ * not muted.
  *
  * Browser autoplay policy: `audio.play()` may reject before any user gesture,
  * so the very first node can stay silent. We attempt the read best-effort and
@@ -34,13 +31,13 @@ import { usePreferences } from '../../stores/preferences'
 const BASE = '/api/v1'
 /** TTS is short-form here: one or two sentences. Keep the request tiny. */
 const MAX_READ_CHARS = 240
-/** Let the node settle before the bubble arrives — a greeting, not a pop-up. */
-const GREETING_DELAY_MS = 650
+/** Let the node settle before the auto-read begins — a greeting, not a pop-up. */
+const READ_DELAY_MS = 650
 
 export interface MascotaCompanionProps {
-  /** Changes per node; drives the per-node greeting reset. */
+  /** Changes per node; drives the per-node auto-read reset. */
   nodeId: string
-  /** Node title — woven into the contextual greeting. */
+  /** Node title — the fallback read text when the node has no summary. */
   title: string
   /** Node summary — the grounded source for the read-aloud (its own text). */
   summary: string | null
@@ -63,8 +60,6 @@ function readableLead(summary: string | null | undefined, title: string): string
   return first.length > MAX_READ_CHARS ? `${first.slice(0, MAX_READ_CHARS).trim()}…` : first
 }
 
-type PlayState = 'idle' | 'loading' | 'playing'
-
 export function MascotaCompanion({ nodeId, title, summary, fx, onOpenChat }: MascotaCompanionProps) {
   const intl = useIntl()
   const reduceMotion = useReducedMotion()
@@ -72,9 +67,7 @@ export function MascotaCompanion({ nodeId, title, summary, fx, onOpenChat }: Mas
   const muted = usePreferences((s) => s.mascotaMuted)
   const setMascotaMuted = usePreferences((s) => s.setMascotaMuted)
 
-  const [bubbleVisible, setBubbleVisible] = useState(false)
-  const [play, setPlay] = useState<PlayState>('idle')
-  const [error, setError] = useState(false)
+  const [playing, setPlaying] = useState(false)
 
   const readText = useMemo(() => readableLead(summary, title), [summary, title])
 
@@ -94,13 +87,11 @@ export function MascotaCompanion({ nodeId, title, summary, fx, onOpenChat }: Mas
       URL.revokeObjectURL(objectUrlRef.current)
       objectUrlRef.current = null
     }
-    setPlay('idle')
+    setPlaying(false)
   }, [])
 
   const speak = useCallback(async () => {
-    setError(false)
     stop()
-    setPlay('loading')
     try {
       let blob = blobCacheRef.current.get(nodeId)
       if (!blob) {
@@ -120,63 +111,47 @@ export function MascotaCompanion({ nodeId, title, summary, fx, onOpenChat }: Mas
       const audio = new Audio(url)
       audioRef.current = audio
       audio.addEventListener('ended', stop)
-      audio.addEventListener('error', () => {
-        setError(true)
-        stop()
-      })
+      audio.addEventListener('error', stop)
       await audio.play()
-      setPlay('playing')
+      setPlaying(true)
     } catch {
-      // A blocked autoplay throws too; only surface a message for a real click.
-      setPlay('idle')
+      // A blocked autoplay throws too; stay silent, no error nag.
+      setPlaying(false)
       throw new Error('speak failed')
     }
   }, [nodeId, readText, locale, stop])
 
-  // The speaker button is a mute toggle. Muting stops playback at once and
-  // blocks the auto-read on later nodes; un-muting is a user gesture, so we
-  // read the current node's opening right away (best-effort, no nag).
+  // The speaker icon is a mute toggle. Muting stops playback at once and blocks
+  // the auto-read on later nodes; un-muting is a user gesture, so we read the
+  // current node's opening right away (best-effort, no nag).
   const handleToggleMute = useCallback(() => {
     const next = !muted
     setMascotaMuted(next)
     if (next) {
       stop()
     } else {
-      setError(false)
       void speak().catch(() => undefined)
     }
   }, [muted, setMascotaMuted, stop, speak])
 
-  // Per-node greeting: reset, then show the bubble after a short beat and, unless
-  // muted, auto-read the opening on the same beat — silently, since a blocked
-  // play() (autoplay policy) must not nag.
+  // Per-node auto-read: stop the previous node, then read the opening after a
+  // short beat unless muted — silently, since a blocked play() (autoplay policy)
+  // must not nag.
   useEffect(() => {
-    setBubbleVisible(false)
-    setError(false)
     stop()
     const timer = window.setTimeout(() => {
-      setBubbleVisible(true)
       if (!muted) void speak().catch(() => undefined)
-    }, GREETING_DELAY_MS)
+    }, READ_DELAY_MS)
     return () => window.clearTimeout(timer)
     // `speak`/`stop` are stable per node; re-running only when the node changes
-    // is the intent (one greeting per node). `muted` is read fresh inside.
+    // is the intent (one read per node). `muted` is read fresh inside.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nodeId])
 
   // Stop any audio when the companion leaves the screen.
   useEffect(() => stop, [stop])
 
-  const speaking = play === 'playing'
-  const anim: MascotaAnim = fx ?? (speaking ? 'talk' : 'idle')
-
-  const bubbleMotion = reduceMotion
-    ? { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 } }
-    : {
-        initial: { opacity: 0, scale: 0.94, y: 6 },
-        animate: { opacity: 1, scale: 1, y: 0 },
-        exit: { opacity: 0, scale: 0.94, y: 6 },
-      }
+  const anim: MascotaAnim = fx ?? (playing ? 'talk' : 'idle')
 
   return (
     <div className="flex items-end gap-2 md:gap-3" data-no-explain="">
@@ -193,78 +168,28 @@ export function MascotaCompanion({ nodeId, title, summary, fx, onOpenChat }: Mas
         <Mascota anim={anim} size="100%" followCursor />
       </motion.button>
 
-      {/* Contextual bubble with the read-aloud affordance. */}
-      <AnimatePresence>
-        {bubbleVisible && (
-          <motion.div
-            key="bubble"
-            {...bubbleMotion}
-            transition={{ duration: duration.normal, ease: [...ease.base] }}
-            className="mb-1 max-w-[210px] md:max-w-[260px] rounded-2xl rounded-bl-sm border border-border bg-bg shadow-sm px-3 py-2.5"
-            role="status"
-          >
-            <div className="flex items-start gap-2">
-              <p className="flex-1 text-xs leading-relaxed text-text">
-                {intl.formatMessage({ id: 'mascota.greeting' }, { title })}
-              </p>
-              <button
-                type="button"
-                onClick={() => setBubbleVisible(false)}
-                className="shrink-0 -mr-1 -mt-0.5 p-1 text-text-muted hover:text-text transition-colors leading-none"
-                aria-label={intl.formatMessage({ id: 'mascota.dismiss' })}
-              >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
-                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
-              </button>
-            </div>
-
-            <div className="mt-2 flex items-center gap-2">
-              {/* Speaker = mute toggle. Icon reflects state; a spinner shows
-                  while the (unmuted) read is being fetched. */}
-              <button
-                type="button"
-                onClick={handleToggleMute}
-                aria-pressed={muted}
-                aria-label={intl.formatMessage({ id: muted ? 'mascota.unmute' : 'mascota.mute' })}
-                className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-lg cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-1 ${
-                  muted
-                    ? 'border border-border text-text-muted hover:text-text'
-                    : 'bg-primary text-white'
-                }`}
-              >
-                {!muted && play === 'loading' ? (
-                  <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
-                ) : muted ? (
-                  <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-                    <line x1="23" y1="9" x2="17" y2="15" /><line x1="17" y1="9" x2="23" y2="15" />
-                  </svg>
-                ) : (
-                  <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-                    <path d="M15.54 8.46a5 5 0 0 1 0 7.07" /><path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
-                  </svg>
-                )}
-                <span>
-                  {!muted && play === 'loading'
-                    ? intl.formatMessage({ id: 'mascota.reading' })
-                    : intl.formatMessage({ id: 'mascota.readAloudToggle' })}
-                </span>
-              </button>
-            </div>
-
-            {error && (
-              <p className="mt-1.5 text-[11px] text-danger" role="alert">
-                {intl.formatMessage({ id: 'mascota.unavailable' })}
-              </p>
-            )}
-          </motion.div>
+      {/* The one control: an SVG speaker that toggles mute. */}
+      <button
+        type="button"
+        onClick={handleToggleMute}
+        aria-pressed={muted}
+        aria-label={intl.formatMessage({ id: muted ? 'mascota.unmute' : 'mascota.mute' })}
+        className={`mb-1 shrink-0 inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-bg shadow-sm transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-1 ${
+          muted ? 'text-text-muted hover:text-text' : 'text-primary hover:text-primary/80'
+        }`}
+      >
+        {muted ? (
+          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+            <line x1="23" y1="9" x2="17" y2="15" /><line x1="17" y1="9" x2="23" y2="15" />
+          </svg>
+        ) : (
+          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+            <path d="M15.54 8.46a5 5 0 0 1 0 7.07" /><path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+          </svg>
         )}
-      </AnimatePresence>
+      </button>
     </div>
   )
 }
