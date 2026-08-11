@@ -11,6 +11,7 @@ import pytest
 
 from src.models import MediaKind
 from src.services.media.grounding import GroundedBundle, GroundedPassage
+from src.services.media.infographic import generator as generator_mod
 from src.services.media.infographic import spec as spec_mod
 from src.services.media.infographic.generator import InfographicGenerator
 from src.services.media.infographic.spec import (
@@ -159,6 +160,14 @@ async def test_generator_persists_sections_citations_and_emits_progress(
 
     monkeypatch.setattr(spec_mod, "generate_infographic", fake_generate)
 
+    prompts: list[tuple[str, str]] = []
+
+    async def fake_image(prompt, *, size, **kwargs):
+        prompts.append((prompt, size))
+        return b"PNG-POSTER"
+
+    monkeypatch.setattr(generator_mod, "generate_image", fake_image)
+
     steps: list[tuple[str, dict]] = []
 
     async def report(step: str, extra: dict) -> None:
@@ -172,16 +181,46 @@ async def test_generator_persists_sections_citations_and_emits_progress(
     )
     produced = await InfographicGenerator().generate(ctx)
 
-    # Spec-only by design: no image-baked facts, no bytes.
-    assert produced.data is None
+    # The NotebookLM portrait poster is the artifact's main asset.
+    assert produced.data == b"PNG-POSTER"
+    assert produced.ext == "png"
+    # Rendered as a portrait, from a prompt carrying the extracted facts.
+    assert prompts and prompts[0][1] == "1024x1536"
+    assert "30 dias" in prompts[0][0]
     spec = produced.spec_json
     assert spec["generator"] == "infographic"
     assert spec["grounding_mode"] == "chunks"
+    assert spec["has_image"] is True
+    # The facts stay in spec_json for the parallel citations panel.
     assert len(spec["sections"]) == 2
     assert spec["sections"][0]["stat"] == "30 dias"
     assert [s["citation_ids"] for s in spec["sections"]] == [["c1"], ["c2"]]
     assert {c["citation_id"] for c in spec["citations"]} == {"c1", "c2"}
-    assert [s[0] for s in steps] == ["datos", "listo"]
+    assert [s[0] for s in steps] == ["datos", "imagen", "listo"]
+
+
+@pytest.mark.asyncio
+async def test_generator_degrades_to_spec_only_when_image_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def fake_generate(bundle, **kwargs):
+        return parse_infographic(json.dumps(_valid_payload()), valid_ids=["c1", "c2"])
+
+    async def failing_image(prompt, *, size, **kwargs):
+        raise RuntimeError("image provider down")
+
+    monkeypatch.setattr(spec_mod, "generate_infographic", fake_generate)
+    monkeypatch.setattr(generator_mod, "generate_image", failing_image)
+
+    ctx = MediaJobContext(
+        kind=MediaKind.INFOGRAPHIC, spec={"language": "es"}, bundle=_bundle("c1", "c2")
+    )
+    produced = await InfographicGenerator().generate(ctx)
+
+    # A failed image is not a failed job: no bytes, but the facts still ship.
+    assert produced.data is None
+    assert produced.spec_json["has_image"] is False
+    assert len(produced.spec_json["sections"]) == 2
 
 
 @pytest.mark.asyncio
@@ -191,7 +230,11 @@ async def test_generator_without_progress_reporter_is_silent(
     async def fake_generate(bundle, **kwargs):
         return parse_infographic(json.dumps(_valid_payload()), valid_ids=[])
 
+    async def fake_image(prompt, *, size, **kwargs):
+        return b"PNG-POSTER"
+
     monkeypatch.setattr(spec_mod, "generate_infographic", fake_generate)
+    monkeypatch.setattr(generator_mod, "generate_image", fake_image)
 
     ctx = MediaJobContext(kind=MediaKind.INFOGRAPHIC, spec={}, bundle=_bundle())
     produced = await InfographicGenerator().generate(ctx)
