@@ -8,7 +8,8 @@ import {
   TableBlock,
   TextContentBlock,
 } from './blocks'
-import { INLINE_SURFACE, BLOCK_TITLE, BLOCK_EYEBROW } from './blocks/rhythm'
+import { INLINE_SURFACE, BLOCK_TITLE } from './blocks/rhythm'
+import { SourcesDisclosure } from './SourcesDisclosure'
 
 /**
  * Slide Deck viewer (NotebookLM imitation, roadmap §2c).
@@ -242,7 +243,7 @@ export function SlideDeck({
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-[1fr_minmax(0,15rem)]">
+      <div>
         {/* The slide */}
         <div className="min-w-0">
           <motion.article
@@ -338,11 +339,11 @@ export function SlideDeck({
           </div>
         </div>
 
-        {/* Sources panel */}
-        <aside className="min-w-0 md:border-l md:border-border md:pl-4">
-          <p className={BLOCK_EYEBROW + ' text-text-muted'}>
-            {intl.formatMessage({ id: 'slides.sources' })}
-          </p>
+        {/* Sources — collapsed by default */}
+        <SourcesDisclosure
+          label={intl.formatMessage({ id: 'slides.sources' })}
+          count={usedCitations.length}
+        >
           {usedCitations.length === 0 ? (
             <p className="text-xs text-text-muted">
               {intl.formatMessage({ id: 'slides.noSources' })}
@@ -378,7 +379,7 @@ export function SlideDeck({
               })}
             </ul>
           )}
-        </aside>
+        </SourcesDisclosure>
       </div>
     </div>
   )
