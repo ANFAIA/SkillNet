@@ -11,16 +11,20 @@ import { usePreferences } from '../../stores/preferences'
  * The mascot as a proactive companion (inspired by Brilliant's "Koji").
  *
  * On entering a node it does two things without being asked:
- *  1. shows a short, contextual speech bubble that names the node and offers to
- *     read its opening aloud, and
- *  2. exposes a "🔊 Escuchar" affordance that plays the node's first sentence
- *     through the TTS endpoint (`POST /api/v1/tts/synthesize`, cached server-side).
+ *  1. shows a short, contextual speech bubble that names the node, and
+ *  2. auto-reads the node's opening sentence aloud through the TTS endpoint
+ *     (`POST /api/v1/tts/synthesize`, cached server-side) — no click needed.
  *
- * Audio never autoplays on load — browsers block it and it is intrusive. The
- * mascot auto-*shows* the message; the sound only plays on the learner's click.
- * The one exception is the persisted "leer en voz" preference: once the learner
- * has enabled it (itself a user gesture), the following nodes read on entry, and
- * a blocked `play()` fails silently rather than nagging.
+ * Read-aloud is on by default. A single speaker button in the bubble is the
+ * mute toggle: a normal speaker icon while reading, a slashed speaker when
+ * muted. Clicking it mutes — stopping any playback at once and suppressing the
+ * auto-read on later nodes — and clicking again un-mutes. The muted state is
+ * persisted (`mascotaMuted` in the preferences store).
+ *
+ * Browser autoplay policy: `audio.play()` may reject before any user gesture,
+ * so the very first node can stay silent. We attempt the read best-effort and
+ * swallow the rejection (no error nag); it succeeds on the next node once any
+ * gesture has happened, and un-muting is itself a gesture that reads right away.
  *
  * Feedback reactions still win: `fx` (celebrar / ups, reported by an exercise)
  * overrides the talking animation so the existing celebrate/oops behaviour is
@@ -65,8 +69,8 @@ export function MascotaCompanion({ nodeId, title, summary, fx, onOpenChat }: Mas
   const intl = useIntl()
   const reduceMotion = useReducedMotion()
   const locale = usePreferences((s) => s.locale)
-  const readAloud = usePreferences((s) => s.readAloud)
-  const setReadAloud = usePreferences((s) => s.setReadAloud)
+  const muted = usePreferences((s) => s.mascotaMuted)
+  const setMascotaMuted = usePreferences((s) => s.setMascotaMuted)
 
   const [bubbleVisible, setBubbleVisible] = useState(false)
   const [play, setPlay] = useState<PlayState>('idle')
@@ -129,28 +133,34 @@ export function MascotaCompanion({ nodeId, title, summary, fx, onOpenChat }: Mas
     }
   }, [nodeId, readText, locale, stop])
 
-  const handleListen = useCallback(() => {
-    if (play === 'playing' || play === 'loading') {
+  // The speaker button is a mute toggle. Muting stops playback at once and
+  // blocks the auto-read on later nodes; un-muting is a user gesture, so we
+  // read the current node's opening right away (best-effort, no nag).
+  const handleToggleMute = useCallback(() => {
+    const next = !muted
+    setMascotaMuted(next)
+    if (next) {
       stop()
-      return
+    } else {
+      setError(false)
+      void speak().catch(() => undefined)
     }
-    void speak().catch(() => setError(true))
-  }, [play, speak, stop])
+  }, [muted, setMascotaMuted, stop, speak])
 
-  // Per-node greeting: reset, then show the bubble after a short beat. When the
-  // learner has opted into read-aloud, kick off the reading on the same beat —
-  // silently, since a blocked play() must not nag.
+  // Per-node greeting: reset, then show the bubble after a short beat and, unless
+  // muted, auto-read the opening on the same beat — silently, since a blocked
+  // play() (autoplay policy) must not nag.
   useEffect(() => {
     setBubbleVisible(false)
     setError(false)
     stop()
     const timer = window.setTimeout(() => {
       setBubbleVisible(true)
-      if (readAloud) void speak().catch(() => undefined)
+      if (!muted) void speak().catch(() => undefined)
     }, GREETING_DELAY_MS)
     return () => window.clearTimeout(timer)
     // `speak`/`stop` are stable per node; re-running only when the node changes
-    // is the intent (one greeting per node).
+    // is the intent (one greeting per node). `muted` is read fresh inside.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nodeId])
 
@@ -210,47 +220,41 @@ export function MascotaCompanion({ nodeId, title, summary, fx, onOpenChat }: Mas
             </div>
 
             <div className="mt-2 flex items-center gap-2">
+              {/* Speaker = mute toggle. Icon reflects state; a spinner shows
+                  while the (unmuted) read is being fetched. */}
               <button
                 type="button"
-                onClick={handleListen}
-                className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-lg bg-primary text-white disabled:opacity-60 cursor-pointer"
-                aria-label={
-                  speaking || play === 'loading'
-                    ? intl.formatMessage({ id: 'mascota.stop' })
-                    : intl.formatMessage({ id: 'mascota.listen' })
-                }
+                onClick={handleToggleMute}
+                aria-pressed={muted}
+                aria-label={intl.formatMessage({ id: muted ? 'mascota.unmute' : 'mascota.mute' })}
+                className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-lg cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-1 ${
+                  muted
+                    ? 'border border-border text-text-muted hover:text-text'
+                    : 'bg-primary text-white'
+                }`}
               >
-                {play === 'loading' ? (
-                  <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                {!muted && play === 'loading' ? (
+                  <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                   </svg>
-                ) : speaking ? (
-                  <svg className="h-3 w-3" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                    <rect x="6" y="4" width="4" height="16" rx="1" /><rect x="14" y="4" width="4" height="16" rx="1" />
+                ) : muted ? (
+                  <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                    <line x1="23" y1="9" x2="17" y2="15" /><line x1="17" y1="9" x2="23" y2="15" />
                   </svg>
                 ) : (
-                  <span aria-hidden="true">🔊</span>
+                  <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                    <path d="M15.54 8.46a5 5 0 0 1 0 7.07" /><path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+                  </svg>
                 )}
                 <span>
-                  {play === 'loading'
+                  {!muted && play === 'loading'
                     ? intl.formatMessage({ id: 'mascota.reading' })
-                    : speaking
-                      ? intl.formatMessage({ id: 'mascota.stop' })
-                      : intl.formatMessage({ id: 'mascota.listen' })}
+                    : intl.formatMessage({ id: 'mascota.readAloudToggle' })}
                 </span>
               </button>
-
-              {/* Opt-in: once enabled (a gesture), later nodes read on entry. */}
-              <label className="inline-flex items-center gap-1 text-[11px] text-text-muted cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={readAloud}
-                  onChange={(e) => setReadAloud(e.target.checked)}
-                  className="h-3 w-3 accent-[var(--color-primary)] cursor-pointer"
-                />
-                {intl.formatMessage({ id: 'mascota.readAloudToggle' })}
-              </label>
             </div>
 
             {error && (
