@@ -85,7 +85,7 @@ de este PR:
 | Neurotipos en `screens.md` | `screens.md` §Employee Settings ("optional: TEA, TDAH, dislexia flags", línea 213) **queda derogado** por la decisión de no almacenar neurotipo. Se corrige en el mismo `chore` de rutas (§14.2 #8), junto con `design-system.md` §Skeleton, que documenta `animate-pulse` mientras `motion-system.md:437,636` lo prohíbe |
 | Escala de dominio primaria | **`mastery` real 0..1** por `(user, node)`, más un enum `node_state` derivado. Shu-Ha-Ri y Bloom son derivaciones, no estado primario |
 | Escala de rating | La existente: `score` real 0..1 (igual que `exercise_attempts`). Sin Rating 1-4 |
-| Preferencia de modalidad | **No se pregunta.** Se infiere del `format_vector`. Sí se pregunta el **preset de presentación** (enum `learning_profile` ya existente) |
+| Preferencia de modalidad | El usuario puede pedir explícitamente imagen, audio, vídeo o texto cuando el kit los soporte. La preferencia declarada prevalece; `format_vector` queda como señal inferida secundaria. Véase [`adaptive-learning.md`](adaptive-learning.md) |
 | Neurodivergencia | **No se almacena etiqueta de neurotipo** (dato de salud, art. 9 RGPD). Sólo ajustes de lectura neutros opt-in en `users.accessibility` |
 | Naturaleza de la validación del creador | **Gate bloqueante** por estado en BD (`schema_status`), no `interrupt()` de LangGraph — sobrevive a reinicios del proceso |
 | Provider LLM | litellm, provider-agnóstico. Los dos niveles del router son **purposes** (`runtime_fast`, `runtime_heavy`), no proveedores. Groq es un valor posible de env var, no una dependencia |
@@ -1608,13 +1608,15 @@ redirige a /onboarding  ⇔  features.dynamic_courses === 'on'
 | 4 | "¿Cómo prefieres estudiar?" | Estándar / Concentración / Ritmo rápido, con una línea de descripción cada uno | `preset` (+ espejo en `users.learning_profile`) | Es **presentación**, no modalidad. Da autonomía real y es reversible sin restricciones |
 | 5 | "¿Quieres activar algún ajuste de lectura? (opcional)" | checkboxes: bloques cortos · menos animaciones · más contraste · sin límite de tiempo | `users.accessibility` | Sin diagnóstico, sin etiqueta. **"Leer en voz alta" se elimina**: no hay TTS en este PR ni componente de audio en el kit, y ofrecer una acomodación inexistente es peor que no ofrecerla. "Bloques más cortos" sí es real: se traduce a `effective_density ≤ 2` en el servidor (§3.1) |
 
-### 6.3 Lo que deliberadamente NO se pregunta
+### 6.3 Lo que no se fuerza durante este onboarding
 
 - **Nivel inicial mediante test.** El sistema ajusta por rendimiento; el pre-assessment por nodo ya
   hace ese trabajo, y mejor, porque es por competencia y no global.
-- **Formato preferido** (¿vídeo, texto, audio?). Se deduce del `format_vector`. Además, el
-  emparejamiento con "estilos de aprendizaje" tiene un tamaño de efecto de d≈0.04 — esencialmente
-  cero. Preguntarlo daría una señal ruidosa y una promesa que no mejora el aprendizaje.
+- **Formato preferido** (¿vídeo, texto, audio?). No se fuerza como pregunta inicial ni se convierte
+  en una etiqueta de "estilo de aprendizaje". Sin embargo, cualquier elección explícita posterior
+  se respeta y prevalece sobre el `format_vector`. La modalidad pedida puede combinar distintas
+  estrategias pedagógicas —recuperación, autoexplicación, contraste o escenario— sin sustituir la
+  elección del usuario. Véase [`adaptive-learning.md`](adaptive-learning.md).
 - **Diagnósticos de neurodivergencia.** Un diagnóstico es dato de salud (categoría especial,
   art. 9 RGPD) y no hace falta: los ajustes concretos de la pregunta 5 producen el mismo resultado
   funcional sin el riesgo legal. La pregunta 5 pregunta por **necesidades**, no por condiciones.

@@ -327,3 +327,26 @@ Si después de la fase 2 son cuatro y todas locales, la arquitectura funcionó. 
 tocar `shape.py`, no.
 
 Esa cifra se mide la primera vez que se añada uno.
+
+---
+
+## 11. Frontera con la librería externa de componentes
+
+El catálogo visual se está desarrollando como una librería independiente y sustituirá
+gradualmente los componentes actuales. SkillNet no debe duplicar su implementación ni acoplar su
+razonamiento pedagógico a componentes React concretos.
+
+La frontera es:
+
+- **La librería posee** el esquema de props, renderizado, estados interactivos, accesibilidad y
+  versionado de cada componente.
+- **SkillNet posee** la función pedagógica, las condiciones de uso, los requisitos de evidencia, la
+  selección, la política de coste y la interpretación de eventos de aprendizaje.
+- **El descriptor versionado compartido** conecta ambos lados mediante un `component_id` estable,
+  `props_schema`, capacidades de presentación, requisitos, eventos y metadatos pedagógicos.
+
+Durante la migración convivirán adaptadores antiguos y componentes de la librería. Cada sustitución
+debe superar specs doradas de estructura, accesibilidad y eventos antes de retirar el bloque local;
+el nombre del componente no debe aparecer cableado de nuevo en detectores centrales. El contrato
+completo y su relación con QTI, H5P y xAPI se describe en
+[`adaptive-learning.md`](adaptive-learning.md).

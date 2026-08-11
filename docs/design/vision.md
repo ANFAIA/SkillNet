@@ -53,13 +53,13 @@ This is not personalization as a feature. It's the default behavior of a system 
 | **PageIndex pattern for tutor retrieval** | Course content is already structured (modules > lessons). Use that structure instead of embedding everything. Two SQL queries + one short LLM call beats semantic search for in-course questions. |
 | **Provider-agnostic LLM layer** | The model will change. The architecture shouldn't depend on any specific provider. Any OpenAI-compatible API works. |
 | **Self-hosted, one instance per company** | Company training data is sensitive. Multi-tenancy adds complexity and risk. One instance per company is simpler and more trustworthy. |
-| **Exercise attempts, chat logs, spaced repetition tracked** | Not for the MVP dashboard. For the future learning loop. Every interaction is data that makes the system smarter. The schema supports it from day one. |
+| **Exercise attempts and learning events tracked** | Not for vanity analytics. They support the future learning loop: separate preference, engagement and effectiveness. Spaced repetition is not on the current roadmap; see [adaptive-learning.md](adaptive-learning.md). |
 
 ## What This Means for the Roadmap
 
 **MVP (now):** Generate courses from documents. Employees take them. Admin sees progress. The system is static but well-architected for adaptation.
 
-**Phase 2:** Tutor agent that adapts to each employee. Spaced repetition. Skill levels that reflect real ability, not just completion.
+**Phase 2:** Tutor agent that adapts to each employee. Mixed learning strategies that respect explicit presentation preferences. Skill levels that reflect real ability, not just completion.
 
 **Phase 3:** Adaptive regeneration — the system identifies weak modules from real data and regenerates them. Living content that stays in sync with company documentation.
 
