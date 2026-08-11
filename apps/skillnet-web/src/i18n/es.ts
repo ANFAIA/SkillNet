@@ -614,6 +614,8 @@ export const es: Record<string, string> = {
   'overviews.title': 'Resumenes',
   'overviews.subtitle': 'Genera un podcast, video, infografia o diapositivas del curso.',
   'overviews.generate': 'Generar',
+  'overviews.steeringPlaceholder': 'Anade un enfoque o informacion extra (opcional)',
+  'overviews.steeringLabel': 'Enfoque o informacion extra para la generacion',
   'overviews.kind.podcast': 'Podcast',
   'overviews.kind.video': 'Video',
   'overviews.kind.infographic': 'Infografia',

@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react'
 import { useIntl } from 'react-intl'
+import { AnimatePresence, motion } from 'framer-motion'
 import { Card, Modal, EmptyState } from '../ui'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
 import {
@@ -252,6 +253,10 @@ export function CourseOverviews({ courseId }: { courseId: string }) {
 
   // The kind of the job currently streaming, for the progress line.
   const [activeKind, setActiveKind] = useState<MediaKind | null>(null)
+  // The kind the user picked to configure (reveals the optional steering input), and the
+  // free-form focus/extra-info they typed before generating. Empty steering is allowed.
+  const [selectedKind, setSelectedKind] = useState<MediaKind | null>(null)
+  const [steering, setSteering] = useState('')
   const [openArtifact, setOpenArtifact] = useState<MediaArtifactRead | null>(null)
   const [origin, setOrigin] = useState<DOMRect | null>(null)
 
@@ -263,11 +268,26 @@ export function CourseOverviews({ courseId }: { courseId: string }) {
   const streamRef = useRef(stream)
   streamRef.current = stream
 
+  // Picking a kind reveals its steering input rather than generating straight away; picking
+  // the same one again closes it. A fresh pick starts from an empty steering field.
+  const selectKind = useCallback((kind: MediaKind) => {
+    setSelectedKind((prev) => {
+      const next = prev === kind ? null : kind
+      setSteering('')
+      return next
+    })
+  }, [])
+
   const generate = useCallback(
     (kind: MediaKind) => {
       setActiveKind(kind)
+      const focus = steering.trim()
+      const spec: Record<string, unknown> = { language: 'es' }
+      // The steering text is additional focus for the content, never executed as
+      // instructions; the generators append it to their grounded prompt. Empty -> omitted.
+      if (focus) spec.steering = focus
       createArtifact.mutate(
-        { course_id: courseId, kind, spec: { language: 'es' } },
+        { course_id: courseId, kind, spec },
         {
           onSuccess: (accepted) => {
             void streamRef.current.start(accepted.artifact_id)
@@ -275,8 +295,10 @@ export function CourseOverviews({ courseId }: { courseId: string }) {
           onError: () => setActiveKind(null),
         },
       )
+      setSelectedKind(null)
+      setSteering('')
     },
-    [courseId, createArtifact],
+    [courseId, createArtifact, steering],
   )
 
   // When the streamed job settles, clear the progress line; the list poll shows the result.
@@ -298,21 +320,68 @@ export function CourseOverviews({ courseId }: { courseId: string }) {
         </p>
       </div>
 
-      {/* Generar — four compact icon cards */}
+      {/* Generar — four compact icon cards; picking one reveals its steering input */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
-        {KINDS.map((kind) => (
-          <button
-            key={kind}
-            type="button"
-            onClick={() => generate(kind)}
-            disabled={createArtifact.isPending}
-            className="group flex flex-col items-center justify-center gap-2 rounded-lg border border-border bg-surface px-3 py-4 transition-colors cursor-pointer hover:border-primary hover:bg-bg-subtle disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-1"
-          >
-            <KindIcon kind={kind} className="text-text-secondary transition-colors group-hover:text-primary" />
-            <span className="text-xs font-medium text-text">{kindLabel(kind)}</span>
-          </button>
-        ))}
+        {KINDS.map((kind) => {
+          const selected = selectedKind === kind
+          return (
+            <button
+              key={kind}
+              type="button"
+              onClick={() => selectKind(kind)}
+              disabled={createArtifact.isPending}
+              aria-expanded={selected}
+              className={`group flex flex-col items-center justify-center gap-2 rounded-lg border bg-surface px-3 py-4 transition-colors cursor-pointer hover:border-primary hover:bg-bg-subtle disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-1 ${
+                selected ? 'border-primary bg-bg-subtle' : 'border-border'
+              }`}
+            >
+              <KindIcon
+                kind={kind}
+                className={`transition-colors ${selected ? 'text-primary' : 'text-text-secondary group-hover:text-primary'}`}
+              />
+              <span className="text-xs font-medium text-text">{kindLabel(kind)}</span>
+            </button>
+          )
+        })}
       </div>
+
+      {/* Optional steering: extra focus/instructions before generating the chosen kind */}
+      <AnimatePresence initial={false}>
+        {selectedKind && (
+          <motion.div
+            initial={animated ? { height: 0, opacity: 0 } : false}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={animated ? { height: 0, opacity: 0 } : { opacity: 0 }}
+            transition={{ duration: animated ? 0.2 : 0 }}
+            className="overflow-hidden"
+          >
+            <div className="mb-4 rounded-lg border border-border bg-bg-subtle p-3">
+              <label htmlFor="overviews-steering" className="sr-only">
+                {intl.formatMessage({ id: 'overviews.steeringLabel' })}
+              </label>
+              <textarea
+                id="overviews-steering"
+                value={steering}
+                onChange={(e) => setSteering(e.target.value)}
+                rows={2}
+                placeholder={intl.formatMessage({ id: 'overviews.steeringPlaceholder' })}
+                className="w-full resize-y rounded-md border border-border bg-surface px-3 py-2 text-sm text-text placeholder:text-text-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+              />
+              <div className="mt-2 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => generate(selectedKind)}
+                  disabled={createArtifact.isPending}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-white transition-colors cursor-pointer hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-1"
+                >
+                  <KindIcon kind={selectedKind} size={16} className="text-white" />
+                  {intl.formatMessage({ id: 'overviews.generate' })}
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Live progress of the job just triggered */}
       {(streaming || createArtifact.isPending) && activeKind && (
