@@ -266,19 +266,30 @@ async def run_blueprint(
     # Impone el plan de evaluacion sin importar lo que el LLM decidiera: es lo que
     # garantiza la variedad en vez de dejarla al capricho del modelo.
     if assessment is not None:
-        blueprint = _apply_assessment(blueprint, assessment, target_bloom)
+        blueprint = _apply_assessment(blueprint, assessment, target_bloom, ui_format)
     return blueprint
 
 
 def _apply_assessment(
-    blueprint: Blueprint, assessment: AssessmentPlan, target_bloom: str
+    blueprint: Blueprint,
+    assessment: AssessmentPlan,
+    target_bloom: str,
+    ui_format: str,
 ) -> Blueprint:
     """Force the closing verification block to match the deterministic plan.
 
     Rewrites the LAST QuizItem/DragOrder block to the planned type. ``_ensure_verification``
     guarantees at least one exists, so the ``else`` branch only fires defensively.
+
+    Una regla de contenido por encima del plan: si la pantalla explica un PROCEDIMIENTO
+    (el blueprint eligio una StepSequence) se verifica ordenandolo con ``DragOrder``, aunque
+    el detector de ``shape.py`` no marcase el procedimiento en la fuente. Es lo que hace que
+    un nodo procedimental sea interactivo de verdad en vez de una pregunta mas.
     """
     blocks = list(blueprint.blocks)
+    has_step_sequence = any(b.type == "StepSequence" for b in blocks)
+    if has_step_sequence and ui_format != "chart":
+        assessment = AssessmentPlan(block="DragOrder", item_type=None)
     idx = next(
         (
             i
