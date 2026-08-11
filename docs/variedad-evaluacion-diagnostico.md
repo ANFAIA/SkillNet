@@ -130,4 +130,65 @@ medio-hacerlo.
 
 ## Después del arreglo
 
-<!-- rellenado tras regenerar; ver más abajo -->
+Regenerados los 10 nodos de los dos cursos sembrados sobre la pila viva (multi-agente,
+`gpt-4o-mini`), el 2026-08-11, con el planificador activo. Formato de verificación del
+último render de cada nodo:
+
+| curso | nodo | verificación |
+|-------|------|--------------|
+| Servicio | 1. Apertura del turno | test |
+| Servicio | 2. Recibir y acomodar | test |
+| Servicio | 3. Tomar la comanda en el TPV | test |
+| Servicio | 4. Coordinación con cocina | **fill_blank** |
+| Servicio | 5. Servicio en mesa | **true_false** |
+| Servicio | 6. Cobro y cierre de mesa | **DragOrder** (ordena los pasos) |
+| Servicio | 7. Gestión de una queja | **true_false** |
+| Alérgenos | 1. Los catorce alérgenos | **true_false** |
+| Alérgenos | 2. Responder al cliente | test |
+| Alérgenos | 3. Contaminación cruzada | **true_false** |
+
+Distribución global (antes → después):
+
+```
+ANTES:   test 100 %   (5/5, y 6/6 en la muestra fresca)   DragOrder 0
+DESPUÉS: test 4 · true_false 4 · fill_blank 1 · DragOrder 1
+```
+
+De un único formato a cuatro interacciones distintas, repartidas de forma determinista y
+estable por nodo (misma pantalla en cada visita). El nodo "Cobro y cierre", cuyo concepto
+es una `StepSequence`, se cierra ordenando los pasos con `DragOrder`.
+
+### Qué se cambió
+
+- **`src/agents/runtime/assessment.py`** (nuevo): planificador determinista
+  `plan_assessment(plan, ui_format, node_id)`. Procedimiento → `DragOrder`; en otro caso
+  rota `test`/`true_false`/`fill_blank` por un hash del `node_id`.
+- **`decide_formato`** calcula el plan y lo lleva en el estado (`assessment_*`).
+- **Multi-agente** (camino vivo): `run_blueprint` recibe el plan, lo enseña en el prompt y
+  lo **impone** con `_apply_assessment` (reescribe el bloque de cierre sin importar lo que
+  decida el LLM). Además, si el blueprint eligió una `StepSequence`, el cierre pasa a
+  `DragOrder`. El `interaction_designer` aprende a escribir cada `item_type` con un ejemplo
+  resuelto por tipo. Corregido de paso `default_blueprint` (`StepByStepReveal`, que no
+  existe en el kit, → `StepSequence`).
+- **Monolítico** (`MULTI_AGENT_RENDER=false`): `build_ui_prompt` inyecta la línea "CÓMO
+  VERIFICAR"; `_BLOCK_CHOICE` enseña los cuatro `item_type` con ejemplos D (true_false) y
+  E (fill_blank). `PROMPT_VERSION` sube a `runtime/20` (invalida la caché de renders).
+- **Bloques nuevos de kit: ninguno.** El kit ya tenía la variedad; el generador no la
+  elegía. El lockstep back↔front y los tests de drift no se tocan.
+
+### Qué pasó y qué falló en las comprobaciones
+
+- Backend: `ruff check src` limpio, `import src.main` OK.
+- `uv run pytest -m "not integration"`: **2765 pasan, 1 falla**
+  (`test_the_packaged_fixtures_are_registered_under_the_canonical_keys`, el fallo
+  preexistente y esperado: el `index.json` empaquetado quedó fijado a un prompt anterior;
+  regenerarlo exige re-grabar salidas del modelo). Los tests de `test_runtime_graph` que
+  reconstruyen el prompt canónico se actualizaron para incluir la línea "CÓMO VERIFICAR"
+  (misma cuenta de fallos que en la base: cero regresiones).
+  - Nota de entorno: `uv run pytest` a veces carga el `.env` de la raíz (que trae
+    `MULTI_AGENT_RENDER=true`), y entonces los tests de `test_runtime_graph` —cuyos
+    fixtures son del camino monolítico— fallan por fixtures ausentes. Es preexistente
+    (la base lo reproduce igual). Con la config prevista
+    (`MULTI_AGENT_RENDER=false`) queda el único fallo esperado.
+- Frontend: sin cambios (el kit ya soportaba todos los `item_type` y `DragOrder`), así que
+  no hubo nada que compilar.
