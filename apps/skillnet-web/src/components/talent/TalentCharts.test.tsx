@@ -31,6 +31,6 @@ describe('talent charts', () => {
 
     expect(screen.getByText('Servicio de sala')).toBeInTheDocument()
     expect(screen.getByText('4/8')).toBeInTheDocument()
-    expect(screen.getByRole('img')).toHaveAccessibleName('Servicio de sala: 50% completado, 25% en curso')
+    expect(screen.getByRole('img', { name: 'Servicio de sala: 50% completado, 25% en curso' })).toBeInTheDocument()
   })
 })

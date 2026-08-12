@@ -1,4 +1,5 @@
-import { Card, CardTitle } from '../ui'
+import { Cell, Label, Pie, PieChart, Tooltip } from 'recharts'
+import { Card, CardTitle, ChartContainer, type ChartConfig } from '../ui'
 
 type EnrollmentDistributionChartProps = {
   assigned: number
@@ -8,53 +9,42 @@ type EnrollmentDistributionChartProps = {
 
 export function EnrollmentDistributionChart({ assigned, inProgress, completed }: EnrollmentDistributionChartProps) {
   const notStarted = Math.max(0, assigned - inProgress - completed)
-  const total = Math.max(assigned, 1)
-  const segments = [
-    { label: 'Sin iniciar', value: notStarted, strokeClass: 'stroke-text-muted', dotClass: 'border-text-muted' },
-    { label: 'En curso', value: inProgress, strokeClass: 'stroke-warning', dotClass: 'border-warning' },
-    { label: 'Completadas', value: completed, strokeClass: 'stroke-accent', dotClass: 'border-accent' },
+  const data = [
+    { key: 'notStarted', label: 'Sin iniciar', value: notStarted, color: 'var(--color-text-muted)' },
+    { key: 'inProgress', label: 'En curso', value: inProgress, color: 'var(--color-warning)' },
+    { key: 'completed', label: 'Completadas', value: completed, color: 'var(--color-success)' },
   ]
-  let offset = 0
+  const config: ChartConfig = {
+    notStarted: { label: 'Sin iniciar', color: 'var(--color-text-muted)' },
+    inProgress: { label: 'En curso', color: 'var(--color-warning)' },
+    completed: { label: 'Completadas', color: 'var(--color-success)' },
+  }
+  const chartData = assigned > 0 ? data : [{ key: 'empty', label: 'Sin datos', value: 1, color: 'var(--color-bg-muted)' }]
 
   return (
-    <Card className="h-full">
+    <Card className="h-full rounded-lg">
       <CardTitle>Distribución de matrículas</CardTitle>
-      <p className="mt-1 text-sm text-text-muted">Situación actual de las asignaciones visibles.</p>
-      <div className="mt-5 grid grid-cols-[132px_minmax(0,1fr)] items-center gap-5">
-        <div className="relative h-[132px] w-[132px]" role="img" aria-label={`${assigned} matrículas: ${notStarted} sin iniciar, ${inProgress} en curso y ${completed} completadas`}>
-          <svg viewBox="0 0 120 120" className="h-full w-full -rotate-90" aria-hidden="true">
-            <circle cx="60" cy="60" r="43" fill="none" strokeWidth="14" className="stroke-bg-muted" />
-            {segments.map((segment) => {
-              const length = assigned > 0 ? (segment.value / total) * 100 : 0
-              const circle = (
-                <circle
-                  key={segment.label}
-                  cx="60"
-                  cy="60"
-                  r="43"
-                  pathLength="100"
-                  fill="none"
-                  strokeWidth="14"
-                  strokeLinecap="butt"
-                  strokeDasharray={`${length} ${100 - length}`}
-                  strokeDashoffset={-offset}
-                  className={segment.strokeClass}
-                />
-              )
-              offset += length
-              return circle
-            })}
-          </svg>
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-2xl font-semibold text-text tabular-nums">{assigned}</span>
-            <span className="text-xs text-text-muted">matrículas</span>
-          </div>
-        </div>
+      <p className="mt-1 text-sm text-text-muted">Situación de las asignaciones visibles.</p>
+      <div className="mt-4 grid grid-cols-[150px_minmax(0,1fr)] items-center gap-4">
+        <ChartContainer config={config} className="h-[150px]" aria-label={`${assigned} matrículas: ${notStarted} sin iniciar, ${inProgress} en curso y ${completed} completadas`}>
+          <PieChart accessibilityLayer>
+            <Tooltip cursor={false} formatter={(value, name) => [value, config[String(name)]?.label ?? name]} />
+            <Pie data={chartData} dataKey="value" nameKey="key" innerRadius={48} outerRadius={66} strokeWidth={0}>
+              {chartData.map((item) => <Cell key={item.key} fill={item.color} />)}
+              <Label position="center" content={() => (
+                <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle">
+                  <tspan x="50%" dy="-0.2em" className="fill-text text-2xl font-semibold">{assigned}</tspan>
+                  <tspan x="50%" dy="1.5em" className="fill-text-muted text-xs">matrículas</tspan>
+                </text>
+              )} />
+            </Pie>
+          </PieChart>
+        </ChartContainer>
         <dl className="space-y-3">
-          {segments.map((segment) => (
-            <div key={segment.label} className="flex items-center justify-between gap-3">
+          {data.map((segment) => (
+            <div key={segment.key} className="flex items-center justify-between gap-3">
               <dt className="flex items-center gap-2 text-sm text-text-secondary">
-                <span className={`h-2.5 w-2.5 rounded-sm border-[3px] ${segment.dotClass}`} aria-hidden="true" />
+                <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: segment.color }} aria-hidden="true" />
                 {segment.label}
               </dt>
               <dd className="text-sm font-medium text-text tabular-nums">{segment.value}</dd>

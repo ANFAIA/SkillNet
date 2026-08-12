@@ -8,6 +8,7 @@ import pytest
 
 from src.core.exceptions import ConflictError, NotFoundError
 from src.services.course_folder_service import CourseFolderService
+from src.services.enrollment_service import EnrollmentService
 from src.services.skill_service import SkillService
 
 
@@ -70,3 +71,39 @@ async def test_replace_course_skills_rejects_foreign_skill(monkeypatch) -> None:
             course_id=uuid.uuid4(),
             items=[{"id": skill_id, "name": None, "description": None}],
         )
+
+
+@pytest.mark.asyncio
+async def test_assign_courses_is_idempotent_across_a_folder() -> None:
+    org_id = uuid.uuid4()
+    admin_id = uuid.uuid4()
+    user_id = uuid.uuid4()
+    first_course_id = uuid.uuid4()
+    second_course_id = uuid.uuid4()
+    existing = SimpleNamespace(id=uuid.uuid4())
+    created = SimpleNamespace(id=uuid.uuid4())
+    enrollment_repo = SimpleNamespace(
+        session=object(),
+        get_by_user_and_course=AsyncMock(side_effect=[existing, None]),
+        create=AsyncMock(return_value=created),
+    )
+    course_repo = SimpleNamespace(get_scoped=AsyncMock(return_value=object()))
+    exercise_repo = SimpleNamespace()
+
+    enrollments, skipped = await EnrollmentService(
+        enrollment_repo,
+        course_repo,
+        exercise_repo,
+        lesson_progress_repo=SimpleNamespace(),
+    ).assign_courses(
+        org_id=org_id,
+        assigned_by=admin_id,
+        course_ids=[first_course_id, second_course_id],
+        user_ids=[user_id],
+        deadline=None,
+    )
+
+    assert enrollments == [created]
+    assert skipped == 1
+    assert course_repo.get_scoped.await_count == 2
+    enrollment_repo.create.assert_awaited_once()

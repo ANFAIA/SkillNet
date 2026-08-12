@@ -5,7 +5,9 @@ import { motion } from 'framer-motion'
 import { Badge, Button, Card, EmptyState, PageHeader, SearchField, Select } from '../../components/ui'
 import { ShimmerSkeleton } from '../../components/ui/ShimmerSkeleton'
 import { CourseFolderSidebar, type FolderFilter } from '../../components/courses/CourseFolderSidebar'
-import { useCourseFolders } from '../../api/course-folders'
+import { CourseFolderPicker } from '../../components/courses/CourseFolderPicker'
+import { FolderAssignmentDialog } from '../../components/courses/FolderAssignmentDialog'
+import { useCourseFolders, type CourseFolder } from '../../api/course-folders'
 import { useCourses, useUpdateCourse } from '../../api/courses'
 import { ApiError, post } from '../../api/client'
 import { useAuth } from '../../hooks/useAuth'
@@ -83,18 +85,7 @@ function CourseRow({ course, folders, onMove, moving, onOpen }: {
           </div>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-1 xl:justify-end">
-          <Select
-            id={`folder-${course.id}`}
-            label={intl.formatMessage({ id: 'content.moveCourse' }, { title: course.title })}
-            hideLabel
-            value={course.folder_id ?? ''}
-            disabled={moving}
-            onChange={(event) => onMove(course, event.target.value || null)}
-            className="max-w-40"
-          >
-            <option value="">{intl.formatMessage({ id: 'content.folderUnorganized' })}</option>
-            {folders.map((folder) => <option key={folder.id} value={folder.id}>{folder.name}</option>)}
-          </Select>
+          <CourseFolderPicker courseTitle={course.title} folderId={course.folder_id} folderName={course.folder_name} folders={folders} disabled={moving} onMove={(folderId) => onMove(course, folderId)} />
           {course.delivery_mode === 'dynamic' && <Button variant="ghost" size="sm" onClick={async () => { if (!currentUser) return; await post('/enrollments', { user_ids: [currentUser.id], course_id: course.id }).catch(() => {}); onOpen(`/admin/probar-curso/${course.id}`) }}>{intl.formatMessage({ id: 'content.test' })}</Button>}
           {course.module_count > 0 && course.delivery_mode !== 'dynamic' && <Button variant="ghost" size="sm" onClick={() => onOpen(`/admin/curso/${course.id}`)}>{intl.formatMessage({ id: 'content.viewCourse' })}</Button>}
           <Button variant="ghost" size="sm" onClick={() => onOpen(`/admin/curso/${course.id}/estudio`)}><span className="flex items-center gap-1.5"><StudioIcon />{intl.formatMessage({ id: 'content.overviews' })}</span></Button>
@@ -115,6 +106,7 @@ export function Content() {
   const search = params.get('q') ?? ''
   const deferredSearch = useDeferredValue(search.trim())
   const [moveError, setMoveError] = useState<string | null>(null)
+  const [assigningFolder, setAssigningFolder] = useState<CourseFolder | null>(null)
   const foldersQuery = useCourseFolders()
   const coursesQuery = useCourses({
     status: status === 'all' ? undefined : status,
@@ -159,7 +151,7 @@ export function Content() {
         <div>
           {foldersQuery.isLoading || totalQuery.isLoading || unorganizedQuery.isLoading ? <ShimmerSkeleton className="h-40 w-full" /> : foldersQuery.error ? (
             <div className="border border-border rounded-lg p-4"><p className="text-sm text-danger">{intl.formatMessage({ id: 'content.folderLoadError' })}</p></div>
-          ) : <CourseFolderSidebar folders={folders} selected={folder} totalCount={totalQuery.data?.total ?? 0} unorganizedCount={unorganizedQuery.data?.total ?? 0} onSelect={(value) => updateParams({ folder: value === 'all' ? null : value })} />}
+          ) : <CourseFolderSidebar folders={folders} selected={folder} totalCount={totalQuery.data?.total ?? 0} unorganizedCount={unorganizedQuery.data?.total ?? 0} onSelect={(value) => updateParams({ folder: value === 'all' ? null : value })} onAssign={setAssigningFolder} />}
         </div>
 
         <section className="min-w-0" aria-label={intl.formatMessage({ id: 'content.courses' })}>
@@ -191,6 +183,7 @@ export function Content() {
           </div>
         </section>
       </div>
+      {assigningFolder && <FolderAssignmentDialog folder={assigningFolder} onClose={() => setAssigningFolder(null)} />}
     </div>
   )
 }

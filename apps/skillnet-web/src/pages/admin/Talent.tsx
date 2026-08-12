@@ -1,20 +1,17 @@
-import { useMemo, useState } from 'react'
+import { lazy, Suspense, useMemo, useState } from 'react'
 import { useSkills } from '../../api/skills'
 import { useTalentCourses, useTalentPeople } from '../../api/talent'
-import { CourseProgressChart } from '../../components/talent/CourseProgressChart'
-import { EnrollmentDistributionChart } from '../../components/talent/EnrollmentDistributionChart'
 import { TalentFilters, type TalentStatusFilter } from '../../components/talent/TalentFilters'
-import { TalentMetricIcon } from '../../components/talent/TalentMetricIcon'
 import { TalentPersonDetail } from '../../components/talent/TalentPersonDetail'
-import { Card, EmptyState, MetricCard, PageHeader, Skeleton, SkeletonRow } from '../../components/ui'
+import { TalentSummary } from '../../components/talent/TalentSummary'
+import { Card, EmptyState, PageHeader, Skeleton, SkeletonRow } from '../../components/ui'
+
+const EnrollmentDistributionChart = lazy(() => import('../../components/talent/EnrollmentDistributionChart').then((module) => ({ default: module.EnrollmentDistributionChart })))
+const CourseProgressChart = lazy(() => import('../../components/talent/CourseProgressChart').then((module) => ({ default: module.CourseProgressChart })))
 
 function formatDate(value: string | null): string {
   if (!value) return 'Sin actividad'
   return new Intl.DateTimeFormat('es', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(value))
-}
-
-function MetricsSkeleton() {
-  return <>{Array.from({ length: 5 }).map((_, index) => <Skeleton key={index} className="h-[108px] rounded-xl" />)}</>
 }
 
 export function Talent() {
@@ -54,24 +51,7 @@ export function Talent() {
 
   return (
     <div>
-      <PageHeader title="Talento" description="Consulta la formación y las habilidades registradas de cada persona." />
-
-      <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        {people.isLoading ? <MetricsSkeleton /> : (
-          <>
-            <MetricCard value={String(people.data?.total ?? 0)} label="Personas visibles" icon={<TalentMetricIcon kind="people" />} color="blue" />
-            <MetricCard value={String(metrics.assigned)} label="Matrículas" icon={<TalentMetricIcon kind="enrollments" />} color="purple" />
-            <MetricCard value={String(metrics.inProgress)} label="En curso" icon={<TalentMetricIcon kind="progress" />} color="orange" />
-            <MetricCard value={String(metrics.completed)} label="Completadas" icon={<TalentMetricIcon kind="completed" />} color="green" />
-            <MetricCard value={String(metrics.skills)} label="Habilidades registradas" icon={<TalentMetricIcon kind="skills" />} color="blue" />
-          </>
-        )}
-      </div>
-
-      <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
-        {people.isLoading ? <Skeleton className="h-[286px] rounded-xl" /> : <EnrollmentDistributionChart assigned={metrics.assigned} inProgress={metrics.inProgress} completed={metrics.completed} />}
-        {courses.isLoading ? <Skeleton className="h-[286px] rounded-xl" /> : <CourseProgressChart courses={chartCourses} />}
-      </div>
+      <PageHeader title="Talento" description="Busca una persona y consulta su formación y habilidades registradas." />
 
       <TalentFilters
         search={search}
@@ -87,8 +67,22 @@ export function Talent() {
         onClear={clearFilters}
       />
 
+      {people.isLoading ? (
+        <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+          {Array.from({ length: 5 }).map((_, index) => <Skeleton key={index} className="h-[108px] rounded-lg" />)}
+        </div>
+      ) : (
+        <TalentSummary
+          people={people.data?.total ?? 0}
+          assigned={metrics.assigned}
+          inProgress={metrics.inProgress}
+          completed={metrics.completed}
+          skills={metrics.skills}
+        />
+      )}
+
       <div className={`mt-5 grid gap-5 ${selectedUserId ? 'lg:grid-cols-[minmax(0,1fr)_minmax(360px,0.85fr)]' : ''}`}>
-        <Card className="min-w-0 overflow-hidden">
+        <Card className="min-w-0 overflow-hidden rounded-lg">
           {people.isLoading ? (
             <div className="divide-y divide-border"><SkeletonRow /><SkeletonRow /><SkeletonRow /></div>
           ) : people.error ? (
@@ -121,6 +115,17 @@ export function Talent() {
         </Card>
         {selectedUserId && <TalentPersonDetail userId={selectedUserId} onClose={() => setSelectedUserId(null)} />}
       </div>
+
+      <section className="mt-8 border-t border-border pt-6" aria-labelledby="talent-overview-title">
+        <h2 id="talent-overview-title" className="text-lg font-semibold text-text">Vista general</h2>
+        <p className="mt-1 text-sm text-text-muted">La distribución respeta los filtros; la comparación muestra los cursos seleccionados.</p>
+        <Suspense fallback={<div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-2"><Skeleton className="h-[286px] rounded-lg" /><Skeleton className="h-[286px] rounded-lg" /></div>}>
+          <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
+            {people.isLoading ? <Skeleton className="h-[286px] rounded-lg" /> : <EnrollmentDistributionChart assigned={metrics.assigned} inProgress={metrics.inProgress} completed={metrics.completed} />}
+            {courses.isLoading ? <Skeleton className="h-[286px] rounded-lg" /> : <CourseProgressChart courses={chartCourses} />}
+          </div>
+        </Suspense>
+      </section>
     </div>
   )
 }

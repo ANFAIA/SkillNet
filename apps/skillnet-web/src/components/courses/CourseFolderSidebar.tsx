@@ -27,15 +27,24 @@ function TrashIcon() {
   return <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7" /></svg>
 }
 
+function UsersIcon() {
+  return <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" /></svg>
+}
+
+function PlusIcon() {
+  return <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
+}
+
 interface CourseFolderSidebarProps {
   folders: CourseFolder[]
   selected: FolderFilter
   totalCount: number
   unorganizedCount: number
   onSelect: (folder: FolderFilter) => void
+  onAssign: (folder: CourseFolder) => void
 }
 
-export function CourseFolderSidebar({ folders, selected, totalCount, unorganizedCount, onSelect }: CourseFolderSidebarProps) {
+export function CourseFolderSidebar({ folders, selected, totalCount, unorganizedCount, onSelect, onAssign }: CourseFolderSidebarProps) {
   const intl = useIntl()
   const createFolder = useCreateCourseFolder()
   const renameFolder = useRenameCourseFolder()
@@ -101,11 +110,11 @@ export function CourseFolderSidebar({ folders, selected, totalCount, unorganized
 
   return (
     <aside className="border border-border rounded-lg p-3" aria-label={intl.formatMessage({ id: 'content.folders' })}>
-      <div className="flex items-center justify-between px-2 mb-2">
+      <div className="mb-3 flex items-center justify-between gap-2 px-1">
         <h3 className="text-sm font-medium text-text">{intl.formatMessage({ id: 'content.folders' })}</h3>
-        <button type="button" onClick={() => setCreating(true)} className="text-xs font-medium text-primary hover:text-primary-hover">
-          {intl.formatMessage({ id: 'content.folderNew' })}
-        </button>
+        <Button type="button" variant="secondary" size="sm" onClick={() => setCreating(true)} disabled={creating}>
+          <span className="flex items-center gap-1"><PlusIcon />{intl.formatMessage({ id: 'content.folderNew' })}</span>
+        </Button>
       </div>
       <nav className="space-y-1">
         {filterButton('all', intl.formatMessage({ id: 'content.folderAll' }), totalCount)}
@@ -124,6 +133,7 @@ export function CourseFolderSidebar({ folders, selected, totalCount, unorganized
               <div className="flex items-center">
                 <div className="flex-1 min-w-0">{filterButton(folder.id, folder.name, folder.course_count)}</div>
                 <div className="flex opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-within:opacity-100 transition-opacity">
+                  <button type="button" aria-label={intl.formatMessage({ id: 'content.folderAssign' }, { name: folder.name })} className="p-1.5 text-text-muted hover:text-text" onClick={() => onAssign(folder)}><UsersIcon /></button>
                   <button type="button" aria-label={intl.formatMessage({ id: 'content.folderRename' }, { name: folder.name })} className="p-1.5 text-text-muted hover:text-text" onClick={() => { setEditingId(folder.id); setEditingName(folder.name) }}><EditIcon /></button>
                   <button type="button" aria-label={intl.formatMessage({ id: 'content.folderDelete' }, { name: folder.name })} className="p-1.5 text-text-muted hover:text-danger" onClick={() => removeFolder(folder)}><TrashIcon /></button>
                 </div>

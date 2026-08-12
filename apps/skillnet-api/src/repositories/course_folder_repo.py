@@ -6,7 +6,7 @@ from collections.abc import Sequence
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.models import Course, CourseFolder
+from src.models import ContentStatus, Course, CourseFolder
 from src.repositories.base import BaseRepository
 
 
@@ -40,3 +40,17 @@ class CourseFolderRepository(BaseRepository[CourseFolder]):
             .order_by(func.lower(CourseFolder.name))
         )
         return list((await self.session.execute(stmt)).tuples().all())
+
+    async def list_published_course_ids(
+        self, folder_id: uuid.UUID, org_id: uuid.UUID
+    ) -> Sequence[uuid.UUID]:
+        stmt = (
+            select(Course.id)
+            .where(
+                Course.org_id == org_id,
+                Course.folder_id == folder_id,
+                Course.status == ContentStatus.PUBLISHED,
+            )
+            .order_by(Course.created_at, Course.id)
+        )
+        return list((await self.session.scalars(stmt)).all())

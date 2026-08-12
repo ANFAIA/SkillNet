@@ -9,6 +9,12 @@ export interface CourseFolder {
   updated_at?: string
 }
 
+export interface CourseFolderAssignmentResult {
+  course_count: number
+  created_count: number
+  skipped_existing_count: number
+}
+
 export function useCourseFolders() {
   return useQuery({
     queryKey: ['course-folders'],
@@ -43,6 +49,21 @@ export function useDeleteCourseFolder() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['course-folders'] })
       queryClient.invalidateQueries({ queryKey: ['courses'] })
+    },
+  })
+}
+
+export function useAssignCourseFolder() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, userIds, deadline }: { id: string; userIds: string[]; deadline?: string }) =>
+      post<CourseFolderAssignmentResult>(`/course-folders/${id}/assign`, {
+        user_ids: userIds,
+        deadline: deadline || undefined,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['enrollments'] })
+      queryClient.invalidateQueries({ queryKey: ['talent'] })
     },
   })
 }

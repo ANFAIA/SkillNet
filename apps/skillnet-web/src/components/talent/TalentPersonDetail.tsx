@@ -29,7 +29,7 @@ export function TalentPersonDetail({ userId, onClose }: TalentPersonDetailProps)
   const detail = useTalentPerson(userId)
 
   return (
-    <aside className="min-w-0 rounded-xl border border-border bg-surface p-5" aria-label="Detalle de talento">
+    <aside className="min-w-0 rounded-lg border border-border bg-surface p-5" aria-label="Detalle de talento">
       {detail.isLoading ? (
         <div><Skeleton className="h-5 w-1/2" /><Skeleton className="mt-2 h-3 w-2/3" /><div className="mt-6 space-y-3"><SkeletonRow /><SkeletonRow /></div></div>
       ) : detail.error || !detail.data ? (

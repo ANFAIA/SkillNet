@@ -159,6 +159,40 @@ class EnrollmentService:
             created.append(enrollment)
         return created
 
+    async def assign_courses(
+        self,
+        *,
+        org_id: uuid.UUID,
+        assigned_by: uuid.UUID,
+        course_ids: Sequence[uuid.UUID],
+        user_ids: list[uuid.UUID],
+        deadline: date | None,
+    ) -> tuple[list[Enrollment], int]:
+        """Assign a published collection while treating existing rows as idempotent."""
+        created: list[Enrollment] = []
+        skipped = 0
+        for course_id in course_ids:
+            course = await self.course_repo.get_scoped(course_id, org_id)
+            if course is None:
+                raise NotFoundError("courses", str(course_id))
+            for user_id in user_ids:
+                existing = await self.enrollment_repo.get_by_user_and_course(
+                    user_id, course_id
+                )
+                if existing is not None:
+                    skipped += 1
+                    continue
+                created.append(
+                    await self.enrollment_repo.create(
+                        user_id=user_id,
+                        course_id=course_id,
+                        assigned_by=assigned_by,
+                        status=EnrollmentStatus.ASSIGNED,
+                        deadline=deadline,
+                    )
+                )
+        return created, skipped
+
     async def get_scoped(
         self, *, enrollment_id: uuid.UUID, org_id: uuid.UUID
     ) -> Enrollment:

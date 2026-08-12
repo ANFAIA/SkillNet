@@ -34,6 +34,9 @@ apps/skillnet-api/data/tts_cache/
 .claude/
 .codex-evidence/
 .pnpm-store/
+tmp/
+apps/skillnet-api/.tmp-*/
+apps/skillnet-api/.pytest-*/
 AGENTS.md
 CLAUDE.md
 

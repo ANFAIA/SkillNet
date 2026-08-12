@@ -102,8 +102,8 @@ describe('Content — library navigation', () => {
     installFetch()
     renderPage()
 
-    const select = await screen.findByRole('combobox', { name: /Mover Devoluciones en tienda/ })
-    await userEvent.selectOptions(select, 'folder-1')
+    await userEvent.click(await screen.findByLabelText(/Mover Devoluciones en tienda/))
+    await userEvent.click(screen.getByRole('button', { name: 'Operaciones' }))
 
     expect(mockFetch.mock.calls.some(([input, options]) =>
       String(input).includes(`/courses/${COURSE_ID}`) &&

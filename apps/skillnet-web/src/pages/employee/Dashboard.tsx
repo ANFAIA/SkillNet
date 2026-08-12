@@ -72,16 +72,16 @@ export function Dashboard() {
         animate="visible"
       >
         <motion.div variants={staggerItem}>
-          <MetricCard value={String(active.length)} label="Cursos activos" icon={<BookIcon />} color="blue" />
+          <MetricCard value={String(active.length)} label="Cursos activos" icon={<BookIcon />} />
         </motion.div>
         <motion.div variants={staggerItem}>
-          <MetricCard value={String(completed.length)} label="Completados" icon={<CheckIcon />} color="green" />
+          <MetricCard value={String(completed.length)} label="Completados" icon={<CheckIcon />} />
         </motion.div>
         <motion.div variants={staggerItem}>
-          <MetricCard value={String(pending.length)} label="Pendientes" icon={<ClockIcon />} color="orange" />
+          <MetricCard value={String(pending.length)} label="Pendientes" icon={<ClockIcon />} />
         </motion.div>
         <motion.div variants={staggerItem}>
-          <MetricCard value={`${avgScore}%`} label="Nota media" icon={<TrendUpIcon />} color="purple" />
+          <MetricCard value={`${avgScore}%`} label="Nota media" icon={<TrendUpIcon />} />
         </motion.div>
       </motion.div>
 

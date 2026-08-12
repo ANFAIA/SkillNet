@@ -4,11 +4,21 @@ import uuid
 
 from fastapi import APIRouter, Response
 
+from src.core.exceptions import NotFoundError
 from src.deps.auth import AdminUser
 from src.deps.db import DBSession
 from src.repositories.course_folder_repo import CourseFolderRepository
-from src.schemas.course_folder import CourseFolderRead, CourseFolderWrite
+from src.repositories.course_repo import CourseRepository
+from src.repositories.enrollment_repo import EnrollmentRepository
+from src.repositories.exercise_repo import ExerciseRepository
+from src.schemas.course_folder import (
+    CourseFolderAssignmentCreate,
+    CourseFolderAssignmentResult,
+    CourseFolderRead,
+    CourseFolderWrite,
+)
 from src.services.course_folder_service import CourseFolderService
+from src.services.enrollment_service import EnrollmentService
 
 router = APIRouter(prefix="/course-folders", tags=["Course library"])
 
@@ -63,3 +73,36 @@ async def delete_folder(
     await _service(db).delete(org_id=admin.org_id, folder_id=folder_id)
     await db.commit()
     return Response(status_code=204)
+
+
+@router.post(
+    "/{folder_id}/assign",
+    response_model=CourseFolderAssignmentResult,
+)
+async def assign_folder(
+    admin: AdminUser,
+    db: DBSession,
+    folder_id: uuid.UUID,
+    body: CourseFolderAssignmentCreate,
+) -> CourseFolderAssignmentResult:
+    folder_repo = CourseFolderRepository(db)
+    folder = await folder_repo.get_scoped(folder_id, admin.org_id)
+    if folder is None:
+        raise NotFoundError("course_folders", str(folder_id))
+    course_ids = await folder_repo.list_published_course_ids(folder_id, admin.org_id)
+    enrollment_service = EnrollmentService(
+        EnrollmentRepository(db), CourseRepository(db), ExerciseRepository(db)
+    )
+    created, skipped = await enrollment_service.assign_courses(
+        org_id=admin.org_id,
+        assigned_by=admin.id,
+        course_ids=course_ids,
+        user_ids=body.user_ids,
+        deadline=body.deadline,
+    )
+    await db.commit()
+    return CourseFolderAssignmentResult(
+        course_count=len(course_ids),
+        created_count=len(created),
+        skipped_existing_count=skipped,
+    )

@@ -45,7 +45,7 @@ function ChartIcon() {
 }
 
 function MetricCardSkeleton() {
-  return <Skeleton className="h-[108px] rounded-xl" />
+  return <Skeleton className="h-[108px] rounded-lg" />
 }
 
 function ActivitySkeleton() {
@@ -145,7 +145,6 @@ export function Dashboard() {
                 value={`${stats!.active_employees}/${stats!.total_employees}`}
                 label="Empleados activos"
                 icon={<UsersIcon />}
-                color="blue"
               />
             </motion.div>
             <motion.div variants={staggerItem}>
@@ -153,7 +152,6 @@ export function Dashboard() {
                 value={String(stats!.published_courses)}
                 label="Cursos publicados"
                 icon={<BookIcon />}
-                color="green"
               />
             </motion.div>
             <motion.div variants={staggerItem}>
@@ -161,7 +159,6 @@ export function Dashboard() {
                 value={String(stats!.total_enrollments)}
                 label="Inscripciones"
                 icon={<TargetIcon />}
-                color="purple"
               />
             </motion.div>
             <motion.div variants={staggerItem}>
@@ -169,7 +166,6 @@ export function Dashboard() {
                 value={stats!.avg_score != null ? `${Math.round(stats!.avg_score * 100)}%` : '--'}
                 label="Puntuacion media"
                 icon={<ChartIcon />}
-                color="orange"
               />
             </motion.div>
           </>

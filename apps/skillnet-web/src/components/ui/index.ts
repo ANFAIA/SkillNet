@@ -7,6 +7,9 @@ export type { ButtonProps } from './Button'
 export { Card, CardTitle } from './Card'
 export type { CardProps } from './Card'
 
+export { ChartContainer } from './Chart'
+export type { ChartConfig } from './Chart'
+
 export { CourseItem } from './CourseItem'
 export type { CourseItemProps } from './CourseItem'
 

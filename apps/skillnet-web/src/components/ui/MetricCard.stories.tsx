@@ -4,12 +4,6 @@ import { MetricCard } from './MetricCard'
 const meta: Meta<typeof MetricCard> = {
   title: 'UI/MetricCard',
   component: MetricCard,
-  argTypes: {
-    color: {
-      control: 'select',
-      options: ['blue', 'green', 'orange', 'purple'],
-    },
-  },
 }
 export default meta
 
@@ -50,7 +44,6 @@ export const EmpleadosActivos: Story = {
     value: '24',
     label: 'Empleados activos',
     icon: UsersIcon,
-    color: 'blue',
   },
 }
 
@@ -59,7 +52,6 @@ export const CursosPublicados: Story = {
     value: '12',
     label: 'Cursos publicados',
     icon: BookIcon,
-    color: 'green',
   },
 }
 
@@ -68,7 +60,6 @@ export const SkillGaps: Story = {
     value: '3',
     label: 'Skills gaps detectados',
     icon: AlertIcon,
-    color: 'orange',
   },
 }
 
@@ -77,7 +68,6 @@ export const TasaCompletado: Story = {
     value: '87%',
     label: 'Tasa de completado',
     icon: CheckIcon,
-    color: 'purple',
   },
 }
 
@@ -87,25 +77,21 @@ export const PanelDashboard = () => (
       value="24"
       label="Empleados activos"
       icon={UsersIcon}
-      color="blue"
     />
     <MetricCard
       value="12"
       label="Cursos publicados"
       icon={BookIcon}
-      color="green"
     />
     <MetricCard
       value="3"
       label="Skills gaps"
       icon={AlertIcon}
-      color="orange"
     />
     <MetricCard
       value="87%"
       label="Tasa de completado"
       icon={CheckIcon}
-      color="purple"
     />
   </div>
 )
