@@ -1,0 +1,159 @@
+{
+  "version": "rich-generation/1",
+  "fixture_model": "fixture-small/1",
+  "seeds": [11, 29, 47, 83, 131],
+  "profiles": [
+    {
+      "id": "novice-visual",
+      "experience": "novice",
+      "preferred_representations": ["image", "spatial", "procedural"],
+      "support": "guided"
+    },
+    {
+      "id": "experienced-active",
+      "experience": "experienced",
+      "preferred_representations": ["artifact", "system", "numeric"],
+      "support": "minimal"
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "boxing-defense-regression",
+      "title": "Defender golpes básicos de boxeo",
+      "source_facts": ["guardia-alta", "paso-lateral", "barbilla-protegida", "volver-guardia"],
+      "purposes": ["practice", "create"],
+      "actions": ["manipulate", "construct", "interpret"],
+      "representations": ["spatial", "image", "procedural"],
+      "evidence": ["response", "artifact", "feedback"],
+      "target_depth": 4,
+      "regression_component": "didact.data-explorer",
+      "regression_definition": {
+        "title": "Practica la defensa",
+        "description": "Practica con un compañero, un saco y sparring; mira primero el vídeo.",
+        "steps": ["Mira el vídeo", "Prueba con un compañero", "Practica en el saco", "Haz sparring"],
+        "source_refs": []
+      },
+      "unsupported_terms": ["vídeo", "compañero", "saco", "sparring"]
+    },
+    {
+      "id": "animation-keyframes",
+      "title": "Animar una pelota con poses clave",
+      "source_facts": ["pose-inicial", "pose-final", "arcos", "timing"],
+      "purposes": ["practice", "create"],
+      "actions": ["create", "construct", "manipulate"],
+      "representations": ["spatial", "image", "artifact"],
+      "evidence": ["response", "artifact", "feedback"],
+      "target_depth": 4
+    },
+    {
+      "id": "ticket-incident-triage",
+      "title": "Priorizar y escalar una incidencia de ticketing",
+      "source_facts": ["impacto", "urgencia", "sla", "escalado"],
+      "purposes": ["practice", "assess"],
+      "actions": ["decide", "interpret", "experiment"],
+      "representations": ["text", "procedural", "network"],
+      "evidence": ["response", "result", "feedback"],
+      "target_depth": 4
+    },
+    {
+      "id": "fire-extinguisher",
+      "title": "Aplicar el procedimiento de uso de un extintor",
+      "source_facts": ["pasador", "base-llama", "barrido", "salida-segura"],
+      "purposes": ["practice", "assess"],
+      "actions": ["order", "manipulate", "respond"],
+      "representations": ["procedural", "image", "text"],
+      "evidence": ["response", "result", "feedback"],
+      "target_depth": 3
+    },
+    {
+      "id": "cash-reconciliation",
+      "title": "Conciliar una caja y explicar el descuadre",
+      "source_facts": ["saldo-inicial", "ventas", "retiradas", "saldo-final"],
+      "purposes": ["practice", "assess"],
+      "actions": ["calculate", "construct", "explain"],
+      "representations": ["numeric", "symbolic", "text"],
+      "evidence": ["response", "result", "feedback"],
+      "target_depth": 4
+    },
+    {
+      "id": "sales-trend",
+      "title": "Interpretar una tendencia semanal de ventas",
+      "source_facts": ["serie-semanal", "pico", "caida", "promedio"],
+      "purposes": ["explore", "practice"],
+      "actions": ["inspect", "select", "interpret"],
+      "representations": ["numeric", "data-series", "temporal"],
+      "evidence": ["response", "feedback"],
+      "target_depth": 3
+    },
+    {
+      "id": "code-debugging",
+      "title": "Localizar y corregir un fallo de validación",
+      "source_facts": ["entrada", "precondicion", "error", "prueba"],
+      "purposes": ["practice", "create", "assess"],
+      "actions": ["create", "execute", "interpret"],
+      "representations": ["artifact", "symbolic", "text"],
+      "evidence": ["execution", "result", "feedback"],
+      "target_depth": 4
+    },
+    {
+      "id": "anatomy-labels",
+      "title": "Identificar las partes de una articulación",
+      "source_facts": ["cartilago", "ligamento", "tendon", "capsula"],
+      "purposes": ["practice", "assess"],
+      "actions": ["relate", "manipulate", "construct"],
+      "representations": ["spatial", "image", "text"],
+      "evidence": ["response", "result", "feedback"],
+      "target_depth": 3
+    },
+    {
+      "id": "policy-evidence",
+      "title": "Justificar una decisión usando evidencias de una política",
+      "source_facts": ["regla", "excepcion", "evidencia", "decision"],
+      "purposes": ["practice", "assess", "reflect"],
+      "actions": ["select", "interpret", "relate", "explain"],
+      "representations": ["text", "network", "artifact"],
+      "evidence": ["response", "artifact", "feedback"],
+      "target_depth": 4
+    },
+    {
+      "id": "measurement-caliper",
+      "title": "Medir una pieza con calibre y expresar la precisión",
+      "source_facts": ["cero", "escala", "unidad", "precision"],
+      "purposes": ["practice", "explore", "assess"],
+      "actions": ["manipulate", "interpret"],
+      "representations": ["numeric", "spatial", "system"],
+      "evidence": ["response", "result", "feedback"],
+      "target_depth": 4
+    },
+    {
+      "id": "concept-relations",
+      "title": "Construir un mapa de causas y consecuencias",
+      "source_facts": ["causa-a", "causa-b", "efecto", "relacion"],
+      "purposes": ["create", "reflect", "assess"],
+      "actions": ["construct", "relate", "explain"],
+      "representations": ["network", "text", "spatial"],
+      "evidence": ["response", "artifact", "feedback"],
+      "target_depth": 4
+    },
+    {
+      "id": "equation-isolation",
+      "title": "Despejar una variable explicando cada transformación",
+      "source_facts": ["igualdad", "operacion-inversa", "simplificacion", "comprobacion"],
+      "purposes": ["practice", "create", "assess"],
+      "actions": ["calculate", "construct", "explain"],
+      "representations": ["symbolic", "text", "artifact"],
+      "evidence": ["response", "artifact", "feedback"],
+      "target_depth": 4
+    },
+    {
+      "id": "customer-dialogue",
+      "title": "Resolver una reclamación con decisiones y consecuencias",
+      "source_facts": ["escucha", "confirmacion", "opciones", "cierre"],
+      "purposes": ["practice", "assess"],
+      "actions": ["decide", "interpret", "experiment"],
+      "representations": ["text", "procedural", "network"],
+      "evidence": ["response", "result", "feedback"],
+      "target_depth": 4
+    }
+  ]
+}

@@ -1,0 +1,111 @@
+{
+  "version": "component-selection/1",
+  "fixture_id": "legacy-openui-capabilities/1",
+  "top_k": 2,
+  "cases": [
+    {
+      "id": "reconstruct-procedure",
+      "intent_text": "Reconstruir un procedimiento y recibir ayuda solo cuando sea necesaria.",
+      "query_terms": ["reconstruct procedure ordered steps progressive hint reorder items"],
+      "objective": {
+        "mission": "reconstruct",
+        "source_functions": ["procedure"]
+      },
+      "projection": {
+        "presentations": ["text"],
+        "accessibility": ["keyboard", "screen_reader"]
+      },
+      "desired_affordances": ["inspect_ordered_steps", "reorder_items", "request_progressive_hint"],
+      "desired_evidence_events": ["order_checked"],
+      "relevant_components": ["StepSequence", "DragOrder", "HintReveal"],
+      "forbidden_components": ["Chart", "PronunciationExercise"]
+    },
+    {
+      "id": "interpret-contrast",
+      "intent_text": "Comparar dos estados y detectar con claridad qué cambia entre ellos.",
+      "query_terms": ["interpret contrast compare two states compare values"],
+      "objective": {
+        "mission": "interpret",
+        "source_functions": ["contrast"]
+      },
+      "projection": {
+        "presentations": ["text", "table"],
+        "accessibility": ["keyboard", "screen_reader"]
+      },
+      "desired_affordances": ["compare_two_states", "compare_values"],
+      "desired_evidence_events": [],
+      "relevant_components": ["BeforeAfter", "Table"],
+      "forbidden_components": ["Chart", "QuizItem"]
+    },
+    {
+      "id": "interpret-numeric-series",
+      "intent_text": "Interpretar una serie numérica comparando valores y observando su tendencia.",
+      "query_terms": ["interpret quantify numeric series compare values inspect trend chart"],
+      "objective": {
+        "mission": "interpret",
+        "source_functions": ["quantify"],
+        "available_requirements": ["numeric_series"]
+      },
+      "projection": {
+        "presentations": ["chart", "table"],
+        "accessibility": ["keyboard", "screen_reader"]
+      },
+      "desired_affordances": ["compare_values", "inspect_trend"],
+      "desired_evidence_events": [],
+      "relevant_components": ["Chart", "Table"],
+      "forbidden_components": ["BeforeAfter", "AudioExplanation"]
+    },
+    {
+      "id": "decide-with-evidence",
+      "intent_text": "Tomar una decisión, enviar la respuesta y recibir feedback informativo.",
+      "query_terms": ["decide assess submit answer reorder items receive feedback evidence"],
+      "objective": {
+        "mission": "decide",
+        "source_functions": ["assess"]
+      },
+      "projection": {
+        "presentations": ["text"],
+        "accessibility": ["keyboard", "screen_reader"]
+      },
+      "desired_affordances": ["submit_answer", "receive_feedback", "reorder_items"],
+      "desired_evidence_events": ["answer_submitted", "order_checked"],
+      "relevant_components": ["QuizItem", "DragOrder"],
+      "forbidden_components": ["Table", "Flashcard"]
+    },
+    {
+      "id": "recognize-by-recall",
+      "intent_text": "Intentar recordar conceptos antes de revelar y valorar la respuesta.",
+      "query_terms": ["recognize enumerate attempt recall reveal answer rate recall flashcard"],
+      "objective": {
+        "mission": "recognize",
+        "source_functions": ["enumerate"]
+      },
+      "projection": {
+        "presentations": ["text"],
+        "accessibility": ["keyboard", "screen_reader"]
+      },
+      "desired_affordances": ["attempt_recall", "reveal_answer", "rate_recall"],
+      "desired_evidence_events": ["answer_revealed", "recall_rated"],
+      "relevant_components": ["Flashcard"],
+      "forbidden_components": ["AudioExplanation", "Chart"]
+    },
+    {
+      "id": "produce-pronunciation",
+      "intent_text": "Producir una pronunciación, grabarla y compararla con un modelo sonoro.",
+      "query_terms": ["produce pronunciation listen record voice compare waveforms audio"],
+      "objective": {
+        "mission": "produce",
+        "source_functions": ["explore", "assess"],
+        "available_requirements": ["tts_service", "microphone"]
+      },
+      "projection": {
+        "presentations": ["audio"],
+        "accessibility": ["keyboard", "screen_reader"]
+      },
+      "desired_affordances": ["listen", "record_voice", "compare_waveforms"],
+      "desired_evidence_events": ["voice_recorded"],
+      "relevant_components": ["PronunciationExercise"],
+      "forbidden_components": ["AudioExplanation", "QuizItem"]
+    }
+  ]
+}

@@ -1,7 +1,7 @@
 # Cuaderno de experimentos de personalización
 
 **Estado:** documento vivo.  
-**Última actualización:** 2026-08-11.  
+**Última actualización:** 2026-08-12.
 **Ámbito:** cursos dinámicos v2, generación de UI, perfiles de aprendiz y futura librería
 de componentes.
 
@@ -530,3 +530,10 @@ experimentación debe mejorar la selección de invariantes bajo densidad baja. R
 
 Un resultado negativo se documenta igual que uno positivo. Su valor está en reducir el espacio de
 decisiones futuras y evitar que otra persona repita el mismo error sin conocer la evidencia.
+## 15. Selección acotada de componentes — ronda 1
+
+La primera ronda offline sobre catálogo completo, ranking por facetas y recuperación léxica
+diversa está documentada en
+[`evidencia-testing/2026-08-12/component-selection-r1/report.md`](evidencia-testing/2026-08-12/component-selection-r1/report.md).
+El resultado inicial favorece facetas para conservar evidencia, pero no decide todavía la
+arquitectura productiva: faltan tamaños de shortlist, embeddings semánticos y renders controlados.

@@ -1,0 +1,142 @@
+{
+  "version": "experience-intent/1",
+  "fixture_id": "didact-experience-intent-ceiling/1",
+  "top_k": 3,
+  "cases": [
+    {
+      "id": "procedure-supported",
+      "pair_id": "procedure-support",
+      "objective_text": "Learn the correct sequence for safely opening and closing a venue.",
+      "profile_text": "New employee who needs each decision unpacked and help only when stuck.",
+      "available_ports": ["evaluation", "persistence", "scheduler"],
+      "required_accessibility": ["keyboard", "screen_reader"],
+      "experience_intent": {
+        "actions": ["inspect", "interpret"],
+        "evidence": ["response:step-reveal", "result:ungraded"],
+        "feedback": ["feedback:on-demand", "feedback:explanation"],
+        "representations": ["procedural", "text"],
+        "depth": 2
+      }
+    },
+    {
+      "id": "procedure-independent",
+      "pair_id": "procedure-support",
+      "objective_text": "Learn the correct sequence for safely opening and closing a venue.",
+      "profile_text": "Experienced employee who wants to prove the sequence without tutorial support.",
+      "available_ports": ["evaluation", "persistence", "scheduler"],
+      "required_accessibility": ["keyboard", "screen_reader"],
+      "experience_intent": {
+        "actions": ["order", "manipulate"],
+        "evidence": ["response:ordering", "result:scored"],
+        "feedback": ["feedback:immediate"],
+        "representations": ["procedural"],
+        "depth": 3
+      }
+    },
+    {
+      "id": "incident-rehearsal",
+      "pair_id": "incident-mode",
+      "objective_text": "Choose how to respond when capacity, access and customer safety conflict.",
+      "profile_text": "Supervisor learns best by seeing the consequences of realistic choices.",
+      "available_ports": ["evaluation"],
+      "required_accessibility": ["keyboard", "screen_reader"],
+      "experience_intent": {
+        "actions": ["decide", "experiment", "interpret"],
+        "evidence": ["result:outcome"],
+        "feedback": ["feedback:consequences"],
+        "representations": ["network", "procedural"],
+        "depth": 4
+      }
+    },
+    {
+      "id": "incident-check",
+      "pair_id": "incident-mode",
+      "objective_text": "Choose how to respond when capacity, access and customer safety conflict.",
+      "profile_text": "Busy employee asks for a short knowledge check and a clear correction.",
+      "available_ports": ["evaluation"],
+      "required_accessibility": ["keyboard", "screen_reader"],
+      "experience_intent": {
+        "actions": ["select", "respond"],
+        "evidence": ["response:choice", "result:scored"],
+        "feedback": ["feedback:immediate"],
+        "representations": ["text"],
+        "depth": 3
+      }
+    },
+    {
+      "id": "kpi-exploration",
+      "pair_id": "kpi-representation",
+      "objective_text": "Explain why ticket conversion changed across dates and price bands.",
+      "profile_text": "Analyst prefers manipulating values and finding the pattern independently.",
+      "available_ports": [],
+      "required_accessibility": ["keyboard", "screen_reader"],
+      "experience_intent": {
+        "actions": ["experiment", "manipulate", "interpret"],
+        "evidence": ["response:value-manipulation", "result:task-owned"],
+        "feedback": ["feedback:informative"],
+        "representations": ["numeric", "data-series"],
+        "depth": 3
+      }
+    },
+    {
+      "id": "kpi-explanation",
+      "pair_id": "kpi-representation",
+      "objective_text": "Explain why ticket conversion changed across dates and price bands.",
+      "profile_text": "New manager wants a worked walkthrough in plain language before trying alone.",
+      "available_ports": [],
+      "required_accessibility": ["keyboard", "screen_reader"],
+      "experience_intent": {
+        "actions": ["inspect", "interpret"],
+        "evidence": ["response:step-reveal", "result:ungraded"],
+        "feedback": ["feedback:on-demand", "feedback:explanation"],
+        "representations": ["text", "procedural"],
+        "depth": 2
+      }
+    },
+    {
+      "id": "policy-relationship-map",
+      "pair_id": "policy-expression",
+      "objective_text": "Explain how cancellation evidence, deadlines and refund decisions relate.",
+      "profile_text": "Advanced learner wants to construct the relationships visually.",
+      "available_ports": ["evaluation", "persistence"],
+      "required_accessibility": ["screen_reader"],
+      "experience_intent": {
+        "actions": ["construct", "relate", "explain"],
+        "evidence": ["response:relations"],
+        "feedback": [],
+        "representations": ["network", "spatial"],
+        "depth": 4
+      }
+    },
+    {
+      "id": "policy-self-explanation",
+      "pair_id": "policy-expression",
+      "objective_text": "Explain how cancellation evidence, deadlines and refund decisions relate.",
+      "profile_text": "Reflective learner prefers writing an explanation and comparing it afterwards.",
+      "available_ports": ["evaluation", "persistence"],
+      "required_accessibility": ["keyboard", "screen_reader"],
+      "experience_intent": {
+        "actions": ["write", "explain"],
+        "evidence": ["response:text", "result:ungraded"],
+        "feedback": ["feedback:model-answer", "feedback:author-reviewed"],
+        "representations": ["text"],
+        "depth": 2
+      }
+    },
+    {
+      "id": "unsupported-switch-access",
+      "objective_text": "Practice identifying parts of a seating plan.",
+      "profile_text": "Learner requires a switch-control interface that the current host cannot provide.",
+      "available_ports": ["evaluation"],
+      "required_accessibility": ["switch_control"],
+      "expected_outcome": "decline",
+      "experience_intent": {
+        "actions": ["select", "relate"],
+        "evidence": ["response:graphic-gap-match"],
+        "feedback": ["feedback:informative"],
+        "representations": ["spatial", "image"],
+        "depth": 3
+      }
+    }
+  ]
+}

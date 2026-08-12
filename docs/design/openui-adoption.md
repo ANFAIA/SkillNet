@@ -1,5 +1,9 @@
 # Adopción de OpenUI: decisión
 
+> **Componentes educativos:** la adopción progresiva de la biblioteca pública Didact,
+> su filtrado por capacidades y la frontera con este runtime se documentan en
+> [`didact-integration.md`](didact-integration.md).
+
 > **DECISIÓN VIGENTE (2026-07-26, tarde): adopción completa — nivel (c), sin reactividad.**
 >
 > Entran las dependencias reales `@openuidev/react-lang@0.2.9` y `@openuidev/lang-core@0.2.10`

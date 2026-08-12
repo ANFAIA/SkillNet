@@ -1,0 +1,62 @@
+{
+  "version": "didact-screening/1",
+  "fixture_id": "didact-live-boundary-screening/1",
+  "max_tokens": 1200,
+  "cases": [
+    {
+      "id": "returns-text",
+      "title": "Devoluciones en tienda",
+      "summary": "Aplicar el plazo y las condiciones de devolución.",
+      "outcome": "Resolver una devolución sin escalar innecesariamente",
+      "source": "Se aceptan devoluciones durante 30 días naturales desde la entrega, con ticket y producto sin usar.",
+      "profile": {"role": "Dependienta", "sector": "comercio", "experience": "some", "density": 2, "presentation": "text"},
+      "critical_facts": [{"id": "plazo", "any_of": ["30 días", "30 dias"]}],
+      "facet_shortlist": ["didact.timeline-steps", "didact.worked-example"],
+      "oracle_shortlist": ["didact.timeline-steps", "didact.hint-reveal"]
+    },
+    {
+      "id": "fire-guided",
+      "title": "Uso del extintor ABC",
+      "summary": "Reconstruir la regla PAS y reconocer cuándo evacuar.",
+      "outcome": "Actuar con seguridad ante un conato",
+      "source": "PAS significa quitar el Pasador, Apuntar a la base y presionar barriendo en Sigzag. Si el fuego supera la cintura, evacuar y llamar al 112.",
+      "profile": {"role": "Mozo de almacén", "sector": "logística", "experience": "none", "density": 3, "presentation": "text"},
+      "critical_facts": [{"id": "pas", "any_of": ["pasador", "PAS"]}, {"id": "emergencia", "any_of": ["112"]}],
+      "facet_shortlist": ["didact.timeline-steps", "didact.hint-reveal"],
+      "oracle_shortlist": ["didact.worked-example", "didact.hint-reveal"]
+    },
+    {
+      "id": "allergens-compact",
+      "title": "Información de alérgenos",
+      "summary": "Consultar datos fiables antes de responder al cliente.",
+      "outcome": "Evitar respuestas inseguras sobre alérgenos",
+      "source": "La información de los 14 alérgenos debe estar por escrito. Si no puede garantizarse, se ofrece otro plato.",
+      "profile": {"role": "Camarero", "sector": "hostelería", "experience": "some", "density": 1, "presentation": "text"},
+      "critical_facts": [{"id": "cantidad", "any_of": ["14 alérgenos", "14 alergenos"]}],
+      "facet_shortlist": ["didact.glossary-term", "didact.flashcard"],
+      "oracle_shortlist": ["didact.glossary-term", "didact.hint-reveal"]
+    },
+    {
+      "id": "privacy-recall",
+      "title": "Protección de datos",
+      "summary": "Reconocer qué datos pueden compartirse.",
+      "outcome": "Aplicar minimización de datos",
+      "source": "Solo se comparten los datos necesarios para la finalidad autorizada. Las contraseñas nunca se comparten.",
+      "profile": {"role": "Administrativa", "sector": "servicios", "experience": "high", "density": 2, "presentation": "text"},
+      "critical_facts": [{"id": "password", "any_of": ["contraseñas", "contrasenas"]}],
+      "facet_shortlist": ["didact.flashcard", "didact.glossary-term"],
+      "oracle_shortlist": ["didact.flashcard", "didact.worked-example"]
+    },
+    {
+      "id": "cold-chain-visual",
+      "title": "Cadena de frío",
+      "summary": "Interpretar límites de temperatura y registrar incidencias.",
+      "outcome": "Decidir si un alimento es seguro",
+      "source": "Los refrigerados se conservan entre 0 y 5 °C. Una lectura de 9 °C exige aislar el producto y registrar la incidencia.",
+      "profile": {"role": "Manipulador de alimentos", "sector": "alimentación", "experience": "some", "density": 2, "presentation": "chart"},
+      "critical_facts": [{"id": "range", "any_of": ["0 y 5", "0-5"]}, {"id": "incident", "any_of": ["9"]}],
+      "facet_shortlist": ["didact.timeline-steps", "didact.worked-example"],
+      "oracle_shortlist": ["didact.worked-example", "didact.hint-reveal"]
+    }
+  ]
+}

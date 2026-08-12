@@ -1,0 +1,151 @@
+{
+  "version": "didact-shortlist/1",
+  "fixture_id": "didact-personas-and-objectives/1",
+  "top_k": 5,
+  "cases": [
+    {
+      "id": "novice-active-recall",
+      "intent_text": "Una persona novata que prefiere texto breve debe intentar recordar antes de ver la respuesta y pedir una pista solo si la necesita.",
+      "query_terms": ["active recall", "reveal answer", "progressive hint", "concise text"],
+      "objective": {"mission": "recognize", "source_functions": ["explore"]},
+      "projection": {"presentations": ["text"]},
+      "desired_affordances": ["respond", "inspect"],
+      "relevant_components": ["didact.flashcard", "didact.hint-reveal", "didact.glossary-term"],
+      "preferred_components": ["didact.flashcard", "didact.hint-reveal"],
+      "evidence_components": ["didact.flashcard"],
+      "forbidden_components": ["didact.code-exercise", "didact.simulation-lab"]
+    },
+    {
+      "id": "visual-procedure",
+      "intent_text": "Comprender un procedimiento cronológico viendo sus pasos y un ejemplo resuelto, sin examen todavía.",
+      "query_terms": ["ordered procedural steps", "chronological timeline", "worked example", "inspect process"],
+      "objective": {"mission": "interpret", "source_functions": ["explore"]},
+      "projection": {"presentations": ["text"]},
+      "desired_affordances": ["inspect", "interpret"],
+      "relevant_components": ["didact.timeline-steps", "didact.worked-example"],
+      "preferred_components": ["didact.timeline-steps"],
+      "evidence_components": ["didact.worked-example"],
+      "forbidden_components": ["didact.quiz.single-choice"]
+    },
+    {
+      "id": "classify-relations",
+      "intent_text": "Practicar relaciones y clasificación moviendo elementos, con evaluación y feedback.",
+      "query_terms": ["match relationships", "categorize classification", "movable items", "assessment feedback"],
+      "objective": {"mission": "reconstruct", "source_functions": ["assess"], "available_requirements": ["evaluation"]},
+      "projection": {"presentations": ["text"]},
+      "desired_affordances": ["relate", "manipulate", "order"],
+      "relevant_components": ["didact.matching", "didact.categorize", "didact.sort"],
+      "preferred_components": ["didact.matching", "didact.categorize"],
+      "evidence_components": ["didact.matching"],
+      "forbidden_components": ["didact.flashcard"]
+    },
+    {
+      "id": "decision-scenario",
+      "intent_text": "Una persona experimentada practica decisiones de atención al cliente y observa consecuencias en un escenario ramificado.",
+      "query_terms": ["branching scenario", "contextual decision", "consequences", "experiment"],
+      "objective": {"mission": "decide", "source_functions": ["assess"], "available_requirements": ["evaluation"]},
+      "projection": {"presentations": ["text"]},
+      "desired_affordances": ["decide", "experiment", "interpret"],
+      "relevant_components": ["didact.branching-scenario", "didact.quiz.single-choice"],
+      "preferred_components": ["didact.branching-scenario", "didact.quiz.single-choice"],
+      "evidence_components": ["didact.branching-scenario"],
+      "forbidden_components": ["didact.timeline-steps"]
+    },
+    {
+      "id": "numeric-data-exploration",
+      "intent_text": "Explorar una serie de datos, manipular variables e interpretar una tendencia antes de responder una pregunta numérica.",
+      "query_terms": ["data series", "manipulate variables", "inspect trend", "numeric response"],
+      "objective": {"mission": "interpret", "source_functions": ["quantify"], "available_requirements": ["evaluation"]},
+      "projection": {"presentations": ["chart"]},
+      "desired_affordances": ["inspect", "manipulate", "interpret"],
+      "relevant_components": ["didact.data-explorer", "didact.measurement-lab"],
+      "preferred_components": ["didact.data-explorer"],
+      "evidence_components": ["didact.measurement-lab"],
+      "forbidden_components": ["didact.glossary-term"]
+    },
+    {
+      "id": "visual-labelling",
+      "intent_text": "Aprender anatomía ubicando y relacionando etiquetas sobre un diagrama con alternativa accesible.",
+      "query_terms": ["label diagram", "visual targets", "assign labels", "keyboard equivalent"],
+      "objective": {"mission": "produce", "source_functions": ["assess"], "available_requirements": ["evaluation"]},
+      "projection": {"presentations": ["diagram"]},
+      "desired_affordances": ["relate", "construct", "manipulate"],
+      "relevant_components": ["didact.label-diagram", "didact.hotspot"],
+      "preferred_components": ["didact.label-diagram"],
+      "evidence_components": ["didact.label-diagram"],
+      "forbidden_components": ["didact.flashcard"]
+    },
+    {
+      "id": "reasoning-explanation",
+      "intent_text": "Explicar el razonamiento propio, compararlo con un proceso resuelto y conservar la respuesta escrita.",
+      "query_terms": ["self explanation", "explain reasoning", "worked step", "written response"],
+      "objective": {"mission": "explain", "source_functions": ["explore"], "available_requirements": ["persistence"]},
+      "projection": {"presentations": ["text"]},
+      "desired_affordances": ["explain", "write", "inspect"],
+      "relevant_components": ["didact.self-explanation-prompt", "didact.worked-example"],
+      "preferred_components": ["didact.self-explanation-prompt"],
+      "evidence_components": ["didact.self-explanation-prompt"],
+      "forbidden_components": ["didact.progress"]
+    },
+    {
+      "id": "source-evidence",
+      "intent_text": "Analizar un texto, seleccionar fragmentos como evidencia y conectarlos con afirmaciones explicadas.",
+      "query_terms": ["annotate source segments", "classify evidence", "connect claims", "explain notes"],
+      "objective": {"mission": "explain", "source_functions": ["assess"], "available_requirements": ["evaluation"]},
+      "projection": {"presentations": ["text"]},
+      "desired_affordances": ["select", "relate", "explain", "interpret"],
+      "relevant_components": ["didact.evidence-annotation"],
+      "preferred_components": ["didact.evidence-annotation"],
+      "evidence_components": ["didact.evidence-annotation"],
+      "forbidden_components": ["didact.code-exercise"]
+    },
+    {
+      "id": "symbolic-math",
+      "intent_text": "Construir una transformación algebraica paso a paso, justificarla y completar pasos ausentes.",
+      "query_terms": ["symbolic transformation", "equation steps", "mathematical equivalence", "completion problem"],
+      "objective": {"mission": "explain", "source_functions": ["assess"], "available_requirements": ["evaluation"]},
+      "projection": {"presentations": ["text"]},
+      "desired_affordances": ["calculate", "construct", "explain"],
+      "relevant_components": ["didact.equation-workbench", "didact.completion-problem"],
+      "preferred_components": ["didact.equation-workbench"],
+      "evidence_components": ["didact.completion-problem"],
+      "forbidden_components": ["didact.word-bank"]
+    },
+    {
+      "id": "technical-code-practice",
+      "intent_text": "Editar varios archivos, ejecutar código en un sandbox y recibir una evaluación técnica.",
+      "query_terms": ["multi-file code editor", "execute sandbox", "technical artifact", "evaluation"],
+      "objective": {"mission": "produce", "source_functions": ["assess"], "available_requirements": ["evaluation", "execution"]},
+      "projection": {"presentations": ["text"]},
+      "desired_affordances": ["create", "execute", "interpret"],
+      "relevant_components": ["didact.code-exercise"],
+      "preferred_components": ["didact.code-exercise"],
+      "evidence_components": ["didact.code-exercise"],
+      "forbidden_components": ["didact.flashcard"]
+    },
+    {
+      "id": "media-checkpoints",
+      "intent_text": "Aprender con vídeo o audio, transcripción y preguntas sincronizadas en momentos concretos.",
+      "query_terms": ["timed media checkpoints", "video transcript", "audio completion", "synchronized questions"],
+      "objective": {"mission": "interpret", "source_functions": ["explore"], "available_requirements": ["assets"]},
+      "projection": {"presentations": ["video", "audio"]},
+      "desired_affordances": ["inspect", "interpret", "respond"],
+      "relevant_components": ["didact.interactive-media"],
+      "preferred_components": ["didact.interactive-media"],
+      "evidence_components": ["didact.interactive-media"],
+      "forbidden_components": ["didact.code-exercise"]
+    },
+    {
+      "id": "systems-simulation",
+      "intent_text": "Experimentar con parámetros de un sistema, ejecutar transiciones deterministas y observar resultados.",
+      "query_terms": ["simulation lab", "parameters", "deterministic state transitions", "observables snapshots"],
+      "objective": {"mission": "interpret", "source_functions": ["explore"], "available_requirements": ["simulation"]},
+      "projection": {"presentations": ["simulation", "chart"]},
+      "desired_affordances": ["experiment", "manipulate", "interpret"],
+      "relevant_components": ["didact.simulation-lab", "didact.data-explorer"],
+      "preferred_components": ["didact.simulation-lab", "didact.data-explorer"],
+      "evidence_components": ["didact.simulation-lab"],
+      "forbidden_components": ["didact.code-exercise"]
+    }
+  ]
+}

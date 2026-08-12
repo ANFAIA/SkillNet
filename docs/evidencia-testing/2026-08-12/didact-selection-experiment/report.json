@@ -1,0 +1,1127 @@
+{
+  "bench_version": "didact-selection/1",
+  "fixture_id": "didact-34-personalization/1",
+  "catalog_size": 34,
+  "catalog_explicit_evidence_event_count": 0,
+  "repetitions": 500,
+  "strategies": [
+    "eligible-full",
+    "facets-k3",
+    "facets-k5",
+    "facets-mmr-k5"
+  ],
+  "policy": {
+    "facet_weights": {
+      "source": 0.2,
+      "presentation": 0.2,
+      "affordance": 0.45,
+      "explicit_evidence": 0.1,
+      "catalog_rank": 0.05
+    },
+    "mmr_lexical_weight": 0.25,
+    "mmr_relevance_lambda": 0.72
+  },
+  "summaries": {
+    "eligible-full": {
+      "cases": 10,
+      "mean_relevant_recall": 1.0,
+      "mean_relevant_precision": 0.2467965367965368,
+      "mean_affordance_coverage": 1.0,
+      "mean_explicit_evidence_coverage": 0.0,
+      "mean_prohibited_rate": 0.2627056277056277,
+      "mean_preference_match": 0.5897186147186148,
+      "mean_semantic_signature_diversity": 0.43121913743618745,
+      "prohibited_total": 16,
+      "latency_ms": {
+        "median": 0.0008500000000000001,
+        "p95": 0.0036
+      }
+    },
+    "facets-k3": {
+      "cases": 10,
+      "mean_relevant_recall": 0.9333333333333333,
+      "mean_relevant_precision": 0.45,
+      "mean_affordance_coverage": 1.0,
+      "mean_explicit_evidence_coverage": 0.0,
+      "mean_prohibited_rate": 0.15,
+      "mean_preference_match": 0.75,
+      "mean_semantic_signature_diversity": 0.42908814654557687,
+      "prohibited_total": 4,
+      "latency_ms": {
+        "median": 0.011474999999999999,
+        "p95": 0.0493
+      }
+    },
+    "facets-k5": {
+      "cases": 10,
+      "mean_relevant_recall": 0.9666666666666666,
+      "mean_relevant_precision": 0.31500000000000006,
+      "mean_affordance_coverage": 1.0,
+      "mean_explicit_evidence_coverage": 0.0,
+      "mean_prohibited_rate": 0.23500000000000001,
+      "mean_preference_match": 0.67,
+      "mean_semantic_signature_diversity": 0.4144731991577967,
+      "prohibited_total": 10,
+      "latency_ms": {
+        "median": 0.01225,
+        "p95": 0.0571
+      }
+    },
+    "facets-mmr-k5": {
+      "cases": 10,
+      "mean_relevant_recall": 1.0,
+      "mean_relevant_precision": 0.335,
+      "mean_affordance_coverage": 1.0,
+      "mean_explicit_evidence_coverage": 0.0,
+      "mean_prohibited_rate": 0.215,
+      "mean_preference_match": 0.67,
+      "mean_semantic_signature_diversity": 0.41550874204628074,
+      "prohibited_total": 9,
+      "latency_ms": {
+        "median": 0.41457499999999997,
+        "p95": 4.002
+      }
+    }
+  },
+  "results": [
+    {
+      "case_id": "text-recall",
+      "strategy": "eligible-full",
+      "eligible_count": 5,
+      "selected": [
+        "didact.data-explorer",
+        "didact.flashcard",
+        "didact.glossary-term",
+        "didact.hint-reveal",
+        "didact.worked-example"
+      ],
+      "metrics": {
+        "relevant_recall": 1.0,
+        "relevant_precision": 0.4,
+        "affordance_coverage": 1.0,
+        "explicit_evidence_coverage": 0.0,
+        "prohibited_count": 1,
+        "prohibited_rate": 0.2,
+        "preference_match": 0.8,
+        "semantic_signature_diversity": 0.37821152703505645
+      },
+      "latency_ms": {
+        "median": 0.0006,
+        "p95": 0.0007
+      }
+    },
+    {
+      "case_id": "text-recall",
+      "strategy": "facets-k3",
+      "eligible_count": 5,
+      "selected": [
+        "didact.flashcard",
+        "didact.glossary-term",
+        "didact.hint-reveal"
+      ],
+      "metrics": {
+        "relevant_recall": 1.0,
+        "relevant_precision": 0.6666666666666666,
+        "affordance_coverage": 1.0,
+        "explicit_evidence_coverage": 0.0,
+        "prohibited_count": 0,
+        "prohibited_rate": 0.0,
+        "preference_match": 1.0,
+        "semantic_signature_diversity": 0.19999999999999998
+      },
+      "latency_ms": {
+        "median": 0.0085,
+        "p95": 0.0106
+      }
+    },
+    {
+      "case_id": "text-recall",
+      "strategy": "facets-k5",
+      "eligible_count": 5,
+      "selected": [
+        "didact.flashcard",
+        "didact.glossary-term",
+        "didact.hint-reveal",
+        "didact.worked-example",
+        "didact.data-explorer"
+      ],
+      "metrics": {
+        "relevant_recall": 1.0,
+        "relevant_precision": 0.4,
+        "affordance_coverage": 1.0,
+        "explicit_evidence_coverage": 0.0,
+        "prohibited_count": 1,
+        "prohibited_rate": 0.2,
+        "preference_match": 0.8,
+        "semantic_signature_diversity": 0.37821152703505645
+      },
+      "latency_ms": {
+        "median": 0.0138,
+        "p95": 0.0254
+      }
+    },
+    {
+      "case_id": "text-recall",
+      "strategy": "facets-mmr-k5",
+      "eligible_count": 5,
+      "selected": [
+        "didact.flashcard",
+        "didact.glossary-term",
+        "didact.worked-example",
+        "didact.data-explorer",
+        "didact.hint-reveal"
+      ],
+      "metrics": {
+        "relevant_recall": 1.0,
+        "relevant_precision": 0.4,
+        "affordance_coverage": 1.0,
+        "explicit_evidence_coverage": 0.0,
+        "prohibited_count": 1,
+        "prohibited_rate": 0.2,
+        "preference_match": 0.8,
+        "semantic_signature_diversity": 0.37821152703505645
+      },
+      "latency_ms": {
+        "median": 0.29215,
+        "p95": 0.4213
+      }
+    },
+    {
+      "case_id": "procedure-timeline",
+      "strategy": "eligible-full",
+      "eligible_count": 6,
+      "selected": [
+        "didact.data-explorer",
+        "didact.flashcard",
+        "didact.glossary-term",
+        "didact.hint-reveal",
+        "didact.timeline-steps",
+        "didact.worked-example"
+      ],
+      "metrics": {
+        "relevant_recall": 1.0,
+        "relevant_precision": 0.3333333333333333,
+        "affordance_coverage": 1.0,
+        "explicit_evidence_coverage": 0.0,
+        "prohibited_count": 1,
+        "prohibited_rate": 0.16666666666666666,
+        "preference_match": 0.8333333333333334,
+        "semantic_signature_diversity": 0.3999440483264013
+      },
+      "latency_ms": {
+        "median": 0.0009,
+        "p95": 0.001
+      }
+    },
+    {
+      "case_id": "procedure-timeline",
+      "strategy": "facets-k3",
+      "eligible_count": 6,
+      "selected": [
+        "didact.timeline-steps",
+        "didact.worked-example",
+        "didact.data-explorer"
+      ],
+      "metrics": {
+        "relevant_recall": 1.0,
+        "relevant_precision": 0.6666666666666666,
+        "affordance_coverage": 1.0,
+        "explicit_evidence_coverage": 0.0,
+        "prohibited_count": 1,
+        "prohibited_rate": 0.3333333333333333,
+        "preference_match": 0.6666666666666666,
+        "semantic_signature_diversity": 0.483578431372549
+      },
+      "latency_ms": {
+        "median": 0.0115,
+        "p95": 0.0154
+      }
+    },
+    {
+      "case_id": "procedure-timeline",
+      "strategy": "facets-k5",
+      "eligible_count": 6,
+      "selected": [
+        "didact.timeline-steps",
+        "didact.worked-example",
+        "didact.data-explorer",
+        "didact.flashcard",
+        "didact.glossary-term"
+      ],
+      "metrics": {
+        "relevant_recall": 1.0,
+        "relevant_precision": 0.4,
+        "affordance_coverage": 1.0,
+        "explicit_evidence_coverage": 0.0,
+        "prohibited_count": 1,
+        "prohibited_rate": 0.2,
+        "preference_match": 0.8,
+        "semantic_signature_diversity": 0.4340990790255496
+      },
+      "latency_ms": {
+        "median": 0.0111,
+        "p95": 0.0135
+      }
+    },
+    {
+      "case_id": "procedure-timeline",
+      "strategy": "facets-mmr-k5",
+      "eligible_count": 6,
+      "selected": [
+        "didact.timeline-steps",
+        "didact.worked-example",
+        "didact.data-explorer",
+        "didact.flashcard",
+        "didact.hint-reveal"
+      ],
+      "metrics": {
+        "relevant_recall": 1.0,
+        "relevant_precision": 0.4,
+        "affordance_coverage": 1.0,
+        "explicit_evidence_coverage": 0.0,
+        "prohibited_count": 1,
+        "prohibited_rate": 0.2,
+        "preference_match": 0.8,
+        "semantic_signature_diversity": 0.4315322341057636
+      },
+      "latency_ms": {
+        "median": 0.42965,
+        "p95": 0.6404
+      }
+    },
+    {
+      "case_id": "guided-self-explanation",
+      "strategy": "eligible-full",
+      "eligible_count": 4,
+      "selected": [
+        "didact.glossary-term",
+        "didact.hint-reveal",
+        "didact.self-explanation-prompt",
+        "didact.worked-example"
+      ],
+      "metrics": {
+        "relevant_recall": 1.0,
+        "relevant_precision": 0.25,
+        "affordance_coverage": 1.0,
+        "explicit_evidence_coverage": 0.0,
+        "prohibited_count": 1,
+        "prohibited_rate": 0.25,
+        "preference_match": 1.0,
+        "semantic_signature_diversity": 0.3687710437710437
+      },
+      "latency_ms": {
+        "median": 0.0006,
+        "p95": 0.0008
+      }
+    },
+    {
+      "case_id": "guided-self-explanation",
+      "strategy": "facets-k3",
+      "eligible_count": 4,
+      "selected": [
+        "didact.self-explanation-prompt",
+        "didact.glossary-term",
+        "didact.hint-reveal"
+      ],
+      "metrics": {
+        "relevant_recall": 1.0,
+        "relevant_precision": 0.3333333333333333,
+        "affordance_coverage": 1.0,
+        "explicit_evidence_coverage": 0.0,
+        "prohibited_count": 0,
+        "prohibited_rate": 0.0,
+        "preference_match": 1.0,
+        "semantic_signature_diversity": 0.4151515151515151
+      },
+      "latency_ms": {
+        "median": 0.0071,
+        "p95": 0.0099
+      }
+    },
+    {
+      "case_id": "guided-self-explanation",
+      "strategy": "facets-k5",
+      "eligible_count": 4,
+      "selected": [
+        "didact.self-explanation-prompt",
+        "didact.glossary-term",
+        "didact.hint-reveal",
+        "didact.worked-example"
+      ],
+      "metrics": {
+        "relevant_recall": 1.0,
+        "relevant_precision": 0.25,
+        "affordance_coverage": 1.0,
+        "explicit_evidence_coverage": 0.0,
+        "prohibited_count": 1,
+        "prohibited_rate": 0.25,
+        "preference_match": 1.0,
+        "semantic_signature_diversity": 0.3687710437710437
+      },
+      "latency_ms": {
+        "median": 0.0064,
+        "p95": 0.0071
+      }
+    },
+    {
+      "case_id": "guided-self-explanation",
+      "strategy": "facets-mmr-k5",
+      "eligible_count": 4,
+      "selected": [
+        "didact.self-explanation-prompt",
+        "didact.worked-example",
+        "didact.glossary-term",
+        "didact.hint-reveal"
+      ],
+      "metrics": {
+        "relevant_recall": 1.0,
+        "relevant_precision": 0.25,
+        "affordance_coverage": 1.0,
+        "explicit_evidence_coverage": 0.0,
+        "prohibited_count": 1,
+        "prohibited_rate": 0.25,
+        "preference_match": 1.0,
+        "semantic_signature_diversity": 0.3687710437710437
+      },
+      "latency_ms": {
+        "median": 0.19774999999999998,
+        "p95": 0.3657
+      }
+    },
+    {
+      "case_id": "numeric-exploration",
+      "strategy": "eligible-full",
+      "eligible_count": 5,
+      "selected": [
+        "didact.data-explorer",
+        "didact.flashcard",
+        "didact.glossary-term",
+        "didact.hint-reveal",
+        "didact.worked-example"
+      ],
+      "metrics": {
+        "relevant_recall": 1.0,
+        "relevant_precision": 0.2,
+        "affordance_coverage": 1.0,
+        "explicit_evidence_coverage": 0.0,
+        "prohibited_count": 2,
+        "prohibited_rate": 0.4,
+        "preference_match": 0.2,
+        "semantic_signature_diversity": 0.37821152703505645
+      },
+      "latency_ms": {
+        "median": 0.0009,
+        "p95": 0.0012
+      }
+    },
+    {
+      "case_id": "numeric-exploration",
+      "strategy": "facets-k3",
+      "eligible_count": 5,
+      "selected": [
+        "didact.data-explorer",
+        "didact.worked-example",
+        "didact.flashcard"
+      ],
+      "metrics": {
+        "relevant_recall": 1.0,
+        "relevant_precision": 0.3333333333333333,
+        "affordance_coverage": 1.0,
+        "explicit_evidence_coverage": 0.0,
+        "prohibited_count": 1,
+        "prohibited_rate": 0.3333333333333333,
+        "preference_match": 0.3333333333333333,
+        "semantic_signature_diversity": 0.5133689839572192
+      },
+      "latency_ms": {
+        "median": 0.01145,
+        "p95": 0.014
+      }
+    },
+    {
+      "case_id": "numeric-exploration",
+      "strategy": "facets-k5",
+      "eligible_count": 5,
+      "selected": [
+        "didact.data-explorer",
+        "didact.worked-example",
+        "didact.flashcard",
+        "didact.glossary-term",
+        "didact.hint-reveal"
+      ],
+      "metrics": {
+        "relevant_recall": 1.0,
+        "relevant_precision": 0.2,
+        "affordance_coverage": 1.0,
+        "explicit_evidence_coverage": 0.0,
+        "prohibited_count": 2,
+        "prohibited_rate": 0.4,
+        "preference_match": 0.2,
+        "semantic_signature_diversity": 0.37821152703505645
+      },
+      "latency_ms": {
+        "median": 0.0113,
+        "p95": 0.0134
+      }
+    },
+    {
+      "case_id": "numeric-exploration",
+      "strategy": "facets-mmr-k5",
+      "eligible_count": 5,
+      "selected": [
+        "didact.data-explorer",
+        "didact.worked-example",
+        "didact.flashcard",
+        "didact.hint-reveal",
+        "didact.glossary-term"
+      ],
+      "metrics": {
+        "relevant_recall": 1.0,
+        "relevant_precision": 0.2,
+        "affordance_coverage": 1.0,
+        "explicit_evidence_coverage": 0.0,
+        "prohibited_count": 2,
+        "prohibited_rate": 0.4,
+        "preference_match": 0.2,
+        "semantic_signature_diversity": 0.37821152703505645
+      },
+      "latency_ms": {
+        "median": 0.3497,
+        "p95": 0.5835
+      }
+    },
+    {
+      "case_id": "decision-scenario",
+      "strategy": "eligible-full",
+      "eligible_count": 2,
+      "selected": [
+        "didact.branching-scenario",
+        "didact.data-explorer"
+      ],
+      "metrics": {
+        "relevant_recall": 1.0,
+        "relevant_precision": 0.5,
+        "affordance_coverage": 1.0,
+        "explicit_evidence_coverage": 0.0,
+        "prohibited_count": 1,
+        "prohibited_rate": 0.5,
+        "preference_match": 0.5,
+        "semantic_signature_diversity": 0.6842105263157895
+      },
+      "latency_ms": {
+        "median": 0.0005,
+        "p95": 0.0006
+      }
+    },
+    {
+      "case_id": "decision-scenario",
+      "strategy": "facets-k3",
+      "eligible_count": 2,
+      "selected": [
+        "didact.branching-scenario",
+        "didact.data-explorer"
+      ],
+      "metrics": {
+        "relevant_recall": 1.0,
+        "relevant_precision": 0.5,
+        "affordance_coverage": 1.0,
+        "explicit_evidence_coverage": 0.0,
+        "prohibited_count": 1,
+        "prohibited_rate": 0.5,
+        "preference_match": 0.5,
+        "semantic_signature_diversity": 0.6842105263157895
+      },
+      "latency_ms": {
+        "median": 0.0048,
+        "p95": 0.0056
+      }
+    },
+    {
+      "case_id": "decision-scenario",
+      "strategy": "facets-k5",
+      "eligible_count": 2,
+      "selected": [
+        "didact.branching-scenario",
+        "didact.data-explorer"
+      ],
+      "metrics": {
+        "relevant_recall": 1.0,
+        "relevant_precision": 0.5,
+        "affordance_coverage": 1.0,
+        "explicit_evidence_coverage": 0.0,
+        "prohibited_count": 1,
+        "prohibited_rate": 0.5,
+        "preference_match": 0.5,
+        "semantic_signature_diversity": 0.6842105263157895
+      },
+      "latency_ms": {
+        "median": 0.0045,
+        "p95": 0.0054
+      }
+    },
+    {
+      "case_id": "decision-scenario",
+      "strategy": "facets-mmr-k5",
+      "eligible_count": 2,
+      "selected": [
+        "didact.branching-scenario",
+        "didact.data-explorer"
+      ],
+      "metrics": {
+        "relevant_recall": 1.0,
+        "relevant_precision": 0.5,
+        "affordance_coverage": 1.0,
+        "explicit_evidence_coverage": 0.0,
+        "prohibited_count": 1,
+        "prohibited_rate": 0.5,
+        "preference_match": 0.5,
+        "semantic_signature_diversity": 0.6842105263157895
+      },
+      "latency_ms": {
+        "median": 0.106,
+        "p95": 0.2285
+      }
+    },
+    {
+      "case_id": "choice-assessment",
+      "strategy": "eligible-full",
+      "eligible_count": 11,
+      "selected": [
+        "didact.branching-scenario",
+        "didact.completion-problem",
+        "didact.equation-workbench",
+        "didact.numeric-question",
+        "didact.practice-set",
+        "didact.quiz.fill-in-the-blank",
+        "didact.quiz.multi-select",
+        "didact.quiz.short-answer",
+        "didact.quiz.single-choice",
+        "didact.quiz.true-false",
+        "didact.rubric"
+      ],
+      "metrics": {
+        "relevant_recall": 1.0,
+        "relevant_precision": 0.2727272727272727,
+        "affordance_coverage": 1.0,
+        "explicit_evidence_coverage": 0.0,
+        "prohibited_count": 2,
+        "prohibited_rate": 0.18181818181818182,
+        "preference_match": 0.9090909090909091,
+        "semantic_signature_diversity": 0.3474735870190415
+      },
+      "latency_ms": {
+        "median": 0.0014,
+        "p95": 0.0015
+      }
+    },
+    {
+      "case_id": "choice-assessment",
+      "strategy": "facets-k3",
+      "eligible_count": 11,
+      "selected": [
+        "didact.practice-set",
+        "didact.quiz.fill-in-the-blank",
+        "didact.quiz.multi-select"
+      ],
+      "metrics": {
+        "relevant_recall": 0.3333333333333333,
+        "relevant_precision": 0.3333333333333333,
+        "affordance_coverage": 1.0,
+        "explicit_evidence_coverage": 0.0,
+        "prohibited_count": 0,
+        "prohibited_rate": 0.0,
+        "preference_match": 1.0,
+        "semantic_signature_diversity": 0.06060606060606063
+      },
+      "latency_ms": {
+        "median": 0.0199,
+        "p95": 0.0243
+      }
+    },
+    {
+      "case_id": "choice-assessment",
+      "strategy": "facets-k5",
+      "eligible_count": 11,
+      "selected": [
+        "didact.practice-set",
+        "didact.quiz.fill-in-the-blank",
+        "didact.quiz.multi-select",
+        "didact.quiz.short-answer",
+        "didact.quiz.single-choice"
+      ],
+      "metrics": {
+        "relevant_recall": 0.6666666666666666,
+        "relevant_precision": 0.4,
+        "affordance_coverage": 1.0,
+        "explicit_evidence_coverage": 0.0,
+        "prohibited_count": 0,
+        "prohibited_rate": 0.0,
+        "preference_match": 1.0,
+        "semantic_signature_diversity": 0.036363636363636376
+      },
+      "latency_ms": {
+        "median": 0.0192,
+        "p95": 0.0228
+      }
+    },
+    {
+      "case_id": "choice-assessment",
+      "strategy": "facets-mmr-k5",
+      "eligible_count": 11,
+      "selected": [
+        "didact.quiz.single-choice",
+        "didact.quiz.multi-select",
+        "didact.practice-set",
+        "didact.quiz.short-answer",
+        "didact.quiz.true-false"
+      ],
+      "metrics": {
+        "relevant_recall": 1.0,
+        "relevant_precision": 0.6,
+        "affordance_coverage": 1.0,
+        "explicit_evidence_coverage": 0.0,
+        "prohibited_count": 0,
+        "prohibited_rate": 0.0,
+        "preference_match": 1.0,
+        "semantic_signature_diversity": 0.036363636363636376
+      },
+      "latency_ms": {
+        "median": 0.9997499999999999,
+        "p95": 1.4982
+      }
+    },
+    {
+      "case_id": "visual-labeling",
+      "strategy": "eligible-full",
+      "eligible_count": 21,
+      "selected": [
+        "didact.branching-scenario",
+        "didact.categorize",
+        "didact.completion-problem",
+        "didact.concept-map",
+        "didact.drawing-response",
+        "didact.equation-workbench",
+        "didact.evidence-annotation",
+        "didact.hotspot",
+        "didact.label-diagram",
+        "didact.matching",
+        "didact.measurement-lab",
+        "didact.numeric-question",
+        "didact.practice-set",
+        "didact.quiz.fill-in-the-blank",
+        "didact.quiz.multi-select",
+        "didact.quiz.short-answer",
+        "didact.quiz.single-choice",
+        "didact.quiz.true-false",
+        "didact.rubric",
+        "didact.sort",
+        "didact.word-bank"
+      ],
+      "metrics": {
+        "relevant_recall": 1.0,
+        "relevant_precision": 0.09523809523809523,
+        "affordance_coverage": 1.0,
+        "explicit_evidence_coverage": 0.0,
+        "prohibited_count": 2,
+        "prohibited_rate": 0.09523809523809523,
+        "preference_match": 0.23809523809523808,
+        "semantic_signature_diversity": 0.457620610015568
+      },
+      "latency_ms": {
+        "median": 0.0026,
+        "p95": 0.0036
+      }
+    },
+    {
+      "case_id": "visual-labeling",
+      "strategy": "facets-k3",
+      "eligible_count": 21,
+      "selected": [
+        "didact.label-diagram",
+        "didact.drawing-response",
+        "didact.concept-map"
+      ],
+      "metrics": {
+        "relevant_recall": 1.0,
+        "relevant_precision": 0.6666666666666666,
+        "affordance_coverage": 1.0,
+        "explicit_evidence_coverage": 0.0,
+        "prohibited_count": 0,
+        "prohibited_rate": 0.0,
+        "preference_match": 1.0,
+        "semantic_signature_diversity": 0.37374847374847375
+      },
+      "latency_ms": {
+        "median": 0.0364,
+        "p95": 0.0493
+      }
+    },
+    {
+      "case_id": "visual-labeling",
+      "strategy": "facets-k5",
+      "eligible_count": 21,
+      "selected": [
+        "didact.label-diagram",
+        "didact.drawing-response",
+        "didact.concept-map",
+        "didact.hotspot",
+        "didact.categorize"
+      ],
+      "metrics": {
+        "relevant_recall": 1.0,
+        "relevant_precision": 0.4,
+        "affordance_coverage": 1.0,
+        "explicit_evidence_coverage": 0.0,
+        "prohibited_count": 0,
+        "prohibited_rate": 0.0,
+        "preference_match": 0.8,
+        "semantic_signature_diversity": 0.42187728937728936
+      },
+      "latency_ms": {
+        "median": 0.03945,
+        "p95": 0.0571
+      }
+    },
+    {
+      "case_id": "visual-labeling",
+      "strategy": "facets-mmr-k5",
+      "eligible_count": 21,
+      "selected": [
+        "didact.label-diagram",
+        "didact.drawing-response",
+        "didact.concept-map",
+        "didact.hotspot",
+        "didact.categorize"
+      ],
+      "metrics": {
+        "relevant_recall": 1.0,
+        "relevant_precision": 0.4,
+        "affordance_coverage": 1.0,
+        "explicit_evidence_coverage": 0.0,
+        "prohibited_count": 0,
+        "prohibited_rate": 0.0,
+        "preference_match": 0.8,
+        "semantic_signature_diversity": 0.42187728937728936
+      },
+      "latency_ms": {
+        "median": 2.4675000000000002,
+        "p95": 4.002
+      }
+    },
+    {
+      "case_id": "simulation-manipulation",
+      "strategy": "eligible-full",
+      "eligible_count": 6,
+      "selected": [
+        "didact.data-explorer",
+        "didact.flashcard",
+        "didact.glossary-term",
+        "didact.hint-reveal",
+        "didact.simulation-lab",
+        "didact.worked-example"
+      ],
+      "metrics": {
+        "relevant_recall": 1.0,
+        "relevant_precision": 0.16666666666666666,
+        "affordance_coverage": 1.0,
+        "explicit_evidence_coverage": 0.0,
+        "prohibited_count": 2,
+        "prohibited_rate": 0.3333333333333333,
+        "preference_match": 0.3333333333333333,
+        "semantic_signature_diversity": 0.4886606258665082
+      },
+      "latency_ms": {
+        "median": 0.0008,
+        "p95": 0.0009
+      }
+    },
+    {
+      "case_id": "simulation-manipulation",
+      "strategy": "facets-k3",
+      "eligible_count": 6,
+      "selected": [
+        "didact.simulation-lab",
+        "didact.data-explorer",
+        "didact.worked-example"
+      ],
+      "metrics": {
+        "relevant_recall": 1.0,
+        "relevant_precision": 0.3333333333333333,
+        "affordance_coverage": 1.0,
+        "explicit_evidence_coverage": 0.0,
+        "prohibited_count": 0,
+        "prohibited_rate": 0.0,
+        "preference_match": 0.6666666666666666,
+        "semantic_signature_diversity": 0.6029411764705882
+      },
+      "latency_ms": {
+        "median": 0.0141,
+        "p95": 0.022
+      }
+    },
+    {
+      "case_id": "simulation-manipulation",
+      "strategy": "facets-k5",
+      "eligible_count": 6,
+      "selected": [
+        "didact.simulation-lab",
+        "didact.data-explorer",
+        "didact.worked-example",
+        "didact.flashcard",
+        "didact.glossary-term"
+      ],
+      "metrics": {
+        "relevant_recall": 1.0,
+        "relevant_precision": 0.2,
+        "affordance_coverage": 1.0,
+        "explicit_evidence_coverage": 0.0,
+        "prohibited_count": 2,
+        "prohibited_rate": 0.4,
+        "preference_match": 0.4,
+        "semantic_signature_diversity": 0.5259239453357101
+      },
+      "latency_ms": {
+        "median": 0.0132,
+        "p95": 0.0188
+      }
+    },
+    {
+      "case_id": "simulation-manipulation",
+      "strategy": "facets-mmr-k5",
+      "eligible_count": 6,
+      "selected": [
+        "didact.simulation-lab",
+        "didact.data-explorer",
+        "didact.worked-example",
+        "didact.flashcard",
+        "didact.hint-reveal"
+      ],
+      "metrics": {
+        "relevant_recall": 1.0,
+        "relevant_precision": 0.2,
+        "affordance_coverage": 1.0,
+        "explicit_evidence_coverage": 0.0,
+        "prohibited_count": 1,
+        "prohibited_rate": 0.2,
+        "preference_match": 0.4,
+        "semantic_signature_diversity": 0.5381365121806299
+      },
+      "latency_ms": {
+        "median": 0.45894999999999997,
+        "p95": 0.7597
+      }
+    },
+    {
+      "case_id": "code-production",
+      "strategy": "eligible-full",
+      "eligible_count": 12,
+      "selected": [
+        "didact.branching-scenario",
+        "didact.code-exercise",
+        "didact.completion-problem",
+        "didact.equation-workbench",
+        "didact.numeric-question",
+        "didact.practice-set",
+        "didact.quiz.fill-in-the-blank",
+        "didact.quiz.multi-select",
+        "didact.quiz.short-answer",
+        "didact.quiz.single-choice",
+        "didact.quiz.true-false",
+        "didact.rubric"
+      ],
+      "metrics": {
+        "relevant_recall": 1.0,
+        "relevant_precision": 0.08333333333333333,
+        "affordance_coverage": 1.0,
+        "explicit_evidence_coverage": 0.0,
+        "prohibited_count": 2,
+        "prohibited_rate": 0.16666666666666666,
+        "preference_match": 0.9166666666666666,
+        "semantic_signature_diversity": 0.3697866527411982
+      },
+      "latency_ms": {
+        "median": 0.0013,
+        "p95": 0.0014
+      }
+    },
+    {
+      "case_id": "code-production",
+      "strategy": "facets-k3",
+      "eligible_count": 12,
+      "selected": [
+        "didact.code-exercise",
+        "didact.branching-scenario",
+        "didact.rubric"
+      ],
+      "metrics": {
+        "relevant_recall": 1.0,
+        "relevant_precision": 0.3333333333333333,
+        "affordance_coverage": 1.0,
+        "explicit_evidence_coverage": 0.0,
+        "prohibited_count": 0,
+        "prohibited_rate": 0.0,
+        "preference_match": 1.0,
+        "semantic_signature_diversity": 0.3968253968253969
+      },
+      "latency_ms": {
+        "median": 0.0174,
+        "p95": 0.0222
+      }
+    },
+    {
+      "case_id": "code-production",
+      "strategy": "facets-k5",
+      "eligible_count": 12,
+      "selected": [
+        "didact.code-exercise",
+        "didact.branching-scenario",
+        "didact.rubric",
+        "didact.completion-problem",
+        "didact.equation-workbench"
+      ],
+      "metrics": {
+        "relevant_recall": 1.0,
+        "relevant_precision": 0.2,
+        "affordance_coverage": 1.0,
+        "explicit_evidence_coverage": 0.0,
+        "prohibited_count": 0,
+        "prohibited_rate": 0.0,
+        "preference_match": 1.0,
+        "semantic_signature_diversity": 0.4482142857142858
+      },
+      "latency_ms": {
+        "median": 0.02055,
+        "p95": 0.0331
+      }
+    },
+    {
+      "case_id": "code-production",
+      "strategy": "facets-mmr-k5",
+      "eligible_count": 12,
+      "selected": [
+        "didact.code-exercise",
+        "didact.rubric",
+        "didact.branching-scenario",
+        "didact.completion-problem",
+        "didact.practice-set"
+      ],
+      "metrics": {
+        "relevant_recall": 1.0,
+        "relevant_precision": 0.2,
+        "affordance_coverage": 1.0,
+        "explicit_evidence_coverage": 0.0,
+        "prohibited_count": 0,
+        "prohibited_rate": 0.0,
+        "preference_match": 1.0,
+        "semantic_signature_diversity": 0.4489239926739927
+      },
+      "latency_ms": {
+        "median": 0.9423999999999999,
+        "p95": 1.3664
+      }
+    },
+    {
+      "case_id": "interactive-audio",
+      "strategy": "eligible-full",
+      "eligible_count": 6,
+      "selected": [
+        "didact.data-explorer",
+        "didact.flashcard",
+        "didact.glossary-term",
+        "didact.hint-reveal",
+        "didact.interactive-media",
+        "didact.worked-example"
+      ],
+      "metrics": {
+        "relevant_recall": 1.0,
+        "relevant_precision": 0.16666666666666666,
+        "affordance_coverage": 1.0,
+        "explicit_evidence_coverage": 0.0,
+        "prohibited_count": 2,
+        "prohibited_rate": 0.3333333333333333,
+        "preference_match": 0.16666666666666666,
+        "semantic_signature_diversity": 0.43930122623621076
+      },
+      "latency_ms": {
+        "median": 0.0008,
+        "p95": 0.0009
+      }
+    },
+    {
+      "case_id": "interactive-audio",
+      "strategy": "facets-k3",
+      "eligible_count": 6,
+      "selected": [
+        "didact.interactive-media",
+        "didact.data-explorer",
+        "didact.flashcard"
+      ],
+      "metrics": {
+        "relevant_recall": 1.0,
+        "relevant_precision": 0.3333333333333333,
+        "affordance_coverage": 1.0,
+        "explicit_evidence_coverage": 0.0,
+        "prohibited_count": 1,
+        "prohibited_rate": 0.3333333333333333,
+        "preference_match": 0.3333333333333333,
+        "semantic_signature_diversity": 0.5604509010081765
+      },
+      "latency_ms": {
+        "median": 0.0098,
+        "p95": 0.0115
+      }
+    },
+    {
+      "case_id": "interactive-audio",
+      "strategy": "facets-k5",
+      "eligible_count": 6,
+      "selected": [
+        "didact.interactive-media",
+        "didact.data-explorer",
+        "didact.flashcard",
+        "didact.glossary-term",
+        "didact.worked-example"
+      ],
+      "metrics": {
+        "relevant_recall": 1.0,
+        "relevant_precision": 0.2,
+        "affordance_coverage": 1.0,
+        "explicit_evidence_coverage": 0.0,
+        "prohibited_count": 2,
+        "prohibited_rate": 0.4,
+        "preference_match": 0.2,
+        "semantic_signature_diversity": 0.46884913160454955
+      },
+      "latency_ms": {
+        "median": 0.0107,
+        "p95": 0.0148
+      }
+    },
+    {
+      "case_id": "interactive-audio",
+      "strategy": "facets-mmr-k5",
+      "eligible_count": 6,
+      "selected": [
+        "didact.interactive-media",
+        "didact.data-explorer",
+        "didact.worked-example",
+        "didact.flashcard",
+        "didact.glossary-term"
+      ],
+      "metrics": {
+        "relevant_recall": 1.0,
+        "relevant_precision": 0.2,
+        "affordance_coverage": 1.0,
+        "explicit_evidence_coverage": 0.0,
+        "prohibited_count": 2,
+        "prohibited_rate": 0.4,
+        "preference_match": 0.2,
+        "semantic_signature_diversity": 0.46884913160454955
+      },
+      "latency_ms": {
+        "median": 0.39949999999999997,
+        "p95": 0.6294
+      }
+    }
+  ]
+}

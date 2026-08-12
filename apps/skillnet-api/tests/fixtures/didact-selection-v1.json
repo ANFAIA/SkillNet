@@ -1,0 +1,116 @@
+{
+  "version": "didact-selection/1",
+  "fixture_id": "didact-34-personalization/1",
+  "cases": [
+    {
+      "id": "text-recall",
+      "intent_text": "Recordar un concepto mediante texto, inspeccionarlo y responder.",
+      "query_terms": ["flashcard recall inspect respond text"],
+      "objective": {"mission": "recognize", "source_functions": ["explore"]},
+      "projection": {"presentations": ["text"], "accessibility": ["keyboard", "screen_reader"]},
+      "desired_affordances": ["inspect", "respond"],
+      "desired_evidence_events": ["recall_attempted"],
+      "relevant_components": ["didact.flashcard", "didact.glossary-term"],
+      "prohibited_components": ["didact.data-explorer"]
+    },
+    {
+      "id": "procedure-timeline",
+      "intent_text": "Interpretar los pasos de un procedimiento en secuencia textual.",
+      "query_terms": ["timeline steps procedure sequence inspect interpret text"],
+      "objective": {"mission": "interpret", "source_functions": ["explore"]},
+      "projection": {"presentations": ["text"], "accessibility": ["screen_reader"]},
+      "desired_affordances": ["inspect", "interpret"],
+      "desired_evidence_events": ["step_inspected"],
+      "relevant_components": ["didact.timeline-steps", "didact.worked-example"],
+      "prohibited_components": ["didact.data-explorer"]
+    },
+    {
+      "id": "guided-self-explanation",
+      "intent_text": "Explicar con palabras propias y conservar la respuesta escrita.",
+      "query_terms": ["self explanation prompt explain write text persistence"],
+      "objective": {"mission": "explain", "source_functions": ["explore"], "available_requirements": ["persistence"]},
+      "projection": {"presentations": ["text"], "accessibility": ["keyboard", "screen_reader"]},
+      "desired_affordances": ["explain", "write"],
+      "desired_evidence_events": ["explanation_saved"],
+      "relevant_components": ["didact.self-explanation-prompt"],
+      "prohibited_components": ["didact.worked-example"]
+    },
+    {
+      "id": "numeric-exploration",
+      "intent_text": "Explorar datos cuantitativos manipulando una visualización accesible.",
+      "query_terms": ["data explorer quantify chart diagram experiment manipulate inspect"],
+      "objective": {"mission": "interpret", "source_functions": ["quantify", "explore"]},
+      "projection": {"presentations": ["chart", "diagram"], "accessibility": ["keyboard", "screen_reader"]},
+      "desired_affordances": ["experiment", "inspect", "interpret", "manipulate"],
+      "desired_evidence_events": ["exploration_changed"],
+      "relevant_components": ["didact.data-explorer"],
+      "prohibited_components": ["didact.flashcard", "didact.glossary-term"]
+    },
+    {
+      "id": "decision-scenario",
+      "intent_text": "Practicar una decisión dentro de un escenario ramificado.",
+      "query_terms": ["branching scenario decide experiment interpret text"],
+      "objective": {"mission": "decide", "source_functions": ["explore"]},
+      "projection": {"presentations": ["text"], "accessibility": ["keyboard", "screen_reader"]},
+      "desired_affordances": ["decide", "experiment", "interpret"],
+      "desired_evidence_events": ["decision_committed"],
+      "relevant_components": ["didact.branching-scenario"],
+      "prohibited_components": ["didact.data-explorer"]
+    },
+    {
+      "id": "choice-assessment",
+      "intent_text": "Responder una evaluación de selección con teclado y lector de pantalla.",
+      "query_terms": ["quiz single choice multi select respond select assessment text"],
+      "objective": {"mission": "decide", "source_functions": ["assess"], "available_requirements": ["evaluation"]},
+      "projection": {"presentations": ["text"], "accessibility": ["keyboard", "screen_reader"]},
+      "desired_affordances": ["respond", "select"],
+      "desired_evidence_events": ["answer_submitted"],
+      "relevant_components": ["didact.quiz.single-choice", "didact.quiz.multi-select", "didact.quiz.true-false"],
+      "prohibited_components": ["didact.completion-problem", "didact.equation-workbench"]
+    },
+    {
+      "id": "visual-labeling",
+      "intent_text": "Construir y relacionar etiquetas sobre una representación visual.",
+      "query_terms": ["label diagram image construct manipulate relate visual"],
+      "objective": {"mission": "produce", "source_functions": ["assess"], "available_requirements": ["evaluation"]},
+      "projection": {"presentations": ["image", "diagram"], "accessibility": ["screen_reader"]},
+      "desired_affordances": ["construct", "manipulate", "relate"],
+      "desired_evidence_events": ["labels_submitted"],
+      "relevant_components": ["didact.label-diagram"],
+      "prohibited_components": ["didact.quiz.single-choice", "didact.quiz.true-false"]
+    },
+    {
+      "id": "simulation-manipulation",
+      "intent_text": "Manipular una simulación y observar cómo cambia el resultado.",
+      "query_terms": ["simulation lab vary experiment manipulate interpret chart"],
+      "objective": {"mission": "interpret", "source_functions": ["explore"], "available_requirements": ["simulation"]},
+      "projection": {"presentations": ["simulation", "chart"], "accessibility": ["keyboard", "screen_reader"]},
+      "desired_affordances": ["experiment", "interpret", "manipulate"],
+      "desired_evidence_events": ["simulation_changed"],
+      "relevant_components": ["didact.simulation-lab"],
+      "prohibited_components": ["didact.flashcard", "didact.glossary-term"]
+    },
+    {
+      "id": "code-production",
+      "intent_text": "Crear y ejecutar código dentro de una actividad evaluada.",
+      "query_terms": ["code exercise create execute interpret text assessment"],
+      "objective": {"mission": "produce", "source_functions": ["assess"], "available_requirements": ["evaluation", "execution"]},
+      "projection": {"presentations": ["text"], "accessibility": ["keyboard", "screen_reader"]},
+      "desired_affordances": ["create", "execute", "interpret"],
+      "desired_evidence_events": ["code_executed"],
+      "relevant_components": ["didact.code-exercise"],
+      "prohibited_components": ["didact.quiz.single-choice", "didact.quiz.multi-select"]
+    },
+    {
+      "id": "interactive-audio",
+      "intent_text": "Inspeccionar e interpretar contenido audiovisual interactivo.",
+      "query_terms": ["interactive media audio video inspect interpret respond"],
+      "objective": {"mission": "interpret", "source_functions": ["explore"], "available_requirements": ["assets"]},
+      "projection": {"presentations": ["audio", "video"], "accessibility": ["keyboard", "screen_reader"]},
+      "desired_affordances": ["inspect", "interpret", "respond"],
+      "desired_evidence_events": ["media_response_submitted"],
+      "relevant_components": ["didact.interactive-media"],
+      "prohibited_components": ["didact.flashcard", "didact.glossary-term"]
+    }
+  ]
+}
