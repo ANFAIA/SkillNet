@@ -3,6 +3,7 @@
 from src.models.access_token import AccessToken
 from src.models.api_key import ApiKey
 from src.models.audit_log import AUDIT_ACTIONS, AuditLog
+from src.models.activity_definition import ActivityDefinition, ActivityFamily, ActivityState
 from src.models.base import Base, TimestampMixin, UUIDMixin
 from src.models.chat_message import ChatMessage
 from src.models.chat_session import ChatSession
@@ -143,6 +144,9 @@ __all__ = [
     "USE_CASES",
     "AuditLog",
     "AUDIT_ACTIONS",
+    "ActivityDefinition",
+    "ActivityFamily",
+    "ActivityState",
     # --- rich media artifacts (NotebookLM spine) ---
     "MediaArtifact",
     "MediaKind",

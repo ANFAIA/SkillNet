@@ -19,11 +19,12 @@ from src.core.exceptions import AppError
 from src.core.logging import configure_logging, get_logger
 from src.deps.db import async_session_factory, engine
 from src.routes import (
+    activities,
     ai,
     auth,
     chat,
-    course_schema,
     course_folders,
+    course_schema,
     courses,
     documents,
     enrollments,
@@ -37,8 +38,8 @@ from src.routes import (
     media,
     nodes,
     onboarding,
-    stats,
     skills,
+    stats,
     talent,
     tts,
     users,
@@ -47,6 +48,8 @@ from src.routes import (
     settings as settings_routes,
 )
 from src.routes.ext import skills as ext_skills
+from src.services.embedding_check import check_embedding_dimensions
+from src.services.media import infographic as _infographic  # noqa: F401
 
 # Importing the media generator packages registers each MediaGenerator under its kind,
 # overriding the echo default (media spine, roadmap §2). Kept as explicit side-effect
@@ -54,9 +57,7 @@ from src.routes.ext import skills as ext_skills
 # podcast (§2a), slides (§2c), infographic (§2d), video (§2b).
 from src.services.media import podcast as _podcast  # noqa: F401
 from src.services.media import slides as _slides  # noqa: F401
-from src.services.media import infographic as _infographic  # noqa: F401
 from src.services.media import video as _video  # noqa: F401
-from src.services.embedding_check import check_embedding_dimensions
 
 configure_logging(settings.LOG_LEVEL)
 logger = get_logger(__name__)
@@ -137,6 +138,7 @@ def create_app() -> FastAPI:
     app.include_router(health.router)
     app.include_router(health.router, prefix=prefix)
     app.include_router(ai.router, prefix=prefix)
+    app.include_router(activities.router, prefix=prefix)
     app.include_router(auth.router, prefix=prefix)
     app.include_router(users.router, prefix=prefix)
     app.include_router(documents.router, prefix=prefix)
