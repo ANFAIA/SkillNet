@@ -1,0 +1,45 @@
+"""Pure planning primitives for personalization experiments."""
+
+from src.personalization.plan import (
+    AccessibilityCapability,
+    CognitiveMission,
+    ComponentCandidate,
+    ComponentDescriptor,
+    Decline,
+    DeclineReason,
+    Declined,
+    ErrorSignal,
+    InferredPresentationBucket,
+    LearningExperiencePlan,
+    LearningObjective,
+    PersonalizationProjection,
+    Presentation,
+    ProducerKind,
+    SourceFunction,
+    SupportBand,
+    SupportPolicy,
+    plan_experience,
+)
+from src.personalization.projection import project_runtime_signals
+
+__all__ = [
+    "AccessibilityCapability",
+    "CognitiveMission",
+    "ComponentCandidate",
+    "ComponentDescriptor",
+    "Decline",
+    "DeclineReason",
+    "Declined",
+    "ErrorSignal",
+    "InferredPresentationBucket",
+    "LearningExperiencePlan",
+    "LearningObjective",
+    "PersonalizationProjection",
+    "Presentation",
+    "ProducerKind",
+    "SourceFunction",
+    "SupportBand",
+    "SupportPolicy",
+    "plan_experience",
+    "project_runtime_signals",
+]

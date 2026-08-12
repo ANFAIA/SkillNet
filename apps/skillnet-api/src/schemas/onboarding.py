@@ -16,6 +16,7 @@ from pydantic import BaseModel, ConfigDict, Field
 # Single definition, owned by the service that writes
 # ``learner_profiles.onboarding_version``. Re-exported here so callers can import
 # the version next to the questions it describes.
+from src.schemas.learning_preferences import AccessibilitySubmit, LearningPreferencesV1
 from src.services.learner_profile_service import ONBOARDING_VERSION
 
 __all__ = [
@@ -139,17 +140,6 @@ class OnboardingRead(BaseModel):
     questions: list[OnboardingQuestion] = []
 
 
-class AccessibilitySubmit(BaseModel):
-    """Question 5. Extra keys are rejected so an unknown flag cannot be stored."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    short_blocks: bool = False
-    reduce_motion: bool = False
-    high_contrast: bool = False
-    extra_time: bool = False
-
-
 class OnboardingSubmit(BaseModel):
     """``POST /onboarding``.
 
@@ -168,6 +158,7 @@ class OnboardingSubmit(BaseModel):
     experience_level: Literal["none", "some", "experienced"] | None = None
     preset: Literal["standard", "focus", "fast"] | None = None
     accessibility: AccessibilitySubmit | None = None
+    learning_preferences: LearningPreferencesV1 | None = None
 
 
 def role_suggestions(sector: str | None) -> list[str]:
@@ -234,6 +225,34 @@ def build_questions(*, sector: str | None = None) -> list[OnboardingQuestion]:
                 ),
                 OnboardingOption(
                     value="fast", label="Ritmo rápido", hint="Micro-bloques de 3-5 min"
+                ),
+            ],
+        ),
+        OnboardingQuestion(
+            id="learning_preferences",
+            kind="single_choice",
+            prompt="¿Cómo te gustaría aprender normalmente?",
+            optional=True,
+            options=[
+                OnboardingOption(
+                    value="balanced",
+                    label="Equilibrado",
+                    hint="SkillNet mezcla formatos según el contenido",
+                ),
+                OnboardingOption(
+                    value="visual",
+                    label="Más visual",
+                    hint="Prioriza diagramas, tablas e imágenes útiles",
+                ),
+                OnboardingOption(
+                    value="textual",
+                    label="Más texto",
+                    hint="Prioriza explicaciones estructuradas",
+                ),
+                OnboardingOption(
+                    value="interactive",
+                    label="Más práctica",
+                    hint="Prioriza ejercicios e interacción",
                 ),
             ],
         ),

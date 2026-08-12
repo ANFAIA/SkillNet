@@ -7,6 +7,7 @@ aggregates.
 """
 
 import enum
+import json
 import uuid
 from datetime import datetime
 
@@ -31,6 +32,15 @@ from src.models.user import LearningProfile
 FORMAT_VECTOR_DIMENSIONS: tuple[str, ...] = ("texto", "ejercicio", "codigo", "dato")
 
 EMPTY_FORMAT_VECTOR = '{"texto":0,"ejercicio":0,"codigo":0,"dato":0}'
+DEFAULT_LEARNING_PREFERENCES = {
+    "version": 1,
+    "presentation": "balanced",
+    "detail": "standard",
+    "images": "when_useful",
+}
+_DEFAULT_LEARNING_PREFERENCES_SQL = json.dumps(
+    DEFAULT_LEARNING_PREFERENCES, separators=(",", ":")
+).replace(":", r"\:")
 
 #: The same literal, safe to interpolate into :func:`sqlalchemy.text`. ``text()`` reads
 #: ``:word`` as a bind parameter and ``"texto":0`` matches, so the unescaped form
@@ -92,6 +102,15 @@ class LearnerProfile(UUIDMixin, TimestampMixin, Base):
     )
     format_vector_updated_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
+    )
+    learning_preferences: Mapped[dict] = mapped_column(
+        JSONB,
+        nullable=False,
+        server_default=text(f"'{_DEFAULT_LEARNING_PREFERENCES_SQL}'::jsonb"),
+        default=lambda: dict(DEFAULT_LEARNING_PREFERENCES),
+    )
+    personalization_revision: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default=text("0"), default=0
     )
     # Denormalized on purpose: read on every decide_formato, +1 only on learning -> mastered.
     nodes_completed: Mapped[int] = mapped_column(

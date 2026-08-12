@@ -235,3 +235,10 @@ espaciada. Las menciones antiguas en documentos v1 son planes históricos, no ro
 5. Ejecutar pruebas de mezcla manteniendo la modalidad solicitada.
 6. Añadir `learning_effects` solo con comparaciones suficientes.
 7. Sustituir renderers gradualmente mediante golden specs; no migración big-bang.
+
+La separación ejecutable entre objetivo, misión cognitiva, representación, componente y apoyo, con
+sus invariantes de caché y el plan de migración, se define en
+[`personalization-architecture.md`](personalization-architecture.md).
+
+Los resultados que justifican estas decisiones, incluidos experimentos revertidos, se conservan en
+el [`cuaderno de experimentos de personalización`](../personalization-experiments.md).

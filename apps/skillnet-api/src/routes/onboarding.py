@@ -75,6 +75,11 @@ async def submit_onboarding(
         accessibility=(
             body.accessibility.model_dump() if body.accessibility is not None else None
         ),
+        learning_preferences=(
+            body.learning_preferences.model_dump()
+            if body.learning_preferences is not None
+            else None
+        ),
     )
     await db.commit()
     return LearnerProfileRead.from_profile(profile)

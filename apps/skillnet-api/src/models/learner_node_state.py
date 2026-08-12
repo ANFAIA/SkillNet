@@ -110,6 +110,9 @@ class LearnerNodeState(UUIDMixin, Base):
     render_pinned: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default=text("true"), default=True
     )
+    pinned_personalization_revision: Mapped[int | None] = mapped_column(
+        Integer, nullable=True
+    )
     # Computed once, when the probe closes. Stable for the whole node by construction.
     scaffold_band: Mapped[str] = mapped_column(
         Text, nullable=False, server_default="neutral", default="neutral"

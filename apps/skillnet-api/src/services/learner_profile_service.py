@@ -26,17 +26,20 @@ from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any, Literal
+from sqlalchemy import update
 
 from src.core.exceptions import NotFoundError, ValidationError
 from src.models import (
     FORMAT_VECTOR_DIMENSIONS,
     LearnerExperience,
     LearnerProfile,
+    LearnerNodeState,
     LearningProfile,
     User,
 )
 from src.repositories.learner_profile_repo import LearnerProfileRepository
 from src.repositories.learning_event_repo import EventInput, EventSample, LearningEventRepository
+from src.personalization.preferences import normalize_learning_preferences
 
 # ---------------------------------------------------------------------------
 # Constants fixed by the spec
@@ -71,7 +74,7 @@ TUTOR_NOTES_VERSION = 1
 
 #: ``learner_profiles.onboarding_version``. Bump it when the five questions of
 #: §6.2 change, so an old answer set is recognisable.
-ONBOARDING_VERSION = 1
+ONBOARDING_VERSION = 2
 
 #: Consecutive ``scroll_fast`` events on the same node that emit
 #: ``reducir_longitud_modulo``.
@@ -95,7 +98,16 @@ TUTOR_ACTIONS: tuple[TutorAction, ...] = (
 )
 
 #: Fields ``PATCH /users/me/learner-profile`` may touch (§11.2).
-PATCHABLE_FIELDS: frozenset[str] = frozenset({"preset", "role_title", "sector", "goal"})
+PATCHABLE_FIELDS: frozenset[str] = frozenset(
+    {
+        "preset",
+        "role_title",
+        "sector",
+        "goal",
+        "learning_preferences",
+        "accessibility",
+    }
+)
 
 
 # ---------------------------------------------------------------------------
@@ -386,6 +398,7 @@ class LearnerProfileService:
         experience_level: str | None = None,
         preset: str | None = None,
         accessibility: Mapping[str, bool] | None = None,
+        learning_preferences: Mapping[str, Any] | None = None,
         now: datetime | None = None,
     ) -> LearnerProfile:
         """Write ``learner_profiles`` **and** ``users.learning_profile`` **and**
@@ -406,6 +419,10 @@ class LearnerProfileService:
         profile.goal = _clean(goal)
         profile.experience_level = _coerce_experience(experience_level)
         profile.preset = resolved_preset
+        profile.learning_preferences = normalize_learning_preferences(
+            learning_preferences
+        ).to_dict()
+        await self._advance_personalization(profile)
         profile.tutor_notes = set_notes_context(
             profile.tutor_notes,
             role_title=profile.role_title,
@@ -463,6 +480,27 @@ class LearnerProfileService:
         for field_name in ("role_title", "sector", "goal"):
             if field_name in changes:
                 setattr(profile, field_name, _clean(changes[field_name]))
+        personalization_changed = False
+        if "learning_preferences" in changes:
+            normalized_preferences = normalize_learning_preferences(
+                changes["learning_preferences"]
+            ).to_dict()
+            if normalized_preferences != normalize_learning_preferences(
+                profile.learning_preferences
+            ).to_dict():
+                profile.learning_preferences = normalized_preferences
+                personalization_changed = True
+        if "accessibility" in changes:
+            normalized_accessibility = {
+                key: bool(value)
+                for key, value in dict(changes["accessibility"] or {}).items()
+            }
+            if normalized_accessibility != dict(user.accessibility or {}):
+                user.accessibility = normalized_accessibility
+                personalization_changed = True
+
+        if personalization_changed:
+            await self._advance_personalization(profile)
 
         if "role_title" in changes or "sector" in changes:
             profile.tutor_notes = set_notes_context(
@@ -474,6 +512,21 @@ class LearnerProfileService:
 
         await self.profiles.session.flush()
         return profile
+
+    async def _advance_personalization(self, profile: LearnerProfile) -> None:
+        """Invalidate only user-to-render pins; shared render history stays intact."""
+        profile.personalization_revision = int(
+            getattr(profile, "personalization_revision", 0) or 0
+        ) + 1
+        await self.profiles.session.execute(
+            update(LearnerNodeState)
+            .where(LearnerNodeState.user_id == profile.user_id)
+            .values(
+                active_render_id=None,
+                render_pinned=False,
+                pinned_personalization_revision=None,
+            )
+        )
 
     # -- GDPR -------------------------------------------------------------
 

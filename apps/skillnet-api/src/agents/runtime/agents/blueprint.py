@@ -131,6 +131,9 @@ def build_blueprint_prompt(
     shape_hints: Sequence[str],
     siblings: Sequence[str] = (),
     assessment_hint: str = "",
+    presentation_preference: str = "balanced",
+    detail_preference: str = "standard",
+    image_preference: str = "when_useful",
 ) -> str:
     lines: list[str] = [
         f"FORMATO: {ui_format}",
@@ -151,6 +154,26 @@ def build_blueprint_prompt(
     lines.append(f"- Nivel cognitivo objetivo: {target_bloom}")
     lines.append(f"- Presupuesto: {density_budget(effective_density)}")
     lines.append(f"- {scaffold_rule(scaffold_band)}")
+    presentation_rules = {
+        "balanced": "Combina representaciones segun el objetivo y la fuente.",
+        "visual": "Prioriza estructura visual cuando aclare la fuente.",
+        "textual": "Prioriza texto estructurado y tablas cuando sean suficientes.",
+        "interactive": "Prioriza practica e interaccion cuando el catalogo lo permita.",
+    }
+    detail_rules = {
+        "concise": "Estructura una pantalla concisa.",
+        "standard": "Usa un nivel de detalle equilibrado.",
+        "detailed": "Permite mas detalle, sin inventar contenido.",
+    }
+    image_rules = {
+        "when_useful": "Imagenes solo si aportan valor y estan disponibles.",
+        "prefer": "Prefiere imagenes utiles disponibles; no las inventes.",
+        "avoid": "No solicites ni incluyas imagenes.",
+    }
+    lines.append(f"- {presentation_rules.get(presentation_preference, presentation_rules['balanced'])}")
+    lines.append(f"- {detail_rules.get(detail_preference, detail_rules['standard'])}")
+    lines.append(f"- {image_rules.get(image_preference, image_rules['when_useful'])}")
+    lines.append("- Son preferencias: la evidencia, seguridad y objetivo mandan.")
 
     if shape_hints:
         lines.append("")
@@ -226,6 +249,9 @@ async def run_blueprint(
     llm: Any,
     siblings: Sequence[str] = (),
     assessment: AssessmentPlan | None = None,
+    presentation_preference: str = "balanced",
+    detail_preference: str = "standard",
+    image_preference: str = "when_useful",
 ) -> Blueprint:
     """Run the Blueprint Architect agent and return a screen structure."""
 
@@ -244,6 +270,9 @@ async def run_blueprint(
         shape_hints=shape_hints,
         siblings=siblings,
         assessment_hint=assessment.instruction() if assessment else "",
+        presentation_preference=presentation_preference,
+        detail_preference=detail_preference,
+        image_preference=image_preference,
     )
 
     raw, _usage = await llm.complete_with_usage(

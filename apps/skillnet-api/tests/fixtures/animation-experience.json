@@ -1,0 +1,103 @@
+{
+  "objective": {
+    "id": "crear-animacion-pelota-con-peso",
+    "version": 1,
+    "mission": "produce",
+    "source_functions": ["explore"],
+    "requirements": ["keyframe_parameters"],
+    "evidence_text": "Separa los fotogramas para controlar el timing y aplica squash and stretch sin cambiar el volumen aparente de la pelota.",
+    "required_fact_refs": ["timing", "volume"],
+    "critical_facts": [
+      {"id": "timing", "any_of": ["timing", "separa los fotogramas"]},
+      {"id": "volume", "any_of": ["sin cambiar el volumen", "volumen aparente"]}
+    ]
+  },
+  "profiles": [
+    {
+      "id": "exploradora-visual",
+      "presentations": ["simulation", "image"],
+      "support_band": "novice",
+      "density": 2,
+      "desired_affordances": ["direct_manipulation", "immediate_feedback", "inspect_output"],
+      "accessibility": ["keyboard"]
+    },
+    {
+      "id": "experto-conciso",
+      "presentations": ["text"],
+      "support_band": "independent",
+      "density": 1,
+      "desired_affordances": ["direct_manipulation", "inspect_output"],
+      "accessibility": ["keyboard"]
+    }
+  ],
+  "catalogues": {
+    "actual-limitado": [
+      {
+        "id": "StepSequence",
+        "missions": ["reconstruct"],
+        "source_functions": ["procedure", "explore"],
+        "presentations": ["text", "diagram"],
+        "producer_kind": "content",
+        "affordances": ["guided_steps"],
+        "accessibility": ["keyboard", "screen_reader"]
+      },
+      {
+        "id": "QuizItem",
+        "missions": ["recognize"],
+        "source_functions": ["assess", "explore"],
+        "presentations": ["text"],
+        "producer_kind": "assessment",
+        "affordances": ["immediate_feedback"],
+        "accessibility": ["keyboard", "screen_reader"]
+      }
+    ],
+    "futuro-manipulable": [
+      {
+        "id": "StepSequence",
+        "missions": ["reconstruct"],
+        "source_functions": ["procedure", "explore"],
+        "presentations": ["text", "diagram"],
+        "producer_kind": "content",
+        "affordances": ["guided_steps"],
+        "accessibility": ["keyboard", "screen_reader"]
+      },
+      {
+        "id": "QuizItem",
+        "missions": ["recognize"],
+        "source_functions": ["assess", "explore"],
+        "presentations": ["text"],
+        "producer_kind": "assessment",
+        "affordances": ["immediate_feedback"],
+        "accessibility": ["keyboard", "screen_reader"]
+      },
+      {
+        "id": "animation.timeline/ball-studio",
+        "missions": ["produce"],
+        "source_functions": ["explore"],
+        "presentations": ["simulation"],
+        "producer_kind": "simulation",
+        "affordances": ["direct_manipulation", "immediate_feedback", "inspect_output"],
+        "evidence_events": ["frame_changed", "preview_played", "animation_submitted"],
+        "state_model_ref": "animation.ball-timeline/v1",
+        "requirements": ["keyframe_parameters"],
+        "accessibility": ["keyboard"],
+        "rank": 10
+      }
+    ],
+    "futuro-sin-requisitos": [
+      {
+        "id": "animation.timeline/ball-studio",
+        "missions": ["produce"],
+        "source_functions": ["explore"],
+        "presentations": ["simulation"],
+        "producer_kind": "simulation",
+        "affordances": ["direct_manipulation", "immediate_feedback", "inspect_output"],
+        "evidence_events": ["frame_changed", "preview_played", "animation_submitted"],
+        "state_model_ref": "animation.ball-timeline/v1",
+        "requirements": ["keyframe_parameters", "ball_asset"],
+        "accessibility": ["keyboard"],
+        "rank": 10
+      }
+    ]
+  }
+}

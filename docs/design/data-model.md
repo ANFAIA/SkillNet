@@ -792,3 +792,22 @@ The shape of the addition, so you know whether you need to look:
 `schema_proposing` and `schema_proposed` orphaned in `generation_step` — PostgreSQL cannot remove
 a value from an enum. That is documented rather than fixed, and asserted by
 `tests/integration/test_migration_0005.py`.
+
+### Preferencias de aprendizaje y revisión de personalización
+
+La migración **`0011_learner_preferences`** añade la primera preferencia declarada que puede
+modificar un render dinámico:
+
+- `learner_profiles.learning_preferences`: JSONB cerrado y versionado con presentación
+  (`balanced|visual|textual|interactive`), detalle (`concise|standard|detailed`) e imágenes
+  (`when_useful|prefer|avoid`);
+- `learner_profiles.personalization_revision`: revisión monotónica que cambia cuando cambia
+  realmente el bundle;
+- `learner_node_states.pinned_personalization_revision`: revisión con la que se fijó el render.
+
+La preferencia declarada no se mezcla con `format_vector` (evidencia inferida) ni con
+`users.accessibility` (necesidades funcionales). Antes de influir en los prompts se normaliza a un
+bucket canónico no identificativo que forma parte de `cache_key`. Al guardar un bundle diferente se
+incrementa la revisión y se despejan los pins de ese aprendiz sin borrar el historial compartido.
+El guard al fijar impide que una generación iniciada con una revisión antigua vuelva a convertirse
+en el render vigente después de un cambio concurrente.

@@ -49,6 +49,7 @@ from src.models import (
     Course,
     CourseNode,
     LearnerNodeState,
+    LearnerProfile,
     NodeRender,
     NodeRenderStatus,
     Organization,
@@ -59,6 +60,7 @@ from src.repositories.node_render_repo import SERVABLE_STATUSES, NodeRenderRepos
 from src.repositories.node_render_view_repo import NodeRenderViewRepository
 from src.services.cache_key import build_cache_key, effective_density, role_bucket
 from src.services.learner_profile_service import CALIBRATION_NODES, vector_bucket
+from src.personalization.preferences import preference_bucket
 
 logger = get_logger(__name__)
 
@@ -95,11 +97,13 @@ class RenderKey:
     cache_key: str
     effective_density: int
     vector_bucket: str
+    preference_bucket: str
     scaffold_band: str
     role_bucket: str
     model_key: str
     calibrating: bool
     is_preview: bool
+    personalization_revision: int
 
 
 def build_render_key(
@@ -137,6 +141,7 @@ def build_render_key(
     )
     role = getattr(profile, "role_title", None)
     sector = getattr(profile, "sector", None)
+    preferences = preference_bucket(getattr(profile, "learning_preferences", None))
 
     key = build_cache_key(
         node_id=node.id,
@@ -154,6 +159,7 @@ def build_render_key(
         role_title=role,
         sector=sector,
         vector_bucket=bucket,
+        preference_bucket=preferences,
     )
     if is_preview:
         salt = preview_salt or uuid.uuid4().hex[:12]
@@ -165,11 +171,15 @@ def build_render_key(
         cache_key=key,
         effective_density=density,
         vector_bucket=bucket,
+        preference_bucket=preferences,
         scaffold_band=band,
         role_bucket=role_bucket(role, sector),
         model_key=model_key,
         calibrating=nodes_completed < CALIBRATION_NODES,
         is_preview=is_preview,
+        personalization_revision=int(
+            getattr(profile, "personalization_revision", 0) or 0
+        ),
     )
 
 
@@ -348,12 +358,34 @@ class NodeRenderService:
         return render
 
     async def pin(
-        self, *, user_id: uuid.UUID, node_id: uuid.UUID, render: NodeRender
-    ) -> LearnerNodeState:
+        self,
+        *,
+        user_id: uuid.UUID,
+        node_id: uuid.UUID,
+        render: NodeRender,
+        personalization_revision: int = 0,
+    ) -> LearnerNodeState | None:
         """Fix ``active_render_id`` and ``render_pinned`` (§3.3 "Vision A")."""
+        current_revision = (
+            await self.db.execute(
+                select(LearnerProfile.personalization_revision).where(
+                    LearnerProfile.user_id == user_id
+                )
+            )
+        ).scalar_one_or_none()
+        # Real SQL returns the selected scalar. Lightweight repository/session fakes may
+        # return the profile object itself; normalising both shapes keeps this race guard
+        # at the service boundary instead of coupling every test double to SQLAlchemy's
+        # scalar projection internals.
+        current_revision = getattr(
+            current_revision, "personalization_revision", current_revision
+        )
+        if int(current_revision or 0) != int(personalization_revision):
+            return None
         state = await self.states.get_or_create(user_id=user_id, node_id=node_id)
         state.active_render_id = render.id
         state.render_pinned = True
+        state.pinned_personalization_revision = int(personalization_revision)
         await self.db.flush()
         return state
 
@@ -443,7 +475,12 @@ class NodeRenderService:
         if not preview and not force:
             hit = await self.renders.find_cached(key.cache_key)
             if hit is not None:
-                await self.pin(user_id=user.id, node_id=node.id, render=hit)
+                await self.pin(
+                    user_id=user.id,
+                    node_id=node.id,
+                    render=hit,
+                    personalization_revision=key.personalization_revision,
+                )
                 await self.db.commit()
                 return RenderRequest(request_id="", cached=True, render_id=hit.id)
 

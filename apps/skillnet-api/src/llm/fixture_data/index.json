@@ -19,9 +19,19 @@
     "prompt_preview": "Eres el selector de formato de SkillNet, una plataforma de formacion en el puesto de trabajo. Recibes la ficha de un nodo de aprendizaje y el perfil del aprendi",
     "use_case": "decide_formato"
   },
+  "88c4a133f40a87a0": {
+    "file": "decide_formato/explanation.json",
+    "prompt_preview": "Eres el selector de formato de SkillNet, una plataforma de formacion en el puesto de trabajo. Recibes la ficha de un nodo de aprendizaje y el perfil del aprendi",
+    "use_case": "decide_formato"
+  },
   "c5a0fca440fe4f0e": {
     "file": "probe_generate/plazo_devolucion.json",
     "prompt_preview": "Eres un disenador de evaluacion diagnostica para formacion en el puesto de trabajo. Tu tarea es escribir un pre-test muy corto que sirva para decidir si una per",
     "use_case": "probe_generate"
+  },
+  "ca81d7d587225375": {
+    "file": "genera_ui/openui_explanation.txt",
+    "prompt_preview": "Eres el generador de pantallas de SkillNet, formacion de cumplimiento normativo para empleados. Responde UNICAMENTE con un programa en el dialecto descrito abaj",
+    "use_case": "genera_ui"
   }
 }

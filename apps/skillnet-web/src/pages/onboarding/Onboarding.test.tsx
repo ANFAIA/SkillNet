@@ -7,7 +7,7 @@ import { Onboarding } from './Onboarding'
 import type { OnboardingRead } from '../../api/onboarding'
 
 /**
- * §6.1/§6.2: five screens, one question per screen, skippable at any moment, and
+ * One question per screen, skippable at any moment, and
  * skipping declares **nothing** — the server writes `experience_level = 'unknown'`,
  * and `'none'` never leaves this wizard unless the learner picked "Ninguna".
  */
@@ -62,6 +62,18 @@ const QUESTIONS: OnboardingRead = {
         { value: 'standard', label: 'Estándar', hint: 'Bloques de 10-15 min' },
         { value: 'focus', label: 'Concentración', hint: 'Paso a paso, sin distracciones' },
         { value: 'fast', label: 'Ritmo rápido', hint: 'Micro-bloques de 3-5 min' },
+      ],
+    },
+    {
+      id: 'learning_preferences',
+      kind: 'single_choice',
+      prompt: '¿Qué formato te ayuda a empezar?',
+      optional: true,
+      options: [
+        { value: 'balanced', label: 'Una mezcla equilibrada' },
+        { value: 'visual', label: 'Verlo de forma visual' },
+        { value: 'textual', label: 'Leer una explicación clara' },
+        { value: 'interactive', label: 'Probarlo directamente' },
       ],
     },
     {
@@ -169,7 +181,7 @@ describe('Onboarding — shape (§6.1)', () => {
     serve()
     renderWizard()
     await screen.findByText('¿Cuál es tu puesto?')
-    expect(screen.getByRole('status')).toHaveTextContent('Paso 1 de 5')
+    expect(screen.getByRole('status')).toHaveTextContent('Paso 1 de 6')
   })
 
   it('carries the art. 13 notice from the server on screen 1, at body weight (§3.3)', async () => {
@@ -193,7 +205,7 @@ describe('Onboarding — shape (§6.1)', () => {
     expect(screen.getByRole('button', { name: 'Continuar' })).toBeEnabled()
   })
 
-  it('walks the five screens and submits only what was declared', async () => {
+  it('walks the screens and submits the declared learning preference', async () => {
     const user = userEvent.setup()
     serve()
     renderWizard()
@@ -214,6 +226,10 @@ describe('Onboarding — shape (§6.1)', () => {
     await user.click(screen.getByRole('radio', { name: /Concentración/ }))
     await user.click(screen.getByRole('button', { name: 'Continuar' }))
 
+    await screen.findByText('¿Qué formato te ayuda a empezar?')
+    await user.click(screen.getByRole('radio', { name: 'Verlo de forma visual' }))
+    await user.click(screen.getByRole('button', { name: 'Continuar' }))
+
     await screen.findByText('¿Quieres activar algún ajuste de lectura?')
     await user.click(screen.getByRole('checkbox', { name: 'Bloques más cortos' }))
     await user.click(screen.getByRole('button', { name: 'Finalizar' }))
@@ -224,6 +240,11 @@ describe('Onboarding — shape (§6.1)', () => {
       goal: 'assigned',
       experience_level: 'experienced',
       preset: 'focus',
+      learning_preferences: {
+        presentation: 'visual',
+        detail: 'standard',
+        images: 'when_useful',
+      },
       accessibility: {
         short_blocks: true,
         reduce_motion: false,
@@ -304,6 +325,8 @@ describe('Onboarding — skipping declares nothing (§6.1)', () => {
     await screen.findByText('¿Cómo prefieres estudiar?')
     await user.click(screen.getByRole('radio', { name: /Estándar/ }))
     await user.click(screen.getByRole('button', { name: 'Continuar' }))
+    await screen.findByText('¿Qué formato te ayuda a empezar?')
+    await user.click(screen.getByRole('button', { name: 'Continuar' }))
     await screen.findByText('¿Quieres activar algún ajuste de lectura?')
     await user.click(screen.getByRole('button', { name: 'Finalizar' }))
 
@@ -329,6 +352,10 @@ describe('Onboarding — question 5 asks about needs, not conditions (§6.2, §6
     await user.click(screen.getByRole('button', { name: 'Continuar' }))
     await screen.findByText('¿Cómo prefieres estudiar?')
     await user.click(screen.getByRole('radio', { name: /Ritmo rápido/ }))
+    await user.click(screen.getByRole('button', { name: 'Continuar' }))
+
+    await screen.findByText('¿Qué formato te ayuda a empezar?')
+    expect(screen.getByText(/Mezclaremos formatos/)).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Continuar' }))
 
     await screen.findByText('¿Quieres activar algún ajuste de lectura?')
@@ -369,6 +396,9 @@ describe('Onboarding — question 5 asks about needs, not conditions (§6.2, §6
     await user.click(screen.getByRole('button', { name: 'Continuar' }))
     await screen.findByText('¿Cómo prefieres estudiar?')
     await user.click(screen.getByRole('radio', { name: /Estándar/ }))
+    await user.click(screen.getByRole('button', { name: 'Continuar' }))
+
+    await screen.findByText('¿Qué formato te ayuda a empezar?')
     await user.click(screen.getByRole('button', { name: 'Continuar' }))
 
     await screen.findByText('¿Quieres activar algún ajuste de lectura?')

@@ -7,7 +7,7 @@ import { Header } from './Header'
 import { SidebarProvider } from '../../contexts/SidebarContext'
 
 /**
- * The way back into the onboarding wizard (§6.1).
+ * The permanent way into employee learning settings.
  *
  * `POST /onboarding/skip` marks the learner asked-and-answered forever, so the gate in
  * `ProtectedRoute` never fires again — without this menu item "lo hago luego" is a
@@ -62,7 +62,7 @@ function renderHeader() {
         <SidebarProvider>
           <Routes>
             <Route path="/empleado" element={<Header />} />
-            <Route path="/onboarding" element={<div>WIZARD</div>} />
+            <Route path="/empleado/ajustes" element={<div>AJUSTES</div>} />
           </Routes>
         </SidebarProvider>
       </MemoryRouter>
@@ -96,8 +96,8 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-describe('Header — re-entering onboarding', () => {
-  it('offers the wizard to an employee', async () => {
+describe('Header — learning settings', () => {
+  it('offers learning settings to an employee', async () => {
     installFetch('employee')
     renderHeader()
 
@@ -106,7 +106,7 @@ describe('Header — re-entering onboarding', () => {
       screen.getByRole('menuitem', { name: 'Preferencias de aprendizaje' }),
     )
 
-    expect(await screen.findByText('WIZARD')).toBeInTheDocument()
+    expect(await screen.findByText('AJUSTES')).toBeInTheDocument()
   })
 })
 

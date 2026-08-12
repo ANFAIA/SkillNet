@@ -29,6 +29,8 @@ class NodeRuntimeState(TypedDict, total=False):
     node: dict  # title, summary, outcome, criticality, source_headings, seed_lesson_id
     profile: dict  # role_title, sector, experience_level, preset, format_vector,
     # nodes_completed, tutor_notes  (never `goal`: it does not reach the LLM)
+    accessibility: dict  # closed settings; never prose, memory or identity
+    personalization_revision: int  # race guard for repinning generated content
     node_state: dict  # mastery, state, consecutive_*, last_error_kind, scaffold_band
     source_context: str  # source text (RAG or full_text), already clipped
     #: Titulo y resumen de las OTRAS pantallas del curso, en orden de posicion. Lo que
@@ -50,6 +52,9 @@ class NodeRuntimeState(TypedDict, total=False):
     shape_hints: list[str]
     #: One line of evidence for the log and the rationale — never for a prompt.
     shape_summary: str
+    #: Semantic/content functions already computed by ``decide_formato``. Observability
+    #: only: live prompts continue to consume ``shape_hints``.
+    shape_functions: list[str]
     #: Cómo se VERIFICA este nodo, decidido por ``src/agents/runtime/assessment.py`` a
     #: partir de la forma del material y el ``node_id`` (estable, propiedad del nodo). Es
     #: lo que reparte la variedad de evaluación entre los nodos de un curso en vez de
@@ -64,6 +69,9 @@ class NodeRuntimeState(TypedDict, total=False):
     scaffold_band: str  # novice|neutral|advanced, frozen when the probe closed
     raw_dsl: str
     ui_spec: dict | None
+    #: Proposed experience from the pure planner. Shadow-only: never persisted in
+    #: ``ui_spec``, included in prompts, or used to select a live component.
+    plan_trace: dict
     answer_key: dict
     validation_errors: list[str]
     retry_count: int

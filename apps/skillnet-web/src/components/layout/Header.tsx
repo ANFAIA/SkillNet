@@ -17,9 +17,8 @@ export function Header() {
   const menuRef = useRef<HTMLDivElement>(null)
 
   /**
-   * The way back into the wizard (§6.1). Skipping writes `experience_level = 'unknown'`
-   * and stops the gate from ever firing again, so without an entry point here "lo hago
-   * luego" is permanent and the learner profile can never be set.
+   * Permanent entry point for the learner's editable preferences. The initial
+   * onboarding stays a short declaration flow; later changes belong to Settings.
    *
    * Gated on the employee role: this header is also the admin one, and an admin has
    * no onboarding wizard.
@@ -95,7 +94,7 @@ export function Header() {
                   role="menuitem"
                   onClick={() => {
                     setOpen(false)
-                    navigate('/onboarding')
+                    navigate('/empleado/ajustes')
                   }}
                   className="w-full text-left px-4 py-2.5 text-sm text-text hover:bg-bg-muted transition-colors border-b border-border cursor-pointer"
                   whileTap={{ scale: 0.98 }}

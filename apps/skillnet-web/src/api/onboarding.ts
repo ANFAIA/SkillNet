@@ -10,7 +10,7 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ApiError, get, post } from './client'
+import { ApiError, get, patch, post } from './client'
 
 export type LearningPreset = 'standard' | 'focus' | 'fast'
 
@@ -21,6 +21,22 @@ export type LearningPreset = 'standard' | 'focus' | 'fast'
  * force novice scaffolding — the case that hurts the expert (§6.1).
  */
 export type ExperienceLevel = 'none' | 'some' | 'experienced'
+
+export type PresentationPreference = 'balanced' | 'visual' | 'textual' | 'interactive'
+export type DetailPreference = 'concise' | 'standard' | 'detailed'
+export type ImagePreference = 'when_useful' | 'prefer' | 'avoid'
+
+export interface LearningPreferences {
+  presentation: PresentationPreference
+  detail: DetailPreference
+  images: ImagePreference
+}
+
+export const DEFAULT_LEARNING_PREFERENCES: LearningPreferences = {
+  presentation: 'balanced',
+  detail: 'standard',
+  images: 'when_useful',
+}
 
 export type OnboardingQuestionKind = 'text_suggest' | 'single_choice' | 'multi_choice'
 
@@ -77,6 +93,7 @@ export interface OnboardingSubmitBody {
   goal?: string
   experience_level?: ExperienceLevel
   preset?: LearningPreset
+  learning_preferences?: LearningPreferences
   accessibility?: AccessibilitySettings
 }
 
@@ -87,6 +104,7 @@ export interface LearnerProfileRead {
   goal: string | null
   experience_level: string
   preset: string
+  learning_preferences: LearningPreferences
   nodes_completed: number
   onboarding_completed_at: string | null
   onboarding_skipped: boolean
@@ -131,6 +149,34 @@ export function useLearnerProfile(options?: { enabled?: boolean }) {
     queryFn: fetchLearnerProfile,
     enabled: options?.enabled ?? true,
     retry: false,
+  })
+}
+
+export interface LearnerProfileUpdate {
+  role_title?: string | null
+  sector?: string | null
+  goal?: string | null
+  preset?: LearningPreset
+  learning_preferences?: LearningPreferences
+  accessibility?: AccessibilitySettings
+}
+
+export function useUpdateLearnerProfile() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (body: LearnerProfileUpdate) =>
+      patch<LearnerProfileRead>('/users/me/learner-profile', body),
+    onSuccess: (profile) => {
+      queryClient.setQueryData(learnerProfileKey, profile)
+      queryClient.invalidateQueries({ queryKey: learnerProfileKey })
+      queryClient.invalidateQueries({ queryKey: ['users', 'me'], exact: true })
+      queryClient.removeQueries({
+        predicate: (query) => {
+          const key = query.queryKey
+          return key[0] === 'nodes' && (key[2] === 'render' || key[2] === 'renders')
+        },
+      })
+    },
   })
 }
 

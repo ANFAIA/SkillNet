@@ -1,0 +1,73 @@
+{
+  "ignore_types": ["Stack", "TextContent"],
+  "cases": [
+    {
+      "id": "extintor-secuencia-a",
+      "objective": "reconstruir-procedimiento",
+      "blueprint": {
+        "blocks": [
+          {"id": "intro", "type": "TextContent", "intent": "enganchar"},
+          {"id": "pasos", "type": "StepSequence", "intent": "concepto"},
+          {"id": "practica", "type": "DragOrder", "intent": "verificar"}
+        ]
+      },
+      "ui_spec": {
+        "root": "root",
+        "components": [
+          {"id": "root", "type": "Stack", "children": ["intro", "pasos", "practica"]},
+          {"id": "intro", "type": "TextContent", "props": {"text": "Un conato exige decidir rápido."}},
+          {"id": "pasos", "type": "StepSequence", "props": {"steps": ["Comprueba una salida", "Usa el extintor", "Si supera tu cintura, evacúa y llama al 112"]}},
+          {"id": "practica", "type": "DragOrder", "props": {"prompt": "Reconstruye el procedimiento"}}
+        ]
+      },
+      "critical_facts": [
+        {"id": "emergencias", "any_of": ["112", "servicios de emergencia"]},
+        {"id": "limite", "any_of": ["supera tu cintura", "altura de la cintura"]}
+      ]
+    },
+    {
+      "id": "extintor-secuencia-b",
+      "objective": "reconstruir-procedimiento",
+      "blueprint": {
+        "blocks": [
+          {"id": "intro", "type": "TextContent", "intent": "enganchar"},
+          {"id": "pasos", "type": "StepSequence", "intent": "concepto"},
+          {"id": "practica", "type": "DragOrder", "intent": "verificar"}
+        ]
+      },
+      "ui_spec": {
+        "root": "root",
+        "components": [
+          {"id": "root", "type": "Stack", "children": ["intro", "pasos", "practica"]},
+          {"id": "intro", "type": "TextContent", "props": {"text": "¿Puedes ordenar la respuesta correcta?"}},
+          {"id": "pasos", "type": "StepSequence", "props": {"steps": ["Asegura la salida", "Ataca la base", "Evacúa y avisa al 112 si el fuego supera la altura de la cintura"]}},
+          {"id": "practica", "type": "DragOrder", "props": {"prompt": "Ordena los pasos"}}
+        ]
+      },
+      "critical_facts": [
+        {"id": "emergencias", "any_of": ["112", "servicios de emergencia"]},
+        {"id": "limite", "any_of": ["supera tu cintura", "altura de la cintura"]}
+      ]
+    },
+    {
+      "id": "cadena-frio-grafico",
+      "objective": "interpretar-datos",
+      "blueprint": {
+        "blocks": [
+          {"id": "intro", "type": "TextContent", "intent": "enganchar"},
+          {"id": "grafico", "type": "Chart", "intent": "concepto"},
+          {"id": "caso", "type": "QuizItem", "intent": "verificar"}
+        ]
+      },
+      "ui_spec": {
+        "root": "root",
+        "components": [
+          {"id": "root", "type": "Stack", "children": ["intro", "grafico", "caso"]},
+          {"id": "intro", "type": "TextContent", "props": {"text": "Una lectura fuera de rango cambia la decisión."}},
+          {"id": "grafico", "type": "Chart", "props": {"series": [2, 4, 9]}},
+          {"id": "caso", "type": "QuizItem", "props": {"prompt": "¿Qué lectura exige actuar?"}}
+        ]
+      }
+    }
+  ]
+}

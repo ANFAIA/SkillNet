@@ -612,6 +612,37 @@ async def test_update_profile_mirrors_preset_to_the_user_row():
     assert user.learning_profile is LearningProfile.FAST
 
 
+async def test_update_profile_applies_accessibility_atomically_and_advances_once():
+    profile = make_profile()
+    profile.personalization_revision = 4
+    profile.learning_preferences = {
+        "version": 1,
+        "presentation": "balanced",
+        "detail": "standard",
+        "images": "when_useful",
+    }
+    service, profiles, _ = make_service(profile)
+    user = make_user()
+
+    await service.update_profile(
+        user=user,
+        changes={
+            "learning_preferences": {
+                "version": 1,
+                "presentation": "visual",
+                "detail": "detailed",
+                "images": "prefer",
+            },
+            "accessibility": {"short_blocks": True},
+        },
+    )
+
+    assert user.accessibility == {"short_blocks": True}
+    assert profile.learning_preferences["presentation"] == "visual"
+    assert profile.personalization_revision == 5
+    profiles.session.execute.assert_awaited_once()
+
+
 async def test_get_or_404_raises_when_there_is_no_profile():
     from src.core.exceptions import NotFoundError
 

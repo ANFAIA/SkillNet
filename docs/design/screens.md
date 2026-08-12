@@ -204,9 +204,9 @@ Reference material. Employees consult when they need to look something up.
 
 ### Employee Settings
 
-**Route:** *not implemented as its own page.* The employee account menu in `Header` has no
-settings entry; the one item it does have is "Preferencias de aprendizaje", which re-enters the
-onboarding wizard at `/onboarding` (employee, and only when the v2 flag is `on`)
+**Route:** `/empleado/ajustes`. El menú de cuenta y la navegación lateral enlazan esta pantalla
+como «Preferencias de aprendizaje». El empleado puede cambiar presentación, detalle, tratamiento
+de imágenes y accesibilidad sin repetir el onboarding.
 **Role:** employee
 
 **Sections:**
@@ -442,6 +442,7 @@ rename of `App.tsx` and the `Link`s, with no effect on the API.
 | `/` | Redirect by role | public |
 | `/login` | Login | public |
 | `/onboarding` | Learner profile wizard (v2) | employee |
+| `/empleado/ajustes` | Preferencias de aprendizaje y accesibilidad | employee |
 | `/empleado` | Employee Dashboard | employee |
 | `/empleado/cursos` | My Courses | employee |
 | `/empleado/curso/:id` | Course View | employee |
@@ -477,4 +478,4 @@ Navigation into the v2 surfaces, all of it gated so nothing appears with the fla
 | `pages/admin/CourseSchema.tsx` | "← Volver al curso" back-link | always (it is inside the screen) |
 | `pages/employee/MyCourses.tsx` | "Por nodos" badge on dynamic courses | `enrollment.delivery_mode` |
 | `pages/employee/Dashboard.tsx` | "Por nodos" badge on dynamic courses | `enrollment.delivery_mode` |
-| `components/layout/Header.tsx` | "Preferencias de aprendizaje" account-menu item, re-enters `/onboarding` | employee **and** flag is `on` |
+| `components/layout/Header.tsx` | "Preferencias de aprendizaje" account-menu item, abre `/empleado/ajustes` | employee |

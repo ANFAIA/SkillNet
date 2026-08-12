@@ -1463,6 +1463,9 @@ class RunResult:
     #: que faltaba: un render valido con tres TextContent seguidos pasa todas las demas
     #: columnas y aun asi es la pantalla que el dueno rechazo.
     block_types: list[str] = field(default_factory=list)
+    #: Observación del planificador experimental. Nunca interviene en el render; se guarda
+    #: aquí para comparar la decisión viva con la propuesta sombra por perfil y encargo.
+    plan_trace: dict[str, Any] | None = None
 
 
 async def run_one(
@@ -1593,6 +1596,11 @@ def _classify(
         cache_key=recorder.cache_key,
         reason=reason[:400],
         block_types=_block_types(render),
+        plan_trace=(
+            dict(final["plan_trace"])
+            if isinstance(final.get("plan_trace"), dict)
+            else None
+        ),
     )
 
 

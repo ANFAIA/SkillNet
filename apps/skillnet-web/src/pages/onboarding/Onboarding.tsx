@@ -10,6 +10,7 @@ import { GoalStep } from '../../components/onboarding/GoalStep'
 import { ExperienceStep } from '../../components/onboarding/ExperienceStep'
 import { PresetStep } from '../../components/onboarding/PresetStep'
 import { AccessibilityStep } from '../../components/onboarding/AccessibilityStep'
+import { LearningPreferencesStep } from '../../components/onboarding/LearningPreferencesStep'
 import { stepSlideVariants, transition } from '../../lib/motion'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
 import { ApiError } from '../../api/client'
@@ -24,6 +25,7 @@ import type {
   AccessibilitySettings,
   ExperienceLevel,
   LearningPreset,
+  PresentationPreference,
   OnboardingQuestion,
   OnboardingSubmitBody,
 } from '../../api/onboarding'
@@ -50,6 +52,7 @@ const KNOWN_STEP_IDS: readonly string[] = [
   'goal',
   'experience_level',
   'preset',
+  'learning_preferences',
   'accessibility',
 ]
 
@@ -83,7 +86,7 @@ function LoadingShell() {
 }
 
 /**
- * Onboarding wizard — 5 screens, **one question per screen**, at most 3 visible
+ * Onboarding wizard — one server-provided question per screen, at most 3 visible
  * elements, target ≤90 seconds, skippable at any moment (§6.1).
  *
  * The limits are not stylistic: they come from the documented attention
@@ -118,6 +121,7 @@ export function Onboarding() {
   const [goal, setGoal] = useState('')
   const [experience, setExperience] = useState<ExperienceLevel | null>(null)
   const [preset, setPreset] = useState<LearningPreset | null>(null)
+  const [presentation, setPresentation] = useState<PresentationPreference | null>(null)
   const [accessibility, setAccessibility] = useState<AccessibilitySettings>(NO_ACCESSIBILITY)
 
   const questions = useMemo(
@@ -150,6 +154,8 @@ export function Onboarding() {
         return experience !== null
       case 'preset':
         return preset !== null
+      case 'learning_preferences':
+        return true
       default:
         // Question 5 is optional (`optional: true`): no reading setting is a
         // complete answer.
@@ -170,6 +176,13 @@ export function Onboarding() {
     if (declaredGoal) body.goal = declaredGoal
     if (experience) body.experience_level = experience
     if (preset) body.preset = preset
+    if (presentation) {
+      body.learning_preferences = {
+        presentation,
+        detail: 'standard',
+        images: 'when_useful',
+      }
+    }
     body.accessibility = accessibility
     return body
   }
@@ -252,6 +265,14 @@ export function Onboarding() {
         )
       case 'preset':
         return <PresetStep question={question} value={preset} onChange={setPreset} />
+      case 'learning_preferences':
+        return (
+          <LearningPreferencesStep
+            question={question}
+            value={presentation}
+            onChange={setPresentation}
+          />
+        )
       case 'accessibility':
         return (
           <AccessibilityStep

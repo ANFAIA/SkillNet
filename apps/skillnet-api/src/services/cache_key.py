@@ -102,6 +102,7 @@ def cache_key_material(
     role_title: str | None = None,
     sector: str | None = None,
     vector_bucket: str = "",
+    preference_bucket: str = "p1:balanced:standard:when_useful",
 ) -> str:
     """The exact pipe-joined string that gets hashed. Exposed for debugging."""
     return "|".join(
@@ -113,6 +114,7 @@ def cache_key_material(
             _profile_cache_bucket(role_title, sector),
             _plain(scaffold_band),
             vector_bucket or "",
+            preference_bucket,
             str(effective_density),
             _plain(backend),
             _plain(model),
@@ -135,6 +137,7 @@ def build_cache_key(
     role_title: str | None = None,
     sector: str | None = None,
     vector_bucket: str = "",
+    preference_bucket: str = "p1:balanced:standard:when_useful",
 ) -> str:
     """``sha256`` of :func:`cache_key_material`, hex.
 
@@ -155,5 +158,6 @@ def build_cache_key(
         role_title=role_title,
         sector=sector,
         vector_bucket=vector_bucket,
+        preference_bucket=preference_bucket,
     )
     return hashlib.sha256(material.encode("utf-8")).hexdigest()

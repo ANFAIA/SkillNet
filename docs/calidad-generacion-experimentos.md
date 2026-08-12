@@ -1,5 +1,9 @@
 # Calidad de generación: bucle experimental
 
+> Los experimentos posteriores centrados en perfiles, preferencias, misiones cognitivas y
+> componentes ricos continúan en
+> [`personalization-experiments.md`](personalization-experiments.md).
+
 Fecha: 2026-08-11. Rama `feat/notebook-media`. Pila viva: multi-agente
 (`MULTI_AGENT_RENDER=true`, `SEMANTIC_ROUTER=true`) sobre `gpt-4o-mini`.
 

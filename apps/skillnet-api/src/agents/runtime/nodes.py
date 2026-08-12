@@ -98,6 +98,7 @@ from src.models import (
 )
 from src.render.backends import get_render_backend
 from src.render.errors import RenderError
+from src.personalization.preferences import normalize_learning_preferences
 from src.render.gate import canonicalize
 from src.render.prompt import catalog_version, library_version
 from src.render.spec import Component, UISpec, parse_spec
@@ -462,6 +463,12 @@ async def load_context(state: NodeRuntimeState) -> dict:
             "preset": _plain(getattr(profile, "preset", "standard")),
             "nodes_completed": int(getattr(profile, "nodes_completed", 0) or 0),
             "vector_bucket": key.vector_bucket,
+            # Structured shadow-planner inputs only. Neither field is injected into a
+            # prompt or used to select the live OpenUI output here.
+            "format_vector": dict(getattr(profile, "format_vector", None) or {}),
+            "learning_preferences": dict(
+                getattr(profile, "learning_preferences", None) or {}
+            ),
             "tutor_signals": list(
                 signal_actions_for_node(getattr(profile, "tutor_notes", None), node.id)
             ),
@@ -500,6 +507,10 @@ async def load_context(state: NodeRuntimeState) -> dict:
     return {
         "node": node_payload,
         "profile": profile_payload,
+        "accessibility": dict(getattr(user, "accessibility", None) or {}),
+        "personalization_revision": int(
+            getattr(profile, "personalization_revision", 0) or 0
+        ),
         "node_state": state_payload,
         "source_context": source_context,
         "siblings": siblings,
@@ -666,6 +677,7 @@ async def decide_formato(state: NodeRuntimeState) -> dict:
     else:
         org_id = _uuid(state["org_id"])
         llm = await _make_llm(org_id, "fast")
+        preferences = normalize_learning_preferences(profile.get("learning_preferences"))
         prompt = build_format_prompt(
             title=str(node.get("title") or ""),
             summary=str(node.get("summary") or ""),
@@ -684,6 +696,9 @@ async def decide_formato(state: NodeRuntimeState) -> dict:
             last_error_kind=node_state.get("last_error_kind"),
             source_has_numbers=_source_has_numbers(str(state.get("source_context") or "")),
             shape_summary=plan.summary if plan else "",
+            presentation_preference=preferences.presentation.value,
+            detail_preference=preferences.detail.value,
+            image_preference=preferences.images.value,
         )
         started = time.monotonic()
         raw, usage = await llm.complete_with_usage(
@@ -735,6 +750,26 @@ async def decide_formato(state: NodeRuntimeState) -> dict:
     assessment = plan_assessment(
         plan, ui_format=ui_format, node_id=str(node.get("id") or "")
     )
+    shape_functions = list(
+        dict.fromkeys(signal.function.value for signal in plan.signals)
+    )
+
+    # Observe the decision once, before either OpenUI generator runs. The trace is state
+    # only: no prompt, cache key, component selection or ui_spec consumes it.
+    from src.agents.runtime.shadow_plan import build_shadow_plan_trace
+
+    shadow_state = dict(state)
+    shadow_state.update(
+        {
+            "ui_format": ui_format,
+            "tier": tier,
+            "shape_functions": shape_functions,
+            "shape_summary": plan.summary,
+            "assessment_block": assessment.block,
+            "assessment_item_type": assessment.item_type,
+        }
+    )
+    plan_trace = build_shadow_plan_trace(shadow_state)
 
     await publish_step(request_id, "decide_formato", STEP_MESSAGES["decide_formato"])
     await sse.publish(
@@ -752,6 +787,8 @@ async def decide_formato(state: NodeRuntimeState) -> dict:
         # result that cannot have changed.
         "shape_hints": list(plan.hints(ui_format)),
         "shape_summary": plan.summary,
+        "shape_functions": shape_functions,
+        "plan_trace": plan_trace,
         "current_step": "decide_formato",
         # Carried so `node_renders.tokens_*` is the cost of the *render*, not of one of the
         # two calls that produced it. `genera_ui` adds its own on top, retries included.
@@ -804,6 +841,7 @@ async def genera_ui(state: NodeRuntimeState) -> dict:
         )
     else:
         system = ui_generator_system()
+        preferences = normalize_learning_preferences(profile.get("learning_preferences"))
         user_prompt = build_ui_prompt(
             title=str(node.get("title") or ""),
             summary=str(node.get("summary") or ""),
@@ -824,6 +862,9 @@ async def genera_ui(state: NodeRuntimeState) -> dict:
             source_context=str(state.get("source_context") or ""),
             shape_hints=shape_hints,
             assessment_hint=str(state.get("assessment_hint") or ""),
+            presentation_preference=preferences.presentation.value,
+            detail_preference=preferences.detail.value,
+            image_preference=preferences.images.value,
         )
 
     await publish_step(request_id, "genera_ui", STEP_MESSAGES["genera_ui"])
@@ -982,6 +1023,7 @@ async def genera_ui_multi(state: NodeRuntimeState) -> dict:
         )
 
     # --- Agent 1: Blueprint ---
+    preferences = normalize_learning_preferences(profile.get("learning_preferences"))
     blueprint = await run_blueprint(
         title=str(node.get("title") or ""),
         summary=str(node.get("summary") or ""),
@@ -998,6 +1040,9 @@ async def genera_ui_multi(state: NodeRuntimeState) -> dict:
         siblings=list(state.get("siblings") or ()),
         llm=llm,
         assessment=assessment,
+        presentation_preference=preferences.presentation.value,
+        detail_preference=preferences.detail.value,
+        image_preference=preferences.images.value,
     )
 
     await publish_step(request_id, "genera_ui", "Escribiendo el contenido...")
@@ -1303,6 +1348,9 @@ async def _persist(
                 user_id=_uuid(str(state["user_id"])),
                 node_id=_uuid(str(state["node_id"])),
                 render=render,
+                personalization_revision=int(
+                    state.get("personalization_revision") or 0
+                ),
             )
         await db.commit()
 

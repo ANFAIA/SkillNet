@@ -63,7 +63,7 @@ def test_key_is_deterministic():
     assert key() == key()
 
 
-def test_material_has_the_eleven_fields_of_the_formula_in_order():
+def test_material_has_the_twelve_fields_of_the_formula_in_order():
     material = cache_key_material(**BASE)
     assert material.split("|") == [
         str(NODE_ID),
@@ -73,6 +73,7 @@ def test_material_has_the_eleven_fields_of_the_formula_in_order():
         hashlib.sha256(b"dependiente|retail").hexdigest()[:ROLE_BUCKET_MAX_LENGTH],
         "neutral",
         "",
+        "p1:balanced:standard:when_useful",
         "3",
         "openui",
         "gpt-4o-mini",

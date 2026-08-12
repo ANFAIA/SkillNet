@@ -120,7 +120,33 @@ from src.render.spec import FORMATS_REQUIRING_LEAD
 #: stopped travelling as its bare enum token (:data:`_CRITICALITY_RULES` — 8 rejections,
 #: the largest single class), and SkillNet 17 and 18 name the two syntax habits behind the
 #: rest (a bare ``opciones = [...]`` declaration, and the same id declared twice).
-PROMPT_VERSION = "runtime/21"
+PROMPT_VERSION = "runtime/22"
+
+_PRESENTATION_PREFERENCES = {
+    "balanced": "Combina representaciones segun el objetivo y la fuente.",
+    "visual": "Da prioridad a representaciones visuales cuando aclaren la fuente.",
+    "textual": "Da prioridad a texto estructurado y tablas cuando sean suficientes.",
+    "interactive": "Da prioridad a practica e interaccion cuando el catalogo lo permita.",
+}
+_DETAIL_PREFERENCES = {
+    "concise": "La persona prefiere una explicacion concisa.",
+    "standard": "La persona prefiere un nivel de detalle equilibrado.",
+    "detailed": "La persona prefiere una explicacion detallada, sin inventar contenido.",
+}
+_IMAGE_PREFERENCES = {
+    "when_useful": "Usa imagenes solo cuando aporten valor y esten disponibles.",
+    "prefer": "Prefiere imagenes cuando aporten valor y esten disponibles; no las inventes.",
+    "avoid": "No solicites ni incluyas imagenes.",
+}
+
+
+def _preference_rules(presentation: str, detail: str, images: str) -> list[str]:
+    return [
+        _PRESENTATION_PREFERENCES.get(presentation, _PRESENTATION_PREFERENCES["balanced"]),
+        _DETAIL_PREFERENCES.get(detail, _DETAIL_PREFERENCES["standard"]),
+        _IMAGE_PREFERENCES.get(images, _IMAGE_PREFERENCES["when_useful"]),
+        "Son preferencias, no requisitos: la evidencia, la seguridad y el objetivo mandan.",
+    ]
 
 # --- budgets (§4.2) ----------------------------------------------------------------
 
@@ -306,6 +332,9 @@ def build_format_prompt(
     last_error_kind: str | None = None,
     source_has_numbers: bool = False,
     shape_summary: str = "",
+    presentation_preference: str = "balanced",
+    detail_preference: str = "standard",
+    image_preference: str = "when_useful",
 ) -> str:
     """The user prompt for ``decide_formato``.
 
@@ -347,6 +376,12 @@ def build_format_prompt(
     )
     if vector_bucket:
         parts.append(f"- Formato con el que mas interactua: {vector_bucket}")
+    parts.extend(
+        f"- {rule}"
+        for rule in _preference_rules(
+            presentation_preference, detail_preference, image_preference
+        )
+    )
     if consecutive_failed:
         parts.append(f"- Fallos consecutivos en este nodo: {consecutive_failed}")
     if last_error_kind:
@@ -653,6 +688,9 @@ def build_ui_prompt(
     source_context: str = "",
     shape_hints: Sequence[str] = (),
     assessment_hint: str = "",
+    presentation_preference: str = "balanced",
+    detail_preference: str = "standard",
+    image_preference: str = "when_useful",
 ) -> str:
     """The user prompt for ``genera_ui``.
 
@@ -713,6 +751,12 @@ def build_ui_prompt(
         rule = _SIGNAL_RULES.get(str(signal))
         if rule:
             parts.append(f"- {rule}")
+    parts.extend(
+        f"- {rule}"
+        for rule in _preference_rules(
+            presentation_preference, detail_preference, image_preference
+        )
+    )
 
     shape_section = _shape_section(shape_hints, ui_format)
     if shape_section:

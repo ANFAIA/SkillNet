@@ -16,6 +16,7 @@ import { CourseView } from './pages/employee/CourseView'
 import { NodeView } from './pages/employee/NodeView'
 import { SkillMap } from './pages/employee/SkillMap'
 import { Chat } from './pages/employee/Chat'
+import { LearningPreferencesPage } from './pages/employee/LearningPreferences'
 import { Dashboard as AdminDashboard } from './pages/admin/Dashboard'
 import { Employees } from './pages/admin/Employees'
 import { Content } from './pages/admin/Content'
@@ -88,6 +89,7 @@ function App() {
             <Route path="curso/:id/nodo/:nodeId" element={<NodeView />} />
             <Route path="skillmap" element={<SkillMap />} />
             <Route path="chat" element={<Chat />} />
+            <Route path="ajustes" element={<LearningPreferencesPage />} />
           </Route>
 
           <Route
