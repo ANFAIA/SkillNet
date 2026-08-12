@@ -5,7 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useMe, useLogout } from '../../api/auth'
 import { ThemeToggle } from '../ui/ThemeToggle'
 import { useSidebar } from '../../contexts/SidebarContext'
-import { transition, duration, ease } from '../../lib/motion'
+import { useReducedMotion } from '../../hooks/useReducedMotion'
+import { transition, duration, ease, spring } from '../../lib/motion'
 
 export function Header() {
   const intl = useIntl()
@@ -13,6 +14,7 @@ export function Header() {
   const logout = useLogout()
   const navigate = useNavigate()
   const { collapsed, setMobileOpen } = useSidebar()
+  const reducedMotion = useReducedMotion()
   const [open, setOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -37,13 +39,17 @@ export function Header() {
   }, [open])
 
   return (
-    <header className={`fixed top-0 left-0 right-0 h-[50px] frame-surface border-b border-[var(--frame-border)] flex items-center justify-between md:justify-end px-4 md:px-6 z-10 transition-[left] duration-300 [transition-timing-function:var(--ease-base)] ${collapsed ? 'md:left-16' : 'md:left-[248px]'}`}>
+    <motion.header
+      layout="position"
+      transition={reducedMotion ? { duration: 0 } : spring.gentle}
+      className={`fixed top-0 left-0 right-0 h-[50px] bg-bg flex items-center justify-between md:justify-end px-4 md:px-6 z-10 ${collapsed ? 'md:left-16' : 'md:left-[248px]'}`}
+    >
       {/* Mobile menu trigger — opens the sidebar overlay */}
       <motion.button
         type="button"
         onClick={() => setMobileOpen(true)}
         aria-label={intl.formatMessage({ id: 'header.openMenu' })}
-        className="md:hidden w-9 h-9 -ml-1 flex items-center justify-center rounded-lg text-white/90 hover:text-white cursor-pointer"
+        className="md:hidden w-9 h-9 -ml-1 flex items-center justify-center rounded-lg text-text-muted hover:text-text cursor-pointer"
         whileTap={{ scale: 0.9 }}
         transition={transition.micro}
       >
@@ -58,7 +64,7 @@ export function Header() {
         <motion.button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          className="w-8 h-8 rounded-full border border-white/30 flex items-center justify-center text-white hover:border-white/60 transition-colors cursor-pointer"
+          className="w-8 h-8 rounded-full border border-border flex items-center justify-center text-text-muted hover:border-border-strong hover:text-text transition-colors cursor-pointer"
           aria-label={intl.formatMessage({ id: 'header.account' })}
           aria-haspopup="menu"
           aria-expanded={open}
@@ -124,6 +130,6 @@ export function Header() {
           )}
         </AnimatePresence>
       </div>
-    </header>
+    </motion.header>
   )
 }

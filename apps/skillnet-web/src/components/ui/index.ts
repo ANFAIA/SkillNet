@@ -21,6 +21,10 @@ export type { InfoTooltipProps } from './InfoTooltip'
 
 export { Input } from './Input'
 export type { InputProps } from './Input'
+export { PageHeader } from './PageHeader'
+export { SearchField } from './SearchField'
+export { Select } from './Select'
+export { Switch } from './Switch'
 export { Textarea } from './Textarea'
 export type { TextareaProps } from './Textarea'
 

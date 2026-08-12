@@ -94,7 +94,7 @@ export function NodeChat({
   // reload the real node and its on-screen render (org-scoped); the title/summary ride
   // along as a fallback for when no render is pinned yet.
   const context: ChatContext | undefined = useMemo(() => {
-    if (!nodeId && !nodeTitle) return undefined
+    if (!nodeId && !nodeTitle && !courseId) return undefined
     return {
       ...(nodeId ? { node_id: nodeId } : {}),
       ...(courseId ? { course_id: courseId } : {}),
@@ -167,8 +167,29 @@ export function NodeChat({
             >
               <Mascota anim="saludar" size={88} followCursor />
               <p className="text-sm text-text-secondary max-w-[15rem]">
-                {intl.formatMessage({ id: 'nodeChat.empty' })}
+                {intl.formatMessage({ id: nodeId ? 'nodeChat.empty' : 'courseChat.empty' })}
               </p>
+              {!nodeId && courseId && (
+                <div className="mt-1 flex max-w-xs flex-wrap justify-center gap-2">
+                  {[
+                    'courseChat.suggestionSummary',
+                    'courseChat.suggestionCritical',
+                    'courseChat.suggestionProcedure',
+                  ].map((messageId) => {
+                    const prompt = intl.formatMessage({ id: messageId })
+                    return (
+                      <button
+                        key={messageId}
+                        type="button"
+                        onClick={() => void sendMessage(prompt)}
+                        className="cursor-pointer rounded-full border border-border bg-surface px-3 py-1.5 text-xs text-text-secondary transition-colors hover:border-primary hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                      >
+                        {prompt}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>

@@ -66,7 +66,11 @@ export interface CourseRead {
   outcome: string | null
   status: CourseStatus
   source_document_id: string | null
+  /** Optional administrative location. It does not affect delivery or permissions. */
+  folder_id?: string | null
+  folder_name?: string | null
   created_at: string
+  updated_at?: string
   module_count: number
   node_count: number | null
   schema_status: string | null
@@ -540,6 +544,37 @@ export interface CourseSchemaNodeInput {
 export interface CourseSchemaUpdate {
   intent_density?: number
   nodes: CourseSchemaNodeInput[]
+}
+
+export type KnowledgePackStatus =
+  | 'pending'
+  | 'ready'
+  | 'review_required'
+  | 'stale'
+  | 'failed'
+
+export interface NodeKnowledgePack {
+  id: string
+  node_id: string
+  status: KnowledgePackStatus
+  generator_version: string
+  pack_hash: string | null
+  markdown: string | null
+  atom_count: number
+  invariant_count: number
+  required_evidence_count: number
+  blocking_gaps: string[]
+  input_tokens: number | null
+  output_tokens: number | null
+  duration_ms: number | null
+  error_message: string | null
+  updated_at: string
+}
+
+export interface CourseKnowledgePacks {
+  course_id: string
+  schema_version: number
+  nodes: NodeKnowledgePack[]
 }
 
 /** One blocking rule violation from `422 {"detail": {"code": "schema_invalid", ...}}`. */

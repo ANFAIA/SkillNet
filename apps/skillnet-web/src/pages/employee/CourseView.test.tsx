@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { CourseView } from './CourseView'
@@ -129,14 +129,13 @@ function nodeList(deliveryMode: 'static' | 'dynamic') {
   }
 }
 
-function renderPage({ fromNode = false }: { fromNode?: boolean } = {}) {
+function renderPage() {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   })
-  const initialState = fromNode ? { fromNode: true } : undefined
   return render(
     <QueryClientProvider client={client}>
-      <MemoryRouter initialEntries={[{ pathname: `/empleado/curso/${COURSE_ID}`, state: initialState }]}>
+      <MemoryRouter initialEntries={[`/empleado/curso/${COURSE_ID}`]}>
         <Routes>
           <Route path="/empleado/curso/:id" element={<CourseView />} />
           <Route path="/empleado/curso/:id/nodo/:nodeId" element={<div data-testid="node-view">NodeView</div>} />
@@ -186,43 +185,58 @@ describe('CourseView — v1 non-regression', () => {
 })
 
 describe('CourseView — the dynamic branch', () => {
-  it('auto-navigates to the first unlocked node on first visit', async () => {
+  it('renders the overview and opens the first unlocked node from its main action', async () => {
     installFetch({ nodes: nodeList('dynamic') })
     renderPage()
 
-    // A fresh dynamic course auto-navigates to the first unlocked node — no
-    // welcome screen, no extra clicks. The NodeView route catches the navigation.
+    expect(await screen.findByRole('heading', { name: 'Devoluciones en tienda' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Índice' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Resúmenes' })).toBeInTheDocument()
+    expect(screen.queryByTestId('node-view')).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: /Empezar/ }))
     expect(await screen.findByTestId('node-view')).toBeInTheDocument()
   })
 
-  it('renders the node map when the learner comes back from a node', async () => {
+  it('keeps the full node map available from the overview', async () => {
     installFetch({ nodes: nodeList('dynamic') })
-    // `fromNode: true` simulates the learner pressing back from NodeView.
-    // The auto-navigate is skipped, and the NodeList is shown instead.
-    renderPage({ fromNode: true })
+    renderPage()
 
-    expect(await screen.findByTestId('node-list')).toBeInTheDocument()
+    expect(await screen.findByRole('list')).toBeInTheDocument()
     expect(screen.getByText('Plazo de devolucion')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /Plazo de devolucion/ })).toHaveAttribute(
-      'href',
-      `/empleado/curso/${COURSE_ID}/nodo/${NODE_ID}`,
-    )
     // The v1 tree is gone, not hidden behind it.
     expect(screen.queryByText('Modulo de devoluciones')).toBeNull()
-    // And the course cannot close in silence: the blocking node is named (§7.4).
+  })
+
+  it('opens the course tutor with course-wide context', async () => {
+    installFetch({ nodes: nodeList('dynamic') })
+    renderPage()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Preguntar al tutor' }))
+    expect(screen.getByRole('dialog', { name: 'Tutor del curso' })).toBeInTheDocument()
     expect(
-      screen.getByText('Para completar el curso te falta: Plazo de devolucion.'),
+      screen.getByText('Pregunta cualquier duda sobre el curso, aunque todavía no hayas llegado a ese tema.'),
     ).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: '¿Qué debo saber de este curso?' }))
+
+    await waitFor(() => {
+      const chatCall = mockFetch.mock.calls.find(([input]) => String(input).endsWith('/chat'))
+      expect(chatCall).toBeDefined()
+      const body = JSON.parse(String(chatCall?.[1]?.body)) as Record<string, unknown>
+      expect(body).toMatchObject({ context: { course_id: COURSE_ID } })
+      expect(body).not.toHaveProperty('context.node_id')
+    })
   })
 
   it('never flashes the v1 tree before the node map lands', async () => {
     installFetch({ nodes: nodeList('dynamic') })
-    renderPage({ fromNode: true })
+    renderPage()
 
     // While the node list is in flight the screen is the skeleton, never the module tree:
     // painting v1 and replacing it is the layout jump §5.5 forbids.
     expect(screen.queryByText('Modulo de devoluciones')).toBeNull()
-    await waitFor(() => expect(screen.getByTestId('node-list')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('Plazo de devolucion')).toBeInTheDocument())
     expect(screen.queryByText('Modulo de devoluciones')).toBeNull()
   })
 })

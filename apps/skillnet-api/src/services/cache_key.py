@@ -103,24 +103,27 @@ def cache_key_material(
     sector: str | None = None,
     vector_bucket: str = "",
     preference_bucket: str = "p1:balanced:standard:when_useful",
+    knowledge_pack_key: str = "",
 ) -> str:
     """The exact pipe-joined string that gets hashed. Exposed for debugging."""
-    return "|".join(
-        (
-            str(node_id),
-            str(schema_version),
-            _plain(preset),
-            _plain(experience_level),
-            _profile_cache_bucket(role_title, sector),
-            _plain(scaffold_band),
-            vector_bucket or "",
-            preference_bucket,
-            str(effective_density),
-            _plain(backend),
-            _plain(model),
-            _plain(prompt_version),
-        )
+    parts = (
+        str(node_id),
+        str(schema_version),
+        _plain(preset),
+        _plain(experience_level),
+        _profile_cache_bucket(role_title, sector),
+        _plain(scaffold_band),
+        vector_bucket or "",
+        preference_bucket,
+        str(effective_density),
+        _plain(backend),
+        _plain(model),
+        _plain(prompt_version),
     )
+    # Preserve all legacy keys until a validated pack actually changes prompt input.
+    if knowledge_pack_key:
+        parts = (*parts, knowledge_pack_key)
+    return "|".join(parts)
 
 
 def build_cache_key(
@@ -138,6 +141,7 @@ def build_cache_key(
     sector: str | None = None,
     vector_bucket: str = "",
     preference_bucket: str = "p1:balanced:standard:when_useful",
+    knowledge_pack_key: str = "",
 ) -> str:
     """``sha256`` of :func:`cache_key_material`, hex.
 
@@ -159,5 +163,6 @@ def build_cache_key(
         sector=sector,
         vector_bucket=vector_bucket,
         preference_bucket=preference_bucket,
+        knowledge_pack_key=knowledge_pack_key,
     )
     return hashlib.sha256(material.encode("utf-8")).hexdigest()

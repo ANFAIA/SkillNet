@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from src.core.exceptions import ConflictError, NotFoundError, ValidationError
 from src.models import ContentStatus, Course, EnrollmentStatus
 from src.repositories.course_repo import CourseRepository
+from src.repositories.course_folder_repo import CourseFolderRepository
 
 
 class CourseService:
@@ -21,7 +22,14 @@ class CourseService:
         description: str | None = None,
         outcome: str | None = None,
         source_document_id: uuid.UUID | None = None,
+        folder_id: uuid.UUID | None = None,
     ) -> Course:
+        if folder_id is not None:
+            folder = await CourseFolderRepository(self.repo.session).get_scoped(
+                folder_id, org_id
+            )
+            if folder is None:
+                raise NotFoundError("course_folders", str(folder_id))
         return await self.repo.create(
             org_id=org_id,
             created_by=created_by,
@@ -29,6 +37,7 @@ class CourseService:
             description=description,
             outcome=outcome,
             source_document_id=source_document_id,
+            folder_id=folder_id,
             status=ContentStatus.DRAFT,
         )
 
@@ -42,7 +51,18 @@ class CourseService:
         self, *, course_id: uuid.UUID, org_id: uuid.UUID, changes: dict
     ) -> Course:
         course = await self.get_scoped(course_id, org_id)
-        clean = {k: v for k, v in changes.items() if v is not None}
+        if "folder_id" in changes and changes["folder_id"] is not None:
+            folder_id = changes["folder_id"]
+            folder = await CourseFolderRepository(self.repo.session).get_scoped(
+                folder_id, org_id
+            )
+            if folder is None:
+                raise NotFoundError("course_folders", str(folder_id))
+        clean = {
+            k: v
+            for k, v in changes.items()
+            if v is not None or k == "folder_id"
+        }
         if not clean:
             return course
         return await self.repo.update(course, **clean)

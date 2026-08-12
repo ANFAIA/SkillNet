@@ -316,6 +316,7 @@ class Harness:
     job: GenerationJob
     events: list[tuple[str, str, dict]]
     job_updates: list[dict]
+    pack_spawns: list[tuple[uuid.UUID, uuid.UUID, int, int]]
 
     def event_types(self) -> list[str]:
         return [event_type for _, event_type, _ in self.events]
@@ -355,6 +356,7 @@ def harness(monkeypatch, tmp_path) -> Harness:
 
     events: list[tuple[str, str, dict]] = []
     job_updates: list[dict] = []
+    pack_spawns: list[tuple[uuid.UUID, uuid.UUID, int, int]] = []
 
     async def fake_publish(channel: str, event_type: str, data: dict) -> None:
         events.append((channel, event_type, data))
@@ -371,10 +373,16 @@ def harness(monkeypatch, tmp_path) -> Harness:
     async def fake_mark_job_failed(job_id: str, message: str) -> None:
         job_updates.append({"job_id": job_id, "marked_failed": message})
 
+    def fake_spawn_pack(
+        course_id: uuid.UUID, org_id: uuid.UUID, schema_version: int
+    ) -> None:
+        pack_spawns.append((course_id, org_id, schema_version, session.commits))
+
     monkeypatch.setattr("src.core.sse.publish", fake_publish)
     monkeypatch.setattr(schema_nodes, "async_session_factory", session)
     monkeypatch.setattr(schema_nodes, "_set_job", fake_set_job)
     monkeypatch.setattr(schema_nodes, "_make_llm", fake_make_llm)
+    monkeypatch.setattr(schema_nodes, "_spawn_knowledge_pack_shadow", fake_spawn_pack)
     monkeypatch.setattr(
         "src.agents.schema.errors.mark_job_failed", fake_mark_job_failed
     )
@@ -385,6 +393,7 @@ def harness(monkeypatch, tmp_path) -> Harness:
         job=job,
         events=events,
         job_updates=job_updates,
+        pack_spawns=pack_spawns,
     )
 
 
@@ -457,6 +466,15 @@ async def test_the_graph_proposes_a_schema_end_to_end(harness: Harness) -> None:
     ]
     assert harness.event_types()[-2:] == ["schema_progress", "schema_ready"]
     assert harness.session.commits == 1
+
+
+async def test_pack_generation_is_scheduled_only_after_the_schema_commit(
+    harness: Harness,
+) -> None:
+    await run_graph(make_state())
+
+    assert harness.pack_spawns == [(COURSE_ID, ORG_ID, 1, 1)]
+    assert harness.event_types()[-1] == "schema_ready"
 
 
 async def test_the_state_carries_the_shape_4_1_declares(harness: Harness) -> None:

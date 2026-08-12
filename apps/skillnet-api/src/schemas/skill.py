@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 # ------------------------------------------------------------------
@@ -17,6 +17,37 @@ class SkillRead(BaseModel):
     id: uuid.UUID
     name: str
     description: str | None = None
+
+
+class SkillUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    description: str | None = None
+
+    @field_validator("name")
+    @classmethod
+    def normalize_name(cls, value: str | None) -> str | None:
+        return " ".join(value.split()) if value is not None else None
+
+
+class CourseSkillInput(BaseModel):
+    id: uuid.UUID | None = None
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    description: str | None = None
+
+    @field_validator("name")
+    @classmethod
+    def normalize_name(cls, value: str | None) -> str | None:
+        return " ".join(value.split()) if value is not None else None
+
+    @model_validator(mode="after")
+    def require_reference(self) -> "CourseSkillInput":
+        if self.id is None and self.name is None:
+            raise ValueError("id or name is required")
+        return self
+
+
+class CourseSkillsReplace(BaseModel):
+    skills: list[CourseSkillInput] = Field(max_length=20)
 
 
 class SkillCategoryRead(BaseModel):
@@ -50,9 +81,14 @@ class SkillCategoryCreate(BaseModel):
 
 
 class SkillCreate(BaseModel):
-    name: str
+    name: str = Field(min_length=1, max_length=200)
     description: str | None = None
     category_id: uuid.UUID | None = None
+
+    @field_validator("name")
+    @classmethod
+    def normalize_name(cls, value: str) -> str:
+        return " ".join(value.split())
 
 
 # ------------------------------------------------------------------

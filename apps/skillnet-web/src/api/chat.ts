@@ -144,7 +144,11 @@ export function useChat(
                 setMessages((prev) =>
                   prev.map((m) =>
                     m.id === assistantId
-                      ? { ...m, citations: [...(m.citations ?? []), ...list] }
+                      ? {
+                          ...m,
+                          citations: list,
+                          ...(typeof data.content === 'string' ? { content: data.content } : {}),
+                        }
                       : m,
                   ),
                 )

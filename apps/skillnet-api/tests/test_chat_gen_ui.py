@@ -44,6 +44,7 @@ from src.services.chat_service import (
     ALLOWED_TOOLS,
     MIN_LAYOUT_CHARS,
     ChatService,
+    cited_sources,
     emit_chat_program,
     extract_actions,
     invented_figures,
@@ -489,7 +490,10 @@ async def _run(monkeypatch, llm: _FakeLLM, *, generative_ui: bool, grounding="do
     service.repo = repo  # type: ignore[assignment]
     user = SimpleNamespace(id=uuid.uuid4(), org_id=uuid.uuid4())
     chunks = [
-        event async for event in service.stream_tutor(user, "¿Qué son los alérgenos?", None, None)
+        event
+        async for event in service.stream_tutor(
+            user, "¿Qué dice mi curso sobre alérgenos?", None, None
+        )
     ]
     return _events(chunks), repo
 
@@ -513,11 +517,22 @@ async def test_the_program_arrives_after_done(monkeypatch) -> None:
     names = [name for name, _ in events]
 
     assert names.index("done") < names.index("ui")
-    assert names.index("layout_start") == names.index("done") + 1
+    assert names.index("layout_start") < names.index("citations") < names.index("done")
     program = dict(events[names.index("ui")][1])["program"]
     assert "StepSequence" in program
     # Persisted for the next time the session is opened, canonical text only.
     assert repo.messages[-1].message_metadata["program"] == program
+
+
+def test_only_sources_explicitly_cited_by_the_answer_are_exposed() -> None:
+    available = [
+        {"document": "Uno", "section": "A", "page": 1},
+        {"document": "Dos", "section": "B", "page": 2},
+        {"document": "Tres", "section": "C", "page": 3},
+    ]
+
+    assert cited_sources("Dato [Fuente 2]. Otro [Fuente 2].", available) == [available[1]]
+    assert cited_sources("Respuesta sin una cita real.", available) == []
 
 
 async def test_an_unusable_shape_degrades_to_the_prose(monkeypatch) -> None:

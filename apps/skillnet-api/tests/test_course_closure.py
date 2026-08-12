@@ -26,7 +26,9 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from types import SimpleNamespace
 from typing import Any
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -286,6 +288,38 @@ async def test_an_unvalidated_schema_is_not_the_dynamic_branch() -> None:
     assert await service.close_dynamic_if_mastered(
         course=course, user_id=USER_ID
     ) == (None, None)
+
+
+@pytest.mark.asyncio
+async def test_dynamic_progress_wins_even_when_v1_fallback_modules_exist() -> None:
+    """A validated v2 course may retain v1 modules; §7.5 still owns its progress."""
+    course = SimpleNamespace(
+        id=uuid.uuid4(),
+        delivery_mode=CourseDeliveryMode.DYNAMIC,
+        schema_status=CourseSchemaStatus.VALIDATED,
+        modules=[SimpleNamespace(lessons=[])],
+    )
+
+    class CourseRepo:
+        async def get_detail(self, _course_id, _org_id):
+            return course
+
+    enrollment = FakeEnrollment(status=EnrollmentStatus.COMPLETED)
+    enrollment.course_id = course.id
+    service = EnrollmentService(
+        FakeEnrollmentRepo(FakeSession(), enrollment),  # type: ignore[arg-type]
+        CourseRepo(),  # type: ignore[arg-type]
+        object(),  # type: ignore[arg-type]
+        object(),  # type: ignore[arg-type]
+    )
+    service.evaluate_dynamic = AsyncMock(
+        return_value=SimpleNamespace(progress_percent=100)
+    )
+
+    assert await service.compute_progress(enrollment=enrollment, org_id=ORG_ID) == 1.0
+    service.evaluate_dynamic.assert_awaited_once_with(
+        course_id=course.id, user_id=USER_ID
+    )
 
 
 # --------------------------------------------------------------------------- #

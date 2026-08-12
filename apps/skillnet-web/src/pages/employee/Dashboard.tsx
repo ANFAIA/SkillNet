@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Badge, Card, CardTitle, MetricCard, CourseItem, SkillBars, EmptyState, SkeletonRow } from '../../components/ui'
+import { Badge, Card, CardTitle, CourseItem, EmptyState, MetricCard, PageHeader, SkillBars, SkeletonRow } from '../../components/ui'
 import { useMe } from '../../api/auth'
 import { useEnrollments } from '../../api/enrollments'
 import { useMySkills } from '../../api/users'
@@ -52,7 +52,9 @@ export function Dashboard() {
   const pending = enrollments.filter((e) => e.status === 'not_started' || e.status === 'assigned')
   const scored = completed.filter((e) => e.score !== null)
   const avgScore = scored.length
-    ? Math.round(scored.reduce((acc, e) => acc + (e.score ?? 0), 0) / scored.length)
+    ? Math.round(
+        (scored.reduce((acc, e) => acc + (e.score ?? 0), 0) / scored.length) * 100,
+      )
     : 0
 
   const { data: userSkills, isLoading: skillsLoading } = useMySkills()
@@ -61,10 +63,7 @@ export function Dashboard() {
 
   return (
     <div>
-      <div className="mb-6">
-        <h2 className="text-xl font-semibold text-text">Hola{firstName ? `, ${firstName}` : ''}</h2>
-        <p className="text-sm text-text-secondary mt-0.5">Lo que toca hoy</p>
-      </div>
+      <div className="mb-6"><PageHeader title={`Hola${firstName ? `, ${firstName}` : ''}`} description="Lo que toca hoy" /></div>
 
       <motion.div
         className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6"
@@ -82,7 +81,7 @@ export function Dashboard() {
           <MetricCard value={String(pending.length)} label="Pendientes" icon={<ClockIcon />} color="orange" />
         </motion.div>
         <motion.div variants={staggerItem}>
-          <MetricCard value={`${avgScore}`} label="Nota media" icon={<TrendUpIcon />} color="purple" />
+          <MetricCard value={`${avgScore}%`} label="Nota media" icon={<TrendUpIcon />} color="purple" />
         </motion.div>
       </motion.div>
 

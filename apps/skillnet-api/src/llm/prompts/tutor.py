@@ -36,7 +36,7 @@ from src.render.prompt import render_prompt
 #: Bumped when anything in this module changes in a way that changes an answer. Not part
 #: of any cache key today; it is what makes "which tutor wrote this" answerable from a
 #: persisted message months later.
-TUTOR_PROMPT_VERSION = "tutor/1"
+TUTOR_PROMPT_VERSION = "tutor/2"
 
 #: ``NO_UI`` from the layout call means "this answer is a paragraph, there is nothing to
 #: lay out". Cheaper and far more honest than wrapping one sentence in a Stack.
@@ -95,15 +95,13 @@ persona. No es un fragmento recuperado: lo tienes entero en el contexto del turn
   criterio general del sector, dejando claro que esa parte no sale del documento.
 - No contradigas al documento ni le anadas cifras que no estan en el.""",
     "general": """\
-De donde sale esta respuesta: de tu conocimiento general. En la documentacion de la
-empresa no hay nada sobre esto, o esta persona todavia no tiene cursos asignados. Aun asi
-tienes que ayudar; negarte no es una opcion.
-- Empieza con una linea que lo deje claro, en tus palabras. Por ejemplo: "Esto no aparece
-  en la documentacion de tu empresa, asi que te respondo con criterio general del sector".
+De donde sale esta respuesta: de tu conocimiento general. En este turno no tienes
+material de la empresa en el contexto. Aun asi tienes que ayudar; negarte no es una opcion.
 - Responde con buenas practicas del sector, generales y prudentes.
 - No escribas [Fuente N]: no hay fuente que citar.
 - No presentes nada como norma de esta empresa.
-- Termina diciendo a quien preguntar o que documento pedir para confirmarlo.""",
+- No afirmes que buscaste documentacion ni que la empresa carece de ella salvo que el
+  turno diga expresamente que se intento recuperar y no se encontro nada.""",
 }
 
 
@@ -126,7 +124,13 @@ _CONTEXT_HEADERS: dict[str, str] = {
 }
 
 
-def build_user_turn(grounding: Grounding, context_block: str, question: str) -> str:
+def build_user_turn(
+    grounding: Grounding,
+    context_block: str,
+    question: str,
+    *,
+    retrieval_attempted: bool = True,
+) -> str:
     """The final user message: the context (if any) and the question.
 
     In ``general`` mode there is deliberately **no** "(No hay contexto disponible.)"
@@ -135,11 +139,18 @@ def build_user_turn(grounding: Grounding, context_block: str, question: str) -> 
     the prompt for the refusal the whole ladder exists to remove.
     """
     if grounding == "general":
+        if not retrieval_attempted:
+            return (
+                f"Pregunta: {question}\n\n"
+                "Esta pregunta no pide consultar material interno, por lo que no se ha "
+                "ejecutado recuperacion documental. Responde directamente con tu "
+                "conocimiento general y no menciones documentacion ni fuentes."
+            )
         return (
             f"Pregunta: {question}\n\n"
-            "No hay ningun material de la empresa para esta pregunta. Respondela igual, "
-            "con criterio general, y di en la primera linea que no sale de la "
-            "documentacion de la empresa."
+            "Se intento recuperar material interno para esta pregunta, pero no se encontro "
+            "contexto util. Respondela igual con criterio general, dejando claro que esa "
+            "respuesta no procede de la documentacion de la empresa."
         )
     return (
         f"{_CONTEXT_HEADERS[_block_key(grounding)]}\n\n{context_block}\n\n"

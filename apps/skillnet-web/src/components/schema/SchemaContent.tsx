@@ -6,6 +6,7 @@ import { ease, duration } from '../../lib/motion'
 import { Button } from '../ui'
 import { ShimmerSkeleton } from '../ui/ShimmerSkeleton'
 import { SortableTreeNode } from './SortableTreeNode'
+import { CourseSkillsEditor, type SkillOption } from './CourseSkillsEditor'
 import type { ProposedNode } from '../../pages/admin/createCourseTypes'
 
 // ── Skeleton for loading state ──────────────────────────────
@@ -49,6 +50,9 @@ export interface SchemaContentProps {
   onCreateCourse: () => void
   creating: boolean
   startError: string | null
+  skills: SkillOption[]
+  availableSkills: SkillOption[]
+  onSkillsChange: (skills: SkillOption[]) => void
   /** Which nodes have received their detail enrichment (by index). */
   enrichedNodes?: Set<number>
   /** Current streaming phase for progressive UI. */
@@ -72,6 +76,9 @@ export function SchemaContent({
   onCreateCourse,
   creating,
   startError,
+  skills,
+  availableSkills,
+  onSkillsChange,
   enrichedNodes,
   streamPhase = 'idle',
 }: SchemaContentProps) {
@@ -316,6 +323,17 @@ export function SchemaContent({
             </motion.div>
           )}
         </AnimatePresence>
+
+        {!isStreaming && (
+          <div className="mb-5">
+            <CourseSkillsEditor
+              skills={skills}
+              availableSkills={availableSkills}
+              onChange={onSkillsChange}
+              disabled={creating}
+            />
+          </div>
+        )}
 
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={nodeIds} strategy={verticalListSortingStrategy}>

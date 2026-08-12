@@ -243,6 +243,15 @@ de este PR:
 
 ### 2.1 Qué se persiste vs qué se genera
 
+La preparación pedagógica asíncrona situada entre el índice y OpenUI se especifica en
+[`node-knowledge-packs.md`](node-knowledge-packs.md). Tras el commit del índice genera un contrato
+estructurado y un Markdown derivado por nodo. Solo los packs `ready` alimentan la selección de
+conocimiento del runtime; su hash y el de la selección forman parte de la clave de caché. Los estados
+`review_required`, `failed`, `stale` y la ausencia de pack mantienen el flujo raw anterior como
+fallback. Crear o modificar el esquema encola automáticamente la preparación; abrir la pantalla no
+inicia trabajo. Cada nodo expone su estado dentro de su propio desplegable en la pantalla de esquema;
+los detalles técnicos no ocupan una sección global.
+
 | Se persiste (design-time, estable) | Se genera al vuelo (runtime, por usuario) |
 |------------------------------------|-------------------------------------------|
 | Título y outcome del curso | La UI de cada nodo (`ui_spec`) |

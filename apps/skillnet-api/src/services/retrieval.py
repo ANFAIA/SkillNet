@@ -104,6 +104,9 @@ class GroundedContext:
     grounding: Literal["chunks", "chunks_fts", "document", "general"]
     context: str = ""
     citations: list[dict] = field(default_factory=list)
+    #: False means retrieval was intentionally skipped by the general-chat router, not
+    #: that a search ran and found nothing. The public grounding value stays compatible.
+    retrieval_attempted: bool = True
 
 
 def chunk_score(chunk: dict) -> float:

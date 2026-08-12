@@ -305,3 +305,7 @@ La arquitectura habrá funcionado cuando:
 - una petición explícita de modalidad se cumpla o produzca una razón honesta;
 - ninguna variante inválida llegue al humano sólo porque compila;
 - el sistema pueda volver al kit anterior sin perder estado ni aprendizaje medido.
+
+La estrategia concreta para consumir el catálogo grande de Didact, limitar cada decisión a una
+shortlist, distinguir recipes de nuevos componentes y avanzar hacia GenUI de nivel 3 está en
+[`didact-integration-strategy.md`](didact-integration-strategy.md).

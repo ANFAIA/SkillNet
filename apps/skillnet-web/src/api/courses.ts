@@ -4,15 +4,26 @@ import type { CourseDetail, CourseProgress, CourseRead, Exercise, Lesson, Pagina
 
 export interface CourseFilters {
   status?: string
+  search?: string
+  folderId?: string | null
+  unorganized?: boolean
+  offset?: number
+  limit?: number
 }
 
 export function useCourses(filters?: CourseFilters) {
   return useQuery({
     queryKey: ['courses', filters ?? {}],
-    queryFn: () =>
-      get<Paginated<CourseRead>>(
-        `/courses${filters?.status ? `?status=${filters.status}` : ''}`,
-      ),
+    queryFn: () => {
+      const params = new URLSearchParams()
+      if (filters?.status) params.set('status', filters.status)
+      if (filters?.search) params.set('search', filters.search)
+      if (filters?.folderId) params.set('folder_id', filters.folderId)
+      if (filters?.unorganized) params.set('unorganized', 'true')
+      params.set('offset', String(filters?.offset ?? 0))
+      params.set('limit', String(filters?.limit ?? 100))
+      return get<Paginated<CourseRead>>(`/courses?${params.toString()}`)
+    },
   })
 }
 
@@ -47,7 +58,7 @@ export function useUpdateCourse() {
       payload,
     }: {
       id: string
-      payload: { title?: string; description?: string; outcome?: string }
+      payload: { title?: string; description?: string; outcome?: string; folder_id?: string | null }
     }) => put<CourseRead>(`/courses/${id}`, payload),
     onSuccess: (_data, { id }) => {
       queryClient.invalidateQueries({ queryKey: ['courses', id] })

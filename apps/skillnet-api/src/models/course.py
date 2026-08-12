@@ -21,6 +21,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from src.models.base import Base, TimestampMixin, UUIDMixin
 
 if TYPE_CHECKING:
+    from src.models.course_folder import CourseFolder
     from src.models.enrollment import Enrollment
     from src.models.module import Module
 
@@ -61,6 +62,9 @@ class Course(UUIDMixin, TimestampMixin, Base):
     )
     source_document_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("documents.id"), nullable=True
+    )
+    folder_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("course_folders.id", ondelete="SET NULL"), nullable=True
     )
     title: Mapped[str] = mapped_column(String, nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -117,3 +121,4 @@ class Course(UUIDMixin, TimestampMixin, Base):
         order_by="Module.position",
     )
     enrollments: Mapped[list["Enrollment"]] = relationship(back_populates="course")
+    folder: Mapped["CourseFolder | None"] = relationship(back_populates="courses")

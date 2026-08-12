@@ -17,16 +17,25 @@ from fastapi import APIRouter, HTTPException
 
 from src.deps.auth import AdminUser
 from src.deps.db import DBSession
+from src.deps.llm import GenerationLLMDep
+from src.knowledge_pack.configured_generator import ConfiguredKnowledgePackGenerator
+from src.knowledge_pack.runner import (
+    KnowledgePackRunnerDependencies,
+    spawn_packs_for_schema,
+)
 from src.repositories.audit_log_repo import AuditLogRepository
 from src.repositories.course_node_repo import CourseNodeRepository
 from src.repositories.course_repo import CourseRepository
 from src.repositories.document_repo import DocumentRepository
 from src.repositories.enrollment_repo import EnrollmentRepository
 from src.repositories.generation_job_repo import GenerationJobRepository
+from src.repositories.node_knowledge_pack_repo import NodeKnowledgePackRepository
 from src.schemas.course_schema import (
     CourseNodeRead,
     CourseSchemaRead,
     CourseSchemaUpdate,
+    CourseKnowledgePacksRead,
+    NodeKnowledgePackRead,
     NodeReviewResponse,
     SchemaProposeRequest,
     SchemaProposeResponse,
@@ -139,6 +148,7 @@ async def get_schema(
 async def update_schema(
     admin: AdminUser,
     db: DBSession,
+    llm: GenerationLLMDep,
     course_id: uuid.UUID,
     body: CourseSchemaUpdate,
 ) -> CourseSchemaRead:
@@ -151,6 +161,14 @@ async def update_schema(
             intent_density=body.intent_density,
         )
     await db.commit()
+    spawn_packs_for_schema(
+        course_id,
+        admin.org_id,
+        int(snapshot.course.schema_version or 1),
+        dependencies=KnowledgePackRunnerDependencies(
+            generator=ConfiguredKnowledgePackGenerator(llm)
+        ),
+    )
     return _read(snapshot)
 
 
@@ -202,4 +220,65 @@ async def mark_node_reviewed(
     await db.commit()
     return NodeReviewResponse(
         node_id=node.id, reviewed_at=node.reviewed_at, reviewed_by=node.reviewed_by
+    )
+
+
+@router.get(
+    "/{course_id}/schema/knowledge-packs",
+    response_model=CourseKnowledgePacksRead,
+)
+async def get_knowledge_packs(
+    admin: AdminUser, db: DBSession, course_id: uuid.UUID
+) -> CourseKnowledgePacksRead:
+    """Inspection-only pack details embedded in the existing schema screen."""
+    with _structured_errors():
+        snapshot = await _service(db).get_schema(
+            course_id=course_id, org_id=admin.org_id
+        )
+    schema_version = int(snapshot.course.schema_version or 1)
+    rows = await NodeKnowledgePackRepository(db).latest_for_schema(
+        course_id=course_id,
+        org_id=admin.org_id,
+        schema_version=schema_version,
+    )
+    nodes: list[NodeKnowledgePackRead] = []
+    for row in rows:
+        payload = dict(row.pack_payload or {})
+        atoms = list(row.atoms or [])
+        gaps = [
+            str(item.get("description") or item.get("data_id") or "")
+            for item in payload.get("missing_data", [])
+            if isinstance(item, dict) and item.get("blocking")
+        ]
+        nodes.append(
+            NodeKnowledgePackRead(
+                id=row.id,
+                node_id=row.node_id,
+                status=row.status.value,
+                generator_version=row.generator_version,
+                pack_hash=row.pack_hash,
+                markdown=row.markdown,
+                atom_count=len(atoms),
+                invariant_count=sum(
+                    item.get("category") == "must_preserve"
+                    for item in atoms
+                    if isinstance(item, dict)
+                ),
+                required_evidence_count=sum(
+                    bool(item.get("required"))
+                    for item in payload.get("evidence_specs", [])
+                    if isinstance(item, dict)
+                ),
+                blocking_gaps=[gap for gap in gaps if gap],
+                input_tokens=row.input_tokens,
+                output_tokens=row.output_tokens,
+                duration_ms=row.duration_ms,
+                error_message=row.error_message,
+                updated_at=row.updated_at,
+            )
+        )
+    return CourseKnowledgePacksRead(
+        course_id=course_id,
+        schema_version=schema_version,
+        nodes=nodes,
     )

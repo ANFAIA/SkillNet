@@ -1,12 +1,19 @@
-import { useNavigate } from 'react-router-dom'
+import { useDeferredValue, useState } from 'react'
 import { useIntl } from 'react-intl'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Card, Badge, Button, EmptyState, SkeletonCard } from '../../components/ui'
-import { useCourses } from '../../api/courses'
+import { Badge, Button, Card, EmptyState, PageHeader, SearchField, Select } from '../../components/ui'
+import { ShimmerSkeleton } from '../../components/ui/ShimmerSkeleton'
+import { CourseFolderSidebar, type FolderFilter } from '../../components/courses/CourseFolderSidebar'
+import { useCourseFolders } from '../../api/course-folders'
+import { useCourses, useUpdateCourse } from '../../api/courses'
 import { ApiError, post } from '../../api/client'
 import { useAuth } from '../../hooks/useAuth'
 import { staggerContainer, staggerItem } from '../../lib/motion'
-import type { CourseStatus } from '../../types'
+import type { CourseRead, CourseStatus } from '../../types'
+
+const STATUSES = ['all', 'published', 'draft', 'archived'] as const
+type StatusFilter = (typeof STATUSES)[number]
 
 function useStatusConfig() {
   const intl = useIntl()
@@ -19,177 +26,170 @@ function useStatusConfig() {
 }
 
 function BookIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-    </svg>
-  )
+  return <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" /></svg>
 }
 
 function PlusIcon() {
+  return <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+}
+
+function StudioIcon() {
+  return <svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>
+}
+
+function LibrarySkeleton() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="12" y1="5" x2="12" y2="19" />
-      <line x1="5" y1="12" x2="19" y2="12" />
-    </svg>
+    <div className="space-y-2" aria-hidden="true">
+      {[0, 1, 2].map((item) => (
+        <div key={item} className="border border-border rounded-lg p-5 flex items-center gap-4">
+          <ShimmerSkeleton className="w-4 h-4" />
+          <div className="flex-1 space-y-2"><ShimmerSkeleton className="h-4 w-2/5" /><ShimmerSkeleton className="h-3 w-3/5" /></div>
+          <ShimmerSkeleton className="h-8 w-28" />
+        </div>
+      ))}
+    </div>
   )
 }
 
-/** The rich-media Studio (overviews) — a gallery of media sheets. */
-function StudioIcon() {
+function CourseRow({ course, folders, onMove, moving, onOpen }: {
+  course: CourseRead
+  folders: { id: string; name: string }[]
+  onMove: (course: CourseRead, folderId: string | null) => void
+  moving: boolean
+  onOpen: (path: string) => void
+}) {
+  const intl = useIntl()
+  const status = useStatusConfig()(course.status)
+  const { user: currentUser } = useAuth()
+
   return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <rect x="3" y="3" width="18" height="18" rx="2" />
-      <circle cx="8.5" cy="8.5" r="1.5" />
-      <polyline points="21 15 16 10 5 21" />
-    </svg>
+    <Card variants={staggerItem}>
+      <div className="flex min-w-0 flex-col gap-4 xl:flex-row xl:items-center">
+        <div className="flex items-start gap-4 min-w-0 flex-1">
+          <div className="text-text-muted shrink-0 mt-0.5"><BookIcon /></div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="text-sm font-medium text-text truncate min-w-0">{course.title}</span>
+              <Badge variant={status.variant} badgeStyle="plain" className="shrink-0">{status.label}</Badge>
+            </div>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-xs text-text-muted">
+              {course.delivery_mode === 'dynamic' ? (
+                <><span className="text-primary font-medium">{intl.formatMessage({ id: 'content.dynamic' })}</span>{(course.node_count ?? 0) > 0 && <span>{intl.formatMessage({ id: 'content.nodesCount' }, { count: course.node_count })}</span>}</>
+              ) : <span>{intl.formatMessage({ id: 'content.modulesCount' }, { count: course.module_count })}</span>}
+              {course.folder_name && <span>{course.folder_name}</span>}
+              {course.outcome && <span className="truncate max-w-xs">{course.outcome}</span>}
+              <span>{intl.formatMessage({ id: 'content.updatedAt' }, { date: new Date(course.updated_at ?? course.created_at).toLocaleDateString() })}</span>
+            </div>
+          </div>
+        </div>
+        <div className="flex shrink-0 flex-wrap items-center gap-1 xl:justify-end">
+          <Select
+            id={`folder-${course.id}`}
+            label={intl.formatMessage({ id: 'content.moveCourse' }, { title: course.title })}
+            hideLabel
+            value={course.folder_id ?? ''}
+            disabled={moving}
+            onChange={(event) => onMove(course, event.target.value || null)}
+            className="max-w-40"
+          >
+            <option value="">{intl.formatMessage({ id: 'content.folderUnorganized' })}</option>
+            {folders.map((folder) => <option key={folder.id} value={folder.id}>{folder.name}</option>)}
+          </Select>
+          {course.delivery_mode === 'dynamic' && <Button variant="ghost" size="sm" onClick={async () => { if (!currentUser) return; await post('/enrollments', { user_ids: [currentUser.id], course_id: course.id }).catch(() => {}); onOpen(`/admin/probar-curso/${course.id}`) }}>{intl.formatMessage({ id: 'content.test' })}</Button>}
+          {course.module_count > 0 && course.delivery_mode !== 'dynamic' && <Button variant="ghost" size="sm" onClick={() => onOpen(`/admin/curso/${course.id}`)}>{intl.formatMessage({ id: 'content.viewCourse' })}</Button>}
+          <Button variant="ghost" size="sm" onClick={() => onOpen(`/admin/curso/${course.id}/estudio`)}><span className="flex items-center gap-1.5"><StudioIcon />{intl.formatMessage({ id: 'content.overviews' })}</span></Button>
+          <Button variant="ghost" size="sm" onClick={() => onOpen(`/admin/curso/${course.id}/esquema`)}>{intl.formatMessage({ id: 'content.schema' })}</Button>
+        </div>
+      </div>
+    </Card>
   )
 }
 
 export function Content() {
   const navigate = useNavigate()
   const intl = useIntl()
-  const { data, isLoading, error } = useCourses()
-  const { user: currentUser } = useAuth()
-  const statusOf = useStatusConfig()
+  const [params, setParams] = useSearchParams()
+  const rawStatus = params.get('status')
+  const status: StatusFilter = STATUSES.includes(rawStatus as StatusFilter) ? rawStatus as StatusFilter : 'all'
+  const folder: FolderFilter = params.get('folder') || 'all'
+  const search = params.get('q') ?? ''
+  const deferredSearch = useDeferredValue(search.trim())
+  const [moveError, setMoveError] = useState<string | null>(null)
+  const foldersQuery = useCourseFolders()
+  const coursesQuery = useCourses({
+    status: status === 'all' ? undefined : status,
+    search: deferredSearch || undefined,
+    folderId: folder !== 'all' && folder !== 'unorganized' ? folder : undefined,
+    unorganized: folder === 'unorganized',
+  })
+  const totalQuery = useCourses({ limit: 1 })
+  const unorganizedQuery = useCourses({ unorganized: true, limit: 1 })
+  const updateCourse = useUpdateCourse()
+  const courses = coursesQuery.data?.items ?? []
+  const folders = foldersQuery.data ?? []
 
-  const courses = data?.items ?? []
-  const published = courses.filter((c) => c.status === 'published')
-  const drafts = courses.filter((c) => c.status === 'draft')
-  const archived = courses.filter((c) => c.status === 'archived')
+  function updateParams(changes: Record<string, string | null>) {
+    setParams((current) => {
+      const next = new URLSearchParams(current)
+      Object.entries(changes).forEach(([key, value]) => value ? next.set(key, value) : next.delete(key))
+      return next
+    }, { replace: true })
+  }
+
+  async function moveCourse(course: CourseRead, folderId: string | null) {
+    setMoveError(null)
+    try {
+      await updateCourse.mutateAsync({ id: course.id, payload: { folder_id: folderId } })
+    } catch (reason) {
+      setMoveError(reason instanceof ApiError ? reason.body.detail : intl.formatMessage({ id: 'content.moveError' }))
+    }
+  }
+
+  const hasFilters = status !== 'all' || folder !== 'all' || search.trim().length > 0
 
   return (
     <div>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <PageHeader
+        title={intl.formatMessage({ id: 'content.libraryTitle' })}
+        description={intl.formatMessage({ id: 'content.librarySubtitle' })}
+        actions={<Button variant="primary" size="md" onClick={() => navigate('/admin/crear-curso')}><span className="flex items-center gap-1.5"><PlusIcon />{intl.formatMessage({ id: 'content.createNew' })}</span></Button>}
+      />
+
+      <div className="mt-5 grid gap-5 xl:grid-cols-[220px_minmax(0,1fr)]">
         <div>
-          <h2 className="text-xl font-semibold text-text">{intl.formatMessage({ id: 'content.title' })}</h2>
-          <p className="text-sm text-text-secondary mt-1">{intl.formatMessage({ id: 'content.totalCourses' }, { count: courses.length })}</p>
+          {foldersQuery.isLoading || totalQuery.isLoading || unorganizedQuery.isLoading ? <ShimmerSkeleton className="h-40 w-full" /> : foldersQuery.error ? (
+            <div className="border border-border rounded-lg p-4"><p className="text-sm text-danger">{intl.formatMessage({ id: 'content.folderLoadError' })}</p></div>
+          ) : <CourseFolderSidebar folders={folders} selected={folder} totalCount={totalQuery.data?.total ?? 0} unorganizedCount={unorganizedQuery.data?.total ?? 0} onSelect={(value) => updateParams({ folder: value === 'all' ? null : value })} />}
         </div>
-        <Button variant="primary" size="md" onClick={() => navigate('/admin/crear-curso')}>
-          <span className="flex items-center gap-1.5">
-            <PlusIcon />
-            {intl.formatMessage({ id: 'content.createNew' })}
-          </span>
-        </Button>
-      </div>
 
-      <div className="grid grid-cols-3 gap-2 sm:gap-4 mt-4">
-        <div className="border border-border rounded-lg px-3 sm:px-4 py-3">
-          <p className="text-xs text-text-muted">{intl.formatMessage({ id: 'content.published' })}</p>
-          <p className="text-lg font-semibold text-text">{published.length}</p>
-        </div>
-        <div className="border border-border rounded-lg px-3 sm:px-4 py-3">
-          <p className="text-xs text-text-muted">{intl.formatMessage({ id: 'content.drafts' })}</p>
-          <p className="text-lg font-semibold text-text">{drafts.length}</p>
-        </div>
-        <div className="border border-border rounded-lg px-3 sm:px-4 py-3">
-          <p className="text-xs text-text-muted">{intl.formatMessage({ id: 'content.archived' })}</p>
-          <p className="text-lg font-semibold text-text">{archived.length}</p>
-        </div>
-      </div>
+        <section className="min-w-0" aria-label={intl.formatMessage({ id: 'content.courses' })}>
+          <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px]">
+            <SearchField label={intl.formatMessage({ id: 'content.searchLabel' })} value={search} onChange={(event) => updateParams({ q: event.target.value || null })} placeholder={intl.formatMessage({ id: 'content.searchPlaceholder' })} />
+            <Select label={intl.formatMessage({ id: 'content.statusFilter' })} hideLabel value={status} onChange={(event) => updateParams({ status: event.target.value === 'all' ? null : event.target.value })}>
+                <option value="all">{intl.formatMessage({ id: 'content.statusAll' })}</option>
+                <option value="published">{intl.formatMessage({ id: 'content.published' })}</option>
+                <option value="draft">{intl.formatMessage({ id: 'content.drafts' })}</option>
+                <option value="archived">{intl.formatMessage({ id: 'content.archived' })}</option>
+            </Select>
+          </div>
+          <div className="mt-3 flex items-center justify-between gap-3 min-h-6">
+            <p className="text-xs text-text-muted">{coursesQuery.data && intl.formatMessage({ id: 'content.resultsCount' }, { count: coursesQuery.data.total })}</p>
+            {hasFilters && <button type="button" onClick={() => setParams({}, { replace: true })} className="text-xs font-medium text-primary hover:text-primary-hover">{intl.formatMessage({ id: 'content.clearFilters' })}</button>}
+          </div>
+          {moveError && <p role="alert" className="mt-2 border border-danger/30 rounded-lg px-3 py-2 text-sm text-danger">{moveError}</p>}
 
-      <div className="mt-4 space-y-2">
-        {isLoading ? (
-          <>
-            <SkeletonCard />
-            <SkeletonCard />
-            <SkeletonCard />
-          </>
-        ) : error ? (
-          <Card>
-            <EmptyState
-              title={intl.formatMessage({ id: 'content.loadError' })}
-              description={error instanceof ApiError ? error.body.detail : intl.formatMessage({ id: 'content.loadErrorRetry' })}
-            />
-          </Card>
-        ) : courses.length === 0 ? (
-          <Card>
-            <EmptyState
-              title={intl.formatMessage({ id: 'content.emptyTitle' })}
-              description={intl.formatMessage({ id: 'content.emptyDesc' })}
-              action={{ label: intl.formatMessage({ id: 'content.emptyAction' }), onClick: () => navigate('/admin/crear-curso') }}
-            />
-          </Card>
-        ) : (
-          <motion.div className="space-y-2" initial="hidden" animate="visible" variants={staggerContainer}>
-          {courses.map((course) => {
-            const status = statusOf(course.status)
-            return (
-              <Card key={course.id} variants={staggerItem}>
-                <div className="flex items-center gap-4 min-w-0">
-                  <div className="text-text-muted shrink-0">
-                    <BookIcon />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="text-sm font-medium text-text truncate min-w-0">{course.title}</span>
-                      <Badge variant={status.variant} badgeStyle="plain" className="shrink-0">
-                        {status.label}
-                      </Badge>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-0.5 mt-1 text-xs text-text-muted">
-                      {course.delivery_mode === 'dynamic' ? (
-                        <>
-                          <span className="text-primary font-medium">{intl.formatMessage({ id: 'content.dynamic' })}</span>
-                          {(course.node_count ?? 0) > 0 && (
-                            <span>{intl.formatMessage({ id: 'content.nodesCount' }, { count: course.node_count })}</span>
-                          )}
-                        </>
-                      ) : (
-                        <span>{intl.formatMessage({ id: 'content.modulesCount' }, { count: course.module_count })}</span>
-                      )}
-                      {course.outcome && <span className="truncate max-w-xs">{course.outcome}</span>}
-                      <span>{intl.formatMessage({ id: 'content.createdAt' }, { date: new Date(course.created_at).toLocaleDateString() })}</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    {course.delivery_mode === 'dynamic' && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={async () => {
-                          if (!currentUser) return
-                          await post('/enrollments', { user_ids: [currentUser.id], course_id: course.id }).catch(() => {})
-                          navigate(`/admin/probar-curso/${course.id}`)
-                        }}
-                      >
-                        {intl.formatMessage({ id: 'content.test' })}
-                      </Button>
-                    )}
-                    {course.module_count > 0 && course.delivery_mode !== 'dynamic' && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => navigate(`/admin/curso/${course.id}`)}
-                      >
-                        {intl.formatMessage({ id: 'content.viewCourse' })}
-                      </Button>
-                    )}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => navigate(`/admin/curso/${course.id}/estudio`)}
-                    >
-                      <span className="flex items-center gap-1.5">
-                        <StudioIcon />
-                        {intl.formatMessage({ id: 'content.overviews' })}
-                      </span>
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => navigate(`/admin/curso/${course.id}/esquema`)}
-                    >
-                      {intl.formatMessage({ id: 'content.schema' })}
-                    </Button>
-                  </div>
-                </div>
-              </Card>
-            )
-          })}
-          </motion.div>
-        )}
+          <div className="mt-2">
+            {coursesQuery.isLoading ? <LibrarySkeleton /> : coursesQuery.error ? (
+              <Card><EmptyState title={intl.formatMessage({ id: 'content.loadError' })} description={coursesQuery.error instanceof ApiError ? coursesQuery.error.body.detail : intl.formatMessage({ id: 'content.loadErrorRetry' })} /></Card>
+            ) : courses.length === 0 ? (
+              <Card><EmptyState title={intl.formatMessage({ id: hasFilters ? 'content.noResultsTitle' : 'content.emptyTitle' })} description={intl.formatMessage({ id: hasFilters ? 'content.noResultsDesc' : 'content.emptyDesc' })} action={hasFilters ? { label: intl.formatMessage({ id: 'content.clearFilters' }), onClick: () => setParams({}, { replace: true }) } : { label: intl.formatMessage({ id: 'content.emptyAction' }), onClick: () => navigate('/admin/crear-curso') }} /></Card>
+            ) : (
+              <motion.div className="space-y-2" initial="hidden" animate="visible" variants={staggerContainer}>
+                {courses.map((course) => <CourseRow key={course.id} course={course} folders={folders} moving={updateCourse.isPending} onMove={moveCourse} onOpen={navigate} />)}
+              </motion.div>
+            )}
+          </div>
+        </section>
       </div>
     </div>
   )

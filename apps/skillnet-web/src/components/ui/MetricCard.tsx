@@ -9,48 +9,23 @@ export interface MetricCardProps {
 }
 
 const colorClasses: Record<MetricColor, string> = {
-  blue: 'bg-metric-blue',
-  green: 'bg-metric-green',
-  orange: 'bg-metric-orange',
-  purple: 'bg-metric-purple',
-}
-
-function CobwebSvg() {
-  return (
-    <svg
-      viewBox="0 0 90 90"
-      fill="none"
-      className="absolute top-0 right-0 w-16 h-16 sm:w-20 sm:h-20 lg:w-[90px] lg:h-[90px]"
-      style={{ opacity: 0.18 }}
-      aria-hidden="true"
-    >
-      {/* 5 radial lines from top-right corner */}
-      <line x1="90" y1="0" x2="0" y2="0" stroke="white" strokeWidth="1" />
-      <line x1="90" y1="0" x2="0" y2="45" stroke="white" strokeWidth="1" />
-      <line x1="90" y1="0" x2="0" y2="90" stroke="white" strokeWidth="1" />
-      <line x1="90" y1="0" x2="45" y2="90" stroke="white" strokeWidth="1" />
-      <line x1="90" y1="0" x2="90" y2="90" stroke="white" strokeWidth="1" />
-      {/* Concentric quarter-circle arcs */}
-      <path d="M 90 20 A 20 20 0 0 1 70 0" stroke="white" strokeWidth="1" fill="none" />
-      <path d="M 90 40 A 40 40 0 0 1 50 0" stroke="white" strokeWidth="1" fill="none" />
-      <path d="M 90 60 A 60 60 0 0 1 30 0" stroke="white" strokeWidth="1" fill="none" />
-      <path d="M 90 80 A 80 80 0 0 1 10 0" stroke="white" strokeWidth="1" fill="none" />
-    </svg>
-  )
+  blue: 'before:bg-metric-blue',
+  green: 'before:bg-metric-green',
+  orange: 'before:bg-metric-orange',
+  purple: 'before:bg-metric-purple',
 }
 
 export function MetricCard({ value, label, icon, color, className = '' }: MetricCardProps) {
   return (
     <div
-      className={`relative overflow-hidden rounded-xl p-5 min-w-0 ${colorClasses[color]} ${className}`}
+      className={`relative min-w-0 overflow-hidden rounded-xl border border-border bg-surface p-5 before:absolute before:inset-x-0 before:top-0 before:h-0.5 ${colorClasses[color]} ${className}`}
     >
-      <CobwebSvg />
-      <div className="relative z-10 min-w-0">
-        <div className="mb-3 text-white/80">
-          {icon}
+      <div className="flex min-w-0 items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="truncate text-sm text-text-secondary">{label}</p>
+          <p className="mt-2 truncate text-2xl font-semibold tracking-tight text-text">{value}</p>
         </div>
-        <p className="text-xl sm:text-2xl font-semibold text-white truncate">{value}</p>
-        <p className="text-sm text-white/80 mt-0.5 truncate">{label}</p>
+        <div className="shrink-0 text-text-muted">{icon}</div>
       </div>
     </div>
   )

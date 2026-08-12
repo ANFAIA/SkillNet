@@ -27,8 +27,6 @@ import type { ReactNode } from 'react'
  * The popover layer inside `ExplainModal`. Above the card (`z-[101]`) so it is visible,
  * and the band sits one below it so the popover always wins.
  */
-export const EXPLAIN_LAYER_MODAL = 120
-
 /** `null` means "use the `index.css` default", i.e. the page's base layer. */
 const ExplainLayerContext = createContext<number | null>(null)
 

@@ -13,7 +13,8 @@ import {
 import { PrerequisitePicker, type PrerequisiteOption } from './PrerequisitePicker'
 import { SELECTABLE_UI_FORMATS } from './NodeEditor'
 import type { DraftNode } from './NodeEditor'
-import type { NodeCriticality } from '../../types'
+import { NodeKnowledgePreparation } from './NodeKnowledgePreparation'
+import type { NodeCriticality, NodeKnowledgePack } from '../../types'
 
 // ── Icons ──────────────────────────────────────────────────
 
@@ -55,6 +56,8 @@ export interface SchemaTreeNodeProps {
   locked: boolean
   /** Callback to preview the node content. */
   onPreview: (nodeId: string, rect: DOMRect) => void
+  knowledgePack?: NodeKnowledgePack
+  knowledgePackLoading: boolean
 }
 
 export function SchemaTreeNode({
@@ -70,6 +73,8 @@ export function SchemaTreeNode({
   dirty,
   locked,
   onPreview,
+  knowledgePack,
+  knowledgePackLoading,
 }: SchemaTreeNodeProps) {
   const intl = useIntl()
   const {
@@ -135,7 +140,15 @@ export function SchemaTreeNode({
         {locked && <span className="w-5 shrink-0" />}
 
         {/* Toggle */}
-        <button type="button" onClick={onToggle} className="text-text-muted hover:text-text shrink-0 mt-0.5">
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-label={intl.formatMessage(
+            { id: expanded ? 'schemaNode.collapse' : 'schemaNode.expand' },
+            { title: node.title },
+          )}
+          className="text-text-muted hover:text-text shrink-0 mt-0.5"
+        >
           <ChevronIcon open={expanded} />
         </button>
 
@@ -356,6 +369,11 @@ export function SchemaTreeNode({
               disabled={disabled}
             />
           </div>
+
+          <NodeKnowledgePreparation
+            pack={knowledgePack}
+            loading={knowledgePackLoading}
+          />
 
           {/* Action row */}
           <div className="flex flex-wrap items-center gap-2 px-2 pt-2 border-t border-border mt-2">

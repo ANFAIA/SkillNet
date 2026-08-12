@@ -1,0 +1,792 @@
+{
+  "schema_version": 1,
+  "run_id": "quality-20260812-003852",
+  "started_at": "2026-08-12T00:38:52.673989+00:00",
+  "offline": false,
+  "model_fast": "gpt-4o-mini",
+  "model_heavy": "gpt-4o-mini",
+  "repeat": 1,
+  "arms": {
+    "raw": {
+      "total": {
+        "runs": 1,
+        "graded": 1,
+        "first_pass": 1,
+        "repaired": 0,
+        "fallback": 0,
+        "skipped": 0,
+        "infra_error": 0,
+        "first_pass_pct": 100.0,
+        "repaired_pct": 0.0,
+        "fallback_pct": 0.0,
+        "p50_seconds": 5.95,
+        "p95_seconds": 5.95,
+        "mean_tokens_in": 616.0,
+        "mean_tokens_out": 40.0,
+        "cost_usd_total": null,
+        "cost_usd_per_run": null,
+        "distinct_block_types": 5,
+        "block_type_coverage_pct": 38.5,
+        "mean_distinct_types_per_render": 5.0,
+        "block_types": {
+          "Stack": 1,
+          "TextContent": 1,
+          "BeforeAfter": 1,
+          "Callout": 1,
+          "QuizItem": 1
+        },
+        "block_types_unused": [
+          "Card",
+          "StepSequence",
+          "Table",
+          "CodeBlock",
+          "Chart",
+          "DragOrder",
+          "AudioExplanation",
+          "PronunciationExercise"
+        ]
+      },
+      "per_encargo": {
+        "apertura-cierre-caja": {
+          "runs": 1,
+          "graded": 1,
+          "first_pass": 1,
+          "repaired": 0,
+          "fallback": 0,
+          "skipped": 0,
+          "infra_error": 0,
+          "first_pass_pct": 100.0,
+          "repaired_pct": 0.0,
+          "fallback_pct": 0.0,
+          "p50_seconds": 5.95,
+          "p95_seconds": 5.95,
+          "mean_tokens_in": 616.0,
+          "mean_tokens_out": 40.0,
+          "cost_usd_total": null,
+          "cost_usd_per_run": null,
+          "distinct_block_types": 5,
+          "block_type_coverage_pct": 38.5,
+          "mean_distinct_types_per_render": 5.0,
+          "block_types": {
+            "Stack": 1,
+            "TextContent": 1,
+            "BeforeAfter": 1,
+            "Callout": 1,
+            "QuizItem": 1
+          },
+          "block_types_unused": [
+            "Card",
+            "StepSequence",
+            "Table",
+            "CodeBlock",
+            "Chart",
+            "DragOrder",
+            "AudioExplanation",
+            "PronunciationExercise"
+          ]
+        }
+      }
+    },
+    "pack": {
+      "total": {
+        "runs": 1,
+        "graded": 1,
+        "first_pass": 1,
+        "repaired": 0,
+        "fallback": 0,
+        "skipped": 0,
+        "infra_error": 0,
+        "first_pass_pct": 100.0,
+        "repaired_pct": 0.0,
+        "fallback_pct": 0.0,
+        "p50_seconds": 5.03,
+        "p95_seconds": 5.03,
+        "mean_tokens_in": 617.0,
+        "mean_tokens_out": 31.0,
+        "cost_usd_total": null,
+        "cost_usd_per_run": null,
+        "distinct_block_types": 5,
+        "block_type_coverage_pct": 38.5,
+        "mean_distinct_types_per_render": 5.0,
+        "block_types": {
+          "Stack": 1,
+          "TextContent": 1,
+          "BeforeAfter": 1,
+          "Callout": 1,
+          "QuizItem": 1
+        },
+        "block_types_unused": [
+          "Card",
+          "StepSequence",
+          "Table",
+          "CodeBlock",
+          "Chart",
+          "DragOrder",
+          "AudioExplanation",
+          "PronunciationExercise"
+        ]
+      },
+      "per_encargo": {
+        "apertura-cierre-caja": {
+          "runs": 1,
+          "graded": 1,
+          "first_pass": 1,
+          "repaired": 0,
+          "fallback": 0,
+          "skipped": 0,
+          "infra_error": 0,
+          "first_pass_pct": 100.0,
+          "repaired_pct": 0.0,
+          "fallback_pct": 0.0,
+          "p50_seconds": 5.03,
+          "p95_seconds": 5.03,
+          "mean_tokens_in": 617.0,
+          "mean_tokens_out": 31.0,
+          "cost_usd_total": null,
+          "cost_usd_per_run": null,
+          "distinct_block_types": 5,
+          "block_type_coverage_pct": 38.5,
+          "mean_distinct_types_per_render": 5.0,
+          "block_types": {
+            "Stack": 1,
+            "TextContent": 1,
+            "BeforeAfter": 1,
+            "Callout": 1,
+            "QuizItem": 1
+          },
+          "block_types_unused": [
+            "Card",
+            "StepSequence",
+            "Table",
+            "CodeBlock",
+            "Chart",
+            "DragOrder",
+            "AudioExplanation",
+            "PronunciationExercise"
+          ]
+        }
+      }
+    }
+  },
+  "corpus": [
+    "apertura-cierre-caja"
+  ],
+  "prompt_version": "runtime/22",
+  "catalog_version": "skillnet-ui/1+90883675e9a7",
+  "provider": {
+    "calls": 12,
+    "rate_limited": 0,
+    "rate_limit_seconds": 0.0,
+    "transient_retries": 0,
+    "exhausted": 0
+  },
+  "pack_source": "generated",
+  "pack_policy": {
+    "extractor_max_tokens": 3200,
+    "reviewer_max_tokens": 3200,
+    "min_invariants": 5,
+    "max_atoms": 32,
+    "min_fact_coverage": 1.0,
+    "require_evidence": true
+  },
+  "pack_preparation": {
+    "apertura-cierre-caja": {
+      "pack_hash": "d5df277891261f0f4a51d32f5d725a4c2be8f002b3631f382b902f6eee98ee29",
+      "pack_payload": {
+        "evidence_specs": [
+          {
+            "atom_refs": [
+              "must.atom_001"
+            ],
+            "description": "El fondo fijo es de 200 euros en cambio: 40 en monedas de 1 y 2 euros, 30 en monedas pequenas, 80 en billetes de 5 y 50 en billetes de 10.",
+            "evidence_id": "evidence_001",
+            "required": true
+          }
+        ],
+        "format": "node-knowledge-pack/1",
+        "generable_slots": [],
+        "missing_data": [],
+        "must_preserve": [
+          {
+            "atom_id": "must.atom_001",
+            "critical": true,
+            "evidence": [
+              "evidence_001"
+            ],
+            "kind": "fact",
+            "source_units": [
+              "unit.001"
+            ],
+            "sources": [
+              "source:bbbbbbbb-0000-0000-0000-000000000004:node:966d3494-bfca-586b-b90f-e7d1354df30a"
+            ],
+            "text": "El fondo fijo es de 200 euros en cambio: 40 en monedas de 1 y 2 euros, 30 en monedas pequenas, 80 en billetes de 5 y 50 en billetes de 10."
+          },
+          {
+            "atom_id": "must.atom_002",
+            "critical": true,
+            "evidence": [],
+            "kind": "safety_rule",
+            "source_units": [
+              "unit.002"
+            ],
+            "sources": [
+              "source:bbbbbbbb-0000-0000-0000-000000000004:node:966d3494-bfca-586b-b90f-e7d1354df30a"
+            ],
+            "text": "Se cuenta delante del encargado y se firma la hoja de apertura."
+          },
+          {
+            "atom_id": "must.atom_003",
+            "critical": true,
+            "evidence": [],
+            "kind": "procedure_step",
+            "source_units": [
+              "unit.003"
+            ],
+            "sources": [
+              "source:bbbbbbbb-0000-0000-0000-000000000004:node:966d3494-bfca-586b-b90f-e7d1354df30a"
+            ],
+            "text": "Un fondo que no cuadra a la apertura es del turno anterior, y solo se puede reclamar antes de hacer la primera venta."
+          },
+          {
+            "atom_id": "must.atom_004",
+            "critical": true,
+            "evidence": [],
+            "kind": "safety_rule",
+            "source_units": [
+              "unit.004"
+            ],
+            "sources": [
+              "source:bbbbbbbb-0000-0000-0000-000000000004:node:966d3494-bfca-586b-b90f-e7d1354df30a"
+            ],
+            "text": "Retirada de efectivo cada vez que la caja supera 600 euros: se mete en el buzon de seguridad con su sobre numerado."
+          },
+          {
+            "atom_id": "must.atom_005",
+            "critical": true,
+            "evidence": [],
+            "kind": "safety_rule",
+            "source_units": [
+              "unit.005"
+            ],
+            "sources": [
+              "source:bbbbbbbb-0000-0000-0000-000000000004:node:966d3494-bfca-586b-b90f-e7d1354df30a"
+            ],
+            "text": "No se guardan billetes de 200 y 500 en el cajon: van directos al buzon."
+          },
+          {
+            "atom_id": "must.atom_006",
+            "critical": true,
+            "evidence": [],
+            "kind": "procedure_step",
+            "source_units": [
+              "unit.006"
+            ],
+            "sources": [
+              "source:bbbbbbbb-0000-0000-0000-000000000004:node:966d3494-bfca-586b-b90f-e7d1354df30a"
+            ],
+            "text": "Se saca el informe Z del TPV."
+          },
+          {
+            "atom_id": "must.atom_007",
+            "critical": true,
+            "evidence": [],
+            "kind": "fact",
+            "source_units": [
+              "unit.007"
+            ],
+            "sources": [
+              "source:bbbbbbbb-0000-0000-0000-000000000004:node:966d3494-bfca-586b-b90f-e7d1354df30a"
+            ],
+            "text": "Se cuenta el efectivo, se resta el fondo fijo de 200 euros y el resultado debe coincidir con la linea de efectivo del Z."
+          },
+          {
+            "atom_id": "must.atom_008",
+            "critical": true,
+            "evidence": [],
+            "kind": "procedure_step",
+            "source_units": [
+              "unit.008"
+            ],
+            "sources": [
+              "source:bbbbbbbb-0000-0000-0000-000000000004:node:966d3494-bfca-586b-b90f-e7d1354df30a"
+            ],
+            "text": "Los pagos con tarjeta se comparan con el cierre del datafono, y los vales con los justificantes grapados."
+          },
+          {
+            "atom_id": "must.atom_009",
+            "critical": true,
+            "evidence": [],
+            "kind": "safety_rule",
+            "source_units": [
+              "unit.009"
+            ],
+            "sources": [
+              "source:bbbbbbbb-0000-0000-0000-000000000004:node:966d3494-bfca-586b-b90f-e7d1354df30a"
+            ],
+            "text": "Hasta 5 euros de diferencia se anota en la hoja de cierre y se sigue."
+          },
+          {
+            "atom_id": "must.atom_010",
+            "critical": true,
+            "evidence": [],
+            "kind": "safety_rule",
+            "source_units": [
+              "unit.010"
+            ],
+            "sources": [
+              "source:bbbbbbbb-0000-0000-0000-000000000004:node:966d3494-bfca-586b-b90f-e7d1354df30a"
+            ],
+            "text": "Por encima de 5 euros se recuenta una segunda vez y, si persiste, se avisa al encargado antes de irse."
+          },
+          {
+            "atom_id": "must.atom_011",
+            "critical": true,
+            "evidence": [],
+            "kind": "constraint",
+            "source_units": [
+              "unit.011"
+            ],
+            "sources": [
+              "source:bbbbbbbb-0000-0000-0000-000000000004:node:966d3494-bfca-586b-b90f-e7d1354df30a"
+            ],
+            "text": "Un descuadre no comunicado el mismo dia es una falta, aunque sean 6 euros."
+          }
+        ],
+        "node_id": "966d3494-bfca-586b-b90f-e7d1354df30a",
+        "objective": {
+          "available_requirements": [],
+          "mission": "decide",
+          "objective_id": "966d3494-bfca-586b-b90f-e7d1354df30a",
+          "objective_version": 1,
+          "required_fact_refs": [],
+          "required_safety_refs": [],
+          "source_functions": [
+            "assess"
+          ]
+        },
+        "provenance": {
+          "generator": "knowledge-pack/v1-bench",
+          "node_id": "966d3494-bfca-586b-b90f-e7d1354df30a",
+          "reviewer": "knowledge-pack/v1-bench/reviewer",
+          "schema_version": 1,
+          "semantic_hash": "7998e85134490304610855b159451b0a0834268536efb6eeb5b042d61b49a24a",
+          "source_bundle_hash": "4f0f3e1cf8f943bb829fa10e0a46012812fedae7f217ecbab5f80ac78df65a9e"
+        },
+        "selectable": [],
+        "source_refs": [
+          {
+            "coverage_unit_ids": [
+              "unit.001",
+              "unit.002",
+              "unit.003",
+              "unit.004",
+              "unit.005",
+              "unit.006",
+              "unit.007",
+              "unit.008",
+              "unit.009",
+              "unit.010",
+              "unit.011"
+            ],
+            "document_id": "bbbbbbbb-0000-0000-0000-000000000004",
+            "excerpt_hash": "6852ff3b346fc0cbe75fc444e3dcc2216efc9347e7da83883bc96647ba7104b5",
+            "heading_path": [],
+            "locator": "Arqueo de apertura y cierre de caja",
+            "ref_id": "source:bbbbbbbb-0000-0000-0000-000000000004:node:966d3494-bfca-586b-b90f-e7d1354df30a",
+            "source_revision": "6852ff3b346fc0cbe75fc444e3dcc2216efc9347e7da83883bc96647ba7104b5"
+          }
+        ],
+        "status": "ready",
+        "title": "Arqueo de apertura y cierre de caja"
+      },
+      "markdown": "---\nformat: node-knowledge-pack/1\nnode_id: 966d3494-bfca-586b-b90f-e7d1354df30a\nstatus: ready\ncanonical_hash: d5df277891261f0f4a51d32f5d725a4c2be8f002b3631f382b902f6eee98ee29\nsource_bundle_hash: 4f0f3e1cf8f943bb829fa10e0a46012812fedae7f217ecbab5f80ac78df65a9e\nsemantic_hash: 7998e85134490304610855b159451b0a0834268536efb6eeb5b042d61b49a24a\n---\n\n# Arqueo de apertura y cierre de caja\n\n## Objetivo\n\n966d3494-bfca-586b-b90f-e7d1354df30a\n\n## Debe conservarse\n\n### `must.atom_001` · fact · crítico\n\nEl fondo fijo es de 200 euros en cambio: 40 en monedas de 1 y 2 euros, 30 en monedas pequenas, 80 en billetes de 5 y 50 en billetes de 10.\n\nFuentes: `source:bbbbbbbb-0000-0000-0000-000000000004:node:966d3494-bfca-586b-b90f-e7d1354df30a` · evidencia: `evidence_001`\n\n### `must.atom_002` · safety_rule · crítico\n\nSe cuenta delante del encargado y se firma la hoja de apertura.\n\nFuentes: `source:bbbbbbbb-0000-0000-0000-000000000004:node:966d3494-bfca-586b-b90f-e7d1354df30a`\n\n### `must.atom_003` · procedure_step · crítico\n\nUn fondo que no cuadra a la apertura es del turno anterior, y solo se puede reclamar antes de hacer la primera venta.\n\nFuentes: `source:bbbbbbbb-0000-0000-0000-000000000004:node:966d3494-bfca-586b-b90f-e7d1354df30a`\n\n### `must.atom_004` · safety_rule · crítico\n\nRetirada de efectivo cada vez que la caja supera 600 euros: se mete en el buzon de seguridad con su sobre numerado.\n\nFuentes: `source:bbbbbbbb-0000-0000-0000-000000000004:node:966d3494-bfca-586b-b90f-e7d1354df30a`\n\n### `must.atom_005` · safety_rule · crítico\n\nNo se guardan billetes de 200 y 500 en el cajon: van directos al buzon.\n\nFuentes: `source:bbbbbbbb-0000-0000-0000-000000000004:node:966d3494-bfca-586b-b90f-e7d1354df30a`\n\n### `must.atom_006` · procedure_step · crítico\n\nSe saca el informe Z del TPV.\n\nFuentes: `source:bbbbbbbb-0000-0000-0000-000000000004:node:966d3494-bfca-586b-b90f-e7d1354df30a`\n\n### `must.atom_007` · fact · crítico\n\nSe cuenta el efectivo, se resta el fondo fijo de 200 euros y el resultado debe coincidir con la linea de efectivo del Z.\n\nFuentes: `source:bbbbbbbb-0000-0000-0000-000000000004:node:966d3494-bfca-586b-b90f-e7d1354df30a`\n\n### `must.atom_008` · procedure_step · crítico\n\nLos pagos con tarjeta se comparan con el cierre del datafono, y los vales con los justificantes grapados.\n\nFuentes: `source:bbbbbbbb-0000-0000-0000-000000000004:node:966d3494-bfca-586b-b90f-e7d1354df30a`\n\n### `must.atom_009` · safety_rule · crítico\n\nHasta 5 euros de diferencia se anota en la hoja de cierre y se sigue.\n\nFuentes: `source:bbbbbbbb-0000-0000-0000-000000000004:node:966d3494-bfca-586b-b90f-e7d1354df30a`\n\n### `must.atom_010` · safety_rule · crítico\n\nPor encima de 5 euros se recuenta una segunda vez y, si persiste, se avisa al encargado antes de irse.\n\nFuentes: `source:bbbbbbbb-0000-0000-0000-000000000004:node:966d3494-bfca-586b-b90f-e7d1354df30a`\n\n### `must.atom_011` · constraint · crítico\n\nUn descuadre no comunicado el mismo dia es una falta, aunque sean 6 euros.\n\nFuentes: `source:bbbbbbbb-0000-0000-0000-000000000004:node:966d3494-bfca-586b-b90f-e7d1354df30a`\n\n## Opciones de adaptación\n\n## Evidencia\n\n- `evidence_001` (obligatoria): El fondo fijo es de 200 euros en cambio: 40 en monedas de 1 y 2 euros, 30 en monedas pequenas, 80 en billetes de 5 y 50 en billetes de 10. — `must.atom_001`\n\n## Fuentes\n\n- `source:bbbbbbbb-0000-0000-0000-000000000004:node:966d3494-bfca-586b-b90f-e7d1354df30a`: documento `bbbbbbbb-0000-0000-0000-000000000004`, sin encabezado, Arqueo de apertura y cierre de caja (revisión `6852ff3b346fc0cbe75fc444e3dcc2216efc9347e7da83883bc96647ba7104b5`)\n",
+      "input_tokens": 6177,
+      "output_tokens": 3254,
+      "duration_ms": 37142,
+      "atom_count": 11,
+      "invariant_count": 11,
+      "fact_coverage": 1.0,
+      "matched_fact_ids": [
+        "float",
+        "opening-claim",
+        "cash-withdrawal",
+        "z-report",
+        "card-and-vouchers",
+        "mismatch-threshold",
+        "same-day"
+      ],
+      "missing_fact_ids": []
+    }
+  },
+  "runs": [
+    {
+      "encargo": "apertura-cierre-caja",
+      "repeat": 1,
+      "arm": "raw",
+      "context": "raw_source",
+      "outcome": "first_pass",
+      "ui_format": "mixed",
+      "tier": "heavy",
+      "model": "?",
+      "decide_called": true,
+      "attempts": 1,
+      "seconds": 5.953,
+      "tokens_in": 616,
+      "tokens_out": 40,
+      "cost_usd": null,
+      "tokens_measured": true,
+      "render_status": "ready",
+      "steps": [
+        "load_context",
+        "probe_gate",
+        "decide_formato",
+        "validate_ui",
+        "persist_render"
+      ],
+      "cache_key": "26f990d7933fcd1a40b64df862210de0a8d6c39f89baad2fdf1e66001c5c6aef",
+      "source_digest": "6852ff3b346fc0cbe75fc444e3dcc2216efc9347e7da83883bc96647ba7104b5",
+      "context_digest": "6852ff3b346fc0cbe75fc444e3dcc2216efc9347e7da83883bc96647ba7104b5",
+      "context_chars": 1108,
+      "atom_ids": [
+        "a001-35ca4df997",
+        "a002-0e29486784",
+        "a003-3145f131e6",
+        "a004-cc542fa14b",
+        "a005-11c1ae7526"
+      ],
+      "invariant_atom_ids": [
+        "a001-35ca4df997",
+        "a002-0e29486784",
+        "a003-3145f131e6",
+        "a004-cc542fa14b",
+        "a005-11c1ae7526"
+      ],
+      "ui_signature": "fd3e2f4c57d08243179cf1aac1ce1116c3570ab4d34c5f3525f60a2a53aec6ca",
+      "reason": "",
+      "block_types": [
+        "Stack",
+        "TextContent",
+        "BeforeAfter",
+        "Callout",
+        "QuizItem"
+      ],
+      "plan_trace": {
+        "trace_version": "plan-trace/1",
+        "mode": "shadow",
+        "status": "declined",
+        "mission_rationale": "MISSION_FROM_FIRST_SHAPE_FUNCTION",
+        "live": {
+          "ui_format": "mixed",
+          "shape_functions": [
+            "variar"
+          ],
+          "shape_summary": "variantsx0->Card",
+          "assessment_block": "QuizItem",
+          "assessment_item_type": "true_false"
+        },
+        "projection": {
+          "declared_presentations": [],
+          "inferred_presentation_bucket": "text-high",
+          "support_band": "independent",
+          "density": 1,
+          "accessibility_capabilities": [],
+          "error_signal": "none",
+          "calibrating": false,
+          "projection_version": "personalization/1"
+        },
+        "shadow": {
+          "reasons": [
+            {
+              "reason": "mission_unsupported",
+              "component_ids": [
+                "StepSequence",
+                "Table",
+                "CodeBlock",
+                "Chart",
+                "BeforeAfter",
+                "AudioExplanation",
+                "PronunciationExercise"
+              ]
+            },
+            {
+              "reason": "source_unsupported",
+              "component_ids": [
+                "QuizItem",
+                "DragOrder"
+              ]
+            }
+          ]
+        }
+      },
+      "ui_spec": {
+        "version": "skillnet-ui/1",
+        "format": "mixed",
+        "root": "root",
+        "components": [
+          {
+            "id": "root",
+            "type": "Stack",
+            "props": {
+              "gap": "md"
+            },
+            "children": [
+              "lead",
+              "card1",
+              "callout",
+              "q1"
+            ]
+          },
+          {
+            "id": "lead",
+            "type": "TextContent",
+            "props": {
+              "text": "El arqueo de caja es crucial para mantener la transparencia financiera en el negocio.",
+              "variant": "lead"
+            },
+            "children": []
+          },
+          {
+            "id": "card1",
+            "type": "BeforeAfter",
+            "props": {
+              "title": "Proceso de arqueo de caja",
+              "beforeLabel": "Incorrecto",
+              "beforeContent": "No contar el fondo fijo y no cuadrar el efectivo con el informe Z.",
+              "afterLabel": "Correcto",
+              "afterContent": "Contar el fondo fijo delante del encargado y cuadrar el efectivo con el informe Z."
+            },
+            "children": []
+          },
+          {
+            "id": "callout",
+            "type": "Callout",
+            "props": {
+              "tone": "warn",
+              "text": "Está prohibido realizar arqueos sin el informe Z, ya que esto puede llevar a faltas y descuadres no comunicados."
+            },
+            "children": []
+          },
+          {
+            "id": "q1",
+            "type": "QuizItem",
+            "props": {
+              "item_id": "q1",
+              "item_type": "true_false",
+              "bloom_level": "apply",
+              "question": "Si hay un descuadre de 6 euros en el cierre de caja, se puede dejar para el día siguiente sin consecuencias.",
+              "options": []
+            },
+            "children": []
+          }
+        ]
+      }
+    },
+    {
+      "encargo": "apertura-cierre-caja",
+      "repeat": 1,
+      "arm": "pack",
+      "context": "generated_knowledge_pack",
+      "outcome": "first_pass",
+      "ui_format": "mixed",
+      "tier": "heavy",
+      "model": "?",
+      "decide_called": true,
+      "attempts": 1,
+      "seconds": 5.031,
+      "tokens_in": 617,
+      "tokens_out": 31,
+      "cost_usd": null,
+      "tokens_measured": true,
+      "render_status": "ready",
+      "steps": [
+        "load_context",
+        "probe_gate",
+        "decide_formato",
+        "validate_ui",
+        "persist_render"
+      ],
+      "cache_key": "26f990d7933fcd1a40b64df862210de0a8d6c39f89baad2fdf1e66001c5c6aef",
+      "source_digest": "6852ff3b346fc0cbe75fc444e3dcc2216efc9347e7da83883bc96647ba7104b5",
+      "context_digest": "eb752e633690df200a5eaede7a77a6f1a46a206bbfc7d5ac59f97168bb851e38",
+      "context_chars": 3590,
+      "atom_ids": [
+        "must.atom_001",
+        "must.atom_002",
+        "must.atom_003",
+        "must.atom_004",
+        "must.atom_005",
+        "must.atom_006",
+        "must.atom_007",
+        "must.atom_008",
+        "must.atom_009",
+        "must.atom_010",
+        "must.atom_011"
+      ],
+      "invariant_atom_ids": [
+        "must.atom_001",
+        "must.atom_002",
+        "must.atom_003",
+        "must.atom_004",
+        "must.atom_005",
+        "must.atom_006",
+        "must.atom_007",
+        "must.atom_008",
+        "must.atom_009",
+        "must.atom_010",
+        "must.atom_011"
+      ],
+      "ui_signature": "80023120144f01226c550330c258e49d9343d9314ab92e9fedc4dda6d852ac46",
+      "reason": "",
+      "block_types": [
+        "Stack",
+        "TextContent",
+        "BeforeAfter",
+        "Callout",
+        "QuizItem"
+      ],
+      "plan_trace": {
+        "trace_version": "plan-trace/1",
+        "mode": "shadow",
+        "status": "planned",
+        "mission_rationale": "MISSION_FROM_FIRST_SHAPE_FUNCTION",
+        "live": {
+          "ui_format": "mixed",
+          "shape_functions": [
+            "contrastar"
+          ],
+          "shape_summary": "contrastx0->BeforeAfter",
+          "assessment_block": "QuizItem",
+          "assessment_item_type": "true_false"
+        },
+        "projection": {
+          "declared_presentations": [],
+          "inferred_presentation_bucket": "text-high",
+          "support_band": "independent",
+          "density": 1,
+          "accessibility_capabilities": [],
+          "error_signal": "none",
+          "calibrating": false,
+          "projection_version": "personalization/1"
+        },
+        "shadow": {
+          "objective_id": "966d3494-bfca-586b-b90f-e7d1354df30a",
+          "objective_version": 1,
+          "mission": "recognize",
+          "source_functions": [
+            "contrast"
+          ],
+          "representations": [
+            "text",
+            "table"
+          ],
+          "required_fact_refs": [],
+          "required_safety_refs": [],
+          "support": {
+            "band": "independent",
+            "density": 1,
+            "worked_example": false,
+            "graduated_hints": false,
+            "direct_feedback": true
+          },
+          "component_candidates": [
+            {
+              "component_id": "BeforeAfter",
+              "version": 1,
+              "presentation": "text",
+              "producer_kind": "content",
+              "affordances": [
+                "compare_two_states"
+              ],
+              "evidence_events": [],
+              "state_model_ref": null,
+              "rank": 10
+            },
+            {
+              "component_id": "Table",
+              "version": 1,
+              "presentation": "table",
+              "producer_kind": "content",
+              "affordances": [
+                "scan_rows",
+                "compare_values"
+              ],
+              "evidence_events": [],
+              "state_model_ref": null,
+              "rank": 10
+            }
+          ],
+          "rationale_codes": [
+            "MISSION_FROM_OBJECTIVE",
+            "CAPABILITY_FILTERED"
+          ],
+          "policy_version": "learning-experience/1",
+          "projection_version": "personalization/1"
+        }
+      },
+      "ui_spec": {
+        "version": "skillnet-ui/1",
+        "format": "mixed",
+        "root": "root",
+        "components": [
+          {
+            "id": "root",
+            "type": "Stack",
+            "props": {
+              "gap": "md"
+            },
+            "children": [
+              "lead",
+              "before_after",
+              "warn",
+              "q1"
+            ]
+          },
+          {
+            "id": "lead",
+            "type": "TextContent",
+            "props": {
+              "text": "El fondo fijo de 200 euros es clave para un cierre de caja correcto. ¿Sabes cómo manejarlo?",
+              "variant": "lead"
+            },
+            "children": []
+          },
+          {
+            "id": "before_after",
+            "type": "BeforeAfter",
+            "props": {
+              "title": "Cierre de caja correcto e incorrecto",
+              "beforeLabel": "Incorrecto",
+              "beforeContent": "No cuadrar efectivo, tarjeta y vales, lo que genera un descuadre.",
+              "afterLabel": "Correcto",
+              "afterContent": "Cuadrar todos los métodos de pago y firmar la hoja de cierre."
+            },
+            "children": []
+          },
+          {
+            "id": "warn",
+            "type": "Callout",
+            "props": {
+              "tone": "warn",
+              "text": "Prohibido cerrar la caja sin cuadrar todos los métodos de pago."
+            },
+            "children": []
+          },
+          {
+            "id": "q1",
+            "type": "QuizItem",
+            "props": {
+              "item_id": "q1",
+              "item_type": "true_false",
+              "bloom_level": "apply",
+              "question": "El fondo fijo de apertura debe ser de 200 euros y se debe contar delante del encargado.",
+              "options": []
+            },
+            "children": []
+          }
+        ]
+      }
+    }
+  ],
+  "failure_dumps": []
+}

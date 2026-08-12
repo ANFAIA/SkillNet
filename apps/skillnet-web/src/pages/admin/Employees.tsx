@@ -1,22 +1,13 @@
 import { useState } from 'react'
 import { useIntl } from 'react-intl'
 import { motion } from 'framer-motion'
-import { Card, CardTitle, Badge, Button, Input, EmptyState, SkeletonRow, Modal } from '../../components/ui'
+import { Badge, Button, Card, CardTitle, EmptyState, Input, Modal, PageHeader, SearchField, Select, SkeletonRow } from '../../components/ui'
 import { useUsers, useCreateUser, useResetPassword } from '../../api/users'
 import { useCourses } from '../../api/courses'
 import { useEnrollments, useAssignCourse } from '../../api/enrollments'
 import { ApiError } from '../../api/client'
 import { staggerContainer, staggerItem } from '../../lib/motion'
 import type { User } from '../../types'
-
-function SearchIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="11" cy="11" r="8" />
-      <line x1="21" y1="21" x2="16.65" y2="16.65" />
-    </svg>
-  )
-}
 
 function CreateEmployeeForm({ onDone }: { onDone: () => void }) {
   const intl = useIntl()
@@ -111,19 +102,16 @@ function AssignCourseForm({ user }: { user: User }) {
 
   return (
     <div className="mt-3 space-y-3">
-      <div>
-        <label className="block text-sm font-medium text-text mb-1">{intl.formatMessage({ id: 'employees.courseLabel' })}</label>
-        <select
+      <Select
+        label={intl.formatMessage({ id: 'employees.courseLabel' })}
           value={courseId}
           onChange={(e) => setCourseId(e.target.value)}
-          className="w-full px-3 py-2 text-sm text-text border border-border rounded-lg bg-bg focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-colors"
         >
           <option value="">{intl.formatMessage({ id: 'employees.selectCourse' })}</option>
           {courses.map((c) => (
             <option key={c.id} value={c.id}>{c.title}</option>
           ))}
-        </select>
-      </div>
+      </Select>
       <Input label={intl.formatMessage({ id: 'employees.deadlineLabel' })} type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
       {assign.isError && (
         <p className="text-sm text-danger">
@@ -267,39 +255,34 @@ export function Employees() {
   const roleLabel = (role: string) => role === 'admin' ? intl.formatMessage({ id: 'employees.roleAdmin' }) : intl.formatMessage({ id: 'employees.roleEmployee' })
 
   return (
-    <div className="flex flex-col" style={{ maxHeight: 'calc(100vh - 50px - 3rem)' }}>
-      <div className="shrink-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h2 className="text-xl font-semibold text-text">{intl.formatMessage({ id: 'employees.title' })}</h2>
-          <p className="text-sm text-text-secondary mt-1">{intl.formatMessage({ id: 'employees.teamCount' }, { count: data?.total ?? employees.length })}</p>
-        </div>
-        <Button
-          variant="primary"
-          size="md"
-          onClick={(e) => {
-            setCreateOrigin(e.currentTarget.getBoundingClientRect())
-            setCreating(true)
-          }}
-        >
-          {intl.formatMessage({ id: 'employees.add' })}
-        </Button>
-      </div>
+    <div>
+      <PageHeader
+        title={intl.formatMessage({ id: 'employees.title' })}
+        description={intl.formatMessage({ id: 'employees.teamCount' }, { count: data?.total ?? employees.length })}
+        actions={(
+          <Button
+            variant="primary"
+            size="md"
+            onClick={(event) => {
+              setCreateOrigin(event.currentTarget.getBoundingClientRect())
+              setCreating(true)
+            }}
+          >
+            {intl.formatMessage({ id: 'employees.add' })}
+          </Button>
+        )}
+      />
 
-      <div className="shrink-0 relative mt-4">
-        <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-text-muted">
-          <SearchIcon />
-        </div>
-        <input
-          type="text"
+      <SearchField
+          label={intl.formatMessage({ id: 'employees.searchPlaceholder' })}
           placeholder={intl.formatMessage({ id: 'employees.searchPlaceholder' })}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-9 pr-3 py-2 text-sm text-text border border-border rounded-lg bg-bg placeholder:text-text-muted focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-colors"
-        />
-      </div>
+          className="mt-5"
+      />
 
       {/* Desktop table */}
-      <Card className="mt-4 p-0 overflow-hidden hidden md:flex md:flex-col min-h-0">
+      <Card className="mt-4 hidden overflow-hidden p-0 md:block">
         {isLoading ? (
           <div className="p-4 space-y-1">
             <SkeletonRow />
@@ -311,7 +294,7 @@ export function Employees() {
         ) : employees.length === 0 ? (
           <EmptyState title={intl.formatMessage({ id: 'employees.emptyTitle' })} description={intl.formatMessage({ id: 'employees.emptyDesc' })} />
         ) : (
-          <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0">
+          <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="sticky top-0 z-10">
                 <tr className="border-b border-border bg-bg-subtle">

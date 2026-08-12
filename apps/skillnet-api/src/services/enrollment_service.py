@@ -202,14 +202,20 @@ class EnrollmentService:
         Falls back to 0.0 when the course has neither modules nor nodes.
         """
         course = await self.course_repo.get_detail(enrollment.course_id, org_id)
-        if course is None or not course.modules:
-            # No modules: check if this is a dynamic course with nodes.
-            if course is not None and resolve_delivery(course) == "dynamic":
-                completion = await self.evaluate_dynamic(
-                    course_id=enrollment.course_id, user_id=enrollment.user_id
-                )
-                return completion.progress_percent / 100.0
-            # Neither modules nor dynamic nodes — genuinely empty course.
+        if course is None:
+            return 0.0
+
+        # Delivery mode wins over storage shape. Dynamic demo courses deliberately keep
+        # their v1 modules as a fallback, but those lessons must never shadow §7.5's
+        # mastered-critical-node progress once the validated schema activates v2.
+        if resolve_delivery(course) == "dynamic":
+            completion = await self.evaluate_dynamic(
+                course_id=enrollment.course_id, user_id=enrollment.user_id
+            )
+            return completion.progress_percent / 100.0
+
+        if not course.modules:
+            # Neither static modules nor an active dynamic schema: genuinely empty.
             return 0.0
 
         all_lessons = [

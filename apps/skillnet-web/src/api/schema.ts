@@ -26,7 +26,12 @@
 import { useEffect } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ApiError, get, post, put } from './client'
-import type { CourseSchema, CourseSchemaUpdate, SchemaRuleError } from '../types'
+import type {
+  CourseKnowledgePacks,
+  CourseSchema,
+  CourseSchemaUpdate,
+  SchemaRuleError,
+} from '../types'
 
 export const schemaQueryKey = (courseId: string | undefined) =>
   ['courses', courseId, 'schema'] as const
@@ -175,6 +180,28 @@ export function useMarkNodeReviewed(courseId: string | undefined) {
       ),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: schemaQueryKey(courseId) })
+    },
+  })
+}
+
+export const knowledgePacksQueryKey = (courseId: string | undefined) =>
+  ['courses', courseId, 'schema', 'knowledge-packs'] as const
+
+export function useCourseKnowledgePacks(
+  courseId: string | undefined,
+  expectedNodeCount: number,
+) {
+  return useQuery({
+    queryKey: knowledgePacksQueryKey(courseId),
+    queryFn: () =>
+      get<CourseKnowledgePacks>(`/courses/${courseId}/schema/knowledge-packs`),
+    enabled: !!courseId && expectedNodeCount > 0,
+    retry: false,
+    refetchInterval: (query) => {
+      const rows = query.state.data?.nodes ?? []
+      return rows.length < expectedNodeCount || rows.some((row) => row.status === 'pending')
+        ? 2000
+        : false
     },
   })
 }

@@ -57,10 +57,11 @@ def _format_sse(event_type: str, data: dict) -> str:
 _STRUCTURE_SYSTEM = """\
 You are an instructional designer. Given a course title, optional description,
 and a density level, propose ONLY the skeleton of a learning schema: the list
-of nodes with their titles, criticality, and prerequisites.
+of nodes with their titles, criticality, and prerequisites, plus a short list
+of observable skills the whole course grants when completed.
 
 Do NOT write summaries, outcomes, or any other detail. Keep it fast: just the
-tree structure.
+tree structure and course-level skills.
 
 For each node return:
 - title: short, concrete name (max 80 characters)
@@ -75,9 +76,14 @@ Rules:
 3. Order nodes from foundational to advanced. A prerequisite must appear
    BEFORE the node that needs it.
 4. Write title in the SAME LANGUAGE as the course title.
+5. Return 2-6 course-level skills. Each skill must describe an observable
+   capability with an action verb (for example, "Configurar una taquilla"),
+   never a broad topic (for example, "Taquilla"). Do not repeat node titles.
+6. Write skills in the SAME LANGUAGE as the course title.
 
 Respond with valid JSON only, no surrounding text:
-{"nodes": [{"title": str, "criticality": str, "prerequisites": [int]}]}
+{"nodes": [{"title": str, "criticality": str, "prerequisites": [int]}],
+ "skills": [str]}
 """
 
 _DENSITY_GUIDANCE: dict[int, str] = {
@@ -99,6 +105,33 @@ def _build_structure_prompt(
         f"Title: {title}{desc_line}\n\n"
         f"Density (intent_density={density}): {guidance}"
     )
+
+
+def _skill_names_from_response(parsed: object) -> list[str]:
+    """Return a small, stable list of editable course-level skill suggestions.
+
+    The suggestions are presentation data until the administrator confirms the
+    schema.  Keeping normalization here prevents an enthusiastic model from
+    turning one proposal into an unbounded organization taxonomy.
+    """
+
+    if not isinstance(parsed, dict) or not isinstance(parsed.get("skills"), list):
+        return []
+
+    names: list[str] = []
+    seen: set[str] = set()
+    for value in parsed["skills"]:
+        if not isinstance(value, str):
+            continue
+        name = " ".join(value.split()).strip()[:120]
+        key = name.casefold()
+        if not name or key in seen:
+            continue
+        seen.add(key)
+        names.append(name)
+        if len(names) == 6:
+            break
+    return names
 
 
 # ── Phase 2 (enrichment) prompt ────────────────────────────────
@@ -198,6 +231,7 @@ async def schema_propose_stream(
             )
             parsed = parse_json_response(structure_response)
             raw_nodes = _nodes_from_response(parsed)
+            proposed_skills = _skill_names_from_response(parsed)
 
             if len(raw_nodes) > MAX_PROPOSED_NODES:
                 raw_nodes = raw_nodes[:MAX_PROPOSED_NODES]
@@ -216,7 +250,10 @@ async def schema_propose_stream(
                     ),
                 })
 
-            yield _format_sse("structure", {"nodes": structure_nodes})
+            yield _format_sse(
+                "structure",
+                {"nodes": structure_nodes, "skills": proposed_skills},
+            )
 
             # --- Phase 2: Enrich each node in parallel ---
             tasks = [

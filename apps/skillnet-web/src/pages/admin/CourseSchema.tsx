@@ -26,6 +26,7 @@ import { NodePreview } from '../../components/schema/NodePreview'
 import { duration, ease } from '../../lib/motion'
 import {
   schemaErrorMessage,
+  useCourseKnowledgePacks,
   schemaRuleErrors,
   useCourseSchema,
   useMarkNodeReviewed,
@@ -130,6 +131,7 @@ export function CourseSchema() {
   const unvalidateSchema = useUnvalidateCourseSchema(id)
   const proposeSchema = useProposeCourseSchema(id)
   const markReviewed = useMarkNodeReviewed(id)
+  const knowledgePacks = useCourseKnowledgePacks(id, schemaQuery.data?.nodes.length ?? 0)
   const assignCourse = useAssignCourse()
   const { user: currentUser } = useAuth()
 
@@ -162,6 +164,11 @@ export function CourseSchema() {
     for (const node of server?.nodes ?? []) map.set(node.id, node)
     return map
   }, [server])
+
+  const knowledgePackByNode = useMemo(
+    () => new Map((knowledgePacks.data?.nodes ?? []).map((pack) => [pack.node_id, pack])),
+    [knowledgePacks.data?.nodes],
+  )
 
   const validated = server?.schema_status === 'validated'
 
@@ -557,6 +564,8 @@ export function CourseSchema() {
                             setPreviewOrigin(rect)
                             setPreviewNodeId(nodeId)
                           }}
+                          knowledgePack={node.id ? knowledgePackByNode.get(node.id) : undefined}
+                          knowledgePackLoading={knowledgePacks.isLoading}
                         />
                       </motion.div>
                     )

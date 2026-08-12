@@ -1,3 +1,5 @@
 export { ChatAnswer } from './ChatAnswer'
+export { ChatBubble } from './ChatBubble'
+export { ChatPage } from './ChatPage'
 export { ChatInput } from './ChatInput'
 export { ChatMarkdown } from './ChatMarkdown'

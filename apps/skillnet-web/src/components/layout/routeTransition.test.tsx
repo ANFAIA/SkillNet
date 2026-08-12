@@ -23,7 +23,7 @@ import { motion, LayoutGroup } from 'framer-motion'
  * structural invariant is stricter: no AnimatePresence, no motion wrapper, no exit phase.
  */
 
-const LAYOUTS = ['AppLayout.tsx', 'AdminLayout.tsx'] as const
+const LAYOUTS = ['AppShell.tsx'] as const
 
 /**
  * Source with comments removed. The layouts explain this bug at length in prose, and

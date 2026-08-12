@@ -36,6 +36,7 @@ NOW = datetime(2026, 7, 25, 9, 0, tzinfo=timezone.utc)
 class FakeCourse:
     delivery_mode: CourseDeliveryMode = CourseDeliveryMode.DYNAMIC
     schema_status: CourseSchemaStatus = CourseSchemaStatus.VALIDATED
+    folder_id: uuid.UUID | None = None
     id: uuid.UUID = field(default_factory=uuid.uuid4)
     title: str = "Politica de devoluciones"
     description: str | None = None
@@ -43,6 +44,7 @@ class FakeCourse:
     status: ContentStatus = ContentStatus.PUBLISHED
     source_document_id: uuid.UUID | None = None
     created_at: datetime = NOW
+    updated_at: datetime = NOW
     modules: list = field(default_factory=list)
 
 

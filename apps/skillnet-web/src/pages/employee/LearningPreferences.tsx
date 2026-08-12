@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useIntl } from 'react-intl'
 import { ApiError } from '../../api/client'
 import { useMe } from '../../api/auth'
@@ -16,45 +16,11 @@ import type {
   LearningPreferences,
   PresentationPreference,
 } from '../../api/onboarding'
-import { Button, Card, SkeletonRow } from '../../components/ui'
-
-type Choice = { value: string; label: string; hint: string }
-
-function RadioChoices({
-  name,
-  value,
-  options,
-  onChange,
-}: {
-  name: string
-  value: string
-  options: Choice[]
-  onChange: (value: string) => void
-}) {
-  return (
-    <div className="grid gap-2 sm:grid-cols-3">
-      {options.map((option) => (
-        <label
-          key={option.value}
-          className="flex items-start gap-3 rounded-lg border border-border p-3 cursor-pointer hover:border-primary has-[:checked]:border-primary has-[:checked]:bg-primary-subtle has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary/40"
-        >
-          <input
-            type="radio"
-            name={name}
-            value={option.value}
-            checked={value === option.value}
-            onChange={() => onChange(option.value)}
-            className="mt-0.5 accent-primary shrink-0"
-          />
-          <span className="min-w-0">
-            <span className="block text-sm font-medium text-text">{option.label}</span>
-            <span className="block text-xs text-text-secondary mt-0.5">{option.hint}</span>
-          </span>
-        </label>
-      ))}
-    </div>
-  )
-}
+import { Button, Card, PageHeader, SkeletonRow } from '../../components/ui'
+import { AppearanceSettings } from '../../components/settings/AppearanceSettings'
+import { LearningPreferencePreview } from '../../components/settings/LearningPreferencePreview'
+import { SegmentedControl } from '../../components/settings/SegmentedControl'
+import { SettingsIcon } from '../../components/settings/SettingsIcon'
 
 function normalizeAccessibility(value: Record<string, unknown> | null | undefined) {
   return Object.fromEntries(
@@ -67,12 +33,14 @@ export function LearningPreferencesPage() {
   const profile = useLearnerProfile()
   const me = useMe()
   const updateLearning = useUpdateLearnerProfile()
+  const updateLearningAsync = updateLearning.mutateAsync
   const [preferences, setPreferences] = useState<LearningPreferences>(
     DEFAULT_LEARNING_PREFERENCES,
   )
   const [accessibility, setAccessibility] = useState<AccessibilitySettings>(NO_ACCESSIBILITY)
   const [hydrated, setHydrated] = useState(false)
   const [saved, setSaved] = useState(false)
+  const changeVersion = useRef(0)
 
   useEffect(() => {
     if (hydrated || !profile.data || !me.data) return
@@ -90,184 +58,205 @@ export function LearningPreferencesPage() {
     key: Key,
     value: LearningPreferences[Key],
   ) {
+    changeVersion.current += 1
     setSaved(false)
     setPreferences((current) => ({ ...current, [key]: value }))
   }
 
-  async function save() {
-    setSaved(false)
-    try {
-      await updateLearning.mutateAsync({
+  useEffect(() => {
+    if (!hydrated || changeVersion.current === 0) return
+    const version = changeVersion.current
+    const timeout = window.setTimeout(() => {
+      updateLearningAsync({
         learning_preferences: preferences,
         accessibility,
       })
-      setSaved(true)
-    } catch {
-      // Mutation state renders the useful server error below.
-    }
-  }
+        .then(() => {
+          if (changeVersion.current === version) setSaved(true)
+        })
+        .catch(() => {
+          // Mutation state renders the useful server error below.
+        })
+    }, 500)
 
-  const presentationOptions: Choice[] = [
-    ['balanced', 'Balanced', 'Mix explanations, visuals and practice.'],
-    ['visual', 'Visual', 'Prioritise diagrams and images when they help.'],
-    ['textual', 'Textual', 'Prioritise clear written explanations.'],
-    ['interactive', 'Interactive', 'Prioritise practice and exploration.'],
-  ].map(([value, fallbackLabel, fallbackHint]) => ({
-    value,
-    label: intl.formatMessage(
-      { id: `learningPreferences.presentation.${value}` },
-      { fallback: fallbackLabel },
-    ),
-    hint: intl.formatMessage(
-      { id: `learningPreferences.presentation.${value}.hint` },
-      { fallback: fallbackHint },
-    ),
+    return () => window.clearTimeout(timeout)
+  }, [accessibility, hydrated, preferences, updateLearningAsync])
+
+  const presentationOptions = [
+    { value: 'balanced' as PresentationPreference, icon: <SettingsIcon name="balance" size={14} /> },
+    { value: 'visual' as PresentationPreference, icon: <SettingsIcon name="image" size={14} /> },
+    { value: 'textual' as PresentationPreference, icon: <SettingsIcon name="text" size={14} /> },
+    { value: 'interactive' as PresentationPreference, icon: <SettingsIcon name="pointer" size={14} /> },
+  ].map((option) => ({
+    ...option,
+    label: intl.formatMessage({ id: `learningPreferences.presentation.${option.value}` }),
   }))
-  const detailOptions: Choice[] = ['concise', 'standard', 'detailed'].map((value) => ({
-    value,
-    label: intl.formatMessage({ id: `learningPreferences.detail.${value}` }),
-    hint: intl.formatMessage({ id: `learningPreferences.detail.${value}.hint` }),
+  const detailOptions = [
+    { value: 'concise' as DetailPreference, icon: <SettingsIcon name="zap" size={14} /> },
+    { value: 'standard' as DetailPreference, icon: <SettingsIcon name="normal" size={14} /> },
+    { value: 'detailed' as DetailPreference, icon: <SettingsIcon name="layers" size={14} /> },
+  ].map((option) => ({
+    ...option,
+    label: intl.formatMessage({ id: `learningPreferences.detail.${option.value}` }),
   }))
-  const imageOptions: Choice[] = ['when_useful', 'prefer', 'avoid'].map((value) => ({
-    value,
-    label: intl.formatMessage({ id: `learningPreferences.images.${value}` }),
-    hint: intl.formatMessage({ id: `learningPreferences.images.${value}.hint` }),
+  const imageOptions = [
+    { value: 'when_useful' as ImagePreference, icon: <SettingsIcon name="sparkles" size={14} /> },
+    { value: 'prefer' as ImagePreference, icon: <SettingsIcon name="imagePlus" size={14} /> },
+    { value: 'avoid' as ImagePreference, icon: <SettingsIcon name="imageOff" size={14} /> },
+  ].map((option) => ({
+    ...option,
+    label: intl.formatMessage({ id: `learningPreferences.images.${option.value}` }),
   }))
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <h1 className="text-xl font-semibold text-text">
-        {intl.formatMessage({ id: 'learningPreferences.title' })}
-      </h1>
-      <p className="text-sm text-text-secondary mt-1">
-        {intl.formatMessage({ id: 'learningPreferences.subtitle' })}
-      </p>
-
-      {loading ? (
-        <div className="mt-6 space-y-3" aria-label={intl.formatMessage({ id: 'learningPreferences.loading' })}>
-          <SkeletonRow />
-          <SkeletonRow />
-          <SkeletonRow />
-        </div>
-      ) : loadError ? (
-        <Card className="mt-6">
-          <p className="text-sm text-danger">
-            {intl.formatMessage({ id: 'learningPreferences.loadError' })}
-          </p>
-          <Button
-            variant="secondary"
-            className="mt-4"
-            onClick={() => {
-              profile.refetch()
-              me.refetch()
-            }}
-          >
-            {intl.formatMessage({ id: 'learningPreferences.retry' })}
-          </Button>
-        </Card>
-      ) : (
-        <div className="mt-6 space-y-4">
-          <Card>
-            <fieldset>
-              <legend className="text-base font-medium text-text">
-                {intl.formatMessage({ id: 'learningPreferences.presentation' })}
-              </legend>
-              <p className="text-sm text-text-secondary mt-1 mb-4">
-                {intl.formatMessage({ id: 'learningPreferences.presentationDesc' })}
-              </p>
-              <RadioChoices
-                name="presentation"
-                value={preferences.presentation}
-                options={presentationOptions}
-                onChange={(value) => changePreference('presentation', value as PresentationPreference)}
-              />
-            </fieldset>
-          </Card>
-
-          <Card>
-            <fieldset>
-              <legend className="text-base font-medium text-text">
-                {intl.formatMessage({ id: 'learningPreferences.detail' })}
-              </legend>
-              <p className="text-sm text-text-secondary mt-1 mb-4">
-                {intl.formatMessage({ id: 'learningPreferences.detailDesc' })}
-              </p>
-              <RadioChoices
-                name="detail"
-                value={preferences.detail}
-                options={detailOptions}
-                onChange={(value) => changePreference('detail', value as DetailPreference)}
-              />
-            </fieldset>
-          </Card>
-
-          <Card>
-            <fieldset>
-              <legend className="text-base font-medium text-text">
-                {intl.formatMessage({ id: 'learningPreferences.images' })}
-              </legend>
-              <p className="text-sm text-text-secondary mt-1 mb-4">
-                {intl.formatMessage({ id: 'learningPreferences.imagesDesc' })}
-              </p>
-              <RadioChoices
-                name="images"
-                value={preferences.images}
-                options={imageOptions}
-                onChange={(value) => changePreference('images', value as ImagePreference)}
-              />
-            </fieldset>
-          </Card>
-
-          <Card>
-            <fieldset>
-              <legend className="text-base font-medium text-text">
-                {intl.formatMessage({ id: 'learningPreferences.accessibility' })}
-              </legend>
-              <p className="text-sm text-text-secondary mt-1 mb-4">
-                {intl.formatMessage({ id: 'learningPreferences.accessibilityDesc' })}
-              </p>
-              <div className="grid gap-2 sm:grid-cols-2">
-                {ACCESSIBILITY_KEYS.map((key) => (
-                  <label key={key} className="flex items-center gap-3 rounded-lg border border-border p-3 cursor-pointer hover:border-primary has-[:checked]:border-primary has-[:checked]:bg-primary-subtle">
-                    <input
-                      type="checkbox"
-                      checked={accessibility[key]}
-                      onChange={(event) => {
-                        setSaved(false)
-                        setAccessibility((current) => ({ ...current, [key]: event.target.checked }))
-                      }}
-                      className="accent-primary"
-                    />
-                    <span className="text-sm text-text">
-                      {intl.formatMessage({ id: `learningPreferences.accessibility.${key}` })}
-                    </span>
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-          </Card>
-
-          <p className="text-sm text-text-secondary">
-            {intl.formatMessage({ id: 'learningPreferences.mixNote' })}
-          </p>
-          {saveError && (
-            <p className="text-sm text-danger" role="alert">
-              {saveError instanceof ApiError
-                ? saveError.body.detail
-                : intl.formatMessage({ id: 'learningPreferences.saveError' })}
-            </p>
-          )}
-          {saved && (
-            <p className="text-sm text-success" role="status">
-              {intl.formatMessage({ id: 'learningPreferences.saved' })}
-            </p>
-          )}
-          <Button onClick={save} disabled={pending}>
+    <div className="mx-auto max-w-5xl">
+      <PageHeader
+        title={intl.formatMessage({ id: 'learningPreferences.title' })}
+        actions={!loading && !loadError && (pending || saved) ? (
+          <span className={`text-xs ${saved ? 'text-success' : 'text-text-muted'}`} role="status">
             {intl.formatMessage({
-              id: pending ? 'learningPreferences.saving' : 'learningPreferences.save',
+              id: pending ? 'learningPreferences.saving' : 'learningPreferences.saved',
             })}
-          </Button>
+          </span>
+        ) : undefined}
+      />
+
+      <Card className="mt-6 !p-0 overflow-hidden">
+        <AppearanceSettings embedded compact className="p-4 sm:p-5" />
+
+        <div className="border-t border-border">
+          {loading ? (
+            <div className="space-y-3 p-5" aria-label={intl.formatMessage({ id: 'learningPreferences.loading' })}>
+              <SkeletonRow />
+              <SkeletonRow />
+              <SkeletonRow />
+            </div>
+          ) : loadError ? (
+            <div className="p-5">
+              <p className="text-sm text-danger">
+                {intl.formatMessage({ id: 'learningPreferences.loadError' })}
+              </p>
+              <Button
+                variant="secondary"
+                className="mt-4"
+                onClick={() => {
+                  profile.refetch()
+                  me.refetch()
+                }}
+              >
+                {intl.formatMessage({ id: 'learningPreferences.retry' })}
+              </Button>
+            </div>
+          ) : (
+            <>
+              <section className="p-5">
+                <div className="mb-4 flex items-center gap-2 text-text">
+                  <SettingsIcon name="sparkles" size={16} className="text-text-muted" />
+                  <h2 className="text-base font-semibold">
+                    {intl.formatMessage({ id: 'learningPreferences.learningStyle' })}
+                  </h2>
+                </div>
+
+                <div className="grid items-stretch gap-4 lg:grid-cols-[minmax(0,1.65fr)_minmax(15.5rem,0.85fr)]">
+                  <div className="grid grid-rows-3 overflow-hidden rounded-lg border border-border bg-surface">
+                    <fieldset className="flex min-h-0 flex-col justify-center gap-3 p-4">
+                      <legend className="sr-only">
+                        {intl.formatMessage({ id: 'learningPreferences.presentation' })}
+                      </legend>
+                      <div className="flex items-center gap-2 text-sm font-medium text-text">
+                        <SettingsIcon name="format" size={15} className="text-text-muted" />
+                        {intl.formatMessage({ id: 'learningPreferences.presentation' })}
+                      </div>
+                      <SegmentedControl
+                        value={preferences.presentation}
+                        options={presentationOptions}
+                        onChange={(value) => changePreference('presentation', value)}
+                        label={intl.formatMessage({ id: 'learningPreferences.presentation' })}
+                        layoutId="learning-presentation"
+                      />
+                    </fieldset>
+
+                    <fieldset className="flex min-h-0 flex-col justify-center gap-3 border-t border-border p-4">
+                      <legend className="sr-only">
+                        {intl.formatMessage({ id: 'learningPreferences.detail' })}
+                      </legend>
+                      <div className="flex items-center gap-2 text-sm font-medium text-text">
+                        <SettingsIcon name="detail" size={15} className="text-text-muted" />
+                        {intl.formatMessage({ id: 'learningPreferences.detail' })}
+                      </div>
+                      <SegmentedControl
+                        value={preferences.detail}
+                        options={detailOptions}
+                        onChange={(value) => changePreference('detail', value)}
+                        label={intl.formatMessage({ id: 'learningPreferences.detail' })}
+                        layoutId="learning-detail"
+                      />
+                    </fieldset>
+
+                    <fieldset className="flex min-h-0 flex-col justify-center gap-3 border-t border-border p-4">
+                      <legend className="sr-only">
+                        {intl.formatMessage({ id: 'learningPreferences.images' })}
+                      </legend>
+                      <div className="flex items-center gap-2 text-sm font-medium text-text">
+                        <SettingsIcon name="images" size={15} className="text-text-muted" />
+                        {intl.formatMessage({ id: 'learningPreferences.images' })}
+                      </div>
+                      <SegmentedControl
+                        value={preferences.images}
+                        options={imageOptions}
+                        onChange={(value) => changePreference('images', value)}
+                        label={intl.formatMessage({ id: 'learningPreferences.images' })}
+                        layoutId="learning-images"
+                      />
+                    </fieldset>
+                  </div>
+
+                  <LearningPreferencePreview
+                    presentation={preferences.presentation}
+                    detail={preferences.detail}
+                    images={preferences.images}
+                  />
+                </div>
+              </section>
+
+              <section className="border-t border-border p-5">
+                <div className="flex items-center gap-2 text-text">
+                  <SettingsIcon name="accessibility" size={16} className="text-text-muted" />
+                  <h2 className="text-base font-semibold">
+                    {intl.formatMessage({ id: 'learningPreferences.accessibility' })}
+                  </h2>
+                </div>
+                <div className="mt-4 grid gap-x-6 sm:grid-cols-2">
+                  {ACCESSIBILITY_KEYS.map((key) => (
+                    <label key={key} className="flex min-h-11 cursor-pointer items-center justify-between gap-3 border-b border-border py-3">
+                      <span className="text-sm text-text">
+                        {intl.formatMessage({ id: `learningPreferences.accessibility.${key}` })}
+                      </span>
+                      <input
+                        type="checkbox"
+                        checked={accessibility[key]}
+                        onChange={(event) => {
+                          changeVersion.current += 1
+                          setSaved(false)
+                          setAccessibility((current) => ({ ...current, [key]: event.target.checked }))
+                        }}
+                        className="size-4 shrink-0 accent-primary"
+                      />
+                    </label>
+                  ))}
+                </div>
+              </section>
+            </>
+          )}
         </div>
+      </Card>
+
+      {saveError && (
+        <p className="mt-4 text-sm text-danger" role="alert">
+          {saveError instanceof ApiError
+            ? saveError.body.detail
+            : intl.formatMessage({ id: 'learningPreferences.saveError' })}
+        </p>
       )}
     </div>
   )

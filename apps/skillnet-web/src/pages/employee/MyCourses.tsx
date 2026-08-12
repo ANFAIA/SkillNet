@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useIntl } from 'react-intl'
 import { motion, LayoutGroup } from 'framer-motion'
-import { Badge, Card, CardTitle, CourseItem, EmptyState, SkeletonRow } from '../../components/ui'
+import { Badge, Card, CardTitle, CourseItem, EmptyState, PageHeader, SkeletonRow } from '../../components/ui'
 import { useEnrollments } from '../../api/enrollments'
 import { ApiError } from '../../api/client'
 import { staggerContainer, staggerItem, spring } from '../../lib/motion'
@@ -58,7 +58,7 @@ export function MyCourses() {
 
   return (
     <div>
-      <h2 className="text-xl font-semibold text-text mb-6">{intl.formatMessage({ id: 'mycourses.title' })}</h2>
+      <div className="mb-6"><PageHeader title={intl.formatMessage({ id: 'mycourses.title' })} /></div>
 
       <LayoutGroup>
         <div className="flex gap-1 mb-6 border-b border-border">

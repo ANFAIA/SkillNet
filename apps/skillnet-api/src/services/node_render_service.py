@@ -98,6 +98,7 @@ class RenderKey:
     effective_density: int
     vector_bucket: str
     preference_bucket: str
+    knowledge_pack_key: str
     scaffold_band: str
     role_bucket: str
     model_key: str
@@ -118,6 +119,7 @@ def build_render_key(
     is_preview: bool = False,
     preview_salt: str | None = None,
     refresh_salt: str | None = None,
+    knowledge_pack_key: str = "",
 ) -> RenderKey:
     """Compose the ``cache_key`` of §3.4 from a loaded context.
 
@@ -160,6 +162,7 @@ def build_render_key(
         sector=sector,
         vector_bucket=bucket,
         preference_bucket=preferences,
+        knowledge_pack_key=knowledge_pack_key,
     )
     if is_preview:
         salt = preview_salt or uuid.uuid4().hex[:12]
@@ -172,6 +175,7 @@ def build_render_key(
         effective_density=density,
         vector_bucket=bucket,
         preference_bucket=preferences,
+        knowledge_pack_key=knowledge_pack_key,
         scaffold_band=band,
         role_bucket=role_bucket(role, sector),
         model_key=model_key,
@@ -509,6 +513,7 @@ class NodeRenderService:
             "schema_version": int(course.schema_version or 1),
             "effective_density": key.effective_density,
             "scaffold_band": key.scaffold_band,
+            "knowledge_pack_key": key.knowledge_pack_key,
             "retry_count": 0,
             "validation_errors": [],
             "answer_key": {},
@@ -543,6 +548,16 @@ class NodeRenderService:
         profile = await LearnerProfileRepository(self.db).get_by_user(user.id)
         node_state = await self.states.get_by_user_and_node(user.id, node.id)
         org_settings = await self.org_settings(node.org_id)
+        from src.knowledge_pack.runtime_selection import load_runtime_knowledge
+
+        pack = await load_runtime_knowledge(
+            self.db,
+            node=node,
+            course=course,
+            profile=profile,
+            node_state=node_state,
+            accessibility=dict(user.accessibility or {}),
+        )
         return build_render_key(
             node=node,
             course=course,
@@ -552,6 +567,7 @@ class NodeRenderService:
             model_key=runtime_model_key(org_settings),
             is_preview=is_preview,
             refresh_salt=uuid.uuid4().hex[:12] if refresh and not is_preview else None,
+            knowledge_pack_key=pack.cache_fragment if pack else "",
         )
 
     # -- cancellation (§9.1) ----------------------------------------------------

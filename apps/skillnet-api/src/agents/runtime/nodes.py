@@ -409,18 +409,42 @@ async def load_context(state: NodeRuntimeState) -> dict:
         )
         org_settings = await _org_settings(db, org_id)
         source_context = await load_source_context(db, node, org_id)
+        accessibility_payload = dict(getattr(user, "accessibility", None) or {})
+
+        from src.knowledge_pack.runtime_selection import load_runtime_knowledge
+
+        pack_selection = await load_runtime_knowledge(
+            db,
+            node=node,
+            course=course,
+            profile=profile,
+            node_state=node_state,
+            accessibility=accessibility_payload,
+        )
+        expected_pack_key = str(state.get("knowledge_pack_key") or "")
+        if expected_pack_key:
+            if pack_selection is None or pack_selection.cache_fragment != expected_pack_key:
+                raise RuntimeError(
+                    "Knowledge pack changed between cache lookup and generation; retry"
+                )
+            source_context = pack_selection.source_context
+        else:
+            # A pack may finish after the pre-graph cache lookup. This render remains on
+            # raw source under its already-frozen key; the next request gets the pack key.
+            pack_selection = None
 
         key = build_render_key(
             node=node,
             course=course,
             profile=profile,
             node_state=node_state,
-            accessibility=dict(getattr(user, "accessibility", None) or {}),
+            accessibility=accessibility_payload,
             model_key=runtime_model_key(org_settings),
             is_preview=bool(state.get("is_preview")),
             # The service already salted the preview key; reuse it verbatim so the row it
             # claimed and the row this graph writes are the same row.
             preview_salt=None,
+            knowledge_pack_key=expected_pack_key,
         )
         cache_key = str(state.get("cache_key") or key.cache_key)
 
@@ -507,12 +531,21 @@ async def load_context(state: NodeRuntimeState) -> dict:
     return {
         "node": node_payload,
         "profile": profile_payload,
-        "accessibility": dict(getattr(user, "accessibility", None) or {}),
+        "accessibility": accessibility_payload,
         "personalization_revision": int(
             getattr(profile, "personalization_revision", 0) or 0
         ),
         "node_state": state_payload,
         "source_context": source_context,
+        "knowledge_pack_key": expected_pack_key,
+        "knowledge_pack_hash": pack_selection.pack_hash if pack_selection else "",
+        "knowledge_selection_hash": (
+            pack_selection.selection_hash if pack_selection else ""
+        ),
+        "knowledge_atom_ids": list(pack_selection.atom_ids) if pack_selection else [],
+        "knowledge_evidence_ids": (
+            list(pack_selection.evidence_ids) if pack_selection else []
+        ),
         "siblings": siblings,
         "backend": str(state.get("backend") or "openui"),
         "effective_density": key.effective_density,

@@ -1,9 +1,10 @@
 """Tutor chat: grounded answers + conversational memory + SSE streaming + generative UI.
 
 No LangGraph, no tools. Each turn: load/create the session, persist the user message,
-**ground** the question (``src/services/retrieval.py``), build a prompt (persona + last N
-turns as memory + a final turn embedding the context), stream tokens as SSE events, then
-persist the assistant message with its citations.
+decide whether it needs course grounding, build a prompt (persona + last N turns as
+memory + an optional retrieved context), stream tokens as SSE events, then persist the
+assistant message with its citations. Lesson-context turns always retrieve; the general
+employee chat retrieves only when the question asks for internal learning material.
 
 Two things changed on 2026-07-27, and the order matters because the second is worthless
 without the first.
@@ -100,6 +101,7 @@ from src.render.errors import RenderError
 from src.render.gate import canonicalize
 from src.render.prompt import catalog_version
 from src.repositories.chat_repo import ChatRepository
+from src.services.chat_retrieval_policy import course_retrieval_required
 from src.services.org_snapshot import build_org_snapshot, render_snapshot
 from src.services.retrieval import GroundedContext, ground_question
 
@@ -145,7 +147,20 @@ CHAT_UI_FORMAT = "explanation"
 #: do not have. Stripped from the **raw** text, before the gate: whatever is left still
 #: goes through the whole parse -> validate -> re-serialize path, so this cannot become a
 #: way to smuggle text past it.
-_CITATION_MARKER_RE = re.compile(r"[ \t]*\[Fuente\s+\d+\]")
+_CITATION_MARKER_RE = re.compile(r"[ \t]*\[Fuente\s+(\d+)\]")
+
+
+def cited_sources(answer: str, available: Sequence[dict]) -> list[dict]:
+    """Return only the retrieved sources the model actually cited, in citation order."""
+    selected: list[dict] = []
+    seen: set[int] = set()
+    for match in _CITATION_MARKER_RE.finditer(answer):
+        index = int(match.group(1)) - 1
+        if index < 0 or index >= len(available) or index in seen:
+            continue
+        seen.add(index)
+        selected.append(available[index])
+    return selected
 
 # ---------------------------------------------------------------------------
 # Frontend tool calls: ACTION lines the model emits to modify the UI
@@ -834,16 +849,22 @@ class ChatService:
             await self.db.commit()
 
             org_data: dict | None = None
-            grounded = await ground_question(
-                self.db,
-                user_id=user.id,
-                org_id=user.org_id,
-                embedding_service=self.embeddings,
-                query=message,
-                top_k=RETRIEVAL_TOP_K,
-                document_ids=_context_document_ids(context),
-                whole_documents=whole_documents,
+            should_retrieve = agent_type == "admin" or course_retrieval_required(
+                message, context, history
             )
+            if should_retrieve:
+                grounded = await ground_question(
+                    self.db,
+                    user_id=user.id,
+                    org_id=user.org_id,
+                    embedding_service=self.embeddings,
+                    query=message,
+                    top_k=RETRIEVAL_TOP_K,
+                    document_ids=_context_document_ids(context),
+                    whole_documents=whole_documents,
+                )
+            else:
+                grounded = GroundedContext("general", retrieval_attempted=False)
             if agent_type == "admin":
                 snapshot_block, org_data = await self._org_snapshot(user)
 
@@ -892,17 +913,28 @@ class ChatService:
             # when it decides the user's request warrants a UI change (locale, theme,
             # sidebar).  These are stripped from the visible answer and emitted as
             # ``action`` SSE events after ``done``, so the frontend can dispatch them.
-            answer, actions = extract_actions(raw_answer)
+            answer_with_markers, actions = extract_actions(raw_answer)
+            citations = cited_sources(answer_with_markers, grounded.citations)
+            answer = _CITATION_MARKER_RE.sub("", answer_with_markers).strip()
 
-            yield format_sse("citations", {"citations": grounded.citations})
+            # Tell reveal-at-once clients that this turn will receive a block layout
+            # before `done`, so prose never flashes for one frame between the two phases.
+            should_lay_out = self._should_lay_out(agent_type, answer)
+            if should_lay_out:
+                yield format_sse("layout_start", {})
+
+            # `content` replaces the streamed draft after citation markers and action
+            # directives have been removed. The browser never has to infer provenance.
+            yield format_sse("citations", {"citations": citations, "content": answer})
 
             assistant = await self.repo.add_message(
                 session_id=session.id,
                 role="assistant",
                 content=answer,
                 metadata={
-                    "citations": grounded.citations,
+                    "citations": citations,
                     "grounding": grounded.grounding,
+                    "retrieval_attempted": grounded.retrieval_attempted,
                     "prompt_version": (
                         ADMIN_PROMPT_VERSION
                         if agent_type == "admin"
@@ -939,8 +971,7 @@ class ChatService:
 
             # Tutor GenUI (two-phase): a second LLM call classifies and re-lays the
             # answer.  Admin no longer uses this path.
-            elif self._should_lay_out(agent_type, answer):
-                yield format_sse("layout_start", {})
+            elif should_lay_out:
                 program = await self._lay_out(message, answer)
                 if program:
                     await self._persist_program(assistant, program)
@@ -1151,7 +1182,12 @@ class ChatService:
         turn = (
             build_admin_turn(grounding, grounded.context, snapshot_block, question)
             if is_admin
-            else build_user_turn(grounding, grounded.context, question)
+            else build_user_turn(
+                grounding,
+                grounded.context,
+                question,
+                retrieval_attempted=grounded.retrieval_attempted,
+            )
         )
         messages.append({"role": "user", "content": turn})
         return messages
@@ -1173,6 +1209,7 @@ class ChatService:
                 metadata={
                     "citations": grounded.citations,
                     "grounding": grounded.grounding,
+                    "retrieval_attempted": grounded.retrieval_attempted,
                     "partial": True,
                 },
             )

@@ -8,6 +8,7 @@ import { Button, Input, Textarea, Badge, EmptyState, FileUploadZone, ProgressBar
 import { GenerationProgress } from '../../components/generation/GenerationProgress'
 import { SchemaContent } from '../../components/schema/SchemaContent'
 import type { StreamPhase } from '../../components/schema/SchemaContent'
+import type { SkillOption } from '../../components/schema/CourseSkillsEditor'
 import {
   useUploadDocument,
   useProcessDocument,
@@ -17,6 +18,7 @@ import {
 import { useCreateCourse, useGenerateContent, usePublishCourse, useCourse, useUpdateLesson, useUpdateExercise } from '../../api/courses'
 import { useGenerationProgress, useGenerationJobStatus, jobToProgress } from '../../api/generation'
 import { streamSchemaProposal } from '../../api/schemaStream'
+import { useReplaceCourseSkills, useSkills } from '../../api/skills'
 import { useUsers } from '../../api/users'
 import { useAssignCourse } from '../../api/enrollments'
 import { ApiError, get, post, put } from '../../api/client'
@@ -507,6 +509,7 @@ export function CreateCourse() {
   const [density, setDensity] = useState(3)
   const [streamPhase, setStreamPhase] = useState<StreamPhase>('idle')
   const [enrichedNodes, setEnrichedNodes] = useState<Set<number>>(new Set())
+  const [proposedSkills, setProposedSkills] = useState<SkillOption[]>([])
   const proposeAbortRef = useRef<AbortController | null>(null)
   const nodeKeyCounter = useRef(0)
   const assignKeys = useCallback(
@@ -526,6 +529,8 @@ export function CreateCourse() {
   const generate = useGenerateContent()
   const publish = usePublishCourse()
   const assign = useAssignCourse()
+  const skillsQuery = useSkills()
+  const replaceCourseSkills = useReplaceCourseSkills()
 
   // Track uploaded document
   const latestUpload = uploader.uploads[uploader.uploads.length - 1]
@@ -567,6 +572,7 @@ export function CreateCourse() {
     setProposedNodes([])
     setStreamPhase('idle')
     setEnrichedNodes(new Set())
+    setProposedSkills([])
 
     // Track structure nodes by ref so enrichment callbacks can read them
     // without depending on stale closures over proposedNodes.
@@ -579,7 +585,7 @@ export function CreateCourse() {
         intent_density: d,
       },
       {
-        onStructure: (nodes) => {
+        onStructure: (nodes, skills) => {
           const proposed = assignKeys(
             nodes.map((n) => ({
               title: n.title,
@@ -594,6 +600,7 @@ export function CreateCourse() {
           )
           structureRef.nodes = proposed
           setProposedNodes(proposed)
+          setProposedSkills(skills.slice(0, 6).map((name) => ({ name })))
           setStreamPhase('structure')
         },
         onNodeDetail: (result) => {
@@ -777,6 +784,21 @@ export function CreateCourse() {
         source_document_id: sourceId,
       })
       setCourseId(course.id)
+
+      // Skills belong to the course, not to individual nodes. Persist the reviewed
+      // proposal before activating the schema so completion can grant them reliably.
+      await replaceCourseSkills.mutateAsync({
+        courseId: course.id,
+        skills: proposedSkills.reduce<Array<{ id?: string; name?: string }>>((items, skill) => {
+          if (skill.id) {
+            items.push({ id: skill.id })
+            return items
+          }
+          const name = skill.name.trim()
+          if (name) items.push({ name })
+          return items
+        }, []),
+      })
 
       // Step 2: save nodes
       setCreatingStep(1)
@@ -1330,6 +1352,9 @@ export function CreateCourse() {
                         startError={startError}
                         enrichedNodes={enrichedNodes}
                         streamPhase={streamPhase}
+                        skills={proposedSkills}
+                        availableSkills={skillsQuery.data?.items ?? []}
+                        onSkillsChange={setProposedSkills}
                       />
                     </motion.div>
                   )}
@@ -1432,6 +1457,9 @@ export function CreateCourse() {
                         startError={startError}
                         enrichedNodes={enrichedNodes}
                         streamPhase={streamPhase}
+                        skills={proposedSkills}
+                        availableSkills={skillsQuery.data?.items ?? []}
+                        onSkillsChange={setProposedSkills}
                       />
                     </motion.div>
                   )}

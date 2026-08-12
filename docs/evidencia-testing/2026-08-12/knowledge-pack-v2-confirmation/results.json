@@ -1,0 +1,152 @@
+{
+  "schema": "skillnet-pack-tuning/2",
+  "created_at": "2026-08-12T00:03:00.423097+00:00",
+  "model": "gpt-4o-mini",
+  "call_cap": 2,
+  "provider_calls": 2,
+  "prices_per_million": {
+    "input": 0.15,
+    "output": 0.6
+  },
+  "variants": [
+    {
+      "name": "balanced",
+      "policy": {
+        "extractor_max_tokens": 1600,
+        "reviewer_max_tokens": 1600,
+        "min_invariants": 3,
+        "max_atoms": 24,
+        "min_fact_coverage": 1.0,
+        "require_evidence": true
+      }
+    }
+  ],
+  "nodes": [
+    "apertura-cierre-caja"
+  ],
+  "results": [
+    {
+      "variant": "balanced",
+      "node": "apertura-cierre-caja",
+      "outcome": "completed",
+      "passed": false,
+      "atom_count": 4,
+      "invariant_count": 4,
+      "required_evidence_count": 0,
+      "fact_coverage": 0.5714285714285714,
+      "matched_fact_ids": [
+        "float",
+        "cash-withdrawal",
+        "z-report",
+        "mismatch-threshold"
+      ],
+      "missing_fact_ids": [
+        "opening-claim",
+        "card-and-vouchers",
+        "same-day"
+      ],
+      "failures": [
+        "pack status is not ready",
+        "fact coverage 57.1% < minimum 100.0%; missing=opening-claim,card-and-vouchers,same-day",
+        "no required evidence specification"
+      ],
+      "pack_hash": "572890122c9e43f3f6fce07ecd7025eba4bd36153888016683c87054fa449d3f",
+      "pack_payload": {
+        "evidence_specs": [],
+        "format": "node-knowledge-pack/1",
+        "generable_slots": [],
+        "missing_data": [
+          {
+            "affects": [
+              "evidence"
+            ],
+            "blocking": true,
+            "data_id": "unresolved-evidence.source:bbbbbbbb-0000-0000-0000-000000000004:node:966d3494-bfca-586b-b90f-e7d1354df30a",
+            "description": "Required evidence had no valid source-backed atom after reference normalization.",
+            "fallback": "human_review"
+          }
+        ],
+        "must_preserve": [
+          {
+            "atom_id": "must.cash_withdrawal_rule",
+            "critical": true,
+            "evidence": [],
+            "kind": "safety_rule",
+            "sources": [
+              "source:bbbbbbbb-0000-0000-0000-000000000004:node:966d3494-bfca-586b-b90f-e7d1354df30a"
+            ],
+            "text": "Retirada de efectivo cada vez que la caja supera 600 euros: se mete en el buzon de seguridad con su sobre numerado. No se guardan billetes de 200 y 500 en el cajon: van directos al buzon."
+          },
+          {
+            "atom_id": "must.closing_cash_procedure",
+            "critical": true,
+            "evidence": [],
+            "kind": "procedure_step",
+            "sources": [
+              "source:bbbbbbbb-0000-0000-0000-000000000004:node:966d3494-bfca-586b-b90f-e7d1354df30a"
+            ],
+            "text": "Se saca el informe Z del TPV. Se cuenta el efectivo, se resta el fondo fijo de 200 euros y el resultado debe coincidir con la linea de efectivo del Z."
+          },
+          {
+            "atom_id": "must.discrepancy_handling_rule",
+            "critical": true,
+            "evidence": [],
+            "kind": "safety_rule",
+            "sources": [
+              "source:bbbbbbbb-0000-0000-0000-000000000004:node:966d3494-bfca-586b-b90f-e7d1354df30a"
+            ],
+            "text": "Hasta 5 euros de diferencia se anota en la hoja de cierre y se sigue. Por encima de 5 euros se recuenta una segunda vez y, si persiste, se avisa al encargado antes de irse."
+          },
+          {
+            "atom_id": "must.opening_cash_procedure",
+            "critical": true,
+            "evidence": [],
+            "kind": "procedure_step",
+            "sources": [
+              "source:bbbbbbbb-0000-0000-0000-000000000004:node:966d3494-bfca-586b-b90f-e7d1354df30a"
+            ],
+            "text": "El fondo fijo es de 200 euros en cambio: 40 en monedas de 1 y 2 euros, 30 en monedas pequeñas, 80 en billetes de 5 y 50 en billetes de 10. Se cuenta delante del encargado y se firma la hoja de apertura."
+          }
+        ],
+        "node_id": "966d3494-bfca-586b-b90f-e7d1354df30a",
+        "objective": {
+          "available_requirements": [],
+          "mission": "decide",
+          "objective_id": "966d3494-bfca-586b-b90f-e7d1354df30a",
+          "objective_version": 1,
+          "required_fact_refs": [],
+          "required_safety_refs": [],
+          "source_functions": [
+            "assess"
+          ]
+        },
+        "provenance": {
+          "generator": "knowledge-pack/v2-tuning-balanced",
+          "node_id": "966d3494-bfca-586b-b90f-e7d1354df30a",
+          "reviewer": "knowledge-pack/v2-tuning-balanced/reviewer",
+          "schema_version": 1,
+          "semantic_hash": "8bef54e7e2eda1fcc1a75babe0d7065490fe537c6fbacc9c3152018125b9a1ee",
+          "source_bundle_hash": "f74250b020eb97e9f32ed54ebb81ed99e35b3f156d57bb7ce492256e1876d03e"
+        },
+        "selectable": [],
+        "source_refs": [
+          {
+            "document_id": "bbbbbbbb-0000-0000-0000-000000000004",
+            "excerpt_hash": "6852ff3b346fc0cbe75fc444e3dcc2216efc9347e7da83883bc96647ba7104b5",
+            "heading_path": [],
+            "locator": "Arqueo de apertura y cierre de caja",
+            "ref_id": "source:bbbbbbbb-0000-0000-0000-000000000004:node:966d3494-bfca-586b-b90f-e7d1354df30a",
+            "source_revision": "6852ff3b346fc0cbe75fc444e3dcc2216efc9347e7da83883bc96647ba7104b5"
+          }
+        ],
+        "status": "review_required",
+        "title": "Arqueo de apertura y cierre de caja"
+      },
+      "markdown": "---\nformat: node-knowledge-pack/1\nnode_id: 966d3494-bfca-586b-b90f-e7d1354df30a\nstatus: review_required\ncanonical_hash: 572890122c9e43f3f6fce07ecd7025eba4bd36153888016683c87054fa449d3f\nsource_bundle_hash: f74250b020eb97e9f32ed54ebb81ed99e35b3f156d57bb7ce492256e1876d03e\nsemantic_hash: 8bef54e7e2eda1fcc1a75babe0d7065490fe537c6fbacc9c3152018125b9a1ee\n---\n\n# Arqueo de apertura y cierre de caja\n\n## Objetivo\n\n966d3494-bfca-586b-b90f-e7d1354df30a\n\n## Debe conservarse\n\n### `must.cash_withdrawal_rule` · safety_rule · crítico\n\nRetirada de efectivo cada vez que la caja supera 600 euros: se mete en el buzon de seguridad con su sobre numerado. No se guardan billetes de 200 y 500 en el cajon: van directos al buzon.\n\nFuentes: `source:bbbbbbbb-0000-0000-0000-000000000004:node:966d3494-bfca-586b-b90f-e7d1354df30a`\n\n### `must.closing_cash_procedure` · procedure_step · crítico\n\nSe saca el informe Z del TPV. Se cuenta el efectivo, se resta el fondo fijo de 200 euros y el resultado debe coincidir con la linea de efectivo del Z.\n\nFuentes: `source:bbbbbbbb-0000-0000-0000-000000000004:node:966d3494-bfca-586b-b90f-e7d1354df30a`\n\n### `must.discrepancy_handling_rule` · safety_rule · crítico\n\nHasta 5 euros de diferencia se anota en la hoja de cierre y se sigue. Por encima de 5 euros se recuenta una segunda vez y, si persiste, se avisa al encargado antes de irse.\n\nFuentes: `source:bbbbbbbb-0000-0000-0000-000000000004:node:966d3494-bfca-586b-b90f-e7d1354df30a`\n\n### `must.opening_cash_procedure` · procedure_step · crítico\n\nEl fondo fijo es de 200 euros en cambio: 40 en monedas de 1 y 2 euros, 30 en monedas pequeñas, 80 en billetes de 5 y 50 en billetes de 10. Se cuenta delante del encargado y se firma la hoja de apertura.\n\nFuentes: `source:bbbbbbbb-0000-0000-0000-000000000004:node:966d3494-bfca-586b-b90f-e7d1354df30a`\n\n## Opciones de adaptación\n\n## Evidencia\n\n\n## Datos pendientes\n\n- `unresolved-evidence.source:bbbbbbbb-0000-0000-0000-000000000004:node:966d3494-bfca-586b-b90f-e7d1354df30a` (bloqueante; afecta: evidence): Required evidence had no valid source-backed atom after reference normalization.. Fallback: human_review\n\n## Fuentes\n\n- `source:bbbbbbbb-0000-0000-0000-000000000004:node:966d3494-bfca-586b-b90f-e7d1354df30a`: documento `bbbbbbbb-0000-0000-0000-000000000004`, sin encabezado, Arqueo de apertura y cierre de caja (revisión `6852ff3b346fc0cbe75fc444e3dcc2216efc9347e7da83883bc96647ba7104b5`)\n",
+      "input_tokens": 4149,
+      "output_tokens": 1472,
+      "duration_ms": 21417,
+      "cost_usd": 0.00150555
+    }
+  ]
+}

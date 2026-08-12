@@ -88,9 +88,9 @@ describe('employee Chat', () => {
     stream(
       event('grounding', { grounding: 'document' }),
       ...tokens(PROSE),
+      event('layout_start', {}),
       event('citations', { citations: [{ document: 'Manual de alergenos' }] }),
       event('done', { message_id: 'm1' }),
-      event('layout_start', {}),
       event('ui', { program: PROGRAM, format: 'explanation' }),
     )
 
@@ -106,8 +106,8 @@ describe('employee Chat', () => {
     // The prose was the streaming phase and nothing more.
     expect(container.textContent).not.toContain('Nunca improvises')
     expect(container.textContent).not.toContain('**Escucha')
-    // The provenance line and the citations survive the swap — they are not the answer.
-    expect(screen.getByText(/De la documentacion de tus cursos/)).toBeInTheDocument()
+    // Sources survive the swap but stay behind one compact disclosure.
+    expect(screen.getByText(/Fuentes \(1\)/)).toBeInTheDocument()
     expect(screen.getByText(/Manual de alergenos/)).toBeInTheDocument()
   })
 
@@ -115,8 +115,8 @@ describe('employee Chat', () => {
     stream(
       event('grounding', { grounding: 'document' }),
       ...tokens(PROSE),
-      event('done', { message_id: 'm1' }),
       event('layout_start', {}),
+      event('done', { message_id: 'm1' }),
       event('layout_skipped', {}),
     )
 

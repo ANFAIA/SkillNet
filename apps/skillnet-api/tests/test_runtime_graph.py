@@ -305,6 +305,7 @@ class FakeSession:
     node_state: LearnerNodeState | None = None
     document: FakeDocument | None = None
     lesson: Lesson | None = None
+    knowledge_packs: list[Any] = field(default_factory=list)
     renders: list[NodeRender] = field(default_factory=list)
     usage: list[LlmUsageLog] = field(default_factory=list)
     added: list[Any] = field(default_factory=list)
@@ -320,6 +321,8 @@ class FakeSession:
             return FakeResult([self.profile] if self.profile is not None else [])
         if "FROM learner_node_states" in sql:
             return FakeResult([self.node_state] if self.node_state is not None else [])
+        if "FROM node_knowledge_packs" in sql:
+            return FakeResult(list(self.knowledge_packs))
         if "FROM node_renders" in sql:
             rows = list(self.renders)
             wanted = {value for value in _params(query).values() if isinstance(value, str)}
@@ -526,6 +529,7 @@ def harness(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Harness:
     monkeypatch.setattr(settings, "LLM_RUNTIME_FAST_MODEL", None)
     monkeypatch.setattr(settings, "LLM_RUNTIME_HEAVY_MODEL", None)
     monkeypatch.setattr(settings, "EMBEDDING_MODEL", FIXTURE_MODEL)
+    monkeypatch.setattr(settings, "MULTI_AGENT_RENDER", False)
 
     session = FakeSession(
         node=make_node(),

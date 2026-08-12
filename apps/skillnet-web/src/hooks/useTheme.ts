@@ -1,6 +1,8 @@
 import { useEffect } from 'react'
 import { usePreferences } from '../stores/preferences'
 import type { Theme } from '../stores/preferences'
+import type { AccentColor } from '../lib/accent-themes'
+import type { UiPreset } from '../lib/ui-presets'
 
 export type ResolvedTheme = 'light' | 'dark'
 
@@ -50,6 +52,22 @@ export function applyTheme(theme: Theme) {
   setTimeout(clear, 150)
 }
 
+export function applyUiPreset(uiPreset: UiPreset) {
+  if (typeof document === 'undefined') return
+  document.documentElement.dataset.uiPreset = uiPreset
+}
+
+export function applyAccentColor(accentColor: AccentColor, customAccent: string) {
+  if (typeof document === 'undefined') return
+  const root = document.documentElement
+  root.dataset.accent = accentColor
+  if (accentColor === 'custom') {
+    root.style.setProperty('--custom-accent', customAccent)
+  } else {
+    root.style.removeProperty('--custom-accent')
+  }
+}
+
 /**
  * Keeps <html> in sync with the persisted theme preference and exposes the
  * controls. Call once at the app root to install the effect; call anywhere to
@@ -58,11 +76,25 @@ export function applyTheme(theme: Theme) {
 export function useTheme() {
   const theme = usePreferences((s) => s.theme)
   const setTheme = usePreferences((s) => s.setTheme)
+  const accentColor = usePreferences((s) => s.accentColor)
+  const customAccent = usePreferences((s) => s.customAccent)
+  const setAccentColor = usePreferences((s) => s.setAccentColor)
+  const setCustomAccent = usePreferences((s) => s.setCustomAccent)
+  const uiPreset = usePreferences((s) => s.uiPreset)
+  const setUiPreset = usePreferences((s) => s.setUiPreset)
 
   // Mirror the stored preference onto the document.
   useEffect(() => {
     applyTheme(theme)
   }, [theme])
+
+  useEffect(() => {
+    applyUiPreset(uiPreset)
+  }, [uiPreset])
+
+  useEffect(() => {
+    applyAccentColor(accentColor, customAccent)
+  }, [accentColor, customAccent])
 
   // While on `system`, follow live OS changes.
   useEffect(() => {
@@ -78,6 +110,12 @@ export function useTheme() {
     theme,
     resolvedTheme: resolveTheme(theme),
     setTheme,
+    accentColor,
+    customAccent,
+    setAccentColor,
+    setCustomAccent,
+    uiPreset,
+    setUiPreset,
     toggle: () => setTheme(resolveTheme(theme) === 'dark' ? 'light' : 'dark'),
   }
 }

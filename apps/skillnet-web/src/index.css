@@ -119,8 +119,8 @@
 }
 
 /* ── Chrome (frame) surface tokens ────────────────────────────────────────
-   The sidebar + header ("L-frame") are their own surface, distinct from the
-   content palette. In LIGHT that surface is the branded spider-blue gradient;
+   The sidebar is its own surface, distinct from the content palette. In LIGHT
+   it uses a flat spider-blue; the surrounding shells can retain the gradient;
    in DARK it must NOT stay bright blue slammed against a near-black content
    area — it becomes a deep, desaturated near-black navy that harmonises with
    the neutral content while keeping a whisper of brand hue. These tokens are
@@ -129,8 +129,11 @@
    Defined here on bare :root as the LIGHT default so they always exist even
    with no `data-theme` set under a light OS; the dark blocks override them. */
 :root {
-  /* The gradient the `.frame-surface` chrome and the page `body` both paint. */
+  /* Branded shell gradient plus the cleaner flat sidebar surface. */
   --frame-gradient: linear-gradient(170deg, #4171B5 0%, #2D5490 40%, #1E3D6E 100%);
+  --frame-clean-surface: #315f9b;
+  --frame-classic-surface: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 100 100' fill='none' stroke='rgba(255,255,255,0.035)' stroke-width='0.5'%3E%3Cline x1='0' y1='0' x2='100' y2='100'/%3E%3Cline x1='50' y1='0' x2='100' y2='50'/%3E%3Cline x1='0' y1='50' x2='50' y2='100'/%3E%3Cpath d='M25 0 A25 25 0 0 1 0 25'/%3E%3Cpath d='M75 0 A75 75 0 0 1 0 75'/%3E%3C/svg%3E"), var(--frame-gradient);
+  --frame-surface: var(--frame-clean-surface);
   /* Hairline where the frame meets the content pane. Transparent in light —
      the blue-to-white tone break defines the seam on its own. */
   --frame-border: transparent;
@@ -211,9 +214,10 @@
      lifted off the #0a0a0a content at the top and settling toward it, so the
      rail reads as elevated and the rounded-corner reveal of `body` matches it. */
   --frame-gradient: linear-gradient(170deg, #16181f 0%, #111319 45%, #0d0e13 100%);
+  --frame-clean-surface: #12151c;
   --frame-border: rgba(255, 255, 255, 0.06);
-  --frame-pill-bg: rgba(255, 255, 255, 0.09);
-  --frame-pill-text: #cdd9f4;
+  --frame-pill-bg: #f4f4f5;
+  --frame-pill-text: #18181b;
   --frame-card-bg: #191c24;
   --frame-card-hover: #20242e;
 }
@@ -256,9 +260,10 @@
     --color-metric-purple: #6849b8;
 
     --frame-gradient: linear-gradient(170deg, #16181f 0%, #111319 45%, #0d0e13 100%);
+    --frame-clean-surface: #12151c;
     --frame-border: rgba(255, 255, 255, 0.06);
-    --frame-pill-bg: rgba(255, 255, 255, 0.09);
-    --frame-pill-text: #cdd9f4;
+    --frame-pill-bg: #f4f4f5;
+    --frame-pill-text: #18181b;
     --frame-card-bg: #191c24;
     --frame-card-hover: #20242e;
   }
@@ -303,6 +308,7 @@
   --color-metric-purple: #7c3aed;
 
   --frame-gradient: linear-gradient(170deg, #4171B5 0%, #2D5490 40%, #1E3D6E 100%);
+  --frame-clean-surface: #315f9b;
   --frame-border: transparent;
   --frame-pill-bg: #ffffff;
   --frame-pill-text: #3661A5;
@@ -779,12 +785,211 @@ body {
   }
 }
 
-/* The L-frame chrome. The cobweb texture (faint white threads) rides on top of
-   the themed `--frame-gradient`, so light gets the bright spider-blue rail and
-   dark gets the deep desaturated navy — one class, two intentional looks. */
+/* Clean application rail. Brand identity comes from colour, logo and the
+   active navigation pill rather than a repeated decorative texture. */
 .frame-surface {
-  background:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 100 100' fill='none' stroke='rgba(255,255,255,0.035)' stroke-width='0.5'%3E%3Cline x1='0' y1='0' x2='100' y2='100'/%3E%3Cline x1='50' y1='0' x2='100' y2='50'/%3E%3Cline x1='0' y1='50' x2='50' y2='100'/%3E%3Cpath d='M25 0 A25 25 0 0 1 0 25'/%3E%3Cpath d='M75 0 A75 75 0 0 1 0 75'/%3E%3C/svg%3E"),
-    var(--frame-gradient);
-  background-attachment: fixed;
+  background: var(--frame-surface);
+}
+
+/* Employee “Connected” sidebar. The rail takes a quiet tint from the chosen
+   accent while the active destination becomes part of the page surface. */
+.connected-sidebar {
+  background: color-mix(in srgb, var(--color-primary) 9%, var(--color-bg));
+}
+
+.connected-nav-pill {
+  background: var(--color-bg);
+  border-radius: 0.75rem 0 0 0.75rem;
+}
+
+.connected-nav-pill::before,
+.connected-nav-pill::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  width: 0.75rem;
+  height: 0.75rem;
+  background: transparent;
+}
+
+.connected-nav-pill::before {
+  top: -0.75rem;
+  border-bottom-right-radius: 0.625rem;
+  box-shadow: 0.3rem 0.3rem 0 0.3rem var(--color-bg);
+}
+
+.connected-nav-pill::after {
+  bottom: -0.75rem;
+  border-top-right-radius: 0.625rem;
+  box-shadow: 0.3rem -0.3rem 0 0.3rem var(--color-bg);
+}
+
+.sidebar-course-progress {
+  appearance: none;
+  border: 0;
+  background: var(--color-border);
+}
+
+.sidebar-course-progress::-webkit-progress-bar {
+  background: var(--color-border);
+}
+
+.sidebar-course-progress::-webkit-progress-value {
+  border-radius: 9999px;
+  background: var(--color-primary);
+}
+
+.sidebar-course-progress::-moz-progress-bar {
+  border-radius: 9999px;
+  background: var(--color-primary);
+}
+
+:root[data-ui-preset='classic'] {
+  --frame-surface: var(--frame-classic-surface);
+}
+
+/* A neutral baseline for teams that prefer product chrome without brand colour.
+   Semantic status colours remain intact so success, warning and danger do not
+   lose meaning. Explicit dark mode and a dark system preference invert the
+   interactive scale while keeping the same monochrome character. */
+:root[data-ui-preset='monochrome'] {
+  --color-primary: #18181b;
+  --color-primary-hover: #09090b;
+  --color-primary-subtle: #f4f4f5;
+  --color-accent: #3f3f46;
+  --color-accent-hover: #27272a;
+  --color-accent-subtle: #f4f4f5;
+  --frame-surface: #18181b;
+  --frame-border: #27272a;
+  --frame-pill-bg: #ffffff;
+  --frame-pill-text: #18181b;
+  --frame-card-bg: #27272a;
+  --frame-card-hover: #3f3f46;
+}
+
+:root[data-ui-preset='monochrome'][data-theme='dark'] {
+  --color-primary: #f4f4f5;
+  --color-primary-hover: #ffffff;
+  --color-primary-subtle: #27272a;
+  --color-accent: #d4d4d8;
+  --color-accent-hover: #f4f4f5;
+  --color-accent-subtle: #27272a;
+  --frame-surface: #050505;
+  --frame-border: #27272a;
+  --frame-pill-bg: #f4f4f5;
+  --frame-pill-text: #18181b;
+  --frame-card-bg: #18181b;
+  --frame-card-hover: #27272a;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-ui-preset='monochrome']:not([data-theme='light']) {
+    --color-primary: #f4f4f5;
+    --color-primary-hover: #ffffff;
+    --color-primary-subtle: #27272a;
+    --color-accent: #d4d4d8;
+    --color-accent-hover: #f4f4f5;
+    --color-accent-subtle: #27272a;
+    --frame-surface: #050505;
+    --frame-border: #27272a;
+    --frame-pill-bg: #f4f4f5;
+    --frame-pill-text: #18181b;
+    --frame-card-bg: #18181b;
+    --frame-card-hover: #27272a;
+  }
+}
+
+/* Accent themes are independent from light/dark mode and from the interface
+   preset. They recolor interactive identity only; semantic success, warning and
+   danger tokens keep their meaning. `color-mix` uses the active page/text
+   palette, so hover and subtle surfaces adapt to both explicit and system mode. */
+:root[data-accent='neutral'] {
+  --app-accent: #27272a;
+}
+
+:root[data-accent='blue'] {
+  --app-accent: #3661a5;
+}
+
+:root[data-accent='purple'] {
+  --app-accent: #7c3aed;
+}
+
+:root[data-accent='green'] {
+  --app-accent: #16815c;
+}
+
+:root[data-accent='orange'] {
+  --app-accent: #c65c22;
+}
+
+:root[data-accent='pink'] {
+  --app-accent: #be3a71;
+}
+
+:root[data-accent='custom'] {
+  --app-accent: var(--custom-accent, #5b5ce2);
+}
+
+:root[data-ui-preset][data-accent] {
+  --color-primary: var(--app-accent);
+  --color-primary-hover: color-mix(in srgb, var(--app-accent) 82%, var(--color-text));
+  --color-primary-subtle: color-mix(in srgb, var(--app-accent) 12%, var(--color-bg));
+}
+
+/* The clean rail carries the chosen identity colour. Classic keeps its original
+   textured gradient; monochrome stays neutral until the user explicitly chooses
+   a non-neutral accent. */
+:root[data-ui-preset='clean'][data-accent],
+:root[data-ui-preset='monochrome'][data-accent]:not([data-accent='neutral']) {
+  --frame-surface: var(--app-accent);
+  --frame-pill-text: var(--app-accent);
+  --frame-card-bg: color-mix(in srgb, var(--app-accent) 42%, #111318);
+  --frame-card-hover: color-mix(in srgb, var(--app-accent) 54%, #111318);
+}
+
+.appearance-accent-swatch[data-accent-swatch='neutral'] {
+  background: #27272a;
+}
+
+.appearance-accent-swatch[data-accent-swatch='blue'] {
+  background: #3661a5;
+}
+
+.appearance-accent-swatch[data-accent-swatch='purple'] {
+  background: #7c3aed;
+}
+
+.appearance-accent-swatch[data-accent-swatch='green'] {
+  background: #16815c;
+}
+
+.appearance-accent-swatch[data-accent-swatch='orange'] {
+  background: #c65c22;
+}
+
+.appearance-accent-swatch[data-accent-swatch='pink'] {
+  background: #be3a71;
+}
+
+.appearance-custom-accent {
+  background: conic-gradient(
+    #ef4444,
+    #f59e0b,
+    #22c55e,
+    #3b82f6,
+    #7c3aed,
+    #ec4899,
+    #ef4444
+  );
+}
+
+:root[data-accent='custom'] .appearance-custom-accent {
+  background: var(--custom-accent, #5b5ce2);
+}
+
+.appearance-custom-accent__input {
+  border: 0;
+  border-radius: 999px;
+  opacity: 0;
 }

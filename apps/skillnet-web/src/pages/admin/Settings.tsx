@@ -1,5 +1,6 @@
 import { useIntl } from 'react-intl'
-import { SkeletonRow, ThemeToggle } from '../../components/ui'
+import { PageHeader, Select, SkeletonRow, Switch } from '../../components/ui'
+import { AppearanceSettings } from '../../components/settings/AppearanceSettings'
 import { useSettings, useUpdateFeatures } from '../../api/settings'
 import { ApiError } from '../../api/client'
 import { usePreferences } from '../../stores/preferences'
@@ -20,38 +21,6 @@ import type { OrgSettings } from '../../types'
  * admin something they could not otherwise find out — nothing works, and nothing else
  * explains why.
  */
-
-function Toggle({
-  checked,
-  disabled,
-  onChange,
-  label,
-}: {
-  checked: boolean
-  disabled?: boolean
-  onChange: (next: boolean) => void
-  label: string
-}) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      aria-label={label}
-      disabled={disabled}
-      onClick={() => onChange(!checked)}
-      className={`relative shrink-0 w-11 h-6 rounded-full transition-colors duration-200
-        disabled:opacity-50 disabled:cursor-not-allowed
-        focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40
-        ${checked ? 'bg-primary' : 'bg-border'}`}
-    >
-      <span
-        className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow-sm
-          transition-transform duration-200 ${checked ? 'translate-x-5' : 'translate-x-0'}`}
-      />
-    </button>
-  )
-}
 
 function SettingRow({
   title,
@@ -80,12 +49,7 @@ export function Settings() {
 
   return (
     <div>
-      <div className="mb-2">
-        <h2 className="text-xl font-semibold text-text">{intl.formatMessage({ id: 'settings.title' })}</h2>
-        <p className="text-sm text-text-secondary mt-0.5">
-          {intl.formatMessage({ id: 'settings.subtitle' })}
-        </p>
-      </div>
+      <PageHeader title={intl.formatMessage({ id: 'settings.title' })} />
 
       {isLoading ? (
         <div className="py-5">
@@ -124,29 +88,24 @@ function SettingsBody({
         </div>
       )}
 
-      <div className="mt-2 border-t border-border">
+      <AppearanceSettings className="mt-4" />
+
+      <div className="mt-6 border-t border-border">
         {/* Language selector */}
         <SettingRow
           title={intl.formatMessage({ id: 'settings.language' })}
           description={intl.formatMessage({ id: 'settings.languageDesc' })}
         >
-          <select
+          <Select
+            label={intl.formatMessage({ id: 'settings.language' })}
+            hideLabel
             value={locale}
             onChange={(e) => setLocale(e.target.value as Locale)}
-            className="text-sm border border-border rounded-lg px-3 py-1.5 bg-bg text-text
-              focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+            className="w-36"
           >
             <option value="es">{intl.formatMessage({ id: 'settings.langEs' })}</option>
             <option value="en">{intl.formatMessage({ id: 'settings.langEn' })}</option>
-          </select>
-        </SettingRow>
-
-        {/* Theme selector */}
-        <SettingRow
-          title={intl.formatMessage({ id: 'settings.theme' })}
-          description={intl.formatMessage({ id: 'settings.themeDesc' })}
-        >
-          <ThemeToggle />
+          </Select>
         </SettingRow>
 
         {/* Generative UI toggle */}
@@ -154,10 +113,10 @@ function SettingsBody({
           title={intl.formatMessage({ id: 'settings.chatGenUi' })}
           description={intl.formatMessage({ id: 'settings.chatGenUiDesc' })}
         >
-          <Toggle
+          <Switch
             checked={settings.chat_generative_ui}
             disabled={features.isPending}
-            onChange={(next) => features.mutate({ chat_generative_ui: next })}
+            onCheckedChange={(next) => features.mutate({ chat_generative_ui: next })}
             label={intl.formatMessage({ id: 'settings.chatGenUi' })}
           />
         </SettingRow>

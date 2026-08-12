@@ -53,6 +53,11 @@ from src.models.llm_usage_log import USE_CASES, LlmUsageLog
 from src.models.module import Module
 from src.models.node_attempt import BLOOM_LEVELS, NodeAttempt
 from src.models.node_feedback import DIFFICULTY_VALUES, NodeFeedback
+from src.models.node_knowledge_pack import (
+    NodeKnowledgePackRecord,
+    NodeKnowledgePackStatus,
+)
+from src.models.course_folder import CourseFolder
 from src.models.node_probe import NodeProbe
 from src.models.node_render import NodeRender, NodeRenderStatus, UiFormat
 from src.models.node_render_view import NodeRenderView
@@ -83,6 +88,7 @@ __all__ = [
     "DocumentStatus",
     "DocumentChunk",
     "Course",
+    "CourseFolder",
     "ContentStatus",
     "CourseSkill",
     "Module",
@@ -127,6 +133,8 @@ __all__ = [
     "BLOOM_LEVELS",
     "NodeFeedback",
     "DIFFICULTY_VALUES",
+    "NodeKnowledgePackRecord",
+    "NodeKnowledgePackStatus",
     "TermExplanation",
     "TERM_MAX_LENGTH",
     "TERM_CACHEABLE_MAX_LENGTH",

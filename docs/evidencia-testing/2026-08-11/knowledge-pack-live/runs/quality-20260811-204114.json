@@ -1,0 +1,706 @@
+{
+  "schema_version": 1,
+  "run_id": "quality-20260811-204114",
+  "started_at": "2026-08-11T20:41:14.923488+00:00",
+  "offline": false,
+  "model_fast": "gpt-4o-mini",
+  "model_heavy": "gpt-4o-mini",
+  "repeat": 1,
+  "arms": {
+    "pack": {
+      "total": {
+        "runs": 3,
+        "graded": 3,
+        "first_pass": 3,
+        "repaired": 0,
+        "fallback": 0,
+        "skipped": 0,
+        "infra_error": 0,
+        "first_pass_pct": 100.0,
+        "repaired_pct": 0.0,
+        "fallback_pct": 0.0,
+        "p50_seconds": 6.06,
+        "p95_seconds": 7.44,
+        "mean_tokens_in": 627.0,
+        "mean_tokens_out": 36.0,
+        "cost_usd_total": null,
+        "cost_usd_per_run": null,
+        "distinct_block_types": 8,
+        "block_type_coverage_pct": 61.5,
+        "mean_distinct_types_per_render": 5.0,
+        "block_types": {
+          "Stack": 3,
+          "TextContent": 3,
+          "Callout": 2,
+          "QuizItem": 2,
+          "Table": 2,
+          "BeforeAfter": 1,
+          "StepSequence": 1,
+          "DragOrder": 1
+        },
+        "block_types_unused": [
+          "Card",
+          "CodeBlock",
+          "Chart",
+          "AudioExplanation",
+          "PronunciationExercise"
+        ]
+      },
+      "per_encargo": {
+        "alergenos-hosteleria": {
+          "runs": 1,
+          "graded": 1,
+          "first_pass": 1,
+          "repaired": 0,
+          "fallback": 0,
+          "skipped": 0,
+          "infra_error": 0,
+          "first_pass_pct": 100.0,
+          "repaired_pct": 0.0,
+          "fallback_pct": 0.0,
+          "p50_seconds": 7.59,
+          "p95_seconds": 7.59,
+          "mean_tokens_in": 633.0,
+          "mean_tokens_out": 42.0,
+          "cost_usd_total": null,
+          "cost_usd_per_run": null,
+          "distinct_block_types": 5,
+          "block_type_coverage_pct": 38.5,
+          "mean_distinct_types_per_render": 5.0,
+          "block_types": {
+            "Stack": 1,
+            "TextContent": 1,
+            "Table": 1,
+            "Callout": 1,
+            "QuizItem": 1
+          },
+          "block_types_unused": [
+            "Card",
+            "StepSequence",
+            "CodeBlock",
+            "Chart",
+            "BeforeAfter",
+            "DragOrder",
+            "AudioExplanation",
+            "PronunciationExercise"
+          ]
+        },
+        "apertura-cierre-caja": {
+          "runs": 1,
+          "graded": 1,
+          "first_pass": 1,
+          "repaired": 0,
+          "fallback": 0,
+          "skipped": 0,
+          "infra_error": 0,
+          "first_pass_pct": 100.0,
+          "repaired_pct": 0.0,
+          "fallback_pct": 0.0,
+          "p50_seconds": 5.11,
+          "p95_seconds": 5.11,
+          "mean_tokens_in": 600.0,
+          "mean_tokens_out": 29.0,
+          "cost_usd_total": null,
+          "cost_usd_per_run": null,
+          "distinct_block_types": 5,
+          "block_type_coverage_pct": 38.5,
+          "mean_distinct_types_per_render": 5.0,
+          "block_types": {
+            "Stack": 1,
+            "TextContent": 1,
+            "BeforeAfter": 1,
+            "Callout": 1,
+            "QuizItem": 1
+          },
+          "block_types_unused": [
+            "Card",
+            "StepSequence",
+            "Table",
+            "CodeBlock",
+            "Chart",
+            "DragOrder",
+            "AudioExplanation",
+            "PronunciationExercise"
+          ]
+        },
+        "atencion-reclamaciones": {
+          "runs": 1,
+          "graded": 1,
+          "first_pass": 1,
+          "repaired": 0,
+          "fallback": 0,
+          "skipped": 0,
+          "infra_error": 0,
+          "first_pass_pct": 100.0,
+          "repaired_pct": 0.0,
+          "fallback_pct": 0.0,
+          "p50_seconds": 6.06,
+          "p95_seconds": 6.06,
+          "mean_tokens_in": 648.0,
+          "mean_tokens_out": 37.0,
+          "cost_usd_total": null,
+          "cost_usd_per_run": null,
+          "distinct_block_types": 5,
+          "block_type_coverage_pct": 38.5,
+          "mean_distinct_types_per_render": 5.0,
+          "block_types": {
+            "Stack": 1,
+            "TextContent": 1,
+            "Table": 1,
+            "StepSequence": 1,
+            "DragOrder": 1
+          },
+          "block_types_unused": [
+            "Card",
+            "Callout",
+            "CodeBlock",
+            "Chart",
+            "QuizItem",
+            "BeforeAfter",
+            "AudioExplanation",
+            "PronunciationExercise"
+          ]
+        }
+      }
+    }
+  },
+  "corpus": [
+    "apertura-cierre-caja",
+    "alergenos-hosteleria",
+    "atencion-reclamaciones"
+  ],
+  "prompt_version": "runtime/22",
+  "catalog_version": "skillnet-ui/1+90883675e9a7",
+  "provider": {
+    "calls": 21,
+    "rate_limited": 0,
+    "rate_limit_seconds": 0.0,
+    "transient_retries": 0,
+    "exhausted": 0
+  },
+  "pack_source": "generated",
+  "pack_preparation": {
+    "alergenos-hosteleria": {
+      "pack_hash": "43d8d8144fc466f5b86246531a8ddc1015ab229d6be72855e1560296fa564205",
+      "input_tokens": 2533,
+      "output_tokens": 1128,
+      "duration_ms": 12151,
+      "atom_count": 2,
+      "invariant_count": 1
+    },
+    "apertura-cierre-caja": {
+      "pack_hash": "6822fdc8203c2129cfbbd56eaf108596d3eecd6a2f92e1e03b4c895d7b8c114d",
+      "input_tokens": 2449,
+      "output_tokens": 494,
+      "duration_ms": 7708,
+      "atom_count": 0,
+      "invariant_count": 0
+    },
+    "atencion-reclamaciones": {
+      "pack_hash": "d53d44793e0ffde08efb81a8d75c9fe5c5e84d3d73f88ce34ac0ecab9a034223",
+      "input_tokens": 2819,
+      "output_tokens": 1556,
+      "duration_ms": 15713,
+      "atom_count": 2,
+      "invariant_count": 1
+    }
+  },
+  "runs": [
+    {
+      "encargo": "apertura-cierre-caja",
+      "repeat": 1,
+      "arm": "pack",
+      "context": "generated_knowledge_pack",
+      "outcome": "first_pass",
+      "ui_format": "mixed",
+      "tier": "heavy",
+      "model": "?",
+      "decide_called": true,
+      "attempts": 1,
+      "seconds": 5.109,
+      "tokens_in": 600,
+      "tokens_out": 29,
+      "cost_usd": null,
+      "tokens_measured": true,
+      "render_status": "ready",
+      "steps": [
+        "load_context",
+        "probe_gate",
+        "decide_formato",
+        "validate_ui",
+        "persist_render"
+      ],
+      "cache_key": "26f990d7933fcd1a40b64df862210de0a8d6c39f89baad2fdf1e66001c5c6aef",
+      "source_digest": "6852ff3b346fc0cbe75fc444e3dcc2216efc9347e7da83883bc96647ba7104b5",
+      "context_digest": "f66c40fed684af75e52932eeedf9a525f2fab841d2056f99ffcdded18899451b",
+      "context_chars": 781,
+      "atom_ids": [],
+      "invariant_atom_ids": [],
+      "ui_signature": "247b9c6204e5bbcd3a5f70feee38e98f7cf6522e9a5cbdd9e0e78ed5a9fc0be9",
+      "reason": "",
+      "block_types": [
+        "Stack",
+        "TextContent",
+        "BeforeAfter",
+        "Callout",
+        "QuizItem"
+      ],
+      "plan_trace": {
+        "trace_version": "plan-trace/1",
+        "mode": "shadow",
+        "status": "planned",
+        "mission_rationale": "MISSION_FROM_UI_FORMAT_FALLBACK",
+        "live": {
+          "ui_format": "mixed",
+          "shape_functions": [],
+          "shape_summary": "sin estructura detectada",
+          "assessment_block": "QuizItem",
+          "assessment_item_type": "true_false"
+        },
+        "projection": {
+          "declared_presentations": [],
+          "inferred_presentation_bucket": "text-high",
+          "support_band": "independent",
+          "density": 1,
+          "accessibility_capabilities": [],
+          "error_signal": "none",
+          "calibrating": false,
+          "projection_version": "personalization/1"
+        },
+        "shadow": {
+          "objective_id": "966d3494-bfca-586b-b90f-e7d1354df30a",
+          "objective_version": 1,
+          "mission": "recognize",
+          "source_functions": [
+            "enumerate"
+          ],
+          "representations": [
+            "table"
+          ],
+          "required_fact_refs": [],
+          "required_safety_refs": [],
+          "support": {
+            "band": "independent",
+            "density": 1,
+            "worked_example": false,
+            "graduated_hints": false,
+            "direct_feedback": true
+          },
+          "component_candidates": [
+            {
+              "component_id": "Table",
+              "version": 1,
+              "presentation": "table",
+              "producer_kind": "content",
+              "affordances": [
+                "scan_rows",
+                "compare_values"
+              ],
+              "evidence_events": [],
+              "state_model_ref": null,
+              "rank": 10
+            }
+          ],
+          "rationale_codes": [
+            "MISSION_FROM_OBJECTIVE",
+            "CAPABILITY_FILTERED"
+          ],
+          "policy_version": "learning-experience/1",
+          "projection_version": "personalization/1"
+        }
+      }
+    },
+    {
+      "encargo": "alergenos-hosteleria",
+      "repeat": 1,
+      "arm": "pack",
+      "context": "generated_knowledge_pack",
+      "outcome": "first_pass",
+      "ui_format": "mixed",
+      "tier": "heavy",
+      "model": "?",
+      "decide_called": true,
+      "attempts": 1,
+      "seconds": 7.594,
+      "tokens_in": 633,
+      "tokens_out": 42,
+      "cost_usd": null,
+      "tokens_measured": true,
+      "render_status": "ready",
+      "steps": [
+        "load_context",
+        "probe_gate",
+        "decide_formato",
+        "validate_ui",
+        "persist_render"
+      ],
+      "cache_key": "db77b9cc1d519a1f5e0a12b59cd385b42086d58a789347e38f52b8696c2f3369",
+      "source_digest": "20c8462c5bf2bd637df896921424a668850030243aa7721f03c9767531ebbff0",
+      "context_digest": "512007065be431b7726e2a356cd9dcea0fd53a7cd9e4d796133ffe920a5e83cc",
+      "context_chars": 1821,
+      "atom_ids": [
+        "must.stable-id",
+        "selectable.stable-id"
+      ],
+      "invariant_atom_ids": [
+        "must.stable-id"
+      ],
+      "ui_signature": "657e9b5e44df958241a73f03179b81a14d5394dd8b1a50c6d8fca6f057c91432",
+      "reason": "",
+      "block_types": [
+        "Stack",
+        "TextContent",
+        "Table",
+        "Callout",
+        "QuizItem"
+      ],
+      "plan_trace": {
+        "trace_version": "plan-trace/1",
+        "mode": "shadow",
+        "status": "planned",
+        "mission_rationale": "MISSION_FROM_FIRST_SHAPE_FUNCTION",
+        "live": {
+          "ui_format": "mixed",
+          "shape_functions": [
+            "enumerar"
+          ],
+          "shape_summary": "labelled_listx3->Table",
+          "assessment_block": "QuizItem",
+          "assessment_item_type": "test"
+        },
+        "projection": {
+          "declared_presentations": [],
+          "inferred_presentation_bucket": "text-high",
+          "support_band": "guided",
+          "density": 3,
+          "accessibility_capabilities": [],
+          "error_signal": "none",
+          "calibrating": false,
+          "projection_version": "personalization/1"
+        },
+        "shadow": {
+          "objective_id": "ec6c7033-37d3-5d9d-a0ac-ecc4a0a9ae51",
+          "objective_version": 1,
+          "mission": "recognize",
+          "source_functions": [
+            "enumerate"
+          ],
+          "representations": [
+            "table"
+          ],
+          "required_fact_refs": [],
+          "required_safety_refs": [],
+          "support": {
+            "band": "guided",
+            "density": 3,
+            "worked_example": false,
+            "graduated_hints": true,
+            "direct_feedback": true
+          },
+          "component_candidates": [
+            {
+              "component_id": "Table",
+              "version": 1,
+              "presentation": "table",
+              "producer_kind": "content",
+              "affordances": [
+                "scan_rows",
+                "compare_values"
+              ],
+              "evidence_events": [],
+              "state_model_ref": null,
+              "rank": 10
+            }
+          ],
+          "rationale_codes": [
+            "MISSION_FROM_OBJECTIVE",
+            "CAPABILITY_FILTERED"
+          ],
+          "policy_version": "learning-experience/1",
+          "projection_version": "personalization/1"
+        }
+      }
+    },
+    {
+      "encargo": "atencion-reclamaciones",
+      "repeat": 1,
+      "arm": "pack",
+      "context": "generated_knowledge_pack",
+      "outcome": "first_pass",
+      "ui_format": "mixed",
+      "tier": "heavy",
+      "model": "?",
+      "decide_called": true,
+      "attempts": 1,
+      "seconds": 6.062,
+      "tokens_in": 648,
+      "tokens_out": 37,
+      "cost_usd": null,
+      "tokens_measured": true,
+      "render_status": "ready",
+      "steps": [
+        "load_context",
+        "probe_gate",
+        "decide_formato",
+        "validate_ui",
+        "persist_render"
+      ],
+      "cache_key": "29ca33f7908bec7b9426a3c1f74cea53547e14ecaa628277b88addd531a864db",
+      "source_digest": "af1f3978f7233d6b1818c97f872c80d177529469910b0051e21bdac2113bf2b6",
+      "context_digest": "4bb7245ca353184b4b1794f61ee0fb0f635208fd1e553f30d5d5328a7d944d59",
+      "context_chars": 2645,
+      "atom_ids": [
+        "must.stable-id",
+        "selectable.stable-id"
+      ],
+      "invariant_atom_ids": [
+        "must.stable-id"
+      ],
+      "ui_signature": "c4b12d231d28415c93be6aebc8acbf68ffbe0f755994f047d7f370ca5b662e15",
+      "reason": "",
+      "block_types": [
+        "Stack",
+        "TextContent",
+        "Table",
+        "StepSequence",
+        "DragOrder"
+      ],
+      "plan_trace": {
+        "trace_version": "plan-trace/1",
+        "mode": "shadow",
+        "status": "planned",
+        "mission_rationale": "MISSION_FROM_FIRST_SHAPE_FUNCTION",
+        "live": {
+          "ui_format": "mixed",
+          "shape_functions": [
+            "enumerar",
+            "procedimentar"
+          ],
+          "shape_summary": "labelled_listx3->Table, procedurex5->StepSequence",
+          "assessment_block": "DragOrder",
+          "assessment_item_type": null
+        },
+        "projection": {
+          "declared_presentations": [],
+          "inferred_presentation_bucket": "text-high",
+          "support_band": "guided",
+          "density": 3,
+          "accessibility_capabilities": [],
+          "error_signal": "conceptual",
+          "calibrating": false,
+          "projection_version": "personalization/1"
+        },
+        "shadow": {
+          "objective_id": "b76b9f06-1ed5-51c7-a254-bd9a48b10697",
+          "objective_version": 1,
+          "mission": "recognize",
+          "source_functions": [
+            "enumerate",
+            "procedure"
+          ],
+          "representations": [
+            "text",
+            "table"
+          ],
+          "required_fact_refs": [],
+          "required_safety_refs": [],
+          "support": {
+            "band": "guided",
+            "density": 3,
+            "worked_example": false,
+            "graduated_hints": true,
+            "direct_feedback": true
+          },
+          "component_candidates": [
+            {
+              "component_id": "StepSequence",
+              "version": 1,
+              "presentation": "text",
+              "producer_kind": "content",
+              "affordances": [
+                "inspect_ordered_steps"
+              ],
+              "evidence_events": [],
+              "state_model_ref": null,
+              "rank": 10
+            },
+            {
+              "component_id": "Table",
+              "version": 1,
+              "presentation": "table",
+              "producer_kind": "content",
+              "affordances": [
+                "scan_rows",
+                "compare_values"
+              ],
+              "evidence_events": [],
+              "state_model_ref": null,
+              "rank": 10
+            }
+          ],
+          "rationale_codes": [
+            "MISSION_FROM_OBJECTIVE",
+            "CAPABILITY_FILTERED"
+          ],
+          "policy_version": "learning-experience/1",
+          "projection_version": "personalization/1"
+        }
+      }
+    }
+  ],
+  "failure_dumps": [],
+  "total": {
+    "runs": 3,
+    "graded": 3,
+    "first_pass": 3,
+    "repaired": 0,
+    "fallback": 0,
+    "skipped": 0,
+    "infra_error": 0,
+    "first_pass_pct": 100.0,
+    "repaired_pct": 0.0,
+    "fallback_pct": 0.0,
+    "p50_seconds": 6.06,
+    "p95_seconds": 7.44,
+    "mean_tokens_in": 627.0,
+    "mean_tokens_out": 36.0,
+    "cost_usd_total": null,
+    "cost_usd_per_run": null,
+    "distinct_block_types": 8,
+    "block_type_coverage_pct": 61.5,
+    "mean_distinct_types_per_render": 5.0,
+    "block_types": {
+      "Stack": 3,
+      "TextContent": 3,
+      "Callout": 2,
+      "QuizItem": 2,
+      "Table": 2,
+      "BeforeAfter": 1,
+      "StepSequence": 1,
+      "DragOrder": 1
+    },
+    "block_types_unused": [
+      "Card",
+      "CodeBlock",
+      "Chart",
+      "AudioExplanation",
+      "PronunciationExercise"
+    ]
+  },
+  "per_encargo": {
+    "alergenos-hosteleria": {
+      "runs": 1,
+      "graded": 1,
+      "first_pass": 1,
+      "repaired": 0,
+      "fallback": 0,
+      "skipped": 0,
+      "infra_error": 0,
+      "first_pass_pct": 100.0,
+      "repaired_pct": 0.0,
+      "fallback_pct": 0.0,
+      "p50_seconds": 7.59,
+      "p95_seconds": 7.59,
+      "mean_tokens_in": 633.0,
+      "mean_tokens_out": 42.0,
+      "cost_usd_total": null,
+      "cost_usd_per_run": null,
+      "distinct_block_types": 5,
+      "block_type_coverage_pct": 38.5,
+      "mean_distinct_types_per_render": 5.0,
+      "block_types": {
+        "Stack": 1,
+        "TextContent": 1,
+        "Table": 1,
+        "Callout": 1,
+        "QuizItem": 1
+      },
+      "block_types_unused": [
+        "Card",
+        "StepSequence",
+        "CodeBlock",
+        "Chart",
+        "BeforeAfter",
+        "DragOrder",
+        "AudioExplanation",
+        "PronunciationExercise"
+      ]
+    },
+    "apertura-cierre-caja": {
+      "runs": 1,
+      "graded": 1,
+      "first_pass": 1,
+      "repaired": 0,
+      "fallback": 0,
+      "skipped": 0,
+      "infra_error": 0,
+      "first_pass_pct": 100.0,
+      "repaired_pct": 0.0,
+      "fallback_pct": 0.0,
+      "p50_seconds": 5.11,
+      "p95_seconds": 5.11,
+      "mean_tokens_in": 600.0,
+      "mean_tokens_out": 29.0,
+      "cost_usd_total": null,
+      "cost_usd_per_run": null,
+      "distinct_block_types": 5,
+      "block_type_coverage_pct": 38.5,
+      "mean_distinct_types_per_render": 5.0,
+      "block_types": {
+        "Stack": 1,
+        "TextContent": 1,
+        "BeforeAfter": 1,
+        "Callout": 1,
+        "QuizItem": 1
+      },
+      "block_types_unused": [
+        "Card",
+        "StepSequence",
+        "Table",
+        "CodeBlock",
+        "Chart",
+        "DragOrder",
+        "AudioExplanation",
+        "PronunciationExercise"
+      ]
+    },
+    "atencion-reclamaciones": {
+      "runs": 1,
+      "graded": 1,
+      "first_pass": 1,
+      "repaired": 0,
+      "fallback": 0,
+      "skipped": 0,
+      "infra_error": 0,
+      "first_pass_pct": 100.0,
+      "repaired_pct": 0.0,
+      "fallback_pct": 0.0,
+      "p50_seconds": 6.06,
+      "p95_seconds": 6.06,
+      "mean_tokens_in": 648.0,
+      "mean_tokens_out": 37.0,
+      "cost_usd_total": null,
+      "cost_usd_per_run": null,
+      "distinct_block_types": 5,
+      "block_type_coverage_pct": 38.5,
+      "mean_distinct_types_per_render": 5.0,
+      "block_types": {
+        "Stack": 1,
+        "TextContent": 1,
+        "Table": 1,
+        "StepSequence": 1,
+        "DragOrder": 1
+      },
+      "block_types_unused": [
+        "Card",
+        "Callout",
+        "CodeBlock",
+        "Chart",
+        "QuizItem",
+        "BeforeAfter",
+        "AudioExplanation",
+        "PronunciationExercise"
+      ]
+    }
+  }
+}

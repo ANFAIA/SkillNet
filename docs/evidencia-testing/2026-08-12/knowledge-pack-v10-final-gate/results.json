@@ -1,0 +1,470 @@
+{
+  "schema": "skillnet-pack-tuning/2",
+  "created_at": "2026-08-12T00:33:58.908083+00:00",
+  "model": "gpt-4o-mini",
+  "call_cap": 4,
+  "provider_calls": 4,
+  "prices_per_million": {
+    "input": 0.15,
+    "output": 0.6
+  },
+  "variants": [
+    {
+      "name": "traceable",
+      "policy": {
+        "extractor_max_tokens": 3200,
+        "reviewer_max_tokens": 3200,
+        "min_invariants": 5,
+        "max_atoms": 32,
+        "min_fact_coverage": 1.0,
+        "require_evidence": true
+      }
+    }
+  ],
+  "nodes": [
+    "apertura-cierre-caja",
+    "alergenos-hosteleria"
+  ],
+  "results": [
+    {
+      "variant": "traceable",
+      "node": "apertura-cierre-caja",
+      "outcome": "completed",
+      "passed": true,
+      "atom_count": 11,
+      "invariant_count": 11,
+      "required_evidence_count": 1,
+      "fact_coverage": 1.0,
+      "matched_fact_ids": [
+        "float",
+        "opening-claim",
+        "cash-withdrawal",
+        "z-report",
+        "card-and-vouchers",
+        "mismatch-threshold",
+        "same-day"
+      ],
+      "missing_fact_ids": [],
+      "failures": [],
+      "pack_hash": "8bba38f1c7e4f4d0c59a04a5dbf6a507fa6882769029519a4b1abfbb4b1101f9",
+      "pack_payload": {
+        "evidence_specs": [
+          {
+            "atom_refs": [
+              "must.atom_001"
+            ],
+            "description": "El fondo fijo es de 200 euros en cambio: 40 en monedas de 1 y 2 euros, 30 en monedas pequenas, 80 en billetes de 5 y 50 en billetes de 10.",
+            "evidence_id": "evidence_001",
+            "required": true
+          }
+        ],
+        "format": "node-knowledge-pack/1",
+        "generable_slots": [],
+        "missing_data": [],
+        "must_preserve": [
+          {
+            "atom_id": "must.atom_001",
+            "critical": true,
+            "evidence": [
+              "evidence_001"
+            ],
+            "kind": "fact",
+            "source_units": [
+              "unit.001"
+            ],
+            "sources": [
+              "source:bbbbbbbb-0000-0000-0000-000000000004:node:966d3494-bfca-586b-b90f-e7d1354df30a"
+            ],
+            "text": "El fondo fijo es de 200 euros en cambio: 40 en monedas de 1 y 2 euros, 30 en monedas pequenas, 80 en billetes de 5 y 50 en billetes de 10."
+          },
+          {
+            "atom_id": "must.atom_002",
+            "critical": true,
+            "evidence": [],
+            "kind": "safety_rule",
+            "source_units": [
+              "unit.002"
+            ],
+            "sources": [
+              "source:bbbbbbbb-0000-0000-0000-000000000004:node:966d3494-bfca-586b-b90f-e7d1354df30a"
+            ],
+            "text": "Se cuenta delante del encargado y se firma la hoja de apertura."
+          },
+          {
+            "atom_id": "must.atom_003",
+            "critical": true,
+            "evidence": [],
+            "kind": "procedure_step",
+            "source_units": [
+              "unit.003"
+            ],
+            "sources": [
+              "source:bbbbbbbb-0000-0000-0000-000000000004:node:966d3494-bfca-586b-b90f-e7d1354df30a"
+            ],
+            "text": "Un fondo que no cuadra a la apertura es del turno anterior, y solo se puede reclamar antes de hacer la primera venta."
+          },
+          {
+            "atom_id": "must.atom_004",
+            "critical": true,
+            "evidence": [],
+            "kind": "safety_rule",
+            "source_units": [
+              "unit.004"
+            ],
+            "sources": [
+              "source:bbbbbbbb-0000-0000-0000-000000000004:node:966d3494-bfca-586b-b90f-e7d1354df30a"
+            ],
+            "text": "Retirada de efectivo cada vez que la caja supera 600 euros: se mete en el buzon de seguridad con su sobre numerado."
+          },
+          {
+            "atom_id": "must.atom_005",
+            "critical": true,
+            "evidence": [],
+            "kind": "safety_rule",
+            "source_units": [
+              "unit.005"
+            ],
+            "sources": [
+              "source:bbbbbbbb-0000-0000-0000-000000000004:node:966d3494-bfca-586b-b90f-e7d1354df30a"
+            ],
+            "text": "No se guardan billetes de 200 y 500 en el cajon: van directos al buzon."
+          },
+          {
+            "atom_id": "must.atom_006",
+            "critical": true,
+            "evidence": [],
+            "kind": "procedure_step",
+            "source_units": [
+              "unit.006"
+            ],
+            "sources": [
+              "source:bbbbbbbb-0000-0000-0000-000000000004:node:966d3494-bfca-586b-b90f-e7d1354df30a"
+            ],
+            "text": "Se saca el informe Z del TPV."
+          },
+          {
+            "atom_id": "must.atom_007",
+            "critical": true,
+            "evidence": [],
+            "kind": "fact",
+            "source_units": [
+              "unit.007"
+            ],
+            "sources": [
+              "source:bbbbbbbb-0000-0000-0000-000000000004:node:966d3494-bfca-586b-b90f-e7d1354df30a"
+            ],
+            "text": "Se cuenta el efectivo, se resta el fondo fijo de 200 euros y el resultado debe coincidir con la linea de efectivo del Z."
+          },
+          {
+            "atom_id": "must.atom_008",
+            "critical": true,
+            "evidence": [],
+            "kind": "procedure_step",
+            "source_units": [
+              "unit.008"
+            ],
+            "sources": [
+              "source:bbbbbbbb-0000-0000-0000-000000000004:node:966d3494-bfca-586b-b90f-e7d1354df30a"
+            ],
+            "text": "Los pagos con tarjeta se comparan con el cierre del datafono, y los vales con los justificantes grapados."
+          },
+          {
+            "atom_id": "must.atom_009",
+            "critical": true,
+            "evidence": [],
+            "kind": "safety_rule",
+            "source_units": [
+              "unit.009"
+            ],
+            "sources": [
+              "source:bbbbbbbb-0000-0000-0000-000000000004:node:966d3494-bfca-586b-b90f-e7d1354df30a"
+            ],
+            "text": "Hasta 5 euros de diferencia se anota en la hoja de cierre y se sigue."
+          },
+          {
+            "atom_id": "must.atom_010",
+            "critical": true,
+            "evidence": [],
+            "kind": "safety_rule",
+            "source_units": [
+              "unit.010"
+            ],
+            "sources": [
+              "source:bbbbbbbb-0000-0000-0000-000000000004:node:966d3494-bfca-586b-b90f-e7d1354df30a"
+            ],
+            "text": "Por encima de 5 euros se recuenta una segunda vez y, si persiste, se avisa al encargado antes de irse."
+          },
+          {
+            "atom_id": "must.atom_011",
+            "critical": true,
+            "evidence": [],
+            "kind": "constraint",
+            "source_units": [
+              "unit.011"
+            ],
+            "sources": [
+              "source:bbbbbbbb-0000-0000-0000-000000000004:node:966d3494-bfca-586b-b90f-e7d1354df30a"
+            ],
+            "text": "Un descuadre no comunicado el mismo dia es una falta, aunque sean 6 euros."
+          }
+        ],
+        "node_id": "966d3494-bfca-586b-b90f-e7d1354df30a",
+        "objective": {
+          "available_requirements": [],
+          "mission": "decide",
+          "objective_id": "966d3494-bfca-586b-b90f-e7d1354df30a",
+          "objective_version": 1,
+          "required_fact_refs": [],
+          "required_safety_refs": [],
+          "source_functions": [
+            "assess"
+          ]
+        },
+        "provenance": {
+          "generator": "knowledge-pack/v2-tuning-traceable",
+          "node_id": "966d3494-bfca-586b-b90f-e7d1354df30a",
+          "reviewer": "knowledge-pack/v2-tuning-traceable/reviewer",
+          "schema_version": 1,
+          "semantic_hash": "7998e85134490304610855b159451b0a0834268536efb6eeb5b042d61b49a24a",
+          "source_bundle_hash": "4f0f3e1cf8f943bb829fa10e0a46012812fedae7f217ecbab5f80ac78df65a9e"
+        },
+        "selectable": [],
+        "source_refs": [
+          {
+            "coverage_unit_ids": [
+              "unit.001",
+              "unit.002",
+              "unit.003",
+              "unit.004",
+              "unit.005",
+              "unit.006",
+              "unit.007",
+              "unit.008",
+              "unit.009",
+              "unit.010",
+              "unit.011"
+            ],
+            "document_id": "bbbbbbbb-0000-0000-0000-000000000004",
+            "excerpt_hash": "6852ff3b346fc0cbe75fc444e3dcc2216efc9347e7da83883bc96647ba7104b5",
+            "heading_path": [],
+            "locator": "Arqueo de apertura y cierre de caja",
+            "ref_id": "source:bbbbbbbb-0000-0000-0000-000000000004:node:966d3494-bfca-586b-b90f-e7d1354df30a",
+            "source_revision": "6852ff3b346fc0cbe75fc444e3dcc2216efc9347e7da83883bc96647ba7104b5"
+          }
+        ],
+        "status": "ready",
+        "title": "Arqueo de apertura y cierre de caja"
+      },
+      "markdown": "---\nformat: node-knowledge-pack/1\nnode_id: 966d3494-bfca-586b-b90f-e7d1354df30a\nstatus: ready\ncanonical_hash: 8bba38f1c7e4f4d0c59a04a5dbf6a507fa6882769029519a4b1abfbb4b1101f9\nsource_bundle_hash: 4f0f3e1cf8f943bb829fa10e0a46012812fedae7f217ecbab5f80ac78df65a9e\nsemantic_hash: 7998e85134490304610855b159451b0a0834268536efb6eeb5b042d61b49a24a\n---\n\n# Arqueo de apertura y cierre de caja\n\n## Objetivo\n\n966d3494-bfca-586b-b90f-e7d1354df30a\n\n## Debe conservarse\n\n### `must.atom_001` · fact · crítico\n\nEl fondo fijo es de 200 euros en cambio: 40 en monedas de 1 y 2 euros, 30 en monedas pequenas, 80 en billetes de 5 y 50 en billetes de 10.\n\nFuentes: `source:bbbbbbbb-0000-0000-0000-000000000004:node:966d3494-bfca-586b-b90f-e7d1354df30a` · evidencia: `evidence_001`\n\n### `must.atom_002` · safety_rule · crítico\n\nSe cuenta delante del encargado y se firma la hoja de apertura.\n\nFuentes: `source:bbbbbbbb-0000-0000-0000-000000000004:node:966d3494-bfca-586b-b90f-e7d1354df30a`\n\n### `must.atom_003` · procedure_step · crítico\n\nUn fondo que no cuadra a la apertura es del turno anterior, y solo se puede reclamar antes de hacer la primera venta.\n\nFuentes: `source:bbbbbbbb-0000-0000-0000-000000000004:node:966d3494-bfca-586b-b90f-e7d1354df30a`\n\n### `must.atom_004` · safety_rule · crítico\n\nRetirada de efectivo cada vez que la caja supera 600 euros: se mete en el buzon de seguridad con su sobre numerado.\n\nFuentes: `source:bbbbbbbb-0000-0000-0000-000000000004:node:966d3494-bfca-586b-b90f-e7d1354df30a`\n\n### `must.atom_005` · safety_rule · crítico\n\nNo se guardan billetes de 200 y 500 en el cajon: van directos al buzon.\n\nFuentes: `source:bbbbbbbb-0000-0000-0000-000000000004:node:966d3494-bfca-586b-b90f-e7d1354df30a`\n\n### `must.atom_006` · procedure_step · crítico\n\nSe saca el informe Z del TPV.\n\nFuentes: `source:bbbbbbbb-0000-0000-0000-000000000004:node:966d3494-bfca-586b-b90f-e7d1354df30a`\n\n### `must.atom_007` · fact · crítico\n\nSe cuenta el efectivo, se resta el fondo fijo de 200 euros y el resultado debe coincidir con la linea de efectivo del Z.\n\nFuentes: `source:bbbbbbbb-0000-0000-0000-000000000004:node:966d3494-bfca-586b-b90f-e7d1354df30a`\n\n### `must.atom_008` · procedure_step · crítico\n\nLos pagos con tarjeta se comparan con el cierre del datafono, y los vales con los justificantes grapados.\n\nFuentes: `source:bbbbbbbb-0000-0000-0000-000000000004:node:966d3494-bfca-586b-b90f-e7d1354df30a`\n\n### `must.atom_009` · safety_rule · crítico\n\nHasta 5 euros de diferencia se anota en la hoja de cierre y se sigue.\n\nFuentes: `source:bbbbbbbb-0000-0000-0000-000000000004:node:966d3494-bfca-586b-b90f-e7d1354df30a`\n\n### `must.atom_010` · safety_rule · crítico\n\nPor encima de 5 euros se recuenta una segunda vez y, si persiste, se avisa al encargado antes de irse.\n\nFuentes: `source:bbbbbbbb-0000-0000-0000-000000000004:node:966d3494-bfca-586b-b90f-e7d1354df30a`\n\n### `must.atom_011` · constraint · crítico\n\nUn descuadre no comunicado el mismo dia es una falta, aunque sean 6 euros.\n\nFuentes: `source:bbbbbbbb-0000-0000-0000-000000000004:node:966d3494-bfca-586b-b90f-e7d1354df30a`\n\n## Opciones de adaptación\n\n## Evidencia\n\n- `evidence_001` (obligatoria): El fondo fijo es de 200 euros en cambio: 40 en monedas de 1 y 2 euros, 30 en monedas pequenas, 80 en billetes de 5 y 50 en billetes de 10. — `must.atom_001`\n\n## Fuentes\n\n- `source:bbbbbbbb-0000-0000-0000-000000000004:node:966d3494-bfca-586b-b90f-e7d1354df30a`: documento `bbbbbbbb-0000-0000-0000-000000000004`, sin encabezado, Arqueo de apertura y cierre de caja (revisión `6852ff3b346fc0cbe75fc444e3dcc2216efc9347e7da83883bc96647ba7104b5`)\n",
+      "input_tokens": 6177,
+      "output_tokens": 3254,
+      "duration_ms": 35771,
+      "cost_usd": 0.00287895
+    },
+    {
+      "variant": "traceable",
+      "node": "alergenos-hosteleria",
+      "outcome": "completed",
+      "passed": true,
+      "atom_count": 9,
+      "invariant_count": 9,
+      "required_evidence_count": 1,
+      "fact_coverage": 1.0,
+      "matched_fact_ids": [
+        "allergen-count",
+        "written-before-order",
+        "red-folder",
+        "cross-contact-oil",
+        "green-tools",
+        "never-guess",
+        "anaphylaxis"
+      ],
+      "missing_fact_ids": [],
+      "failures": [],
+      "pack_hash": "84b71e8e524675c74e95a729bcbd6596aa6eb7ed6ea0a1d0ffb675cdcf2ffd90",
+      "pack_payload": {
+        "evidence_specs": [
+          {
+            "atom_refs": [
+              "must.atom_001"
+            ],
+            "description": "Los 14 alergenos de declaracion obligatoria son: cereales con gluten, crustaceos, huevos, pescado, cacahuetes, soja, leche, frutos de cascara, apio, mostaza, granos de sesamo, dioxido de azufre y sulfitos (por encima de 10 mg/kg), altramuces y moluscos.",
+            "evidence_id": "evidence_001",
+            "required": true
+          }
+        ],
+        "format": "node-knowledge-pack/1",
+        "generable_slots": [],
+        "missing_data": [],
+        "must_preserve": [
+          {
+            "atom_id": "must.atom_001",
+            "critical": true,
+            "evidence": [],
+            "kind": "fact",
+            "source_units": [
+              "unit.001"
+            ],
+            "sources": [
+              "source:bbbbbbbb-0000-0000-0000-000000000004:node:ec6c7033-37d3-5d9d-a0ac-ecc4a0a9ae51"
+            ],
+            "text": "Los 14 alergenos de declaracion obligatoria son: cereales con gluten, crustaceos, huevos, pescado, cacahuetes, soja, leche, frutos de cascara, apio, mostaza, granos de sesamo, dioxido de azufre y sulfitos (por encima de 10 mg/kg), altramuces y moluscos."
+          },
+          {
+            "atom_id": "must.atom_002",
+            "critical": true,
+            "evidence": [],
+            "kind": "safety_rule",
+            "source_units": [
+              "unit.002"
+            ],
+            "sources": [
+              "source:bbbbbbbb-0000-0000-0000-000000000004:node:ec6c7033-37d3-5d9d-a0ac-ecc4a0a9ae51"
+            ],
+            "text": "La informacion debe estar disponible por escrito y accesible antes de que el cliente pida."
+          },
+          {
+            "atom_id": "must.atom_003",
+            "critical": true,
+            "evidence": [],
+            "kind": "safety_rule",
+            "source_units": [
+              "unit.003"
+            ],
+            "sources": [
+              "source:bbbbbbbb-0000-0000-0000-000000000004:node:ec6c7033-37d3-5d9d-a0ac-ecc4a0a9ae51"
+            ],
+            "text": "No basta con 'preguntar al cocinero'."
+          },
+          {
+            "atom_id": "must.atom_004",
+            "critical": true,
+            "evidence": [],
+            "kind": "procedure_step",
+            "source_units": [
+              "unit.004"
+            ],
+            "sources": [
+              "source:bbbbbbbb-0000-0000-0000-000000000004:node:ec6c7033-37d3-5d9d-a0ac-ecc4a0a9ae51"
+            ],
+            "text": "La ficha de cada plato se guarda en la carpeta roja de barra y se actualiza cada vez que cambia un proveedor."
+          },
+          {
+            "atom_id": "must.atom_005",
+            "critical": true,
+            "evidence": [],
+            "kind": "safety_rule",
+            "source_units": [
+              "unit.005"
+            ],
+            "sources": [
+              "source:bbbbbbbb-0000-0000-0000-000000000004:node:ec6c7033-37d3-5d9d-a0ac-ecc4a0a9ae51"
+            ],
+            "text": "Freir un rebozado con gluten en el mismo aceite que una patata la convierte en no apta para celiacos."
+          },
+          {
+            "atom_id": "must.atom_006",
+            "critical": true,
+            "evidence": [],
+            "kind": "safety_rule",
+            "source_units": [
+              "unit.006"
+            ],
+            "sources": [
+              "source:bbbbbbbb-0000-0000-0000-000000000004:node:ec6c7033-37d3-5d9d-a0ac-ecc4a0a9ae51"
+            ],
+            "text": "Las tablas y los cuchillos de la zona sin gluten son los de mango verde y no salen de esa zona."
+          },
+          {
+            "atom_id": "must.atom_007",
+            "critical": true,
+            "evidence": [],
+            "kind": "safety_rule",
+            "source_units": [
+              "unit.007"
+            ],
+            "sources": [
+              "source:bbbbbbbb-0000-0000-0000-000000000004:node:ec6c7033-37d3-5d9d-a0ac-ecc4a0a9ae51"
+            ],
+            "text": "Si no se puede garantizar por escrito que un plato esta libre de un alergeno, se dice que no y se ofrece otro plato."
+          },
+          {
+            "atom_id": "must.atom_008",
+            "critical": true,
+            "evidence": [],
+            "kind": "safety_rule",
+            "source_units": [
+              "unit.008"
+            ],
+            "sources": [
+              "source:bbbbbbbb-0000-0000-0000-000000000004:node:ec6c7033-37d3-5d9d-a0ac-ecc4a0a9ae51"
+            ],
+            "text": "Nunca se responde 'creo que no lleva'."
+          },
+          {
+            "atom_id": "must.atom_009",
+            "critical": true,
+            "evidence": [],
+            "kind": "safety_rule",
+            "source_units": [
+              "unit.009"
+            ],
+            "sources": [
+              "source:bbbbbbbb-0000-0000-0000-000000000004:node:ec6c7033-37d3-5d9d-a0ac-ecc4a0a9ae51"
+            ],
+            "text": "Una reaccion anafilactica es una urgencia vital."
+          }
+        ],
+        "node_id": "ec6c7033-37d3-5d9d-a0ac-ecc4a0a9ae51",
+        "objective": {
+          "available_requirements": [],
+          "mission": "recognize",
+          "objective_id": "ec6c7033-37d3-5d9d-a0ac-ecc4a0a9ae51",
+          "objective_version": 1,
+          "required_fact_refs": [],
+          "required_safety_refs": [],
+          "source_functions": [
+            "enumerate"
+          ]
+        },
+        "provenance": {
+          "generator": "knowledge-pack/v2-tuning-traceable",
+          "node_id": "ec6c7033-37d3-5d9d-a0ac-ecc4a0a9ae51",
+          "reviewer": "knowledge-pack/v2-tuning-traceable/reviewer",
+          "schema_version": 1,
+          "semantic_hash": "924d99d330f7626500bfec3df3f339da05387dc6100a122fd1b01d851e81ede8",
+          "source_bundle_hash": "90f1c65a81307b5e4ccea2dd6aedbe62ee9a4a1721baac8c305f04868caf060f"
+        },
+        "selectable": [],
+        "source_refs": [
+          {
+            "coverage_unit_ids": [
+              "unit.001",
+              "unit.002",
+              "unit.003",
+              "unit.004",
+              "unit.005",
+              "unit.006",
+              "unit.007",
+              "unit.008",
+              "unit.009"
+            ],
+            "document_id": "bbbbbbbb-0000-0000-0000-000000000004",
+            "excerpt_hash": "20c8462c5bf2bd637df896921424a668850030243aa7721f03c9767531ebbff0",
+            "heading_path": [],
+            "locator": "Los 14 alergenos de declaracion obligatoria",
+            "ref_id": "source:bbbbbbbb-0000-0000-0000-000000000004:node:ec6c7033-37d3-5d9d-a0ac-ecc4a0a9ae51",
+            "source_revision": "20c8462c5bf2bd637df896921424a668850030243aa7721f03c9767531ebbff0"
+          }
+        ],
+        "status": "ready",
+        "title": "Los 14 alergenos de declaracion obligatoria"
+      },
+      "markdown": "---\nformat: node-knowledge-pack/1\nnode_id: ec6c7033-37d3-5d9d-a0ac-ecc4a0a9ae51\nstatus: ready\ncanonical_hash: 84b71e8e524675c74e95a729bcbd6596aa6eb7ed6ea0a1d0ffb675cdcf2ffd90\nsource_bundle_hash: 90f1c65a81307b5e4ccea2dd6aedbe62ee9a4a1721baac8c305f04868caf060f\nsemantic_hash: 924d99d330f7626500bfec3df3f339da05387dc6100a122fd1b01d851e81ede8\n---\n\n# Los 14 alergenos de declaracion obligatoria\n\n## Objetivo\n\nec6c7033-37d3-5d9d-a0ac-ecc4a0a9ae51\n\n## Debe conservarse\n\n### `must.atom_001` · fact · crítico\n\nLos 14 alergenos de declaracion obligatoria son: cereales con gluten, crustaceos, huevos, pescado, cacahuetes, soja, leche, frutos de cascara, apio, mostaza, granos de sesamo, dioxido de azufre y sulfitos (por encima de 10 mg/kg), altramuces y moluscos.\n\nFuentes: `source:bbbbbbbb-0000-0000-0000-000000000004:node:ec6c7033-37d3-5d9d-a0ac-ecc4a0a9ae51`\n\n### `must.atom_002` · safety_rule · crítico\n\nLa informacion debe estar disponible por escrito y accesible antes de que el cliente pida.\n\nFuentes: `source:bbbbbbbb-0000-0000-0000-000000000004:node:ec6c7033-37d3-5d9d-a0ac-ecc4a0a9ae51`\n\n### `must.atom_003` · safety_rule · crítico\n\nNo basta con 'preguntar al cocinero'.\n\nFuentes: `source:bbbbbbbb-0000-0000-0000-000000000004:node:ec6c7033-37d3-5d9d-a0ac-ecc4a0a9ae51`\n\n### `must.atom_004` · procedure_step · crítico\n\nLa ficha de cada plato se guarda en la carpeta roja de barra y se actualiza cada vez que cambia un proveedor.\n\nFuentes: `source:bbbbbbbb-0000-0000-0000-000000000004:node:ec6c7033-37d3-5d9d-a0ac-ecc4a0a9ae51`\n\n### `must.atom_005` · safety_rule · crítico\n\nFreir un rebozado con gluten en el mismo aceite que una patata la convierte en no apta para celiacos.\n\nFuentes: `source:bbbbbbbb-0000-0000-0000-000000000004:node:ec6c7033-37d3-5d9d-a0ac-ecc4a0a9ae51`\n\n### `must.atom_006` · safety_rule · crítico\n\nLas tablas y los cuchillos de la zona sin gluten son los de mango verde y no salen de esa zona.\n\nFuentes: `source:bbbbbbbb-0000-0000-0000-000000000004:node:ec6c7033-37d3-5d9d-a0ac-ecc4a0a9ae51`\n\n### `must.atom_007` · safety_rule · crítico\n\nSi no se puede garantizar por escrito que un plato esta libre de un alergeno, se dice que no y se ofrece otro plato.\n\nFuentes: `source:bbbbbbbb-0000-0000-0000-000000000004:node:ec6c7033-37d3-5d9d-a0ac-ecc4a0a9ae51`\n\n### `must.atom_008` · safety_rule · crítico\n\nNunca se responde 'creo que no lleva'.\n\nFuentes: `source:bbbbbbbb-0000-0000-0000-000000000004:node:ec6c7033-37d3-5d9d-a0ac-ecc4a0a9ae51`\n\n### `must.atom_009` · safety_rule · crítico\n\nUna reaccion anafilactica es una urgencia vital.\n\nFuentes: `source:bbbbbbbb-0000-0000-0000-000000000004:node:ec6c7033-37d3-5d9d-a0ac-ecc4a0a9ae51`\n\n## Opciones de adaptación\n\n## Evidencia\n\n- `evidence_001` (obligatoria): Los 14 alergenos de declaracion obligatoria son: cereales con gluten, crustaceos, huevos, pescado, cacahuetes, soja, leche, frutos de cascara, apio, mostaza, granos de sesamo, dioxido de azufre y sulfitos (por encima de 10 mg/kg), altramuces y moluscos. — `must.atom_001`\n\n## Fuentes\n\n- `source:bbbbbbbb-0000-0000-0000-000000000004:node:ec6c7033-37d3-5d9d-a0ac-ecc4a0a9ae51`: documento `bbbbbbbb-0000-0000-0000-000000000004`, sin encabezado, Los 14 alergenos de declaracion obligatoria (revisión `20c8462c5bf2bd637df896921424a668850030243aa7721f03c9767531ebbff0`)\n",
+      "input_tokens": 5803,
+      "output_tokens": 2704,
+      "duration_ms": 31941,
+      "cost_usd": 0.00249285
+    }
+  ]
+}

@@ -1,5 +1,6 @@
 import { motion, type HTMLMotionProps } from 'framer-motion'
-import { spring, duration, ease } from '../../lib/motion'
+import { useReducedMotion } from '../../hooks/useReducedMotion'
+import { spring } from '../../lib/motion'
 
 type CardVariant = 'default' | 'interactive'
 
@@ -21,16 +22,14 @@ export function Card({
   ...props
 }: CardProps) {
   const interactive = variant === 'interactive'
+  const reducedMotion = useReducedMotion()
 
   return (
     <motion.div
       className={`${variantClasses[variant]} ${className}`}
-      whileHover={interactive ? { scale: 1.02, boxShadow: '0 8px 32px -8px rgba(0,0,0,0.12)' } : undefined}
-      whileTap={interactive ? { scale: 0.98 } : undefined}
-      transition={{
-        scale: spring.default,
-        boxShadow: { duration: duration.normal, ease: ease.base },
-      }}
+      whileHover={interactive && !reducedMotion ? { y: -1 } : undefined}
+      whileTap={interactive && !reducedMotion ? { scale: 0.99 } : undefined}
+      transition={spring.default}
       {...props}
     >
       {children}

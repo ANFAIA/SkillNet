@@ -27,9 +27,13 @@ apps/skillnet-api/data/media_assets/
 backups/
 # Output of scripts/quality_bench.py: run summaries and raw model dumps.
 apps/skillnet-api/bench_out/
+# Runtime-generated TTS responses.
+apps/skillnet-api/data/tts_cache/
 
 # Agent workspace
 .claude/
+.codex-evidence/
+.pnpm-store/
 AGENTS.md
 CLAUDE.md
 

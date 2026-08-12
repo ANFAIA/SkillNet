@@ -42,7 +42,7 @@ function course(overrides: Record<string, unknown> = {}) {
 }
 
 function installFetch(items: unknown[] = [course()]) {
-  mockFetch.mockImplementation((input: string) => {
+  mockFetch.mockImplementation((input: string, options?: RequestInit) => {
     const url = String(input)
     if (url.endsWith('/health')) {
       return jsonResponse(200, {
@@ -51,6 +51,12 @@ function installFetch(items: unknown[] = [course()]) {
         database: 'ok',
       })
     }
+    if (url.includes('/course-folders')) {
+      return jsonResponse(200, [{ id: 'folder-1', name: 'Operaciones', course_count: 1 }])
+    }
+    if (url.includes('/courses/') && options?.method === 'PUT') {
+      return jsonResponse(200, { ...(items[0] as Record<string, unknown>), folder_id: 'folder-1', folder_name: 'Operaciones' })
+    }
     if (url.includes('/courses')) {
       return jsonResponse(200, { items, total: items.length, page: 1, size: 20 })
     }
@@ -58,13 +64,13 @@ function installFetch(items: unknown[] = [course()]) {
   })
 }
 
-function renderPage() {
+function renderPage(initialEntry = '/admin/contenido') {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   })
   return render(
     <QueryClientProvider client={client}>
-      <MemoryRouter initialEntries={['/admin/contenido']}>
+      <MemoryRouter initialEntries={[initialEntry]}>
         <Routes>
           <Route path="/admin/contenido" element={<Content />} />
           <Route path="/admin/curso/:id/esquema" element={<div>ESQUEMA</div>} />
@@ -78,6 +84,33 @@ function renderPage() {
 beforeEach(() => {
   mockFetch.mockReset()
   vi.stubGlobal('fetch', mockFetch)
+})
+
+describe('Content — library navigation', () => {
+  it('sends URL-backed search, status, and folder filters to the API', async () => {
+    installFetch()
+    renderPage('/admin/contenido?q=devoluciones&status=draft&folder=folder-1')
+
+    await screen.findByText('Devoluciones en tienda')
+    expect(mockFetch.mock.calls.some(([input]) => {
+      const url = String(input)
+      return url.includes('/courses?') && url.includes('search=devoluciones') && url.includes('status=draft') && url.includes('folder_id=folder-1')
+    })).toBe(true)
+  })
+
+  it('moves a course into a folder from its row', async () => {
+    installFetch()
+    renderPage()
+
+    const select = await screen.findByRole('combobox', { name: /Mover Devoluciones en tienda/ })
+    await userEvent.selectOptions(select, 'folder-1')
+
+    expect(mockFetch.mock.calls.some(([input, options]) =>
+      String(input).includes(`/courses/${COURSE_ID}`) &&
+      options?.method === 'PUT' &&
+      options.body === JSON.stringify({ folder_id: 'folder-1' }),
+    )).toBe(true)
+  })
 })
 
 afterEach(() => {

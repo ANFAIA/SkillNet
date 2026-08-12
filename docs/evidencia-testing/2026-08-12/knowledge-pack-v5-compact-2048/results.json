@@ -1,0 +1,161 @@
+{
+  "schema": "skillnet-pack-tuning/2",
+  "created_at": "2026-08-12T00:17:03.479154+00:00",
+  "model": "gpt-4o-mini",
+  "call_cap": 2,
+  "provider_calls": 2,
+  "prices_per_million": {
+    "input": 0.15,
+    "output": 0.6
+  },
+  "variants": [
+    {
+      "name": "coverage",
+      "policy": {
+        "extractor_max_tokens": 2048,
+        "reviewer_max_tokens": 2048,
+        "min_invariants": 5,
+        "max_atoms": 24,
+        "min_fact_coverage": 1.0,
+        "require_evidence": true
+      }
+    }
+  ],
+  "nodes": [
+    "atencion-reclamaciones"
+  ],
+  "results": [
+    {
+      "variant": "coverage",
+      "node": "atencion-reclamaciones",
+      "outcome": "completed",
+      "passed": false,
+      "atom_count": 4,
+      "invariant_count": 4,
+      "required_evidence_count": 1,
+      "fact_coverage": 0.2857142857142857,
+      "matched_fact_ids": [
+        "listen",
+        "hold-limit"
+      ],
+      "missing_fact_ids": [
+        "reformulate",
+        "effect-not-blame",
+        "commitment",
+        "crm-timing",
+        "written-deadline"
+      ],
+      "failures": [
+        "invariants 4 < minimum 5",
+        "fact coverage 28.6% < minimum 100.0%; missing=reformulate,effect-not-blame,commitment,crm-timing,written-deadline"
+      ],
+      "pack_hash": "a50d16cc84077d5d990b2730ce48ece40ea254e80d850790699223a9397a89cf",
+      "pack_payload": {
+        "evidence_specs": [
+          {
+            "atom_refs": [
+              "must.u001",
+              "must.u002",
+              "must.u003",
+              "must.u004"
+            ],
+            "description": "Protocol for handling telephone complaints.",
+            "evidence_id": "evidence_001",
+            "required": true
+          }
+        ],
+        "format": "node-knowledge-pack/1",
+        "generable_slots": [],
+        "missing_data": [],
+        "must_preserve": [
+          {
+            "atom_id": "must.u001",
+            "critical": true,
+            "evidence": [
+              "evidence_001"
+            ],
+            "kind": "fact",
+            "sources": [
+              "source:bbbbbbbb-0000-0000-0000-000000000004:node:b76b9f06-1ed5-51c7-a254-bd9a48b10697"
+            ],
+            "text": "PROTOCOLO DE ATENCION TELEFONICA DE RECLAMACIONES."
+          },
+          {
+            "atom_id": "must.u002",
+            "critical": true,
+            "evidence": [
+              "evidence_001"
+            ],
+            "kind": "procedure_step",
+            "sources": [
+              "source:bbbbbbbb-0000-0000-0000-000000000004:node:b76b9f06-1ed5-51c7-a254-bd9a48b10697"
+            ],
+            "text": "Fase 1 - Escucha: Se deja hablar al cliente hasta el final sin interrumpir, aunque se sepa la respuesta a la segunda frase."
+          },
+          {
+            "atom_id": "must.u003",
+            "critical": true,
+            "evidence": [
+              "evidence_001"
+            ],
+            "kind": "safety_rule",
+            "sources": [
+              "source:bbbbbbbb-0000-0000-0000-000000000004:node:b76b9f06-1ed5-51c7-a254-bd9a48b10697"
+            ],
+            "text": "Interrumpir alarga la llamada: el cliente vuelve a empezar desde el principio."
+          },
+          {
+            "atom_id": "must.u004",
+            "critical": true,
+            "evidence": [
+              "evidence_001"
+            ],
+            "kind": "safety_rule",
+            "sources": [
+              "source:bbbbbbbb-0000-0000-0000-000000000004:node:b76b9f06-1ed5-51c7-a254-bd9a48b10697"
+            ],
+            "text": "No se discute la petición de hablar con un responsable y no se deja en espera más de 60 segundos sin volver a la línea."
+          }
+        ],
+        "node_id": "b76b9f06-1ed5-51c7-a254-bd9a48b10697",
+        "objective": {
+          "available_requirements": [],
+          "mission": "reconstruct",
+          "objective_id": "b76b9f06-1ed5-51c7-a254-bd9a48b10697",
+          "objective_version": 1,
+          "required_fact_refs": [],
+          "required_safety_refs": [],
+          "source_functions": [
+            "procedure"
+          ]
+        },
+        "provenance": {
+          "generator": "knowledge-pack/v2-tuning-coverage",
+          "node_id": "b76b9f06-1ed5-51c7-a254-bd9a48b10697",
+          "reviewer": "knowledge-pack/v2-tuning-coverage/reviewer",
+          "schema_version": 1,
+          "semantic_hash": "981ec7c7eaa5bba8dd01fd8e1d2388204eab0ce141ca2eb0a6dc311443432c70",
+          "source_bundle_hash": "10ef3ecf9ece681a587e1f9f0db196e591d7b8432a300f4279f1f48b05b3be1e"
+        },
+        "selectable": [],
+        "source_refs": [
+          {
+            "document_id": "bbbbbbbb-0000-0000-0000-000000000004",
+            "excerpt_hash": "af1f3978f7233d6b1818c97f872c80d177529469910b0051e21bdac2113bf2b6",
+            "heading_path": [],
+            "locator": "Atencion telefonica de una reclamacion",
+            "ref_id": "source:bbbbbbbb-0000-0000-0000-000000000004:node:b76b9f06-1ed5-51c7-a254-bd9a48b10697",
+            "source_revision": "af1f3978f7233d6b1818c97f872c80d177529469910b0051e21bdac2113bf2b6"
+          }
+        ],
+        "status": "ready",
+        "title": "Atencion telefonica de una reclamacion"
+      },
+      "markdown": "---\nformat: node-knowledge-pack/1\nnode_id: b76b9f06-1ed5-51c7-a254-bd9a48b10697\nstatus: ready\ncanonical_hash: a50d16cc84077d5d990b2730ce48ece40ea254e80d850790699223a9397a89cf\nsource_bundle_hash: 10ef3ecf9ece681a587e1f9f0db196e591d7b8432a300f4279f1f48b05b3be1e\nsemantic_hash: 981ec7c7eaa5bba8dd01fd8e1d2388204eab0ce141ca2eb0a6dc311443432c70\n---\n\n# Atencion telefonica de una reclamacion\n\n## Objetivo\n\nb76b9f06-1ed5-51c7-a254-bd9a48b10697\n\n## Debe conservarse\n\n### `must.u001` · fact · crítico\n\nPROTOCOLO DE ATENCION TELEFONICA DE RECLAMACIONES.\n\nFuentes: `source:bbbbbbbb-0000-0000-0000-000000000004:node:b76b9f06-1ed5-51c7-a254-bd9a48b10697` · evidencia: `evidence_001`\n\n### `must.u002` · procedure_step · crítico\n\nFase 1 - Escucha: Se deja hablar al cliente hasta el final sin interrumpir, aunque se sepa la respuesta a la segunda frase.\n\nFuentes: `source:bbbbbbbb-0000-0000-0000-000000000004:node:b76b9f06-1ed5-51c7-a254-bd9a48b10697` · evidencia: `evidence_001`\n\n### `must.u003` · safety_rule · crítico\n\nInterrumpir alarga la llamada: el cliente vuelve a empezar desde el principio.\n\nFuentes: `source:bbbbbbbb-0000-0000-0000-000000000004:node:b76b9f06-1ed5-51c7-a254-bd9a48b10697` · evidencia: `evidence_001`\n\n### `must.u004` · safety_rule · crítico\n\nNo se discute la petición de hablar con un responsable y no se deja en espera más de 60 segundos sin volver a la línea.\n\nFuentes: `source:bbbbbbbb-0000-0000-0000-000000000004:node:b76b9f06-1ed5-51c7-a254-bd9a48b10697` · evidencia: `evidence_001`\n\n## Opciones de adaptación\n\n## Evidencia\n\n- `evidence_001` (obligatoria): Protocol for handling telephone complaints. — `must.u001`, `must.u002`, `must.u003`, `must.u004`\n\n## Fuentes\n\n- `source:bbbbbbbb-0000-0000-0000-000000000004:node:b76b9f06-1ed5-51c7-a254-bd9a48b10697`: documento `bbbbbbbb-0000-0000-0000-000000000004`, sin encabezado, Atencion telefonica de una reclamacion (revisión `af1f3978f7233d6b1818c97f872c80d177529469910b0051e21bdac2113bf2b6`)\n",
+      "input_tokens": 4979,
+      "output_tokens": 1159,
+      "duration_ms": 15804,
+      "cost_usd": 0.00144225
+    }
+  ]
+}

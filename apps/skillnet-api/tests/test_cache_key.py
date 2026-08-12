@@ -185,6 +185,16 @@ def test_two_learners_of_the_same_bucket_share_the_key():
     assert first == second
 
 
+def test_a_validated_knowledge_selection_partitions_the_render_cache():
+    raw = key(knowledge_pack_key="")
+    first = key(knowledge_pack_key=f"{'a' * 64}:{'b' * 64}")
+    second = key(knowledge_pack_key=f"{'a' * 64}:{'c' * 64}")
+
+    assert raw != first
+    assert first != second
+    assert key(knowledge_pack_key="") == raw
+
+
 def test_enum_members_and_their_values_key_the_same():
     """A row loaded through raw SQL must not land in a different bucket."""
     assert key(

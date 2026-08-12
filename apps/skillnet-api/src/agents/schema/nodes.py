@@ -29,6 +29,7 @@ from src.agents.schema.errors import schema_node_error_wrapper, sse_channel
 from src.agents.schema.state import SchemaState
 from src.core import sse
 from src.core.logging import get_logger
+from src.core.tasks import task_registry
 from src.deps.db import async_session_factory
 from src.llm.client import LLMService, resolve_llm_config
 from src.llm.fixtures import maybe_fixture_llm
@@ -83,6 +84,48 @@ async def _make_llm(org_id: uuid.UUID) -> LLMService:
     async with async_session_factory() as db:
         org_settings = await _org_settings(db, org_id)
     return maybe_fixture_llm(resolve_llm_config(org_settings, purpose="generation"))
+
+
+async def _run_knowledge_pack_shadow(
+    course_id: uuid.UUID, org_id: uuid.UUID, schema_version: int
+) -> None:
+    """Prepare reviewed node dossiers after schema persistence, never in its transaction."""
+
+    from src.knowledge_pack.configured_generator import ConfiguredKnowledgePackGenerator
+    from src.knowledge_pack.runner import (
+        KnowledgePackRunnerDependencies,
+        run_packs_for_schema,
+    )
+
+    llm = await _make_llm(org_id)
+    await run_packs_for_schema(
+        course_id,
+        org_id,
+        schema_version,
+        dependencies=KnowledgePackRunnerDependencies(
+            generator=ConfiguredKnowledgePackGenerator(llm)
+        ),
+    )
+
+
+def _spawn_knowledge_pack_shadow(
+    course_id: uuid.UUID, org_id: uuid.UUID, schema_version: int
+) -> None:
+    """Fail-open handoff: pack generation can never invalidate a usable index."""
+
+    coroutine = _run_knowledge_pack_shadow(course_id, org_id, schema_version)
+    try:
+        task_registry.spawn(
+            coroutine, name=f"knowledge-pack:{course_id}:v{schema_version}"
+        )
+    except Exception:  # noqa: BLE001 - the schema remains the authoritative result.
+        coroutine.close()
+        logger.warning(
+            "Could not schedule knowledge-pack shadow run course=%s schema=%s",
+            course_id,
+            schema_version,
+            exc_info=True,
+        )
 
 
 async def _set_job(job_id: str, **fields: Any) -> None:
@@ -518,7 +561,12 @@ async def persist_schema(state: SchemaState) -> dict:
                     ],
                 },
             )
+        schema_version = int(course.schema_version or 1)
         await db.commit()
+
+    # The schema is durable before any pack worker is allowed to read it. The worker
+    # opens fresh sessions and failures are isolated from the schema_ready event below.
+    _spawn_knowledge_pack_shadow(course_id, org_id, schema_version)
 
     await sse.publish(
         sse_channel(job_id),

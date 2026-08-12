@@ -3,11 +3,13 @@
 import uuid
 from collections.abc import Sequence
 
-from sqlalchemy import case, func, select
+from sqlalchemy import case, delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from src.models.skill import Skill
+from src.models.course import Course
+from src.models.course_skill import CourseSkill
 from src.models.skill_category import SkillCategory
 from src.models.user import User
 from src.models.user_skill import SkillLevel, UserSkill
@@ -61,9 +63,81 @@ class SkillRepository(BaseRepository[Skill]):
         return categories
 
     async def get_by_name(self, org_id: uuid.UUID, name: str) -> Skill | None:
-        stmt = select(Skill).where(Skill.org_id == org_id, Skill.name == name)
+        stmt = select(Skill).where(
+            Skill.org_id == org_id, func.lower(Skill.name) == name.casefold()
+        )
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
+
+    async def get_scoped(self, skill_id: uuid.UUID, org_id: uuid.UUID) -> Skill | None:
+        stmt = select(Skill).where(Skill.id == skill_id, Skill.org_id == org_id)
+        return (await self.session.execute(stmt)).scalar_one_or_none()
+
+    async def list_flat(
+        self,
+        *,
+        org_id: uuid.UUID,
+        search: str | None = None,
+        offset: int = 0,
+        limit: int = 50,
+    ) -> tuple[Sequence[Skill], int]:
+        filters = [Skill.org_id == org_id]
+        if search:
+            pattern = f"%{search.strip()}%"
+            filters.append(Skill.name.ilike(pattern))
+        count = (
+            await self.session.execute(
+                select(func.count()).select_from(Skill).where(*filters)
+            )
+        ).scalar_one()
+        stmt = (
+            select(Skill)
+            .where(*filters)
+            .order_by(func.lower(Skill.name))
+            .offset(offset)
+            .limit(limit)
+        )
+        return (await self.session.execute(stmt)).scalars().all(), count
+
+    async def list_for_course(
+        self, course_id: uuid.UUID, org_id: uuid.UUID
+    ) -> Sequence[Skill]:
+        stmt = (
+            select(Skill)
+            .join(CourseSkill, CourseSkill.skill_id == Skill.id)
+            .join(Course, Course.id == CourseSkill.course_id)
+            .where(Course.id == course_id, Course.org_id == org_id)
+            .order_by(func.lower(Skill.name))
+        )
+        return (await self.session.execute(stmt)).scalars().all()
+
+    async def replace_course_skills(
+        self, course_id: uuid.UUID, skills: Sequence[Skill]
+    ) -> None:
+        await self.session.execute(
+            delete(CourseSkill).where(CourseSkill.course_id == course_id)
+        )
+        self.session.add_all(
+            [CourseSkill(course_id=course_id, skill_id=skill.id) for skill in skills]
+        )
+        await self.session.flush()
+
+    async def usage_count(self, skill_id: uuid.UUID) -> int:
+        course_count = (
+            await self.session.execute(
+                select(func.count()).select_from(CourseSkill).where(
+                    CourseSkill.skill_id == skill_id
+                )
+            )
+        ).scalar_one()
+        user_count = (
+            await self.session.execute(
+                select(func.count()).select_from(UserSkill).where(
+                    UserSkill.skill_id == skill_id
+                )
+            )
+        ).scalar_one()
+        return course_count + user_count
 
     # ------------------------------------------------------------------
     # Who-knows

@@ -38,7 +38,10 @@ class CourseRead(BaseModel):
     outcome: str | None = None
     status: str
     source_document_id: uuid.UUID | None = None
+    folder_id: uuid.UUID | None = None
+    folder_name: str | None = None
     created_at: datetime
+    updated_at: datetime
     module_count: int | None = None
     node_count: int | None = None
     schema_status: str | None = None
@@ -62,6 +65,7 @@ class CourseCreate(BaseModel):
     outcome: str | None = None
     source_document_id: uuid.UUID | None = None
     document_ids: list[uuid.UUID] | None = None
+    folder_id: uuid.UUID | None = None
 
     @field_validator("title")
     @classmethod
@@ -76,6 +80,7 @@ class CourseUpdate(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=300)
     description: str | None = None
     outcome: str | None = None
+    folder_id: uuid.UUID | None = None
 
     @field_validator("title")
     @classmethod

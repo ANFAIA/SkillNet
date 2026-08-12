@@ -122,6 +122,20 @@ describe('Dashboard — node-based courses', () => {
     expect(await screen.findByText('Devoluciones en tienda')).toBeInTheDocument()
     expect(screen.queryByText('Por nodos')).toBeNull()
   })
+
+  it('renders normalized enrollment scores as a percentage', async () => {
+    installFetch([
+      enrollment({
+        status: 'completed',
+        progress: 1,
+        score: 0.925,
+        completed_at: '2026-07-08T00:00:00Z',
+      }),
+    ])
+    renderPage()
+
+    expect(await screen.findByText('93%')).toBeInTheDocument()
+  })
 })
 
 describe('Dashboard — the Skill Map link', () => {

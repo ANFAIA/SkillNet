@@ -12,7 +12,7 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { ExplainModal } from './ExplainModal'
-import { EXPLAIN_LAYER_MODAL } from './explainLayer'
+import { EXPLAIN_LAYER_MODAL } from './explainLayers'
 
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom')
@@ -39,7 +39,7 @@ function sse(events: string[]) {
   })
 }
 
-/** A `/chat/admin` answer as prose: no `ui` event, so the panel falls back to markdown. */
+/** A `/chat` tutor answer as prose: no `ui` event, so the panel falls back to markdown. */
 function chatProse(text: string) {
   return sse([`event: token\ndata: ${JSON.stringify({ content: text })}\n\n`])
 }
@@ -101,6 +101,15 @@ afterEach(() => {
 })
 
 describe('ExplainModal', () => {
+  it('uses the shared tutor endpoint, never the admin-only assistant', async () => {
+    renderModal()
+    await screen.findByText('producto')
+
+    const urls = mockFetch.mock.calls.map(([url]) => String(url))
+    expect(urls).toContain('/api/v1/chat')
+    expect(urls).not.toContain('/api/v1/chat/admin')
+  })
+
   describe('clicking a word inside the panel', () => {
     it('opens a popover, which is the whole point of the modal', async () => {
       renderModal()

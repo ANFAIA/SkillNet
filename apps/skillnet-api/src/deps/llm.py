@@ -36,6 +36,12 @@ async def get_tutor_llm_service(db: DBSession) -> LLMService:
     )
 
 
+async def get_generation_llm_service(db: DBSession) -> LLMService:
+    return maybe_fixture_llm(
+        resolve_llm_config(await _org_settings(db), purpose="generation")
+    )
+
+
 async def get_embedding_service(db: DBSession) -> EmbeddingService:
     return maybe_fixture_embedder(resolve_embedding_config(await _org_settings(db)))
 
@@ -56,6 +62,7 @@ async def get_optional_llm_service(db: DBSession) -> LLMService | None:
 
 
 LLMDep = Annotated[LLMService, Depends(get_llm_service)]
+GenerationLLMDep = Annotated[LLMService, Depends(get_generation_llm_service)]
 TutorLLMDep = Annotated[LLMService, Depends(get_tutor_llm_service)]
 EmbeddingDep = Annotated[EmbeddingService, Depends(get_embedding_service)]
 OptionalLLMDep = Annotated[LLMService | None, Depends(get_optional_llm_service)]

@@ -26,7 +26,8 @@ from datetime import datetime, timezone
 
 from sqlalchemy import select
 
-from src.core.exceptions import ValidationError
+from src.core.exceptions import ConflictError, NotFoundError, ValidationError
+from src.models import Skill
 from src.core.logging import get_logger
 from src.models.user_skill import SkillLevel, UserSkill
 from src.repositories.skill_repo import SkillRepository
@@ -68,6 +69,102 @@ def mastery_to_level(mastery: float) -> SkillLevel:
 class SkillService:
     def __init__(self, repo: SkillRepository) -> None:
         self.repo = repo
+
+    async def list_flat(
+        self,
+        *,
+        org_id: uuid.UUID,
+        search: str | None,
+        offset: int,
+        limit: int,
+    ) -> tuple[list[Skill], int]:
+        rows, total = await self.repo.list_flat(
+            org_id=org_id, search=search, offset=offset, limit=limit
+        )
+        return list(rows), total
+
+    async def create_skill(
+        self, *, org_id: uuid.UUID, name: str, description: str | None
+    ) -> Skill:
+        if await self.repo.get_by_name(org_id, name):
+            raise ConflictError("A skill with this name already exists", field="name")
+        return await self.repo.create(
+            org_id=org_id, name=name, description=description
+        )
+
+    async def update_skill(
+        self,
+        *,
+        org_id: uuid.UUID,
+        skill_id: uuid.UUID,
+        changes: dict,
+    ) -> Skill:
+        skill = await self.repo.get_scoped(skill_id, org_id)
+        if skill is None:
+            raise NotFoundError("skills", str(skill_id))
+        name = changes.get("name")
+        if name is not None:
+            duplicate = await self.repo.get_by_name(org_id, name)
+            if duplicate is not None and duplicate.id != skill.id:
+                raise ConflictError(
+                    "A skill with this name already exists", field="name"
+                )
+        return await self.repo.update(skill, **changes)
+
+    async def delete_skill(
+        self, *, org_id: uuid.UUID, skill_id: uuid.UUID
+    ) -> None:
+        skill = await self.repo.get_scoped(skill_id, org_id)
+        if skill is None:
+            raise NotFoundError("skills", str(skill_id))
+        if await self.repo.usage_count(skill_id):
+            raise ConflictError("A skill in use cannot be deleted")
+        await self.repo.delete(skill)
+
+    async def list_course_skills(
+        self, *, org_id: uuid.UUID, course_id: uuid.UUID
+    ) -> list[Skill]:
+        from src.repositories.course_repo import CourseRepository
+
+        if await CourseRepository(self.repo.session).get_scoped(course_id, org_id) is None:
+            raise NotFoundError("courses", str(course_id))
+        return list(await self.repo.list_for_course(course_id, org_id))
+
+    async def replace_course_skills(
+        self,
+        *,
+        org_id: uuid.UUID,
+        course_id: uuid.UUID,
+        items: list[dict],
+    ) -> list[Skill]:
+        from src.repositories.course_repo import CourseRepository
+
+        if await CourseRepository(self.repo.session).get_scoped(course_id, org_id) is None:
+            raise NotFoundError("courses", str(course_id))
+
+        resolved: list[Skill] = []
+        seen: set[uuid.UUID] = set()
+        for item in items:
+            skill: Skill | None = None
+            if item.get("id") is not None:
+                skill = await self.repo.get_scoped(item["id"], org_id)
+                if skill is None:
+                    raise NotFoundError("skills", str(item["id"]))
+            else:
+                name = item["name"]
+                skill = await self.repo.get_by_name(org_id, name)
+                if skill is None:
+                    skill = await self.repo.create(
+                        org_id=org_id,
+                        name=name,
+                        description=item.get("description"),
+                    )
+            if skill.id not in seen:
+                seen.add(skill.id)
+                resolved.append(skill)
+
+        await self.repo.replace_course_skills(course_id, resolved)
+        return resolved
 
     async def list_skills(self, org_id: uuid.UUID) -> list[dict]:
         """Return the full skill taxonomy grouped by category."""

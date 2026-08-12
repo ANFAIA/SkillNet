@@ -5,7 +5,7 @@
  * explanation in a scrollable area with clickable words inside it, a navigation
  * stack (breadcrumb + back button) for drilling into terms found in the
  * explanation itself, and a follow-up composer at the bottom that streams
- * answers from `POST /api/v1/chat/admin`.
+ * answers from the shared tutor at `POST /api/v1/chat`.
  *
  * Inspired by Curio's DescribeModal but adapted to SkillNet's design tokens
  * and existing infrastructure.
@@ -20,7 +20,8 @@ import {
 import { createPortal } from 'react-dom'
 import { useIntl } from 'react-intl'
 import { ClickableSurface } from './ClickableSurface'
-import { ExplainLayer, EXPLAIN_LAYER_MODAL } from './explainLayer'
+import { ExplainLayer } from './explainLayer'
+import { EXPLAIN_LAYER_MODAL } from './explainLayers'
 import { UiSpecRenderer } from './UiSpecRenderer'
 import { gateProgram } from './kit'
 import { ChatInput } from '../chat/ChatInput'
@@ -73,7 +74,7 @@ function BackIcon() {
 // ── SSE parser for follow-up chat ───────────────────────────────
 
 /**
- * Stream a follow-up question to `POST /api/v1/chat/admin`. Same SSE dialect as
+ * Stream a follow-up question to `POST /api/v1/chat`. Same SSE dialect as
  * the main chat — copied here so the modal does not depend on `useChat`'s
  * message-list state, which is page-level.
  */
@@ -82,7 +83,7 @@ async function streamFollowUp(
   signal: AbortSignal,
   onToken: (chunk: string) => void,
 ): Promise<void> {
-  const res = await fetch('/api/v1/chat/admin', {
+  const res = await fetch('/api/v1/chat', {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
@@ -140,7 +141,9 @@ interface ExplanationPanelProps {
 }
 
 /**
- * Generates a rich OpenUI explanation for a term via the chat admin endpoint.
+ * Generates a rich OpenUI explanation through the learner tutor endpoint. That route
+ * also accepts admins previewing a course, so one surface works for both roles without
+ * granting employees access to the organization assistant.
  * Falls back to prose if the model doesn't produce valid OpenUI Lang.
  *
  * It does **not** own a `ClickableSurface`: the modal wraps one around this panel *and*
@@ -174,10 +177,10 @@ function ExplanationPanel({
       `Hazlo visual y claro, con ejemplos si ayudan.` +
       (language ? ` Responde en ${language}.` : '')
 
-    // Stream from the chat admin endpoint which generates OpenUI Lang directly
+    // Stream from the shared tutor endpoint, which can also emit OpenUI Lang.
     ;(async () => {
       try {
-        const res = await fetch('/api/v1/chat/admin', {
+        const res = await fetch('/api/v1/chat', {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
@@ -228,7 +231,7 @@ function ExplanationPanel({
     })()
 
     return () => controller.abort()
-  }, [term, context, language])
+  }, [term, context, language, intl])
 
   // Check if we got a valid program
   const gate = gateProgram(program)

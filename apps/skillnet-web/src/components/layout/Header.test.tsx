@@ -110,6 +110,17 @@ describe('Header — learning settings', () => {
   })
 })
 
+describe('Header — surface', () => {
+  it('uses the page surface instead of extending the blue frame', () => {
+    installFetch('employee')
+    const { container } = renderHeader()
+    const header = container.querySelector('header')
+
+    expect(header).toHaveClass('bg-bg')
+    expect(header).not.toHaveClass('frame-surface')
+  })
+})
+
 describe('Header — the admin gate', () => {
   it('never offers the wizard to an admin', async () => {
     installFetch('admin')

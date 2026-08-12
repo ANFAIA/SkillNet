@@ -3,7 +3,7 @@
 import uuid
 from collections.abc import Sequence
 
-from sqlalchemy import distinct, func, select
+from sqlalchemy import distinct, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlalchemy.sql.elements import ColumnElement
@@ -27,6 +27,9 @@ class CourseRepository(BaseRepository[Course]):
         *,
         org_id: uuid.UUID,
         status: ContentStatus | None = None,
+        search: str | None = None,
+        folder_id: uuid.UUID | None = None,
+        unorganized: bool = False,
         offset: int = 0,
         limit: int = 50,
     ) -> tuple[Sequence[tuple[Course, int, int]], int]:
@@ -34,6 +37,19 @@ class CourseRepository(BaseRepository[Course]):
         filters: list[ColumnElement[bool]] = [Course.org_id == org_id]
         if status is not None:
             filters.append(Course.status == status)
+        if search:
+            pattern = f"%{search.strip()}%"
+            filters.append(
+                or_(
+                    Course.title.ilike(pattern),
+                    Course.description.ilike(pattern),
+                    Course.outcome.ilike(pattern),
+                )
+            )
+        if folder_id is not None:
+            filters.append(Course.folder_id == folder_id)
+        elif unorganized:
+            filters.append(Course.folder_id.is_(None))
 
         count_query = select(func.count()).select_from(Course)
         query = (
@@ -44,6 +60,7 @@ class CourseRepository(BaseRepository[Course]):
             )
             .outerjoin(Module, Module.course_id == Course.id)
             .outerjoin(CourseNode, CourseNode.course_id == Course.id)
+            .options(selectinload(Course.folder))
             .group_by(Course.id)
             .order_by(Course.created_at.desc())
         )
@@ -64,6 +81,8 @@ class CourseRepository(BaseRepository[Course]):
                 selectinload(Course.modules)
                 .selectinload(Module.lessons)
                 .selectinload(Lesson.exercises)
+                ,
+                selectinload(Course.folder),
             )
         )
         return (await self.session.execute(query)).scalar_one_or_none()

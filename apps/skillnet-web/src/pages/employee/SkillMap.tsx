@@ -1,5 +1,5 @@
 import { useIntl } from 'react-intl'
-import { Card, CardTitle, SkillBars, EmptyState, SkeletonRow } from '../../components/ui'
+import { Card, CardTitle, EmptyState, PageHeader, SkillBars, SkeletonRow } from '../../components/ui'
 import { useMySkills } from '../../api/users'
 import type { UserSkillRead } from '../../types'
 
@@ -32,10 +32,7 @@ export function SkillMap() {
   return (
     <div>
       <div className="mb-6">
-        <h2 className="text-xl font-semibold text-text">{intl.formatMessage({ id: 'skillmap.title' })}</h2>
-        <p className="text-sm text-text-secondary mt-0.5">
-          {intl.formatMessage({ id: 'skillmap.subtitle' })}
-        </p>
+        <PageHeader title={intl.formatMessage({ id: 'skillmap.title' })} description={intl.formatMessage({ id: 'skillmap.subtitle' })} />
       </div>
 
       {/* Legend */}

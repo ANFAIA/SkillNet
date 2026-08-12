@@ -30,7 +30,7 @@ export interface NodeDetail {
 }
 
 export interface SchemaStreamCallbacks {
-  onStructure: (nodes: StructureNode[]) => void
+  onStructure: (nodes: StructureNode[], skills: string[]) => void
   onNodeDetail: (detail: NodeDetail) => void
   onDone: () => void
   onError: (message: string) => void
@@ -98,7 +98,8 @@ export function streamSchemaProposal(
 
             if (eventType === 'structure') {
               const nodes = (data.nodes as StructureNode[]) ?? []
-              callbacks.onStructure(nodes)
+              const skills = Array.isArray(data.skills) ? data.skills.map(String) : []
+              callbacks.onStructure(nodes, skills)
             } else if (eventType === 'node_detail') {
               callbacks.onNodeDetail(data as unknown as NodeDetail)
             } else if (eventType === 'done') {

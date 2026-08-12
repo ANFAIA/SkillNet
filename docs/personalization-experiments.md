@@ -326,7 +326,192 @@ docs/personalization-preferences-acceptance.md.
 5. Conectar el primer componente rico de la futura librería mediante el adaptador de catálogo.
 6. Probar un productor de imagen tipado con fallback y procedencia, todavía detrás de un flag.
 
-## 13. Plantilla para nuevas entradas
+## 13. Dossier por nodo — prueba de viabilidad sin lección canónica
+
+**Fecha / estado:** 2026-08-11, viabilidad prometedora; evidencia todavía no causal.
+
+**Pregunta:** ¿preparar en segundo plano un dossier estructurado después del índice ayuda a que
+OpenUI adapte en vez de reconstruir, sin convertir todas las variantes en la misma lección
+genérica?
+
+Se extrajeron tres `NodeKnowledgePack` de nodos reales del curso de sala: apertura, comanda TPV y
+gestión de una queja. El pack no contenía una narración final, sino invariantes, procedimiento,
+decisiones, errores, casos, evidencia, representaciones posibles, campos generables, datos ausentes
+y referencias a fuente. Se compararon 24 planes: tres nodos, cuatro preferencias y dos condiciones.
+
+- **Raw:** generación desde las fuentes y `NodeSpec` actuales.
+- **Pack:** selección de átomos del dossier con `atom_ids`, evidencia y `Decline` explícito cuando el
+  catálogo no podía ofrecer caja, TPV o diálogo real.
+
+Dos jueces aplicaron la misma rúbrica con las etiquetas invertidas. Ambos conservaron todos los
+invariantes (`4/4`). La condición pack obtuvo una media de `3,5/4` frente a `1,8/4` para raw. La
+ventaja apareció en diferenciación estructural entre perfiles, trazabilidad, evidencia y honestidad
+ante capacidades ausentes. No se observó convergencia completa: visual eligió tablas y contrastes,
+textual casos y justificación, e interactiva decisiones secuenciadas dentro del catálogo disponible.
+
+**Lo que sí demuestra:** un dossier no narrativo puede funcionar como despensa de posibilidades;
+no obliga por construcción a usar una lección canónica ni a seguir el orden del Markdown. También
+permite verificar qué átomos se usaron y qué capacidad faltó.
+
+**Lo que no demuestra:** que el pack cause la mejora, reduzca latencia o mejore aprendizaje. Los dos
+brazos no recibieron información perfectamente equivalente: el pack ya hacía explícitos misiones,
+casos, evidencia y límites. Se comparó una frontera arquitectónica completa, no solo dos formatos
+del mismo contenido. Tampoco hubo renders reales ni repeticiones estocásticas del mismo modelo.
+
+### Control con información equivalente
+
+Se repitió el ensayo igualando hechos, casos, evidencia, catálogo y presupuesto: tres nodos, cuatro
+preferencias, dos serializaciones y tres repeticiones (`72` planes). Raw y pack produjeron
+exactamente el mismo plan en `72/72` casos y conservaron todos los invariantes. El resultado corrige
+la lectura inicial: **atomizar el mismo material no mejora ni aplana por sí solo el planificador
+actual**, porque `plan_experience` todavía no consume esos átomos para decidir. La ventaja de la
+primera ronda procedía del contrato pedagógico adicional, no del formato Markdown.
+
+La planificación pura permaneció en decenas de microsegundos. El proxy de contexto no tuvo una
+dirección uniforme: el pack añadió aproximadamente un 35 % en apertura y unos 91 tokens en comanda,
+pero redujo un 28 % en queja. No se puede afirmar que el pack siempre comprima.
+
+### Baseline real de generación
+
+Con autorización explícita se ejecutaron nueve renders reales con `gpt-4o-mini`: apertura/caja,
+alérgenos/hostelería y atención de reclamaciones, tres repeticiones cada uno. Los `9/9` pasaron a la
+primera, sin reparación ni fallback. Latencia global: p50 `7,53 s`, p95 `10,75 s`, media `8,12 s`.
+El prompt medio fue de 632 tokens y la salida de 35. Cada escenario conservó exactamente la misma
+firma de componentes en sus tres repeticiones, aunque reclamaciones varió entre `5,77` y `10,84 s`.
+Este es el baseline raw; el brazo pack todavía necesita un runner en sombra para obtener una
+comparación end-to-end válida.
+
+**Decisión en ese momento:** continuar en sombra, no sustituir todavía el pipeline. El siguiente cambio experimental
+no es «darle Markdown al prompt», sino permitir que el adaptador seleccione casos, errores y evidencia
+del pack bajo el mismo contrato que raw. Después se repite el benchmark live con 5–10 repeticiones
+por celda, evaluación ciega, tokens, latencia, validación, `Decline` correcto y similitud estructural.
+Se acepta únicamente si mantiene invariantes, aumenta la diferencia justificada entre perfiles y no
+empeora latencia/tokens más de un 15–20 % sin una mejora compensatoria.
+
+### Primera vertical en sombra implementada (estado histórico)
+
+El experimento ya dispone de una implementación reversible: contrato estricto
+`node-knowledge-pack/1`, Markdown derivado, migración `0012`, snapshots protegidos por fingerprint,
+generador de dos fases (extractor + revisor), runner asíncrono posterior al commit del índice y brazo
+`raw|pack|both` en `quality_bench.py`. Se guarda el payload canónico completo; el Markdown no se
+parsea de vuelta. En esta fase el runtime del alumno todavía no consumía el pack. La integración
+posterior se resume al final de esta sección.
+
+La verificación focal cerró con 58 pruebas y Ruff limpio. El smoke offline `extintor`, un pase por
+brazo, terminó `2/2` a la primera y conservó la misma firma `Stack + TextContent + QuizItem`; sus
+tiempos (`0,33 s` raw, `0,12 s` pack) usan fixtures y solo demuestran cableado, no una ventaja de
+latencia. La siguiente medición útil es una generación real intercalada sobre packs persistidos.
+
+### Piloto live con packs generados
+
+Se ejecutó un piloto real sobre apertura/caja, alérgenos y reclamaciones. Los tres packs finales y
+sus tres renders pasaron a la primera. Frente al baseline raw, pack redujo la latencia observada de
+8,12 s a 6,25 s de media y mantuvo tokens prácticamente iguales, pero con una sola repetición pack
+por nodo y tandas no intercaladas no se atribuye causalidad. La diversidad global tampoco cambió:
+ambos brazos usaron 8/13 tipos y 5 tipos por pantalla.
+
+El hallazgo decisivo fue negativo: apertura tuvo 0 átomos y los otros dos nodos solo 2. No existe
+evidencia suficiente de cobertura factual, y por tanto la decisión es **NO-GO para runtime**. Los
+rechazos previos sí mejoraron la frontera: IDs y referencias pasan a ser programáticos; evidencia
+obligatoria sin átomo se convierte en un gap bloqueante; el benchmark guardará pack, Markdown y
+`ui_spec` en siguientes rondas. Resultados y costes completos:
+[`evidencia-testing/2026-08-11/knowledge-pack-live/report.md`](evidencia-testing/2026-08-11/knowledge-pack-live/report.md).
+
+Como cierre, un pack sin invariantes o con un gap bloqueante queda `review_required`; el benchmark
+no permite que entre al brazo de render. La regresión completa terminó con 2.877 pruebas unitarias de
+backend verdes.
+
+La siguiente ronda quedó parametrizada para variar por separado presupuesto de extractor/revisor,
+mínimo y máximo de átomos, cobertura gold y evidencia obligatoria. Cada uno de los tres nodos cuenta
+con siete hechos gold que nunca entran al prompt.
+
+### Ajuste de extracción: el presupuesto no es el cuello de botella
+
+Se ejecutó la matriz completa `3 variantes × 3 nodos × extractor/revisor` con
+`gpt-4o-mini`: exactamente 18 llamadas, sin renders ni cambios en cursos. Se compararon
+1.200/1.200, 1.600/1.600 y 2.048/2.048 tokens. Ningún pack pasó: caja conservó 0/7 hechos,
+alérgenos 2/7 y reclamaciones 7/7 dentro de un único átomo monolítico; los nueve quedaron
+`review_required` y sin evidencia válida.
+
+El aumento de presupuesto no cambió cobertura ni granularidad. La prueba detectó dos problemas de
+contrato: el modelo copió valores ilustrativos del esquema como contenido real y las referencias de
+evidencia propuestas no sobrevivieron la normalización. El fail-closed funcionó y bloqueó todos los
+packs. Decisión: no elegir variante ni pasar a OpenUI; el siguiente A/B debe comparar contrato actual
+contra JSON Schema sin ejemplos y contra checklist de cobertura + atomización, manteniendo fijo el
+presupuesto. Informe y payloads completos:
+[`evidencia-testing/2026-08-11/knowledge-pack-tuning/report.md`](evidencia-testing/2026-08-11/knowledge-pack-tuning/report.md).
+
+### Integración de desarrollo tras el experimento
+
+El resultado negativo no se descartó: se convirtió en el límite de seguridad de la integración. El
+contrato del extractor pasó a usar forma JSON Schema sin contenido ilustrativo copiable, el revisor
+exige cobertura y atomización, y las referencias se normalizan sin perder IDs válidos. Esta versión
+corregida tiene regresiones locales, pero todavía necesita una nueva ronda live para medir su tasa de
+packs `ready`; no se atribuye una mejora empírica que aún no se ha medido.
+
+La vertical ya está conectada en desarrollo. Crear o editar un esquema encola la preparación fuera de
+la transacción; una lectura nunca inicia trabajo. El estado útil y los gaps aparecen dentro del
+desplegable de cada nodo, sin panel global ni botón manual. En runtime,
+únicamente un pack `ready` reemplaza el contexto raw por una selección
+acotada que conserva invariantes, evidencia y prerrequisitos. `pack_hash + selection_hash` particionan
+la caché antes del prompt. Un pack ausente, rechazado o incoherente vuelve al camino raw, y un cambio
+durante la generación aborta esa escritura para no mezclar contenido y clave.
+
+La integración no fija componentes en el pack. El pack describe conocimiento, evidencia y
+posibilidades; OpenUI sigue eligiendo y generando la pantalla al vuelo según perfil, objetivo y catálogo
+disponible. Por eso ampliar la librería puede enriquecer la representación sin regenerar la fuente
+pedagógica ni convertir el Markdown en una lección canónica.
+
+### Gate live del contrato v2
+
+El 12 de agosto se repitió únicamente la política equilibrada sobre los tres nodos gold: seis llamadas
+reales a `gpt-4o-mini`, extractor y revisor por nodo, sin renders ni escritura en cursos. Los tres
+resultados fueron rechazados antes de OpenUI por validación contractual. El gate evitó gastar llamadas
+de render sobre material inválido, pero el benchmark perdió tokens y duración de las celdas al recibir
+la excepción; la instrumentación posterior ya conserva esas métricas incluso en fallos.
+
+La revisión estática encontró una desalineación propia: el JSON Schema permitía `max_items=0..8`
+mientras Pydantic exigía `1..12`, y no comunicaba al modelo el patrón ASCII ni varias restricciones de
+unicidad que después aplicaba. Se alinearon ambos contratos (`1..8`), se añadieron patrones, mínimos y
+unicidad, y los errores Pydantic ahora exponen ubicaciones estructurales sin revelar la fuente. Las
+regresiones locales pasan. Evidencia: [`evidencia-testing/2026-08-12/knowledge-pack-v2-gate/report.md`](evidencia-testing/2026-08-12/knowledge-pack-v2-gate/report.md).
+
+La celda diagnóstica posterior hizo exactamente dos llamadas sobre apertura/caja. Consumió 4.070
+tokens de entrada y 1.530 de salida, tardó 17,28 s y costó aproximadamente 0,00153 USD. El pack aún
+no pasó: el revisor devolvió una referencia de fuente no registrada. Esto mostró que indicar «usa
+solo estas referencias» en prosa no era una frontera suficiente. El esquema de extractor y revisor
+ahora enumera literalmente los `ref_id` admitidos, y el error informa qué referencias fueron
+rechazadas. No se reasignan referencias inventadas a una fuente real: el comportamiento continúa
+siendo fail-closed. Las 19 regresiones del contrato pasan, pero esta corrección todavía no tiene
+confirmación live y no autoriza el brazo OpenUI. Informe:
+[`evidencia-testing/2026-08-12/knowledge-pack-v2-diagnostic/report.md`](evidencia-testing/2026-08-12/knowledge-pack-v2-diagnostic/report.md).
+
+### Gate trazable v3 y primer A/B OpenUI
+
+Las iteraciones siguientes aislaron cuatro fallos: referencias de fuente libres, evidencia enlazada a
+IDs incorrectos, cobertura prometida solo en prosa y una instrucción de «compactar» que autorizaba al
+modelo a detenerse tras cuatro átomos. Aumentar de 1.600 a 2.048 tokens no arregló este último fallo.
+La solución adoptada no rellena hechos automáticamente: numera unidades operativas de la fuente,
+exige que cada átomo declare cuáles cubre y bloquea el pack si falta una. El mínimo se expresa también
+de forma explícita al modelo; 3.200 tokens permiten completar la salida exhaustiva.
+
+El gate final `gpt-4o-mini` terminó 3/3 packs `ready`, todos con 100 % de sus siete hechos gold y
+evidencia obligatoria. Caja tardó 35,77 s y costó unos 0,00288 USD; alérgenos 31,94 s y 0,00249 USD;
+reclamaciones 62,46 s y 0,00394 USD. Evidencia de caja y alérgenos:
+[`evidencia-testing/2026-08-12/knowledge-pack-v10-final-gate/report.md`](evidencia-testing/2026-08-12/knowledge-pack-v10-final-gate/report.md).
+Evidencia de reclamaciones:
+[`evidencia-testing/2026-08-12/knowledge-pack-v9-explicit-minimum/report.md`](evidencia-testing/2026-08-12/knowledge-pack-v9-explicit-minimum/report.md).
+
+El A/B OpenUI posterior usó el mismo nodo, modelo y perfil, con tres repeticiones intercaladas por
+brazo. Ambos lograron 3/3 renders a la primera y los mismos cinco tipos de componente. El pack elevó
+la cobertura factual visible media de 19,0 % a 28,6 %, redujo la entrada media de 616 a 600 tokens y
+la salida de 40 a 30; la latencia p50 quedó casi igual (5,609 s raw, 5,516 s pack). Las seis firmas de
+UI fueron distintas, por lo que `n=3` no permite atribuir una mejora general de latencia. Decisión:
+adoptar `knowledge-pack/v3` para preparación automática y mantener OpenUI on-the-fly; la siguiente
+experimentación debe mejorar la selección de invariantes bajo densidad baja. Resultado:
+[`evidencia-testing/2026-08-12/openui-raw-vs-traceable-pack-r3/runs/quality-20260812-004038.json`](evidencia-testing/2026-08-12/openui-raw-vs-traceable-pack-r3/runs/quality-20260812-004038.json).
+
+## 14. Plantilla para nuevas entradas
 
 ```markdown
 ### Experimento N — título

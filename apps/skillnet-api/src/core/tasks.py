@@ -21,6 +21,14 @@ class TaskRegistry:
         task.add_done_callback(self._on_done)
         return task
 
+    def spawn_unique(self, coro: Coroutine[Any, Any, Any], name: str) -> asyncio.Task:
+        """Reuse an in-flight named task and close the duplicate coroutine."""
+        for task in self._tasks:
+            if not task.done() and task.get_name() == name:
+                coro.close()
+                return task
+        return self.spawn(coro, name)
+
     def _on_done(self, task: asyncio.Task) -> None:
         self._tasks.discard(task)
         if task.cancelled():

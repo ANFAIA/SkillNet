@@ -19,6 +19,7 @@ import { Chat } from './pages/employee/Chat'
 import { LearningPreferencesPage } from './pages/employee/LearningPreferences'
 import { Dashboard as AdminDashboard } from './pages/admin/Dashboard'
 import { Employees } from './pages/admin/Employees'
+import { Talent } from './pages/admin/Talent'
 import { Content } from './pages/admin/Content'
 import { CreateCourse } from './pages/admin/CreateCourse'
 import { AdminChat } from './pages/admin/Chat'
@@ -102,6 +103,7 @@ function App() {
           >
             <Route index element={<AdminDashboard />} />
             <Route path="empleados" element={<Employees />} />
+            <Route path="talento" element={<Talent />} />
             <Route path="contenido" element={<Content />} />
             <Route path="crear-curso" element={<CreateCourse />} />
             <Route path="curso/:id" element={<CoursePreview />} />

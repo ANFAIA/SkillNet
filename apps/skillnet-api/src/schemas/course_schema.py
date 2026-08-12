@@ -104,3 +104,32 @@ class NodeReviewResponse(BaseModel):
     node_id: uuid.UUID
     reviewed_at: datetime | None = None
     reviewed_by: uuid.UUID | None = None
+
+
+KnowledgePackStatusName = Literal[
+    "pending", "ready", "review_required", "stale", "failed"
+]
+
+
+class NodeKnowledgePackRead(BaseModel):
+    id: uuid.UUID
+    node_id: uuid.UUID
+    status: KnowledgePackStatusName
+    generator_version: str
+    pack_hash: str | None = None
+    markdown: str | None = None
+    atom_count: int = 0
+    invariant_count: int = 0
+    required_evidence_count: int = 0
+    blocking_gaps: list[str] = []
+    input_tokens: int | None = None
+    output_tokens: int | None = None
+    duration_ms: int | None = None
+    error_message: str | None = None
+    updated_at: datetime
+
+
+class CourseKnowledgePacksRead(BaseModel):
+    course_id: uuid.UUID
+    schema_version: int
+    nodes: list[NodeKnowledgePackRead] = []

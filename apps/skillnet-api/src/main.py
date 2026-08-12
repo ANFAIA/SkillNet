@@ -23,6 +23,7 @@ from src.routes import (
     auth,
     chat,
     course_schema,
+    course_folders,
     courses,
     documents,
     enrollments,
@@ -37,6 +38,8 @@ from src.routes import (
     nodes,
     onboarding,
     stats,
+    skills,
+    talent,
     tts,
     users,
 )
@@ -138,6 +141,9 @@ def create_app() -> FastAPI:
     app.include_router(users.router, prefix=prefix)
     app.include_router(documents.router, prefix=prefix)
     app.include_router(courses.router, prefix=prefix)
+    app.include_router(course_folders.router, prefix=prefix)
+    app.include_router(skills.router, prefix=prefix)
+    app.include_router(talent.router, prefix=prefix)
     app.include_router(exercises.router, prefix=prefix)
     app.include_router(lessons.router, prefix=prefix)
     app.include_router(enrollments.router, prefix=prefix)

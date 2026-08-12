@@ -66,6 +66,7 @@ import argparse
 import asyncio
 import collections
 import contextvars
+import hashlib
 import json
 import math
 import os
@@ -74,6 +75,7 @@ import re
 import statistics
 import sys
 import time
+import unicodedata
 import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
@@ -145,6 +147,17 @@ OFFLINE_MODEL = "fixture/bench"
 
 SCHEMA_VERSION = 1
 
+#: Las dos representaciones que el banco puede comparar. ``pack`` es una costura del
+#: banco: no existe en el runtime ni se persiste. Su unico efecto es sustituir el valor
+#: de ``source_context`` *despues* de que ``load_context`` haya recuperado la fuente real.
+#: Eso evita medir dos recuperaciones distintas como si fuesen una mejora pedagogica.
+BENCH_ARMS = ("raw", "pack")
+
+# ``structural`` is the cheap control that only wraps the original source in headings.
+# ``generated`` runs the real two-pass NodeKnowledgePack generator once per node and
+# reuses that reviewed dossier across every learner/render repetition.
+PACK_SOURCES = ("structural", "generated")
+
 # Ids fijos: un `cache_key` estable entre ejecuciones hace comparables dos tandas.
 ORG_ID = uuid.UUID("bbbbbbbb-0000-0000-0000-000000000001")
 USER_ID = uuid.UUID("bbbbbbbb-0000-0000-0000-000000000002")
@@ -156,6 +169,12 @@ LESSON_ID = uuid.UUID("bbbbbbbb-0000-0000-0000-000000000005")
 # --------------------------------------------------------------------------------------
 # El corpus: 10 encargos de pyme espanola, cada uno con su aprendiz
 # --------------------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class PackFactCheck:
+    fact_id: str
+    required_terms: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -197,6 +216,9 @@ class Encargo:
     #: antes de emitir uno bueno. 0 = acierta a la primera, 1 = lo rescata la reparacion,
     #: 2 = acaba en fallback. Sirve para que la tanda offline ejercite los tres caminos.
     offline_bad_attempts: int = 0
+    #: Gold facts used only by the pack experiment. Every term in one check must appear
+    #: in the canonical pack payload; these labels never enter a generation prompt.
+    pack_fact_checks: tuple[PackFactCheck, ...] = ()
 
 
 CORPUS: tuple[Encargo, ...] = (
@@ -318,6 +340,15 @@ CORPUS: tuple[Encargo, ...] = (
         preset="standard",
         nodes_completed=4,
         intent_density=4,
+        pack_fact_checks=(
+            PackFactCheck("allergen-count", ("14 alergenos",)),
+            PackFactCheck("written-before-order", ("por escrito", "antes")),
+            PackFactCheck("red-folder", ("carpeta roja",)),
+            PackFactCheck("cross-contact-oil", ("mismo aceite", "gluten")),
+            PackFactCheck("green-tools", ("mango verde",)),
+            PackFactCheck("never-guess", ("creo que no lleva",)),
+            PackFactCheck("anaphylaxis", ("urgencia vital",)),
+        ),
     ),
     Encargo(
         name="proteccion-datos",
@@ -492,6 +523,15 @@ CORPUS: tuple[Encargo, ...] = (
         consecutive_failed=2,
         last_error_kind="conceptual",
         tutor_signals=("reforzar_con_ejemplo",),
+        pack_fact_checks=(
+            PackFactCheck("listen", ("sin interrumpir",)),
+            PackFactCheck("reformulate", ("propias palabras", "confirmar")),
+            PackFactCheck("effect-not-blame", ("efecto", "culpa")),
+            PackFactCheck("commitment", ("que", "quien", "cuando")),
+            PackFactCheck("crm-timing", ("crm", "antes")),
+            PackFactCheck("written-deadline", ("30 dias naturales",)),
+            PackFactCheck("hold-limit", ("60 segundos",)),
+        ),
     ),
     Encargo(
         name="apertura-cierre-caja",
@@ -537,6 +577,15 @@ CORPUS: tuple[Encargo, ...] = (
         scaffold_band="advanced",
         mastery=0.55,
         consecutive_correct=1,
+        pack_fact_checks=(
+            PackFactCheck("float", ("fondo fijo", "200 euros")),
+            PackFactCheck("opening-claim", ("primera venta",)),
+            PackFactCheck("cash-withdrawal", ("600 euros", "buzon")),
+            PackFactCheck("z-report", ("informe z", "resta")),
+            PackFactCheck("card-and-vouchers", ("datafono", "vales")),
+            PackFactCheck("mismatch-threshold", ("5 euros", "segunda vez")),
+            PackFactCheck("same-day", ("mismo dia", "falta")),
+        ),
     ),
     Encargo(
         name="epi-taller",
@@ -624,6 +673,317 @@ CORPUS: tuple[Encargo, ...] = (
 )
 
 CORPUS_BY_NAME: dict[str, Encargo] = {e.name: e for e in CORPUS}
+
+
+# --------------------------------------------------------------------------------------
+# Brazo experimental: dossier Markdown local, sin acoplar al runtime
+# --------------------------------------------------------------------------------------
+
+
+def _digest(value: str) -> str:
+    """Huella corta, estable y segura para comparar contexto sin volcarlo dos veces."""
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+@dataclass(frozen=True)
+class PackAtom:
+    """Una unidad de fuente que el brazo ``pack`` puede trazar.
+
+    El banco no pretende adivinar aun que hechos son opcionales. Por eso todos los
+    atomos de la fuente son invariantes: este primer A/B mide el formato y la seleccion
+    determinista, no una eliminacion silenciosa de conocimiento.
+    """
+
+    id: str
+    text: str
+    ordinal: int
+    kind: str
+    invariant: bool = True
+
+
+@dataclass(frozen=True)
+class SelectedKnowledge:
+    """La porcion reproducible del pack que se entrega al generador."""
+
+    markdown: str
+    atom_ids: tuple[str, ...]
+    invariant_ids: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class GeneratedPackArtifact:
+    selection: SelectedKnowledge
+    pack_hash: str
+    pack_payload: dict[str, Any]
+    input_tokens: int | None
+    output_tokens: int | None
+    duration_ms: int | None
+    fact_coverage: float
+    matched_fact_ids: tuple[str, ...]
+    missing_fact_ids: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class PackBenchPolicy:
+    extractor_max_tokens: int = 1_600
+    reviewer_max_tokens: int = 1_600
+    min_invariants: int = 1
+    max_atoms: int = 24
+    min_fact_coverage: float = 1.0
+    require_evidence: bool = False
+
+    def __post_init__(self) -> None:
+        if not 256 <= self.extractor_max_tokens <= 4_096:
+            raise ValueError("extractor_max_tokens must be 256..4096")
+        if not 256 <= self.reviewer_max_tokens <= 4_096:
+            raise ValueError("reviewer_max_tokens must be 256..4096")
+        if self.min_invariants < 1:
+            raise ValueError("min_invariants must be positive")
+        if self.max_atoms < self.min_invariants:
+            raise ValueError("max_atoms must be >= min_invariants")
+        if not 0 <= self.min_fact_coverage <= 1:
+            raise ValueError("min_fact_coverage must be between 0 and 1")
+
+
+@dataclass(frozen=True)
+class PackAssessment:
+    """Quality-policy result kept even when a generated pack is rejected."""
+
+    atom_count: int
+    invariant_count: int
+    required_evidence_count: int
+    fact_coverage: float
+    matched_fact_ids: tuple[str, ...]
+    missing_fact_ids: tuple[str, ...]
+    failures: tuple[str, ...]
+
+    @property
+    def passed(self) -> bool:
+        return not self.failures
+
+
+_GENERATED_PACKS: dict[str, GeneratedPackArtifact] = {}
+
+
+def _fold_for_coverage(value: str) -> str:
+    decomposed = unicodedata.normalize("NFKD", value.casefold())
+    return " ".join(
+        "".join(char for char in decomposed if not unicodedata.combining(char)).split()
+    )
+
+
+def evaluate_pack_facts(
+    pack_payload: dict[str, Any], checks: tuple[PackFactCheck, ...]
+) -> tuple[float, tuple[str, ...], tuple[str, ...]]:
+    """Measure gold-fact coverage over model-owned semantic fields only."""
+
+    semantic = {
+        key: pack_payload.get(key, [])
+        for key in (
+            "evidence_specs",
+            "must_preserve",
+            "selectable",
+            "generable_slots",
+            "missing_data",
+        )
+    }
+    haystack = _fold_for_coverage(json.dumps(semantic, ensure_ascii=False))
+    matched = tuple(
+        check.fact_id
+        for check in checks
+        if all(_fold_for_coverage(term) in haystack for term in check.required_terms)
+    )
+    missing = tuple(check.fact_id for check in checks if check.fact_id not in matched)
+    coverage = len(matched) / len(checks) if checks else 1.0
+    return coverage, matched, missing
+
+
+def assess_completed_pack(
+    completed: Any, encargo: Encargo, policy: PackBenchPolicy
+) -> PackAssessment:
+    """Evaluate a completed production pack without discarding failed experiments."""
+
+    atom_count = len(completed.atoms)
+    invariant_count = sum(
+        item.get("category") == "must_preserve" for item in completed.atoms
+    )
+    coverage, matched, missing = evaluate_pack_facts(
+        completed.pack_payload, encargo.pack_fact_checks
+    )
+    required_evidence = sum(
+        bool(item.get("required"))
+        for item in completed.pack_payload.get("evidence_specs", [])
+    )
+    failures: list[str] = []
+    if completed.pack_payload.get("status") != "ready":
+        failures.append("pack status is not ready")
+    if invariant_count < policy.min_invariants:
+        failures.append(
+            f"invariants {invariant_count} < minimum {policy.min_invariants}"
+        )
+    if atom_count > policy.max_atoms:
+        failures.append(f"atoms {atom_count} > maximum {policy.max_atoms}")
+    if coverage < policy.min_fact_coverage:
+        failures.append(
+            f"fact coverage {coverage:.1%} < minimum {policy.min_fact_coverage:.1%}; "
+            f"missing={','.join(missing)}"
+        )
+    if policy.require_evidence and required_evidence == 0:
+        failures.append("no required evidence specification")
+    return PackAssessment(
+        atom_count=atom_count,
+        invariant_count=invariant_count,
+        required_evidence_count=required_evidence,
+        fact_coverage=coverage,
+        matched_fact_ids=matched,
+        missing_fact_ids=missing,
+        failures=tuple(failures),
+    )
+
+
+@dataclass(frozen=True)
+class KnowledgePack:
+    """Dossier Markdown local construido desde el ``source_context`` ya recuperado.
+
+    No es una nueva fuente de verdad ni una tabla. Es deliberadamente local al script
+    para que el experimento pueda descartarse sin dejar modelos, migraciones o codigo de
+    produccion. El parser conserva cada bloque no vacio; el selector solo puede reordenar
+    atomos no criticos en una fase futura, y hoy entrega todos los invariantes.
+    """
+
+    source_digest: str
+    atoms: tuple[PackAtom, ...]
+
+    @classmethod
+    def from_source(cls, source: str) -> KnowledgePack:
+        normalized = source.strip()
+        blocks = [
+            re.sub(r"\n{3,}", "\n\n", block.strip())
+            for block in re.split(r"\n\s*\n", normalized)
+            if block.strip()
+        ]
+        digest = _digest(source)
+        atoms = tuple(
+            PackAtom(
+                id=f"a{ordinal:03d}-{_digest(block)[:10]}",
+                text=block,
+                ordinal=ordinal,
+                kind=_pack_atom_kind(block),
+            )
+            for ordinal, block in enumerate(blocks, start=1)
+        )
+        return cls(source_digest=digest, atoms=atoms)
+
+    def select(self, *, profile: dict[str, Any] | None = None) -> SelectedKnowledge:
+        """Seleccion conservadora y determinista.
+
+        ``profile`` se acepta para que el contrato ya exprese la futura seleccion por
+        aprendiz. En esta primera prueba no cambia los hechos seleccionados: no se puede
+        atribuir una mejora al pack si a la vez dejamos caer material de la fuente.
+        """
+        del profile
+        selected = tuple(sorted(self.atoms, key=lambda atom: atom.ordinal))
+        atom_ids = tuple(atom.id for atom in selected)
+        invariant_ids = tuple(atom.id for atom in selected if atom.invariant)
+        lines = [
+            "# Dossier de referencia del nodo",
+            "",
+            "El siguiente material conserva los hechos de la fuente y puede organizarse "
+            "en una experiencia adaptada. No inventes reglas fuera de este dossier.",
+            "",
+        ]
+        for atom in selected:
+            lines.extend(
+                [
+                    f"## Material {atom.ordinal} ({atom.kind})",
+                    "",
+                    atom.text,
+                    "",
+                ]
+            )
+        return SelectedKnowledge(
+            markdown="\n".join(lines).rstrip() + "\n",
+            atom_ids=atom_ids,
+            invariant_ids=invariant_ids,
+        )
+
+
+def _pack_atom_kind(block: str) -> str:
+    """Etiqueta determinista, solo para trazabilidad del benchmark."""
+    first = block.lstrip().splitlines()[0] if block.strip() else ""
+    if first.startswith("#"):
+        return "heading"
+    if re.match(r"(?:[-*]|\d+[.)])\s", first):
+        return "list"
+    if any(marker in block.lower() for marker in ("nunca", "obligatorio", "prohib", "alerta")):
+        return "constraint"
+    return "paragraph"
+
+
+async def prepare_generated_packs(
+    corpus: list[Encargo], *, llm: Any, policy: PackBenchPolicy | None = None
+) -> dict[str, GeneratedPackArtifact]:
+    """Run the production two-pass pack generator once per benchmark node.
+
+    This remains a benchmark seam: rows are not written to PostgreSQL. The generator,
+    contract, source fingerprint, Markdown projection and telemetry are the production
+    implementations; only persistence is omitted so an A/B cannot alter a real course.
+    """
+
+    from src.knowledge_pack.configured_generator import ConfiguredKnowledgePackGenerator
+    from src.services.node_knowledge_pack_service import KnowledgePackSnapshot
+
+    policy = policy or PackBenchPolicy()
+    generator = ConfiguredKnowledgePackGenerator(
+        llm,
+        extractor_max_tokens=policy.extractor_max_tokens,
+        reviewer_max_tokens=policy.reviewer_max_tokens,
+    )
+    artifacts: dict[str, GeneratedPackArtifact] = {}
+    for encargo in corpus:
+        session = build_session(encargo)
+        fingerprint = _digest(encargo.source_text)
+        completed = await generator.generate(
+            course=session.course,
+            node=session.node,
+            source_context=encargo.source_text,
+            snapshot=KnowledgePackSnapshot(
+                org_id=ORG_ID,
+                course_id=COURSE_ID,
+                node_id=session.node.id,
+                source_fingerprint=fingerprint,
+                schema_version=SCHEMA_VERSION,
+                generator_version="knowledge-pack/v1-bench",
+            ),
+        )
+        assessment = assess_completed_pack(completed, encargo, policy)
+        if assessment.failures:
+            raise ValueError(
+                f"pack {encargo.name} failed quality policy: "
+                f"{'; '.join(assessment.failures)}"
+            )
+        must_preserve = tuple(
+            str(item["atom_id"])
+            for item in completed.atoms
+            if item.get("category") == "must_preserve"
+        )
+        atom_ids = tuple(str(item["atom_id"]) for item in completed.atoms)
+        artifacts[encargo.name] = GeneratedPackArtifact(
+            selection=SelectedKnowledge(
+                markdown=completed.markdown,
+                atom_ids=atom_ids,
+                invariant_ids=must_preserve,
+            ),
+            pack_hash=completed.pack_hash,
+            pack_payload=completed.pack_payload,
+            input_tokens=completed.input_tokens,
+            output_tokens=completed.output_tokens,
+            duration_ms=completed.duration_ms,
+            fact_coverage=assessment.fact_coverage,
+            matched_fact_ids=assessment.matched_fact_ids,
+            missing_fact_ids=assessment.missing_fact_ids,
+        )
+    return artifacts
 
 
 # --------------------------------------------------------------------------------------
@@ -716,6 +1076,11 @@ class BenchSession:
             return _Result([self.profile])
         if "FROM learner_node_states" in sql:
             return _Result(list(self.node_states))
+        if "FROM node_knowledge_packs" in sql:
+            # El brazo generated inyecta su pack tras load_context. La sesión del
+            # banco no simula persistencia y debe responder honestamente que no hay
+            # un pack READY en PostgreSQL, igual para raw y pack.
+            return _Result([])
         if "FROM node_renders" in sql:
             rows = list(self.renders)
             wanted = {v for v in _params(query).values() if isinstance(v, str)}
@@ -1286,6 +1651,14 @@ class Recorder:
 
     encargo: str
     request_id: str
+    arm: str = "raw"
+    #: ``source_digest`` siempre es la fuente recuperada por el runtime. ``context_digest``
+    #: es lo que finalmente vio el generador (igual en raw, el Markdown del pack en pack).
+    source_digest: str = ""
+    context_digest: str = ""
+    context_kind: str = "raw_source"
+    atom_ids: list[str] = field(default_factory=list)
+    invariant_atom_ids: list[str] = field(default_factory=list)
     steps: list[str] = field(default_factory=list)
     attempts: list[Attempt] = field(default_factory=list)
     decide_called: bool = False
@@ -1328,12 +1701,49 @@ def _wrap_node(name: str, original: Any) -> Any:
         before_in = state.get("tokens_in")
         before_out = state.get("tokens_out")
         result = await original(state)
+        if name == "load_context" and recorder is not None:
+            result = _replace_bench_context(result, recorder)
         if recorder is not None:
             _record(recorder, name, state, result, before_in, before_out)
         return result
 
     wrapper.__name__ = f"bench_{name}"
     return wrapper
+
+
+def _replace_bench_context(result: dict, recorder: Recorder) -> dict:
+    """Sustituye *solo* ``source_context`` para el brazo ``pack``.
+
+    Se ejecuta despues del ``load_context`` real. De este modo node/profile/cache key,
+    recuperacion, filas y resto del estado siguen siendo los de produccion; la comparacion
+    cambia una unica variable y deja en el resultado las dos huellas para verificarlo.
+    """
+    raw_source = str(result.get("source_context") or "")
+    pack = KnowledgePack.from_source(raw_source)
+    recorder.source_digest = pack.source_digest
+    # Tambien se anotan en raw: asi una fila A/B deja claro que ambos brazos partieron del
+    # mismo conjunto de hechos, aunque solo pack los entregue como Markdown estructurado.
+    raw_selection = pack.select(profile=result.get("profile"))
+    recorder.atom_ids = list(raw_selection.atom_ids)
+    recorder.invariant_atom_ids = list(raw_selection.invariant_ids)
+    if recorder.arm == "raw":
+        recorder.context_kind = "raw_source"
+        recorder.context_digest = recorder.source_digest
+        return result
+
+    generated = _GENERATED_PACKS.get(recorder.encargo)
+    selected = generated.selection if generated is not None else pack.select(
+        profile=result.get("profile")
+    )
+    recorder.context_kind = (
+        "generated_knowledge_pack" if generated is not None else "knowledge_pack"
+    )
+    recorder.context_digest = _digest(selected.markdown)
+    recorder.atom_ids = list(selected.atom_ids)
+    recorder.invariant_atom_ids = list(selected.invariant_ids)
+    replacement = dict(result)
+    replacement["source_context"] = selected.markdown
+    return replacement
 
 
 def _record(
@@ -1444,6 +1854,10 @@ OUTCOMES = ("first_pass", "repaired", "fallback", "skipped", "infra_error")
 class RunResult:
     encargo: str
     repeat: int
+    #: ``raw`` conserva el pipeline de hoy; ``pack`` solo cambia ``source_context`` en
+    #: este banco. Nunca se mezclan sus agregados.
+    arm: str
+    context: str
     outcome: str
     ui_format: str
     tier: str
@@ -1458,6 +1872,12 @@ class RunResult:
     render_status: str
     steps: list[str]
     cache_key: str
+    source_digest: str = ""
+    context_digest: str = ""
+    context_chars: int = 0
+    atom_ids: list[str] = field(default_factory=list)
+    invariant_atom_ids: list[str] = field(default_factory=list)
+    ui_signature: str = ""
     reason: str = ""
     #: Tipos de bloque del spec que REALMENTE se sirvio, uno por aparicion. Es la medida
     #: que faltaba: un render valido con tres TextContent seguidos pasa todas las demas
@@ -1466,17 +1886,23 @@ class RunResult:
     #: Observación del planificador experimental. Nunca interviene en el render; se guarda
     #: aquí para comparar la decisión viva con la propuesta sombra por perfil y encargo.
     plan_trace: dict[str, Any] | None = None
+    # Spec canónico realmente servido. ``answer_key`` vive en otra columna y no entra.
+    ui_spec: dict[str, Any] | None = None
 
 
 async def run_one(
     encargo: Encargo,
     repeat: int,
     *,
+    arm: str = "raw",
     offline: bool,
     prices: dict[str, tuple[float, float]],
 ) -> tuple[RunResult, Recorder]:
     """Un render completo por el pipeline real, con su contexto en memoria."""
     from src.agents.runtime.runner import run_node_render
+
+    if arm not in BENCH_ARMS:
+        raise ValueError(f"brazo desconocido: {arm}")
 
     session = build_session(encargo)
     _patch_session_factory(session)
@@ -1488,7 +1914,7 @@ async def run_one(
         )
 
     request_id = uuid.uuid4().hex
-    recorder = Recorder(encargo=encargo.name, request_id=request_id)
+    recorder = Recorder(encargo=encargo.name, request_id=request_id, arm=arm)
     _RECORDERS[request_id] = recorder
     token = _CURRENT.set(recorder)
 
@@ -1524,6 +1950,7 @@ async def run_one(
     result = _classify(
         encargo=encargo,
         repeat=repeat,
+        arm=arm,
         recorder=recorder,
         final=final,
         render=render,
@@ -1538,6 +1965,7 @@ def _classify(
     *,
     encargo: Encargo,
     repeat: int,
+    arm: str,
     recorder: Recorder,
     final: dict,
     render: NodeRender | None,
@@ -1580,6 +2008,8 @@ def _classify(
     return RunResult(
         encargo=encargo.name,
         repeat=repeat,
+        arm=arm,
+        context=recorder.context_kind,
         outcome=outcome,
         ui_format=recorder.ui_format,
         tier=recorder.tier,
@@ -1594,11 +2024,22 @@ def _classify(
         render_status=(_plain(render.status) if render is not None else "sin fila"),
         steps=list(recorder.steps),
         cache_key=recorder.cache_key,
+        source_digest=recorder.source_digest,
+        context_digest=recorder.context_digest,
+        context_chars=recorder.source_chars,
+        atom_ids=list(recorder.atom_ids),
+        invariant_atom_ids=list(recorder.invariant_atom_ids),
+        ui_signature=_ui_signature(render),
         reason=reason[:400],
         block_types=_block_types(render),
         plan_trace=(
             dict(final["plan_trace"])
             if isinstance(final.get("plan_trace"), dict)
+            else None
+        ),
+        ui_spec=(
+            dict(render.ui_spec)
+            if render is not None and isinstance(render.ui_spec, dict)
             else None
         ),
     )
@@ -1622,6 +2063,15 @@ def _block_types(render: NodeRender | None) -> list[str]:
         for component in components
         if isinstance(component, dict) and component.get("type")
     ]
+
+
+def _ui_signature(render: NodeRender | None) -> str:
+    """Huella del spec canonico servido, no de la salida cruda del modelo."""
+    spec = getattr(render, "ui_spec", None)
+    if not isinstance(spec, dict):
+        return ""
+    canonical = json.dumps(spec, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return _digest(canonical)
 
 
 _INFRA_MARKERS = (
@@ -1872,6 +2322,18 @@ def print_coverage(total: Aggregate) -> None:
         print(f"  Sin usar ni una vez: {', '.join(total.types_unused)}")
 
 
+def aggregate_by_arm(
+    results: list[RunResult],
+) -> dict[str, tuple[dict[str, Aggregate], Aggregate]]:
+    """Agrega cada brazo por separado; sumar raw y pack seria una metrica inventada."""
+    grouped: dict[str, tuple[dict[str, Aggregate], Aggregate]] = {}
+    for run in results:
+        per_encargo, total = grouped.setdefault(run.arm, ({}, Aggregate()))
+        per_encargo.setdefault(run.encargo, Aggregate()).add(run)
+        total.add(run)
+    return grouped
+
+
 def print_comparison(current: dict, previous: dict | None) -> None:
     if previous is None:
         print(
@@ -1879,8 +2341,18 @@ def print_comparison(current: dict, previous: dict | None) -> None:
             "aqui el 'antes -> ahora'."
         )
         return
-    before = previous.get("total") or {}
-    after = current.get("total") or {}
+    before_arms = previous.get("arms")
+    after_arms = current.get("arms")
+    # Los JSON antiguos llevaban un total unico. Se leen como raw para que el banco siga
+    # pudiendo comparar baselines anteriores sin atribuirlos accidentalmente al pack.
+    if not isinstance(before_arms, dict):
+        before_arms = {"raw": {"total": previous.get("total") or {}}}
+    if not isinstance(after_arms, dict):
+        after_arms = {"raw": {"total": current.get("total") or {}}}
+    common = [arm for arm in BENCH_ARMS if arm in before_arms and arm in after_arms]
+    if not common:
+        print("\nNo hay un brazo comun con la ejecucion anterior para comparar.")
+        return
     print(
         f"\nComparado con {previous.get('run_id', '?')} "
         f"(fast={previous.get('model_fast', '?')}, heavy={previous.get('model_heavy', '?')}):"
@@ -1896,21 +2368,29 @@ def print_comparison(current: dict, previous: dict | None) -> None:
         ("tipos de bloque usados", "distinct_block_types", f"/{len(EMITTABLE_BLOCKS)}", 0, True),
         ("tipos por pantalla (media)", "mean_distinct_types_per_render", "", 2, True),
     )
-    for label, key, unit, digits, higher_is_better in rows:
-        old = before.get(key)
-        new = after.get(key)
-        if old is None or new is None:
-            print(f"  {label:<28} {_fmt(old, unit, digits):>12}  ->  {_fmt(new, unit, digits):>12}")
-            continue
-        delta = new - old
-        arrow = "="
-        if abs(delta) > 1e-9:
-            improved = delta > 0 if higher_is_better else delta < 0
-            arrow = "MEJOR" if improved else "PEOR"
-        print(
-            f"  {label:<28} {_fmt(old, unit, digits):>12}  ->  "
-            f"{_fmt(new, unit, digits):>12}   ({delta:+.{digits}f}{unit}) {arrow}"
-        )
+    for arm in common:
+        if len(common) > 1:
+            print(f"  brazo {arm}:")
+        before = (before_arms[arm] or {}).get("total") or {}
+        after = (after_arms[arm] or {}).get("total") or {}
+        for label, key, unit, digits, higher_is_better in rows:
+            old = before.get(key)
+            new = after.get(key)
+            if old is None or new is None:
+                print(
+                    f"  {label:<28} {_fmt(old, unit, digits):>12}  ->  "
+                    f"{_fmt(new, unit, digits):>12}"
+                )
+                continue
+            delta = new - old
+            arrow = "="
+            if abs(delta) > 1e-9:
+                improved = delta > 0 if higher_is_better else delta < 0
+                arrow = "MEJOR" if improved else "PEOR"
+            print(
+                f"  {label:<28} {_fmt(old, unit, digits):>12}  ->  "
+                f"{_fmt(new, unit, digits):>12}   ({delta:+.{digits}f}{unit}) {arrow}"
+            )
 
 
 def _fmt(value: Any, unit: str, digits: int) -> str:
@@ -1938,10 +2418,10 @@ def dump_failure(
     expected ')'" se puede arreglar y "programa invalido" no. Nunca lleva ``answer_key``.
     """
     directory.mkdir(parents=True, exist_ok=True)
-    path = directory / f"{run.outcome}--{encargo.name}--r{run.repeat}.md"
+    path = directory / f"{run.outcome}--{run.arm}--{encargo.name}--r{run.repeat}.md"
 
     lines: list[str] = [
-        f"# {encargo.name} (pase {run.repeat}) -> {run.outcome}",
+        f"# {encargo.name} ({run.arm}, pase {run.repeat}) -> {run.outcome}",
         "",
         f"- Motivo: {run.reason or '(sin motivo registrado)'}",
         f"- Formato elegido: {run.ui_format} (nivel {run.tier}, modelo {run.model})",
@@ -1951,6 +2431,11 @@ def dump_failure(
         f"- Pasos del grafo: {' -> '.join(run.steps)}",
         f"- Segundos: {run.seconds}",
         f"- cache_key: {run.cache_key}",
+        f"- Contexto: {run.context} ({run.context_digest or 'sin huella'})",
+        f"- Fuente recuperada: {run.source_digest or 'sin huella'}",
+        f"- Atomos seleccionados: {', '.join(run.atom_ids) or '(raw)'}",
+        f"- Invariantes: {', '.join(run.invariant_atom_ids) or '(raw)'}",
+        f"- Firma UI: {run.ui_signature or '(sin spec servido)'}",
         "",
         "## El aprendiz",
         "",
@@ -2097,6 +2582,34 @@ def build_parser() -> argparse.ArgumentParser:
         help="Usa FixtureLLMService: sin clave, sin red, deterministico.",
     )
     parser.add_argument(
+        "--arm",
+        choices=("raw", "pack", "both"),
+        default="raw",
+        help=(
+            "Representacion de contexto: raw conserva produccion; pack prueba un dossier "
+            "Markdown local; both ejecuta y agrega los dos por separado."
+        ),
+    )
+    parser.add_argument(
+        "--pack-source",
+        choices=PACK_SOURCES,
+        default="structural",
+        help=(
+            "Origen del brazo pack: structural solo estructura la misma fuente; "
+            "generated ejecuta extractor+revisor reales una vez por nodo (solo online)."
+        ),
+    )
+    parser.add_argument("--pack-extractor-tokens", type=int, default=1_600)
+    parser.add_argument("--pack-reviewer-tokens", type=int, default=1_600)
+    parser.add_argument("--pack-min-invariants", type=int, default=1)
+    parser.add_argument("--pack-max-atoms", type=int, default=24)
+    parser.add_argument("--pack-min-fact-coverage", type=float, default=1.0)
+    parser.add_argument(
+        "--pack-require-evidence",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+    )
+    parser.add_argument(
         "--out",
         type=Path,
         default=_PACKAGE_ROOT / "bench_out",
@@ -2169,8 +2682,23 @@ def resolve_prices(args: argparse.Namespace) -> dict[str, tuple[float, float]]:
 
 
 async def run_bench(args: argparse.Namespace) -> int:
+    global _GENERATED_PACKS
+
     corpus = select_corpus(args.only)
+    arms = BENCH_ARMS if args.arm == "both" else (args.arm,)
     prices = resolve_prices(args)
+    try:
+        pack_policy = PackBenchPolicy(
+            extractor_max_tokens=args.pack_extractor_tokens,
+            reviewer_max_tokens=args.pack_reviewer_tokens,
+            min_invariants=args.pack_min_invariants,
+            max_atoms=args.pack_max_atoms,
+            min_fact_coverage=args.pack_min_fact_coverage,
+            require_evidence=args.pack_require_evidence,
+        )
+    except ValueError as exc:
+        print(f"Politica pack invalida: {exc}", file=sys.stderr)
+        return 2
     pause = args.pause if args.pause is not None else (0.0 if args.offline else 1.0)
     if args.seed is not None:
         random.seed(args.seed)
@@ -2203,6 +2731,12 @@ async def run_bench(args: argparse.Namespace) -> int:
             file=sys.stderr,
         )
         return 2
+    if args.offline and args.pack_source == "generated" and "pack" in arms:
+        print(
+            "--pack-source generated necesita un modelo real; usa structural con --offline.",
+            file=sys.stderr,
+        )
+        return 2
 
     # --- costuras ---------------------------------------------------------------
     stats = ProviderStats()
@@ -2214,18 +2748,46 @@ async def run_bench(args: argparse.Namespace) -> int:
         install_prompt_capture()
     install_node_instrumentation()
 
+    _GENERATED_PACKS = {}
+    if args.pack_source == "generated" and "pack" in arms:
+        from src.agents.runtime.router import tier_llm
+
+        print(f"Preparando {len(corpus)} packs revisados en segundo plano experimental...")
+        try:
+            _GENERATED_PACKS = await prepare_generated_packs(
+                corpus, llm=tier_llm({}, "heavy"), policy=pack_policy
+            )
+        except Exception as exc:  # noqa: BLE001 - a broken arm must abort the comparison.
+            causes: list[str] = []
+            cause = exc.__cause__
+            while cause is not None:
+                causes.append(f"{type(cause).__name__}: {cause}")
+                cause = cause.__cause__
+            print(
+                f"No se pudieron preparar los packs: {type(exc).__name__}: {exc}"
+                + ("\nCausa de validacion: " + " <- ".join(causes) if causes else ""),
+                file=sys.stderr,
+            )
+            return 2
+
     started_at = datetime.now(timezone.utc)
     run_id = f"quality-{started_at.strftime('%Y%m%d-%H%M%S')}"
     out_dir = args.out
     failures_dir = out_dir / "failures" / run_id
     runs_dir = out_dir / "runs"
 
-    total_runs = len(corpus) * args.repeat
+    total_runs = len(corpus) * args.repeat * len(arms)
     print(f"Banco de calidad SkillNet - {run_id}")
     print(f"  modo       : {'offline (fixtures)' if args.offline else 'en linea'}")
     print(f"  modelo fast: {model_fast}")
     print(f"  modelo heavy: {model_heavy}")
-    print(f"  encargos   : {len(corpus)} x {args.repeat} pases = {total_runs} renders")
+    print(f"  brazo(s)   : {', '.join(arms)}")
+    if "pack" in arms:
+        print(f"  pack source: {args.pack_source}")
+    print(
+        f"  encargos   : {len(corpus)} x {args.repeat} pases x {len(arms)} brazo(s) "
+        f"= {total_runs} renders"
+    )
     print(f"  salida     : {out_dir}")
 
     results: list[RunResult] = []
@@ -2233,53 +2795,52 @@ async def run_bench(args: argparse.Namespace) -> int:
     index = 0
     for repeat in range(1, args.repeat + 1):
         for encargo in corpus:
-            index += 1
-            print(
-                f"[{index:>3}/{total_runs}] {encargo.name} (pase {repeat}) ... ",
-                end="",
-                flush=True,
-            )
-            run, recorder = await run_one(
-                encargo, repeat, offline=args.offline, prices=prices
-            )
-            results.append(run)
-            marker = {
-                "first_pass": "OK a la primera",
-                "repaired": "OK tras reparar",
-                "fallback": "FALLBACK",
-                "skipped": "saltado (ya dominado)",
-                "infra_error": "ERROR DE INFRAESTRUCTURA",
-            }[run.outcome]
-            print(f"{marker} [{run.ui_format}/{run.tier}] {run.seconds:.2f}s")
-            if run.outcome in ("fallback", "repaired", "infra_error"):
-                path = dump_failure(
-                    failures_dir,
-                    encargo,
-                    run,
-                    recorder,
-                    dump_prompts=args.dump_prompts,
+            for arm in arms:
+                index += 1
+                print(
+                    f"[{index:>3}/{total_runs}] {encargo.name} ({arm}, pase {repeat}) ... ",
+                    end="",
+                    flush=True,
                 )
-                dumped.append(str(path))
-                print(f"    volcado -> {path.name}")
-            if pause and index < total_runs:
-                await asyncio.sleep(pause)
+                run, recorder = await run_one(
+                    encargo, repeat, arm=arm, offline=args.offline, prices=prices
+                )
+                results.append(run)
+                marker = {
+                    "first_pass": "OK a la primera",
+                    "repaired": "OK tras reparar",
+                    "fallback": "FALLBACK",
+                    "skipped": "saltado (ya dominado)",
+                    "infra_error": "ERROR DE INFRAESTRUCTURA",
+                }[run.outcome]
+                print(f"{marker} [{run.ui_format}/{run.tier}] {run.seconds:.2f}s")
+                if run.outcome in ("fallback", "repaired", "infra_error"):
+                    path = dump_failure(
+                        failures_dir,
+                        encargo,
+                        run,
+                        recorder,
+                        dump_prompts=args.dump_prompts,
+                    )
+                    dumped.append(str(path))
+                    print(f"    volcado -> {path.name}")
+                if pause and index < total_runs:
+                    await asyncio.sleep(pause)
 
     # --- agregacion -------------------------------------------------------------
-    per_encargo: dict[str, Aggregate] = {}
-    total = Aggregate()
-    for run in results:
-        per_encargo.setdefault(run.encargo, Aggregate()).add(run)
-        total.add(run)
-
-    print_table(per_encargo, total)
-    print_coverage(total)
+    aggregates = aggregate_by_arm(results)
+    for arm in arms:
+        per_encargo, total = aggregates[arm]
+        print(f"\nBrazo {arm}")
+        print_table(per_encargo, total)
+        print_coverage(total)
 
     if stats.rate_limited or stats.exhausted:
         print(
             f"\nLimite de peticiones: {stats.rate_limited} esperas "
             f"({stats.rate_limit_seconds:.0f}s dormidos), {stats.exhausted} agotadas."
         )
-    if not total.cost_known:
+    if any(not total.cost_known for _, total in aggregates.values()):
         print(
             "\nColumna de coste en 'n/d': algun modelo no tiene tarifa en PRICES "
             "(scripts/quality_bench.py) y el banco no se inventa precios. "
@@ -2292,6 +2853,15 @@ async def run_bench(args: argparse.Namespace) -> int:
             "proveedor no la devolvio. Los tokens y el coste de esos renders no cuentan."
         )
 
+    arm_payload = {
+        arm: {
+            "total": total.summary(),
+            "per_encargo": {
+                name: aggregate.summary() for name, aggregate in sorted(per_encargo.items())
+            },
+        }
+        for arm, (per_encargo, total) in aggregates.items()
+    }
     payload = {
         "schema_version": 1,
         "run_id": run_id,
@@ -2300,15 +2870,37 @@ async def run_bench(args: argparse.Namespace) -> int:
         "model_fast": model_fast,
         "model_heavy": model_heavy,
         "repeat": args.repeat,
+        "arms": arm_payload,
         "corpus": [e.name for e in corpus],
         "prompt_version": _prompt_version(),
         "catalog_version": _catalog_version(),
         "provider": asdict(stats),
-        "total": total.summary(),
-        "per_encargo": {name: agg.summary() for name, agg in sorted(per_encargo.items())},
+        "pack_source": args.pack_source,
+        "pack_policy": asdict(pack_policy),
+        "pack_preparation": {
+            name: {
+                "pack_hash": artifact.pack_hash,
+                "pack_payload": artifact.pack_payload,
+                "markdown": artifact.selection.markdown,
+                "input_tokens": artifact.input_tokens,
+                "output_tokens": artifact.output_tokens,
+                "duration_ms": artifact.duration_ms,
+                "atom_count": len(artifact.selection.atom_ids),
+                "invariant_count": len(artifact.selection.invariant_ids),
+                "fact_coverage": round(artifact.fact_coverage, 4),
+                "matched_fact_ids": list(artifact.matched_fact_ids),
+                "missing_fact_ids": list(artifact.missing_fact_ids),
+            }
+            for name, artifact in sorted(_GENERATED_PACKS.items())
+        },
         "runs": [asdict(r) for r in results],
         "failure_dumps": dumped,
     }
+    # Compatibilidad deliberada con los informes raw anteriores. En ``both`` no existe
+    # total global: promediar los brazos esconderia exactamente el efecto que se mide.
+    if len(arms) == 1:
+        payload["total"] = arm_payload[arms[0]]["total"]
+        payload["per_encargo"] = arm_payload[arms[0]]["per_encargo"]
 
     previous = load_previous(runs_dir, args.compare)
     print_comparison(payload, previous)
@@ -2323,7 +2915,7 @@ async def run_bench(args: argparse.Namespace) -> int:
     if dumped:
         print(f"Fallos volcados en {failures_dir} ({len(dumped)} ficheros)")
 
-    return 1 if total.infra_error and not total.graded else 0
+    return 1 if all(total.infra_error and not total.graded for _, total in aggregates.values()) else 0
 
 
 def _prompt_version() -> str:

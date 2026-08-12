@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
 import { useStats } from '../../api/stats'
-import { Card, CardTitle, MetricCard, Skeleton } from '../../components/ui'
+import { Card, CardTitle, MetricCard, PageHeader, Skeleton } from '../../components/ui'
 import { staggerContainer, staggerItem } from '../../lib/motion'
 import type { RecentActivityItem } from '../../types'
 
@@ -110,8 +110,7 @@ export function Dashboard() {
   if (isError) {
     return (
       <div>
-        <h2 className="text-xl font-semibold text-text">Panel de Empresa</h2>
-        <p className="text-sm text-text-secondary mt-1">Vista general del equipo y formacion</p>
+        <PageHeader title="Panel de empresa" description="Vista general del equipo y la formación." />
         <Card className="mt-6">
           <p className="text-sm text-danger">
             Error al cargar las estadisticas. Intenta recargar la pagina.
@@ -123,8 +122,7 @@ export function Dashboard() {
 
   return (
     <div>
-      <h2 className="text-xl font-semibold text-text">Panel de Empresa</h2>
-      <p className="text-sm text-text-secondary mt-1">Vista general del equipo y formacion</p>
+      <PageHeader title="Panel de empresa" description="Vista general del equipo y la formación." />
 
       {/* Metric cards */}
       <motion.div

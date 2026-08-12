@@ -811,3 +811,18 @@ bucket canónico no identificativo que forma parte de `cache_key`. Al guardar un
 incrementa la revisión y se despejan los pins de ese aprendiz sin borrar el historial compartido.
 El guard al fijar impide que una generación iniciada con una revisión antigua vuelva a convertirse
 en el render vigente después de un cambio concurrente.
+
+### Dossiers pedagógicos preparados
+
+La migración **`0012_node_knowledge_packs`** añade `node_knowledge_packs`, una tabla de snapshots
+inmutables por `(node_id, source_fingerprint, generator_version)`. Cada fila pertenece a una
+organización, curso y nodo, y registra `schema_version`, estado
+(`pending|ready|review_required|stale|failed`),
+Markdown revisable, contrato JSON completo (`pack_payload`), vista compacta de átomos, procedencia,
+hashes, tokens, duración y error.
+
+`source_fingerprint` incluye los campos pedagógicamente relevantes del nodo y el hash del contexto
+de fuente. Un snapshot nuevo marca los anteriores como `stale`; un worker solo puede completar la
+fila que sigue `pending` con el fingerprint que reclamó. El Markdown no se reimporta: para selección,
+auditoría y caché la autoridad es `pack_payload` + `pack_hash`. `review_required` conserva el
+payload y el Markdown para inspección, pero solo `ready` puede alimentar OpenUI.

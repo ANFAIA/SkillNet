@@ -60,6 +60,7 @@ const mockFetch = vi.fn()
 
 interface Handlers {
   schema: CourseSchemaRead
+  packs?: Array<Record<string, unknown>>
   /** `[status, body]` for `PUT /schema`. */
   put?: [number, unknown]
   /** `[status, body]` for `POST /schema/validate`. */
@@ -92,6 +93,31 @@ function installFetch(handlers: Handlers) {
     }
     if (url.endsWith(`/courses/${COURSE_ID}/schema`) && method === 'GET') {
       return jsonResponse(200, handlers.schema)
+    }
+    if (url.endsWith(`/courses/${COURSE_ID}/schema/knowledge-packs`) && method === 'GET') {
+      return jsonResponse(200, {
+        course_id: COURSE_ID,
+        schema_version: handlers.schema.schema_version,
+        nodes: handlers.packs ?? [
+          {
+            id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+            node_id: NODE_A,
+            status: 'review_required',
+            generator_version: 'knowledge-pack/v1',
+            pack_hash: 'a'.repeat(64),
+            markdown: '# Dossier\n\nHecho revisable.',
+            atom_count: 2,
+            invariant_count: 1,
+            required_evidence_count: 0,
+            blocking_gaps: ['Falta evidencia observable'],
+            input_tokens: 100,
+            output_tokens: 50,
+            duration_ms: 1200,
+            error_message: null,
+            updated_at: '2026-08-11T10:00:00Z',
+          },
+        ],
+      })
     }
     if (url.endsWith(`/courses/${COURSE_ID}/schema`) && method === 'PUT') {
       const [status, body] = handlers.put ?? [200, handlers.schema]
@@ -177,6 +203,32 @@ describe('CourseSchema', () => {
     expect(await screen.findByRole('button', { name: 'Probar curso' })).toBeInTheDocument()
   })
 
+  it('keeps pedagogical preparation inside each node instead of a separate panel', async () => {
+    installFetch({ schema: schema() })
+    renderPage()
+
+    await screen.findByDisplayValue('Plazo de devolucion')
+    expect(screen.queryByText('Preparación pedagógica')).not.toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Abrir Plazo de devolucion' }))
+
+    expect(await screen.findByText('Preparación pedagógica')).toBeVisible()
+    expect(await screen.findByText('Necesita revisión')).toBeVisible()
+    expect(screen.queryByText('0 de 1 listos')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Generar dossiers' })).not.toBeInTheDocument()
+  })
+
+  it('does not schedule work merely by opening an unfinished schema', async () => {
+    installFetch({ schema: schema(), packs: [] })
+    renderPage()
+
+    await screen.findByDisplayValue('Plazo de devolucion')
+    const posts = mockFetch.mock.calls.filter(([, init]) =>
+      ((init as RequestInit | undefined)?.method ?? 'GET').toUpperCase() === 'POST',
+    )
+    expect(posts).toHaveLength(0)
+  })
+
   it('shows the "Guardar y activar" button when there are unsaved changes', async () => {
     installFetch({ schema: schema() })
     renderPage()
@@ -254,7 +306,7 @@ describe('CourseSchema', () => {
 
       expect(await screen.findByText('Hay nodos sin resumen')).toBeInTheDocument()
       expect(screen.getByText('Ningun nodo es critico')).toBeInTheDocument()
-      expect(screen.getByText('2. Excepciones')).toBeInTheDocument()
+      expect(screen.getAllByText('2. Excepciones').length).toBeGreaterThan(0)
       expect(
         screen.getByText('No se puede validar todavia: 2 problemas'),
       ).toBeInTheDocument()

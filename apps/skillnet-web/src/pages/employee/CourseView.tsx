@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { useParams, useNavigate, useLocation } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import { useIntl } from 'react-intl'
 import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button, Card, ProgressBar, EmptyState, Skeleton, SkeletonText } from '../../components/ui'
 import { LessonContent } from '../../components/courses/LessonContent'
-import { NodeList } from '../../components/courses/NodeList'
+import { CourseOverview } from '../../components/courses/CourseOverview'
 import { ExerciseRenderer } from '../../components/exercises/ExerciseRenderer'
 import { useCourse, useCompleteLesson, useCourseProgress } from '../../api/courses'
 import { useCourseNodes } from '../../api/nodes'
@@ -108,17 +108,6 @@ export function CourseView() {
     }
   }, [id, nodesToPrefetch])
 
-  // Auto-navigate refs — must be above any early return to satisfy the Rules of Hooks.
-  const location = useLocation()
-  const pathname = location.pathname
-  // Skip auto-navigate when the user came back from NodeView (chevron or browser back).
-  // sessionStorage tracks whether we already auto-navigated for this course so browser
-  // back doesn't re-trigger the redirect. Cleared when navigating to a different course.
-  const cameFromNode = (location.state as { fromNode?: boolean } | null)?.fromNode === true
-  const storageKey = `auto-nav-${id}`
-  const alreadyAutoNavigated = typeof sessionStorage !== 'undefined' && sessionStorage.getItem(storageKey) === '1'
-  const autoNavigatedRef = useRef(cameFromNode || alreadyAutoNavigated)
-
   const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set())
   const [activeLessonId, setActiveLessonId] = useState<string>('')
   const [direction, setDirection] = useState<1 | -1>(1)
@@ -140,32 +129,6 @@ export function CourseView() {
     setActiveLessonId(firstModule?.lessons[0]?.id ?? '')
   }, [course])
 
-  // --- Auto-navigate: skip welcome + node list, go straight to the lesson ---
-  //
-  // The old flow was: MyCourses → Welcome → NodeList → NodeView (3 clicks).
-  // Now: MyCourses → NodeView (0 extra clicks). The NodeView already renders
-  // the course intro on the first node when progress is zero, so the welcome
-  // screen was redundant. The NodeList is still reachable via the back chevron
-  // in NodeView.
-  useEffect(() => {
-    if (!dynamicNodes || !id || autoNavigatedRef.current) return
-    autoNavigatedRef.current = true
-
-    const ordered = [...dynamicNodes.nodes].sort((a, b) => a.position - b.position)
-    const target =
-      ordered.find((n) => n.state === 'learning' && !n.locked) ??
-      ordered.find((n) => n.state === 'not_started' && !n.locked) ??
-      ordered.find((n) => !n.locked)
-
-    if (target) {
-      // Derive base from current URL — works for both /empleado/curso/:id
-      // and /admin/probar-curso/:id
-      const base = pathname.replace(/\/$/, '')
-      try { sessionStorage.setItem(storageKey, '1') } catch { /* SSR/private */ }
-      navigate(`${base}/nodo/${target.id}`)
-    }
-  }, [dynamicNodes, id, navigate, pathname, storageKey])
-
   if (isLoading || dynamicPending) {
     return (
       <div>
@@ -182,19 +145,8 @@ export function CourseView() {
     )
   }
 
-  if (dynamicNodes && id) {
-    const courseTitle = course?.title ?? intl.formatMessage({ id: 'courseview.notFound' })
-
-    // Node map — shown when the learner navigates back from NodeView
-    return (
-      <div>
-        <div className="mb-6 flex items-center gap-3 min-w-0">
-          <span className="w-3 h-3 rounded-full shrink-0 bg-primary" />
-          <h2 className="text-xl font-semibold text-text truncate">{courseTitle}</h2>
-        </div>
-        <NodeList data={dynamicNodes} />
-      </div>
-    )
+  if (dynamicNodes && id && course) {
+    return <CourseOverview course={course} nodes={dynamicNodes} />
   }
 
   if (error || !course) {

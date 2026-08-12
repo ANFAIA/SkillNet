@@ -33,6 +33,11 @@ class NodeRuntimeState(TypedDict, total=False):
     personalization_revision: int  # race guard for repinning generated content
     node_state: dict  # mastery, state, consecutive_*, last_error_kind, scaffold_band
     source_context: str  # source text (RAG or full_text), already clipped
+    knowledge_pack_key: str  # pack_hash:selection_hash frozen before graph start
+    knowledge_pack_hash: str
+    knowledge_selection_hash: str
+    knowledge_atom_ids: list[str]
+    knowledge_evidence_ids: list[str]
     #: Titulo y resumen de las OTRAS pantallas del curso, en orden de posicion. Lo que
     #: evita que seis nodos generados por separado abran con la misma frase y hagan la
     #: misma pregunta. Propiedad del esquema, identica para todos los aprendices.

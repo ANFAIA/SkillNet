@@ -6,6 +6,8 @@ import type { ReactNode } from 'react'
 import { ClickableSurface, expandRangeToWords } from './ClickableSurface'
 import { ClickableText } from './ClickableText'
 import { centerContext, normalizeContext } from '../../api/explain'
+import { ExplainLayer } from './explainLayer'
+import { EXPLAIN_LAYER_COURSE_CHAT } from './explainLayers'
 
 const navigate = vi.fn()
 vi.mock('react-router-dom', async () => {
@@ -69,6 +71,24 @@ afterEach(() => {
 })
 
 describe('ClickableSurface', () => {
+  it('lifts its popover above the course chat drawer when that layer is provided', async () => {
+    render(
+      <MemoryRouter>
+        <ExplainLayer zIndex={EXPLAIN_LAYER_COURSE_CHAT}>
+          <ClickableSurface nodeId={null}>
+            <p><ClickableText>Consulta cualquier procedimiento del curso.</ClickableText></p>
+          </ClickableSurface>
+        </ExplainLayer>
+      </MemoryRouter>,
+    )
+
+    await userEvent.click(screen.getByText('procedimiento'))
+
+    const popover = await screen.findByRole('dialog', { name: 'Explicacion de procedimiento' })
+    expect(Number(popover.style.zIndex)).toBe(EXPLAIN_LAYER_COURSE_CHAT)
+    expect(Number(popover.style.zIndex)).toBeGreaterThan(100)
+  })
+
   describe('clicking a word', () => {
     it('sends the clicked term and the block context', async () => {
       renderSurface(
