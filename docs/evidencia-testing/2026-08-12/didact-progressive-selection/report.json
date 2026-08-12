@@ -1,0 +1,6508 @@
+{
+  "bench_version": "didact-progressive-selection/1",
+  "claim_boundary": "deterministic fixture proxy; not real-LLM latency or quality evidence",
+  "inventory_size": 34,
+  "richness_threshold": 0.92,
+  "scenario_count": 13,
+  "profile_count": 2,
+  "seed_count": 5,
+  "summaries": {
+    "fixed-top5": {
+      "runs": 130,
+      "mean_quality_proxy": 91.461,
+      "mean_preference_fit": 0.539,
+      "mean_affordance_coverage": 0.987,
+      "mean_evidence_coverage": 1.0,
+      "mean_theme_fit": 0.949,
+      "distinct_selected_types": 13,
+      "selection_entropy_bits": 4.239,
+      "expansion_rate": 0.0,
+      "fallback_rate": 0.0,
+      "full_catalog_activation_rate": 0.0,
+      "mean_context_units": 5.0,
+      "mean_latency_proxy_units": 5.0,
+      "hard_gate_failures": 0,
+      "stage_counts": {
+        "top5": 130
+      }
+    },
+    "progressive-34": {
+      "runs": 130,
+      "mean_quality_proxy": 94.269,
+      "mean_preference_fit": 0.667,
+      "mean_affordance_coverage": 0.987,
+      "mean_evidence_coverage": 1.0,
+      "mean_theme_fit": 0.987,
+      "distinct_selected_types": 12,
+      "selection_entropy_bits": 4.393,
+      "expansion_rate": 0.731,
+      "fallback_rate": 0.538,
+      "full_catalog_activation_rate": 0.538,
+      "mean_context_units": 24.962,
+      "mean_latency_proxy_units": 43.269,
+      "hard_gate_failures": 0,
+      "stage_counts": {
+        "producer-full34": 70,
+        "top3": 35,
+        "top5": 25
+      }
+    }
+  },
+  "rows": [
+    {
+      "scenario": "boxing-defense-regression",
+      "profile": "novice-visual",
+      "seed": 11,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.drawing-response",
+        "didact.data-explorer"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 87.33,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 0.667
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "boxing-defense-regression",
+      "profile": "novice-visual",
+      "seed": 11,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.drawing-response",
+        "didact.branching-scenario"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 100.0,
+        "preference_fit": 1.0,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "boxing-defense-regression",
+      "profile": "novice-visual",
+      "seed": 29,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.drawing-response",
+        "didact.data-explorer"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 87.33,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 0.667
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "boxing-defense-regression",
+      "profile": "novice-visual",
+      "seed": 29,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.drawing-response",
+        "didact.branching-scenario"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 100.0,
+        "preference_fit": 1.0,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "boxing-defense-regression",
+      "profile": "novice-visual",
+      "seed": 47,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.drawing-response",
+        "didact.data-explorer"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 87.33,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 0.667
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "boxing-defense-regression",
+      "profile": "novice-visual",
+      "seed": 47,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.drawing-response",
+        "didact.branching-scenario"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 100.0,
+        "preference_fit": 1.0,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "boxing-defense-regression",
+      "profile": "novice-visual",
+      "seed": 83,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.drawing-response",
+        "didact.data-explorer"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 87.33,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 0.667
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "boxing-defense-regression",
+      "profile": "novice-visual",
+      "seed": 83,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.drawing-response",
+        "didact.branching-scenario"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 100.0,
+        "preference_fit": 1.0,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "boxing-defense-regression",
+      "profile": "novice-visual",
+      "seed": 131,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.drawing-response",
+        "didact.data-explorer"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 87.33,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 0.667
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "boxing-defense-regression",
+      "profile": "novice-visual",
+      "seed": 131,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.drawing-response",
+        "didact.branching-scenario"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 100.0,
+        "preference_fit": 1.0,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "boxing-defense-regression",
+      "profile": "experienced-active",
+      "seed": 11,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.drawing-response",
+        "didact.data-explorer"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 87.33,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 0.667
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "boxing-defense-regression",
+      "profile": "experienced-active",
+      "seed": 11,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.drawing-response",
+        "didact.branching-scenario"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 90.0,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "boxing-defense-regression",
+      "profile": "experienced-active",
+      "seed": 29,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.drawing-response",
+        "didact.data-explorer"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 87.33,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 0.667
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "boxing-defense-regression",
+      "profile": "experienced-active",
+      "seed": 29,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.drawing-response",
+        "didact.branching-scenario"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 90.0,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "boxing-defense-regression",
+      "profile": "experienced-active",
+      "seed": 47,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.drawing-response",
+        "didact.data-explorer"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 87.33,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 0.667
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "boxing-defense-regression",
+      "profile": "experienced-active",
+      "seed": 47,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.drawing-response",
+        "didact.branching-scenario"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 90.0,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "boxing-defense-regression",
+      "profile": "experienced-active",
+      "seed": 83,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.drawing-response",
+        "didact.data-explorer"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 87.33,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 0.667
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "boxing-defense-regression",
+      "profile": "experienced-active",
+      "seed": 83,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.drawing-response",
+        "didact.branching-scenario"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 90.0,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "boxing-defense-regression",
+      "profile": "experienced-active",
+      "seed": 131,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.drawing-response",
+        "didact.data-explorer"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 87.33,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 0.667
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "boxing-defense-regression",
+      "profile": "experienced-active",
+      "seed": 131,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.drawing-response",
+        "didact.branching-scenario"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 90.0,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "animation-keyframes",
+      "profile": "novice-visual",
+      "seed": 11,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.drawing-response",
+        "didact.code-exercise"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "animation-keyframes",
+      "profile": "novice-visual",
+      "seed": 11,
+      "arm": "progressive-34",
+      "stage": "top3",
+      "selected": [
+        "didact.drawing-response",
+        "didact.hotspot"
+      ],
+      "considered_count": 3,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 3,
+      "latency_proxy_units": 3
+    },
+    {
+      "scenario": "animation-keyframes",
+      "profile": "novice-visual",
+      "seed": 29,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.drawing-response",
+        "didact.code-exercise"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "animation-keyframes",
+      "profile": "novice-visual",
+      "seed": 29,
+      "arm": "progressive-34",
+      "stage": "top3",
+      "selected": [
+        "didact.drawing-response",
+        "didact.hotspot"
+      ],
+      "considered_count": 3,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 3,
+      "latency_proxy_units": 3
+    },
+    {
+      "scenario": "animation-keyframes",
+      "profile": "novice-visual",
+      "seed": 47,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.drawing-response",
+        "didact.code-exercise"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "animation-keyframes",
+      "profile": "novice-visual",
+      "seed": 47,
+      "arm": "progressive-34",
+      "stage": "top3",
+      "selected": [
+        "didact.drawing-response",
+        "didact.hotspot"
+      ],
+      "considered_count": 3,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 3,
+      "latency_proxy_units": 3
+    },
+    {
+      "scenario": "animation-keyframes",
+      "profile": "novice-visual",
+      "seed": 83,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.drawing-response",
+        "didact.code-exercise"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "animation-keyframes",
+      "profile": "novice-visual",
+      "seed": 83,
+      "arm": "progressive-34",
+      "stage": "top3",
+      "selected": [
+        "didact.drawing-response",
+        "didact.hotspot"
+      ],
+      "considered_count": 3,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 3,
+      "latency_proxy_units": 3
+    },
+    {
+      "scenario": "animation-keyframes",
+      "profile": "novice-visual",
+      "seed": 131,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.drawing-response",
+        "didact.code-exercise"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "animation-keyframes",
+      "profile": "novice-visual",
+      "seed": 131,
+      "arm": "progressive-34",
+      "stage": "top3",
+      "selected": [
+        "didact.drawing-response",
+        "didact.hotspot"
+      ],
+      "considered_count": 3,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 3,
+      "latency_proxy_units": 3
+    },
+    {
+      "scenario": "animation-keyframes",
+      "profile": "experienced-active",
+      "seed": 11,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.drawing-response",
+        "didact.code-exercise"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 90.0,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "animation-keyframes",
+      "profile": "experienced-active",
+      "seed": 11,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.drawing-response",
+        "didact.data-explorer"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "animation-keyframes",
+      "profile": "experienced-active",
+      "seed": 29,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.drawing-response",
+        "didact.code-exercise"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 90.0,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "animation-keyframes",
+      "profile": "experienced-active",
+      "seed": 29,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.drawing-response",
+        "didact.data-explorer"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "animation-keyframes",
+      "profile": "experienced-active",
+      "seed": 47,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.drawing-response",
+        "didact.code-exercise"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 90.0,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "animation-keyframes",
+      "profile": "experienced-active",
+      "seed": 47,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.drawing-response",
+        "didact.data-explorer"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "animation-keyframes",
+      "profile": "experienced-active",
+      "seed": 83,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.drawing-response",
+        "didact.code-exercise"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 90.0,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "animation-keyframes",
+      "profile": "experienced-active",
+      "seed": 83,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.drawing-response",
+        "didact.data-explorer"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "animation-keyframes",
+      "profile": "experienced-active",
+      "seed": 131,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.drawing-response",
+        "didact.code-exercise"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 90.0,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "animation-keyframes",
+      "profile": "experienced-active",
+      "seed": 131,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.drawing-response",
+        "didact.data-explorer"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "ticket-incident-triage",
+      "profile": "novice-visual",
+      "seed": 11,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.branching-scenario",
+        "didact.categorize"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 90.0,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "ticket-incident-triage",
+      "profile": "novice-visual",
+      "seed": 11,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.branching-scenario",
+        "didact.drawing-response"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 100.0,
+        "preference_fit": 1.0,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "ticket-incident-triage",
+      "profile": "novice-visual",
+      "seed": 29,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.branching-scenario",
+        "didact.categorize"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 90.0,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "ticket-incident-triage",
+      "profile": "novice-visual",
+      "seed": 29,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.branching-scenario",
+        "didact.drawing-response"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 100.0,
+        "preference_fit": 1.0,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "ticket-incident-triage",
+      "profile": "novice-visual",
+      "seed": 47,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.branching-scenario",
+        "didact.categorize"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 90.0,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "ticket-incident-triage",
+      "profile": "novice-visual",
+      "seed": 47,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.branching-scenario",
+        "didact.drawing-response"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 100.0,
+        "preference_fit": 1.0,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "ticket-incident-triage",
+      "profile": "novice-visual",
+      "seed": 83,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.branching-scenario",
+        "didact.categorize"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 90.0,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "ticket-incident-triage",
+      "profile": "novice-visual",
+      "seed": 83,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.branching-scenario",
+        "didact.drawing-response"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 100.0,
+        "preference_fit": 1.0,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "ticket-incident-triage",
+      "profile": "novice-visual",
+      "seed": 131,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.branching-scenario",
+        "didact.categorize"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 90.0,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "ticket-incident-triage",
+      "profile": "novice-visual",
+      "seed": 131,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.branching-scenario",
+        "didact.drawing-response"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 100.0,
+        "preference_fit": 1.0,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "ticket-incident-triage",
+      "profile": "experienced-active",
+      "seed": 11,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.branching-scenario",
+        "didact.measurement-lab"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "ticket-incident-triage",
+      "profile": "experienced-active",
+      "seed": 11,
+      "arm": "progressive-34",
+      "stage": "top5",
+      "selected": [
+        "didact.branching-scenario",
+        "didact.measurement-lab"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 8,
+      "latency_proxy_units": 8
+    },
+    {
+      "scenario": "ticket-incident-triage",
+      "profile": "experienced-active",
+      "seed": 29,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.branching-scenario",
+        "didact.measurement-lab"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "ticket-incident-triage",
+      "profile": "experienced-active",
+      "seed": 29,
+      "arm": "progressive-34",
+      "stage": "top5",
+      "selected": [
+        "didact.branching-scenario",
+        "didact.measurement-lab"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 8,
+      "latency_proxy_units": 8
+    },
+    {
+      "scenario": "ticket-incident-triage",
+      "profile": "experienced-active",
+      "seed": 47,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.branching-scenario",
+        "didact.measurement-lab"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "ticket-incident-triage",
+      "profile": "experienced-active",
+      "seed": 47,
+      "arm": "progressive-34",
+      "stage": "top5",
+      "selected": [
+        "didact.branching-scenario",
+        "didact.measurement-lab"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 8,
+      "latency_proxy_units": 8
+    },
+    {
+      "scenario": "ticket-incident-triage",
+      "profile": "experienced-active",
+      "seed": 83,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.branching-scenario",
+        "didact.measurement-lab"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "ticket-incident-triage",
+      "profile": "experienced-active",
+      "seed": 83,
+      "arm": "progressive-34",
+      "stage": "top5",
+      "selected": [
+        "didact.branching-scenario",
+        "didact.measurement-lab"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 8,
+      "latency_proxy_units": 8
+    },
+    {
+      "scenario": "ticket-incident-triage",
+      "profile": "experienced-active",
+      "seed": 131,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.branching-scenario",
+        "didact.measurement-lab"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "ticket-incident-triage",
+      "profile": "experienced-active",
+      "seed": 131,
+      "arm": "progressive-34",
+      "stage": "top5",
+      "selected": [
+        "didact.branching-scenario",
+        "didact.measurement-lab"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 8,
+      "latency_proxy_units": 8
+    },
+    {
+      "scenario": "fire-extinguisher",
+      "profile": "novice-visual",
+      "seed": 11,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.categorize",
+        "didact.hotspot"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 88.67,
+        "preference_fit": 1.0,
+        "affordance_coverage": 0.667,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "fire-extinguisher",
+      "profile": "novice-visual",
+      "seed": 11,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.categorize",
+        "didact.drawing-response"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 88.67,
+        "preference_fit": 1.0,
+        "affordance_coverage": 0.667,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "fire-extinguisher",
+      "profile": "novice-visual",
+      "seed": 29,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.categorize",
+        "didact.hotspot"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 88.67,
+        "preference_fit": 1.0,
+        "affordance_coverage": 0.667,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "fire-extinguisher",
+      "profile": "novice-visual",
+      "seed": 29,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.categorize",
+        "didact.drawing-response"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 88.67,
+        "preference_fit": 1.0,
+        "affordance_coverage": 0.667,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "fire-extinguisher",
+      "profile": "novice-visual",
+      "seed": 47,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.categorize",
+        "didact.hotspot"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 88.67,
+        "preference_fit": 1.0,
+        "affordance_coverage": 0.667,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "fire-extinguisher",
+      "profile": "novice-visual",
+      "seed": 47,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.categorize",
+        "didact.drawing-response"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 88.67,
+        "preference_fit": 1.0,
+        "affordance_coverage": 0.667,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "fire-extinguisher",
+      "profile": "novice-visual",
+      "seed": 83,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.categorize",
+        "didact.hotspot"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 88.67,
+        "preference_fit": 1.0,
+        "affordance_coverage": 0.667,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "fire-extinguisher",
+      "profile": "novice-visual",
+      "seed": 83,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.categorize",
+        "didact.drawing-response"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 88.67,
+        "preference_fit": 1.0,
+        "affordance_coverage": 0.667,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "fire-extinguisher",
+      "profile": "novice-visual",
+      "seed": 131,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.categorize",
+        "didact.hotspot"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 88.67,
+        "preference_fit": 1.0,
+        "affordance_coverage": 0.667,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "fire-extinguisher",
+      "profile": "novice-visual",
+      "seed": 131,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.categorize",
+        "didact.drawing-response"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 88.67,
+        "preference_fit": 1.0,
+        "affordance_coverage": 0.667,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "fire-extinguisher",
+      "profile": "experienced-active",
+      "seed": 11,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.categorize",
+        "didact.practice-set"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 77.33,
+        "preference_fit": 0.0,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 0.667
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "fire-extinguisher",
+      "profile": "experienced-active",
+      "seed": 11,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.categorize",
+        "didact.numeric-question"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 82.33,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 0.667
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "fire-extinguisher",
+      "profile": "experienced-active",
+      "seed": 29,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.categorize",
+        "didact.practice-set"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 77.33,
+        "preference_fit": 0.0,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 0.667
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "fire-extinguisher",
+      "profile": "experienced-active",
+      "seed": 29,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.categorize",
+        "didact.numeric-question"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 82.33,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 0.667
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "fire-extinguisher",
+      "profile": "experienced-active",
+      "seed": 47,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.categorize",
+        "didact.practice-set"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 77.33,
+        "preference_fit": 0.0,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 0.667
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "fire-extinguisher",
+      "profile": "experienced-active",
+      "seed": 47,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.categorize",
+        "didact.numeric-question"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 82.33,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 0.667
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "fire-extinguisher",
+      "profile": "experienced-active",
+      "seed": 83,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.categorize",
+        "didact.practice-set"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 77.33,
+        "preference_fit": 0.0,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 0.667
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "fire-extinguisher",
+      "profile": "experienced-active",
+      "seed": 83,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.categorize",
+        "didact.numeric-question"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 82.33,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 0.667
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "fire-extinguisher",
+      "profile": "experienced-active",
+      "seed": 131,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.categorize",
+        "didact.practice-set"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 77.33,
+        "preference_fit": 0.0,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 0.667
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "fire-extinguisher",
+      "profile": "experienced-active",
+      "seed": 131,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.categorize",
+        "didact.numeric-question"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 82.33,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 0.667
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "cash-reconciliation",
+      "profile": "novice-visual",
+      "seed": 11,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.equation-workbench",
+        "didact.label-diagram"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 87.33,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 0.667
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "cash-reconciliation",
+      "profile": "novice-visual",
+      "seed": 11,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.equation-workbench",
+        "didact.data-explorer"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 90.0,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "cash-reconciliation",
+      "profile": "novice-visual",
+      "seed": 29,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.equation-workbench",
+        "didact.label-diagram"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 87.33,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 0.667
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "cash-reconciliation",
+      "profile": "novice-visual",
+      "seed": 29,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.equation-workbench",
+        "didact.data-explorer"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 90.0,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "cash-reconciliation",
+      "profile": "novice-visual",
+      "seed": 47,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.equation-workbench",
+        "didact.label-diagram"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 87.33,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 0.667
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "cash-reconciliation",
+      "profile": "novice-visual",
+      "seed": 47,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.equation-workbench",
+        "didact.data-explorer"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 90.0,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "cash-reconciliation",
+      "profile": "novice-visual",
+      "seed": 83,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.equation-workbench",
+        "didact.label-diagram"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 87.33,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 0.667
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "cash-reconciliation",
+      "profile": "novice-visual",
+      "seed": 83,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.equation-workbench",
+        "didact.data-explorer"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 90.0,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "cash-reconciliation",
+      "profile": "novice-visual",
+      "seed": 131,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.equation-workbench",
+        "didact.label-diagram"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 87.33,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 0.667
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "cash-reconciliation",
+      "profile": "novice-visual",
+      "seed": 131,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.equation-workbench",
+        "didact.data-explorer"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 90.0,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "cash-reconciliation",
+      "profile": "experienced-active",
+      "seed": 11,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.equation-workbench",
+        "didact.numeric-question"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "cash-reconciliation",
+      "profile": "experienced-active",
+      "seed": 11,
+      "arm": "progressive-34",
+      "stage": "top5",
+      "selected": [
+        "didact.equation-workbench",
+        "didact.numeric-question"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 8,
+      "latency_proxy_units": 8
+    },
+    {
+      "scenario": "cash-reconciliation",
+      "profile": "experienced-active",
+      "seed": 29,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.equation-workbench",
+        "didact.numeric-question"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "cash-reconciliation",
+      "profile": "experienced-active",
+      "seed": 29,
+      "arm": "progressive-34",
+      "stage": "top5",
+      "selected": [
+        "didact.equation-workbench",
+        "didact.numeric-question"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 8,
+      "latency_proxy_units": 8
+    },
+    {
+      "scenario": "cash-reconciliation",
+      "profile": "experienced-active",
+      "seed": 47,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.equation-workbench",
+        "didact.numeric-question"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "cash-reconciliation",
+      "profile": "experienced-active",
+      "seed": 47,
+      "arm": "progressive-34",
+      "stage": "top5",
+      "selected": [
+        "didact.equation-workbench",
+        "didact.numeric-question"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 8,
+      "latency_proxy_units": 8
+    },
+    {
+      "scenario": "cash-reconciliation",
+      "profile": "experienced-active",
+      "seed": 83,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.equation-workbench",
+        "didact.numeric-question"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "cash-reconciliation",
+      "profile": "experienced-active",
+      "seed": 83,
+      "arm": "progressive-34",
+      "stage": "top5",
+      "selected": [
+        "didact.equation-workbench",
+        "didact.numeric-question"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 8,
+      "latency_proxy_units": 8
+    },
+    {
+      "scenario": "cash-reconciliation",
+      "profile": "experienced-active",
+      "seed": 131,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.equation-workbench",
+        "didact.numeric-question"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "cash-reconciliation",
+      "profile": "experienced-active",
+      "seed": 131,
+      "arm": "progressive-34",
+      "stage": "top5",
+      "selected": [
+        "didact.equation-workbench",
+        "didact.numeric-question"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 8,
+      "latency_proxy_units": 8
+    },
+    {
+      "scenario": "sales-trend",
+      "profile": "novice-visual",
+      "seed": 11,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.data-explorer"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 90.0,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "sales-trend",
+      "profile": "novice-visual",
+      "seed": 11,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.data-explorer"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 90.0,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "sales-trend",
+      "profile": "novice-visual",
+      "seed": 29,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.data-explorer"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 90.0,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "sales-trend",
+      "profile": "novice-visual",
+      "seed": 29,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.data-explorer"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 90.0,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "sales-trend",
+      "profile": "novice-visual",
+      "seed": 47,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.data-explorer"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 90.0,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "sales-trend",
+      "profile": "novice-visual",
+      "seed": 47,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.data-explorer"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 90.0,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "sales-trend",
+      "profile": "novice-visual",
+      "seed": 83,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.data-explorer"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 90.0,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "sales-trend",
+      "profile": "novice-visual",
+      "seed": 83,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.data-explorer"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 90.0,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "sales-trend",
+      "profile": "novice-visual",
+      "seed": 131,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.data-explorer"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 90.0,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "sales-trend",
+      "profile": "novice-visual",
+      "seed": 131,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.data-explorer"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 90.0,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "sales-trend",
+      "profile": "experienced-active",
+      "seed": 11,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.data-explorer"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 90.0,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "sales-trend",
+      "profile": "experienced-active",
+      "seed": 11,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.data-explorer"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 90.0,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "sales-trend",
+      "profile": "experienced-active",
+      "seed": 29,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.data-explorer"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 90.0,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "sales-trend",
+      "profile": "experienced-active",
+      "seed": 29,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.data-explorer"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 90.0,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "sales-trend",
+      "profile": "experienced-active",
+      "seed": 47,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.data-explorer"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 90.0,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "sales-trend",
+      "profile": "experienced-active",
+      "seed": 47,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.data-explorer"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 90.0,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "sales-trend",
+      "profile": "experienced-active",
+      "seed": 83,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.data-explorer"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 90.0,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "sales-trend",
+      "profile": "experienced-active",
+      "seed": 83,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.data-explorer"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 90.0,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "sales-trend",
+      "profile": "experienced-active",
+      "seed": 131,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.data-explorer"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 90.0,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "sales-trend",
+      "profile": "experienced-active",
+      "seed": 131,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.data-explorer"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 90.0,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "code-debugging",
+      "profile": "novice-visual",
+      "seed": 11,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.code-exercise",
+        "didact.drawing-response"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "code-debugging",
+      "profile": "novice-visual",
+      "seed": 11,
+      "arm": "progressive-34",
+      "stage": "top3",
+      "selected": [
+        "didact.code-exercise",
+        "didact.drawing-response"
+      ],
+      "considered_count": 3,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 3,
+      "latency_proxy_units": 3
+    },
+    {
+      "scenario": "code-debugging",
+      "profile": "novice-visual",
+      "seed": 29,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.code-exercise",
+        "didact.drawing-response"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "code-debugging",
+      "profile": "novice-visual",
+      "seed": 29,
+      "arm": "progressive-34",
+      "stage": "top3",
+      "selected": [
+        "didact.code-exercise",
+        "didact.drawing-response"
+      ],
+      "considered_count": 3,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 3,
+      "latency_proxy_units": 3
+    },
+    {
+      "scenario": "code-debugging",
+      "profile": "novice-visual",
+      "seed": 47,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.code-exercise",
+        "didact.drawing-response"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "code-debugging",
+      "profile": "novice-visual",
+      "seed": 47,
+      "arm": "progressive-34",
+      "stage": "top3",
+      "selected": [
+        "didact.code-exercise",
+        "didact.drawing-response"
+      ],
+      "considered_count": 3,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 3,
+      "latency_proxy_units": 3
+    },
+    {
+      "scenario": "code-debugging",
+      "profile": "novice-visual",
+      "seed": 83,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.code-exercise",
+        "didact.drawing-response"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "code-debugging",
+      "profile": "novice-visual",
+      "seed": 83,
+      "arm": "progressive-34",
+      "stage": "top3",
+      "selected": [
+        "didact.code-exercise",
+        "didact.drawing-response"
+      ],
+      "considered_count": 3,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 3,
+      "latency_proxy_units": 3
+    },
+    {
+      "scenario": "code-debugging",
+      "profile": "novice-visual",
+      "seed": 131,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.code-exercise",
+        "didact.drawing-response"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "code-debugging",
+      "profile": "novice-visual",
+      "seed": 131,
+      "arm": "progressive-34",
+      "stage": "top3",
+      "selected": [
+        "didact.code-exercise",
+        "didact.drawing-response"
+      ],
+      "considered_count": 3,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 3,
+      "latency_proxy_units": 3
+    },
+    {
+      "scenario": "code-debugging",
+      "profile": "experienced-active",
+      "seed": 11,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.code-exercise",
+        "didact.data-explorer"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "code-debugging",
+      "profile": "experienced-active",
+      "seed": 11,
+      "arm": "progressive-34",
+      "stage": "top5",
+      "selected": [
+        "didact.code-exercise",
+        "didact.data-explorer"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 8,
+      "latency_proxy_units": 8
+    },
+    {
+      "scenario": "code-debugging",
+      "profile": "experienced-active",
+      "seed": 29,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.code-exercise",
+        "didact.data-explorer"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "code-debugging",
+      "profile": "experienced-active",
+      "seed": 29,
+      "arm": "progressive-34",
+      "stage": "top5",
+      "selected": [
+        "didact.code-exercise",
+        "didact.data-explorer"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 8,
+      "latency_proxy_units": 8
+    },
+    {
+      "scenario": "code-debugging",
+      "profile": "experienced-active",
+      "seed": 47,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.code-exercise",
+        "didact.data-explorer"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "code-debugging",
+      "profile": "experienced-active",
+      "seed": 47,
+      "arm": "progressive-34",
+      "stage": "top5",
+      "selected": [
+        "didact.code-exercise",
+        "didact.data-explorer"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 8,
+      "latency_proxy_units": 8
+    },
+    {
+      "scenario": "code-debugging",
+      "profile": "experienced-active",
+      "seed": 83,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.code-exercise",
+        "didact.data-explorer"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "code-debugging",
+      "profile": "experienced-active",
+      "seed": 83,
+      "arm": "progressive-34",
+      "stage": "top5",
+      "selected": [
+        "didact.code-exercise",
+        "didact.data-explorer"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 8,
+      "latency_proxy_units": 8
+    },
+    {
+      "scenario": "code-debugging",
+      "profile": "experienced-active",
+      "seed": 131,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.code-exercise",
+        "didact.data-explorer"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "code-debugging",
+      "profile": "experienced-active",
+      "seed": 131,
+      "arm": "progressive-34",
+      "stage": "top5",
+      "selected": [
+        "didact.code-exercise",
+        "didact.data-explorer"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 8,
+      "latency_proxy_units": 8
+    },
+    {
+      "scenario": "anatomy-labels",
+      "profile": "novice-visual",
+      "seed": 11,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.label-diagram"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "anatomy-labels",
+      "profile": "novice-visual",
+      "seed": 11,
+      "arm": "progressive-34",
+      "stage": "top3",
+      "selected": [
+        "didact.label-diagram"
+      ],
+      "considered_count": 3,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 3,
+      "latency_proxy_units": 3
+    },
+    {
+      "scenario": "anatomy-labels",
+      "profile": "novice-visual",
+      "seed": 29,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.label-diagram"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "anatomy-labels",
+      "profile": "novice-visual",
+      "seed": 29,
+      "arm": "progressive-34",
+      "stage": "top3",
+      "selected": [
+        "didact.label-diagram"
+      ],
+      "considered_count": 3,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 3,
+      "latency_proxy_units": 3
+    },
+    {
+      "scenario": "anatomy-labels",
+      "profile": "novice-visual",
+      "seed": 47,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.label-diagram"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "anatomy-labels",
+      "profile": "novice-visual",
+      "seed": 47,
+      "arm": "progressive-34",
+      "stage": "top3",
+      "selected": [
+        "didact.label-diagram"
+      ],
+      "considered_count": 3,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 3,
+      "latency_proxy_units": 3
+    },
+    {
+      "scenario": "anatomy-labels",
+      "profile": "novice-visual",
+      "seed": 83,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.label-diagram"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "anatomy-labels",
+      "profile": "novice-visual",
+      "seed": 83,
+      "arm": "progressive-34",
+      "stage": "top3",
+      "selected": [
+        "didact.label-diagram"
+      ],
+      "considered_count": 3,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 3,
+      "latency_proxy_units": 3
+    },
+    {
+      "scenario": "anatomy-labels",
+      "profile": "novice-visual",
+      "seed": 131,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.label-diagram"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "anatomy-labels",
+      "profile": "novice-visual",
+      "seed": 131,
+      "arm": "progressive-34",
+      "stage": "top3",
+      "selected": [
+        "didact.label-diagram"
+      ],
+      "considered_count": 3,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 3,
+      "latency_proxy_units": 3
+    },
+    {
+      "scenario": "anatomy-labels",
+      "profile": "experienced-active",
+      "seed": 11,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.label-diagram"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 85.0,
+        "preference_fit": 0.0,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "anatomy-labels",
+      "profile": "experienced-active",
+      "seed": 11,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.label-diagram",
+        "didact.measurement-lab"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "anatomy-labels",
+      "profile": "experienced-active",
+      "seed": 29,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.label-diagram"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 85.0,
+        "preference_fit": 0.0,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "anatomy-labels",
+      "profile": "experienced-active",
+      "seed": 29,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.label-diagram",
+        "didact.measurement-lab"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "anatomy-labels",
+      "profile": "experienced-active",
+      "seed": 47,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.label-diagram"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 85.0,
+        "preference_fit": 0.0,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "anatomy-labels",
+      "profile": "experienced-active",
+      "seed": 47,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.label-diagram",
+        "didact.measurement-lab"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "anatomy-labels",
+      "profile": "experienced-active",
+      "seed": 83,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.label-diagram"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 85.0,
+        "preference_fit": 0.0,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "anatomy-labels",
+      "profile": "experienced-active",
+      "seed": 83,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.label-diagram",
+        "didact.measurement-lab"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "anatomy-labels",
+      "profile": "experienced-active",
+      "seed": 131,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.label-diagram"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 85.0,
+        "preference_fit": 0.0,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "anatomy-labels",
+      "profile": "experienced-active",
+      "seed": 131,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.label-diagram",
+        "didact.measurement-lab"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "policy-evidence",
+      "profile": "novice-visual",
+      "seed": 11,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.evidence-annotation",
+        "didact.label-diagram"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "policy-evidence",
+      "profile": "novice-visual",
+      "seed": 11,
+      "arm": "progressive-34",
+      "stage": "top5",
+      "selected": [
+        "didact.evidence-annotation",
+        "didact.label-diagram"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 8,
+      "latency_proxy_units": 8
+    },
+    {
+      "scenario": "policy-evidence",
+      "profile": "novice-visual",
+      "seed": 29,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.evidence-annotation",
+        "didact.label-diagram"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "policy-evidence",
+      "profile": "novice-visual",
+      "seed": 29,
+      "arm": "progressive-34",
+      "stage": "top5",
+      "selected": [
+        "didact.evidence-annotation",
+        "didact.label-diagram"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 8,
+      "latency_proxy_units": 8
+    },
+    {
+      "scenario": "policy-evidence",
+      "profile": "novice-visual",
+      "seed": 47,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.evidence-annotation",
+        "didact.label-diagram"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "policy-evidence",
+      "profile": "novice-visual",
+      "seed": 47,
+      "arm": "progressive-34",
+      "stage": "top5",
+      "selected": [
+        "didact.evidence-annotation",
+        "didact.label-diagram"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 8,
+      "latency_proxy_units": 8
+    },
+    {
+      "scenario": "policy-evidence",
+      "profile": "novice-visual",
+      "seed": 83,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.evidence-annotation",
+        "didact.label-diagram"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "policy-evidence",
+      "profile": "novice-visual",
+      "seed": 83,
+      "arm": "progressive-34",
+      "stage": "top5",
+      "selected": [
+        "didact.evidence-annotation",
+        "didact.label-diagram"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 8,
+      "latency_proxy_units": 8
+    },
+    {
+      "scenario": "policy-evidence",
+      "profile": "novice-visual",
+      "seed": 131,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.evidence-annotation",
+        "didact.label-diagram"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "policy-evidence",
+      "profile": "novice-visual",
+      "seed": 131,
+      "arm": "progressive-34",
+      "stage": "top5",
+      "selected": [
+        "didact.evidence-annotation",
+        "didact.label-diagram"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 8,
+      "latency_proxy_units": 8
+    },
+    {
+      "scenario": "policy-evidence",
+      "profile": "experienced-active",
+      "seed": 11,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.evidence-annotation"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 90.0,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "policy-evidence",
+      "profile": "experienced-active",
+      "seed": 11,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.evidence-annotation",
+        "didact.measurement-lab"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 100.0,
+        "preference_fit": 1.0,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "policy-evidence",
+      "profile": "experienced-active",
+      "seed": 29,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.evidence-annotation"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 90.0,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "policy-evidence",
+      "profile": "experienced-active",
+      "seed": 29,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.evidence-annotation",
+        "didact.measurement-lab"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 100.0,
+        "preference_fit": 1.0,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "policy-evidence",
+      "profile": "experienced-active",
+      "seed": 47,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.evidence-annotation"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 90.0,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "policy-evidence",
+      "profile": "experienced-active",
+      "seed": 47,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.evidence-annotation",
+        "didact.measurement-lab"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 100.0,
+        "preference_fit": 1.0,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "policy-evidence",
+      "profile": "experienced-active",
+      "seed": 83,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.evidence-annotation"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 90.0,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "policy-evidence",
+      "profile": "experienced-active",
+      "seed": 83,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.evidence-annotation",
+        "didact.measurement-lab"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 100.0,
+        "preference_fit": 1.0,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "policy-evidence",
+      "profile": "experienced-active",
+      "seed": 131,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.evidence-annotation"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 90.0,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "policy-evidence",
+      "profile": "experienced-active",
+      "seed": 131,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.evidence-annotation",
+        "didact.measurement-lab"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 100.0,
+        "preference_fit": 1.0,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "measurement-caliper",
+      "profile": "novice-visual",
+      "seed": 11,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.measurement-lab",
+        "didact.hotspot"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "measurement-caliper",
+      "profile": "novice-visual",
+      "seed": 11,
+      "arm": "progressive-34",
+      "stage": "top3",
+      "selected": [
+        "didact.measurement-lab",
+        "didact.hotspot"
+      ],
+      "considered_count": 3,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 3,
+      "latency_proxy_units": 3
+    },
+    {
+      "scenario": "measurement-caliper",
+      "profile": "novice-visual",
+      "seed": 29,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.measurement-lab",
+        "didact.hotspot"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "measurement-caliper",
+      "profile": "novice-visual",
+      "seed": 29,
+      "arm": "progressive-34",
+      "stage": "top3",
+      "selected": [
+        "didact.measurement-lab",
+        "didact.hotspot"
+      ],
+      "considered_count": 3,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 3,
+      "latency_proxy_units": 3
+    },
+    {
+      "scenario": "measurement-caliper",
+      "profile": "novice-visual",
+      "seed": 47,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.measurement-lab",
+        "didact.hotspot"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "measurement-caliper",
+      "profile": "novice-visual",
+      "seed": 47,
+      "arm": "progressive-34",
+      "stage": "top3",
+      "selected": [
+        "didact.measurement-lab",
+        "didact.hotspot"
+      ],
+      "considered_count": 3,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 3,
+      "latency_proxy_units": 3
+    },
+    {
+      "scenario": "measurement-caliper",
+      "profile": "novice-visual",
+      "seed": 83,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.measurement-lab",
+        "didact.hotspot"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "measurement-caliper",
+      "profile": "novice-visual",
+      "seed": 83,
+      "arm": "progressive-34",
+      "stage": "top3",
+      "selected": [
+        "didact.measurement-lab",
+        "didact.hotspot"
+      ],
+      "considered_count": 3,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 3,
+      "latency_proxy_units": 3
+    },
+    {
+      "scenario": "measurement-caliper",
+      "profile": "novice-visual",
+      "seed": 131,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.measurement-lab",
+        "didact.hotspot"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "measurement-caliper",
+      "profile": "novice-visual",
+      "seed": 131,
+      "arm": "progressive-34",
+      "stage": "top3",
+      "selected": [
+        "didact.measurement-lab",
+        "didact.hotspot"
+      ],
+      "considered_count": 3,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 3,
+      "latency_proxy_units": 3
+    },
+    {
+      "scenario": "measurement-caliper",
+      "profile": "experienced-active",
+      "seed": 11,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.measurement-lab",
+        "didact.evidence-annotation"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 100.0,
+        "preference_fit": 1.0,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "measurement-caliper",
+      "profile": "experienced-active",
+      "seed": 11,
+      "arm": "progressive-34",
+      "stage": "top3",
+      "selected": [
+        "didact.measurement-lab",
+        "didact.data-explorer"
+      ],
+      "considered_count": 3,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 3,
+      "latency_proxy_units": 3
+    },
+    {
+      "scenario": "measurement-caliper",
+      "profile": "experienced-active",
+      "seed": 29,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.measurement-lab",
+        "didact.evidence-annotation"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 100.0,
+        "preference_fit": 1.0,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "measurement-caliper",
+      "profile": "experienced-active",
+      "seed": 29,
+      "arm": "progressive-34",
+      "stage": "top3",
+      "selected": [
+        "didact.measurement-lab",
+        "didact.data-explorer"
+      ],
+      "considered_count": 3,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 3,
+      "latency_proxy_units": 3
+    },
+    {
+      "scenario": "measurement-caliper",
+      "profile": "experienced-active",
+      "seed": 47,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.measurement-lab",
+        "didact.evidence-annotation"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 100.0,
+        "preference_fit": 1.0,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "measurement-caliper",
+      "profile": "experienced-active",
+      "seed": 47,
+      "arm": "progressive-34",
+      "stage": "top3",
+      "selected": [
+        "didact.measurement-lab",
+        "didact.data-explorer"
+      ],
+      "considered_count": 3,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 3,
+      "latency_proxy_units": 3
+    },
+    {
+      "scenario": "measurement-caliper",
+      "profile": "experienced-active",
+      "seed": 83,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.measurement-lab",
+        "didact.evidence-annotation"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 100.0,
+        "preference_fit": 1.0,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "measurement-caliper",
+      "profile": "experienced-active",
+      "seed": 83,
+      "arm": "progressive-34",
+      "stage": "top3",
+      "selected": [
+        "didact.measurement-lab",
+        "didact.data-explorer"
+      ],
+      "considered_count": 3,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 3,
+      "latency_proxy_units": 3
+    },
+    {
+      "scenario": "measurement-caliper",
+      "profile": "experienced-active",
+      "seed": 131,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.measurement-lab",
+        "didact.evidence-annotation"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 100.0,
+        "preference_fit": 1.0,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "measurement-caliper",
+      "profile": "experienced-active",
+      "seed": 131,
+      "arm": "progressive-34",
+      "stage": "top3",
+      "selected": [
+        "didact.measurement-lab",
+        "didact.data-explorer"
+      ],
+      "considered_count": 3,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 3,
+      "latency_proxy_units": 3
+    },
+    {
+      "scenario": "concept-relations",
+      "profile": "novice-visual",
+      "seed": 11,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.concept-map",
+        "didact.label-diagram"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "concept-relations",
+      "profile": "novice-visual",
+      "seed": 11,
+      "arm": "progressive-34",
+      "stage": "top3",
+      "selected": [
+        "didact.concept-map",
+        "didact.label-diagram"
+      ],
+      "considered_count": 3,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 3,
+      "latency_proxy_units": 3
+    },
+    {
+      "scenario": "concept-relations",
+      "profile": "novice-visual",
+      "seed": 29,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.concept-map",
+        "didact.label-diagram"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "concept-relations",
+      "profile": "novice-visual",
+      "seed": 29,
+      "arm": "progressive-34",
+      "stage": "top3",
+      "selected": [
+        "didact.concept-map",
+        "didact.label-diagram"
+      ],
+      "considered_count": 3,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 3,
+      "latency_proxy_units": 3
+    },
+    {
+      "scenario": "concept-relations",
+      "profile": "novice-visual",
+      "seed": 47,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.concept-map",
+        "didact.label-diagram"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "concept-relations",
+      "profile": "novice-visual",
+      "seed": 47,
+      "arm": "progressive-34",
+      "stage": "top3",
+      "selected": [
+        "didact.concept-map",
+        "didact.label-diagram"
+      ],
+      "considered_count": 3,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 3,
+      "latency_proxy_units": 3
+    },
+    {
+      "scenario": "concept-relations",
+      "profile": "novice-visual",
+      "seed": 83,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.concept-map",
+        "didact.label-diagram"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "concept-relations",
+      "profile": "novice-visual",
+      "seed": 83,
+      "arm": "progressive-34",
+      "stage": "top3",
+      "selected": [
+        "didact.concept-map",
+        "didact.label-diagram"
+      ],
+      "considered_count": 3,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 3,
+      "latency_proxy_units": 3
+    },
+    {
+      "scenario": "concept-relations",
+      "profile": "novice-visual",
+      "seed": 131,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.concept-map",
+        "didact.label-diagram"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "concept-relations",
+      "profile": "novice-visual",
+      "seed": 131,
+      "arm": "progressive-34",
+      "stage": "top3",
+      "selected": [
+        "didact.concept-map",
+        "didact.label-diagram"
+      ],
+      "considered_count": 3,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 3,
+      "latency_proxy_units": 3
+    },
+    {
+      "scenario": "concept-relations",
+      "profile": "experienced-active",
+      "seed": 11,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.concept-map",
+        "didact.equation-workbench"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 90.0,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "concept-relations",
+      "profile": "experienced-active",
+      "seed": 11,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.concept-map",
+        "didact.code-exercise"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 90.0,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "concept-relations",
+      "profile": "experienced-active",
+      "seed": 29,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.concept-map",
+        "didact.equation-workbench"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 90.0,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "concept-relations",
+      "profile": "experienced-active",
+      "seed": 29,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.concept-map",
+        "didact.code-exercise"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 90.0,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "concept-relations",
+      "profile": "experienced-active",
+      "seed": 47,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.concept-map",
+        "didact.equation-workbench"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 90.0,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "concept-relations",
+      "profile": "experienced-active",
+      "seed": 47,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.concept-map",
+        "didact.code-exercise"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 90.0,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "concept-relations",
+      "profile": "experienced-active",
+      "seed": 83,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.concept-map",
+        "didact.equation-workbench"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 90.0,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "concept-relations",
+      "profile": "experienced-active",
+      "seed": 83,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.concept-map",
+        "didact.code-exercise"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 90.0,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "concept-relations",
+      "profile": "experienced-active",
+      "seed": 131,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.concept-map",
+        "didact.equation-workbench"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 90.0,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "concept-relations",
+      "profile": "experienced-active",
+      "seed": 131,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.concept-map",
+        "didact.code-exercise"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 90.0,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "equation-isolation",
+      "profile": "novice-visual",
+      "seed": 11,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.equation-workbench",
+        "didact.drawing-response"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "equation-isolation",
+      "profile": "novice-visual",
+      "seed": 11,
+      "arm": "progressive-34",
+      "stage": "top3",
+      "selected": [
+        "didact.equation-workbench",
+        "didact.drawing-response"
+      ],
+      "considered_count": 3,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 3,
+      "latency_proxy_units": 3
+    },
+    {
+      "scenario": "equation-isolation",
+      "profile": "novice-visual",
+      "seed": 29,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.equation-workbench",
+        "didact.drawing-response"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "equation-isolation",
+      "profile": "novice-visual",
+      "seed": 29,
+      "arm": "progressive-34",
+      "stage": "top3",
+      "selected": [
+        "didact.equation-workbench",
+        "didact.drawing-response"
+      ],
+      "considered_count": 3,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 3,
+      "latency_proxy_units": 3
+    },
+    {
+      "scenario": "equation-isolation",
+      "profile": "novice-visual",
+      "seed": 47,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.equation-workbench",
+        "didact.drawing-response"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "equation-isolation",
+      "profile": "novice-visual",
+      "seed": 47,
+      "arm": "progressive-34",
+      "stage": "top3",
+      "selected": [
+        "didact.equation-workbench",
+        "didact.drawing-response"
+      ],
+      "considered_count": 3,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 3,
+      "latency_proxy_units": 3
+    },
+    {
+      "scenario": "equation-isolation",
+      "profile": "novice-visual",
+      "seed": 83,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.equation-workbench",
+        "didact.drawing-response"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "equation-isolation",
+      "profile": "novice-visual",
+      "seed": 83,
+      "arm": "progressive-34",
+      "stage": "top3",
+      "selected": [
+        "didact.equation-workbench",
+        "didact.drawing-response"
+      ],
+      "considered_count": 3,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 3,
+      "latency_proxy_units": 3
+    },
+    {
+      "scenario": "equation-isolation",
+      "profile": "novice-visual",
+      "seed": 131,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.equation-workbench",
+        "didact.drawing-response"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "equation-isolation",
+      "profile": "novice-visual",
+      "seed": 131,
+      "arm": "progressive-34",
+      "stage": "top3",
+      "selected": [
+        "didact.equation-workbench",
+        "didact.drawing-response"
+      ],
+      "considered_count": 3,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 3,
+      "latency_proxy_units": 3
+    },
+    {
+      "scenario": "equation-isolation",
+      "profile": "experienced-active",
+      "seed": 11,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.equation-workbench"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 90.0,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "equation-isolation",
+      "profile": "experienced-active",
+      "seed": 11,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.equation-workbench",
+        "didact.measurement-lab"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 100.0,
+        "preference_fit": 1.0,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "equation-isolation",
+      "profile": "experienced-active",
+      "seed": 29,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.equation-workbench"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 90.0,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "equation-isolation",
+      "profile": "experienced-active",
+      "seed": 29,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.equation-workbench",
+        "didact.measurement-lab"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 100.0,
+        "preference_fit": 1.0,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "equation-isolation",
+      "profile": "experienced-active",
+      "seed": 47,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.equation-workbench"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 90.0,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "equation-isolation",
+      "profile": "experienced-active",
+      "seed": 47,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.equation-workbench",
+        "didact.measurement-lab"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 100.0,
+        "preference_fit": 1.0,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "equation-isolation",
+      "profile": "experienced-active",
+      "seed": 83,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.equation-workbench"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 90.0,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "equation-isolation",
+      "profile": "experienced-active",
+      "seed": 83,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.equation-workbench",
+        "didact.measurement-lab"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 100.0,
+        "preference_fit": 1.0,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "equation-isolation",
+      "profile": "experienced-active",
+      "seed": 131,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.equation-workbench"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 90.0,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "equation-isolation",
+      "profile": "experienced-active",
+      "seed": 131,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.equation-workbench",
+        "didact.measurement-lab"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 100.0,
+        "preference_fit": 1.0,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "customer-dialogue",
+      "profile": "novice-visual",
+      "seed": 11,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.branching-scenario",
+        "didact.categorize"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 90.0,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "customer-dialogue",
+      "profile": "novice-visual",
+      "seed": 11,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.branching-scenario",
+        "didact.drawing-response"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 100.0,
+        "preference_fit": 1.0,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "customer-dialogue",
+      "profile": "novice-visual",
+      "seed": 29,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.branching-scenario",
+        "didact.categorize"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 90.0,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "customer-dialogue",
+      "profile": "novice-visual",
+      "seed": 29,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.branching-scenario",
+        "didact.drawing-response"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 100.0,
+        "preference_fit": 1.0,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "customer-dialogue",
+      "profile": "novice-visual",
+      "seed": 47,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.branching-scenario",
+        "didact.categorize"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 90.0,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "customer-dialogue",
+      "profile": "novice-visual",
+      "seed": 47,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.branching-scenario",
+        "didact.drawing-response"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 100.0,
+        "preference_fit": 1.0,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "customer-dialogue",
+      "profile": "novice-visual",
+      "seed": 83,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.branching-scenario",
+        "didact.categorize"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 90.0,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "customer-dialogue",
+      "profile": "novice-visual",
+      "seed": 83,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.branching-scenario",
+        "didact.drawing-response"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 100.0,
+        "preference_fit": 1.0,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "customer-dialogue",
+      "profile": "novice-visual",
+      "seed": 131,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.branching-scenario",
+        "didact.categorize"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 90.0,
+        "preference_fit": 0.333,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "customer-dialogue",
+      "profile": "novice-visual",
+      "seed": 131,
+      "arm": "progressive-34",
+      "stage": "producer-full34",
+      "selected": [
+        "didact.branching-scenario",
+        "didact.drawing-response"
+      ],
+      "considered_count": 34,
+      "all_34_considered": true,
+      "metrics": {
+        "quality_proxy": 100.0,
+        "preference_fit": 1.0,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": true,
+      "hard_gate_failures": 0,
+      "context_units": 42,
+      "latency_proxy_units": 76
+    },
+    {
+      "scenario": "customer-dialogue",
+      "profile": "experienced-active",
+      "seed": 11,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.branching-scenario",
+        "didact.measurement-lab"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "customer-dialogue",
+      "profile": "experienced-active",
+      "seed": 11,
+      "arm": "progressive-34",
+      "stage": "top5",
+      "selected": [
+        "didact.branching-scenario",
+        "didact.measurement-lab"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 8,
+      "latency_proxy_units": 8
+    },
+    {
+      "scenario": "customer-dialogue",
+      "profile": "experienced-active",
+      "seed": 29,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.branching-scenario",
+        "didact.measurement-lab"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "customer-dialogue",
+      "profile": "experienced-active",
+      "seed": 29,
+      "arm": "progressive-34",
+      "stage": "top5",
+      "selected": [
+        "didact.branching-scenario",
+        "didact.measurement-lab"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 8,
+      "latency_proxy_units": 8
+    },
+    {
+      "scenario": "customer-dialogue",
+      "profile": "experienced-active",
+      "seed": 47,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.branching-scenario",
+        "didact.measurement-lab"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "customer-dialogue",
+      "profile": "experienced-active",
+      "seed": 47,
+      "arm": "progressive-34",
+      "stage": "top5",
+      "selected": [
+        "didact.branching-scenario",
+        "didact.measurement-lab"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 8,
+      "latency_proxy_units": 8
+    },
+    {
+      "scenario": "customer-dialogue",
+      "profile": "experienced-active",
+      "seed": 83,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.branching-scenario",
+        "didact.measurement-lab"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "customer-dialogue",
+      "profile": "experienced-active",
+      "seed": 83,
+      "arm": "progressive-34",
+      "stage": "top5",
+      "selected": [
+        "didact.branching-scenario",
+        "didact.measurement-lab"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 8,
+      "latency_proxy_units": 8
+    },
+    {
+      "scenario": "customer-dialogue",
+      "profile": "experienced-active",
+      "seed": 131,
+      "arm": "fixed-top5",
+      "stage": "top5",
+      "selected": [
+        "didact.branching-scenario",
+        "didact.measurement-lab"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": false,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 5,
+      "latency_proxy_units": 5
+    },
+    {
+      "scenario": "customer-dialogue",
+      "profile": "experienced-active",
+      "seed": 131,
+      "arm": "progressive-34",
+      "stage": "top5",
+      "selected": [
+        "didact.branching-scenario",
+        "didact.measurement-lab"
+      ],
+      "considered_count": 5,
+      "all_34_considered": false,
+      "metrics": {
+        "quality_proxy": 95.0,
+        "preference_fit": 0.667,
+        "affordance_coverage": 1.0,
+        "evidence_coverage": 1.0,
+        "theme_fit": 1.0
+      },
+      "expanded": true,
+      "fallback": false,
+      "hard_gate_failures": 0,
+      "context_units": 8,
+      "latency_proxy_units": 8
+    }
+  ]
+}
