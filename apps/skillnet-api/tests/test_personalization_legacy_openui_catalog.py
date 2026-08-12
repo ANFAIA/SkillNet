@@ -43,6 +43,12 @@ def test_adapter_is_deterministic_and_does_not_mutate_live_kit() -> None:
         "DragOrder",
         "AudioExplanation",
         "PronunciationExercise",
+        "Flashcard",
+        "HintReveal",
+        "DidactGlossary",
+        "DidactTimeline",
+        "DidactWorkedExample",
+        "DidactActivity",
     ]
 
 
@@ -84,11 +90,15 @@ def test_new_or_removed_openui_component_causes_explicit_drift_failure() -> None
         components=UI_KIT.components
         + (ComponentSpec(name="FutureLab", purpose="test", props=()),)
     )
-    removed = UIKit(components=UI_KIT.components[:-1])
+    removed = UIKit(
+        components=tuple(
+            component for component in UI_KIT.components if component.name != "HintReveal"
+        )
+    )
 
     with pytest.raises(LegacyOpenUICatalogDrift, match="FutureLab"):
         adapt_legacy_openui_catalog(added)
-    with pytest.raises(LegacyOpenUICatalogDrift, match="PronunciationExercise"):
+    with pytest.raises(LegacyOpenUICatalogDrift, match="HintReveal"):
         adapt_legacy_openui_catalog(removed)
 
 

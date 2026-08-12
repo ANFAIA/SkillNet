@@ -330,6 +330,64 @@ UI_KIT = UIKit(
                 PropSpec("language", PropKind.STRING, "Codigo de idioma, p.ej. \"es\""),
             ),
         ),
+        ComponentSpec(
+            name="Flashcard",
+            functions=(FunctionFit(ContentFunction.EXPLORAR, 20),),
+            purpose="Recordar activamente una idea antes de revelar la respuesta; no sustituye una evaluacion",
+            props=(
+                PropSpec("front", PropKind.STRING, "Pregunta, termino o idea que el aprendiz intenta recordar"),
+                PropSpec("back", PropKind.STRING, "Respuesta o explicacion que solo aparece tras revelar"),
+            ),
+        ),
+        ComponentSpec(
+            name="HintReveal",
+            functions=(FunctionFit(ContentFunction.EXPLORAR, 30),),
+            purpose="Ofrece pistas de menor a mayor ayuda y una solucion solo bajo peticion",
+            props=(
+                PropSpec("title", PropKind.STRING, "Nombre breve de la ayuda"),
+                PropSpec("hints", PropKind.STRING_LIST, "Pistas progresivas, de menor a mayor ayuda"),
+                PropSpec("solution", PropKind.STRING, "Solucion final que solo aparece si el aprendiz la solicita"),
+            ),
+        ),
+        ComponentSpec(
+            name="DidactGlossary",
+            functions=(FunctionFit(ContentFunction.EXPLORAR, 35),),
+            purpose="Definiciones consultables para terminos importantes del contenido",
+            props=(
+                PropSpec("title", PropKind.STRING, "Nombre accesible del glosario"),
+                PropSpec("terms", PropKind.STRING_LIST, "Terminos, en el mismo orden que definitions"),
+                PropSpec("definitions", PropKind.STRING_LIST, "Definicion correspondiente a cada termino"),
+            ),
+        ),
+        ComponentSpec(
+            name="DidactTimeline",
+            functions=(FunctionFit(ContentFunction.PROCEDIMENTAR, 20),),
+            purpose="Secuencia cronologica o procedimental con detalle opcional por paso",
+            props=(
+                PropSpec("label", PropKind.STRING, "Nombre accesible de la secuencia"),
+                PropSpec("steps", PropKind.STRING_LIST, "Pasos o hitos en orden"),
+                PropSpec("details", PropKind.STRING_LIST, "Detalle paralelo por paso; [] si no aplica"),
+            ),
+        ),
+        ComponentSpec(
+            name="DidactWorkedExample",
+            functions=(FunctionFit(ContentFunction.PROCEDIMENTAR, 25), FunctionFit(ContentFunction.EXPLORAR, 25)),
+            purpose="Solucion razonada que revela progresivamente como resolver un problema",
+            props=(
+                PropSpec("problem", PropKind.STRING, "Problema o tarea demostrada"),
+                PropSpec("steps", PropKind.STRING_LIST, "Pasos explicados de la solucion"),
+                PropSpec("summary", PropKind.STRING, "Principio o pista de transferencia; texto vacio si no aplica"),
+            ),
+        ),
+        ComponentSpec(
+            name="DidactActivity",
+            functions=(FunctionFit(ContentFunction.EVALUAR, 10), FunctionFit(ContentFunction.EXPLORAR, 10)),
+            purpose="Actividad Didact revisada, cargada por id desde SkillNet; nunca contiene respuestas en el programa",
+            props=(
+                PropSpec("activity_id", PropKind.STRING, "Id opaco de una ActivityDefinition revisada"),
+                PropSpec("component_id", PropKind.STRING, "Id didact.* elegido por el planificador"),
+            ),
+        ),
     )
 )
 

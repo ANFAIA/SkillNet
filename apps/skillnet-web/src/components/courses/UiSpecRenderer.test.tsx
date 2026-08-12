@@ -151,6 +151,37 @@ describe('UiSpecRenderer — valid programs', () => {
     expect(items[3]).toHaveTextContent('Emitir el reembolso')
   })
 
+  it('renders Didact Flashcard with reveal-before-rate behavior', async () => {
+    const program = [
+      'root = Stack([card], "md")',
+      'card = Flashcard("Que debe hacerse antes de abrir?", "Comprobar y registrar el fondo de caja.")',
+    ].join('\n')
+    const user = userEvent.setup()
+
+    renderWithQuery(<UiSpecRenderer program={program} nodeId="node-1" />)
+
+    expect(screen.getByRole('button', { name: 'Mostrar respuesta' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Lo sabía' })).toBeNull()
+    await user.click(screen.getByRole('button', { name: 'Mostrar respuesta' }))
+    expect(screen.getByRole('button', { name: 'Lo sabía' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Necesito repasarlo' })).toBeInTheDocument()
+  })
+
+  it('renders Didact HintReveal progressively', async () => {
+    const program = [
+      'root = Stack([help], "md")',
+      'help = HintReveal("Comprueba tu decision", ["Mira el importe.", "Comprueba si hay riesgo para la salud."], "Escala antes de comprometer una solucion.")',
+    ].join('\n')
+    const user = userEvent.setup()
+
+    renderWithQuery(<UiSpecRenderer program={program} nodeId="node-1" />)
+
+    expect(screen.queryByText('Mira el importe.')).toBeNull()
+    await user.click(screen.getByRole('button', { name: 'Mostrar siguiente pista' }))
+    expect(document.body).toHaveTextContent('Mira el importe.')
+    expect(screen.getByText('Pista 1 de 2')).toBeInTheDocument()
+  })
+
   it('renders Table headers as column scopes and every cell', () => {
     const { container } = renderWithQuery(
       <UiSpecRenderer program={validPrograms.table_nested} nodeId="node-1" />,

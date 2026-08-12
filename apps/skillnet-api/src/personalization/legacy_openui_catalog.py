@@ -225,6 +225,81 @@ LEGACY_OPENUI_POLICIES: dict[str, LegacyComponentPolicy] = {
         accessibility=_INTERACTIVE_ACCESSIBILITY,
         rank=20,
     ),
+    "Flashcard": _descriptor(
+        "Flashcard",
+        missions=frozenset({CognitiveMission.RECOGNIZE, CognitiveMission.RECONSTRUCT}),
+        source_functions=frozenset({SourceFunction.ENUMERATE, SourceFunction.EXPLORE}),
+        presentations=frozenset({Presentation.TEXT}),
+        producer_kind=ProducerKind.CONTENT,
+        affordances=frozenset({"attempt_recall", "reveal_answer", "rate_recall"}),
+        evidence_events=frozenset({"answer_revealed", "recall_rated"}),
+        state_model_ref="didact.flashcard/1",
+        accessibility=_INTERACTIVE_ACCESSIBILITY,
+        rank=15,
+    ),
+    "HintReveal": _descriptor(
+        "HintReveal",
+        missions=frozenset({CognitiveMission.EXPLAIN, CognitiveMission.RECONSTRUCT, CognitiveMission.DECIDE}),
+        source_functions=frozenset({SourceFunction.EXPLORE, SourceFunction.PROCEDURE, SourceFunction.ASSESS}),
+        presentations=frozenset({Presentation.TEXT}),
+        producer_kind=ProducerKind.CONTENT,
+        affordances=frozenset({"request_progressive_hint", "reveal_solution"}),
+        evidence_events=frozenset({"hint_viewed", "solution_revealed"}),
+        state_model_ref="didact.hint-reveal/1",
+        accessibility=_INTERACTIVE_ACCESSIBILITY,
+        rank=25,
+    ),
+    "DidactGlossary": _descriptor(
+        "DidactGlossary",
+        missions=frozenset({CognitiveMission.RECOGNIZE, CognitiveMission.RECONSTRUCT}),
+        source_functions=frozenset({SourceFunction.ENUMERATE, SourceFunction.EXPLORE}),
+        presentations=frozenset({Presentation.TEXT}),
+        producer_kind=ProducerKind.CONTENT,
+        affordances=frozenset({"inspect_term", "reveal_definition"}),
+        accessibility=_INTERACTIVE_ACCESSIBILITY,
+        rank=35,
+    ),
+    "DidactTimeline": _descriptor(
+        "DidactTimeline",
+        missions=frozenset({CognitiveMission.RECOGNIZE, CognitiveMission.INTERPRET}),
+        source_functions=frozenset({SourceFunction.PROCEDURE, SourceFunction.EXPLORE}),
+        presentations=frozenset({Presentation.TEXT}),
+        producer_kind=ProducerKind.CONTENT,
+        affordances=frozenset({"inspect_sequence"}),
+        rank=20,
+    ),
+    "DidactWorkedExample": _descriptor(
+        "DidactWorkedExample",
+        missions=frozenset({CognitiveMission.INTERPRET, CognitiveMission.EXPLAIN}),
+        source_functions=frozenset({SourceFunction.PROCEDURE, SourceFunction.EXPLORE}),
+        presentations=frozenset({Presentation.TEXT}),
+        producer_kind=ProducerKind.CONTENT,
+        affordances=frozenset({"reveal_solution_steps", "inspect_transfer_cue"}),
+        accessibility=_INTERACTIVE_ACCESSIBILITY,
+        rank=25,
+    ),
+    # Generic renderer shell. The neutral Didact descriptor selected upstream remains
+    # the pedagogical source of truth; this policy only states what the OpenUI host can
+    # do with the already-materialised activity id.
+    "DidactActivity": _descriptor(
+        "DidactActivity",
+        missions=frozenset(
+            {
+                CognitiveMission.INTERPRET,
+                CognitiveMission.RECONSTRUCT,
+                CognitiveMission.DECIDE,
+                CognitiveMission.EXPLAIN,
+            }
+        ),
+        source_functions=frozenset({SourceFunction.EXPLORE, SourceFunction.ASSESS}),
+        presentations=frozenset({Presentation.SIMULATION}),
+        producer_kind=ProducerKind.SIMULATION,
+        affordances=frozenset({"perform_activity", "submit_evidence"}),
+        evidence_events=frozenset({"activity_started", "activity_submitted"}),
+        state_model_ref="activity-definition/1",
+        accessibility=_INTERACTIVE_ACCESSIBILITY,
+        rank=40,
+    ),
 }
 
 

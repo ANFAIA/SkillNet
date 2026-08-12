@@ -120,7 +120,7 @@ from src.render.spec import FORMATS_REQUIRING_LEAD
 #: stopped travelling as its bare enum token (:data:`_CRITICALITY_RULES` — 8 rejections,
 #: the largest single class), and SkillNet 17 and 18 name the two syntax habits behind the
 #: rest (a bare ``opciones = [...]`` declaration, and the same id declared twice).
-PROMPT_VERSION = "runtime/22"
+PROMPT_VERSION = "runtime/24"
 
 _PRESENTATION_PREFERENCES = {
     "balanced": "Combina representaciones segun el objetivo y la fuente.",
@@ -593,13 +593,13 @@ Reglas duras de la clave:
 
 
 @cache
-def ui_generator_system() -> str:
+def ui_generator_system(component_prompt: str | None = None) -> str:
     """``library.prompt()`` (the artefact) plus the answer-key protocol.
 
     Cached: the artefact is immutable at runtime and this string is hashed on every
     fixture lookup.
     """
-    return render_prompt().rstrip("\n") + _UI_GENERATOR_TAIL
+    return (component_prompt or render_prompt()).rstrip("\n") + _UI_GENERATOR_TAIL
 
 
 #: The repair header. The MAL/BIEN block is not decoration: a paired counterexample is the
@@ -657,14 +657,14 @@ Reglas del dialecto y catalogo de bloques: los mismos de abajo, sin excepciones.
 
 
 @cache
-def ui_repair_system() -> str:
+def ui_repair_system(component_prompt: str | None = None) -> str:
     """The repair system prompt: the same dialect, plus "you were rejected, emit again".
 
     A separate system prompt rather than an extra user turn, because the model has to be
     told that its previous output is not a starting point to patch but something to
     re-emit whole: the parser is line-oriented and a half-fixed program fails again.
     """
-    return _UI_REPAIR_HEADER + "\n" + ui_generator_system()
+    return _UI_REPAIR_HEADER + "\n" + ui_generator_system(component_prompt)
 
 
 def build_ui_prompt(

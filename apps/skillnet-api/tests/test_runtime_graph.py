@@ -530,6 +530,10 @@ def harness(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Harness:
     monkeypatch.setattr(settings, "LLM_RUNTIME_HEAVY_MODEL", None)
     monkeypatch.setattr(settings, "EMBEDDING_MODEL", FIXTURE_MODEL)
     monkeypatch.setattr(settings, "MULTI_AGENT_RENDER", False)
+    # These golden fixtures intentionally pin the legacy/full-catalogue arm. The
+    # shortlist arm has focused prompt/trace tests with its own deterministic digest.
+    monkeypatch.setattr(settings, "RUNTIME_COMPONENT_SHORTLIST", False)
+    monkeypatch.setattr(settings, "SEMANTIC_ROUTER", False)
 
     session = FakeSession(
         node=make_node(),
@@ -599,6 +603,7 @@ def test_the_graph_is_the_pipeline_of_4_2() -> None:
         "load_context",
         "probe_gate",
         "decide_formato",
+        "author_activity",
         "genera_ui",
         "validate_ui",
         "persist_render",
@@ -611,7 +616,8 @@ def test_the_graph_is_the_pipeline_of_4_2() -> None:
     assert ("load_context", "ok", "probe_gate") in edges
     assert ("probe_gate", "skip", "skip_node") in edges
     assert ("probe_gate", "generate", "decide_formato") in edges
-    assert ("decide_formato", "ok", "genera_ui") in edges
+    assert ("decide_formato", "ok", "author_activity") in edges
+    assert ("author_activity", "", "genera_ui") in edges
     assert ("genera_ui", "ok", "validate_ui") in edges
     assert ("validate_ui", "ok", "persist_render") in edges
     # The repair loop and the safety net, the two edges §4.2 draws explicitly.

@@ -74,9 +74,16 @@ class NodeRuntimeState(TypedDict, total=False):
     scaffold_band: str  # novice|neutral|advanced, frozen when the probe closed
     raw_dsl: str
     ui_spec: dict | None
-    #: Proposed experience from the pure planner. Shadow-only: never persisted in
-    #: ``ui_spec``, included in prompts, or used to select a live component.
+    #: Inspectable experience decision. In shortlist mode its renderer-safe component
+    #: names steer the prompt; the trace itself is not persisted in ``ui_spec``.
     plan_trace: dict
+    #: Renderer-safe OpenUI names selected from the complete planning inventory. The
+    #: prompt builder adds its structural shell and the required assessment separately.
+    prompt_component_ids: list[str]
+    #: Server-materialised activity reference. The UI model receives this real id and
+    #: the public projection only; private answers never enter graph state.
+    authored_activity: dict | None
+    activity_authoring_status: str
     answer_key: dict
     validation_errors: list[str]
     retry_count: int

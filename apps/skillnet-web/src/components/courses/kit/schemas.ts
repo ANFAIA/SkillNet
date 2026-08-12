@@ -163,6 +163,44 @@ export const pronunciationExerciseProps = z.object({
   language: z.string().describe('Codigo de idioma, p.ej. "es"'),
 })
 
+export const flashcardProps = z.object({
+  front: z.string().describe('Pregunta, termino o idea que el aprendiz intenta recordar'),
+  back: z.string().describe('Respuesta o explicacion que solo aparece tras revelar'),
+})
+
+export const hintRevealProps = z.object({
+  title: z.string().describe('Nombre breve de la ayuda'),
+  hints: z.array(z.string()).describe('Pistas progresivas, de menor a mayor ayuda'),
+  solution: z.string().describe('Solucion final que solo aparece si el aprendiz la solicita'),
+})
+
+export const didactGlossaryProps = z.object({
+  title: z.string(),
+  terms: z.array(z.string()),
+  definitions: z.array(z.string()),
+})
+export const didactTimelineProps = z.object({
+  label: z.string(),
+  steps: z.array(z.string()),
+  details: z.array(z.string()),
+})
+export const didactWorkedExampleProps = z.object({
+  problem: z.string(),
+  steps: z.array(z.string()),
+  summary: z.string(),
+})
+export const didactSelfExplanationProps = z.object({
+  prompt: z.string(),
+  scaffold: z.array(z.string()),
+  model: z.string(),
+})
+
+/** Opaque reference only: authored content and answer keys never enter OpenUI. */
+export const didactActivityProps = z.object({
+  activity_id: z.string().describe('Id opaco de una ActivityDefinition revisada'),
+  component_id: z.string().describe('Id didact.* elegido por el planificador'),
+})
+
 /** The frozen names, in the order of the §5.3 table. */
 export const KIT_COMPONENT_NAMES = [
   'Stack',
@@ -179,6 +217,12 @@ export const KIT_COMPONENT_NAMES = [
   'DragOrder',
   'AudioExplanation',
   'PronunciationExercise',
+  'Flashcard',
+  'HintReveal',
+  'DidactGlossary',
+  'DidactTimeline',
+  'DidactWorkedExample',
+  'DidactActivity',
 ] as const
 
 export type KitComponentName = (typeof KIT_COMPONENT_NAMES)[number]
@@ -215,6 +259,12 @@ export const KIT_DESCRIPTIONS = {
   DragOrder: 'Evaluar reordenando pasos o prioridades arrastrando',
   AudioExplanation: 'Texto leido en voz alta con resaltado de palabras',
   PronunciationExercise: 'Escuchar y practicar la pronunciacion de un termino',
+  Flashcard: 'Recordar activamente una idea antes de revelar la respuesta; no sustituye una evaluacion',
+  HintReveal: 'Ofrece pistas de menor a mayor ayuda y una solucion solo bajo peticion',
+  DidactGlossary: 'Definiciones consultables para terminos importantes del contenido',
+  DidactTimeline: 'Secuencia cronologica o procedimental con detalle opcional por paso',
+  DidactWorkedExample: 'Solucion razonada que revela progresivamente como resolver un problema',
+  DidactActivity: 'Actividad Didact revisada, cargada por id desde SkillNet; nunca contiene respuestas en el programa',
 } satisfies Record<KitComponentName, string>
 
 /** Name → prop schema, so a consumer can walk the catalogue without React. */
@@ -233,6 +283,12 @@ export const KIT_PROP_SCHEMAS = {
   DragOrder: dragOrderProps,
   AudioExplanation: audioExplanationProps,
   PronunciationExercise: pronunciationExerciseProps,
+  Flashcard: flashcardProps,
+  HintReveal: hintRevealProps,
+  DidactGlossary: didactGlossaryProps,
+  DidactTimeline: didactTimelineProps,
+  DidactWorkedExample: didactWorkedExampleProps,
+  DidactActivity: didactActivityProps,
 } satisfies Record<KitComponentName, z.ZodObject>
 
 /**

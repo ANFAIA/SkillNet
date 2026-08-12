@@ -4,7 +4,7 @@
 load_context ─► probe_gate ──(mastered)──────────────────────────► skip_node ──► END
                     │ needs_content
                     ▼
-              decide_formato ─► genera_ui ─► validate_ui ──(ok)──► persist_render ─► END
+              decide_formato ─► author_activity ─► genera_ui ─► validate_ui ──(ok)──► persist_render ─► END
                                     ▲             │
                                     └─(invalid, retry<MAX)
                                                   │
@@ -37,6 +37,7 @@ from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, StateGraph
 
 from src.agents.runtime.nodes import (
+    author_activity,
     decide_formato,
     fallback_seed,
     genera_ui,
@@ -47,6 +48,7 @@ from src.agents.runtime.nodes import (
     validate_ui,
 )
 from src.agents.runtime.state import NodeRuntimeState
+from src.config import settings
 from src.llm.prompts.runtime import MAX_UI_RETRIES
 
 
@@ -93,8 +95,11 @@ def build_node_graph():
     graph.add_node("load_context", load_context)
     graph.add_node("probe_gate", probe_gate)
     graph.add_node("decide_formato", decide_formato)
-    from src.config import settings
-    if settings.MULTI_AGENT_RENDER:
+    graph.add_node("author_activity", author_activity)
+    # The existing blueprint agent has a fixed legacy vocabulary. Until it consumes the
+    # same closed scope, shortlist mode must use the monolithic generator; otherwise a
+    # second prompt path could bypass the renderer-safe boundary.
+    if settings.MULTI_AGENT_RENDER and not settings.RUNTIME_COMPONENT_SHORTLIST:
         from src.agents.runtime.nodes import genera_ui_multi
         graph.add_node("genera_ui", genera_ui_multi)
     else:
@@ -118,8 +123,9 @@ def build_node_graph():
     graph.add_conditional_edges(
         "decide_formato",
         route_after_decide,
-        {"ok": "genera_ui", "error": "fallback_seed"},
+        {"ok": "author_activity", "error": "fallback_seed"},
     )
+    graph.add_edge("author_activity", "genera_ui")
     graph.add_conditional_edges(
         "genera_ui",
         route_after_generate,

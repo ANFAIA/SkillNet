@@ -21,6 +21,23 @@ class NodeKnowledgePackRepository(BaseRepository[NodeKnowledgePackRecord]):
     def __init__(self, session: AsyncSession) -> None:
         super().__init__(session, NodeKnowledgePackRecord)
 
+    async def find_by_hash(
+        self, *, node_id: uuid.UUID, pack_hash: str
+    ) -> NodeKnowledgePackRecord | None:
+        """Resolve exact provenance for a runtime-authored activity."""
+
+        query = (
+            select(NodeKnowledgePackRecord)
+            .where(
+                NodeKnowledgePackRecord.node_id == node_id,
+                NodeKnowledgePackRecord.pack_hash == pack_hash,
+                NodeKnowledgePackRecord.status == NodeKnowledgePackStatus.READY,
+            )
+            .order_by(NodeKnowledgePackRecord.created_at.desc())
+            .limit(1)
+        )
+        return (await self.session.execute(query)).scalar_one_or_none()
+
     async def get_snapshot(
         self,
         *,

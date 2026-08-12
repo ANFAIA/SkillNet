@@ -84,6 +84,12 @@ const CATALOGUE = [
   ['DragOrder', 'dragOrderProps', 'Evaluar reordenando pasos o prioridades arrastrando'],
   ['AudioExplanation', 'audioExplanationProps', 'Texto leido en voz alta con resaltado de palabras'],
   ['PronunciationExercise', 'pronunciationExerciseProps', 'Escuchar y practicar la pronunciacion de un termino'],
+  ['Flashcard', 'flashcardProps', 'Recordar activamente una idea antes de revelar la respuesta; no sustituye una evaluacion'],
+  ['HintReveal', 'hintRevealProps', 'Ofrece pistas de menor a mayor ayuda y una solucion solo bajo peticion'],
+  ['DidactGlossary', 'didactGlossaryProps', 'Definiciones consultables para terminos importantes del contenido'],
+  ['DidactTimeline', 'didactTimelineProps', 'Secuencia cronologica o procedimental con detalle opcional por paso'],
+  ['DidactWorkedExample', 'didactWorkedExampleProps', 'Solucion razonada que revela progresivamente como resolver un problema'],
+  ['DidactActivity', 'didactActivityProps', 'Actividad Didact revisada, cargada por id desde SkillNet; nunca contiene respuestas en el programa'],
 ]
 
 // ---------------------------------------------------------------------------------

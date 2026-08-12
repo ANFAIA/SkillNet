@@ -12,6 +12,11 @@ from dataclasses import asdict
 from typing import Any
 
 from src.core.logging import get_logger
+from src.personalization.didact_descriptors import (
+    DidactExposureError,
+    export_didact_descriptors,
+    openui_names_for_shortlist,
+)
 from src.personalization.legacy_openui_catalog import adapt_legacy_openui_catalog
 from src.personalization.plan import (
     CognitiveMission,
@@ -22,8 +27,12 @@ from src.personalization.plan import (
 )
 from src.personalization.projection import project_runtime_signals
 from src.render.kit import ContentFunction
+from src.render.prompt_slice import RUNTIME_SCOPE_POLICY_VERSION
 
 logger = get_logger(__name__)
+
+SHORTLIST_MIN = 3
+SHORTLIST_MAX = 5
 
 _SOURCE_FUNCTIONS = {
     ContentFunction.ENUMERAR.value: SourceFunction.ENUMERATE,
@@ -78,7 +87,36 @@ def _json_safe(value: Any) -> Any:
     return value
 
 
-def build_shadow_plan_trace(state: dict[str, Any]) -> dict[str, Any]:
+def _renderer_safe_shortlist(outcome: Any) -> tuple[str, ...]:
+    """Project planned ids through the actual emission boundary, preserving rank."""
+    if isinstance(outcome, Declined):
+        return ()
+    available_openui = {
+        descriptor.component_id for descriptor in adapt_legacy_openui_catalog()
+    }
+    selected: list[str] = []
+    for candidate in outcome.component_candidates:
+        component_id = candidate.component_id
+        if component_id in available_openui:
+            names = (component_id,)
+        elif component_id.startswith("didact."):
+            try:
+                # This is the hard renderer + emission + host-port gate. A blocked
+                # Didact component is skipped, never silently exposed to the model.
+                names = openui_names_for_shortlist((component_id,))
+            except DidactExposureError:
+                continue
+        else:
+            continue
+        for name in names:
+            if name not in selected:
+                selected.append(name)
+        if len(selected) >= SHORTLIST_MAX:
+            break
+    return tuple(selected[:SHORTLIST_MAX])
+
+
+def build_shadow_plan_trace(state: dict[str, Any], *, mode: str = "shadow") -> dict[str, Any]:
     """Return a PlanTrace; planner failures become data and never block rendering."""
     node = state.get("node") or {}
     profile = state.get("profile") or {}
@@ -92,7 +130,11 @@ def build_shadow_plan_trace(state: dict[str, Any]) -> dict[str, Any]:
     }
     try:
         ordered_functions, mission_rationale = _source_functions(state)
-        functions = frozenset(ordered_functions)
+        # The detected source shape remains primary, while EXPLORE expresses that any
+        # source-backed node may be turned into an inspectable/practice experience. This
+        # prevents a narrow textual detector from reducing a rich component inventory to
+        # one literal representation.
+        functions = frozenset((*ordered_functions, SourceFunction.EXPLORE))
         mission = _MISSION_FOR_SOURCE[ordered_functions[0]]
         requirements = frozenset(
             {"numeric_series"} if SourceFunction.QUANTIFY in functions else set()
@@ -117,24 +159,29 @@ def build_shadow_plan_trace(state: dict[str, Any]) -> dict[str, Any]:
             last_error_kind=node_state.get("last_error_kind"),
             base_density=int(state.get("effective_density") or 2),
         )
-        outcome = plan_experience(
-            objective, projection, adapt_legacy_openui_catalog()
-        )
+        # Retrieval/planning sees the complete installed Didact inventory. Prompt
+        # exposure is a later, stricter operation in `_renderer_safe_shortlist`.
+        catalog = (*adapt_legacy_openui_catalog(), *export_didact_descriptors())
+        outcome = plan_experience(objective, projection, catalog)
+        shortlist = _renderer_safe_shortlist(outcome)
         trace = {
             "trace_version": "plan-trace/1",
-            "mode": "shadow",
+            "mode": mode,
             "status": "declined" if isinstance(outcome, Declined) else "planned",
             "mission_rationale": mission_rationale,
             "live": live,
             "projection": _json_safe(asdict(projection)),
             "shadow": _json_safe(asdict(outcome)),
+            "inventory_size": len(catalog),
+            "prompt_component_ids": list(shortlist),
+            "shortlist_policy": RUNTIME_SCOPE_POLICY_VERSION,
         }
         logger.info("personalization_plan_trace %s", trace)
         return trace
-    except Exception as exc:  # noqa: BLE001 - observation must never break a render
+    except Exception as exc:
         trace = {
             "trace_version": "plan-trace/1",
-            "mode": "shadow",
+            "mode": mode,
             "status": "error",
             "live": live,
             "error_code": type(exc).__name__,

@@ -342,6 +342,144 @@
           "optional": false
         }
       ]
+    },
+    {
+      "name": "Flashcard",
+      "description": "Recordar activamente una idea antes de revelar la respuesta; no sustituye una evaluacion",
+      "signature": "Flashcard(front: string, back: string)",
+      "props": [
+        {
+          "name": "front",
+          "kind": "string",
+          "choices": [],
+          "optional": false
+        },
+        {
+          "name": "back",
+          "kind": "string",
+          "choices": [],
+          "optional": false
+        }
+      ]
+    },
+    {
+      "name": "HintReveal",
+      "description": "Ofrece pistas de menor a mayor ayuda y una solucion solo bajo peticion",
+      "signature": "HintReveal(title: string, hints: string[], solution: string)",
+      "props": [
+        {
+          "name": "title",
+          "kind": "string",
+          "choices": [],
+          "optional": false
+        },
+        {
+          "name": "hints",
+          "kind": "string[]",
+          "choices": [],
+          "optional": false
+        },
+        {
+          "name": "solution",
+          "kind": "string",
+          "choices": [],
+          "optional": false
+        }
+      ]
+    },
+    {
+      "name": "DidactGlossary",
+      "description": "Definiciones consultables para terminos importantes del contenido",
+      "signature": "DidactGlossary(title: string, terms: string[], definitions: string[])",
+      "props": [
+        {
+          "name": "title",
+          "kind": "string",
+          "choices": [],
+          "optional": false
+        },
+        {
+          "name": "terms",
+          "kind": "string[]",
+          "choices": [],
+          "optional": false
+        },
+        {
+          "name": "definitions",
+          "kind": "string[]",
+          "choices": [],
+          "optional": false
+        }
+      ]
+    },
+    {
+      "name": "DidactTimeline",
+      "description": "Secuencia cronologica o procedimental con detalle opcional por paso",
+      "signature": "DidactTimeline(label: string, steps: string[], details: string[])",
+      "props": [
+        {
+          "name": "label",
+          "kind": "string",
+          "choices": [],
+          "optional": false
+        },
+        {
+          "name": "steps",
+          "kind": "string[]",
+          "choices": [],
+          "optional": false
+        },
+        {
+          "name": "details",
+          "kind": "string[]",
+          "choices": [],
+          "optional": false
+        }
+      ]
+    },
+    {
+      "name": "DidactWorkedExample",
+      "description": "Solucion razonada que revela progresivamente como resolver un problema",
+      "signature": "DidactWorkedExample(problem: string, steps: string[], summary: string)",
+      "props": [
+        {
+          "name": "problem",
+          "kind": "string",
+          "choices": [],
+          "optional": false
+        },
+        {
+          "name": "steps",
+          "kind": "string[]",
+          "choices": [],
+          "optional": false
+        },
+        {
+          "name": "summary",
+          "kind": "string",
+          "choices": [],
+          "optional": false
+        }
+      ]
+    },
+    {
+      "name": "DidactActivity",
+      "description": "Actividad Didact revisada, cargada por id desde SkillNet; nunca contiene respuestas en el programa",
+      "signature": "DidactActivity(activity_id: string, component_id: string)",
+      "props": [
+        {
+          "name": "activity_id",
+          "kind": "string",
+          "choices": [],
+          "optional": false
+        },
+        {
+          "name": "component_id",
+          "kind": "string",
+          "choices": [],
+          "optional": false
+        }
+      ]
     }
   ],
   "render_components": [
@@ -358,11 +496,17 @@
     "Markdown",
     "DragOrder",
     "AudioExplanation",
-    "PronunciationExercise"
+    "PronunciationExercise",
+    "Flashcard",
+    "HintReveal",
+    "DidactGlossary",
+    "DidactTimeline",
+    "DidactWorkedExample",
+    "DidactActivity"
   ],
-  "canonical_catalog": "catalog: skillnet-ui/1\nroot: Stack\nStack(children:ref[], gap:enum(sm|md|lg))\nTextContent(text:string, variant:enum(body|lead|caption))\nCard(title:string, children:ref[])\nCallout(tone:enum(info|warn|success), text:string)\nStepSequence(title:string, steps:string[])\nTable(headers:string[], rows:string[][])\nCodeBlock(language:string, code:string)\nChart(kind:enum(bar|line), title:string, labels:string[], values:number[])\nQuizItem(item_id:string, item_type:enum(test|true_false|fill_blank|order_steps|practical_case|dialogue), bloom_level:enum(remember|understand|apply|analyze|evaluate|create), question:string, options:string[])\nBeforeAfter(title:string, beforeLabel:string, beforeContent:string, afterLabel:string, afterContent:string)\nDragOrder(instruction:string, items:string[], correctOrder:string[])\nAudioExplanation(text:string, voice:enum(neutral|warm|formal))\nPronunciationExercise(targetText:string, language:string)\n",
-  "catalog_digest": "90883675e9a73a68c6ed758cdd6a80da6faeb8e336063d1e03d1e1de64db1b97",
-  "catalog_version": "skillnet-ui/1+90883675e9a7",
-  "prompt_sha256": "8788d1d0d7b98aac96046db7e8b315cdccf3c0a1f34dad51a876dba1f9146711",
-  "prompt_chars": 7827
+  "canonical_catalog": "catalog: skillnet-ui/1\nroot: Stack\nStack(children:ref[], gap:enum(sm|md|lg))\nTextContent(text:string, variant:enum(body|lead|caption))\nCard(title:string, children:ref[])\nCallout(tone:enum(info|warn|success), text:string)\nStepSequence(title:string, steps:string[])\nTable(headers:string[], rows:string[][])\nCodeBlock(language:string, code:string)\nChart(kind:enum(bar|line), title:string, labels:string[], values:number[])\nQuizItem(item_id:string, item_type:enum(test|true_false|fill_blank|order_steps|practical_case|dialogue), bloom_level:enum(remember|understand|apply|analyze|evaluate|create), question:string, options:string[])\nBeforeAfter(title:string, beforeLabel:string, beforeContent:string, afterLabel:string, afterContent:string)\nDragOrder(instruction:string, items:string[], correctOrder:string[])\nAudioExplanation(text:string, voice:enum(neutral|warm|formal))\nPronunciationExercise(targetText:string, language:string)\nFlashcard(front:string, back:string)\nHintReveal(title:string, hints:string[], solution:string)\nDidactGlossary(title:string, terms:string[], definitions:string[])\nDidactTimeline(label:string, steps:string[], details:string[])\nDidactWorkedExample(problem:string, steps:string[], summary:string)\nDidactActivity(activity_id:string, component_id:string)\n",
+  "catalog_digest": "07311a40e2ed0883e317feed433937919193fba30d6c01429960c285feafa0af",
+  "catalog_version": "skillnet-ui/1+07311a40e2ed",
+  "prompt_sha256": "6b35488a9b711cc98fe4968f6703cfe178102a0b35c1353150f01f30e4595e86",
+  "prompt_chars": 8668
 }

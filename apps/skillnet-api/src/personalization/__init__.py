@@ -1,5 +1,19 @@
 """Pure planning primitives for personalization experiments."""
 
+from src.personalization.didact_catalog import (
+    AvailabilityStatus,
+    DidactCatalog,
+    DidactCatalogError,
+    DidactComponentAvailability,
+    EmissionStatus,
+    HostPort,
+    load_didact_catalog,
+)
+from src.personalization.didact_descriptors import (
+    DidactExposureError,
+    export_didact_descriptors,
+    openui_names_for_shortlist,
+)
 from src.personalization.plan import (
     AccessibilityCapability,
     CognitiveMission,
@@ -24,13 +38,20 @@ from src.personalization.projection import project_runtime_signals
 
 __all__ = [
     "AccessibilityCapability",
+    "AvailabilityStatus",
     "CognitiveMission",
     "ComponentCandidate",
     "ComponentDescriptor",
     "Decline",
     "DeclineReason",
     "Declined",
+    "DidactCatalog",
+    "DidactCatalogError",
+    "DidactComponentAvailability",
+    "DidactExposureError",
+    "EmissionStatus",
     "ErrorSignal",
+    "HostPort",
     "InferredPresentationBucket",
     "LearningExperiencePlan",
     "LearningObjective",
@@ -41,5 +62,8 @@ __all__ = [
     "SupportBand",
     "SupportPolicy",
     "plan_experience",
+    "export_didact_descriptors",
+    "load_didact_catalog",
+    "openui_names_for_shortlist",
     "project_runtime_signals",
 ]

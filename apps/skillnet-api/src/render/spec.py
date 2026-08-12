@@ -195,6 +195,45 @@ def _table_shape_errors(component: Component) -> list[str]:
     return problems[:1]
 
 
+def _didact_parallel_list_errors(component: Component) -> list[str]:
+    """Validate flat parallel arrays used instead of unsupported object arrays."""
+
+    if component.type == "DidactGlossary":
+        terms = component.props.get("terms")
+        definitions = component.props.get("definitions")
+        if isinstance(terms, list) and isinstance(definitions, list):
+            if not terms:
+                return [f"component {component.id!r}: DidactGlossary needs at least one term"]
+            if len(terms) != len(definitions):
+                return [
+                    f"component {component.id!r}: DidactGlossary has {len(terms)} terms "
+                    f"but {len(definitions)} definitions; arrays must be parallel"
+                ]
+    if component.type == "DidactTimeline":
+        steps = component.props.get("steps")
+        details = component.props.get("details")
+        if isinstance(steps, list) and isinstance(details, list):
+            if not steps:
+                return [f"component {component.id!r}: DidactTimeline needs at least one step"]
+            if details and len(steps) != len(details):
+                return [
+                    f"component {component.id!r}: DidactTimeline has {len(steps)} steps "
+                    f"but {len(details)} details; use [] or one detail per step"
+                ]
+    if component.type == "DidactWorkedExample":
+        steps = component.props.get("steps")
+        if isinstance(steps, list) and not steps:
+            return [f"component {component.id!r}: DidactWorkedExample needs at least one step"]
+    if component.type == "DidactActivity":
+        activity_id = component.props.get("activity_id")
+        component_id = component.props.get("component_id")
+        if not isinstance(activity_id, str) or not activity_id.strip():
+            return [f"component {component.id!r}: DidactActivity needs a non-empty activity_id"]
+        if not isinstance(component_id, str) or not component_id.startswith("didact."):
+            return [f"component {component.id!r}: DidactActivity component_id must start with 'didact.'"]
+    return []
+
+
 class Component(BaseModel):
     """One node of the flat list. ``children`` is the refs array, never a prop."""
 
@@ -260,6 +299,7 @@ class Component(BaseModel):
             errors.append(f"component {self.id!r}: children must be component ids")
 
         errors.extend(_table_shape_errors(self))
+        errors.extend(_didact_parallel_list_errors(self))
 
         # Rule 6: no HTML in props.text.
         text = self.props.get("text")

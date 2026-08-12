@@ -1,4 +1,9 @@
 {
+  "2c6edbfd214744d9": {
+    "file": "genera_ui/openui_explanation.txt",
+    "prompt_preview": "Eres el generador de pantallas de SkillNet, formacion de cumplimiento normativo para empleados. Responde UNICAMENTE con un programa en el dialecto descrito abaj",
+    "use_case": "genera_ui"
+  },
   "649471a037fb107d": {
     "file": "explain/mercurio_quimica.json",
     "prompt_preview": "Eres el explicador de SkillNet. Una persona que esta estudiando ha hecho clic en una palabra o ha seleccionado una frase y quiere un vistazo rapido. Responde co",

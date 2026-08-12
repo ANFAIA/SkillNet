@@ -53,6 +53,12 @@ import {
   DragOrderBlock,
   MarkdownBlock,
   PronunciationExerciseBlock,
+  FlashcardBlock,
+  HintRevealBlock,
+  DidactGlossaryBlock,
+  DidactTimelineBlock,
+  DidactWorkedExampleBlock,
+  DidactActivityBlock,
   StackBlock,
   StackItem,
   StepSequenceBlock,
@@ -85,6 +91,12 @@ import {
   dragOrderProps,
   markdownProps,
   pronunciationExerciseProps,
+  flashcardProps,
+  hintRevealProps,
+  didactGlossaryProps,
+  didactTimelineProps,
+  didactWorkedExampleProps,
+  didactActivityProps,
   quizItemProps,
   stackProps,
   stepSequenceProps,
@@ -288,6 +300,48 @@ const PronunciationExercise = defineComponent({
   ),
 })
 
+const Flashcard = defineComponent({
+  name: 'Flashcard',
+  description: KIT_DESCRIPTIONS.Flashcard,
+  props: flashcardProps,
+  component: ({ props }: ComponentRenderProps<{ front: string; back: string }>) => (
+    <FlashcardBlock front={readString(props.front)} back={readString(props.back)} />
+  ),
+})
+
+const HintReveal = defineComponent({
+  name: 'HintReveal',
+  description: KIT_DESCRIPTIONS.HintReveal,
+  props: hintRevealProps,
+  component: ({ props }: ComponentRenderProps<{ title: string; hints: string[]; solution: string }>) => (
+    <HintRevealBlock title={readString(props.title)} hints={readStringArray(props.hints)} solution={readString(props.solution)} />
+  ),
+})
+
+const DidactGlossary = defineComponent({
+  name: 'DidactGlossary', description: KIT_DESCRIPTIONS.DidactGlossary, props: didactGlossaryProps,
+  component: ({ props }: ComponentRenderProps<{ title: string; terms: string[]; definitions: string[] }>) => (
+    <DidactGlossaryBlock title={readString(props.title)} terms={readStringArray(props.terms)} definitions={readStringArray(props.definitions)} />
+  ),
+})
+const DidactTimeline = defineComponent({
+  name: 'DidactTimeline', description: KIT_DESCRIPTIONS.DidactTimeline, props: didactTimelineProps,
+  component: ({ props }: ComponentRenderProps<{ label: string; steps: string[]; details: string[] }>) => (
+    <DidactTimelineBlock label={readString(props.label)} steps={readStringArray(props.steps)} details={readStringArray(props.details)} />
+  ),
+})
+const DidactWorkedExample = defineComponent({
+  name: 'DidactWorkedExample', description: KIT_DESCRIPTIONS.DidactWorkedExample, props: didactWorkedExampleProps,
+  component: ({ props }: ComponentRenderProps<{ problem: string; steps: string[]; summary: string }>) => (
+    <DidactWorkedExampleBlock problem={readString(props.problem)} steps={readStringArray(props.steps)} summary={readString(props.summary)} />
+  ),
+})
+const DidactActivity = defineComponent({
+  name: 'DidactActivity', description: KIT_DESCRIPTIONS.DidactActivity, props: didactActivityProps,
+  component: ({ props }: ComponentRenderProps<{ activity_id: string; component_id: string }>) => (
+    <DidactActivityBlock activityId={readString(props.activity_id)} componentId={readString(props.component_id)} />
+  ),
+})
 /**
  * The render library.
  *
@@ -318,6 +372,12 @@ export const skillnetLibrary = createLibrary({
     DragOrder,
     AudioExplanation,
     PronunciationExercise,
+    Flashcard,
+    HintReveal,
+    DidactGlossary,
+    DidactTimeline,
+    DidactWorkedExample,
+    DidactActivity,
   ],
 })
 

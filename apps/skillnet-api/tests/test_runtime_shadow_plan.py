@@ -52,6 +52,9 @@ def test_shadow_trace_is_json_safe_and_keeps_live_decision_separate() -> None:
     assert trace["shadow"]["objective_version"] == 2
     assert trace["shadow"]["component_candidates"][0]["component_id"] == "Table"
     assert trace["projection"]["inferred_presentation_bucket"] == "data-high"
+    assert trace["inventory_size"] >= 34
+    assert 3 <= len(trace["prompt_component_ids"]) <= 5
+    assert trace["shortlist_policy"] == "renderer-safe-ranked/1"
     # The live density supports 1..5; the experimental contract currently has 3 bands.
     assert trace["projection"]["density"] == 3
     json.dumps(trace)
@@ -87,7 +90,7 @@ def test_missing_shape_function_uses_deterministic_format_fallback() -> None:
 
     assert trace["status"] == "planned"
     assert trace["shadow"]["mission"] == "decide"
-    assert trace["shadow"]["source_functions"] == ["assess"]
+    assert trace["shadow"]["source_functions"] == ["assess", "explore"]
     assert trace["mission_rationale"] == "MISSION_FROM_UI_FORMAT_FALLBACK"
 
 
@@ -111,7 +114,7 @@ async def test_decide_formato_observes_once_before_either_openui_generator(
     async def keep_detected_shape(_state: dict, _node: dict, plan):
         return plan
 
-    def capture(state: dict) -> dict:
+    def capture(state: dict, **_kwargs) -> dict:
         observed.append(state)
         return {"trace_version": "plan-trace/test", "status": "planned"}
 
@@ -151,3 +154,12 @@ async def test_decide_formato_observes_once_before_either_openui_generator(
     assert result["plan_trace"]["trace_version"] == "plan-trace/test"
     assert "ui_spec" not in result
     assert state["ui_spec"] == {"root": "unchanged"}
+
+
+def test_live_shortlist_never_exposes_a_didact_type_without_runtime_gate() -> None:
+    trace = shadow_plan.build_shadow_plan_trace(_state(), mode="live")
+
+    assert trace["mode"] == "live"
+    # Prompt ids are OpenUI renderer symbols, never neutral Didact inventory ids.
+    assert all(not item.startswith("didact.") for item in trace["prompt_component_ids"])
+    assert len(trace["prompt_component_ids"]) <= 5

@@ -27,6 +27,7 @@ Three things in here are the security contract of §5.1 and are not negotiable:
 from __future__ import annotations
 
 import asyncio
+import json
 import time
 import uuid
 from typing import Any
@@ -39,6 +40,8 @@ from src.agents.content.helpers import (
     assemble_chunk_text,
     estimate_pages,
 )
+from src.agents.runtime.assessment import plan_assessment
+from src.agents.runtime.classify import classify_function
 from src.agents.runtime.errors import (
     node_channel,
     publish_error,
@@ -53,8 +56,6 @@ from src.agents.runtime.router import (
     tier_config,
     tier_llm,
 )
-from src.agents.runtime.assessment import plan_assessment
-from src.agents.runtime.classify import classify_function
 from src.agents.runtime.shape import (
     ShapePlan,
     ShapeSignal,
@@ -62,7 +63,6 @@ from src.agents.runtime.shape import (
     focus_on_headings,
     refine_format,
 )
-from src.render.kit import ContentFunction
 from src.agents.runtime.state import NodeRuntimeState
 from src.core import sse
 from src.core.logging import get_logger
@@ -96,17 +96,30 @@ from src.models import (
     Organization,
     User,
 )
+from src.personalization.preferences import normalize_learning_preferences
 from src.render.backends import get_render_backend
 from src.render.errors import RenderError
-from src.personalization.preferences import normalize_learning_preferences
 from src.render.gate import canonicalize
+from src.render.kit import ContentFunction
 from src.render.prompt import catalog_version, library_version
+from src.render.prompt_slice import resolve_runtime_prompt
 from src.render.spec import Component, UISpec, parse_spec
+from src.repositories.activity_definition_repo import (
+    ActivityDefinitionRepository,
+    ActivityStateRepository,
+)
 from src.repositories.document_chunk_repo import DocumentChunkRepository
 from src.repositories.learner_node_state_repo import LearnerNodeStateRepository
 from src.repositories.learner_profile_repo import LearnerProfileRepository
 from src.repositories.llm_usage_repo import log_usage
+from src.repositories.node_knowledge_pack_repo import NodeKnowledgePackRepository
 from src.repositories.node_render_repo import NodeRenderRepository
+from src.services.activity_authoring import (
+    ActivityAuthoringDraft,
+    build_activity_authoring_prompts,
+    materialize_authored_activity,
+)
+from src.services.activity_definitions import ActivityDefinitionService
 from src.services.learner_profile_service import is_calibrating
 from src.services.mastery_service import target_bloom, threshold_for
 from src.services.node_render_service import NodeRenderService, build_render_key
@@ -126,6 +139,7 @@ STEP_MESSAGES: dict[str, str] = {
     "load_context": "Preparando el nodo...",
     "probe_gate": "Comprobando lo que ya dominas...",
     "decide_formato": "Eligiendo la forma de la leccion...",
+    "author_activity": "Preparando la actividad interactiva...",
     "genera_ui": "Escribiendo la leccion...",
     "validate_ui": "Revisando la leccion...",
     "persist_render": "Guardando la leccion...",
@@ -787,9 +801,10 @@ async def decide_formato(state: NodeRuntimeState) -> dict:
         dict.fromkeys(signal.function.value for signal in plan.signals)
     )
 
-    # Observe the decision once, before either OpenUI generator runs. The trace is state
-    # only: no prompt, cache key, component selection or ui_spec consumes it.
+    # Resolve once before either generator runs. The complete inventory stays in the
+    # planner; only renderer-safe names cross the prompt boundary when the flag is on.
     from src.agents.runtime.shadow_plan import build_shadow_plan_trace
+    from src.config import settings
 
     shadow_state = dict(state)
     shadow_state.update(
@@ -802,7 +817,15 @@ async def decide_formato(state: NodeRuntimeState) -> dict:
             "assessment_item_type": assessment.item_type,
         }
     )
-    plan_trace = build_shadow_plan_trace(shadow_state)
+    plan_trace = build_shadow_plan_trace(
+        shadow_state,
+        mode="live" if settings.RUNTIME_COMPONENT_SHORTLIST else "shadow",
+    )
+    prompt_component_ids = (
+        list(plan_trace.get("prompt_component_ids") or ())
+        if settings.RUNTIME_COMPONENT_SHORTLIST
+        else []
+    )
 
     await publish_step(request_id, "decide_formato", STEP_MESSAGES["decide_formato"])
     await sse.publish(
@@ -822,6 +845,7 @@ async def decide_formato(state: NodeRuntimeState) -> dict:
         "shape_summary": plan.summary,
         "shape_functions": shape_functions,
         "plan_trace": plan_trace,
+        "prompt_component_ids": prompt_component_ids,
         "current_step": "decide_formato",
         # Carried so `node_renders.tokens_*` is the cost of the *render*, not of one of the
         # two calls that produced it. `genera_ui` adds its own on top, retries included.
@@ -830,7 +854,148 @@ async def decide_formato(state: NodeRuntimeState) -> dict:
 
 
 # --------------------------------------------------------------------------- #
-# Node 4: genera_ui
+# Node 4: author_activity (optional, fail-open)
+# --------------------------------------------------------------------------- #
+def _activity_candidates(state: NodeRuntimeState) -> tuple[str, ...]:
+    """Didact ids selected by the planner whose renderer is the generic activity host."""
+
+    from src.personalization.didact_catalog import load_didact_catalog
+
+    trace = state.get("plan_trace") or {}
+    shadow = trace.get("shadow") if isinstance(trace, dict) else None
+    ranked = shadow.get("component_candidates") if isinstance(shadow, dict) else None
+    catalog = load_didact_catalog().by_type_id
+    selected: list[str] = []
+    for item in ranked or ():
+        component_id = item.get("component_id") if isinstance(item, dict) else None
+        component = catalog.get(component_id) if isinstance(component_id, str) else None
+        if component is None or component.renderer_symbol != "DidactActivity":
+            continue
+        if not component.llm_emittable:
+            continue
+        selected.append(component.type_id)
+        if len(selected) >= 5:
+            break
+    return tuple(dict.fromkeys(selected))
+
+
+async def author_activity(state: NodeRuntimeState) -> dict:
+    """Materialise a rich activity before OpenUI sees it; decline to legacy on failure.
+
+    This node intentionally does not use ``runtime_node_error_wrapper``. Activity
+    authoring is an optional enrichment: a malformed fixture, provider error or stale
+    pack removes DidactActivity from the scoped prompt and the ordinary generation path
+    continues.
+    """
+
+    candidates = _activity_candidates(state)
+    if not candidates or "DidactActivity" not in (state.get("prompt_component_ids") or ()):
+        return {"authored_activity": None, "activity_authoring_status": "not_requested"}
+
+    request_id = str(state["request_id"])
+    await publish_step(request_id, "author_activity", STEP_MESSAGES["author_activity"])
+    try:
+        org_id = _uuid(state["org_id"])
+        node_id = _uuid(state["node_id"])
+        course_id = _uuid(state["course_id"])
+        render_id = _uuid(state["render_id"])
+        atom_ids = tuple(str(value) for value in state.get("knowledge_atom_ids") or ())
+        evidence_ids = tuple(str(value) for value in state.get("knowledge_evidence_ids") or ())
+        allowed_refs = (*atom_ids, *evidence_ids)
+        system, user = build_activity_authoring_prompts(
+            candidates=candidates,
+            title=str((state.get("node") or {}).get("title") or ""),
+            outcome=(state.get("node") or {}).get("outcome"),
+            source_context=str(state.get("source_context") or ""),
+            allowed_source_refs=allowed_refs,
+        )
+        # Activity definition is small structured work; it always uses the fast tier even
+        # when the eventual screen needs the heavy presentation tier.
+        llm = await _make_llm(org_id, "fast")
+        started = time.monotonic()
+        raw, usage = await llm.complete_with_usage(
+            system,
+            user,
+            temperature=0.2,
+            max_tokens=1600,
+            json_mode=True,
+        )
+        await log_usage(
+            async_session_factory,
+            org_id=org_id,
+            user_id=state.get("user_id"),
+            use_case="runtime_activity_authoring",
+            purpose=purpose_for("fast"),
+            model=getattr(llm, "model", "unknown"),
+            tier="fast",
+            tokens_in=usage.tokens_in,
+            tokens_out=usage.tokens_out,
+            duration_ms=int((time.monotonic() - started) * 1000),
+        )
+        draft = ActivityAuthoringDraft.model_validate(parse_json_response(raw))
+        async with async_session_factory() as db:
+            pack = None
+            pack_hash = str(state.get("knowledge_pack_hash") or "")
+            if pack_hash:
+                pack = await NodeKnowledgePackRepository(db).find_by_hash(
+                    node_id=node_id, pack_hash=pack_hash
+                )
+            materialized = await materialize_authored_activity(
+                ActivityDefinitionService(
+                    ActivityDefinitionRepository(db), ActivityStateRepository(db)
+                ),
+                org_id=org_id,
+                course_id=course_id,
+                node_id=node_id,
+                render_id=render_id,
+                knowledge_pack_id=pack.id if pack is not None else None,
+                pack_hash=pack_hash,
+                draft=draft,
+                allowed_component_ids=candidates,
+                allowed_source_refs=allowed_refs,
+            )
+            await db.commit()
+        return {
+            "authored_activity": materialized.model_dump(mode="json"),
+            "activity_authoring_status": "ready",
+        }
+    except Exception as exc:
+        logger.warning("activity_authoring_declined %s", type(exc).__name__, exc_info=True)
+        return {
+            "authored_activity": None,
+            "activity_authoring_status": f"declined:{type(exc).__name__}",
+            "prompt_component_ids": [
+                value
+                for value in state.get("prompt_component_ids") or ()
+                if value != "DidactActivity"
+            ],
+        }
+
+
+def _source_with_authored_activity(state: NodeRuntimeState) -> str:
+    """Add only the opaque id and public projection to the UI-generation context."""
+
+    source = str(state.get("source_context") or "")
+    activity = state.get("authored_activity")
+    if not isinstance(activity, dict):
+        return source
+    instruction = {
+        "activity_id": activity.get("activity_id"),
+        "component_id": activity.get("component_id"),
+        "public_definition": activity.get("public_definition") or {},
+    }
+    return (
+        source.rstrip()
+        + "\n\n## Actividad Didact preparada por el servidor\n"
+        + "Incluye exactamente DidactActivity(activity_id, component_id) usando estos "
+        + "valores; no inventes otro id: "
+        + json.dumps(instruction, ensure_ascii=False, sort_keys=True)
+        + "\n"
+    )
+
+
+# --------------------------------------------------------------------------- #
+# Node 5: genera_ui
 # --------------------------------------------------------------------------- #
 @runtime_node_error_wrapper("genera_ui")
 async def genera_ui(state: NodeRuntimeState) -> dict:
@@ -864,8 +1029,16 @@ async def genera_ui(state: NodeRuntimeState) -> dict:
 
     shape_hints = list(state.get("shape_hints") or ())
 
+    from src.config import settings
+
+    scoped_prompt, scope = resolve_runtime_prompt(
+        state.get("prompt_component_ids") or (),
+        additional_required=(str(state.get("assessment_block") or "QuizItem"),),
+        enabled=settings.RUNTIME_COMPONENT_SHORTLIST,
+    )
+
     if retry:
-        system = ui_repair_system()
+        system = ui_repair_system(scoped_prompt)
         user_prompt = build_repair_prompt(
             previous=str(state.get("raw_dsl") or ""),
             errors=list(state.get("validation_errors") or []),
@@ -873,7 +1046,7 @@ async def genera_ui(state: NodeRuntimeState) -> dict:
             shape_hints=shape_hints,
         )
     else:
-        system = ui_generator_system()
+        system = ui_generator_system(scoped_prompt)
         preferences = normalize_learning_preferences(profile.get("learning_preferences"))
         user_prompt = build_ui_prompt(
             title=str(node.get("title") or ""),
@@ -892,7 +1065,7 @@ async def genera_ui(state: NodeRuntimeState) -> dict:
             consecutive_failed=int(node_state.get("consecutive_failed") or 0),
             consecutive_correct=int(node_state.get("consecutive_correct") or 0),
             tutor_signals=tuple(profile.get("tutor_signals") or ()),
-            source_context=str(state.get("source_context") or ""),
+            source_context=_source_with_authored_activity(state),
             shape_hints=shape_hints,
             assessment_hint=str(state.get("assessment_hint") or ""),
             presentation_preference=preferences.presentation.value,
@@ -938,7 +1111,7 @@ async def genera_ui(state: NodeRuntimeState) -> dict:
             getattr(llm, "model", "unknown"),
             usage_out.get("reason") or "unknown",
         )
-    return {
+    result = {
         "raw_dsl": raw,
         "model": getattr(llm, "model", "unknown"),
         "duration_ms": duration_ms + int(state.get("duration_ms") or 0),
@@ -946,6 +1119,16 @@ async def genera_ui(state: NodeRuntimeState) -> dict:
         "tokens_out": _accumulate(state.get("tokens_out"), tokens_out),
         "current_step": "genera_ui",
     }
+    if scope is not None:
+        plan_trace = dict(state.get("plan_trace") or {})
+        plan_trace["prompt_scope"] = {
+            "version": scope.version,
+            "digest": scope.digest,
+            "prompt_sha256": scope.prompt_sha256,
+            "included_component_ids": list(scope.included_component_ids),
+        }
+        result["plan_trace"] = plan_trace
+    return result
 
 
 def _accumulate(previous: int | None, addition: int | None) -> int | None:
@@ -1441,6 +1624,7 @@ __all__ = [
     "FALLBACK_MAX_BLOCKS",
     "RETRIEVAL_TOP_K",
     "STEP_MESSAGES",
+    "author_activity",
     "build_fallback_spec",
     "decide_formato",
     "fallback_seed",

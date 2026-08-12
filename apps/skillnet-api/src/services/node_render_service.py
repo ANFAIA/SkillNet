@@ -54,13 +54,14 @@ from src.models import (
     NodeRenderStatus,
     Organization,
 )
+from src.personalization.preferences import preference_bucket
 from src.render.prompt import catalog_version
+from src.render.prompt_slice import RUNTIME_SCOPE_POLICY_VERSION
 from src.repositories.learner_node_state_repo import LearnerNodeStateRepository
 from src.repositories.node_render_repo import SERVABLE_STATUSES, NodeRenderRepository
 from src.repositories.node_render_view_repo import NodeRenderViewRepository
 from src.services.cache_key import build_cache_key, effective_density, role_bucket
 from src.services.learner_profile_service import CALIBRATION_NODES, vector_bucket
-from src.personalization.preferences import preference_bucket
 
 logger = get_logger(__name__)
 
@@ -157,7 +158,11 @@ def build_render_key(
         # Both halves of "which instructions produced this": the prompt module's own
         # version and the generated catalogue the model was taught. Either one changing
         # must invalidate the render, and the two are owned by different files.
-        prompt_version=f"{PROMPT_VERSION}+{catalog_version()}",
+        prompt_version=(
+            f"{PROMPT_VERSION}+{catalog_version()}+{RUNTIME_SCOPE_POLICY_VERSION}"
+            if settings.RUNTIME_COMPONENT_SHORTLIST
+            else f"{PROMPT_VERSION}+{catalog_version()}"
+        ),
         role_title=role,
         sector=sector,
         vector_bucket=bucket,

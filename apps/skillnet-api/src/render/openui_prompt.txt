@@ -31,6 +31,12 @@ BeforeAfter(title: string, beforeLabel: string, beforeContent: string, afterLabe
 DragOrder(instruction: string, items: string[], correctOrder: string[]) — Evaluar reordenando pasos o prioridades arrastrando
 AudioExplanation(text: string, voice: "neutral" | "warm" | "formal") — Texto leido en voz alta con resaltado de palabras
 PronunciationExercise(targetText: string, language: string) — Escuchar y practicar la pronunciacion de un termino
+Flashcard(front: string, back: string) — Recordar activamente una idea antes de revelar la respuesta; no sustituye una evaluacion
+HintReveal(title: string, hints: string[], solution: string) — Ofrece pistas de menor a mayor ayuda y una solucion solo bajo peticion
+DidactGlossary(title: string, terms: string[], definitions: string[]) — Definiciones consultables para terminos importantes del contenido
+DidactTimeline(label: string, steps: string[], details: string[]) — Secuencia cronologica o procedimental con detalle opcional por paso
+DidactWorkedExample(problem: string, steps: string[], summary: string) — Solucion razonada que revela progresivamente como resolver un problema
+DidactActivity(activity_id: string, component_id: string) — Actividad Didact revisada, cargada por id desde SkillNet; nunca contiene respuestas en el programa
 
 ## Hoisting & Streaming (CRITICAL)
 

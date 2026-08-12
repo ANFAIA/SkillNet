@@ -28,6 +28,7 @@ import { CourseStudio } from './pages/admin/CourseStudio'
 import { CourseSchema } from './pages/admin/CourseSchema'
 import { Settings as AdminSettings } from './pages/admin/Settings'
 import { MotionDemo } from './pages/dev/MotionDemo'
+import { DidactLab } from './pages/dev/DidactLab'
 
 const HOME_BY_ROLE = {
   admin: '/admin',
@@ -123,6 +124,14 @@ function App() {
           </Route>
 
           <Route path="/dev/motion" element={<MotionDemo />} />
+          <Route
+            path="/dev/didact"
+            element={
+              <ProtectedRoute role="admin">
+                <DidactLab />
+              </ProtectedRoute>
+            }
+          />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>

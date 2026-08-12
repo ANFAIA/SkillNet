@@ -104,7 +104,7 @@ function propOrder(component: string): string[] {
 }
 
 describe('the kit is the catalogue of §5.3', () => {
-  it('registers the ten frozen components under the library root Stack', () => {
+  it('registers the frozen components under the library root Stack', () => {
     expect(Object.keys(skillnetLibrary.components).sort()).toEqual([...KIT_COMPONENT_NAMES].sort())
     expect(skillnetLibrary.root).toBe('Stack')
     expect(skillnetLibrary.id).toBe('skillnet-ui/1')
@@ -137,6 +137,11 @@ describe('the kit is the catalogue of §5.3', () => {
     expect(propOrder('DragOrder')).toEqual(['instruction', 'items', 'correctOrder'])
     expect(propOrder('AudioExplanation')).toEqual(['text', 'voice'])
     expect(propOrder('PronunciationExercise')).toEqual(['targetText', 'language'])
+    expect(propOrder('Flashcard')).toEqual(['front', 'back'])
+    expect(propOrder('HintReveal')).toEqual(['title', 'hints', 'solution'])
+    expect(propOrder('DidactGlossary')).toEqual(['title', 'terms', 'definitions'])
+    expect(propOrder('DidactTimeline')).toEqual(['label', 'steps', 'details'])
+    expect(propOrder('DidactWorkedExample')).toEqual(['problem', 'steps', 'summary'])
   })
 
   it('declares every prop required — the kit has no optional props', () => {
@@ -153,7 +158,7 @@ describe.skipIf(!hasCatalog)('no drift against the backend catalogue artefact', 
     expect(catalog!.root).toBe(skillnetLibrary.root)
   })
 
-  it('agrees on the ten component names', () => {
+  it('agrees on the component names', () => {
     expect(catalog!.render_components).toEqual([...KIT_COMPONENT_NAMES])
   })
 
@@ -196,7 +201,7 @@ describe.skipIf(!hasCatalog)('no drift against the backend catalogue artefact', 
   it('keeps Markdown out of what the model is taught to emit', () => {
     const promptNames = catalog!.prompt_components.map((component) => component.name)
     expect(promptNames).not.toContain('Markdown')
-    expect(promptNames).toHaveLength(13)
+    expect(promptNames).toHaveLength(KIT_COMPONENT_NAMES.length - 1)
     // …and in what the browser can render, for `fallback_seed`.
     expect(Object.keys(skillnetLibrary.components)).toContain('Markdown')
   })

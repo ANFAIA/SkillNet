@@ -32,6 +32,12 @@ EXPECTED_CATALOGUE: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("DragOrder", ("instruction", "items", "correctOrder")),
     ("AudioExplanation", ("text", "voice")),
     ("PronunciationExercise", ("targetText", "language")),
+    ("Flashcard", ("front", "back")),
+    ("HintReveal", ("title", "hints", "solution")),
+    ("DidactGlossary", ("title", "terms", "definitions")),
+    ("DidactTimeline", ("label", "steps", "details")),
+    ("DidactWorkedExample", ("problem", "steps", "summary")),
+    ("DidactActivity", ("activity_id", "component_id")),
 )
 
 # Explicitly out of the kit (§5.3), plus the names the spec renamed away from.
@@ -78,8 +84,8 @@ def test_positional_prop_order_matches_the_spec_table(name: str, props: tuple[st
 
 
 def test_only_markdown_is_off_limits_to_the_model() -> None:
-    assert UI_KIT.llm_names == tuple(n for n, _ in EXPECTED_CATALOGUE if n != "Markdown")
-    assert len(UI_KIT.llm_names) == 13
+    assert UI_KIT.llm_names == tuple(name for name, _ in EXPECTED_CATALOGUE if name != "Markdown")
+    assert len(UI_KIT.llm_names) == len(EXPECTED_CATALOGUE) - 1
 
 
 def test_containers_are_stack_and_card() -> None:
@@ -99,6 +105,67 @@ def test_each_container_declares_exactly_one_refs_prop() -> None:
     for component in UI_KIT.components:
         refs = [p for p in component.props if p.kind is PropKind.REFS]
         assert len(refs) == (1 if component.is_container else 0), component.name
+
+
+def test_safe_didact_family_uses_only_flat_declarative_props() -> None:
+    allowed = {PropKind.STRING, PropKind.STRING_LIST}
+    for name in (
+        "DidactGlossary",
+        "DidactTimeline",
+        "DidactWorkedExample",
+    ):
+        component = UI_KIT.get(name)
+        assert component is not None
+        assert {prop.kind for prop in component.props} <= allowed
+
+
+@pytest.mark.parametrize(
+    ("component_type", "props"),
+    (
+        (
+            "DidactGlossary",
+            {"title": "Conceptos", "terms": ["SLA"], "definitions": ["Plazo acordado"]},
+        ),
+        (
+            "DidactTimeline",
+            {"label": "Proceso", "steps": ["Abrir", "Resolver"], "details": []},
+        ),
+        (
+            "DidactWorkedExample",
+            {"problem": "Prioriza el caso", "steps": ["Revisa el impacto"], "summary": "Impacto primero"},
+        ),
+    ),
+)
+def test_safe_didact_family_parses_as_static_openui(
+    component_type: str, props: dict[str, object]
+) -> None:
+    payload = _spec()
+    payload["components"][0]["children"] = ["a", "didact"]
+    payload["components"][1]["props"]["variant"] = "lead"
+    payload["components"].append(
+        {"id": "didact", "type": component_type, "props": props}
+    )
+
+    assert parse_spec(payload).component("didact").type == component_type
+
+
+def test_safe_didact_parallel_arrays_fail_closed() -> None:
+    payload = _spec()
+    payload["components"][0]["children"] = ["a", "didact"]
+    payload["components"].append(
+        {
+            "id": "didact",
+            "type": "DidactGlossary",
+            "props": {
+                "title": "Conceptos",
+                "terms": ["SLA", "Prioridad"],
+                "definitions": ["Plazo acordado"],
+            },
+        }
+    )
+
+    with pytest.raises(RenderValidationError, match="arrays must be parallel"):
+        parse_spec(payload)
 
 
 # -- the names that stay out of the catalogue ----------------------------------------

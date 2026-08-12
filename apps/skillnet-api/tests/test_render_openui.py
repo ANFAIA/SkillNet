@@ -890,6 +890,14 @@ def test_the_parser_accepts_exactly_the_emittable_components() -> None:
         "DragOrder",
         "AudioExplanation",
         "PronunciationExercise",
+        # Didact renderers currently exposed by SkillNet. The generic activity host
+        # represents eight server-authored types but remains one OpenUI symbol.
+        "Flashcard",
+        "HintReveal",
+        "DidactGlossary",
+        "DidactTimeline",
+        "DidactWorkedExample",
+        "DidactActivity",
         # Layout containers for viewport-fitting (runtime/6).
     }
     # ``Markdown`` is in the kit but ``llm_emittable=False``: reachable from

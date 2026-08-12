@@ -43,4 +43,15 @@ export type { AudioExplanationBlockProps } from './AudioExplanationBlock'
 export { PronunciationExerciseBlock } from './PronunciationExerciseBlock'
 export type { PronunciationExerciseBlockProps } from './PronunciationExerciseBlock'
 
+export { FlashcardBlock } from './FlashcardBlock'
+export type { FlashcardBlockProps } from './FlashcardBlock'
+
+export { HintRevealBlock } from './HintRevealBlock'
+export { DidactGlossaryBlock } from './DidactGlossaryBlock'
+export { DidactTimelineBlock } from './DidactTimelineBlock'
+export { DidactWorkedExampleBlock } from './DidactWorkedExampleBlock'
+export { DidactSelfExplanationBlock } from './DidactSelfExplanationBlock'
+export { DidactActivityBlock } from './DidactActivityBlock'
+export type { HintRevealBlockProps } from './HintRevealBlock'
+
 export { InlineMarkdown } from './InlineMarkdown'

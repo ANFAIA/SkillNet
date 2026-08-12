@@ -171,6 +171,11 @@ class Settings(BaseSettings):
     # on retry. Set MULTI_AGENT_RENDER=true in .env to activate.
     MULTI_AGENT_RENDER: bool = False
 
+    # Resolve the learning ExperienceIntent against the complete component inventory,
+    # then expose only the 3-5 renderer-safe candidates to the generation prompt.
+    # The inventory remains complete; this flag only narrows the LLM boundary.
+    RUNTIME_COMPONENT_SHORTLIST: bool = True
+
     # Router semantico de funciones de contenido (prototipo, fases 3/4 de
     # docs/design/arquitectura-componentes-funcional.md). Cuando esta activo,
     # decide_formato hace una llamada corta que clasifica QUE HACE el material

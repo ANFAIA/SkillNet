@@ -188,7 +188,7 @@ def test_a_hand_edited_prompt_is_reported_as_drift(tmp_path, monkeypatch) -> Non
 # -- what the artefact must contain ---------------------------------------------------
 
 
-def test_the_catalogue_is_the_nine_emittable_components_in_order() -> None:
+def test_the_catalogue_contains_every_emittable_component_in_order() -> None:
     assert load_artifact().component_names == UI_KIT.llm_names
 
 
@@ -207,7 +207,7 @@ def test_the_prompt_never_advertises_markdown() -> None:
 @pytest.mark.parametrize("name", ("Timeline", "ImageCard", "DragDrop", "Simulation",
                                  "SandboxHTML", "StepList", "BarChart", "LineChart"))
 def test_the_prompt_advertises_nothing_outside_the_kit(name: str) -> None:
-    assert name not in render_prompt()
+    assert not re.search(rf"(?m)^{re.escape(name)}\(", render_prompt())
 
 
 def test_every_positional_prop_name_reaches_the_prompt() -> None:
