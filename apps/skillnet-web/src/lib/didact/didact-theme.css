@@ -1,0 +1,31 @@
+/*
+ * Compatibility bridge for Didact's shadcn-style semantic utilities.
+ * It is deliberately scoped: importing this file cannot recolor SkillNet.
+ */
+.didact-scope {
+  --background: var(--color-bg);
+  --foreground: var(--color-text);
+  --card: var(--color-surface);
+  --card-foreground: var(--color-text);
+  --popover: var(--color-surface);
+  --popover-foreground: var(--color-text);
+  --primary: var(--color-primary);
+  --primary-foreground: #ffffff;
+  --secondary: var(--color-bg-muted);
+  --secondary-foreground: var(--color-text);
+  --muted: var(--color-bg-muted);
+  --muted-foreground: var(--color-text-muted);
+  --accent: var(--color-primary-subtle);
+  --accent-foreground: var(--color-text);
+  --destructive: var(--color-danger);
+  --border: var(--color-border);
+  --input: var(--color-border-strong);
+  --ring: var(--color-primary);
+  --radius: 0.5rem;
+}
+
+:root[data-theme='dark'] .didact-scope,
+.lesson-theater.mode-dark .didact-scope,
+.lesson-theater:not(.mode-light) .didact-scope {
+  --primary-foreground: #0a0a0a;
+}

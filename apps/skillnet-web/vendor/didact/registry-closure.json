@@ -1,0 +1,1145 @@
+{
+  "counts": {
+    "available_types": 34,
+    "closure_items": 46,
+    "files": 51,
+    "root_items": 26
+  },
+  "items": [
+    {
+      "dependencies": [],
+      "description": "Serializable multi-file artifact, execution request/response, evaluation and workspace-state contracts with host-owned sandbox boundaries.",
+      "files": [
+        {
+          "path": "packages/schema/src/types.ts",
+          "type": "registry:lib"
+        },
+        {
+          "path": "packages/schema/src/artifact-execution.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "artifact-execution-schema",
+      "registry_dependencies": [],
+      "title": "Artifact and Execution schema",
+      "type": "registry:lib"
+    },
+    {
+      "dependencies": [
+        "class-variance-authority",
+        "clsx",
+        "tailwind-merge",
+        "radix-ui"
+      ],
+      "description": "A generic label/status primitive (@didact/ui, layers 1-2): variants default/secondary/destructive/outline/ghost/link, asChild via the unified radix-ui package's Slot. Distinct from packages/core's domain-specific MasteryBadge -- see packages/ui/src/components/badge.tsx for how they differ.",
+      "files": [
+        {
+          "path": "packages/ui/src/components/badge.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/ui/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "badge",
+      "registry_dependencies": [],
+      "title": "Badge",
+      "type": "registry:ui"
+    },
+    {
+      "dependencies": [
+        "clsx",
+        "tailwind-merge"
+      ],
+      "description": "Accessible consequential decision practice over a serializable graph with variables, conditions, effects, history and informative outcomes.",
+      "files": [
+        {
+          "path": "packages/core/src/components/branching-scenario.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/core/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "branching-scenario",
+      "registry_dependencies": [
+        "button",
+        "card",
+        "decision-graph-schema"
+      ],
+      "title": "Branching Scenario",
+      "type": "registry:ui"
+    },
+    {
+      "dependencies": [
+        "class-variance-authority",
+        "clsx",
+        "tailwind-merge",
+        "radix-ui"
+      ],
+      "description": "Didact's foundational action primitive (@didact/ui, layers 1-2 of the 3-layer architecture): variants default/destructive/outline/secondary/ghost/link, sizes default/xs/sm/lg/icon/icon-xs/icon-sm/icon-lg, asChild via the unified radix-ui package's Slot. Reads @didact/theme's real tokens (bg-primary, text-primary-foreground, etc.) instead of hardcoded values -- see packages/ui/src/components/button.tsx and docs/interface-norms.md's Action hierarchy for the full rationale.",
+      "files": [
+        {
+          "path": "packages/ui/src/components/button.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/ui/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "button",
+      "registry_dependencies": [],
+      "title": "Button",
+      "type": "registry:ui"
+    },
+    {
+      "dependencies": [
+        "clsx",
+        "tailwind-merge"
+      ],
+      "description": "The Card family (@didact/ui, layers 1-2): Card, CardHeader, CardTitle, CardDescription, CardAction, CardContent, CardFooter. Title/description/optional action in the header, body in content, actions in the footer -- see docs/interface-norms.md's Card composition for when to use each slot.",
+      "files": [
+        {
+          "path": "packages/ui/src/components/card.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/ui/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "card",
+      "registry_dependencies": [],
+      "title": "Card",
+      "type": "registry:ui"
+    },
+    {
+      "dependencies": [
+        "clsx",
+        "tailwind-merge",
+        "radix-ui"
+      ],
+      "description": "A two-state (or indeterminate) checkbox (@didact/ui, layers 1-2), backed by the unified radix-ui package's Checkbox, which owns aria-checked/data-state and keyboard toggling. The checked indicator is an inline SVG check rather than an icon-library import -- see packages/ui/src/components/checkbox.tsx.",
+      "files": [
+        {
+          "path": "packages/ui/src/components/checkbox.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/ui/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "checkbox",
+      "registry_dependencies": [],
+      "title": "Checkbox",
+      "type": "registry:ui"
+    },
+    {
+      "dependencies": [
+        "clsx",
+        "tailwind-merge",
+        "react-icons"
+      ],
+      "description": "A multi-file technical workspace with accessible editing and host-injected sandbox execution and evaluation ports.",
+      "files": [
+        {
+          "path": "packages/core/src/components/code-exercise.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/core/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "code-exercise",
+      "registry_dependencies": [
+        "button",
+        "card",
+        "textarea",
+        "artifact-execution-schema"
+      ],
+      "title": "Code Exercise",
+      "type": "registry:ui"
+    },
+    {
+      "dependencies": [
+        "clsx",
+        "tailwind-merge",
+        "react-icons"
+      ],
+      "description": "A serializable concept-network constructor with graphical and complete textual relationship builders.",
+      "files": [
+        {
+          "path": "packages/core/src/components/concept-map.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/core/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "concept-map",
+      "registry_dependencies": [
+        "button",
+        "card",
+        "input",
+        "label"
+      ],
+      "title": "Concept Map",
+      "type": "registry:ui"
+    },
+    {
+      "dependencies": [],
+      "description": "Framework-neutral definitions and validators for axes, linear/time domains, point or function series, synchronized table data and serializable exploration state.",
+      "files": [
+        {
+          "path": "packages/schema/src/taxonomy.ts",
+          "type": "registry:lib"
+        },
+        {
+          "path": "packages/schema/src/types.ts",
+          "type": "registry:lib"
+        },
+        {
+          "path": "packages/schema/src/data-coordinate.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "data-coordinate-schema",
+      "registry_dependencies": [],
+      "title": "Data and Coordinate schema",
+      "type": "registry:lib"
+    },
+    {
+      "dependencies": [
+        "clsx",
+        "tailwind-merge"
+      ],
+      "description": "An accessible graph-and-table experience for inspecting and manipulating mathematical functions, scientific series and business data over one serializable state.",
+      "files": [
+        {
+          "path": "packages/core/src/components/data-explorer.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/core/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "data-explorer",
+      "registry_dependencies": [
+        "button",
+        "card",
+        "input",
+        "label",
+        "data-coordinate-schema"
+      ],
+      "title": "Data Explorer",
+      "type": "registry:ui"
+    },
+    {
+      "dependencies": [],
+      "description": "Serializable state-graph contract, deterministic conditions/effects, history snapshots and validation for branching conversations and procedures.",
+      "files": [
+        {
+          "path": "packages/schema/src/types.ts",
+          "type": "registry:lib"
+        },
+        {
+          "path": "packages/schema/src/decision-graph.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "decision-graph-schema",
+      "registry_dependencies": [],
+      "title": "Decision Graph schema",
+      "type": "registry:lib"
+    },
+    {
+      "dependencies": [
+        "clsx",
+        "tailwind-merge",
+        "react-icons"
+      ],
+      "description": "Responsive SVG drawing and annotation with structured normalized strokes, keyboard coordinates and optional host evaluation.",
+      "files": [
+        {
+          "path": "packages/core/src/components/drawing-response.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/core/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "drawing-response",
+      "registry_dependencies": [
+        "button",
+        "card",
+        "input",
+        "label"
+      ],
+      "title": "Drawing Response",
+      "type": "registry:ui"
+    },
+    {
+      "dependencies": [
+        "clsx",
+        "tailwind-merge",
+        "react-icons"
+      ],
+      "description": "Structured symbolic transformation steps with host-injected rendering and evaluation.",
+      "files": [
+        {
+          "path": "packages/core/src/components/equation-workbench.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/core/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "equation-workbench",
+      "registry_dependencies": [
+        "button",
+        "card",
+        "input",
+        "label"
+      ],
+      "title": "Equation Workbench",
+      "type": "registry:ui"
+    },
+    {
+      "dependencies": [
+        "clsx",
+        "tailwind-merge"
+      ],
+      "description": "Stable source-segment annotation with categories, claims, notes and an accessible list interaction.",
+      "files": [
+        {
+          "path": "packages/core/src/components/evidence-annotation.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/core/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "evidence-annotation",
+      "registry_dependencies": [
+        "button",
+        "card",
+        "checkbox",
+        "input",
+        "label",
+        "textarea"
+      ],
+      "title": "Evidence Annotation",
+      "type": "registry:ui"
+    },
+    {
+      "dependencies": [
+        "class-variance-authority",
+        "clsx",
+        "tailwind-merge"
+      ],
+      "description": "A front/back flashcard (RF-1) with a 3D flip interaction, built on @didact/ui's Card/Button/ToggleGroup: a single primary 'Reveal answer' Button discloses the back face, and only then does a segmented ToggleGroup rating control (Known / Needs review) appear in the CardFooter -- reveal-then-rate, with one action hierarchy tier per docs/interface-norms.md. Both flip and rating are controllable or left to the component's own state. Presentation only -- no scheduling or persistence, see packages/core/src/components/flashcard.tsx for the full rationale.",
+      "files": [
+        {
+          "path": "packages/core/src/components/flashcard.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/core/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "flashcard",
+      "registry_dependencies": [
+        "card",
+        "button",
+        "toggle-group"
+      ],
+      "title": "Flashcard",
+      "type": "registry:ui"
+    },
+    {
+      "dependencies": [
+        "clsx",
+        "tailwind-merge"
+      ],
+      "description": "Three related learning components: an ungraded SelfExplanationPrompt with post-submit model comparison, a static or progressively disclosed WorkedExample, and a CompletionProblem with worked/missing steps, partial results and informative per-step feedback. Includes controlled/uncontrolled APIs, localization, partial/empty/disabled states and accessible native form controls.",
+      "files": [
+        {
+          "path": "packages/core/src/components/generative-learning.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/core/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "generative-learning",
+      "registry_dependencies": [
+        "button",
+        "card",
+        "input",
+        "label",
+        "textarea"
+      ],
+      "title": "Self-explanation, Worked Example and Completion Problem",
+      "type": "registry:ui"
+    },
+    {
+      "dependencies": [
+        "clsx",
+        "tailwind-merge"
+      ],
+      "description": "RF-5 inline Term and compact Glossary list. Terms open an accessible anchored popover without navigation; optional recallPrompt keeps the definition out of the DOM until explicitly revealed, converting passive lookup into an active-recall moment. Supports controlled state, partial streaming entries, localized labels and empty state, rich definitions/examples, keyboard operation, Escape focus restoration, and token-only styling.",
+      "files": [
+        {
+          "path": "packages/core/src/components/glossary.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/core/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "glossary",
+      "registry_dependencies": [
+        "button",
+        "popover"
+      ],
+      "title": "Glossary / Term",
+      "type": "registry:ui"
+    },
+    {
+      "dependencies": [
+        "clsx",
+        "tailwind-merge"
+      ],
+      "description": "RF-6 progressive Hint, standalone Reveal, and HintReveal alias. Hints, solution and feedback are conditionally mounted only after explicit learner requests, never merely hidden in the DOM. Includes controlled/uncontrolled disclosure state, callbacks, localized functional labels, partial streaming content, explicit pending state, keyboard/ARIA semantics and reduced-motion-safe token styling.",
+      "files": [
+        {
+          "path": "packages/core/src/components/hint-reveal.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/core/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "hint-reveal",
+      "registry_dependencies": [
+        "button",
+        "card"
+      ],
+      "title": "Hint / Reveal",
+      "type": "registry:ui"
+    },
+    {
+      "dependencies": [
+        "clsx",
+        "tailwind-merge"
+      ],
+      "description": "A responsive spatial interaction for predefined regions or normalized free points. Pointer input is paired with an equivalent textual list or percentage-coordinate controls; alt text, long descriptions, single or multiple selection, ungraded and partial results, streaming content and post-submit feedback are supported.",
+      "files": [
+        {
+          "path": "packages/core/src/components/hotspot.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/core/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "hotspot",
+      "registry_dependencies": [
+        "button",
+        "card",
+        "input",
+        "label"
+      ],
+      "title": "Hotspot / Select Point",
+      "type": "registry:ui"
+    },
+    {
+      "dependencies": [
+        "clsx",
+        "tailwind-merge"
+      ],
+      "description": "A single-line text field (@didact/ui, layers 1-2): a styled native <input> with no headless primitive behind it, reading @didact/theme's real tokens (border-input, text-muted-foreground placeholder, the shared focus-ring and aria-invalid treatment). Pair it with the label item via htmlFor/id -- see packages/ui/src/components/input.tsx.",
+      "files": [
+        {
+          "path": "packages/ui/src/components/input.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/ui/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "input",
+      "registry_dependencies": [],
+      "title": "Input",
+      "type": "registry:ui"
+    },
+    {
+      "dependencies": [
+        "clsx",
+        "tailwind-merge",
+        "react-icons"
+      ],
+      "description": "Coordinates timed learning checkpoints and a navigable transcript over audio or video. Child activities retain their own response, evaluation and feedback contracts; native playback is replaceable through an adapter.",
+      "files": [
+        {
+          "path": "packages/core/src/components/interactive-media.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/core/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "interactive-media",
+      "registry_dependencies": [
+        "button",
+        "card",
+        "separator",
+        "media-player",
+        "interactive-media-schema"
+      ],
+      "title": "Interactive Media",
+      "type": "registry:ui"
+    },
+    {
+      "dependencies": [],
+      "description": "Framework-neutral authoring/runtime contract and validator for timed audio/video checkpoints, transcripts, accessibility equivalents and completion policies.",
+      "files": [
+        {
+          "path": "packages/schema/src/taxonomy.ts",
+          "type": "registry:lib"
+        },
+        {
+          "path": "packages/schema/src/types.ts",
+          "type": "registry:lib"
+        },
+        {
+          "path": "packages/schema/src/interactive-media.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "interactive-media-schema",
+      "registry_dependencies": [],
+      "title": "Interactive Media schema",
+      "type": "registry:lib"
+    },
+    {
+      "dependencies": [
+        "clsx",
+        "tailwind-merge",
+        "radix-ui"
+      ],
+      "description": "An accessible form label (@didact/ui, layers 1-2), backed by the unified radix-ui package's Label, which forwards clicks to its associated control and plays well with htmlFor/id association. Carries the peer-disabled/group-disabled styling shared across the form primitives -- see packages/ui/src/components/label.tsx.",
+      "files": [
+        {
+          "path": "packages/ui/src/components/label.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/ui/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "label",
+      "registry_dependencies": [],
+      "title": "Label",
+      "type": "registry:ui"
+    },
+    {
+      "dependencies": [
+        "clsx",
+        "tailwind-merge",
+        "react-icons",
+        "@dnd-kit/core"
+      ],
+      "description": "Accessible normalized diagram labelling with optional drag and complete click, keyboard and textual alternatives.",
+      "files": [
+        {
+          "path": "packages/core/src/components/label-diagram.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/core/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "label-diagram",
+      "registry_dependencies": [
+        "button",
+        "card"
+      ],
+      "title": "Label Diagram",
+      "type": "registry:ui"
+    },
+    {
+      "dependencies": [
+        "clsx",
+        "tailwind-merge"
+      ],
+      "description": "A skill-mastery status badge (beginner/intermediate/advanced, optional percent) composed from @didact/ui's Badge (level maps to Badge's variant), with an optional interactive expand-on-click mode rendered onto a real <button> via Badge's asChild -- see packages/core/src/components/mastery-badge.tsx for the full rationale.",
+      "files": [
+        {
+          "path": "packages/core/src/components/mastery-badge.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/core/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "mastery-badge",
+      "registry_dependencies": [
+        "badge"
+      ],
+      "title": "Mastery Badge",
+      "type": "registry:ui"
+    },
+    {
+      "dependencies": [
+        "@dnd-kit/core@6.3.1",
+        "@dnd-kit/sortable@10.0.0",
+        "clsx",
+        "tailwind-merge"
+      ],
+      "description": "The RF-3 interaction family: MatchingExercise, SortExercise, and CategorizeExercise. Matching uses identical fixed nodes on both sides, with connection points on opposite edges; its primary interaction lets the learner click anywhere on each node, while the SVG line still runs exactly between the two filled points and drag remains optional. Categorize physically moves and reflows cards across an Unassigned lane and category columns; Sort reorders a list. Every variant includes a non-dragging WCAG 2.5.7 path, pointer and keyboard support, controlled/uncontrolled values, text-and-icon results, feedback, empty states, and token-only styling.",
+      "files": [
+        {
+          "path": "packages/core/src/components/matching-exercises.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/core/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "matching-exercises",
+      "registry_dependencies": [
+        "button",
+        "card"
+      ],
+      "title": "Matching / Sort / Categorize Exercises",
+      "type": "registry:ui"
+    },
+    {
+      "dependencies": [
+        "clsx",
+        "tailwind-merge"
+      ],
+      "description": "Accessible linear and dial measurement instruments with explicit scales, units and precision.",
+      "files": [
+        {
+          "path": "packages/core/src/components/measurement-lab.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/core/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "measurement-lab",
+      "registry_dependencies": [
+        "button",
+        "card",
+        "input",
+        "label"
+      ],
+      "title": "Measurement Lab",
+      "type": "registry:ui"
+    },
+    {
+      "dependencies": [
+        "clsx",
+        "tailwind-merge",
+        "react-icons"
+      ],
+      "description": "A minimal standalone audio/video player with inline accessible controls. It has no educational title, transcript, checkpoints or completion policy; Interactive Media composes those capabilities above it.",
+      "files": [
+        {
+          "path": "packages/core/src/components/media-player.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/core/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "media-player",
+      "registry_dependencies": [
+        "button"
+      ],
+      "title": "Media Player",
+      "type": "registry:ui"
+    },
+    {
+      "dependencies": [
+        "clsx",
+        "tailwind-merge"
+      ],
+      "description": "A quantitative response interaction with exact values, absolute or relative tolerance, open or closed ranges, visible or required units, localized decimal parsing, ungraded use, informative post-submit feedback, and controlled or uncontrolled state.",
+      "files": [
+        {
+          "path": "packages/core/src/components/numeric-question.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/core/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "numeric-question",
+      "registry_dependencies": [
+        "button",
+        "card",
+        "input",
+        "label"
+      ],
+      "title": "Numeric Question",
+      "type": "registry:ui"
+    },
+    {
+      "dependencies": [
+        "radix-ui",
+        "clsx",
+        "tailwind-merge"
+      ],
+      "description": "Didact's anchored, non-modal supplementary-content primitive. Radix supplies collision-aware positioning, focus restoration, Escape and outside-click dismissal; the surface uses @didact/theme popover, border, ring, and radius tokens with zero shadow and reduced-motion-safe opacity transitions.",
+      "files": [
+        {
+          "path": "packages/ui/src/components/popover.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/ui/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "popover",
+      "registry_dependencies": [],
+      "title": "Popover",
+      "type": "registry:ui"
+    },
+    {
+      "dependencies": [
+        "clsx",
+        "tailwind-merge"
+      ],
+      "description": "A bounded practice orchestrator for heterogeneous child interactions. Owns navigation, attempts, submit/review phases and completion summary without imposing a universal scoring model or exposing feedback before submission. Supports controlled and uncontrolled progress, partial item arrays, disabled state, localization and opaque response/result types.",
+      "files": [
+        {
+          "path": "packages/core/src/components/practice-set.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/core/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "practice-set",
+      "registry_dependencies": [
+        "button",
+        "card"
+      ],
+      "title": "Practice Set / Question Set",
+      "type": "registry:ui"
+    },
+    {
+      "dependencies": [
+        "radix-ui",
+        "clsx",
+        "tailwind-merge"
+      ],
+      "description": "A neutral determinate/indeterminate progress primitive backed by Radix progressbar semantics. Values are clamped to max; the token-driven track and indicator respect reduced motion and expose an indicatorClassName customization hook.",
+      "files": [
+        {
+          "path": "packages/ui/src/components/progress.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/ui/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "progress",
+      "registry_dependencies": [],
+      "title": "Progress",
+      "type": "registry:ui"
+    },
+    {
+      "dependencies": [
+        "clsx",
+        "tailwind-merge"
+      ],
+      "description": "RF-7 lesson/skill ProgressIndicator and ProgressOverview. Every snapshot pairs its visual bar with visible percentage/pending text, semantic progressbar values and lesson/skill labels rather than relying on color. Missing values remain indeterminate for streaming consumers; lists support localization, descriptions and explicit empty states.",
+      "files": [
+        {
+          "path": "packages/core/src/components/progress-indicator.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/core/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "progress-indicators",
+      "registry_dependencies": [
+        "progress"
+      ],
+      "title": "Progress Indicators",
+      "type": "registry:ui"
+    },
+    {
+      "dependencies": [
+        "clsx",
+        "tailwind-merge"
+      ],
+      "description": "The QuizItem family (RF-4) sharing one Card shell and one set of interaction/accessibility norms: SingleChoiceQuiz, MultiSelectQuiz, TrueFalseQuiz, FillInTheBlankQuiz and ShortAnswerQuiz. Each supports controlled/uncontrolled answer state (onAnswer/onSubmit), an optional informative-feedback slot shown only after submission, and correct/incorrect states carried by icon + text, never color alone. The correct answer is never rendered to the DOM before submission for the auto-graded variants; short answer uses assisted self-assessment against a revealed model answer. Composed from @didact/ui's Card/Button/RadioGroup/Checkbox/Input/Label/Textarea/ToggleGroup -- see packages/core/src/components/quiz-item.tsx for the full rationale.",
+      "files": [
+        {
+          "path": "packages/core/src/components/quiz-item.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/core/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "quiz-item",
+      "registry_dependencies": [
+        "card",
+        "button",
+        "radio-group",
+        "checkbox",
+        "input",
+        "label",
+        "textarea",
+        "toggle-group"
+      ],
+      "title": "Quiz Item",
+      "type": "registry:ui"
+    },
+    {
+      "dependencies": [
+        "clsx",
+        "tailwind-merge",
+        "radix-ui"
+      ],
+      "description": "RadioGroup / RadioGroupItem (@didact/ui, layers 1-2): a single-select group of radio controls backed by the unified radix-ui package's RadioGroup, which owns the roving-tabindex keyboard behavior and aria-checked/data-state for each item. The selected-state indicator is an inline SVG circle rather than an icon-library import -- see packages/ui/src/components/radio-group.tsx.",
+      "files": [
+        {
+          "path": "packages/ui/src/components/radio-group.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/ui/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "radio-group",
+      "registry_dependencies": [],
+      "title": "Radio Group",
+      "type": "registry:ui"
+    },
+    {
+      "dependencies": [
+        "clsx",
+        "tailwind-merge"
+      ],
+      "description": "A constructed-retrieval session with the explicit cycle write from memory, compare with a model, self-rate and schedule. Scheduler, incoming review state and persistence are injected; the component never owns a backend. Includes controlled/uncontrolled responses, localization, partial streaming content and accessible rating controls.",
+      "files": [
+        {
+          "path": "packages/core/src/components/retrieval-practice-session.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/core/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "retrieval-practice-session",
+      "registry_dependencies": [
+        "button",
+        "card",
+        "label",
+        "textarea",
+        "spaced-repetition"
+      ],
+      "title": "Retrieval Practice Session",
+      "type": "registry:ui"
+    },
+    {
+      "dependencies": [
+        "clsx",
+        "tailwind-merge"
+      ],
+      "description": "RF-10 criterion-by-criterion self-assessment with accessible single-select performance levels. Supports controlled/uncontrolled selection maps, disabled criteria, localized functional fallbacks, partial streaming levels and explicit empty/pending states. Reports textual assessment progress but deliberately exposes no score, answer key, weighting, correctness, pass/fail result or automatic grading path.",
+      "files": [
+        {
+          "path": "packages/core/src/components/rubric.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/core/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "rubric",
+      "registry_dependencies": [
+        "card",
+        "radio-group"
+      ],
+      "title": "Rubric / Self-assessment",
+      "type": "registry:ui"
+    },
+    {
+      "dependencies": [
+        "clsx",
+        "tailwind-merge",
+        "radix-ui"
+      ],
+      "description": "A thin visual/semantic divider (@didact/ui, layers 1-2), backed by the unified radix-ui package's Separator for role=separator/aria-orientation instead of a bare <hr>/<div>.",
+      "files": [
+        {
+          "path": "packages/ui/src/components/separator.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/ui/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "separator",
+      "registry_dependencies": [],
+      "title": "Separator",
+      "type": "registry:ui"
+    },
+    {
+      "dependencies": [
+        "clsx",
+        "tailwind-merge",
+        "react-icons"
+      ],
+      "description": "A domain-independent simulation shell with accessible parameters, play/pause/step controls, injected deterministic runtime, actions, observables and snapshots.",
+      "files": [
+        {
+          "path": "packages/core/src/components/simulation-lab.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/core/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "simulation-lab",
+      "registry_dependencies": [
+        "button",
+        "card",
+        "input",
+        "label",
+        "simulation-schema"
+      ],
+      "title": "Simulation Lab",
+      "type": "registry:ui"
+    },
+    {
+      "dependencies": [],
+      "description": "Serializable parameters, observables, clock, actions, snapshots and state validation for domain-independent simulations.",
+      "files": [
+        {
+          "path": "packages/schema/src/types.ts",
+          "type": "registry:lib"
+        },
+        {
+          "path": "packages/schema/src/simulation.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "simulation-schema",
+      "registry_dependencies": [],
+      "title": "Simulation schema",
+      "type": "registry:lib"
+    },
+    {
+      "dependencies": [],
+      "description": "A persistence-agnostic spaced-repetition scheduler for RetrievalPracticeSession and consumer-defined practice flows: a pure schedule(state, grade, now) that returns the next opaque state and due date, plus the SpacedRepetitionScheduler/ReviewState/ReviewGrade/ReviewResult vocabulary consumers program against without knowing which algorithm is behind it. Ships the default, fully implemented SM-2 arithmetic -- initial easiness factor 2.5 with a 1.3 floor, interval growth 1/6/round(I*EF) days on success, reset to 1 day on failure. Zero runtime dependencies and nothing persisted.",
+      "files": [
+        {
+          "path": "packages/spaced-repetition/src/types.ts",
+          "type": "registry:lib"
+        },
+        {
+          "path": "packages/spaced-repetition/src/sm2.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "spaced-repetition",
+      "registry_dependencies": [],
+      "title": "Spaced Repetition Scheduler (SM-2)",
+      "type": "registry:lib"
+    },
+    {
+      "dependencies": [
+        "clsx",
+        "tailwind-merge"
+      ],
+      "description": "A multi-line text field (@didact/ui, layers 1-2), styled like the input item with no headless primitive behind it: the same border-input/placeholder/focus-ring/aria-invalid treatment reading @didact/theme's real tokens -- see packages/ui/src/components/textarea.tsx.",
+      "files": [
+        {
+          "path": "packages/ui/src/components/textarea.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/ui/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "textarea",
+      "registry_dependencies": [],
+      "title": "Textarea",
+      "type": "registry:ui"
+    },
+    {
+      "dependencies": [
+        "class-variance-authority",
+        "clsx",
+        "tailwind-merge"
+      ],
+      "description": "A presentational ordered sequence for protocols, procedures, and step-by-step flows (RF-8), with vertical and horizontal orientations. Status can be explicit per step or derived from currentStep; complete/current/upcoming is conveyed through marker shape, screen-reader text, and aria-current=step rather than color alone. Supports partial step arrays for streaming consumers and configurable status labels for localization. Styled only with @didact/theme token utilities; no animation or interactive state.",
+      "files": [
+        {
+          "path": "packages/core/src/components/timeline.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/core/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "timeline",
+      "registry_dependencies": [],
+      "title": "Timeline / Steps",
+      "type": "registry:ui"
+    },
+    {
+      "dependencies": [
+        "class-variance-authority",
+        "clsx",
+        "tailwind-merge",
+        "radix-ui"
+      ],
+      "description": "A two-state pressed/unpressed button (@didact/ui, layers 1-2), backed by the unified radix-ui package's Toggle for aria-pressed/data-state. toggleVariants (variants default/outline, sizes default/sm/lg) is reused directly by the toggle-group item instead of being duplicated.",
+      "files": [
+        {
+          "path": "packages/ui/src/components/toggle.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/ui/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "toggle",
+      "registry_dependencies": [],
+      "title": "Toggle",
+      "type": "registry:ui"
+    },
+    {
+      "dependencies": [
+        "class-variance-authority",
+        "clsx",
+        "tailwind-merge",
+        "radix-ui"
+      ],
+      "description": "A roving-tabindex group of Toggles (@didact/ui, layers 1-2), single or multiple selection, backed by the unified radix-ui package's ToggleGroup. Depends on the toggle item for its shared toggleVariants and variant/size context.",
+      "files": [
+        {
+          "path": "packages/ui/src/components/toggle-group.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/ui/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "toggle-group",
+      "registry_dependencies": [
+        "toggle"
+      ],
+      "title": "Toggle Group",
+      "type": "registry:ui"
+    },
+    {
+      "dependencies": [
+        "@dnd-kit/core@6.3.1",
+        "clsx",
+        "tailwind-merge"
+      ],
+      "description": "An accessible gap-match interaction with real inline sentence gaps. Bank options can be dragged directly into each gap or assigned through the same click and keyboard controls. Supports bounded or unlimited option reuse, two-way selection, undo, partial or human-reviewed results, streaming content and post-submit feedback.",
+      "files": [
+        {
+          "path": "packages/core/src/components/word-bank.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/core/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "word-bank",
+      "registry_dependencies": [
+        "button",
+        "card"
+      ],
+      "title": "Word Bank / Gap Match",
+      "type": "registry:ui"
+    }
+  ],
+  "root_items": [
+    "branching-scenario",
+    "code-exercise",
+    "concept-map",
+    "data-explorer",
+    "drawing-response",
+    "equation-workbench",
+    "evidence-annotation",
+    "flashcard",
+    "generative-learning",
+    "glossary",
+    "hint-reveal",
+    "hotspot",
+    "interactive-media",
+    "label-diagram",
+    "mastery-badge",
+    "matching-exercises",
+    "measurement-lab",
+    "numeric-question",
+    "practice-set",
+    "progress-indicators",
+    "quiz-item",
+    "retrieval-practice-session",
+    "rubric",
+    "simulation-lab",
+    "timeline",
+    "word-bank"
+  ],
+  "schema_version": 1,
+  "source": {
+    "commit": "06c80e8a8af4f20ad20ba345b7b6b13e1cc27e0c",
+    "repository": "https://github.com/JoseEstevez520/Didact"
+  }
+}

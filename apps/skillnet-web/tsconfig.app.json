@@ -10,6 +10,11 @@
 
     /* Bundler mode */
     "moduleResolution": "bundler",
+    "paths": {
+      "@didact/ui": ["./src/lib/didact/vendor-entrypoints/ui.ts"],
+      "@didact/schema": ["./src/lib/didact/vendor-entrypoints/schema.ts"],
+      "@didact/spaced-repetition": ["./src/lib/didact/vendor-entrypoints/spaced-repetition.ts"]
+    },
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
     "moduleDetection": "force",

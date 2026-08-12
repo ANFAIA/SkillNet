@@ -17,6 +17,7 @@ RUN pnpm install --frozen-lockfile
 COPY apps/skillnet-web/index.html apps/skillnet-web/vite.config.ts ./
 COPY apps/skillnet-web/tsconfig.json apps/skillnet-web/tsconfig.app.json apps/skillnet-web/tsconfig.node.json ./
 COPY apps/skillnet-web/src ./src
+COPY apps/skillnet-web/vendor ./vendor
 COPY apps/skillnet-web/public ./public
 RUN pnpm run build
 

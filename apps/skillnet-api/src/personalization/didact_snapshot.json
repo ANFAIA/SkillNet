@@ -1,0 +1,5882 @@
+{
+  "available_types": [
+    {
+      "export_name": "Flashcard",
+      "id": "didact.flashcard",
+      "manifest_id": "didact.flashcard",
+      "registry_item": "flashcard"
+    },
+    {
+      "export_name": "MatchingExercise",
+      "id": "didact.matching",
+      "manifest_id": "didact.matching-exercises",
+      "registry_item": "matching-exercises"
+    },
+    {
+      "export_name": "SortExercise",
+      "id": "didact.sort",
+      "manifest_id": "didact.matching-exercises",
+      "registry_item": "matching-exercises"
+    },
+    {
+      "export_name": "CategorizeExercise",
+      "id": "didact.categorize",
+      "manifest_id": "didact.matching-exercises",
+      "registry_item": "matching-exercises"
+    },
+    {
+      "export_name": "SingleChoiceQuiz",
+      "id": "didact.quiz.single-choice",
+      "manifest_id": "didact.quiz",
+      "registry_item": "quiz-item"
+    },
+    {
+      "export_name": "MultiSelectQuiz",
+      "id": "didact.quiz.multi-select",
+      "manifest_id": "didact.quiz",
+      "registry_item": "quiz-item"
+    },
+    {
+      "export_name": "TrueFalseQuiz",
+      "id": "didact.quiz.true-false",
+      "manifest_id": "didact.quiz",
+      "registry_item": "quiz-item"
+    },
+    {
+      "export_name": "FillInTheBlankQuiz",
+      "id": "didact.quiz.fill-in-the-blank",
+      "manifest_id": "didact.quiz",
+      "registry_item": "quiz-item"
+    },
+    {
+      "export_name": "ShortAnswerQuiz",
+      "id": "didact.quiz.short-answer",
+      "manifest_id": "didact.quiz",
+      "registry_item": "quiz-item"
+    },
+    {
+      "export_name": "Glossary",
+      "id": "didact.glossary-term",
+      "manifest_id": "didact.glossary",
+      "registry_item": "glossary"
+    },
+    {
+      "export_name": "HintReveal",
+      "id": "didact.hint-reveal",
+      "manifest_id": "didact.hint-reveal",
+      "registry_item": "hint-reveal"
+    },
+    {
+      "export_name": "ProgressIndicator",
+      "id": "didact.progress",
+      "manifest_id": "didact.progress",
+      "registry_item": "progress-indicators"
+    },
+    {
+      "export_name": "MasteryBadge",
+      "id": "didact.mastery-badge",
+      "manifest_id": "didact.mastery-badge",
+      "registry_item": "mastery-badge"
+    },
+    {
+      "export_name": "Rubric",
+      "id": "didact.rubric",
+      "manifest_id": "didact.rubric",
+      "registry_item": "rubric"
+    },
+    {
+      "export_name": "Timeline",
+      "id": "didact.timeline-steps",
+      "manifest_id": "didact.timeline",
+      "registry_item": "timeline"
+    },
+    {
+      "export_name": "PracticeSet",
+      "id": "didact.practice-set",
+      "manifest_id": "didact.practice-set",
+      "registry_item": "practice-set"
+    },
+    {
+      "export_name": "RetrievalPracticeSession",
+      "id": "didact.retrieval-practice-session",
+      "manifest_id": "didact.retrieval-practice-session",
+      "registry_item": "retrieval-practice-session"
+    },
+    {
+      "export_name": "SelfExplanationPrompt",
+      "id": "didact.self-explanation-prompt",
+      "manifest_id": "didact.self-explanation-prompt",
+      "registry_item": "generative-learning"
+    },
+    {
+      "export_name": "WorkedExample",
+      "id": "didact.worked-example",
+      "manifest_id": "didact.worked-example",
+      "registry_item": "generative-learning"
+    },
+    {
+      "export_name": "CompletionProblem",
+      "id": "didact.completion-problem",
+      "manifest_id": "didact.completion-problem",
+      "registry_item": "generative-learning"
+    },
+    {
+      "export_name": "NumericQuestion",
+      "id": "didact.numeric-question",
+      "manifest_id": "didact.numeric-question",
+      "registry_item": "numeric-question"
+    },
+    {
+      "export_name": "WordBank",
+      "id": "didact.word-bank",
+      "manifest_id": "didact.word-bank",
+      "registry_item": "word-bank"
+    },
+    {
+      "export_name": "Hotspot",
+      "id": "didact.hotspot",
+      "manifest_id": "didact.hotspot",
+      "registry_item": "hotspot"
+    },
+    {
+      "export_name": "InteractiveMedia",
+      "id": "didact.interactive-media",
+      "manifest_id": "didact.interactive-media",
+      "registry_item": "interactive-media"
+    },
+    {
+      "export_name": "DataExplorer",
+      "id": "didact.data-explorer",
+      "manifest_id": "didact.data-explorer",
+      "registry_item": "data-explorer"
+    },
+    {
+      "export_name": "BranchingScenario",
+      "id": "didact.branching-scenario",
+      "manifest_id": "didact.branching-scenario",
+      "registry_item": "branching-scenario"
+    },
+    {
+      "export_name": "SimulationLab",
+      "id": "didact.simulation-lab",
+      "manifest_id": "didact.simulation-lab",
+      "registry_item": "simulation-lab"
+    },
+    {
+      "export_name": "CodeExercise",
+      "id": "didact.code-exercise",
+      "manifest_id": "didact.code-exercise",
+      "registry_item": "code-exercise"
+    },
+    {
+      "export_name": "LabelDiagram",
+      "id": "didact.label-diagram",
+      "manifest_id": "didact.label-diagram",
+      "registry_item": "label-diagram"
+    },
+    {
+      "export_name": "ConceptMap",
+      "id": "didact.concept-map",
+      "manifest_id": "didact.concept-map",
+      "registry_item": "concept-map"
+    },
+    {
+      "export_name": "DrawingResponse",
+      "id": "didact.drawing-response",
+      "manifest_id": "didact.drawing-response",
+      "registry_item": "drawing-response"
+    },
+    {
+      "export_name": "EquationWorkbench",
+      "id": "didact.equation-workbench",
+      "manifest_id": "didact.equation-workbench",
+      "registry_item": "equation-workbench"
+    },
+    {
+      "export_name": "EvidenceAnnotation",
+      "id": "didact.evidence-annotation",
+      "manifest_id": "didact.evidence-annotation",
+      "registry_item": "evidence-annotation"
+    },
+    {
+      "export_name": "MeasurementLab",
+      "id": "didact.measurement-lab",
+      "manifest_id": "didact.measurement-lab",
+      "registry_item": "measurement-lab"
+    }
+  ],
+  "collections": [
+    {
+      "description": "A compact foundation for questions, practice, scaffolding, feedback and progress in general online courses.",
+      "facets": {
+        "purposes": [
+          "practice",
+          "assess",
+          "scaffold"
+        ],
+        "subjects": [
+          "general"
+        ]
+      },
+      "id": "didact.collection.learning-essentials",
+      "items": [
+        {
+          "manifestId": "didact.quiz",
+          "reason": "Provides the most common selected-response activity.",
+          "role": "required",
+          "typeId": "didact.quiz.single-choice"
+        },
+        {
+          "manifestId": "didact.flashcard",
+          "reason": "Adds a minimal active-recall pattern.",
+          "role": "required"
+        },
+        {
+          "manifestId": "didact.hint-reveal",
+          "reason": "Provides progressive help without exposing the answer immediately.",
+          "role": "recommended"
+        },
+        {
+          "manifestId": "didact.practice-set",
+          "reason": "Composes isolated activities into a bounded practice session.",
+          "role": "recommended"
+        },
+        {
+          "manifestId": "didact.progress",
+          "reason": "Communicates course and skill progress when the consumer tracks it.",
+          "role": "optional"
+        }
+      ],
+      "kind": "foundation",
+      "kit": {
+        "includeRoles": [
+          "required",
+          "recommended"
+        ],
+        "name": "learning-essentials"
+      },
+      "slug": "learning-essentials",
+      "status": "available",
+      "tags": [
+        "starter",
+        "general-purpose"
+      ],
+      "title": "Learning Essentials",
+      "version": "1.0.0"
+    },
+    {
+      "description": "Quantitative responses and structured reasoning for mathematics, science, statistics and business data.",
+      "facets": {
+        "representations": [
+          "numeric"
+        ],
+        "subjects": [
+          "mathematics",
+          "data"
+        ]
+      },
+      "id": "didact.collection.mathematics-data",
+      "items": [
+        {
+          "manifestId": "didact.data-explorer",
+          "reason": "Explores functions and data series through synchronized graph and table views.",
+          "role": "required"
+        },
+        {
+          "manifestId": "didact.simulation-lab",
+          "reason": "Explores quantitative systems through adjustable parameters, observables and deterministic steps.",
+          "role": "recommended"
+        },
+        {
+          "manifestId": "didact.drawing-response",
+          "reason": "Captures geometric constructions and visual reasoning as structured strokes.",
+          "role": "optional"
+        },
+        {
+          "manifestId": "didact.equation-workbench",
+          "reason": "Captures symbolic transformations and their reasoning without assuming string equivalence.",
+          "role": "required"
+        },
+        {
+          "manifestId": "didact.measurement-lab",
+          "reason": "Practises scale, unit and precision interpretation through accessible instruments.",
+          "role": "recommended"
+        },
+        {
+          "manifestId": "didact.numeric-question",
+          "reason": "Captures values, ranges, tolerance and units.",
+          "role": "required"
+        },
+        {
+          "manifestId": "didact.worked-example",
+          "reason": "Presents a complete quantitative process before independent work.",
+          "role": "recommended"
+        },
+        {
+          "manifestId": "didact.completion-problem",
+          "reason": "Lets learners complete selected reasoning steps.",
+          "role": "recommended"
+        }
+      ],
+      "kind": "subject",
+      "kit": {
+        "includeRoles": [
+          "required",
+          "recommended"
+        ],
+        "name": "math-foundations"
+      },
+      "slug": "mathematics-data",
+      "status": "available",
+      "tags": [
+        "quantitative",
+        "starter"
+      ],
+      "title": "Mathematics & Data",
+      "version": "1.0.0"
+    },
+    {
+      "description": "Vocabulary, sentence completion, constructed responses and recall for language courses.",
+      "facets": {
+        "representations": [
+          "text"
+        ],
+        "subjects": [
+          "language"
+        ]
+      },
+      "id": "didact.collection.language-learning",
+      "items": [
+        {
+          "manifestId": "didact.word-bank",
+          "reason": "Supports inline gap completion with reusable vocabulary.",
+          "role": "required"
+        },
+        {
+          "manifestId": "didact.quiz",
+          "reason": "Captures short constructed language responses.",
+          "role": "recommended",
+          "typeId": "didact.quiz.short-answer"
+        },
+        {
+          "manifestId": "didact.glossary",
+          "reason": "Provides contextual vocabulary and recall prompts.",
+          "role": "recommended"
+        },
+        {
+          "manifestId": "didact.self-explanation-prompt",
+          "reason": "Prompts learners to explain meaning and grammar choices.",
+          "role": "recommended"
+        },
+        {
+          "manifestId": "didact.evidence-annotation",
+          "reason": "Supports close reading by classifying and connecting stable source evidence.",
+          "role": "recommended"
+        },
+        {
+          "manifestId": "didact.retrieval-practice-session",
+          "reason": "Adds scheduled constructed recall when persistence is available.",
+          "role": "optional"
+        },
+        {
+          "manifestId": "didact.interactive-media",
+          "reason": "Adds listening practice with timed checkpoints and a navigable transcript.",
+          "role": "recommended"
+        }
+      ],
+      "kind": "subject",
+      "kit": {
+        "includeRoles": [
+          "required",
+          "recommended"
+        ],
+        "name": "language-learning"
+      },
+      "slug": "language-learning",
+      "status": "available",
+      "tags": [
+        "vocabulary",
+        "writing",
+        "starter"
+      ],
+      "title": "Language Learning",
+      "version": "1.0.0"
+    },
+    {
+      "description": "Interactions where location, regions and visual relationships are part of the learning objective.",
+      "facets": {
+        "learnerActions": [
+          "select",
+          "manipulate"
+        ],
+        "representations": [
+          "spatial",
+          "image"
+        ]
+      },
+      "id": "didact.collection.visual-spatial",
+      "items": [
+        {
+          "manifestId": "didact.hotspot",
+          "reason": "Provides region and point responses with textual alternatives.",
+          "role": "required"
+        },
+        {
+          "manifestId": "didact.label-diagram",
+          "reason": "Assigns labels to meaningful visual targets without requiring drag.",
+          "role": "required"
+        },
+        {
+          "manifestId": "didact.drawing-response",
+          "reason": "Supports drawing and annotation while retaining structured response data.",
+          "role": "recommended"
+        },
+        {
+          "manifestId": "didact.matching-exercises",
+          "reason": "Supports explicit relationships when spatial placement is not required.",
+          "role": "optional",
+          "typeId": "didact.matching"
+        }
+      ],
+      "kind": "subject",
+      "kit": {
+        "includeRoles": [
+          "required"
+        ],
+        "name": "visual-spatial"
+      },
+      "slug": "visual-spatial",
+      "status": "available",
+      "tags": [
+        "image",
+        "coordinates",
+        "accessible-alternative"
+      ],
+      "title": "Visual & Spatial",
+      "version": "1.0.0"
+    },
+    {
+      "description": "Practice, assessment and progress patterns for onboarding, procedures, skills and compliance courses.",
+      "facets": {
+        "contexts": [
+          "corporate",
+          "onboarding",
+          "compliance"
+        ],
+        "subjects": [
+          "business"
+        ]
+      },
+      "id": "didact.collection.corporate-training",
+      "items": [
+        {
+          "manifestId": "didact.practice-set",
+          "reason": "Provides a bounded activity and review flow.",
+          "role": "required"
+        },
+        {
+          "manifestId": "didact.rubric",
+          "reason": "Supports transparent criteria for performance and self-assessment.",
+          "role": "recommended"
+        },
+        {
+          "manifestId": "didact.progress",
+          "reason": "Represents completion and skill progress without owning persistence.",
+          "role": "recommended"
+        },
+        {
+          "manifestId": "didact.retrieval-practice-session",
+          "reason": "Supports retention after initial training.",
+          "role": "optional"
+        },
+        {
+          "manifestId": "didact.mastery-badge",
+          "reason": "Displays a consumer-provided mastery state when appropriate.",
+          "role": "optional"
+        },
+        {
+          "manifestId": "didact.interactive-media",
+          "reason": "Coordinates procedure videos, transcripts and embedded decisions without owning the media backend.",
+          "role": "recommended"
+        },
+        {
+          "manifestId": "didact.data-explorer",
+          "reason": "Supports KPI, trend and operational-data exploration without a business-specific fork.",
+          "role": "recommended"
+        },
+        {
+          "manifestId": "didact.branching-scenario",
+          "reason": "Practises consequential decisions and procedures through a serializable state graph.",
+          "role": "required"
+        },
+        {
+          "manifestId": "didact.simulation-lab",
+          "reason": "Models operational systems such as inventory without coupling the library to one business domain.",
+          "role": "recommended"
+        },
+        {
+          "manifestId": "didact.concept-map",
+          "reason": "Supports learner-built process and relationship models.",
+          "role": "optional"
+        },
+        {
+          "manifestId": "didact.evidence-annotation",
+          "reason": "Connects policy or incident evidence to explicit claims.",
+          "role": "recommended"
+        },
+        {
+          "manifestId": "didact.measurement-lab",
+          "reason": "Rehearses instrument reading in operational and safety training.",
+          "role": "optional"
+        },
+        {
+          "manifestId": "didact.code-exercise",
+          "reason": "Supports executable SQL, scripting and technical tasks when a sandbox adapter is available.",
+          "role": "optional"
+        }
+      ],
+      "kind": "context",
+      "kit": {
+        "includeRoles": [
+          "required",
+          "recommended"
+        ],
+        "name": "corporate-training"
+      },
+      "slug": "corporate-training",
+      "status": "available",
+      "tags": [
+        "onboarding",
+        "compliance",
+        "skills"
+      ],
+      "title": "Corporate Training",
+      "version": "1.0.0"
+    },
+    {
+      "description": "Executable practice, data exploration and systems thinking for programming, analytics and technical operations.",
+      "facets": {
+        "contexts": [
+          "self-paced",
+          "corporate",
+          "technical-training"
+        ],
+        "subjects": [
+          "technical",
+          "data"
+        ]
+      },
+      "id": "didact.collection.technical-training",
+      "items": [
+        {
+          "manifestId": "didact.code-exercise",
+          "reason": "Provides multi-file editing with injected execution and evaluation.",
+          "role": "required"
+        },
+        {
+          "manifestId": "didact.data-explorer",
+          "reason": "Adds graphical and tabular analysis over a shared state.",
+          "role": "recommended"
+        },
+        {
+          "manifestId": "didact.simulation-lab",
+          "reason": "Supports controllable system models and operational experimentation.",
+          "role": "recommended"
+        },
+        {
+          "manifestId": "didact.label-diagram",
+          "reason": "Practises identification on machinery, interfaces and technical diagrams.",
+          "role": "recommended"
+        },
+        {
+          "manifestId": "didact.drawing-response",
+          "reason": "Captures procedural annotations and constructed technical responses.",
+          "role": "recommended"
+        },
+        {
+          "manifestId": "didact.equation-workbench",
+          "reason": "Supports engineering and scientific symbolic transformations.",
+          "role": "optional"
+        },
+        {
+          "manifestId": "didact.measurement-lab",
+          "reason": "Provides accessible instrument-reading practice with units and resolution.",
+          "role": "required"
+        },
+        {
+          "manifestId": "didact.worked-example",
+          "reason": "Demonstrates a complete technical process before independent work.",
+          "role": "recommended"
+        }
+      ],
+      "kind": "subject",
+      "kit": {
+        "includeRoles": [
+          "required",
+          "recommended"
+        ],
+        "name": "technical-training"
+      },
+      "slug": "technical-training",
+      "status": "available",
+      "tags": [
+        "programming",
+        "data",
+        "operations",
+        "sandbox"
+      ],
+      "title": "Technical Training",
+      "version": "1.0.0"
+    }
+  ],
+  "content_sha256": "06e149348ca17501f9a5dd8decdcc51d0642898b7ff65840a3610b0cd48bff01",
+  "counts": {
+    "available_types": 34,
+    "collections": 6,
+    "manifests": 28,
+    "registry_items": 26
+  },
+  "manifests": [
+    {
+      "accessibility": {
+        "keyboard": "full",
+        "notes": "Reveal and rating controls are keyboard operable; reveal state and content changes are announced; meaning never depends on flip motion.",
+        "screenReader": "full",
+        "wcagCriteria": [
+          "2.1.1",
+          "2.4.7",
+          "4.1.2",
+          "4.1.3"
+        ]
+      },
+      "authoring": {
+        "fields": [
+          {
+            "description": "Question or retrieval cue.",
+            "key": "prompt",
+            "kind": "rich-text",
+            "label": "Prompt",
+            "required": true
+          },
+          {
+            "description": "Answer revealed after the attempt.",
+            "key": "answer",
+            "kind": "rich-text",
+            "label": "Answer",
+            "required": true
+          },
+          {
+            "description": "Optional cue before reveal.",
+            "key": "hint",
+            "kind": "rich-text",
+            "label": "Hint",
+            "required": false
+          }
+        ],
+        "supportsLocalization": true,
+        "version": "1.0.0"
+      },
+      "capabilities": [
+        "response:reveal",
+        "response:self-rating",
+        "result:ungraded",
+        "feedback:on-demand",
+        "feedback:informative"
+      ],
+      "description": "Prompts active recall before revealing a concise answer.",
+      "evidence": [
+        {
+          "citation": "Dunlosky et al. (2013), Improving Students' Learning With Effective Learning Techniques",
+          "claim": "A flashcard alone is not evidence of distributed practice.",
+          "id": "dunlosky-2013-flashcard-boundary",
+          "limitations": "Its value depends on retrieval behavior and, when scheduled, distributed practice.",
+          "strength": "not-evaluated"
+        }
+      ],
+      "facets": {
+        "contexts": [
+          "self-paced",
+          "classroom"
+        ],
+        "learnerActions": [
+          "respond",
+          "inspect"
+        ],
+        "purposes": [
+          "retrieve",
+          "practice"
+        ],
+        "representations": [
+          "text"
+        ],
+        "subjects": [
+          "general"
+        ]
+      },
+      "families": [
+        "retrieval-practice"
+      ],
+      "id": "didact.flashcard",
+      "lifecycle": {
+        "availability": "available",
+        "maturity": "stable"
+      },
+      "mappings": {
+        "qti": {
+          "fidelity": "none",
+          "interaction": "none",
+          "notes": "Flashcard reveal is not a QTI interaction.",
+          "version": "3.0"
+        },
+        "xapi": {
+          "notes": "Use generic verbs; do not invent an interactionType.",
+          "verbs": [
+            "attempted",
+            "experienced"
+          ]
+        }
+      },
+      "name": "Flashcard",
+      "optionalDependencies": [],
+      "role": "interaction",
+      "tags": [
+        "active-recall",
+        "implemented:@didact/core/Flashcard"
+      ],
+      "variants": [
+        {
+          "description": "Prompt and explicit answer reveal.",
+          "id": "basic",
+          "name": "Basic"
+        },
+        {
+          "description": "Adds confidence or recall rating.",
+          "id": "self-rated",
+          "name": "Self-rated"
+        }
+      ],
+      "version": {
+        "component": "1.0.0",
+        "schema": "1.0.0"
+      }
+    },
+    {
+      "accessibility": {
+        "keyboard": "full",
+        "notes": "Inputs use native behavior; prompts, grouped choices, errors, results and feedback have explicit relationships; correctness is not color-only.",
+        "screenReader": "full",
+        "wcagCriteria": [
+          "1.3.1",
+          "1.4.1",
+          "2.1.1",
+          "3.3.1",
+          "4.1.3"
+        ]
+      },
+      "authoring": {
+        "fields": [
+          {
+            "description": "Question presented to the learner.",
+            "key": "prompt",
+            "kind": "rich-text",
+            "label": "Prompt",
+            "required": true
+          },
+          {
+            "description": "Response interaction.",
+            "key": "variant",
+            "kind": "select",
+            "label": "Variant",
+            "options": [
+              {
+                "label": "choice",
+                "value": "choice"
+              },
+              {
+                "label": "multiple-choice",
+                "value": "multiple-choice"
+              },
+              {
+                "label": "true-false",
+                "value": "true-false"
+              },
+              {
+                "label": "fill-in",
+                "value": "fill-in"
+              },
+              {
+                "label": "open",
+                "value": "open"
+              }
+            ],
+            "required": true
+          },
+          {
+            "description": "Choice options when required.",
+            "item": {
+              "key": "item",
+              "kind": "text",
+              "label": "Item",
+              "required": true
+            },
+            "key": "options",
+            "kind": "list",
+            "label": "Options",
+            "reorderable": true,
+            "required": false
+          },
+          {
+            "description": "Correct response and checking policy.",
+            "fields": [
+              {
+                "key": "solutionValue",
+                "kind": "text",
+                "label": "Value",
+                "required": true
+              }
+            ],
+            "key": "solution",
+            "kind": "object",
+            "label": "Solution",
+            "required": false
+          },
+          {
+            "description": "Explanatory feedback after an attempt.",
+            "key": "feedback",
+            "kind": "rich-text",
+            "label": "Feedback",
+            "required": false
+          }
+        ],
+        "supportsLocalization": true,
+        "version": "1.0.0"
+      },
+      "capabilities": [
+        "response:choice",
+        "response:boolean",
+        "response:text",
+        "result:scored",
+        "result:partial-credit",
+        "feedback:immediate",
+        "feedback:deferred",
+        "feedback:author-reviewed"
+      ],
+      "description": "Collects an answer and returns informative, optionally scored feedback.",
+      "evidence": [
+        {
+          "citation": "Dunlosky et al. (2013), Improving Students' Learning With Effective Learning Techniques",
+          "claim": "Practice testing has high utility when quizzes elicit retrieval.",
+          "id": "dunlosky-2013-practice-testing",
+          "limitations": "A quiz used only for grading does not automatically realize that benefit. Feedback design follows Wisniewski, Zierer & Hattie (2020), The Power of Feedback Revisited.",
+          "strength": "high"
+        }
+      ],
+      "facets": {
+        "contexts": [
+          "self-paced",
+          "classroom",
+          "corporate"
+        ],
+        "learnerActions": [
+          "select",
+          "write",
+          "respond"
+        ],
+        "purposes": [
+          "assess",
+          "retrieve",
+          "practice"
+        ],
+        "representations": [
+          "text"
+        ],
+        "subjects": [
+          "general"
+        ]
+      },
+      "families": [
+        "assessment",
+        "retrieval-practice"
+      ],
+      "id": "didact.quiz",
+      "lifecycle": {
+        "availability": "available",
+        "maturity": "stable"
+      },
+      "mappings": {
+        "qti": [
+          {
+            "fidelity": "exact",
+            "interaction": "choiceInteraction",
+            "notes": "Choice, multiple choice and true/false variants.",
+            "version": "3.0"
+          },
+          {
+            "fidelity": "exact",
+            "interaction": "textEntryInteraction",
+            "notes": "Typed fill-in variant.",
+            "version": "3.0"
+          },
+          {
+            "fidelity": "exact",
+            "interaction": "extendedTextInteraction",
+            "notes": "Short-answer variant.",
+            "version": "3.0"
+          }
+        ],
+        "xapi": [
+          {
+            "interactionType": "choice",
+            "notes": "Choice variants."
+          },
+          {
+            "interactionType": "true-false",
+            "notes": "Binary variant."
+          },
+          {
+            "interactionType": "fill-in",
+            "notes": "Short typed variant."
+          },
+          {
+            "interactionType": "long-fill-in",
+            "notes": "Open variant."
+          }
+        ]
+      },
+      "name": "Quiz",
+      "optionalDependencies": [],
+      "role": "interaction",
+      "tags": [
+        "practice-testing",
+        "informative-feedback"
+      ],
+      "variants": [
+        {
+          "id": "choice",
+          "name": "Choice"
+        },
+        {
+          "id": "multiple-choice",
+          "name": "Multiple choice"
+        },
+        {
+          "id": "true-false",
+          "name": "True / false"
+        },
+        {
+          "id": "fill-in",
+          "name": "Fill in"
+        },
+        {
+          "id": "open",
+          "name": "Open answer"
+        }
+      ],
+      "version": {
+        "component": "1.0.0",
+        "schema": "1.0.0"
+      }
+    },
+    {
+      "accessibility": {
+        "draggingAlternative": true,
+        "keyboard": "alternative",
+        "notes": "Every drag action has a select-and-move or button equivalent. Position, destinations and moves are announced.",
+        "screenReader": "full",
+        "wcagCriteria": [
+          "1.1.1",
+          "2.1.1",
+          "2.5.7",
+          "4.1.3"
+        ]
+      },
+      "authoring": {
+        "fields": [
+          {
+            "description": "Task instruction.",
+            "key": "prompt",
+            "kind": "rich-text",
+            "label": "Prompt",
+            "required": true
+          },
+          {
+            "description": "Relationship model.",
+            "key": "variant",
+            "kind": "select",
+            "label": "Variant",
+            "options": [
+              {
+                "label": "matching",
+                "value": "matching"
+              },
+              {
+                "label": "sort",
+                "value": "sort"
+              },
+              {
+                "label": "categorize",
+                "value": "categorize"
+              }
+            ],
+            "required": true
+          },
+          {
+            "description": "Stable-id items to manipulate.",
+            "item": {
+              "key": "item",
+              "kind": "text",
+              "label": "Item",
+              "required": true
+            },
+            "key": "items",
+            "kind": "list",
+            "label": "Items",
+            "reorderable": true,
+            "required": true
+          },
+          {
+            "description": "Expected associations, order or categories.",
+            "fields": [
+              {
+                "key": "solutionValue",
+                "kind": "text",
+                "label": "Value",
+                "required": true
+              }
+            ],
+            "key": "solution",
+            "kind": "object",
+            "label": "Solution",
+            "required": true
+          },
+          {
+            "description": "Explanation of target relationships.",
+            "key": "feedback",
+            "kind": "rich-text",
+            "label": "Feedback",
+            "required": false
+          }
+        ],
+        "supportsLocalization": true,
+        "version": "1.0.0"
+      },
+      "capabilities": [
+        "response:matching",
+        "response:ordering",
+        "result:scored",
+        "result:partial-credit",
+        "feedback:immediate",
+        "feedback:deferred"
+      ],
+      "description": "Practises relationships, sequences and classification through movable items.",
+      "evidence": [
+        {
+          "citation": "Didact education-component research synthesis",
+          "claim": "The reviewed evidence does not establish this family as an independent technique.",
+          "id": "didact-research-matching",
+          "limitations": "Effectiveness depends on objective, prompt and feedback.",
+          "strength": "not-evaluated"
+        }
+      ],
+      "facets": {
+        "contexts": [
+          "self-paced",
+          "classroom",
+          "corporate"
+        ],
+        "learnerActions": [
+          "order",
+          "relate",
+          "manipulate"
+        ],
+        "purposes": [
+          "practice",
+          "assess"
+        ],
+        "representations": [
+          "text",
+          "procedural"
+        ],
+        "subjects": [
+          "general"
+        ]
+      },
+      "families": [
+        "assessment",
+        "knowledge-representation"
+      ],
+      "id": "didact.matching-exercises",
+      "lifecycle": {
+        "availability": "available",
+        "maturity": "stable"
+      },
+      "mappings": {
+        "qti": [
+          {
+            "fidelity": "exact",
+            "interaction": "matchInteraction",
+            "notes": "Matching.",
+            "version": "3.0"
+          },
+          {
+            "fidelity": "exact",
+            "interaction": "orderInteraction",
+            "notes": "Sort.",
+            "version": "3.0"
+          },
+          {
+            "fidelity": "approximate",
+            "interaction": "associateInteraction",
+            "notes": "Categorization as multiple-cardinality association with named groups; gapMatch applies only to embedded gaps.",
+            "version": "3.0"
+          }
+        ],
+        "xapi": [
+          {
+            "interactionType": "matching",
+            "notes": "Matching and categorization."
+          },
+          {
+            "interactionType": "sequencing",
+            "notes": "Sort."
+          }
+        ]
+      },
+      "name": "Matching exercises",
+      "optionalDependencies": [
+        {
+          "fallback": "Select-and-move keyboard controls.",
+          "package": "@dnd-kit/core",
+          "purpose": "Pointer drag enhancement."
+        }
+      ],
+      "role": "interaction",
+      "tags": [
+        "drag-and-drop",
+        "implemented:@didact/core/MatchingExercise",
+        "implemented:@didact/core/SortExercise",
+        "implemented:@didact/core/CategorizeExercise"
+      ],
+      "variants": [
+        {
+          "description": "Associate items across sets.",
+          "id": "matching",
+          "name": "Matching"
+        },
+        {
+          "description": "Place items in sequence.",
+          "id": "sort",
+          "name": "Sort"
+        },
+        {
+          "description": "Assign items to groups.",
+          "id": "categorize",
+          "name": "Categorize"
+        }
+      ],
+      "version": {
+        "component": "1.0.0",
+        "schema": "1.0.0"
+      }
+    },
+    {
+      "accessibility": {
+        "keyboard": "full",
+        "notes": "Inline terms are focusable without replacing their semantic text; definitions work without hover and glossary navigation is keyboard operable.",
+        "screenReader": "full",
+        "wcagCriteria": [
+          "1.3.1",
+          "2.1.1",
+          "2.4.6",
+          "4.1.2"
+        ]
+      },
+      "authoring": {
+        "fields": [
+          {
+            "description": "Terms, definitions and stable identifiers.",
+            "item": {
+              "key": "item",
+              "kind": "text",
+              "label": "Item",
+              "required": true
+            },
+            "key": "entries",
+            "kind": "list",
+            "label": "Entries",
+            "reorderable": true,
+            "required": true
+          },
+          {
+            "description": "Label for the glossary or inline definition.",
+            "key": "label",
+            "kind": "text",
+            "label": "Accessible label",
+            "required": false
+          }
+        ],
+        "supportsLocalization": true,
+        "version": "1.0.0"
+      },
+      "capabilities": [
+        "response:none",
+        "result:none",
+        "feedback:on-demand",
+        "content:definition"
+      ],
+      "description": "Provides contextual definitions and a browsable collection of course terminology.",
+      "evidence": [
+        {
+          "citation": "Didact education-component research synthesis",
+          "claim": "The current evidence set does not establish passive glossary lookup as an effective learning technique.",
+          "id": "didact-research-glossary",
+          "limitations": "Use it as reference support; pair with retrieval when active recall is the objective.",
+          "strength": "not-evaluated"
+        }
+      ],
+      "facets": {
+        "contexts": [
+          "self-paced",
+          "classroom"
+        ],
+        "learnerActions": [
+          "inspect",
+          "respond"
+        ],
+        "purposes": [
+          "present",
+          "retrieve",
+          "scaffold"
+        ],
+        "representations": [
+          "text"
+        ],
+        "subjects": [
+          "general",
+          "language"
+        ]
+      },
+      "families": [
+        "knowledge-representation"
+      ],
+      "id": "didact.glossary",
+      "lifecycle": {
+        "availability": "available",
+        "maturity": "stable"
+      },
+      "mappings": {
+        "qti": {
+          "fidelity": "none",
+          "interaction": "none",
+          "notes": "Definitions are supporting content, not response interactions.",
+          "version": "3.0"
+        },
+        "xapi": {
+          "notes": "Definition views may be generic activity events; no interactionType applies.",
+          "verbs": [
+            "experienced"
+          ]
+        }
+      },
+      "name": "Glossary / Term",
+      "optionalDependencies": [],
+      "role": "display",
+      "tags": [
+        "reference",
+        "implemented:@didact/core/Glossary"
+      ],
+      "variants": [
+        {
+          "id": "glossary",
+          "name": "Glossary"
+        },
+        {
+          "id": "term",
+          "name": "Inline term"
+        }
+      ],
+      "version": {
+        "component": "1.0.0",
+        "schema": "1.0.0"
+      }
+    },
+    {
+      "accessibility": {
+        "keyboard": "full",
+        "notes": "Controls are buttons in document order; expanded state and new content are exposed; no empty content region is reserved before reveal.",
+        "screenReader": "full",
+        "wcagCriteria": [
+          "1.3.1",
+          "2.1.1",
+          "4.1.2",
+          "4.1.3"
+        ]
+      },
+      "authoring": {
+        "fields": [
+          {
+            "description": "Purposeful control label.",
+            "key": "label",
+            "kind": "text",
+            "label": "Label",
+            "required": true
+          },
+          {
+            "description": "Ordered support from least to most explicit.",
+            "item": {
+              "key": "item",
+              "kind": "text",
+              "label": "Item",
+              "required": true
+            },
+            "key": "hints",
+            "kind": "list",
+            "label": "Hints",
+            "reorderable": true,
+            "required": true
+          }
+        ],
+        "supportsLocalization": true,
+        "version": "1.0.0"
+      },
+      "capabilities": [
+        "response:reveal-request",
+        "result:ungraded",
+        "feedback:on-demand",
+        "feedback:informative"
+      ],
+      "description": "Offers progressive learner-controlled support without immediately exposing the answer.",
+      "evidence": [
+        {
+          "citation": "Didact education-component research synthesis",
+          "claim": "The reviewed evidence does not evaluate progressive hints independently.",
+          "id": "didact-research-hints",
+          "limitations": "Hints should cue or explain rather than praise or merely expose correctness.",
+          "strength": "not-evaluated"
+        }
+      ],
+      "facets": {
+        "contexts": [
+          "self-paced",
+          "classroom"
+        ],
+        "learnerActions": [
+          "inspect"
+        ],
+        "purposes": [
+          "scaffold"
+        ],
+        "representations": [
+          "text"
+        ],
+        "subjects": [
+          "general"
+        ]
+      },
+      "families": [
+        "feedback-scaffolding"
+      ],
+      "id": "didact.hint-reveal",
+      "lifecycle": {
+        "availability": "available",
+        "maturity": "stable"
+      },
+      "mappings": {
+        "qti": {
+          "fidelity": "none",
+          "interaction": "none",
+          "notes": "A hint is supporting content, not a response interaction.",
+          "version": "3.0"
+        },
+        "xapi": {
+          "notes": "Hint use is a generic event, not an interactionType.",
+          "verbs": [
+            "requested"
+          ]
+        }
+      },
+      "name": "Hint / Reveal",
+      "optionalDependencies": [],
+      "role": "interaction",
+      "tags": [
+        "progressive-disclosure",
+        "implemented:@didact/core/HintReveal"
+      ],
+      "variants": [
+        {
+          "id": "hint",
+          "name": "Progressive hint"
+        },
+        {
+          "id": "reveal",
+          "name": "Reveal"
+        }
+      ],
+      "version": {
+        "component": "1.0.0",
+        "schema": "1.0.0"
+      }
+    },
+    {
+      "accessibility": {
+        "keyboard": "not-applicable",
+        "notes": "The numeric value and whether it means completion or mastery are exposed as text; visual badges are not required to understand state.",
+        "screenReader": "full",
+        "wcagCriteria": [
+          "1.3.1",
+          "1.4.1",
+          "4.1.2"
+        ]
+      },
+      "authoring": {
+        "fields": [
+          {
+            "description": "Whether the tracked item is a lesson or a skill.",
+            "key": "kind",
+            "kind": "select",
+            "label": "Kind",
+            "options": [
+              {
+                "label": "lesson",
+                "value": "lesson"
+              },
+              {
+                "label": "skill",
+                "value": "skill"
+              }
+            ],
+            "required": true
+          },
+          {
+            "description": "Current value and optional maximum.",
+            "fields": [
+              {
+                "key": "valueValue",
+                "kind": "text",
+                "label": "Value",
+                "required": true
+              }
+            ],
+            "key": "value",
+            "kind": "object",
+            "label": "Value",
+            "required": true
+          },
+          {
+            "description": "Optional overview rows.",
+            "item": {
+              "key": "item",
+              "kind": "text",
+              "label": "Item",
+              "required": true
+            },
+            "key": "entries",
+            "kind": "list",
+            "label": "Entries",
+            "reorderable": true,
+            "required": false
+          }
+        ],
+        "supportsLocalization": true,
+        "version": "1.0.0"
+      },
+      "capabilities": [
+        "response:none",
+        "result:none",
+        "display:completion",
+        "display:mastery"
+      ],
+      "description": "Represents completion or mastery progress for one item or a collection.",
+      "evidence": [
+        {
+          "citation": "Didact education-component research synthesis",
+          "claim": "Progress visualization was not evaluated as an independent learning technique.",
+          "id": "didact-research-progress",
+          "limitations": "It reports state supplied by the consumer and must not infer mastery from completion.",
+          "strength": "not-evaluated"
+        }
+      ],
+      "facets": {
+        "contexts": [
+          "self-paced",
+          "classroom",
+          "corporate"
+        ],
+        "learnerActions": [
+          "inspect",
+          "interpret"
+        ],
+        "purposes": [
+          "present",
+          "orchestrate"
+        ],
+        "representations": [
+          "numeric",
+          "data-series"
+        ],
+        "subjects": [
+          "general"
+        ]
+      },
+      "families": [
+        "progress-mastery"
+      ],
+      "id": "didact.progress",
+      "lifecycle": {
+        "availability": "available",
+        "maturity": "stable"
+      },
+      "mappings": {
+        "qti": {
+          "fidelity": "none",
+          "interaction": "none",
+          "notes": "Progress is outcome display, not a QTI response interaction.",
+          "version": "3.0"
+        },
+        "xapi": {
+          "notes": "Reporting belongs to an adapter; there is no xAPI interactionType for this display.",
+          "verbs": [
+            "progressed"
+          ]
+        }
+      },
+      "name": "Progress Indicator / Overview",
+      "optionalDependencies": [],
+      "role": "display",
+      "tags": [
+        "completion",
+        "mastery",
+        "implemented:@didact/core/ProgressIndicator"
+      ],
+      "variants": [
+        {
+          "id": "indicator",
+          "name": "Indicator"
+        },
+        {
+          "id": "overview",
+          "name": "Overview"
+        }
+      ],
+      "version": {
+        "component": "1.0.0",
+        "schema": "1.0.0"
+      }
+    },
+    {
+      "accessibility": {
+        "keyboard": "not-applicable",
+        "notes": "Every state has a textual name and does not rely on color or icon shape alone.",
+        "screenReader": "full",
+        "wcagCriteria": [
+          "1.3.1",
+          "1.4.1",
+          "1.4.3"
+        ]
+      },
+      "authoring": {
+        "fields": [
+          {
+            "description": "Mastery tier supplied by the consumer.",
+            "key": "level",
+            "kind": "select",
+            "label": "Level",
+            "options": [
+              {
+                "label": "beginner",
+                "value": "beginner"
+              },
+              {
+                "label": "intermediate",
+                "value": "intermediate"
+              },
+              {
+                "label": "advanced",
+                "value": "advanced"
+              }
+            ],
+            "required": true
+          },
+          {
+            "description": "Optional mastery percentage from 0 to 100.",
+            "key": "percent",
+            "kind": "number",
+            "label": "Percent",
+            "max": 100,
+            "min": 0,
+            "required": false
+          },
+          {
+            "description": "Whether the badge can reveal its detail.",
+            "key": "interactive",
+            "kind": "boolean",
+            "label": "Interactive",
+            "required": false
+          },
+          {
+            "description": "Localized textual state.",
+            "key": "label",
+            "kind": "text",
+            "label": "Label",
+            "required": true
+          }
+        ],
+        "supportsLocalization": true,
+        "version": "1.0.0"
+      },
+      "capabilities": [
+        "response:none",
+        "result:none",
+        "display:mastery"
+      ],
+      "description": "Displays an externally determined mastery level without calculating or gamifying it.",
+      "evidence": [
+        {
+          "citation": "Didact education-component research synthesis",
+          "claim": "A mastery badge has no independent learning-effect claim in the reviewed evidence.",
+          "id": "didact-research-mastery-badge",
+          "limitations": "It displays consumer-owned state and must not substitute points or praise for informative feedback.",
+          "strength": "not-evaluated"
+        }
+      ],
+      "facets": {
+        "contexts": [
+          "self-paced",
+          "classroom",
+          "corporate"
+        ],
+        "learnerActions": [
+          "inspect",
+          "interpret"
+        ],
+        "purposes": [
+          "present",
+          "reflect"
+        ],
+        "representations": [
+          "text",
+          "numeric"
+        ],
+        "subjects": [
+          "general"
+        ]
+      },
+      "families": [
+        "progress-mastery"
+      ],
+      "id": "didact.mastery-badge",
+      "lifecycle": {
+        "availability": "available",
+        "maturity": "stable"
+      },
+      "mappings": {
+        "qti": {
+          "fidelity": "none",
+          "interaction": "none",
+          "notes": "Mastery display is not a QTI interaction.",
+          "version": "3.0"
+        },
+        "xapi": {
+          "notes": "A future adapter may report the underlying outcome; the badge emits no statement itself.",
+          "verbs": [
+            "mastered"
+          ]
+        }
+      },
+      "name": "Mastery Badge",
+      "optionalDependencies": [],
+      "role": "display",
+      "tags": [
+        "mastery",
+        "implemented:@didact/core/MasteryBadge"
+      ],
+      "variants": [
+        {
+          "id": "mastery-level",
+          "name": "Mastery level"
+        }
+      ],
+      "version": {
+        "component": "1.0.0",
+        "schema": "1.0.0"
+      }
+    },
+    {
+      "accessibility": {
+        "keyboard": "full",
+        "notes": "Criteria and levels retain table or fieldset relationships; every level has text and all selections are keyboard operable.",
+        "screenReader": "full",
+        "wcagCriteria": [
+          "1.3.1",
+          "2.1.1",
+          "3.3.2",
+          "4.1.2"
+        ]
+      },
+      "authoring": {
+        "fields": [
+          {
+            "description": "Criteria with stable identifiers.",
+            "item": {
+              "key": "item",
+              "kind": "text",
+              "label": "Item",
+              "required": true
+            },
+            "key": "criteria",
+            "kind": "list",
+            "label": "Criteria",
+            "reorderable": true,
+            "required": true
+          },
+          {
+            "description": "Ordered performance descriptors.",
+            "item": {
+              "key": "item",
+              "kind": "text",
+              "label": "Item",
+              "required": true
+            },
+            "key": "levels",
+            "kind": "list",
+            "label": "Levels",
+            "reorderable": true,
+            "required": true
+          },
+          {
+            "description": "Optional weights and point values.",
+            "fields": [
+              {
+                "key": "scoringValue",
+                "kind": "text",
+                "label": "Value",
+                "required": true
+              }
+            ],
+            "key": "scoring",
+            "kind": "object",
+            "label": "Scoring",
+            "required": false
+          }
+        ],
+        "supportsLocalization": true,
+        "version": "1.0.0"
+      },
+      "capabilities": [
+        "response:criterion-level",
+        "response:reflection",
+        "result:scored",
+        "result:partial-credit",
+        "result:mastery",
+        "feedback:author-reviewed"
+      ],
+      "description": "Makes criteria and performance levels explicit for assessment or self-assessment.",
+      "evidence": [
+        {
+          "citation": "Didact education-component research synthesis",
+          "claim": "Rubric effectiveness was not evaluated by the current source set.",
+          "id": "didact-research-rubric",
+          "limitations": "No standalone learning-effect claim is made.",
+          "strength": "not-evaluated"
+        }
+      ],
+      "facets": {
+        "contexts": [
+          "self-paced",
+          "classroom",
+          "corporate",
+          "instructor-led"
+        ],
+        "learnerActions": [
+          "inspect",
+          "interpret",
+          "respond"
+        ],
+        "purposes": [
+          "assess",
+          "reflect"
+        ],
+        "representations": [
+          "text",
+          "procedural"
+        ],
+        "subjects": [
+          "general"
+        ]
+      },
+      "families": [
+        "assessment",
+        "progress-mastery"
+      ],
+      "id": "didact.rubric",
+      "lifecycle": {
+        "availability": "available",
+        "maturity": "stable"
+      },
+      "mappings": {
+        "qti": {
+          "fidelity": "none",
+          "interaction": "none",
+          "notes": "QTI has no dedicated rubric response interaction.",
+          "version": "3.0"
+        },
+        "xapi": {
+          "interactionType": "performance",
+          "notes": "Approximate only when recording performance against named criteria."
+        }
+      },
+      "name": "Rubric",
+      "optionalDependencies": [],
+      "role": "interaction",
+      "tags": [
+        "self-assessment",
+        "implemented:@didact/core/Rubric"
+      ],
+      "variants": [
+        {
+          "id": "analytic",
+          "name": "Analytic"
+        },
+        {
+          "id": "self-assessment",
+          "name": "Self-assessment"
+        }
+      ],
+      "version": {
+        "component": "1.0.0",
+        "schema": "1.0.0"
+      }
+    },
+    {
+      "accessibility": {
+        "keyboard": "not-applicable",
+        "notes": "Semantic list order matches visual order; dates, status and connectors have textual equivalents.",
+        "screenReader": "full",
+        "wcagCriteria": [
+          "1.3.1",
+          "1.4.1",
+          "1.4.10"
+        ]
+      },
+      "authoring": {
+        "fields": [
+          {
+            "description": "Ordered events or procedural steps.",
+            "item": {
+              "key": "item",
+              "kind": "text",
+              "label": "Item",
+              "required": true
+            },
+            "key": "steps",
+            "kind": "list",
+            "label": "Steps",
+            "reorderable": true,
+            "required": true
+          },
+          {
+            "description": "Accessible name for the sequence.",
+            "key": "label",
+            "kind": "text",
+            "label": "Label",
+            "required": true
+          }
+        ],
+        "supportsLocalization": true,
+        "version": "1.0.0"
+      },
+      "capabilities": [
+        "response:none",
+        "result:none",
+        "display:sequence",
+        "display:status"
+      ],
+      "description": "Presents chronological events or ordered procedural steps with explicit status.",
+      "evidence": [
+        {
+          "citation": "Didact education-component research synthesis",
+          "claim": "Timeline and step display were not evaluated as independent learning techniques.",
+          "id": "didact-research-timeline",
+          "limitations": "Use them to represent structure, not as evidence that a procedure has been learned.",
+          "strength": "not-evaluated"
+        }
+      ],
+      "facets": {
+        "contexts": [
+          "self-paced",
+          "classroom",
+          "corporate",
+          "instructor-led"
+        ],
+        "learnerActions": [
+          "inspect",
+          "interpret"
+        ],
+        "purposes": [
+          "present",
+          "explore"
+        ],
+        "representations": [
+          "temporal",
+          "procedural"
+        ],
+        "subjects": [
+          "general",
+          "science",
+          "business",
+          "humanities"
+        ]
+      },
+      "families": [
+        "sequence-procedure",
+        "knowledge-representation"
+      ],
+      "id": "didact.timeline",
+      "lifecycle": {
+        "availability": "available",
+        "maturity": "stable"
+      },
+      "mappings": {
+        "qti": {
+          "fidelity": "none",
+          "interaction": "none",
+          "notes": "Timeline and steps are content structures, not response interactions.",
+          "version": "3.0"
+        },
+        "xapi": {
+          "notes": "Viewing a sequence may be generic activity reporting; no interactionType applies.",
+          "verbs": [
+            "experienced"
+          ]
+        }
+      },
+      "name": "Timeline / Steps",
+      "optionalDependencies": [],
+      "role": "display",
+      "tags": [
+        "sequence",
+        "procedure",
+        "implemented:@didact/core/Timeline"
+      ],
+      "variants": [
+        {
+          "id": "chronology",
+          "name": "Chronology"
+        },
+        {
+          "id": "steps",
+          "name": "Steps"
+        }
+      ],
+      "version": {
+        "component": "1.0.0",
+        "schema": "1.0.0"
+      }
+    },
+    {
+      "accessibility": {
+        "keyboard": "full",
+        "notes": "Navigation and every child item are keyboard operable; position, validation and completion are announced without replacing page context.",
+        "screenReader": "full",
+        "wcagCriteria": [
+          "2.1.1",
+          "2.2.1",
+          "2.4.3",
+          "3.3.1",
+          "4.1.3"
+        ]
+      },
+      "authoring": {
+        "fields": [
+          {
+            "description": "Referenced or embedded practice items.",
+            "item": {
+              "key": "item",
+              "kind": "text",
+              "label": "Item",
+              "required": true
+            },
+            "key": "items",
+            "kind": "list",
+            "label": "Items",
+            "reorderable": true,
+            "required": true
+          },
+          {
+            "description": "Ordering and sampling policy.",
+            "fields": [
+              {
+                "key": "selectionValue",
+                "kind": "text",
+                "label": "Value",
+                "required": true
+              }
+            ],
+            "key": "selection",
+            "kind": "object",
+            "label": "Selection",
+            "required": true
+          },
+          {
+            "description": "Session completion conditions.",
+            "fields": [
+              {
+                "key": "completionValue",
+                "kind": "text",
+                "label": "Value",
+                "required": true
+              }
+            ],
+            "key": "completion",
+            "kind": "object",
+            "label": "Completion",
+            "required": true
+          }
+        ],
+        "supportsLocalization": true,
+        "version": "1.0.0"
+      },
+      "capabilities": [
+        "response:composite",
+        "result:scored",
+        "result:partial-credit",
+        "result:mastery",
+        "feedback:immediate",
+        "feedback:deferred"
+      ],
+      "description": "Composes practice items into a bounded session with feedback and completion policy.",
+      "evidence": [
+        {
+          "citation": "Dunlosky et al. (2013), Improving Students' Learning With Effective Learning Techniques",
+          "claim": "Practice-testing evidence applies when this composition elicits retrieval.",
+          "id": "dunlosky-2013-practice-set-boundary",
+          "limitations": "The container has no independent effect merely because it groups items.",
+          "strength": "high"
+        }
+      ],
+      "facets": {
+        "contexts": [
+          "self-paced",
+          "classroom",
+          "corporate"
+        ],
+        "learnerActions": [
+          "respond",
+          "select",
+          "write"
+        ],
+        "purposes": [
+          "practice",
+          "assess",
+          "orchestrate"
+        ],
+        "representations": [
+          "text",
+          "procedural"
+        ],
+        "subjects": [
+          "general"
+        ]
+      },
+      "families": [
+        "retrieval-practice",
+        "assessment"
+      ],
+      "id": "didact.practice-set",
+      "lifecycle": {
+        "availability": "available",
+        "maturity": "stable"
+      },
+      "mappings": {
+        "qti": {
+          "fidelity": "none",
+          "interaction": "none",
+          "notes": "This is a composition; child items own QTI mappings.",
+          "version": "3.0"
+        },
+        "xapi": {
+          "notes": "Emit child interaction types plus session events.",
+          "verbs": [
+            "attempted",
+            "completed"
+          ]
+        }
+      },
+      "name": "Practice Set",
+      "optionalDependencies": [],
+      "role": "composite",
+      "tags": [
+        "practice-testing",
+        "composition",
+        "implemented:@didact/core/PracticeSet"
+      ],
+      "variants": [
+        {
+          "id": "fixed",
+          "name": "Fixed sequence"
+        },
+        {
+          "id": "randomized",
+          "name": "Randomized selection"
+        }
+      ],
+      "version": {
+        "component": "1.0.0",
+        "schema": "1.0.0"
+      }
+    },
+    {
+      "accessibility": {
+        "keyboard": "full",
+        "notes": "Reveal and rating actions are keyboard operable; due state, transitions and rating consequences are textual; grading is not speed-dependent.",
+        "screenReader": "full",
+        "wcagCriteria": [
+          "2.1.1",
+          "2.2.1",
+          "2.3.3",
+          "4.1.3"
+        ]
+      },
+      "authoring": {
+        "fields": [
+          {
+            "description": "Retrieval prompts with stable identifiers.",
+            "item": {
+              "key": "item",
+              "kind": "text",
+              "label": "Item",
+              "required": true
+            },
+            "key": "items",
+            "kind": "list",
+            "label": "Items",
+            "reorderable": true,
+            "required": true
+          },
+          {
+            "description": "Queue, SM-2 or optional FSRS policy.",
+            "key": "scheduler",
+            "kind": "select",
+            "label": "Scheduler",
+            "options": [
+              {
+                "label": "queue",
+                "value": "queue"
+              },
+              {
+                "label": "sm2",
+                "value": "sm2"
+              },
+              {
+                "label": "fsrs",
+                "value": "fsrs"
+              }
+            ],
+            "required": true
+          },
+          {
+            "description": "Maximum work and stopping conditions.",
+            "fields": [
+              {
+                "key": "sessionLimitsValue",
+                "kind": "text",
+                "label": "Value",
+                "required": true
+              }
+            ],
+            "key": "sessionLimits",
+            "kind": "object",
+            "label": "Session limits",
+            "required": true
+          }
+        ],
+        "supportsLocalization": true,
+        "version": "1.0.0"
+      },
+      "capabilities": [
+        "response:constructed",
+        "response:self-rating",
+        "response:composite",
+        "result:mastery",
+        "feedback:immediate",
+        "feedback:informative"
+      ],
+      "description": "Captures a constructed recall, supports model comparison, and schedules repeated retrieval across time.",
+      "evidence": [
+        {
+          "citation": "Dunlosky et al. (2013), Improving Students' Learning With Effective Learning Techniques",
+          "claim": "Practice testing and distributed practice are high-utility techniques.",
+          "id": "dunlosky-2013-retrieval-spacing",
+          "limitations": "The claim requires actual retrieval and spacing; a scheduler badge is insufficient.",
+          "strength": "high"
+        }
+      ],
+      "facets": {
+        "contexts": [
+          "self-paced",
+          "classroom"
+        ],
+        "learnerActions": [
+          "write",
+          "respond",
+          "inspect"
+        ],
+        "purposes": [
+          "retrieve",
+          "practice",
+          "orchestrate"
+        ],
+        "representations": [
+          "text",
+          "temporal"
+        ],
+        "subjects": [
+          "general"
+        ]
+      },
+      "families": [
+        "retrieval-practice",
+        "progress-mastery"
+      ],
+      "id": "didact.retrieval-practice-session",
+      "lifecycle": {
+        "availability": "available",
+        "maturity": "stable"
+      },
+      "mappings": {
+        "qti": {
+          "fidelity": "none",
+          "interaction": "none",
+          "notes": "The session orchestrates interactions; prompts own their mappings.",
+          "version": "3.0"
+        },
+        "xapi": {
+          "notes": "Report child interactions and session/mastery events.",
+          "verbs": [
+            "attempted",
+            "mastered"
+          ]
+        }
+      },
+      "name": "Retrieval Practice Session",
+      "optionalDependencies": [
+        {
+          "fallback": "Dependency-free SM-2 scheduler.",
+          "package": "ts-fsrs",
+          "purpose": "Optional FSRS scheduling."
+        }
+      ],
+      "role": "composite",
+      "tags": [
+        "distributed-practice",
+        "practice-testing",
+        "implemented:@didact/core/RetrievalPracticeSession"
+      ],
+      "variants": [
+        {
+          "id": "queue",
+          "name": "Queue"
+        },
+        {
+          "id": "scheduled",
+          "name": "Scheduled"
+        }
+      ],
+      "version": {
+        "component": "1.0.0",
+        "schema": "1.0.0"
+      }
+    },
+    {
+      "accessibility": {
+        "keyboard": "full",
+        "notes": "Response, scaffolds and comparison controls use native interactions; prompts and response instructions are explicitly labelled.",
+        "screenReader": "full",
+        "wcagCriteria": [
+          "1.3.1",
+          "2.1.1",
+          "2.2.1",
+          "3.3.2"
+        ]
+      },
+      "authoring": {
+        "fields": [
+          {
+            "description": "Explanation cue tied to learning material.",
+            "key": "prompt",
+            "kind": "rich-text",
+            "label": "Prompt",
+            "required": true
+          },
+          {
+            "description": "Optional reasoning prompts.",
+            "item": {
+              "key": "item",
+              "kind": "text",
+              "label": "Item",
+              "required": true
+            },
+            "key": "scaffold",
+            "kind": "list",
+            "label": "Scaffold",
+            "reorderable": true,
+            "required": false
+          },
+          {
+            "description": "Optional comparison after submission.",
+            "key": "model",
+            "kind": "rich-text",
+            "label": "Model explanation",
+            "required": false
+          }
+        ],
+        "supportsLocalization": true,
+        "version": "1.0.0"
+      },
+      "capabilities": [
+        "response:text",
+        "result:ungraded",
+        "feedback:on-demand",
+        "feedback:author-reviewed",
+        "feedback:model-answer"
+      ],
+      "description": "Asks learners to explain reasoning, relationships or a worked step in their own words.",
+      "evidence": [
+        {
+          "citation": "Fiorella & Mayer (2016), Eight Ways to Promote Generative Learning",
+          "claim": "Self-explaining is identified as a generative learning strategy.",
+          "id": "fiorella-mayer-2016-self-explanation",
+          "limitations": "Prompt design and integration with the material matter; no universal effect is claimed.",
+          "strength": "moderate"
+        }
+      ],
+      "facets": {
+        "contexts": [
+          "self-paced",
+          "classroom",
+          "corporate"
+        ],
+        "learnerActions": [
+          "write",
+          "explain"
+        ],
+        "purposes": [
+          "practice",
+          "reflect"
+        ],
+        "representations": [
+          "text"
+        ],
+        "subjects": [
+          "general"
+        ]
+      },
+      "families": [
+        "generative-learning"
+      ],
+      "id": "didact.self-explanation-prompt",
+      "lifecycle": {
+        "availability": "available",
+        "maturity": "stable"
+      },
+      "mappings": {
+        "qti": {
+          "fidelity": "approximate",
+          "interaction": "extendedTextInteraction",
+          "notes": "Carries the response but not self-explanation intent.",
+          "version": "3.0"
+        },
+        "xapi": {
+          "interactionType": "long-fill-in",
+          "notes": "Retain self-explanation purpose in activity metadata."
+        }
+      },
+      "name": "Self-explanation Prompt",
+      "optionalDependencies": [],
+      "role": "interaction",
+      "tags": [
+        "generative-learning",
+        "reflection",
+        "implemented:@didact/core/SelfExplanationPrompt"
+      ],
+      "variants": [
+        {
+          "id": "free-response",
+          "name": "Free response"
+        },
+        {
+          "id": "guided",
+          "name": "Guided"
+        }
+      ],
+      "version": {
+        "component": "1.0.0",
+        "schema": "1.0.0"
+      }
+    },
+    {
+      "accessibility": {
+        "keyboard": "full",
+        "notes": "Step order and current step are exposed; progressive controls are keyboard operable; diagrams, notation and motion have accessible equivalents.",
+        "screenReader": "full",
+        "wcagCriteria": [
+          "1.1.1",
+          "1.3.1",
+          "2.1.1",
+          "2.3.3"
+        ]
+      },
+      "authoring": {
+        "fields": [
+          {
+            "description": "Problem or task demonstrated.",
+            "key": "problem",
+            "kind": "rich-text",
+            "label": "Problem",
+            "required": true
+          },
+          {
+            "description": "Ordered solution steps and explanations.",
+            "item": {
+              "key": "item",
+              "kind": "text",
+              "label": "Item",
+              "required": true
+            },
+            "key": "steps",
+            "kind": "list",
+            "label": "Steps",
+            "reorderable": true,
+            "required": true
+          },
+          {
+            "description": "Principle or transfer cue.",
+            "key": "summary",
+            "kind": "rich-text",
+            "label": "Summary",
+            "required": false
+          }
+        ],
+        "supportsLocalization": true,
+        "version": "1.0.0"
+      },
+      "capabilities": [
+        "response:step-reveal",
+        "result:ungraded",
+        "feedback:on-demand",
+        "feedback:explanation"
+      ],
+      "description": "Presents a solved process in meaningful steps with optional explanatory prompts.",
+      "evidence": [
+        {
+          "citation": "Fiorella & Mayer (2016), Eight Ways to Promote Generative Learning",
+          "claim": "The current source set supports generative prompts around examples more directly than a standalone worked-example claim.",
+          "id": "fiorella-mayer-2016-worked-example-boundary",
+          "limitations": "Treat as structured instructional content until broader evidence is added.",
+          "strength": "low"
+        }
+      ],
+      "facets": {
+        "contexts": [
+          "self-paced",
+          "classroom",
+          "corporate",
+          "technical-training"
+        ],
+        "learnerActions": [
+          "inspect",
+          "interpret"
+        ],
+        "purposes": [
+          "present",
+          "scaffold"
+        ],
+        "representations": [
+          "text",
+          "procedural"
+        ],
+        "subjects": [
+          "general",
+          "mathematics",
+          "science",
+          "business",
+          "technical"
+        ]
+      },
+      "families": [
+        "sequence-procedure",
+        "generative-learning"
+      ],
+      "id": "didact.worked-example",
+      "lifecycle": {
+        "availability": "available",
+        "maturity": "stable"
+      },
+      "mappings": {
+        "qti": {
+          "fidelity": "none",
+          "interaction": "none",
+          "notes": "A worked example is content, not a response interaction.",
+          "version": "3.0"
+        },
+        "xapi": {
+          "notes": "No xAPI interactionType applies.",
+          "verbs": [
+            "experienced"
+          ]
+        }
+      },
+      "name": "Worked Example",
+      "optionalDependencies": [],
+      "role": "display",
+      "tags": [
+        "scaffolding",
+        "procedure",
+        "implemented:@didact/core/WorkedExample"
+      ],
+      "variants": [
+        {
+          "id": "static",
+          "name": "Static"
+        },
+        {
+          "id": "progressive",
+          "name": "Progressive"
+        }
+      ],
+      "version": {
+        "component": "1.0.0",
+        "schema": "1.0.0"
+      }
+    },
+    {
+      "accessibility": {
+        "keyboard": "full",
+        "notes": "Every missing-step input is keyboard operable; worked and missing steps are distinguished; feedback remains associated with its step.",
+        "screenReader": "full",
+        "wcagCriteria": [
+          "1.3.1",
+          "2.1.1",
+          "3.3.1",
+          "3.3.2",
+          "4.1.3"
+        ]
+      },
+      "authoring": {
+        "fields": [
+          {
+            "description": "Problem statement.",
+            "key": "problem",
+            "kind": "rich-text",
+            "label": "Problem",
+            "required": true
+          },
+          {
+            "description": "Worked and learner-completed steps.",
+            "item": {
+              "key": "item",
+              "kind": "text",
+              "label": "Item",
+              "required": true
+            },
+            "key": "steps",
+            "kind": "list",
+            "label": "Steps",
+            "reorderable": true,
+            "required": true
+          },
+          {
+            "description": "Per-step checking and accepted responses.",
+            "fields": [
+              {
+                "key": "checkingValue",
+                "kind": "text",
+                "label": "Value",
+                "required": true
+              }
+            ],
+            "key": "checking",
+            "kind": "object",
+            "label": "Checking",
+            "required": true
+          },
+          {
+            "description": "Explanation for each completed step.",
+            "key": "feedback",
+            "kind": "rich-text",
+            "label": "Feedback",
+            "required": false
+          }
+        ],
+        "supportsLocalization": true,
+        "version": "1.0.0"
+      },
+      "capabilities": [
+        "response:text",
+        "response:choice",
+        "response:composite",
+        "result:scored",
+        "result:partial-credit",
+        "feedback:immediate",
+        "feedback:deferred"
+      ],
+      "description": "Bridges worked examples and independent problem solving through missing steps.",
+      "evidence": [
+        {
+          "citation": "Didact education-component research synthesis",
+          "claim": "Completion problems were not independently evaluated by the current source set.",
+          "id": "didact-research-completion-problem",
+          "limitations": "This is a planned bridge between examples and retrieval practice, not a settled effectiveness claim.",
+          "strength": "not-evaluated"
+        }
+      ],
+      "facets": {
+        "contexts": [
+          "self-paced",
+          "classroom",
+          "technical-training"
+        ],
+        "learnerActions": [
+          "construct",
+          "write",
+          "calculate"
+        ],
+        "purposes": [
+          "practice",
+          "assess",
+          "scaffold"
+        ],
+        "representations": [
+          "text",
+          "procedural"
+        ],
+        "subjects": [
+          "general",
+          "mathematics",
+          "science",
+          "technical"
+        ]
+      },
+      "families": [
+        "generative-learning",
+        "assessment",
+        "sequence-procedure"
+      ],
+      "id": "didact.completion-problem",
+      "lifecycle": {
+        "availability": "available",
+        "maturity": "stable"
+      },
+      "mappings": {
+        "qti": [
+          {
+            "fidelity": "approximate",
+            "interaction": "textEntryInteraction",
+            "notes": "Typed missing step.",
+            "version": "3.0"
+          },
+          {
+            "fidelity": "approximate",
+            "interaction": "inlineChoiceInteraction",
+            "notes": "Choice missing step.",
+            "version": "3.0"
+          },
+          {
+            "fidelity": "approximate",
+            "interaction": "extendedTextInteraction",
+            "notes": "Extended missing step.",
+            "version": "3.0"
+          }
+        ],
+        "xapi": [
+          {
+            "interactionType": "fill-in",
+            "notes": "Typed step."
+          },
+          {
+            "interactionType": "choice",
+            "notes": "Choice step."
+          },
+          {
+            "interactionType": "long-fill-in",
+            "notes": "Extended step."
+          }
+        ]
+      },
+      "name": "Completion Problem",
+      "optionalDependencies": [],
+      "role": "interaction",
+      "tags": [
+        "fading",
+        "procedure",
+        "implemented:@didact/core/CompletionProblem"
+      ],
+      "variants": [
+        {
+          "id": "missing-step",
+          "name": "Missing step"
+        },
+        {
+          "id": "faded",
+          "name": "Faded"
+        }
+      ],
+      "version": {
+        "component": "1.0.0",
+        "schema": "1.0.0"
+      }
+    },
+    {
+      "accessibility": {
+        "keyboard": "full",
+        "notes": "The numeric field has an explicit label and input mode; unit requirements, validation, result, and feedback are textual and never color-only.",
+        "screenReader": "full",
+        "wcagCriteria": [
+          "1.3.1",
+          "1.4.1",
+          "2.1.1",
+          "3.3.1",
+          "3.3.2",
+          "4.1.3"
+        ]
+      },
+      "authoring": {
+        "fields": [
+          {
+            "description": "Quantitative question presented to the learner.",
+            "key": "prompt",
+            "kind": "rich-text",
+            "label": "Prompt",
+            "required": true
+          },
+          {
+            "description": "Expected value or accepted range and its comparison policy.",
+            "fields": [
+              {
+                "key": "solutionValue",
+                "kind": "text",
+                "label": "Value",
+                "required": true
+              }
+            ],
+            "key": "solution",
+            "kind": "object",
+            "label": "Solution",
+            "required": false
+          },
+          {
+            "description": "Maximum absolute distance from the expected value.",
+            "key": "absoluteTolerance",
+            "kind": "number",
+            "label": "Absolute tolerance",
+            "required": false
+          },
+          {
+            "description": "Maximum proportional distance from the expected value.",
+            "key": "relativeTolerance",
+            "kind": "number",
+            "label": "Relative tolerance",
+            "min": 0,
+            "required": false
+          },
+          {
+            "description": "Optional expected unit.",
+            "key": "unit",
+            "kind": "text",
+            "label": "Unit",
+            "required": true
+          },
+          {
+            "description": "Whether a unit is hidden, optional, or required.",
+            "key": "unitPolicy",
+            "kind": "select",
+            "label": "Unit policy",
+            "options": [
+              {
+                "label": "hidden",
+                "value": "hidden"
+              },
+              {
+                "label": "optional",
+                "value": "optional"
+              },
+              {
+                "label": "required",
+                "value": "required"
+              }
+            ],
+            "required": true
+          },
+          {
+            "description": "Explanatory feedback shown after submission.",
+            "key": "feedback",
+            "kind": "rich-text",
+            "label": "Feedback",
+            "required": false
+          }
+        ],
+        "supportsLocalization": true,
+        "version": "1.0.0"
+      },
+      "capabilities": [
+        "response:numeric",
+        "result:scored",
+        "result:ungraded",
+        "feedback:immediate",
+        "feedback:informative"
+      ],
+      "description": "Collects and evaluates a numeric response using explicit tolerance, range, and unit policies.",
+      "evidence": [
+        {
+          "citation": "Didact education-component research synthesis",
+          "claim": "The reviewed evidence does not establish numeric entry as an independent learning technique.",
+          "id": "didact-research-numeric-question",
+          "limitations": "Its value depends on the task, retrieval demand, checking policy, and feedback.",
+          "strength": "not-evaluated"
+        }
+      ],
+      "facets": {
+        "contexts": [
+          "self-paced",
+          "classroom",
+          "corporate",
+          "technical-training"
+        ],
+        "learnerActions": [
+          "calculate",
+          "respond"
+        ],
+        "purposes": [
+          "practice",
+          "assess"
+        ],
+        "representations": [
+          "numeric"
+        ],
+        "subjects": [
+          "mathematics",
+          "science",
+          "data",
+          "business"
+        ]
+      },
+      "families": [
+        "assessment",
+        "technical-practice"
+      ],
+      "id": "didact.numeric-question",
+      "lifecycle": {
+        "availability": "available",
+        "maturity": "stable"
+      },
+      "mappings": {
+        "qti": {
+          "fidelity": "exact",
+          "interaction": "textEntryInteraction",
+          "notes": "Numeric responseDeclaration and responseProcessing carry value, range, and tolerance semantics.",
+          "version": "3.0"
+        },
+        "xapi": {
+          "interactionType": "numeric",
+          "notes": "Record the submitted numeric value; unit and checking policy remain extension/context data."
+        }
+      },
+      "name": "Numeric Question",
+      "optionalDependencies": [],
+      "role": "interaction",
+      "tags": [
+        "quantitative",
+        "units",
+        "tolerance",
+        "implemented:@didact/core/NumericQuestion"
+      ],
+      "variants": [
+        {
+          "id": "exact",
+          "name": "Exact value"
+        },
+        {
+          "id": "tolerance",
+          "name": "Tolerance"
+        },
+        {
+          "id": "range",
+          "name": "Accepted range"
+        },
+        {
+          "id": "ungraded",
+          "name": "Ungraded numeric response"
+        }
+      ],
+      "version": {
+        "component": "1.0.0",
+        "schema": "1.0.0"
+      }
+    },
+    {
+      "accessibility": {
+        "draggingAlternative": true,
+        "keyboard": "alternative",
+        "notes": "Every gap can be filled through named buttons and native keyboard focus without dragging; assignments, availability, errors, and results are announced in text.",
+        "screenReader": "full",
+        "wcagCriteria": [
+          "1.3.1",
+          "1.4.1",
+          "2.1.1",
+          "2.4.6",
+          "2.5.7",
+          "3.3.1",
+          "4.1.3"
+        ]
+      },
+      "authoring": {
+        "fields": [
+          {
+            "description": "Instruction for completing the passage.",
+            "key": "prompt",
+            "kind": "rich-text",
+            "label": "Prompt",
+            "required": true
+          },
+          {
+            "description": "Ordered text segments and stable gap identifiers.",
+            "item": {
+              "key": "item",
+              "kind": "text",
+              "label": "Item",
+              "required": true
+            },
+            "key": "content",
+            "kind": "list",
+            "label": "Content",
+            "reorderable": true,
+            "required": true
+          },
+          {
+            "description": "Options with stable identifiers and labels.",
+            "item": {
+              "key": "item",
+              "kind": "text",
+              "label": "Item",
+              "required": true
+            },
+            "key": "options",
+            "kind": "list",
+            "label": "Word bank",
+            "reorderable": true,
+            "required": true
+          },
+          {
+            "description": "Accepted option identifiers for each gap.",
+            "fields": [
+              {
+                "key": "solutionValue",
+                "kind": "text",
+                "label": "Value",
+                "required": true
+              }
+            ],
+            "key": "solution",
+            "kind": "object",
+            "label": "Solution",
+            "required": false
+          },
+          {
+            "description": "Whether one option may fill more than one gap.",
+            "key": "reuse",
+            "kind": "select",
+            "label": "Option reuse",
+            "options": [
+              {
+                "label": "single-use",
+                "value": "single-use"
+              },
+              {
+                "label": "reusable",
+                "value": "reusable"
+              }
+            ],
+            "required": true
+          },
+          {
+            "description": "Explanation of the completed relationships.",
+            "key": "feedback",
+            "kind": "rich-text",
+            "label": "Feedback",
+            "required": false
+          }
+        ],
+        "supportsLocalization": true,
+        "version": "1.0.0"
+      },
+      "capabilities": [
+        "response:gap-match",
+        "result:scored",
+        "result:partial-credit",
+        "result:ungraded",
+        "feedback:immediate",
+        "feedback:informative"
+      ],
+      "description": "Completes stable text gaps by selecting from an explicit bank of reusable or single-use options.",
+      "evidence": [
+        {
+          "citation": "Didact education-component research synthesis",
+          "claim": "The reviewed evidence does not establish word-bank completion as an independent learning technique.",
+          "id": "didact-research-word-bank",
+          "limitations": "Selection from visible options reduces retrieval demand compared with constructed response.",
+          "strength": "not-evaluated"
+        }
+      ],
+      "facets": {
+        "contexts": [
+          "self-paced",
+          "classroom"
+        ],
+        "learnerActions": [
+          "select",
+          "construct"
+        ],
+        "purposes": [
+          "practice",
+          "assess"
+        ],
+        "representations": [
+          "text"
+        ],
+        "subjects": [
+          "language"
+        ]
+      },
+      "families": [
+        "assessment",
+        "knowledge-representation"
+      ],
+      "id": "didact.word-bank",
+      "lifecycle": {
+        "availability": "available",
+        "maturity": "stable"
+      },
+      "mappings": {
+        "qti": {
+          "fidelity": "exact",
+          "interaction": "gapMatchInteraction",
+          "notes": "Visible options are assigned to embedded gaps with explicit cardinality.",
+          "version": "3.0"
+        },
+        "xapi": {
+          "interactionType": "fill-in",
+          "notes": "Approximate reporting: serialize stable gap-to-option assignments in the response pattern."
+        }
+      },
+      "name": "Word Bank / Gap Match",
+      "optionalDependencies": [
+        {
+          "fallback": "The same gaps and options remain fully operable through click and keyboard selection.",
+          "package": "@dnd-kit/core",
+          "purpose": "Pointer drag enhancement for placing bank options into inline gaps."
+        }
+      ],
+      "role": "interaction",
+      "tags": [
+        "language",
+        "gap-match",
+        "no-drag-required",
+        "implemented:@didact/core/WordBank"
+      ],
+      "variants": [
+        {
+          "id": "single-use",
+          "name": "Single-use options"
+        },
+        {
+          "id": "reusable",
+          "name": "Reusable options"
+        }
+      ],
+      "version": {
+        "component": "1.0.0",
+        "schema": "1.0.0"
+      }
+    },
+    {
+      "accessibility": {
+        "draggingAlternative": true,
+        "keyboard": "alternative",
+        "notes": "Every visual region has an equivalent named list control; alternative text and long description carry the visual context; feedback and selection never rely on position or color alone.",
+        "requiresAltText": true,
+        "screenReader": "full",
+        "wcagCriteria": [
+          "1.1.1",
+          "1.3.1",
+          "1.4.1",
+          "1.4.10",
+          "2.1.1",
+          "2.5.7",
+          "4.1.3"
+        ]
+      },
+      "authoring": {
+        "fields": [
+          {
+            "description": "Spatial task instruction.",
+            "key": "prompt",
+            "kind": "rich-text",
+            "label": "Prompt",
+            "required": true
+          },
+          {
+            "description": "Image, intrinsic dimensions, alternative text, and optional long description.",
+            "fields": [
+              {
+                "key": "visualValue",
+                "kind": "text",
+                "label": "Value",
+                "required": true
+              }
+            ],
+            "key": "visual",
+            "kind": "object",
+            "label": "Visual",
+            "required": true
+          },
+          {
+            "description": "Stable normalized regions and their textual names.",
+            "item": {
+              "key": "item",
+              "kind": "text",
+              "label": "Item",
+              "required": true
+            },
+            "key": "regions",
+            "kind": "list",
+            "label": "Regions",
+            "reorderable": true,
+            "required": false
+          },
+          {
+            "description": "Accepted region identifiers or normalized coordinate bounds.",
+            "fields": [
+              {
+                "key": "solutionValue",
+                "kind": "text",
+                "label": "Value",
+                "required": true
+              }
+            ],
+            "key": "solution",
+            "kind": "object",
+            "label": "Solution",
+            "required": false
+          },
+          {
+            "description": "Single or multiple region selection.",
+            "key": "selectionMode",
+            "kind": "select",
+            "label": "Selection mode",
+            "options": [
+              {
+                "label": "single",
+                "value": "single"
+              },
+              {
+                "label": "multiple",
+                "value": "multiple"
+              }
+            ],
+            "required": true
+          },
+          {
+            "description": "Explanation shown after submission.",
+            "key": "feedback",
+            "kind": "rich-text",
+            "label": "Feedback",
+            "required": false
+          }
+        ],
+        "supportsLocalization": true,
+        "version": "1.0.0"
+      },
+      "capabilities": [
+        "response:hotspot",
+        "response:point",
+        "result:scored",
+        "result:partial-credit",
+        "result:ungraded",
+        "feedback:immediate",
+        "feedback:informative"
+      ],
+      "description": "Collects a response on visual content using normalized regions or coordinates plus an equivalent textual interaction.",
+      "evidence": [
+        {
+          "citation": "Didact education-component research synthesis",
+          "claim": "The reviewed evidence does not establish spatial selection as an independent learning technique.",
+          "id": "didact-research-hotspot",
+          "limitations": "The interaction must match a genuinely spatial objective and provide equivalent non-visual access.",
+          "strength": "not-evaluated"
+        }
+      ],
+      "facets": {
+        "contexts": [
+          "self-paced",
+          "classroom",
+          "corporate"
+        ],
+        "learnerActions": [
+          "select",
+          "manipulate"
+        ],
+        "purposes": [
+          "explore",
+          "practice",
+          "assess"
+        ],
+        "representations": [
+          "spatial",
+          "image"
+        ],
+        "subjects": [
+          "general",
+          "science",
+          "humanities"
+        ]
+      },
+      "families": [
+        "assessment",
+        "media"
+      ],
+      "id": "didact.hotspot",
+      "lifecycle": {
+        "availability": "available",
+        "maturity": "stable"
+      },
+      "mappings": {
+        "qti": [
+          {
+            "fidelity": "exact",
+            "interaction": "hotspotInteraction",
+            "notes": "Predefined normalized regions with stable identifiers.",
+            "version": "3.0"
+          },
+          {
+            "fidelity": "exact",
+            "interaction": "selectPointInteraction",
+            "notes": "Free normalized coordinate selection.",
+            "version": "3.0"
+          }
+        ],
+        "xapi": [
+          {
+            "interactionType": "choice",
+            "notes": "Use stable region identifiers for predefined hotspots."
+          },
+          {
+            "interactionType": "other",
+            "notes": "Free coordinates require an explicit response serialization convention."
+          }
+        ]
+      },
+      "name": "Hotspot / Select Point",
+      "optionalDependencies": [],
+      "role": "interaction",
+      "tags": [
+        "spatial",
+        "image",
+        "textual-alternative",
+        "implemented:@didact/core/Hotspot"
+      ],
+      "variants": [
+        {
+          "id": "hotspot",
+          "name": "Predefined regions"
+        },
+        {
+          "id": "select-point",
+          "name": "Free point"
+        }
+      ],
+      "version": {
+        "component": "1.0.0",
+        "schema": "1.0.0"
+      }
+    },
+    {
+      "accessibility": {
+        "draggingAlternative": true,
+        "keyboard": "alternative",
+        "notes": "Every target appears both over the visual and in a named textual list. Dragging is optional; click and keyboard operate the same assignment state.",
+        "requiresAltText": true,
+        "screenReader": "full",
+        "wcagCriteria": [
+          "1.1.1",
+          "1.3.1",
+          "1.4.1",
+          "2.1.1",
+          "2.5.7",
+          "4.1.3"
+        ]
+      },
+      "authoring": {
+        "fields": [
+          {
+            "description": "Image or diagram with accessible description.",
+            "fields": [
+              {
+                "key": "visualValue",
+                "kind": "text",
+                "label": "Value",
+                "required": true
+              }
+            ],
+            "key": "visual",
+            "kind": "object",
+            "label": "Visual",
+            "required": true
+          },
+          {
+            "description": "Named normalized positions and optional accepted label ids.",
+            "item": {
+              "key": "item",
+              "kind": "text",
+              "label": "Item",
+              "required": true
+            },
+            "key": "targets",
+            "kind": "list",
+            "label": "Targets",
+            "reorderable": true,
+            "required": true
+          },
+          {
+            "description": "Stable learner-assignable labels.",
+            "item": {
+              "key": "item",
+              "kind": "text",
+              "label": "Item",
+              "required": true
+            },
+            "key": "items",
+            "kind": "list",
+            "label": "Labels",
+            "reorderable": true,
+            "required": true
+          },
+          {
+            "description": "Informative feedback after submission.",
+            "key": "feedback",
+            "kind": "rich-text",
+            "label": "Feedback",
+            "required": false
+          }
+        ],
+        "supportsLocalization": true,
+        "version": "1.0.0"
+      },
+      "capabilities": [
+        "response:graphic-gap-match",
+        "response:textual-equivalent",
+        "interaction:drag-optional",
+        "result:partial-credit",
+        "result:ungraded",
+        "feedback:informative"
+      ],
+      "description": "Assigns stable labels to normalized visual targets through drag, click or keyboard-equivalent controls.",
+      "evidence": [
+        {
+          "citation": "Didact education-component research synthesis",
+          "claim": "Diagram labelling can elicit spatial relationships when those relationships are part of the objective.",
+          "id": "didact-label-diagram-boundary",
+          "limitations": "The UI itself is not evidence of learning and must retain a textual equivalent.",
+          "strength": "not-evaluated"
+        }
+      ],
+      "facets": {
+        "contexts": [
+          "self-paced",
+          "classroom",
+          "corporate",
+          "technical-training"
+        ],
+        "learnerActions": [
+          "relate",
+          "manipulate",
+          "construct"
+        ],
+        "purposes": [
+          "practice",
+          "assess"
+        ],
+        "representations": [
+          "spatial",
+          "image",
+          "text"
+        ],
+        "subjects": [
+          "science",
+          "technical",
+          "general"
+        ]
+      },
+      "families": [
+        "assessment",
+        "knowledge-representation"
+      ],
+      "id": "didact.label-diagram",
+      "lifecycle": {
+        "availability": "available",
+        "maturity": "stable"
+      },
+      "mappings": {
+        "qti": {
+          "fidelity": "exact",
+          "interaction": "graphicGapMatchInteraction",
+          "notes": "Stable labels are assigned to normalized graphic gaps.",
+          "version": "3.0"
+        },
+        "xapi": {
+          "interactionType": "matching",
+          "notes": "Serialize stable target-to-label assignments."
+        }
+      },
+      "name": "Label Diagram",
+      "optionalDependencies": [
+        {
+          "fallback": "Click and keyboard assignment over the same targets.",
+          "package": "@dnd-kit/core",
+          "purpose": "Pointer drag enhancement."
+        }
+      ],
+      "role": "interaction",
+      "tags": [
+        "diagram",
+        "anatomy",
+        "technical",
+        "no-drag-required",
+        "implemented:@didact/core/LabelDiagram"
+      ],
+      "variants": [
+        {
+          "id": "anatomy",
+          "name": "Anatomy diagram"
+        },
+        {
+          "id": "technical",
+          "name": "Technical diagram"
+        }
+      ],
+      "version": {
+        "component": "1.0.0",
+        "schema": "1.0.0"
+      }
+    },
+    {
+      "accessibility": {
+        "keyboard": "alternative",
+        "notes": "A textual From–Relationship–To builder performs every graph operation. Visual position is supplementary and relations do not depend on color.",
+        "screenReader": "full",
+        "wcagCriteria": [
+          "1.3.1",
+          "1.4.1",
+          "2.1.1",
+          "2.4.3",
+          "3.3.2",
+          "4.1.3"
+        ]
+      },
+      "authoring": {
+        "fields": [
+          {
+            "description": "Initial concepts and normalized positions.",
+            "item": {
+              "key": "item",
+              "kind": "text",
+              "label": "Item",
+              "required": true
+            },
+            "key": "nodes",
+            "kind": "list",
+            "label": "Concepts",
+            "reorderable": true,
+            "required": true
+          },
+          {
+            "description": "Initial directed or undirected labelled links.",
+            "item": {
+              "key": "item",
+              "kind": "text",
+              "label": "Item",
+              "required": true
+            },
+            "key": "relations",
+            "kind": "list",
+            "label": "Relations",
+            "reorderable": true,
+            "required": true
+          },
+          {
+            "description": "Learner-created node and connection policy.",
+            "fields": [
+              {
+                "key": "interactionValue",
+                "kind": "text",
+                "label": "Value",
+                "required": true
+              }
+            ],
+            "key": "interaction",
+            "kind": "object",
+            "label": "Interaction",
+            "required": true
+          },
+          {
+            "description": "Optional host evaluation policy.",
+            "fields": [
+              {
+                "key": "evaluationValue",
+                "kind": "text",
+                "label": "Value",
+                "required": true
+              }
+            ],
+            "key": "evaluation",
+            "kind": "object",
+            "label": "Evaluation",
+            "required": true
+          }
+        ],
+        "supportsLocalization": true,
+        "version": "1.0.0"
+      },
+      "capabilities": [
+        "artifact:concept-network",
+        "response:relations",
+        "response:textual-equivalent",
+        "authoring:learner-created-nodes",
+        "evaluation:host-port"
+      ],
+      "description": "Lets learners construct labelled relationships between concepts through synchronized graphical and textual representations.",
+      "evidence": [
+        {
+          "citation": "Fiorella & Mayer, Eight Ways to Promote Generative Learning",
+          "claim": "Constructing a concept map can prompt learners to select, organize and integrate ideas.",
+          "id": "fiorella-mayer-concept-mapping",
+          "limitations": "Benefit depends on the prompt, prior knowledge and guidance; a prebuilt map is not equivalent to constructing one.",
+          "strength": "moderate"
+        }
+      ],
+      "facets": {
+        "contexts": [
+          "self-paced",
+          "classroom",
+          "corporate"
+        ],
+        "learnerActions": [
+          "construct",
+          "relate",
+          "explain"
+        ],
+        "purposes": [
+          "create",
+          "reflect",
+          "assess"
+        ],
+        "representations": [
+          "network",
+          "text",
+          "spatial"
+        ],
+        "subjects": [
+          "general",
+          "science",
+          "business",
+          "humanities"
+        ]
+      },
+      "families": [
+        "generative-learning",
+        "knowledge-representation"
+      ],
+      "id": "didact.concept-map",
+      "lifecycle": {
+        "availability": "available",
+        "maturity": "stable"
+      },
+      "mappings": {
+        "qti": {
+          "fidelity": "approximate",
+          "interaction": "customInteraction",
+          "notes": "QTI has no native concept-network constructor; a PCI may preserve it.",
+          "version": "3.0"
+        },
+        "xapi": {
+          "interactionType": "performance",
+          "notes": "Report the submitted graph as a structured response extension."
+        }
+      },
+      "name": "Concept Map",
+      "optionalDependencies": [],
+      "role": "interaction",
+      "tags": [
+        "generative-learning",
+        "network",
+        "relationships",
+        "implemented:@didact/core/ConceptMap"
+      ],
+      "variants": [
+        {
+          "id": "scientific",
+          "name": "Scientific relationships"
+        },
+        {
+          "id": "process",
+          "name": "Process relationships"
+        }
+      ],
+      "version": {
+        "component": "1.0.0",
+        "schema": "1.0.0"
+      }
+    },
+    {
+      "accessibility": {
+        "draggingAlternative": true,
+        "keyboard": "alternative",
+        "notes": "Stroke state has a textual list and coordinate-entry path; keyboard controls can create points and no bitmap is the sole response representation.",
+        "screenReader": "full",
+        "wcagCriteria": [
+          "1.1.1",
+          "1.3.1",
+          "2.1.1",
+          "2.5.1",
+          "2.5.7",
+          "3.3.2",
+          "4.1.3"
+        ]
+      },
+      "authoring": {
+        "fields": [
+          {
+            "description": "Dimensions, optional background and accessibility description.",
+            "fields": [
+              {
+                "key": "surfaceValue",
+                "kind": "text",
+                "label": "Value",
+                "required": true
+              }
+            ],
+            "key": "surface",
+            "kind": "object",
+            "label": "Surface",
+            "required": true
+          },
+          {
+            "description": "Allowed freehand, line and marker tools.",
+            "item": {
+              "key": "item",
+              "kind": "text",
+              "label": "Item",
+              "required": true
+            },
+            "key": "tools",
+            "kind": "list",
+            "label": "Tools",
+            "reorderable": true,
+            "required": true
+          },
+          {
+            "description": "Optional host-provided evaluation.",
+            "fields": [
+              {
+                "key": "evaluationValue",
+                "kind": "text",
+                "label": "Value",
+                "required": true
+              }
+            ],
+            "key": "evaluation",
+            "kind": "object",
+            "label": "Evaluation",
+            "required": true
+          }
+        ],
+        "supportsLocalization": true,
+        "version": "1.0.0"
+      },
+      "capabilities": [
+        "artifact:vector-strokes",
+        "response:drawing",
+        "coordinates:normalized",
+        "interaction:undo",
+        "evaluation:host-port",
+        "result:ungraded"
+      ],
+      "description": "Captures serializable normalized strokes and annotations without reducing the learner artifact to a bitmap.",
+      "evidence": [
+        {
+          "citation": "Didact education-component research synthesis",
+          "claim": "Drawing can externalize spatial reasoning or procedural annotation when the task genuinely requires it.",
+          "id": "didact-drawing-response-boundary",
+          "limitations": "The component makes no general claim for drawing and does not auto-grade visual meaning.",
+          "strength": "not-evaluated"
+        }
+      ],
+      "facets": {
+        "contexts": [
+          "self-paced",
+          "classroom",
+          "corporate",
+          "technical-training"
+        ],
+        "learnerActions": [
+          "create",
+          "construct",
+          "manipulate"
+        ],
+        "purposes": [
+          "create",
+          "practice",
+          "assess"
+        ],
+        "representations": [
+          "spatial",
+          "image",
+          "artifact"
+        ],
+        "subjects": [
+          "mathematics",
+          "science",
+          "creative",
+          "technical"
+        ]
+      },
+      "families": [
+        "assessment",
+        "technical-practice",
+        "authoring"
+      ],
+      "id": "didact.drawing-response",
+      "lifecycle": {
+        "availability": "available",
+        "maturity": "stable"
+      },
+      "mappings": {
+        "qti": {
+          "fidelity": "approximate",
+          "interaction": "drawingInteraction",
+          "notes": "QTI drawingInteraction can carry an image response, while Didact retains structured strokes.",
+          "version": "3.0"
+        },
+        "xapi": {
+          "interactionType": "performance",
+          "notes": "Report submission metadata; raw strokes require an explicit extension and privacy policy."
+        }
+      },
+      "name": "Drawing Response",
+      "optionalDependencies": [],
+      "role": "interaction",
+      "tags": [
+        "drawing",
+        "annotation",
+        "geometry",
+        "vector",
+        "implemented:@didact/core/DrawingResponse"
+      ],
+      "variants": [
+        {
+          "id": "geometry",
+          "name": "Geometry construction"
+        },
+        {
+          "id": "annotation",
+          "name": "Visual annotation"
+        }
+      ],
+      "version": {
+        "component": "1.0.0",
+        "schema": "1.0.0"
+      }
+    },
+    {
+      "accessibility": {
+        "keyboard": "full",
+        "notes": "Every expression has a textual representation and labelled native input. Reordering and removal are keyboard-operable buttons; custom math rendering must retain the provided accessible expression.",
+        "screenReader": "full",
+        "wcagCriteria": [
+          "1.3.1",
+          "1.4.10",
+          "2.1.1",
+          "2.4.6",
+          "3.3.2",
+          "4.1.3"
+        ]
+      },
+      "authoring": {
+        "fields": [
+          {
+            "description": "Initial symbolic expression shown unchanged to the learner.",
+            "key": "initialExpression",
+            "kind": "rich-text",
+            "label": "Starting expression",
+            "required": true
+          },
+          {
+            "description": "Transformation goal and constraints.",
+            "key": "instructions",
+            "kind": "rich-text",
+            "label": "Instructions",
+            "required": true
+          },
+          {
+            "description": "Optional host-owned equivalence and reasoning policy.",
+            "fields": [
+              {
+                "key": "evaluationValue",
+                "kind": "text",
+                "label": "Value",
+                "required": true
+              }
+            ],
+            "key": "evaluation",
+            "kind": "object",
+            "label": "Evaluation",
+            "required": true
+          }
+        ],
+        "supportsLocalization": true,
+        "version": "1.0.0"
+      },
+      "capabilities": [
+        "artifact:symbolic-steps",
+        "response:constructed",
+        "evaluation:host-port",
+        "renderer:host-port",
+        "result:ungraded",
+        "feedback:informative"
+      ],
+      "description": "Captures learner-authored symbolic transformation steps and delegates mathematical equivalence to an explicit host evaluator.",
+      "evidence": [
+        {
+          "citation": "Didact education-component research synthesis",
+          "claim": "Writing intermediate transformations can externalize mathematical reasoning for inspection and feedback.",
+          "id": "didact-equation-workbench-boundary",
+          "limitations": "The workbench does not claim that symbolic manipulation alone improves learning and never infers equivalence by string comparison.",
+          "strength": "not-evaluated"
+        }
+      ],
+      "facets": {
+        "contexts": [
+          "self-paced",
+          "classroom",
+          "technical-training"
+        ],
+        "learnerActions": [
+          "calculate",
+          "construct",
+          "explain"
+        ],
+        "purposes": [
+          "practice",
+          "create",
+          "assess"
+        ],
+        "representations": [
+          "symbolic",
+          "text",
+          "artifact"
+        ],
+        "subjects": [
+          "mathematics",
+          "science",
+          "business"
+        ]
+      },
+      "families": [
+        "generative-learning",
+        "assessment",
+        "technical-practice"
+      ],
+      "id": "didact.equation-workbench",
+      "lifecycle": {
+        "availability": "available",
+        "maturity": "stable"
+      },
+      "mappings": {
+        "qti": {
+          "fidelity": "approximate",
+          "interaction": "extendedTextInteraction",
+          "notes": "QTI can retain the constructed response, but not Didact's structured transformation chain without an extension.",
+          "version": "3.0"
+        },
+        "xapi": {
+          "interactionType": "long-fill-in",
+          "notes": "Serialize the final answer and retain structured steps as an extension if required."
+        }
+      },
+      "name": "Equation Workbench",
+      "optionalDependencies": [],
+      "role": "interaction",
+      "tags": [
+        "mathematics",
+        "symbolic",
+        "reasoning",
+        "implemented:@didact/core/EquationWorkbench"
+      ],
+      "variants": [
+        {
+          "id": "algebra",
+          "name": "Algebraic transformation"
+        },
+        {
+          "id": "scientific",
+          "name": "Scientific symbolic process"
+        }
+      ],
+      "version": {
+        "component": "1.0.0",
+        "schema": "1.0.0"
+      }
+    },
+    {
+      "accessibility": {
+        "keyboard": "alternative",
+        "notes": "Author-defined segments are available as named list controls, so selection does not depend on pointer text highlighting. Categories, claims, quotes and notes remain textual.",
+        "screenReader": "full",
+        "wcagCriteria": [
+          "1.3.1",
+          "1.4.1",
+          "2.1.1",
+          "2.4.3",
+          "3.3.2",
+          "4.1.3"
+        ]
+      },
+      "authoring": {
+        "fields": [
+          {
+            "description": "Stable text segments with optional source offsets.",
+            "item": {
+              "key": "item",
+              "kind": "text",
+              "label": "Item",
+              "required": true
+            },
+            "key": "segments",
+            "kind": "list",
+            "label": "Source segments",
+            "reorderable": true,
+            "required": true
+          },
+          {
+            "description": "Labels used to classify selected evidence.",
+            "item": {
+              "key": "item",
+              "kind": "text",
+              "label": "Item",
+              "required": true
+            },
+            "key": "categories",
+            "kind": "list",
+            "label": "Evidence categories",
+            "reorderable": true,
+            "required": true
+          },
+          {
+            "description": "Optional assertions to support or challenge.",
+            "item": {
+              "key": "item",
+              "kind": "text",
+              "label": "Item",
+              "required": true
+            },
+            "key": "claims",
+            "kind": "list",
+            "label": "Claims",
+            "reorderable": true,
+            "required": true
+          },
+          {
+            "description": "Optional host evaluation policy.",
+            "fields": [
+              {
+                "key": "evaluationValue",
+                "kind": "text",
+                "label": "Value",
+                "required": true
+              }
+            ],
+            "key": "evaluation",
+            "kind": "object",
+            "label": "Evaluation",
+            "required": true
+          }
+        ],
+        "supportsLocalization": true,
+        "version": "1.0.0"
+      },
+      "capabilities": [
+        "artifact:text-annotations",
+        "response:evidence",
+        "response:relations",
+        "evaluation:host-port",
+        "result:ungraded",
+        "feedback:informative"
+      ],
+      "description": "Lets learners classify stable source segments, add notes and connect evidence to explicit claims.",
+      "evidence": [
+        {
+          "citation": "Didact education-component research synthesis",
+          "claim": "Selecting and explaining evidence can make interpretation and justification inspectable.",
+          "id": "didact-evidence-annotation-boundary",
+          "limitations": "Highlighting without a meaningful prompt, classification or explanation is not treated as an effective learning technique by itself.",
+          "strength": "not-evaluated"
+        }
+      ],
+      "facets": {
+        "contexts": [
+          "self-paced",
+          "classroom",
+          "corporate",
+          "technical-training"
+        ],
+        "learnerActions": [
+          "select",
+          "interpret",
+          "relate",
+          "explain"
+        ],
+        "purposes": [
+          "practice",
+          "create",
+          "assess",
+          "reflect"
+        ],
+        "representations": [
+          "text",
+          "network",
+          "artifact"
+        ],
+        "subjects": [
+          "humanities",
+          "language",
+          "business",
+          "general"
+        ]
+      },
+      "families": [
+        "generative-learning",
+        "assessment",
+        "knowledge-representation"
+      ],
+      "id": "didact.evidence-annotation",
+      "lifecycle": {
+        "availability": "available",
+        "maturity": "stable"
+      },
+      "mappings": {
+        "qti": {
+          "fidelity": "approximate",
+          "interaction": "hottextInteraction",
+          "notes": "Stable text selection maps approximately; categories, claims and notes require additional response data.",
+          "version": "3.0"
+        },
+        "xapi": {
+          "interactionType": "choice",
+          "notes": "Report stable segment identifiers and retain annotations as a structured extension."
+        }
+      },
+      "name": "Evidence Annotation",
+      "optionalDependencies": [],
+      "role": "interaction",
+      "tags": [
+        "reading",
+        "evidence",
+        "annotation",
+        "humanities",
+        "compliance",
+        "implemented:@didact/core/EvidenceAnnotation"
+      ],
+      "variants": [
+        {
+          "id": "source-analysis",
+          "name": "Source analysis"
+        },
+        {
+          "id": "incident-evidence",
+          "name": "Incident evidence"
+        }
+      ],
+      "version": {
+        "component": "1.0.0",
+        "schema": "1.0.0"
+      }
+    },
+    {
+      "accessibility": {
+        "keyboard": "alternative",
+        "notes": "The visual scale exposes its current reading as an accessible image name and always has synchronized range and numeric inputs. Units and feedback are textual.",
+        "screenReader": "full",
+        "wcagCriteria": [
+          "1.1.1",
+          "1.3.1",
+          "1.4.1",
+          "2.1.1",
+          "3.3.2",
+          "4.1.3"
+        ]
+      },
+      "authoring": {
+        "fields": [
+          {
+            "description": "Shared scale geometry.",
+            "key": "kind",
+            "kind": "select",
+            "label": "Instrument geometry",
+            "options": [
+              {
+                "label": "linear",
+                "value": "linear"
+              },
+              {
+                "label": "dial",
+                "value": "dial"
+              }
+            ],
+            "required": true
+          },
+          {
+            "description": "Lowest scale value.",
+            "key": "min",
+            "kind": "number",
+            "label": "Minimum",
+            "required": false
+          },
+          {
+            "description": "Highest scale value.",
+            "key": "max",
+            "kind": "number",
+            "label": "Maximum",
+            "required": false
+          },
+          {
+            "description": "Smallest selectable division.",
+            "key": "step",
+            "kind": "number",
+            "label": "Resolution",
+            "min": 0,
+            "required": false
+          },
+          {
+            "description": "Visible measurement unit.",
+            "key": "unit",
+            "kind": "text",
+            "label": "Unit",
+            "required": true
+          }
+        ],
+        "supportsLocalization": true,
+        "version": "1.0.0"
+      },
+      "capabilities": [
+        "response:numeric",
+        "interaction:instrument",
+        "units:explicit",
+        "precision:explicit",
+        "evaluation:host-port",
+        "result:ungraded"
+      ],
+      "description": "Presents accessible linear and dial scales for recording measurements with explicit unit and precision.",
+      "evidence": [
+        {
+          "citation": "Didact education-component research synthesis",
+          "claim": "Instrument reading can rehearse measurement when interpreting the scale is itself the objective.",
+          "id": "didact-measurement-lab-boundary",
+          "limitations": "A decorative gauge is not a separate educational component; concrete instruments remain recipes over this contract.",
+          "strength": "not-evaluated"
+        }
+      ],
+      "facets": {
+        "contexts": [
+          "self-paced",
+          "classroom",
+          "corporate",
+          "technical-training"
+        ],
+        "learnerActions": [
+          "manipulate",
+          "interpret"
+        ],
+        "purposes": [
+          "practice",
+          "explore",
+          "assess"
+        ],
+        "representations": [
+          "numeric",
+          "spatial",
+          "system"
+        ],
+        "subjects": [
+          "science",
+          "mathematics",
+          "technical"
+        ]
+      },
+      "families": [
+        "technical-practice",
+        "assessment",
+        "scenario-simulation"
+      ],
+      "id": "didact.measurement-lab",
+      "lifecycle": {
+        "availability": "available",
+        "maturity": "stable"
+      },
+      "mappings": {
+        "qti": {
+          "fidelity": "approximate",
+          "interaction": "sliderInteraction",
+          "notes": "A linear selectable scale maps to sliderInteraction; dial geometry and instrument semantics remain presentation metadata.",
+          "version": "3.0"
+        },
+        "xapi": {
+          "interactionType": "numeric",
+          "notes": "Report the selected reading and retain its unit in context or an extension."
+        }
+      },
+      "name": "Measurement Lab",
+      "optionalDependencies": [],
+      "role": "interaction",
+      "tags": [
+        "science",
+        "measurement",
+        "instruments",
+        "units",
+        "implemented:@didact/core/MeasurementLab"
+      ],
+      "variants": [
+        {
+          "id": "linear",
+          "name": "Linear instrument"
+        },
+        {
+          "id": "dial",
+          "name": "Dial instrument"
+        }
+      ],
+      "version": {
+        "component": "1.0.0",
+        "schema": "1.0.0"
+      }
+    },
+    {
+      "accessibility": {
+        "captions": "required",
+        "keyboard": "full",
+        "notes": "Native or adapter playback must expose keyboard controls. Audio requires a transcript; spoken video requires captions; meaningful visual video requires a description equivalent. Checkpoints are reachable outside the timeline and never depend on timing alone.",
+        "screenReader": "full",
+        "wcagCriteria": [
+          "1.2.1",
+          "1.2.2",
+          "1.2.3",
+          "1.2.5",
+          "2.1.1",
+          "2.2.1",
+          "2.2.2",
+          "2.4.3",
+          "4.1.3"
+        ]
+      },
+      "authoring": {
+        "fields": [
+          {
+            "description": "Audio/video asset, duration, tracks and accessibility equivalents.",
+            "fields": [
+              {
+                "key": "mediaValue",
+                "kind": "text",
+                "label": "Value",
+                "required": true
+              }
+            ],
+            "key": "media",
+            "kind": "object",
+            "label": "Media",
+            "required": true
+          },
+          {
+            "description": "Timed, ordered and speaker-labelled transcript cues.",
+            "item": {
+              "key": "item",
+              "kind": "text",
+              "label": "Item",
+              "required": true
+            },
+            "key": "transcript",
+            "kind": "list",
+            "label": "Transcript",
+            "reorderable": true,
+            "required": true
+          },
+          {
+            "description": "Timed references to embedded Didact activities.",
+            "item": {
+              "key": "item",
+              "kind": "text",
+              "label": "Item",
+              "required": true
+            },
+            "key": "checkpoints",
+            "kind": "list",
+            "label": "Checkpoints",
+            "reorderable": true,
+            "required": true
+          },
+          {
+            "description": "Media progress and required-checkpoint completion policy.",
+            "fields": [
+              {
+                "key": "completionValue",
+                "kind": "text",
+                "label": "Value",
+                "required": true
+              }
+            ],
+            "key": "completion",
+            "kind": "object",
+            "label": "Completion",
+            "required": true
+          }
+        ],
+        "supportsLocalization": true,
+        "version": "1.0.0"
+      },
+      "capabilities": [
+        "media:audio",
+        "media:video",
+        "media:transcript",
+        "media:captions",
+        "orchestration:timed-checkpoints",
+        "response:composite",
+        "result:child-owned",
+        "completion:policy"
+      ],
+      "description": "Coordinates timed learning checkpoints, transcripts and completion over audio or video without owning media playback.",
+      "evidence": [
+        {
+          "citation": "H5P (2023), Status update: What content types are most popular?",
+          "claim": "Interactive Video was widely used in the measured H5P.com corpus and supports prioritizing the authoring need.",
+          "id": "h5p-2023-interactive-media-usage",
+          "limitations": "Usage is not learning-effect evidence, the data describe H5P.com in 2022, and an interactive wrapper has no automatic pedagogical benefit.",
+          "strength": "not-evaluated"
+        }
+      ],
+      "facets": {
+        "contexts": [
+          "self-paced",
+          "classroom",
+          "corporate",
+          "compliance",
+          "onboarding",
+          "technical-training"
+        ],
+        "learnerActions": [
+          "inspect",
+          "interpret",
+          "respond"
+        ],
+        "purposes": [
+          "present",
+          "practice",
+          "orchestrate"
+        ],
+        "representations": [
+          "temporal",
+          "audio",
+          "video",
+          "procedural"
+        ],
+        "subjects": [
+          "general",
+          "language",
+          "business",
+          "technical"
+        ]
+      },
+      "families": [
+        "media",
+        "sequence-procedure"
+      ],
+      "id": "didact.interactive-media",
+      "lifecycle": {
+        "availability": "available",
+        "maturity": "experimental"
+      },
+      "mappings": {
+        "qti": {
+          "fidelity": "none",
+          "interaction": "none",
+          "notes": "The composite owns timing and completion; each child checkpoint retains its own QTI mapping.",
+          "version": "3.0"
+        },
+        "xapi": {
+          "notes": "Report media/session events separately and preserve each child activity's interaction type.",
+          "verbs": [
+            "experienced",
+            "attempted",
+            "completed"
+          ]
+        }
+      },
+      "name": "Interactive Media",
+      "optionalDependencies": [],
+      "role": "composite",
+      "tags": [
+        "interactive-video",
+        "interactive-audio",
+        "checkpoints",
+        "transcript",
+        "foundation:media",
+        "implemented:@didact/core/InteractiveMedia"
+      ],
+      "variants": [
+        {
+          "id": "audio",
+          "name": "Interactive audio"
+        },
+        {
+          "id": "video",
+          "name": "Interactive video"
+        }
+      ],
+      "version": {
+        "component": "1.0.0",
+        "schema": "1.0.0"
+      }
+    },
+    {
+      "accessibility": {
+        "draggingAlternative": true,
+        "keyboard": "full",
+        "notes": "Graph and table are synchronized projections of one state. Every pointer operation has keyboard and tabular controls; series, values and units have textual names; meaning never depends on color alone.",
+        "screenReader": "full",
+        "wcagCriteria": [
+          "1.3.1",
+          "1.4.1",
+          "1.4.11",
+          "2.1.1",
+          "2.4.3",
+          "2.5.1",
+          "2.5.7",
+          "4.1.2",
+          "4.1.3"
+        ]
+      },
+      "authoring": {
+        "fields": [
+          {
+            "description": "Objective, learner action, submission and feedback policy.",
+            "fields": [
+              {
+                "key": "taskValue",
+                "kind": "text",
+                "label": "Value",
+                "required": true
+              }
+            ],
+            "key": "task",
+            "kind": "object",
+            "label": "Learning task",
+            "required": true
+          },
+          {
+            "description": "Horizontal and vertical scales, domains, labels and units.",
+            "fields": [
+              {
+                "key": "axesValue",
+                "kind": "text",
+                "label": "Value",
+                "required": true
+              }
+            ],
+            "key": "axes",
+            "kind": "object",
+            "label": "Axes",
+            "required": true
+          },
+          {
+            "description": "Stable-id series and their ordered points.",
+            "item": {
+              "key": "item",
+              "kind": "text",
+              "label": "Item",
+              "required": true
+            },
+            "key": "series",
+            "kind": "list",
+            "label": "Series",
+            "reorderable": true,
+            "required": true
+          },
+          {
+            "description": "Optional reference regions, lines or labels.",
+            "item": {
+              "key": "item",
+              "kind": "text",
+              "label": "Item",
+              "required": true
+            },
+            "key": "annotations",
+            "kind": "list",
+            "label": "Annotations",
+            "reorderable": true,
+            "required": false
+          },
+          {
+            "description": "Allowed inspection, selection and manipulation operations.",
+            "fields": [
+              {
+                "key": "interactionValue",
+                "kind": "text",
+                "label": "Value",
+                "required": true
+              }
+            ],
+            "key": "interaction",
+            "kind": "object",
+            "label": "Interaction",
+            "required": true
+          }
+        ],
+        "supportsLocalization": true,
+        "version": "1.0.0"
+      },
+      "capabilities": [
+        "data:cartesian",
+        "data:series",
+        "data:function-samples",
+        "data:annotations",
+        "response:point-selection",
+        "response:range-selection",
+        "response:value-manipulation",
+        "result:task-owned",
+        "feedback:informative",
+        "accessibility:synchronized-table"
+      ],
+      "description": "Lets learners inspect, select and manipulate functions or data series through synchronized graphical and tabular views.",
+      "evidence": [
+        {
+          "citation": "Didact Data & Coordinate foundation design gate",
+          "claim": "Interactive graphical representation creates a reusable learner action across mathematics, science and business data.",
+          "id": "didact-data-coordinate-boundary",
+          "limitations": "A graph is not independently evidence of learning; the task and informative feedback determine its educational value.",
+          "strength": "not-evaluated"
+        }
+      ],
+      "facets": {
+        "contexts": [
+          "self-paced",
+          "classroom",
+          "corporate",
+          "technical-training"
+        ],
+        "learnerActions": [
+          "inspect",
+          "select",
+          "manipulate",
+          "experiment",
+          "interpret"
+        ],
+        "purposes": [
+          "explore",
+          "practice"
+        ],
+        "representations": [
+          "numeric",
+          "symbolic",
+          "data-series",
+          "spatial",
+          "temporal"
+        ],
+        "subjects": [
+          "mathematics",
+          "science",
+          "data",
+          "business"
+        ]
+      },
+      "families": [
+        "knowledge-representation",
+        "technical-practice"
+      ],
+      "id": "didact.data-explorer",
+      "lifecycle": {
+        "availability": "available",
+        "maturity": "experimental"
+      },
+      "mappings": {
+        "qti": {
+          "fidelity": "none",
+          "interaction": "none",
+          "notes": "QTI has no native data-exploration interaction; a future PCI adapter may carry the experience without becoming its public contract.",
+          "version": "3.0"
+        },
+        "xapi": {
+          "interactionType": "other",
+          "notes": "Adapters report meaningful selections, manipulations and submissions rather than pointer movement.",
+          "verbs": [
+            "experienced",
+            "interacted",
+            "answered"
+          ]
+        }
+      },
+      "name": "Data Explorer",
+      "optionalDependencies": [],
+      "role": "interaction",
+      "tags": [
+        "graph",
+        "chart",
+        "function",
+        "data-series",
+        "coordinates",
+        "foundation:data-coordinate",
+        "implemented:@didact/core/DataExplorer"
+      ],
+      "variants": [
+        {
+          "description": "A sampled or parametrized mathematical function.",
+          "id": "function",
+          "name": "Function exploration"
+        },
+        {
+          "description": "Discrete scientific, statistical or business observations.",
+          "id": "series",
+          "name": "Data-series exploration"
+        }
+      ],
+      "version": {
+        "component": "1.0.0",
+        "schema": "1.0.0"
+      }
+    },
+    {
+      "accessibility": {
+        "keyboard": "full",
+        "notes": "Choices are keyboard-operable controls in document order. Consequences are announced, unavailable routes remain disabled, and no timed or pointer-only action is required.",
+        "screenReader": "full",
+        "wcagCriteria": [
+          "1.3.1",
+          "2.1.1",
+          "2.4.3",
+          "2.4.6",
+          "3.3.2",
+          "4.1.2",
+          "4.1.3"
+        ]
+      },
+      "authoring": {
+        "fields": [
+          {
+            "description": "Serializable state available to conditions and effects.",
+            "fields": [
+              {
+                "key": "initialVariablesValue",
+                "kind": "text",
+                "label": "Value",
+                "required": true
+              }
+            ],
+            "key": "initialVariables",
+            "kind": "object",
+            "label": "Initial variables",
+            "required": true
+          },
+          {
+            "description": "Decision and outcome nodes with stable identifiers.",
+            "item": {
+              "key": "item",
+              "kind": "text",
+              "label": "Item",
+              "required": true
+            },
+            "key": "nodes",
+            "kind": "list",
+            "label": "Nodes",
+            "reorderable": true,
+            "required": true
+          },
+          {
+            "description": "Backtracking and restart policy.",
+            "fields": [
+              {
+                "key": "navigationValue",
+                "kind": "text",
+                "label": "Value",
+                "required": true
+              }
+            ],
+            "key": "navigation",
+            "kind": "object",
+            "label": "Navigation",
+            "required": true
+          }
+        ],
+        "supportsLocalization": true,
+        "version": "1.0.0"
+      },
+      "capabilities": [
+        "scenario:branching",
+        "state:variables",
+        "state:conditions",
+        "state:effects",
+        "navigation:history",
+        "feedback:consequences",
+        "result:outcome"
+      ],
+      "description": "Lets learners make contextual decisions whose conditions, variable effects and consequences form a serializable state graph.",
+      "evidence": [
+        {
+          "citation": "Sitzmann (2011), A meta-analytic examination of the instructional effectiveness of computer-based simulation games",
+          "claim": "Simulation practice can support learning when it actively engages learners and is integrated with instructional support.",
+          "id": "sitzmann-2011-simulation-games",
+          "limitations": "The evidence concerns simulation games broadly, includes publication-bias limitations, and does not validate every branching scenario or UI pattern.",
+          "strength": "low"
+        }
+      ],
+      "facets": {
+        "contexts": [
+          "self-paced",
+          "corporate",
+          "compliance",
+          "onboarding",
+          "technical-training"
+        ],
+        "learnerActions": [
+          "decide",
+          "interpret",
+          "experiment"
+        ],
+        "purposes": [
+          "practice",
+          "assess",
+          "simulate"
+        ],
+        "representations": [
+          "text",
+          "procedural",
+          "network"
+        ],
+        "subjects": [
+          "general",
+          "business",
+          "technical"
+        ]
+      },
+      "families": [
+        "scenario-simulation",
+        "sequence-procedure"
+      ],
+      "id": "didact.branching-scenario",
+      "lifecycle": {
+        "availability": "available",
+        "maturity": "experimental"
+      },
+      "mappings": {
+        "qti": {
+          "fidelity": "approximate",
+          "interaction": "customInteraction",
+          "notes": "QTI has no native state-graph scenario; a PCI adapter may preserve it.",
+          "version": "3.0"
+        },
+        "xapi": {
+          "interactionType": "performance",
+          "notes": "Report meaningful decisions and final outcomes.",
+          "verbs": [
+            "attempted",
+            "interacted",
+            "completed"
+          ]
+        }
+      },
+      "name": "Branching Scenario",
+      "optionalDependencies": [
+        {
+          "fallback": "Use the native DecisionGraphDefinition authoring format.",
+          "package": "inkjs",
+          "purpose": "Optional Ink adapter; never the public contract."
+        }
+      ],
+      "role": "interaction",
+      "tags": [
+        "branching",
+        "scenario",
+        "procedure",
+        "decision-graph",
+        "foundation:decision-procedure",
+        "implemented:@didact/core/BranchingScenario"
+      ],
+      "variants": [
+        {
+          "id": "conversation",
+          "name": "Branching conversation"
+        },
+        {
+          "id": "procedure",
+          "name": "Procedure practice"
+        }
+      ],
+      "version": {
+        "component": "1.0.0",
+        "schema": "1.0.0"
+      }
+    },
+    {
+      "accessibility": {
+        "keyboard": "full",
+        "notes": "Every parameter and action has a standard control. Observable values provide a textual equivalent to custom visual renderers; play, pause, step, reset and snapshot controls have accessible names and never require dragging.",
+        "screenReader": "full",
+        "wcagCriteria": [
+          "1.1.1",
+          "1.3.1",
+          "1.4.1",
+          "2.1.1",
+          "2.2.2",
+          "2.4.6",
+          "2.5.7",
+          "4.1.2",
+          "4.1.3"
+        ]
+      },
+      "authoring": {
+        "fields": [
+          {
+            "description": "Learner-adjustable inputs.",
+            "item": {
+              "key": "item",
+              "kind": "text",
+              "label": "Item",
+              "required": true
+            },
+            "key": "parameters",
+            "kind": "list",
+            "label": "Parameters",
+            "reorderable": true,
+            "required": true
+          },
+          {
+            "description": "Typed state exposed by the runtime.",
+            "item": {
+              "key": "item",
+              "kind": "text",
+              "label": "Item",
+              "required": true
+            },
+            "key": "variables",
+            "kind": "list",
+            "label": "Observables",
+            "reorderable": true,
+            "required": true
+          },
+          {
+            "description": "Domain operations supplied by the runtime.",
+            "item": {
+              "key": "item",
+              "kind": "text",
+              "label": "Item",
+              "required": true
+            },
+            "key": "actions",
+            "kind": "list",
+            "label": "Actions",
+            "reorderable": true,
+            "required": true
+          },
+          {
+            "description": "Manual or continuous deterministic time policy.",
+            "fields": [
+              {
+                "key": "clockValue",
+                "kind": "text",
+                "label": "Value",
+                "required": true
+              }
+            ],
+            "key": "clock",
+            "kind": "object",
+            "label": "Clock",
+            "required": true
+          },
+          {
+            "description": "Optional save and restore policy.",
+            "fields": [
+              {
+                "key": "snapshotsValue",
+                "kind": "text",
+                "label": "Value",
+                "required": true
+              }
+            ],
+            "key": "snapshots",
+            "kind": "object",
+            "label": "Snapshots",
+            "required": true
+          }
+        ],
+        "supportsLocalization": true,
+        "version": "1.0.0"
+      },
+      "capabilities": [
+        "simulation:runtime-port",
+        "simulation:parameters",
+        "simulation:actions",
+        "simulation:clock",
+        "simulation:observables",
+        "simulation:snapshots",
+        "result:ungraded"
+      ],
+      "description": "Coordinates parameters, deterministic state transitions, time, domain actions, observables and snapshots without owning a domain-specific solver.",
+      "evidence": [
+        {
+          "citation": "Sitzmann (2011), A meta-analytic examination of the instructional effectiveness of computer-based simulation games",
+          "claim": "Simulation practice can support learning when learners actively control relevant variables and receive instructional support.",
+          "id": "sitzmann-2011-simulation-games",
+          "limitations": "This component is infrastructure for simulation practice; the evidence does not validate a bare model without prediction, task and feedback.",
+          "strength": "low"
+        }
+      ],
+      "facets": {
+        "contexts": [
+          "self-paced",
+          "classroom",
+          "corporate",
+          "technical-training"
+        ],
+        "learnerActions": [
+          "manipulate",
+          "experiment",
+          "interpret"
+        ],
+        "purposes": [
+          "explore",
+          "practice",
+          "simulate"
+        ],
+        "representations": [
+          "numeric",
+          "temporal",
+          "system"
+        ],
+        "subjects": [
+          "mathematics",
+          "science",
+          "data",
+          "business",
+          "technical"
+        ]
+      },
+      "families": [
+        "scenario-simulation",
+        "technical-practice",
+        "knowledge-representation"
+      ],
+      "id": "didact.simulation-lab",
+      "lifecycle": {
+        "availability": "available",
+        "maturity": "experimental"
+      },
+      "mappings": {
+        "qti": {
+          "fidelity": "approximate",
+          "interaction": "customInteraction",
+          "notes": "A PCI adapter may carry a simulation but QTI does not define its system runtime.",
+          "version": "3.0"
+        },
+        "xapi": {
+          "interactionType": "performance",
+          "notes": "Report parameter changes, meaningful actions and task completion outside the high-frequency clock.",
+          "verbs": [
+            "experienced",
+            "interacted",
+            "completed"
+          ]
+        }
+      },
+      "name": "Simulation Lab",
+      "optionalDependencies": [],
+      "role": "interaction",
+      "tags": [
+        "simulation",
+        "system",
+        "parameters",
+        "observables",
+        "snapshots",
+        "foundation:system-simulation",
+        "implemented:@didact/core/SimulationLab"
+      ],
+      "variants": [
+        {
+          "id": "temporal-visual",
+          "name": "Temporal visual system"
+        },
+        {
+          "id": "state-model",
+          "name": "State-based system"
+        }
+      ],
+      "version": {
+        "component": "1.0.0",
+        "schema": "1.0.0"
+      }
+    },
+    {
+      "accessibility": {
+        "keyboard": "full",
+        "notes": "Files are keyboard-operable tabs, editing uses a labelled text control, read-only references remain selectable, and output and feedback are textual live regions. Rich editors must preserve this baseline.",
+        "screenReader": "full",
+        "wcagCriteria": [
+          "1.3.1",
+          "2.1.1",
+          "2.4.3",
+          "2.4.6",
+          "3.3.2",
+          "4.1.2",
+          "4.1.3"
+        ]
+      },
+      "authoring": {
+        "fields": [
+          {
+            "description": "Editable and read-only files with stable ids and paths.",
+            "item": {
+              "key": "item",
+              "kind": "text",
+              "label": "Item",
+              "required": true
+            },
+            "key": "files",
+            "kind": "list",
+            "label": "Files",
+            "reorderable": true,
+            "required": true
+          },
+          {
+            "description": "Runtime id, timeout and sandbox policy.",
+            "fields": [
+              {
+                "key": "executionValue",
+                "kind": "text",
+                "label": "Value",
+                "required": true
+              }
+            ],
+            "key": "execution",
+            "kind": "object",
+            "label": "Execution",
+            "required": true
+          },
+          {
+            "description": "Optional host-provided grading policy.",
+            "fields": [
+              {
+                "key": "evaluationValue",
+                "kind": "text",
+                "label": "Value",
+                "required": true
+              }
+            ],
+            "key": "evaluation",
+            "kind": "object",
+            "label": "Evaluation",
+            "required": true
+          }
+        ],
+        "supportsLocalization": true,
+        "version": "1.0.0"
+      },
+      "capabilities": [
+        "artifact:multi-file",
+        "artifact:read-only-reference",
+        "execution:host-port",
+        "execution:sandbox-required",
+        "evaluation:host-port",
+        "feedback:informative"
+      ],
+      "description": "Lets learners edit multi-file technical artifacts and request execution and evaluation through explicit host-provided sandbox ports.",
+      "evidence": [
+        {
+          "citation": "Didact Artifact & Execution foundation design gate",
+          "claim": "Producing and testing an artifact supports authentic technical practice when aligned with a concrete task and informative feedback.",
+          "id": "didact-artifact-execution-boundary",
+          "limitations": "The workspace itself has no automatic learning benefit; sandbox security, task quality and grading validity remain host responsibilities.",
+          "strength": "not-evaluated"
+        }
+      ],
+      "facets": {
+        "contexts": [
+          "self-paced",
+          "classroom",
+          "corporate",
+          "technical-training"
+        ],
+        "learnerActions": [
+          "create",
+          "execute",
+          "interpret"
+        ],
+        "purposes": [
+          "practice",
+          "create",
+          "assess"
+        ],
+        "representations": [
+          "artifact",
+          "symbolic",
+          "text"
+        ],
+        "subjects": [
+          "technical",
+          "data",
+          "business"
+        ]
+      },
+      "families": [
+        "technical-practice",
+        "assessment"
+      ],
+      "id": "didact.code-exercise",
+      "lifecycle": {
+        "availability": "available",
+        "maturity": "experimental"
+      },
+      "mappings": {
+        "qti": {
+          "fidelity": "approximate",
+          "interaction": "customInteraction",
+          "notes": "A PCI adapter may carry the response, but QTI does not define execution or sandboxing.",
+          "version": "3.0"
+        },
+        "xapi": {
+          "interactionType": "performance",
+          "notes": "Report meaningful runs and submissions, never keystrokes or raw source unless policy explicitly permits it.",
+          "verbs": [
+            "attempted",
+            "interacted",
+            "completed"
+          ]
+        }
+      },
+      "name": "Code Exercise",
+      "optionalDependencies": [
+        {
+          "fallback": "Use the built-in textarea workspace and a host execution port.",
+          "package": "@codesandbox/sandpack-react",
+          "purpose": "Optional rich JavaScript/TypeScript preview adapter."
+        }
+      ],
+      "role": "interaction",
+      "tags": [
+        "code",
+        "sql",
+        "workspace",
+        "sandbox",
+        "foundation:artifact-execution",
+        "implemented:@didact/core/CodeExercise"
+      ],
+      "variants": [
+        {
+          "id": "programming",
+          "name": "Programming exercise"
+        },
+        {
+          "id": "query",
+          "name": "Data query exercise"
+        }
+      ],
+      "version": {
+        "component": "1.0.0",
+        "schema": "1.0.0"
+      }
+    }
+  ],
+  "registry_items": [
+    {
+      "dependencies": [
+        "clsx",
+        "tailwind-merge"
+      ],
+      "description": "Accessible consequential decision practice over a serializable graph with variables, conditions, effects, history and informative outcomes.",
+      "files": [
+        {
+          "path": "packages/core/src/components/branching-scenario.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/core/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "branching-scenario",
+      "registry_dependencies": [
+        "button",
+        "card",
+        "decision-graph-schema"
+      ],
+      "title": "Branching Scenario",
+      "type": "registry:ui"
+    },
+    {
+      "dependencies": [
+        "clsx",
+        "tailwind-merge",
+        "react-icons"
+      ],
+      "description": "A multi-file technical workspace with accessible editing and host-injected sandbox execution and evaluation ports.",
+      "files": [
+        {
+          "path": "packages/core/src/components/code-exercise.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/core/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "code-exercise",
+      "registry_dependencies": [
+        "button",
+        "card",
+        "textarea",
+        "artifact-execution-schema"
+      ],
+      "title": "Code Exercise",
+      "type": "registry:ui"
+    },
+    {
+      "dependencies": [
+        "clsx",
+        "tailwind-merge",
+        "react-icons"
+      ],
+      "description": "A serializable concept-network constructor with graphical and complete textual relationship builders.",
+      "files": [
+        {
+          "path": "packages/core/src/components/concept-map.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/core/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "concept-map",
+      "registry_dependencies": [
+        "button",
+        "card",
+        "input",
+        "label"
+      ],
+      "title": "Concept Map",
+      "type": "registry:ui"
+    },
+    {
+      "dependencies": [
+        "clsx",
+        "tailwind-merge"
+      ],
+      "description": "An accessible graph-and-table experience for inspecting and manipulating mathematical functions, scientific series and business data over one serializable state.",
+      "files": [
+        {
+          "path": "packages/core/src/components/data-explorer.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/core/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "data-explorer",
+      "registry_dependencies": [
+        "button",
+        "card",
+        "input",
+        "label",
+        "data-coordinate-schema"
+      ],
+      "title": "Data Explorer",
+      "type": "registry:ui"
+    },
+    {
+      "dependencies": [
+        "clsx",
+        "tailwind-merge",
+        "react-icons"
+      ],
+      "description": "Responsive SVG drawing and annotation with structured normalized strokes, keyboard coordinates and optional host evaluation.",
+      "files": [
+        {
+          "path": "packages/core/src/components/drawing-response.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/core/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "drawing-response",
+      "registry_dependencies": [
+        "button",
+        "card",
+        "input",
+        "label"
+      ],
+      "title": "Drawing Response",
+      "type": "registry:ui"
+    },
+    {
+      "dependencies": [
+        "clsx",
+        "tailwind-merge",
+        "react-icons"
+      ],
+      "description": "Structured symbolic transformation steps with host-injected rendering and evaluation.",
+      "files": [
+        {
+          "path": "packages/core/src/components/equation-workbench.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/core/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "equation-workbench",
+      "registry_dependencies": [
+        "button",
+        "card",
+        "input",
+        "label"
+      ],
+      "title": "Equation Workbench",
+      "type": "registry:ui"
+    },
+    {
+      "dependencies": [
+        "clsx",
+        "tailwind-merge"
+      ],
+      "description": "Stable source-segment annotation with categories, claims, notes and an accessible list interaction.",
+      "files": [
+        {
+          "path": "packages/core/src/components/evidence-annotation.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/core/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "evidence-annotation",
+      "registry_dependencies": [
+        "button",
+        "card",
+        "checkbox",
+        "input",
+        "label",
+        "textarea"
+      ],
+      "title": "Evidence Annotation",
+      "type": "registry:ui"
+    },
+    {
+      "dependencies": [
+        "class-variance-authority",
+        "clsx",
+        "tailwind-merge"
+      ],
+      "description": "A front/back flashcard (RF-1) with a 3D flip interaction, built on @didact/ui's Card/Button/ToggleGroup: a single primary 'Reveal answer' Button discloses the back face, and only then does a segmented ToggleGroup rating control (Known / Needs review) appear in the CardFooter -- reveal-then-rate, with one action hierarchy tier per docs/interface-norms.md. Both flip and rating are controllable or left to the component's own state. Presentation only -- no scheduling or persistence, see packages/core/src/components/flashcard.tsx for the full rationale.",
+      "files": [
+        {
+          "path": "packages/core/src/components/flashcard.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/core/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "flashcard",
+      "registry_dependencies": [
+        "card",
+        "button",
+        "toggle-group"
+      ],
+      "title": "Flashcard",
+      "type": "registry:ui"
+    },
+    {
+      "dependencies": [
+        "clsx",
+        "tailwind-merge"
+      ],
+      "description": "Three related learning components: an ungraded SelfExplanationPrompt with post-submit model comparison, a static or progressively disclosed WorkedExample, and a CompletionProblem with worked/missing steps, partial results and informative per-step feedback. Includes controlled/uncontrolled APIs, localization, partial/empty/disabled states and accessible native form controls.",
+      "files": [
+        {
+          "path": "packages/core/src/components/generative-learning.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/core/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "generative-learning",
+      "registry_dependencies": [
+        "button",
+        "card",
+        "input",
+        "label",
+        "textarea"
+      ],
+      "title": "Self-explanation, Worked Example and Completion Problem",
+      "type": "registry:ui"
+    },
+    {
+      "dependencies": [
+        "clsx",
+        "tailwind-merge"
+      ],
+      "description": "RF-5 inline Term and compact Glossary list. Terms open an accessible anchored popover without navigation; optional recallPrompt keeps the definition out of the DOM until explicitly revealed, converting passive lookup into an active-recall moment. Supports controlled state, partial streaming entries, localized labels and empty state, rich definitions/examples, keyboard operation, Escape focus restoration, and token-only styling.",
+      "files": [
+        {
+          "path": "packages/core/src/components/glossary.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/core/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "glossary",
+      "registry_dependencies": [
+        "button",
+        "popover"
+      ],
+      "title": "Glossary / Term",
+      "type": "registry:ui"
+    },
+    {
+      "dependencies": [
+        "clsx",
+        "tailwind-merge"
+      ],
+      "description": "RF-6 progressive Hint, standalone Reveal, and HintReveal alias. Hints, solution and feedback are conditionally mounted only after explicit learner requests, never merely hidden in the DOM. Includes controlled/uncontrolled disclosure state, callbacks, localized functional labels, partial streaming content, explicit pending state, keyboard/ARIA semantics and reduced-motion-safe token styling.",
+      "files": [
+        {
+          "path": "packages/core/src/components/hint-reveal.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/core/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "hint-reveal",
+      "registry_dependencies": [
+        "button",
+        "card"
+      ],
+      "title": "Hint / Reveal",
+      "type": "registry:ui"
+    },
+    {
+      "dependencies": [
+        "clsx",
+        "tailwind-merge"
+      ],
+      "description": "A responsive spatial interaction for predefined regions or normalized free points. Pointer input is paired with an equivalent textual list or percentage-coordinate controls; alt text, long descriptions, single or multiple selection, ungraded and partial results, streaming content and post-submit feedback are supported.",
+      "files": [
+        {
+          "path": "packages/core/src/components/hotspot.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/core/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "hotspot",
+      "registry_dependencies": [
+        "button",
+        "card",
+        "input",
+        "label"
+      ],
+      "title": "Hotspot / Select Point",
+      "type": "registry:ui"
+    },
+    {
+      "dependencies": [
+        "clsx",
+        "tailwind-merge",
+        "react-icons"
+      ],
+      "description": "Coordinates timed learning checkpoints and a navigable transcript over audio or video. Child activities retain their own response, evaluation and feedback contracts; native playback is replaceable through an adapter.",
+      "files": [
+        {
+          "path": "packages/core/src/components/interactive-media.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/core/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "interactive-media",
+      "registry_dependencies": [
+        "button",
+        "card",
+        "separator",
+        "media-player",
+        "interactive-media-schema"
+      ],
+      "title": "Interactive Media",
+      "type": "registry:ui"
+    },
+    {
+      "dependencies": [
+        "clsx",
+        "tailwind-merge",
+        "react-icons",
+        "@dnd-kit/core"
+      ],
+      "description": "Accessible normalized diagram labelling with optional drag and complete click, keyboard and textual alternatives.",
+      "files": [
+        {
+          "path": "packages/core/src/components/label-diagram.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/core/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "label-diagram",
+      "registry_dependencies": [
+        "button",
+        "card"
+      ],
+      "title": "Label Diagram",
+      "type": "registry:ui"
+    },
+    {
+      "dependencies": [
+        "clsx",
+        "tailwind-merge"
+      ],
+      "description": "A skill-mastery status badge (beginner/intermediate/advanced, optional percent) composed from @didact/ui's Badge (level maps to Badge's variant), with an optional interactive expand-on-click mode rendered onto a real <button> via Badge's asChild -- see packages/core/src/components/mastery-badge.tsx for the full rationale.",
+      "files": [
+        {
+          "path": "packages/core/src/components/mastery-badge.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/core/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "mastery-badge",
+      "registry_dependencies": [
+        "badge"
+      ],
+      "title": "Mastery Badge",
+      "type": "registry:ui"
+    },
+    {
+      "dependencies": [
+        "@dnd-kit/core@6.3.1",
+        "@dnd-kit/sortable@10.0.0",
+        "clsx",
+        "tailwind-merge"
+      ],
+      "description": "The RF-3 interaction family: MatchingExercise, SortExercise, and CategorizeExercise. Matching uses identical fixed nodes on both sides, with connection points on opposite edges; its primary interaction lets the learner click anywhere on each node, while the SVG line still runs exactly between the two filled points and drag remains optional. Categorize physically moves and reflows cards across an Unassigned lane and category columns; Sort reorders a list. Every variant includes a non-dragging WCAG 2.5.7 path, pointer and keyboard support, controlled/uncontrolled values, text-and-icon results, feedback, empty states, and token-only styling.",
+      "files": [
+        {
+          "path": "packages/core/src/components/matching-exercises.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/core/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "matching-exercises",
+      "registry_dependencies": [
+        "button",
+        "card"
+      ],
+      "title": "Matching / Sort / Categorize Exercises",
+      "type": "registry:ui"
+    },
+    {
+      "dependencies": [
+        "clsx",
+        "tailwind-merge"
+      ],
+      "description": "Accessible linear and dial measurement instruments with explicit scales, units and precision.",
+      "files": [
+        {
+          "path": "packages/core/src/components/measurement-lab.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/core/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "measurement-lab",
+      "registry_dependencies": [
+        "button",
+        "card",
+        "input",
+        "label"
+      ],
+      "title": "Measurement Lab",
+      "type": "registry:ui"
+    },
+    {
+      "dependencies": [
+        "clsx",
+        "tailwind-merge"
+      ],
+      "description": "A quantitative response interaction with exact values, absolute or relative tolerance, open or closed ranges, visible or required units, localized decimal parsing, ungraded use, informative post-submit feedback, and controlled or uncontrolled state.",
+      "files": [
+        {
+          "path": "packages/core/src/components/numeric-question.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/core/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "numeric-question",
+      "registry_dependencies": [
+        "button",
+        "card",
+        "input",
+        "label"
+      ],
+      "title": "Numeric Question",
+      "type": "registry:ui"
+    },
+    {
+      "dependencies": [
+        "clsx",
+        "tailwind-merge"
+      ],
+      "description": "A bounded practice orchestrator for heterogeneous child interactions. Owns navigation, attempts, submit/review phases and completion summary without imposing a universal scoring model or exposing feedback before submission. Supports controlled and uncontrolled progress, partial item arrays, disabled state, localization and opaque response/result types.",
+      "files": [
+        {
+          "path": "packages/core/src/components/practice-set.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/core/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "practice-set",
+      "registry_dependencies": [
+        "button",
+        "card"
+      ],
+      "title": "Practice Set / Question Set",
+      "type": "registry:ui"
+    },
+    {
+      "dependencies": [
+        "clsx",
+        "tailwind-merge"
+      ],
+      "description": "RF-7 lesson/skill ProgressIndicator and ProgressOverview. Every snapshot pairs its visual bar with visible percentage/pending text, semantic progressbar values and lesson/skill labels rather than relying on color. Missing values remain indeterminate for streaming consumers; lists support localization, descriptions and explicit empty states.",
+      "files": [
+        {
+          "path": "packages/core/src/components/progress-indicator.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/core/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "progress-indicators",
+      "registry_dependencies": [
+        "progress"
+      ],
+      "title": "Progress Indicators",
+      "type": "registry:ui"
+    },
+    {
+      "dependencies": [
+        "clsx",
+        "tailwind-merge"
+      ],
+      "description": "The QuizItem family (RF-4) sharing one Card shell and one set of interaction/accessibility norms: SingleChoiceQuiz, MultiSelectQuiz, TrueFalseQuiz, FillInTheBlankQuiz and ShortAnswerQuiz. Each supports controlled/uncontrolled answer state (onAnswer/onSubmit), an optional informative-feedback slot shown only after submission, and correct/incorrect states carried by icon + text, never color alone. The correct answer is never rendered to the DOM before submission for the auto-graded variants; short answer uses assisted self-assessment against a revealed model answer. Composed from @didact/ui's Card/Button/RadioGroup/Checkbox/Input/Label/Textarea/ToggleGroup -- see packages/core/src/components/quiz-item.tsx for the full rationale.",
+      "files": [
+        {
+          "path": "packages/core/src/components/quiz-item.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/core/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "quiz-item",
+      "registry_dependencies": [
+        "card",
+        "button",
+        "radio-group",
+        "checkbox",
+        "input",
+        "label",
+        "textarea",
+        "toggle-group"
+      ],
+      "title": "Quiz Item",
+      "type": "registry:ui"
+    },
+    {
+      "dependencies": [
+        "clsx",
+        "tailwind-merge"
+      ],
+      "description": "A constructed-retrieval session with the explicit cycle write from memory, compare with a model, self-rate and schedule. Scheduler, incoming review state and persistence are injected; the component never owns a backend. Includes controlled/uncontrolled responses, localization, partial streaming content and accessible rating controls.",
+      "files": [
+        {
+          "path": "packages/core/src/components/retrieval-practice-session.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/core/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "retrieval-practice-session",
+      "registry_dependencies": [
+        "button",
+        "card",
+        "label",
+        "textarea",
+        "spaced-repetition"
+      ],
+      "title": "Retrieval Practice Session",
+      "type": "registry:ui"
+    },
+    {
+      "dependencies": [
+        "clsx",
+        "tailwind-merge"
+      ],
+      "description": "RF-10 criterion-by-criterion self-assessment with accessible single-select performance levels. Supports controlled/uncontrolled selection maps, disabled criteria, localized functional fallbacks, partial streaming levels and explicit empty/pending states. Reports textual assessment progress but deliberately exposes no score, answer key, weighting, correctness, pass/fail result or automatic grading path.",
+      "files": [
+        {
+          "path": "packages/core/src/components/rubric.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/core/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "rubric",
+      "registry_dependencies": [
+        "card",
+        "radio-group"
+      ],
+      "title": "Rubric / Self-assessment",
+      "type": "registry:ui"
+    },
+    {
+      "dependencies": [
+        "clsx",
+        "tailwind-merge",
+        "react-icons"
+      ],
+      "description": "A domain-independent simulation shell with accessible parameters, play/pause/step controls, injected deterministic runtime, actions, observables and snapshots.",
+      "files": [
+        {
+          "path": "packages/core/src/components/simulation-lab.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/core/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "simulation-lab",
+      "registry_dependencies": [
+        "button",
+        "card",
+        "input",
+        "label",
+        "simulation-schema"
+      ],
+      "title": "Simulation Lab",
+      "type": "registry:ui"
+    },
+    {
+      "dependencies": [
+        "class-variance-authority",
+        "clsx",
+        "tailwind-merge"
+      ],
+      "description": "A presentational ordered sequence for protocols, procedures, and step-by-step flows (RF-8), with vertical and horizontal orientations. Status can be explicit per step or derived from currentStep; complete/current/upcoming is conveyed through marker shape, screen-reader text, and aria-current=step rather than color alone. Supports partial step arrays for streaming consumers and configurable status labels for localization. Styled only with @didact/theme token utilities; no animation or interactive state.",
+      "files": [
+        {
+          "path": "packages/core/src/components/timeline.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/core/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "timeline",
+      "registry_dependencies": [],
+      "title": "Timeline / Steps",
+      "type": "registry:ui"
+    },
+    {
+      "dependencies": [
+        "@dnd-kit/core@6.3.1",
+        "clsx",
+        "tailwind-merge"
+      ],
+      "description": "An accessible gap-match interaction with real inline sentence gaps. Bank options can be dragged directly into each gap or assigned through the same click and keyboard controls. Supports bounded or unlimited option reuse, two-way selection, undo, partial or human-reviewed results, streaming content and post-submit feedback.",
+      "files": [
+        {
+          "path": "packages/core/src/components/word-bank.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "packages/core/src/lib/cn.ts",
+          "type": "registry:lib"
+        }
+      ],
+      "name": "word-bank",
+      "registry_dependencies": [
+        "button",
+        "card"
+      ],
+      "title": "Word Bank / Gap Match",
+      "type": "registry:ui"
+    }
+  ],
+  "schema_version": 1,
+  "source": {
+    "commit": "06c80e8a8af4f20ad20ba345b7b6b13e1cc27e0c",
+    "license": "MIT",
+    "repository": "https://github.com/JoseEstevez520/Didact"
+  }
+}

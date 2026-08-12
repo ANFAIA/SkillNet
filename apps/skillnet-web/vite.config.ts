@@ -11,6 +11,13 @@ const dirname = typeof __dirname !== 'undefined' ? __dirname : path.dirname(file
 // More info at: https://storybook.js.org/docs/next/writing-tests/integrations/vitest-addon
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  resolve: {
+    alias: {
+      '@didact/ui': path.resolve(dirname, 'src/lib/didact/vendor-entrypoints/ui.ts'),
+      '@didact/schema': path.resolve(dirname, 'src/lib/didact/vendor-entrypoints/schema.ts'),
+      '@didact/spaced-repetition': path.resolve(dirname, 'src/lib/didact/vendor-entrypoints/spaced-repetition.ts'),
+    },
+  },
   server: {
     proxy: {
       '/api': 'http://localhost:8000',

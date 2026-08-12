@@ -1,0 +1,7 @@
+export * from '../../../../vendor/didact/source/packages/schema/src/artifact-execution'
+export * from '../../../../vendor/didact/source/packages/schema/src/data-coordinate'
+export * from '../../../../vendor/didact/source/packages/schema/src/decision-graph'
+export * from '../../../../vendor/didact/source/packages/schema/src/interactive-media'
+export * from '../../../../vendor/didact/source/packages/schema/src/simulation'
+export * from '../../../../vendor/didact/source/packages/schema/src/taxonomy'
+export * from '../../../../vendor/didact/source/packages/schema/src/types'

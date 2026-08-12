@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@import "./lib/didact/didact-theme.css";
+@source "../vendor/didact/source";
 
 @theme {
   /* ── Neutral palette (LIGHT default) ──────────────────────────────────────
