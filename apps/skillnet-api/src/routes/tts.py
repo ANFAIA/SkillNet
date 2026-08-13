@@ -29,6 +29,11 @@ _VOICE_STYLE_MAP: dict[str, dict[str, str]] = {
         "warm": "es-ES-Wavenet-C",
         "formal": "es-ES-Wavenet-D",
     },
+    "azure": {
+        "neutral": "es-ES-ElviraNeural",
+        "warm": "es-ES-AlvaroNeural",
+        "formal": "es-ES-ElviraNeural",
+    },
 }
 
 

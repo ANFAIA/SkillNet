@@ -15,8 +15,11 @@ import hashlib
 import os
 import tempfile
 from abc import ABC, abstractmethod
+from html import escape
 from pathlib import Path
 from typing import ClassVar
+
+import httpx
 
 from src.config import settings
 from src.core.logging import get_logger
@@ -34,6 +37,8 @@ class TTSProvider(ABC):
 
     name: ClassVar[str]
     """Short slug used in cache keys and logs."""
+    default_voice: ClassVar[str]
+    """Provider-specific voice used when TTS_VOICE is empty."""
 
     def __init__(self, api_key: str) -> None:
         self.api_key = api_key
@@ -56,6 +61,7 @@ class OpenAITTSProvider(TTSProvider):
     """OpenAI ``tts-1`` / ``tts-1-hd`` via the official async client."""
 
     name: ClassVar[str] = "openai"
+    default_voice: ClassVar[str] = "alloy"
 
     _VOICES: ClassVar[list[dict[str, str]]] = [
         {"id": "alloy", "name": "Alloy"},
@@ -98,6 +104,7 @@ class GoogleWaveNetProvider(TTSProvider):
     """
 
     name: ClassVar[str] = "google"
+    default_voice: ClassVar[str] = "es-ES-Wavenet-B"
 
     _VOICE_MAP: ClassVar[dict[str, str]] = {
         "es-ES-Wavenet-B": "Spanish (Spain) Male",
@@ -162,6 +169,7 @@ class ElevenLabsProvider(TTSProvider):
     """
 
     name: ClassVar[str] = "elevenlabs"
+    default_voice: ClassVar[str] = "21m00Tcm4TlvDq8ikWAM"
 
     _BASE = "https://api.elevenlabs.io/v1"
 
@@ -201,6 +209,94 @@ class ElevenLabsProvider(TTSProvider):
 
 
 # ---------------------------------------------------------------------------
+# Microsoft Azure AI Speech
+# ---------------------------------------------------------------------------
+
+
+class AzureSpeechProvider(TTSProvider):
+    """Microsoft Azure AI Speech through its REST API."""
+
+    name: ClassVar[str] = "azure"
+    default_voice: ClassVar[str] = "es-ES-ElviraNeural"
+
+    _VOICES: ClassVar[list[dict[str, str]]] = [
+        {"id": "es-ES-ElviraNeural", "name": "Elvira (Spanish, Spain)"},
+        {"id": "es-ES-AlvaroNeural", "name": "Álvaro (Spanish, Spain)"},
+        {"id": "es-MX-DaliaNeural", "name": "Dalia (Spanish, Mexico)"},
+        {"id": "es-MX-JorgeNeural", "name": "Jorge (Spanish, Mexico)"},
+        {"id": "es-US-PalomaNeural", "name": "Paloma (Spanish, United States)"},
+        {"id": "es-US-AlonsoNeural", "name": "Alonso (Spanish, United States)"},
+    ]
+    _LANGUAGE_CODES: ClassVar[dict[str, str]] = {
+        "es": "es-ES",
+        "en": "en-US",
+        "fr": "fr-FR",
+        "de": "de-DE",
+        "it": "it-IT",
+        "pt": "pt-PT",
+    }
+
+    def __init__(
+        self,
+        api_key: str,
+        *,
+        region: str,
+        endpoint: str,
+        timeout_seconds: float,
+    ) -> None:
+        super().__init__(api_key)
+        if not api_key:
+            raise ValueError("Azure Speech requires TTS_API_KEY")
+        if not region.strip():
+            raise ValueError("Azure Speech requires TTS_AZURE_REGION")
+        if not endpoint.strip():
+            raise ValueError("Azure Speech requires TTS_AZURE_ENDPOINT")
+        self.region = region.strip()
+        self.endpoint = endpoint.rstrip("/")
+        self.timeout_seconds = timeout_seconds
+
+    async def synthesize(
+        self,
+        text: str,
+        voice: str = default_voice,
+        language: str = "es",
+    ) -> bytes:
+        language_code = self._LANGUAGE_CODES.get(language, language)
+        ssml = (
+            f'<speak version="1.0" xml:lang="{escape(language_code, quote=True)}">'
+            f'<voice name="{escape(voice, quote=True)}">{escape(text)}</voice>'
+            "</speak>"
+        )
+        headers = {
+            "Ocp-Apim-Subscription-Key": self.api_key,
+            "Ocp-Apim-Subscription-Region": self.region,
+            "Content-Type": "application/ssml+xml",
+            "X-Microsoft-OutputFormat": "audio-24khz-48kbitrate-mono-mp3",
+            "User-Agent": "SkillNet",
+        }
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
+                response = await client.post(
+                    self.endpoint,
+                    headers=headers,
+                    content=ssml.encode("utf-8"),
+                )
+                response.raise_for_status()
+        except httpx.TimeoutException as exc:
+            raise RuntimeError("Azure Speech request timed out") from exc
+        except httpx.HTTPStatusError as exc:
+            raise RuntimeError(
+                f"Azure Speech request failed with status {exc.response.status_code}"
+            ) from exc
+        except httpx.RequestError as exc:
+            raise RuntimeError("Azure Speech request could not be completed") from exc
+        return response.content
+
+    def available_voices(self) -> list[dict[str, str]]:
+        return list(self._VOICES)
+
+
+# ---------------------------------------------------------------------------
 # Factory
 # ---------------------------------------------------------------------------
 
@@ -208,10 +304,18 @@ _PROVIDERS: dict[str, type[TTSProvider]] = {
     "openai": OpenAITTSProvider,
     "google": GoogleWaveNetProvider,
     "elevenlabs": ElevenLabsProvider,
+    "azure": AzureSpeechProvider,
 }
 
 
-def get_tts_provider(provider_name: str, api_key: str) -> TTSProvider:
+def get_tts_provider(
+    provider_name: str,
+    api_key: str,
+    *,
+    azure_region: str | None = None,
+    azure_endpoint: str | None = None,
+    timeout_seconds: float | None = None,
+) -> TTSProvider:
     """Instantiate the right provider from a short name.
 
     Raises ``ValueError`` for unknown or disabled providers.
@@ -223,6 +327,21 @@ def get_tts_provider(provider_name: str, api_key: str) -> TTSProvider:
         raise ValueError(
             f"Unknown TTS provider {provider_name!r}. "
             f"Available: {', '.join(_PROVIDERS)}"
+        )
+    if cls is AzureSpeechProvider:
+        return cls(
+            api_key=api_key,
+            region=azure_region if azure_region is not None else settings.TTS_AZURE_REGION,
+            endpoint=(
+                azure_endpoint
+                if azure_endpoint is not None
+                else settings.TTS_AZURE_ENDPOINT
+            ),
+            timeout_seconds=(
+                timeout_seconds
+                if timeout_seconds is not None
+                else settings.TTS_TIMEOUT_SECONDS
+            ),
         )
     return cls(api_key=api_key)
 
@@ -289,7 +408,10 @@ class TTSService:
         provider: TTSProvider | None = None,
         cache: TTSCache | None = None,
     ) -> None:
-        self.provider = provider or get_tts_provider(settings.TTS_PROVIDER, settings.TTS_API_KEY)
+        self.provider = provider or get_tts_provider(
+            settings.TTS_PROVIDER,
+            settings.TTS_API_KEY,
+        )
         self.cache = cache or TTSCache()
 
     async def synthesize(
@@ -298,7 +420,7 @@ class TTSService:
         voice: str | None = None,
         language: str | None = None,
     ) -> bytes:
-        voice = voice or settings.TTS_VOICE
+        voice = voice or settings.TTS_VOICE or self.provider.default_voice
         language = language or settings.TTS_LANGUAGE
 
         cached = self.cache.get(text, voice, self.provider.name, language)

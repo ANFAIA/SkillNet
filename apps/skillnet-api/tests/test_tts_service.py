@@ -7,11 +7,13 @@ from __future__ import annotations
 
 import tempfile
 from pathlib import Path
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
+import httpx
 import pytest
 
 from src.services.tts_service import (
+    AzureSpeechProvider,
     ElevenLabsProvider,
     GoogleWaveNetProvider,
     OpenAITTSProvider,
@@ -39,6 +41,36 @@ class TestGetTTSProvider:
     def test_returns_elevenlabs_provider(self):
         provider = get_tts_provider("elevenlabs", "key")
         assert isinstance(provider, ElevenLabsProvider)
+
+    def test_returns_configured_azure_provider(self):
+        provider = get_tts_provider(
+            "azure",
+            "key",
+            azure_region="westeurope",
+            azure_endpoint=(
+                "https://westeurope.tts.speech.microsoft.com/cognitiveservices/v1"
+            ),
+            timeout_seconds=12,
+        )
+        assert isinstance(provider, AzureSpeechProvider)
+        assert provider.region == "westeurope"
+        assert provider.timeout_seconds == 12
+
+    def test_azure_requires_explicit_region_and_endpoint(self):
+        with pytest.raises(ValueError, match="TTS_AZURE_REGION"):
+            get_tts_provider(
+                "azure",
+                "key",
+                azure_region="",
+                azure_endpoint="https://speech.example/v1",
+            )
+        with pytest.raises(ValueError, match="TTS_AZURE_ENDPOINT"):
+            get_tts_provider(
+                "azure",
+                "key",
+                azure_region="westeurope",
+                azure_endpoint="",
+            )
 
     def test_disabled_raises(self):
         with pytest.raises(ValueError, match="disabled"):
@@ -70,6 +102,16 @@ class TestAvailableVoices:
         provider = ElevenLabsProvider(api_key="test")
         voices = provider.available_voices()
         assert len(voices) >= 1
+
+    def test_azure_voices_include_spanish_default(self):
+        provider = AzureSpeechProvider(
+            api_key="test",
+            region="westeurope",
+            endpoint="https://speech.example/v1",
+            timeout_seconds=30,
+        )
+        voices = provider.available_voices()
+        assert {"id": "es-ES-ElviraNeural", "name": "Elvira (Spanish, Spain)"} in voices
 
 
 # ---------------------------------------------------------------------------
@@ -145,6 +187,7 @@ class _FakeProvider(TTSProvider):
     """In-memory provider for testing the service pipeline."""
 
     name = "fake"
+    default_voice = "v1"
 
     def __init__(self) -> None:
         super().__init__(api_key="")
@@ -265,3 +308,100 @@ class TestElevenLabsProvider:
         voices = ElevenLabsProvider(api_key="test").available_voices()
         assert len(voices) > 0
         assert all("id" in v and "name" in v for v in voices)
+
+
+# ---------------------------------------------------------------------------
+# Microsoft Azure Speech provider (mocked HTTP)
+# ---------------------------------------------------------------------------
+
+
+class _AzureFakeResponse:
+    def __init__(self, status_code: int = 200, content: bytes = b"mp3-audio") -> None:
+        self.status_code = status_code
+        self.content = content
+        self.request = httpx.Request("POST", "https://speech.example/v1")
+
+    def raise_for_status(self) -> None:
+        if self.status_code >= 400:
+            raise httpx.HTTPStatusError(
+                "provider detail containing secret-key",
+                request=self.request,
+                response=httpx.Response(self.status_code, request=self.request),
+            )
+
+
+class _AzureFakeClient:
+    def __init__(self, response: _AzureFakeResponse) -> None:
+        self.response = response
+        self.calls: list[dict[str, object]] = []
+
+    async def __aenter__(self) -> _AzureFakeClient:
+        return self
+
+    async def __aexit__(self, *exc: object) -> bool:
+        return False
+
+    async def post(
+        self,
+        url: str,
+        *,
+        headers: dict[str, str],
+        content: bytes,
+    ) -> _AzureFakeResponse:
+        self.calls.append({"url": url, "headers": headers, "content": content})
+        return self.response
+
+
+def _azure_provider(timeout_seconds: float = 17) -> AzureSpeechProvider:
+    return AzureSpeechProvider(
+        api_key="azure-secret",
+        region="westeurope",
+        endpoint="https://speech.example/v1/",
+        timeout_seconds=timeout_seconds,
+    )
+
+
+class TestAzureSpeechProvider:
+    async def test_synthesize_posts_escaped_ssml_and_returns_mp3(self):
+        client = _AzureFakeClient(_AzureFakeResponse(content=b"mp3-bytes"))
+        client_factory = MagicMock(return_value=client)
+
+        with patch("src.services.tts_service.httpx.AsyncClient", client_factory):
+            audio = await _azure_provider().synthesize(
+                "Pan & <café>",
+                "es-ES-ElviraNeural",
+                "es",
+            )
+
+        assert audio == b"mp3-bytes"
+        client_factory.assert_called_once_with(timeout=17)
+        call = client.calls[0]
+        assert call["url"] == "https://speech.example/v1"
+        assert call["headers"]["Ocp-Apim-Subscription-Key"] == "azure-secret"  # type: ignore[index]
+        assert call["headers"]["Ocp-Apim-Subscription-Region"] == "westeurope"  # type: ignore[index]
+        assert call["headers"]["X-Microsoft-OutputFormat"].endswith("-mp3")  # type: ignore[index]
+        ssml = bytes(call["content"]).decode()
+        assert 'xml:lang="es-ES"' in ssml
+        assert 'name="es-ES-ElviraNeural"' in ssml
+        assert "Pan &amp; &lt;café&gt;" in ssml
+
+    async def test_http_error_does_not_expose_provider_detail_or_key(self):
+        client = _AzureFakeClient(_AzureFakeResponse(status_code=401))
+
+        with patch("src.services.tts_service.httpx.AsyncClient", return_value=client):
+            with pytest.raises(RuntimeError, match="status 401") as error:
+                await _azure_provider().synthesize("hola", "es-ES-ElviraNeural", "es")
+
+        message = str(error.value)
+        assert "secret-key" not in message
+        assert "azure-secret" not in message
+
+    async def test_timeout_has_safe_message(self):
+        client = _AzureFakeClient(_AzureFakeResponse())
+        client.post = AsyncMock(side_effect=httpx.ReadTimeout("timed out"))
+
+        with patch("src.services.tts_service.httpx.AsyncClient", return_value=client):
+            with pytest.raises(RuntimeError, match="request timed out") as error:
+                await _azure_provider().synthesize("hola", "es-ES-ElviraNeural", "es")
+
+        assert "azure-secret" not in str(error.value)

@@ -77,6 +77,11 @@ services:
       # audio endpoint 503'd even with a valid ElevenLabs key in `.env`.
       TTS_PROVIDER: ${TTS_PROVIDER:-disabled}
       TTS_API_KEY: ${TTS_API_KEY:-}
+      TTS_VOICE: ${TTS_VOICE:-}
+      TTS_LANGUAGE: ${TTS_LANGUAGE:-es}
+      TTS_AZURE_REGION: ${TTS_AZURE_REGION:-}
+      TTS_AZURE_ENDPOINT: ${TTS_AZURE_ENDPOINT:-}
+      TTS_TIMEOUT_SECONDS: ${TTS_TIMEOUT_SECONDS:-30}
       VISION_MODEL: ${VISION_MODEL:-}
       VISION_API_KEY: ${VISION_API_KEY:-}
     volumes:
