@@ -220,6 +220,7 @@ def build_shadow_plan_trace(
         "shape_summary": state.get("shape_summary"),
         "assessment_block": state.get("assessment_block"),
         "assessment_item_type": state.get("assessment_item_type"),
+        "concept_block": state.get("concept_block"),
     }
     try:
         ordered_functions, mission_rationale = _source_functions(state)

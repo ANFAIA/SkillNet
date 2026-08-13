@@ -3,10 +3,13 @@
 import uuid
 from datetime import datetime, timezone
 
+from sqlalchemy import func, select
+
 from src.core.exceptions import ConflictError, NotFoundError, ValidationError
-from src.models import ContentStatus, Course, EnrollmentStatus
+from src.models import ArtifactGeneratePolicy, ContentStatus, Course, EnrollmentStatus, User
 from src.repositories.course_repo import CourseRepository
 from src.repositories.course_folder_repo import CourseFolderRepository
+from src.services.course_delivery import resolve_delivery
 
 
 class CourseService:
@@ -58,14 +61,50 @@ class CourseService:
             )
             if folder is None:
                 raise NotFoundError("course_folders", str(folder_id))
+        generator_ids = changes.pop("artifact_generator_ids", None)
+        raw_policy = changes.get("artifact_generate_policy")
+        if raw_policy is not None:
+            try:
+                changes["artifact_generate_policy"] = ArtifactGeneratePolicy(raw_policy)
+            except ValueError as exc:
+                raise ValidationError(
+                    "Invalid artifact generate policy",
+                    field="artifact_generate_policy",
+                ) from exc
         clean = {
             k: v
             for k, v in changes.items()
             if v is not None or k == "folder_id"
         }
-        if not clean:
-            return course
-        return await self.repo.update(course, **clean)
+        if clean:
+            course = await self.repo.update(course, **clean)
+        policy = course.artifact_generate_policy
+        policy_changed = raw_policy is not None
+        if generator_ids is not None or (
+            policy_changed and policy != ArtifactGeneratePolicy.SELECTED
+        ):
+            ids = (
+                []
+                if policy != ArtifactGeneratePolicy.SELECTED
+                else list(generator_ids or [])
+            )
+            if ids:
+                unique = list(dict.fromkeys(ids))
+                counted = (
+                    await self.repo.session.execute(
+                        select(func.count())
+                        .select_from(User)
+                        .where(User.id.in_(unique), User.org_id == org_id)
+                    )
+                ).scalar_one()
+                if counted != len(unique):
+                    raise ValidationError(
+                        "One or more users are not in this organization",
+                        field="artifact_generator_ids",
+                    )
+                ids = unique
+            await self.repo.replace_artifact_generators(course.id, ids)
+        return course
 
     async def publish(self, *, course_id: uuid.UUID, org_id: uuid.UUID) -> Course:
         course = await self.repo.get_detail(course_id, org_id)
@@ -75,11 +114,15 @@ class CourseService:
             raise ValidationError("A title is required to publish", field="title")
         if not course.outcome:
             raise ValidationError("An outcome is required to publish", field="outcome")
-        has_lesson = any(module.lessons for module in course.modules)
-        if not course.modules or not has_lesson:
-            raise ValidationError(
-                "A course needs at least one module with one lesson to publish"
-            )
+        if resolve_delivery(course) == "dynamic":
+            if await self.repo.count_active_nodes(course.id) < 1:
+                raise ValidationError("A course needs at least one node to publish")
+        else:
+            has_lesson = any(module.lessons for module in course.modules)
+            if not course.modules or not has_lesson:
+                raise ValidationError(
+                    "A course needs at least one module with one lesson to publish"
+                )
         return await self.repo.update(course, status=ContentStatus.PUBLISHED)
 
     async def archive(self, *, course_id: uuid.UUID, org_id: uuid.UUID) -> Course:

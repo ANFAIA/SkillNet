@@ -57,6 +57,7 @@ from src.agents.runtime.nodes import (
 from src.config import settings
 from src.llm.client import LLMConfig, Usage
 from src.agents.runtime.assessment import plan_assessment
+from src.agents.runtime.screen_scheme import plan_screen_scheme
 from src.agents.runtime.shape import analyze_shape
 from src.llm.fixtures import FixtureLLMService, write_fixture
 from src.llm.prompts.runtime import (
@@ -158,14 +159,41 @@ def canonical_format_prompt() -> str:
     )
 
 
+def canonical_shape_plan():
+    """The same shape ``decide_formato`` reads for the canonical node."""
+    return analyze_shape(
+        source_context=CANON_SOURCE,
+        summary=CANON_SUMMARY,
+        headings=["Devoluciones"],
+    )
+
+
+def canonical_assessment(ui_format: str = "explanation"):
+    """The closer ``decide_formato`` stores: position + course salt, not a bare node hash."""
+    return plan_assessment(
+        canonical_shape_plan(),
+        ui_format=ui_format,
+        node_id=str(NODE_ID),
+        course_id=str(COURSE_ID),
+        position=1,
+    )
+
+
 def canonical_assessment_hint(ui_format: str = "explanation") -> str:
     """The ``CÓMO VERIFICAR`` line the graph injects, rebuilt exactly as ``decide_formato``
     does so the fixture key matches the real prompt (§ variedad-evaluacion-diagnostico.md).
 
     Depends only on the canonical source shape and ``NODE_ID`` — both deterministic — so the
     canonical prompt stays reproducible even though the hint now varies per node."""
-    plan = analyze_shape(source_context=CANON_SOURCE, summary=CANON_SUMMARY, headings=[])
-    return plan_assessment(plan, ui_format=ui_format, node_id=str(NODE_ID)).instruction()
+    return canonical_assessment(ui_format).instruction()
+
+
+def canonical_screen_scheme(ui_format: str = "explanation") -> str:
+    """The planned slots ``decide_formato`` injects, rebuilt for the fixture key."""
+    plan = canonical_shape_plan()
+    return plan_screen_scheme(
+        plan, canonical_assessment(ui_format), ui_format=ui_format
+    ).instruction()
 
 
 def canonical_ui_prompt(ui_format: str = "explanation") -> str:
@@ -188,7 +216,9 @@ def canonical_ui_prompt(ui_format: str = "explanation") -> str:
         consecutive_correct=0,
         tutor_signals=(),
         source_context=CANON_SOURCE,
+        shape_hints=canonical_shape_plan().hints(ui_format),
         assessment_hint=canonical_assessment_hint(ui_format),
+        screen_scheme=canonical_screen_scheme(ui_format),
     )
 
 
@@ -884,7 +914,10 @@ async def test_malformed_output_is_repaired_with_the_validator_messages(
     write_fixture(
         system_prompt=ui_repair_system(),
         user_prompt=build_repair_prompt(
-            previous=malformed, errors=errors, ui_format="explanation"
+            previous=malformed,
+            errors=errors,
+            ui_format="explanation",
+            screen_scheme=canonical_screen_scheme("explanation"),
         ),
         response=packaged("genera_ui/repaired_after_retry.txt"),
         relative_path="genera_ui/repaired_after_retry.txt",
@@ -926,7 +959,10 @@ async def test_a_missing_answer_key_is_itself_a_repairable_error(
     write_fixture(
         system_prompt=ui_repair_system(),
         user_prompt=build_repair_prompt(
-            previous=program, errors=errors, ui_format="explanation"
+            previous=program,
+            errors=errors,
+            ui_format="explanation",
+            screen_scheme=canonical_screen_scheme("explanation"),
         ),
         response=packaged("genera_ui/openui_mixed.txt"),
         relative_path="genera_ui/openui_mixed.txt",
@@ -958,7 +994,10 @@ async def test_two_invalid_attempts_fall_back_to_the_seed_lesson(
     write_fixture(
         system_prompt=ui_repair_system(),
         user_prompt=build_repair_prompt(
-            previous=invalid, errors=errors, ui_format="explanation"
+            previous=invalid,
+            errors=errors,
+            ui_format="explanation",
+            screen_scheme=canonical_screen_scheme("explanation"),
         ),
         response=invalid,
         relative_path="genera_ui/invalid_again.txt",

@@ -42,6 +42,7 @@ from src.agents.content.helpers import (
 )
 from src.agents.runtime.assessment import plan_assessment
 from src.agents.runtime.classify import classify_function
+from src.agents.runtime.screen_scheme import ScreenScheme, plan_screen_scheme
 from src.agents.runtime.errors import (
     node_channel,
     publish_error,
@@ -885,6 +886,7 @@ async def decide_formato(state: NodeRuntimeState) -> dict:
         course_id=str(state.get("course_id") or ""),
         position=node.get("position"),
     )
+    scheme = plan_screen_scheme(plan, assessment, ui_format=ui_format)
     shape_functions = list(
         dict.fromkeys(signal.function.value for signal in plan.signals)
     )
@@ -898,6 +900,7 @@ async def decide_formato(state: NodeRuntimeState) -> dict:
             "shape_summary": plan.summary,
             "assessment_block": assessment.block,
             "assessment_item_type": assessment.item_type,
+            "concept_block": scheme.concept_block,
         }
     )
     plan_trace = build_shadow_plan_trace(
@@ -923,6 +926,8 @@ async def decide_formato(state: NodeRuntimeState) -> dict:
         "assessment_block": assessment.block,
         "assessment_item_type": assessment.item_type,
         "assessment_hint": assessment.instruction(),
+        "concept_block": scheme.concept_block,
+        "screen_scheme": scheme.instruction(),
         # Computed once here and carried, so `genera_ui` and its one repair attempt read
         # the same analysis. Re-deriving it in the retry would re-scan the source for a
         # result that cannot have changed.
@@ -1039,9 +1044,32 @@ def _effective_assessment_hint(state: NodeRuntimeState, required: tuple[str, ...
         return hint
     closer = required[0] if required else "Flashcard"
     return (
-        f"VERIFICA con {closer}. El lead situa, el concepto ensena, "
-        f"{closer} aplica lo ensenado."
+        f"VERIFICA con {closer}. El concepto ensena con un caso o una grafica; "
+        f"{closer} es otro encargo del puesto."
     )
+
+
+def _effective_screen_scheme(
+    state: NodeRuntimeState, required: tuple[str, ...]
+) -> str:
+    """Rebuild the scheme if authoring declined and the closer changed."""
+
+    concept = str(state.get("concept_block") or "")
+    if not concept:
+        return str(state.get("screen_scheme") or "")
+    stored_practice = str(state.get("assessment_block") or "")
+    closer = stored_practice
+    item_type = state.get("assessment_item_type")
+    if stored_practice == "DidactActivity" and not isinstance(
+        state.get("authored_activity"), dict
+    ):
+        closer = required[0] if required else "Flashcard"
+        item_type = None
+    return ScreenScheme(
+        concept_block=concept,
+        practice_block=closer,
+        practice_item_type=item_type,
+    ).instruction()
 
 
 async def author_activity(state: NodeRuntimeState) -> dict:
@@ -1250,6 +1278,7 @@ async def genera_ui(state: NodeRuntimeState) -> dict:
             errors=list(state.get("validation_errors") or []),
             ui_format=ui_format,
             shape_hints=shape_hints,
+            screen_scheme=_effective_screen_scheme(state, assessment_required),
         )
     else:
         system = ui_generator_system(
@@ -1276,6 +1305,7 @@ async def genera_ui(state: NodeRuntimeState) -> dict:
             source_context=_source_with_authored_activity(state),
             shape_hints=shape_hints,
             assessment_hint=_effective_assessment_hint(state, assessment_required),
+            screen_scheme=_effective_screen_scheme(state, assessment_required),
             presentation_preference=preferences.presentation.value,
             detail_preference=preferences.detail.value,
             image_preference=preferences.images.value,
@@ -1413,6 +1443,7 @@ async def genera_ui_multi(state: NodeRuntimeState) -> dict:
     from src.agents.runtime.agents.content_writer import run_content_writer
     from src.agents.runtime.agents.interaction_designer import run_interaction_designer
     from src.agents.runtime.assessment import AssessmentPlan
+    from src.agents.runtime.screen_scheme import ScreenScheme
 
     request_id = str(state["request_id"])
     org_id = _uuid(state["org_id"])
@@ -1446,6 +1477,13 @@ async def genera_ui_multi(state: NodeRuntimeState) -> dict:
             block=str(state["assessment_block"]),
             item_type=state.get("assessment_item_type"),
         )
+    scheme = None
+    if state.get("concept_block") and assessment is not None:
+        scheme = ScreenScheme(
+            concept_block=str(state["concept_block"]),
+            practice_block=assessment.block,
+            practice_item_type=assessment.item_type,
+        )
 
     # --- Agent 1: Blueprint ---
     preferences = normalize_learning_preferences(profile.get("learning_preferences"))
@@ -1465,6 +1503,7 @@ async def genera_ui_multi(state: NodeRuntimeState) -> dict:
         siblings=list(state.get("siblings") or ()),
         llm=llm,
         assessment=assessment,
+        scheme=scheme,
         presentation_preference=preferences.presentation.value,
         detail_preference=preferences.detail.value,
         image_preference=preferences.images.value,

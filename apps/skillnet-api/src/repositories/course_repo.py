@@ -3,12 +3,12 @@
 import uuid
 from collections.abc import Sequence
 
-from sqlalchemy import distinct, func, or_, select
+from sqlalchemy import delete, distinct, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlalchemy.sql.elements import ColumnElement
 
-from src.models import ContentStatus, Course, CourseNode, Lesson, Module
+from src.models import ContentStatus, Course, CourseArtifactGenerator, CourseNode, Lesson, Module
 from src.repositories.base import BaseRepository
 
 
@@ -86,6 +86,33 @@ class CourseRepository(BaseRepository[Course]):
             )
         )
         return (await self.session.execute(query)).scalar_one_or_none()
+
+    async def count_active_nodes(self, course_id: uuid.UUID) -> int:
+        query = select(func.count()).select_from(CourseNode).where(
+            CourseNode.course_id == course_id,
+            CourseNode.archived.is_(False),
+        )
+        return (await self.session.execute(query)).scalar_one()
+
+    async def list_artifact_generator_ids(self, course_id: uuid.UUID) -> list[uuid.UUID]:
+        query = select(CourseArtifactGenerator.user_id).where(
+            CourseArtifactGenerator.course_id == course_id
+        )
+        return list((await self.session.execute(query)).scalars().all())
+
+    async def replace_artifact_generators(
+        self, course_id: uuid.UUID, user_ids: list[uuid.UUID]
+    ) -> None:
+        await self.session.execute(
+            delete(CourseArtifactGenerator).where(
+                CourseArtifactGenerator.course_id == course_id
+            )
+        )
+        for user_id in dict.fromkeys(user_ids):
+            self.session.add(
+                CourseArtifactGenerator(course_id=course_id, user_id=user_id)
+            )
+        await self.session.flush()
 
     async def get_with_enrollments(
         self, id: uuid.UUID, org_id: uuid.UUID

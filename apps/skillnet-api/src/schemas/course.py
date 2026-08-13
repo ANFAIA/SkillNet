@@ -53,6 +53,9 @@ class CourseRead(BaseModel):
     #: Defaults to ``static`` so the safe value is the one you get by forgetting to pass
     #: it. Every route in ``src/routes/courses.py`` fills it in from ``resolve_delivery``.
     delivery_mode: Literal["static", "dynamic"] = "static"
+    artifact_generate_policy: Literal["admin", "everyone", "selected"] = "admin"
+    artifact_generator_ids: list[uuid.UUID] = []
+    can_generate_artifacts: bool = False
 
 
 class CourseDetail(CourseRead):
@@ -81,6 +84,8 @@ class CourseUpdate(BaseModel):
     description: str | None = None
     outcome: str | None = None
     folder_id: uuid.UUID | None = None
+    artifact_generate_policy: Literal["admin", "everyone", "selected"] | None = None
+    artifact_generator_ids: list[uuid.UUID] | None = None
 
     @field_validator("title")
     @classmethod

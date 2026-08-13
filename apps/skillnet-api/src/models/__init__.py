@@ -8,11 +8,13 @@ from src.models.base import Base, TimestampMixin, UUIDMixin
 from src.models.chat_message import ChatMessage
 from src.models.chat_session import ChatSession
 from src.models.course import (
+    ArtifactGeneratePolicy,
     ContentStatus,
     Course,
     CourseDeliveryMode,
     CourseSchemaStatus,
 )
+from src.models.course_artifact_generator import CourseArtifactGenerator
 from src.models.course_node import (
     CRITICALITY_THRESHOLDS,
     CourseNode,
@@ -91,6 +93,8 @@ __all__ = [
     "Course",
     "CourseFolder",
     "ContentStatus",
+    "ArtifactGeneratePolicy",
+    "CourseArtifactGenerator",
     "CourseSkill",
     "Module",
     "Lesson",

@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { useIntl } from 'react-intl'
 import { Button, ProgressBar } from '../ui'
 import { CourseIndex } from './CourseIndex'
+import { CourseMediaGenerator } from './CourseMediaGenerator'
 import { CourseMediaLibrary } from './CourseMediaLibrary'
 import { CourseChatPanel } from './CourseChatPanel'
 import type { CourseDetail, NodeList } from '../../types'
@@ -91,7 +92,8 @@ export function CourseOverview({ course, nodes }: CourseOverviewProps) {
               {intl.formatMessage({ id: 'overviews.librarySubtitle' })}
             </p>
           </div>
-          <CourseMediaLibrary courseId={course.id} />
+          {course.can_generate_artifacts && <CourseMediaGenerator courseId={course.id} />}
+          <CourseMediaLibrary courseId={course.id} operational={!!course.can_generate_artifacts} />
         </div>
       </div>
 

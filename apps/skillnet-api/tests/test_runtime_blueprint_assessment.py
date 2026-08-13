@@ -7,9 +7,14 @@ procedimiento (StepSequence) se verifica siempre ordenandolo (DragOrder).
 
 from __future__ import annotations
 
-from src.agents.runtime.agents.blueprint import _apply_assessment, _ensure_verification
+from src.agents.runtime.agents.blueprint import (
+    _apply_assessment,
+    _ensure_verification,
+    blueprint_from_scheme,
+)
 from src.agents.runtime.agents.types import Blueprint, BlueprintBlock
 from src.agents.runtime.assessment import AssessmentPlan
+from src.agents.runtime.screen_scheme import ScreenScheme
 
 
 def _bp(*types_and_intents: tuple[str, str, str]) -> Blueprint:
@@ -69,3 +74,19 @@ def test_ensure_verification_appends_a_quiz_when_missing() -> None:
     bp = _bp(("intro", "TextContent", "enganchar"), ("tabla", "Table", "concepto"))
     out = _ensure_verification(bp, "explanation", "understand")
     assert out.blocks[-1].type in ("QuizItem", "DragOrder")
+
+
+def test_blueprint_from_scheme_fills_the_three_planned_slots() -> None:
+    scheme = ScreenScheme(
+        concept_block="StepSequence",
+        practice_block="DragOrder",
+        practice_item_type=None,
+    )
+    bp = blueprint_from_scheme(scheme, "exercise", "apply")
+    assert [block.intent for block in bp.blocks] == [
+        "enganchar",
+        "concepto",
+        "verificar",
+    ]
+    assert bp.blocks[1].type == "StepSequence"
+    assert bp.blocks[2].type == "DragOrder"

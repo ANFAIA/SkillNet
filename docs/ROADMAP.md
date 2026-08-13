@@ -9,7 +9,7 @@
 Testeable autonomamente: subir PDFs reales, generar cursos, comparar output contra
 el documento fuente.
 
-- [ ] Subir PDFs reales de Ticketrona (manual entradas, ecosistema) como fuente
+- [ ] Subir PDFs reales de un partner (manual operativo, ecosistema) como fuente
 - [ ] Generar cursos desde esos documentos con el pipeline multi-agente
 - [ ] Verificar fidelidad: datos coinciden con el PDF, no inventa, no falta nada
 - [ ] Verificar componentes: procedimiento -> StepByStepReveal, lista -> Table, etc.

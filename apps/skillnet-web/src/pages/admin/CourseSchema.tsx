@@ -20,6 +20,7 @@ import { SchemaTreeNode } from '../../components/schema/SchemaTreeNode'
 import { SchemaValidationPanel } from '../../components/schema/SchemaValidationPanel'
 import type { PrerequisiteOption } from '../../components/schema/PrerequisitePicker'
 import { useCourse } from '../../api/courses'
+import { CourseSettingsPanel } from '../../components/courses/CourseSettingsPanel'
 import { useAssignCourse } from '../../api/enrollments'
 import { useAuth } from '../../hooks/useAuth'
 import { NodePreview } from '../../components/schema/NodePreview'
@@ -328,9 +329,6 @@ export function CourseSchema() {
         onError: (e) => reject(e),
       }),
     )
-
-    // Publish the course so it shows as "Publicado" instead of "Borrador"
-    if (id) await post(`/courses/${id}/publish`, {}).catch(() => {})
   }
 
   /** Full "Probar curso" flow: save + validate + enroll + pre-render + navigate. */
@@ -475,6 +473,8 @@ export function CourseSchema() {
           {totalMinutes > 0 && ` · ${totalMinutes} min`}
         </p>
       </motion.div>
+
+      {courseQuery.data && <CourseSettingsPanel course={courseQuery.data} />}
 
 
       {plainError && (

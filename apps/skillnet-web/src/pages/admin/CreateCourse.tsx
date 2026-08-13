@@ -846,8 +846,7 @@ export function CreateCourse() {
       for (const node of schema.nodes) {
         await post(`/courses/${course.id}/schema/nodes/${node.id}/review`, {}).catch(() => {})
       }
-      await post(`/courses/${course.id}/schema/validate`, {}).catch(() => {})
-      await post(`/courses/${course.id}/publish`, {}).catch(() => {})
+      await post(`/courses/${course.id}/schema/validate`, {})
 
       // Step 4: pre-render first node (non-blocking — go to success after a few seconds)
       setCreatingStep(3)

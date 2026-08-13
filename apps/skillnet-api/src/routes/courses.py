@@ -25,6 +25,7 @@ from src.schemas.course import (
     ModuleRead,
 )
 from src.schemas.exercise import ExerciseRead, strip_answers
+from src.services.artifact_access import can_generate_artifacts
 from src.services.course_delivery import resolve_delivery
 from src.services.course_service import CourseService
 from src.services.generation_service import GenerationService
@@ -57,11 +58,31 @@ def _parse_status(status: str | None) -> ContentStatus | None:
         raise ValidationError(f"Invalid status: {status}", field="status") from exc
 
 
+def _policy(course: Course) -> str:
+    raw = getattr(course, "artifact_generate_policy", None)
+    if raw is None:
+        return "admin"
+    return str(getattr(raw, "value", raw))
+
+
+def _can_generate(course: Course, user, generator_ids: list[uuid.UUID]) -> bool:
+    return can_generate_artifacts(
+        role=user.role,
+        user_id=user.id,
+        policy=_policy(course),
+        generator_ids=generator_ids,
+    )
+
+
 def _summary(
     course: Course,
     module_count: int | None,
     node_count: int | None = None,
+    *,
+    user,
+    generator_ids: list[uuid.UUID] | None = None,
 ) -> CourseRead:
+    ids = list(generator_ids or [])
     return CourseRead(
         id=course.id,
         title=course.title,
@@ -77,6 +98,9 @@ def _summary(
         node_count=node_count,
         schema_status=course.schema_status.value if course.schema_status else None,
         delivery_mode=_delivery(course),
+        artifact_generate_policy=_policy(course),
+        artifact_generator_ids=ids,
+        can_generate_artifacts=_can_generate(course, user, ids),
     )
 
 
@@ -85,6 +109,8 @@ def _detail(
     *,
     strip: bool,
     node_count: int | None = None,
+    user,
+    generator_ids: list[uuid.UUID] | None = None,
 ) -> CourseDetail:
     modules = []
     for module in course.modules:
@@ -136,6 +162,9 @@ def _detail(
         node_count=node_count,
         schema_status=course.schema_status.value if course.schema_status else None,
         delivery_mode=_delivery(course),
+        artifact_generate_policy=_policy(course),
+        artifact_generator_ids=list(generator_ids or []),
+        can_generate_artifacts=_can_generate(course, user, list(generator_ids or [])),
         modules=modules,
     )
 
@@ -162,7 +191,7 @@ async def list_courses(
         limit=limit,
     )
     return PaginatedResponse[CourseRead](
-        items=[_summary(course, mod_count, node_count) for course, mod_count, node_count in pairs],
+        items=[_summary(course, mod_count, node_count, user=admin) for course, mod_count, node_count in pairs],
         total=total,
         offset=offset,
         limit=limit,
@@ -181,7 +210,7 @@ async def create_course(
         org_id=admin.org_id, created_by=admin.id, **payload
     )
     await db.commit()
-    return _summary(course, 0)
+    return _summary(course, 0, user=admin)
 
 
 @router.get("/{course_id}", response_model=CourseDetail)
@@ -200,7 +229,14 @@ async def get_course(
         if enrollment is None:
             raise ForbiddenError("You are not enrolled in this course")
     node_count = len(await CourseNodeRepository(db).list_for_course(course_id))
-    return _detail(course, strip=strip, node_count=node_count)
+    generator_ids = await repo.list_artifact_generator_ids(course.id)
+    return _detail(
+        course,
+        strip=strip,
+        node_count=node_count,
+        user=user,
+        generator_ids=generator_ids,
+    )
 
 
 @router.get("/{course_id}/progress")
@@ -316,7 +352,8 @@ async def update_course(
         changes=body.model_dump(exclude_unset=True),
     )
     await db.commit()
-    return _summary(course, None)
+    generator_ids = await CourseRepository(db).list_artifact_generator_ids(course.id)
+    return _summary(course, None, user=admin, generator_ids=generator_ids)
 
 
 @router.delete("/{course_id}", status_code=204)
@@ -381,7 +418,7 @@ async def publish_course(
     service = _service(db)
     course = await service.publish(course_id=course_id, org_id=admin.org_id)
     await db.commit()
-    return _summary(course, len(course.modules))
+    return _summary(course, len(course.modules), user=admin)
 
 
 @router.post("/{course_id}/archive", response_model=CourseRead)
@@ -391,4 +428,4 @@ async def archive_course(
     service = _service(db)
     course = await service.archive(course_id=course_id, org_id=admin.org_id)
     await db.commit()
-    return _summary(course, None)
+    return _summary(course, None, user=admin)

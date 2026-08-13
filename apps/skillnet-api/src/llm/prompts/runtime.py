@@ -121,9 +121,13 @@ from src.render.spec import FORMATS_REQUIRING_LEAD
 #: the largest single class), and SkillNet 17 and 18 name the two syntax habits behind the
 #: rest (a bare ``opciones = [...]`` declaration, and the same id declared twice).
 #:
-#: ``runtime/28`` (2026-08-13): Didact screen instructions say what to write
-#: (lead, one concept block, one Didact practice) instead of a ban list.
-PROMPT_VERSION = "runtime/28"
+#: ``runtime/30`` (2026-08-13): the screen scheme is planned in
+#: ``screen_scheme.py`` (lead + concept block + practice). The generator
+#: fills those slots; it does not invent the didactic form.
+#:
+#: ``runtime/29`` (2026-08-13): one idea per screen; teach with a case or
+#: graphic; practice is a second workplace situation, not the same sentence.
+PROMPT_VERSION = "runtime/30"
 
 _PRESENTATION_PREFERENCES = {
     "balanced": "Combina representaciones segun el objetivo y la fuente.",
@@ -484,25 +488,17 @@ pantalla mal hecha aunque el programa sea valido.
 
 ## SkillNet: estructura pedagogica de la pantalla
 
-TRES BLOQUES, en este orden:
+El user prompt trae ESQUEMA DE ESTA PANTALLA cuando el nodo ya tiene un plan.
+Rellena esos huecos en ese orden. El concepto es el material (filas, pasos,
+barras), no un parrafo que define el titulo.
 
-1. ENGANCHAR — TextContent("lead"). Una situacion real del puesto, una frase.
-2. CONCEPTO — UN bloque de estos (elige segun el material):
-   - Listas de cosas -> Table
-   - Comparacion bien/mal, antes/despues -> BeforeAfter
-   - Procedimiento simple sin explicaciones -> StepSequence
-   El concepto va en Table, BeforeAfter o StepSequence, segun el material.
-3. VERIFICAR — UN bloque de practica. Si el prompt trae una linea "CÓMO VERIFICAR",
-   OBEDECELA: dice exactamente que bloque y que item_type usar. El QuizItem NO es siempre
-   de tipo "test"; tiene cuatro formas y se elige por lo que se evalua:
-   - "test": 4 opciones sobre un caso concreto. Para aplicar una regla a una situacion.
-   - "true_false": una afirmacion verdadera o falsa. options = []. Para juzgar una regla.
-   - "fill_blank": una frase con UN hueco ____ que se rellena con un termino o cifra clave.
-   - order_steps / DragOrder: ordenar los pasos de un procedimiento.
-   REGLA DURA: si el formato es "mixed" o "exercise", el programa DEBE tener
-   QuizItem o DragOrder. Sin el, el validador lo rechaza.
+Si el esquema pide QuizItem, tiene estas formas:
+- "test": 4 opciones sobre un caso concreto.
+- "true_false": una afirmacion sobre un caso. options = [].
+- "fill_blank": una frase con UN hueco ____.
+- order_steps / DragOrder: ordenar los pasos.
 
-MAXIMO 4 bloques (intro + concepto + practica + opcionalmente un Callout). Nada mas.
+MAXIMO 4 bloques (lead + concepto + practica + a veces un Callout).
 
 ## SkillNet: ejemplos completos
 
@@ -615,14 +611,12 @@ o DidactActivity(activity_id, component_id).
 Si el servidor ya preparo una Actividad Didact, esa es la practica de la pantalla.
 La correccion vive en el servidor: el programa termina con el bloque Didact.
 
-## SkillNet: ensenar y luego practicar
+## SkillNet: un caso, luego otro
 
-Tres piezas, en este orden:
-1. Lead: una frase de situacion del puesto (TextContent "lead").
-2. Concepto: UN bloque con el dato o procedimiento (Table, StepSequence o Callout).
-3. Practica Didact: aplica o comprueba ese mismo contenido en una situacion del puesto.
+El ESQUEMA DE ESTA PANTALLA ya nombra los tres huecos. Rellenalos.
+La practica Didact es un segundo encargo del puesto, distinto del lead
+y distinto del concepto.
 
-El lead situa. El concepto ensena. La practica usa lo ensenado.
 Un Card solo cuando agrupa varios datos distintos que caben juntos.
 """
 
@@ -737,6 +731,7 @@ def build_ui_prompt(
     source_context: str = "",
     shape_hints: Sequence[str] = (),
     assessment_hint: str = "",
+    screen_scheme: str = "",
     presentation_preference: str = "balanced",
     detail_preference: str = "standard",
     image_preference: str = "when_useful",
@@ -826,6 +821,13 @@ def build_ui_prompt(
         parts.append("CÓMO VERIFICAR (elegido por la forma del nodo, no es opcional)")
         parts.append(f"- {assessment_hint.strip()}")
 
+    if screen_scheme.strip():
+        # El esquema didáctico ya está decidido (``screen_scheme.py``). Va lo último
+        # antes de la fuente: en un modelo pequeño gana la instrucción más cercana
+        # al contenido. El generador rellena estos huecos; no inventa la forma.
+        parts.append("")
+        parts.append(screen_scheme.strip())
+
     parts.append("")
     if source_context.strip():
         parts.append("FUENTE (es la unica verdad; no anadas datos que no esten aqui)")
@@ -905,6 +907,7 @@ def build_repair_prompt(
     errors: Sequence[str],
     ui_format: str = "explanation",
     shape_hints: Sequence[str] = (),
+    screen_scheme: str = "",
 ) -> str:
     """The user prompt for the single repair attempt.
 
@@ -928,6 +931,9 @@ def build_repair_prompt(
     listed = "\n".join(f"- {error}" for error in errors) or "- programa invalido"
     section = _shape_section(shape_hints, ui_format)
     reminder = "\n".join(section) + "\n\n" if section else ""
+    scheme = screen_scheme.strip()
+    if scheme:
+        reminder = reminder + scheme + "\n\n"
     return (
         f"FORMATO QUE DEBES PRODUCIR: {ui_format}\n\n"
         "ERRORES DEL VALIDADOR:\n"

@@ -83,6 +83,9 @@ export interface CourseRead {
    * makes it safe for `pages/admin/Content.tsx` to branch on it directly.
    */
   delivery_mode: CourseDeliveryMode
+  artifact_generate_policy?: 'admin' | 'everyone' | 'selected'
+  artifact_generator_ids?: string[]
+  can_generate_artifacts?: boolean
 }
 
 export type ExerciseType =

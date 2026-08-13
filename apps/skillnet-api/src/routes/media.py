@@ -21,7 +21,7 @@ from pathlib import Path
 from fastapi import APIRouter, Query
 from fastapi.responses import Response, StreamingResponse
 
-from src.core.exceptions import NotFoundError, ValidationError
+from src.core.exceptions import ForbiddenError, NotFoundError, ValidationError
 from src.core.logging import get_logger
 from src.core.sse import format_sse, subscribe
 from src.deps.auth import CurrentUser
@@ -35,6 +35,7 @@ from src.schemas.media import (
     MediaArtifactCreate,
     MediaArtifactRead,
 )
+from src.services.artifact_access import can_generate_artifacts
 from src.services.learner_memory import LearnerMemoryService
 from src.services.media.assets import AssetStore
 from src.services.media.jobs import enqueue_artifact, media_channel, spawn_media_job
@@ -153,6 +154,14 @@ async def create_artifact(
     course = await CourseRepository(db).get_scoped(body.course_id, user.org_id)
     if course is None:
         raise NotFoundError("courses", str(body.course_id))
+    generator_ids = await CourseRepository(db).list_artifact_generator_ids(course.id)
+    if not can_generate_artifacts(
+        role=user.role,
+        user_id=user.id,
+        policy=getattr(course, "artifact_generate_policy", "admin"),
+        generator_ids=generator_ids,
+    ):
+        raise ForbiddenError("You cannot generate overviews for this course")
 
     node = None
     if body.node_id is not None:

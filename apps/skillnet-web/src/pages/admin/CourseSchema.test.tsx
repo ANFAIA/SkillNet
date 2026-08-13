@@ -136,6 +136,9 @@ function installFetch(handlers: Handlers) {
     if (url.includes('/enrollments')) {
       return jsonResponse(200, { items: [], total: 0, page: 1, size: 20 })
     }
+    if (url.includes('/users')) {
+      return jsonResponse(200, { items: [], total: 0, page: 1, size: 20 })
+    }
     if (url.endsWith(`/courses/${COURSE_ID}`)) {
       return jsonResponse(200, {
         id: COURSE_ID,

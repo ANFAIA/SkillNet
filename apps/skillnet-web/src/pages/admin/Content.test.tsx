@@ -73,6 +73,7 @@ function renderPage(initialEntry = '/admin/contenido') {
       <MemoryRouter initialEntries={[initialEntry]}>
         <Routes>
           <Route path="/admin/contenido" element={<Content />} />
+          <Route path="/admin/curso/:id/ajustes" element={<div>AJUSTES</div>} />
           <Route path="/admin/curso/:id/esquema" element={<div>ESQUEMA</div>} />
           <Route path="/admin/curso/:id" element={<div>PREVIEW</div>} />
         </Routes>
@@ -117,36 +118,50 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-describe('Content — the schema entry point', () => {
-  it('opens the schema screen of an existing course', async () => {
+describe('Content — the settings entry point', () => {
+  it('opens the settings screen of an existing course', async () => {
     installFetch()
     renderPage()
 
-    await userEvent.click(await screen.findByRole('button', { name: 'Esquema' }))
-    // A longer timeout than the 1000 ms default, and it is not papering over anything:
-    // this is the only assertion in the file that waits on a *route change* rather than
-    // on a render, and with 33 test files across parallel workers it intermittently
-    // exceeded the default on a loaded machine. It passes alone every time. The
-    // assertion is unchanged — the sentinel still has to be in the document.
-    expect(await screen.findByText('ESQUEMA', {}, { timeout: 5000 })).toBeInTheDocument()
+    await userEvent.click(await screen.findByRole('button', { name: 'Ajustes' }))
+    expect(await screen.findByText('AJUSTES', {}, { timeout: 5000 })).toBeInTheDocument()
   })
 
   it('offers it for a course with no modules, which has no other action at all', async () => {
     installFetch([course({ id: EMPTY_COURSE_ID, module_count: 0, status: 'draft' })])
     renderPage()
 
-    expect(await screen.findByRole('button', { name: 'Esquema' })).toBeInTheDocument()
-    // A schema-first course is created empty: without this link the row is a dead end.
+    expect(await screen.findByRole('button', { name: 'Ajustes' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Ver curso' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Publicar' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Overviews' })).toBeNull()
   })
 
-  it('shows the schema button alongside the v1 row', async () => {
+  it('shows the settings button alongside the v1 row', async () => {
     installFetch()
     renderPage()
 
     expect(await screen.findByText('Devoluciones en tienda')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Esquema' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Ajustes' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Ver curso' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Archivar' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Crear nuevo/ })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Overviews' })).toBeNull()
+  })
+})
+
+describe('Content — publish and archive', () => {
+  it('lets an admin publish a validated dynamic draft from the library', async () => {
+    installFetch([course({
+      status: 'draft',
+      module_count: 0,
+      node_count: 4,
+      delivery_mode: 'dynamic',
+      schema_status: 'validated',
+    })])
+    renderPage()
+
+    expect(await screen.findByRole('button', { name: 'Publicar' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Archivar' })).toBeNull()
   })
 })

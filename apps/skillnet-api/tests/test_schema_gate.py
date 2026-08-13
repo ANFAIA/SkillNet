@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 import pytest
 
 from src.models import (
+    ContentStatus,
     Course,
     CourseDeliveryMode,
     CourseNode,
@@ -574,11 +575,27 @@ async def test_validate_flips_status_and_delivery_and_audits() -> None:
 
     assert snapshot.course.schema_status == CourseSchemaStatus.VALIDATED
     assert snapshot.course.delivery_mode == CourseDeliveryMode.DYNAMIC
+    assert snapshot.course.status == ContentStatus.PUBLISHED
     assert snapshot.course.schema_validated_by == ACTOR_ID
     assert snapshot.course.schema_validated_at is not None
     assert audit_repo.rows[0]["action"] == "course_schema_validated"
     assert audit_repo.rows[0]["detail"]["node_count"] == 1
     ensure_node_servable(snapshot.course, node)
+
+
+@pytest.mark.asyncio
+async def test_validate_does_not_unarchive_a_hidden_course() -> None:
+    course = make_course()
+    course.status = ContentStatus.ARCHIVED
+    node = make_node(course, position=1)
+    service, _, _, _ = make_service(course, [node])
+
+    snapshot = await service.validate(
+        course_id=course.id, org_id=ORG_ID, actor_id=ACTOR_ID
+    )
+
+    assert snapshot.course.schema_status == CourseSchemaStatus.VALIDATED
+    assert snapshot.course.status == ContentStatus.ARCHIVED
 
 
 @pytest.mark.asyncio

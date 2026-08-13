@@ -8,7 +8,7 @@ import { CourseFolderSidebar, type FolderFilter } from '../../components/courses
 import { CourseFolderPicker } from '../../components/courses/CourseFolderPicker'
 import { FolderAssignmentDialog } from '../../components/courses/FolderAssignmentDialog'
 import { useCourseFolders, type CourseFolder } from '../../api/course-folders'
-import { useCourses, useUpdateCourse } from '../../api/courses'
+import { useArchiveCourse, useCourses, usePublishCourse, useUpdateCourse } from '../../api/courses'
 import { ApiError, post } from '../../api/client'
 import { useAuth } from '../../hooks/useAuth'
 import { staggerContainer, staggerItem } from '../../lib/motion'
@@ -35,10 +35,6 @@ function PlusIcon() {
   return <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
 }
 
-function StudioIcon() {
-  return <svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>
-}
-
 function LibrarySkeleton() {
   return (
     <div className="space-y-2" aria-hidden="true">
@@ -53,12 +49,22 @@ function LibrarySkeleton() {
   )
 }
 
-function CourseRow({ course, folders, onMove, moving, onOpen }: {
+function canPublish(course: CourseRead): boolean {
+  if (course.status !== 'draft') return false
+  if (course.delivery_mode === 'dynamic') return (course.node_count ?? 0) > 0
+  return (course.module_count ?? 0) > 0
+}
+
+function CourseRow({ course, folders, onMove, moving, onOpen, onPublish, onArchive, publishing, archiving }: {
   course: CourseRead
   folders: { id: string; name: string }[]
   onMove: (course: CourseRead, folderId: string | null) => void
   moving: boolean
   onOpen: (path: string) => void
+  onPublish: (courseId: string) => void
+  onArchive: (courseId: string) => void
+  publishing: boolean
+  archiving: boolean
 }) {
   const intl = useIntl()
   const status = useStatusConfig()(course.status)
@@ -88,8 +94,9 @@ function CourseRow({ course, folders, onMove, moving, onOpen }: {
           <CourseFolderPicker courseTitle={course.title} folderId={course.folder_id} folderName={course.folder_name} folders={folders} disabled={moving} onMove={(folderId) => onMove(course, folderId)} />
           {course.delivery_mode === 'dynamic' && <Button variant="ghost" size="sm" onClick={async () => { if (!currentUser) return; await post('/enrollments', { user_ids: [currentUser.id], course_id: course.id }).catch(() => {}); onOpen(`/admin/probar-curso/${course.id}`) }}>{intl.formatMessage({ id: 'content.test' })}</Button>}
           {course.module_count > 0 && course.delivery_mode !== 'dynamic' && <Button variant="ghost" size="sm" onClick={() => onOpen(`/admin/curso/${course.id}`)}>{intl.formatMessage({ id: 'content.viewCourse' })}</Button>}
-          <Button variant="ghost" size="sm" onClick={() => onOpen(`/admin/curso/${course.id}/estudio`)}><span className="flex items-center gap-1.5"><StudioIcon />{intl.formatMessage({ id: 'content.overviews' })}</span></Button>
-          <Button variant="ghost" size="sm" onClick={() => onOpen(`/admin/curso/${course.id}/esquema`)}>{intl.formatMessage({ id: 'content.schema' })}</Button>
+          {canPublish(course) && <Button variant="ghost" size="sm" onClick={() => onPublish(course.id)} disabled={publishing}>{publishing ? intl.formatMessage({ id: 'preview.publishing' }) : intl.formatMessage({ id: 'preview.publish' })}</Button>}
+          {course.status === 'published' && <Button variant="ghost" size="sm" onClick={() => onArchive(course.id)} disabled={archiving}>{archiving ? intl.formatMessage({ id: 'preview.archiving' }) : intl.formatMessage({ id: 'preview.archive' })}</Button>}
+          <Button variant="ghost" size="sm" onClick={() => onOpen(`/admin/curso/${course.id}/ajustes`)}>{intl.formatMessage({ id: 'content.schema' })}</Button>
         </div>
       </div>
     </Card>
@@ -117,6 +124,8 @@ export function Content() {
   const totalQuery = useCourses({ limit: 1 })
   const unorganizedQuery = useCourses({ unorganized: true, limit: 1 })
   const updateCourse = useUpdateCourse()
+  const publishCourse = usePublishCourse()
+  const archiveCourse = useArchiveCourse()
   const courses = coursesQuery.data?.items ?? []
   const folders = foldersQuery.data ?? []
 
@@ -177,7 +186,7 @@ export function Content() {
               <Card><EmptyState title={intl.formatMessage({ id: hasFilters ? 'content.noResultsTitle' : 'content.emptyTitle' })} description={intl.formatMessage({ id: hasFilters ? 'content.noResultsDesc' : 'content.emptyDesc' })} action={hasFilters ? { label: intl.formatMessage({ id: 'content.clearFilters' }), onClick: () => setParams({}, { replace: true }) } : { label: intl.formatMessage({ id: 'content.emptyAction' }), onClick: () => navigate('/admin/crear-curso') }} /></Card>
             ) : (
               <motion.div className="space-y-2" initial="hidden" animate="visible" variants={staggerContainer}>
-                {courses.map((course) => <CourseRow key={course.id} course={course} folders={folders} moving={updateCourse.isPending} onMove={moveCourse} onOpen={navigate} />)}
+                {courses.map((course) => <CourseRow key={course.id} course={course} folders={folders} moving={updateCourse.isPending} onMove={moveCourse} onOpen={navigate} onPublish={(id) => publishCourse.mutate(id)} onArchive={(id) => archiveCourse.mutate(id)} publishing={publishCourse.isPending} archiving={archiveCourse.isPending} />)}
               </motion.div>
             )}
           </div>

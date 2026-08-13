@@ -89,7 +89,7 @@ def assemble(
     #     they render through their parent and must NOT be added to root.
     #   - true ORPHANS: declared, valid, but unreachable from root — the learner
     #     would never see them. This silently dropped real content (measured: a
-    #     `warn` Callout carrying a critical rule vanished from a Ticketrona node).
+    #     `warn` Callout carrying a critical rule vanished from a generated node).
     # Wire the orphans into root instead of losing them, placed just before the
     # last child (normally the exercise) so an informational block lands with the
     # content it belongs to. Respect the root fan-out cap so re-wiring never makes

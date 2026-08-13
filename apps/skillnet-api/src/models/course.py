@@ -21,6 +21,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from src.models.base import Base, TimestampMixin, UUIDMixin
 
 if TYPE_CHECKING:
+    from src.models.course_artifact_generator import CourseArtifactGenerator
     from src.models.course_folder import CourseFolder
     from src.models.enrollment import Enrollment
     from src.models.module import Module
@@ -44,6 +45,14 @@ class CourseSchemaStatus(str, enum.Enum):
     PROPOSED = "proposed"
     VALIDATED = "validated"
     ARCHIVED = "archived"
+
+
+class ArtifactGeneratePolicy(str, enum.Enum):
+    """Who may generate course-level overviews (podcast, video, slides, infographic)."""
+
+    ADMIN = "admin"
+    EVERYONE = "everyone"
+    SELECTED = "selected"
 
 
 class Course(UUIDMixin, TimestampMixin, Base):
@@ -114,6 +123,16 @@ class Course(UUIDMixin, TimestampMixin, Base):
     intent_density: Mapped[int] = mapped_column(
         SmallInteger, nullable=False, server_default=text("3"), default=3
     )
+    artifact_generate_policy: Mapped[ArtifactGeneratePolicy] = mapped_column(
+        SAEnum(
+            ArtifactGeneratePolicy,
+            name="artifact_generate_policy",
+            values_callable=lambda e: [m.value for m in e],
+        ),
+        nullable=False,
+        server_default=ArtifactGeneratePolicy.ADMIN.value,
+        default=ArtifactGeneratePolicy.ADMIN,
+    )
 
     modules: Mapped[list["Module"]] = relationship(
         back_populates="course",
@@ -122,3 +141,7 @@ class Course(UUIDMixin, TimestampMixin, Base):
     )
     enrollments: Mapped[list["Enrollment"]] = relationship(back_populates="course")
     folder: Mapped["CourseFolder | None"] = relationship(back_populates="courses")
+    artifact_generators: Mapped[list["CourseArtifactGenerator"]] = relationship(
+        back_populates="course",
+        cascade="all, delete-orphan",
+    )

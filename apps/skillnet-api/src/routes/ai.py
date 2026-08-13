@@ -55,13 +55,16 @@ def _format_sse(event_type: str, data: dict) -> str:
 # ── Phase 1 (structure) prompt ─────────────────────────────────
 
 _STRUCTURE_SYSTEM = """\
-You are an instructional designer. Given a course title, optional description,
-and a density level, propose ONLY the skeleton of a learning schema: the list
-of nodes with their titles, criticality, and prerequisites, plus a short list
-of observable skills the whole course grants when completed.
+You are an instructional designer for on-the-job training. Given a course
+title, optional description, and a density level, propose ONLY the skeleton:
+node titles, criticality, prerequisites, and a short list of observable skills.
 
-Do NOT write summaries, outcomes, or any other detail. Keep it fast: just the
-tree structure and course-level skills.
+Each node is ONE thing the employee will do on the next shift. The title names
+that thing: "Plazo de devolucion", "Aceite de la freidora", "Regla PAS".
+Chapter titles are the wrong unit: "Conceptos basicos", "Introduccion",
+"Tipos de...", "Importancia de...", "Vision general".
+
+Do not write summaries or outcomes here. Keep it fast: the tree and the skills.
 
 For each node return:
 - title: short, concrete name (max 80 characters)
@@ -80,6 +83,8 @@ Rules:
    capability with an action verb (for example, "Configurar una taquilla"),
    never a broad topic (for example, "Taquilla"). Do not repeat node titles.
 6. Write skills in the SAME LANGUAGE as the course title.
+7. Density is a ceiling. Prefer fewer nodes if the brief only names a few
+   actions. One action from the brief = one node.
 
 Respond with valid JSON only, no surrounding text:
 {"nodes": [{"title": str, "criticality": str, "prerequisites": [int]}],
@@ -87,11 +92,11 @@ Respond with valid JSON only, no surrounding text:
 """
 
 _DENSITY_GUIDANCE: dict[int, str] = {
-    1: "Very condensed: 3-5 nodes, only the essential.",
-    2: "Condensed: 4-7 nodes.",
-    3: "Balanced: 6-10 nodes.",
-    4: "Extended: 8-14 nodes, contextual nodes allowed.",
-    5: "Very extended: 10-18 nodes, break down each procedure.",
+    1: "Ceiling 5 nodes. Only the actions named in the brief.",
+    2: "Ceiling 7 nodes. One action per node.",
+    3: "Ceiling 10 nodes. One action per node.",
+    4: "Ceiling 14 nodes. Contextual nodes only if they are a distinct action.",
+    5: "Ceiling 18 nodes. Split procedures; each node is still one action.",
 }
 
 
@@ -138,17 +143,21 @@ def _skill_names_from_response(parsed: object) -> list[str]:
 
 _ENRICH_SYSTEM = """\
 You are an instructional designer. You are given one node from a course schema
-and the course title. Your job is to fill in the details for this single node.
+and the course title. Fill in the details for this single node.
 
 Return valid JSON only, no surrounding text:
 {"summary": str, "outcome": str, "estimated_minutes": int, "default_ui_format": str}
 
 Rules:
-- summary: 1-3 sentences describing WHAT the node covers. Mandatory.
-- outcome: what the learner will be able to do after completing this node, in
-  one sentence.
+- summary: 1-2 sentences with the ONE fact, case or procedure this screen
+  teaches. A shop-floor sentence, not a syllabus line.
+  Example: "Si el aceite frio un rebozado con harina, la fritura no es apta
+  para un celiaco."
+- outcome: what the employee will do on the job after this screen, one sentence.
 - estimated_minutes: integer between 2 and 20.
 - default_ui_format: one of [explanation, exercise, chart, mixed].
+  Use chart when the teaching material is numbers; mixed when it is a procedure
+  the employee will then practise; explanation when it is one rule or case.
 - Write in the SAME LANGUAGE as the node title.
 """
 

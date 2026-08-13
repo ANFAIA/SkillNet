@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom'
 import { Toaster } from 'sonner'
 import { AppLayout } from './components/layout/AppLayout'
 import { AdminLayout } from './components/layout/AdminLayout'
@@ -24,11 +24,20 @@ import { Content } from './pages/admin/Content'
 import { CreateCourse } from './pages/admin/CreateCourse'
 import { AdminChat } from './pages/admin/Chat'
 import { CoursePreview } from './pages/admin/CoursePreview'
-import { CourseStudio } from './pages/admin/CourseStudio'
 import { CourseSchema } from './pages/admin/CourseSchema'
 import { Settings as AdminSettings } from './pages/admin/Settings'
 import { MotionDemo } from './pages/dev/MotionDemo'
 import { DidactLab } from './pages/dev/DidactLab'
+
+function RedirectCourseEstudio() {
+  const { id } = useParams<{ id: string }>()
+  return <Navigate to={`/admin/probar-curso/${id}`} replace />
+}
+
+function RedirectCourseEsquema() {
+  const { id } = useParams<{ id: string }>()
+  return <Navigate to={`/admin/curso/${id}/ajustes`} replace />
+}
 
 const HOME_BY_ROLE = {
   admin: '/admin',
@@ -108,13 +117,9 @@ function App() {
             <Route path="contenido" element={<Content />} />
             <Route path="crear-curso" element={<CreateCourse />} />
             <Route path="curso/:id" element={<CoursePreview />} />
-            {/* Course Studio — the media hub (overviews). A separate screen from the
-                course preview, reached from the Contenido page. */}
-            <Route path="curso/:id/estudio" element={<CourseStudio />} />
-            {/* The creator's gate (§11.1, B10). Mounted unconditionally: the admin
-                schema routes 404 with the flag off and the screen says so, which beats
-                a route that silently does not exist. */}
-            <Route path="curso/:id/esquema" element={<CourseSchema />} />
+            <Route path="curso/:id/estudio" element={<RedirectCourseEstudio />} />
+            <Route path="curso/:id/ajustes" element={<CourseSchema />} />
+            <Route path="curso/:id/esquema" element={<RedirectCourseEsquema />} />
             {/* Admin course testing — same components the learner uses, rendered
                 inside AdminLayout so the admin stays in context. */}
             <Route path="probar-curso/:id" element={<CourseView />} />

@@ -85,7 +85,7 @@ def test_didact_live_closes_a_procedure_with_sort() -> None:
     assert plan.item_type == DIDACT_PROCEDURE
     assert "DidactActivity" in plan.instruction()
     assert "didact.sort" in plan.instruction()
-    assert "ensena" in plan.instruction()
+    assert "otro encargo" in plan.instruction()
 
 
 def test_didact_live_closer_is_stable_for_the_same_node() -> None:
@@ -170,6 +170,23 @@ def test_declined_authoring_rewrites_the_verification_hint() -> None:
     assert "DidactActivity" not in hint
 
 
+def test_declined_authoring_rewrites_the_screen_scheme_practice() -> None:
+    from src.agents.runtime.nodes import _effective_screen_scheme
+
+    text = _effective_screen_scheme(
+        {
+            "concept_block": "Table",
+            "assessment_block": "DidactActivity",
+            "assessment_item_type": "didact.sort",
+            "screen_scheme": "stale",
+        },
+        ("HintReveal",),
+    )
+    assert "concepto = Table" in text
+    assert "HintReveal" in text
+    assert "DidactActivity" not in text
+
+
 def test_legacy_assessment_still_requires_quizitem() -> None:
     from src.agents.runtime.nodes import _prompt_assessment_required
 
@@ -238,6 +255,7 @@ def test_didact_verification_prompt_names_the_practice() -> None:
     assert "verificacion Didact" in didact
     assert "DidactActivity" in didact
     assert "Flashcard" in didact
-    assert "ensenar y luego practicar" in didact
-    assert "El lead situa" in didact
+    assert "un caso, luego otro" in didact
+    assert "ESQUEMA DE ESTA PANTALLA" in didact
+    assert "segundo encargo" in didact
     assert "PROHIBIDO" not in didact

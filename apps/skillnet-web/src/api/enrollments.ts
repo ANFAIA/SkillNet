@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { get, post } from './client'
+import { del, get, post } from './client'
 import type { EnrollmentRead, Paginated } from '../types'
 
 export interface EnrollmentFilters {
@@ -39,6 +39,16 @@ export function useAssignCourse() {
   return useMutation({
     mutationFn: (payload: { user_ids: string[]; course_id: string; deadline?: string }) =>
       post<EnrollmentRead[]>('/enrollments', payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['enrollments'] })
+    },
+  })
+}
+
+export function useDeleteEnrollment() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (enrollmentId: string) => del(`/enrollments/${enrollmentId}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['enrollments'] })
     },

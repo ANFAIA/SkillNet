@@ -19,6 +19,11 @@
     "prompt_preview": "Eres el generador de pantallas de SkillNet, formacion de cumplimiento normativo\npara empleados. Responde UNICAMENTE con un programa en el dialecto des",
     "use_case": "genera_ui"
   },
+  "7ab6ed3c4a216233": {
+    "file": "genera_ui/openui_explanation.txt",
+    "prompt_preview": "Eres el generador de pantallas de SkillNet, formacion de cumplimiento normativo para empleados. Responde UNICAMENTE con un programa en el dialecto descrito abaj",
+    "use_case": "genera_ui"
+  },
   "86192090f47404b5": {
     "file": "decide_formato/explanation.json",
     "prompt_preview": "Eres el selector de formato de SkillNet, una plataforma de formacion en el puesto de trabajo. Recibes la ficha de un nodo de aprendizaje y el perfil del aprendi",

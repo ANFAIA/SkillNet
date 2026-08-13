@@ -58,7 +58,14 @@ export function useUpdateCourse() {
       payload,
     }: {
       id: string
-      payload: { title?: string; description?: string; outcome?: string; folder_id?: string | null }
+      payload: {
+        title?: string
+        description?: string
+        outcome?: string
+        folder_id?: string | null
+        artifact_generate_policy?: 'admin' | 'everyone' | 'selected'
+        artifact_generator_ids?: string[]
+      }
     }) => put<CourseRead>(`/courses/${id}`, payload),
     onSuccess: (_data, { id }) => {
       queryClient.invalidateQueries({ queryKey: ['courses', id] })

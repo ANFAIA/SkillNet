@@ -32,6 +32,7 @@ def _state() -> dict:
         "shape_summary": "numeric_seriesx4->Table",
         "assessment_block": "QuizItem",
         "assessment_item_type": "numeric",
+        "concept_block": "Chart",
     }
 
 
@@ -48,6 +49,7 @@ def test_shadow_trace_is_json_safe_and_keeps_live_decision_separate() -> None:
         "shape_summary": "numeric_seriesx4->Table",
         "assessment_block": "QuizItem",
         "assessment_item_type": "numeric",
+        "concept_block": "Chart",
     }
     assert trace["shadow"]["mission"] == "interpret"
     assert trace["shadow"]["objective_version"] == 2
@@ -173,7 +175,10 @@ async def test_decide_formato_observes_once_before_either_openui_generator(
 
     assert len(observed) == 1
     assert observed[0]["assessment_block"] in {"QuizItem", "DragOrder", "DidactActivity"}
+    assert observed[0]["concept_block"] == "StepSequence"
     assert observed[0]["shape_functions"] == ["procedimentar"]
+    assert result["concept_block"] == "StepSequence"
+    assert "ESQUEMA DE ESTA PANTALLA" in result["screen_scheme"]
     assert result["plan_trace"]["trace_version"] == "plan-trace/test"
     assert "ui_spec" not in result
     assert state["ui_spec"] == {"root": "unchanged"}

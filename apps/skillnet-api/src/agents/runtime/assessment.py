@@ -91,13 +91,13 @@ class AssessmentPlan:
             return (
                 f"VERIFICA con DidactActivity usando component_id {component_id!r}. "
                 "Si el servidor ya preparó una actividad, usa exactamente esos "
-                "activity_id y component_id. El lead situa, el concepto ensena, "
-                "la actividad aplica lo ensenado."
+                "activity_id y component_id. El concepto ensena con un caso o "
+                "una grafica; la actividad es otro encargo del puesto."
             )
         if self.block in DIRECT_DIDACT_BLOCKS:
             return (
-                f"VERIFICA con {self.block}. El lead situa, el concepto ensena, "
-                f"{self.block} aplica lo ensenado."
+                f"VERIFICA con {self.block}. El concepto ensena con un caso o "
+                f"una grafica; {self.block} es otro encargo del puesto."
             )
         if self.block == "DragOrder":
             return (

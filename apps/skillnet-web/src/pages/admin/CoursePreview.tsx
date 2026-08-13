@@ -221,7 +221,7 @@ export function CoursePreview() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => navigate(`/admin/curso/${id}/esquema`)}
+                onClick={() => navigate(`/admin/curso/${id}/ajustes`)}
               >
                 {intl.formatMessage({ id: 'preview.schema' })}
               </Button>

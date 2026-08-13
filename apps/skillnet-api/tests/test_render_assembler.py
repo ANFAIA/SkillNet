@@ -3,7 +3,7 @@
 The regression these lock down: an agent may declare a block that the blueprint
 never listed. A *helper* nested inside another block (referenced from a children
 array) must stay out of root; a true *orphan* (declared, valid, unreachable) must
-be wired INTO root instead of silently dropped — measured on a Ticketrona node
+be wired INTO root instead of silently dropped — measured on a generated node
 where a `warn` Callout with a critical rule vanished because it was orphaned.
 """
 

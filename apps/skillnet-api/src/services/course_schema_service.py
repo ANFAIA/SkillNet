@@ -38,6 +38,7 @@ from src.core.logging import get_logger
 from src.core.tasks import task_registry
 from src.models import (
     CRITICALITY_THRESHOLDS,
+    ContentStatus,
     Course,
     CourseDeliveryMode,
     CourseNode,
@@ -878,6 +879,10 @@ class CourseSchemaService:
         course.delivery_mode = CourseDeliveryMode.DYNAMIC
         course.schema_validated_by = actor_id
         course.schema_validated_at = now
+        # Activating the schema is finishing the course: employees should see it.
+        # Archive stays archive — that hide is explicit.
+        if course.status not in (ContentStatus.PUBLISHED, ContentStatus.ARCHIVED):
+            course.status = ContentStatus.PUBLISHED
         await self.session.flush()
 
         recomputed = await self.recompute_enrollment_closure(course, org_id=org_id)

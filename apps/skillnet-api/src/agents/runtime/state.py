@@ -77,6 +77,11 @@ class NodeRuntimeState(TypedDict, total=False):
     assessment_block: str  # "QuizItem" | "DragOrder" | "DidactActivity"
     assessment_item_type: str | None  # Quiz item_type, or didact.* when DidactActivity
     assessment_hint: str  # la línea de prompt ya redactada
+    #: Cómo se EXPLICA este nodo, decidido por ``src.agents.runtime.screen_scheme`` a
+    #: partir de la forma del material y del closer. Tres huecos (lead, concepto,
+    #: práctica). El generador rellena; no inventa la forma.
+    concept_block: str  # Table | Chart | StepSequence | BeforeAfter
+    screen_scheme: str  # el bloque de prompt ya redactado
 
     # --- Generation ---
     backend: str  # "openui" (the only dialect in this PR)

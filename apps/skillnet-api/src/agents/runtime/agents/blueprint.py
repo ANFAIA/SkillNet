@@ -16,6 +16,7 @@ from src.core.logging import get_logger
 from src.llm.parsing import parse_json_response
 
 from src.agents.runtime.assessment import AssessmentPlan
+from src.agents.runtime.screen_scheme import ScreenScheme
 from src.agents.runtime.agents.types import (
     Blueprint,
     BlueprintBlock,
@@ -207,7 +208,13 @@ def build_blueprint_prompt(
 # Default blueprint (fallback when LLM fails)
 # ---------------------------------------------------------------------------
 
-def default_blueprint(ui_format: str, shape_hints: Sequence[str]) -> Blueprint:
+def default_blueprint(
+    ui_format: str,
+    shape_hints: Sequence[str],
+    scheme: ScreenScheme | None = None,
+) -> Blueprint:
+    if scheme is not None:
+        return blueprint_from_scheme(scheme, ui_format)
     blocks: list[BlueprintBlock] = [
         BlueprintBlock(id="intro", type="TextContent", intent="enganchar", variant="lead"),
     ]
@@ -226,6 +233,51 @@ def default_blueprint(ui_format: str, shape_hints: Sequence[str]) -> Blueprint:
         blocks.append(BlueprintBlock(id="q1", type="QuizItem", intent="verificar", item_type="test", bloom="understand"))
 
     return Blueprint(blocks=blocks)
+
+
+def blueprint_from_scheme(
+    scheme: ScreenScheme,
+    ui_format: str,
+    target_bloom: str = "understand",
+) -> Blueprint:
+    """The planned slots, not an invented structure."""
+
+    bloom = "apply" if ui_format in ("exercise", "mixed") else target_bloom
+    concept_kwargs: dict[str, Any] = {
+        "id": "concepto",
+        "type": scheme.concept_block,
+        "intent": "concepto",
+    }
+    if scheme.concept_block == "Table":
+        concept_kwargs["columns"] = 2
+    if scheme.practice_block == "DragOrder":
+        practice = BlueprintBlock(
+            id="ejercicio", type="DragOrder", intent="verificar", bloom=bloom
+        )
+    elif scheme.practice_block == "QuizItem":
+        practice = BlueprintBlock(
+            id="q1",
+            type="QuizItem",
+            intent="verificar",
+            item_type=scheme.practice_item_type or "test",
+            bloom=bloom,
+        )
+    else:
+        practice = BlueprintBlock(
+            id="practica",
+            type=scheme.practice_block,
+            intent="verificar",
+            item_type=scheme.practice_item_type,
+        )
+    return Blueprint(
+        blocks=[
+            BlueprintBlock(
+                id="intro", type="TextContent", intent="enganchar", variant="lead"
+            ),
+            BlueprintBlock(**concept_kwargs),
+            practice,
+        ]
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -249,11 +301,15 @@ async def run_blueprint(
     llm: Any,
     siblings: Sequence[str] = (),
     assessment: AssessmentPlan | None = None,
+    scheme: ScreenScheme | None = None,
     presentation_preference: str = "balanced",
     detail_preference: str = "standard",
     image_preference: str = "when_useful",
 ) -> Blueprint:
-    """Run the Blueprint Architect agent and return a screen structure."""
+    """Return the screen structure. A planned scheme is the structure; no LLM invents it."""
+
+    if scheme is not None:
+        return blueprint_from_scheme(scheme, ui_format, target_bloom)
 
     user_prompt = build_blueprint_prompt(
         title=title,
@@ -297,7 +353,7 @@ async def run_blueprint(
             blueprint = Blueprint.model_validate(data)
         except Exception:
             log.warning("blueprint: LLM response unparseable, using default. raw=%s", raw[:300])
-            blueprint = default_blueprint(ui_format, shape_hints)
+            blueprint = default_blueprint(ui_format, shape_hints, scheme)
 
     # --- Post-validation: ensure a verification block exists ---------------
     blueprint = _ensure_verification(blueprint, ui_format, target_bloom)

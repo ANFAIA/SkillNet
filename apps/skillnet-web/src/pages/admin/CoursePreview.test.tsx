@@ -78,7 +78,7 @@ function renderPage() {
       <MemoryRouter initialEntries={[`/admin/curso/${COURSE_ID}`]}>
         <Routes>
           <Route path="/admin/curso/:id" element={<CoursePreview />} />
-          <Route path="/admin/curso/:id/esquema" element={<div>ESQUEMA</div>} />
+          <Route path="/admin/curso/:id/ajustes" element={<div>AJUSTES</div>} />
           <Route path="/admin/contenido" element={<div>CONTENIDO</div>} />
         </Routes>
       </MemoryRouter>
@@ -95,21 +95,21 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-describe('CoursePreview — the schema entry point', () => {
-  it('opens the schema of the course on screen', async () => {
+describe('CoursePreview — the settings entry point', () => {
+  it('opens the settings of the course on screen', async () => {
     installFetch()
     renderPage()
 
-    await userEvent.click(await screen.findByRole('button', { name: 'Esquema' }))
-    expect(await screen.findByText('ESQUEMA')).toBeInTheDocument()
+    await userEvent.click(await screen.findByRole('button', { name: 'Ajustes' }))
+    expect(await screen.findByText('AJUSTES')).toBeInTheDocument()
   })
 
-  it('shows the schema button alongside the v1 action row', async () => {
+  it('shows the settings button alongside the v1 action row', async () => {
     installFetch()
     renderPage()
 
     expect(await screen.findByRole('button', { name: 'Editar' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Esquema' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Ajustes' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Publicar' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Contenido' })).toBeInTheDocument()
   })
