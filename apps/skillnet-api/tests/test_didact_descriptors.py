@@ -51,6 +51,22 @@ def test_planner_can_see_all_types_but_emittable_projection_is_explicitly_smalle
         "didact.equation-workbench",
         "didact.evidence-annotation",
         "didact.measurement-lab",
+        "didact.matching",
+        "didact.sort",
+        "didact.categorize",
+        "didact.quiz.single-choice",
+        "didact.quiz.multi-select",
+        "didact.quiz.true-false",
+        "didact.quiz.fill-in-the-blank",
+        "didact.quiz.short-answer",
+        "didact.completion-problem",
+        "didact.numeric-question",
+        "didact.word-bank",
+        "didact.hotspot",
+        "didact.label-diagram",
+        "didact.interactive-media",
+        "didact.progress",
+        "didact.mastery-badge",
     }
 
 

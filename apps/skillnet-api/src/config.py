@@ -1,7 +1,9 @@
 from typing import Literal
 
-from pydantic import field_validator
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from src.personalization.selection_policy import SelectionExecution, SelectionStrategy
 
 _DEV_SECRET_KEY = "dev-insecure-secret-key-change-me-in-production"
 
@@ -95,9 +97,15 @@ class Settings(BaseSettings):
     # TTS (provider-agnostic, follows the litellm pattern)
     TTS_PROVIDER: str = "disabled"
     TTS_API_KEY: str = ""
-    TTS_VOICE: str = "alloy"
+    # Empty selects the provider's own default (Azure: es-ES-ElviraNeural).
+    TTS_VOICE: str = ""
     TTS_LANGUAGE: str = "es"
     TTS_CACHE_DIR: str = "data/tts_cache"
+    # Azure Speech intentionally has no inferred public-cloud endpoint: deployments may
+    # use sovereign clouds or private endpoints, so both values must be explicit.
+    TTS_AZURE_REGION: str = ""
+    TTS_AZURE_ENDPOINT: str = ""
+    TTS_TIMEOUT_SECONDS: float = Field(default=30.0, gt=0)
 
     # Rich media artifacts (NotebookLM spine).
     #
@@ -175,6 +183,11 @@ class Settings(BaseSettings):
     # then expose only the 3-5 renderer-safe candidates to the generation prompt.
     # The inventory remains complete; this flag only narrows the LLM boundary.
     RUNTIME_COMPONENT_SHORTLIST: bool = True
+    # Versioned policy applied to the real pedagogically-gated ranking. top5/v1 preserves
+    # the pre-policy runtime behaviour. dual-agent and conditional-specialist are forced
+    # to shadow until the runtime has an independent second producer/ranking.
+    RUNTIME_SELECTION_STRATEGY: SelectionStrategy = SelectionStrategy.TOP5
+    RUNTIME_SELECTION_EXECUTION: SelectionExecution = SelectionExecution.LIVE
 
     # Router semantico de funciones de contenido (prototipo, fases 3/4 de
     # docs/design/arquitectura-componentes-funcional.md). Cuando esta activo,

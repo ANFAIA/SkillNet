@@ -5,10 +5,16 @@ import pytest
 from src.personalization.plan import (
     AccessibilityCapability,
     ErrorSignal,
+    HistorySupportLevel,
     InferredPresentationBucket,
+    Presentation,
     SupportBand,
 )
-from src.personalization.projection import project_runtime_signals
+from src.personalization.projection import (
+    ValidatedHistoryEvent,
+    project_longitudinal_history,
+    project_runtime_signals,
+)
 
 
 def test_calibration_suppresses_inferred_vector_but_keeps_declared_support() -> None:
@@ -83,6 +89,31 @@ def test_frozen_scaffold_band_overrides_declared_experience() -> None:
     assert projection.support_band is SupportBand.NOVICE
 
 
+def test_declared_audio_projects_or_degrades_without_changing_other_signals() -> None:
+    preferences = {"version": 2, "modality": "audio", "interaction": "interactive"}
+
+    available = project_runtime_signals(
+        learning_preferences=preferences,
+        tts_available=True,
+        experience_level="experienced",
+    )
+    disabled = project_runtime_signals(
+        learning_preferences=preferences,
+        tts_available=False,
+        experience_level="experienced",
+    )
+
+    assert available.declared_presentations == (
+        Presentation.AUDIO,
+        Presentation.SIMULATION,
+    )
+    assert disabled.declared_presentations == (
+        Presentation.TEXT,
+        Presentation.SIMULATION,
+    )
+    assert available.support_band == disabled.support_band == SupportBand.INDEPENDENT
+
+
 def test_role_and_sector_cannot_change_or_leak_into_projection() -> None:
     first = project_runtime_signals(role_title="Camarero", sector="Hosteleria")
     second = project_runtime_signals(role_title="Animador", sector="Cine")
@@ -98,6 +129,10 @@ def test_role_and_sector_cannot_change_or_leak_into_projection() -> None:
         "density",
         "accessibility_capabilities",
         "error_signal",
+        "history_support_level",
+        "mechanic_exposure",
+        "history_evidence_applied",
+        "semantic_error_mapping",
         "calibrating",
         "projection_version",
     }
@@ -122,3 +157,93 @@ def test_projection_api_rejects_identity_and_memory_inputs() -> None:
 )
 def test_error_vocabulary_is_closed(error, expected) -> None:
     assert project_runtime_signals(last_error_kind=error).error_signal is expected
+
+
+def _history_event(
+    event_id: str,
+    *,
+    event_type: str = "didact.answered",
+    component_id: str = "didact.measurement-lab",
+    attempt_id: str | None = None,
+    outcome: str | None = "incorrect",
+    score: float | None = 0.0,
+) -> ValidatedHistoryEvent:
+    return ValidatedHistoryEvent(
+        event_id=event_id,
+        type=event_type,
+        component_id=component_id,
+        attempt_id=attempt_id,
+        outcome=outcome,
+        score=score,
+    )
+
+
+def test_only_scored_responses_change_longitudinal_decision() -> None:
+    inert = project_longitudinal_history(
+        [
+            _history_event("view", event_type="didact.started", score=None),
+            _history_event("done", event_type="didact.completed", score=None),
+            _history_event("unscored", outcome="unscored", score=None),
+        ],
+        nodes_completed=5,
+    )
+    evaluated = project_longitudinal_history(
+        [
+            _history_event(
+                "answer",
+                attempt_id="attempt-1",
+                outcome="incorrect",
+                score=0.0,
+            )
+        ],
+        nodes_completed=5,
+    )
+
+    assert inert.evaluated_attempts == 0
+    assert inert.support_level is HistorySupportLevel.BASE
+    assert inert.mechanic_exposure == ()
+    assert evaluated.support_level is HistorySupportLevel.HINTS
+    assert evaluated.mechanic_exposure == (("didact.measurement-lab", 1),)
+    assert inert.decision_digest != evaluated.decision_digest
+
+
+def test_feedback_counts_as_support_only_for_a_validated_error_attempt() -> None:
+    history = project_longitudinal_history(
+        [
+            _history_event("wrong", attempt_id="attempt-1"),
+            _history_event(
+                "paired-feedback",
+                event_type="didact.feedback_viewed",
+                attempt_id="attempt-1",
+                outcome=None,
+                score=None,
+            ),
+            _history_event(
+                "unpaired-feedback",
+                event_type="didact.feedback_viewed",
+                attempt_id="attempt-other",
+                outcome=None,
+                score=None,
+            ),
+        ],
+        nodes_completed=5,
+    )
+
+    assert history.error_attempts == 1
+    assert history.supported_error_attempts == 1
+    assert history.support_level is HistorySupportLevel.WORKED_EXAMPLE
+    assert history.semantic_error_mapping == "shadow-unmapped"
+
+
+def test_calibration_observes_history_but_keeps_decision_stable() -> None:
+    events = [
+        _history_event("wrong-1", attempt_id="attempt-1"),
+        _history_event("wrong-2", attempt_id="attempt-2"),
+    ]
+    observed = project_longitudinal_history(events, nodes_completed=2)
+    empty = project_longitudinal_history([], nodes_completed=2)
+
+    assert observed.error_attempts == 2
+    assert observed.applied is False
+    assert observed.support_level is HistorySupportLevel.BASE
+    assert observed.decision_digest == empty.decision_digest

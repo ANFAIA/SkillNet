@@ -638,7 +638,8 @@ async def test_update_profile_applies_accessibility_atomically_and_advances_once
     )
 
     assert user.accessibility == {"short_blocks": True}
-    assert profile.learning_preferences["presentation"] == "visual"
+    assert profile.learning_preferences["version"] == 2
+    assert profile.learning_preferences["modality"] == "visual"
     assert profile.personalization_revision == 5
     profiles.session.execute.assert_awaited_once()
 

@@ -4,9 +4,11 @@ from src.personalization.plan import (
     AccessibilityCapability,
     CognitiveMission,
     ComponentDescriptor,
-    DeclineReason,
     Declined,
+    DeclineReason,
     ErrorSignal,
+    HistorySupportLevel,
+    InferredPresentationBucket,
     LearningExperiencePlan,
     LearningObjective,
     PersonalizationProjection,
@@ -209,3 +211,144 @@ def test_projection_rejects_open_or_invalid_values() -> None:
         PersonalizationProjection(
             declared_presentations=(Presentation.IMAGE, Presentation.IMAGE)
         )
+
+
+@pytest.mark.parametrize(
+    ("bucket", "expected"),
+    [
+        (InferredPresentationBucket.TEXT_HIGH, "text-guide"),
+        (InferredPresentationBucket.VISUAL_HIGH, "visual-diagram"),
+        (InferredPresentationBucket.EXERCISE_HIGH, "interactive-lab"),
+        (InferredPresentationBucket.DATA_HIGH, "data-chart"),
+    ],
+)
+def test_post_calibration_inference_ranks_compatible_candidates_deterministically(
+    animation_objective: LearningObjective,
+    bucket: InferredPresentationBucket,
+    expected: str,
+) -> None:
+    catalog = (
+        descriptor("text-guide", presentations=frozenset({Presentation.TEXT})),
+        descriptor("visual-diagram", presentations=frozenset({Presentation.DIAGRAM})),
+        descriptor("interactive-lab", presentations=frozenset({Presentation.SIMULATION})),
+        descriptor("data-chart", presentations=frozenset({Presentation.CHART})),
+    )
+    projection = PersonalizationProjection(
+        inferred_presentation_bucket=bucket,
+        calibrating=False,
+    )
+
+    first = plan_experience(animation_objective, projection, catalog)
+    second = plan_experience(animation_objective, projection, catalog)
+
+    assert first == second
+    assert isinstance(first, LearningExperiencePlan)
+    assert first.component_candidates[0].component_id == expected
+    assert "INFERRED_PRESENTATION_RANKED" in first.rationale_codes
+    assert first.required_fact_refs == animation_objective.required_fact_refs
+
+
+def test_unknown_or_pre_calibration_inference_has_no_ranking_effect(
+    animation_objective: LearningObjective,
+) -> None:
+    catalog = (
+        descriptor("a-text", presentations=frozenset({Presentation.TEXT})),
+        descriptor("z-simulation", presentations=frozenset({Presentation.SIMULATION})),
+    )
+    unknown = plan_experience(
+        animation_objective,
+        PersonalizationProjection(
+            inferred_presentation_bucket=InferredPresentationBucket.UNKNOWN
+        ),
+        catalog,
+    )
+    calibrating = plan_experience(
+        animation_objective,
+        PersonalizationProjection(
+            # Projection compilation suppresses this value during calibration; this
+            # direct planner test additionally ensures the planner does not trust it.
+            inferred_presentation_bucket=InferredPresentationBucket.EXERCISE_HIGH,
+            calibrating=True,
+        ),
+        catalog,
+    )
+
+    assert isinstance(unknown, LearningExperiencePlan)
+    assert isinstance(calibrating, LearningExperiencePlan)
+    assert unknown.component_candidates[0].component_id == "a-text"
+    assert calibrating.component_candidates[0].component_id == "a-text"
+    assert "INFERRED_PRESENTATION_RANKED" not in calibrating.rationale_codes
+
+
+def test_declared_preference_wins_over_conflicting_inference(
+    animation_objective: LearningObjective,
+) -> None:
+    catalog = (
+        descriptor("a-interactive", presentations=frozenset({Presentation.SIMULATION})),
+        descriptor("z-declared-text", presentations=frozenset({Presentation.TEXT})),
+    )
+    projection = PersonalizationProjection(
+        declared_presentations=(Presentation.TEXT,),
+        inferred_presentation_bucket=InferredPresentationBucket.EXERCISE_HIGH,
+        calibrating=False,
+    )
+
+    result = plan_experience(animation_objective, projection, catalog)
+
+    assert isinstance(result, LearningExperiencePlan)
+    assert [item.component_id for item in result.component_candidates] == [
+        "z-declared-text"
+    ]
+    assert "DECLARED_PRESENTATION_MATCHED" in result.rationale_codes
+
+
+def test_validated_history_changes_only_equivalent_candidates_and_support(
+    animation_objective: LearningObjective,
+) -> None:
+    keyboard = frozenset({AccessibilityCapability.KEYBOARD})
+    catalog = (
+        descriptor(
+            "didact.blocked",
+            presentations=frozenset({Presentation.SIMULATION}),
+            rank=1,
+        ),
+        descriptor(
+            "didact.pedagogically-best",
+            presentations=frozenset({Presentation.SIMULATION}),
+            accessibility=keyboard,
+            rank=10,
+        ),
+        descriptor(
+            "didact.a-repeated",
+            presentations=frozenset({Presentation.SIMULATION}),
+            accessibility=keyboard,
+            rank=100,
+        ),
+        descriptor(
+            "didact.z-fresh",
+            presentations=frozenset({Presentation.SIMULATION}),
+            accessibility=keyboard,
+            rank=100,
+        ),
+    )
+    projection = PersonalizationProjection(
+        accessibility_capabilities=keyboard,
+        history_support_level=HistorySupportLevel.WORKED_EXAMPLE,
+        mechanic_exposure=(("didact.a-repeated", 2),),
+        history_evidence_applied=True,
+    )
+
+    result = plan_experience(animation_objective, projection, catalog)
+
+    assert isinstance(result, LearningExperiencePlan)
+    assert [item.component_id for item in result.component_candidates] == [
+        "didact.pedagogically-best",
+        "didact.z-fresh",
+        "didact.a-repeated",
+    ]
+    assert result.required_fact_refs == animation_objective.required_fact_refs
+    assert result.mission is animation_objective.mission
+    assert result.support.worked_example is True
+    assert result.support.history_level is HistorySupportLevel.WORKED_EXAMPLE
+    assert "ACCESSIBILITY_FILTERED" in result.rationale_codes
+    assert "USEFUL_NOVELTY_TIEBREAK" in result.rationale_codes

@@ -6,23 +6,27 @@ from pathlib import Path
 import pytest
 
 from src.personalization.didact_catalog import (
+    REGISTRY_PATH,
     SNAPSHOT_PATH,
     AvailabilityStatus,
+    AuthoringStrategy,
     DidactCatalogError,
     EmissionStatus,
     HostPort,
+    RendererMode,
     load_didact_catalog,
 )
 
 
-def test_catalog_covers_all_34_available_didact_types() -> None:
+def test_catalog_covers_every_declared_available_didact_type() -> None:
     snapshot = json.loads(SNAPSHOT_PATH.read_text(encoding="utf-8"))
     catalog = load_didact_catalog()
 
     expected = {item["id"] for item in snapshot["available_types"]}
-    assert len(expected) == 34
-    assert len(catalog.components) == 34
+    assert len(expected) == snapshot["counts"]["available_types"]
+    assert len(catalog.components) == len(expected)
     assert set(catalog.by_type_id) == expected
+    assert catalog.registry_schema_version == 1
 
 
 def test_every_type_retains_its_neutral_manifest_identity() -> None:
@@ -41,7 +45,7 @@ def test_every_type_retains_its_neutral_manifest_identity() -> None:
 def test_total_catalogue_is_separate_from_openui_emission_readiness() -> None:
     catalog = load_didact_catalog()
 
-    assert len(catalog.components) == 34
+    assert len(catalog.emittable) == 29
     assert {item.type_id for item in catalog.emittable} == {
         "didact.flashcard",
         "didact.hint-reveal",
@@ -56,6 +60,22 @@ def test_total_catalogue_is_separate_from_openui_emission_readiness() -> None:
         "didact.equation-workbench",
         "didact.evidence-annotation",
         "didact.measurement-lab",
+        "didact.matching",
+        "didact.sort",
+        "didact.categorize",
+        "didact.quiz.single-choice",
+        "didact.quiz.multi-select",
+        "didact.quiz.true-false",
+        "didact.quiz.fill-in-the-blank",
+        "didact.quiz.short-answer",
+        "didact.completion-problem",
+        "didact.numeric-question",
+        "didact.word-bank",
+        "didact.hotspot",
+        "didact.label-diagram",
+        "didact.interactive-media",
+        "didact.progress",
+        "didact.mastery-badge",
     }
     assert {item.renderer_symbol for item in catalog.emittable} == {
         "Flashcard",
@@ -68,15 +88,23 @@ def test_total_catalogue_is_separate_from_openui_emission_readiness() -> None:
     assert all(item.renderer_available for item in catalog.emittable)
     assert all(item.availability_status is AvailabilityStatus.READY for item in catalog.emittable)
     assert all(item.emission_status is EmissionStatus.ENABLED for item in catalog.emittable)
+    assert {
+        item.renderer_mode for item in catalog.emittable
+    } == {RendererMode.DIRECT, RendererMode.ACTIVITY_DEFINITION}
+    assert {
+        item.authoring_strategy for item in catalog.emittable
+    } == {AuthoringStrategy.INLINE, AuthoringStrategy.SERVER_ACTIVITY}
 
 
 def test_unadapted_types_remain_installed_but_await_a_renderer() -> None:
     catalog = load_didact_catalog()
     unadapted = [item for item in catalog.components if not item.renderer_available]
 
-    assert len(unadapted) == 21
+    assert len(unadapted) == 5
     assert all(item.availability_status is AvailabilityStatus.BLOCKED for item in unadapted)
     assert all(item.emission_status is EmissionStatus.DISABLED for item in unadapted)
+    assert all(item.renderer_mode is RendererMode.BLOCKED for item in unadapted)
+    assert all(item.authoring_strategy is AuthoringStrategy.UNSUPPORTED for item in unadapted)
 
 
 def test_required_ports_are_inferred_by_capability_family() -> None:
@@ -101,7 +129,7 @@ def test_host_ports_change_readiness_not_the_complete_inventory() -> None:
     with_ports = load_didact_catalog(available_ports=all_ports)
 
     assert tuple(with_ports.by_type_id) == tuple(without_ports.by_type_id)
-    assert len(with_ports.components) == len(without_ports.components) == 34
+    assert len(with_ports.components) == len(without_ports.components)
     assert [item.renderer_available for item in with_ports.components] == [
         item.renderer_available for item in without_ports.components
     ]
@@ -132,3 +160,43 @@ def test_unknown_manifest_reference_fails_closed(tmp_path: Path) -> None:
 
     with pytest.raises(DidactCatalogError, match="unknown manifest"):
         load_didact_catalog(broken)
+
+
+def test_synthetic_35th_component_needs_no_central_python_map(tmp_path: Path) -> None:
+    snapshot = json.loads(SNAPSHOT_PATH.read_text(encoding="utf-8"))
+    registry = json.loads(REGISTRY_PATH.read_text(encoding="utf-8"))
+    synthetic_hash = "synthetic-35"
+    synthetic_manifest = json.loads(json.dumps(snapshot["manifests"][0]))
+    synthetic_manifest["id"] = "didact.synthetic"
+    synthetic_manifest["name"] = "Synthetic"
+    snapshot["manifests"].append(synthetic_manifest)
+    snapshot["available_types"].append(
+        {
+            "id": "didact.synthetic",
+            "manifest_id": "didact.synthetic",
+            "export_name": "Synthetic",
+            "registry_item": "synthetic",
+        }
+    )
+    snapshot["counts"]["available_types"] += 1
+    snapshot["content_sha256"] = synthetic_hash
+    registry["snapshot_content_sha256"] = synthetic_hash
+    registry["components"].append(
+        {
+            "id": "didact.synthetic",
+            "renderer_mode": "blocked",
+            "renderer_symbol": None,
+            "emission": "disabled",
+            "required_ports": [],
+            "authoring_strategy": "unsupported",
+        }
+    )
+    snapshot_path = tmp_path / "didact_snapshot.json"
+    registry_path = tmp_path / "didact_component_registry.v1.json"
+    snapshot_path.write_text(json.dumps(snapshot), encoding="utf-8")
+    registry_path.write_text(json.dumps(registry), encoding="utf-8")
+
+    catalog = load_didact_catalog(snapshot_path, registry_path=registry_path)
+
+    assert len(catalog.components) == snapshot["counts"]["available_types"]
+    assert catalog.by_type_id["didact.synthetic"].renderer_mode is RendererMode.BLOCKED

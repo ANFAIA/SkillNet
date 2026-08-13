@@ -1,7 +1,8 @@
 """Append-only interaction log feeding ``learner_profiles.format_vector``.
 
-Privacy: ``metadata`` never stores user text nor copied content — only
-``{"element_id": "...", "ms": 1234}``. Retention is 90 days, purged by
+Privacy: ``metadata`` never stores user text nor copied content. Node instrumentation
+stores only ``element_id``/``ms``; Didact instrumentation stores only its validated
+coordinates and bounded telemetry envelope. Retention is 90 days, purged by
 ``python -m src.scripts.purge_learning_data``.
 """
 

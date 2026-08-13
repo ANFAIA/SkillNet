@@ -64,12 +64,36 @@ class InferredPresentationBucket(str, enum.Enum):
     DATA_HIGH = "data-high"
 
 
+_PRESENTATIONS_FOR_INFERRED_BUCKET: dict[
+    InferredPresentationBucket, frozenset[Presentation]
+] = {
+    InferredPresentationBucket.TEXT_HIGH: frozenset(
+        {Presentation.TEXT, Presentation.TABLE}
+    ),
+    InferredPresentationBucket.VISUAL_HIGH: frozenset(
+        {Presentation.IMAGE, Presentation.DIAGRAM}
+    ),
+    InferredPresentationBucket.EXERCISE_HIGH: frozenset({Presentation.SIMULATION}),
+    InferredPresentationBucket.DATA_HIGH: frozenset(
+        {Presentation.CHART, Presentation.TABLE}
+    ),
+}
+
+
 class ErrorSignal(str, enum.Enum):
     NONE = "none"
     DETAIL = "detail"
     CONCEPTUAL = "conceptual"
     PROCEDURAL = "procedural"
     TRANSFER = "transfer"
+
+
+class HistorySupportLevel(str, enum.Enum):
+    """Bounded support inferred only from validated prior assessment evidence."""
+
+    BASE = "base"
+    HINTS = "hints"
+    WORKED_EXAMPLE = "worked-example"
 
 
 class ProducerKind(str, enum.Enum):
@@ -115,6 +139,10 @@ class PersonalizationProjection:
     density: int = 2
     accessibility_capabilities: frozenset[AccessibilityCapability] = frozenset()
     error_signal: ErrorSignal = ErrorSignal.NONE
+    history_support_level: HistorySupportLevel = HistorySupportLevel.BASE
+    mechanic_exposure: tuple[tuple[str, int], ...] = ()
+    history_evidence_applied: bool = False
+    semantic_error_mapping: str = "shadow-unmapped"
     calibrating: bool = False
     projection_version: str = "personalization/1"
 
@@ -125,6 +153,10 @@ class PersonalizationProjection:
             raise ValueError("projection_version must not be empty")
         if len(set(self.declared_presentations)) != len(self.declared_presentations):
             raise ValueError("declared_presentations must not contain duplicates")
+        if any(not component_id.startswith("didact.") for component_id, _ in self.mechanic_exposure):
+            raise ValueError("mechanic_exposure accepts only Didact component ids")
+        if any(count not in (1, 2) for _, count in self.mechanic_exposure):
+            raise ValueError("mechanic exposure counts must be bucketed to 1 or 2")
 
 
 @dataclass(frozen=True, slots=True)
@@ -134,6 +166,7 @@ class SupportPolicy:
     worked_example: bool
     graduated_hints: bool
     direct_feedback: bool
+    history_level: HistorySupportLevel = HistorySupportLevel.BASE
 
 
 @dataclass(frozen=True, slots=True)
@@ -211,12 +244,24 @@ class LearningExperiencePlan:
 
 def _support_for(projection: PersonalizationProjection) -> SupportPolicy:
     needs_guidance = projection.support_band is not SupportBand.INDEPENDENT
+    history_hints = projection.history_support_level in (
+        HistorySupportLevel.HINTS,
+        HistorySupportLevel.WORKED_EXAMPLE,
+    )
     return SupportPolicy(
         band=projection.support_band,
         density=projection.density,
-        worked_example=projection.support_band is SupportBand.NOVICE,
-        graduated_hints=needs_guidance or projection.error_signal is not ErrorSignal.NONE,
+        worked_example=(
+            projection.support_band is SupportBand.NOVICE
+            or projection.history_support_level is HistorySupportLevel.WORKED_EXAMPLE
+        ),
+        graduated_hints=(
+            needs_guidance
+            or projection.error_signal is not ErrorSignal.NONE
+            or history_hints
+        ),
         direct_feedback=True,
+        history_level=projection.history_support_level,
     )
 
 
@@ -286,11 +331,32 @@ def plan_experience(
     pool = preferred or eligible
     fallback = bool(declared and not preferred)
 
+    inferred_presentations = (
+        frozenset()
+        if projection.calibrating
+        else _PRESENTATIONS_FOR_INFERRED_BUCKET.get(
+            projection.inferred_presentation_bucket, frozenset()
+        )
+    )
+
     def presentation_for(item: ComponentDescriptor) -> Presentation:
         for value in declared:
             if value in item.presentations:
                 return value
+        for value in sorted(inferred_presentations, key=lambda value: value.value):
+            if value in item.presentations:
+                return value
         return min(item.presentations, key=lambda value: value.value)
+
+    def candidate_rank(item: ComponentDescriptor) -> tuple[int, int, str, int]:
+        # Behaviour learned during calibration is a secondary, deterministic signal.
+        # It never makes an ineligible component eligible and cannot escape the pool
+        # already narrowed by an explicit declared presentation.
+        inferred_penalty = int(
+            bool(inferred_presentations)
+            and not bool(item.presentations & inferred_presentations)
+        )
+        return (item.rank, inferred_penalty, item.component_id, item.version)
 
     candidates = tuple(
         ComponentCandidate(
@@ -303,8 +369,18 @@ def plan_experience(
             item.state_model_ref,
             item.rank,
         )
-        for item in sorted(pool, key=lambda item: (item.rank, item.component_id, item.version))
+        for item in sorted(pool, key=candidate_rank)
     )
+    if projection.history_evidence_applied and projection.mechanic_exposure:
+        from src.personalization.novelty import useful_novelty_tiebreak
+
+        candidates_before_novelty = candidates
+        candidates = useful_novelty_tiebreak(
+            candidates,
+            prior_exposure=dict(projection.mechanic_exposure),
+        )
+    else:
+        candidates_before_novelty = candidates
     representations = tuple(dict.fromkeys(item.presentation for item in candidates))
     rationale = ["MISSION_FROM_OBJECTIVE", "CAPABILITY_FILTERED"]
     if declared and preferred:
@@ -313,6 +389,14 @@ def plan_experience(
         rationale.append("DECLARED_PRESENTATION_UNAVAILABLE")
     if projection.accessibility_capabilities:
         rationale.append("ACCESSIBILITY_FILTERED")
+    if inferred_presentations and any(
+        item.presentations & inferred_presentations for item in pool
+    ):
+        rationale.append("INFERRED_PRESENTATION_RANKED")
+    if projection.history_support_level is not HistorySupportLevel.BASE:
+        rationale.append("VALIDATED_HISTORY_SUPPORT_ESCALATED")
+    if candidates != candidates_before_novelty:
+        rationale.append("USEFUL_NOVELTY_TIEBREAK")
 
     return LearningExperiencePlan(
         objective_id=objective.objective_id,

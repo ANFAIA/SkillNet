@@ -5,9 +5,9 @@ deliberately does not answer *what should OpenUI see for this node*.  That latte
 question belongs to an exposure policy and may change between experiments without
 removing anything from this catalogue.
 
-The 34 educational types are read from Didact's authoritative ``availableTypes``
-snapshot.  We only maintain the small, honest integration delta here: renderers which
-SkillNet has actually adapted and host ports which those renderers can use.
+Educational identity comes from Didact's authoritative ``availableTypes`` snapshot.
+SkillNet's versioned operational registry declares the host integration delta for every
+type: renderer mode, emission, authoring strategy and required ports.
 """
 
 from __future__ import annotations
@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Any
 
 SNAPSHOT_PATH = Path(__file__).with_name("didact_snapshot.json")
+REGISTRY_PATH = Path(__file__).with_name("didact_component_registry.v1.json")
 
 
 class DidactCatalogError(ValueError):
@@ -56,6 +57,22 @@ class EmissionStatus(StrEnum):
     DISABLED = "disabled"
 
 
+class RendererMode(StrEnum):
+    """How SkillNet renders a component, independently from vendor availability."""
+
+    DIRECT = "direct"
+    ACTIVITY_DEFINITION = "activity_definition"
+    BLOCKED = "blocked"
+
+
+class AuthoringStrategy(StrEnum):
+    """How content reaches the renderer."""
+
+    INLINE = "inline"
+    SERVER_ACTIVITY = "server_activity"
+    UNSUPPORTED = "unsupported"
+
+
 @dataclass(frozen=True, slots=True)
 class DidactComponentAvailability:
     """One Didact educational type as understood by the SkillNet host."""
@@ -68,10 +85,12 @@ class DidactComponentAvailability:
     description: str
     maturity: str
     component_version: str
+    renderer_mode: RendererMode
     renderer_available: bool
     renderer_symbol: str | None
     availability_status: AvailabilityStatus
     emission_status: EmissionStatus
+    authoring_strategy: AuthoringStrategy
     required_ports: tuple[HostPort, ...]
     missing_ports: tuple[HostPort, ...]
     capabilities: tuple[str, ...]
@@ -97,6 +116,7 @@ class DidactCatalog:
     source_repository: str
     source_commit: str
     content_sha256: str
+    registry_schema_version: int
     components: tuple[DidactComponentAvailability, ...]
 
     @property
@@ -114,46 +134,14 @@ class DidactCatalog:
         )
 
 
-# This is an adapter registry, not a second copy of Didact's inventory.  An entry only
-# appears after a real SkillNet renderer exists.  The snapshot remains the source of
-# truth for all type ids and metadata.
-_RENDERER_BINDINGS: Mapping[str, str] = {
-    "didact.flashcard": "Flashcard",
-    "didact.hint-reveal": "HintReveal",
-    "didact.glossary-term": "DidactGlossary",
-    "didact.timeline-steps": "DidactTimeline",
-    "didact.worked-example": "DidactWorkedExample",
-    # Generic server-owned ActivityDefinition renderer. These bindings mirror the
-    # adapters in DidactActivityBlock exactly; an installed React export alone is not
-    # sufficient reason to expose a component to generation.
-    "didact.rubric": "DidactActivity",
-    "didact.data-explorer": "DidactActivity",
-    "didact.self-explanation-prompt": "DidactActivity",
-    "didact.concept-map": "DidactActivity",
-    "didact.drawing-response": "DidactActivity",
-    "didact.equation-workbench": "DidactActivity",
-    "didact.evidence-annotation": "DidactActivity",
-    "didact.measurement-lab": "DidactActivity",
-}
-
-# A renderer may exist before SkillNet has the host contract needed to expose it.
-# Self-explanation captures learner-authored work; losing it on navigation is not an
-# honest implementation, so persistence remains required despite the ungraded result.
-_HOST_REQUIREMENT_OVERRIDES: Mapping[str, frozenset[HostPort]] = {
-    "didact.self-explanation-prompt": frozenset({HostPort.PERSISTENCE}),
-    "didact.concept-map": frozenset({HostPort.PERSISTENCE}),
-    "didact.drawing-response": frozenset({HostPort.PERSISTENCE}),
-    "didact.evidence-annotation": frozenset({HostPort.PERSISTENCE}),
-    "didact.equation-workbench": frozenset({HostPort.EVALUATION}),
-    "didact.measurement-lab": frozenset({HostPort.EVALUATION}),
-}
-
-# Ports currently satisfied by a shared SkillNet host adapter.  Local-only components
-# need no port, so Flashcard and HintReveal are enabled without pretending that the
-# evaluation/media/simulation adapters already exist.
-_AVAILABLE_HOST_PORTS: frozenset[HostPort] = frozenset(
-    {HostPort.CLOCK, HostPort.EVALUATION, HostPort.PERSISTENCE}
-)
+@dataclass(frozen=True, slots=True)
+class _OperationalComponent:
+    type_id: str
+    renderer_mode: RendererMode
+    renderer_symbol: str | None
+    emission_status: EmissionStatus
+    required_ports: tuple[HostPort, ...]
+    authoring_strategy: AuthoringStrategy
 
 
 def _strings(value: object, *, field: str, owner: str) -> tuple[str, ...]:
@@ -162,7 +150,7 @@ def _strings(value: object, *, field: str, owner: str) -> tuple[str, ...]:
     return tuple(value)
 
 
-def _required_ports(manifest: Mapping[str, Any]) -> tuple[HostPort, ...]:
+def _inferred_required_ports(manifest: Mapping[str, Any]) -> tuple[HostPort, ...]:
     """Infer shared host contracts from semantic manifest data, not component names.
 
     These rules intentionally operate on capabilities, authoring fields, tags and
@@ -217,6 +205,97 @@ def _required_ports(manifest: Mapping[str, Any]) -> tuple[HostPort, ...]:
     return tuple(sorted(ports, key=str))
 
 
+def _operational_registry(
+    path: Path,
+    *,
+    snapshot_hash: str,
+) -> tuple[int, frozenset[HostPort], dict[str, _OperationalComponent]]:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise DidactCatalogError(f"cannot read Didact operational registry at {path}: {exc}") from exc
+    if not isinstance(payload, Mapping):
+        raise DidactCatalogError("Didact operational registry root must be an object")
+    schema_version = payload.get("schema_version")
+    if schema_version != 1:
+        raise DidactCatalogError(f"unsupported Didact registry schema version: {schema_version!r}")
+    if payload.get("snapshot_content_sha256") != snapshot_hash:
+        raise DidactCatalogError("Didact operational registry targets a different snapshot")
+
+    try:
+        default_ports = frozenset(
+            HostPort(value)
+            for value in _strings(
+                payload.get("available_host_ports", []),
+                field="available_host_ports",
+                owner="registry",
+            )
+        )
+    except ValueError as exc:
+        raise DidactCatalogError(f"registry has an unknown available host port: {exc}") from exc
+
+    raw_components = payload.get("components")
+    if not isinstance(raw_components, list):
+        raise DidactCatalogError("registry.components must be an array")
+    components: dict[str, _OperationalComponent] = {}
+    for raw in raw_components:
+        if not isinstance(raw, Mapping):
+            raise DidactCatalogError("every registry component must be an object")
+        type_id = raw.get("id")
+        if not isinstance(type_id, str) or not type_id or type_id in components:
+            raise DidactCatalogError(f"duplicate or invalid registry component id: {type_id!r}")
+        try:
+            renderer_mode = RendererMode(raw.get("renderer_mode"))
+            emission_status = EmissionStatus(raw.get("emission"))
+            authoring_strategy = AuthoringStrategy(raw.get("authoring_strategy"))
+            required_ports = tuple(
+                sorted(
+                    {
+                        HostPort(value)
+                        for value in _strings(
+                            raw.get("required_ports", []),
+                            field="required_ports",
+                            owner=type_id,
+                        )
+                    },
+                    key=str,
+                )
+            )
+        except ValueError as exc:
+            raise DidactCatalogError(f"{type_id} has an unknown operational value: {exc}") from exc
+        renderer_symbol = raw.get("renderer_symbol")
+        if renderer_symbol is not None and not isinstance(renderer_symbol, str):
+            raise DidactCatalogError(f"{type_id}.renderer_symbol must be a string or null")
+
+        expected = {
+            RendererMode.DIRECT: (EmissionStatus.ENABLED, AuthoringStrategy.INLINE),
+            RendererMode.ACTIVITY_DEFINITION: (
+                EmissionStatus.ENABLED,
+                AuthoringStrategy.SERVER_ACTIVITY,
+            ),
+            RendererMode.BLOCKED: (EmissionStatus.DISABLED, AuthoringStrategy.UNSUPPORTED),
+        }[renderer_mode]
+        if (emission_status, authoring_strategy) != expected:
+            raise DidactCatalogError(f"{type_id} has an inconsistent operational strategy")
+        if (renderer_mode is RendererMode.BLOCKED) == (renderer_symbol is not None):
+            raise DidactCatalogError(f"{type_id} has an inconsistent renderer binding")
+        if (
+            renderer_mode is RendererMode.ACTIVITY_DEFINITION
+            and renderer_symbol != "DidactActivity"
+        ):
+            raise DidactCatalogError(f"{type_id} must use the DidactActivity renderer")
+
+        components[type_id] = _OperationalComponent(
+            type_id=type_id,
+            renderer_mode=renderer_mode,
+            renderer_symbol=renderer_symbol,
+            emission_status=emission_status,
+            required_ports=required_ports,
+            authoring_strategy=authoring_strategy,
+        )
+    return schema_version, default_ports, components
+
+
 def _manifest_index(payload: Mapping[str, Any]) -> dict[str, Mapping[str, Any]]:
     manifests = payload.get("manifests")
     if not isinstance(manifests, list):
@@ -235,6 +314,7 @@ def _manifest_index(payload: Mapping[str, Any]) -> dict[str, Mapping[str, Any]]:
 def _availability(
     raw_type: Mapping[str, Any],
     manifest: Mapping[str, Any],
+    operational: _OperationalComponent,
     *,
     available_ports: frozenset[HostPort],
 ) -> DidactComponentAvailability:
@@ -258,21 +338,21 @@ def _availability(
     if not isinstance(accessibility, Mapping):
         raise DidactCatalogError(f"{manifest_id}.accessibility must be an object")
 
-    required_ports = tuple(
-        sorted(
-            set(_required_ports(manifest)) | set(_HOST_REQUIREMENT_OVERRIDES.get(type_id, ())),
-            key=str,
+    inferred_ports = set(_inferred_required_ports(manifest))
+    required_ports = operational.required_ports
+    if not inferred_ports.issubset(required_ports):
+        missing = sorted(port.value for port in inferred_ports - set(required_ports))
+        raise DidactCatalogError(
+            f"{type_id} registry omits manifest-inferred required ports: {missing}"
         )
-    )
     missing_ports = tuple(port for port in required_ports if port not in available_ports)
-    renderer_symbol = _RENDERER_BINDINGS.get(type_id)
-    renderer_available = renderer_symbol is not None
+    renderer_symbol = operational.renderer_symbol
+    renderer_available = operational.renderer_mode is not RendererMode.BLOCKED
     availability_status = (
         AvailabilityStatus.BLOCKED
         if not renderer_available or missing_ports
         else AvailabilityStatus.READY
     )
-    emission_status = EmissionStatus.ENABLED if renderer_available and not missing_ports else EmissionStatus.DISABLED
 
     return DidactComponentAvailability(
         type_id=type_id,
@@ -283,10 +363,12 @@ def _availability(
         description=str(manifest.get("description", "")),
         maturity=str(lifecycle.get("maturity", "unknown")),
         component_version=str(version.get("component", "unknown")),
+        renderer_mode=operational.renderer_mode,
         renderer_available=renderer_available,
         renderer_symbol=renderer_symbol,
         availability_status=availability_status,
-        emission_status=emission_status,
+        emission_status=operational.emission_status,
+        authoring_strategy=operational.authoring_strategy,
         required_ports=required_ports,
         missing_ports=missing_ports,
         capabilities=_strings(
@@ -310,7 +392,8 @@ def _availability(
 def load_didact_catalog(
     path: Path = SNAPSHOT_PATH,
     *,
-    available_ports: Iterable[HostPort] = _AVAILABLE_HOST_PORTS,
+    registry_path: Path = REGISTRY_PATH,
+    available_ports: Iterable[HostPort] | None = None,
 ) -> DidactCatalog:
     """Load and validate the complete neutral snapshot into host availability state."""
 
@@ -325,7 +408,23 @@ def load_didact_catalog(
     if not isinstance(raw_types, list):
         raise DidactCatalogError("snapshot.available_types must be an array")
     manifest_by_id = _manifest_index(payload)
-    port_set = frozenset(available_ports)
+    snapshot_hash = str(payload.get("content_sha256", ""))
+    registry_version, default_ports, operational_by_id = _operational_registry(
+        registry_path,
+        snapshot_hash=snapshot_hash,
+    )
+    port_set = default_ports if available_ports is None else frozenset(available_ports)
+    snapshot_type_ids = {
+        raw_type.get("id")
+        for raw_type in raw_types
+        if isinstance(raw_type, Mapping) and isinstance(raw_type.get("id"), str)
+    }
+    if set(operational_by_id) != snapshot_type_ids:
+        missing = sorted(snapshot_type_ids - set(operational_by_id))
+        extra = sorted(set(operational_by_id) - snapshot_type_ids)
+        raise DidactCatalogError(
+            f"registry/snapshot component drift; missing={missing}, extra={extra}"
+        )
 
     seen: set[str] = set()
     components: list[DidactComponentAvailability] = []
@@ -340,7 +439,12 @@ def load_didact_catalog(
             raise DidactCatalogError(f"{type_id} references unknown manifest {manifest_id!r}")
         seen.add(type_id)
         components.append(
-            _availability(raw_type, manifest_by_id[manifest_id], available_ports=port_set)
+            _availability(
+                raw_type,
+                manifest_by_id[manifest_id],
+                operational_by_id[type_id],
+                available_ports=port_set,
+            )
         )
 
     counts = payload.get("counts", {})
@@ -356,6 +460,7 @@ def load_didact_catalog(
     return DidactCatalog(
         source_repository=str(source.get("repository", "")),
         source_commit=str(source.get("commit", "")),
-        content_sha256=str(payload.get("content_sha256", "")),
+        content_sha256=snapshot_hash,
+        registry_schema_version=registry_version,
         components=tuple(components),
     )

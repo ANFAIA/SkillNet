@@ -16,8 +16,9 @@ import pytest
 from src.personalization.preferences import (
     DetailPreference,
     ImagePreference,
+    InteractionPreference,
     LearningPreferences,
-    PresentationPreference,
+    ModalityPreference,
     preference_bucket,
 )
 from src.services.node_render_service import (
@@ -28,7 +29,8 @@ from src.services.node_render_service import (
 
 def _preferences(**overrides) -> LearningPreferences:
     values = {
-        "presentation": PresentationPreference.BALANCED,
+        "modality": ModalityPreference.BALANCED,
+        "interaction": InteractionPreference.STANDARD,
         "detail": DetailPreference.STANDARD,
         "images": ImagePreference.WHEN_USEFUL,
         **overrides,
@@ -59,15 +61,16 @@ def _render_key(preferences: LearningPreferences, *, node_id: uuid.UUID | None =
 
 def test_same_normalized_bundle_produces_the_same_bucket_and_render_key() -> None:
     typed = _preferences(
-        presentation=PresentationPreference.VISUAL,
+        modality=ModalityPreference.VISUAL,
         detail=DetailPreference.DETAILED,
         images=ImagePreference.PREFER,
     )
     reordered_mapping = {
         "images": "prefer",
-        "version": 1,
+        "version": 2,
         "detail": "detailed",
-        "presentation": "visual",
+        "modality": "visual",
+        "interaction": "standard",
     }
 
     assert preference_bucket(typed) == preference_bucket(reordered_mapping)
@@ -75,8 +78,9 @@ def test_same_normalized_bundle_produces_the_same_bucket_and_render_key() -> Non
     first = _render_key(typed)
     second = _render_key(
         LearningPreferences(
-            version=1,
-            presentation=PresentationPreference.VISUAL,
+            version=2,
+            modality=ModalityPreference.VISUAL,
+            interaction=InteractionPreference.STANDARD,
             detail=DetailPreference.DETAILED,
             images=ImagePreference.PREFER,
         )
@@ -88,11 +92,12 @@ def test_same_normalized_bundle_produces_the_same_bucket_and_render_key() -> Non
 @pytest.mark.parametrize(
     "changed",
     [
-        _preferences(presentation=PresentationPreference.VISUAL),
+        _preferences(modality=ModalityPreference.VISUAL),
+        _preferences(interaction=InteractionPreference.INTERACTIVE),
         _preferences(detail=DetailPreference.DETAILED),
         _preferences(images=ImagePreference.PREFER),
     ],
-    ids=("presentation", "detail", "images"),
+    ids=("modality", "interaction", "detail", "images"),
 )
 def test_each_preference_axis_partitions_the_shared_render_cache(changed) -> None:
     baseline = _render_key(_preferences())
@@ -135,7 +140,7 @@ def test_next_unpinned_node_uses_the_new_preference_key() -> None:
     old = _render_key(_preferences(), node_id=next_node)
     new = _render_key(
         _preferences(
-            presentation=PresentationPreference.VISUAL,
+            modality=ModalityPreference.VISUAL,
             detail=DetailPreference.DETAILED,
             images=ImagePreference.PREFER,
         ),
@@ -143,4 +148,32 @@ def test_next_unpinned_node_uses_the_new_preference_key() -> None:
     )
 
     assert old.cache_key != new.cache_key
-    assert new.preference_bucket == "p1:visual:detailed:prefer"
+    assert new.preference_bucket == "p2:visual:standard:detailed:prefer"
+
+
+def test_render_affecting_accessibility_profiles_never_share_a_cache_key() -> None:
+    """Regression: reduced-motion changes the planner shortlist, so it must key too."""
+    profile = SimpleNamespace(
+        nodes_completed=3,
+        format_vector={"texto": 0.7},
+        role_title="Dependiente",
+        sector="retail",
+        preset="standard",
+        experience_level="some",
+        learning_preferences=_preferences().to_dict(),
+    )
+    common = {
+        "node": SimpleNamespace(id=uuid.UUID(int=8)),
+        "course": SimpleNamespace(schema_version=1, intent_density=3),
+        "profile": profile,
+        "node_state": SimpleNamespace(scaffold_band="neutral"),
+        "model_key": "fixture/local|fixture/local",
+        "backend": "openui",
+    }
+
+    standard = build_render_key(**common, accessibility={})
+    reduced = build_render_key(**common, accessibility={"reduce_motion": True})
+
+    assert standard.accessibility_bucket == "a1:rm0:hc0:et0"
+    assert reduced.accessibility_bucket == "a1:rm1:hc0:et0"
+    assert standard.cache_key != reduced.cache_key
