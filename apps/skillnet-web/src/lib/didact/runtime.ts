@@ -34,9 +34,12 @@ export function resolveDidactMount(
 }
 
 const PROTECTED_ANSWER_KEYS = new Set([
+  'answer',
+  'answers',
   'acceptedanswer',
   'acceptedanswers',
   'answerkey',
+  'correct',
   'correctanswer',
   'correctanswers',
   'correctcategories',
@@ -48,9 +51,15 @@ const PROTECTED_ANSWER_KEYS = new Set([
   'correctorder',
   'correctregionids',
   'correctvalue',
+  'evaluation',
   'expectedanswer',
   'expectedanswers',
+  'expected',
   'grading',
+  'modelanswer',
+  'rule',
+  'solution',
+  'solutions',
 ])
 
 function normalizedKey(key: string): string {

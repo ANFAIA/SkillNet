@@ -1,17 +1,18 @@
 import { describe, expect, it } from 'vitest'
 
-import { DIDACT_COMPONENT_REGISTRY } from './generated-registry'
+import { DIDACT_COMPONENT_REGISTRY, DIDACT_REGISTRY_SOURCE } from './generated-registry'
 import { DIDACT_COMPONENT_POLICY, didactPolicyFor } from './policy'
 
 describe('Didact host policy', () => {
-  it('covers all 34 installed type IDs exactly once', () => {
+  it('covers every installed type ID exactly once', () => {
     const installedIds = DIDACT_COMPONENT_REGISTRY.map((entry) => entry.componentId)
     const policyIds = [...DIDACT_COMPONENT_POLICY.keys()]
+    const expectedCount = DIDACT_REGISTRY_SOURCE.authoritativeTypeCount
 
-    expect(installedIds).toHaveLength(34)
-    expect(new Set(installedIds)).toHaveLength(34)
+    expect(installedIds).toHaveLength(expectedCount)
+    expect(new Set(installedIds)).toHaveLength(expectedCount)
     expect(policyIds).toEqual(installedIds)
-    expect(policyIds).toHaveLength(34)
+    expect(policyIds).toHaveLength(expectedCount)
   })
 
   it.each(DIDACT_COMPONENT_REGISTRY)('declares a complete policy for $componentId', (entry) => {

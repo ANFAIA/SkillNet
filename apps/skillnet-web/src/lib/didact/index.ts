@@ -28,7 +28,7 @@ export type {
 } from './registry-types'
 export { deriveDidactAvailability } from './availability'
 export type { DidactAdapterAvailability, DidactAvailabilityStatus } from './availability'
-export { DIDACT_HOST_CAPABILITIES } from './host-ports'
+export { DIDACT_EVENT_TYPES, DIDACT_HOST_CAPABILITIES } from './host-ports'
 export { DIDACT_COMPONENT_POLICY, didactPolicyFor } from './policy'
 export type {
   DidactComponentPolicy,
@@ -40,6 +40,8 @@ export type {
   AssetReference,
   ClockPort,
   DidactEvent,
+  DidactEventPayload,
+  DidactEventType,
   DidactHostCapability,
   DidactHostPorts,
   DidactScope,

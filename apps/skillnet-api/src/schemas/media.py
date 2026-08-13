@@ -14,6 +14,7 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field
 
 from src.models import MediaArtifact, MediaArtifactStatus, MediaKind
+from src.services.media.activity_assets import make_activity_asset_ref
 
 
 class MediaArtifactCreate(BaseModel):
@@ -46,6 +47,7 @@ class MediaArtifactRead(BaseModel):
     status: str
     spec_json: dict
     has_asset: bool
+    asset_ref: str | None
     content_hash: str | None
     error: str | None
     created_at: datetime
@@ -61,6 +63,13 @@ class MediaArtifactRead(BaseModel):
             status=str(getattr(artifact.status, "value", artifact.status)),
             spec_json=dict(artifact.spec_json or {}),
             has_asset=artifact.asset_path is not None,
+            asset_ref=(
+                make_activity_asset_ref(artifact)
+                if artifact.asset_path is not None
+                and getattr(artifact.status, "value", artifact.status)
+                == MediaArtifactStatus.DONE.value
+                else None
+            ),
             content_hash=artifact.content_hash,
             error=artifact.error,
             created_at=artifact.created_at,

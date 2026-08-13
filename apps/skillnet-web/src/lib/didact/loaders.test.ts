@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
-import { DIDACT_COMPONENT_REGISTRY } from './generated-registry'
+import { DIDACT_COMPONENT_REGISTRY, DIDACT_REGISTRY_SOURCE } from './generated-registry'
 import { DIDACT_COMPONENT_LOADERS, loadDidactExport } from './generated-loaders'
 
 describe('Didact lazy component loaders', () => {
   it('has one loader entry for every installed educational type', () => {
-    expect(Object.keys(DIDACT_COMPONENT_LOADERS)).toHaveLength(34)
+    expect(Object.keys(DIDACT_COMPONENT_LOADERS)).toHaveLength(
+      DIDACT_REGISTRY_SOURCE.authoritativeTypeCount,
+    )
     expect(new Set(Object.keys(DIDACT_COMPONENT_LOADERS))).toEqual(
       new Set(DIDACT_COMPONENT_REGISTRY.map((entry) => entry.componentId)),
     )
@@ -28,7 +30,7 @@ describe('Didact lazy component loaders', () => {
       DIDACT_COMPONENT_REGISTRY.map((entry) => loadDidactExport(entry.componentId)),
     )
 
-    expect(exports).toHaveLength(34)
+    expect(exports).toHaveLength(DIDACT_COMPONENT_REGISTRY.length)
     expect(exports.every((component) => typeof component === 'function' || typeof component === 'object'))
       .toBe(true)
   }, 20_000)

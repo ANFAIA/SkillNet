@@ -3,6 +3,7 @@ import type {
   DidactHostPorts,
   DidactScope,
   DidactValue,
+  AssetReference,
   EvaluationResult,
   ExecutionResult,
   SimulationResult,
@@ -16,6 +17,34 @@ type OperationResponse = {
 
 type StateResponse = { activity_id: string; state: DidactValue }
 
+type AssetResponse = {
+  ref: string
+  url: string
+  mime_type: string
+  alt: string
+  long_description?: string
+  width?: number
+  height?: number
+  duration_ms?: number
+  transcript?: DidactValue[]
+  captions?: DidactValue[]
+}
+
+type DidactEventWireEnvelope = {
+  version: 1
+  event_id: string
+  activity_id: string
+  component_id: string
+  type: string
+  occurred_at: string
+  payload: {
+    attempt_id?: string
+    outcome?: string
+    score?: number
+    duration_ms?: number
+  }
+}
+
 function completed(response: OperationResponse): DidactValue {
   if (response.status === 'declined') {
     throw new Error(response.decline_reason ?? 'Activity operation declined')
@@ -27,6 +56,42 @@ function completed(response: OperationResponse): DidactValue {
 export function createActivityHostPorts(activityId: string): DidactHostPorts {
   const path = `/activities/${encodeURIComponent(activityId)}`
   return {
+    assets: {
+      async resolve(assetRef) {
+        const response = await get<AssetResponse>(`${path}/assets/${encodeURIComponent(assetRef)}`)
+        return {
+          ref: response.ref,
+          url: response.url,
+          mimeType: response.mime_type,
+          alt: response.alt,
+          longDescription: response.long_description,
+          width: response.width,
+          height: response.height,
+          durationMs: response.duration_ms,
+          transcript: response.transcript,
+          captions: response.captions,
+        } satisfies AssetReference
+      },
+    },
+    events: {
+      async emit(event) {
+        const body: DidactEventWireEnvelope = {
+          version: event.version,
+          event_id: event.eventId,
+          activity_id: event.activityId,
+          component_id: event.componentId,
+          type: event.type,
+          occurred_at: event.occurredAt,
+          payload: {
+            ...(event.payload?.attemptId ? { attempt_id: event.payload.attemptId } : {}),
+            ...(event.payload?.outcome ? { outcome: event.payload.outcome } : {}),
+            ...(event.payload?.score !== undefined ? { score: event.payload.score } : {}),
+            ...(event.payload?.durationMs !== undefined ? { duration_ms: event.payload.durationMs } : {}),
+          },
+        }
+        await post<void>(`${path}/events`, body)
+      },
+    },
     evaluation: {
       async evaluate(request) {
         const response = await post<OperationResponse>(`${path}/evaluate`, { submission: request.response })
@@ -61,6 +126,26 @@ export function createActivityHostPorts(activityId: string): DidactHostPorts {
       },
     },
     clock: { now: () => new Date() },
+    progress: {
+      async read() {
+        const response = await get<{
+          component_id: string
+          status: 'not_started' | 'in_progress' | 'completed'
+          progress: number
+          level: 'beginner' | 'intermediate' | 'advanced'
+        }>(`${path}/progress`)
+        return {
+          scope: { organizationId: '', courseId: '' },
+          componentId: response.component_id,
+          status: response.status,
+          progress: response.progress,
+          evidence: { level: response.level },
+        }
+      },
+      async write() {
+        throw new Error('progress_is_server_owned')
+      },
+    },
   }
 }
 

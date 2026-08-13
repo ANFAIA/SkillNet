@@ -6,7 +6,9 @@ import type { DidactRegistryEntry } from './registry-types'
 export const DIDACT_REGISTRY_SOURCE = {
   "repository": "https://github.com/JoseEstevez520/Didact",
   "commit": "06c80e8a8af4f20ad20ba345b7b6b13e1cc27e0c",
-  "contentSha256": "06e149348ca17501f9a5dd8decdcc51d0642898b7ff65840a3610b0cd48bff01"
+  "contentSha256": "06e149348ca17501f9a5dd8decdcc51d0642898b7ff65840a3610b0cd48bff01",
+  "operationalSchemaVersion": 1,
+  "authoritativeTypeCount": 34
 } as const
 
 export const DIDACT_COMPONENT_REGISTRY = [
@@ -26,6 +28,13 @@ export const DIDACT_COMPONENT_REGISTRY = [
     "adapter": {
       "rendererAvailable": true,
       "rendererSymbol": "Flashcard"
+    },
+    "operations": {
+      "rendererMode": "direct",
+      "rendererSymbol": "Flashcard",
+      "emission": "enabled",
+      "requiredPorts": [],
+      "authoringStrategy": "inline"
     }
   },
   {
@@ -44,6 +53,15 @@ export const DIDACT_COMPONENT_REGISTRY = [
     "adapter": {
       "rendererAvailable": true,
       "rendererSymbol": "MatchingExercise"
+    },
+    "operations": {
+      "rendererMode": "activity_definition",
+      "rendererSymbol": "DidactActivity",
+      "emission": "enabled",
+      "requiredPorts": [
+        "evaluation"
+      ],
+      "authoringStrategy": "server_activity"
     }
   },
   {
@@ -62,6 +80,15 @@ export const DIDACT_COMPONENT_REGISTRY = [
     "adapter": {
       "rendererAvailable": true,
       "rendererSymbol": "SortExercise"
+    },
+    "operations": {
+      "rendererMode": "activity_definition",
+      "rendererSymbol": "DidactActivity",
+      "emission": "enabled",
+      "requiredPorts": [
+        "evaluation"
+      ],
+      "authoringStrategy": "server_activity"
     }
   },
   {
@@ -80,6 +107,15 @@ export const DIDACT_COMPONENT_REGISTRY = [
     "adapter": {
       "rendererAvailable": true,
       "rendererSymbol": "CategorizeExercise"
+    },
+    "operations": {
+      "rendererMode": "activity_definition",
+      "rendererSymbol": "DidactActivity",
+      "emission": "enabled",
+      "requiredPorts": [
+        "evaluation"
+      ],
+      "authoringStrategy": "server_activity"
     }
   },
   {
@@ -98,6 +134,15 @@ export const DIDACT_COMPONENT_REGISTRY = [
     "adapter": {
       "rendererAvailable": true,
       "rendererSymbol": "SingleChoiceQuiz"
+    },
+    "operations": {
+      "rendererMode": "activity_definition",
+      "rendererSymbol": "DidactActivity",
+      "emission": "enabled",
+      "requiredPorts": [
+        "evaluation"
+      ],
+      "authoringStrategy": "server_activity"
     }
   },
   {
@@ -116,6 +161,15 @@ export const DIDACT_COMPONENT_REGISTRY = [
     "adapter": {
       "rendererAvailable": true,
       "rendererSymbol": "MultiSelectQuiz"
+    },
+    "operations": {
+      "rendererMode": "activity_definition",
+      "rendererSymbol": "DidactActivity",
+      "emission": "enabled",
+      "requiredPorts": [
+        "evaluation"
+      ],
+      "authoringStrategy": "server_activity"
     }
   },
   {
@@ -134,6 +188,15 @@ export const DIDACT_COMPONENT_REGISTRY = [
     "adapter": {
       "rendererAvailable": true,
       "rendererSymbol": "TrueFalseQuiz"
+    },
+    "operations": {
+      "rendererMode": "activity_definition",
+      "rendererSymbol": "DidactActivity",
+      "emission": "enabled",
+      "requiredPorts": [
+        "evaluation"
+      ],
+      "authoringStrategy": "server_activity"
     }
   },
   {
@@ -152,6 +215,15 @@ export const DIDACT_COMPONENT_REGISTRY = [
     "adapter": {
       "rendererAvailable": true,
       "rendererSymbol": "FillInTheBlankQuiz"
+    },
+    "operations": {
+      "rendererMode": "activity_definition",
+      "rendererSymbol": "DidactActivity",
+      "emission": "enabled",
+      "requiredPorts": [
+        "evaluation"
+      ],
+      "authoringStrategy": "server_activity"
     }
   },
   {
@@ -170,6 +242,15 @@ export const DIDACT_COMPONENT_REGISTRY = [
     "adapter": {
       "rendererAvailable": true,
       "rendererSymbol": "ShortAnswerQuiz"
+    },
+    "operations": {
+      "rendererMode": "activity_definition",
+      "rendererSymbol": "DidactActivity",
+      "emission": "enabled",
+      "requiredPorts": [
+        "evaluation"
+      ],
+      "authoringStrategy": "server_activity"
     }
   },
   {
@@ -188,6 +269,13 @@ export const DIDACT_COMPONENT_REGISTRY = [
     "adapter": {
       "rendererAvailable": true,
       "rendererSymbol": "Glossary"
+    },
+    "operations": {
+      "rendererMode": "direct",
+      "rendererSymbol": "DidactGlossary",
+      "emission": "enabled",
+      "requiredPorts": [],
+      "authoringStrategy": "inline"
     }
   },
   {
@@ -206,6 +294,13 @@ export const DIDACT_COMPONENT_REGISTRY = [
     "adapter": {
       "rendererAvailable": true,
       "rendererSymbol": "HintReveal"
+    },
+    "operations": {
+      "rendererMode": "direct",
+      "rendererSymbol": "HintReveal",
+      "emission": "enabled",
+      "requiredPorts": [],
+      "authoringStrategy": "inline"
     }
   },
   {
@@ -224,6 +319,15 @@ export const DIDACT_COMPONENT_REGISTRY = [
     "adapter": {
       "rendererAvailable": true,
       "rendererSymbol": "ProgressIndicator"
+    },
+    "operations": {
+      "rendererMode": "activity_definition",
+      "rendererSymbol": "DidactActivity",
+      "emission": "enabled",
+      "requiredPorts": [
+        "progress"
+      ],
+      "authoringStrategy": "server_activity"
     }
   },
   {
@@ -242,6 +346,15 @@ export const DIDACT_COMPONENT_REGISTRY = [
     "adapter": {
       "rendererAvailable": true,
       "rendererSymbol": "MasteryBadge"
+    },
+    "operations": {
+      "rendererMode": "activity_definition",
+      "rendererSymbol": "DidactActivity",
+      "emission": "enabled",
+      "requiredPorts": [
+        "progress"
+      ],
+      "authoringStrategy": "server_activity"
     }
   },
   {
@@ -260,6 +373,15 @@ export const DIDACT_COMPONENT_REGISTRY = [
     "adapter": {
       "rendererAvailable": true,
       "rendererSymbol": "Rubric"
+    },
+    "operations": {
+      "rendererMode": "activity_definition",
+      "rendererSymbol": "DidactActivity",
+      "emission": "enabled",
+      "requiredPorts": [
+        "evaluation"
+      ],
+      "authoringStrategy": "server_activity"
     }
   },
   {
@@ -278,6 +400,13 @@ export const DIDACT_COMPONENT_REGISTRY = [
     "adapter": {
       "rendererAvailable": true,
       "rendererSymbol": "Timeline"
+    },
+    "operations": {
+      "rendererMode": "direct",
+      "rendererSymbol": "DidactTimeline",
+      "emission": "enabled",
+      "requiredPorts": [],
+      "authoringStrategy": "inline"
     }
   },
   {
@@ -296,6 +425,15 @@ export const DIDACT_COMPONENT_REGISTRY = [
     "adapter": {
       "rendererAvailable": true,
       "rendererSymbol": "PracticeSet"
+    },
+    "operations": {
+      "rendererMode": "blocked",
+      "rendererSymbol": null,
+      "emission": "disabled",
+      "requiredPorts": [
+        "evaluation"
+      ],
+      "authoringStrategy": "unsupported"
     }
   },
   {
@@ -314,6 +452,16 @@ export const DIDACT_COMPONENT_REGISTRY = [
     "adapter": {
       "rendererAvailable": true,
       "rendererSymbol": "RetrievalPracticeSession"
+    },
+    "operations": {
+      "rendererMode": "blocked",
+      "rendererSymbol": null,
+      "emission": "disabled",
+      "requiredPorts": [
+        "persistence",
+        "scheduler"
+      ],
+      "authoringStrategy": "unsupported"
     }
   },
   {
@@ -332,6 +480,15 @@ export const DIDACT_COMPONENT_REGISTRY = [
     "adapter": {
       "rendererAvailable": true,
       "rendererSymbol": "SelfExplanationPrompt"
+    },
+    "operations": {
+      "rendererMode": "activity_definition",
+      "rendererSymbol": "DidactActivity",
+      "emission": "enabled",
+      "requiredPorts": [
+        "persistence"
+      ],
+      "authoringStrategy": "server_activity"
     }
   },
   {
@@ -350,6 +507,13 @@ export const DIDACT_COMPONENT_REGISTRY = [
     "adapter": {
       "rendererAvailable": true,
       "rendererSymbol": "WorkedExample"
+    },
+    "operations": {
+      "rendererMode": "direct",
+      "rendererSymbol": "DidactWorkedExample",
+      "emission": "enabled",
+      "requiredPorts": [],
+      "authoringStrategy": "inline"
     }
   },
   {
@@ -368,6 +532,15 @@ export const DIDACT_COMPONENT_REGISTRY = [
     "adapter": {
       "rendererAvailable": true,
       "rendererSymbol": "CompletionProblem"
+    },
+    "operations": {
+      "rendererMode": "activity_definition",
+      "rendererSymbol": "DidactActivity",
+      "emission": "enabled",
+      "requiredPorts": [
+        "evaluation"
+      ],
+      "authoringStrategy": "server_activity"
     }
   },
   {
@@ -386,6 +559,15 @@ export const DIDACT_COMPONENT_REGISTRY = [
     "adapter": {
       "rendererAvailable": true,
       "rendererSymbol": "NumericQuestion"
+    },
+    "operations": {
+      "rendererMode": "activity_definition",
+      "rendererSymbol": "DidactActivity",
+      "emission": "enabled",
+      "requiredPorts": [
+        "evaluation"
+      ],
+      "authoringStrategy": "server_activity"
     }
   },
   {
@@ -404,6 +586,15 @@ export const DIDACT_COMPONENT_REGISTRY = [
     "adapter": {
       "rendererAvailable": true,
       "rendererSymbol": "WordBank"
+    },
+    "operations": {
+      "rendererMode": "activity_definition",
+      "rendererSymbol": "DidactActivity",
+      "emission": "enabled",
+      "requiredPorts": [
+        "evaluation"
+      ],
+      "authoringStrategy": "server_activity"
     }
   },
   {
@@ -422,6 +613,16 @@ export const DIDACT_COMPONENT_REGISTRY = [
     "adapter": {
       "rendererAvailable": true,
       "rendererSymbol": "Hotspot"
+    },
+    "operations": {
+      "rendererMode": "activity_definition",
+      "rendererSymbol": "DidactActivity",
+      "emission": "enabled",
+      "requiredPorts": [
+        "assets",
+        "evaluation"
+      ],
+      "authoringStrategy": "server_activity"
     }
   },
   {
@@ -440,6 +641,16 @@ export const DIDACT_COMPONENT_REGISTRY = [
     "adapter": {
       "rendererAvailable": true,
       "rendererSymbol": "InteractiveMedia"
+    },
+    "operations": {
+      "rendererMode": "activity_definition",
+      "rendererSymbol": "DidactActivity",
+      "emission": "enabled",
+      "requiredPorts": [
+        "assets",
+        "persistence"
+      ],
+      "authoringStrategy": "server_activity"
     }
   },
   {
@@ -458,6 +669,13 @@ export const DIDACT_COMPONENT_REGISTRY = [
     "adapter": {
       "rendererAvailable": true,
       "rendererSymbol": "DataExplorer"
+    },
+    "operations": {
+      "rendererMode": "activity_definition",
+      "rendererSymbol": "DidactActivity",
+      "emission": "enabled",
+      "requiredPorts": [],
+      "authoringStrategy": "server_activity"
     }
   },
   {
@@ -476,6 +694,13 @@ export const DIDACT_COMPONENT_REGISTRY = [
     "adapter": {
       "rendererAvailable": true,
       "rendererSymbol": "BranchingScenario"
+    },
+    "operations": {
+      "rendererMode": "blocked",
+      "rendererSymbol": null,
+      "emission": "disabled",
+      "requiredPorts": [],
+      "authoringStrategy": "unsupported"
     }
   },
   {
@@ -494,6 +719,15 @@ export const DIDACT_COMPONENT_REGISTRY = [
     "adapter": {
       "rendererAvailable": true,
       "rendererSymbol": "SimulationLab"
+    },
+    "operations": {
+      "rendererMode": "blocked",
+      "rendererSymbol": null,
+      "emission": "disabled",
+      "requiredPorts": [
+        "simulation"
+      ],
+      "authoringStrategy": "unsupported"
     }
   },
   {
@@ -512,6 +746,16 @@ export const DIDACT_COMPONENT_REGISTRY = [
     "adapter": {
       "rendererAvailable": true,
       "rendererSymbol": "CodeExercise"
+    },
+    "operations": {
+      "rendererMode": "blocked",
+      "rendererSymbol": null,
+      "emission": "disabled",
+      "requiredPorts": [
+        "evaluation",
+        "execution"
+      ],
+      "authoringStrategy": "unsupported"
     }
   },
   {
@@ -530,6 +774,16 @@ export const DIDACT_COMPONENT_REGISTRY = [
     "adapter": {
       "rendererAvailable": true,
       "rendererSymbol": "LabelDiagram"
+    },
+    "operations": {
+      "rendererMode": "activity_definition",
+      "rendererSymbol": "DidactActivity",
+      "emission": "enabled",
+      "requiredPorts": [
+        "assets",
+        "evaluation"
+      ],
+      "authoringStrategy": "server_activity"
     }
   },
   {
@@ -548,6 +802,16 @@ export const DIDACT_COMPONENT_REGISTRY = [
     "adapter": {
       "rendererAvailable": true,
       "rendererSymbol": "ConceptMap"
+    },
+    "operations": {
+      "rendererMode": "activity_definition",
+      "rendererSymbol": "DidactActivity",
+      "emission": "enabled",
+      "requiredPorts": [
+        "evaluation",
+        "persistence"
+      ],
+      "authoringStrategy": "server_activity"
     }
   },
   {
@@ -566,6 +830,16 @@ export const DIDACT_COMPONENT_REGISTRY = [
     "adapter": {
       "rendererAvailable": true,
       "rendererSymbol": "DrawingResponse"
+    },
+    "operations": {
+      "rendererMode": "activity_definition",
+      "rendererSymbol": "DidactActivity",
+      "emission": "enabled",
+      "requiredPorts": [
+        "evaluation",
+        "persistence"
+      ],
+      "authoringStrategy": "server_activity"
     }
   },
   {
@@ -584,6 +858,15 @@ export const DIDACT_COMPONENT_REGISTRY = [
     "adapter": {
       "rendererAvailable": true,
       "rendererSymbol": "EquationWorkbench"
+    },
+    "operations": {
+      "rendererMode": "activity_definition",
+      "rendererSymbol": "DidactActivity",
+      "emission": "enabled",
+      "requiredPorts": [
+        "evaluation"
+      ],
+      "authoringStrategy": "server_activity"
     }
   },
   {
@@ -602,6 +885,16 @@ export const DIDACT_COMPONENT_REGISTRY = [
     "adapter": {
       "rendererAvailable": true,
       "rendererSymbol": "EvidenceAnnotation"
+    },
+    "operations": {
+      "rendererMode": "activity_definition",
+      "rendererSymbol": "DidactActivity",
+      "emission": "enabled",
+      "requiredPorts": [
+        "evaluation",
+        "persistence"
+      ],
+      "authoringStrategy": "server_activity"
     }
   },
   {
@@ -620,6 +913,15 @@ export const DIDACT_COMPONENT_REGISTRY = [
     "adapter": {
       "rendererAvailable": true,
       "rendererSymbol": "MeasurementLab"
+    },
+    "operations": {
+      "rendererMode": "activity_definition",
+      "rendererSymbol": "DidactActivity",
+      "emission": "enabled",
+      "requiredPorts": [
+        "evaluation"
+      ],
+      "authoringStrategy": "server_activity"
     }
   }
 ] as const satisfies readonly DidactRegistryEntry[]

@@ -36,6 +36,25 @@ def test_public_definition_rejects_answer_keys_recursively():
         authored(public_definition={"items": [{"answer_key": {"correct": 0}}]})
 
 
+@pytest.mark.parametrize(
+    "private_key",
+    [
+        "answerKey",
+        "accepted_answers",
+        "correctMatches",
+        "correct_option_ids",
+        "evaluation",
+        "expectedAnswer",
+        "grading",
+        "rule",
+        "solution",
+    ],
+)
+def test_public_definition_rejects_recursive_solution_aliases(private_key):
+    with pytest.raises(PydanticValidationError, match="server-owned"):
+        authored(public_definition={"nested": [{"deeper": {private_key: "secret"}}]})
+
+
 def test_public_projection_never_has_private_definition():
     read = ActivityDefinitionRead.of(activity(), missing_ports=[])
     dumped = read.model_dump(mode="json")
@@ -51,6 +70,81 @@ async def test_builtin_exact_evaluation_keeps_expected_server_side():
     result = await service.evaluate(activity(), {"answer": "4"})
     assert result == {"outcome": "correct", "passed": True, "score": 1.0, "feedback": None}
     assert "expected" not in result
+
+
+@pytest.mark.parametrize(
+    ("config", "received", "outcome", "score"),
+    [
+        ({"mode": "exact", "expected": True}, True, "correct", 1.0),
+        ({"mode": "set", "expected": ["a", "b"]}, ["b", "a"], "correct", 1.0),
+        (
+            {"mode": "normalized_any", "expected": ["Alta prioridad"]},
+            "  alta   PRIORIDAD ",
+            "correct",
+            1.0,
+        ),
+        (
+            {"mode": "assignments", "expected": {"a": "1", "b": "2"}},
+            {"a": "1", "b": "x"},
+            "partial",
+            0.5,
+        ),
+        (
+            {"mode": "sequence", "expected": ["first", "second"]},
+            ["first", "wrong"],
+            "partial",
+            0.5,
+        ),
+        (
+            {"mode": "keyed_text", "expected": {"a": ["one"], "b": ["two", "second"]}},
+            {"a": "one", "b": "wrong"},
+            "partial",
+            0.5,
+        ),
+        (
+            {"mode": "numeric", "value": 10, "absolute_tolerance": 0.2},
+            "10.1",
+            "correct",
+            1.0,
+        ),
+        (
+            {"mode": "numeric", "min": 2, "max": 4},
+            "5",
+            "incorrect",
+            0.0,
+        ),
+        (
+            {"mode": "regions", "expected": ["region-1", "region-2"]},
+            {"regionIds": ["region-1", "wrong"], "points": []},
+            "partial",
+            0.5,
+        ),
+    ],
+)
+@pytest.mark.asyncio
+async def test_builtin_family_evaluation_is_server_side(config, received, outcome, score):
+    service = ActivityDefinitionService(SimpleNamespace(), SimpleNamespace())
+    result = await service.evaluate(
+        activity(private_definition={"evaluation": config}),
+        {"answer": received},
+    )
+
+    assert result["outcome"] == outcome
+    assert result["score"] == score
+    assert not any(
+        secret in result
+        for secret in ("expected", "correct_answer", "answer_key", "solution")
+    )
+
+
+@pytest.mark.asyncio
+async def test_unknown_evaluation_mode_declines_instead_of_guessing():
+    service = ActivityDefinitionService(SimpleNamespace(), SimpleNamespace())
+    result = await service.evaluate(
+        activity(private_definition={"evaluation": {"mode": "semantic_magic"}}),
+        {"answer": "anything"},
+    )
+    assert result == PortDeclined("unsupported_evaluation_mode")
 
 
 @pytest.mark.asyncio

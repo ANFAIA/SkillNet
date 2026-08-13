@@ -34,13 +34,32 @@ export interface EvaluationPort {
   evaluate(request: EvaluationRequest, signal?: AbortSignal): Promise<EvaluationResult>
 }
 
+export const DIDACT_EVENT_TYPES = [
+  'started',
+  'attempted',
+  'answered',
+  'feedback_viewed',
+  'completed',
+] as const
+
+export type DidactEventType = (typeof DIDACT_EVENT_TYPES)[number]
+
+export type DidactEventPayload = {
+  attemptId?: string
+  outcome?: 'correct' | 'incorrect' | 'partial' | 'unscored'
+  score?: number
+  durationMs?: number
+}
+
 export type DidactEvent = {
-  id: string
-  type: string
+  version: 1
+  eventId: string
+  activityId: string
+  type: DidactEventType
   occurredAt: string
   scope: DidactScope
   componentId: string
-  payload?: DidactValue
+  payload?: DidactEventPayload
 }
 
 export interface EventPort {
@@ -54,13 +73,16 @@ export interface PersistencePort {
 }
 
 export type AssetReference = {
-  id: string
+  ref: string
   url: string
-  mediaType: string
-  alt?: string
+  mimeType: string
+  alt: string
+  longDescription?: string
   width?: number
   height?: number
-  durationSeconds?: number
+  durationMs?: number
+  transcript?: DidactValue[]
+  captions?: DidactValue[]
 }
 
 export interface AssetPort {

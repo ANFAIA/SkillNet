@@ -1,6 +1,7 @@
 """Explicit public contracts for server-owned rich activities."""
 
 import uuid
+from datetime import datetime
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -9,17 +10,26 @@ from src.models.activity_definition import ActivityDefinition, ActivityFamily, A
 from src.services.activity_ports import PORT_NAMES
 
 _PRIVATE_KEYS = frozenset({
-    "answer", "answers", "answer_key", "correct", "correct_answer", "correct_order",
-    "solution", "solutions", "rubric", "evaluation_config", "private_definition",
+    "answer", "answers", "answerkey", "acceptedanswer", "acceptedanswers",
+    "correct", "correctanswer", "correctanswers", "correctcategories",
+    "correctmatches", "correctoptionids", "correctorder", "correctvalue",
+    "evaluation", "evaluationconfig", "expected", "expectedanswer",
+    "expectedanswers", "grading", "privatedefinition", "private_definition",
+    "rubric", "rule", "solution", "solutions", "tolerance",
 })
+
+
+def _normalized_private_key(key: object) -> str:
+    return "".join(character for character in str(key).lower() if character.isalnum() or character == "_")
 
 
 def assert_public_payload(value: Any, path: str = "public_definition") -> None:
     """Fail closed when a public tree contains a server-owned assessment key."""
     if isinstance(value, dict):
         for key, child in value.items():
-            normalized = str(key).lower()
-            if normalized in _PRIVATE_KEYS or normalized.startswith("answer_key"):
+            normalized = _normalized_private_key(key)
+            compact = normalized.replace("_", "")
+            if normalized in _PRIVATE_KEYS or compact in _PRIVATE_KEYS or compact.startswith("answerkey"):
                 raise ValueError(f"{path}.{key} is server-owned")
             assert_public_payload(child, f"{path}.{key}")
     elif isinstance(value, list):
@@ -123,3 +133,65 @@ class ActivityOperationRead(BaseModel):
     status: Literal["completed", "declined"]
     result: dict | None = None
     decline_reason: str | None = None
+
+
+class ActivityProgressRead(BaseModel):
+    """Server-owned ProgressPort snapshot. The client cannot write these fields."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    component_id: str
+    status: Literal["not_started", "in_progress", "completed"]
+    progress: int
+    level: Literal["beginner", "intermediate", "advanced"]
+
+
+class ActivityAssetRead(BaseModel):
+    """Public AssetPort result. Storage paths and hashes never cross this boundary."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    ref: str
+    url: str
+    mime_type: str
+    alt: str
+    long_description: str | None = None
+    width: int | None = None
+    height: int | None = None
+    duration_ms: int | None = None
+    transcript: list[dict] | None = None
+    captions: list[dict] | None = None
+
+
+DidactEventType = Literal[
+    "started",
+    "attempted",
+    "answered",
+    "feedback_viewed",
+    "completed",
+]
+
+
+class DidactEventPayload(BaseModel):
+    """Bounded telemetry only: never an answer, solution, rubric, or free text."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    attempt_id: uuid.UUID | None = None
+    outcome: Literal["correct", "incorrect", "partial", "unscored"] | None = None
+    score: float | None = Field(default=None, ge=0.0, le=1.0)
+    duration_ms: int | None = Field(default=None, ge=0, le=86_400_000)
+
+
+class DidactEventEnvelope(BaseModel):
+    """Closed, versioned EventPort wire contract."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    version: Literal[1]
+    event_id: uuid.UUID
+    activity_id: uuid.UUID
+    component_id: str = Field(min_length=1, max_length=160, pattern=r"^didact\.")
+    type: DidactEventType
+    occurred_at: datetime
+    payload: DidactEventPayload = Field(default_factory=DidactEventPayload)

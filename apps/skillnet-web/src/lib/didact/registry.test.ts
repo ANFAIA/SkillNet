@@ -8,12 +8,13 @@ import {
 } from './generated-registry'
 
 describe('generated Didact registry', () => {
-  it('covers all 34 authoritative available types exactly once', () => {
+  it('covers every authoritative available type exactly once', () => {
     const ids = DIDACT_COMPONENT_REGISTRY.map((entry) => entry.componentId)
+    const expectedCount = DIDACT_REGISTRY_SOURCE.authoritativeTypeCount
 
-    expect(ids).toHaveLength(34)
-    expect(new Set(ids).size).toBe(34)
-    expect(DIDACT_COMPONENT_BY_ID.size).toBe(34)
+    expect(ids).toHaveLength(expectedCount)
+    expect(new Set(ids).size).toBe(expectedCount)
+    expect(DIDACT_COMPONENT_BY_ID.size).toBe(expectedCount)
     expect(ids.every((id) => id.startsWith('didact.'))).toBe(true)
   })
 
@@ -44,8 +45,22 @@ describe('generated Didact registry', () => {
       (entry) => entry.adapter.rendererAvailable,
     )
 
-    expect(rendererReady).toHaveLength(34)
+    expect(rendererReady).toHaveLength(DIDACT_REGISTRY_SOURCE.authoritativeTypeCount)
     expect(rendererReady.every((entry) => entry.adapter.rendererSymbol === entry.exportName)).toBe(true)
+  })
+
+  it('projects the backend operational contract without conflating vendor exports', () => {
+    const emittable = DIDACT_COMPONENT_REGISTRY.filter(
+      (entry) => entry.operations.emission === 'enabled',
+    )
+    const blocked = DIDACT_COMPONENT_REGISTRY.filter(
+      (entry) => entry.operations.rendererMode === 'blocked',
+    )
+
+    expect(DIDACT_REGISTRY_SOURCE.operationalSchemaVersion).toBe(1)
+    expect(emittable).toHaveLength(29)
+    expect(blocked).toHaveLength(5)
+    expect(emittable.every((entry) => entry.operations.rendererSymbol !== null)).toBe(true)
   })
 
   it('keeps generation exposure separate from the installed catalogue', () => {
@@ -67,6 +82,6 @@ describe('generated Didact registry', () => {
 
     expect(exposed).toEqual(['didact.flashcard'])
     expect(DIDACT_COMPONENT_REGISTRY).toHaveLength(before)
-    expect(DIDACT_COMPONENT_BY_ID.size).toBe(34)
+    expect(DIDACT_COMPONENT_BY_ID.size).toBe(DIDACT_REGISTRY_SOURCE.authoritativeTypeCount)
   })
 })

@@ -4,10 +4,23 @@ import { fileURLToPath } from 'node:url'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const snapshotPath = resolve(root, 'skillnet-api/src/personalization/didact_snapshot.json')
+const operationsPath = resolve(
+  root,
+  'skillnet-api/src/personalization/didact_component_registry.v1.json',
+)
 const outputPath = resolve(root, 'skillnet-web/src/lib/didact/generated-registry.ts')
 
 const snapshot = JSON.parse(await readFile(snapshotPath, 'utf8'))
+const operations = JSON.parse(await readFile(operationsPath, 'utf8'))
 const manifests = new Map(snapshot.manifests.map((manifest) => [manifest.id, manifest]))
+const operationsById = new Map(operations.components.map((component) => [component.id, component]))
+
+if (operations.schema_version !== 1) {
+  throw new Error(`Unsupported Didact operational registry version ${operations.schema_version}`)
+}
+if (operations.snapshot_content_sha256 !== snapshot.content_sha256) {
+  throw new Error('Didact operational registry targets a different neutral snapshot')
+}
 
 const sourceModuleOverrides = new Map([
   ['progress-indicators', 'progress-indicator'],
@@ -16,6 +29,8 @@ const sourceModuleOverrides = new Map([
 const entries = snapshot.available_types.map((type) => {
   const manifest = manifests.get(type.manifest_id)
   if (!manifest) throw new Error(`${type.id} references missing manifest ${type.manifest_id}`)
+  const operation = operationsById.get(type.id)
+  if (!operation) throw new Error(`${type.id} is missing from the operational registry`)
   const sourceModule = sourceModuleOverrides.get(type.registry_item) ?? type.registry_item
   return {
     componentId: type.id,
@@ -34,11 +49,29 @@ const entries = snapshot.available_types.map((type) => {
       rendererAvailable: true,
       rendererSymbol: type.export_name,
     },
+    operations: {
+      rendererMode: operation.renderer_mode,
+      rendererSymbol: operation.renderer_symbol,
+      emission: operation.emission,
+      requiredPorts: operation.required_ports,
+      authoringStrategy: operation.authoring_strategy,
+    },
   }
 })
 
-if (entries.length !== 34 || new Set(entries.map((entry) => entry.componentId)).size !== 34) {
-  throw new Error(`Expected 34 unique Didact types, got ${entries.length}`)
+const expectedCount = snapshot.counts.available_types
+const entryIds = new Set(entries.map((entry) => entry.componentId))
+const extraOperationIds = [...operationsById.keys()].filter((id) => !entryIds.has(id))
+if (
+  entries.length !== expectedCount
+  || entryIds.size !== expectedCount
+  || operationsById.size !== expectedCount
+  || extraOperationIds.length > 0
+) {
+  throw new Error(
+    `Didact registry drift: snapshot=${entries.length}, unique=${entryIds.size}, `
+    + `operations=${operationsById.size}, extra=${extraOperationIds.join(',')}`,
+  )
 }
 
 const source = `/* eslint-disable */
@@ -50,6 +83,8 @@ export const DIDACT_REGISTRY_SOURCE = ${JSON.stringify({
   repository: snapshot.source.repository,
   commit: snapshot.source.commit,
   contentSha256: snapshot.content_sha256,
+  operationalSchemaVersion: operations.schema_version,
+  authoritativeTypeCount: snapshot.counts.available_types,
 }, null, 2)} as const
 
 export const DIDACT_COMPONENT_REGISTRY = ${JSON.stringify(entries, null, 2)} as const satisfies readonly DidactRegistryEntry[]

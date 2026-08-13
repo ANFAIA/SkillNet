@@ -1,3 +1,5 @@
+import { useEffect, useMemo, useRef } from 'react'
+
 import { useActivityDefinition } from '../../../api/activities'
 import { createActivityHostPorts } from '../../../api/activity-ports'
 import {
@@ -5,7 +7,22 @@ import {
   useOptionalDidactHost,
   validatePublicActivityDefinition,
 } from '../../../lib/didact'
-import type { DidactHostPorts, DidactValue, EvaluationResult } from '../../../lib/didact'
+import type { DidactHostPorts } from '../../../lib/didact'
+import { evaluationProps } from './didact-evaluation-adapter'
+import {
+  SecureEvaluatedActivity,
+} from './SecureEvaluatedActivity'
+import { usesSecureEvaluationAdapter } from './secure-evaluation-components'
+import { AssetBackedDidactActivity } from './AssetBackedDidactActivity'
+import { HostProgressActivity } from './HostProgressActivity'
+
+const ASSET_BACKED_COMPONENTS = new Set([
+  'didact.hotspot',
+  'didact.label-diagram',
+  'didact.interactive-media',
+])
+
+const HOST_PROGRESS_COMPONENTS = new Set(['didact.progress', 'didact.mastery-badge'])
 
 const ASYNC_EVALUATION_ADAPTERS = new Set([
   'didact.drawing-response',
@@ -18,48 +35,16 @@ function honestPorts(componentId: string, ports: DidactHostPorts): DidactHostPor
   return {
     persistence: ports.persistence,
     clock: ports.clock,
-    ...(ASYNC_EVALUATION_ADAPTERS.has(componentId) ? { evaluation: ports.evaluation } : {}),
-    // Asset and simulation endpoints need dedicated rendering/runtime adapters.
-    // Their absence intentionally keeps those activities blocked.
+    events: ports.events,
+    ...(ASSET_BACKED_COMPONENTS.has(componentId) ? { assets: ports.assets } : {}),
+    ...(ASYNC_EVALUATION_ADAPTERS.has(componentId)
+      || usesSecureEvaluationAdapter(componentId)
+      || componentId === 'didact.hotspot'
+      || componentId === 'didact.label-diagram'
+      ? { evaluation: ports.evaluation }
+      : {}),
+    ...(HOST_PROGRESS_COMPONENTS.has(componentId) ? { progress: ports.progress } : {}),
   }
-}
-
-function evaluationProps(
-  activityId: string,
-  componentId: string,
-  ports: DidactHostPorts,
-): Readonly<Record<string, unknown>> {
-  const evaluate = ports.evaluation
-  const persistence = ports.persistence
-  const scope = { organizationId: '', courseId: '', componentId }
-  const evaluateSubmission = async (submission: unknown): Promise<Record<string, unknown>> => {
-    if (!evaluate) throw new Error('Evaluation unavailable')
-    const result: EvaluationResult = await evaluate.evaluate({
-      scope,
-      componentId,
-      attemptId: `${activityId}-${Date.now()}`,
-      response: submission as DidactValue,
-    })
-    return {
-      status: result.outcome === 'unscored' ? 'partial' : result.outcome,
-      feedback: typeof result.feedback === 'string' ? result.feedback : '',
-    }
-  }
-  const saveState = (state: unknown) => {
-    void persistence?.save(scope, 'state', state as DidactValue)
-  }
-
-  if (componentId === 'didact.drawing-response') {
-    return { evaluate: (strokes: unknown) => evaluateSubmission({ strokes }), onStateChange: saveState }
-  }
-  if (['didact.equation-workbench', 'didact.evidence-annotation', 'didact.measurement-lab'].includes(componentId)) {
-    return { evaluate: (state: unknown) => evaluateSubmission(state), onStateChange: saveState }
-  }
-  if (componentId === 'didact.concept-map') return { onStateChange: saveState }
-  if (componentId === 'didact.self-explanation-prompt') {
-    return { onValueChange: (value: string) => saveState({ value }), onSubmit: (value: unknown) => saveState(value) }
-  }
-  return {}
 }
 
 function ActivityStatus({ kind, children }: { kind: string; children: string }) {
@@ -72,6 +57,35 @@ function ActivityStatus({ kind, children }: { kind: string; children: string }) 
       {children}
     </div>
   )
+}
+
+function MountedActivity({
+  activityId,
+  componentId,
+  componentProps,
+  ports,
+}: {
+  activityId: string
+  componentId: string
+  componentProps: Readonly<Record<string, unknown>>
+  ports: DidactHostPorts
+}) {
+  const startedEventId = useRef(crypto.randomUUID())
+
+  useEffect(() => {
+    void ports.events?.emit({
+      version: 1,
+      eventId: startedEventId.current,
+      activityId,
+      type: 'started',
+      occurredAt: new Date().toISOString(),
+      scope: { organizationId: '', courseId: '' },
+      componentId,
+      payload: {},
+    }).catch(() => undefined)
+  }, [activityId, componentId, ports.events])
+
+  return <DidactComponentMount componentId={componentId} componentProps={componentProps} ports={ports} />
 }
 
 /**
@@ -88,7 +102,7 @@ export function DidactActivityBlock({
   componentId: string
 }) {
   const outerPorts = useOptionalDidactHost()
-  const httpPorts = createActivityHostPorts(activityId)
+  const httpPorts = useMemo(() => createActivityHostPorts(activityId), [activityId])
   const ports = honestPorts(componentId, { ...httpPorts, ...outerPorts })
   const definition = useActivityDefinition(activityId)
 
@@ -108,8 +122,42 @@ export function DidactActivityBlock({
     return <ActivityStatus kind="failed">La definición pública de la actividad no es válida.</ActivityStatus>
   }
 
+  if (usesSecureEvaluationAdapter(componentId)) {
+    return (
+      <SecureEvaluatedActivity
+        activityId={activityId}
+        componentId={componentId}
+        componentProps={validated.componentProps}
+        ports={ports}
+      />
+    )
+  }
+
+  if (ASSET_BACKED_COMPONENTS.has(componentId)) {
+    return (
+      <AssetBackedDidactActivity
+        activityId={activityId}
+        componentId={componentId}
+        componentProps={validated.componentProps}
+        ports={ports}
+      />
+    )
+  }
+
+  if (HOST_PROGRESS_COMPONENTS.has(componentId)) {
+    return (
+      <HostProgressActivity
+        activityId={activityId}
+        componentId={componentId}
+        componentProps={validated.componentProps}
+        ports={ports}
+      />
+    )
+  }
+
   return (
-    <DidactComponentMount
+    <MountedActivity
+      activityId={activityId}
       componentId={componentId}
       componentProps={{
         ...validated.componentProps,

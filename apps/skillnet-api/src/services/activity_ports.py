@@ -28,6 +28,11 @@ class EventsPort(Protocol):
 
 
 @runtime_checkable
+class AssetPort(Protocol):
+    async def resolve(self, asset_ref: str) -> dict | PortDeclined: ...
+
+
+@runtime_checkable
 class MediaPort(Protocol):
     async def resolve(self, media_ref: str) -> dict | PortDeclined: ...
 
@@ -42,7 +47,18 @@ class ExecutionPort(Protocol):
     async def execute(self, definition: dict, submission: dict) -> dict | PortDeclined: ...
 
 
-PORT_NAMES = frozenset({"evaluation", "persistence", "events", "media", "simulation", "execution"})
+PORT_NAMES = frozenset(
+    {
+        "evaluation",
+        "persistence",
+        "events",
+        "assets",
+        "media",
+        "simulation",
+        "execution",
+        "progress",
+    }
+)
 
 
 class ActivityPortRegistry:

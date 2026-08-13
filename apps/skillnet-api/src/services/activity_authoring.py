@@ -17,9 +17,17 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from src.models.activity_definition import ActivityDefinition, ActivityFamily
-from src.personalization.didact_catalog import HostPort, load_didact_catalog
+from src.personalization.didact_catalog import (
+    AuthoringStrategy,
+    HostPort,
+    load_didact_catalog,
+)
 from src.schemas.activity import ActivityDefinitionCreate, assert_public_payload
-from src.services.activity_authoring_validators import validate_component_definition
+from src.services.activity_authoring_validators import (
+    authoring_definition_contract,
+    validate_component_definition,
+    validate_evaluation_definition,
+)
 from src.services.activity_definitions import ActivityDefinitionService
 
 AUTHORING_CONTRACT_VERSION = "activity-authoring/1"
@@ -40,6 +48,17 @@ _PRIVATE_KEYS = frozenset(
         "rubric",
         "evaluation",
         "evaluation_config",
+        "expected",
+        "expected_answer",
+        "expected_answers",
+        "accepted_answer",
+        "accepted_answers",
+        "correct_categories",
+        "correct_matches",
+        "correct_option_ids",
+        "correct_value",
+        "absolute_tolerance",
+        "relative_tolerance",
         "simulation",
         "tests",
     }
@@ -117,7 +136,9 @@ def _family(required_ports: Iterable[HostPort]) -> ActivityFamily:
     return ActivityFamily.ARTIFACT
 
 
-def _private_contract(private: dict[str, Any], required_ports: Iterable[HostPort]) -> dict[str, Any]:
+def _private_contract(
+    private: dict[str, Any], required_ports: Iterable[HostPort]
+) -> dict[str, Any]:
     """Normalise common answer spellings to the built-in evaluation port contract."""
 
     ports = set(required_ports)
@@ -158,6 +179,10 @@ def validate_authoring_draft(
     component = load_didact_catalog().by_type_id.get(draft.component_id)
     if component is None:
         raise ValueError(f"unknown Didact component {draft.component_id!r}")
+    if component.authoring_strategy is not AuthoringStrategy.SERVER_ACTIVITY:
+        raise ValueError(
+            f"component {draft.component_id!r} does not support server activity authoring"
+        )
     permitted_refs = frozenset(allowed_source_refs)
     if not permitted_refs:
         raise ValueError("rich activity authoring requires grounded source refs")
@@ -170,12 +195,19 @@ def validate_authoring_draft(
     public, private = split_public_private(draft.definition)
     assert isinstance(public, dict) and isinstance(private, dict)
     assert_public_payload(public)
-    if component.renderer_symbol == "DidactActivity":
-        validate_component_definition(draft.component_id, public)
+    validate_component_definition(draft.component_id, public)
+    if HostPort.ASSETS in component.required_ports:
+        asset_ref = public.get("assetRef")
+        if not isinstance(asset_ref, str) or asset_ref not in permitted_refs:
+            raise ValueError("assetRef must copy an allowed opaque SkillNet asset ref")
+        if asset_ref not in draft.source_refs:
+            raise ValueError("source_refs must include the selected opaque asset ref")
+    normalized_private = _private_contract(private, component.required_ports)
+    validate_evaluation_definition(draft.component_id, public, normalized_private)
     required_ports = [port.value for port in component.required_ports]
     return (
         public,
-        _private_contract(private, component.required_ports),
+        normalized_private,
         required_ports,
         _family(component.required_ports),
     )
@@ -242,11 +274,20 @@ def build_activity_authoring_prompts(
     """Bounded prompts: no UUID and no existing private definition crosses this call."""
 
     candidate_list = list(dict.fromkeys(candidates))
+    if not candidate_list:
+        raise ValueError("activity authoring requires one candidate")
+    # One structured call gets one exact contract. Asking a small model to choose between
+    # eight unrelated schemas and then infer the selected shape caused valid candidates
+    # such as DataExplorer to be rejected on every attempt.
+    selected_candidate = candidate_list[0]
+    definition_contract = authoring_definition_contract(selected_candidate)
     refs = list(dict.fromkeys(allowed_source_refs))
     system = (
         "Disenas UNA actividad educativa Didact anclada en la fuente. Devuelve solo JSON "
         "con component_id, definition y source_refs. component_id debe ser uno de los "
-        "candidatos. No inventes UUID ni activity_id. Incluye respuestas, rubricas, "
+        "unico candidato indicado. Copia exactamente la estructura del contrato de "
+        "definition y sustituye solo sus valores de ejemplo por contenido de la fuente. "
+        "No inventes UUID ni activity_id. Incluye respuestas, rubricas, "
         "transiciones o tests dentro de definition: el servidor los separara antes de "
         "servir la actividad. No uses hechos ausentes de la fuente. Cita al menos un "
         "source_ref permitido. Si no hay datos suficientes, no inventes series, cifras, "
@@ -256,7 +297,9 @@ def build_activity_authoring_prompts(
         {
             "title": title,
             "outcome": outcome,
-            "candidate_component_ids": candidate_list,
+            "candidate_component_ids": [selected_candidate],
+            "selected_component_id": selected_candidate,
+            "definition_contract": definition_contract,
             "allowed_source_refs": refs,
             "source": source_context,
         },
