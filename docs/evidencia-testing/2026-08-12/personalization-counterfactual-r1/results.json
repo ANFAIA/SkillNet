@@ -1,0 +1,1381 @@
+{
+  "bench_version": "personalization-counterfactual/1",
+  "claim_boundary": {
+    "proves": "runtime signal plumbing, planner response, prompt propagation, cache invalidation, calibration suppression and deterministic repetition",
+    "does_not_prove": "LLM prose quality, learning gain, provider latency, provider tokens or monetary cost",
+    "model": "fixture/local|fixture/local"
+  },
+  "fixed_input": {
+    "node_id": "850c6297-7a99-46ec-8712-cf03effcc8aa",
+    "source_facts": [
+      "La urgencia expresa cuanto puede esperar la incidencia.",
+      "El impacto expresa a cuantas personas o servicios afecta.",
+      "Impacto y urgencia determinan conjuntamente la prioridad.",
+      "Una incidencia critica debe escalarse por el canal definido."
+    ],
+    "schema_version": 4
+  },
+  "didact_universe": {
+    "count": 34,
+    "type_ids": [
+      "didact.flashcard",
+      "didact.matching",
+      "didact.sort",
+      "didact.categorize",
+      "didact.quiz.single-choice",
+      "didact.quiz.multi-select",
+      "didact.quiz.true-false",
+      "didact.quiz.fill-in-the-blank",
+      "didact.quiz.short-answer",
+      "didact.glossary-term",
+      "didact.hint-reveal",
+      "didact.progress",
+      "didact.mastery-badge",
+      "didact.rubric",
+      "didact.timeline-steps",
+      "didact.practice-set",
+      "didact.retrieval-practice-session",
+      "didact.self-explanation-prompt",
+      "didact.worked-example",
+      "didact.completion-problem",
+      "didact.numeric-question",
+      "didact.word-bank",
+      "didact.hotspot",
+      "didact.interactive-media",
+      "didact.data-explorer",
+      "didact.branching-scenario",
+      "didact.simulation-lab",
+      "didact.code-exercise",
+      "didact.label-diagram",
+      "didact.concept-map",
+      "didact.drawing-response",
+      "didact.equation-workbench",
+      "didact.evidence-annotation",
+      "didact.measurement-lab"
+    ],
+    "complete": true
+  },
+  "repetitions": 5,
+  "baseline": {
+    "case_id": "baseline",
+    "changed_axis": "none",
+    "cache_key": "af9882a734b55c10666d52118d4d3f8f4da5ede6f7181bdbeed8b5749e3dd4a2",
+    "preference_bucket": "p1:balanced:standard:when_useful",
+    "accessibility_bucket": "a1:rm0:hc0:et0",
+    "vector_bucket": "texto:0.7",
+    "calibrating": false,
+    "effective_density": 3,
+    "personalization_revision": 7,
+    "semantic_signature": {
+      "representations": [
+        "text",
+        "table",
+        "chart"
+      ],
+      "components": [
+        "BeforeAfter",
+        "QuizItem",
+        "Table",
+        "Flashcard",
+        "DidactTimeline",
+        "DidactGlossary",
+        "didact.data-explorer",
+        "didact.flashcard",
+        "didact.glossary-term",
+        "didact.hint-reveal",
+        "didact.timeline-steps",
+        "didact.worked-example"
+      ],
+      "affordances": [
+        "attempt_recall",
+        "compare_two_states",
+        "compare_values",
+        "experiment",
+        "inspect",
+        "inspect_sequence",
+        "inspect_term",
+        "interpret",
+        "manipulate",
+        "rate_recall",
+        "receive_feedback",
+        "respond",
+        "reveal_answer",
+        "reveal_definition",
+        "scan_rows",
+        "select",
+        "submit_answer"
+      ],
+      "evidence": [
+        "answer_revealed",
+        "answer_submitted",
+        "recall_rated"
+      ],
+      "support": {
+        "band": "guided",
+        "density": 3,
+        "worked_example": false,
+        "graduated_hints": true,
+        "direct_feedback": true
+      },
+      "prompt_components": [
+        "BeforeAfter",
+        "QuizItem",
+        "Table",
+        "Flashcard",
+        "DidactTimeline"
+      ]
+    },
+    "critical_facts_in_prompt": [
+      "La urgencia expresa cuanto puede esperar la incidencia.",
+      "El impacto expresa a cuantas personas o servicios afecta.",
+      "Impacto y urgencia determinan conjuntamente la prioridad.",
+      "Una incidencia critica debe escalarse por el canal definido."
+    ],
+    "critical_fact_recall": 1.0,
+    "prompt_chars": 2575,
+    "estimated_prompt_tokens": 644,
+    "measured_pipeline_ms": 44.261,
+    "tokens_reported_by_fixture": null,
+    "cost_reported_by_fixture": null,
+    "trace_status": "planned",
+    "inventory_size_with_legacy": 49
+  },
+  "counterfactuals": [
+    {
+      "case_id": "presentation-visual",
+      "changed_axis": "presentation",
+      "cache_key": "ac6fb30c6db3f86a38ababb05e6a43a8f0fe92ded825bdc9fdad4bbcbdca7856",
+      "preference_bucket": "p1:visual:standard:when_useful",
+      "accessibility_bucket": "a1:rm0:hc0:et0",
+      "vector_bucket": "texto:0.7",
+      "calibrating": false,
+      "effective_density": 3,
+      "personalization_revision": 7,
+      "semantic_signature": {
+        "representations": [
+          "diagram"
+        ],
+        "components": [
+          "didact.data-explorer"
+        ],
+        "affordances": [
+          "experiment",
+          "inspect",
+          "interpret",
+          "manipulate",
+          "select"
+        ],
+        "evidence": [],
+        "support": {
+          "band": "guided",
+          "density": 3,
+          "worked_example": false,
+          "graduated_hints": true,
+          "direct_feedback": true
+        },
+        "prompt_components": [
+          "DidactActivity"
+        ]
+      },
+      "critical_facts_in_prompt": [
+        "La urgencia expresa cuanto puede esperar la incidencia.",
+        "El impacto expresa a cuantas personas o servicios afecta.",
+        "Impacto y urgencia determinan conjuntamente la prioridad.",
+        "Una incidencia critica debe escalarse por el canal definido."
+      ],
+      "critical_fact_recall": 1.0,
+      "prompt_chars": 2597,
+      "estimated_prompt_tokens": 649,
+      "measured_pipeline_ms": 41.041,
+      "tokens_reported_by_fixture": null,
+      "cost_reported_by_fixture": null,
+      "trace_status": "planned",
+      "inventory_size_with_legacy": 49,
+      "semantic_fields_changed": [
+        "representations",
+        "components",
+        "affordances",
+        "evidence",
+        "prompt_components"
+      ],
+      "useful_semantic_change": true,
+      "cache_invalidated": true,
+      "prompt_changed": true,
+      "intraprofile_semantic_noise": 0,
+      "mean_pipeline_ms": 30.04
+    },
+    {
+      "case_id": "presentation-textual",
+      "changed_axis": "presentation",
+      "cache_key": "333b85bf28da41394b1484bcdb6d9a4808ee00ccbfbad2cb466ef41e0204b2bb",
+      "preference_bucket": "p1:textual:standard:when_useful",
+      "accessibility_bucket": "a1:rm0:hc0:et0",
+      "vector_bucket": "texto:0.7",
+      "calibrating": false,
+      "effective_density": 3,
+      "personalization_revision": 7,
+      "semantic_signature": {
+        "representations": [
+          "text",
+          "table"
+        ],
+        "components": [
+          "BeforeAfter",
+          "QuizItem",
+          "Table",
+          "Flashcard",
+          "DidactTimeline",
+          "DidactGlossary",
+          "didact.flashcard",
+          "didact.glossary-term",
+          "didact.hint-reveal",
+          "didact.timeline-steps",
+          "didact.worked-example"
+        ],
+        "affordances": [
+          "attempt_recall",
+          "compare_two_states",
+          "compare_values",
+          "inspect",
+          "inspect_sequence",
+          "inspect_term",
+          "interpret",
+          "rate_recall",
+          "receive_feedback",
+          "respond",
+          "reveal_answer",
+          "reveal_definition",
+          "scan_rows",
+          "submit_answer"
+        ],
+        "evidence": [
+          "answer_revealed",
+          "answer_submitted",
+          "recall_rated"
+        ],
+        "support": {
+          "band": "guided",
+          "density": 3,
+          "worked_example": false,
+          "graduated_hints": true,
+          "direct_feedback": true
+        },
+        "prompt_components": [
+          "BeforeAfter",
+          "QuizItem",
+          "Table",
+          "Flashcard",
+          "DidactTimeline"
+        ]
+      },
+      "critical_facts_in_prompt": [
+        "La urgencia expresa cuanto puede esperar la incidencia.",
+        "El impacto expresa a cuantas personas o servicios afecta.",
+        "Impacto y urgencia determinan conjuntamente la prioridad.",
+        "Una incidencia critica debe escalarse por el canal definido."
+      ],
+      "critical_fact_recall": 1.0,
+      "prompt_chars": 2599,
+      "estimated_prompt_tokens": 650,
+      "measured_pipeline_ms": 14.016,
+      "tokens_reported_by_fixture": null,
+      "cost_reported_by_fixture": null,
+      "trace_status": "planned",
+      "inventory_size_with_legacy": 49,
+      "semantic_fields_changed": [
+        "representations",
+        "components",
+        "affordances"
+      ],
+      "useful_semantic_change": true,
+      "cache_invalidated": true,
+      "prompt_changed": true,
+      "intraprofile_semantic_noise": 0,
+      "mean_pipeline_ms": 11.71
+    },
+    {
+      "case_id": "presentation-interactive",
+      "changed_axis": "presentation",
+      "cache_key": "7fe6a85c84aa76cf8e197e41c4beda8cbd05e1b1ca7771ecd3aca8b17df4a78f",
+      "preference_bucket": "p1:interactive:standard:when_useful",
+      "accessibility_bucket": "a1:rm0:hc0:et0",
+      "vector_bucket": "texto:0.7",
+      "calibrating": false,
+      "effective_density": 3,
+      "personalization_revision": 7,
+      "semantic_signature": {
+        "representations": [
+          "text",
+          "table",
+          "chart"
+        ],
+        "components": [
+          "BeforeAfter",
+          "QuizItem",
+          "Table",
+          "Flashcard",
+          "DidactTimeline",
+          "DidactGlossary",
+          "didact.data-explorer",
+          "didact.flashcard",
+          "didact.glossary-term",
+          "didact.hint-reveal",
+          "didact.timeline-steps",
+          "didact.worked-example"
+        ],
+        "affordances": [
+          "attempt_recall",
+          "compare_two_states",
+          "compare_values",
+          "experiment",
+          "inspect",
+          "inspect_sequence",
+          "inspect_term",
+          "interpret",
+          "manipulate",
+          "rate_recall",
+          "receive_feedback",
+          "respond",
+          "reveal_answer",
+          "reveal_definition",
+          "scan_rows",
+          "select",
+          "submit_answer"
+        ],
+        "evidence": [
+          "answer_revealed",
+          "answer_submitted",
+          "recall_rated"
+        ],
+        "support": {
+          "band": "guided",
+          "density": 3,
+          "worked_example": false,
+          "graduated_hints": true,
+          "direct_feedback": true
+        },
+        "prompt_components": [
+          "BeforeAfter",
+          "QuizItem",
+          "Table",
+          "Flashcard",
+          "DidactTimeline"
+        ]
+      },
+      "critical_facts_in_prompt": [
+        "La urgencia expresa cuanto puede esperar la incidencia.",
+        "El impacto expresa a cuantas personas o servicios afecta.",
+        "Impacto y urgencia determinan conjuntamente la prioridad.",
+        "Una incidencia critica debe escalarse por el canal definido."
+      ],
+      "critical_fact_recall": 1.0,
+      "prompt_chars": 2601,
+      "estimated_prompt_tokens": 650,
+      "measured_pipeline_ms": 9.037,
+      "tokens_reported_by_fixture": null,
+      "cost_reported_by_fixture": null,
+      "trace_status": "planned",
+      "inventory_size_with_legacy": 49,
+      "semantic_fields_changed": [],
+      "useful_semantic_change": false,
+      "cache_invalidated": true,
+      "prompt_changed": true,
+      "intraprofile_semantic_noise": 0,
+      "mean_pipeline_ms": 11.597
+    },
+    {
+      "case_id": "detail-concise",
+      "changed_axis": "detail",
+      "cache_key": "ab101f8dcb83ca1195eb65eb3dac58e6ce2222e94821d37218ba49f4ec1e3dd4",
+      "preference_bucket": "p1:balanced:concise:when_useful",
+      "accessibility_bucket": "a1:rm0:hc0:et0",
+      "vector_bucket": "texto:0.7",
+      "calibrating": false,
+      "effective_density": 3,
+      "personalization_revision": 7,
+      "semantic_signature": {
+        "representations": [
+          "text",
+          "table",
+          "chart"
+        ],
+        "components": [
+          "BeforeAfter",
+          "QuizItem",
+          "Table",
+          "Flashcard",
+          "DidactTimeline",
+          "DidactGlossary",
+          "didact.data-explorer",
+          "didact.flashcard",
+          "didact.glossary-term",
+          "didact.hint-reveal",
+          "didact.timeline-steps",
+          "didact.worked-example"
+        ],
+        "affordances": [
+          "attempt_recall",
+          "compare_two_states",
+          "compare_values",
+          "experiment",
+          "inspect",
+          "inspect_sequence",
+          "inspect_term",
+          "interpret",
+          "manipulate",
+          "rate_recall",
+          "receive_feedback",
+          "respond",
+          "reveal_answer",
+          "reveal_definition",
+          "scan_rows",
+          "select",
+          "submit_answer"
+        ],
+        "evidence": [
+          "answer_revealed",
+          "answer_submitted",
+          "recall_rated"
+        ],
+        "support": {
+          "band": "guided",
+          "density": 3,
+          "worked_example": false,
+          "graduated_hints": true,
+          "direct_feedback": true
+        },
+        "prompt_components": [
+          "BeforeAfter",
+          "QuizItem",
+          "Table",
+          "Flashcard",
+          "DidactTimeline"
+        ]
+      },
+      "critical_facts_in_prompt": [
+        "La urgencia expresa cuanto puede esperar la incidencia.",
+        "El impacto expresa a cuantas personas o servicios afecta.",
+        "Impacto y urgencia determinan conjuntamente la prioridad.",
+        "Una incidencia critica debe escalarse por el canal definido."
+      ],
+      "critical_fact_recall": 1.0,
+      "prompt_chars": 2559,
+      "estimated_prompt_tokens": 640,
+      "measured_pipeline_ms": 12.725,
+      "tokens_reported_by_fixture": null,
+      "cost_reported_by_fixture": null,
+      "trace_status": "planned",
+      "inventory_size_with_legacy": 49,
+      "semantic_fields_changed": [],
+      "useful_semantic_change": false,
+      "cache_invalidated": true,
+      "prompt_changed": true,
+      "intraprofile_semantic_noise": 0,
+      "mean_pipeline_ms": 11.693
+    },
+    {
+      "case_id": "detail-detailed",
+      "changed_axis": "detail",
+      "cache_key": "cc83081fa8c5fc3324842217f6a5a98f8205a2c7d91d36f0d791562e772e35ef",
+      "preference_bucket": "p1:balanced:detailed:when_useful",
+      "accessibility_bucket": "a1:rm0:hc0:et0",
+      "vector_bucket": "texto:0.7",
+      "calibrating": false,
+      "effective_density": 3,
+      "personalization_revision": 7,
+      "semantic_signature": {
+        "representations": [
+          "text",
+          "table",
+          "chart"
+        ],
+        "components": [
+          "BeforeAfter",
+          "QuizItem",
+          "Table",
+          "Flashcard",
+          "DidactTimeline",
+          "DidactGlossary",
+          "didact.data-explorer",
+          "didact.flashcard",
+          "didact.glossary-term",
+          "didact.hint-reveal",
+          "didact.timeline-steps",
+          "didact.worked-example"
+        ],
+        "affordances": [
+          "attempt_recall",
+          "compare_two_states",
+          "compare_values",
+          "experiment",
+          "inspect",
+          "inspect_sequence",
+          "inspect_term",
+          "interpret",
+          "manipulate",
+          "rate_recall",
+          "receive_feedback",
+          "respond",
+          "reveal_answer",
+          "reveal_definition",
+          "scan_rows",
+          "select",
+          "submit_answer"
+        ],
+        "evidence": [
+          "answer_revealed",
+          "answer_submitted",
+          "recall_rated"
+        ],
+        "support": {
+          "band": "guided",
+          "density": 3,
+          "worked_example": false,
+          "graduated_hints": true,
+          "direct_feedback": true
+        },
+        "prompt_components": [
+          "BeforeAfter",
+          "QuizItem",
+          "Table",
+          "Flashcard",
+          "DidactTimeline"
+        ]
+      },
+      "critical_facts_in_prompt": [
+        "La urgencia expresa cuanto puede esperar la incidencia.",
+        "El impacto expresa a cuantas personas o servicios afecta.",
+        "Impacto y urgencia determinan conjuntamente la prioridad.",
+        "Una incidencia critica debe escalarse por el canal definido."
+      ],
+      "critical_fact_recall": 1.0,
+      "prompt_chars": 2611,
+      "estimated_prompt_tokens": 653,
+      "measured_pipeline_ms": 9.619,
+      "tokens_reported_by_fixture": null,
+      "cost_reported_by_fixture": null,
+      "trace_status": "planned",
+      "inventory_size_with_legacy": 49,
+      "semantic_fields_changed": [],
+      "useful_semantic_change": false,
+      "cache_invalidated": true,
+      "prompt_changed": true,
+      "intraprofile_semantic_noise": 0,
+      "mean_pipeline_ms": 11.269
+    },
+    {
+      "case_id": "images-prefer",
+      "changed_axis": "images",
+      "cache_key": "4d15e781bad746d323f83b34a936f8676663d4a1d3bfe165b92dcb5cd9757aa4",
+      "preference_bucket": "p1:balanced:standard:prefer",
+      "accessibility_bucket": "a1:rm0:hc0:et0",
+      "vector_bucket": "texto:0.7",
+      "calibrating": false,
+      "effective_density": 3,
+      "personalization_revision": 7,
+      "semantic_signature": {
+        "representations": [
+          "text",
+          "table",
+          "chart"
+        ],
+        "components": [
+          "BeforeAfter",
+          "QuizItem",
+          "Table",
+          "Flashcard",
+          "DidactTimeline",
+          "DidactGlossary",
+          "didact.data-explorer",
+          "didact.flashcard",
+          "didact.glossary-term",
+          "didact.hint-reveal",
+          "didact.timeline-steps",
+          "didact.worked-example"
+        ],
+        "affordances": [
+          "attempt_recall",
+          "compare_two_states",
+          "compare_values",
+          "experiment",
+          "inspect",
+          "inspect_sequence",
+          "inspect_term",
+          "interpret",
+          "manipulate",
+          "rate_recall",
+          "receive_feedback",
+          "respond",
+          "reveal_answer",
+          "reveal_definition",
+          "scan_rows",
+          "select",
+          "submit_answer"
+        ],
+        "evidence": [
+          "answer_revealed",
+          "answer_submitted",
+          "recall_rated"
+        ],
+        "support": {
+          "band": "guided",
+          "density": 3,
+          "worked_example": false,
+          "graduated_hints": true,
+          "direct_feedback": true
+        },
+        "prompt_components": [
+          "BeforeAfter",
+          "QuizItem",
+          "Table",
+          "Flashcard",
+          "DidactTimeline"
+        ]
+      },
+      "critical_facts_in_prompt": [
+        "La urgencia expresa cuanto puede esperar la incidencia.",
+        "El impacto expresa a cuantas personas o servicios afecta.",
+        "Impacto y urgencia determinan conjuntamente la prioridad.",
+        "Una incidencia critica debe escalarse por el canal definido."
+      ],
+      "critical_fact_recall": 1.0,
+      "prompt_chars": 2609,
+      "estimated_prompt_tokens": 652,
+      "measured_pipeline_ms": 10.007,
+      "tokens_reported_by_fixture": null,
+      "cost_reported_by_fixture": null,
+      "trace_status": "planned",
+      "inventory_size_with_legacy": 49,
+      "semantic_fields_changed": [],
+      "useful_semantic_change": false,
+      "cache_invalidated": true,
+      "prompt_changed": true,
+      "intraprofile_semantic_noise": 0,
+      "mean_pipeline_ms": 9.056
+    },
+    {
+      "case_id": "images-avoid",
+      "changed_axis": "images",
+      "cache_key": "f4f47d26048755d1afc78372d2aad5b695a51629bc956b088908635974585b73",
+      "preference_bucket": "p1:balanced:standard:avoid",
+      "accessibility_bucket": "a1:rm0:hc0:et0",
+      "vector_bucket": "texto:0.7",
+      "calibrating": false,
+      "effective_density": 3,
+      "personalization_revision": 7,
+      "semantic_signature": {
+        "representations": [
+          "text",
+          "table",
+          "chart"
+        ],
+        "components": [
+          "BeforeAfter",
+          "QuizItem",
+          "Table",
+          "Flashcard",
+          "DidactTimeline",
+          "DidactGlossary",
+          "didact.data-explorer",
+          "didact.flashcard",
+          "didact.glossary-term",
+          "didact.hint-reveal",
+          "didact.timeline-steps",
+          "didact.worked-example"
+        ],
+        "affordances": [
+          "attempt_recall",
+          "compare_two_states",
+          "compare_values",
+          "experiment",
+          "inspect",
+          "inspect_sequence",
+          "inspect_term",
+          "interpret",
+          "manipulate",
+          "rate_recall",
+          "receive_feedback",
+          "respond",
+          "reveal_answer",
+          "reveal_definition",
+          "scan_rows",
+          "select",
+          "submit_answer"
+        ],
+        "evidence": [
+          "answer_revealed",
+          "answer_submitted",
+          "recall_rated"
+        ],
+        "support": {
+          "band": "guided",
+          "density": 3,
+          "worked_example": false,
+          "graduated_hints": true,
+          "direct_feedback": true
+        },
+        "prompt_components": [
+          "BeforeAfter",
+          "QuizItem",
+          "Table",
+          "Flashcard",
+          "DidactTimeline"
+        ]
+      },
+      "critical_facts_in_prompt": [
+        "La urgencia expresa cuanto puede esperar la incidencia.",
+        "El impacto expresa a cuantas personas o servicios afecta.",
+        "Impacto y urgencia determinan conjuntamente la prioridad.",
+        "Una incidencia critica debe escalarse por el canal definido."
+      ],
+      "critical_fact_recall": 1.0,
+      "prompt_chars": 2525,
+      "estimated_prompt_tokens": 631,
+      "measured_pipeline_ms": 9.499,
+      "tokens_reported_by_fixture": null,
+      "cost_reported_by_fixture": null,
+      "trace_status": "planned",
+      "inventory_size_with_legacy": 49,
+      "semantic_fields_changed": [],
+      "useful_semantic_change": false,
+      "cache_invalidated": true,
+      "prompt_changed": true,
+      "intraprofile_semantic_noise": 0,
+      "mean_pipeline_ms": 9.082
+    },
+    {
+      "case_id": "experience-none",
+      "changed_axis": "experience",
+      "cache_key": "f2a45bfa82f21370df1298f0cc536da728c53b4c84cc5c2253b7f75c57701c59",
+      "preference_bucket": "p1:balanced:standard:when_useful",
+      "accessibility_bucket": "a1:rm0:hc0:et0",
+      "vector_bucket": "texto:0.7",
+      "calibrating": false,
+      "effective_density": 3,
+      "personalization_revision": 7,
+      "semantic_signature": {
+        "representations": [
+          "text",
+          "table",
+          "chart"
+        ],
+        "components": [
+          "BeforeAfter",
+          "QuizItem",
+          "Table",
+          "Flashcard",
+          "DidactTimeline",
+          "DidactGlossary",
+          "didact.data-explorer",
+          "didact.flashcard",
+          "didact.glossary-term",
+          "didact.hint-reveal",
+          "didact.timeline-steps",
+          "didact.worked-example"
+        ],
+        "affordances": [
+          "attempt_recall",
+          "compare_two_states",
+          "compare_values",
+          "experiment",
+          "inspect",
+          "inspect_sequence",
+          "inspect_term",
+          "interpret",
+          "manipulate",
+          "rate_recall",
+          "receive_feedback",
+          "respond",
+          "reveal_answer",
+          "reveal_definition",
+          "scan_rows",
+          "select",
+          "submit_answer"
+        ],
+        "evidence": [
+          "answer_revealed",
+          "answer_submitted",
+          "recall_rated"
+        ],
+        "support": {
+          "band": "guided",
+          "density": 3,
+          "worked_example": false,
+          "graduated_hints": true,
+          "direct_feedback": true
+        },
+        "prompt_components": [
+          "BeforeAfter",
+          "QuizItem",
+          "Table",
+          "Flashcard",
+          "DidactTimeline"
+        ]
+      },
+      "critical_facts_in_prompt": [
+        "La urgencia expresa cuanto puede esperar la incidencia.",
+        "El impacto expresa a cuantas personas o servicios afecta.",
+        "Impacto y urgencia determinan conjuntamente la prioridad.",
+        "Una incidencia critica debe escalarse por el canal definido."
+      ],
+      "critical_fact_recall": 1.0,
+      "prompt_chars": 2575,
+      "estimated_prompt_tokens": 644,
+      "measured_pipeline_ms": 10.119,
+      "tokens_reported_by_fixture": null,
+      "cost_reported_by_fixture": null,
+      "trace_status": "planned",
+      "inventory_size_with_legacy": 49,
+      "semantic_fields_changed": [],
+      "useful_semantic_change": false,
+      "cache_invalidated": true,
+      "prompt_changed": true,
+      "intraprofile_semantic_noise": 0,
+      "mean_pipeline_ms": 9.645
+    },
+    {
+      "case_id": "experience-experienced",
+      "changed_axis": "experience",
+      "cache_key": "be4bcce1e4679d49dc46bd892398a4871406d5966828d4fac3bc9143596d4333",
+      "preference_bucket": "p1:balanced:standard:when_useful",
+      "accessibility_bucket": "a1:rm0:hc0:et0",
+      "vector_bucket": "texto:0.7",
+      "calibrating": false,
+      "effective_density": 3,
+      "personalization_revision": 7,
+      "semantic_signature": {
+        "representations": [
+          "text",
+          "table",
+          "chart"
+        ],
+        "components": [
+          "BeforeAfter",
+          "QuizItem",
+          "Table",
+          "Flashcard",
+          "DidactTimeline",
+          "DidactGlossary",
+          "didact.data-explorer",
+          "didact.flashcard",
+          "didact.glossary-term",
+          "didact.hint-reveal",
+          "didact.timeline-steps",
+          "didact.worked-example"
+        ],
+        "affordances": [
+          "attempt_recall",
+          "compare_two_states",
+          "compare_values",
+          "experiment",
+          "inspect",
+          "inspect_sequence",
+          "inspect_term",
+          "interpret",
+          "manipulate",
+          "rate_recall",
+          "receive_feedback",
+          "respond",
+          "reveal_answer",
+          "reveal_definition",
+          "scan_rows",
+          "select",
+          "submit_answer"
+        ],
+        "evidence": [
+          "answer_revealed",
+          "answer_submitted",
+          "recall_rated"
+        ],
+        "support": {
+          "band": "guided",
+          "density": 3,
+          "worked_example": false,
+          "graduated_hints": true,
+          "direct_feedback": true
+        },
+        "prompt_components": [
+          "BeforeAfter",
+          "QuizItem",
+          "Table",
+          "Flashcard",
+          "DidactTimeline"
+        ]
+      },
+      "critical_facts_in_prompt": [
+        "La urgencia expresa cuanto puede esperar la incidencia.",
+        "El impacto expresa a cuantas personas o servicios afecta.",
+        "Impacto y urgencia determinan conjuntamente la prioridad.",
+        "Una incidencia critica debe escalarse por el canal definido."
+      ],
+      "critical_fact_recall": 1.0,
+      "prompt_chars": 2589,
+      "estimated_prompt_tokens": 647,
+      "measured_pipeline_ms": 11.36,
+      "tokens_reported_by_fixture": null,
+      "cost_reported_by_fixture": null,
+      "trace_status": "planned",
+      "inventory_size_with_legacy": 49,
+      "semantic_fields_changed": [],
+      "useful_semantic_change": false,
+      "cache_invalidated": true,
+      "prompt_changed": true,
+      "intraprofile_semantic_noise": 0,
+      "mean_pipeline_ms": 10.178
+    },
+    {
+      "case_id": "accessibility-short-blocks",
+      "changed_axis": "accessibility",
+      "cache_key": "83819d675be5e542b85fd4bf11474fbff5fa78a81ae82970bf0fc1d7776055e4",
+      "preference_bucket": "p1:balanced:standard:when_useful",
+      "accessibility_bucket": "a1:rm0:hc0:et0",
+      "vector_bucket": "texto:0.7",
+      "calibrating": false,
+      "effective_density": 2,
+      "personalization_revision": 7,
+      "semantic_signature": {
+        "representations": [
+          "text",
+          "table",
+          "chart"
+        ],
+        "components": [
+          "BeforeAfter",
+          "QuizItem",
+          "Table",
+          "Flashcard",
+          "DidactTimeline",
+          "DidactGlossary",
+          "didact.data-explorer",
+          "didact.flashcard",
+          "didact.glossary-term",
+          "didact.hint-reveal",
+          "didact.timeline-steps",
+          "didact.worked-example"
+        ],
+        "affordances": [
+          "attempt_recall",
+          "compare_two_states",
+          "compare_values",
+          "experiment",
+          "inspect",
+          "inspect_sequence",
+          "inspect_term",
+          "interpret",
+          "manipulate",
+          "rate_recall",
+          "receive_feedback",
+          "respond",
+          "reveal_answer",
+          "reveal_definition",
+          "scan_rows",
+          "select",
+          "submit_answer"
+        ],
+        "evidence": [
+          "answer_revealed",
+          "answer_submitted",
+          "recall_rated"
+        ],
+        "support": {
+          "band": "guided",
+          "density": 2,
+          "worked_example": false,
+          "graduated_hints": true,
+          "direct_feedback": true
+        },
+        "prompt_components": [
+          "BeforeAfter",
+          "QuizItem",
+          "Table",
+          "Flashcard",
+          "DidactTimeline"
+        ]
+      },
+      "critical_facts_in_prompt": [
+        "La urgencia expresa cuanto puede esperar la incidencia.",
+        "El impacto expresa a cuantas personas o servicios afecta.",
+        "Impacto y urgencia determinan conjuntamente la prioridad.",
+        "Una incidencia critica debe escalarse por el canal definido."
+      ],
+      "critical_fact_recall": 1.0,
+      "prompt_chars": 2568,
+      "estimated_prompt_tokens": 642,
+      "measured_pipeline_ms": 9.493,
+      "tokens_reported_by_fixture": null,
+      "cost_reported_by_fixture": null,
+      "trace_status": "planned",
+      "inventory_size_with_legacy": 49,
+      "semantic_fields_changed": [
+        "support"
+      ],
+      "useful_semantic_change": true,
+      "cache_invalidated": true,
+      "prompt_changed": true,
+      "intraprofile_semantic_noise": 0,
+      "mean_pipeline_ms": 10.274
+    },
+    {
+      "case_id": "accessibility-reduced-motion",
+      "changed_axis": "accessibility",
+      "cache_key": "0e8b6d5ba63973cc7e1768e7445a31d9105c3e49243bab075165767611a985e6",
+      "preference_bucket": "p1:balanced:standard:when_useful",
+      "accessibility_bucket": "a1:rm1:hc0:et0",
+      "vector_bucket": "texto:0.7",
+      "calibrating": false,
+      "effective_density": 3,
+      "personalization_revision": 7,
+      "semantic_signature": {
+        "representations": [
+          "text",
+          "table"
+        ],
+        "components": [
+          "BeforeAfter",
+          "Table",
+          "DidactTimeline",
+          "didact.worked-example"
+        ],
+        "affordances": [
+          "compare_two_states",
+          "compare_values",
+          "inspect",
+          "inspect_sequence",
+          "interpret",
+          "scan_rows"
+        ],
+        "evidence": [],
+        "support": {
+          "band": "guided",
+          "density": 3,
+          "worked_example": false,
+          "graduated_hints": true,
+          "direct_feedback": true
+        },
+        "prompt_components": [
+          "BeforeAfter",
+          "Table",
+          "DidactTimeline",
+          "DidactWorkedExample"
+        ]
+      },
+      "critical_facts_in_prompt": [
+        "La urgencia expresa cuanto puede esperar la incidencia.",
+        "El impacto expresa a cuantas personas o servicios afecta.",
+        "Impacto y urgencia determinan conjuntamente la prioridad.",
+        "Una incidencia critica debe escalarse por el canal definido."
+      ],
+      "critical_fact_recall": 1.0,
+      "prompt_chars": 2575,
+      "estimated_prompt_tokens": 644,
+      "measured_pipeline_ms": 21.268,
+      "tokens_reported_by_fixture": null,
+      "cost_reported_by_fixture": null,
+      "trace_status": "planned",
+      "inventory_size_with_legacy": 49,
+      "semantic_fields_changed": [
+        "representations",
+        "components",
+        "affordances",
+        "evidence",
+        "prompt_components"
+      ],
+      "useful_semantic_change": true,
+      "cache_invalidated": true,
+      "prompt_changed": false,
+      "intraprofile_semantic_noise": 0,
+      "mean_pipeline_ms": 20.598
+    },
+    {
+      "case_id": "vector-exercise-hot",
+      "changed_axis": "format_vector",
+      "cache_key": "2d3336fd2e0ce86421d46d645cce1a7060d1c933163783d1bb6ac65b3413c741",
+      "preference_bucket": "p1:balanced:standard:when_useful",
+      "accessibility_bucket": "a1:rm0:hc0:et0",
+      "vector_bucket": "ejercicio:0.8",
+      "calibrating": false,
+      "effective_density": 3,
+      "personalization_revision": 7,
+      "semantic_signature": {
+        "representations": [
+          "text",
+          "table",
+          "chart"
+        ],
+        "components": [
+          "BeforeAfter",
+          "QuizItem",
+          "Table",
+          "Flashcard",
+          "DidactTimeline",
+          "DidactGlossary",
+          "didact.data-explorer",
+          "didact.flashcard",
+          "didact.glossary-term",
+          "didact.hint-reveal",
+          "didact.timeline-steps",
+          "didact.worked-example"
+        ],
+        "affordances": [
+          "attempt_recall",
+          "compare_two_states",
+          "compare_values",
+          "experiment",
+          "inspect",
+          "inspect_sequence",
+          "inspect_term",
+          "interpret",
+          "manipulate",
+          "rate_recall",
+          "receive_feedback",
+          "respond",
+          "reveal_answer",
+          "reveal_definition",
+          "scan_rows",
+          "select",
+          "submit_answer"
+        ],
+        "evidence": [
+          "answer_revealed",
+          "answer_submitted",
+          "recall_rated"
+        ],
+        "support": {
+          "band": "guided",
+          "density": 3,
+          "worked_example": false,
+          "graduated_hints": true,
+          "direct_feedback": true
+        },
+        "prompt_components": [
+          "BeforeAfter",
+          "QuizItem",
+          "Table",
+          "Flashcard",
+          "DidactTimeline"
+        ]
+      },
+      "critical_facts_in_prompt": [
+        "La urgencia expresa cuanto puede esperar la incidencia.",
+        "El impacto expresa a cuantas personas o servicios afecta.",
+        "Impacto y urgencia determinan conjuntamente la prioridad.",
+        "Una incidencia critica debe escalarse por el canal definido."
+      ],
+      "critical_fact_recall": 1.0,
+      "prompt_chars": 2579,
+      "estimated_prompt_tokens": 645,
+      "measured_pipeline_ms": 9.692,
+      "tokens_reported_by_fixture": null,
+      "cost_reported_by_fixture": null,
+      "trace_status": "planned",
+      "inventory_size_with_legacy": 49,
+      "semantic_fields_changed": [],
+      "useful_semantic_change": false,
+      "cache_invalidated": true,
+      "prompt_changed": true,
+      "intraprofile_semantic_noise": 0,
+      "mean_pipeline_ms": 9.415
+    },
+    {
+      "case_id": "vector-data-hot",
+      "changed_axis": "format_vector",
+      "cache_key": "f982377fd217e15418a6e1c4345145c314a96130d65a931cb39b5ebce9cd958b",
+      "preference_bucket": "p1:balanced:standard:when_useful",
+      "accessibility_bucket": "a1:rm0:hc0:et0",
+      "vector_bucket": "dato:0.8",
+      "calibrating": false,
+      "effective_density": 3,
+      "personalization_revision": 7,
+      "semantic_signature": {
+        "representations": [
+          "text",
+          "table",
+          "chart"
+        ],
+        "components": [
+          "BeforeAfter",
+          "QuizItem",
+          "Table",
+          "Flashcard",
+          "DidactTimeline",
+          "DidactGlossary",
+          "didact.data-explorer",
+          "didact.flashcard",
+          "didact.glossary-term",
+          "didact.hint-reveal",
+          "didact.timeline-steps",
+          "didact.worked-example"
+        ],
+        "affordances": [
+          "attempt_recall",
+          "compare_two_states",
+          "compare_values",
+          "experiment",
+          "inspect",
+          "inspect_sequence",
+          "inspect_term",
+          "interpret",
+          "manipulate",
+          "rate_recall",
+          "receive_feedback",
+          "respond",
+          "reveal_answer",
+          "reveal_definition",
+          "scan_rows",
+          "select",
+          "submit_answer"
+        ],
+        "evidence": [
+          "answer_revealed",
+          "answer_submitted",
+          "recall_rated"
+        ],
+        "support": {
+          "band": "guided",
+          "density": 3,
+          "worked_example": false,
+          "graduated_hints": true,
+          "direct_feedback": true
+        },
+        "prompt_components": [
+          "BeforeAfter",
+          "QuizItem",
+          "Table",
+          "Flashcard",
+          "DidactTimeline"
+        ]
+      },
+      "critical_facts_in_prompt": [
+        "La urgencia expresa cuanto puede esperar la incidencia.",
+        "El impacto expresa a cuantas personas o servicios afecta.",
+        "Impacto y urgencia determinan conjuntamente la prioridad.",
+        "Una incidencia critica debe escalarse por el canal definido."
+      ],
+      "critical_fact_recall": 1.0,
+      "prompt_chars": 2574,
+      "estimated_prompt_tokens": 644,
+      "measured_pipeline_ms": 9.646,
+      "tokens_reported_by_fixture": null,
+      "cost_reported_by_fixture": null,
+      "trace_status": "planned",
+      "inventory_size_with_legacy": 49,
+      "semantic_fields_changed": [],
+      "useful_semantic_change": false,
+      "cache_invalidated": true,
+      "prompt_changed": true,
+      "intraprofile_semantic_noise": 0,
+      "mean_pipeline_ms": 9.703
+    },
+    {
+      "case_id": "vector-cold-calibration",
+      "changed_axis": "format_vector_temperature",
+      "cache_key": "97affeb45e57abfa9a2d3c17edc6abd6a68f59e234931b17fbade532492a80ce",
+      "preference_bucket": "p1:balanced:standard:when_useful",
+      "accessibility_bucket": "a1:rm0:hc0:et0",
+      "vector_bucket": "",
+      "calibrating": true,
+      "effective_density": 3,
+      "personalization_revision": 7,
+      "semantic_signature": {
+        "representations": [
+          "text",
+          "table",
+          "chart"
+        ],
+        "components": [
+          "BeforeAfter",
+          "QuizItem",
+          "Table",
+          "Flashcard",
+          "DidactTimeline",
+          "DidactGlossary",
+          "didact.data-explorer",
+          "didact.flashcard",
+          "didact.glossary-term",
+          "didact.hint-reveal",
+          "didact.timeline-steps",
+          "didact.worked-example"
+        ],
+        "affordances": [
+          "attempt_recall",
+          "compare_two_states",
+          "compare_values",
+          "experiment",
+          "inspect",
+          "inspect_sequence",
+          "inspect_term",
+          "interpret",
+          "manipulate",
+          "rate_recall",
+          "receive_feedback",
+          "respond",
+          "reveal_answer",
+          "reveal_definition",
+          "scan_rows",
+          "select",
+          "submit_answer"
+        ],
+        "evidence": [
+          "answer_revealed",
+          "answer_submitted",
+          "recall_rated"
+        ],
+        "support": {
+          "band": "guided",
+          "density": 3,
+          "worked_example": false,
+          "graduated_hints": true,
+          "direct_feedback": true
+        },
+        "prompt_components": [
+          "BeforeAfter",
+          "QuizItem",
+          "Table",
+          "Flashcard",
+          "DidactTimeline"
+        ]
+      },
+      "critical_facts_in_prompt": [
+        "La urgencia expresa cuanto puede esperar la incidencia.",
+        "El impacto expresa a cuantas personas o servicios afecta.",
+        "Impacto y urgencia determinan conjuntamente la prioridad.",
+        "Una incidencia critica debe escalarse por el canal definido."
+      ],
+      "critical_fact_recall": 1.0,
+      "prompt_chars": 2528,
+      "estimated_prompt_tokens": 632,
+      "measured_pipeline_ms": 11.644,
+      "tokens_reported_by_fixture": null,
+      "cost_reported_by_fixture": null,
+      "trace_status": "planned",
+      "inventory_size_with_legacy": 49,
+      "semantic_fields_changed": [],
+      "useful_semantic_change": false,
+      "cache_invalidated": true,
+      "prompt_changed": true,
+      "intraprofile_semantic_noise": 0,
+      "mean_pipeline_ms": 11.61
+    }
+  ],
+  "summary": {
+    "pairs": 14,
+    "prompt_change_rate": 0.929,
+    "cache_invalidation_rate": 1.0,
+    "useful_semantic_change_rate": 0.286,
+    "critical_fact_recall": 1.0,
+    "intraprofile_noise_cases": 0,
+    "semantic_change_without_cache_invalidation": [],
+    "prompt_only_axes": [
+      "presentation-interactive",
+      "detail-concise",
+      "detail-detailed",
+      "images-prefer",
+      "images-avoid",
+      "experience-none",
+      "experience-experienced",
+      "vector-exercise-hot",
+      "vector-data-hot",
+      "vector-cold-calibration"
+    ]
+  }
+}

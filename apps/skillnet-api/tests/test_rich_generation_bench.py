@@ -24,7 +24,10 @@ def test_matrix_is_complete_and_reproducible() -> None:
     first = _report()
     second = _report()
     assert len(first["rows"]) == 13 * 2 * 5 * 5
-    comparable = lambda row: {key: value for key, value in row.items() if key != "latency_ms"}
+
+    def comparable(row):
+        return {key: value for key, value in row.items() if key != "latency_ms"}
+
     assert [comparable(row) for row in first["rows"]] == [comparable(row) for row in second["rows"]]
 
 

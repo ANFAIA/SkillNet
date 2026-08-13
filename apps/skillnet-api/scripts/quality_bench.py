@@ -93,6 +93,8 @@ import litellm  # noqa: E402
 from src.config import settings  # noqa: E402
 from src.core import sse  # noqa: E402
 from src.models import (  # noqa: E402
+    ActivityDefinition,
+    ActivityState,
     Course,
     CourseDeliveryMode,
     CourseNode,
@@ -1061,6 +1063,8 @@ class BenchSession:
         self.lesson = lesson
         self.renders: list[NodeRender] = []
         self.usage: list[LlmUsageLog] = []
+        self.activity_definitions: list[ActivityDefinition] = []
+        self.activity_states: list[ActivityState] = []
         self.node_states: list[LearnerNodeState] = [node_state]
         self._added: list[Any] = []
 
@@ -1081,6 +1085,29 @@ class BenchSession:
             # banco no simula persistencia y debe responder honestamente que no hay
             # un pack READY en PostgreSQL, igual para raw y pack.
             return _Result([])
+        if "FROM activity_definitions" in sql:
+            rows = list(self.activity_definitions)
+            values = set(_params(query).values())
+            if values:
+                rows = [
+                    row
+                    for row in rows
+                    if row.id in values
+                    or row.org_id in values
+                    or row.definition_key in values
+                    or row.version in values
+                ]
+            return _Result(rows)
+        if "FROM activity_states" in sql:
+            rows = list(self.activity_states)
+            values = set(_params(query).values())
+            if values:
+                rows = [
+                    row
+                    for row in rows
+                    if row.activity_id in values or row.user_id in values
+                ]
+            return _Result(rows)
         if "FROM node_renders" in sql:
             rows = list(self.renders)
             wanted = {v for v in _params(query).values() if isinstance(v, str)}
@@ -1117,6 +1144,10 @@ class BenchSession:
             return self.document if pk == self.document.id else None
         if name == "NodeRender":
             return next((r for r in self.renders if r.id == pk), None)
+        if name == "ActivityDefinition":
+            return next((r for r in self.activity_definitions if r.id == pk), None)
+        if name == "ActivityState":
+            return next((r for r in self.activity_states if r.id == pk), None)
         raise AssertionError(f"get({name}, {pk}) inesperado en el banco")
 
     # -- escrituras ------------------------------------------------------------
@@ -1138,6 +1169,10 @@ class BenchSession:
                 self.renders.append(obj)
             elif isinstance(obj, LlmUsageLog) and obj not in self.usage:
                 self.usage.append(obj)
+            elif isinstance(obj, ActivityDefinition) and obj not in self.activity_definitions:
+                self.activity_definitions.append(obj)
+            elif isinstance(obj, ActivityState) and obj not in self.activity_states:
+                self.activity_states.append(obj)
             elif isinstance(obj, LearnerNodeState) and obj not in self.node_states:
                 self.node_states.append(obj)
 
@@ -1564,6 +1599,84 @@ def install_offline_llm(fixture_dir: Path) -> None:
     _BLUEPRINT_MARKER = "SkillNet. Tu trabajo es decidir la ESTRUCTURA"
     _CONTENT_WRITER_MARKER = "SkillNet Content Writer: tu tarea especifica"
     _INTERACTION_MARKER = "SkillNet Interaction Designer: tu tarea especifica"
+    _ACTIVITY_AUTHOR_MARKER = "Disenas UNA actividad educativa Didact"
+
+    def _activity_fixture(user_prompt: str) -> str:
+        payload = json.loads(user_prompt)
+        candidates = list(payload.get("candidate_component_ids") or ())
+        refs = list(payload.get("allowed_source_refs") or ())
+        component_id = candidates[0]
+        definitions: dict[str, dict[str, Any]] = {
+            "didact.rubric": {
+                "criteria": [{
+                    "id": "criterion-1", "label": "Aplicacion del procedimiento",
+                    "levels": [
+                        {"id": "level-1", "label": "Necesita apoyo"},
+                        {"id": "level-2", "label": "Aplicacion correcta"},
+                    ],
+                }],
+            },
+            "didact.self-explanation-prompt": {
+                "prompt": "Explica como aplicarias el procedimiento de la fuente.",
+                "scaffolds": ["Identifica primero el paso decisivo."],
+            },
+            "didact.concept-map": {"definition": {
+                "id": "map-1", "title": "Relaciona las ideas",
+                "nodes": [
+                    {"id": "n1", "label": "Situacion"},
+                    {"id": "n2", "label": "Respuesta"},
+                ],
+                "initialRelations": [],
+            }},
+            "didact.drawing-response": {"definition": {
+                "id": "drawing-1", "title": "Representa el proceso",
+                "instructions": "Dibuja la secuencia descrita en la fuente.",
+                "tools": ["freehand", "line"],
+            }},
+            "didact.equation-workbench": {"definition": {
+                "id": "equation-1", "title": "Comprueba la relacion",
+                "instructions": "Transforma la expresion paso a paso.",
+                "initialExpression": "x = x",
+            }},
+            "didact.evidence-annotation": {"definition": {
+                "id": "evidence-1", "title": "Clasifica la evidencia",
+                "segments": [{"id": "s1", "text": "Fragmento de la fuente"}],
+                "categories": [{"id": "c1", "label": "Evidencia"}],
+            }},
+            "didact.measurement-lab": {"definition": {
+                "id": "measure-1", "title": "Registra una lectura",
+                "instrument": {
+                    "kind": "linear", "min": 0, "max": 10, "step": 1, "unit": "u"
+                },
+                "observedReading": 5,
+            }},
+            "didact.data-explorer": {"definition": {
+                "schemaVersion": "1.0.0", "id": "data-1", "title": "Explora los datos",
+                "axes": {
+                    "x": {"label": "Caso", "domain": {"scale": "linear", "min": 0, "max": 1}},
+                    "y": {"label": "Valor", "domain": {"scale": "linear", "min": 0, "max": 1}},
+                },
+                "series": [{
+                    "id": "series-1", "label": "Fuente", "kind": "line",
+                    "source": {"kind": "points", "points": [
+                        {"id": "p1", "x": 0, "y": 0}, {"id": "p2", "x": 1, "y": 1}
+                    ]},
+                }],
+                "table": {
+                    "source": "series",
+                    "caption": "Datos de la fuente",
+                    "includeSeriesIds": ["series-1"],
+                },
+            }},
+        }
+        return json.dumps(
+            {
+                "component_id": component_id,
+                "definition": definitions.get(component_id, {}),
+                "source_refs": refs[:1],
+            },
+            ensure_ascii=False,
+        )
 
     fixture_dir.mkdir(parents=True, exist_ok=True)
     settings.LLM_FIXTURE_DIR = str(fixture_dir)
@@ -1586,6 +1699,9 @@ def install_offline_llm(fixture_dir: Path) -> None:
                 elif _INTERACTION_MARKER in system_prompt:
                     response = OFFLINE_PLAN.interaction_declarations()
                     use_case = "interaction_designer"
+                elif _ACTIVITY_AUTHOR_MARKER in system_prompt:
+                    response = _activity_fixture(user_prompt)
+                    use_case = "runtime_activity_authoring"
                 else:
                     response = OFFLINE_PLAN.next_program()
                     use_case = "genera_ui"
@@ -1619,6 +1735,7 @@ _GRAPH_NODE_NAMES = (
     "load_context",
     "probe_gate",
     "decide_formato",
+    "author_activity",
     "genera_ui",
     "validate_ui",
     "persist_render",
@@ -1666,6 +1783,14 @@ class Recorder:
     decide_tokens_out: int | None = None
     decide_model: str = ""
     format_rationale: str = ""
+    activity_authoring_status: str = "not_observed"
+    authored_activity: dict[str, Any] | None = None
+    activity_system_prompt: str = ""
+    activity_user_prompt: str = ""
+    activity_model: str = ""
+    activity_tokens_in: int | None = None
+    activity_tokens_out: int | None = None
+    activity_duration_ms: int = 0
     ui_format: str = "?"
     tier: str = "?"
     source_chars: int = 0
@@ -1770,6 +1895,25 @@ def _record(
         recorder.decide_tokens_out = result.get("tokens_out")
         if recorder.decide_called and recorder.pending_prompts:
             recorder.pending_prompts.pop(0)
+
+    elif name == "author_activity":
+        recorder.activity_authoring_status = str(
+            result.get("activity_authoring_status") or "unknown"
+        )
+        authored = result.get("authored_activity")
+        recorder.authored_activity = dict(authored) if isinstance(authored, dict) else None
+        recorder.activity_model = settings.LLM_RUNTIME_FAST_MODEL or settings.LLM_MODEL
+        recorder.activity_tokens_in = _delta(before_in, result.get("tokens_in"))
+        recorder.activity_tokens_out = _delta(before_out, result.get("tokens_out"))
+        recorder.activity_duration_ms = int(result.get("duration_ms") or 0) - int(
+            state.get("duration_ms") or 0
+        )
+        # This call happens before genera_ui.  Consuming its prompt here prevents the
+        # authoring prompt from being falsely attributed to the screen generator.
+        if recorder.pending_prompts:
+            recorder.activity_system_prompt, recorder.activity_user_prompt = (
+                recorder.pending_prompts.pop(0)
+            )
 
     elif name == "genera_ui":
         index = int(state.get("retry_count") or 0)
@@ -1888,6 +2032,11 @@ class RunResult:
     plan_trace: dict[str, Any] | None = None
     # Spec canónico realmente servido. ``answer_key`` vive en otra columna y no entra.
     ui_spec: dict[str, Any] | None = None
+    #: Server-owned rich activity, when the optional authoring node materialised one.
+    #: Private answer data is deliberately absent from the public projection returned by
+    #: the node.  The full draft remains in the exact captured prompt/response attempt.
+    activity_authoring_status: str = "not_observed"
+    authored_activity: dict[str, Any] | None = None
 
 
 async def run_one(
@@ -2042,6 +2191,8 @@ def _classify(
             if render is not None and isinstance(render.ui_spec, dict)
             else None
         ),
+        activity_authoring_status=recorder.activity_authoring_status,
+        authored_activity=recorder.authored_activity,
     )
 
 
@@ -2098,8 +2249,12 @@ def _infra_reason(final: dict, recorder: Recorder) -> str:
 
 
 def _tokens(recorder: Recorder) -> tuple[int | None, int | None, bool]:
-    values_in = [recorder.decide_tokens_in] + [a.tokens_in for a in recorder.attempts]
-    values_out = [recorder.decide_tokens_out] + [a.tokens_out for a in recorder.attempts]
+    values_in = [recorder.decide_tokens_in, recorder.activity_tokens_in] + [
+        a.tokens_in for a in recorder.attempts
+    ]
+    values_out = [recorder.decide_tokens_out, recorder.activity_tokens_out] + [
+        a.tokens_out for a in recorder.attempts
+    ]
     known_in = [v for v in values_in if v is not None]
     known_out = [v for v in values_out if v is not None]
     measured = bool(known_in or known_out)
@@ -2120,7 +2275,12 @@ def _cost(recorder: Recorder, prices: dict[str, tuple[float, float]]) -> float |
     total = 0.0
     seen_any = False
     entries: list[tuple[str, int | None, int | None]] = [
-        (recorder.decide_model, recorder.decide_tokens_in, recorder.decide_tokens_out)
+        (recorder.decide_model, recorder.decide_tokens_in, recorder.decide_tokens_out),
+        (
+            recorder.activity_model,
+            recorder.activity_tokens_in,
+            recorder.activity_tokens_out,
+        ),
     ]
     entries.extend((a.model, a.tokens_in, a.tokens_out) for a in recorder.attempts)
     for model, tin, tout in entries:

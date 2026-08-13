@@ -1,0 +1,82 @@
+{
+  "version": "didact-learner-journeys/1",
+  "course_id": "course-ticket-triage",
+  "nodes": [
+    {
+      "id": "00000000-0000-0000-0000-000000000101",
+      "mission": "recognize",
+      "source_functions": ["enumerate", "explore"],
+      "fact_refs": ["fact:impact", "fact:urgency"]
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000102",
+      "mission": "reconstruct",
+      "source_functions": ["procedure", "explore"],
+      "fact_refs": ["fact:triage-order", "fact:sla-check"]
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000103",
+      "mission": "interpret",
+      "source_functions": ["quantify", "explore"],
+      "fact_refs": ["fact:sla-table", "fact:priority-matrix"]
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000104",
+      "mission": "decide",
+      "source_functions": ["assess", "explore"],
+      "fact_refs": ["fact:escalation-rule", "fact:exception"]
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000105",
+      "mission": "produce",
+      "source_functions": ["procedure", "assess", "explore"],
+      "fact_refs": ["fact:response-template", "fact:closure-check"]
+    }
+  ],
+  "profiles": [
+    {
+      "id": "novice-visual",
+      "experience_level": "none",
+      "preset": "focus",
+      "scaffold_band": "novice",
+      "learning_preferences": {"presentation": "visual", "images": "when_useful"},
+      "format_vector": {"texto": 0.1, "ejercicio": 0.8, "codigo": 0.0, "dato": 0.1},
+      "first_error": "procedural",
+      "setting_change": {"learning_preferences": {"presentation": "interactive", "images": "when_useful"}},
+      "recovery_scaffold": "guided"
+    },
+    {
+      "id": "expert-text",
+      "experience_level": "experienced",
+      "preset": "standard",
+      "scaffold_band": "advanced",
+      "learning_preferences": {"presentation": "textual", "images": "avoid"},
+      "format_vector": {"texto": 0.85, "ejercicio": 0.05, "codigo": 0.0, "dato": 0.1},
+      "first_error": "detail",
+      "setting_change": {"preset": "fast"},
+      "recovery_scaffold": "advanced"
+    },
+    {
+      "id": "active-struggler",
+      "experience_level": "experienced",
+      "preset": "standard",
+      "scaffold_band": "advanced",
+      "learning_preferences": {"presentation": "interactive", "images": "when_useful"},
+      "format_vector": {"texto": 0.05, "ejercicio": 0.9, "codigo": 0.0, "dato": 0.05},
+      "first_error": "conceptual",
+      "setting_change": {"learning_preferences": {"presentation": "visual", "images": "when_useful"}},
+      "recovery_scaffold": "advanced"
+    },
+    {
+      "id": "balanced-data",
+      "experience_level": "some",
+      "preset": "standard",
+      "scaffold_band": "neutral",
+      "learning_preferences": {},
+      "format_vector": {"texto": 0.1, "ejercicio": 0.1, "codigo": 0.0, "dato": 0.8},
+      "first_error": null,
+      "setting_change": {"learning_preferences": {"presentation": "textual", "images": "when_useful"}},
+      "recovery_scaffold": "guided"
+    }
+  ]
+}
