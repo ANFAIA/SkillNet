@@ -38,6 +38,16 @@ class NodeRuntimeState(TypedDict, total=False):
     knowledge_selection_hash: str
     knowledge_atom_ids: list[str]
     knowledge_evidence_ids: list[str]
+    #: Versioned selection settings frozen with the cache key before graph start.
+    selection_strategy: str
+    selection_execution: str
+    #: Closed, bounded projection of scored Didact evidence from earlier nodes.
+    longitudinal_history: dict
+    #: The same projection digest included in the shared render cache key.
+    longitudinal_decision_digest: str
+    #: Optional explicit progressive expansion requested by a future caller/gate.
+    #: The production service does not set it, so progressive honestly starts at top3.
+    selection_progressive_stage: Literal["top3", "top5", "catalog"]
     #: Titulo y resumen de las OTRAS pantallas del curso, en orden de posicion. Lo que
     #: evita que seis nodos generados por separado abran con la misma frase y hagan la
     #: misma pregunta. Propiedad del esquema, identica para todos los aprendices.
@@ -64,8 +74,8 @@ class NodeRuntimeState(TypedDict, total=False):
     #: partir de la forma del material y el ``node_id`` (estable, propiedad del nodo). Es
     #: lo que reparte la variedad de evaluación entre los nodos de un curso en vez de
     #: caer siempre en un ``QuizItem`` de tipo ``test``.
-    assessment_block: str  # "QuizItem" | "DragOrder"
-    assessment_item_type: str | None  # el item_type cuando es QuizItem
+    assessment_block: str  # "QuizItem" | "DragOrder" | "DidactActivity"
+    assessment_item_type: str | None  # Quiz item_type, or didact.* when DidactActivity
     assessment_hint: str  # la línea de prompt ya redactada
 
     # --- Generation ---

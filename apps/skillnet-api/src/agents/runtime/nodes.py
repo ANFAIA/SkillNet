@@ -97,6 +97,10 @@ from src.models import (
     User,
 )
 from src.personalization.preferences import normalize_learning_preferences
+from src.personalization.projection import (
+    longitudinal_projection_from_mapping,
+    project_longitudinal_history,
+)
 from src.render.backends import get_render_backend
 from src.render.errors import RenderError
 from src.render.gate import canonicalize
@@ -424,6 +428,25 @@ async def load_context(state: NodeRuntimeState) -> dict:
         org_settings = await _org_settings(db, org_id)
         source_context = await load_source_context(db, node, org_id)
         accessibility_payload = dict(getattr(user, "accessibility", None) or {})
+        history_payload = state.get("longitudinal_history")
+        history = (
+            longitudinal_projection_from_mapping(history_payload)
+            if isinstance(history_payload, dict)
+            else project_longitudinal_history(
+                [],
+                nodes_completed=int(getattr(profile, "nodes_completed", 0) or 0),
+            )
+        )
+        expected_history_digest = str(
+            state.get("longitudinal_decision_digest") or ""
+        )
+        if (
+            expected_history_digest
+            and history.decision_digest != expected_history_digest
+        ):
+            raise RuntimeError(
+                "Longitudinal decision changed between cache lookup and generation; retry"
+            )
 
         from src.knowledge_pack.runtime_selection import load_runtime_knowledge
 
@@ -459,6 +482,7 @@ async def load_context(state: NodeRuntimeState) -> dict:
             # claimed and the row this graph writes are the same row.
             preview_salt=None,
             knowledge_pack_key=expected_pack_key,
+            longitudinal_history=history,
         )
         cache_key = str(state.get("cache_key") or key.cache_key)
 
@@ -484,6 +508,7 @@ async def load_context(state: NodeRuntimeState) -> dict:
         )
         node_payload = {
             "id": str(node.id),
+            "position": int(node.position),
             "title": node.title,
             "summary": node.summary,
             "outcome": node.outcome,
@@ -519,6 +544,16 @@ async def load_context(state: NodeRuntimeState) -> dict:
             # docs/learner-memory.md ("CONFIRMAR con Jose"). Exposed now so the plumbing is in
             # place; read today only by the tutor, whose turn is per-user and uncached.
             "memory_md": _render_memory_for_prompt(getattr(profile, "memory_md", None)),
+            "longitudinal_history": {
+                "evaluated_attempts": history.evaluated_attempts,
+                "error_attempts": history.error_attempts,
+                "supported_error_attempts": history.supported_error_attempts,
+                "mechanic_exposure": list(history.mechanic_exposure),
+                "support_level": history.support_level.value,
+                "applied": history.applied,
+                "evidence_policy": history.evidence_policy,
+                "semantic_error_mapping": history.semantic_error_mapping,
+            },
         }
         state_payload = {
             "state": _plain(getattr(node_state, "state", "not_started")),
@@ -564,6 +599,8 @@ async def load_context(state: NodeRuntimeState) -> dict:
         "backend": str(state.get("backend") or "openui"),
         "effective_density": key.effective_density,
         "scaffold_band": key.scaffold_band,
+        "longitudinal_decision_digest": history.decision_digest,
+        "longitudinal_history": profile_payload["longitudinal_history"],
         "cache_key": cache_key,
         "render_id": render_id,
         "schema_version": int(state.get("schema_version") or 1),
@@ -579,6 +616,26 @@ def _plain_or_none(value: object) -> str | None:
     if value is None:
         return None
     return str(getattr(value, "value", value))
+
+
+def _history_support_level(state: NodeRuntimeState | dict) -> str:
+    history = state.get("longitudinal_history")
+    if not isinstance(history, dict) or not bool(history.get("applied")):
+        return "base"
+    value = str(history.get("support_level") or "base")
+    return value if value in {"base", "hints", "worked-example"} else "base"
+
+
+def _effective_scaffold_band(state: NodeRuntimeState | dict) -> str:
+    """Escalate support for the next render without mutating node mastery state."""
+
+    band = str(state.get("scaffold_band") or "neutral")
+    support = _history_support_level(state)
+    if support == "worked-example":
+        return "novice"
+    if support == "hints" and band == "advanced":
+        return "neutral"
+    return band
 
 
 #: Ceiling on the learner-memory slice carried in the render context (chars). Small: it is
@@ -736,7 +793,7 @@ async def decide_formato(state: NodeRuntimeState) -> dict:
             experience_level=str(profile.get("experience_level") or "unknown"),
             preset=str(profile.get("preset") or "standard"),
             effective_density=int(state.get("effective_density") or 3),
-            scaffold_band=str(state.get("scaffold_band") or "neutral"),
+            scaffold_band=_effective_scaffold_band(state),
             vector_bucket=str(profile.get("vector_bucket") or ""),
             mastery=float(node_state.get("mastery") or 0.0),
             consecutive_failed=int(node_state.get("consecutive_failed") or 0),
@@ -791,20 +848,46 @@ async def decide_formato(state: NodeRuntimeState) -> dict:
             if value is not None
         }
 
+    # Resolve execution before assessment: live Didact shortlist must not inject QuizItem.
+    from src.agents.runtime.shadow_plan import build_shadow_plan_trace
+    from src.config import settings
+    from src.personalization.selection_policy import (
+        SelectionExecution,
+        runtime_execution,
+    )
+
+    requested_execution = (
+        state.get("selection_execution")
+        or (
+            settings.RUNTIME_SELECTION_EXECUTION
+            if settings.RUNTIME_COMPONENT_SHORTLIST
+            else SelectionExecution.OFF
+        )
+    )
+    requested_strategy = (
+        state.get("selection_strategy") or settings.RUNTIME_SELECTION_STRATEGY
+    )
+    effective_execution = runtime_execution(
+        requested_execution, requested_strategy
+    )
+    didact_live = (
+        settings.RUNTIME_COMPONENT_SHORTLIST
+        and effective_execution is SelectionExecution.LIVE
+    )
+
     # Cómo se verifica el nodo: determinista, propiedad del nodo (no del aprendiz), estable
-    # en cada visita. Es lo que reparte la variedad de evaluación entre nodos hermanos en
-    # vez de caer siempre en un QuizItem de tipo "test".
+    # en cada visita. En live Didact la rotación apunta a actividades, no a QuizItem.
     assessment = plan_assessment(
-        plan, ui_format=ui_format, node_id=str(node.get("id") or "")
+        plan,
+        ui_format=ui_format,
+        node_id=str(node.get("id") or ""),
+        didact=didact_live,
+        course_id=str(state.get("course_id") or ""),
+        position=node.get("position"),
     )
     shape_functions = list(
         dict.fromkeys(signal.function.value for signal in plan.signals)
     )
-
-    # Resolve once before either generator runs. The complete inventory stays in the
-    # planner; only renderer-safe names cross the prompt boundary when the flag is on.
-    from src.agents.runtime.shadow_plan import build_shadow_plan_trace
-    from src.config import settings
 
     shadow_state = dict(state)
     shadow_state.update(
@@ -819,11 +902,13 @@ async def decide_formato(state: NodeRuntimeState) -> dict:
     )
     plan_trace = build_shadow_plan_trace(
         shadow_state,
-        mode="live" if settings.RUNTIME_COMPONENT_SHORTLIST else "shadow",
+        mode=effective_execution.value,
+        selection_strategy=requested_strategy,
+        selection_execution=requested_execution,
     )
     prompt_component_ids = (
         list(plan_trace.get("prompt_component_ids") or ())
-        if settings.RUNTIME_COMPONENT_SHORTLIST
+        if effective_execution is SelectionExecution.LIVE
         else []
     )
 
@@ -864,6 +949,27 @@ def _activity_candidates(state: NodeRuntimeState) -> tuple[str, ...]:
     trace = state.get("plan_trace") or {}
     shadow = trace.get("shadow") if isinstance(trace, dict) else None
     ranked = shadow.get("component_candidates") if isinstance(shadow, dict) else None
+    selection = trace.get("selection") if isinstance(trace, dict) else None
+    policy_trace = (
+        selection.get("policy_trace") if isinstance(selection, dict) else None
+    )
+    selected_ids = (
+        tuple(policy_trace.get("selected_ids") or ())
+        if isinstance(policy_trace, dict)
+        and selection.get("effective_execution") == "live"
+        else ()
+    )
+    if selected_ids:
+        by_id = {
+            item.get("component_id"): item
+            for item in ranked or ()
+            if isinstance(item, dict)
+        }
+        ranked = tuple(
+            by_id[candidate_id]
+            for candidate_id in selected_ids
+            if candidate_id in by_id
+        )
     catalog = load_didact_catalog().by_type_id
     selected: list[str] = []
     for item in ranked or ():
@@ -876,24 +982,88 @@ def _activity_candidates(state: NodeRuntimeState) -> tuple[str, ...]:
         selected.append(component.type_id)
         if len(selected) >= 5:
             break
+    preferred = state.get("assessment_item_type")
+    if isinstance(preferred, str):
+        component = catalog.get(preferred)
+        if (
+            component is not None
+            and component.renderer_symbol == "DidactActivity"
+            and component.llm_emittable
+        ):
+            selected = [preferred, *[item for item in selected if item != preferred]]
     return tuple(dict.fromkeys(selected))
 
 
+_LEGACY_ASSESSMENT_BLOCKS = frozenset({"QuizItem", "DragOrder"})
+_DIRECT_DIDACT_CLOSERS = (
+    "Flashcard",
+    "HintReveal",
+    "DidactGlossary",
+    "DidactTimeline",
+    "DidactWorkedExample",
+)
+
+
+def _prompt_assessment_required(state: NodeRuntimeState) -> tuple[str, ...]:
+    """Components the scoped prompt must include so verification can close the screen.
+
+    Live Didact never injects QuizItem. If authoring declined, the closer is a direct
+    Didact block the model can emit without a server activity_id.
+    """
+
+    block = str(state.get("assessment_block") or "")
+    if block == "DidactActivity":
+        if isinstance(state.get("authored_activity"), dict):
+            return ("DidactActivity",)
+        scoped = tuple(state.get("prompt_component_ids") or ())
+        allowed = frozenset(_DIRECT_DIDACT_CLOSERS)
+        for name in scoped:
+            if name in allowed:
+                return (name,)
+        return ("Flashcard",)
+    if block in _DIRECT_DIDACT_CLOSERS:
+        return (block,)
+    if block in _LEGACY_ASSESSMENT_BLOCKS:
+        return (block,)
+    return ()
+
+
+def _effective_assessment_hint(state: NodeRuntimeState, required: tuple[str, ...]) -> str:
+    """Keep the user prompt aligned with the closer that will actually be in scope."""
+
+    hint = str(state.get("assessment_hint") or "")
+    block = str(state.get("assessment_block") or "")
+    if block != "DidactActivity" and block not in _DIRECT_DIDACT_CLOSERS:
+        return hint
+    if isinstance(state.get("authored_activity"), dict):
+        return hint
+    closer = required[0] if required else "Flashcard"
+    return (
+        f"VERIFICA con {closer}. El lead situa, el concepto ensena, "
+        f"{closer} aplica lo ensenado."
+    )
+
+
 async def author_activity(state: NodeRuntimeState) -> dict:
-    """Materialise a rich activity before OpenUI sees it; decline to legacy on failure.
+    """Materialise a rich activity before OpenUI sees it; decline without QuizItem.
 
     This node intentionally does not use ``runtime_node_error_wrapper``. Activity
     authoring is an optional enrichment: a malformed fixture, provider error or stale
-    pack removes DidactActivity from the scoped prompt and the ordinary generation path
-    continues.
+    pack removes DidactActivity from the scoped prompt. Live Didact then falls back to
+    a direct Didact closer (Flashcard, HintReveal, …), never to QuizItem.
     """
 
-    candidates = _activity_candidates(state)
+    # The authoring prompt carries one validator-owned schema. Keep selection and the
+    # server-side allow-list identical so a completion cannot switch to a candidate whose
+    # contract it was never shown.
+    candidates = _activity_candidates(state)[:1]
     if not candidates or "DidactActivity" not in (state.get("prompt_component_ids") or ()):
         return {"authored_activity": None, "activity_authoring_status": "not_requested"}
 
     request_id = str(state["request_id"])
     await publish_step(request_id, "author_activity", STEP_MESSAGES["author_activity"])
+    usage = None
+    started = time.monotonic()
     try:
         org_id = _uuid(state["org_id"])
         node_id = _uuid(state["node_id"])
@@ -912,7 +1082,6 @@ async def author_activity(state: NodeRuntimeState) -> dict:
         # Activity definition is small structured work; it always uses the fast tier even
         # when the eventual screen needs the heavy presentation tier.
         llm = await _make_llm(org_id, "fast")
-        started = time.monotonic()
         raw, usage = await llm.complete_with_usage(
             system,
             user,
@@ -958,9 +1127,39 @@ async def author_activity(state: NodeRuntimeState) -> dict:
         return {
             "authored_activity": materialized.model_dump(mode="json"),
             "activity_authoring_status": "ready",
+            # Keep node_renders and the evaluation harness honest: authoring is part of
+            # the on-the-fly render cost, not an invisible preliminary call.
+            "tokens_in": (
+                int(state.get("tokens_in") or 0) + int(usage.tokens_in or 0)
+                if state.get("tokens_in") is not None or usage.tokens_in is not None
+                else None
+            ),
+            "tokens_out": (
+                int(state.get("tokens_out") or 0) + int(usage.tokens_out or 0)
+                if state.get("tokens_out") is not None or usage.tokens_out is not None
+                else None
+            ),
+            "duration_ms": int(state.get("duration_ms") or 0)
+            + int((time.monotonic() - started) * 1000),
         }
     except Exception as exc:
         logger.warning("activity_authoring_declined %s", type(exc).__name__, exc_info=True)
+        accounting: dict[str, Any] = {}
+        if usage is not None:
+            accounting = {
+                "tokens_in": (
+                    int(state.get("tokens_in") or 0) + int(usage.tokens_in or 0)
+                    if state.get("tokens_in") is not None or usage.tokens_in is not None
+                    else None
+                ),
+                "tokens_out": (
+                    int(state.get("tokens_out") or 0) + int(usage.tokens_out or 0)
+                    if state.get("tokens_out") is not None or usage.tokens_out is not None
+                    else None
+                ),
+                "duration_ms": int(state.get("duration_ms") or 0)
+                + int((time.monotonic() - started) * 1000),
+            }
         return {
             "authored_activity": None,
             "activity_authoring_status": f"declined:{type(exc).__name__}",
@@ -969,6 +1168,7 @@ async def author_activity(state: NodeRuntimeState) -> dict:
                 for value in state.get("prompt_component_ids") or ()
                 if value != "DidactActivity"
             ],
+            **accounting,
         }
 
 
@@ -1031,14 +1231,20 @@ async def genera_ui(state: NodeRuntimeState) -> dict:
 
     from src.config import settings
 
+    assessment_required = _prompt_assessment_required(state)
     scoped_prompt, scope = resolve_runtime_prompt(
         state.get("prompt_component_ids") or (),
-        additional_required=(str(state.get("assessment_block") or "QuizItem"),),
+        additional_required=assessment_required,
         enabled=settings.RUNTIME_COMPONENT_SHORTLIST,
+    )
+    assessment_block = str(state.get("assessment_block") or "")
+    didact_verification = (
+        assessment_block == "DidactActivity"
+        or assessment_block in _DIRECT_DIDACT_CLOSERS
     )
 
     if retry:
-        system = ui_repair_system(scoped_prompt)
+        system = ui_repair_system(scoped_prompt, didact_verification=didact_verification)
         user_prompt = build_repair_prompt(
             previous=str(state.get("raw_dsl") or ""),
             errors=list(state.get("validation_errors") or []),
@@ -1046,7 +1252,9 @@ async def genera_ui(state: NodeRuntimeState) -> dict:
             shape_hints=shape_hints,
         )
     else:
-        system = ui_generator_system(scoped_prompt)
+        system = ui_generator_system(
+            scoped_prompt, didact_verification=didact_verification
+        )
         preferences = normalize_learning_preferences(profile.get("learning_preferences"))
         user_prompt = build_ui_prompt(
             title=str(node.get("title") or ""),
@@ -1055,7 +1263,7 @@ async def genera_ui(state: NodeRuntimeState) -> dict:
             criticality=str(node.get("criticality") or "recommended"),
             ui_format=ui_format,
             effective_density=int(state.get("effective_density") or 3),
-            scaffold_band=str(state.get("scaffold_band") or "neutral"),
+            scaffold_band=_effective_scaffold_band(state),
             role_title=profile.get("role_title"),
             sector=profile.get("sector"),
             experience_level=str(profile.get("experience_level") or "unknown"),
@@ -1067,10 +1275,11 @@ async def genera_ui(state: NodeRuntimeState) -> dict:
             tutor_signals=tuple(profile.get("tutor_signals") or ()),
             source_context=_source_with_authored_activity(state),
             shape_hints=shape_hints,
-            assessment_hint=str(state.get("assessment_hint") or ""),
+            assessment_hint=_effective_assessment_hint(state, assessment_required),
             presentation_preference=preferences.presentation.value,
             detail_preference=preferences.detail.value,
             image_preference=preferences.images.value,
+            longitudinal_support_level=_history_support_level(state),
         )
 
     await publish_step(request_id, "genera_ui", STEP_MESSAGES["genera_ui"])
@@ -1247,7 +1456,7 @@ async def genera_ui_multi(state: NodeRuntimeState) -> dict:
         criticality=str(node.get("criticality") or "recommended"),
         ui_format=ui_format,
         effective_density=int(state.get("effective_density") or 3),
-        scaffold_band=str(state.get("scaffold_band") or "neutral"),
+        scaffold_band=_effective_scaffold_band(state),
         role_title=profile.get("role_title"),
         sector=profile.get("sector"),
         experience_level=str(profile.get("experience_level") or "unknown"),
@@ -1271,7 +1480,7 @@ async def genera_ui_multi(state: NodeRuntimeState) -> dict:
         source_context=str(state.get("source_context") or ""),
         role_title=profile.get("role_title"),
         sector=profile.get("sector"),
-        scaffold_band=str(state.get("scaffold_band") or "neutral"),
+        scaffold_band=_effective_scaffold_band(state),
         criticality=str(node.get("criticality") or "recommended"),
         siblings=list(state.get("siblings") or ()),
         llm=llm,
@@ -1289,7 +1498,7 @@ async def genera_ui_multi(state: NodeRuntimeState) -> dict:
             role_title=profile.get("role_title"),
             sector=profile.get("sector"),
             target_bloom=target_bloom(mastery, threshold),
-            scaffold_band=str(state.get("scaffold_band") or "neutral"),
+            scaffold_band=_effective_scaffold_band(state),
             siblings=list(state.get("siblings") or ()),
             llm=llm,
         )
@@ -1363,6 +1572,30 @@ async def validate_ui(state: NodeRuntimeState) -> dict:
             "retry_count": int(state.get("retry_count") or 0) + 1,
             "current_step": "validate_ui",
         }
+
+    assessment_block = str(state.get("assessment_block") or "")
+    if (
+        assessment_block == "DidactActivity"
+        or assessment_block in _DIRECT_DIDACT_CLOSERS
+    ):
+        forbidden = sorted(
+            {
+                component.type
+                for component in spec.components
+                if component.type in {"QuizItem", "DragOrder"}
+            }
+        )
+        if forbidden:
+            return {
+                "ui_spec": None,
+                "validation_errors": [
+                    "En modo Didact esta prohibido "
+                    + " y ".join(forbidden)
+                    + ": usa DidactActivity o un bloque Didact directo."
+                ],
+                "retry_count": int(state.get("retry_count") or 0) + 1,
+                "current_step": "validate_ui",
+            }
 
     key_problems = missing_answer_keys(spec, answer_key)
     if key_problems:

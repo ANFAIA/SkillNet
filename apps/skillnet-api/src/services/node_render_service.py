@@ -35,7 +35,7 @@ from __future__ import annotations
 import asyncio
 import enum
 import uuid
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from typing import Any
 
 from sqlalchemy import select
@@ -55,12 +55,24 @@ from src.models import (
     Organization,
 )
 from src.personalization.preferences import preference_bucket
+from src.personalization.modality import tts_is_available
+from src.personalization.projection import (
+    LongitudinalHistoryProjection,
+    project_longitudinal_history,
+)
+from src.personalization.selection_policy import SelectionExecution, live_cache_fragment
 from src.render.prompt import catalog_version
 from src.render.prompt_slice import RUNTIME_SCOPE_POLICY_VERSION
 from src.repositories.learner_node_state_repo import LearnerNodeStateRepository
+from src.repositories.learning_event_repo import LearningEventRepository
 from src.repositories.node_render_repo import SERVABLE_STATUSES, NodeRenderRepository
 from src.repositories.node_render_view_repo import NodeRenderViewRepository
-from src.services.cache_key import build_cache_key, effective_density, role_bucket
+from src.services.cache_key import (
+    accessibility_bucket,
+    build_cache_key,
+    effective_density,
+    role_bucket,
+)
 from src.services.learner_profile_service import CALIBRATION_NODES, vector_bucket
 
 logger = get_logger(__name__)
@@ -99,6 +111,7 @@ class RenderKey:
     effective_density: int
     vector_bucket: str
     preference_bucket: str
+    accessibility_bucket: str
     knowledge_pack_key: str
     scaffold_band: str
     role_bucket: str
@@ -106,6 +119,11 @@ class RenderKey:
     calibrating: bool
     is_preview: bool
     personalization_revision: int
+    selection_policy_key: str
+    selection_strategy: str
+    selection_execution: str
+    longitudinal_decision_digest: str
+    longitudinal_history: LongitudinalHistoryProjection
 
 
 def build_render_key(
@@ -121,6 +139,7 @@ def build_render_key(
     preview_salt: str | None = None,
     refresh_salt: str | None = None,
     knowledge_pack_key: str = "",
+    longitudinal_history: LongitudinalHistoryProjection | None = None,
 ) -> RenderKey:
     """Compose the ``cache_key`` of §3.4 from a loaded context.
 
@@ -144,7 +163,24 @@ def build_render_key(
     )
     role = getattr(profile, "role_title", None)
     sector = getattr(profile, "sector", None)
-    preferences = preference_bucket(getattr(profile, "learning_preferences", None))
+    preferences = preference_bucket(
+        getattr(profile, "learning_preferences", None),
+        tts_available=tts_is_available(settings.TTS_PROVIDER),
+    )
+    accessibility_key = accessibility_bucket(accessibility)
+    selection_execution = (
+        settings.RUNTIME_SELECTION_EXECUTION
+        if settings.RUNTIME_COMPONENT_SHORTLIST
+        else SelectionExecution.OFF
+    )
+    selection_strategy = settings.RUNTIME_SELECTION_STRATEGY
+    selection_policy_key = live_cache_fragment(
+        selection_execution,
+        selection_strategy,
+    )
+    history = longitudinal_history or project_longitudinal_history(
+        [], nodes_completed=nodes_completed
+    )
 
     key = build_cache_key(
         node_id=node.id,
@@ -167,7 +203,10 @@ def build_render_key(
         sector=sector,
         vector_bucket=bucket,
         preference_bucket=preferences,
+        accessibility_bucket=accessibility_key,
         knowledge_pack_key=knowledge_pack_key,
+        selection_policy_key=selection_policy_key,
+        longitudinal_decision_digest=history.decision_digest,
     )
     if is_preview:
         salt = preview_salt or uuid.uuid4().hex[:12]
@@ -180,6 +219,7 @@ def build_render_key(
         effective_density=density,
         vector_bucket=bucket,
         preference_bucket=preferences,
+        accessibility_bucket=accessibility_key,
         knowledge_pack_key=knowledge_pack_key,
         scaffold_band=band,
         role_bucket=role_bucket(role, sector),
@@ -189,6 +229,11 @@ def build_render_key(
         personalization_revision=int(
             getattr(profile, "personalization_revision", 0) or 0
         ),
+        selection_policy_key=selection_policy_key,
+        selection_strategy=_plain(selection_strategy),
+        selection_execution=_plain(selection_execution),
+        longitudinal_decision_digest=history.decision_digest,
+        longitudinal_history=history,
     )
 
 
@@ -519,6 +564,13 @@ class NodeRenderService:
             "effective_density": key.effective_density,
             "scaffold_band": key.scaffold_band,
             "knowledge_pack_key": key.knowledge_pack_key,
+            "selection_strategy": key.selection_strategy,
+            "selection_execution": key.selection_execution,
+            "longitudinal_decision_digest": key.longitudinal_decision_digest,
+            "longitudinal_history": {
+                **asdict(key.longitudinal_history),
+                "support_level": key.longitudinal_history.support_level.value,
+            },
             "retry_count": 0,
             "validation_errors": [],
             "answer_key": {},
@@ -563,6 +615,16 @@ class NodeRenderService:
             node_state=node_state,
             accessibility=dict(user.accessibility or {}),
         )
+        events = await LearningEventRepository(
+            self.db
+        ).recent_longitudinal_didact_events(
+            user_id=user.id,
+            exclude_node_id=node.id,
+        )
+        history = project_longitudinal_history(
+            events,
+            nodes_completed=int(getattr(profile, "nodes_completed", 0) or 0),
+        )
         return build_render_key(
             node=node,
             course=course,
@@ -573,6 +635,7 @@ class NodeRenderService:
             is_preview=is_preview,
             refresh_salt=uuid.uuid4().hex[:12] if refresh and not is_preview else None,
             knowledge_pack_key=pack.cache_fragment if pack else "",
+            longitudinal_history=history,
         )
 
     # -- cancellation (§9.1) ----------------------------------------------------

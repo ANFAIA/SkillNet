@@ -29,6 +29,16 @@ ROLE_BUCKET_MAX_LENGTH = 24
 #: Ceiling applied to ``intent_density`` when ``accessibility.short_blocks`` is on.
 SHORT_BLOCKS_DENSITY_CEILING = 2
 
+#: Closed accessibility capabilities that can change the planner shortlist or the
+#: rendered interaction. ``short_blocks`` is intentionally absent: its effect is already
+#: represented by ``effective_density``. Keeping this tuple closed prevents arbitrary
+#: JSON keys or free text from fragmenting the shared cache.
+_RENDER_ACCESSIBILITY_FLAGS: tuple[tuple[str, str], ...] = (
+    ("reduce_motion", "rm"),
+    ("high_contrast", "hc"),
+    ("extra_time", "et"),
+)
+
 _NON_SLUG = re.compile(r"[^a-z0-9]+")
 
 
@@ -88,6 +98,18 @@ def effective_density(
     return int(intent_density)
 
 
+def accessibility_bucket(accessibility: Mapping[str, Any] | None = None) -> str:
+    """Versioned, non-identifying cache bucket for render-affecting capabilities.
+
+    Unknown keys and values other than literal truthiness are ignored. The bucket is
+    deliberately compact and stable because it becomes part of a globally shared cache
+    key; it contains capabilities, never a user id or profile prose.
+    """
+    values = accessibility or {}
+    bits = ":".join(f"{code}{int(bool(values.get(key)))}" for key, code in _RENDER_ACCESSIBILITY_FLAGS)
+    return f"a1:{bits}"
+
+
 def cache_key_material(
     *,
     node_id: uuid.UUID | str,
@@ -102,8 +124,11 @@ def cache_key_material(
     role_title: str | None = None,
     sector: str | None = None,
     vector_bucket: str = "",
-    preference_bucket: str = "p1:balanced:standard:when_useful",
+    preference_bucket: str = "p2:balanced:standard:standard:when_useful",
+    accessibility_bucket: str = "a1:rm0:hc0:et0",
     knowledge_pack_key: str = "",
+    selection_policy_key: str = "",
+    longitudinal_decision_digest: str = "",
 ) -> str:
     """The exact pipe-joined string that gets hashed. Exposed for debugging."""
     parts = (
@@ -115,6 +140,7 @@ def cache_key_material(
         _plain(scaffold_band),
         vector_bucket or "",
         preference_bucket,
+        accessibility_bucket,
         str(effective_density),
         _plain(backend),
         _plain(model),
@@ -123,6 +149,10 @@ def cache_key_material(
     # Preserve all legacy keys until a validated pack actually changes prompt input.
     if knowledge_pack_key:
         parts = (*parts, knowledge_pack_key)
+    if selection_policy_key:
+        parts = (*parts, selection_policy_key)
+    if longitudinal_decision_digest:
+        parts = (*parts, longitudinal_decision_digest)
     return "|".join(parts)
 
 
@@ -140,8 +170,11 @@ def build_cache_key(
     role_title: str | None = None,
     sector: str | None = None,
     vector_bucket: str = "",
-    preference_bucket: str = "p1:balanced:standard:when_useful",
+    preference_bucket: str = "p2:balanced:standard:standard:when_useful",
+    accessibility_bucket: str = "a1:rm0:hc0:et0",
     knowledge_pack_key: str = "",
+    selection_policy_key: str = "",
+    longitudinal_decision_digest: str = "",
 ) -> str:
     """``sha256`` of :func:`cache_key_material`, hex.
 
@@ -163,6 +196,9 @@ def build_cache_key(
         sector=sector,
         vector_bucket=vector_bucket,
         preference_bucket=preference_bucket,
+        accessibility_bucket=accessibility_bucket,
         knowledge_pack_key=knowledge_pack_key,
+        selection_policy_key=selection_policy_key,
+        longitudinal_decision_digest=longitudinal_decision_digest,
     )
     return hashlib.sha256(material.encode("utf-8")).hexdigest()

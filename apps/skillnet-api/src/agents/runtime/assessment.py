@@ -38,14 +38,46 @@ from src.agents.runtime.shape import ShapePlan
 #: el front pinta bien sin depender de ningún LLM de evaluación. El orden ES la rotación.
 QUIZ_ROTATION: tuple[str, ...] = ("test", "true_false", "fill_blank")
 
+#: Quiz-only subset, kept for tests and diagnostics. Live Didact uses the wider closer
+#: list below: three quiz types modulo a UUID hash clustered a 6-node course onto
+#: true/false four times.
+DIDACT_QUIZ_ROTATION: tuple[str, ...] = (
+    "didact.quiz.single-choice",
+    "didact.quiz.true-false",
+    "didact.quiz.fill-in-the-blank",
+)
+DIDACT_PROCEDURE = "didact.sort"
+
+#: Families mixed on purpose so consecutive nodes in one course do not share a closer.
+#: ``block`` is the OpenUI symbol the scoped prompt must include.
+DIDACT_CLOSER_ROTATION: tuple[tuple[str, str], ...] = (
+    ("didact.quiz.single-choice", "DidactActivity"),
+    ("didact.flashcard", "Flashcard"),
+    ("didact.sort", "DidactActivity"),
+    ("didact.quiz.fill-in-the-blank", "DidactActivity"),
+    ("didact.hint-reveal", "HintReveal"),
+    ("didact.matching", "DidactActivity"),
+    ("didact.quiz.true-false", "DidactActivity"),
+    ("didact.timeline-steps", "DidactTimeline"),
+    ("didact.word-bank", "DidactActivity"),
+    ("didact.worked-example", "DidactWorkedExample"),
+    ("didact.categorize", "DidactActivity"),
+    ("didact.glossary-term", "DidactGlossary"),
+    ("didact.quiz.multi-select", "DidactActivity"),
+    ("didact.self-explanation-prompt", "DidactActivity"),
+)
+DIRECT_DIDACT_BLOCKS = frozenset(
+    block for _type_id, block in DIDACT_CLOSER_ROTATION if block != "DidactActivity"
+)
+
 
 @dataclass(frozen=True)
 class AssessmentPlan:
     """El bloque de verificación que cierra la pantalla, y su tipo si es un ``QuizItem``."""
 
-    #: ``"QuizItem"`` | ``"DragOrder"``.
+    #: ``"QuizItem"`` | ``"DragOrder"`` | ``"DidactActivity"``.
     block: str
-    #: El ``item_type`` cuando ``block == "QuizItem"``; ``None`` para ``DragOrder``.
+    #: Quiz ``item_type``, or a ``didact.*`` id when ``block == "DidactActivity"``.
     item_type: str | None
 
     @property
@@ -54,6 +86,19 @@ class AssessmentPlan:
 
     def instruction(self) -> str:
         """La línea de prompt: nombra el bloque y cómo escribirlo, sin ambigüedad."""
+        if self.block == "DidactActivity":
+            component_id = self.item_type or "didact.quiz.single-choice"
+            return (
+                f"VERIFICA con DidactActivity usando component_id {component_id!r}. "
+                "Si el servidor ya preparó una actividad, usa exactamente esos "
+                "activity_id y component_id. El lead situa, el concepto ensena, "
+                "la actividad aplica lo ensenado."
+            )
+        if self.block in DIRECT_DIDACT_BLOCKS:
+            return (
+                f"VERIFICA con {self.block}. El lead situa, el concepto ensena, "
+                f"{self.block} aplica lo ensenado."
+            )
         if self.block == "DragOrder":
             return (
                 "VERIFICA con un bloque DragOrder: el aprendiz ordena arrastrando los "
@@ -82,12 +127,29 @@ class AssessmentPlan:
 def _node_seed(node_id: str) -> int:
     """Entero estable y bien repartido a partir del ``node_id``.
 
-    Estable: la misma pantalla en cada visita (no se mueve bajo el aprendiz). Repartido:
-    ``position`` no vale porque cursos distintos comparten posiciones y sesgarían el
-    reparto; un hash del id descorrelaciona la rotación del orden del temario.
+    Estable: la misma pantalla en cada visita (no se mueve bajo el aprendiz). El hash
+    solo se usa cuando no hay ``position`` de curso; dentro de un curso la rotación va
+    por posición para que nodos hermanos no colisionen en el mismo closer.
     """
     digest = hashlib.sha1(str(node_id).encode("utf-8")).hexdigest()
     return int(digest[:8], 16)
+
+
+def _closer_index(
+    *,
+    node_id: str,
+    course_id: str = "",
+    position: int | None = None,
+    size: int,
+) -> int:
+    """Spread consecutive nodes; salt by course so every syllabus does not start alike."""
+
+    if size <= 0:
+        return 0
+    if position is not None and int(position) > 0:
+        salt = _node_seed(course_id) if course_id else 0
+        return (int(position) - 1 + salt) % size
+    return _node_seed(node_id) % size
 
 
 def _has_procedure(plan: ShapePlan | None) -> bool:
@@ -97,20 +159,48 @@ def _has_procedure(plan: ShapePlan | None) -> bool:
 
 
 def plan_assessment(
-    plan: ShapePlan | None, *, ui_format: str, node_id: str
+    plan: ShapePlan | None,
+    *,
+    ui_format: str,
+    node_id: str,
+    didact: bool = False,
+    course_id: str = "",
+    position: int | None = None,
 ) -> AssessmentPlan:
     """El plan de verificación de un nodo.
 
-    * Un **procedimiento** se verifica ordenándolo → ``DragOrder`` (salvo en ``chart``,
-      donde la pantalla es una cifra y ordenar pasos no viene a cuento).
-    * En cualquier otro caso, rota de forma determinista y estable por ``node_id`` entre
-      ``test``, ``true_false`` y ``fill_blank`` para que los nodos hermanos no caigan todos
-      en la opción múltiple.
+    * Un **procedimiento** se verifica ordenándolo → ``DragOrder`` / ``didact.sort``
+      (salvo en ``chart``, donde la pantalla es una cifra y ordenar pasos no viene a cuento).
+    * En cualquier otro caso, rota de forma determinista. Con ``position`` de curso, los
+      nodos hermanos recorren la rueda; el ``course_id`` solo desplaza el origen.
+    * Con ``didact=True`` (shortlist live) la rueda recorre familias Didact, no QuizItem.
     """
+    index_kwargs = {
+        "node_id": node_id,
+        "course_id": course_id,
+        "position": position,
+    }
+    if didact:
+        if _has_procedure(plan) and ui_format != "chart":
+            return AssessmentPlan(block="DidactActivity", item_type=DIDACT_PROCEDURE)
+        component_id, block = DIDACT_CLOSER_ROTATION[
+            _closer_index(**index_kwargs, size=len(DIDACT_CLOSER_ROTATION))
+        ]
+        return AssessmentPlan(block=block, item_type=component_id)
     if _has_procedure(plan) and ui_format != "chart":
         return AssessmentPlan(block="DragOrder", item_type=None)
-    item_type = QUIZ_ROTATION[_node_seed(node_id) % len(QUIZ_ROTATION)]
+    item_type = QUIZ_ROTATION[
+        _closer_index(**index_kwargs, size=len(QUIZ_ROTATION))
+    ]
     return AssessmentPlan(block="QuizItem", item_type=item_type)
 
 
-__all__ = ["QUIZ_ROTATION", "AssessmentPlan", "plan_assessment"]
+__all__ = [
+    "DIDACT_CLOSER_ROTATION",
+    "DIDACT_PROCEDURE",
+    "DIDACT_QUIZ_ROTATION",
+    "DIRECT_DIDACT_BLOCKS",
+    "QUIZ_ROTATION",
+    "AssessmentPlan",
+    "plan_assessment",
+]

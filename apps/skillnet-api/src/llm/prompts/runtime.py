@@ -120,7 +120,10 @@ from src.render.spec import FORMATS_REQUIRING_LEAD
 #: stopped travelling as its bare enum token (:data:`_CRITICALITY_RULES` — 8 rejections,
 #: the largest single class), and SkillNet 17 and 18 name the two syntax habits behind the
 #: rest (a bare ``opciones = [...]`` declaration, and the same id declared twice).
-PROMPT_VERSION = "runtime/24"
+#:
+#: ``runtime/28`` (2026-08-13): Didact screen instructions say what to write
+#: (lead, one concept block, one Didact practice) instead of a ban list.
+PROMPT_VERSION = "runtime/28"
 
 _PRESENTATION_PREFERENCES = {
     "balanced": "Combina representaciones segun el objetivo y la fuente.",
@@ -281,6 +284,18 @@ _SIGNAL_RULES: dict[str, str] = {
     "revisar_prerrequisito": (
         "Recuerda en una linea el concepto previo del que depende este nodo, sin "
         "convertirlo en el tema."
+    ),
+}
+
+_HISTORY_SUPPORT_RULES: dict[str, str] = {
+    "hints": (
+        "La evidencia evaluada de nodos anteriores pide apoyo ligero: ofrece una pista "
+        "graduada antes de la respuesta, sin cambiar el objetivo ni los hechos de la fuente."
+    ),
+    "worked-example": (
+        "La evidencia evaluada de nodos anteriores pide apoyo alto: incluye un ejemplo "
+        "resuelto breve y despues una practica analoga. Conserva el mismo objetivo, "
+        "calibracion y hechos; no reveles la solucion de la evaluacion."
     ),
 }
 
@@ -476,8 +491,7 @@ TRES BLOQUES, en este orden:
    - Listas de cosas -> Table
    - Comparacion bien/mal, antes/despues -> BeforeAfter
    - Procedimiento simple sin explicaciones -> StepSequence
-   PROHIBIDO usar TextContent("body") para el concepto. El concepto SIEMPRE va en
-   un bloque propio (Table, BeforeAfter, StepSequence).
+   El concepto va en Table, BeforeAfter o StepSequence, segun el material.
 3. VERIFICAR — UN bloque de practica. Si el prompt trae una linea "CÓMO VERIFICAR",
    OBEDECELA: dice exactamente que bloque y que item_type usar. El QuizItem NO es siempre
    de tipo "test"; tiene cuatro formas y se elige por lo que se evalua:
@@ -591,15 +605,42 @@ Reglas duras de la clave:
 - Si el programa no lleva ningun QuizItem, no escribas la linea {ANSWER_KEY_SENTINEL}.
 """
 
+_DIDACT_VERIFICATION_OVERRIDE = """
+
+## SkillNet: verificacion Didact
+
+La practica de esta pantalla es Didact. Usa uno de:
+Flashcard, HintReveal, DidactGlossary, DidactTimeline, DidactWorkedExample
+o DidactActivity(activity_id, component_id).
+Si el servidor ya preparo una Actividad Didact, esa es la practica de la pantalla.
+La correccion vive en el servidor: el programa termina con el bloque Didact.
+
+## SkillNet: ensenar y luego practicar
+
+Tres piezas, en este orden:
+1. Lead: una frase de situacion del puesto (TextContent "lead").
+2. Concepto: UN bloque con el dato o procedimiento (Table, StepSequence o Callout).
+3. Practica Didact: aplica o comprueba ese mismo contenido en una situacion del puesto.
+
+El lead situa. El concepto ensena. La practica usa lo ensenado.
+Un Card solo cuando agrupa varios datos distintos que caben juntos.
+"""
+
 
 @cache
-def ui_generator_system(component_prompt: str | None = None) -> str:
+def ui_generator_system(
+    component_prompt: str | None = None, *, didact_verification: bool = False
+) -> str:
     """``library.prompt()`` (the artefact) plus the answer-key protocol.
 
     Cached: the artefact is immutable at runtime and this string is hashed on every
-    fixture lookup.
+    fixture lookup. ``didact_verification`` is part of the cache key so the live
+    Didact closer does not share a prompt with the legacy QuizItem path.
     """
-    return (component_prompt or render_prompt()).rstrip("\n") + _UI_GENERATOR_TAIL
+    text = (component_prompt or render_prompt()).rstrip("\n") + _UI_GENERATOR_TAIL
+    if didact_verification:
+        return text + _DIDACT_VERIFICATION_OVERRIDE
+    return text
 
 
 #: The repair header. The MAL/BIEN block is not decoration: a paired counterexample is the
@@ -657,14 +698,22 @@ Reglas del dialecto y catalogo de bloques: los mismos de abajo, sin excepciones.
 
 
 @cache
-def ui_repair_system(component_prompt: str | None = None) -> str:
+def ui_repair_system(
+    component_prompt: str | None = None, *, didact_verification: bool = False
+) -> str:
     """The repair system prompt: the same dialect, plus "you were rejected, emit again".
 
     A separate system prompt rather than an extra user turn, because the model has to be
     told that its previous output is not a starting point to patch but something to
     re-emit whole: the parser is line-oriented and a half-fixed program fails again.
     """
-    return _UI_REPAIR_HEADER + "\n" + ui_generator_system(component_prompt)
+    return (
+        _UI_REPAIR_HEADER
+        + "\n"
+        + ui_generator_system(
+            component_prompt, didact_verification=didact_verification
+        )
+    )
 
 
 def build_ui_prompt(
@@ -691,6 +740,7 @@ def build_ui_prompt(
     presentation_preference: str = "balanced",
     detail_preference: str = "standard",
     image_preference: str = "when_useful",
+    longitudinal_support_level: str = "base",
 ) -> str:
     """The user prompt for ``genera_ui``.
 
@@ -751,6 +801,9 @@ def build_ui_prompt(
         rule = _SIGNAL_RULES.get(str(signal))
         if rule:
             parts.append(f"- {rule}")
+    history_rule = _HISTORY_SUPPORT_RULES.get(str(longitudinal_support_level))
+    if history_rule:
+        parts.append(f"- {history_rule}")
     parts.extend(
         f"- {rule}"
         for rule in _preference_rules(
@@ -779,8 +832,8 @@ def build_ui_prompt(
         parts.append(clip_source(source_context))
     else:
         parts.append(
-            "NO HAY EXTRACTO DE LA FUENTE. Limitate a lo que afirma el resumen del nodo "
-            "y no anadas ni una cifra, plazo o nombre de norma nuevos."
+            "MATERIAL DE ESTE PUNTO: el titulo, el resumen y el resultado del nodo. "
+            "Escribe la pantalla con eso."
         )
     parts.append("")
     parts.append(_closing_line(ui_format))

@@ -306,6 +306,7 @@ class FakeSession:
     document: FakeDocument | None = None
     lesson: Lesson | None = None
     knowledge_packs: list[Any] = field(default_factory=list)
+    learning_events: list[tuple[Any, str, dict]] = field(default_factory=list)
     renders: list[NodeRender] = field(default_factory=list)
     usage: list[LlmUsageLog] = field(default_factory=list)
     added: list[Any] = field(default_factory=list)
@@ -321,6 +322,8 @@ class FakeSession:
             return FakeResult([self.profile] if self.profile is not None else [])
         if "FROM learner_node_states" in sql:
             return FakeResult([self.node_state] if self.node_state is not None else [])
+        if "FROM learning_events" in sql:
+            return FakeResult(list(self.learning_events))
         if "FROM node_knowledge_packs" in sql:
             return FakeResult(list(self.knowledge_packs))
         if "FROM node_renders" in sql:
@@ -1168,6 +1171,26 @@ def test_during_calibration_the_vector_bucket_stays_out_of_the_key() -> None:
     assert out_of_calibration.calibrating is False
     assert out_of_calibration.vector_bucket == CANON_BUCKET
     assert out_of_calibration.cache_key != calibrating.cache_key
+
+
+def test_longitudinal_support_changes_next_prompt_band_without_mutating_state() -> None:
+    state = {
+        "scaffold_band": "advanced",
+        "longitudinal_history": {
+            "applied": True,
+            "support_level": "worked-example",
+        },
+    }
+    before = {
+        "scaffold_band": state["scaffold_band"],
+        "longitudinal_history": dict(state["longitudinal_history"]),
+    }
+
+    assert runtime_nodes._effective_scaffold_band(state) == "novice"
+    assert state == before
+
+    state["longitudinal_history"]["applied"] = False
+    assert runtime_nodes._effective_scaffold_band(state) == "advanced"
 
 
 # --------------------------------------------------------------------------------------

@@ -15,10 +15,11 @@ import uuid
 
 import pytest
 
-from src.models import LearnerExperience, LearningProfile
 from src.llm.prompts.runtime import build_ui_prompt
+from src.models import LearnerExperience, LearningProfile
 from src.services.cache_key import (
     ROLE_BUCKET_MAX_LENGTH,
+    accessibility_bucket,
     build_cache_key,
     cache_key_material,
     effective_density,
@@ -48,6 +49,16 @@ def key(**overrides) -> str:
     return build_cache_key(**{**BASE, **overrides})
 
 
+def test_accessibility_bucket_is_closed_versioned_and_non_identifying():
+    assert accessibility_bucket(None) == "a1:rm0:hc0:et0"
+    assert accessibility_bucket({"reduce_motion": True}) == "a1:rm1:hc0:et0"
+    assert accessibility_bucket({"high_contrast": True}) == "a1:rm0:hc1:et0"
+    assert accessibility_bucket({"extra_time": True}) == "a1:rm0:hc0:et1"
+    assert accessibility_bucket({"unknown": "free prose"}) == "a1:rm0:hc0:et0"
+    # Already represented by effective_density, so it cannot fragment twice.
+    assert accessibility_bucket({"short_blocks": True}) == "a1:rm0:hc0:et0"
+
+
 # ---------------------------------------------------------------------------
 # Shape
 # ---------------------------------------------------------------------------
@@ -63,7 +74,7 @@ def test_key_is_deterministic():
     assert key() == key()
 
 
-def test_material_has_the_twelve_fields_of_the_formula_in_order():
+def test_material_has_the_thirteen_fields_of_the_formula_in_order():
     material = cache_key_material(**BASE)
     assert material.split("|") == [
         str(NODE_ID),
@@ -73,7 +84,8 @@ def test_material_has_the_twelve_fields_of_the_formula_in_order():
         hashlib.sha256(b"dependiente|retail").hexdigest()[:ROLE_BUCKET_MAX_LENGTH],
         "neutral",
         "",
-        "p1:balanced:standard:when_useful",
+        "p2:balanced:standard:standard:when_useful",
+        "a1:rm0:hc0:et0",
         "3",
         "openui",
         "gpt-4o-mini",
@@ -96,6 +108,7 @@ def test_material_has_the_twelve_fields_of_the_formula_in_order():
         ("role_title", "Encargado de turno"),
         ("scaffold_band", "novice"),
         ("vector_bucket", "ejercicio:0.7"),
+        ("accessibility_bucket", "a1:rm1:hc0:et0"),
         ("effective_density", 2),
         ("backend", "a2tl"),
         ("model", "gpt-4o"),
@@ -193,6 +206,28 @@ def test_a_validated_knowledge_selection_partitions_the_render_cache():
     assert raw != first
     assert first != second
     assert key(knowledge_pack_key="") == raw
+
+
+def test_live_selection_strategy_and_version_partition_the_render_cache():
+    legacy = key(selection_policy_key="")
+    top5 = key(selection_policy_key="selection-policy/1:top5/v1")
+    progressive = key(
+        selection_policy_key="selection-policy/1:progressive-3-5-catalog/v1"
+    )
+
+    assert legacy != top5
+    assert top5 != progressive
+    assert key(selection_policy_key="") == legacy
+
+
+def test_longitudinal_decision_digest_partitions_only_when_supplied():
+    baseline = key()
+    errors = key(longitudinal_decision_digest="ld1:validated-errors")
+    mechanics = key(longitudinal_decision_digest="ld1:mechanics")
+
+    assert errors != baseline
+    assert mechanics != errors
+    assert key(longitudinal_decision_digest="") == baseline
 
 
 def test_enum_members_and_their_values_key_the_same():

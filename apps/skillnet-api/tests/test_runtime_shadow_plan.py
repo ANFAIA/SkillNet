@@ -10,6 +10,7 @@ import pytest
 
 from src.agents.runtime import shadow_plan
 from src.agents.runtime import nodes as runtime_nodes
+from src.personalization.selection_policy import SelectionExecution, SelectionStrategy
 
 
 def _state() -> dict:
@@ -66,6 +67,28 @@ def test_inferred_affinity_is_not_promoted_to_declared_preference() -> None:
 
     assert trace["projection"]["declared_presentations"] == []
     assert "DECLARED_PRESENTATION_MATCHED" not in trace["shadow"]["rationale_codes"]
+
+
+def test_trace_carries_closed_longitudinal_digest_and_support_decision() -> None:
+    state = _state()
+    state["profile"]["longitudinal_history"] = {
+        "evaluated_attempts": 2,
+        "error_attempts": 2,
+        "supported_error_attempts": 1,
+        "mechanic_exposure": [["didact.measurement-lab", 2]],
+        "support_level": "worked-example",
+        "applied": True,
+        "evidence_policy": "eventport-evaluated/1",
+        "semantic_error_mapping": "shadow-unmapped",
+    }
+
+    trace = shadow_plan.build_shadow_plan_trace(state)
+
+    assert trace["longitudinal_history"]["evaluated_attempts"] == 2
+    assert trace["longitudinal_decision_digest"].startswith("ld1:")
+    assert trace["projection"]["history_support_level"] == "worked-example"
+    assert trace["projection"]["semantic_error_mapping"] == "shadow-unmapped"
+    assert trace["shadow"]["support"]["worked_example"] is True
 
 
 def test_shadow_planner_fails_open(monkeypatch) -> None:
@@ -149,7 +172,7 @@ async def test_decide_formato_observes_once_before_either_openui_generator(
     result = await runtime_nodes.decide_formato(state)
 
     assert len(observed) == 1
-    assert observed[0]["assessment_block"] in {"QuizItem", "DragOrder"}
+    assert observed[0]["assessment_block"] in {"QuizItem", "DragOrder", "DidactActivity"}
     assert observed[0]["shape_functions"] == ["procedimentar"]
     assert result["plan_trace"]["trace_version"] == "plan-trace/test"
     assert "ui_spec" not in result
@@ -157,9 +180,58 @@ async def test_decide_formato_observes_once_before_either_openui_generator(
 
 
 def test_live_shortlist_never_exposes_a_didact_type_without_runtime_gate() -> None:
-    trace = shadow_plan.build_shadow_plan_trace(_state(), mode="live")
+    trace = shadow_plan.build_shadow_plan_trace(
+        _state(),
+        mode="live",
+        selection_execution=SelectionExecution.LIVE,
+    )
 
     assert trace["mode"] == "live"
+    assert trace["selection"]["executed_strategy"] == "top5/v1"
+    assert trace["selection"]["effective_execution"] == "live"
     # Prompt ids are OpenUI renderer symbols, never neutral Didact inventory ids.
     assert all(not item.startswith("didact.") for item in trace["prompt_component_ids"])
     assert len(trace["prompt_component_ids"]) <= 5
+
+
+def test_progressive_is_live_top3_without_implicit_expansion() -> None:
+    trace = shadow_plan.build_shadow_plan_trace(
+        _state(),
+        mode="live",
+        selection_strategy=SelectionStrategy.PROGRESSIVE_3_5_CATALOG,
+        selection_execution=SelectionExecution.LIVE,
+    )
+
+    selection = trace["selection"]
+    assert selection["executed_strategy"] == "progressive-3-5-catalog/v1"
+    assert selection["policy_trace"]["stage"] == "top3"
+    assert len(selection["policy_trace"]["selected_ids"]) == 3
+    assert len(trace["prompt_component_ids"]) <= 3
+
+
+def test_dual_agent_requested_live_remains_shadow_and_is_not_falsely_executed() -> None:
+    trace = shadow_plan.build_shadow_plan_trace(
+        _state(),
+        mode="shadow",
+        selection_strategy=SelectionStrategy.DUAL_AGENT,
+        selection_execution=SelectionExecution.LIVE,
+    )
+
+    assert trace["selection"]["requested_execution"] == "live"
+    assert trace["selection"]["effective_execution"] == "shadow"
+    assert trace["selection"]["status"] == "rejected"
+    assert trace["selection"]["executed_strategy"] is None
+
+
+def test_specialist_requested_live_is_only_evaluated_in_shadow() -> None:
+    trace = shadow_plan.build_shadow_plan_trace(
+        _state(),
+        mode="shadow",
+        selection_strategy=SelectionStrategy.CONDITIONAL_SPECIALIST,
+        selection_execution=SelectionExecution.LIVE,
+    )
+
+    assert trace["selection"]["effective_execution"] == "shadow"
+    assert trace["selection"]["status"] == "shadowed"
+    assert trace["selection"]["shadow_strategy"] == "conditional-specialist/v1"
+    assert trace["selection"]["executed_strategy"] is None

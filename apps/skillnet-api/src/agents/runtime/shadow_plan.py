@@ -8,7 +8,7 @@ state and structured logs. It performs no I/O and never calls an LLM.
 from __future__ import annotations
 
 import enum
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from typing import Any
 
 from src.core.logging import get_logger
@@ -25,7 +25,20 @@ from src.personalization.plan import (
     SourceFunction,
     plan_experience,
 )
-from src.personalization.projection import project_runtime_signals
+from src.personalization.projection import (
+    longitudinal_projection_from_mapping,
+    project_runtime_signals,
+)
+from src.personalization.selection_policy import (
+    ProgressiveStage,
+    SelectionCandidate,
+    SelectionExecution,
+    SelectionPolicyError,
+    SelectionRequest,
+    SelectionStrategy,
+    runtime_execution,
+    select,
+)
 from src.render.kit import ContentFunction
 from src.render.prompt_slice import RUNTIME_SCOPE_POLICY_VERSION
 
@@ -116,7 +129,87 @@ def _renderer_safe_shortlist(outcome: Any) -> tuple[str, ...]:
     return tuple(selected[:SHORTLIST_MAX])
 
 
-def build_shadow_plan_trace(state: dict[str, Any], *, mode: str = "shadow") -> dict[str, Any]:
+def _apply_selection(
+    outcome: Any,
+    *,
+    strategy: SelectionStrategy | str,
+    execution: SelectionExecution | str,
+    progressive_stage: ProgressiveStage | str,
+) -> tuple[Any, dict[str, Any]]:
+    requested_strategy = SelectionStrategy.parse(strategy)
+    requested_execution = SelectionExecution.parse(execution)
+    effective_execution = runtime_execution(requested_execution, requested_strategy)
+    trace: dict[str, Any] = {
+        "requested_strategy": requested_strategy.value,
+        "requested_execution": requested_execution.value,
+        "effective_execution": effective_execution.value,
+        "executed_strategy": None,
+        "status": "off" if effective_execution is SelectionExecution.OFF else "pending",
+    }
+    if isinstance(outcome, Declined) or effective_execution is SelectionExecution.OFF:
+        if isinstance(outcome, Declined):
+            trace["status"] = "not_applicable"
+        return outcome, trace
+
+    try:
+        result = select(
+            SelectionRequest(
+                strategy=requested_strategy,
+                candidates=tuple(
+                    SelectionCandidate(
+                        candidate_id=item.component_id,
+                        portfolio=item.producer_kind.value,
+                    )
+                    for item in outcome.component_candidates
+                ),
+                progressive_stage=ProgressiveStage(progressive_stage),
+            )
+        )
+    except (SelectionPolicyError, ValueError) as exc:
+        trace.update(
+            {
+                "status": "rejected",
+                "error_code": type(exc).__name__,
+                "reason": str(exc),
+            }
+        )
+        return outcome, trace
+
+    trace.update(
+        {
+            "status": (
+                "executed"
+                if effective_execution is SelectionExecution.LIVE
+                else "shadowed"
+            ),
+            "executed_strategy": (
+                result.trace.executed_strategy.value
+                if effective_execution is SelectionExecution.LIVE
+                else None
+            ),
+            "shadow_strategy": (
+                result.trace.executed_strategy.value
+                if effective_execution is SelectionExecution.SHADOW
+                else None
+            ),
+            "policy_trace": _json_safe(asdict(result.trace)),
+        }
+    )
+    if effective_execution is not SelectionExecution.LIVE:
+        return outcome, trace
+
+    by_id = {item.component_id: item for item in outcome.component_candidates}
+    selected = tuple(by_id[candidate_id] for candidate_id in result.selected_ids)
+    return replace(outcome, component_candidates=selected), trace
+
+
+def build_shadow_plan_trace(
+    state: dict[str, Any],
+    *,
+    mode: str = "shadow",
+    selection_strategy: SelectionStrategy | str = SelectionStrategy.TOP5,
+    selection_execution: SelectionExecution | str = SelectionExecution.SHADOW,
+) -> dict[str, Any]:
     """Return a PlanTrace; planner failures become data and never block rendering."""
     node = state.get("node") or {}
     profile = state.get("profile") or {}
@@ -146,6 +239,11 @@ def build_shadow_plan_trace(state: dict[str, Any], *, mode: str = "shadow") -> d
             source_functions=functions,
             available_requirements=requirements,
         )
+        longitudinal = longitudinal_projection_from_mapping(
+            profile.get("longitudinal_history")
+            if isinstance(profile.get("longitudinal_history"), dict)
+            else None
+        )
         projection = project_runtime_signals(
             role_title=profile.get("role_title"),
             sector=profile.get("sector"),
@@ -158,20 +256,42 @@ def build_shadow_plan_trace(state: dict[str, Any], *, mode: str = "shadow") -> d
             nodes_completed=int(profile.get("nodes_completed") or 0),
             last_error_kind=node_state.get("last_error_kind"),
             base_density=int(state.get("effective_density") or 2),
+            longitudinal_history=longitudinal,
         )
         # Retrieval/planning sees the complete installed Didact inventory. Prompt
         # exposure is a later, stricter operation in `_renderer_safe_shortlist`.
         catalog = (*adapt_legacy_openui_catalog(), *export_didact_descriptors())
         outcome = plan_experience(objective, projection, catalog)
-        shortlist = _renderer_safe_shortlist(outcome)
+        selected_outcome, selection_trace = _apply_selection(
+            outcome,
+            strategy=selection_strategy,
+            execution=selection_execution,
+            progressive_stage=state.get("selection_progressive_stage")
+            or ProgressiveStage.TOP3,
+        )
+        shortlist = _renderer_safe_shortlist(selected_outcome)
+        planned = state.get("assessment_item_type")
+        if isinstance(planned, str) and planned.startswith("didact."):
+            try:
+                planned_names = openui_names_for_shortlist((planned,))
+            except DidactExposureError:
+                planned_names = ()
+            merged: list[str] = []
+            for name in (*planned_names, *shortlist):
+                if name not in merged:
+                    merged.append(name)
+            shortlist = tuple(merged[:SHORTLIST_MAX])
         trace = {
-            "trace_version": "plan-trace/1",
+            "trace_version": "plan-trace/2",
             "mode": mode,
             "status": "declined" if isinstance(outcome, Declined) else "planned",
             "mission_rationale": mission_rationale,
             "live": live,
             "projection": _json_safe(asdict(projection)),
+            "longitudinal_history": _json_safe(asdict(longitudinal)),
+            "longitudinal_decision_digest": longitudinal.decision_digest,
             "shadow": _json_safe(asdict(outcome)),
+            "selection": selection_trace,
             "inventory_size": len(catalog),
             "prompt_component_ids": list(shortlist),
             "shortlist_policy": RUNTIME_SCOPE_POLICY_VERSION,
@@ -180,7 +300,7 @@ def build_shadow_plan_trace(state: dict[str, Any], *, mode: str = "shadow") -> d
         return trace
     except Exception as exc:
         trace = {
-            "trace_version": "plan-trace/1",
+            "trace_version": "plan-trace/2",
             "mode": mode,
             "status": "error",
             "live": live,
