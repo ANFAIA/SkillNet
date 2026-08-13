@@ -4,9 +4,8 @@
  * The **questions come from the server** (`OnboardingRead.questions`): the wording
  * lives in exactly one place, and the RGPD art. 13 notice in particular is a field
  * of the response, not client copy (§3.3). The wizard renders what it is given and
- * never invents a question — that is also what guarantees it cannot offer an
- * accommodation the product does not have (there is no TTS in this PR, so there is
- * no "read aloud" option to render, §6.2).
+ * never invents a question. Audio is a declared priority whose availability is
+ * reported by the deployment; an unavailable provider degrades to text.
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -22,20 +21,44 @@ export type LearningPreset = 'standard' | 'focus' | 'fast'
  */
 export type ExperienceLevel = 'none' | 'some' | 'experienced'
 
+export type ModalityPreference = 'balanced' | 'text' | 'audio' | 'visual' | 'data'
+export type InteractionPreference = 'standard' | 'interactive'
+/** Legacy view-model used by the existing preview component. */
 export type PresentationPreference = 'balanced' | 'visual' | 'textual' | 'interactive'
 export type DetailPreference = 'concise' | 'standard' | 'detailed'
 export type ImagePreference = 'when_useful' | 'prefer' | 'avoid'
 
 export interface LearningPreferences {
-  presentation: PresentationPreference
+  version: 2
+  modality: ModalityPreference
+  interaction: InteractionPreference
   detail: DetailPreference
   images: ImagePreference
 }
 
 export const DEFAULT_LEARNING_PREFERENCES: LearningPreferences = {
-  presentation: 'balanced',
+  version: 2,
+  modality: 'balanced',
+  interaction: 'standard',
   detail: 'standard',
   images: 'when_useful',
+}
+
+export function normalizeLearningPreferences(
+  value: Record<string, unknown> | LearningPreferences | null | undefined,
+): LearningPreferences {
+  const source = value as Record<string, unknown> | null | undefined
+  if (source?.version === 2) {
+    return { ...DEFAULT_LEARNING_PREFERENCES, ...source } as LearningPreferences
+  }
+  const presentation = source?.presentation
+  return {
+    ...DEFAULT_LEARNING_PREFERENCES,
+    modality: presentation === 'visual' ? 'visual' : presentation === 'textual' ? 'text' : 'balanced',
+    interaction: presentation === 'interactive' ? 'interactive' : 'standard',
+    detail: source?.detail === 'concise' || source?.detail === 'detailed' ? source.detail : 'standard',
+    images: source?.images === 'prefer' || source?.images === 'avoid' ? source.images : 'when_useful',
+  }
 }
 
 export type OnboardingQuestionKind = 'text_suggest' | 'single_choice' | 'multi_choice'
@@ -84,6 +107,7 @@ export interface OnboardingRead {
   completed: boolean
   /** RGPD art. 13 notice. Rendered on screen 1 with body weight, never as fine print. */
   notice: string
+  audio_available?: boolean
   questions: OnboardingQuestion[]
 }
 

@@ -27,7 +27,9 @@ describe('useUpdateLearnerProfile', () => {
       experience_level: 'unknown',
       preset: 'standard',
       learning_preferences: {
-        presentation: 'visual',
+        version: 2,
+        modality: 'visual',
+        interaction: 'standard',
         detail: 'detailed',
         images: 'prefer',
       },

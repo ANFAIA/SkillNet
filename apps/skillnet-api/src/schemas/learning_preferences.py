@@ -29,4 +29,23 @@ class LearningPreferencesV1(BaseModel):
     images: Literal["when_useful", "prefer", "avoid"] = "when_useful"
 
 
-__all__ = ["AccessibilitySubmit", "LearningPreferencesV1"]
+class LearningPreferencesV2(BaseModel):
+    """Canonical modality contract; interaction is an independent preference."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    version: Literal[2] = 2
+    modality: Literal["balanced", "text", "audio", "visual", "data"] = "balanced"
+    interaction: Literal["standard", "interactive"] = "standard"
+    detail: Literal["concise", "standard", "detailed"] = "standard"
+    images: Literal["when_useful", "prefer", "avoid"] = "when_useful"
+
+
+LearningPreferencesSubmit = LearningPreferencesV1 | LearningPreferencesV2
+
+__all__ = [
+    "AccessibilitySubmit",
+    "LearningPreferencesSubmit",
+    "LearningPreferencesV1",
+    "LearningPreferencesV2",
+]

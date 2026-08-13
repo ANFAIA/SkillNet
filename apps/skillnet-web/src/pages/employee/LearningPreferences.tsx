@@ -6,6 +6,7 @@ import {
   ACCESSIBILITY_KEYS,
   DEFAULT_LEARNING_PREFERENCES,
   NO_ACCESSIBILITY,
+  normalizeLearningPreferences,
   useLearnerProfile,
   useUpdateLearnerProfile,
 } from '../../api/onboarding'
@@ -14,7 +15,8 @@ import type {
   DetailPreference,
   ImagePreference,
   LearningPreferences,
-  PresentationPreference,
+  InteractionPreference,
+  ModalityPreference,
 } from '../../api/onboarding'
 import { Button, Card, PageHeader, SkeletonRow } from '../../components/ui'
 import { AppearanceSettings } from '../../components/settings/AppearanceSettings'
@@ -44,7 +46,7 @@ export function LearningPreferencesPage() {
 
   useEffect(() => {
     if (hydrated || !profile.data || !me.data) return
-    setPreferences(profile.data.learning_preferences ?? DEFAULT_LEARNING_PREFERENCES)
+    setPreferences(normalizeLearningPreferences(profile.data.learning_preferences))
     setAccessibility(normalizeAccessibility(me.data.accessibility))
     setHydrated(true)
   }, [hydrated, me.data, profile.data])
@@ -82,14 +84,22 @@ export function LearningPreferencesPage() {
     return () => window.clearTimeout(timeout)
   }, [accessibility, hydrated, preferences, updateLearningAsync])
 
-  const presentationOptions = [
-    { value: 'balanced' as PresentationPreference, icon: <SettingsIcon name="balance" size={14} /> },
-    { value: 'visual' as PresentationPreference, icon: <SettingsIcon name="image" size={14} /> },
-    { value: 'textual' as PresentationPreference, icon: <SettingsIcon name="text" size={14} /> },
-    { value: 'interactive' as PresentationPreference, icon: <SettingsIcon name="pointer" size={14} /> },
+  const modalityOptions = [
+    { value: 'balanced' as ModalityPreference, icon: <SettingsIcon name="balance" size={14} /> },
+    { value: 'text' as ModalityPreference, icon: <SettingsIcon name="text" size={14} /> },
+    { value: 'audio' as ModalityPreference, icon: <SettingsIcon name="format" size={14} /> },
+    { value: 'visual' as ModalityPreference, icon: <SettingsIcon name="image" size={14} /> },
+    { value: 'data' as ModalityPreference, icon: <SettingsIcon name="detail" size={14} /> },
   ].map((option) => ({
     ...option,
-    label: intl.formatMessage({ id: `learningPreferences.presentation.${option.value}` }),
+    label: intl.formatMessage({ id: `learningPreferences.modality.${option.value}` }),
+  }))
+  const interactionOptions = [
+    { value: 'standard' as InteractionPreference, icon: <SettingsIcon name="balance" size={14} /> },
+    { value: 'interactive' as InteractionPreference, icon: <SettingsIcon name="pointer" size={14} /> },
+  ].map((option) => ({
+    ...option,
+    label: intl.formatMessage({ id: `learningPreferences.interaction.${option.value}` }),
   }))
   const detailOptions = [
     { value: 'concise' as DetailPreference, icon: <SettingsIcon name="zap" size={14} /> },
@@ -158,21 +168,41 @@ export function LearningPreferencesPage() {
                 </div>
 
                 <div className="grid items-stretch gap-4 lg:grid-cols-[minmax(0,1.65fr)_minmax(15.5rem,0.85fr)]">
-                  <div className="grid grid-rows-3 overflow-hidden rounded-lg border border-border bg-surface">
+                  <div className="grid grid-rows-4 overflow-hidden rounded-lg border border-border bg-surface">
                     <fieldset className="flex min-h-0 flex-col justify-center gap-3 p-4">
                       <legend className="sr-only">
-                        {intl.formatMessage({ id: 'learningPreferences.presentation' })}
+                        {intl.formatMessage({ id: 'learningPreferences.modality' })}
                       </legend>
                       <div className="flex items-center gap-2 text-sm font-medium text-text">
                         <SettingsIcon name="format" size={15} className="text-text-muted" />
-                        {intl.formatMessage({ id: 'learningPreferences.presentation' })}
+                        {intl.formatMessage({ id: 'learningPreferences.modality' })}
                       </div>
                       <SegmentedControl
-                        value={preferences.presentation}
-                        options={presentationOptions}
-                        onChange={(value) => changePreference('presentation', value)}
-                        label={intl.formatMessage({ id: 'learningPreferences.presentation' })}
-                        layoutId="learning-presentation"
+                        value={preferences.modality}
+                        options={modalityOptions}
+                        onChange={(value) => changePreference('modality', value)}
+                        label={intl.formatMessage({ id: 'learningPreferences.modality' })}
+                        layoutId="learning-modality"
+                      />
+                      <p className="text-xs text-text-muted">
+                        {intl.formatMessage({ id: 'learningPreferences.audioDeployment' })}
+                      </p>
+                    </fieldset>
+
+                    <fieldset className="flex min-h-0 flex-col justify-center gap-3 border-t border-border p-4">
+                      <legend className="sr-only">
+                        {intl.formatMessage({ id: 'learningPreferences.interaction' })}
+                      </legend>
+                      <div className="flex items-center gap-2 text-sm font-medium text-text">
+                        <SettingsIcon name="pointer" size={15} className="text-text-muted" />
+                        {intl.formatMessage({ id: 'learningPreferences.interaction' })}
+                      </div>
+                      <SegmentedControl
+                        value={preferences.interaction}
+                        options={interactionOptions}
+                        onChange={(value) => changePreference('interaction', value)}
+                        label={intl.formatMessage({ id: 'learningPreferences.interaction' })}
+                        layoutId="learning-interaction"
                       />
                     </fieldset>
 
@@ -212,7 +242,15 @@ export function LearningPreferencesPage() {
                   </div>
 
                   <LearningPreferencePreview
-                    presentation={preferences.presentation}
+                    presentation={
+                      preferences.interaction === 'interactive'
+                        ? 'interactive'
+                        : preferences.modality === 'visual'
+                          ? 'visual'
+                          : preferences.modality === 'text'
+                            ? 'textual'
+                            : 'balanced'
+                    }
                     detail={preferences.detail}
                     images={preferences.images}
                   />

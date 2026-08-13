@@ -1,14 +1,14 @@
 import { ChoiceList } from './ChoiceList'
 import { useIntl } from 'react-intl'
 import type {
+  ModalityPreference,
   OnboardingQuestion,
-  PresentationPreference,
 } from '../../api/onboarding'
 
 export interface LearningPreferencesStepProps {
   question: OnboardingQuestion
-  value: PresentationPreference | null
-  onChange: (value: PresentationPreference) => void
+  value: ModalityPreference | null
+  onChange: (value: ModalityPreference) => void
 }
 
 /** A declared preference, not a learning-style label or a rendering guarantee. */
@@ -25,7 +25,7 @@ export function LearningPreferencesStep({
         name="learning_preferences"
         options={question.options ?? []}
         value={value}
-        onSelect={(next) => onChange(next as PresentationPreference)}
+        onSelect={(next) => onChange(next as ModalityPreference)}
       />
       <p className="text-xs text-text-secondary">
         {intl.formatMessage({ id: 'onboarding.learningPreferencesMix' })}

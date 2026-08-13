@@ -72,8 +72,9 @@ const QUESTIONS: OnboardingRead = {
       options: [
         { value: 'balanced', label: 'Una mezcla equilibrada' },
         { value: 'visual', label: 'Verlo de forma visual' },
-        { value: 'textual', label: 'Leer una explicación clara' },
-        { value: 'interactive', label: 'Probarlo directamente' },
+        { value: 'text', label: 'Leer una explicación clara' },
+        { value: 'audio', label: 'Escucharlo' },
+        { value: 'data', label: 'Ver los datos' },
       ],
     },
     {
@@ -241,7 +242,9 @@ describe('Onboarding — shape (§6.1)', () => {
       experience_level: 'experienced',
       preset: 'focus',
       learning_preferences: {
-        presentation: 'visual',
+        version: 2,
+        modality: 'visual',
+        interaction: 'standard',
         detail: 'standard',
         images: 'when_useful',
       },

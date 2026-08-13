@@ -16,7 +16,10 @@ from pydantic import BaseModel, ConfigDict, Field
 # Single definition, owned by the service that writes
 # ``learner_profiles.onboarding_version``. Re-exported here so callers can import
 # the version next to the questions it describes.
-from src.schemas.learning_preferences import AccessibilitySubmit, LearningPreferencesV1
+from src.schemas.learning_preferences import (
+    AccessibilitySubmit,
+    LearningPreferencesSubmit,
+)
 from src.services.learner_profile_service import ONBOARDING_VERSION
 
 __all__ = [
@@ -102,9 +105,8 @@ ROLE_SUGGESTIONS: dict[str, tuple[str, ...]] = {
     ),
 }
 
-#: The four reading settings of question 5 (``users.accessibility``).
-#: ``audio_first`` / "read aloud" is deliberately absent: there is no TTS in this
-#: PR and no audio component in the frozen kit (§3.1, §6.2).
+#: The four functional reading settings (``users.accessibility``). Declared audio
+#: modality is stored separately in ``learning_preferences``.
 ACCESSIBILITY_KEYS: tuple[str, ...] = (
     "short_blocks",
     "reduce_motion",
@@ -137,6 +139,7 @@ class OnboardingRead(BaseModel):
     version: int = ONBOARDING_VERSION
     completed: bool = False
     notice: str = PRIVACY_NOTICE
+    audio_available: bool = False
     questions: list[OnboardingQuestion] = []
 
 
@@ -158,7 +161,7 @@ class OnboardingSubmit(BaseModel):
     experience_level: Literal["none", "some", "experienced"] | None = None
     preset: Literal["standard", "focus", "fast"] | None = None
     accessibility: AccessibilitySubmit | None = None
-    learning_preferences: LearningPreferencesV1 | None = None
+    learning_preferences: LearningPreferencesSubmit | None = None
 
 
 def role_suggestions(sector: str | None) -> list[str]:
@@ -167,13 +170,15 @@ def role_suggestions(sector: str | None) -> list[str]:
     return list(ROLE_SUGGESTIONS.get(key, ROLE_SUGGESTIONS["default"]))
 
 
-def build_questions(*, sector: str | None = None) -> list[OnboardingQuestion]:
+def build_questions(
+    *, sector: str | None = None, audio_available: bool = False
+) -> list[OnboardingQuestion]:
     """The five questions of §6.2, in order.
 
     What is **not** asked is as deliberate as what is (§6.3): no initial level
     test (the per-node pre-assessment does it better, per competence), no
-    preferred format (``format_vector`` infers it; learning-styles matching is
-    d≈0.04) and no neurodivergence diagnosis (art. 9 special-category data —
+    fixed learning-style label (declared modality is only a reversible priority)
+    and no neurodivergence diagnosis (art. 9 special-category data —
     question 5 asks about needs, not conditions).
     """
     return [
@@ -245,14 +250,23 @@ def build_questions(*, sector: str | None = None) -> list[OnboardingQuestion]:
                     hint="Prioriza diagramas, tablas e imágenes útiles",
                 ),
                 OnboardingOption(
-                    value="textual",
+                    value="text",
                     label="Más texto",
                     hint="Prioriza explicaciones estructuradas",
                 ),
                 OnboardingOption(
-                    value="interactive",
-                    label="Más práctica",
-                    hint="Prioriza ejercicios e interacción",
+                    value="audio",
+                    label="Audio",
+                    hint=(
+                        "Prioriza explicaciones escuchadas"
+                        if audio_available
+                        else "Depende del proveedor configurado en este despliegue"
+                    ),
+                ),
+                OnboardingOption(
+                    value="data",
+                    label="Datos",
+                    hint="Prioriza tablas, cifras y comparaciones",
                 ),
             ],
         ),

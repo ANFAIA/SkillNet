@@ -5,6 +5,8 @@ from fastapi import APIRouter
 from src.deps.auth import CurrentUser
 from src.deps.db import DBSession
 from src.models import Organization
+from src.config import settings
+from src.personalization.modality import tts_is_available
 from src.repositories.learner_profile_repo import LearnerProfileRepository
 from src.repositories.learning_event_repo import LearningEventRepository
 from src.schemas.learner_profile import LearnerProfileRead
@@ -49,11 +51,15 @@ async def get_onboarding(user: CurrentUser, db: DBSession) -> OnboardingRead:
     service = _service(db)
     profile = await service.get(user.id)
     sector = await _org_sector(db, user.org_id)
+    audio_available = tts_is_available(settings.TTS_PROVIDER)
     return OnboardingRead(
         version=ONBOARDING_VERSION,
         completed=profile is not None and profile.onboarding_completed_at is not None,
         notice=PRIVACY_NOTICE,
-        questions=build_questions(sector=sector),
+        audio_available=audio_available,
+        questions=build_questions(
+            sector=sector, audio_available=audio_available
+        ),
     )
 
 

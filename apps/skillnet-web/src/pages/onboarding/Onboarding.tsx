@@ -25,7 +25,7 @@ import type {
   AccessibilitySettings,
   ExperienceLevel,
   LearningPreset,
-  PresentationPreference,
+  ModalityPreference,
   OnboardingQuestion,
   OnboardingSubmitBody,
 } from '../../api/onboarding'
@@ -121,7 +121,7 @@ export function Onboarding() {
   const [goal, setGoal] = useState('')
   const [experience, setExperience] = useState<ExperienceLevel | null>(null)
   const [preset, setPreset] = useState<LearningPreset | null>(null)
-  const [presentation, setPresentation] = useState<PresentationPreference | null>(null)
+  const [modality, setModality] = useState<ModalityPreference | null>(null)
   const [accessibility, setAccessibility] = useState<AccessibilitySettings>(NO_ACCESSIBILITY)
 
   const questions = useMemo(
@@ -176,9 +176,11 @@ export function Onboarding() {
     if (declaredGoal) body.goal = declaredGoal
     if (experience) body.experience_level = experience
     if (preset) body.preset = preset
-    if (presentation) {
+    if (modality) {
       body.learning_preferences = {
-        presentation,
+        version: 2,
+        modality,
+        interaction: 'standard',
         detail: 'standard',
         images: 'when_useful',
       }
@@ -269,8 +271,8 @@ export function Onboarding() {
         return (
           <LearningPreferencesStep
             question={question}
-            value={presentation}
-            onChange={setPresentation}
+            value={modality}
+            onChange={setModality}
           />
         )
       case 'accessibility':

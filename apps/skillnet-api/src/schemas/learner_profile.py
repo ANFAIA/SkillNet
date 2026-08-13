@@ -13,7 +13,11 @@ from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from src.schemas.learning_preferences import AccessibilitySubmit, LearningPreferencesV1
+from src.schemas.learning_preferences import (
+    AccessibilitySubmit,
+    LearningPreferencesSubmit,
+    LearningPreferencesV2,
+)
 from src.services.learner_profile_service import is_calibrating
 from src.personalization.preferences import normalize_learning_preferences
 
@@ -34,8 +38,8 @@ class LearnerProfileRead(BaseModel):
     goal: str | None = None
     experience_level: Experience = "unknown"
     preset: Preset = "standard"
-    learning_preferences: LearningPreferencesV1 = Field(
-        default_factory=LearningPreferencesV1
+    learning_preferences: LearningPreferencesV2 = Field(
+        default_factory=LearningPreferencesV2
     )
     nodes_completed: int = 0
     onboarding_completed_at: datetime | None = None
@@ -50,7 +54,7 @@ class LearnerProfileRead(BaseModel):
             goal=profile.goal,
             experience_level=_plain(profile.experience_level),
             preset=_plain(profile.preset),
-            learning_preferences=LearningPreferencesV1.model_validate(
+            learning_preferences=LearningPreferencesV2.model_validate(
                 normalize_learning_preferences(
                     getattr(profile, "learning_preferences", None)
                 ).to_dict()
@@ -76,7 +80,7 @@ class LearnerProfileUpdate(BaseModel):
     role_title: str | None = Field(default=None, max_length=120)
     sector: str | None = Field(default=None, max_length=120)
     goal: str | None = Field(default=None, max_length=200)
-    learning_preferences: LearningPreferencesV1 | None = None
+    learning_preferences: LearningPreferencesSubmit | None = None
     accessibility: AccessibilitySubmit | None = None
 
 
