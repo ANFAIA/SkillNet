@@ -93,3 +93,35 @@ async def test_configured_adapter_persists_the_complete_canonical_contract() -> 
     assert completed.input_tokens == 20
     assert completed.output_tokens == 10
     assert "fondo se comprueba" in completed.markdown
+
+
+async def test_draft_source_uses_the_model_when_the_brief_is_usable() -> None:
+    node = make_node()
+    brief = "\n".join(
+        [
+            "## Fondo de caja",
+            "Antes de abrir se cuenta el fondo y se anota la diferencia.",
+            "## Si falta dinero",
+            "Se informa al encargado antes de cobrar la primera cuenta.",
+        ]
+    )
+    llm = FakeLLM(brief)
+    text = await ConfiguredKnowledgePackGenerator(llm).draft_source(
+        course=SimpleNamespace(title="Apertura", description="Turno de manana", outcome=None),
+        node=node,
+    )
+
+    assert llm.calls == 1
+    assert "Fondo de caja" in text
+
+
+async def test_draft_source_falls_back_to_the_schema_when_the_model_is_thin() -> None:
+    node = make_node()
+    llm = FakeLLM("ok")
+    text = await ConfiguredKnowledgePackGenerator(llm).draft_source(
+        course=SimpleNamespace(title="Apertura", description="", outcome=None),
+        node=node,
+    )
+
+    assert text.startswith("# Abrir la caja")
+    assert "Comprobar el fondo" in text

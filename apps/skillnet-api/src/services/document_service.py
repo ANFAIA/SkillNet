@@ -136,20 +136,53 @@ class DocumentService:
                 status_code=502,
             )
 
-        doc = await self.repo.create(
+        return await self.persist_generated_markdown(
             org_id=org_id,
-            uploaded_by=created_by,
+            created_by=created_by,
             title=clean_title,
-            storage_path="",
-            file_type="md",
-            size_bytes=len(text.encode("utf-8")),
-            status=DocumentStatus.PENDING,
-            origin=DocumentOrigin.GENERATED,
+            text=text,
         )
+
+    async def persist_generated_markdown(
+        self,
+        *,
+        org_id: uuid.UUID,
+        created_by: uuid.UUID | None,
+        title: str,
+        text: str,
+        status: DocumentStatus = DocumentStatus.PENDING,
+        full_text: str | None = None,
+        page_count: int | None = None,
+    ) -> Document:
+        """Write already-authored Markdown to the same place an upload would live.
+
+        ``create_from_idea`` uses this after the course-wide writer. Per-node briefs
+        use it after the schema exists, with ``full_text`` set so the runtime can
+        read the excerpt before ingestion finishes.
+        """
+        clean_title = title.strip()
+        if not clean_title:
+            raise ValidationError("A title is required to write a source", field="title")
+        body = _strip_code_fence(text.strip())
+        payload: dict[str, object] = {
+            "org_id": org_id,
+            "uploaded_by": created_by,
+            "title": clean_title,
+            "storage_path": "",
+            "file_type": "md",
+            "size_bytes": len(body.encode("utf-8")),
+            "status": status,
+            "origin": DocumentOrigin.GENERATED,
+        }
+        if full_text is not None:
+            payload["full_text"] = full_text
+        if page_count is not None:
+            payload["page_count"] = page_count
+        doc = await self.repo.create(**payload)
         target_dir = Path(settings.UPLOAD_DIR) / str(org_id) / str(doc.id)
         target_dir.mkdir(parents=True, exist_ok=True)
         target_path = target_dir / "generated.md"
-        target_path.write_text(text, encoding="utf-8")
+        target_path.write_text(body, encoding="utf-8")
         return await self.repo.update(doc, storage_path=str(target_path))
 
     async def get_document(self, doc_id: uuid.UUID, org_id: uuid.UUID) -> Document:

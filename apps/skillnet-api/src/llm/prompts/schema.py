@@ -54,8 +54,11 @@ sabe hacer. "Plazo de devolucion" es un nodo; "Politica comercial" es un curso.
 
 Para cada nodo devuelves:
 - title: nombre corto y concreto (maximo 80 caracteres)
-- summary: 1-3 frases que describan QUE cubre el nodo. Obligatorio y no vacio: el
-  tutor lee el arbol de summaries para decidir que nodo es relevante.
+- summary: 1-2 frases con el hecho o procedimiento que el empleado debe dominar.
+  Un resultado concreto (un plazo, una regla, un paso), no un indice de varios temas.
+  Ejemplo: "El cliente tiene 14 dias naturales desde la entrega para devolver."
+  Obligatorio y no vacio: el tutor lee el arbol de summaries para decidir que nodo
+  es relevante.
 - outcome: que sabra hacer el empleado al terminarlo, en una frase
 - criticality: uno de [{_CRITICALITY_VALUES}]
 - default_ui_format: uno de [{_UI_FORMAT_VALUES}]
@@ -153,6 +156,7 @@ def build_schema_prompt(
             "=== NOTA ===\n"
             "Este curso se crea a partir del titulo y la descripcion, sin documento "
             "de origen. Disena los nodos basandote en los temas y el titulo del curso. "
+            "Cada nodo cubre un solo resultado; el summary es ese resultado en concreto. "
             "La regla de rastrearse al material de origen no aplica; "
             "source_headings sera [] en todos los nodos.\n\n"
         )

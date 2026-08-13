@@ -19,6 +19,7 @@ from src.knowledge_pack.generator import (
     SourceExcerpt,
     generate_knowledge_pack,
 )
+from src.knowledge_pack.node_source import draft_is_usable, seed_node_source
 from src.models import Course, CourseNode
 from src.personalization.plan import CognitiveMission, LearningObjective, SourceFunction
 from src.render.kit import ContentFunction
@@ -65,6 +66,36 @@ class ConfiguredKnowledgePackGenerator:
         self.llm = llm
         self.extractor_max_tokens = extractor_max_tokens
         self.reviewer_max_tokens = reviewer_max_tokens
+
+    async def draft_source(self, *, course: Course, node: CourseNode) -> str:
+        """Write a short reference brief for one node when no uploaded excerpt exists."""
+
+        from src.llm.prompts.source import (
+            NODE_SOURCE_WRITER_SYSTEM,
+            build_node_source_prompt,
+        )
+        from src.services.document_service import _strip_code_fence
+
+        text, _usage = await self.llm.complete_with_usage(
+            NODE_SOURCE_WRITER_SYSTEM,
+            build_node_source_prompt(
+                course_title=getattr(course, "title", "") or "",
+                course_idea=(
+                    getattr(course, "description", None)
+                    or getattr(course, "outcome", None)
+                    or ""
+                ),
+                node_title=node.title,
+                summary=getattr(node, "summary", None) or "",
+                outcome=getattr(node, "outcome", None) or "",
+            ),
+            temperature=0.6,
+            max_tokens=1_200,
+        )
+        text = _strip_code_fence(text.strip())
+        if draft_is_usable(text):
+            return text
+        return seed_node_source(course=course, node=node)
 
     async def generate(
         self,

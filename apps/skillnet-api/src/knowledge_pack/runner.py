@@ -25,10 +25,11 @@ from typing import Any, Protocol
 from sqlalchemy import select
 
 from src.agents.runtime.nodes import load_source_context
-from src.knowledge_pack.configured_generator import GENERATOR_VERSION
 from src.core.logging import get_logger
 from src.core.tasks import task_registry
 from src.deps.db import async_session_factory
+from src.knowledge_pack.configured_generator import GENERATOR_VERSION
+from src.knowledge_pack.node_source import seed_node_source
 from src.models import Course, CourseNode, NodeKnowledgePackStatus
 from src.repositories.node_knowledge_pack_repo import NodeKnowledgePackRepository
 from src.services.node_knowledge_pack_service import (
@@ -62,6 +63,8 @@ CourseLoader = Callable[[Any, uuid.UUID], Awaitable[Course | None]]
 NodesLoader = Callable[[Any, uuid.UUID, uuid.UUID], Awaitable[Sequence[CourseNode]]]
 SourceLoader = Callable[[Any, CourseNode, uuid.UUID], Awaitable[str]]
 ServiceFactory = Callable[[Any], NodeKnowledgePackService]
+SourceDrafter = Callable[..., Awaitable[str]]
+SourcePersister = Callable[[Any, CourseNode, str, Course], Awaitable[None]]
 
 
 async def _load_course(db: Any, course_id: uuid.UUID) -> Course | None:
@@ -97,6 +100,8 @@ class KnowledgePackRunnerDependencies:
     load_nodes: NodesLoader = _load_nodes
     load_source: SourceLoader = load_source_context
     service_for_session: ServiceFactory = _service_for_session
+    draft_source: SourceDrafter | None = None
+    persist_source: SourcePersister | None = None
     generator_version: str = DEFAULT_GENERATOR_VERSION
     concurrency: int = DEFAULT_CONCURRENCY
     timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS
@@ -314,13 +319,31 @@ async def _run_node(
     snapshot: KnowledgePackSnapshot | None = None
     record: Any | None = None
     try:
-        # The source read and the claim happen before the LLM call, then are committed.
+        # Source, optional per-node draft, and the claim happen before pack generation.
         # A generation never keeps a connection or transaction open for tens of seconds.
         async with dependencies.session_factory() as db:
             node = await _load_one_node(db, node_id, org_id, course.id)
             if node is None:
                 return _result(node_id, "failed", started, error="node no longer exists")
             source_context = await dependencies.load_source(db, node, org_id)
+
+        if not source_context.strip():
+            source_context = await asyncio.wait_for(
+                _draft_node_source(dependencies, course, node),
+                timeout=dependencies.timeout_seconds,
+            )
+
+        async with dependencies.session_factory() as db:
+            node = await _load_one_node(db, node_id, org_id, course.id)
+            if node is None:
+                return _result(node_id, "failed", started, error="node no longer exists")
+            existing = await dependencies.load_source(db, node, org_id)
+            if (
+                not existing.strip()
+                and source_context.strip()
+                and dependencies.persist_source is not None
+            ):
+                await dependencies.persist_source(db, node, source_context, course)
             snapshot = KnowledgePackSnapshot(
                 org_id=org_id,
                 course_id=course.id,
@@ -378,6 +401,30 @@ async def _run_node(
             except Exception:  # noqa: BLE001 - never hide the original generation failure.
                 logger.exception("Could not mark knowledge-pack failure node=%s", node_id)
         return _result(node_id, "failed", started, error=message)
+
+
+async def _draft_node_source(
+    dependencies: KnowledgePackRunnerDependencies,
+    course: Course,
+    node: CourseNode,
+) -> str:
+    """Write a per-node brief when the schema has no uploaded excerpt yet."""
+
+    drafter = dependencies.draft_source
+    if drafter is None:
+        drafter = getattr(dependencies.generator, "draft_source", None)
+    if drafter is not None:
+        try:
+            text = await drafter(course=course, node=node)
+            if text and str(text).strip():
+                return str(text).strip()
+        except Exception:  # noqa: BLE001 - the schema seed is enough to keep the pack moving.
+            logger.warning(
+                "Node source draft failed node=%s; using the schema briefing",
+                node.id,
+                exc_info=True,
+            )
+    return seed_node_source(course=course, node=node)
 
 
 async def _load_one_node(

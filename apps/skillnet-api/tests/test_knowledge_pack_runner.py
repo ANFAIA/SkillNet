@@ -153,6 +153,7 @@ def make_dependencies(
     values = {
         "concurrency": 2,
         "timeout_seconds": 1,
+        "load_source": load_source,
         **changes,
     }
     return KnowledgePackRunnerDependencies(
@@ -160,7 +161,6 @@ def make_dependencies(
         session_factory=sessions,
         load_course=load_course,
         load_nodes=load_nodes,
-        load_source=load_source,
         service_for_session=lambda _db: service,
         **values,
     )
@@ -224,6 +224,87 @@ async def test_runner_skips_a_ready_snapshot_and_discards_late_completion() -> N
     assert metrics.failed == 0
     assert [node.title for _, node, _ in generator.calls] == ["Comanda"]
     assert len(service.completed) == 1
+
+
+async def test_runner_drafts_and_persists_a_source_when_the_node_has_none() -> None:
+    org_id, course, nodes = fixtures()
+    course.title = "Devoluciones"
+    course.description = "Plazos de la tienda"
+    generator = FakeGenerator()
+    service = FakeService()
+    drafted: list[str] = []
+    persisted: list[tuple[uuid.UUID, str]] = []
+
+    async def load_source(_db, _node, _org_id):
+        return ""
+
+    async def draft_source(*, course, node):
+        del course
+        text = f"## {node.title}\nEl cliente tiene 14 dias naturales desde la entrega."
+        drafted.append(text)
+        return text
+
+    async def persist_source(_db, node, text, _course):
+        persisted.append((node.id, text))
+        node.source_document_id = uuid.uuid4()
+
+    dependencies = make_dependencies(
+        course,
+        nodes[:1],
+        generator,
+        service,
+        load_source=load_source,
+        draft_source=draft_source,
+        persist_source=persist_source,
+    )
+
+    metrics = await run_packs_for_schema(course.id, org_id, 4, dependencies=dependencies)
+
+    assert metrics.ready == 1
+    assert drafted
+    assert persisted == [(nodes[0].id, drafted[0])]
+    assert generator.calls[0][2] == drafted[0]
+
+
+async def test_runner_uses_the_schema_briefing_when_there_is_no_drafter() -> None:
+    org_id, course, nodes = fixtures()
+    course.title = "Devoluciones"
+    generator = FakeGenerator()
+    service = FakeService()
+
+    async def load_source(_db, _node, _org_id):
+        return ""
+
+    dependencies = make_dependencies(
+        course, nodes[:1], generator, service, load_source=load_source
+    )
+
+    metrics = await run_packs_for_schema(course.id, org_id, 4, dependencies=dependencies)
+
+    assert metrics.ready == 1
+    source = generator.calls[0][2]
+    assert nodes[0].title in source
+    assert "Resultado" in source or nodes[0].summary in source
+
+
+async def test_runner_keeps_an_uploaded_excerpt_and_skips_the_drafter() -> None:
+    org_id, course, nodes = fixtures()
+    generator = FakeGenerator()
+    drafted = []
+
+    async def draft_source(*, course, node):
+        del course, node
+        drafted.append("should not run")
+        return "## Inventado"
+
+    dependencies = make_dependencies(
+        course, nodes[:1], generator, FakeService(), draft_source=draft_source
+    )
+
+    await run_packs_for_schema(course.id, org_id, 4, dependencies=dependencies)
+
+    assert drafted == []
+    assert generator.calls[0][2] == f"documento para {nodes[0].title}"
 
 
 async def test_runner_refuses_a_schema_version_that_is_no_longer_current() -> None:

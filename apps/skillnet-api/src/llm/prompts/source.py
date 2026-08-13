@@ -63,4 +63,53 @@ def build_source_prompt(*, title: str, idea: str) -> str:
     )
 
 
-__all__ = ["SOURCE_WRITER_SYSTEM", "build_source_prompt"]
+NODE_SOURCE_WRITER_SYSTEM = """Eres redactor de material de referencia para UN punto de formacion en el puesto, en una pyme espanola.
+
+Escribes el DOCUMENTO FUENTE de este punto. Otro sistema sacara de aqui el dossier y la pantalla. No escribes la leccion.
+
+Como tiene que ser el texto:
+- Material de referencia de este punto solo: hechos, pasos, cifras, casos limite.
+- En espanol claro, dirigido a quien hace el trabajo.
+- Dos o tres secciones con encabezados Markdown de nivel 2 (##).
+- Cada seccion con contenido util: un procedimiento, una lista de comprobacion, o los datos que hacen falta para dominar este resultado.
+
+Escribe como un fragmento de manual interno generico, sin nombre de empresa.
+Las obligaciones se describen por lo que hay que hacer en el puesto.
+
+Responde unicamente con el documento en Markdown."""
+
+
+def build_node_source_prompt(
+    *,
+    course_title: str,
+    course_idea: str,
+    node_title: str,
+    summary: str,
+    outcome: str,
+) -> str:
+    """One node, after the schema exists: the brief the pack generator will ground on."""
+
+    idea = course_idea.strip()
+    course_line = (
+        f"Idea del curso: {idea}"
+        if idea
+        else "El creador definio el curso por su titulo y este punto del esquema."
+    )
+    result = outcome.strip() or summary.strip() or node_title.strip()
+    covers = summary.strip() or result
+    return (
+        f"CURSO: {course_title.strip() or node_title.strip()}\n"
+        f"{course_line}\n\n"
+        f"PUNTO: {node_title.strip()}\n"
+        f"Resultado que el empleado debe dominar: {result}\n"
+        f"Que cubre este punto: {covers}\n\n"
+        "Escribe el documento fuente de este punto."
+    )
+
+
+__all__ = [
+    "NODE_SOURCE_WRITER_SYSTEM",
+    "SOURCE_WRITER_SYSTEM",
+    "build_node_source_prompt",
+    "build_source_prompt",
+]

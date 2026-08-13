@@ -726,7 +726,8 @@ export function CreateCourse() {
     setStartError(null)
 
     if (deliveryChoice === 'dynamic') {
-      // Go to schema phase -- proposal fires automatically via useEffect
+      // Schema first. From-scratch nodes get a source brief after the schema
+      // exists, one per node, via the knowledge-pack runner.
       setPhase('schema')
       return
     }

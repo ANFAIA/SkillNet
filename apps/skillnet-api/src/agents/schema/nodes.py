@@ -92,18 +92,22 @@ async def _run_knowledge_pack_shadow(
     """Prepare reviewed node dossiers after schema persistence, never in its transaction."""
 
     from src.knowledge_pack.configured_generator import ConfiguredKnowledgePackGenerator
+    from src.knowledge_pack.node_source import persist_generated_node_source
     from src.knowledge_pack.runner import (
         KnowledgePackRunnerDependencies,
         run_packs_for_schema,
     )
 
     llm = await _make_llm(org_id)
+    generator = ConfiguredKnowledgePackGenerator(llm)
     await run_packs_for_schema(
         course_id,
         org_id,
         schema_version,
         dependencies=KnowledgePackRunnerDependencies(
-            generator=ConfiguredKnowledgePackGenerator(llm)
+            generator=generator,
+            draft_source=generator.draft_source,
+            persist_source=persist_generated_node_source,
         ),
     )
 
