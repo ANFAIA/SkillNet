@@ -938,7 +938,7 @@ CREATE TABLE llm_usage_log (
     id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     org_id      uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
     user_id     uuid REFERENCES users(id) ON DELETE SET NULL,
-    use_case    text NOT NULL,          -- decide_formato|genera_ui|explain|probe_generate|schema_design
+    use_case    text NOT NULL,          -- decide_formato|runtime_activity_authoring|genera_ui|explain|probe_generate|schema_design
     purpose     text NOT NULL,          -- runtime_fast|runtime_heavy|generation|eval|tutor
     model       text NOT NULL,
     tier        text CHECK (tier IS NULL OR tier IN ('fast','heavy')),
@@ -1220,7 +1220,8 @@ Precedencia (la que ya implementa `resolve_llm_config`, sin tocarla):
 `LLM_MODEL`** y todo sigue funcionando con un solo modelo. Ningún proveedor concreto es requisito.
 
 Se registra cada llamada en `llm_usage_log` (tabla creada en `0005`, §3.5) con `use_case` ∈
-`{decide_formato, genera_ui, explain, probe_generate, schema_design}` para medir el ratio real
+`{decide_formato, runtime_activity_authoring, genera_ui, explain, probe_generate,
+schema_design}` para medir el ratio real
 fast/heavy (la estimación 90/10 es una hipótesis, no un dato).
 
 **Single-tenancy: se documenta, no se arregla aquí.** `src/deps/llm.py:22-25::_org_settings` y

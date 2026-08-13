@@ -56,12 +56,13 @@ La disponibilidad completa y la exposición al modelo son dos conjuntos distinto
   con el shell seguro de pantalla. Un tipo instalado pero bloqueado produce error
   explícito; nunca desaparece silenciosamente ni llega al LLM sin contrato.
 
-Hoy los 34 tipos están inventariados y se cargan de forma lazy en el frontend. Trece tienen
-una ruta de emisión honesta: los cinco bloques OpenUI directos y ocho actividades mediante
-`DidactActivity` con definición, estado y puertos del host. Los otros 21 permanecen
-disponibles para el resolver, pero bloqueados hasta adaptar de forma segura su evaluación,
-progreso, assets, simulación o ejecución. La tabla de runtime al final de este documento es
-la autoridad sobre cada familia.
+Hoy los 34 tipos están inventariados y se cargan de forma lazy en el frontend. Veintinueve
+tienen una ruta de emisión honesta: cinco bloques OpenUI directos, once evaluaciones
+server-side, tres actividades con assets revisados, dos lecturas de progreso del host y
+ocho actividades con definición, estado y puertos. Los otros cinco permanecen
+disponibles para el resolver, pero bloqueados hasta que existan scheduler, simulación
+adaptada o sandbox. La tabla de runtime al final de este documento es la autoridad sobre
+cada familia.
 
 La frontera ya está conectada al generador: el runtime forma una shortlist de 3-5 tipos,
 aplica gates de renderer, puertos y datos, y entrega al modelo solo el slice permitido. Para
@@ -105,53 +106,53 @@ CodeExercise, InteractiveMedia, BranchingScenario y SimulationLab necesitan un p
 - Una capacidad ausente produce fallback explícito o `Decline`, no una simulación fingida.
 - La copia de un componente Didact vive en SkillNet y se actualiza deliberadamente; no se consume `main` mutable en producción.
 
-## Matriz de runtime del frontend (2026-08-12)
+## Matriz de runtime del frontend (2026-08-13)
 
 Los 34 tipos estan instalados, tienen loader lazy y pueden referenciarse mediante
 `DidactActivity(activity_id, component_id)`. OpenUI nunca recibe la definicion publica,
-respuestas correctas ni configuracion de evaluacion.
+respuestas correctas ni configuracion de evaluacion. El porcentaje de `didact.progress` y
+`didact.mastery-badge` lo inyecta el host desde `LearnerNodeState`; el cliente no puede
+escribirlo.
 
 | Estado | Tipos | Motivo |
 |---|---|---|
 | Usable local/estatico | flashcard, glossary-term, hint-reveal, rubric, timeline-steps, worked-example, data-explorer | No afirman correccion; puertos opcionales ausentes degradan |
 | Persistencia host | self-explanation-prompt, concept-map, drawing-response, evidence-annotation | Estado por `/activities/{id}/state`; dibujo y anotacion aceptan evaluacion async |
 | Evaluacion host compatible | equation-workbench, measurement-lab | Callback async con resultado de `/activities/{id}/evaluate` |
-| Bloqueado: autocorreccion local | matching, sort, categorize, cinco quiz, completion-problem, numeric-question, word-bank | Didact exige la clave correcta como prop; no se entrega ni se inventa |
-| Bloqueado: progreso/agenda | progress, mastery-badge, practice-set, retrieval-practice-session | Falta progreso de actividad y scheduler completos |
-| Bloqueado: assets | hotspot, label-diagram, interactive-media | Falta resolver assets revisados; generar multimedia no sustituye esa autorizacion |
+| Evaluacion server-side | matching, sort, categorize, cinco quiz, completion-problem, numeric-question, word-bank | Adaptador `SecureEvaluatedActivity`; la clave no llega a props, DOM ni eventos |
+| Assets revisados | hotspot, label-diagram, interactive-media | Refs opacas `skasset_`; geometria/transcript verificados en servidor |
+| Progreso de solo lectura | progress, mastery-badge | `GET /activities/{id}/progress` proyecta mastery del nodo; `progress.write` esta prohibido |
+| Bloqueado: composicion/agenda | practice-set, retrieval-practice-session | Compone hijos evaluables o exige scheduler; no se finge |
 | Bloqueado: runtime | branching-scenario, simulation-lab | Falta adaptar transiciones remotas al estado concreto del componente |
 | Bloqueado: ejecucion | code-exercise | La respuesta generica aun no satisface `ArtifactExecutionResponse` |
 
-Los endpoints de definicion, estado, evaluacion, transicion y ejecucion estan conectados
-como puertos genericos. Un puerto solo se expone cuando el contrato concreto es
-compatible. La mera existencia de `/evaluate` no desbloquea un quiz que se autocorrige
-en el navegador.
+Los endpoints de definicion, estado, evaluacion, transicion, ejecucion, assets y progreso
+estan conectados como puertos genericos. Un puerto solo se expone cuando el contrato
+concreto es compatible. La mera existencia de `/evaluate` no desbloquea un quiz que se
+autocorrige en el navegador, ni `/progress` habilita `practice-set`.
 
 ## Siguiente ola propuesta
 
-1. importar `Glossary` como presentación contextual sin duplicar el chat de explicación;
-2. adoptar `MatchingExercise` mediante evaluación servidor-side y alternativa de teclado;
-3. hacer que el resolver entregue un catálogo reducido al prompt en producción;
-4. mapear eventos Didact (`started`, `attempted`, `answered`, `feedbackViewed`, `completed`, `mastered`) a `/nodes/{id}/events`;
-5. probar un `BranchingScenario` de atención al cliente y un `SimulationLab` de proceso con fixtures deterministas antes de habilitar generación.
+1. scheduler real antes de emitir `retrieval-practice-session`;
+2. composición de hijos evaluables antes de emitir `practice-set`;
+3. transiciones deterministas de `branching-scenario` y `simulation-lab` sobre el estado concreto del componente;
+4. sandbox de `code-exercise` que cumpla `ArtifactExecutionResponse`;
+5. medir las 7 estrategias de selección con el banco offline y, si hay clave, un piloto LLM pequeño.
 
 Cada ola se mide con el mismo nodo y knowledge pack: cobertura de hechos críticos, evidencia obtenible, variedad de acciones, accesibilidad, tasa de reparación, tokens, latencia y estabilidad. No se promueve un componente solo porque su story aislada sea atractiva.
 
-## Estado de cierre del 12 de agosto de 2026
+## Estado de cierre del 13 de agosto de 2026
 
 - Los 34 tipos de Didact están fijados por commit, inventariados y disponibles mediante
   loaders lazy; el catálogo completo no aumenta el bundle inicial.
-- Cinco tipos tienen bloques OpenUI directos y ocho usan `DidactActivity` con definición
-  server-owned. Una definición solo se sirve si queda `ready` y pasa sus gates.
-- El runtime usa por defecto `ExperienceIntent`/facetas para acotar el prompt a 3-5
-  candidatos compatibles. El catálogo completo permanece consultable por el resolver.
+- 29 tipos son emitibles. Cinco siguen bloqueados con honestidad: `practice-set`,
+  `retrieval-practice-session`, `branching-scenario`, `simulation-lab` y `code-exercise`.
+- El runtime usa por defecto `top5` sobre una shortlist de 3-5 candidatos. Dual-agent y
+  specialist permanecen en sombra. El catálogo completo permanece consultable por el resolver.
 - La llamada opcional de autoría registra tokens, modelo y duración; si falla, la lección
-  continúa con una representación segura.
+  continúa con una representación segura. Un tipo `unsupported` declina antes del LLM.
 - El experimento fixture favorece intención + shortlist + esquema específico: 89,8 puntos
   y 100% de gates, frente a 27,8 del brazo legacy. Es evidencia de arquitectura, no prueba
   definitiva de calidad LLM.
 - La personalización causal sigue siendo débil (15,4% en el fixture). La próxima ronda debe
   aislar apoyo, presentación y profundidad con modelos reales y evaluación ciega.
-- El siguiente experimento de navegación probará beats conectados y continuidad de una
-  mecánica, inspirado en patrones públicos de Brilliant; todavía no es comportamiento de
-  producto.
