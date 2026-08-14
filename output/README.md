@@ -52,3 +52,20 @@ python output/harness/architecture_rounds.py --round R2 --round R6
 The offline suite does not claim production integration. As each architecture phase lands,
 its scenario must be connected to the real adapter, transaction, persistence, or delivery
 path and retain the same quantitative gate.
+
+## Phase 0 trajectory benchmark
+
+`phase0_episode_benchmark.py` compares reference ScreenScheme-shaped outputs with the
+explicit output contract expected from a future episodic path. It uses two offline domains:
+Crocantickets recovery with synthetic buyers and SQL `LEFT JOIN`/`NULL` behavior with a
+synthetic schema. It does not implement or claim measurements for an EpisodeDirector.
+
+```powershell
+python output/harness/phase0_episode_benchmark.py `
+  --out output/architecture-rounds/phase0-episodic
+python -m unittest output.harness.test_phase0_episode_benchmark
+```
+
+Latency is a placeholder until both real paths can run under the same timer. The active
+oracles cover required facts, unsupported claims, one dominant action, producible evidence,
+critical-error coverage, transfer, and viewport budget.

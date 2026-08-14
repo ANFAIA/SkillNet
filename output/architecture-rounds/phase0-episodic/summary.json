@@ -1,0 +1,292 @@
+{
+  "schema_version": 1,
+  "benchmark_id": "phase0-screen-scheme-vs-episodic",
+  "status": "contract-only",
+  "disclaimer": "Reference specimens exercise the oracle. They are not measurements of a future EpisodeDirector.",
+  "benchmark_ready": true,
+  "latency_budget_ms": 1500,
+  "latency_measurement": {
+    "status": "not-measured",
+    "start": "candidate_request_received",
+    "stop": "validated_trajectory_available",
+    "warmup_runs": 1,
+    "measured_runs": 30
+  },
+  "latency_gate_active": false,
+  "domains": [
+    {
+      "domain_id": "gestion-tickets",
+      "title": "Recuperar entradas no recibidas en Crocantickets",
+      "evaluations": {
+        "screen_scheme": {
+          "path": "screen_scheme",
+          "specimen_kind": "current-shape-reference",
+          "metrics": {
+            "required_fact_coverage": 1.0,
+            "unsupported_claims": 0.0,
+            "dominant_action_rate": 1.0,
+            "evidence_producible": 0.5,
+            "critical_error_coverage": 0.4,
+            "transfer_task_covered": 0.0,
+            "viewport_budget_rate": 0.0
+          },
+          "latency": {
+            "status": "placeholder",
+            "value_ms": null
+          },
+          "gates": {
+            "required_fact_coverage": {
+              "operator": "eq",
+              "threshold": 1.0,
+              "actual": 1.0,
+              "passed": true
+            },
+            "unsupported_claims": {
+              "operator": "eq",
+              "threshold": 0.0,
+              "actual": 0.0,
+              "passed": true
+            },
+            "dominant_action_rate": {
+              "operator": "eq",
+              "threshold": 1.0,
+              "actual": 1.0,
+              "passed": true
+            },
+            "evidence_producible": {
+              "operator": "eq",
+              "threshold": 1.0,
+              "actual": 0.5,
+              "passed": false
+            },
+            "critical_error_coverage": {
+              "operator": "eq",
+              "threshold": 1.0,
+              "actual": 0.4,
+              "passed": false
+            },
+            "transfer_task_covered": {
+              "operator": "eq",
+              "threshold": 1.0,
+              "actual": 0.0,
+              "passed": false
+            },
+            "viewport_budget_rate": {
+              "operator": "eq",
+              "threshold": 1.0,
+              "actual": 0.0,
+              "passed": false
+            }
+          },
+          "passed": false
+        },
+        "episodic_contract": {
+          "path": "episodic_contract",
+          "specimen_kind": "expected-output-contract",
+          "metrics": {
+            "required_fact_coverage": 1.0,
+            "unsupported_claims": 0.0,
+            "dominant_action_rate": 1.0,
+            "evidence_producible": 1.0,
+            "critical_error_coverage": 1.0,
+            "transfer_task_covered": 1.0,
+            "viewport_budget_rate": 1.0
+          },
+          "latency": {
+            "status": "placeholder",
+            "value_ms": null
+          },
+          "gates": {
+            "required_fact_coverage": {
+              "operator": "eq",
+              "threshold": 1.0,
+              "actual": 1.0,
+              "passed": true
+            },
+            "unsupported_claims": {
+              "operator": "eq",
+              "threshold": 0.0,
+              "actual": 0.0,
+              "passed": true
+            },
+            "dominant_action_rate": {
+              "operator": "eq",
+              "threshold": 1.0,
+              "actual": 1.0,
+              "passed": true
+            },
+            "evidence_producible": {
+              "operator": "eq",
+              "threshold": 1.0,
+              "actual": 1.0,
+              "passed": true
+            },
+            "critical_error_coverage": {
+              "operator": "eq",
+              "threshold": 1.0,
+              "actual": 1.0,
+              "passed": true
+            },
+            "transfer_task_covered": {
+              "operator": "eq",
+              "threshold": 1.0,
+              "actual": 1.0,
+              "passed": true
+            },
+            "viewport_budget_rate": {
+              "operator": "eq",
+              "threshold": 1.0,
+              "actual": 1.0,
+              "passed": true
+            }
+          },
+          "passed": true
+        }
+      },
+      "contrast": {
+        "required_fact_coverage_delta": 0.0,
+        "unsupported_claim_reduction": 0.0,
+        "evidence_producible_delta": 0.5,
+        "critical_error_coverage_delta": 0.6,
+        "transfer_task_covered_delta": 1.0
+      }
+    },
+    {
+      "domain_id": "sql",
+      "title": "LEFT JOIN con valores NULL",
+      "evaluations": {
+        "screen_scheme": {
+          "path": "screen_scheme",
+          "specimen_kind": "current-shape-reference",
+          "metrics": {
+            "required_fact_coverage": 1.0,
+            "unsupported_claims": 0.0,
+            "dominant_action_rate": 1.0,
+            "evidence_producible": 0.5,
+            "critical_error_coverage": 0.5,
+            "transfer_task_covered": 0.0,
+            "viewport_budget_rate": 0.0
+          },
+          "latency": {
+            "status": "placeholder",
+            "value_ms": null
+          },
+          "gates": {
+            "required_fact_coverage": {
+              "operator": "eq",
+              "threshold": 1.0,
+              "actual": 1.0,
+              "passed": true
+            },
+            "unsupported_claims": {
+              "operator": "eq",
+              "threshold": 0.0,
+              "actual": 0.0,
+              "passed": true
+            },
+            "dominant_action_rate": {
+              "operator": "eq",
+              "threshold": 1.0,
+              "actual": 1.0,
+              "passed": true
+            },
+            "evidence_producible": {
+              "operator": "eq",
+              "threshold": 1.0,
+              "actual": 0.5,
+              "passed": false
+            },
+            "critical_error_coverage": {
+              "operator": "eq",
+              "threshold": 1.0,
+              "actual": 0.5,
+              "passed": false
+            },
+            "transfer_task_covered": {
+              "operator": "eq",
+              "threshold": 1.0,
+              "actual": 0.0,
+              "passed": false
+            },
+            "viewport_budget_rate": {
+              "operator": "eq",
+              "threshold": 1.0,
+              "actual": 0.0,
+              "passed": false
+            }
+          },
+          "passed": false
+        },
+        "episodic_contract": {
+          "path": "episodic_contract",
+          "specimen_kind": "expected-output-contract",
+          "metrics": {
+            "required_fact_coverage": 1.0,
+            "unsupported_claims": 0.0,
+            "dominant_action_rate": 1.0,
+            "evidence_producible": 1.0,
+            "critical_error_coverage": 1.0,
+            "transfer_task_covered": 1.0,
+            "viewport_budget_rate": 1.0
+          },
+          "latency": {
+            "status": "placeholder",
+            "value_ms": null
+          },
+          "gates": {
+            "required_fact_coverage": {
+              "operator": "eq",
+              "threshold": 1.0,
+              "actual": 1.0,
+              "passed": true
+            },
+            "unsupported_claims": {
+              "operator": "eq",
+              "threshold": 0.0,
+              "actual": 0.0,
+              "passed": true
+            },
+            "dominant_action_rate": {
+              "operator": "eq",
+              "threshold": 1.0,
+              "actual": 1.0,
+              "passed": true
+            },
+            "evidence_producible": {
+              "operator": "eq",
+              "threshold": 1.0,
+              "actual": 1.0,
+              "passed": true
+            },
+            "critical_error_coverage": {
+              "operator": "eq",
+              "threshold": 1.0,
+              "actual": 1.0,
+              "passed": true
+            },
+            "transfer_task_covered": {
+              "operator": "eq",
+              "threshold": 1.0,
+              "actual": 1.0,
+              "passed": true
+            },
+            "viewport_budget_rate": {
+              "operator": "eq",
+              "threshold": 1.0,
+              "actual": 1.0,
+              "passed": true
+            }
+          },
+          "passed": true
+        }
+      },
+      "contrast": {
+        "required_fact_coverage_delta": 0.0,
+        "unsupported_claim_reduction": 0.0,
+        "evidence_producible_delta": 0.5,
+        "critical_error_coverage_delta": 0.5,
+        "transfer_task_covered_delta": 1.0
+      }
+    }
+  ]
+}

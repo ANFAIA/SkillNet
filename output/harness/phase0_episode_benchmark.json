@@ -1,0 +1,280 @@
+{
+  "schema_version": 1,
+  "benchmark_id": "phase0-screen-scheme-vs-episodic",
+  "status": "contract-only",
+  "disclaimer": "Reference specimens exercise the oracle. They are not measurements of a future EpisodeDirector.",
+  "viewport_budget_px": 800,
+  "latency_budget_ms": 1500,
+  "latency_placeholder": {
+    "status": "not-measured",
+    "start": "candidate_request_received",
+    "stop": "validated_trajectory_available",
+    "warmup_runs": 1,
+    "measured_runs": 30
+  },
+  "gates": {
+    "required_fact_coverage": {"operator": "eq", "threshold": 1.0},
+    "unsupported_claims": {"operator": "eq", "threshold": 0.0},
+    "dominant_action_rate": {"operator": "eq", "threshold": 1.0},
+    "evidence_producible": {"operator": "eq", "threshold": 1.0},
+    "critical_error_coverage": {"operator": "eq", "threshold": 1.0},
+    "transfer_task_covered": {"operator": "eq", "threshold": 1.0},
+    "viewport_budget_rate": {"operator": "eq", "threshold": 1.0}
+  },
+  "domains": [
+    {
+      "domain_id": "gestion-tickets",
+      "title": "Recuperar entradas no recibidas en Crocantickets",
+      "competency_contract": {
+        "observable_outcome": "Recupera la entrada correcta para la compra y evento correctos cuando el email facilitado no localiza al comprador.",
+        "required_facts": [
+          "gt.email_may_be_wrong",
+          "gt.search_name_when_email_fails",
+          "gt.code_opens_single_ticket",
+          "gt.reference_opens_full_purchase",
+          "gt.resend_is_not_sufficient_for_wrong_email"
+        ],
+        "required_evidence": [
+          "search_strategy",
+          "buyer_match",
+          "scope_decision",
+          "delivery_decision"
+        ],
+        "critical_errors": [
+          "wrong_buyer",
+          "wrong_event",
+          "wrong_scope",
+          "resend_to_wrong_email",
+          "close_without_viable_delivery"
+        ],
+        "transfer_task_ref": "gt.transfer.unseen-multi-ticket-order"
+      },
+      "source_affordance_map": {
+        "source_ref": "2026-crocantickets-recovery-manual@1",
+        "facts": {
+          "gt.email_may_be_wrong": "The purchase email can contain a typo.",
+          "gt.search_name_when_email_fails": "Search by buyer name or surname when email lookup fails.",
+          "gt.code_opens_single_ticket": "The buyer code opens one ticket PDF.",
+          "gt.reference_opens_full_purchase": "The reference opens the complete purchase with associated tickets.",
+          "gt.resend_is_not_sufficient_for_wrong_email": "Automatic resend does not resolve a mistyped destination address."
+        },
+        "affordances": [
+          "select_open_event",
+          "search_buyer",
+          "open_code",
+          "open_reference",
+          "download_pdf"
+        ]
+      },
+      "transfer_task": {
+        "task_ref": "gt.transfer.unseen-multi-ticket-order",
+        "synthetic_case": true,
+        "prompt": "The supplied email returns no result. Locate Buyer A by surname and recover only the requested ticket from a purchase containing three tickets.",
+        "case_data": {
+          "supplied_email_ref": "unmatched-email",
+          "buyers": [
+            {"buyer_ref": "buyer-a", "surname": "Synthetic-A", "ticket_count": 3},
+            {"buyer_ref": "buyer-b", "surname": "Synthetic-B", "ticket_count": 1}
+          ],
+          "requested_ticket_ref": "ticket-a-2"
+        },
+        "oracle": {
+          "fallback_search": "surname",
+          "buyer_ref": "buyer-a",
+          "recovery_control": "code",
+          "delivery_mode": "manual-authorized-channel"
+        }
+      },
+      "specimens": [
+        {
+          "path": "screen_scheme",
+          "specimen_kind": "current-shape-reference",
+          "claims": [
+            {"text": "The email may have been entered incorrectly.", "fact_refs": ["gt.email_may_be_wrong"]},
+            {"text": "Use name or surname when email search fails.", "fact_refs": ["gt.search_name_when_email_fails"]},
+            {"text": "Code opens one ticket and Reference opens the purchase.", "fact_refs": ["gt.code_opens_single_ticket", "gt.reference_opens_full_purchase"]},
+            {"text": "Do not rely only on automatic resend for a wrong email.", "fact_refs": ["gt.resend_is_not_sufficient_for_wrong_email"]}
+          ],
+          "units": [
+            {
+              "unit_id": "lead-concept-practice",
+              "fixed_slots": ["lead", "concept", "practice"],
+              "dominant_action": "choose_scope",
+              "learner_actions": ["choose_scope"],
+              "estimated_height_px": 920
+            }
+          ],
+          "evidence_outputs": [
+            {"type": "search_strategy", "producible": true},
+            {"type": "scope_decision", "producible": true}
+          ],
+          "critical_errors_covered": ["wrong_scope", "resend_to_wrong_email"],
+          "transfer_task_ref": null,
+          "transfer_result": null,
+          "latency_ms": null
+        },
+        {
+          "path": "episodic_contract",
+          "specimen_kind": "expected-output-contract",
+          "claims": [
+            {"text": "The email may have been entered incorrectly.", "fact_refs": ["gt.email_may_be_wrong"]},
+            {"text": "Use name or surname when email search fails.", "fact_refs": ["gt.search_name_when_email_fails"]},
+            {"text": "Code opens one ticket and Reference opens the purchase.", "fact_refs": ["gt.code_opens_single_ticket", "gt.reference_opens_full_purchase"]},
+            {"text": "Do not rely only on automatic resend for a wrong email.", "fact_refs": ["gt.resend_is_not_sufficient_for_wrong_email"]}
+          ],
+          "units": [
+            {"unit_id": "diagnose", "dominant_action": "diagnose_non_delivery", "learner_actions": ["diagnose_non_delivery"], "estimated_height_px": 620},
+            {"unit_id": "locate", "dominant_action": "operate_mock_search", "learner_actions": ["operate_mock_search"], "estimated_height_px": 760},
+            {"unit_id": "recover", "dominant_action": "choose_recovery_scope", "learner_actions": ["choose_recovery_scope"], "estimated_height_px": 700},
+            {"unit_id": "transfer", "dominant_action": "complete_transfer_case", "learner_actions": ["complete_transfer_case"], "estimated_height_px": 780}
+          ],
+          "evidence_outputs": [
+            {"type": "search_strategy", "producible": true},
+            {"type": "buyer_match", "producible": true},
+            {"type": "scope_decision", "producible": true},
+            {"type": "delivery_decision", "producible": true}
+          ],
+          "critical_errors_covered": [
+            "wrong_buyer",
+            "wrong_event",
+            "wrong_scope",
+            "resend_to_wrong_email",
+            "close_without_viable_delivery"
+          ],
+          "transfer_task_ref": "gt.transfer.unseen-multi-ticket-order",
+          "transfer_result": {
+            "fallback_search": "surname",
+            "buyer_ref": "buyer-a",
+            "recovery_control": "code",
+            "delivery_mode": "manual-authorized-channel"
+          },
+          "latency_ms": null
+        }
+      ]
+    },
+    {
+      "domain_id": "sql",
+      "title": "LEFT JOIN con valores NULL",
+      "competency_contract": {
+        "observable_outcome": "Construye y verifica una consulta que conserva todas las cuentas aunque no tengan pedidos.",
+        "required_facts": [
+          "sql.left_join_preserves_left_rows",
+          "sql.where_on_right_can_drop_unmatched",
+          "sql.null_uses_is_null",
+          "sql.count_column_ignores_null"
+        ],
+        "required_evidence": [
+          "query_executes",
+          "expected_rows",
+          "preserves_unmatched",
+          "explains_null_behavior"
+        ],
+        "critical_errors": [
+          "drops_unmatched_accounts",
+          "uses_equals_null",
+          "wrong_join_key",
+          "passes_only_visible_case"
+        ],
+        "transfer_task_ref": "sql.transfer.unseen-null-distribution"
+      },
+      "source_affordance_map": {
+        "source_ref": "synthetic-sql-join-null@1",
+        "facts": {
+          "sql.left_join_preserves_left_rows": "LEFT JOIN preserves rows from its left input when no right row matches.",
+          "sql.where_on_right_can_drop_unmatched": "A rejecting WHERE predicate on a nullable right-side column can remove unmatched rows.",
+          "sql.null_uses_is_null": "SQL tests NULL with IS NULL rather than equality to NULL.",
+          "sql.count_column_ignores_null": "COUNT(column) ignores NULL values."
+        },
+        "affordances": [
+          "inspect_schema",
+          "write_query",
+          "execute_query",
+          "inspect_rows",
+          "revise_query"
+        ],
+        "synthetic_schema": {
+          "accounts": ["account_id", "name"],
+          "orders": ["order_id", "account_id", "total"]
+        },
+        "synthetic_data": {
+          "accounts": [[1, "A"], [2, "B"], [3, "C"]],
+          "orders": [[101, 1, 10], [102, 1, null], [103, 3, 25], [104, null, 7]]
+        }
+      },
+      "transfer_task": {
+        "task_ref": "sql.transfer.unseen-null-distribution",
+        "synthetic_case": true,
+        "prompt": "Return every account and its order count for a new dataset containing accounts with zero, one and multiple orders.",
+        "case_data": {
+          "accounts": [[10, "J"], [11, "K"], [12, "L"], [13, "M"]],
+          "orders": [[201, 10, 12], [202, 12, null], [203, 12, 18], [204, null, 5]]
+        },
+        "oracle": {
+          "columns": ["account_id", "order_count"],
+          "ordered_rows": [[10, 1], [11, 0], [12, 2], [13, 0]]
+        }
+      },
+      "specimens": [
+        {
+          "path": "screen_scheme",
+          "specimen_kind": "current-shape-reference",
+          "claims": [
+            {"text": "LEFT JOIN preserves left-side rows.", "fact_refs": ["sql.left_join_preserves_left_rows"]},
+            {"text": "A right-side WHERE predicate may remove unmatched rows.", "fact_refs": ["sql.where_on_right_can_drop_unmatched"]},
+            {"text": "Use IS NULL and remember COUNT(column) ignores NULL.", "fact_refs": ["sql.null_uses_is_null", "sql.count_column_ignores_null"]}
+          ],
+          "units": [
+            {
+              "unit_id": "lead-concept-practice",
+              "fixed_slots": ["lead", "concept", "practice"],
+              "dominant_action": "predict_output",
+              "learner_actions": ["predict_output"],
+              "estimated_height_px": 880
+            }
+          ],
+          "evidence_outputs": [
+            {"type": "expected_rows", "producible": true},
+            {"type": "explains_null_behavior", "producible": true}
+          ],
+          "critical_errors_covered": ["drops_unmatched_accounts", "uses_equals_null"],
+          "transfer_task_ref": null,
+          "transfer_result": null,
+          "latency_ms": null
+        },
+        {
+          "path": "episodic_contract",
+          "specimen_kind": "expected-output-contract",
+          "claims": [
+            {"text": "LEFT JOIN preserves left-side rows.", "fact_refs": ["sql.left_join_preserves_left_rows"]},
+            {"text": "A right-side WHERE predicate may remove unmatched rows.", "fact_refs": ["sql.where_on_right_can_drop_unmatched"]},
+            {"text": "Use IS NULL and remember COUNT(column) ignores NULL.", "fact_refs": ["sql.null_uses_is_null", "sql.count_column_ignores_null"]}
+          ],
+          "units": [
+            {"unit_id": "model", "dominant_action": "inspect_schema", "learner_actions": ["inspect_schema"], "estimated_height_px": 620},
+            {"unit_id": "construct", "dominant_action": "write_and_execute_query", "learner_actions": ["write_and_execute_query"], "estimated_height_px": 780},
+            {"unit_id": "debug", "dominant_action": "repair_null_bug", "learner_actions": ["repair_null_bug"], "estimated_height_px": 760},
+            {"unit_id": "transfer", "dominant_action": "solve_hidden_dataset", "learner_actions": ["solve_hidden_dataset"], "estimated_height_px": 780}
+          ],
+          "evidence_outputs": [
+            {"type": "query_executes", "producible": true},
+            {"type": "expected_rows", "producible": true},
+            {"type": "preserves_unmatched", "producible": true},
+            {"type": "explains_null_behavior", "producible": true}
+          ],
+          "critical_errors_covered": [
+            "drops_unmatched_accounts",
+            "uses_equals_null",
+            "wrong_join_key",
+            "passes_only_visible_case"
+          ],
+          "transfer_task_ref": "sql.transfer.unseen-null-distribution",
+          "transfer_result": {
+            "columns": ["account_id", "order_count"],
+            "ordered_rows": [[10, 1], [11, 0], [12, 2], [13, 0]]
+          },
+          "latency_ms": null
+        }
+      ]
+    }
+  ]
+}
