@@ -1,0 +1,4 @@
+User-agent: *
+Disallow: /
+
+# Provisional artifact. Replace only after product, editorial and release gates pass.

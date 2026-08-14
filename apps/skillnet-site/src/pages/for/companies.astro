@@ -1,0 +1,131 @@
+---
+import ClaimPanel from '../../components/ClaimPanel.astro'
+import Workflow from '../../components/Workflow.astro'
+import SiteLayout from '../../layouts/SiteLayout.astro'
+import { getClaim, siteData } from '../../lib/site'
+
+const documentClaim = getClaim('claim-documents-to-courses')
+const workflowClaim = getClaim('claim-company-workflow')
+const hostingClaim = getClaim('claim-open-self-hosted')
+
+const steps = [
+  {
+    number: '01',
+    title: 'Bring the source material',
+    body: 'Start from the procedures, manuals or protocols the company already owns.',
+  },
+  {
+    number: '02',
+    title: 'Build and review the course',
+    body: 'Use the admin workflow to prepare content and keep a person in the review path.',
+  },
+  {
+    number: '03',
+    title: 'Assign learning',
+    body: 'Make the course available in the employee experience rather than leaving it as a document library.',
+  },
+  {
+    number: '04',
+    title: 'Keep a progress record',
+    body: 'Use the product views for employee learning and company-side progress tracking.',
+  },
+]
+---
+
+<SiteLayout
+  title="SkillNet for companies — From internal documents to training"
+  description="A verified view of SkillNet's company workflow: prepare training from internal documents, review it and support employee learning."
+  canonicalPath="/for/companies/"
+>
+  <section class="hero hero-narrow shell">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <a href="/">Home</a><span aria-hidden="true">/</span><span>For companies</span>
+    </nav>
+    <p class="eyebrow">For companies</p>
+    <h1>Company training, grounded in the material you already maintain.</h1>
+    <p class="hero-copy">
+      SkillNet provides separate admin and employee workflows around one source of training
+      content. This page describes that baseline without presenting future product directions as
+      finished features.
+    </p>
+  </section>
+
+  <section class="section shell split" aria-labelledby="problem-heading">
+    <div>
+      <p class="kicker">The job</p>
+      <h2 id="problem-heading">Move knowledge out of files and into a learning path.</h2>
+    </div>
+    <div class="prose-stack">
+      <p>
+        A procedure can be accurate and still be hard to learn from. SkillNet's company workflow
+        starts with the source material, then gives an administrator a place to prepare and review
+        training before employees use it.
+      </p>
+      <p>
+        It is not described here as a replacement for a trainer, a compliance guarantee or proof
+        that learning outcomes improve. Those claims need evidence this cut does not contain.
+      </p>
+    </div>
+  </section>
+
+  <section class="section evidence-band" aria-labelledby="workflow-heading">
+    <div class="shell">
+      <div class="section-heading">
+        <p class="kicker">Company workflow</p>
+        <h2 id="workflow-heading">A reviewable path from source to learner.</h2>
+      </div>
+      <Workflow steps={steps} />
+    </div>
+  </section>
+
+  <section class="section shell" aria-labelledby="evidence-heading">
+    <div class="section-heading">
+      <p class="kicker">Evidence ledger</p>
+      <h2 id="evidence-heading">Three bounded product statements.</h2>
+      <p>Every functional statement on this page maps to a dated repository record.</p>
+    </div>
+    <div class="claim-grid">
+      <ClaimPanel claim={documentClaim} />
+      <ClaimPanel claim={workflowClaim} />
+      <ClaimPanel claim={hostingClaim} />
+    </div>
+  </section>
+
+  <section class="section shell split" aria-labelledby="deployment-heading">
+    <div>
+      <p class="kicker">Deployment model</p>
+      <h2 id="deployment-heading">Self-hosted by design.</h2>
+    </div>
+    <div class="prose-stack">
+      <p>
+        The repository defines one SkillNet instance per company. This provisional site does not
+        provide hosting, pricing, account creation or an installation wizard.
+      </p>
+      <p>
+        The source repository is the available next step while a public proof or demo remains
+        unapproved.
+      </p>
+      <a
+        class="button button-primary"
+        href={siteData.primaryCta.href}
+        rel="noreferrer"
+        target="_blank"
+      >
+        Inspect the source<span class="sr-only"> (opens in a new tab)</span>
+      </a>
+    </div>
+  </section>
+
+  <section class="section shell boundary" aria-labelledby="companies-limits-heading">
+    <div class="section-heading compact">
+      <p class="kicker">Limits</p>
+      <h2 id="companies-limits-heading">Before this page can ship</h2>
+    </div>
+    <ul class="boundary-list">
+      <li>Product must approve the final claim wording and its evidence dates.</li>
+      <li>A reproducible proof or demo should replace the repository-only CTA.</li>
+      <li>Brand must review the copy without widening the functional claims.</li>
+      <li>The release owner must remove noindex only after all gates pass.</li>
+    </ul>
+  </section>
+</SiteLayout>
