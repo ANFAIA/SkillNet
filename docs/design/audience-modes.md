@@ -155,3 +155,15 @@ La ampliación estará bien resuelta si:
    cursos ni su historial;
 6. el aislamiento y la propiedad de los datos siguen siendo los de un despliegue
    self-hosted de una sola organización.
+
+## Frontera de nuevas funciones
+
+La ampliación de audiencia no convierte automáticamente funciones personales en funciones
+del producto empresarial. La personalización de la experiencia de cada empleado continúa
+siendo parte del núcleo común, pero notas personales, planificación general o repaso entre
+cursos solo son candidatos futuros para `individual` mientras no exista una necesidad
+organizativa demostrada.
+
+Audio en el chat, conversaciones en vivo, mascota y podcasts se deciden por su función
+pedagógica, no por novedad multimodal. Su alcance y su comportamiento por modo se definen
+en [conversational-modalities.md](conversational-modalities.md).

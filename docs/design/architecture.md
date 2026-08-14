@@ -27,6 +27,8 @@
 | [adaptive-learning.md](adaptive-learning.md) | Preferencias explícitas, estrategia pedagógica, medición y contrato con la librería de componentes |
 | [personalization-architecture.md](personalization-architecture.md) | Separación objetivo, misión, representación, componente, apoyo y planificador en sombra |
 | [learning-experience-architecture.md](learning-experience-architecture.md) | Contrato pedagógico neutral, variantes, proveedores, generación multiagente y evidencia común hacia mastery |
+| [audience-modes.md](audience-modes.md) | Un núcleo de producto con modos `organization` e `individual`, sin separar clases ni verticales |
+| [conversational-modalities.md](conversational-modalities.md) | Frontera entre audio en chat, Realtime, mascota y podcasts; propósito y alcance por audiencia |
 | [Cuaderno de experimentos](../personalization-experiments.md) | Hipótesis, resultados, reversiones y aprendizajes reproducibles de personalización |
 
 ---
