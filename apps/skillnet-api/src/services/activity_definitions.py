@@ -18,6 +18,19 @@ from src.schemas.activity import ActivityDefinitionCreate
 from src.services.activity_ports import ActivityPortRegistry, PortDeclined
 
 BUILTIN_PORTS = frozenset({"assets", "evaluation", "persistence", "progress", "simulation"})
+BUILTIN_EVALUATION_VERSION = "activity-definition-evaluation/1"
+BUILTIN_EVALUATION_MODES = frozenset(
+    {
+        "exact",
+        "normalized_any",
+        "set",
+        "regions",
+        "assignments",
+        "sequence",
+        "keyed_text",
+        "numeric",
+    }
+)
 
 
 def _normalized_text(value: object, *, case_sensitive: bool = False) -> str:
@@ -117,6 +130,8 @@ def _score_numeric(received: object, config: dict) -> float | None:
 
 def _builtin_evaluation_score(config: dict, received: object) -> float | None:
     mode = config.get("mode", "exact")
+    if mode not in BUILTIN_EVALUATION_MODES:
+        return None
     expected = config.get("expected")
     if mode == "exact":
         return 1.0 if hmac.compare_digest(str(received).strip(), str(expected).strip()) else 0.0

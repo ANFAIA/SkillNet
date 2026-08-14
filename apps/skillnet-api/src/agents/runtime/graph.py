@@ -39,6 +39,7 @@ from langgraph.graph import END, StateGraph
 from src.agents.runtime.nodes import (
     author_activity,
     decide_formato,
+    direct_episode,
     fallback_seed,
     genera_ui,
     load_context,
@@ -68,6 +69,23 @@ def route_after_decide(state: NodeRuntimeState) -> str:
     return "error" if state.get("error") else "ok"
 
 
+def route_after_direct_episode(state: NodeRuntimeState) -> str:
+    """A declined adaptive projection falls through to the complete legacy path."""
+
+    return "ready" if state.get("episode_brief") else "declined"
+
+
+def route_after_author_activity(state: NodeRuntimeState) -> str:
+    """A failed adaptive authoring attempt restarts through the legacy router."""
+
+    if (
+        state.get("format_rationale") == "adaptive_episode_contract"
+        and not state.get("episode_brief")
+    ):
+        return "legacy"
+    return "generate"
+
+
 def route_after_generate(state: NodeRuntimeState) -> str:
     return "error" if state.get("error") else "ok"
 
@@ -94,12 +112,18 @@ def build_node_graph():
 
     graph.add_node("load_context", load_context)
     graph.add_node("probe_gate", probe_gate)
+    if settings.ADAPTIVE_EPISODES:
+        graph.add_node("direct_episode", direct_episode)
     graph.add_node("decide_formato", decide_formato)
     graph.add_node("author_activity", author_activity)
     # The existing blueprint agent has a fixed legacy vocabulary. Until it consumes the
     # same closed scope, shortlist mode must use the monolithic generator; otherwise a
     # second prompt path could bypass the renderer-safe boundary.
-    if settings.MULTI_AGENT_RENDER and not settings.RUNTIME_COMPONENT_SHORTLIST:
+    if (
+        settings.MULTI_AGENT_RENDER
+        and not settings.RUNTIME_COMPONENT_SHORTLIST
+        and not settings.ADAPTIVE_EPISODES
+    ):
         from src.agents.runtime.nodes import genera_ui_multi
         graph.add_node("genera_ui", genera_ui_multi)
     else:
@@ -115,17 +139,31 @@ def build_node_graph():
         route_after_load,
         {"ok": "probe_gate", "error": "fallback_seed"},
     )
-    graph.add_conditional_edges(
-        "probe_gate",
-        route_after_gate,
-        {"generate": "decide_formato", "skip": "skip_node", "error": "fallback_seed"},
-    )
+    gate_routes = {
+        "generate": "direct_episode" if settings.ADAPTIVE_EPISODES else "decide_formato",
+        "skip": "skip_node",
+        "error": "fallback_seed",
+    }
+    graph.add_conditional_edges("probe_gate", route_after_gate, gate_routes)
+    if settings.ADAPTIVE_EPISODES:
+        graph.add_conditional_edges(
+            "direct_episode",
+            route_after_direct_episode,
+            {"ready": "author_activity", "declined": "decide_formato"},
+        )
     graph.add_conditional_edges(
         "decide_formato",
         route_after_decide,
         {"ok": "author_activity", "error": "fallback_seed"},
     )
-    graph.add_edge("author_activity", "genera_ui")
+    if settings.ADAPTIVE_EPISODES:
+        graph.add_conditional_edges(
+            "author_activity",
+            route_after_author_activity,
+            {"generate": "genera_ui", "legacy": "decide_formato"},
+        )
+    else:
+        graph.add_edge("author_activity", "genera_ui")
     graph.add_conditional_edges(
         "genera_ui",
         route_after_generate,
@@ -154,7 +192,9 @@ def build_node_graph():
 __all__ = [
     "build_node_graph",
     "route_after_decide",
+    "route_after_direct_episode",
     "route_after_gate",
+    "route_after_author_activity",
     "route_after_generate",
     "route_after_load",
     "route_after_persist",

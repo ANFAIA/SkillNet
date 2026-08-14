@@ -44,7 +44,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.config import settings
 from src.core.exceptions import ConflictError
 from src.core.logging import get_logger
-from src.llm.prompts.runtime import PROMPT_VERSION
+from src.llm.prompts.runtime import EPISODE_PROMPT_VERSION, PROMPT_VERSION
 from src.models import (
     Course,
     CourseNode,
@@ -81,9 +81,14 @@ logger = get_logger(__name__)
 def current_prompt_version() -> str:
     """Exact instruction and catalogue version used by the shared render cache."""
 
+    prompt_version = (
+        f"{EPISODE_PROMPT_VERSION}+{PROMPT_VERSION}"
+        if settings.ADAPTIVE_EPISODES
+        else PROMPT_VERSION
+    )
     if settings.RUNTIME_COMPONENT_SHORTLIST:
-        return f"{PROMPT_VERSION}+{catalog_version()}+{RUNTIME_SCOPE_POLICY_VERSION}"
-    return f"{PROMPT_VERSION}+{catalog_version()}"
+        return f"{prompt_version}+{catalog_version()}+{RUNTIME_SCOPE_POLICY_VERSION}"
+    return f"{prompt_version}+{catalog_version()}"
 
 
 SCREEN_SCHEME_POLICY_VERSION = "v1"

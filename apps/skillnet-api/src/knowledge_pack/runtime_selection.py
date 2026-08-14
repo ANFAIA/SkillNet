@@ -24,6 +24,9 @@ class RuntimeKnowledgeSelection:
     atom_ids: tuple[str, ...]
     evidence_ids: tuple[str, ...]
     source_refs: tuple[SourceRef, ...]
+    # Server-only canonical payload retained so the adaptive branch can project the same
+    # frozen selection into episode contracts without fetching or selecting a second time.
+    pack_payload: dict[str, Any]
 
 
 def _selection_hash(result: SelectionResult) -> str:
@@ -133,6 +136,7 @@ def select_runtime_knowledge(
         ),
         evidence_ids=selected.evidence_ids,
         source_refs=source_refs,
+        pack_payload=pack.canonical_payload(),
     )
 
 

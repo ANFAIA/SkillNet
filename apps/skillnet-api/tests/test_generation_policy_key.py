@@ -78,3 +78,16 @@ def test_policy_version_change_invalidates_render_identity(
     assert version_one.generation_policy_key == "adaptive-episodes/v1"
     assert version_two.generation_policy_key == "adaptive-episodes/v2"
     assert version_one.cache_key != version_two.cache_key
+
+
+def test_adaptive_prompt_identity_pins_episode_and_legacy_fallback_versions(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "ADAPTIVE_EPISODES", True)
+    monkeypatch.setattr(node_render_service, "EPISODE_PROMPT_VERSION", "episode/test")
+    monkeypatch.setattr(node_render_service, "PROMPT_VERSION", "runtime/test")
+
+    version = node_render_service.current_prompt_version()
+
+    assert "episode/test" in version
+    assert "runtime/test" in version

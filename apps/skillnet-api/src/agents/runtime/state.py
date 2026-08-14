@@ -38,6 +38,10 @@ class NodeRuntimeState(TypedDict, total=False):
     knowledge_selection_hash: str
     knowledge_atom_ids: list[str]
     knowledge_evidence_ids: list[str]
+    #: Server-only grounding retained for the adaptive branch. Neither value is serialized
+    #: into the model prompt; the episode prompt receives only the authorized source slice.
+    knowledge_pack_payload: dict
+    knowledge_source_refs: list[dict]
     #: Versioned selection settings frozen with the cache key before graph start.
     selection_strategy: str
     selection_execution: str
@@ -55,6 +59,13 @@ class NodeRuntimeState(TypedDict, total=False):
 
     # --- Gate ---
     mastered: bool
+
+    # --- Adaptive episode rollout ---
+    episode_brief: dict | None
+    episode_status: Literal["ready", "declined"]
+    episode_decline_reason: str | None
+    episode_prompt_version: str
+    episode_certified_component_ids: list[str]
 
     # --- Router ---
     ui_format: Literal["explanation", "simulation", "exercise", "chart", "mixed"]

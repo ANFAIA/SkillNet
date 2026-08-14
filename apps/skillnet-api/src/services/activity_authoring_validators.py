@@ -15,6 +15,25 @@ from types import MappingProxyType
 from typing import Any
 
 
+EVALUATED_COMPONENT_MODES = MappingProxyType(
+    {
+        "didact.matching": "assignments",
+        "didact.sort": "sequence",
+        "didact.categorize": "assignments",
+        "didact.quiz.single-choice": "exact",
+        "didact.quiz.multi-select": "set",
+        "didact.quiz.true-false": "exact",
+        "didact.quiz.fill-in-the-blank": "normalized_any",
+        "didact.quiz.short-answer": "normalized_any",
+        "didact.completion-problem": "keyed_text",
+        "didact.numeric-question": "numeric",
+        "didact.word-bank": "assignments",
+        "didact.hotspot": "regions",
+        "didact.label-diagram": "assignments",
+    }
+)
+
+
 class ActivityDefinitionShapeError(ValueError):
     """A draft cannot mount as the selected Didact component."""
 
@@ -762,24 +781,10 @@ def validate_evaluation_definition(
         return
     evaluation = _record(private.get("evaluation"), f"{component_id}.evaluation")
     mode = evaluation.get("mode")
-    expected_modes = {
-        "didact.matching": "assignments",
-        "didact.sort": "sequence",
-        "didact.categorize": "assignments",
-        "didact.quiz.single-choice": "exact",
-        "didact.quiz.multi-select": "set",
-        "didact.quiz.true-false": "exact",
-        "didact.quiz.fill-in-the-blank": "normalized_any",
-        "didact.quiz.short-answer": "normalized_any",
-        "didact.completion-problem": "keyed_text",
-        "didact.numeric-question": "numeric",
-        "didact.word-bank": "assignments",
-        "didact.hotspot": "regions",
-        "didact.label-diagram": "assignments",
-    }
-    if mode != expected_modes[component_id]:
+    if mode != EVALUATED_COMPONENT_MODES[component_id]:
         raise ActivityDefinitionShapeError(
-            f"{component_id}.evaluation.mode must be {expected_modes[component_id]}"
+            f"{component_id}.evaluation.mode must be "
+            f"{EVALUATED_COMPONENT_MODES[component_id]}"
         )
     if component_id == "didact.numeric-question":
         has_value = "value" in evaluation
@@ -859,6 +864,7 @@ __all__ = [
     "AUTHORING_CONTRACTS",
     "AuthoringContract",
     "ActivityDefinitionShapeError",
+    "EVALUATED_COMPONENT_MODES",
     "authoring_definition_contract",
     "validate_component_definition",
     "validate_evaluation_definition",

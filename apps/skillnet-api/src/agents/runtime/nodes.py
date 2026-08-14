@@ -79,10 +79,15 @@ from src.llm.prompts.runtime import (
     FORMAT_DECIDER_SYSTEM,
     UI_TEMPERATURE,
     UI_USE_CASE,
+    EPISODE_PROMPT_VERSION,
+    build_episode_repair_prompt,
+    build_episode_ui_prompt,
     build_format_prompt,
     build_repair_prompt,
     build_ui_prompt,
     clip_source,
+    episode_ui_generator_system,
+    episode_ui_repair_system,
     signal_actions_for_node,
     ui_generator_system,
     ui_max_tokens,
@@ -146,6 +151,7 @@ FALLBACK_MAX_BLOCKS = 2
 STEP_MESSAGES: dict[str, str] = {
     "load_context": "Preparando el nodo...",
     "probe_gate": "Comprobando lo que ya dominas...",
+    "direct_episode": "Preparando una experiencia adaptada...",
     "decide_formato": "Eligiendo la forma de la leccion...",
     "author_activity": "Preparando la actividad interactiva...",
     "genera_ui": "Escribiendo la leccion...",
@@ -521,6 +527,14 @@ async def load_context(state: NodeRuntimeState) -> dict:
             "mastery_threshold": float(node.mastery_threshold or 0.8),
             "seed_lesson_id": str(node.seed_lesson_id) if node.seed_lesson_id else None,
             "source_headings": list(node.source_headings or []),
+            "domain": str(
+                getattr(node, "domain", None) or getattr(course, "title", "") or ""
+            ),
+            # Optional server-owned oracle declarations. They are consumed only by the
+            # episode adapter and never serialized into a model prompt.
+            "evidence_contracts": dict(
+                getattr(node, "evidence_contracts", None) or {}
+            ),
         }
         profile_payload = {
             # `goal` is deliberately absent: it never reaches the LLM (§3.3).
@@ -599,6 +613,14 @@ async def load_context(state: NodeRuntimeState) -> dict:
         "knowledge_evidence_ids": (
             list(pack_selection.evidence_ids) if pack_selection else []
         ),
+        "knowledge_pack_payload": (
+            dict(pack_selection.pack_payload) if pack_selection else {}
+        ),
+        "knowledge_source_refs": (
+            [item.model_dump(mode="json") for item in pack_selection.source_refs]
+            if pack_selection
+            else []
+        ),
         "siblings": siblings,
         "backend": str(state.get("backend") or "openui"),
         "effective_density": key.effective_density,
@@ -676,6 +698,157 @@ async def probe_gate(state: NodeRuntimeState) -> dict:
         str(state["request_id"]), "probe_gate", STEP_MESSAGES["probe_gate"]
     )
     return {"mastered": mastered, "current_step": "probe_gate"}
+
+
+# --------------------------------------------------------------------------- #
+# Adaptive rollout: pure contract projection, fail-open to the legacy router
+# --------------------------------------------------------------------------- #
+def _declined_episode(
+    state: NodeRuntimeState,
+    reason: str,
+    *,
+    refs: tuple[str, ...] = (),
+) -> dict:
+    trace = dict(state.get("plan_trace") or {})
+    trace["episode"] = {
+        "status": "declined",
+        "reason": reason,
+        "refs": list(refs),
+        "prompt_version": EPISODE_PROMPT_VERSION,
+    }
+    return {
+        "episode_brief": None,
+        "episode_status": "declined",
+        "episode_decline_reason": reason,
+        "episode_prompt_version": EPISODE_PROMPT_VERSION,
+        "plan_trace": trace,
+        "current_step": "direct_episode",
+    }
+
+
+async def direct_episode(state: NodeRuntimeState) -> dict:
+    """Build one grounded episode or decline to the unchanged legacy path.
+
+    The selection frozen into the render key is reconstructed exactly; knowledge is never
+    selected twice.  This node only certifies the component boundary.  ``author_activity``
+    may materialize that certified definition later in the same runtime request; no
+    experience artifact is prepared with the course.
+    """
+
+    from src.agents.runtime.shadow_plan import build_grounded_episode_plan_trace
+    from src.knowledge_pack.contracts import NodeKnowledgePack, SourceRef
+    from src.knowledge_pack.runtime_selection import RuntimeKnowledgeSelection
+    from src.services.episode_inputs import (
+        EpisodeInputDeclined,
+        episode_inputs_from_selection,
+    )
+    from src.services.episode_policy import build_episode_brief
+    from src.services.evidence_contract_policy import (
+        EvidencePolicyDeclined,
+        evidence_contracts_for_pack,
+    )
+
+    payload = state.get("knowledge_pack_payload")
+    if not isinstance(payload, dict) or not payload:
+        return _declined_episode(state, "missing_knowledge_pack")
+    try:
+        pack = NodeKnowledgePack.model_validate(payload)
+        source_refs = tuple(
+            SourceRef.model_validate(item)
+            for item in state.get("knowledge_source_refs") or ()
+        )
+        selection = RuntimeKnowledgeSelection(
+            pack_hash=str(state.get("knowledge_pack_hash") or ""),
+            selection_hash=str(state.get("knowledge_selection_hash") or ""),
+            cache_fragment=str(state.get("knowledge_pack_key") or ""),
+            source_context=str(state.get("source_context") or ""),
+            atom_ids=tuple(state.get("knowledge_atom_ids") or ()),
+            evidence_ids=tuple(state.get("knowledge_evidence_ids") or ()),
+            source_refs=source_refs,
+            pack_payload=payload,
+        )
+        node_view = dict(state.get("node") or {})
+        evidence_policy = evidence_contracts_for_pack(
+            pack,
+            criticality=node_view.get("criticality"),
+        )
+        if isinstance(evidence_policy, EvidencePolicyDeclined):
+            return _declined_episode(
+                state,
+                f"evidence_policy:{evidence_policy.reason.value}",
+                refs=evidence_policy.evidence_ids,
+            )
+        node_view["evidence_contracts"] = {
+            key: dict(value)
+            for key, value in evidence_policy.evidence_contracts.items()
+        }
+        inputs = episode_inputs_from_selection(
+            pack,
+            selection,
+            node=node_view,
+            profile_bucket=state.get("profile") or {},
+            node_state=state.get("node_state") or {},
+        )
+        if isinstance(inputs, EpisodeInputDeclined):
+            return _declined_episode(
+                state, inputs.reason.value, refs=inputs.refs
+            )
+        brief = build_episode_brief(
+            inputs.competency,
+            inputs.source_map,
+            inputs.belief,
+        )
+        trace = build_grounded_episode_plan_trace(pack.objective, dict(state))
+        certified_ids = tuple(
+            dict.fromkeys(
+                component_id
+                for contract in evidence_policy.evidence_contracts.values()
+                for component_id in contract.get("supported_component_ids", ())
+            )
+        )
+        prompt_ids = list(trace.get("prompt_component_ids") or ())
+        if certified_ids and "DidactActivity" not in prompt_ids:
+            prompt_ids.append("DidactActivity")
+            if trace.get("status") != "planned":
+                trace["renderer_selection"] = "evidence-certified"
+        if not prompt_ids:
+            return _declined_episode(state, "renderer_shortlist_declined")
+    except (TypeError, ValueError, KeyError) as exc:
+        return _declined_episode(state, f"invalid_episode_inputs:{type(exc).__name__}")
+
+    ui_format = "exercise" if brief.assessment_mode != "none" else "explanation"
+    tier = select_tier(ui_format)
+    trace["prompt_component_ids"] = prompt_ids
+    trace["episode"] = {
+        "status": "ready",
+        "episode_id": str(brief.episode_id),
+        "strategy": brief.policy_trace.get("strategy"),
+        "prompt_version": EPISODE_PROMPT_VERSION,
+        "pack_hash": selection.pack_hash,
+        "selection_hash": selection.selection_hash,
+        "evidence_policy": evidence_policy.policy_version,
+    }
+    request_id = str(state["request_id"])
+    await publish_step(request_id, "direct_episode", STEP_MESSAGES["direct_episode"])
+    await sse.publish(
+        node_channel(request_id), "ui_format", {"format": ui_format, "tier": tier}
+    )
+    return {
+        "episode_brief": brief.model_dump(mode="json"),
+        "episode_status": "ready",
+        "episode_decline_reason": None,
+        "episode_prompt_version": EPISODE_PROMPT_VERSION,
+        "ui_format": ui_format,
+        "tier": tier,
+        "format_rationale": "adaptive_episode_contract",
+        "plan_trace": trace,
+        "prompt_component_ids": prompt_ids,
+        "assessment_block": "DidactActivity",
+        "assessment_item_type": certified_ids[0],
+        "assessment_hint": "Use the exact server-certified evidence activity.",
+        "episode_certified_component_ids": list(certified_ids),
+        "current_step": "direct_episode",
+    }
 
 
 # --------------------------------------------------------------------------- #
@@ -1086,8 +1259,23 @@ async def author_activity(state: NodeRuntimeState) -> dict:
     concrete-case ``QuizItem`` rather than a reveal-only pseudo-assessment.
     """
 
-    candidates = _activity_candidates(state)[:1]
+    episode_payload = state.get("episode_brief")
+    if isinstance(episode_payload, dict):
+        certified = tuple(state.get("episode_certified_component_ids") or ())
+        candidates = tuple(
+            candidate for candidate in _activity_candidates(state) if candidate in certified
+        )[:1]
+    else:
+        candidates = _activity_candidates(state)[:1]
     if not candidates or "DidactActivity" not in (state.get("prompt_component_ids") or ()):
+        if isinstance(episode_payload, dict):
+            return {
+                "authored_activity": None,
+                "activity_authoring_status": "declined:not_certified",
+                "episode_brief": None,
+                "episode_status": "declined",
+                "episode_decline_reason": "activity_authoring:not_certified",
+            }
         return {"authored_activity": None, "activity_authoring_status": "not_requested"}
 
     # Prefer immutable work prepared while the course was validated. The first producer
@@ -1095,7 +1283,7 @@ async def author_activity(state: NodeRuntimeState) -> dict:
     prepared = None
     org_id = _uuid(state["org_id"])
     node_id = _uuid(state["node_id"])
-    if candidates[0] == "didact.quiz.single-choice":
+    if not isinstance(episode_payload, dict) and candidates[0] == "didact.quiz.single-choice":
         try:
             async with async_session_factory() as db:
                 prepared = (
@@ -1269,6 +1457,15 @@ async def author_activity(state: NodeRuntimeState) -> dict:
         return {
             "authored_activity": None,
             "activity_authoring_status": f"declined:{type(exc).__name__}",
+            "episode_brief": None if isinstance(episode_payload, dict) else episode_payload,
+            "episode_status": (
+                "declined" if isinstance(episode_payload, dict) else state.get("episode_status")
+            ),
+            "episode_decline_reason": (
+                f"activity_authoring:{type(exc).__name__}"
+                if isinstance(episode_payload, dict)
+                else state.get("episode_decline_reason")
+            ),
             "prompt_component_ids": [
                 value
                 for value in state.get("prompt_component_ids") or ()
@@ -1338,11 +1535,13 @@ async def genera_ui(state: NodeRuntimeState) -> dict:
 
     from src.config import settings
 
+    episode_payload = state.get("episode_brief")
+    adaptive_episode = isinstance(episode_payload, dict)
     assessment_required = _prompt_assessment_required(state)
     scoped_prompt, scope = resolve_runtime_prompt(
         state.get("prompt_component_ids") or (),
         additional_required=assessment_required,
-        enabled=settings.RUNTIME_COMPONENT_SHORTLIST,
+        enabled=settings.RUNTIME_COMPONENT_SHORTLIST or adaptive_episode,
     )
     assessment_block = str(state.get("assessment_block") or "")
     didact_verification = (
@@ -1350,7 +1549,15 @@ async def genera_ui(state: NodeRuntimeState) -> dict:
         or assessment_block in _DIRECT_DIDACT_CLOSERS
     )
 
-    if retry:
+    if retry and adaptive_episode:
+        system = episode_ui_repair_system(scoped_prompt)
+        user_prompt = build_episode_repair_prompt(
+            episode=episode_payload,
+            source_context=_source_with_authored_activity(state),
+            previous=str(state.get("raw_dsl") or ""),
+            errors=list(state.get("validation_errors") or []),
+        )
+    elif retry:
         system = ui_repair_system(scoped_prompt, didact_verification=didact_verification)
         user_prompt = build_repair_prompt(
             previous=str(state.get("raw_dsl") or ""),
@@ -1358,6 +1565,12 @@ async def genera_ui(state: NodeRuntimeState) -> dict:
             ui_format=ui_format,
             shape_hints=shape_hints,
             screen_scheme=_effective_screen_scheme(state, assessment_required),
+        )
+    elif adaptive_episode:
+        system = episode_ui_generator_system(scoped_prompt)
+        user_prompt = build_episode_ui_prompt(
+            episode=episode_payload,
+            source_context=_source_with_authored_activity(state),
         )
     else:
         system = ui_generator_system(
@@ -1977,6 +2190,7 @@ __all__ = [
     "author_activity",
     "build_fallback_spec",
     "decide_formato",
+    "direct_episode",
     "fallback_seed",
     "genera_ui",
     "genera_ui_multi",

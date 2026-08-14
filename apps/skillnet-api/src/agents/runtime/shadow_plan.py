@@ -311,4 +311,55 @@ def build_shadow_plan_trace(
         return trace
 
 
-__all__ = ["build_shadow_plan_trace"]
+def build_grounded_episode_plan_trace(
+    objective: LearningObjective,
+    state: dict[str, Any],
+) -> dict[str, Any]:
+    """Plan a renderer-safe shortlist from the pack objective and live projection.
+
+    Unlike the legacy shadow adapter, this path does not infer a mission from a screen
+    format or source-shape heuristic. The validated knowledge-pack objective is primary.
+    """
+
+    profile = state.get("profile") or {}
+    node_state = state.get("node_state") or {}
+    longitudinal = longitudinal_projection_from_mapping(
+        profile.get("longitudinal_history")
+        if isinstance(profile.get("longitudinal_history"), dict)
+        else None
+    )
+    projection = project_runtime_signals(
+        experience_level=profile.get("experience_level"),
+        scaffold_band=state.get("scaffold_band"),
+        preset=profile.get("preset"),
+        format_vector=profile.get("format_vector"),
+        learning_preferences=profile.get("learning_preferences"),
+        accessibility=state.get("accessibility"),
+        nodes_completed=int(profile.get("nodes_completed") or 0),
+        last_error_kind=node_state.get("last_error_kind"),
+        base_density=int(state.get("effective_density") or 2),
+        longitudinal_history=longitudinal,
+    )
+    catalog = (*adapt_legacy_openui_catalog(), *export_didact_descriptors())
+    outcome = plan_experience(objective, projection, catalog)
+    selected, selection_trace = _apply_selection(
+        outcome,
+        strategy=state.get("selection_strategy") or SelectionStrategy.TOP5,
+        execution=SelectionExecution.LIVE,
+        progressive_stage=state.get("selection_progressive_stage")
+        or ProgressiveStage.TOP3,
+    )
+    shortlist = _renderer_safe_shortlist(selected)
+    return {
+        "trace_version": "episode-plan-trace/1",
+        "status": "declined" if isinstance(outcome, Declined) else "planned",
+        "objective": _json_safe(asdict(objective)),
+        "projection": _json_safe(asdict(projection)),
+        "selection": selection_trace,
+        "inventory_size": len(catalog),
+        "prompt_component_ids": list(shortlist),
+        "shortlist_policy": RUNTIME_SCOPE_POLICY_VERSION,
+    }
+
+
+__all__ = ["build_grounded_episode_plan_trace", "build_shadow_plan_trace"]
