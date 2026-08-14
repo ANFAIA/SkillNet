@@ -32,28 +32,20 @@ audiencia, no un proyecto o fork distinto para cada vertical.
 Referencia de producto y storytelling:
 [audience-modes.md](audience-modes.md).
 
-## 3. Mejorar la experiencia de los cursos
-
-La referencia estudiada es Brilliant: actividades con más profundidad, feedback ligado a
-la acción, continuidad entre pasos y ayuda contextual. No se trata de copiar su interfaz,
-sino de estudiar cómo mejorar el aprendizaje y la generación de nodos.
-
-Investigación y propuestas existentes:
-[brilliant-learning-patterns.md](brilliant-learning-patterns.md).
-
-## 4. Sustituir y mejorar la mascota
+## 3. Sustituir y mejorar la mascota
 
 La mascota actual se cambiará en el futuro. Debe ser una capa visual sustituible y no
 contener dentro la lógica de chat, voz o lectura de nodos.
 
 También queda pendiente mejorar cómo comprende el estado del nodo y cuándo interviene,
 porque el comportamiento actual no funciona bien. La solución concreta debe validarse
-antes de fijarla.
+antes de fijarla. El acompañante de Brilliant puede servir como referencia puntual para
+investigar ese comportamiento, no como dirección general para los cursos.
 
 Frontera acordada:
 [conversational-modalities.md](conversational-modalities.md).
 
-## 5. Podcast Studio con calidad tipo NotebookLM
+## 4. Podcast Studio con calidad tipo NotebookLM
 
 Partir de la experiencia de Audio Overviews: fuentes, enfoque, formato, duración, idioma,
 generación en segundo plano, transcripción y referencias. La implementación será agnóstica,
@@ -65,7 +57,7 @@ acabado serán etapas sustituibles.
 
 Plan completo: [podcast-studio-plan.md](podcast-studio-plan.md).
 
-## 6. Audio como entrada del chat
+## 5. Audio como entrada del chat
 
 La persona podrá enviar una nota de voz al chat. SkillNet la transcribe y responde en
 texto. No activa TTS ni abre una llamada.
@@ -77,7 +69,7 @@ audio -> transcripción -> chat -> texto
 Frontera acordada:
 [conversational-modalities.md](conversational-modalities.md).
 
-## 7. Conversaciones de voz en directo
+## 6. Conversaciones de voz en directo
 
 Realtime será una función distinta para conversar por voz. Aunque GPT Realtime sea una
 opción, la integración debe permanecer detrás de una abstracción para admitir otros
@@ -87,7 +79,7 @@ Todavía no se han fijado su interfaz, casos de uso concretos ni prioridad de
 implementación. Frontera acordada:
 [conversational-modalities.md](conversational-modalities.md).
 
-## 8. Separación de modalidades
+## 7. Separación de modalidades
 
 Web, audio y vídeo son modalidades acumulables y no variantes excluyentes de una pantalla.
 La generación multimedia permanece bajo demanda y separada de la composición OpenUI.
@@ -101,7 +93,6 @@ Diseño de arquitectura:
 |---|---|
 | `organization` e `individual` | Dirección documentada; no implementada |
 | Marketing vertical y nuevas landings | Futuro; sin diseño final |
-| Patrones de Brilliant para cursos | Investigación y experimentos documentados |
 | Nueva mascota y mejor lectura del nodo | Dirección definida; solución pendiente |
 | Podcast Studio agnóstico | Plan documentado |
 | Audio en chat con respuesta textual | Comportamiento acordado; futuro |
