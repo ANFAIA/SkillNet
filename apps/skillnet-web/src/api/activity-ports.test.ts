@@ -67,6 +67,50 @@ describe('createActivityHostPorts events', () => {
   })
 })
 
+describe('createActivityHostPorts evaluation', () => {
+  const request = {
+    scope: { organizationId: '', courseId: '' },
+    componentId: 'didact.quiz.single-choice',
+    attemptId: '7f298982-08af-4078-af04-b0b025c9074e',
+    response: { answer: 'a' },
+  } as const
+
+  it('uses the atomic neutral attempt endpoint when the binding is fixed', async () => {
+    const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({
+      outcome: 'correct',
+      score: 1,
+      result: { feedback: 'Bien' },
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } }))
+
+    const result = await createActivityHostPorts('definition-id', {
+      bindingId: 'binding-id',
+    }).evaluation?.evaluate(request)
+
+    expect(fetch.mock.calls[0][0]).toBe('/api/v1/activities/definition-id/attempts')
+    expect(JSON.parse(String(fetch.mock.calls[0][1]?.body))).toEqual({
+      attempt_id: request.attemptId,
+      binding_id: 'binding-id',
+      submission: request.response,
+    })
+    expect(result).toEqual({ outcome: 'correct', score: 1, feedback: 'Bien' })
+  })
+
+  it('keeps historical activities on the legacy evaluate endpoint', async () => {
+    const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({
+      status: 'completed',
+      result: { outcome: 'partial', score: 0.5, feedback: 'Revisa' },
+      decline_reason: null,
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } }))
+
+    await createActivityHostPorts('activity-id').evaluation?.evaluate(request)
+
+    expect(fetch.mock.calls[0][0]).toBe('/api/v1/activities/activity-id/evaluate')
+    expect(JSON.parse(String(fetch.mock.calls[0][1]?.body))).toEqual({
+      submission: request.response,
+    })
+  })
+})
+
 describe('createActivityHostPorts assets', () => {
   it('resolves opaque references through the activity endpoint without client scope', async () => {
     const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({

@@ -15,6 +15,12 @@ type OperationResponse = {
   decline_reason: string | null
 }
 
+type ExperienceAttemptResponse = {
+  outcome: EvaluationResult['outcome']
+  score: number | null
+  result: DidactValue
+}
+
 type StateResponse = { activity_id: string; state: DidactValue }
 
 type AssetResponse = {
@@ -53,7 +59,10 @@ function completed(response: OperationResponse): DidactValue {
 }
 
 /** HTTP implementations remain activity-scoped; no answer data lives in the browser. */
-export function createActivityHostPorts(activityId: string): DidactHostPorts {
+export function createActivityHostPorts(
+  activityId: string,
+  options: { bindingId?: string } = {},
+): DidactHostPorts {
   const path = `/activities/${encodeURIComponent(activityId)}`
   return {
     assets: {
@@ -94,6 +103,22 @@ export function createActivityHostPorts(activityId: string): DidactHostPorts {
     },
     evaluation: {
       async evaluate(request) {
+        if (options.bindingId) {
+          const response = await post<ExperienceAttemptResponse>(`${path}/attempts`, {
+            attempt_id: request.attemptId,
+            binding_id: options.bindingId,
+            submission: request.response,
+          })
+          const result = response.result
+          const feedback = result && typeof result === 'object' && !Array.isArray(result)
+            ? result.feedback
+            : undefined
+          return {
+            outcome: response.outcome,
+            ...(response.score === null ? {} : { score: response.score }),
+            ...(feedback === undefined ? {} : { feedback }),
+          }
+        }
         const response = await post<OperationResponse>(`${path}/evaluate`, { submission: request.response })
         return completed(response) as EvaluationResult
       },

@@ -21,6 +21,7 @@ export type NodeAnswerPayload =
   | { response: string }
 
 export interface NodeAnswerRequest {
+  attempt_id: string
   render_id: string
   item_id: string
   answer: NodeAnswerPayload

@@ -52,6 +52,8 @@ export { DidactTimelineBlock } from './DidactTimelineBlock'
 export { DidactWorkedExampleBlock } from './DidactWorkedExampleBlock'
 export { DidactSelfExplanationBlock } from './DidactSelfExplanationBlock'
 export { DidactActivityBlock } from './DidactActivityBlock'
+export { LearningExperience } from './LearningExperience'
+export { CheckpointVideoExperience } from './CheckpointVideoExperience'
 export type { HintRevealBlockProps } from './HintRevealBlock'
 
 export { InlineMarkdown } from './InlineMarkdown'

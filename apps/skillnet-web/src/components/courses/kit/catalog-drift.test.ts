@@ -133,6 +133,11 @@ describe('the kit is the catalogue of §5.3', () => {
       'afterLabel',
       'afterContent',
     ])
+    expect(propOrder('LearningExperience')).toEqual([
+      'experience_id',
+      'implementation_ref',
+      'definition_ref',
+    ])
     expect(propOrder('Markdown')).toEqual(['content'])
     expect(propOrder('DragOrder')).toEqual(['instruction', 'items', 'correctOrder'])
     expect(propOrder('AudioExplanation')).toEqual(['text', 'voice'])
@@ -177,7 +182,7 @@ describe.skipIf(!hasCatalog)('no drift against the backend catalogue artefact', 
     expect(canonicalProps('Markdown').names).toEqual([])
   })
 
-  it.each([...KIT_COMPONENT_NAMES].filter((name) => name !== 'Markdown'))(
+  it.each([...KIT_COMPONENT_NAMES].filter((name) => !['Markdown', 'DidactActivity'].includes(name)))(
     'agrees on %s: prop names, prop ORDER and enum members',
     (name) => {
       const canonical = canonicalProps(name)
@@ -198,12 +203,14 @@ describe.skipIf(!hasCatalog)('no drift against the backend catalogue artefact', 
     }
   })
 
-  it('keeps Markdown out of what the model is taught to emit', () => {
+  it('keeps fallback and legacy aliases out of what the model is taught to emit', () => {
     const promptNames = catalog!.prompt_components.map((component) => component.name)
     expect(promptNames).not.toContain('Markdown')
-    expect(promptNames).toHaveLength(KIT_COMPONENT_NAMES.length - 1)
-    // …and in what the browser can render, for `fallback_seed`.
+    expect(promptNames).not.toContain('DidactActivity')
+    expect(promptNames).toHaveLength(KIT_COMPONENT_NAMES.length - 2)
+    // Both remain renderable for fallback and historical playback.
     expect(Object.keys(skillnetLibrary.components)).toContain('Markdown')
+    expect(Object.keys(skillnetLibrary.components)).toContain('DidactActivity')
   })
 })
 

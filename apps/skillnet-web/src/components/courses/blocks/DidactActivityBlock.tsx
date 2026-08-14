@@ -97,12 +97,17 @@ function MountedActivity({
 export function DidactActivityBlock({
   activityId,
   componentId,
+  bindingId,
 }: {
   activityId: string
   componentId: string
+  bindingId?: string
 }) {
   const outerPorts = useOptionalDidactHost()
-  const httpPorts = useMemo(() => createActivityHostPorts(activityId), [activityId])
+  const httpPorts = useMemo(
+    () => createActivityHostPorts(activityId, { bindingId }),
+    [activityId, bindingId],
+  )
   const ports = honestPorts(componentId, { ...httpPorts, ...outerPorts })
   const definition = useActivityDefinition(activityId)
 

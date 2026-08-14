@@ -200,6 +200,9 @@ export function QuizItemBlock({
 
   // Latency is measured from mount, which is when the item became visible.
   const openedAt = useRef(Date.now())
+  // Keep one idempotency key for every logical submission. Transport retries reuse
+  // it; the explicit learner retry below rotates it for the next attempt.
+  const attemptId = useRef(crypto.randomUUID())
 
   const submit = useMutation({
     mutationFn: (body: NodeAnswerRequest) =>
@@ -270,11 +273,13 @@ export function QuizItemBlock({
     setSelected(null)
     setText('')
     openedAt.current = Date.now()
+    attemptId.current = crypto.randomUUID()
   }
 
   function send() {
     if (!answer || !renderId) return
     submit.mutate({
+      attempt_id: attemptId.current,
       render_id: renderId,
       item_id,
       answer,

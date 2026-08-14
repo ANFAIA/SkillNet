@@ -58,7 +58,7 @@ import {
   DidactGlossaryBlock,
   DidactTimelineBlock,
   DidactWorkedExampleBlock,
-  DidactActivityBlock,
+  LearningExperience,
   StackBlock,
   StackItem,
   StepSequenceBlock,
@@ -97,6 +97,7 @@ import {
   didactTimelineProps,
   didactWorkedExampleProps,
   didactActivityProps,
+  learningExperienceProps,
   quizItemProps,
   stackProps,
   stepSequenceProps,
@@ -339,7 +340,29 @@ const DidactWorkedExample = defineComponent({
 const DidactActivity = defineComponent({
   name: 'DidactActivity', description: KIT_DESCRIPTIONS.DidactActivity, props: didactActivityProps,
   component: ({ props }: ComponentRenderProps<{ activity_id: string; component_id: string }>) => (
-    <DidactActivityBlock activityId={readString(props.activity_id)} componentId={readString(props.component_id)} />
+    <LearningExperience
+      experienceId={readString(props.activity_id)}
+      implementationRef={`${readString(props.component_id)}@1`}
+      definitionRef={readString(props.activity_id)}
+      activityId={readString(props.activity_id)}
+      componentId={readString(props.component_id)}
+    />
+  ),
+})
+const LearningExperienceComponent = defineComponent({
+  name: 'LearningExperience',
+  description: KIT_DESCRIPTIONS.LearningExperience,
+  props: learningExperienceProps,
+  component: ({ props }: ComponentRenderProps<{
+    experience_id: string
+    implementation_ref: string
+    definition_ref: string
+  }>) => (
+    <LearningExperience
+      experienceId={readString(props.experience_id)}
+      implementationRef={readString(props.implementation_ref)}
+      definitionRef={readString(props.definition_ref)}
+    />
   ),
 })
 /**
@@ -377,6 +400,7 @@ export const skillnetLibrary = createLibrary({
     DidactGlossary,
     DidactTimeline,
     DidactWorkedExample,
+    LearningExperienceComponent,
     DidactActivity,
   ],
 })

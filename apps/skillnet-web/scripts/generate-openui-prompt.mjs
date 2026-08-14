@@ -67,7 +67,7 @@ const SCHEMAS_CANDIDATES = [
 // prompt: the server authors it for fallback_seed, the model may not emit it.
 // Componentes que existen en el kit y el modelo NO puede emitir. `Markdown` lo escribe
 // el servidor para `fallback_seed`.
-const NOT_EMITTABLE = new Set(['Markdown'])
+const NOT_EMITTABLE = new Set(['Markdown', 'DidactActivity'])
 
 const CATALOGUE = [
   ['Stack', 'stackProps', 'Contenedor vertical. Envuelve la pantalla entera; siempre es el root'],
@@ -89,6 +89,7 @@ const CATALOGUE = [
   ['DidactGlossary', 'didactGlossaryProps', 'Definiciones consultables para terminos importantes del contenido'],
   ['DidactTimeline', 'didactTimelineProps', 'Secuencia cronologica o procedimental con detalle opcional por paso'],
   ['DidactWorkedExample', 'didactWorkedExampleProps', 'Solucion razonada que revela progresivamente como resolver un problema'],
+  ['LearningExperience', 'learningExperienceProps', 'Experiencia de aprendizaje resuelta por referencia neutral; no expone proveedor, respuestas ni definicion privada'],
   ['DidactActivity', 'didactActivityProps', 'Actividad Didact revisada, cargada por id desde SkillNet; nunca contiene respuestas en el programa'],
 ]
 

@@ -201,6 +201,13 @@ export const didactActivityProps = z.object({
   component_id: z.string().describe('Id didact.* elegido por el planificador'),
 })
 
+/** Provider-neutral, fixed reference. Private definitions never enter OpenUI. */
+export const learningExperienceProps = z.object({
+  experience_id: z.string().describe('Id opaco de la experiencia dentro del plan publicado'),
+  implementation_ref: z.string().describe('Implementacion y version ya resueltas'),
+  definition_ref: z.string().describe('Definicion publica versionada'),
+})
+
 /** The frozen names, in the order of the §5.3 table. */
 export const KIT_COMPONENT_NAMES = [
   'Stack',
@@ -222,6 +229,7 @@ export const KIT_COMPONENT_NAMES = [
   'DidactGlossary',
   'DidactTimeline',
   'DidactWorkedExample',
+  'LearningExperience',
   'DidactActivity',
 ] as const
 
@@ -232,7 +240,8 @@ export type KitComponentName = (typeof KIT_COMPONENT_NAMES)[number]
  * only (§5.3), so it is registered for rendering and absent from the prompt.
  */
 export const LLM_COMPONENT_NAMES = KIT_COMPONENT_NAMES.filter(
-  (name): name is Exclude<KitComponentName, 'Markdown'> => name !== 'Markdown',
+  (name): name is Exclude<KitComponentName, 'Markdown' | 'DidactActivity'> =>
+    name !== 'Markdown' && name !== 'DidactActivity',
 )
 
 /**
@@ -264,6 +273,7 @@ export const KIT_DESCRIPTIONS = {
   DidactGlossary: 'Definiciones consultables para terminos importantes del contenido',
   DidactTimeline: 'Secuencia cronologica o procedimental con detalle opcional por paso',
   DidactWorkedExample: 'Solucion razonada que revela progresivamente como resolver un problema',
+  LearningExperience: 'Experiencia de aprendizaje resuelta por referencia neutral; no expone proveedor, respuestas ni definicion privada',
   DidactActivity: 'Actividad Didact revisada, cargada por id desde SkillNet; nunca contiene respuestas en el programa',
 } satisfies Record<KitComponentName, string>
 
@@ -288,6 +298,7 @@ export const KIT_PROP_SCHEMAS = {
   DidactGlossary: didactGlossaryProps,
   DidactTimeline: didactTimelineProps,
   DidactWorkedExample: didactWorkedExampleProps,
+  LearningExperience: learningExperienceProps,
   DidactActivity: didactActivityProps,
 } satisfies Record<KitComponentName, z.ZodObject>
 
