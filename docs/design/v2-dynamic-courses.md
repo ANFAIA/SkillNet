@@ -12,11 +12,14 @@
 > del pipeline `build_content_graph()` ni del render markdown existente cuando
 > `DYNAMIC_COURSES_MODE=off`.
 >
-> **Evolución aprobada:** la separación entre contrato pedagógico, planes abstractos, variantes
-> preparadas, `LearningExperience` neutral y evidencia normalizada se especifica en
+> **Arquitectura episódica vigente:** la separación entre constitución persistida del curso,
+> `EpisodeBrief` generado on-the-fly, selección neutral de capacidades, `LearningExperience` y
+> evidencia server-owned se especifica en
 > [`learning-experience-architecture.md`](learning-experience-architecture.md). Este documento sigue
-> describiendo el runtime implementado; el nuevo diseño debe migrarlo incrementalmente y conservar
-> `src.services.course_delivery.resolve_delivery` como único selector v1/v2.
+> describiendo persistencia, entrega y compatibilidad del runtime v2. Las secciones que prescriben
+> `ScreenScheme`, una fórmula fija de pantalla o agrupación por pasos aplican sólo al fallback
+> `legacy_stepper`; no restringen el camino `episode`. `shell_mode` lo decide el servidor. La
+> migración conserva `src.services.course_delivery.resolve_delivery` como único selector v1/v2.
 
 ---
 
@@ -263,10 +266,15 @@ los detalles técnicos no ocupan una sección global.
 | Título y outcome del curso | La UI de cada nodo (`ui_spec`) |
 | Nodos, summaries, criticidad, prerrequisitos | El texto explicativo adaptado |
 | Documento fuente + headings asociados | Los ejemplos contextualizados al rol |
+| Constitución: competencia, grounding, gates de evidencia y errores críticos | `EpisodeBrief`: misión, acción dominante, apoyo, límites y continuación |
 | Perfil del aprendiz | Los ítems de ejercicio y del pre-assessment |
 | Estado por nodo (maestría, rachas) | Las explicaciones de clic-para-explicar |
 | El `ui_spec` **ya generado** (contenido, compartido por bucket) | — |
 | Quién vio qué render y cuándo (`node_render_views`) | — |
+
+La constitución y los packs no son una presentación precreada. No fijan secuencia, modalidad,
+componente ni artefactos especulativos del curso; acotan la generación episódica y permiten auditarla.
+Audio y vídeo, cuando resultan elegibles, se embeben en la misión: no crean pestañas de modalidad.
 
 **Caché y auditoría son dos tablas, no una.** `node_renders` es **contenido org-scoped**: guarda el
 `dialect` canónico que se sirvió (re-serializado desde la `UISpec`, **nunca** el texto crudo del

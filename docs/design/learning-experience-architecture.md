@@ -1,548 +1,303 @@
 # Arquitectura neutral de experiencias de aprendizaje
 
-La relación entre modalidad (web, audio, vídeo y futuras) y estructura interna se define en
-[delivery-modalities.md](delivery-modalities.md). En caso de duda, el agente selecciona una sola
-experiencia para la persona; las modalidades no aparecen como pestañas ni como decisión manual.
-
 **Fecha:** 2026-08-14  
-**Estado:** contrato base implementado; rollout incremental y retirada legacy en curso.
-**Aplica a:** cursos dinámicos v2, generación de cursos, catálogo educativo y futuras experiencias
-de vídeo, juego, simulación o práctica presencial.  
-**Autoridad:** este documento gana sobre decisiones anteriores que acoplen el plan pedagógico a un
-nombre de componente. `v2-dynamic-courses.md` sigue siendo la autoridad sobre el comportamiento ya
-implementado y `didact-integration.md` sobre el inventario ejecutable actual.
+**Estado:** corte vertical implementado detrás de rollout
 
-## Corte implementado — 14 de agosto de 2026
+**Aplica a:** cursos dinámicos v2, selección de experiencias y futuros proveedores
 
-El primer corte productivo ya incluye intents, variantes, bindings, intentos y evidencia
-normalizada append-only; planificación y materialización deterministas durante la validación del
-curso; `LearningExperience` con registro lazy; proveedores Didact, texto SkillNet y vídeo con
-checkpoint; y aplicación transaccional e idempotente de evidencia a mastery. Los cursos nuevos no
-emiten `DidactActivity`; el alias permanece únicamente para reproducir programas históricos.
+**Autoridad:** este documento define la frontera entre verdad persistida, dirección episódica,
+selección de capacidades y render. [`v2-dynamic-courses.md`](v2-dynamic-courses.md) conserva la
+especificación del camino v2 y del fallback histórico; [`didact-integration.md`](didact-integration.md)
+describe el inventario ejecutable de Didact.
 
-El runtime usa primero un binding preparado y sólo conserva autoría on-the-fly como compatibilidad
-para cursos anteriores a la migración 0016. Las rondas R1–R9 de `output/harness` son un oracle
-offline reproducible, complementado por tests de producto; no sustituyen todavía un experimento
-online con cohortes reales ni una prueba de carga PostgreSQL.
+La relación entre modalidad y estructura interna se amplía en
+[`delivery-modalities.md`](delivery-modalities.md). Audio y vídeo son representaciones que pueden
+vivir dentro de una experiencia; no son destinos de navegación ni pestañas que la persona deba
+elegir.
 
 ## 1. Decisión
 
-El curso conserva **qué debe aprenderse** y **qué evidencia lo demuestra**. No conserva como verdad
-pedagógica permanente «usar `didact.timeline-steps`», «mostrar un vídeo» o «abrir un minijuego».
-Esas son implementaciones reemplazables de una experiencia.
+El curso publicado conserva su **constitución**: qué competencia importa, qué verdad fuente la
+sustenta, qué errores son críticos y qué evidencia permite afirmar dominio. No conserva una
+secuencia de pantallas, una modalidad, una variante visual ni un componente como verdad pedagógica.
+
+La presentación se decide cuando la persona abre el nodo. El servidor construye un `EpisodeBrief`
+grounded y adaptado a su estado; después filtra el catálogo por capacidades y fija una implementación
+versionada. El resultado abierto queda anclado para que un refresco no cambie la actividad a mitad de
+un intento.
 
 ```text
-objetivo + hechos de fuente + criticidad
-                    │
-                    ▼
-          PedagogicalContract
-                    │
-                    ▼
-             ExperiencePlan
-      (intención, ritmo, acción, evidencia)
-                    │
-                    ▼
-       resolver determinista de capacidades
-                    │
-          ┌─────────┼──────────┐
-          ▼         ▼          ▼
-       Didact     vídeo     juego/simulación
-          └─────────┼──────────┘
-                    ▼
-          LearningExperience
-                    │
-                    ▼
-     NormalizedEvidence → mastery → siguiente paso
+curso publicado
+  CompetencyContract + SourceAffordanceMap + EvidenceGate
+                           │
+             estado actual de la persona
+                           │
+                           ▼
+              EpisodeBrief on-the-fly
+       (misión, acción, evidencia, límites, continuación)
+                           │
+                           ▼
+        CapabilityBroker → shortlist honesta de 1–3
+                           │
+                           ▼
+       ExperienceResolver → binding/definición fijados
+                           │
+                           ▼
+             LearningExperience + shell_mode
+                           │
+                           ▼
+       evidencia server-owned → mastery → continuación
 ```
 
-Didact es el proveedor educativo preferido hoy. No es la ontología de SkillNet. Mañana dos
-implementaciones distintas pueden competir por el mismo paso si satisfacen el mismo contrato.
-
-## 2. Principios de producto
-
-La experiencia visual sigue siendo minimalista: **una idea y una acción principal por pantalla**.
-La complejidad vive en la secuencia, no en mostrar explicación, práctica, solución y evaluación a la
-vez.
-
-En formación empresarial el recorrido por defecto es:
-
-```text
-explicación mínima → práctica inmediata → transferencia
-```
-
-Es una política, no una plantilla rígida. Seguridad, cumplimiento y una regla nueva requieren
-explicación previa; un repaso puede ir de resumen a transferencia; un error puede abrir aclaración,
-ejemplo y nuevo intento. Los ritmos permitidos incluyen directo, guiado, procedimental, contraste,
-exploración con contexto, experto, recuperación y síntesis.
-
-Reglas estables:
-
-1. Una pantalla tiene una función dominante y no necesita scroll para completar la acción.
-2. La explicación previa es breve y obligatoria cuando omitirla haría inseguro el ensayo.
-3. Se evita repetir ritmo, representación o acción sin motivo pedagógico, pero la variedad nunca
-   gana a seguridad, accesibilidad o evidencia.
-4. El feedback aparece junto a la acción; no es otra caja ornamental.
-5. `TextContent` puede introducir o explicar aquello que ningún proveedor represente con honestidad.
-   `Stack` puede permanecer como shell técnico. Ninguno compite como actividad educativa.
-
-## 3. Modelo estable
-
-### 3.1 `PedagogicalContract`
-
-Es la parte duradera del curso y no contiene componentes ni proveedores:
-
-```json
-{
-  "objective_id": "avoid-cross-contamination",
-  "objective_version": 3,
-  "outcome": "Preparar el pedido sin contaminación cruzada",
-  "knowledge_type": "procedural",
-  "criticality": "critical",
-  "required_facts": ["atom-17", "atom-21"],
-  "required_safety": ["No continuar si la ficha vigente no está disponible"],
-  "required_evidence": ["correct_sequence", "safe_decision"],
-  "mastery_policy_ref": "critical-procedure/1"
-}
-```
-
-Los hechos son referencias a átomos o spans del `NodeKnowledgePack`; no reescrituras sin
-procedencia. Cambiar de Timeline a vídeo no puede cambiar el objetivo, los hechos críticos ni la
-regla de mastery.
-
-### 3.2 `ExperiencePlan` y `ExperienceIntent`
-
-`ExperiencePlan` describe cómo debería transcurrir el aprendizaje. Cada paso es un
-`ExperienceIntent`: una necesidad pedagógica abstracta, sin proveedor, componente ni definición de
-render.
-
-```json
-{
-  "plan_id": "plan-node-4/default",
-  "contract_ref": "avoid-cross-contamination@3",
-  "rhythm": "demonstrate_then_transfer",
-  "steps": [
-    {
-      "step_id": "explain",
-      "intent": "explain",
-      "learner_actions": ["observe"],
-      "representations": ["procedural", "visual"],
-      "required_evidence": [],
-      "feedback": "progressive"
-    },
-    {
-      "step_id": "practice",
-      "intent": "guided_practice",
-      "learner_actions": ["sequence"],
-      "required_evidence": ["correct_sequence"],
-      "feedback": "immediate"
-    },
-    {
-      "step_id": "transfer",
-      "intent": "transfer",
-      "learner_actions": ["decide"],
-      "required_evidence": ["safe_decision"],
-      "feedback": "immediate"
-    }
-  ],
-  "support_policy": "standard",
-  "policy_version": "experience-policy/1"
-}
-```
-
-Cada paso se materializa como una pantalla principal. El plan puede incluir ramas omitibles para
-experiencia previa, alto mastery o recuperación; no obliga a recorrer siempre tres pantallas.
-
-### 3.3 `ExperienceVariant` e `ImplementationBinding`
-
-Design-time prepara una o más variantes válidas por intención. `ExperienceVariant` expresa una
-realización pedagógica y las condiciones en las que conviene; todavía no apunta a una biblioteca.
-`ImplementationBinding` enlaza después esa variante con un proveedor, una definición y sus versiones:
-
-```json
-{
-  "intent_ref": "plan-node-4/default:explain",
-  "variants": [
-    {
-      "variant_id": "motion-demo",
-      "representations": ["video", "procedural"],
-      "best_for": ["novice", "motion-relevant"]
-    },
-    {
-      "variant_id": "concise-steps",
-      "representations": ["textual", "procedural"],
-      "best_for": ["review", "low-bandwidth"]
-    }
-  ],
-  "bindings": [
-    {
-      "binding_id": "binding-video-18",
-      "variant_ref": "motion-demo",
-      "implementation_ref": "media.checkpoint-video@1",
-      "definition_ref": "definition-18@2"
-    },
-    {
-      "binding_id": "binding-timeline-44",
-      "variant_ref": "concise-steps",
-      "implementation_ref": "didact.timeline-steps@1",
-      "definition_ref": "definition-44@1"
-    }
-  ],
-  "fallback_binding_id": "binding-timeline-44"
-}
-```
-
-Las variantes son equivalentes respecto a la intención del paso, no idénticas. Un vídeo puede
-representar movimiento mejor y una secuencia puede ser más rápida y escaneable. La equivalencia se
-acepta sólo si ambas preservan hechos, accesibilidad y evidencia exigida.
-
-## 4. Catálogo de capacidades y proveedores
-
-Toda implementación publica un descriptor versionado independiente de React:
-
-```json
-{
-  "implementation_id": "didact.sort",
-  "version": 1,
-  "provider": "didact",
-  "capabilities": {
-    "intents": ["guided_practice", "assessment"],
-    "representations": ["interactive", "procedural"],
-    "learner_actions": ["sequence"],
-    "evidence": ["correct_sequence"],
-    "feedback": ["immediate"]
-  },
-  "requirements": {
-    "ports": ["evaluation"],
-    "assets": [],
-    "runtime": "react"
-  },
-  "accessibility": {
-    "keyboard": true,
-    "screen_reader": true,
-    "drag_alternative": true
-  },
-  "producer_kind": "assessment",
-  "definition_schema_ref": "didact.sort.definition/1",
-  "evidence_adapter_ref": "didact.sort.evidence/1"
-}
-```
-
-Didact, vídeo, simulación y juegos se registran mediante el mismo contrato. Un proveedor posee
-renderer, schema, estado de interacción y traducción de eventos. SkillNet posee objetivo, política,
-selección, evaluación segura, procedencia, caché y mastery.
-
-Como proveedor actual, Didact ofrece **29 implementaciones emitibles** y mantiene **5 bloqueadas**
-con honestidad: `practice-set`, `retrieval-practice-session`, `branching-scenario`,
-`simulation-lab` y `code-exercise`. Esa cifra describe disponibilidad de un proveedor, no limita el
-modelo. El resolver puede descubrir las cinco, pero no crear un binding hasta que sus puertos sean
-compatibles.
-
-### 4.1 Resolver determinista
-
-El resolver no inventa experiencias. Aplica primero gates obligatorios:
-
-- implementación habilitada y versión compatible;
-- intención, acción y representación compatibles;
-- evidencia requerida producible;
-- facts, assets y puertos disponibles;
-- criticidad y seguridad satisfechas;
-- alternativa accesible operable;
-- dispositivo, conectividad, coste y latencia dentro del presupuesto.
-
-Después ordena candidatos válidos por adecuación pedagógica, calidad de evidencia, apoyo necesario,
-preferencia, efectividad histórica y variedad reciente. La variedad sólo desempata entre opciones
-válidas. El resultado es una shortlist pequeña; un productor puede devolver `Declined(reason)`.
-
-Ni los detectores de fuente, ni el plan global, ni los prompts deben nombrar implementaciones
-concretas. Añadir vídeo o un juego consiste en registrar capacidades, productor, adaptador y pruebas;
-no en abrir ramas nuevas en el planificador.
-
-## 5. Generación del curso: trabajo profundo y paralelo
-
-Las decisiones caras ocurren al generar o republicar el curso, cuando hay margen para planificar el
-conjunto y producir activos reutilizables. El paralelismo tiene dos niveles: varios nodos se producen
-simultáneamente y, dentro de cada nodo, productores independientes trabajan en paralelo.
-
-```text
-fuentes + esquema validado
-          │
-          ▼
-  Course Architect ── objetivos, dependencias, criticidad
-          │
-          ▼
- Experience Director ── ritmos globales, variedad y cobertura
-          │
-     ┌────┼──────────── nodos en paralelo ────────────┐
-     ▼    ▼                                            ▼
-   nodo 1 nodo 2 ...                                nodo N
-     │
-     ├─ Explanation Producer ─┐
-     ├─ Activity Producer ────┼─ en paralelo según el plan
-     ├─ Assessment Producer ──┤
-     └─ Media/Game Producer ──┘
-                    │
-                    ▼
-              Node Assembler
-                    │
-       ┌────────────┼─────────────┐
-       ▼            ▼             ▼
-   grounding    accessibility   pedagogy/security
-       └────────────┼─────────────┘
-                    ▼
-              Global Reviewer
-```
-
-Los agentes intercambian contratos tipados, no informes libres. El arquitecto fija el contrato; el
-director distribuye ritmos; los productores no pueden cambiar hechos críticos o evidencia; los
-validadores cargan la fuente de manera independiente. Una cola limita concurrencia por proveedor y
-permite reintentar sólo el nodo o productor que falló.
-
-Design-time debe dejar preparados:
-
-- contrato y planes `default`, `experienced` y `remediation` cuando aporten valor;
-- definiciones públicas y privadas de las variantes;
-- fallbacks honestos y alternativas accesibles;
-- assets congelados, transcript, subtítulos y procedencia cuando haya media;
-- claves de evaluación server-side y mapeo a evidencia;
-- una variante baseline servible sin LLM;
-- hashes, versiones, coste, tokens y trazas de decisión.
-
-El revisor global comprueba el curso completo: progresión, ausencia de monotonía mecánica,
-cobertura, dificultad, distribución de evaluación y existencia de recuperación. No fuerza variedad
-decorativa ni exige usar todas las familias del catálogo.
-
-## 6. Runtime: selección rápida on-the-fly
-
-Cuando el empleado abre un nodo, el runtime no vuelve a diseñar la pedagogía ni consulta a varios
-agentes:
-
-```text
-estado + perfil proyectado + dispositivo
-                    │
-                    ▼
- seleccionar plan y variante ya aprobados
-                    │
-                    ▼
-  cargar definición + fijar versión de pantalla
-                    │
-                    ▼
-             servir inmediatamente
-```
-
-La selección es una función rápida, explicable y preferentemente determinista. Puede escoger vídeo
-para un novato cuando el movimiento importa, Timeline para un repaso o bajo ancho de banda y Sort
-tras un error de secuencia. La pantalla queda fijada mientras está abierta.
-
-La personalización generativa residual —por ejemplo adaptar el contexto de un caso al rol— se hace
-por prefetch durante el paso anterior. Si no termina, falla o invalida un gate, se sirve la baseline;
-el empleado no espera a una nueva deliberación multiagente.
-
-## 7. Frontera neutral de render
-
-OpenUI compone una primitiva neutral:
-
-```text
-root = Stack([intro, experience], "md")
-intro = TextContent("Revisa la regla antes de decidir.", "lead")
-experience = LearningExperience("exp-node-4-practice")
-```
-
-`LearningExperience` recibe una referencia opaca. No recibe answer keys, prompts, código libre ni
-la definición privada. El host resuelve la variante fijada y carga su adaptador:
-
-```ts
-interface ExperienceAdapter {
-  implementationId: string
-  validateDefinition(definition: unknown): ValidationResult
-  render(definition: PublicDefinition, ports: HostPorts): ReactNode
-  translateEvidence(event: unknown): NormalizedEvidence[]
-  accessibleAlternative?: string
-}
-```
-
-El frontend mantiene un único `ExperienceAdapterRegistry`, indexado por
-`implementation_id@version`. `LearningExperience` consulta ese registro; no contiene un `switch` por
-proveedor ni imports estáticos de todo el catálogo. Los loaders pueden seguir siendo lazy.
-
-Los puertos (`assets`, `events`, `evaluation`, `persistence`, `simulation`, `execution`, `progress`)
-son capacidades explícitas. El resolver rechaza una implementación si el host no satisface el
-contrato concreto; la mera existencia de un endpoint genérico no la habilita.
-
-## 8. Evidencia normalizada y mastery
-
-Cada proveedor traduce sus eventos a un sobre estable:
-
-```json
-{
-  "schema_version": 1,
-  "objective_id": "avoid-cross-contamination",
-  "experience_id": "exp-node-4-practice",
-  "attempt_id": "attempt-...",
-  "evidence_type": "safe_decision",
-  "score": 0.8,
-  "outcome": "partial",
-  "error_kind": "shared_utensil",
-  "hints_used": 1,
-  "duration_ms": 42000,
-  "implementation_ref": "didact.quiz.single-choice@1"
-}
-```
-
-La autoridad del score es el servidor. La solución y la rúbrica viven en definición privada. Mastery
-consume `objective_id`, evidencia, resultado y política; no conoce props de Didact ni estados de un
-juego. Esta conexión reemplaza la dependencia histórica de `QuizItem`: cualquier experiencia que
-produzca evidencia válida puede actualizar `learner_node_states` y disparar replanificación.
-
-La escritura es idempotente y transaccional. En una sola transacción se valida el binding y la
-definición fijados, se inserta el intento, se guarda la evidencia normalizada, se aplica la política
-de mastery, se actualiza `learner_node_states` y se registra el evento/auditoría. `attempt_id` tiene
-unicidad y una repetición devuelve el resultado ya confirmado. Si una parte falla no queda un intento
-sin mastery, ni mastery sin evidencia. El cliente nunca escribe score, outcome o mastery.
-
-Los eventos de engagement —reproducción, clic, permanencia— no se confunden con evidencia de
-aprendizaje. Un vídeo pasivo puede explicar, pero no demostrar mastery; necesita checkpoints o una
-actividad posterior si el contrato exige evidencia.
-
-## 9. Fallback, seguridad y versionado
-
-Cadena de fallback por paso:
-
-1. siguiente variante aprobada que satisfaga el mismo contrato;
-2. experiencia estática del proveedor con hechos preservados;
-3. `TextContent` cuando la intención sea únicamente explicar;
-4. baseline publicada;
-5. `Declined(reason)` visible en traza y revisión.
-
-Nunca se degrada silenciosamente a un componente pedagógico legacy. Una variante no puede ocultar
-una omisión de seguridad ni fingir simulación, media o evaluación.
-
-Las definiciones son **append-only**: una corrección crea versión nueva; no muta la que ya vio una
-persona. Cada binding persiste `definition_digest`, digest de assets y versiones de contrato,
-catálogo, adaptador y renderer. Se versionan por separado:
-
-- `objective_version` y `PedagogicalContract`;
-- `policy_version` y `ExperiencePlan`;
-- catálogo y `implementation_id@version`;
-- definición pública/privada y assets;
-- adaptador de evidencia y política de mastery;
-- renderer y prompt/productor.
-
-Un curso publicado fija todas las referencias para ser reproducible. Una implementación nueva crea
-una variante y pasa validación contra el mismo contrato; no sobrescribe una experiencia que alguien
-ya cursó. La caché incluye los IDs, versiones y digests anteriores además de los buckets permitidos
-de personalización. Cambios incompatibles invalidan caché y requieren republicación o migración
-explícita; nunca se reutiliza una definición sólo porque conserva el mismo nombre lógico.
-
-## 10. Migración desde el estado actual
-
-El runtime actual tiene componentes SkillNet, wrappers Didact directos y `DidactActivity`. La meta
-es una frontera única sin romper cursos publicados.
-
-### Fase 1 — contrato y observabilidad
-
-- Persistir trazas de objetivo, plan, candidato, fallback y componentes alcanzables.
-- Definir `NormalizedEvidence` y medir qué experiencias actuales no pueden producirlo.
-- Marcar de forma explícita documentación y caminos legacy.
-
-**Gate:** cero diferencia en pantallas servidas.
-
-### Fase 2 — modelo neutral y adaptadores
-
-- Formalizar `ExperienceIntent → ExperienceVariant → ImplementationBinding`.
-- Introducir la referencia neutral y tratar `DidactActivity` como alias temporal.
-- Registrar los componentes Didact emitibles como implementaciones del proveedor `didact`.
-- Crear `ExperienceAdapterRegistry` frontend con loaders lazy y pruebas de drift.
-- Mantener `Stack` y `TextContent` como primitivas de composición; no como catálogo pedagógico.
-
-**Gate:** golden specs y eventos equivalentes; ninguna clave privada llega al cliente.
-
-### Fase 3 — generación multiagente en design-time
-
-- Generar contratos y planes primero en sombra, con todos los hechos críticos.
-- Preparar variantes por nodo en paralelo y validar cada una antes de publicar.
-- Conservar la baseline inmediata; medir duración total, camino crítico, coste y reparación aislada.
-- Hacer que agentes y caché reciban capacidades y versiones, no nombres React.
-
-**Gate:** contratos deterministas; ningún productor cambia objetivo o seguridad; las variantes quedan
-publicadas con definiciones append-only y digests.
-
-### Fase 4 — selección rápida en runtime
-
-- Seleccionar plan, variante y binding aprobados desde estado, proyección y capacidades del host.
-- Fijar la pantalla abierta, servir baseline ante miss y pregenerar sólo personalización residual.
-- Registrar razones de selección, fallback y latencia sin ejecutar deliberación multiagente.
-
-**Gate:** ningún empleado depende de una llamada LLM para abrir el siguiente paso disponible.
-
-### Fase 5 — evidencia neutral y mastery transaccional
-
-- Traducir evaluaciones y estado de Didact a `NormalizedEvidence`.
-- Escribir intento, evidencia, evento y mastery en una transacción idempotente.
-- Probar respuesta correcta, parcial, error, pista, reintento, duplicado y rollback.
-
-**Gate:** una actividad Didact evaluable recorre el ciclo de dominio sin `QuizItem`, y un fallo de
-persistencia no deja estado parcial.
-
-### Fase 6 — migración de catálogo y proveedores
-
-- Sacar `StepSequence`, `Table`, `Chart`, `BeforeAfter`, `QuizItem`, `DragOrder` y wrappers especiales
-  del catálogo que reciben los productores de cursos nuevos.
-- Conservar adaptadores legacy de solo lectura para cursos ya publicados.
-- No borrar datos ni renderers hasta que la telemetría confirme que no quedan referencias activas.
-- Registrar vídeo y después simulación/juego sólo cuando satisfagan puertos, evidencia y alternativa
-  accesible; no añadir ramas al planificador.
-
-**Gate:** cursos nuevos usan `LearningExperience` + texto opcional; regresión v1 permanece verde y
-añadir un proveedor no modifica esquema de curso, mastery, OpenUI ni planificador.
-
-### Fase 7 — pruebas, rollout y retirada segura
-
-- Ejecutar golden specs de render, contratos y eventos; accesibilidad; seguridad de answer keys;
-  concurrencia e idempotencia; caché por digest; y regresión v1/v2.
-- Activar por familias y capability flags, comparar cohortes y conservar rollback por binding.
-- Validar una plataforma nueva con al menos dos recipes de dominios distintos antes de generalizarla.
-- Retirar un renderer legacy sólo cuando no existan publicaciones ni intentos que lo referencien.
-
-**Gate:** equivalencia o mejora medida, cero referencias activas y rollback ensayado.
+Didact es el proveedor educativo principal hoy, no la ontología de SkillNet. `skillnet.text-content`
+y `media.checkpoint-video` atraviesan la misma frontera. Añadir una simulación o un laboratorio de
+código no debe modificar el contrato del curso, el director episódico ni `LearningExperience`.
+
+## 2. Qué se fija y qué se genera
+
+| Se fija al validar/publicar el curso | Se decide al abrir el nodo |
+|---|---|
+| Outcome, criticidad y prerrequisitos | Misión concreta para este intento |
+| `CompetencyContract` y su versión | `EpisodeBrief` y presupuesto |
+| Hechos requeridos y procedencia | Acción dominante y cantidad de apoyo |
+| `SourceAffordanceMap`, revisiones y digests | Representación adecuada al trabajo y al contexto |
+| `EvidenceGate`, oráculos privados y errores críticos | Shortlist de capacidades disponibles |
+| Política de mastery | Binding y definición pública fijados para el render |
+| Catálogo versionado y políticas de seguridad | `shell_mode` y condiciones de continuación |
+
+No se precrean para cada curso vídeos, juegos, secuencias alternativas, baselines pedagógicas ni
+artefactos de presentación especulativos. Los packs de conocimiento, mapas de affordances, índices y
+oráculos no son “contenido del curso ya montado”: son la verdad reproducible y los límites desde los
+que el runtime puede generar sin inventar.
+
+`node_renders` persiste el resultado validado que efectivamente se sirvió por coste, auditoría y
+reproducibilidad. Esa caché es consecuencia de una decisión runtime, no un plan de presentación
+preparado durante la publicación.
+
+## 3. Contratos estables
+
+### 3.1 `CompetencyContract`
+
+Define el resultado laboral, hechos obligatorios, criticidad, prerrequisitos, gates de evidencia,
+errores críticos y `mastery_policy_ref`. No admite proveedor, componente, slot o layout. Un cambio de
+Timeline a vídeo no puede cambiar un procedimiento seguro ni rebajar la evidencia requerida.
+
+### 3.2 `SourceAffordanceMap`
+
+Fija las fuentes y revisiones exactas disponibles, sus digests y qué acciones permiten sostener con
+honestidad: inspeccionar un procedimiento, reconocer un estado, ordenar pasos o ejecutar en un
+sandbox, por ejemplo. Una affordance puede ser exacta, derivada o sintética, pero siempre referencia
+la fuente que la respalda. Si la fuente no permite una acción, el generador no debe simular que sí.
+
+### 3.3 `EpisodeBrief`
+
+Es un beat de aprendizaje creado on-the-fly y libre de nombres de proveedor. Contiene:
+
+- referencia exacta a competencia, grounding y estado de la persona;
+- una misión con una sola acción dominante;
+- fuente y affordances autorizadas;
+- modo de evaluación y gates, si son demostrables;
+- errores críticos y recuperación;
+- presupuesto de contenido, interacción, media y latencia;
+- condiciones de continuación, incluida una salida por defecto.
+
+No contiene `ScreenScheme`, `lead`, `concept`, `practice`, `component_id`, `provider` ni instrucciones
+de layout. Explicación, práctica y transferencia siguen siendo recursos posibles, no una receta que
+deba aparecer siempre ni en ese orden. La unidad coherente es la misión completa: puede ocupar un
+scroll vertical y contener varias piezas si todas sirven a la misma acción dominante.
+
+## 4. Tickets y SQL no son la misma experiencia
+
+La abstracción sirve precisamente para permitir diferencias radicales sin crear dos plataformas.
+
+| | Recuperar entradas | SQL |
+|---|---|---|
+| Resultado laboral | Atender a un cliente y recuperar la entrada correcta sin exponer ni confundir datos | Construir o corregir una consulta que produce el resultado solicitado |
+| Verdad fuente | Manual vigente del proveedor, campos visibles, excepciones y límites del proceso | Esquema, datos de prueba, dialecto y restricciones de ejecución |
+| Acción dominante plausible | Diagnosticar el caso y elegir/ejecutar el siguiente paso operativo | Escribir, ejecutar y depurar una consulta |
+| Affordance necesaria | Caso operativo fiel, búsqueda, estados y decisiones del procedimiento | Editor y sandbox ejecutable con estado reiniciable |
+| Evidencia válida | Decisión y secuencia correctas, incluido el tratamiento de errores críticos | Resultado ejecutado, tests y explicación del fallo |
+| Experiencia resultante | Caso guiado o simulación de atención con referencia puntual al manual | Laboratorio de código con feedback del motor y casos de prueba |
+
+Un cuestionario puede servir como comprobación limitada en ambos dominios, pero no sustituye la
+transferencia operacional ni la ejecución. El broker debe declinar antes que presentar una imitación
+de baja fidelidad como evidencia de dominio.
+
+## 5. Catálogo amplio, contexto pequeño
+
+Cada implementación publica un `CapabilityDescriptor` versionado y neutral respecto al framework:
+acciones del aprendiz, evidencia producible, affordances, accesibilidad, seguridad, puertos, latencia
+y calidad. El catálogo completo puede crecer sin entrar entero en el prompt ni en el bundle inicial
+del navegador.
+
+En runtime, `CapabilityBroker` aplica hard gates en este orden conceptual:
+
+1. acción del aprendiz;
+2. evidencia requerida;
+3. affordances reales de la fuente;
+4. accesibilidad;
+5. seguridad;
+6. puertos disponibles;
+7. presupuesto de latencia.
+
+Sólo después ordena los candidatos válidos de forma determinista. Devuelve una shortlist honesta de
+uno a tres; no rellena el mínimo con opciones peores. Si no sobrevive ninguna, puede ampliar el
+catálogo una sola vez, aplicando exactamente los mismos gates. Si aún no hay opción válida, devuelve
+`Declined(reason)`.
+
+El broker filtra **capacidades**. `ExperienceResolver` toma después esa lista y fija un binding
+publicado (`experience_id`, `implementation_ref`, `definition_ref`). Esta separación evita que la
+política pedagógica conozca detalles de proveedor. En el frontend, `ExperienceAdapterRegistry` carga
+el adaptador de forma lazy por `implementation_ref`; `LearningExperience` no contiene un `switch`
+central ni imports estáticos de todo el catálogo.
+
+## 6. Evidencia, soporte y mastery
+
+La autoridad de evaluación es el servidor. Answer keys, oráculos y rúbricas permanecen en la
+definición privada. Una implementación evaluable envía un intento estable ligado a
+`experience_id`; el servidor valida el binding y traduce el resultado a evidencia normalizada antes
+de aplicar la política de mastery.
+
+La escritura de intento, evidencia y mastery debe ser idempotente y transaccional. El cliente nunca
+escribe score, outcome o dominio. Reproducción, clic, permanencia y finalización de media son señales
+de uso, no evidencia de aprendizaje.
+
+`support_only` es una salida honesta cuando existe material grounded para ayudar pero no una
+capacidad certificada para producir la evidencia requerida. En ese modo:
+
+- el `EpisodeBrief` usa `assessment_mode: none` y no referencia `EvidenceGate`;
+- la persona puede recibir explicación, ejemplo o referencia operativa;
+- ningún evento actualiza mastery ni satisface un gate;
+- la continuación no puede declarar la competencia dominada.
+
+Para convertir ese apoyo en evidencia hace falta otra experiencia evaluable, con puerto, binding y
+oráculo server-owned. No basta con añadir un botón de “completado” o un checkpoint de reproducción.
+
+## 7. Shell episódico y modalidades
+
+`shell_mode` es una decisión server-owned persistida con el render:
+
+- `episode`: muestra una misión coherente en un único flujo vertical. No agrupa por componentes
+  “resolubles”, no crea slides y no introduce un segundo scroll dentro del contenido.
+- `legacy_stepper`: conserva exactamente la navegación histórica para renders antiguos y para el
+  fallback de rollout.
+
+El navegador no infiere el shell por nombres de componentes, proveedor, orden de bloques ni presencia
+de un quiz. Un refresh devuelve el mismo render y el mismo `shell_mode` fijados.
+
+Audio y vídeo se embeben donde la misión los necesita. No existen pestañas Web/Audio/Vídeo ni tres
+versiones paralelas de la misma pantalla. Las preferencias declaradas, ancho de banda, accesibilidad y
+efectividad observada son señales de selección, nunca una taxonomía rígida de “estilos de
+aprendizaje”. El vídeo no usa autoplay y requiere subtítulos o transcript; el audio necesita
+controles, transcript y alternativa accesible.
+
+La continuación pertenece al episodio y a su evidencia, no a la posición del scroll. Una misión
+puede continuar a práctica adicional, recuperación, siguiente estado o revisión humana según sus
+condiciones; el shell sólo presenta esa decisión.
+
+## 8. Compatibilidad y rollout
+
+`ScreenScheme` y la fórmula histórica de pantalla permanecen únicamente como fallback de rollout.
+Se usan cuando `ADAPTIVE_EPISODES` está desactivado, cuando el director episódico declina o al servir
+un render legacy ya fijado. No limitan el prompt episódico, no se proyectan dentro de `EpisodeBrief` y
+no son el modelo de producto para cursos nuevos.
+
+La cadena segura es:
+
+1. episodio grounded con capacidad certificada;
+2. episodio `support_only` cuando puede ayudar sin afirmar evidencia;
+3. decline explícito hacia el camino `legacy_stepper` durante el rollout;
+4. error visible y trazable si tampoco existe un fallback seguro.
+
+`DidactActivity` se conserva como alias de lectura para publicaciones históricas. Los renders nuevos
+cruzan `LearningExperience`; no se borran adaptadores o datos legacy mientras existan referencias
+activas. Versiones y digests incompatibles invalidan caché y exigen regeneración o migración
+explícita.
+
+## 9. Simulaciones y GenUI de nivel 3
+
+El registro ya admite futuros proveedores, pero registrar un nombre no crea una capacidad real. Una
+simulación o experiencia de nivel 3 sólo se habilita cuando aporta:
+
+- modelo de estado, transiciones e invariantes deterministas;
+- puerto explícito de simulación o ejecución;
+- reset reproducible y aislamiento entre intentos;
+- oráculo server-owned y traducción a evidencia;
+- fidelidad declarada respecto a fuente y entorno laboral;
+- alternativa accesible y comportamiento seguro ante fallo;
+- presupuesto de latencia cumplido y fallback honesto.
+
+El generador selecciona recipes y definiciones tipadas; no genera código libre ejecutable dentro del
+programa OpenUI. El primer piloto debe demostrar al menos un caso operativo como Gestión Tickets y
+otro ejecutable como SQL. Si ambos requieren editar el contrato central, la abstracción aún no es
+suficiente.
+
+## 10. Checklist de validación de rollout
+
+### Docker y backend
+
+- Reconstruir la pila con `docker compose up -d --build` y confirmar que API, web y base de datos
+  están healthy.
+- Activar `ADAPTIVE_EPISODES` sólo en el entorno de prueba previsto y verificar que la versión de
+  política separa las claves de caché legacy y episódicas.
+- Usar un curso dinámico validado con knowledge pack `ready`, fuentes vigentes y un nodo que todavía
+  no tenga un render fijado.
+- Confirmar en la respuesta de `GET /nodes/{id}/render` que `shell_mode` es `episode` y que el render
+  queda anclado; un segundo GET debe devolver la misma identidad.
+- Probar por separado `ready`, `support_only` y decline hacia legacy. En `support_only`, comprobar que
+  no se crea evidencia ni cambia mastery.
+
+### Nodo fresco
+
+- Validar con un nodo nuevo o regenerado explícitamente. Un nodo con `active_render_id` anterior debe
+  seguir reproduciendo su versión fijada y no demuestra el rollout nuevo.
+- Cubrir al menos un caso de manual operativo y uno de SQL/código; sus acciones, affordances y
+  componentes elegidos deben ser materialmente distintos.
+- Confirmar que facts, revisión de fuente, gates, errores críticos y binding aparecen en la traza
+  server-side sin exponer oráculos privados al cliente.
+- Forzar falta de puerto o evidencia y comprobar `support_only`/`Declined`, nunca una simulación o
+  evaluación fingida.
+
+### Navegador
+
+- Abrir el nodo episódico en viewport de escritorio y móvil: una misión, un scroll vertical de página,
+  sin tabs Web/Audio/Vídeo, sin slides y sin scroll anidado del contenido.
+- Comprobar navegación por teclado, foco visible, lector de pantalla, contraste y preferencia de
+  movimiento reducido.
+- Para vídeo/audio, verificar ausencia de autoplay, controles, subtítulos o transcript y alternativa
+  accesible.
+- Recargar y volver atrás/adelante: identidad, contenido y `shell_mode` deben permanecer estables.
+- Abrir un render `legacy_stepper` y confirmar que su navegación histórica no ha cambiado.
+- Ejecutar una evidencia evaluable dos veces con el mismo `attempt_id`: debe ser idempotente. Repetir
+  con una experiencia `support_only`: el dominio debe permanecer igual.
 
 ## 11. Criterios de éxito
 
-La abstracción es real cuando:
+La abstracción es suficiente cuando:
 
-- el plan de curso no contiene nombres Didact, React, vídeo o juego;
-- dos proveedores pueden satisfacer el mismo paso sin cambiar objetivo ni mastery;
-- el runtime selecciona una variante aprobada sin generación bloqueante;
-- toda experiencia evaluable produce evidencia normalizada server-owned;
-- añadir una implementación exige descriptor, productor, adaptador y tests, no editar decisiones
-  centrales;
-- los cursos existentes siguen siendo reproducibles y los nuevos no generan bloques pedagógicos
-  legacy;
-- la variedad cambia el ritmo o la acción con propósito, no sólo el aspecto.
+- el curso fija verdad y evidencia, no una presentación precreada;
+- Tickets y SQL producen episodios radicalmente distintos desde el mismo contrato de runtime;
+- el catálogo puede crecer sin agrandar el prompt ni modificar el core;
+- una shortlist puede contener un único candidato válido o declinar con una razón observable;
+- toda actualización de mastery procede de evidencia server-owned;
+- `support_only` ayuda sin certificar;
+- `shell_mode` no depende de heurísticas del navegador;
+- audio y vídeo forman parte de la misión, no de una navegación por modalidades;
+- `ScreenScheme` puede retirarse al terminar el rollout sin cambiar `EpisodeBrief` ni los bindings;
+- una futura simulación entra mediante descriptor, puertos, definición, adaptador y pruebas, no mediante
+  una rama especial en el planificador.
 
-## 12. Decisiones que sustituyen direcciones anteriores
+## 12. Relación con otros documentos
 
-La historia no se reescribe: los documentos anteriores siguen explicando por qué existe el código
-actual. Para trabajo nuevo quedan sustituidas estas direcciones concretas:
-
-| Documento anterior | Decisión histórica | Decisión vigente |
-|---|---|---|
-| `didact-integration.md` | Convivencia pedagógica de bloques SkillNet y Didact; wrappers directos | Didact es proveedor; cursos nuevos cruzan `LearningExperience`; wrappers y legacy quedan sólo lectura |
-| `multi-agent-pipeline.md` | Cuatro agentes principalmente en el render que espera/prefetchea el alumno | El trabajo caro y el paralelismo principal ocurren al generar/publicar; runtime selecciona bindings preparados |
-| `v2-dynamic-courses.md` | UI spec por nodo generada on-the-fly y mastery acoplado al intento histórico | Runtime neutral con baseline preparada; toda implementación evaluable entra por `NormalizedEvidence` transaccional |
-| `personalization-architecture.md` | `LearningExperiencePlan` puede congelar candidatos concretos | El plan contiene intents; variantes y bindings se versionan en capas separadas |
-
-Hasta completar cada fase, el comportamiento implementado de esos documentos sigue siendo la verdad
-operativa. Esta tabla define la dirección de migración, no autoriza borrar compatibilidad antes de
-sus gates.
-
-## 13. Relación con otros documentos
-
-- [`personalization-architecture.md`](personalization-architecture.md) define la proyección de perfil,
-  apoyo, caché y selección por capacidades; este documento añade design-time multiagente, variantes,
-  frontera neutral y evidencia común.
-- [`didact-integration.md`](didact-integration.md) describe qué puede ejecutar Didact hoy. Didact es
-  un proveedor de esta arquitectura.
-- [`adaptive-learning.md`](adaptive-learning.md) conserva taxonomía y criterios de experimentación.
-- [`v2-dynamic-courses.md`](v2-dynamic-courses.md) es la especificación del runtime actual y de sus
-  transiciones de mastery; la migración se aplica sin crear un segundo selector v1/v2.
-- [`openui-adoption.md`](openui-adoption.md) conserva las restricciones del dialecto y renderer.
+- [`v2-dynamic-courses.md`](v2-dynamic-courses.md) define entrega v2, persistencia, caché y transición
+  de mastery. Sus recetas de pantalla describen el fallback `legacy_stepper`.
+- [`node-knowledge-packs.md`](node-knowledge-packs.md) define la preparación de verdad fuente que
+  alimenta `SourceAffordanceMap`.
+- [`delivery-modalities.md`](delivery-modalities.md) define modalidad como affordance y señal de
+  selección, no como pestaña.
+- [`didact-integration.md`](didact-integration.md) enumera componentes, puertos y bloqueos reales del
+  proveedor Didact.
+- [`didact-integration-strategy.md`](didact-integration-strategy.md) desarrolla recipes y GenUI de
+  nivel 3.
+- [`openui-adoption.md`](openui-adoption.md) conserva las restricciones de dialecto, seguridad y
+  renderer.
