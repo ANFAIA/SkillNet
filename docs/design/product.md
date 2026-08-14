@@ -1,6 +1,10 @@
 # Product
 
 > **Status: Draft.** This document defines what SkillNet is, who it's for, and what it does.
+>
+> The current company-first product remains the implemented baseline. The future
+> audience model for organization and individual deployments is defined in
+> [audience-modes.md](audience-modes.md).
 
 ---
 
