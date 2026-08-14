@@ -1,0 +1,846 @@
+{
+  "profile": {
+    "slug": "gerente-ocupado",
+    "email": "gerente.ocupado@skillnet-test.example",
+    "full_name": "Sara Mena",
+    "role_title": "Gerente",
+    "sector": "hosteleria",
+    "goal": "specific_gap",
+    "experience_level": "some",
+    "preset": "fast",
+    "accessibility": {
+      "short_blocks": false,
+      "reduce_motion": true,
+      "high_contrast": false,
+      "extra_time": false
+    },
+    "learning_preferences": {
+      "version": 1,
+      "presentation": "textual",
+      "detail": "concise",
+      "images": "avoid"
+    },
+    "nodes_completed": 5,
+    "format_vector": {
+      "texto": 0.8,
+      "ejercicio": 0.1,
+      "codigo": 0,
+      "dato": 0.1
+    },
+    "answer_strategy": "last"
+  },
+  "started_at": "2026-08-13T23:28:14.593525+00:00",
+  "errors": [],
+  "courses": [
+    {
+      "course": {
+        "id": "4c9d4c13-77ed-4cc8-a9d8-84fcff4fa286",
+        "title": "Alergenos en la carta",
+        "description": "Cafeteria-panaderia. El empleado debe decir si un producto lleva un alergeno, evitar contaminacion cruzada en fritura y saber que hacer cuando el cliente pregunta. Sin citar articulos de ley inventados.",
+        "outcome": null,
+        "status": "published",
+        "source_document_id": null,
+        "folder_id": null,
+        "folder_name": null,
+        "created_at": "2026-08-13T09:56:12.591227Z",
+        "updated_at": "2026-08-13T09:56:13.421571Z",
+        "module_count": 0,
+        "node_count": 4,
+        "schema_status": "validated",
+        "delivery_mode": "dynamic",
+        "artifact_generate_policy": "admin",
+        "artifact_generator_ids": [],
+        "can_generate_artifacts": true
+      },
+      "nodes": [
+        {
+          "node": {
+            "id": "d2a14adb-8933-46a9-aa04-bc92b3bb3bd9",
+            "title": "Identificación de alergenos",
+            "summary": "Los empleados deben identificar los alergenos presentes en los productos ofrecidos en la cafetería-panadería.",
+            "criticality": "critical",
+            "position": 1,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": false,
+            "locked_by": [],
+            "needs_practice": false,
+            "estimated_minutes": 10
+          },
+          "render": {
+            "meta": {
+              "render_id": "d5a7f6e0-6422-4ecb-89c5-ac6aa8a0b37f",
+              "ui_format": "explanation",
+              "status": "ready",
+              "backend": "openui",
+              "cached": true
+            },
+            "program": "root = Stack([intro, tabla, practica], \"md\")\nintro = TextContent(\"Un cliente pregunta si un producto contiene frutos secos. Es crucial saberlo.\", \"lead\")\ntabla = Table([\"Alergeno\", \"Producto\"], [[\"Cacahuetes\", \"Galletas de chocolate\"], [\"Frutos secos\", \"Tarta de frutas\"], [\"Gluten\", \"Pan de molde\"], [\"Leche\", \"Bizcocho de vainilla\"]])\npractica = DidactTimeline(\"Identificación de alergenos\", [\"Revisar la etiqueta del producto\", \"Consultar con el proveedor\", \"Informar al cliente sobre los alergenos presentes\"], [\"Verifica siempre la etiqueta antes de responder.\", \"Confirma con el proveedor si hay dudas.\", \"Asegúrate de que el cliente tenga la información correcta.\"])\n",
+            "characters": 674,
+            "lines": 4,
+            "components": [
+              "DidactTimeline",
+              "Stack",
+              "Table",
+              "TextContent"
+            ],
+            "quiz_items": []
+          },
+          "answers": []
+        },
+        {
+          "node": {
+            "id": "b95f888a-b4ba-4842-b66a-ed6779fbec3c",
+            "title": "Evitar contaminación cruzada",
+            "summary": "Se enseña a los empleados cómo evitar la contaminación cruzada durante la fritura, asegurando la seguridad alimentaria para los clientes con alergias.",
+            "criticality": "recommended",
+            "position": 2,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": true,
+            "locked_by": [
+              "d2a14adb-8933-46a9-aa04-bc92b3bb3bd9"
+            ],
+            "needs_practice": false,
+            "estimated_minutes": 15
+          },
+          "render": {
+            "meta": {
+              "render_id": "61171987-feeb-49ec-820d-18ad280447df",
+              "ui_format": "explanation",
+              "status": "ready",
+              "backend": "openui",
+              "cached": true
+            },
+            "program": "root = Stack([lead, concepto, practica], \"md\")\nlead = TextContent(\"Un cliente con alergia a los frutos secos pregunta si se puede usar el aceite de la fritura anterior.\", \"lead\")\nconcepto = Table([\"Situación\", \"Acción\"], [[\"Fritura de patatas con aceite usado\", \"Evitar usar el mismo aceite para frituras de alimentos con alérgenos.\"], [\"Fritura de pescado\", \"Limpiar la freidora antes de usarla para frituras de otros alimentos.\"]])\npractica = DidactTimeline(\"Evitar contaminación cruzada\", [\"Identificar alérgenos\", \"Separar utensilios y aceites\", \"Comunicar al personal\"], [\"Identificar los alérgenos presentes en la cocina.\", \"Utilizar aceites y utensilios separados para evitar contaminación.\", \"Asegurarse de que todo el personal esté informado sobre las prácticas de seguridad.\"])\n",
+            "characters": 788,
+            "lines": 4,
+            "components": [
+              "DidactTimeline",
+              "Stack",
+              "Table",
+              "TextContent"
+            ],
+            "quiz_items": []
+          },
+          "answers": []
+        },
+        {
+          "node": {
+            "id": "4efa8dd2-84aa-4c2e-b729-62d6c2ff04c0",
+            "title": "Responder a preguntas de clientes",
+            "summary": "Los empleados aprenden a responder adecuadamente a las preguntas de los clientes sobre alergenos, sin citar artículos de ley inventados.",
+            "criticality": "recommended",
+            "position": 3,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": true,
+            "locked_by": [
+              "d2a14adb-8933-46a9-aa04-bc92b3bb3bd9"
+            ],
+            "needs_practice": false,
+            "estimated_minutes": 12
+          },
+          "render": {
+            "meta": {
+              "render_id": "f38d940a-52c6-4886-8988-716e4d052a57",
+              "ui_format": "explanation",
+              "status": "ready",
+              "backend": "openui",
+              "cached": true
+            },
+            "program": "root = Stack([lead, concepto, practica], \"md\")\nlead = TextContent(\"Un cliente pregunta si un plato contiene nueces. Debes responder con seguridad.\", \"lead\")\nconcepto = Table([\"Alergeno\", \"Respuesta correcta\"], [[\"Cacahuetes\", \"Siempre debe ser declarado.\"], [\"Leche\", \"Preguntar siempre si el cliente es intolerante.\"], [\"Gluten\", \"Confirmar con la receta antes de responder.\"]])\npractica = DidactWorkedExample(\"Responder a un cliente sobre alergenos\", [\"Verificar la receta del plato\", \"Confirmar con el cliente si tiene alergias\", \"Dar una respuesta clara y segura\"], \"El gerente debe asegurarse de que la información sobre alergenos sea precisa y actualizada.\")\n",
+            "characters": 665,
+            "lines": 4,
+            "components": [
+              "DidactWorkedExample",
+              "Stack",
+              "Table",
+              "TextContent"
+            ],
+            "quiz_items": []
+          },
+          "answers": []
+        },
+        {
+          "node": {
+            "id": "10503648-84b6-4925-95fa-d31a011e561f",
+            "title": "Prácticas seguras en la manipulación de alimentos",
+            "summary": "Este tema analiza las mejores prácticas para la manipulación de alimentos en la cafetería-panadería, enfocándose en la seguridad y la prevención de alergias.",
+            "criticality": "recommended",
+            "position": 4,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": true,
+            "locked_by": [
+              "d2a14adb-8933-46a9-aa04-bc92b3bb3bd9"
+            ],
+            "needs_practice": false,
+            "estimated_minutes": 18
+          },
+          "render": {
+            "meta": {
+              "render_id": "ba0e3d8b-3b07-4b57-969c-ac6a55e667f0",
+              "ui_format": "explanation",
+              "status": "ready",
+              "backend": "openui",
+              "cached": true
+            },
+            "program": "root = Stack([lead, concepto, practica], \"md\")\nlead = TextContent(\"Un cliente pregunta por los alergenos en los productos de la cafetería.\", \"lead\")\nconcepto = Table([\"Práctica\", \"Descripción\"], [[\"Lavado de manos\", \"Lavar las manos antes de manipular alimentos.\"], [\"Uso de guantes\", \"Usar guantes al manipular alimentos listos para consumir.\"], [\"Etiquetado de alergenos\", \"Etiquetar claramente los productos que contienen alergenos.\"]])\npractica = DidactTimeline(\"Prácticas seguras en la manipulación de alimentos\", [\"Lavado de manos\", \"Uso de guantes\", \"Etiquetado de alergenos\"], [\"Lava tus manos antes de empezar a trabajar.\", \"Usa guantes para evitar contaminación.\", \"Asegúrate de que todos los productos estén etiquetados correctamente.\"])\n",
+            "characters": 749,
+            "lines": 4,
+            "components": [
+              "DidactTimeline",
+              "Stack",
+              "Table",
+              "TextContent"
+            ],
+            "quiz_items": []
+          },
+          "answers": []
+        }
+      ],
+      "errors": [],
+      "enrollment_status": 409,
+      "enrollment": {
+        "detail": "User 93513580-1a4e-4679-89c7-0d2f349d70ad is already enrolled in this course",
+        "code": "CONFLICT",
+        "field": null
+      },
+      "node_list": {
+        "course_id": "4c9d4c13-77ed-4cc8-a9d8-84fcff4fa286",
+        "delivery_mode": "dynamic",
+        "schema_version": 3,
+        "nodes": [
+          {
+            "id": "d2a14adb-8933-46a9-aa04-bc92b3bb3bd9",
+            "title": "Identificación de alergenos",
+            "summary": "Los empleados deben identificar los alergenos presentes en los productos ofrecidos en la cafetería-panadería.",
+            "criticality": "critical",
+            "position": 1,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": false,
+            "locked_by": [],
+            "needs_practice": false,
+            "estimated_minutes": 10
+          },
+          {
+            "id": "b95f888a-b4ba-4842-b66a-ed6779fbec3c",
+            "title": "Evitar contaminación cruzada",
+            "summary": "Se enseña a los empleados cómo evitar la contaminación cruzada durante la fritura, asegurando la seguridad alimentaria para los clientes con alergias.",
+            "criticality": "recommended",
+            "position": 2,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": true,
+            "locked_by": [
+              "d2a14adb-8933-46a9-aa04-bc92b3bb3bd9"
+            ],
+            "needs_practice": false,
+            "estimated_minutes": 15
+          },
+          {
+            "id": "4efa8dd2-84aa-4c2e-b729-62d6c2ff04c0",
+            "title": "Responder a preguntas de clientes",
+            "summary": "Los empleados aprenden a responder adecuadamente a las preguntas de los clientes sobre alergenos, sin citar artículos de ley inventados.",
+            "criticality": "recommended",
+            "position": 3,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": true,
+            "locked_by": [
+              "d2a14adb-8933-46a9-aa04-bc92b3bb3bd9"
+            ],
+            "needs_practice": false,
+            "estimated_minutes": 12
+          },
+          {
+            "id": "10503648-84b6-4925-95fa-d31a011e561f",
+            "title": "Prácticas seguras en la manipulación de alimentos",
+            "summary": "Este tema analiza las mejores prácticas para la manipulación de alimentos en la cafetería-panadería, enfocándose en la seguridad y la prevención de alergias.",
+            "criticality": "recommended",
+            "position": 4,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": true,
+            "locked_by": [
+              "d2a14adb-8933-46a9-aa04-bc92b3bb3bd9"
+            ],
+            "needs_practice": false,
+            "estimated_minutes": 18
+          }
+        ],
+        "can_complete": false,
+        "blocked_by": [
+          "d2a14adb-8933-46a9-aa04-bc92b3bb3bd9"
+        ],
+        "progress_percent": 0
+      }
+    },
+    {
+      "course": {
+        "id": "1d44486f-fdb0-48ed-8407-1d71de2dfcf1",
+        "title": "Uso del extintor en el almacen",
+        "description": "Almacen de una pyme. El empleado debe usar un extintor de CO2 o polvo en un conato, sin inventar normativa con articulos. Pasos PAS, tipos de fuego, cuando no usarlo y avisar.",
+        "outcome": null,
+        "status": "published",
+        "source_document_id": null,
+        "folder_id": null,
+        "folder_name": null,
+        "created_at": "2026-08-13T09:55:58.422012Z",
+        "updated_at": "2026-08-13T09:57:54.138692Z",
+        "module_count": 0,
+        "node_count": 5,
+        "schema_status": "validated",
+        "delivery_mode": "dynamic",
+        "artifact_generate_policy": "admin",
+        "artifact_generator_ids": [],
+        "can_generate_artifacts": true
+      },
+      "nodes": [
+        {
+          "node": {
+            "id": "eca47f16-3474-4d91-be72-75a3dfaf3783",
+            "title": "Tipos de fuego",
+            "summary": "Se explican los diferentes tipos de fuego y cómo cada uno requiere un enfoque específico para su extinción.",
+            "criticality": "recommended",
+            "position": 1,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": false,
+            "locked_by": [],
+            "needs_practice": false,
+            "estimated_minutes": 10
+          },
+          "render": {
+            "meta": {
+              "render_id": "eb1f5998-09e7-441f-89d9-79bf02385590",
+              "ui_format": "explanation",
+              "status": "ready",
+              "backend": "openui",
+              "cached": true
+            },
+            "program": "root = Stack([intro, tabla, practica], \"md\")\nintro = TextContent(\"Un incendio en la cocina requiere identificar el tipo de fuego para actuar correctamente.\", \"lead\")\ntabla = Table([\"Tipo de fuego\", \"Descripción\"], [[\"Fuego de clase A\", \"Materiales sólidos como madera y papel.\"], [\"Fuego de clase B\", \"Líquidos inflamables como aceites y combustibles.\"], [\"Fuego de clase C\", \"Equipos eléctricos.\"], [\"Fuego de clase D\", \"Metales combustibles.\"]])\npractica = DidactTimeline(\"Manejo de fuegos en hostelería\", [\"Identificar el tipo de fuego\", \"Seleccionar el extintor adecuado\", \"Aplicar la técnica de extinción\"], [\"Para fuegos de clase A, usar agua.\", \"Para fuegos de clase B, un extintor de espuma.\", \"Para fuegos de clase C, CO2.\"])\n",
+            "characters": 735,
+            "lines": 4,
+            "components": [
+              "DidactTimeline",
+              "Stack",
+              "Table",
+              "TextContent"
+            ],
+            "quiz_items": []
+          },
+          "answers": []
+        },
+        {
+          "node": {
+            "id": "16a99e99-4fec-4da0-834d-1e56673cc92e",
+            "title": "Cuándo no usar un extintor",
+            "summary": "Este tema aborda las situaciones en las que no se debe utilizar un extintor, para evitar agravar el incendio.",
+            "criticality": "critical",
+            "position": 2,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": false,
+            "locked_by": [],
+            "needs_practice": false,
+            "estimated_minutes": 8
+          },
+          "render": {
+            "meta": {
+              "render_id": "611ac0ef-2315-438a-863e-629fd49d9dbf",
+              "ui_format": "explanation",
+              "status": "ready",
+              "backend": "openui",
+              "cached": true
+            },
+            "program": "root = Stack([lead, concepto, practica], \"md\")\nlead = TextContent(\"Un incendio se desata en la cocina: como gerente, debes evaluar si usar un extintor es la mejor opción.\", \"lead\")\nconcepto = Table([\"Situación\", \"Por qué no usar un extintor\"], [[\"Fuego en un equipo eléctrico\", \"Puede provocar electrocución.\"], [\"Fuego de líquidos inflamables\", \"Puede esparcir el fuego.\"], [\"Fuego en una zona cerrada\", \"El extintor puede no ser efectivo y agravar la situación.\"]])\npractica = DidactGlossary(\"Situaciones en las que no usar un extintor\", [\"Fuego en un equipo eléctrico\", \"Fuego de líquidos inflamables\", \"Fuego en una zona cerrada\"], [\"No usar un extintor puede provocar electrocución.\", \"El uso de un extintor puede esparcir el fuego.\", \"En espacios cerrados, el extintor puede no ser efectivo.\"])\ncallout = Callout(\"warn\", \"No uses un extintor en situaciones donde su uso pueda agravar el incendio.\")\n",
+            "characters": 905,
+            "lines": 5,
+            "components": [
+              "Callout",
+              "DidactGlossary",
+              "Stack",
+              "Table",
+              "TextContent"
+            ],
+            "quiz_items": []
+          },
+          "answers": []
+        },
+        {
+          "node": {
+            "id": "44f3ac92-ddb9-44a8-857b-e6b1c91d80fa",
+            "title": "Pasos PAS",
+            "summary": "Se detallan los pasos a seguir en la técnica PAS (Proteger, Avisar, Sofocar) para manejar un conato de incendio de manera efectiva.",
+            "criticality": "critical",
+            "position": 3,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": false,
+            "locked_by": [],
+            "needs_practice": false,
+            "estimated_minutes": 12
+          },
+          "render": {
+            "meta": {
+              "render_id": "356ee669-a50e-4239-8a63-a7714c0d6896",
+              "ui_format": "explanation",
+              "status": "ready",
+              "backend": "openui",
+              "cached": true
+            },
+            "program": "root = Stack([lead, concepto, practica], \"md\")\nlead = TextContent(\"Un conato de fuego en la cocina: debes actuar rápido y con eficacia.\", \"lead\")\nconcepto = Table([\"Paso\", \"Descripción\"], [[\"Proteger\", \"Asegúrate de que todos estén a salvo y fuera del área.\"], [\"Avisar\", \"Informa al personal y llama a los servicios de emergencia.\"], [\"Sofocar\", \"Utiliza el extintor adecuado para apagar el fuego.\"]])\npractica = DidactTimeline(\"Técnica PAS\", [\"Proteger\", \"Avisar\", \"Sofocar\"], [\"Asegúrate de que todos estén a salvo.\", \"Informa al personal y llama a los servicios de emergencia.\", \"Utiliza el extintor adecuado.\"])\ncallout = Callout(\"warn\", \"Actuar sin seguir estos pasos puede agravar la situación y poner en riesgo a otros.\")\n",
+            "characters": 730,
+            "lines": 5,
+            "components": [
+              "Callout",
+              "DidactTimeline",
+              "Stack",
+              "Table",
+              "TextContent"
+            ],
+            "quiz_items": []
+          },
+          "answers": []
+        },
+        {
+          "node": {
+            "id": "61fe1f4b-3bd0-43c5-93ab-f966677e34cf",
+            "title": "Importancia de avisar",
+            "summary": "Se enfatiza la necesidad de avisar a otros en caso de un incendio, asegurando la seguridad de todos en el almacén.",
+            "criticality": "recommended",
+            "position": 4,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": false,
+            "locked_by": [],
+            "needs_practice": false,
+            "estimated_minutes": 5
+          },
+          "render": {
+            "meta": {
+              "render_id": "61479817-1af5-4a61-9340-7eb2e2eb8a5c",
+              "ui_format": "explanation",
+              "status": "ready",
+              "backend": "openui",
+              "cached": true
+            },
+            "program": "root = Stack([lead, concepto, practica], \"md\")\nlead = TextContent(\"Un incendio se declara en el almacén. Es crucial avisar a todos para garantizar la seguridad.\", \"lead\")\nconcepto = Table([\"Acción\", \"Descripción\"], [[\"Avisar al personal\", \"Informar a todos los empleados sobre la situación.\"], [\"Contactar a los bomberos\", \"Llamar al servicio de emergencia para que acudan al lugar.\"], [\"Dirigir la evacuación\", \"Guiar a los empleados hacia las salidas de emergencia.\"]])\npractica = DidactTimeline(\"Procedimiento de aviso en caso de incendio\", [\"Identificar el incendio\", \"Avisar al personal\", \"Contactar a los bomberos\", \"Dirigir la evacuación\"], [\"Detectar el origen del fuego y su magnitud.\", \"Informar a todos los empleados presentes en el almacén.\", \"Realizar la llamada al 112 o al número de emergencia correspondiente.\", \"Asegurarse de que todos sigan las rutas de evacuación establecidas.\"])\n",
+            "characters": 900,
+            "lines": 4,
+            "components": [
+              "DidactTimeline",
+              "Stack",
+              "Table",
+              "TextContent"
+            ],
+            "quiz_items": []
+          },
+          "answers": []
+        }
+      ],
+      "errors": [],
+      "enrollment_status": 409,
+      "enrollment": {
+        "detail": "User 93513580-1a4e-4679-89c7-0d2f349d70ad is already enrolled in this course",
+        "code": "CONFLICT",
+        "field": null
+      },
+      "node_list": {
+        "course_id": "1d44486f-fdb0-48ed-8407-1d71de2dfcf1",
+        "delivery_mode": "dynamic",
+        "schema_version": 2,
+        "nodes": [
+          {
+            "id": "eca47f16-3474-4d91-be72-75a3dfaf3783",
+            "title": "Tipos de fuego",
+            "summary": "Se explican los diferentes tipos de fuego y cómo cada uno requiere un enfoque específico para su extinción.",
+            "criticality": "recommended",
+            "position": 1,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": false,
+            "locked_by": [],
+            "needs_practice": false,
+            "estimated_minutes": 10
+          },
+          {
+            "id": "16a99e99-4fec-4da0-834d-1e56673cc92e",
+            "title": "Cuándo no usar un extintor",
+            "summary": "Este tema aborda las situaciones en las que no se debe utilizar un extintor, para evitar agravar el incendio.",
+            "criticality": "critical",
+            "position": 2,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": false,
+            "locked_by": [],
+            "needs_practice": false,
+            "estimated_minutes": 8
+          },
+          {
+            "id": "44f3ac92-ddb9-44a8-857b-e6b1c91d80fa",
+            "title": "Pasos PAS",
+            "summary": "Se detallan los pasos a seguir en la técnica PAS (Proteger, Avisar, Sofocar) para manejar un conato de incendio de manera efectiva.",
+            "criticality": "critical",
+            "position": 3,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": false,
+            "locked_by": [],
+            "needs_practice": false,
+            "estimated_minutes": 12
+          },
+          {
+            "id": "61fe1f4b-3bd0-43c5-93ab-f966677e34cf",
+            "title": "Importancia de avisar",
+            "summary": "Se enfatiza la necesidad de avisar a otros en caso de un incendio, asegurando la seguridad de todos en el almacén.",
+            "criticality": "recommended",
+            "position": 4,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": false,
+            "locked_by": [],
+            "needs_practice": false,
+            "estimated_minutes": 5
+          },
+          {
+            "id": "581a5a50-e1a9-4912-8763-799b1ec1dd06",
+            "title": "Uso del extintor",
+            "summary": "Este tema cubre los procedimientos prácticos para utilizar un extintor de CO2 o polvo en caso de un conato de incendio en el almacén.",
+            "criticality": "critical",
+            "position": 5,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": false,
+            "locked_by": [],
+            "needs_practice": false,
+            "estimated_minutes": 15
+          }
+        ],
+        "can_complete": false,
+        "blocked_by": [
+          "16a99e99-4fec-4da0-834d-1e56673cc92e",
+          "44f3ac92-ddb9-44a8-857b-e6b1c91d80fa",
+          "581a5a50-e1a9-4912-8763-799b1ec1dd06"
+        ],
+        "progress_percent": 0
+      }
+    },
+    {
+      "course": {
+        "id": "4ea2844e-1327-46ba-84bc-5231f431d80e",
+        "title": "Devoluciones en tienda",
+        "description": "Pyme de barrio. El empleado debe saber plazos, estado del producto, ticket y cuando escalar al encargado.",
+        "outcome": null,
+        "status": "published",
+        "source_document_id": null,
+        "folder_id": null,
+        "folder_name": null,
+        "created_at": "2026-08-13T09:54:52.421662Z",
+        "updated_at": "2026-08-13T09:55:58.794227Z",
+        "module_count": 0,
+        "node_count": 6,
+        "schema_status": "validated",
+        "delivery_mode": "dynamic",
+        "artifact_generate_policy": "admin",
+        "artifact_generator_ids": [],
+        "can_generate_artifacts": true
+      },
+      "nodes": [
+        {
+          "node": {
+            "id": "9e7d1d87-c7ca-4922-8987-a3707982a960",
+            "title": "Conceptos Básicos de Devoluciones",
+            "summary": "El empleado debe recordar los conceptos fundamentales sobre devoluciones, incluyendo plazos y requisitos.",
+            "criticality": "critical",
+            "position": 1,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": false,
+            "locked_by": [],
+            "needs_practice": false,
+            "estimated_minutes": 10
+          },
+          "render": {
+            "meta": {
+              "render_id": "166365f7-8895-4d0e-916e-70582d0fdd28",
+              "ui_format": "explanation",
+              "status": "ready",
+              "backend": "openui",
+              "cached": true
+            },
+            "program": "root = Stack([introduccion, conceptos, practica], \"md\")\nintroduccion = TextContent(\"Un cliente solicita una devolución por un plato que no cumplió sus expectativas.\", \"lead\")\nconceptos = Table([\"Concepto\", \"Descripción\"], [[\"Plazo de devolución\", \"El cliente tiene 14 días para devolver el producto.\"], [\"Requisitos\", \"El producto debe estar en su estado original y con el ticket de compra.\"]])\npractica = DidactTimeline(\"Proceso de Devolución\", [\"Recepción de la solicitud\", \"Verificación de requisitos\", \"Procesar la devolución\"], [\"Recibir la solicitud del cliente y escuchar sus motivos.\", \"Comprobar que el producto está en condiciones y que se tiene el ticket.\", \"Realizar la devolución del importe o cambio del producto.\"])\n",
+            "characters": 731,
+            "lines": 4,
+            "components": [
+              "DidactTimeline",
+              "Stack",
+              "Table",
+              "TextContent"
+            ],
+            "quiz_items": []
+          },
+          "answers": []
+        },
+        {
+          "node": {
+            "id": "5f08b05c-edeb-4120-9b02-d0798d84c679",
+            "title": "Estado del Producto",
+            "summary": "Comprender la importancia del estado del producto en el proceso de devoluciones y cómo afecta la decisión del cliente.",
+            "criticality": "recommended",
+            "position": 2,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": false,
+            "locked_by": [],
+            "needs_practice": false,
+            "estimated_minutes": 8
+          },
+          "render": {
+            "meta": {
+              "render_id": "461cb91b-954f-4399-962c-c644a098eb3c",
+              "ui_format": "explanation",
+              "status": "ready",
+              "backend": "openui",
+              "cached": true
+            },
+            "program": "root = Stack([lead, concepto, practica], \"md\")\nlead = TextContent(\"Un cliente solicita la devolución de un producto dañado. Como gerente, debes evaluar su estado.\", \"lead\")\nconcepto = Table([\"Estado del Producto\", \"Impacto en Devoluciones\"], [[\"Nuevo\", \"Aceptación inmediata de la devolución.\"], [\"Usado\", \"Evaluación adicional necesaria.\"], [\"Dañado\", \"Posible rechazo de la devolución.\"]])\npractica = DidactTimeline(\"Proceso de Evaluación de Devoluciones\", [\"Recepción de la solicitud\", \"Inspección del producto\", \"Decisión sobre la devolución\"], [\"Revisar el estado del producto y decidir si se acepta la devolución.\", \"\", \"\"])\n",
+            "characters": 631,
+            "lines": 4,
+            "components": [
+              "DidactTimeline",
+              "Stack",
+              "Table",
+              "TextContent"
+            ],
+            "quiz_items": []
+          },
+          "answers": []
+        },
+        {
+          "node": {
+            "id": "4d211443-5b69-4373-bb74-5fe66a9fd763",
+            "title": "Manejo de Tickets de Devolución",
+            "summary": "Aplicar el conocimiento sobre cómo manejar y verificar los tickets de devolución para facilitar el proceso.",
+            "criticality": "critical",
+            "position": 3,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": false,
+            "locked_by": [],
+            "needs_practice": false,
+            "estimated_minutes": 15
+          },
+          "render": {
+            "meta": {
+              "render_id": "c42ca608-cfc7-41bf-abd7-5eb3444c78d3",
+              "ui_format": "explanation",
+              "status": "ready",
+              "backend": "openui",
+              "cached": true
+            },
+            "program": "root = Stack([lead, concepto, practica], \"md\")\nlead = TextContent(\"Un cliente devuelve un plato por no estar satisfecho. Debes manejar el ticket de devolución correctamente.\", \"lead\")\nconcepto = Table([\"Paso\", \"Descripción\"], [[\"Verificar el ticket\", \"Comprobar que el ticket esté completo y firmado.\"], [\"Registrar la devolución\", \"Anotar el motivo de la devolución en el sistema.\"], [\"Reembolsar al cliente\", \"Realizar el reembolso según la política de la empresa.\"]])\npractica = DidactWorkedExample(\"Manejo de un ticket de devolución\", [\"Verificar que el ticket esté completo\", \"Registrar el motivo de la devolución\", \"Realizar el reembolso al cliente\"], \"El manejo correcto de un ticket de devolución asegura la satisfacción del cliente y el cumplimiento de la política de la empresa.\")\ncallout = Callout(\"warn\", \"Es obligatorio verificar que el ticket esté completo antes de proceder con la devolución.\")\n",
+            "characters": 910,
+            "lines": 5,
+            "components": [
+              "Callout",
+              "DidactWorkedExample",
+              "Stack",
+              "Table",
+              "TextContent"
+            ],
+            "quiz_items": []
+          },
+          "answers": []
+        },
+        {
+          "node": {
+            "id": "6ca6bc19-ee89-41a1-a520-5c3f369d95b1",
+            "title": "Proceso de Escalación",
+            "summary": "Saber cuándo y cómo escalar una situación al encargado, asegurando que se sigan los protocolos adecuados.",
+            "criticality": "recommended",
+            "position": 4,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": false,
+            "locked_by": [],
+            "needs_practice": false,
+            "estimated_minutes": 12
+          },
+          "render": {
+            "meta": {
+              "render_id": "a110b392-1771-4149-9907-0c4178c4e93c",
+              "ui_format": "explanation",
+              "status": "ready",
+              "backend": "openui",
+              "cached": true
+            },
+            "program": "root = Stack([lead, concepto, practica], \"md\")\nlead = TextContent(\"Un cliente se queja de un servicio inadecuado. Debes decidir si escalar la situación.\", \"lead\")\nconcepto = Table([\"Situación\", \"Acción a Escalar\"], [[\"Queja de un cliente\", \"Informar al encargado\"], [\"Problema de suministro\", \"Notificar al encargado\"], [\"Incidente de seguridad\", \"Escalar inmediatamente al encargado\"]])\npractica = DidactTimeline(\"Proceso de Escalación\", [\"Identificar la situación\", \"Evaluar la gravedad\", \"Escalar al encargado\"], [\"Determinar si la queja es válida y si requiere atención inmediata.\", \"Evaluar si el problema afecta a otros clientes.\", \"Escalar al encargado si es necesario.\"])\n",
+            "characters": 680,
+            "lines": 4,
+            "components": [
+              "DidactTimeline",
+              "Stack",
+              "Table",
+              "TextContent"
+            ],
+            "quiz_items": []
+          },
+          "answers": []
+        }
+      ],
+      "errors": [],
+      "enrollment_status": 201,
+      "enrollment": [
+        {
+          "id": "1f1f9eea-8b76-45b0-9a75-ff0038473620",
+          "course_id": "4ea2844e-1327-46ba-84bc-5231f431d80e",
+          "user_id": "93513580-1a4e-4679-89c7-0d2f349d70ad",
+          "status": "assigned",
+          "deadline": null,
+          "score": null,
+          "progress": 0.0,
+          "course_title": "Devoluciones en tienda",
+          "started_at": null,
+          "completed_at": null,
+          "delivery_mode": "dynamic"
+        }
+      ],
+      "node_list": {
+        "course_id": "4ea2844e-1327-46ba-84bc-5231f431d80e",
+        "delivery_mode": "dynamic",
+        "schema_version": 2,
+        "nodes": [
+          {
+            "id": "9e7d1d87-c7ca-4922-8987-a3707982a960",
+            "title": "Conceptos Básicos de Devoluciones",
+            "summary": "El empleado debe recordar los conceptos fundamentales sobre devoluciones, incluyendo plazos y requisitos.",
+            "criticality": "critical",
+            "position": 1,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": false,
+            "locked_by": [],
+            "needs_practice": false,
+            "estimated_minutes": 10
+          },
+          {
+            "id": "5f08b05c-edeb-4120-9b02-d0798d84c679",
+            "title": "Estado del Producto",
+            "summary": "Comprender la importancia del estado del producto en el proceso de devoluciones y cómo afecta la decisión del cliente.",
+            "criticality": "recommended",
+            "position": 2,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": false,
+            "locked_by": [],
+            "needs_practice": false,
+            "estimated_minutes": 8
+          },
+          {
+            "id": "4d211443-5b69-4373-bb74-5fe66a9fd763",
+            "title": "Manejo de Tickets de Devolución",
+            "summary": "Aplicar el conocimiento sobre cómo manejar y verificar los tickets de devolución para facilitar el proceso.",
+            "criticality": "critical",
+            "position": 3,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": false,
+            "locked_by": [],
+            "needs_practice": false,
+            "estimated_minutes": 15
+          },
+          {
+            "id": "6ca6bc19-ee89-41a1-a520-5c3f369d95b1",
+            "title": "Proceso de Escalación",
+            "summary": "Saber cuándo y cómo escalar una situación al encargado, asegurando que se sigan los protocolos adecuados.",
+            "criticality": "recommended",
+            "position": 4,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": false,
+            "locked_by": [],
+            "needs_practice": false,
+            "estimated_minutes": 12
+          },
+          {
+            "id": "8777578d-8390-4cee-8aa3-b4227a36c443",
+            "title": "Interacción con el Cliente",
+            "summary": "Desarrollar habilidades para interactuar con el cliente durante el proceso de devolución, asegurando una experiencia positiva.",
+            "criticality": "recommended",
+            "position": 5,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": false,
+            "locked_by": [],
+            "needs_practice": false,
+            "estimated_minutes": 10
+          },
+          {
+            "id": "24387d6f-9f38-4a5a-9d47-69f516c8137c",
+            "title": "Evaluación de Políticas de Devolución",
+            "summary": "Evaluar las políticas de devolución de la tienda para identificar áreas de mejora y asegurar su correcta implementación.",
+            "criticality": "contextual",
+            "position": 6,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": false,
+            "locked_by": [],
+            "needs_practice": false,
+            "estimated_minutes": 15
+          }
+        ],
+        "can_complete": false,
+        "blocked_by": [
+          "9e7d1d87-c7ca-4922-8987-a3707982a960",
+          "4d211443-5b69-4373-bb74-5fe66a9fd763"
+        ],
+        "progress_percent": 0
+      }
+    }
+  ],
+  "user": {
+    "id": "93513580-1a4e-4679-89c7-0d2f349d70ad",
+    "email": "gerente.ocupado@skillnet-test.example",
+    "full_name": "Sara Mena",
+    "role": "employee"
+  },
+  "profile_saved": {
+    "role_title": "Gerente",
+    "sector": "hosteleria",
+    "goal": "specific_gap",
+    "experience_level": "some",
+    "preset": "fast",
+    "learning_preferences": {
+      "version": 2,
+      "modality": "text",
+      "interaction": "standard",
+      "detail": "concise",
+      "images": "avoid"
+    },
+    "nodes_completed": 5,
+    "onboarding_completed_at": "2026-08-13T23:28:15.504708Z",
+    "onboarding_skipped": false,
+    "calibrating": false
+  },
+  "profile_counters_updated": true,
+  "resolved_courses": [
+    {
+      "id": "4c9d4c13-77ed-4cc8-a9d8-84fcff4fa286",
+      "title": "Alergenos en la carta"
+    },
+    {
+      "id": "1d44486f-fdb0-48ed-8407-1d71de2dfcf1",
+      "title": "Uso del extintor en el almacen"
+    },
+    {
+      "id": "4ea2844e-1327-46ba-84bc-5231f431d80e",
+      "title": "Devoluciones en tienda"
+    }
+  ],
+  "duration_s": 93.937,
+  "finished_at": "2026-08-13T23:29:48.506430+00:00"
+}

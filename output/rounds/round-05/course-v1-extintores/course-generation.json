@@ -1,0 +1,89 @@
+{
+  "kind": "v1",
+  "idea": {
+    "slug": "v1-extintores",
+    "kind": "v1",
+    "title": "Seguridad con extintores",
+    "course_title": "Extintores: actuar en los primeros segundos",
+    "description": "Curso breve para personal de hostelería.",
+    "idea": "Explica cómo reconocer un conato, elegir el extintor adecuado, aplicar la regla PAS, mantener una vía de evacuación y avisar al responsable. Incluye situaciones de una cafetería."
+  },
+  "started_at": "2026-08-13T23:54:08.170449+00:00",
+  "errors": [],
+  "document": {
+    "id": "98b28125-b244-4558-b4aa-dc09df22af2f",
+    "title": "Seguridad con extintores",
+    "file_type": "md",
+    "page_count": null,
+    "size_bytes": 3325,
+    "status": "processing",
+    "origin": "generated",
+    "error_message": null,
+    "created_at": "2026-08-13T23:54:09.143360Z"
+  },
+  "document_ready": {
+    "id": "98b28125-b244-4558-b4aa-dc09df22af2f",
+    "title": "Seguridad con extintores",
+    "file_type": "md",
+    "page_count": 1,
+    "size_bytes": 3325,
+    "status": "ready",
+    "origin": "generated",
+    "error_message": null,
+    "created_at": "2026-08-13T23:54:09.143360Z"
+  },
+  "course": {
+    "id": "c2255669-918f-40e1-ba33-377262ce1832",
+    "title": "Extintores: actuar en los primeros segundos",
+    "description": "Curso breve para personal de hostelería.",
+    "outcome": null,
+    "status": "draft",
+    "source_document_id": "98b28125-b244-4558-b4aa-dc09df22af2f",
+    "folder_id": null,
+    "folder_name": null,
+    "created_at": "2026-08-13T23:54:57.915327Z",
+    "updated_at": "2026-08-13T23:54:57.915327Z",
+    "module_count": 0,
+    "node_count": null,
+    "schema_status": "draft",
+    "delivery_mode": "static",
+    "artifact_generate_policy": "admin",
+    "artifact_generator_ids": [],
+    "can_generate_artifacts": true
+  },
+  "generation_accepted": {
+    "job_id": "67fa6a2b-0f50-4c37-9a3b-4ad30c14248d"
+  },
+  "generation_job": {
+    "id": "67fa6a2b-0f50-4c37-9a3b-4ad30c14248d",
+    "status": "failed",
+    "output_type": "course_and_manual",
+    "progress": {},
+    "result_course_id": "c2255669-918f-40e1-ba33-377262ce1832",
+    "error_message": "[publish] DBAPIError: (sqlalchemy.dialects.postgresql.asyncpg.Error) <class 'asyncpg.exceptions.DataError'>: invalid input for query argument $3: {'question': '¿Cuál es el primer paso qu... (expected str, got dict)\n[SQL: INSERT INTO lessons (module_id, title, content, position) VALUES ($1::UUID, $2::VARCHAR, $3::VARCHAR, $4::INTEGER) RETURNING lessons.id, lessons.created_at, lessons.updated_at]\n[parameters: (UUID('0d322c24-d49e-49ed-9611-5aed401a8a36'), 'Ejercicio práctico de uso de extintor', {'question': '¿Cuál es ",
+    "created_at": "2026-08-13T23:54:57.968979Z",
+    "updated_at": "2026-08-13T23:56:37.534736Z"
+  },
+  "course_detail": {
+    "id": "c2255669-918f-40e1-ba33-377262ce1832",
+    "title": "Extintores: actuar en los primeros segundos",
+    "description": "Curso breve para personal de hostelería.",
+    "outcome": null,
+    "status": "draft",
+    "source_document_id": "98b28125-b244-4558-b4aa-dc09df22af2f",
+    "folder_id": null,
+    "folder_name": null,
+    "created_at": "2026-08-13T23:54:57.915327Z",
+    "updated_at": "2026-08-13T23:54:57.915327Z",
+    "module_count": 0,
+    "node_count": 0,
+    "schema_status": "draft",
+    "delivery_mode": "static",
+    "artifact_generate_policy": "admin",
+    "artifact_generator_ids": [],
+    "can_generate_artifacts": true,
+    "modules": []
+  },
+  "duration_s": 150.031,
+  "finished_at": "2026-08-13T23:56:38.187729+00:00"
+}

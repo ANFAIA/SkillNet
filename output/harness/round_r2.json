@@ -1,0 +1,9 @@
+{
+  "base_url": "http://localhost:3000",
+  "admin_email": "admin@skillnet.dev",
+  "http_timeout": 25,
+  "render_timeout": 180,
+  "max_nodes": 4,
+  "force": true,
+  "courses": ["Alergenos en la carta", "Uso del extintor en el almacen", "Servicio de sala"]
+}

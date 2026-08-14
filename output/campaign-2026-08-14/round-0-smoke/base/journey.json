@@ -1,0 +1,238 @@
+{
+  "profile": {
+    "slug": "base",
+    "email": "campaign.base@skillnet-test.example",
+    "full_name": "Campaign Base",
+    "role_title": "Camarera",
+    "sector": "hosteleria",
+    "goal": "onboarding",
+    "experience_level": "none",
+    "preset": "standard",
+    "accessibility": {
+      "short_blocks": false,
+      "reduce_motion": false,
+      "high_contrast": false,
+      "extra_time": false
+    },
+    "learning_preferences": {
+      "version": 1,
+      "presentation": "balanced",
+      "detail": "standard",
+      "images": "when_useful"
+    },
+    "nodes_completed": 0,
+    "answer_strategy": "last"
+  },
+  "started_at": "2026-08-14T07:37:11.239668+00:00",
+  "errors": [],
+  "courses": [
+    {
+      "course": {
+        "id": "7b791505-2f79-4cdc-8680-e9f0c9a7bbcc",
+        "title": "Alergenos: responder y actuar",
+        "description": "Entrenamiento práctico para atención al cliente.",
+        "outcome": null,
+        "status": "published",
+        "source_document_id": "3e4409db-03ab-410d-8022-699f04136dfc",
+        "folder_id": null,
+        "folder_name": null,
+        "created_at": "2026-08-13T23:44:51.175079Z",
+        "updated_at": "2026-08-13T23:45:03.962864Z",
+        "module_count": 0,
+        "node_count": 6,
+        "schema_status": "validated",
+        "delivery_mode": "dynamic",
+        "artifact_generate_policy": "admin",
+        "artifact_generator_ids": [],
+        "can_generate_artifacts": true
+      },
+      "nodes": [
+        {
+          "node": {
+            "id": "1b7b0cfc-6c96-4347-9dab-b3cc75eb83c2",
+            "title": "Lista de alérgenos comunes",
+            "summary": "Este tema cubre los alérgenos más comunes que pueden estar presentes en los alimentos, como gluten, crustáceos y lácteos.",
+            "criticality": "critical",
+            "position": 1,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": false,
+            "locked_by": [],
+            "needs_practice": false,
+            "estimated_minutes": 10
+          },
+          "render": {
+            "meta": {
+              "render_id": "78764cef-cfb8-42b4-bc19-dfa91ae531f0",
+              "ui_format": "explanation",
+              "status": "ready",
+              "backend": "openui",
+              "cached": true
+            },
+            "program": "root = Stack([introduccion, pasos, practica], \"md\")\nintroduccion = TextContent(\"Un cliente pregunta si un plato contiene gluten. Debes saber identificar los alérgenos.\", \"lead\")\npasos = StepSequence(\"Procedimiento para identificar alérgenos\", [\"Revisar las etiquetas de los productos alimenticios.\", \"Consultar las fichas técnicas de los ingredientes.\", \"Mantener actualizada una lista de alérgenos en los menús.\", \"Acceder al archivo físico o digital donde se almacenan las fichas.\", \"Localizar la ficha del producto en cuestión.\", \"Verificar la información sobre alérgenos y otros ingredientes.\", \"Utilizar utensilios y superficies diferentes para alérgenos y alimentos sin alérgenos.\", \"Limpiar adecuadamente las superficies y utensilios después de su uso.\", \"Almacenar los ingredientes con alérgenos en contenedores claramente etiquetados.\", \"Escuchar atentamente la consulta del cliente.\"])\npractica = Flashcard(\"¿Cuáles son los alérgenos más comunes en los alimentos?\", \"Gluten, crustáceos, huevos, pescado, cacahuetes, soja, lácteos, frutos secos, apio, mostaza, sésamo, sulfitos, altramuces.\")\n",
+            "characters": 1102,
+            "lines": 4,
+            "components": [
+              "Flashcard",
+              "Stack",
+              "StepSequence",
+              "TextContent"
+            ],
+            "quiz_items": []
+          },
+          "answers": []
+        }
+      ],
+      "errors": [],
+      "enrollment_status": 201,
+      "enrollment": [
+        {
+          "id": "663ef7df-bc09-4b3d-9f5d-b5feb3d0b066",
+          "course_id": "7b791505-2f79-4cdc-8680-e9f0c9a7bbcc",
+          "user_id": "27994b49-42ef-4808-90a4-ef7a989ebd18",
+          "status": "assigned",
+          "deadline": null,
+          "score": null,
+          "progress": 0.0,
+          "course_title": "Alergenos: responder y actuar",
+          "started_at": null,
+          "completed_at": null,
+          "delivery_mode": "dynamic"
+        }
+      ],
+      "node_list": {
+        "course_id": "7b791505-2f79-4cdc-8680-e9f0c9a7bbcc",
+        "delivery_mode": "dynamic",
+        "schema_version": 1,
+        "nodes": [
+          {
+            "id": "1b7b0cfc-6c96-4347-9dab-b3cc75eb83c2",
+            "title": "Lista de alérgenos comunes",
+            "summary": "Este tema cubre los alérgenos más comunes que pueden estar presentes en los alimentos, como gluten, crustáceos y lácteos.",
+            "criticality": "critical",
+            "position": 1,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": false,
+            "locked_by": [],
+            "needs_practice": false,
+            "estimated_minutes": 10
+          },
+          {
+            "id": "cc8b618e-6ff5-43d9-ab2a-4ca4cfaaec57",
+            "title": "Formación y Capacitación",
+            "summary": "Se discute la importancia de la formación continua sobre alérgenos, incluyendo la frecuencia y el contenido de las sesiones de capacitación.",
+            "criticality": "contextual",
+            "position": 2,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": false,
+            "locked_by": [],
+            "needs_practice": false,
+            "estimated_minutes": 8
+          },
+          {
+            "id": "cd1532ed-3c7d-4f8b-a4e8-600d316b197b",
+            "title": "Procedimiento para identificar alérgenos en productos",
+            "summary": "Se describen los pasos necesarios para identificar alérgenos en productos alimenticios, incluyendo la revisión de etiquetas y fichas técnicas.",
+            "criticality": "critical",
+            "position": 3,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": true,
+            "locked_by": [
+              "1b7b0cfc-6c96-4347-9dab-b3cc75eb83c2"
+            ],
+            "needs_practice": false,
+            "estimated_minutes": 15
+          },
+          {
+            "id": "5742a399-bbf4-4819-b92a-bdefc40235f1",
+            "title": "Respuesta ante Dudas de Clientes",
+            "summary": "Este tema detalla los pasos a seguir para responder a las consultas de los clientes sobre alérgenos, incluyendo ejemplos de casos prácticos.",
+            "criticality": "recommended",
+            "position": 4,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": true,
+            "locked_by": [
+              "1b7b0cfc-6c96-4347-9dab-b3cc75eb83c2"
+            ],
+            "needs_practice": false,
+            "estimated_minutes": 10
+          },
+          {
+            "id": "9f51c901-d617-47a2-b6c2-e74ff1538e07",
+            "title": "Consulta de Fichas Técnicas",
+            "summary": "Este tema aborda cómo acceder y verificar la información en las fichas técnicas de los productos para asegurar la correcta identificación de alérgenos.",
+            "criticality": "recommended",
+            "position": 5,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": true,
+            "locked_by": [
+              "cd1532ed-3c7d-4f8b-a4e8-600d316b197b"
+            ],
+            "needs_practice": false,
+            "estimated_minutes": 12
+          },
+          {
+            "id": "5a753e33-fc87-4f3a-be89-32a0a993f45b",
+            "title": "Prevención de Contaminación Cruzada",
+            "summary": "Se presentan medidas y procedimientos para evitar la contaminación cruzada en la cocina, asegurando la seguridad de los alimentos para personas con alergias.",
+            "criticality": "critical",
+            "position": 6,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": true,
+            "locked_by": [
+              "cd1532ed-3c7d-4f8b-a4e8-600d316b197b"
+            ],
+            "needs_practice": false,
+            "estimated_minutes": 15
+          }
+        ],
+        "can_complete": false,
+        "blocked_by": [
+          "1b7b0cfc-6c96-4347-9dab-b3cc75eb83c2",
+          "cd1532ed-3c7d-4f8b-a4e8-600d316b197b",
+          "5a753e33-fc87-4f3a-be89-32a0a993f45b"
+        ],
+        "progress_percent": 0
+      }
+    }
+  ],
+  "user": {
+    "id": "27994b49-42ef-4808-90a4-ef7a989ebd18",
+    "email": "campaign.base@skillnet-test.example",
+    "full_name": "Campaign Base",
+    "role": "employee"
+  },
+  "profile_saved": {
+    "role_title": "Camarera",
+    "sector": "hosteleria",
+    "goal": "onboarding",
+    "experience_level": "none",
+    "preset": "standard",
+    "learning_preferences": {
+      "version": 2,
+      "modality": "balanced",
+      "interaction": "standard",
+      "detail": "standard",
+      "images": "when_useful"
+    },
+    "nodes_completed": 0,
+    "onboarding_completed_at": "2026-08-14T07:37:11.526601Z",
+    "onboarding_skipped": false,
+    "calibrating": true
+  },
+  "profile_counters_updated": true,
+  "resolved_courses": [
+    {
+      "id": "7b791505-2f79-4cdc-8680-e9f0c9a7bbcc",
+      "title": "Alergenos: responder y actuar"
+    }
+  ],
+  "duration_s": 15.25,
+  "finished_at": "2026-08-14T07:37:26.498325+00:00"
+}

@@ -1,0 +1,536 @@
+{
+  "kind": "v2",
+  "idea": {
+    "slug": "v2-alergenos",
+    "kind": "v2",
+    "title": "Servicio seguro de alergenos",
+    "course_title": "Alergenos: responder y actuar",
+    "description": "Entrenamiento práctico para atención al cliente.",
+    "idea": "El aprendiz debe identificar alergenos, consultar fichas sin improvisar, evitar contaminación cruzada y responder ante una duda de un cliente. Divide el curso en acciones observables y casos de trabajo."
+  },
+  "started_at": "2026-08-13T23:14:37.129927+00:00",
+  "errors": [],
+  "document": {
+    "id": "bdeb8b8c-8184-460e-9a32-ee2700ab981c",
+    "title": "Servicio seguro de alergenos",
+    "file_type": "md",
+    "page_count": null,
+    "size_bytes": 2875,
+    "status": "processing",
+    "origin": "generated",
+    "error_message": null,
+    "created_at": "2026-08-13T23:14:38.450915Z"
+  },
+  "document_ready": {
+    "id": "bdeb8b8c-8184-460e-9a32-ee2700ab981c",
+    "title": "Servicio seguro de alergenos",
+    "file_type": "md",
+    "page_count": 1,
+    "size_bytes": 2875,
+    "status": "ready",
+    "origin": "generated",
+    "error_message": null,
+    "created_at": "2026-08-13T23:14:38.450915Z"
+  },
+  "course": {
+    "id": "026ec847-0035-47d0-907f-56bd2bc501b7",
+    "title": "Alergenos: responder y actuar",
+    "description": "Entrenamiento práctico para atención al cliente.",
+    "outcome": null,
+    "status": "draft",
+    "source_document_id": "bdeb8b8c-8184-460e-9a32-ee2700ab981c",
+    "folder_id": null,
+    "folder_name": null,
+    "created_at": "2026-08-13T23:15:19.618445Z",
+    "updated_at": "2026-08-13T23:15:19.618445Z",
+    "module_count": 0,
+    "node_count": null,
+    "schema_status": "draft",
+    "delivery_mode": "static",
+    "artifact_generate_policy": "admin",
+    "artifact_generator_ids": [],
+    "can_generate_artifacts": true
+  },
+  "schema_accepted": {
+    "job_id": "73d9321c-f007-4740-afaa-a054286db925"
+  },
+  "schema_job": {
+    "id": "73d9321c-f007-4740-afaa-a054286db925",
+    "status": "schema_proposed",
+    "output_type": "course_and_manual",
+    "progress": {
+      "node_count": 6,
+      "proposed_nodes": [
+        {
+          "title": "Lista de alérgenos comunes",
+          "summary": "Se presenta una lista de alérgenos comunes que deben ser conocidos por el personal, incluyendo gluten, crustáceos, huevos, y otros.",
+          "position": 1,
+          "criticality": "critical",
+          "source_headings": []
+        },
+        {
+          "title": "Acciones a realizar",
+          "summary": "Instrucciones para familiarizarse con la lista de alérgenos y revisar menús e ingredientes para identificar su presencia.",
+          "position": 2,
+          "criticality": "recommended",
+          "source_headings": []
+        },
+        {
+          "title": "Consulta de fichas técnicas",
+          "summary": "Pasos para localizar y consultar fichas técnicas de productos, asegurando que la información sobre alérgenos y contaminantes esté actualizada.",
+          "position": 3,
+          "criticality": "recommended",
+          "source_headings": []
+        },
+        {
+          "title": "Prevención de contaminación cruzada",
+          "summary": "Medidas prácticas para evitar la contaminación cruzada entre alimentos que contienen alérgenos y aquellos que no.",
+          "position": 4,
+          "criticality": "critical",
+          "source_headings": []
+        },
+        {
+          "title": "Respuesta ante dudas de clientes",
+          "summary": "Pasos y frases útiles para atender consultas de clientes sobre alérgenos, asegurando una comunicación efectiva.",
+          "position": 5,
+          "criticality": "recommended",
+          "source_headings": []
+        },
+        {
+          "title": "Casos de trabajo",
+          "summary": "Análisis de situaciones específicas con clientes que tienen alergias, incluyendo la verificación de ingredientes y opciones seguras.",
+          "position": 6,
+          "criticality": "recommended",
+          "source_headings": []
+        }
+      ],
+      "schema_warnings": []
+    },
+    "result_course_id": "026ec847-0035-47d0-907f-56bd2bc501b7",
+    "error_message": null,
+    "created_at": "2026-08-13T23:15:19.698517Z",
+    "updated_at": "2026-08-13T23:15:32.244658Z"
+  },
+  "schema_before_review": {
+    "course_id": "026ec847-0035-47d0-907f-56bd2bc501b7",
+    "schema_status": "proposed",
+    "schema_version": 1,
+    "delivery_mode": "static",
+    "intent_density": 2,
+    "validated_by": null,
+    "validated_at": null,
+    "warnings": [],
+    "nodes": [
+      {
+        "id": "00fdccfb-fda0-4cd7-b014-c8ae03765def",
+        "title": "Lista de alérgenos comunes",
+        "summary": "Se presenta una lista de alérgenos comunes que deben ser conocidos por el personal, incluyendo gluten, crustáceos, huevos, y otros.",
+        "outcome": "El empleado podrá identificar los alérgenos comunes que deben ser conocidos.",
+        "criticality": "critical",
+        "position": 1,
+        "mastery_threshold": 0.8999999761581421,
+        "estimated_minutes": 10,
+        "default_ui_format": "explanation",
+        "skill_id": null,
+        "seed_lesson_id": null,
+        "source_document_id": "bdeb8b8c-8184-460e-9a32-ee2700ab981c",
+        "source_headings": [],
+        "prerequisite_node_ids": [],
+        "reviewed_at": null,
+        "reviewed_by": null,
+        "archived": false
+      },
+      {
+        "id": "5fe4466b-0783-4914-acac-d48ac3ef8f6e",
+        "title": "Acciones a realizar",
+        "summary": "Instrucciones para familiarizarse con la lista de alérgenos y revisar menús e ingredientes para identificar su presencia.",
+        "outcome": "El empleado sabrá cómo revisar menús e ingredientes para identificar alérgenos.",
+        "criticality": "recommended",
+        "position": 2,
+        "mastery_threshold": 0.800000011920929,
+        "estimated_minutes": 15,
+        "default_ui_format": "exercise",
+        "skill_id": null,
+        "seed_lesson_id": null,
+        "source_document_id": "bdeb8b8c-8184-460e-9a32-ee2700ab981c",
+        "source_headings": [],
+        "prerequisite_node_ids": [
+          "00fdccfb-fda0-4cd7-b014-c8ae03765def"
+        ],
+        "reviewed_at": null,
+        "reviewed_by": null,
+        "archived": false
+      },
+      {
+        "id": "0e9f0e83-6e90-43cd-bc62-b5a6724f8417",
+        "title": "Consulta de fichas técnicas",
+        "summary": "Pasos para localizar y consultar fichas técnicas de productos, asegurando que la información sobre alérgenos y contaminantes esté actualizada.",
+        "outcome": "El empleado podrá consultar fichas técnicas para verificar información sobre alérgenos.",
+        "criticality": "recommended",
+        "position": 3,
+        "mastery_threshold": 0.800000011920929,
+        "estimated_minutes": 12,
+        "default_ui_format": "mixed",
+        "skill_id": null,
+        "seed_lesson_id": null,
+        "source_document_id": "bdeb8b8c-8184-460e-9a32-ee2700ab981c",
+        "source_headings": [],
+        "prerequisite_node_ids": [
+          "00fdccfb-fda0-4cd7-b014-c8ae03765def"
+        ],
+        "reviewed_at": null,
+        "reviewed_by": null,
+        "archived": false
+      },
+      {
+        "id": "b341ad38-4b54-4bd8-aa6d-6ede9be777d6",
+        "title": "Prevención de contaminación cruzada",
+        "summary": "Medidas prácticas para evitar la contaminación cruzada entre alimentos que contienen alérgenos y aquellos que no.",
+        "outcome": "El empleado sabrá cómo prevenir la contaminación cruzada de alérgenos.",
+        "criticality": "critical",
+        "position": 4,
+        "mastery_threshold": 0.8999999761581421,
+        "estimated_minutes": 15,
+        "default_ui_format": "exercise",
+        "skill_id": null,
+        "seed_lesson_id": null,
+        "source_document_id": "bdeb8b8c-8184-460e-9a32-ee2700ab981c",
+        "source_headings": [],
+        "prerequisite_node_ids": [
+          "00fdccfb-fda0-4cd7-b014-c8ae03765def"
+        ],
+        "reviewed_at": null,
+        "reviewed_by": null,
+        "archived": false
+      },
+      {
+        "id": "56fe0ba2-0d4e-4713-be6b-9326ce7f219b",
+        "title": "Respuesta ante dudas de clientes",
+        "summary": "Pasos y frases útiles para atender consultas de clientes sobre alérgenos, asegurando una comunicación efectiva.",
+        "outcome": "El empleado podrá responder efectivamente a las dudas de los clientes sobre alérgenos.",
+        "criticality": "recommended",
+        "position": 5,
+        "mastery_threshold": 0.800000011920929,
+        "estimated_minutes": 10,
+        "default_ui_format": "mixed",
+        "skill_id": null,
+        "seed_lesson_id": null,
+        "source_document_id": "bdeb8b8c-8184-460e-9a32-ee2700ab981c",
+        "source_headings": [],
+        "prerequisite_node_ids": [
+          "00fdccfb-fda0-4cd7-b014-c8ae03765def"
+        ],
+        "reviewed_at": null,
+        "reviewed_by": null,
+        "archived": false
+      },
+      {
+        "id": "067472c6-fcb8-44a9-b8ef-a438e356a617",
+        "title": "Casos de trabajo",
+        "summary": "Análisis de situaciones específicas con clientes que tienen alergias, incluyendo la verificación de ingredientes y opciones seguras.",
+        "outcome": "El empleado podrá analizar y manejar casos específicos de clientes con alergias.",
+        "criticality": "recommended",
+        "position": 6,
+        "mastery_threshold": 0.800000011920929,
+        "estimated_minutes": 20,
+        "default_ui_format": "exercise",
+        "skill_id": null,
+        "seed_lesson_id": null,
+        "source_document_id": "bdeb8b8c-8184-460e-9a32-ee2700ab981c",
+        "source_headings": [],
+        "prerequisite_node_ids": [
+          "5fe4466b-0783-4914-acac-d48ac3ef8f6e",
+          "0e9f0e83-6e90-43cd-bc62-b5a6724f8417",
+          "b341ad38-4b54-4bd8-aa6d-6ede9be777d6",
+          "56fe0ba2-0d4e-4713-be6b-9326ce7f219b"
+        ],
+        "reviewed_at": null,
+        "reviewed_by": null,
+        "archived": false
+      }
+    ]
+  },
+  "schema_validation": {
+    "status": 200,
+    "payload": {
+      "course_id": "026ec847-0035-47d0-907f-56bd2bc501b7",
+      "schema_status": "validated",
+      "schema_version": 1,
+      "delivery_mode": "dynamic",
+      "intent_density": 2,
+      "validated_by": "a03aa0d8-15b4-4816-9174-c83ce0c4f758",
+      "validated_at": "2026-08-13T23:15:32.474681Z",
+      "warnings": [],
+      "nodes": [
+        {
+          "id": "00fdccfb-fda0-4cd7-b014-c8ae03765def",
+          "title": "Lista de alérgenos comunes",
+          "summary": "Se presenta una lista de alérgenos comunes que deben ser conocidos por el personal, incluyendo gluten, crustáceos, huevos, y otros.",
+          "outcome": "El empleado podrá identificar los alérgenos comunes que deben ser conocidos.",
+          "criticality": "critical",
+          "position": 1,
+          "mastery_threshold": 0.8999999761581421,
+          "estimated_minutes": 10,
+          "default_ui_format": "explanation",
+          "skill_id": null,
+          "seed_lesson_id": null,
+          "source_document_id": "bdeb8b8c-8184-460e-9a32-ee2700ab981c",
+          "source_headings": [],
+          "prerequisite_node_ids": [],
+          "reviewed_at": "2026-08-13T23:15:32.349238Z",
+          "reviewed_by": "a03aa0d8-15b4-4816-9174-c83ce0c4f758",
+          "archived": false
+        },
+        {
+          "id": "5fe4466b-0783-4914-acac-d48ac3ef8f6e",
+          "title": "Acciones a realizar",
+          "summary": "Instrucciones para familiarizarse con la lista de alérgenos y revisar menús e ingredientes para identificar su presencia.",
+          "outcome": "El empleado sabrá cómo revisar menús e ingredientes para identificar alérgenos.",
+          "criticality": "recommended",
+          "position": 2,
+          "mastery_threshold": 0.800000011920929,
+          "estimated_minutes": 15,
+          "default_ui_format": "exercise",
+          "skill_id": null,
+          "seed_lesson_id": null,
+          "source_document_id": "bdeb8b8c-8184-460e-9a32-ee2700ab981c",
+          "source_headings": [],
+          "prerequisite_node_ids": [
+            "00fdccfb-fda0-4cd7-b014-c8ae03765def"
+          ],
+          "reviewed_at": "2026-08-13T23:15:32.365211Z",
+          "reviewed_by": "a03aa0d8-15b4-4816-9174-c83ce0c4f758",
+          "archived": false
+        },
+        {
+          "id": "0e9f0e83-6e90-43cd-bc62-b5a6724f8417",
+          "title": "Consulta de fichas técnicas",
+          "summary": "Pasos para localizar y consultar fichas técnicas de productos, asegurando que la información sobre alérgenos y contaminantes esté actualizada.",
+          "outcome": "El empleado podrá consultar fichas técnicas para verificar información sobre alérgenos.",
+          "criticality": "recommended",
+          "position": 3,
+          "mastery_threshold": 0.800000011920929,
+          "estimated_minutes": 12,
+          "default_ui_format": "mixed",
+          "skill_id": null,
+          "seed_lesson_id": null,
+          "source_document_id": "bdeb8b8c-8184-460e-9a32-ee2700ab981c",
+          "source_headings": [],
+          "prerequisite_node_ids": [
+            "00fdccfb-fda0-4cd7-b014-c8ae03765def"
+          ],
+          "reviewed_at": "2026-08-13T23:15:32.395566Z",
+          "reviewed_by": "a03aa0d8-15b4-4816-9174-c83ce0c4f758",
+          "archived": false
+        },
+        {
+          "id": "b341ad38-4b54-4bd8-aa6d-6ede9be777d6",
+          "title": "Prevención de contaminación cruzada",
+          "summary": "Medidas prácticas para evitar la contaminación cruzada entre alimentos que contienen alérgenos y aquellos que no.",
+          "outcome": "El empleado sabrá cómo prevenir la contaminación cruzada de alérgenos.",
+          "criticality": "critical",
+          "position": 4,
+          "mastery_threshold": 0.8999999761581421,
+          "estimated_minutes": 15,
+          "default_ui_format": "exercise",
+          "skill_id": null,
+          "seed_lesson_id": null,
+          "source_document_id": "bdeb8b8c-8184-460e-9a32-ee2700ab981c",
+          "source_headings": [],
+          "prerequisite_node_ids": [
+            "00fdccfb-fda0-4cd7-b014-c8ae03765def"
+          ],
+          "reviewed_at": "2026-08-13T23:15:32.410891Z",
+          "reviewed_by": "a03aa0d8-15b4-4816-9174-c83ce0c4f758",
+          "archived": false
+        },
+        {
+          "id": "56fe0ba2-0d4e-4713-be6b-9326ce7f219b",
+          "title": "Respuesta ante dudas de clientes",
+          "summary": "Pasos y frases útiles para atender consultas de clientes sobre alérgenos, asegurando una comunicación efectiva.",
+          "outcome": "El empleado podrá responder efectivamente a las dudas de los clientes sobre alérgenos.",
+          "criticality": "recommended",
+          "position": 5,
+          "mastery_threshold": 0.800000011920929,
+          "estimated_minutes": 10,
+          "default_ui_format": "mixed",
+          "skill_id": null,
+          "seed_lesson_id": null,
+          "source_document_id": "bdeb8b8c-8184-460e-9a32-ee2700ab981c",
+          "source_headings": [],
+          "prerequisite_node_ids": [
+            "00fdccfb-fda0-4cd7-b014-c8ae03765def"
+          ],
+          "reviewed_at": "2026-08-13T23:15:32.442524Z",
+          "reviewed_by": "a03aa0d8-15b4-4816-9174-c83ce0c4f758",
+          "archived": false
+        },
+        {
+          "id": "067472c6-fcb8-44a9-b8ef-a438e356a617",
+          "title": "Casos de trabajo",
+          "summary": "Análisis de situaciones específicas con clientes que tienen alergias, incluyendo la verificación de ingredientes y opciones seguras.",
+          "outcome": "El empleado podrá analizar y manejar casos específicos de clientes con alergias.",
+          "criticality": "recommended",
+          "position": 6,
+          "mastery_threshold": 0.800000011920929,
+          "estimated_minutes": 20,
+          "default_ui_format": "exercise",
+          "skill_id": null,
+          "seed_lesson_id": null,
+          "source_document_id": "bdeb8b8c-8184-460e-9a32-ee2700ab981c",
+          "source_headings": [],
+          "prerequisite_node_ids": [
+            "5fe4466b-0783-4914-acac-d48ac3ef8f6e",
+            "0e9f0e83-6e90-43cd-bc62-b5a6724f8417",
+            "b341ad38-4b54-4bd8-aa6d-6ede9be777d6",
+            "56fe0ba2-0d4e-4713-be6b-9326ce7f219b"
+          ],
+          "reviewed_at": "2026-08-13T23:15:32.457437Z",
+          "reviewed_by": "a03aa0d8-15b4-4816-9174-c83ce0c4f758",
+          "archived": false
+        }
+      ]
+    }
+  },
+  "schema_after_validation": {
+    "course_id": "026ec847-0035-47d0-907f-56bd2bc501b7",
+    "schema_status": "validated",
+    "schema_version": 1,
+    "delivery_mode": "dynamic",
+    "intent_density": 2,
+    "validated_by": "a03aa0d8-15b4-4816-9174-c83ce0c4f758",
+    "validated_at": "2026-08-13T23:15:32.474681Z",
+    "warnings": [],
+    "nodes": [
+      {
+        "id": "00fdccfb-fda0-4cd7-b014-c8ae03765def",
+        "title": "Lista de alérgenos comunes",
+        "summary": "Se presenta una lista de alérgenos comunes que deben ser conocidos por el personal, incluyendo gluten, crustáceos, huevos, y otros.",
+        "outcome": "El empleado podrá identificar los alérgenos comunes que deben ser conocidos.",
+        "criticality": "critical",
+        "position": 1,
+        "mastery_threshold": 0.8999999761581421,
+        "estimated_minutes": 10,
+        "default_ui_format": "explanation",
+        "skill_id": null,
+        "seed_lesson_id": null,
+        "source_document_id": "bdeb8b8c-8184-460e-9a32-ee2700ab981c",
+        "source_headings": [],
+        "prerequisite_node_ids": [],
+        "reviewed_at": "2026-08-13T23:15:32.349238Z",
+        "reviewed_by": "a03aa0d8-15b4-4816-9174-c83ce0c4f758",
+        "archived": false
+      },
+      {
+        "id": "5fe4466b-0783-4914-acac-d48ac3ef8f6e",
+        "title": "Acciones a realizar",
+        "summary": "Instrucciones para familiarizarse con la lista de alérgenos y revisar menús e ingredientes para identificar su presencia.",
+        "outcome": "El empleado sabrá cómo revisar menús e ingredientes para identificar alérgenos.",
+        "criticality": "recommended",
+        "position": 2,
+        "mastery_threshold": 0.800000011920929,
+        "estimated_minutes": 15,
+        "default_ui_format": "exercise",
+        "skill_id": null,
+        "seed_lesson_id": null,
+        "source_document_id": "bdeb8b8c-8184-460e-9a32-ee2700ab981c",
+        "source_headings": [],
+        "prerequisite_node_ids": [
+          "00fdccfb-fda0-4cd7-b014-c8ae03765def"
+        ],
+        "reviewed_at": "2026-08-13T23:15:32.365211Z",
+        "reviewed_by": "a03aa0d8-15b4-4816-9174-c83ce0c4f758",
+        "archived": false
+      },
+      {
+        "id": "0e9f0e83-6e90-43cd-bc62-b5a6724f8417",
+        "title": "Consulta de fichas técnicas",
+        "summary": "Pasos para localizar y consultar fichas técnicas de productos, asegurando que la información sobre alérgenos y contaminantes esté actualizada.",
+        "outcome": "El empleado podrá consultar fichas técnicas para verificar información sobre alérgenos.",
+        "criticality": "recommended",
+        "position": 3,
+        "mastery_threshold": 0.800000011920929,
+        "estimated_minutes": 12,
+        "default_ui_format": "mixed",
+        "skill_id": null,
+        "seed_lesson_id": null,
+        "source_document_id": "bdeb8b8c-8184-460e-9a32-ee2700ab981c",
+        "source_headings": [],
+        "prerequisite_node_ids": [
+          "00fdccfb-fda0-4cd7-b014-c8ae03765def"
+        ],
+        "reviewed_at": "2026-08-13T23:15:32.395566Z",
+        "reviewed_by": "a03aa0d8-15b4-4816-9174-c83ce0c4f758",
+        "archived": false
+      },
+      {
+        "id": "b341ad38-4b54-4bd8-aa6d-6ede9be777d6",
+        "title": "Prevención de contaminación cruzada",
+        "summary": "Medidas prácticas para evitar la contaminación cruzada entre alimentos que contienen alérgenos y aquellos que no.",
+        "outcome": "El empleado sabrá cómo prevenir la contaminación cruzada de alérgenos.",
+        "criticality": "critical",
+        "position": 4,
+        "mastery_threshold": 0.8999999761581421,
+        "estimated_minutes": 15,
+        "default_ui_format": "exercise",
+        "skill_id": null,
+        "seed_lesson_id": null,
+        "source_document_id": "bdeb8b8c-8184-460e-9a32-ee2700ab981c",
+        "source_headings": [],
+        "prerequisite_node_ids": [
+          "00fdccfb-fda0-4cd7-b014-c8ae03765def"
+        ],
+        "reviewed_at": "2026-08-13T23:15:32.410891Z",
+        "reviewed_by": "a03aa0d8-15b4-4816-9174-c83ce0c4f758",
+        "archived": false
+      },
+      {
+        "id": "56fe0ba2-0d4e-4713-be6b-9326ce7f219b",
+        "title": "Respuesta ante dudas de clientes",
+        "summary": "Pasos y frases útiles para atender consultas de clientes sobre alérgenos, asegurando una comunicación efectiva.",
+        "outcome": "El empleado podrá responder efectivamente a las dudas de los clientes sobre alérgenos.",
+        "criticality": "recommended",
+        "position": 5,
+        "mastery_threshold": 0.800000011920929,
+        "estimated_minutes": 10,
+        "default_ui_format": "mixed",
+        "skill_id": null,
+        "seed_lesson_id": null,
+        "source_document_id": "bdeb8b8c-8184-460e-9a32-ee2700ab981c",
+        "source_headings": [],
+        "prerequisite_node_ids": [
+          "00fdccfb-fda0-4cd7-b014-c8ae03765def"
+        ],
+        "reviewed_at": "2026-08-13T23:15:32.442524Z",
+        "reviewed_by": "a03aa0d8-15b4-4816-9174-c83ce0c4f758",
+        "archived": false
+      },
+      {
+        "id": "067472c6-fcb8-44a9-b8ef-a438e356a617",
+        "title": "Casos de trabajo",
+        "summary": "Análisis de situaciones específicas con clientes que tienen alergias, incluyendo la verificación de ingredientes y opciones seguras.",
+        "outcome": "El empleado podrá analizar y manejar casos específicos de clientes con alergias.",
+        "criticality": "recommended",
+        "position": 6,
+        "mastery_threshold": 0.800000011920929,
+        "estimated_minutes": 20,
+        "default_ui_format": "exercise",
+        "skill_id": null,
+        "seed_lesson_id": null,
+        "source_document_id": "bdeb8b8c-8184-460e-9a32-ee2700ab981c",
+        "source_headings": [],
+        "prerequisite_node_ids": [
+          "5fe4466b-0783-4914-acac-d48ac3ef8f6e",
+          "0e9f0e83-6e90-43cd-bc62-b5a6724f8417",
+          "b341ad38-4b54-4bd8-aa6d-6ede9be777d6",
+          "56fe0ba2-0d4e-4713-be6b-9326ce7f219b"
+        ],
+        "reviewed_at": "2026-08-13T23:15:32.457437Z",
+        "reviewed_by": "a03aa0d8-15b4-4816-9174-c83ce0c4f758",
+        "archived": false
+      }
+    ]
+  },
+  "duration_s": 55.422,
+  "finished_at": "2026-08-13T23:15:32.553737+00:00"
+}

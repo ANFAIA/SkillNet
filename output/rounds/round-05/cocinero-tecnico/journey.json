@@ -1,0 +1,938 @@
+{
+  "profile": {
+    "slug": "cocinero-tecnico",
+    "email": "cocinero.tecnico@skillnet-test.example",
+    "full_name": "Ruben Soler",
+    "role_title": "Cocinero",
+    "sector": "hosteleria",
+    "goal": "assigned",
+    "experience_level": "experienced",
+    "preset": "standard",
+    "accessibility": {
+      "short_blocks": false,
+      "reduce_motion": false,
+      "high_contrast": false,
+      "extra_time": false
+    },
+    "learning_preferences": {
+      "version": 1,
+      "presentation": "balanced",
+      "detail": "detailed",
+      "images": "when_useful"
+    },
+    "nodes_completed": 4,
+    "format_vector": {
+      "texto": 0.2,
+      "ejercicio": 0.4,
+      "codigo": 0,
+      "dato": 0.4
+    },
+    "answer_strategy": "random"
+  },
+  "started_at": "2026-08-13T23:54:40.569471+00:00",
+  "errors": [],
+  "courses": [
+    {
+      "course": {
+        "id": "c9e699b4-016e-414c-91ef-7037df44e04a",
+        "title": "Avisar de retrasos sin perder la confianza",
+        "description": "Prueba controlada de generación dinámica.",
+        "outcome": null,
+        "status": "published",
+        "source_document_id": "92aa8210-5a1c-4f34-887d-2bb38e90adae",
+        "folder_id": null,
+        "folder_name": null,
+        "created_at": "2026-08-13T22:44:42.640289Z",
+        "updated_at": "2026-08-13T22:44:57.374670Z",
+        "module_count": 0,
+        "node_count": 7,
+        "schema_status": "validated",
+        "delivery_mode": "dynamic",
+        "artifact_generate_policy": "admin",
+        "artifact_generator_ids": [],
+        "can_generate_artifacts": true
+      },
+      "nodes": [
+        {
+          "node": {
+            "id": "7be65364-c834-4511-a12d-eb284f452014",
+            "title": "Observación constante",
+            "summary": "Mantener un seguimiento regular de los tiempos de preparación de los platos y estar al tanto de las órdenes en curso es crucial para detectar retrasos.",
+            "criticality": "critical",
+            "position": 1,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": false,
+            "locked_by": [],
+            "needs_practice": false,
+            "estimated_minutes": 10
+          },
+          "render": {
+            "meta": {
+              "render_id": "a6485a9c-5368-447e-8224-67e9ae2f645a",
+              "ui_format": "mixed",
+              "status": "ready",
+              "backend": "openui",
+              "cached": true
+            },
+            "program": "root = Stack([introduccion, tabla, practica], \"md\")\nintroduccion = TextContent(\"Como cocinero, es crucial observar constantemente los tiempos de preparación y el estado de las órdenes.\", \"lead\")\ntabla = Table([\"Aspecto\", \"Valor\"], [[\"Observación constante\", \"Mantén un seguimiento regular de los tiempos de preparación.\"], [\"Comunicación con cocina\", \"Establece un canal directo para actualizaciones.\"], [\"Anticipación\", \"Actúa antes de que el cliente pregunte si hay retrasos.\"]])\npractica = HintReveal(\"Cómo comunicar retrasos\", [\"Informa al cliente de manera clara y cortés.\", \"Proporciona un tiempo específico para la entrega.\", \"Escala la situación si el retraso es significativo.\"], \"Recuerda que la comunicación proactiva mejora la experiencia del cliente.\")\n",
+            "characters": 766,
+            "lines": 4,
+            "components": [
+              "HintReveal",
+              "Stack",
+              "Table",
+              "TextContent"
+            ],
+            "quiz_items": []
+          },
+          "answers": []
+        },
+        {
+          "node": {
+            "id": "cf4ddf9d-3fb8-4ecd-a189-22e9f66df674",
+            "title": "Comunicación con cocina",
+            "summary": "Establecer un canal de comunicación directo con el personal de cocina permite recibir actualizaciones sobre el estado de los pedidos y detectar retrasos de manera proactiva.",
+            "criticality": "recommended",
+            "position": 2,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": true,
+            "locked_by": [
+              "7be65364-c834-4511-a12d-eb284f452014"
+            ],
+            "needs_practice": false,
+            "estimated_minutes": 8
+          },
+          "render": {
+            "meta": {
+              "render_id": "e5f9d69c-5ad7-4831-882a-4b62259499bd",
+              "ui_format": "mixed",
+              "status": "ready",
+              "backend": "openui",
+              "cached": true
+            },
+            "program": "root = Stack([intro, tabla, practica], \"md\")\nintro = TextContent(\"Como cocinero, es crucial mantener una comunicación efectiva con el personal de cocina para gestionar los pedidos.\", \"lead\")\ntabla = Table([\"Aspecto\", \"Descripción\"], [[\"Observación constante\", \"Mantén un seguimiento regular de los tiempos de preparación de los platos.\"], [\"Comunicación con cocina\", \"Establece un canal de comunicación directo para recibir actualizaciones sobre el estado de los pedidos.\"], [\"Anticipación\", \"Actúa antes de que el cliente pregunte si detectas un retraso.\"]])\npractica = HintReveal(\"Consejos para la comunicación\", [\"Comunica siempre los retrasos a los clientes.\", \"Utiliza un tono empático y claro.\"], \"Recuerda que una buena comunicación puede mejorar la experiencia del cliente.\")\n",
+            "characters": 784,
+            "lines": 4,
+            "components": [
+              "HintReveal",
+              "Stack",
+              "Table",
+              "TextContent"
+            ],
+            "quiz_items": []
+          },
+          "answers": []
+        },
+        {
+          "node": {
+            "id": "22d3f76b-28f2-4c4d-9af2-f68a4ef663b5",
+            "title": "Aviso proactivo al cliente",
+            "summary": "Actuar antes de que el cliente pregunte sobre un retraso y comunicarlo de manera clara y cortés es fundamental para mantener la satisfacción del cliente.",
+            "criticality": "critical",
+            "position": 3,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": true,
+            "locked_by": [
+              "cf4ddf9d-3fb8-4ecd-a189-22e9f66df674"
+            ],
+            "needs_practice": false,
+            "estimated_minutes": 8
+          },
+          "render": {
+            "meta": {
+              "render_id": "4250ee2e-203d-42eb-803d-6c33d00b35b4",
+              "ui_format": "mixed",
+              "status": "ready",
+              "backend": "openui",
+              "cached": true
+            },
+            "program": "root = Stack([intro, tabla, practica], \"md\")\nintro = TextContent(\"Un cliente pregunta por su pedido que está tardando. ¿Cómo respondes?\", \"lead\")\ntabla = Table([\"Etiqueta\", \"Valor\"], [[\"Observación constante\", \"Mantén un seguimiento regular de los tiempos de preparación.\"], [\"Comunicación con cocina\", \"Establece un canal de comunicación directo con el personal de cocina.\"], [\"Anticipación\", \"Actúa antes de que el cliente lo pregunte.\"]])\npractica = HintReveal(\"Consejos para avisar proactivamente\", [\"Informa de manera clara y cortés.\", \"Usa un tono comprensivo.\", \"Proporciona un tiempo específico.\"], \"El cliente debe sentirse escuchado y atendido.\")\n",
+            "characters": 657,
+            "lines": 4,
+            "components": [
+              "HintReveal",
+              "Stack",
+              "Table",
+              "TextContent"
+            ],
+            "quiz_items": []
+          },
+          "answers": []
+        },
+        {
+          "node": {
+            "id": "90ec7903-13d2-4551-baef-0969a0a291d0",
+            "title": "Proporcionar un tiempo concreto",
+            "summary": "Ofrecer un tiempo específico para la entrega del plato y actualizar al cliente sobre cualquier cambio es esencial para gestionar expectativas.",
+            "criticality": "recommended",
+            "position": 4,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": true,
+            "locked_by": [
+              "22d3f76b-28f2-4c4d-9af2-f68a4ef663b5"
+            ],
+            "needs_practice": false,
+            "estimated_minutes": 6
+          },
+          "render": {
+            "meta": {
+              "render_id": "b01a5ece-4af9-4fbb-b099-588845bc0a3c",
+              "ui_format": "mixed",
+              "status": "ready",
+              "backend": "openui",
+              "cached": true
+            },
+            "program": "root = Stack([intro, tabla, practica], \"md\")\nintro = TextContent(\"Un cliente pregunta por su pedido. Debes dar un tiempo concreto de entrega.\", \"lead\")\ntabla = Table([\"Criterio\", \"Mensaje\"], [[\"Menos de 5 minutos\", \"Estará listo en unos minutos.\"], [\"De 5 a 15 minutos\", \"Estará listo en aproximadamente [número] minutos.\"], [\"Más de 15 minutos\", \"Estamos trabajando en ello, pero puede tardar un poco más de lo esperado, alrededor de [número] minutos.\"]])\npractica = HintReveal(\"Proporcionar tiempos concretos\", [\"Observa los tiempos de preparación.\", \"Comunica proactivamente al cliente.\"], \"Recuerda siempre actualizar al cliente si hay cambios en el tiempo estimado.\")\n",
+            "characters": 673,
+            "lines": 4,
+            "components": [
+              "HintReveal",
+              "Stack",
+              "Table",
+              "TextContent"
+            ],
+            "quiz_items": []
+          },
+          "answers": []
+        }
+      ],
+      "errors": [],
+      "enrollment_status": 409,
+      "enrollment": {
+        "detail": "User 4bed36b6-5a95-41d5-a8df-7e8f8ec21caf is already enrolled in this course",
+        "code": "CONFLICT",
+        "field": null
+      },
+      "node_list": {
+        "course_id": "c9e699b4-016e-414c-91ef-7037df44e04a",
+        "delivery_mode": "dynamic",
+        "schema_version": 1,
+        "nodes": [
+          {
+            "id": "7be65364-c834-4511-a12d-eb284f452014",
+            "title": "Observación constante",
+            "summary": "Mantener un seguimiento regular de los tiempos de preparación de los platos y estar al tanto de las órdenes en curso es crucial para detectar retrasos.",
+            "criticality": "critical",
+            "position": 1,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": false,
+            "locked_by": [],
+            "needs_practice": false,
+            "estimated_minutes": 10
+          },
+          {
+            "id": "cf4ddf9d-3fb8-4ecd-a189-22e9f66df674",
+            "title": "Comunicación con cocina",
+            "summary": "Establecer un canal de comunicación directo con el personal de cocina permite recibir actualizaciones sobre el estado de los pedidos y detectar retrasos de manera proactiva.",
+            "criticality": "recommended",
+            "position": 2,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": true,
+            "locked_by": [
+              "7be65364-c834-4511-a12d-eb284f452014"
+            ],
+            "needs_practice": false,
+            "estimated_minutes": 8
+          },
+          {
+            "id": "22d3f76b-28f2-4c4d-9af2-f68a4ef663b5",
+            "title": "Aviso proactivo al cliente",
+            "summary": "Actuar antes de que el cliente pregunte sobre un retraso y comunicarlo de manera clara y cortés es fundamental para mantener la satisfacción del cliente.",
+            "criticality": "critical",
+            "position": 3,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": true,
+            "locked_by": [
+              "cf4ddf9d-3fb8-4ecd-a189-22e9f66df674"
+            ],
+            "needs_practice": false,
+            "estimated_minutes": 8
+          },
+          {
+            "id": "90ec7903-13d2-4551-baef-0969a0a291d0",
+            "title": "Proporcionar un tiempo concreto",
+            "summary": "Ofrecer un tiempo específico para la entrega del plato y actualizar al cliente sobre cualquier cambio es esencial para gestionar expectativas.",
+            "criticality": "recommended",
+            "position": 4,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": true,
+            "locked_by": [
+              "22d3f76b-28f2-4c4d-9af2-f68a4ef663b5"
+            ],
+            "needs_practice": false,
+            "estimated_minutes": 6
+          },
+          {
+            "id": "5962ab22-5846-43f7-964a-c54e5233eaed",
+            "title": "Escalar en caso de riesgo",
+            "summary": "Identificar situaciones de riesgo por retrasos significativos y notificar al encargado permite tomar acciones adecuadas para mitigar la insatisfacción del cliente.",
+            "criticality": "recommended",
+            "position": 5,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": true,
+            "locked_by": [
+              "90ec7903-13d2-4551-baef-0969a0a291d0"
+            ],
+            "needs_practice": false,
+            "estimated_minutes": 10
+          },
+          {
+            "id": "f707e64a-935c-4f9c-a6b9-ae460d2d3e4b",
+            "title": "Casos distintos de retraso",
+            "summary": "Distinguir entre diferentes tipos de retrasos y comunicar la información adecuada a los clientes ayuda a gestionar sus expectativas de manera efectiva.",
+            "criticality": "recommended",
+            "position": 6,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": true,
+            "locked_by": [
+              "5962ab22-5846-43f7-964a-c54e5233eaed"
+            ],
+            "needs_practice": false,
+            "estimated_minutes": 8
+          },
+          {
+            "id": "bd28b16d-98da-4003-bbff-1ce1e7bfc0ee",
+            "title": "Procedimientos en caso de quejas",
+            "summary": "Escuchar al cliente, disculparse sinceramente y ofrecer soluciones son pasos clave para manejar quejas de manera efectiva y mejorar la satisfacción del cliente.",
+            "criticality": "recommended",
+            "position": 7,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": true,
+            "locked_by": [
+              "f707e64a-935c-4f9c-a6b9-ae460d2d3e4b"
+            ],
+            "needs_practice": false,
+            "estimated_minutes": 10
+          }
+        ],
+        "can_complete": false,
+        "blocked_by": [
+          "7be65364-c834-4511-a12d-eb284f452014",
+          "22d3f76b-28f2-4c4d-9af2-f68a4ef663b5"
+        ],
+        "progress_percent": 0
+      }
+    },
+    {
+      "course": {
+        "id": "fb48019b-2aeb-4ee4-a7f1-6c858cd6c488",
+        "title": "Quejas en mesa: escuchar y resolver",
+        "description": "Curso de práctica para encargados y personal de sala.",
+        "outcome": null,
+        "status": "published",
+        "source_document_id": "1f4fdb48-c1f8-4582-8709-4a68353ef3f8",
+        "folder_id": null,
+        "folder_name": null,
+        "created_at": "2026-08-13T23:34:39.247431Z",
+        "updated_at": "2026-08-13T23:34:55.848314Z",
+        "module_count": 0,
+        "node_count": 8,
+        "schema_status": "validated",
+        "delivery_mode": "dynamic",
+        "artifact_generate_policy": "admin",
+        "artifact_generator_ids": [],
+        "can_generate_artifacts": true
+      },
+      "nodes": [
+        {
+          "node": {
+            "id": "5868b3b4-7154-4647-9a4d-130e60eef602",
+            "title": "Preparación para la escucha activa",
+            "summary": "Este tema cubre las técnicas necesarias para preparar al empleado para una escucha activa, incluyendo el contacto visual y la postura receptiva.",
+            "criticality": "critical",
+            "position": 1,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": false,
+            "locked_by": [],
+            "needs_practice": false,
+            "estimated_minutes": 10
+          },
+          "render": {
+            "meta": {
+              "render_id": "c3141627-8691-49a1-b3d9-095d2bb6130e",
+              "ui_format": "mixed",
+              "status": "ready",
+              "backend": "openui",
+              "cached": true
+            },
+            "program": "root = Stack([introduccion, tabla, practica], \"md\")\nintroduccion = TextContent(\"Prepararse para escuchar activamente a un cliente es esencial en la cocina.\", \"lead\")\ntabla = Table([\"Etiqueta\", \"Valor\"], [[\"Contacto visual\", \"Mantener contacto visual con el cliente.\"], [\"Postura receptiva\", \"Asumir una postura abierta y receptiva.\"], [\"Evitar distracciones\", \"Evitar distracciones (móvil, ordenador, etc.).\"], [\"Escuchar atentamente\", \"No interrumpir al cliente mientras habla.\"], [\"Asentir\", \"Asentir con la cabeza para mostrar comprensión.\"], [\"Tomar notas\", \"Tomar notas si es necesario para recordar detalles.\"]])\npractica = Flashcard(\"¿Cómo puedes mostrar que estás escuchando a un cliente?\", \"Asentir con la cabeza y tomar notas si es necesario.\")\n",
+            "characters": 755,
+            "lines": 4,
+            "components": [
+              "Flashcard",
+              "Stack",
+              "Table",
+              "TextContent"
+            ],
+            "quiz_items": []
+          },
+          "answers": []
+        },
+        {
+          "node": {
+            "id": "0482e373-b721-42bb-a9f1-08b9add2bea7",
+            "title": "Escuchar atentamente",
+            "summary": "Se enfoca en la importancia de no interrumpir al cliente y cómo mostrar comprensión a través de gestos y notas.",
+            "criticality": "critical",
+            "position": 2,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": true,
+            "locked_by": [
+              "5868b3b4-7154-4647-9a4d-130e60eef602"
+            ],
+            "needs_practice": false,
+            "estimated_minutes": 8
+          },
+          "render": {
+            "meta": {
+              "render_id": "5cf9af48-660f-49eb-af38-70f1d3dd1be8",
+              "ui_format": "mixed",
+              "status": "ready",
+              "backend": "openui",
+              "cached": true
+            },
+            "program": "root = Stack([lead, concepto, practica], \"md\")\nlead = TextContent(\"Un cliente se queja de un plato mal preparado. Escuchar atentamente es crucial.\", \"lead\")\nconcepto = Table([\"Etiqueta\", \"Valor\"], [[\"Preparación para la escucha activa\", \"Mantener contacto visual, postura abierta, evitar distracciones.\"], [\"Escuchar atentamente\", \"No interrumpir, asentir, tomar notas.\"], [\"Reflejar lo escuchado\", \"Repetir o parafrasear para confirmar comprensión.\"], [\"Reconocer el problema\", \"Agradecer la paciencia del cliente.\"], [\"Ofrecer una disculpa sincera\", \"Utilizar un lenguaje claro y directo.\"], [\"No justificar el error\", \"Mantener el enfoque en la experiencia del cliente.\"]])\npractica = Flashcard(\"¿Qué debes hacer para mostrar que estás escuchando al cliente?\", \"Asentir con la cabeza y tomar notas si es necesario.\")\n",
+            "characters": 820,
+            "lines": 4,
+            "components": [
+              "Flashcard",
+              "Stack",
+              "Table",
+              "TextContent"
+            ],
+            "quiz_items": []
+          },
+          "answers": []
+        },
+        {
+          "node": {
+            "id": "4e346786-6025-4f96-843f-073dd8e32a79",
+            "title": "Reflejar lo escuchado",
+            "summary": "Este tema enseña cómo parafrasear lo que el cliente ha dicho para confirmar la comprensión y asegurar una comunicación efectiva.",
+            "criticality": "recommended",
+            "position": 3,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": true,
+            "locked_by": [
+              "0482e373-b721-42bb-a9f1-08b9add2bea7"
+            ],
+            "needs_practice": false,
+            "estimated_minutes": 6
+          },
+          "render": {
+            "meta": {
+              "render_id": "2c40d432-eb3b-4c46-ab87-e3614a88bff8",
+              "ui_format": "mixed",
+              "status": "ready",
+              "backend": "openui",
+              "cached": true
+            },
+            "program": "root = Stack([intro, concepto, practica], \"md\")\nintro = TextContent(\"Un cliente se queja de un plato que no cumplió sus expectativas. Debes escuchar y reflejar lo que dice.\", \"lead\")\nconcepto = Table([\"Paso\", \"Descripción\"], [[\"Preparación para la escucha activa\", \"Mantener contacto visual, postura abierta y evitar distracciones.\"], [\"Escuchar atentamente\", \"No interrumpir, asentir y tomar notas si es necesario.\"], [\"Reflejar lo escuchado\", \"Repetir o parafrasear lo que el cliente ha dicho para confirmar comprensión.\"], [\"Disculparse\", \"Reconocer el problema y ofrecer una disculpa sincera.\"], [\"Proponer una solución\", \"Identificar y presentar opciones viables al cliente.\"], [\"Saber cuándo escalar al encargado\", \"Identificar quejas serias y comunicar el escalado.\"], [\"Registrar la incidencia\", \"Recopilar información y utilizar el sistema de registro.\"]])\npractica = Flashcard(\"¿Cómo puedes confirmar que has entendido correctamente al cliente?\", \"Repetir o parafrasear lo que el cliente ha dicho.\")\n",
+            "characters": 1010,
+            "lines": 4,
+            "components": [
+              "Flashcard",
+              "Stack",
+              "Table",
+              "TextContent"
+            ],
+            "quiz_items": []
+          },
+          "answers": []
+        },
+        {
+          "node": {
+            "id": "f2d329ae-465b-4567-a695-26ce620716a3",
+            "title": "Reconocer el problema",
+            "summary": "Se centra en la importancia de agradecer al cliente por su paciencia y reconocer su queja de manera efectiva.",
+            "criticality": "critical",
+            "position": 4,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": true,
+            "locked_by": [
+              "4e346786-6025-4f96-843f-073dd8e32a79"
+            ],
+            "needs_practice": false,
+            "estimated_minutes": 5
+          },
+          "render": {
+            "meta": {
+              "render_id": "2d6be956-7a8b-43a3-9e3b-284df8ea9f36",
+              "ui_format": "mixed",
+              "status": "ready",
+              "backend": "openui",
+              "cached": true
+            },
+            "program": "root = Stack([lead, concepto, practica], \"md\")\nlead = TextContent(\"Un cliente se queja de un plato que no cumplió sus expectativas. ¿Cómo manejas la situación?\", \"lead\")\nconcepto = Table([\"Paso\", \"Descripción\"], [[\"Preparación para la escucha activa\", \"Mantener contacto visual, postura abierta y evitar distracciones.\"], [\"Escuchar atentamente\", \"No interrumpir, asentir y tomar notas si es necesario.\"], [\"Reflejar lo escuchado\", \"Repetir o parafrasear lo que el cliente ha dicho.\"], [\"Reconocer el problema\", \"Agradecer al cliente por su paciencia y compartir su queja.\"], [\"Ofrecer una disculpa sincera\", \"Utilizar un lenguaje claro y directo para disculparse.\"], [\"No justificar el error\", \"Evitar explicaciones y centrarse en la experiencia del cliente.\"], [\"Identificar posibles soluciones\", \"Preguntar qué solución espera el cliente.\"], [\"Presentar la solución\", \"Comunicar claramente la solución propuesta.\"], [\"Confirmar la aceptación de la solución\", \"Asegurarse de que el cliente esté de acuerdo.\"], [\"Identificar situaciones que requieren escalado\", \"Quejas recurrentes o clientes insatisfechos.\"], [\"Informar al cliente sobre el escalado\", \"Comunicar que se escalará la queja.\"], [\"Transferir la queja\", \"Informar al encargado y asegurar la transferencia.\"], [\"Recopilar información relevante\", \"Nombre del cliente y detalles de la queja.\"], [\"Utilizar el sistema de registro\", \"Ingresar la información en el sistema designado.\"], [\"Confirmar el registro\", \"Verificar que la incidencia se haya registrado correctamente.\"]])\npractica = Flashcard(\"¿Cuál es el primer paso al escuchar una queja de un cliente?\", \"Preparación para la escucha activa: Mantener contacto visual y evitar distracciones.\")\n",
+            "characters": 1711,
+            "lines": 4,
+            "components": [
+              "Flashcard",
+              "Stack",
+              "Table",
+              "TextContent"
+            ],
+            "quiz_items": []
+          },
+          "answers": []
+        }
+      ],
+      "errors": [],
+      "enrollment_status": 409,
+      "enrollment": {
+        "detail": "User 4bed36b6-5a95-41d5-a8df-7e8f8ec21caf is already enrolled in this course",
+        "code": "CONFLICT",
+        "field": null
+      },
+      "node_list": {
+        "course_id": "fb48019b-2aeb-4ee4-a7f1-6c858cd6c488",
+        "delivery_mode": "dynamic",
+        "schema_version": 1,
+        "nodes": [
+          {
+            "id": "5868b3b4-7154-4647-9a4d-130e60eef602",
+            "title": "Preparación para la escucha activa",
+            "summary": "Este tema cubre las técnicas necesarias para preparar al empleado para una escucha activa, incluyendo el contacto visual y la postura receptiva.",
+            "criticality": "critical",
+            "position": 1,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": false,
+            "locked_by": [],
+            "needs_practice": false,
+            "estimated_minutes": 10
+          },
+          {
+            "id": "0482e373-b721-42bb-a9f1-08b9add2bea7",
+            "title": "Escuchar atentamente",
+            "summary": "Se enfoca en la importancia de no interrumpir al cliente y cómo mostrar comprensión a través de gestos y notas.",
+            "criticality": "critical",
+            "position": 2,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": true,
+            "locked_by": [
+              "5868b3b4-7154-4647-9a4d-130e60eef602"
+            ],
+            "needs_practice": false,
+            "estimated_minutes": 8
+          },
+          {
+            "id": "4e346786-6025-4f96-843f-073dd8e32a79",
+            "title": "Reflejar lo escuchado",
+            "summary": "Este tema enseña cómo parafrasear lo que el cliente ha dicho para confirmar la comprensión y asegurar una comunicación efectiva.",
+            "criticality": "recommended",
+            "position": 3,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": true,
+            "locked_by": [
+              "0482e373-b721-42bb-a9f1-08b9add2bea7"
+            ],
+            "needs_practice": false,
+            "estimated_minutes": 6
+          },
+          {
+            "id": "f2d329ae-465b-4567-a695-26ce620716a3",
+            "title": "Reconocer el problema",
+            "summary": "Se centra en la importancia de agradecer al cliente por su paciencia y reconocer su queja de manera efectiva.",
+            "criticality": "critical",
+            "position": 4,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": true,
+            "locked_by": [
+              "4e346786-6025-4f96-843f-073dd8e32a79"
+            ],
+            "needs_practice": false,
+            "estimated_minutes": 5
+          },
+          {
+            "id": "1ba0ab8a-fc1d-4506-964a-d32a16b2fbcf",
+            "title": "Ofrecer una disculpa sincera",
+            "summary": "Este tema cubre cómo ofrecer una disculpa clara y directa, evitando justificaciones en el proceso.",
+            "criticality": "recommended",
+            "position": 5,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": true,
+            "locked_by": [
+              "f2d329ae-465b-4567-a695-26ce620716a3"
+            ],
+            "needs_practice": false,
+            "estimated_minutes": 4
+          },
+          {
+            "id": "3e438de7-3059-415f-b7f7-bb6026060e23",
+            "title": "Identificar posibles soluciones",
+            "summary": "Se enseña a evaluar las quejas del cliente y a identificar soluciones viables que se pueden ofrecer.",
+            "criticality": "recommended",
+            "position": 6,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": true,
+            "locked_by": [
+              "1ba0ab8a-fc1d-4506-964a-d32a16b2fbcf"
+            ],
+            "needs_practice": false,
+            "estimated_minutes": 7
+          },
+          {
+            "id": "50a091ff-41fb-46a2-bbad-b0792d8413eb",
+            "title": "Saber cuándo escalar al encargado",
+            "summary": "Este tema aborda cómo identificar situaciones que requieren escalado y cómo comunicarlo al cliente.",
+            "criticality": "recommended",
+            "position": 7,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": true,
+            "locked_by": [
+              "3e438de7-3059-415f-b7f7-bb6026060e23"
+            ],
+            "needs_practice": false,
+            "estimated_minutes": 5
+          },
+          {
+            "id": "e38dc457-7a74-4e86-9597-fd47248eb458",
+            "title": "Registrar la incidencia",
+            "summary": "Se enfoca en la recopilación de información relevante y el uso del sistema de registro para documentar quejas y soluciones.",
+            "criticality": "recommended",
+            "position": 8,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": true,
+            "locked_by": [
+              "50a091ff-41fb-46a2-bbad-b0792d8413eb"
+            ],
+            "needs_practice": false,
+            "estimated_minutes": 6
+          }
+        ],
+        "can_complete": false,
+        "blocked_by": [
+          "5868b3b4-7154-4647-9a4d-130e60eef602",
+          "0482e373-b721-42bb-a9f1-08b9add2bea7",
+          "f2d329ae-465b-4567-a695-26ce620716a3"
+        ],
+        "progress_percent": 0
+      }
+    },
+    {
+      "course": {
+        "id": "4ea2844e-1327-46ba-84bc-5231f431d80e",
+        "title": "Devoluciones en tienda",
+        "description": "Pyme de barrio. El empleado debe saber plazos, estado del producto, ticket y cuando escalar al encargado.",
+        "outcome": null,
+        "status": "published",
+        "source_document_id": null,
+        "folder_id": null,
+        "folder_name": null,
+        "created_at": "2026-08-13T09:54:52.421662Z",
+        "updated_at": "2026-08-13T09:55:58.794227Z",
+        "module_count": 0,
+        "node_count": 6,
+        "schema_status": "validated",
+        "delivery_mode": "dynamic",
+        "artifact_generate_policy": "admin",
+        "artifact_generator_ids": [],
+        "can_generate_artifacts": true
+      },
+      "nodes": [
+        {
+          "node": {
+            "id": "9e7d1d87-c7ca-4922-8987-a3707982a960",
+            "title": "Conceptos Básicos de Devoluciones",
+            "summary": "El empleado debe recordar los conceptos fundamentales sobre devoluciones, incluyendo plazos y requisitos.",
+            "criticality": "critical",
+            "position": 1,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": false,
+            "locked_by": [],
+            "needs_practice": false,
+            "estimated_minutes": 10
+          },
+          "render": {
+            "meta": {
+              "render_id": "6caeffe0-ff45-4fa8-a726-4527d36526ab",
+              "ui_format": "explanation",
+              "status": "ready",
+              "backend": "openui",
+              "cached": true
+            },
+            "program": "root = Stack([lead, concepto, practica], \"md\")\nlead = TextContent(\"Un cliente devuelve un plato por no cumplir con sus expectativas. ¿Qué debes considerar?\", \"lead\")\nconcepto = Table([\"Concepto\", \"Requisitos\"], [[\"Plazo de devolución\", \"24 horas desde la entrega\"], [\"Estado del producto\", \"Sin usar y en su embalaje original\"], [\"Justificación\", \"Razón válida para la devolución\"]])\npractica = DidactTimeline(\"Proceso de devolución\", [\"Recepción de la devolución\", \"Verificación del estado del producto\", \"Registro en el sistema\", \"Comunicación al cliente\"], [\"Recibir el plato y escuchar al cliente.\", \"Comprobar que el plato no ha sido usado y está en su embalaje.\", \"Registrar la devolución en el sistema de gestión.\", \"Informar al cliente sobre el estado de su devolución.\"])\n",
+            "characters": 781,
+            "lines": 4,
+            "components": [
+              "DidactTimeline",
+              "Stack",
+              "Table",
+              "TextContent"
+            ],
+            "quiz_items": []
+          },
+          "answers": []
+        },
+        {
+          "node": {
+            "id": "5f08b05c-edeb-4120-9b02-d0798d84c679",
+            "title": "Estado del Producto",
+            "summary": "Comprender la importancia del estado del producto en el proceso de devoluciones y cómo afecta la decisión del cliente.",
+            "criticality": "recommended",
+            "position": 2,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": false,
+            "locked_by": [],
+            "needs_practice": false,
+            "estimated_minutes": 8
+          },
+          "render": {
+            "meta": {
+              "render_id": "5e640d93-6dbc-4c80-938d-7b8f0bec2581",
+              "ui_format": "explanation",
+              "status": "ready",
+              "backend": "openui",
+              "cached": true
+            },
+            "program": "root = Stack([lead, concepto, practica], \"md\")\nlead = TextContent(\"Un cliente devuelve un plato porque no estaba en buen estado. ¿Cómo afecta esto a tu trabajo?\", \"lead\")\nconcepto = Table([\"Estado del Producto\", \"Impacto en Devoluciones\"], [[\"En mal estado\", \"El cliente puede solicitar un reembolso o cambio.\"], [\"En buen estado\", \"El cliente puede estar satisfecho y volver a comprar.\"], [\"Caducado\", \"El cliente no aceptará el producto y puede quejarse.\"]])\npractica = Flashcard(\"¿Qué debes verificar antes de aceptar un producto devuelto?\", \"Verificar el estado del producto y la fecha de caducidad.\")\n",
+            "characters": 606,
+            "lines": 4,
+            "components": [
+              "Flashcard",
+              "Stack",
+              "Table",
+              "TextContent"
+            ],
+            "quiz_items": []
+          },
+          "answers": []
+        },
+        {
+          "node": {
+            "id": "4d211443-5b69-4373-bb74-5fe66a9fd763",
+            "title": "Manejo de Tickets de Devolución",
+            "summary": "Aplicar el conocimiento sobre cómo manejar y verificar los tickets de devolución para facilitar el proceso.",
+            "criticality": "critical",
+            "position": 3,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": false,
+            "locked_by": [],
+            "needs_practice": false,
+            "estimated_minutes": 15
+          },
+          "render": {
+            "meta": {
+              "render_id": "d7462f9d-cd0a-4bbc-9f0a-0788e3fa8948",
+              "ui_format": "explanation",
+              "status": "ready",
+              "backend": "openui",
+              "cached": true
+            },
+            "program": "root = Stack([lead, concepto, practica], \"md\")\nlead = TextContent(\"Un cliente devuelve un plato y presenta un ticket de devolución. Debes verificarlo correctamente.\", \"lead\")\nconcepto = Table([\"Aspecto\", \"Descripción\"], [[\"Ticket válido\", \"Debe contener la fecha de compra y el número de ticket.\"], [\"Verificación\", \"Compara el ticket con el plato devuelto y asegúrate de que coincidan.\"], [\"Acción\", \"Si todo es correcto, procede a gestionar la devolución según el protocolo.\"]])\npractica = DidactWorkedExample(\"Verificación de ticket de devolución\", [\"Recibe el ticket y el plato devuelto.\", \"Revisa que el ticket tenga la fecha y número correctos.\", \"Confirma que el plato devuelto coincide con el ticket.\"], \"Has verificado correctamente el ticket de devolución y gestionado el proceso.\")\n",
+            "characters": 793,
+            "lines": 4,
+            "components": [
+              "DidactWorkedExample",
+              "Stack",
+              "Table",
+              "TextContent"
+            ],
+            "quiz_items": []
+          },
+          "answers": []
+        },
+        {
+          "node": {
+            "id": "6ca6bc19-ee89-41a1-a520-5c3f369d95b1",
+            "title": "Proceso de Escalación",
+            "summary": "Saber cuándo y cómo escalar una situación al encargado, asegurando que se sigan los protocolos adecuados.",
+            "criticality": "recommended",
+            "position": 4,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": false,
+            "locked_by": [],
+            "needs_practice": false,
+            "estimated_minutes": 12
+          },
+          "render": {
+            "meta": {
+              "render_id": "11b486f0-4ed1-41ad-af3d-3a3f05fa2401",
+              "ui_format": "mixed",
+              "status": "ready",
+              "backend": "openui",
+              "cached": true
+            },
+            "program": "root = Stack([lead, concepto, practica], \"md\")\nlead = TextContent(\"Un cliente se queja de que su plato está frío. ¿Cómo escalas esta situación al encargado?\", \"lead\")\nconcepto = Table([\"Situación\", \"Acción\"], [[\"Plato frío\", \"Informar al encargado para que lo solucione.\"], [\"Error en el pedido\", \"Escalar al encargado para corregirlo.\"], [\"Cliente insatisfecho\", \"Reportar al encargado para gestionar la queja.\"]])\npractica = Flashcard(\"¿Qué debes hacer si un cliente se queja de un plato frío?\", \"Informar al encargado para que lo solucione.\")\n",
+            "characters": 546,
+            "lines": 4,
+            "components": [
+              "Flashcard",
+              "Stack",
+              "Table",
+              "TextContent"
+            ],
+            "quiz_items": []
+          },
+          "answers": []
+        }
+      ],
+      "errors": [],
+      "enrollment_status": 409,
+      "enrollment": {
+        "detail": "User 4bed36b6-5a95-41d5-a8df-7e8f8ec21caf is already enrolled in this course",
+        "code": "CONFLICT",
+        "field": null
+      },
+      "node_list": {
+        "course_id": "4ea2844e-1327-46ba-84bc-5231f431d80e",
+        "delivery_mode": "dynamic",
+        "schema_version": 2,
+        "nodes": [
+          {
+            "id": "9e7d1d87-c7ca-4922-8987-a3707982a960",
+            "title": "Conceptos Básicos de Devoluciones",
+            "summary": "El empleado debe recordar los conceptos fundamentales sobre devoluciones, incluyendo plazos y requisitos.",
+            "criticality": "critical",
+            "position": 1,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": false,
+            "locked_by": [],
+            "needs_practice": false,
+            "estimated_minutes": 10
+          },
+          {
+            "id": "5f08b05c-edeb-4120-9b02-d0798d84c679",
+            "title": "Estado del Producto",
+            "summary": "Comprender la importancia del estado del producto en el proceso de devoluciones y cómo afecta la decisión del cliente.",
+            "criticality": "recommended",
+            "position": 2,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": false,
+            "locked_by": [],
+            "needs_practice": false,
+            "estimated_minutes": 8
+          },
+          {
+            "id": "4d211443-5b69-4373-bb74-5fe66a9fd763",
+            "title": "Manejo de Tickets de Devolución",
+            "summary": "Aplicar el conocimiento sobre cómo manejar y verificar los tickets de devolución para facilitar el proceso.",
+            "criticality": "critical",
+            "position": 3,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": false,
+            "locked_by": [],
+            "needs_practice": false,
+            "estimated_minutes": 15
+          },
+          {
+            "id": "6ca6bc19-ee89-41a1-a520-5c3f369d95b1",
+            "title": "Proceso de Escalación",
+            "summary": "Saber cuándo y cómo escalar una situación al encargado, asegurando que se sigan los protocolos adecuados.",
+            "criticality": "recommended",
+            "position": 4,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": false,
+            "locked_by": [],
+            "needs_practice": false,
+            "estimated_minutes": 12
+          },
+          {
+            "id": "8777578d-8390-4cee-8aa3-b4227a36c443",
+            "title": "Interacción con el Cliente",
+            "summary": "Desarrollar habilidades para interactuar con el cliente durante el proceso de devolución, asegurando una experiencia positiva.",
+            "criticality": "recommended",
+            "position": 5,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": false,
+            "locked_by": [],
+            "needs_practice": false,
+            "estimated_minutes": 10
+          },
+          {
+            "id": "24387d6f-9f38-4a5a-9d47-69f516c8137c",
+            "title": "Evaluación de Políticas de Devolución",
+            "summary": "Evaluar las políticas de devolución de la tienda para identificar áreas de mejora y asegurar su correcta implementación.",
+            "criticality": "contextual",
+            "position": 6,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": false,
+            "locked_by": [],
+            "needs_practice": false,
+            "estimated_minutes": 15
+          }
+        ],
+        "can_complete": false,
+        "blocked_by": [
+          "9e7d1d87-c7ca-4922-8987-a3707982a960",
+          "4d211443-5b69-4373-bb74-5fe66a9fd763"
+        ],
+        "progress_percent": 0
+      }
+    }
+  ],
+  "user": {
+    "id": "4bed36b6-5a95-41d5-a8df-7e8f8ec21caf",
+    "email": "cocinero.tecnico@skillnet-test.example",
+    "full_name": "Ruben Soler",
+    "role": "employee"
+  },
+  "profile_saved": {
+    "role_title": "Cocinero",
+    "sector": "hosteleria",
+    "goal": "assigned",
+    "experience_level": "experienced",
+    "preset": "standard",
+    "learning_preferences": {
+      "version": 2,
+      "modality": "balanced",
+      "interaction": "standard",
+      "detail": "detailed",
+      "images": "when_useful"
+    },
+    "nodes_completed": 4,
+    "onboarding_completed_at": "2026-08-13T23:54:41.397660Z",
+    "onboarding_skipped": false,
+    "calibrating": false
+  },
+  "profile_counters_updated": true,
+  "resolved_courses": [
+    {
+      "id": "c9e699b4-016e-414c-91ef-7037df44e04a",
+      "title": "Avisar de retrasos sin perder la confianza"
+    },
+    {
+      "id": "fb48019b-2aeb-4ee4-a7f1-6c858cd6c488",
+      "title": "Quejas en mesa: escuchar y resolver"
+    },
+    {
+      "id": "4ea2844e-1327-46ba-84bc-5231f431d80e",
+      "title": "Devoluciones en tienda"
+    }
+  ],
+  "duration_s": 176.765,
+  "finished_at": "2026-08-13T23:57:37.334361+00:00"
+}

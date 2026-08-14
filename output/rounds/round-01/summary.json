@@ -1,0 +1,269 @@
+{
+  "profiles": 10,
+  "screens": 80,
+  "errors": 0,
+  "format_counts": {
+    "explanation": 62,
+    "exercise": 4,
+    "mixed": 14
+  },
+  "component_counts": {
+    "Callout": 4,
+    "DidactTimeline": 14,
+    "Stack": 80,
+    "Table": 79,
+    "TextContent": 80,
+    "Flashcard": 44,
+    "DidactWorkedExample": 10,
+    "DidactGlossary": 10,
+    "Markdown": 1,
+    "HintReveal": 1
+  },
+  "same_screen_concept_and_quiz": 0,
+  "same_screen_rate": 0.0,
+  "character_min": 300,
+  "character_avg": 639.7,
+  "character_max": 920,
+  "pairwise_profile_similarity_avg": 0.4683,
+  "pairwise_profile_similarity_min": 0.336,
+  "pairwise_profile_similarity_max": 0.5913,
+  "pairwise": [
+    {
+      "left": "aprendiz-que-falla",
+      "right": "cocinero-tecnico",
+      "similarity": 0.459
+    },
+    {
+      "left": "aprendiz-que-falla",
+      "right": "control-equilibrado",
+      "similarity": 0.5913
+    },
+    {
+      "left": "aprendiz-que-falla",
+      "right": "dependienta-interactiva",
+      "similarity": 0.4921
+    },
+    {
+      "left": "aprendiz-que-falla",
+      "right": "encargada-rapida",
+      "similarity": 0.5089
+    },
+    {
+      "left": "aprendiz-que-falla",
+      "right": "gerente-ocupado",
+      "similarity": 0.3916
+    },
+    {
+      "left": "aprendiz-que-falla",
+      "right": "novato-visual",
+      "similarity": 0.4723
+    },
+    {
+      "left": "aprendiz-que-falla",
+      "right": "perfil-datos",
+      "similarity": 0.4766
+    },
+    {
+      "left": "aprendiz-que-falla",
+      "right": "perfil-desconocido",
+      "similarity": 0.511
+    },
+    {
+      "left": "aprendiz-que-falla",
+      "right": "poca-tecnologia",
+      "similarity": 0.5266
+    },
+    {
+      "left": "cocinero-tecnico",
+      "right": "control-equilibrado",
+      "similarity": 0.5141
+    },
+    {
+      "left": "cocinero-tecnico",
+      "right": "dependienta-interactiva",
+      "similarity": 0.4162
+    },
+    {
+      "left": "cocinero-tecnico",
+      "right": "encargada-rapida",
+      "similarity": 0.4263
+    },
+    {
+      "left": "cocinero-tecnico",
+      "right": "gerente-ocupado",
+      "similarity": 0.3676
+    },
+    {
+      "left": "cocinero-tecnico",
+      "right": "novato-visual",
+      "similarity": 0.515
+    },
+    {
+      "left": "cocinero-tecnico",
+      "right": "perfil-datos",
+      "similarity": 0.4918
+    },
+    {
+      "left": "cocinero-tecnico",
+      "right": "perfil-desconocido",
+      "similarity": 0.4747
+    },
+    {
+      "left": "cocinero-tecnico",
+      "right": "poca-tecnologia",
+      "similarity": 0.4899
+    },
+    {
+      "left": "control-equilibrado",
+      "right": "dependienta-interactiva",
+      "similarity": 0.3755
+    },
+    {
+      "left": "control-equilibrado",
+      "right": "encargada-rapida",
+      "similarity": 0.5071
+    },
+    {
+      "left": "control-equilibrado",
+      "right": "gerente-ocupado",
+      "similarity": 0.3494
+    },
+    {
+      "left": "control-equilibrado",
+      "right": "novato-visual",
+      "similarity": 0.5095
+    },
+    {
+      "left": "control-equilibrado",
+      "right": "perfil-datos",
+      "similarity": 0.4828
+    },
+    {
+      "left": "control-equilibrado",
+      "right": "perfil-desconocido",
+      "similarity": 0.504
+    },
+    {
+      "left": "control-equilibrado",
+      "right": "poca-tecnologia",
+      "similarity": 0.5218
+    },
+    {
+      "left": "dependienta-interactiva",
+      "right": "encargada-rapida",
+      "similarity": 0.4866
+    },
+    {
+      "left": "dependienta-interactiva",
+      "right": "gerente-ocupado",
+      "similarity": 0.4171
+    },
+    {
+      "left": "dependienta-interactiva",
+      "right": "novato-visual",
+      "similarity": 0.4919
+    },
+    {
+      "left": "dependienta-interactiva",
+      "right": "perfil-datos",
+      "similarity": 0.4853
+    },
+    {
+      "left": "dependienta-interactiva",
+      "right": "perfil-desconocido",
+      "similarity": 0.5157
+    },
+    {
+      "left": "dependienta-interactiva",
+      "right": "poca-tecnologia",
+      "similarity": 0.5035
+    },
+    {
+      "left": "encargada-rapida",
+      "right": "gerente-ocupado",
+      "similarity": 0.3625
+    },
+    {
+      "left": "encargada-rapida",
+      "right": "novato-visual",
+      "similarity": 0.5082
+    },
+    {
+      "left": "encargada-rapida",
+      "right": "perfil-datos",
+      "similarity": 0.4733
+    },
+    {
+      "left": "encargada-rapida",
+      "right": "perfil-desconocido",
+      "similarity": 0.527
+    },
+    {
+      "left": "encargada-rapida",
+      "right": "poca-tecnologia",
+      "similarity": 0.5092
+    },
+    {
+      "left": "gerente-ocupado",
+      "right": "novato-visual",
+      "similarity": 0.336
+    },
+    {
+      "left": "gerente-ocupado",
+      "right": "perfil-datos",
+      "similarity": 0.3374
+    },
+    {
+      "left": "gerente-ocupado",
+      "right": "perfil-desconocido",
+      "similarity": 0.3974
+    },
+    {
+      "left": "gerente-ocupado",
+      "right": "poca-tecnologia",
+      "similarity": 0.3843
+    },
+    {
+      "left": "novato-visual",
+      "right": "perfil-datos",
+      "similarity": 0.4811
+    },
+    {
+      "left": "novato-visual",
+      "right": "perfil-desconocido",
+      "similarity": 0.5266
+    },
+    {
+      "left": "novato-visual",
+      "right": "poca-tecnologia",
+      "similarity": 0.5627
+    },
+    {
+      "left": "perfil-datos",
+      "right": "perfil-desconocido",
+      "similarity": 0.4446
+    },
+    {
+      "left": "perfil-datos",
+      "right": "poca-tecnologia",
+      "similarity": 0.4515
+    },
+    {
+      "left": "perfil-desconocido",
+      "right": "poca-tecnologia",
+      "similarity": 0.4963
+    }
+  ],
+  "profile_durations_s": {
+    "aprendiz-que-falla": 65.297,
+    "cocinero-tecnico": 74.015,
+    "control-equilibrado": 53.703,
+    "dependienta-interactiva": 75.86,
+    "encargada-rapida": 69.156,
+    "gerente-ocupado": 75.718,
+    "novato-visual": 52.922,
+    "perfil-datos": 73.36,
+    "perfil-desconocido": 48.688,
+    "poca-tecnologia": 57.454
+  }
+}

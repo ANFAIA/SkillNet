@@ -1,0 +1,667 @@
+{
+  "kind": "v2",
+  "idea": {
+    "slug": "v2-quejas",
+    "kind": "v2",
+    "title": "Resolver una queja",
+    "course_title": "Quejas en mesa: escuchar y resolver",
+    "description": "Curso de práctica para encargados y personal de sala.",
+    "idea": "Entrena escuchar sin interrumpir, disculparse, proponer una solución, saber cuándo escalar al encargado y registrar la incidencia. Cada nodo debe tener una acción verificable."
+  },
+  "started_at": "2026-08-13T23:33:59.333040+00:00",
+  "errors": [],
+  "document": {
+    "id": "1f4fdb48-c1f8-4582-8709-4a68353ef3f8",
+    "title": "Resolver una queja",
+    "file_type": "md",
+    "page_count": null,
+    "size_bytes": 2822,
+    "status": "processing",
+    "origin": "generated",
+    "error_message": null,
+    "created_at": "2026-08-13T23:33:59.454888Z"
+  },
+  "document_ready": {
+    "id": "1f4fdb48-c1f8-4582-8709-4a68353ef3f8",
+    "title": "Resolver una queja",
+    "file_type": "md",
+    "page_count": 1,
+    "size_bytes": 2822,
+    "status": "ready",
+    "origin": "generated",
+    "error_message": null,
+    "created_at": "2026-08-13T23:33:59.454888Z"
+  },
+  "course": {
+    "id": "fb48019b-2aeb-4ee4-a7f1-6c858cd6c488",
+    "title": "Quejas en mesa: escuchar y resolver",
+    "description": "Curso de práctica para encargados y personal de sala.",
+    "outcome": null,
+    "status": "draft",
+    "source_document_id": "1f4fdb48-c1f8-4582-8709-4a68353ef3f8",
+    "folder_id": null,
+    "folder_name": null,
+    "created_at": "2026-08-13T23:34:39.247431Z",
+    "updated_at": "2026-08-13T23:34:39.247431Z",
+    "module_count": 0,
+    "node_count": null,
+    "schema_status": "draft",
+    "delivery_mode": "static",
+    "artifact_generate_policy": "admin",
+    "artifact_generator_ids": [],
+    "can_generate_artifacts": true
+  },
+  "schema_accepted": {
+    "job_id": "7c70619b-55f5-4c58-8048-a03039c5e7f7"
+  },
+  "schema_job": {
+    "id": "7c70619b-55f5-4c58-8048-a03039c5e7f7",
+    "status": "schema_proposed",
+    "output_type": "course_and_manual",
+    "progress": {
+      "node_count": 8,
+      "proposed_nodes": [
+        {
+          "title": "Preparación para la escucha activa",
+          "summary": "Este tema cubre las técnicas necesarias para preparar al empleado para una escucha activa, incluyendo el contacto visual y la postura receptiva.",
+          "position": 1,
+          "criticality": "critical",
+          "source_headings": []
+        },
+        {
+          "title": "Escuchar atentamente",
+          "summary": "Se enfoca en la importancia de no interrumpir al cliente y cómo mostrar comprensión a través de gestos y notas.",
+          "position": 2,
+          "criticality": "critical",
+          "source_headings": []
+        },
+        {
+          "title": "Reflejar lo escuchado",
+          "summary": "Este tema enseña cómo parafrasear lo que el cliente ha dicho para confirmar la comprensión y asegurar una comunicación efectiva.",
+          "position": 3,
+          "criticality": "recommended",
+          "source_headings": []
+        },
+        {
+          "title": "Reconocer el problema",
+          "summary": "Se centra en la importancia de agradecer al cliente por su paciencia y reconocer su queja de manera efectiva.",
+          "position": 4,
+          "criticality": "critical",
+          "source_headings": []
+        },
+        {
+          "title": "Ofrecer una disculpa sincera",
+          "summary": "Este tema cubre cómo ofrecer una disculpa clara y directa, evitando justificaciones en el proceso.",
+          "position": 5,
+          "criticality": "recommended",
+          "source_headings": []
+        },
+        {
+          "title": "Identificar posibles soluciones",
+          "summary": "Se enseña a evaluar las quejas del cliente y a identificar soluciones viables que se pueden ofrecer.",
+          "position": 6,
+          "criticality": "recommended",
+          "source_headings": []
+        },
+        {
+          "title": "Saber cuándo escalar al encargado",
+          "summary": "Este tema aborda cómo identificar situaciones que requieren escalado y cómo comunicarlo al cliente.",
+          "position": 7,
+          "criticality": "recommended",
+          "source_headings": []
+        },
+        {
+          "title": "Registrar la incidencia",
+          "summary": "Se enfoca en la recopilación de información relevante y el uso del sistema de registro para documentar quejas y soluciones.",
+          "position": 8,
+          "criticality": "recommended",
+          "source_headings": []
+        }
+      ],
+      "schema_warnings": []
+    },
+    "result_course_id": "fb48019b-2aeb-4ee4-a7f1-6c858cd6c488",
+    "error_message": null,
+    "created_at": "2026-08-13T23:34:39.280248Z",
+    "updated_at": "2026-08-13T23:34:55.223460Z"
+  },
+  "schema_before_review": {
+    "course_id": "fb48019b-2aeb-4ee4-a7f1-6c858cd6c488",
+    "schema_status": "proposed",
+    "schema_version": 1,
+    "delivery_mode": "static",
+    "intent_density": 2,
+    "validated_by": null,
+    "validated_at": null,
+    "warnings": [],
+    "nodes": [
+      {
+        "id": "5868b3b4-7154-4647-9a4d-130e60eef602",
+        "title": "Preparación para la escucha activa",
+        "summary": "Este tema cubre las técnicas necesarias para preparar al empleado para una escucha activa, incluyendo el contacto visual y la postura receptiva.",
+        "outcome": "El empleado sabrá cómo prepararse para escuchar activamente a un cliente.",
+        "criticality": "critical",
+        "position": 1,
+        "mastery_threshold": 0.8999999761581421,
+        "estimated_minutes": 10,
+        "default_ui_format": "mixed",
+        "skill_id": null,
+        "seed_lesson_id": null,
+        "source_document_id": "1f4fdb48-c1f8-4582-8709-4a68353ef3f8",
+        "source_headings": [],
+        "prerequisite_node_ids": [],
+        "reviewed_at": null,
+        "reviewed_by": null,
+        "archived": false
+      },
+      {
+        "id": "0482e373-b721-42bb-a9f1-08b9add2bea7",
+        "title": "Escuchar atentamente",
+        "summary": "Se enfoca en la importancia de no interrumpir al cliente y cómo mostrar comprensión a través de gestos y notas.",
+        "outcome": "El empleado sabrá escuchar atentamente a los clientes sin interrumpir.",
+        "criticality": "critical",
+        "position": 2,
+        "mastery_threshold": 0.8999999761581421,
+        "estimated_minutes": 8,
+        "default_ui_format": "mixed",
+        "skill_id": null,
+        "seed_lesson_id": null,
+        "source_document_id": "1f4fdb48-c1f8-4582-8709-4a68353ef3f8",
+        "source_headings": [],
+        "prerequisite_node_ids": [
+          "5868b3b4-7154-4647-9a4d-130e60eef602"
+        ],
+        "reviewed_at": null,
+        "reviewed_by": null,
+        "archived": false
+      },
+      {
+        "id": "4e346786-6025-4f96-843f-073dd8e32a79",
+        "title": "Reflejar lo escuchado",
+        "summary": "Este tema enseña cómo parafrasear lo que el cliente ha dicho para confirmar la comprensión y asegurar una comunicación efectiva.",
+        "outcome": "El empleado sabrá parafrasear lo escuchado para confirmar la comprensión.",
+        "criticality": "recommended",
+        "position": 3,
+        "mastery_threshold": 0.800000011920929,
+        "estimated_minutes": 6,
+        "default_ui_format": "mixed",
+        "skill_id": null,
+        "seed_lesson_id": null,
+        "source_document_id": "1f4fdb48-c1f8-4582-8709-4a68353ef3f8",
+        "source_headings": [],
+        "prerequisite_node_ids": [
+          "0482e373-b721-42bb-a9f1-08b9add2bea7"
+        ],
+        "reviewed_at": null,
+        "reviewed_by": null,
+        "archived": false
+      },
+      {
+        "id": "f2d329ae-465b-4567-a695-26ce620716a3",
+        "title": "Reconocer el problema",
+        "summary": "Se centra en la importancia de agradecer al cliente por su paciencia y reconocer su queja de manera efectiva.",
+        "outcome": "El empleado sabrá reconocer y agradecer al cliente por su queja.",
+        "criticality": "critical",
+        "position": 4,
+        "mastery_threshold": 0.8999999761581421,
+        "estimated_minutes": 5,
+        "default_ui_format": "mixed",
+        "skill_id": null,
+        "seed_lesson_id": null,
+        "source_document_id": "1f4fdb48-c1f8-4582-8709-4a68353ef3f8",
+        "source_headings": [],
+        "prerequisite_node_ids": [
+          "4e346786-6025-4f96-843f-073dd8e32a79"
+        ],
+        "reviewed_at": null,
+        "reviewed_by": null,
+        "archived": false
+      },
+      {
+        "id": "1ba0ab8a-fc1d-4506-964a-d32a16b2fbcf",
+        "title": "Ofrecer una disculpa sincera",
+        "summary": "Este tema cubre cómo ofrecer una disculpa clara y directa, evitando justificaciones en el proceso.",
+        "outcome": "El empleado sabrá ofrecer una disculpa sincera al cliente.",
+        "criticality": "recommended",
+        "position": 5,
+        "mastery_threshold": 0.800000011920929,
+        "estimated_minutes": 4,
+        "default_ui_format": "mixed",
+        "skill_id": null,
+        "seed_lesson_id": null,
+        "source_document_id": "1f4fdb48-c1f8-4582-8709-4a68353ef3f8",
+        "source_headings": [],
+        "prerequisite_node_ids": [
+          "f2d329ae-465b-4567-a695-26ce620716a3"
+        ],
+        "reviewed_at": null,
+        "reviewed_by": null,
+        "archived": false
+      },
+      {
+        "id": "3e438de7-3059-415f-b7f7-bb6026060e23",
+        "title": "Identificar posibles soluciones",
+        "summary": "Se enseña a evaluar las quejas del cliente y a identificar soluciones viables que se pueden ofrecer.",
+        "outcome": "El empleado sabrá identificar soluciones viables para las quejas de los clientes.",
+        "criticality": "recommended",
+        "position": 6,
+        "mastery_threshold": 0.800000011920929,
+        "estimated_minutes": 7,
+        "default_ui_format": "mixed",
+        "skill_id": null,
+        "seed_lesson_id": null,
+        "source_document_id": "1f4fdb48-c1f8-4582-8709-4a68353ef3f8",
+        "source_headings": [],
+        "prerequisite_node_ids": [
+          "1ba0ab8a-fc1d-4506-964a-d32a16b2fbcf"
+        ],
+        "reviewed_at": null,
+        "reviewed_by": null,
+        "archived": false
+      },
+      {
+        "id": "50a091ff-41fb-46a2-bbad-b0792d8413eb",
+        "title": "Saber cuándo escalar al encargado",
+        "summary": "Este tema aborda cómo identificar situaciones que requieren escalado y cómo comunicarlo al cliente.",
+        "outcome": "El empleado sabrá cuándo y cómo escalar una queja al encargado.",
+        "criticality": "recommended",
+        "position": 7,
+        "mastery_threshold": 0.800000011920929,
+        "estimated_minutes": 5,
+        "default_ui_format": "mixed",
+        "skill_id": null,
+        "seed_lesson_id": null,
+        "source_document_id": "1f4fdb48-c1f8-4582-8709-4a68353ef3f8",
+        "source_headings": [],
+        "prerequisite_node_ids": [
+          "3e438de7-3059-415f-b7f7-bb6026060e23"
+        ],
+        "reviewed_at": null,
+        "reviewed_by": null,
+        "archived": false
+      },
+      {
+        "id": "e38dc457-7a74-4e86-9597-fd47248eb458",
+        "title": "Registrar la incidencia",
+        "summary": "Se enfoca en la recopilación de información relevante y el uso del sistema de registro para documentar quejas y soluciones.",
+        "outcome": "El empleado sabrá registrar incidencias de manera efectiva.",
+        "criticality": "recommended",
+        "position": 8,
+        "mastery_threshold": 0.800000011920929,
+        "estimated_minutes": 6,
+        "default_ui_format": "mixed",
+        "skill_id": null,
+        "seed_lesson_id": null,
+        "source_document_id": "1f4fdb48-c1f8-4582-8709-4a68353ef3f8",
+        "source_headings": [],
+        "prerequisite_node_ids": [
+          "50a091ff-41fb-46a2-bbad-b0792d8413eb"
+        ],
+        "reviewed_at": null,
+        "reviewed_by": null,
+        "archived": false
+      }
+    ]
+  },
+  "schema_validation": {
+    "status": 200,
+    "payload": {
+      "course_id": "fb48019b-2aeb-4ee4-a7f1-6c858cd6c488",
+      "schema_status": "validated",
+      "schema_version": 1,
+      "delivery_mode": "dynamic",
+      "intent_density": 2,
+      "validated_by": "a03aa0d8-15b4-4816-9174-c83ce0c4f758",
+      "validated_at": "2026-08-13T23:34:55.851479Z",
+      "warnings": [],
+      "nodes": [
+        {
+          "id": "5868b3b4-7154-4647-9a4d-130e60eef602",
+          "title": "Preparación para la escucha activa",
+          "summary": "Este tema cubre las técnicas necesarias para preparar al empleado para una escucha activa, incluyendo el contacto visual y la postura receptiva.",
+          "outcome": "El empleado sabrá cómo prepararse para escuchar activamente a un cliente.",
+          "criticality": "critical",
+          "position": 1,
+          "mastery_threshold": 0.8999999761581421,
+          "estimated_minutes": 10,
+          "default_ui_format": "mixed",
+          "skill_id": null,
+          "seed_lesson_id": null,
+          "source_document_id": "1f4fdb48-c1f8-4582-8709-4a68353ef3f8",
+          "source_headings": [],
+          "prerequisite_node_ids": [],
+          "reviewed_at": "2026-08-13T23:34:55.626077Z",
+          "reviewed_by": "a03aa0d8-15b4-4816-9174-c83ce0c4f758",
+          "archived": false
+        },
+        {
+          "id": "0482e373-b721-42bb-a9f1-08b9add2bea7",
+          "title": "Escuchar atentamente",
+          "summary": "Se enfoca en la importancia de no interrumpir al cliente y cómo mostrar comprensión a través de gestos y notas.",
+          "outcome": "El empleado sabrá escuchar atentamente a los clientes sin interrumpir.",
+          "criticality": "critical",
+          "position": 2,
+          "mastery_threshold": 0.8999999761581421,
+          "estimated_minutes": 8,
+          "default_ui_format": "mixed",
+          "skill_id": null,
+          "seed_lesson_id": null,
+          "source_document_id": "1f4fdb48-c1f8-4582-8709-4a68353ef3f8",
+          "source_headings": [],
+          "prerequisite_node_ids": [
+            "5868b3b4-7154-4647-9a4d-130e60eef602"
+          ],
+          "reviewed_at": "2026-08-13T23:34:55.657538Z",
+          "reviewed_by": "a03aa0d8-15b4-4816-9174-c83ce0c4f758",
+          "archived": false
+        },
+        {
+          "id": "4e346786-6025-4f96-843f-073dd8e32a79",
+          "title": "Reflejar lo escuchado",
+          "summary": "Este tema enseña cómo parafrasear lo que el cliente ha dicho para confirmar la comprensión y asegurar una comunicación efectiva.",
+          "outcome": "El empleado sabrá parafrasear lo escuchado para confirmar la comprensión.",
+          "criticality": "recommended",
+          "position": 3,
+          "mastery_threshold": 0.800000011920929,
+          "estimated_minutes": 6,
+          "default_ui_format": "mixed",
+          "skill_id": null,
+          "seed_lesson_id": null,
+          "source_document_id": "1f4fdb48-c1f8-4582-8709-4a68353ef3f8",
+          "source_headings": [],
+          "prerequisite_node_ids": [
+            "0482e373-b721-42bb-a9f1-08b9add2bea7"
+          ],
+          "reviewed_at": "2026-08-13T23:34:55.691089Z",
+          "reviewed_by": "a03aa0d8-15b4-4816-9174-c83ce0c4f758",
+          "archived": false
+        },
+        {
+          "id": "f2d329ae-465b-4567-a695-26ce620716a3",
+          "title": "Reconocer el problema",
+          "summary": "Se centra en la importancia de agradecer al cliente por su paciencia y reconocer su queja de manera efectiva.",
+          "outcome": "El empleado sabrá reconocer y agradecer al cliente por su queja.",
+          "criticality": "critical",
+          "position": 4,
+          "mastery_threshold": 0.8999999761581421,
+          "estimated_minutes": 5,
+          "default_ui_format": "mixed",
+          "skill_id": null,
+          "seed_lesson_id": null,
+          "source_document_id": "1f4fdb48-c1f8-4582-8709-4a68353ef3f8",
+          "source_headings": [],
+          "prerequisite_node_ids": [
+            "4e346786-6025-4f96-843f-073dd8e32a79"
+          ],
+          "reviewed_at": "2026-08-13T23:34:55.707869Z",
+          "reviewed_by": "a03aa0d8-15b4-4816-9174-c83ce0c4f758",
+          "archived": false
+        },
+        {
+          "id": "1ba0ab8a-fc1d-4506-964a-d32a16b2fbcf",
+          "title": "Ofrecer una disculpa sincera",
+          "summary": "Este tema cubre cómo ofrecer una disculpa clara y directa, evitando justificaciones en el proceso.",
+          "outcome": "El empleado sabrá ofrecer una disculpa sincera al cliente.",
+          "criticality": "recommended",
+          "position": 5,
+          "mastery_threshold": 0.800000011920929,
+          "estimated_minutes": 4,
+          "default_ui_format": "mixed",
+          "skill_id": null,
+          "seed_lesson_id": null,
+          "source_document_id": "1f4fdb48-c1f8-4582-8709-4a68353ef3f8",
+          "source_headings": [],
+          "prerequisite_node_ids": [
+            "f2d329ae-465b-4567-a695-26ce620716a3"
+          ],
+          "reviewed_at": "2026-08-13T23:34:55.747386Z",
+          "reviewed_by": "a03aa0d8-15b4-4816-9174-c83ce0c4f758",
+          "archived": false
+        },
+        {
+          "id": "3e438de7-3059-415f-b7f7-bb6026060e23",
+          "title": "Identificar posibles soluciones",
+          "summary": "Se enseña a evaluar las quejas del cliente y a identificar soluciones viables que se pueden ofrecer.",
+          "outcome": "El empleado sabrá identificar soluciones viables para las quejas de los clientes.",
+          "criticality": "recommended",
+          "position": 6,
+          "mastery_threshold": 0.800000011920929,
+          "estimated_minutes": 7,
+          "default_ui_format": "mixed",
+          "skill_id": null,
+          "seed_lesson_id": null,
+          "source_document_id": "1f4fdb48-c1f8-4582-8709-4a68353ef3f8",
+          "source_headings": [],
+          "prerequisite_node_ids": [
+            "1ba0ab8a-fc1d-4506-964a-d32a16b2fbcf"
+          ],
+          "reviewed_at": "2026-08-13T23:34:55.791234Z",
+          "reviewed_by": "a03aa0d8-15b4-4816-9174-c83ce0c4f758",
+          "archived": false
+        },
+        {
+          "id": "50a091ff-41fb-46a2-bbad-b0792d8413eb",
+          "title": "Saber cuándo escalar al encargado",
+          "summary": "Este tema aborda cómo identificar situaciones que requieren escalado y cómo comunicarlo al cliente.",
+          "outcome": "El empleado sabrá cuándo y cómo escalar una queja al encargado.",
+          "criticality": "recommended",
+          "position": 7,
+          "mastery_threshold": 0.800000011920929,
+          "estimated_minutes": 5,
+          "default_ui_format": "mixed",
+          "skill_id": null,
+          "seed_lesson_id": null,
+          "source_document_id": "1f4fdb48-c1f8-4582-8709-4a68353ef3f8",
+          "source_headings": [],
+          "prerequisite_node_ids": [
+            "3e438de7-3059-415f-b7f7-bb6026060e23"
+          ],
+          "reviewed_at": "2026-08-13T23:34:55.806588Z",
+          "reviewed_by": "a03aa0d8-15b4-4816-9174-c83ce0c4f758",
+          "archived": false
+        },
+        {
+          "id": "e38dc457-7a74-4e86-9597-fd47248eb458",
+          "title": "Registrar la incidencia",
+          "summary": "Se enfoca en la recopilación de información relevante y el uso del sistema de registro para documentar quejas y soluciones.",
+          "outcome": "El empleado sabrá registrar incidencias de manera efectiva.",
+          "criticality": "recommended",
+          "position": 8,
+          "mastery_threshold": 0.800000011920929,
+          "estimated_minutes": 6,
+          "default_ui_format": "mixed",
+          "skill_id": null,
+          "seed_lesson_id": null,
+          "source_document_id": "1f4fdb48-c1f8-4582-8709-4a68353ef3f8",
+          "source_headings": [],
+          "prerequisite_node_ids": [
+            "50a091ff-41fb-46a2-bbad-b0792d8413eb"
+          ],
+          "reviewed_at": "2026-08-13T23:34:55.838768Z",
+          "reviewed_by": "a03aa0d8-15b4-4816-9174-c83ce0c4f758",
+          "archived": false
+        }
+      ]
+    }
+  },
+  "schema_after_validation": {
+    "course_id": "fb48019b-2aeb-4ee4-a7f1-6c858cd6c488",
+    "schema_status": "validated",
+    "schema_version": 1,
+    "delivery_mode": "dynamic",
+    "intent_density": 2,
+    "validated_by": "a03aa0d8-15b4-4816-9174-c83ce0c4f758",
+    "validated_at": "2026-08-13T23:34:55.851479Z",
+    "warnings": [],
+    "nodes": [
+      {
+        "id": "5868b3b4-7154-4647-9a4d-130e60eef602",
+        "title": "Preparación para la escucha activa",
+        "summary": "Este tema cubre las técnicas necesarias para preparar al empleado para una escucha activa, incluyendo el contacto visual y la postura receptiva.",
+        "outcome": "El empleado sabrá cómo prepararse para escuchar activamente a un cliente.",
+        "criticality": "critical",
+        "position": 1,
+        "mastery_threshold": 0.8999999761581421,
+        "estimated_minutes": 10,
+        "default_ui_format": "mixed",
+        "skill_id": null,
+        "seed_lesson_id": null,
+        "source_document_id": "1f4fdb48-c1f8-4582-8709-4a68353ef3f8",
+        "source_headings": [],
+        "prerequisite_node_ids": [],
+        "reviewed_at": "2026-08-13T23:34:55.626077Z",
+        "reviewed_by": "a03aa0d8-15b4-4816-9174-c83ce0c4f758",
+        "archived": false
+      },
+      {
+        "id": "0482e373-b721-42bb-a9f1-08b9add2bea7",
+        "title": "Escuchar atentamente",
+        "summary": "Se enfoca en la importancia de no interrumpir al cliente y cómo mostrar comprensión a través de gestos y notas.",
+        "outcome": "El empleado sabrá escuchar atentamente a los clientes sin interrumpir.",
+        "criticality": "critical",
+        "position": 2,
+        "mastery_threshold": 0.8999999761581421,
+        "estimated_minutes": 8,
+        "default_ui_format": "mixed",
+        "skill_id": null,
+        "seed_lesson_id": null,
+        "source_document_id": "1f4fdb48-c1f8-4582-8709-4a68353ef3f8",
+        "source_headings": [],
+        "prerequisite_node_ids": [
+          "5868b3b4-7154-4647-9a4d-130e60eef602"
+        ],
+        "reviewed_at": "2026-08-13T23:34:55.657538Z",
+        "reviewed_by": "a03aa0d8-15b4-4816-9174-c83ce0c4f758",
+        "archived": false
+      },
+      {
+        "id": "4e346786-6025-4f96-843f-073dd8e32a79",
+        "title": "Reflejar lo escuchado",
+        "summary": "Este tema enseña cómo parafrasear lo que el cliente ha dicho para confirmar la comprensión y asegurar una comunicación efectiva.",
+        "outcome": "El empleado sabrá parafrasear lo escuchado para confirmar la comprensión.",
+        "criticality": "recommended",
+        "position": 3,
+        "mastery_threshold": 0.800000011920929,
+        "estimated_minutes": 6,
+        "default_ui_format": "mixed",
+        "skill_id": null,
+        "seed_lesson_id": null,
+        "source_document_id": "1f4fdb48-c1f8-4582-8709-4a68353ef3f8",
+        "source_headings": [],
+        "prerequisite_node_ids": [
+          "0482e373-b721-42bb-a9f1-08b9add2bea7"
+        ],
+        "reviewed_at": "2026-08-13T23:34:55.691089Z",
+        "reviewed_by": "a03aa0d8-15b4-4816-9174-c83ce0c4f758",
+        "archived": false
+      },
+      {
+        "id": "f2d329ae-465b-4567-a695-26ce620716a3",
+        "title": "Reconocer el problema",
+        "summary": "Se centra en la importancia de agradecer al cliente por su paciencia y reconocer su queja de manera efectiva.",
+        "outcome": "El empleado sabrá reconocer y agradecer al cliente por su queja.",
+        "criticality": "critical",
+        "position": 4,
+        "mastery_threshold": 0.8999999761581421,
+        "estimated_minutes": 5,
+        "default_ui_format": "mixed",
+        "skill_id": null,
+        "seed_lesson_id": null,
+        "source_document_id": "1f4fdb48-c1f8-4582-8709-4a68353ef3f8",
+        "source_headings": [],
+        "prerequisite_node_ids": [
+          "4e346786-6025-4f96-843f-073dd8e32a79"
+        ],
+        "reviewed_at": "2026-08-13T23:34:55.707869Z",
+        "reviewed_by": "a03aa0d8-15b4-4816-9174-c83ce0c4f758",
+        "archived": false
+      },
+      {
+        "id": "1ba0ab8a-fc1d-4506-964a-d32a16b2fbcf",
+        "title": "Ofrecer una disculpa sincera",
+        "summary": "Este tema cubre cómo ofrecer una disculpa clara y directa, evitando justificaciones en el proceso.",
+        "outcome": "El empleado sabrá ofrecer una disculpa sincera al cliente.",
+        "criticality": "recommended",
+        "position": 5,
+        "mastery_threshold": 0.800000011920929,
+        "estimated_minutes": 4,
+        "default_ui_format": "mixed",
+        "skill_id": null,
+        "seed_lesson_id": null,
+        "source_document_id": "1f4fdb48-c1f8-4582-8709-4a68353ef3f8",
+        "source_headings": [],
+        "prerequisite_node_ids": [
+          "f2d329ae-465b-4567-a695-26ce620716a3"
+        ],
+        "reviewed_at": "2026-08-13T23:34:55.747386Z",
+        "reviewed_by": "a03aa0d8-15b4-4816-9174-c83ce0c4f758",
+        "archived": false
+      },
+      {
+        "id": "3e438de7-3059-415f-b7f7-bb6026060e23",
+        "title": "Identificar posibles soluciones",
+        "summary": "Se enseña a evaluar las quejas del cliente y a identificar soluciones viables que se pueden ofrecer.",
+        "outcome": "El empleado sabrá identificar soluciones viables para las quejas de los clientes.",
+        "criticality": "recommended",
+        "position": 6,
+        "mastery_threshold": 0.800000011920929,
+        "estimated_minutes": 7,
+        "default_ui_format": "mixed",
+        "skill_id": null,
+        "seed_lesson_id": null,
+        "source_document_id": "1f4fdb48-c1f8-4582-8709-4a68353ef3f8",
+        "source_headings": [],
+        "prerequisite_node_ids": [
+          "1ba0ab8a-fc1d-4506-964a-d32a16b2fbcf"
+        ],
+        "reviewed_at": "2026-08-13T23:34:55.791234Z",
+        "reviewed_by": "a03aa0d8-15b4-4816-9174-c83ce0c4f758",
+        "archived": false
+      },
+      {
+        "id": "50a091ff-41fb-46a2-bbad-b0792d8413eb",
+        "title": "Saber cuándo escalar al encargado",
+        "summary": "Este tema aborda cómo identificar situaciones que requieren escalado y cómo comunicarlo al cliente.",
+        "outcome": "El empleado sabrá cuándo y cómo escalar una queja al encargado.",
+        "criticality": "recommended",
+        "position": 7,
+        "mastery_threshold": 0.800000011920929,
+        "estimated_minutes": 5,
+        "default_ui_format": "mixed",
+        "skill_id": null,
+        "seed_lesson_id": null,
+        "source_document_id": "1f4fdb48-c1f8-4582-8709-4a68353ef3f8",
+        "source_headings": [],
+        "prerequisite_node_ids": [
+          "3e438de7-3059-415f-b7f7-bb6026060e23"
+        ],
+        "reviewed_at": "2026-08-13T23:34:55.806588Z",
+        "reviewed_by": "a03aa0d8-15b4-4816-9174-c83ce0c4f758",
+        "archived": false
+      },
+      {
+        "id": "e38dc457-7a74-4e86-9597-fd47248eb458",
+        "title": "Registrar la incidencia",
+        "summary": "Se enfoca en la recopilación de información relevante y el uso del sistema de registro para documentar quejas y soluciones.",
+        "outcome": "El empleado sabrá registrar incidencias de manera efectiva.",
+        "criticality": "recommended",
+        "position": 8,
+        "mastery_threshold": 0.800000011920929,
+        "estimated_minutes": 6,
+        "default_ui_format": "mixed",
+        "skill_id": null,
+        "seed_lesson_id": null,
+        "source_document_id": "1f4fdb48-c1f8-4582-8709-4a68353ef3f8",
+        "source_headings": [],
+        "prerequisite_node_ids": [
+          "50a091ff-41fb-46a2-bbad-b0792d8413eb"
+        ],
+        "reviewed_at": "2026-08-13T23:34:55.838768Z",
+        "reviewed_by": "a03aa0d8-15b4-4816-9174-c83ce0c4f758",
+        "archived": false
+      }
+    ]
+  },
+  "duration_s": 56.547,
+  "finished_at": "2026-08-13T23:34:55.879205+00:00"
+}

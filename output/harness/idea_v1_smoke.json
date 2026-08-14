@@ -1,0 +1,7 @@
+{
+  "title": "Apertura de caja",
+  "course_title": "Abrir y cerrar caja sin descuadres",
+  "description": "Prueba controlada de generación estática v1.",
+  "idea": "Explica cómo contar el fondo de 150 euros, registrar la diferencia antes de abrir, aceptar medios de pago, entregar el ticket, hacer el arqueo y escalar un descuadre superior a cinco euros. Incluye ejercicios de decisión.",
+  "intent_density": 2
+}

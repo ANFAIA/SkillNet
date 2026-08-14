@@ -1,0 +1,9 @@
+{
+  "base_url": "http://localhost:3000",
+  "admin_email": "admin@skillnet.dev",
+  "http_timeout": 25,
+  "render_timeout": 180,
+  "max_nodes": 4,
+  "force": true,
+  "courses": ["Avisar de retrasos sin perder la confianza", "Quejas en mesa: escuchar y resolver", "Devoluciones en tienda"]
+}

@@ -1,0 +1,588 @@
+{
+  "profile": {
+    "slug": "cocinero-tecnico",
+    "email": "cocinero.tecnico@skillnet-test.example",
+    "full_name": "Ruben Soler",
+    "role_title": "Cocinero",
+    "sector": "hosteleria",
+    "goal": "assigned",
+    "experience_level": "experienced",
+    "preset": "standard",
+    "accessibility": {
+      "short_blocks": false,
+      "reduce_motion": false,
+      "high_contrast": false,
+      "extra_time": false
+    },
+    "learning_preferences": {
+      "version": 1,
+      "presentation": "balanced",
+      "detail": "detailed",
+      "images": "when_useful"
+    },
+    "nodes_completed": 4,
+    "format_vector": {
+      "texto": 0.2,
+      "ejercicio": 0.4,
+      "codigo": 0,
+      "dato": 0.4
+    },
+    "answer_strategy": "random"
+  },
+  "started_at": "2026-08-13T22:32:08.395728+00:00",
+  "errors": [],
+  "courses": [
+    {
+      "course": {
+        "id": "4c9d4c13-77ed-4cc8-a9d8-84fcff4fa286",
+        "title": "Alergenos en la carta",
+        "description": "Cafeteria-panaderia. El empleado debe decir si un producto lleva un alergeno, evitar contaminacion cruzada en fritura y saber que hacer cuando el cliente pregunta. Sin citar articulos de ley inventados.",
+        "outcome": null,
+        "status": "published",
+        "source_document_id": null,
+        "folder_id": null,
+        "folder_name": null,
+        "created_at": "2026-08-13T09:56:12.591227Z",
+        "updated_at": "2026-08-13T09:56:13.421571Z",
+        "module_count": 0,
+        "node_count": 4,
+        "schema_status": "validated",
+        "delivery_mode": "dynamic",
+        "artifact_generate_policy": "admin",
+        "artifact_generator_ids": [],
+        "can_generate_artifacts": true
+      },
+      "nodes": [
+        {
+          "node": {
+            "id": "d2a14adb-8933-46a9-aa04-bc92b3bb3bd9",
+            "title": "Identificación de alergenos",
+            "summary": "Los empleados deben identificar los alergenos presentes en los productos ofrecidos en la cafetería-panadería.",
+            "criticality": "critical",
+            "position": 1,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": false,
+            "locked_by": [],
+            "needs_practice": false,
+            "estimated_minutes": 10
+          },
+          "render": {
+            "meta": {
+              "render_id": "87bf4cfb-ca91-4172-9112-03417288b6ae",
+              "ui_format": "explanation",
+              "status": "ready",
+              "backend": "openui",
+              "cached": true
+            },
+            "program": "root = Stack([lead, concepto, practica], \"md\")\nlead = TextContent(\"Un cliente pregunta si un pastel contiene frutos secos. Debes saber identificar los alergenos en los productos.\", \"lead\")\nconcepto = Table([\"Alergeno\", \"Producto\"], [[\"Gluten\", \"Pan, bollería\"], [\"Frutos secos\", \"Pasteles, galletas\"], [\"Leche\", \"Postres, salsas\"], [\"Huevos\", \"Tortilla, rebozados\"]])\npractica = DidactTimeline(\"Identificación de alergenos\", [\"Revisar la etiqueta del producto\", \"Conocer los alergenos comunes\", \"Informar al cliente sobre los alergenos presentes\"], [\"Verifica siempre las etiquetas de los productos.\", \"Mantente informado sobre los alergenos que pueden contener.\", \"Informa al cliente sobre los alergenos presentes.\"])\n",
+            "characters": 719,
+            "lines": 4,
+            "components": [
+              "DidactTimeline",
+              "Stack",
+              "Table",
+              "TextContent"
+            ],
+            "quiz_items": []
+          },
+          "answers": []
+        },
+        {
+          "node": {
+            "id": "b95f888a-b4ba-4842-b66a-ed6779fbec3c",
+            "title": "Evitar contaminación cruzada",
+            "summary": "Se enseña a los empleados cómo evitar la contaminación cruzada durante la fritura, asegurando la seguridad alimentaria para los clientes con alergias.",
+            "criticality": "recommended",
+            "position": 2,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": true,
+            "locked_by": [
+              "d2a14adb-8933-46a9-aa04-bc92b3bb3bd9"
+            ],
+            "needs_practice": false,
+            "estimated_minutes": 15
+          },
+          "render": {
+            "meta": {
+              "render_id": "4c8beacb-1f9d-42ee-bf0b-b1485db41926",
+              "ui_format": "explanation",
+              "status": "ready",
+              "backend": "openui",
+              "cached": true
+            },
+            "program": "root = Stack([lead, concepto, practica], \"md\")\nlead = TextContent(\"Un cliente celiaco pregunta si puede comer un plato frito. Debes asegurarte de que no haya contaminación cruzada.\", \"lead\")\nconcepto = Table([\"Acción\", \"Descripción\"], [[\"Usar aceite limpio\", \"Siempre utiliza aceite nuevo para cada tipo de alimento.\"], [\"Separar utensilios\", \"Usa diferentes utensilios para carne y pescado.\"], [\"Limpiar superficies\", \"Limpia las superficies entre diferentes preparaciones.\"]])\npractica = Flashcard(\"¿Qué debes hacer para evitar la contaminación cruzada al freír?\", \"Usar aceite limpio y utensilios separados.\")\n",
+            "characters": 613,
+            "lines": 4,
+            "components": [
+              "Flashcard",
+              "Stack",
+              "Table",
+              "TextContent"
+            ],
+            "quiz_items": []
+          },
+          "answers": []
+        },
+        {
+          "node": {
+            "id": "4efa8dd2-84aa-4c2e-b729-62d6c2ff04c0",
+            "title": "Responder a preguntas de clientes",
+            "summary": "Los empleados aprenden a responder adecuadamente a las preguntas de los clientes sobre alergenos, sin citar artículos de ley inventados.",
+            "criticality": "recommended",
+            "position": 3,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": true,
+            "locked_by": [
+              "d2a14adb-8933-46a9-aa04-bc92b3bb3bd9"
+            ],
+            "needs_practice": false,
+            "estimated_minutes": 12
+          },
+          "render": {
+            "meta": {
+              "render_id": "884db82a-601e-4b6b-b551-9128e265fa08",
+              "ui_format": "explanation",
+              "status": "ready",
+              "backend": "openui",
+              "cached": true
+            },
+            "program": "root = Stack([lead, concepto, practica], \"md\")\nlead = TextContent(\"Un cliente pregunta si un plato contiene nueces. Debes responder correctamente.\", \"lead\")\nconcepto = Table([\"Alergeno\", \"Respuesta adecuada\"], [[\"Nueces\", \"Este plato contiene nueces.\"], [\"Gluten\", \"Este plato no contiene gluten.\"], [\"Leche\", \"Este plato contiene leche.\"]])\npractica = DidactWorkedExample(\"Responder a preguntas sobre alergenos\", [\"Un cliente pregunta si el postre tiene leche.\", \"Confirmas que sí, el postre contiene leche.\", \"Le informas que hay opciones sin lácteos.\"], \"El empleado debe saber responder a las preguntas sobre alergenos de forma precisa.\")\n",
+            "characters": 643,
+            "lines": 4,
+            "components": [
+              "DidactWorkedExample",
+              "Stack",
+              "Table",
+              "TextContent"
+            ],
+            "quiz_items": []
+          },
+          "answers": []
+        },
+        {
+          "node": {
+            "id": "10503648-84b6-4925-95fa-d31a011e561f",
+            "title": "Prácticas seguras en la manipulación de alimentos",
+            "summary": "Este tema analiza las mejores prácticas para la manipulación de alimentos en la cafetería-panadería, enfocándose en la seguridad y la prevención de alergias.",
+            "criticality": "recommended",
+            "position": 4,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": true,
+            "locked_by": [
+              "d2a14adb-8933-46a9-aa04-bc92b3bb3bd9"
+            ],
+            "needs_practice": false,
+            "estimated_minutes": 18
+          },
+          "render": {
+            "meta": {
+              "render_id": "9da0a7e4-48e6-40f3-a368-289c386f277a",
+              "ui_format": "explanation",
+              "status": "ready",
+              "backend": "openui",
+              "cached": true
+            },
+            "program": "root = Stack([lead, concepto, practica], \"md\")\nlead = TextContent(\"Un cocinero debe asegurarse de que los alimentos se manipulan de manera segura para evitar contaminaciones.\", \"lead\")\nconcepto = Table([\"Práctica\", \"Descripción\"], [[\"Lavado de manos\", \"Lavar las manos antes de manipular alimentos.\"], [\"Separación de alimentos\", \"Mantener separados los alimentos crudos de los cocidos.\"], [\"Uso de guantes\", \"Utilizar guantes al manipular alimentos listos para consumir.\"]])\npractica = Flashcard(\"¿Cuál es la primera acción que debe realizar un cocinero antes de manipular alimentos?\", \"Lavar las manos es esencial para prevenir contaminaciones.\")\n",
+            "characters": 649,
+            "lines": 4,
+            "components": [
+              "Flashcard",
+              "Stack",
+              "Table",
+              "TextContent"
+            ],
+            "quiz_items": []
+          },
+          "answers": []
+        }
+      ],
+      "errors": [],
+      "enrollment_status": 201,
+      "enrollment": [
+        {
+          "id": "f18cc5d6-a9b2-4e2d-aef6-4c0ef08c80da",
+          "course_id": "4c9d4c13-77ed-4cc8-a9d8-84fcff4fa286",
+          "user_id": "4bed36b6-5a95-41d5-a8df-7e8f8ec21caf",
+          "status": "assigned",
+          "deadline": null,
+          "score": null,
+          "progress": 0.0,
+          "course_title": "Alergenos en la carta",
+          "started_at": null,
+          "completed_at": null,
+          "delivery_mode": "dynamic"
+        }
+      ],
+      "node_list": {
+        "course_id": "4c9d4c13-77ed-4cc8-a9d8-84fcff4fa286",
+        "delivery_mode": "dynamic",
+        "schema_version": 3,
+        "nodes": [
+          {
+            "id": "d2a14adb-8933-46a9-aa04-bc92b3bb3bd9",
+            "title": "Identificación de alergenos",
+            "summary": "Los empleados deben identificar los alergenos presentes en los productos ofrecidos en la cafetería-panadería.",
+            "criticality": "critical",
+            "position": 1,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": false,
+            "locked_by": [],
+            "needs_practice": false,
+            "estimated_minutes": 10
+          },
+          {
+            "id": "b95f888a-b4ba-4842-b66a-ed6779fbec3c",
+            "title": "Evitar contaminación cruzada",
+            "summary": "Se enseña a los empleados cómo evitar la contaminación cruzada durante la fritura, asegurando la seguridad alimentaria para los clientes con alergias.",
+            "criticality": "recommended",
+            "position": 2,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": true,
+            "locked_by": [
+              "d2a14adb-8933-46a9-aa04-bc92b3bb3bd9"
+            ],
+            "needs_practice": false,
+            "estimated_minutes": 15
+          },
+          {
+            "id": "4efa8dd2-84aa-4c2e-b729-62d6c2ff04c0",
+            "title": "Responder a preguntas de clientes",
+            "summary": "Los empleados aprenden a responder adecuadamente a las preguntas de los clientes sobre alergenos, sin citar artículos de ley inventados.",
+            "criticality": "recommended",
+            "position": 3,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": true,
+            "locked_by": [
+              "d2a14adb-8933-46a9-aa04-bc92b3bb3bd9"
+            ],
+            "needs_practice": false,
+            "estimated_minutes": 12
+          },
+          {
+            "id": "10503648-84b6-4925-95fa-d31a011e561f",
+            "title": "Prácticas seguras en la manipulación de alimentos",
+            "summary": "Este tema analiza las mejores prácticas para la manipulación de alimentos en la cafetería-panadería, enfocándose en la seguridad y la prevención de alergias.",
+            "criticality": "recommended",
+            "position": 4,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": true,
+            "locked_by": [
+              "d2a14adb-8933-46a9-aa04-bc92b3bb3bd9"
+            ],
+            "needs_practice": false,
+            "estimated_minutes": 18
+          }
+        ],
+        "can_complete": false,
+        "blocked_by": [
+          "d2a14adb-8933-46a9-aa04-bc92b3bb3bd9"
+        ],
+        "progress_percent": 0
+      }
+    },
+    {
+      "course": {
+        "id": "1d44486f-fdb0-48ed-8407-1d71de2dfcf1",
+        "title": "Uso del extintor en el almacen",
+        "description": "Almacen de una pyme. El empleado debe usar un extintor de CO2 o polvo en un conato, sin inventar normativa con articulos. Pasos PAS, tipos de fuego, cuando no usarlo y avisar.",
+        "outcome": null,
+        "status": "published",
+        "source_document_id": null,
+        "folder_id": null,
+        "folder_name": null,
+        "created_at": "2026-08-13T09:55:58.422012Z",
+        "updated_at": "2026-08-13T09:57:54.138692Z",
+        "module_count": 0,
+        "node_count": 5,
+        "schema_status": "validated",
+        "delivery_mode": "dynamic",
+        "artifact_generate_policy": "admin",
+        "artifact_generator_ids": [],
+        "can_generate_artifacts": true
+      },
+      "nodes": [
+        {
+          "node": {
+            "id": "eca47f16-3474-4d91-be72-75a3dfaf3783",
+            "title": "Tipos de fuego",
+            "summary": "Se explican los diferentes tipos de fuego y cómo cada uno requiere un enfoque específico para su extinción.",
+            "criticality": "recommended",
+            "position": 1,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": false,
+            "locked_by": [],
+            "needs_practice": false,
+            "estimated_minutes": 10
+          },
+          "render": {
+            "meta": {
+              "render_id": "5289c892-955d-4326-bbed-35ae17640d7c",
+              "ui_format": "explanation",
+              "status": "ready",
+              "backend": "openui",
+              "cached": true
+            },
+            "program": "root = Stack([lead, concepto, practica], \"md\")\nlead = TextContent(\"En la cocina, puedes encontrarte con diferentes tipos de fuego que requieren distintos métodos de extinción.\", \"lead\")\nconcepto = Table([\"Tipo de fuego\", \"Descripción\", \"Método de extinción\"], [[\"Fuego de clase A\", \"Materiales sólidos como madera y papel\", \"Agua o extintores de espuma\"], [\"Fuego de clase B\", \"Líquidos inflamables como aceites y gasolina\", \"Extintores de CO2 o espuma\"], [\"Fuego de clase C\", \"Equipos eléctricos\", \"Extintores de CO2 o polvo químico seco\"]])\npractica = Flashcard(\"Identifica el tipo de fuego: Un sartén se enciende con aceite caliente. ¿Qué tipo de fuego es?\", \"Es un fuego de clase B, que requiere un extintor adecuado para líquidos inflamables.\")\n",
+            "characters": 750,
+            "lines": 4,
+            "components": [
+              "Flashcard",
+              "Stack",
+              "Table",
+              "TextContent"
+            ],
+            "quiz_items": []
+          },
+          "answers": []
+        },
+        {
+          "node": {
+            "id": "16a99e99-4fec-4da0-834d-1e56673cc92e",
+            "title": "Cuándo no usar un extintor",
+            "summary": "Este tema aborda las situaciones en las que no se debe utilizar un extintor, para evitar agravar el incendio.",
+            "criticality": "critical",
+            "position": 2,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": false,
+            "locked_by": [],
+            "needs_practice": false,
+            "estimated_minutes": 8
+          },
+          "render": {
+            "meta": {
+              "render_id": "f5a860cf-3f01-41c8-b44f-fa60dd895289",
+              "ui_format": "explanation",
+              "status": "ready",
+              "backend": "openui",
+              "cached": true
+            },
+            "program": "root = Stack([lead, concepto, practica], \"md\")\nlead = TextContent(\"Un incendio en la cocina: debes saber cuándo no usar el extintor.\", \"lead\")\nconcepto = Table([\"Situación\", \"Por qué no usar el extintor\"], [[\"Fuego en aceite\", \"Puede provocar una explosión y es mejor usar una tapa o un extintor de clase K.\"], [\"Fuego eléctrico\", \"El agua del extintor puede causar electrocución; usa un extintor de CO2.\"], [\"Fuego en materiales inflamables\", \"Si el fuego se propaga rápidamente, es mejor evacuar y llamar a los bomberos.\"]])\npractica = DidactGlossary(\"Términos importantes\", [\"Extintor de clase K\", \"Extintor de CO2\", \"Evacuación\"], [\"Extintor diseñado para fuegos de grasa y aceite.\", \"Extintor que utiliza dióxido de carbono para apagar fuegos eléctricos.\", \"Proceso de salir de un lugar en caso de emergencia.\"])\n",
+            "characters": 818,
+            "lines": 4,
+            "components": [
+              "DidactGlossary",
+              "Stack",
+              "Table",
+              "TextContent"
+            ],
+            "quiz_items": []
+          },
+          "answers": []
+        },
+        {
+          "node": {
+            "id": "44f3ac92-ddb9-44a8-857b-e6b1c91d80fa",
+            "title": "Pasos PAS",
+            "summary": "Se detallan los pasos a seguir en la técnica PAS (Proteger, Avisar, Sofocar) para manejar un conato de incendio de manera efectiva.",
+            "criticality": "critical",
+            "position": 3,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": false,
+            "locked_by": [],
+            "needs_practice": false,
+            "estimated_minutes": 12
+          },
+          "render": {
+            "meta": {
+              "render_id": "a94bd573-539c-4e25-85b0-42e452845598",
+              "ui_format": "explanation",
+              "status": "ready",
+              "backend": "openui",
+              "cached": true
+            },
+            "program": "root = Stack([lead, concepto, practica], \"md\")\nlead = TextContent(\"Un conato de incendio ocurre en la cocina mientras fríes alimentos.\", \"lead\")\nconcepto = Table([\"Paso\", \"Descripción\"], [[\"Proteger\", \"Asegúrate de tener a mano un extintor y proteger a las personas.\"], [\"Avisar\", \"Informa a tus compañeros y llama a emergencias.\"], [\"Sofocar\", \"Intenta apagar el fuego con el extintor o una tapa.\"]])\npractica = Flashcard(\"¿Qué significa el paso 'Avisar' en la técnica PAS?\", \"Significa informar a tus compañeros y llamar a emergencias.\")\n",
+            "characters": 540,
+            "lines": 4,
+            "components": [
+              "Flashcard",
+              "Stack",
+              "Table",
+              "TextContent"
+            ],
+            "quiz_items": []
+          },
+          "answers": []
+        },
+        {
+          "node": {
+            "id": "61fe1f4b-3bd0-43c5-93ab-f966677e34cf",
+            "title": "Importancia de avisar",
+            "summary": "Se enfatiza la necesidad de avisar a otros en caso de un incendio, asegurando la seguridad de todos en el almacén.",
+            "criticality": "recommended",
+            "position": 4,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": false,
+            "locked_by": [],
+            "needs_practice": false,
+            "estimated_minutes": 5
+          },
+          "render": {
+            "meta": {
+              "render_id": "fae6bdca-5bd3-435c-b0d4-1c3ce2204de7",
+              "ui_format": "explanation",
+              "status": "ready",
+              "backend": "openui",
+              "cached": true
+            },
+            "program": "root = Stack([lead, concepto, practica], \"md\")\nlead = TextContent(\"En caso de incendio en el almacén, es crucial avisar a otros para garantizar la seguridad de todos.\", \"lead\")\nconcepto = Table([\"Acción\", \"Descripción\"], [[\"Avisar al encargado\", \"Informar inmediatamente al responsable del almacén.\"], [\"Activar alarma\", \"Si está disponible, activar la alarma de incendios.\"], [\"Evacuar\", \"Seguir las rutas de evacuación establecidas.\"]])\npractica = Flashcard(\"¿Qué debes hacer primero en caso de incendio?\", \"Avisar al encargado.\")\n",
+            "characters": 533,
+            "lines": 4,
+            "components": [
+              "Flashcard",
+              "Stack",
+              "Table",
+              "TextContent"
+            ],
+            "quiz_items": []
+          },
+          "answers": []
+        }
+      ],
+      "errors": [],
+      "enrollment_status": 201,
+      "enrollment": [
+        {
+          "id": "19c1e274-2d6f-473b-b0e6-2fd730c48fe2",
+          "course_id": "1d44486f-fdb0-48ed-8407-1d71de2dfcf1",
+          "user_id": "4bed36b6-5a95-41d5-a8df-7e8f8ec21caf",
+          "status": "assigned",
+          "deadline": null,
+          "score": null,
+          "progress": 0.0,
+          "course_title": "Uso del extintor en el almacen",
+          "started_at": null,
+          "completed_at": null,
+          "delivery_mode": "dynamic"
+        }
+      ],
+      "node_list": {
+        "course_id": "1d44486f-fdb0-48ed-8407-1d71de2dfcf1",
+        "delivery_mode": "dynamic",
+        "schema_version": 2,
+        "nodes": [
+          {
+            "id": "eca47f16-3474-4d91-be72-75a3dfaf3783",
+            "title": "Tipos de fuego",
+            "summary": "Se explican los diferentes tipos de fuego y cómo cada uno requiere un enfoque específico para su extinción.",
+            "criticality": "recommended",
+            "position": 1,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": false,
+            "locked_by": [],
+            "needs_practice": false,
+            "estimated_minutes": 10
+          },
+          {
+            "id": "16a99e99-4fec-4da0-834d-1e56673cc92e",
+            "title": "Cuándo no usar un extintor",
+            "summary": "Este tema aborda las situaciones en las que no se debe utilizar un extintor, para evitar agravar el incendio.",
+            "criticality": "critical",
+            "position": 2,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": false,
+            "locked_by": [],
+            "needs_practice": false,
+            "estimated_minutes": 8
+          },
+          {
+            "id": "44f3ac92-ddb9-44a8-857b-e6b1c91d80fa",
+            "title": "Pasos PAS",
+            "summary": "Se detallan los pasos a seguir en la técnica PAS (Proteger, Avisar, Sofocar) para manejar un conato de incendio de manera efectiva.",
+            "criticality": "critical",
+            "position": 3,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": false,
+            "locked_by": [],
+            "needs_practice": false,
+            "estimated_minutes": 12
+          },
+          {
+            "id": "61fe1f4b-3bd0-43c5-93ab-f966677e34cf",
+            "title": "Importancia de avisar",
+            "summary": "Se enfatiza la necesidad de avisar a otros en caso de un incendio, asegurando la seguridad de todos en el almacén.",
+            "criticality": "recommended",
+            "position": 4,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": false,
+            "locked_by": [],
+            "needs_practice": false,
+            "estimated_minutes": 5
+          },
+          {
+            "id": "581a5a50-e1a9-4912-8763-799b1ec1dd06",
+            "title": "Uso del extintor",
+            "summary": "Este tema cubre los procedimientos prácticos para utilizar un extintor de CO2 o polvo en caso de un conato de incendio en el almacén.",
+            "criticality": "critical",
+            "position": 5,
+            "state": "not_started",
+            "mastery": 0.0,
+            "locked": false,
+            "locked_by": [],
+            "needs_practice": false,
+            "estimated_minutes": 15
+          }
+        ],
+        "can_complete": false,
+        "blocked_by": [
+          "16a99e99-4fec-4da0-834d-1e56673cc92e",
+          "44f3ac92-ddb9-44a8-857b-e6b1c91d80fa",
+          "581a5a50-e1a9-4912-8763-799b1ec1dd06"
+        ],
+        "progress_percent": 0
+      }
+    }
+  ],
+  "user": {
+    "id": "4bed36b6-5a95-41d5-a8df-7e8f8ec21caf",
+    "email": "cocinero.tecnico@skillnet-test.example",
+    "full_name": "Ruben Soler",
+    "role": "employee"
+  },
+  "profile_saved": {
+    "role_title": "Cocinero",
+    "sector": "hosteleria",
+    "goal": "assigned",
+    "experience_level": "experienced",
+    "preset": "standard",
+    "learning_preferences": {
+      "version": 2,
+      "modality": "balanced",
+      "interaction": "standard",
+      "detail": "detailed",
+      "images": "when_useful"
+    },
+    "nodes_completed": 0,
+    "onboarding_completed_at": "2026-08-13T22:32:08.772156Z",
+    "onboarding_skipped": false,
+    "calibrating": true
+  },
+  "profile_counters_updated": true,
+  "resolved_courses": [
+    {
+      "id": "4c9d4c13-77ed-4cc8-a9d8-84fcff4fa286",
+      "title": "Alergenos en la carta"
+    },
+    {
+      "id": "1d44486f-fdb0-48ed-8407-1d71de2dfcf1",
+      "title": "Uso del extintor en el almacen"
+    }
+  ],
+  "duration_s": 74.015,
+  "finished_at": "2026-08-13T22:33:22.400730+00:00"
+}

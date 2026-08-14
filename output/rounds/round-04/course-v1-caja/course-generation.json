@@ -1,0 +1,89 @@
+{
+  "kind": "v1",
+  "idea": {
+    "slug": "v1-caja",
+    "kind": "v1",
+    "title": "Arqueo de caja",
+    "course_title": "Caja: abrir, cobrar y cerrar",
+    "description": "Procedimiento de caja para una tienda pequeña.",
+    "idea": "Cubre fondo inicial, cobros en efectivo y tarjeta, tickets, vales, arqueo y actuación ante descuadres. Usa ejemplos concretos y ejercicios variados."
+  },
+  "started_at": "2026-08-13T23:43:17.264493+00:00",
+  "errors": [],
+  "document": {
+    "id": "2940538d-9a92-4e69-912f-ad91ce63c150",
+    "title": "Arqueo de caja",
+    "file_type": "md",
+    "page_count": null,
+    "size_bytes": 2977,
+    "status": "processing",
+    "origin": "generated",
+    "error_message": null,
+    "created_at": "2026-08-13T23:43:19.366907Z"
+  },
+  "document_ready": {
+    "id": "2940538d-9a92-4e69-912f-ad91ce63c150",
+    "title": "Arqueo de caja",
+    "file_type": "md",
+    "page_count": 1,
+    "size_bytes": 2977,
+    "status": "ready",
+    "origin": "generated",
+    "error_message": null,
+    "created_at": "2026-08-13T23:43:19.366907Z"
+  },
+  "course": {
+    "id": "16e37975-4604-4f34-89cb-15c28476c18f",
+    "title": "Caja: abrir, cobrar y cerrar",
+    "description": "Procedimiento de caja para una tienda pequeña.",
+    "outcome": null,
+    "status": "draft",
+    "source_document_id": "2940538d-9a92-4e69-912f-ad91ce63c150",
+    "folder_id": null,
+    "folder_name": null,
+    "created_at": "2026-08-13T23:44:19.766362Z",
+    "updated_at": "2026-08-13T23:44:19.766362Z",
+    "module_count": 0,
+    "node_count": null,
+    "schema_status": "draft",
+    "delivery_mode": "static",
+    "artifact_generate_policy": "admin",
+    "artifact_generator_ids": [],
+    "can_generate_artifacts": true
+  },
+  "generation_accepted": {
+    "job_id": "7f0def68-80ed-43ef-be3d-6bc5bdb3473e"
+  },
+  "generation_job": {
+    "id": "7f0def68-80ed-43ef-be3d-6bc5bdb3473e",
+    "status": "failed",
+    "output_type": "course_and_manual",
+    "progress": {},
+    "result_course_id": "16e37975-4604-4f34-89cb-15c28476c18f",
+    "error_message": "[publish] DBAPIError: (sqlalchemy.dialects.postgresql.asyncpg.Error) <class 'asyncpg.exceptions.DataError'>: invalid input for query argument $3: {'type': 'test', 'question': '¿Cuál es e... (expected str, got dict)\n[SQL: INSERT INTO lessons (module_id, title, content, position) VALUES ($1::UUID, $2::VARCHAR, $3::VARCHAR, $4::INTEGER) RETURNING lessons.id, lessons.created_at, lessons.updated_at]\n[parameters: (UUID('f094f12d-7246-4306-a499-1a8acd1a1ec5'), 'Ejercicio: Registrar Cobros en Efectivo', {'type': 'test', 'que",
+    "created_at": "2026-08-13T23:44:19.814650Z",
+    "updated_at": "2026-08-13T23:46:44.743897Z"
+  },
+  "course_detail": {
+    "id": "16e37975-4604-4f34-89cb-15c28476c18f",
+    "title": "Caja: abrir, cobrar y cerrar",
+    "description": "Procedimiento de caja para una tienda pequeña.",
+    "outcome": null,
+    "status": "draft",
+    "source_document_id": "2940538d-9a92-4e69-912f-ad91ce63c150",
+    "folder_id": null,
+    "folder_name": null,
+    "created_at": "2026-08-13T23:44:19.766362Z",
+    "updated_at": "2026-08-13T23:44:19.766362Z",
+    "module_count": 0,
+    "node_count": 0,
+    "schema_status": "draft",
+    "delivery_mode": "static",
+    "artifact_generate_policy": "admin",
+    "artifact_generator_ids": [],
+    "can_generate_artifacts": true,
+    "modules": []
+  },
+  "duration_s": 207.953,
+  "finished_at": "2026-08-13T23:46:45.198960+00:00"
+}

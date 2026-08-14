@@ -1,0 +1,7 @@
+{
+  "title": "Comunicar retrasos en sala",
+  "course_title": "Avisar de retrasos sin perder la confianza",
+  "description": "Prueba controlada de generación dinámica.",
+  "idea": "El aprendiz debe detectar un retraso de cocina, avisar antes de que el cliente pregunte, dar un tiempo concreto y escalar si hay un riesgo. Organiza acciones observables, casos distintos y una progresión corta.",
+  "intent_density": 2
+}

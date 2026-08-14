@@ -1,0 +1,22 @@
+{
+  "profiles": 1,
+  "screens": 8,
+  "errors": 0,
+  "format_counts": {
+    "explanation": 6,
+    "mixed": 2
+  },
+  "component_counts": {},
+  "same_screen_concept_and_quiz": 0,
+  "same_screen_rate": 0.0,
+  "character_min": 532,
+  "character_avg": 637.5,
+  "character_max": 938,
+  "pairwise_profile_similarity_avg": null,
+  "pairwise_profile_similarity_min": null,
+  "pairwise_profile_similarity_max": null,
+  "pairwise": [],
+  "profile_durations_s": {
+    "control-equilibrado": 61.844
+  }
+}
