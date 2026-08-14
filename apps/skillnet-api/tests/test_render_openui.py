@@ -400,6 +400,28 @@ def test_a_one_column_table_with_one_cell_per_row_is_accepted() -> None:
     assert len(BACKEND.parse(raw).component("t").props["rows"]) == 3
 
 
+def test_a_table_that_forces_page_scroll_is_rejected() -> None:
+    rows = ", ".join(f'["Alergeno {index}"]' for index in range(1, 6))
+    raw = (
+        'root = Stack([intro, t], "md")\n'
+        'intro = TextContent("Decide con los datos necesarios.", "lead")\n'
+        f't = Table(["Alergeno"], [{rows}])\n'
+    )
+    with pytest.raises(RenderError, match="at most 4"):
+        BACKEND.parse(raw)
+
+
+def test_a_short_table_with_oversized_cells_is_rejected() -> None:
+    oversized = "x" * 161
+    raw = (
+        'root = Stack([intro, t], "md")\n'
+        'intro = TextContent("Decide con los datos necesarios.", "lead")\n'
+        f't = Table(["Dato"], [["{oversized}"]])\n'
+    )
+    with pytest.raises(RenderError, match="cell allows at most 160"):
+        BACKEND.parse(raw)
+
+
 def test_grammar_rule_3_a_literal_newline_breaks_the_string() -> None:
     with pytest.raises(RenderParseError) as excinfo:
         BACKEND.parse(_dsl("malformed_literal_newline"))

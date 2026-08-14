@@ -77,6 +77,33 @@ from src.services.learner_profile_service import CALIBRATION_NODES, vector_bucke
 
 logger = get_logger(__name__)
 
+
+def current_prompt_version() -> str:
+    """Exact instruction and catalogue version used by the shared render cache."""
+
+    if settings.RUNTIME_COMPONENT_SHORTLIST:
+        return f"{PROMPT_VERSION}+{catalog_version()}+{RUNTIME_SCOPE_POLICY_VERSION}"
+    return f"{PROMPT_VERSION}+{catalog_version()}"
+
+
+SCREEN_SAFETY_EPOCH = "bounded-screen/1"
+
+
+def current_render_safety_prefix() -> str:
+    """Compatibility marker for renders that satisfy the viewport contract.
+
+    Unlike the prompt version inside the shared cache key, this marker changes only when
+    an existing pinned render is unsafe to keep serving. Ordinary prompt/catalog updates
+    therefore preserve the per-learner stability promised by Vision A.
+    """
+
+    return f"safety:{SCREEN_SAFETY_EPOCH}:"
+
+
+def cache_key_uses_current_screen_contract(cache_key: str) -> bool:
+    prefix = current_render_safety_prefix()
+    return cache_key.startswith(prefix) or f":{prefix}" in cache_key
+
 #: ``409`` code returned when the node has no ``reviewed_at`` (§3.2). Structural, not
 #: advisory: the validation gate proves the graph is well formed, not that a human read the
 #: pedagogy, so an unreviewed node cannot be served even in a validated course.
@@ -194,11 +221,7 @@ def build_render_key(
         # Both halves of "which instructions produced this": the prompt module's own
         # version and the generated catalogue the model was taught. Either one changing
         # must invalidate the render, and the two are owned by different files.
-        prompt_version=(
-            f"{PROMPT_VERSION}+{catalog_version()}+{RUNTIME_SCOPE_POLICY_VERSION}"
-            if settings.RUNTIME_COMPONENT_SHORTLIST
-            else f"{PROMPT_VERSION}+{catalog_version()}"
-        ),
+        prompt_version=current_prompt_version(),
         role_title=role,
         sector=sector,
         vector_bucket=bucket,
@@ -208,6 +231,7 @@ def build_render_key(
         selection_policy_key=selection_policy_key,
         longitudinal_decision_digest=history.decision_digest,
     )
+    key = f"{current_render_safety_prefix()}{key}"
     if is_preview:
         salt = preview_salt or uuid.uuid4().hex[:12]
         key = f"{PREVIEW_KEY_PREFIX}:{salt}:{key}"
@@ -408,6 +432,8 @@ class NodeRenderService:
             NodeRenderStatus.READY,
             NodeRenderStatus.FALLBACK,
         ):
+            return None
+        if not cache_key_uses_current_screen_contract(render.cache_key):
             return None
         return render
 

@@ -52,19 +52,12 @@ DIDACT_PROCEDURE = "didact.sort"
 #: ``block`` is the OpenUI symbol the scoped prompt must include.
 DIDACT_CLOSER_ROTATION: tuple[tuple[str, str], ...] = (
     ("didact.quiz.single-choice", "DidactActivity"),
-    ("didact.flashcard", "Flashcard"),
-    ("didact.sort", "DidactActivity"),
     ("didact.quiz.fill-in-the-blank", "DidactActivity"),
-    ("didact.hint-reveal", "HintReveal"),
     ("didact.matching", "DidactActivity"),
     ("didact.quiz.true-false", "DidactActivity"),
-    ("didact.timeline-steps", "DidactTimeline"),
     ("didact.word-bank", "DidactActivity"),
-    ("didact.worked-example", "DidactWorkedExample"),
     ("didact.categorize", "DidactActivity"),
-    ("didact.glossary-term", "DidactGlossary"),
     ("didact.quiz.multi-select", "DidactActivity"),
-    ("didact.self-explanation-prompt", "DidactActivity"),
 )
 DIRECT_DIDACT_BLOCKS = frozenset(
     block for _type_id, block in DIDACT_CLOSER_ROTATION if block != "DidactActivity"

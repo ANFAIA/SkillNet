@@ -50,6 +50,9 @@ UI_SPEC_VERSION = "skillnet-ui/1"
 #: Contract rule 4 (§5.2). Not aesthetics: working memory handles 4-7 items.
 MAX_COMPONENTS = 12
 MAX_ROOT_CHILDREN = 5
+MAX_TABLE_ROWS = 4
+MAX_TABLE_CELL_CHARS = 160
+MAX_TABLE_TOTAL_CHARS = 480
 
 #: Contract rule 4, painting half. Counting *components* is not enough: the list is a
 #: DAG, so the same id may appear many times inside one ``children`` array and inside
@@ -179,9 +182,27 @@ def _table_shape_errors(component: Component) -> list[str]:
             f"component {component.id!r}: Table needs at least one header"
         ]
     problems: list[str] = []
+    if len(rows) > MAX_TABLE_ROWS:
+        problems.append(
+            f"component {component.id!r}: Table has {len(rows)} rows but a learning "
+            f"screen allows at most {MAX_TABLE_ROWS}. Preserve required coverage in a "
+            "compact non-tabular representation; never make the learner scroll through "
+            "a reference list"
+        )
+    table_chars = 0
     for index, row in enumerate(rows, start=1):
         if not isinstance(row, list):
             continue  # the kit's STRING_MATRIX check owns this one
+        for column, cell in enumerate(row, start=1):
+            if not isinstance(cell, str):
+                continue
+            table_chars += len(cell)
+            if len(cell) > MAX_TABLE_CELL_CHARS:
+                problems.append(
+                    f"component {component.id!r}: Table row {index} column {column} "
+                    f"has {len(cell)} characters but a cell allows at most "
+                    f"{MAX_TABLE_CELL_CHARS}"
+                )
         if len(row) != width:
             problems.append(
                 f"component {component.id!r}: row {index} of the Table has "
@@ -190,6 +211,11 @@ def _table_shape_errors(component: Component) -> list[str]:
                 "array with one cell per header — a one-column table is "
                 '[["a"], ["b"], ["c"]], not [["a", "b", "c"]]'
             )
+    if table_chars > MAX_TABLE_TOTAL_CHARS:
+        problems.append(
+            f"component {component.id!r}: Table cells contain {table_chars} characters "
+            f"but a learning screen allows at most {MAX_TABLE_TOTAL_CHARS}"
+        )
     # One message is enough to fix all of them, and N of them would crowd out every other
     # error in a repair prompt that has exactly one attempt to spend.
     return problems[:1]

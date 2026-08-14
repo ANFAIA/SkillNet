@@ -142,7 +142,7 @@ def test_live_didact_prompt_requires_authored_activity_not_quizitem() -> None:
     ) == ("LearningExperience",)
 
 
-def test_live_didact_falls_back_to_direct_closer_not_quizitem() -> None:
+def test_live_didact_falls_back_to_a_real_case_question() -> None:
     from src.agents.runtime.nodes import _prompt_assessment_required
 
     assert _prompt_assessment_required(
@@ -150,9 +150,9 @@ def test_live_didact_falls_back_to_direct_closer_not_quizitem() -> None:
             "assessment_block": "DidactActivity",
             "prompt_component_ids": ["Table", "HintReveal", "Flashcard"],
         }
-    ) == ("HintReveal",)
+    ) == ("QuizItem",)
     assert _prompt_assessment_required({"assessment_block": "DidactActivity"}) == (
-        "Flashcard",
+        "QuizItem",
     )
 
 
@@ -164,9 +164,9 @@ def test_declined_authoring_rewrites_the_verification_hint() -> None:
             "assessment_block": "DidactActivity",
             "assessment_hint": "VERIFICA con DidactActivity usando component_id 'didact.sort'.",
         },
-        ("HintReveal",),
+        ("QuizItem",),
     )
-    assert "HintReveal" in hint
+    assert "CASO" in hint
     assert "DidactActivity" not in hint
 
 
@@ -180,10 +180,10 @@ def test_declined_authoring_rewrites_the_screen_scheme_practice() -> None:
             "assessment_item_type": "didact.sort",
             "screen_scheme": "stale",
         },
-        ("HintReveal",),
+        ("QuizItem",),
     )
     assert "concepto = Table" in text
-    assert "HintReveal" in text
+    assert "QuizItem (test)" in text
     assert "DidactActivity" not in text
 
 

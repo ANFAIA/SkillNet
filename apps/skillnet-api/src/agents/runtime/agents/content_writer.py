@@ -104,9 +104,9 @@ explicacion) o StepSequence (pasos cortos), no Table.
 Si la fuente distingue DOS OPCIONES distintas (ej: descargar por codigo vs por referencia),
 esa distincion DEBE aparecer: es lo que el aprendiz necesita aprender.
 
-Si la fuente enumera una lista de ELEMENTOS (canales, plataformas, errores...), incluye
-TODOS los elementos de la fuente, no solo dos o tres. Si la fuente dice que hay 4 canales,
-la tabla tiene 4 filas. No recortes.
+Si la fuente enumera 2-4 ELEMENTOS, incluyelos todos. Si contiene mas de 4, nunca los
+conviertas en una tabla alta: conserva TODOS los hechos obligatorios en una sintesis
+compacta y destaca solo los necesarios para la decision concreta. No omitas cobertura.
 
 Callout: solo si la fuente contiene una advertencia, prohibicion o excepcion real.
 NUNCA inventes advertencias ni limitaciones que no esten en la fuente. Si la fuente no

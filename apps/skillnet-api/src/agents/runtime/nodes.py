@@ -40,7 +40,7 @@ from src.agents.content.helpers import (
     assemble_chunk_text,
     estimate_pages,
 )
-from src.agents.runtime.assessment import plan_assessment
+from src.agents.runtime.assessment import AssessmentPlan, plan_assessment
 from src.agents.runtime.classify import classify_function
 from src.agents.runtime.screen_scheme import ScreenScheme, plan_screen_scheme
 from src.agents.runtime.errors import (
@@ -1015,20 +1015,16 @@ _DIRECT_DIDACT_CLOSERS = (
 def _prompt_assessment_required(state: NodeRuntimeState) -> tuple[str, ...]:
     """Components the scoped prompt must include so verification can close the screen.
 
-    Live Didact never injects QuizItem. If authoring declined, the closer is a direct
-    Didact block the model can emit without a server activity_id.
+    Prepared activities cross the neutral ``LearningExperience`` boundary. If optional
+    authoring declines, a concrete-case ``QuizItem`` remains evaluable without inventing
+    an activity id or exposing a reveal card.
     """
 
     block = str(state.get("assessment_block") or "")
     if block == "DidactActivity":
         if isinstance(state.get("authored_activity"), dict):
             return ("LearningExperience",)
-        scoped = tuple(state.get("prompt_component_ids") or ())
-        allowed = frozenset(_DIRECT_DIDACT_CLOSERS)
-        for name in scoped:
-            if name in allowed:
-                return (name,)
-        return ("Flashcard",)
+        return ("QuizItem",)
     if block in _DIRECT_DIDACT_CLOSERS:
         return (block,)
     if block in _LEGACY_ASSESSMENT_BLOCKS:
@@ -1048,7 +1044,9 @@ def _effective_assessment_hint(state: NodeRuntimeState, required: tuple[str, ...
             "VERIFICA con LearningExperience usando exactamente la referencia neutral "
             "preparada por el servidor; no inventes ids ni definiciones."
         )
-    closer = required[0] if required else "Flashcard"
+    closer = required[0] if required else "QuizItem"
+    if closer == "QuizItem":
+        return AssessmentPlan(block="QuizItem", item_type="test").instruction()
     return (
         f"VERIFICA con {closer}. El concepto ensena con un caso o una grafica; "
         f"{closer} es otro encargo del puesto."
@@ -1070,8 +1068,8 @@ def _effective_screen_scheme(
         if isinstance(state.get("authored_activity"), dict):
             closer = "LearningExperience"
         else:
-            closer = required[0] if required else "Flashcard"
-            item_type = None
+            closer = required[0] if required else "QuizItem"
+            item_type = "test" if closer == "QuizItem" else None
     return ScreenScheme(
         concept_block=concept,
         practice_block=closer,
@@ -1080,12 +1078,12 @@ def _effective_screen_scheme(
 
 
 async def author_activity(state: NodeRuntimeState) -> dict:
-    """Materialise a rich activity before OpenUI sees it; decline without QuizItem.
+    """Materialise a rich activity before OpenUI sees it; decline safely.
 
     This node intentionally does not use ``runtime_node_error_wrapper``. Activity
     authoring is an optional enrichment: a malformed fixture, provider error or stale
-    pack removes DidactActivity from the scoped prompt. Live Didact then falls back to
-    a direct Didact closer (Flashcard, HintReveal, …), never to QuizItem.
+    pack removes DidactActivity from the scoped prompt. The screen then falls back to a
+    concrete-case ``QuizItem`` rather than a reveal-only pseudo-assessment.
     """
 
     candidates = _activity_candidates(state)[:1]
@@ -1348,7 +1346,7 @@ async def genera_ui(state: NodeRuntimeState) -> dict:
     )
     assessment_block = str(state.get("assessment_block") or "")
     didact_verification = (
-        assessment_block == "DidactActivity"
+        "LearningExperience" in assessment_required
         or assessment_block in _DIRECT_DIDACT_CLOSERS
     )
 
@@ -1523,7 +1521,6 @@ async def genera_ui_multi(state: NodeRuntimeState) -> dict:
     from src.agents.runtime.agents.blueprint import run_blueprint
     from src.agents.runtime.agents.content_writer import run_content_writer
     from src.agents.runtime.agents.interaction_designer import run_interaction_designer
-    from src.agents.runtime.assessment import AssessmentPlan
     from src.agents.runtime.screen_scheme import ScreenScheme
 
     request_id = str(state["request_id"])

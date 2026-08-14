@@ -125,9 +125,9 @@ from src.render.spec import FORMATS_REQUIRING_LEAD
 #: ``screen_scheme.py`` (lead + concept block + practice). The generator
 #: fills those slots; it does not invent the didactic form.
 #:
-#: ``runtime/37`` (2026-08-14): new renders emit the provider-neutral
-#: ``LearningExperience`` reference; ``DidactActivity`` remains playback-only.
-PROMPT_VERSION = "runtime/37"
+#: ``runtime/40`` (2026-08-14): bounded learning screens preserve required coverage,
+#: separate visible instruction from practice, and keep modality selection invisible.
+PROMPT_VERSION = "runtime/40"
 
 _PRESENTATION_PREFERENCES = {
     "balanced": "Combina representaciones segun el objetivo y la fuente.",
@@ -470,8 +470,10 @@ OBLIGATORIAMENTE un QuizItem o un DragOrder.
 Elige el bloque por lo que ES el material. Un contenido en el bloque equivocado es una
 pantalla mal hecha aunque el programa sea valido.
 
-- LISTA de cosas (los N alergenos, los contenedores, los EPI por tarea) -> UN Table, una
-  fila por cosa; segunda columna solo si la fuente da un dato de cada una.
+- LISTA CORTA de cosas -> UN Table, con 2-4 filas y segunda columna solo si la fuente da
+  un dato de cada una. Si la fuente enumera mas de 4, NO la conviertas en una tabla alta:
+  conserva TODOS los hechos obligatorios en una sintesis compacta y destaca los necesarios
+  para resolver el caso. Nunca omitas cobertura ni provoques scroll con una lista vertical.
   Table(["Alergeno", "Donde aparece"], [["Cereales con gluten", "Masa y bolleria"], ["Leche", "Hojaldre"]])
 - PROCEDIMIENTO en orden -> UN StepSequence de 2 a 7 pasos.
   StepSequence("Uso del extintor", ["Quitar el pasador", "Apuntar a la base", "Barrer"])
@@ -483,8 +485,7 @@ pantalla mal hecha aunque el programa sea valido.
   BeforeAfter("Titulo", "Mal", "descripcion del caso incorrecto", "Bien", "descripcion del caso correcto")
 - PROCEDIMIENTO en pasos -> StepSequence, con los pasos visibles a la vez.
 - TAREA DE ORDENAR pasos o prioridades -> DragOrder.
-- MULTIPLES ASPECTOS de un tema (tipos de residuos, categorias de EPI, fases de un
-  proceso) -> una Table con una fila por aspecto, todos visibles a la vez.
+- MULTIPLES ASPECTOS de un tema -> una Table de 2-4 filas, todas visibles a la vez.
 
 ## SkillNet: estructura pedagogica de la pantalla
 
@@ -506,7 +507,8 @@ MAXIMO 4 bloques (lead + concepto + practica + a veces un Callout).
   categorias; un procedimiento usa StepSequence; una comparacion usa BeforeAfter; las
   cifras reales usan Chart. Si el esquema de esta pantalla nombra el bloque de concepto,
   ese bloque manda.
-- La practica no pregunta de nuevo la fila, paso o cifra que acabas de mostrar. Plantea un
+- La practica no pide enumerar lo que la pantalla acaba de mostrar ni pregunta de nuevo la
+  fila, paso o cifra visible. Plantea un
   segundo caso del puesto con una decision o accion distinta, pero que demuestre el mismo
   resultado esperado. Si el closer es una actividad Didact, conserva esa separacion.
 - La preferencia visual, textual o interactiva cambia la representacion solo cuando la
