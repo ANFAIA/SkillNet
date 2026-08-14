@@ -80,11 +80,19 @@ class CompetencyRef(FrozenContract):
 class SourceProvenance(FrozenContract):
     """Opaque, reproducible pointer to source material; never copied credentials."""
 
-    document_id: uuid.UUID
+    # Knowledge packs deliberately use opaque document identifiers: production UUIDs,
+    # fixture ids and imported-system ids all cross the same boundary.  Requiring UUID
+    # here would either discard valid provenance or force the runtime to fabricate one.
+    document_id: str = Field(min_length=1, max_length=240, pattern=_OPAQUE_REF.pattern)
     origin_ref: str = Field(min_length=1, max_length=240)
     revision: str = Field(min_length=1, max_length=120)
     locator: str = Field(min_length=1, max_length=500)
     content_digest: Sha256
+
+    @field_validator("document_id", mode="before")
+    @classmethod
+    def normalize_document_id(cls, value: Any) -> str:
+        return str(value)
 
 
 class EvidenceGate(FrozenContract):

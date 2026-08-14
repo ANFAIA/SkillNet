@@ -32,12 +32,15 @@ cached render without touching the database.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+import json
+import re
+from collections.abc import Mapping, Sequence
 from functools import cache
 from typing import Any
 
 from src.render.prompt import render_prompt
 from src.render.spec import FORMATS_REQUIRING_LEAD
+from src.schemas.episode_contracts import EpisodeBrief
 
 #: Bumped whenever any prompt in this module changes in a way that changes output.
 #: Enters the ``cache_key`` (§3.4).
@@ -128,6 +131,7 @@ from src.render.spec import FORMATS_REQUIRING_LEAD
 #: ``runtime/40`` (2026-08-14): bounded learning screens preserve required coverage,
 #: separate visible instruction from practice, and keep modality selection invisible.
 PROMPT_VERSION = "runtime/40"
+EPISODE_PROMPT_VERSION = "episode/1"
 
 _PRESENTATION_PREFERENCES = {
     "balanced": "Combina representaciones segun el objetivo y la fuente.",
@@ -644,6 +648,109 @@ Un Card solo cuando agrupa varios datos distintos que caben juntos.
 """
 
 
+def _episode_dialect_rules() -> str:
+    """Reuse legacy syntax corrections, excluding its truncation policy."""
+
+    marker = "## SkillNet: reglas que el catalogo de arriba no dice"
+    answer_marker = "## SkillNet: la clave de respuestas"
+    rules = marker + _UI_GENERATOR_TAIL.split(marker, 1)[1].split(answer_marker, 1)[0]
+    return re.sub(
+        r"- SkillNet 19 .*?(?=- SkillNet 20)",
+        "",
+        rules,
+        flags=re.DOTALL,
+    ).rstrip()
+
+
+_ANSWER_KEY_PROTOCOL = (
+    "## SkillNet: la clave de respuestas"
+    + _UI_GENERATOR_TAIL.split("## SkillNet: la clave de respuestas", 1)[1]
+)
+
+_EPISODE_GENERATOR_RULES = """
+
+## SkillNet: contrato episodico
+
+- Representa una sola mision coherente con la accion dominante. No impongas una receta
+  didactica ni anadas una evaluacion por costumbre.
+- La evidencia solo aparece cuando el contrato la exige. Si no exige evidencia, no anadas
+  una pregunta para cerrar. Si la exige, la interaccion debe producir el tipo de entrega
+  indicado y no revelar su solucion.
+- Elige entre las capacidades del catalogo por la accion y la fuente. Ninguna combinacion
+  de bloques es obligatoria salvo la raiz exigida por la gramatica.
+- Los hechos de la fuente publica son la unica verdad. No inventes datos ni expongas
+  oraculos, casos ocultos, claves de respuesta, soluciones privadas o trazas de politica,
+  aunque aparezcan accidentalmente en el contexto.
+- Cumple los limites del episodio sin eliminar hechos necesarios para la mision o la
+  evidencia. Si el material no cabe en la vista actual, conserva un tramo coherente y su
+  continuidad; no escondas contenido obligatorio ni lo sustituyas por una sintesis falsa.
+- Adapta lenguaje, apoyo y dificultad solo con las senales declaradas. No cambies la
+  competencia, la fuente, la accion ni el umbral de evidencia.
+"""
+
+
+def _episode_component_grammar(component_prompt: str) -> str:
+    """Keep generated dialect facts while removing the legacy screen prescription."""
+
+    text = component_prompt.rstrip("\n")
+    syntax_marker = "## Syntax Rules"
+    if syntax_marker in text:
+        _legacy_header, grammar = text.split(syntax_marker, 1)
+        text = (
+            "Eres el generador de una experiencia episodica de SkillNet. Responde "
+            "unicamente con un programa en el dialecto descrito abajo, sin comentarios "
+            "ni prosa exterior.\n\n"
+            f"{syntax_marker}{grammar}"
+        )
+    text = re.sub(
+        r"\n## Examples\n.*?(?=\n## Important Rules)",
+        "",
+        text,
+        flags=re.DOTALL,
+    )
+    cleaned: list[str] = []
+    for line in text.splitlines():
+        if "SkillNet 8" in line or "realistic/plausible data" in line:
+            continue
+        if line.startswith("TextContent("):
+            line = line.replace(' | "lead"', "").replace(
+                "el gancho inicial o una transicion",
+                "una explicacion o transicion breve",
+            )
+        cleaned.append(line)
+    return "\n".join(cleaned).rstrip()
+
+
+@cache
+def episode_ui_generator_system(component_prompt: str | None = None) -> str:
+    """Dialect and safety rules for formula-free runtime episodes."""
+
+    grammar = _episode_component_grammar(component_prompt or render_prompt())
+    return (
+        grammar
+        + "\n\n"
+        + _episode_dialect_rules()
+        + _EPISODE_GENERATOR_RULES
+        + "\n"
+        + _ANSWER_KEY_PROTOCOL
+    )
+
+
+_EPISODE_REPAIR_HEADER = """\
+La respuesta anterior fue rechazada por el validador de SkillNet. Emite de nuevo el
+programa completo, corrigiendo solo los errores enumerados. No expliques el fallo, no te
+disculpes y no alteres la mision, la evidencia, la adaptacion ni los hechos de la fuente.
+Las reglas del dialecto y del contrato episodico que siguen permanecen vigentes.
+"""
+
+
+@cache
+def episode_ui_repair_system(component_prompt: str | None = None) -> str:
+    """Repair system prompt for the same neutral episode contract and dialect."""
+
+    return _EPISODE_REPAIR_HEADER + "\n" + episode_ui_generator_system(component_prompt)
+
+
 @cache
 def ui_generator_system(
     component_prompt: str | None = None, *, didact_verification: bool = False
@@ -865,6 +972,180 @@ def build_ui_prompt(
     return "\n".join(parts)
 
 
+def build_episode_ui_prompt(
+    *,
+    episode: EpisodeBrief | Mapping[str, Any],
+    source_context: str,
+) -> str:
+    """Build a formula-free runtime prompt from a public episode contract.
+
+    Only an allowlist of contract fields is rendered.  Internal policy traces, oracle
+    references, hidden tests, answer keys and private solutions therefore cannot leak by
+    serializing the input wholesale.  ``source_context`` must be the already-authorized
+    public source slice for this learner and episode.
+    """
+
+    payload = _episode_payload(episode)
+    action = _mapping(payload.get("dominant_action"))
+    belief = _mapping(payload.get("belief_snapshot"))
+    budget = _mapping(payload.get("budget"))
+    assessment_mode = str(payload.get("assessment_mode", "none"))
+
+    parts = [
+        "MISION DEL EPISODIO",
+        f"- Encargo: {_text(action.get('instructions'), 'Completa la accion indicada.')}",
+        f"- Accion dominante: {_text(action.get('verb'), 'actuar')}",
+        f"- Objetivo de la accion: {_text(action.get('target'), 'objetivo declarado')}",
+        "",
+        "ACCION OBSERVABLE",
+        f"- Entrega: {_text(action.get('submission_kind'), 'sin entrega evaluable')}",
+    ]
+    constraints = _public_constraints(action.get("constraints"))
+    if constraints:
+        parts.append(
+            "- Limites de la accion: "
+            + json.dumps(constraints, ensure_ascii=False, sort_keys=True)
+        )
+
+    parts.extend(["", "EVIDENCIA"])
+    if assessment_mode == "none":
+        parts.append("- Este episodio no exige evidencia evaluada; no anadas un cierre artificial.")
+    else:
+        parts.extend(
+            [
+                f"- Modo declarado: {assessment_mode}",
+                "- La entrega debe permitir al servidor verificar los criterios referenciados.",
+                "- No muestres el oraculo, los casos ocultos ni la respuesta correcta.",
+            ]
+        )
+
+    parts.extend(["", "LIMITES DEL EPISODIO"])
+    budget_labels = (
+        ("max_content_units", "Unidades de contenido"),
+        ("max_interaction_steps", "Pasos de interaccion"),
+        ("max_words", "Palabras"),
+        ("max_media_seconds", "Segundos de media"),
+        ("latency_budget_ms", "Latencia en ms"),
+    )
+    for key, label in budget_labels:
+        value = budget.get(key)
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            parts.append(f"- {label}: maximo {value}")
+
+    parts.extend(["", "ADAPTACION"])
+    adaptation = (
+        ("experience_level", "Experiencia declarada"),
+        ("mastery", "Dominio estimado"),
+        ("confidence", "Confianza estimada"),
+        ("hints_used", "Pistas usadas"),
+    )
+    found_adaptation = False
+    for key, label in adaptation:
+        value = belief.get(key)
+        if isinstance(value, (str, int, float)) and not isinstance(value, bool):
+            parts.append(f"- {label}: {value}")
+            found_adaptation = True
+    recent_errors = belief.get("recent_error_kinds")
+    if isinstance(recent_errors, (list, tuple)) and all(
+        isinstance(value, str) for value in recent_errors
+    ):
+        if recent_errors:
+            parts.append(f"- Errores recientes: {', '.join(recent_errors)}")
+            found_adaptation = True
+    if not found_adaptation:
+        parts.append("- Sin senales personales: usa apoyo neutro y no presupongas preferencias.")
+
+    parts.extend(
+        [
+            "",
+            "VERDAD FUENTE PUBLICA",
+            clip_source(source_context)
+            if source_context.strip()
+            else "No hay hechos publicos adicionales: no inventes ninguno.",
+            "",
+            (
+                "Responde solo con el programa y, unicamente si usas QuizItem, con su "
+                f"bloque {ANSWER_KEY_SENTINEL} privado despues."
+            ),
+        ]
+    )
+    return "\n".join(parts)
+
+
+def build_episode_repair_prompt(
+    *,
+    episode: EpisodeBrief | Mapping[str, Any],
+    source_context: str,
+    previous: str,
+    errors: Sequence[str],
+) -> str:
+    """Restate the episode contract while repairing grammar or validation failures."""
+
+    listed = "\n".join(f"- {error}" for error in errors) or "- programa invalido"
+    context = build_episode_ui_prompt(episode=episode, source_context=source_context)
+    return (
+        "CONTRATO AUTORITATIVO DEL EPISODIO\n"
+        f"{context}\n\n"
+        "ERRORES DEL VALIDADOR\n"
+        f"{listed}\n\n"
+        "RESPUESTA ANTERIOR\n"
+        f"{previous}\n\n"
+        "Emite el programa completo corregido. Conserva la mision y los hechos; "
+        "corrige solo los errores enumerados."
+    )
+
+
+def _episode_payload(episode: EpisodeBrief | Mapping[str, Any]) -> Mapping[str, Any]:
+    if isinstance(episode, EpisodeBrief):
+        return episode.model_dump(mode="json")
+    if isinstance(episode, Mapping):
+        return episode
+    raise TypeError("episode must be an EpisodeBrief or mapping")
+
+
+def _mapping(value: object) -> Mapping[str, Any]:
+    return value if isinstance(value, Mapping) else {}
+
+
+def _text(value: object, fallback: str) -> str:
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    return fallback
+
+
+_PRIVATE_CONSTRAINT_TOKENS = (
+    "answer",
+    "correct",
+    "expected",
+    "key",
+    "oracle",
+    "private",
+    "secret",
+    "solution",
+)
+
+
+def _public_constraints(value: object) -> dict[str, Any]:
+    """Allow harmless action bounds while dropping likely evaluation secrets."""
+
+    if not isinstance(value, Mapping):
+        return {}
+    public: dict[str, Any] = {}
+    for raw_key, raw_value in value.items():
+        key = str(raw_key).strip()
+        lowered = key.lower()
+        if not key or any(token in lowered for token in _PRIVATE_CONSTRAINT_TOKENS):
+            continue
+        if isinstance(raw_value, (str, int, float, bool)) or raw_value is None:
+            public[key] = raw_value
+        elif isinstance(raw_value, (list, tuple)) and all(
+            isinstance(item, (str, int, float, bool)) or item is None
+            for item in raw_value
+        ):
+            public[key] = list(raw_value)
+    return public
+
+
 #: The formats whose screen carries a ``QuizItem``, and therefore an answer key.
 _FORMATS_WITH_QUIZ: frozenset[str] = frozenset({"exercise", "mixed"})
 
@@ -1049,6 +1330,7 @@ __all__ = [
     "DECIDE_MAX_TOKENS",
     "DECIDE_TEMPERATURE",
     "DECIDE_USE_CASE",
+    "EPISODE_PROMPT_VERSION",
     "FORMAT_DECIDER_SYSTEM",
     "MAX_UI_RETRIES",
     "PROMPT_VERSION",
@@ -1057,9 +1339,13 @@ __all__ = [
     "UI_TEMPERATURE",
     "UI_USE_CASE",
     "build_format_prompt",
+    "build_episode_repair_prompt",
+    "build_episode_ui_prompt",
     "build_repair_prompt",
     "build_ui_prompt",
     "clip_source",
+    "episode_ui_generator_system",
+    "episode_ui_repair_system",
     "signal_actions_for_node",
     "ui_generator_system",
     "ui_max_tokens",

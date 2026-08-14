@@ -252,6 +252,7 @@ def test_runtime_adapter_turns_a_ready_pack_into_bounded_openui_context() -> Non
 
     assert result is not None
     assert result.atom_ids == ("safety.allergen", "case.allergy")
+    assert tuple(item.ref_id for item in result.source_refs) == ("manual.allergens",)
     assert "El alérgeno se registra" in result.source_context
     assert "Una comensal comunica" in result.source_context
     assert "No inventar políticas" in result.source_context

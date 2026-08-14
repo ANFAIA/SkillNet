@@ -128,6 +128,7 @@ def cache_key_material(
     accessibility_bucket: str = "a1:rm0:hc0:et0",
     knowledge_pack_key: str = "",
     selection_policy_key: str = "",
+    generation_policy_key: str = "",
     longitudinal_decision_digest: str = "",
 ) -> str:
     """The exact pipe-joined string that gets hashed. Exposed for debugging."""
@@ -151,6 +152,8 @@ def cache_key_material(
         parts = (*parts, knowledge_pack_key)
     if selection_policy_key:
         parts = (*parts, selection_policy_key)
+    if generation_policy_key:
+        parts = (*parts, generation_policy_key)
     if longitudinal_decision_digest:
         parts = (*parts, longitudinal_decision_digest)
     return "|".join(parts)
@@ -174,6 +177,7 @@ def build_cache_key(
     accessibility_bucket: str = "a1:rm0:hc0:et0",
     knowledge_pack_key: str = "",
     selection_policy_key: str = "",
+    generation_policy_key: str = "",
     longitudinal_decision_digest: str = "",
 ) -> str:
     """``sha256`` of :func:`cache_key_material`, hex.
@@ -199,6 +203,7 @@ def build_cache_key(
         accessibility_bucket=accessibility_bucket,
         knowledge_pack_key=knowledge_pack_key,
         selection_policy_key=selection_policy_key,
+        generation_policy_key=generation_policy_key,
         longitudinal_decision_digest=longitudinal_decision_digest,
     )
     return hashlib.sha256(material.encode("utf-8")).hexdigest()

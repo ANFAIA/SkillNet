@@ -7,7 +7,7 @@ import json
 from dataclasses import dataclass
 from typing import Any
 
-from src.knowledge_pack.contracts import MissingDataArea, NodeKnowledgePack
+from src.knowledge_pack.contracts import MissingDataArea, NodeKnowledgePack, SourceRef
 from src.knowledge_pack.configured_generator import GENERATOR_VERSION
 from src.knowledge_pack.selector import SelectionRequest, SelectionResult, select_knowledge
 from src.personalization.plan import Presentation
@@ -23,6 +23,7 @@ class RuntimeKnowledgeSelection:
     source_context: str
     atom_ids: tuple[str, ...]
     evidence_ids: tuple[str, ...]
+    source_refs: tuple[SourceRef, ...]
 
 
 def _selection_hash(result: SelectionResult) -> str:
@@ -112,6 +113,15 @@ def select_runtime_knowledge(
     if not isinstance(selected, SelectionResult):
         return None
     selection_hash = _selection_hash(selected)
+    selected_atoms = (*selected.invariant_atoms, *selected.selectable_atoms)
+    selected_source_ids = {
+        source_ref for atom in selected_atoms for source_ref in atom.sources
+    }
+    source_refs = tuple(
+        source_ref
+        for source_ref in sorted(pack.source_refs, key=lambda item: item.ref_id)
+        if source_ref.ref_id in selected_source_ids
+    )
     return RuntimeKnowledgeSelection(
         pack_hash=selected.pack_hash,
         selection_hash=selection_hash,
@@ -122,6 +132,7 @@ def select_runtime_knowledge(
             for item in (*selected.invariant_atoms, *selected.selectable_atoms)
         ),
         evidence_ids=selected.evidence_ids,
+        source_refs=source_refs,
     )
 
 

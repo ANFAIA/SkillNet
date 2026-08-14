@@ -86,18 +86,32 @@ def current_prompt_version() -> str:
     return f"{PROMPT_VERSION}+{catalog_version()}"
 
 
+SCREEN_SCHEME_POLICY_VERSION = "v1"
+ADAPTIVE_EPISODES_POLICY_VERSION = "v1"
+
+
+def generation_policy_key(adaptive_episodes: bool | None = None) -> str:
+    """Versioned cache partition for the policy that constructs a learning episode."""
+
+    enabled = settings.ADAPTIVE_EPISODES if adaptive_episodes is None else adaptive_episodes
+    if enabled:
+        return f"adaptive-episodes/{ADAPTIVE_EPISODES_POLICY_VERSION}"
+    return f"screen-scheme/{SCREEN_SCHEME_POLICY_VERSION}"
+
+
 SCREEN_SAFETY_EPOCH = "bounded-screen/1"
 
 
 def current_render_safety_prefix() -> str:
-    """Compatibility marker for renders that satisfy the viewport contract.
+    """Readable compatibility marker for the viewport and generation contracts.
 
-    Unlike the prompt version inside the shared cache key, this marker changes only when
-    an existing pinned render is unsafe to keep serving. Ordinary prompt/catalog updates
-    therefore preserve the per-learner stability promised by Vision A.
+    The generation policy also lives inside the hashed cache material, while keeping it in
+    this prefix lets ``pinned_render`` reject a pin created by another rollout policy.
+    Ordinary prompt/catalog updates still preserve the learner stability promised by
+    Vision A.
     """
 
-    return f"safety:{SCREEN_SAFETY_EPOCH}:"
+    return f"safety:{SCREEN_SAFETY_EPOCH}:generation:{generation_policy_key()}:"
 
 
 def cache_key_uses_current_screen_contract(cache_key: str) -> bool:
@@ -147,6 +161,7 @@ class RenderKey:
     is_preview: bool
     personalization_revision: int
     selection_policy_key: str
+    generation_policy_key: str
     selection_strategy: str
     selection_execution: str
     longitudinal_decision_digest: str
@@ -205,6 +220,7 @@ def build_render_key(
         selection_execution,
         selection_strategy,
     )
+    generation_key = generation_policy_key()
     history = longitudinal_history or project_longitudinal_history(
         [], nodes_completed=nodes_completed
     )
@@ -229,6 +245,7 @@ def build_render_key(
         accessibility_bucket=accessibility_key,
         knowledge_pack_key=knowledge_pack_key,
         selection_policy_key=selection_policy_key,
+        generation_policy_key=generation_key,
         longitudinal_decision_digest=history.decision_digest,
     )
     key = f"{current_render_safety_prefix()}{key}"
@@ -254,6 +271,7 @@ def build_render_key(
             getattr(profile, "personalization_revision", 0) or 0
         ),
         selection_policy_key=selection_policy_key,
+        generation_policy_key=generation_key,
         selection_strategy=_plain(selection_strategy),
         selection_execution=_plain(selection_execution),
         longitudinal_decision_digest=history.decision_digest,
@@ -683,6 +701,7 @@ __all__ = [
     "build_render_key",
     "cancel_in_flight",
     "forget_in_flight",
+    "generation_policy_key",
     "in_flight_for",
     "owner_of_request",
     "register_in_flight",
