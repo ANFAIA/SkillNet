@@ -158,12 +158,6 @@ La ampliación estará bien resuelta si:
 
 ## Frontera de nuevas funciones
 
-La ampliación de audiencia no convierte automáticamente funciones personales en funciones
-del producto empresarial. La personalización de la experiencia de cada empleado continúa
-siendo parte del núcleo común, pero notas personales, planificación general o repaso entre
-cursos solo son candidatos futuros para `individual` mientras no exista una necesidad
-organizativa demostrada.
-
-Audio en el chat, conversaciones en vivo, mascota y podcasts se deciden por su función
-pedagógica, no por novedad multimodal. Su alcance y su comportamiento por modo se definen
-en [conversational-modalities.md](conversational-modalities.md).
+Audio en el chat, conversaciones en vivo, mascota y podcasts pueden reutilizarse en ambos
+modos. Esta decisión no añade por sí sola más funciones al producto empresarial. La nota
+de dirección está en [conversational-modalities.md](conversational-modalities.md).
