@@ -243,6 +243,7 @@ class ProbeAnswerResult(BaseModel):
 class NodeAnswerRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
+    attempt_id: uuid.UUID = Field(default_factory=uuid.uuid4)
     render_id: uuid.UUID
     item_id: str
     answer: Any = None

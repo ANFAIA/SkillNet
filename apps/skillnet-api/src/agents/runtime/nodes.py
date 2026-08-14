@@ -89,9 +89,13 @@ from src.llm.prompts.runtime import (
     ui_repair_system,
 )
 from src.models import (
+    ActivityDefinition,
     Course,
     CourseNode,
     Document,
+    ExperienceIntent,
+    ExperienceVariant,
+    ImplementationBinding,
     Lesson,
     NodeRenderStatus,
     Organization,
@@ -1018,7 +1022,7 @@ def _prompt_assessment_required(state: NodeRuntimeState) -> tuple[str, ...]:
     block = str(state.get("assessment_block") or "")
     if block == "DidactActivity":
         if isinstance(state.get("authored_activity"), dict):
-            return ("DidactActivity",)
+            return ("LearningExperience",)
         scoped = tuple(state.get("prompt_component_ids") or ())
         allowed = frozenset(_DIRECT_DIDACT_CLOSERS)
         for name in scoped:
@@ -1040,7 +1044,10 @@ def _effective_assessment_hint(state: NodeRuntimeState, required: tuple[str, ...
     if block != "DidactActivity" and block not in _DIRECT_DIDACT_CLOSERS:
         return hint
     if isinstance(state.get("authored_activity"), dict):
-        return hint
+        return (
+            "VERIFICA con LearningExperience usando exactamente la referencia neutral "
+            "preparada por el servidor; no inventes ids ni definiciones."
+        )
     closer = required[0] if required else "Flashcard"
     return (
         f"VERIFICA con {closer}. El concepto ensena con un caso o una grafica; "
@@ -1059,11 +1066,12 @@ def _effective_screen_scheme(
     stored_practice = str(state.get("assessment_block") or "")
     closer = stored_practice
     item_type = state.get("assessment_item_type")
-    if stored_practice == "DidactActivity" and not isinstance(
-        state.get("authored_activity"), dict
-    ):
-        closer = required[0] if required else "Flashcard"
-        item_type = None
+    if stored_practice == "DidactActivity":
+        if isinstance(state.get("authored_activity"), dict):
+            closer = "LearningExperience"
+        else:
+            closer = required[0] if required else "Flashcard"
+            item_type = None
     return ScreenScheme(
         concept_block=concept,
         practice_block=closer,
@@ -1080,20 +1088,89 @@ async def author_activity(state: NodeRuntimeState) -> dict:
     a direct Didact closer (Flashcard, HintReveal, …), never to QuizItem.
     """
 
-    # The authoring prompt carries one validator-owned schema. Keep selection and the
-    # server-side allow-list identical so a completion cannot switch to a candidate whose
-    # contract it was never shown.
     candidates = _activity_candidates(state)[:1]
     if not candidates or "DidactActivity" not in (state.get("prompt_component_ids") or ()):
         return {"authored_activity": None, "activity_authoring_status": "not_requested"}
 
+    # Prefer immutable work prepared while the course was validated. The first producer
+    # currently approved for this assessment seam is the validated single-choice probe.
+    prepared = None
+    org_id = _uuid(state["org_id"])
+    node_id = _uuid(state["node_id"])
+    if candidates[0] == "didact.quiz.single-choice":
+        try:
+            async with async_session_factory() as db:
+                prepared = (
+                    await db.execute(
+                        select(
+                            ImplementationBinding,
+                            ExperienceVariant,
+                            ExperienceIntent,
+                            ActivityDefinition,
+                        )
+                        .join(
+                            ExperienceVariant,
+                            ExperienceVariant.id == ImplementationBinding.variant_id,
+                        )
+                        .join(
+                            ExperienceIntent,
+                            ExperienceIntent.id == ExperienceVariant.intent_id,
+                        )
+                        .join(
+                            ActivityDefinition,
+                            ActivityDefinition.id
+                            == ImplementationBinding.activity_definition_id,
+                        )
+                        .where(
+                            ImplementationBinding.org_id == org_id,
+                            ExperienceIntent.org_id == org_id,
+                            ExperienceIntent.node_id == node_id,
+                            ExperienceIntent.intent.in_(
+                                ("knowledge_check", "guided_practice")
+                            ),
+                            ActivityDefinition.enabled.is_(True),
+                        )
+                        .order_by(
+                            ExperienceIntent.intent.desc(),
+                            ImplementationBinding.is_fallback.asc(),
+                            ImplementationBinding.binding_key.asc(),
+                        )
+                        .limit(1)
+                    )
+                ).first()
+        except Exception:
+            # Legacy/unit environments may not have migration 0016 yet. Preserve the
+            # existing authoring fallback until migration rollout is complete.
+            logger.info("prepared_experience_unavailable", exc_info=True)
+    if prepared is not None:
+        binding, _variant, intent, activity = prepared
+        return {
+            "authored_activity": {
+                "activity_id": str(activity.id),
+                "component_id": activity.component_id,
+                "binding_id": str(binding.id),
+                "experience_id": str(binding.id),
+                "implementation_ref": (
+                    f"{binding.implementation_id}@{binding.implementation_version}"
+                ),
+                "definition_ref": binding.definition_ref,
+                "intent_id": str(intent.id),
+            },
+            "activity_authoring_status": "prepared",
+            "prompt_component_ids": [
+                "LearningExperience" if value == "DidactActivity" else value
+                for value in state.get("prompt_component_ids") or ()
+            ],
+        }
+
+    # Legacy migration fallback: the authoring prompt carries one validator-owned schema.
+    # Keep selection and the server-side allow-list identical so a completion cannot switch
+    # to a candidate whose contract it was never shown.
     request_id = str(state["request_id"])
     await publish_step(request_id, "author_activity", STEP_MESSAGES["author_activity"])
     usage = None
     started = time.monotonic()
     try:
-        org_id = _uuid(state["org_id"])
-        node_id = _uuid(state["node_id"])
         course_id = _uuid(state["course_id"])
         render_id = _uuid(state["render_id"])
         atom_ids = tuple(str(value) for value in state.get("knowledge_atom_ids") or ())
@@ -1154,6 +1231,10 @@ async def author_activity(state: NodeRuntimeState) -> dict:
         return {
             "authored_activity": materialized.model_dump(mode="json"),
             "activity_authoring_status": "ready",
+            "prompt_component_ids": [
+                "LearningExperience" if value == "DidactActivity" else value
+                for value in state.get("prompt_component_ids") or ()
+            ],
             # Keep node_renders and the evaluation harness honest: authoring is part of
             # the on-the-fly render cost, not an invisible preliminary call.
             "tokens_in": (
@@ -1207,15 +1288,16 @@ def _source_with_authored_activity(state: NodeRuntimeState) -> str:
     if not isinstance(activity, dict):
         return source
     instruction = {
-        "activity_id": activity.get("activity_id"),
-        "component_id": activity.get("component_id"),
-        "public_definition": activity.get("public_definition") or {},
+        "experience_id": activity.get("experience_id") or activity.get("activity_id"),
+        "implementation_ref": activity.get("implementation_ref")
+        or f"{activity.get('component_id')}@1",
+        "definition_ref": activity.get("definition_ref") or activity.get("activity_id"),
     }
     return (
         source.rstrip()
-        + "\n\n## Actividad Didact preparada por el servidor\n"
-        + "Incluye exactamente DidactActivity(activity_id, component_id) usando estos "
-        + "valores; no inventes otro id: "
+        + "\n\n## Experiencia preparada por el servidor\n"
+        + "Incluye exactamente LearningExperience(experience_id, implementation_ref, "
+        + "definition_ref) usando estos valores; no inventes otro id: "
         + json.dumps(instruction, ensure_ascii=False, sort_keys=True)
         + "\n"
     )
@@ -1629,7 +1711,7 @@ async def validate_ui(state: NodeRuntimeState) -> dict:
                 "validation_errors": [
                     "En modo Didact esta prohibido "
                     + " y ".join(forbidden)
-                    + ": usa DidactActivity o un bloque Didact directo."
+                    + ": usa LearningExperience o un bloque Didact directo."
                 ],
                 "retry_count": int(state.get("retry_count") or 0) + 1,
                 "current_step": "validate_ui",

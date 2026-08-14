@@ -278,7 +278,28 @@ LEGACY_OPENUI_POLICIES: dict[str, LegacyComponentPolicy] = {
         accessibility=_INTERACTIVE_ACCESSIBILITY,
         rank=25,
     ),
-    # Generic renderer shell. The neutral Didact descriptor selected upstream remains
+    # Provider-neutral renderer shell. Selection and evidence semantics come from the
+    # persisted intent/variant/binding chain, not from this presentation descriptor.
+    "LearningExperience": _descriptor(
+        "LearningExperience",
+        missions=frozenset(
+            {
+                CognitiveMission.INTERPRET,
+                CognitiveMission.RECONSTRUCT,
+                CognitiveMission.DECIDE,
+                CognitiveMission.EXPLAIN,
+            }
+        ),
+        source_functions=frozenset({SourceFunction.EXPLORE, SourceFunction.ASSESS}),
+        presentations=frozenset({Presentation.SIMULATION}),
+        producer_kind=ProducerKind.SIMULATION,
+        affordances=frozenset({"perform_experience", "submit_evidence"}),
+        evidence_events=frozenset({"experience_started", "experience_submitted"}),
+        state_model_ref="learning-experience/1",
+        accessibility=_INTERACTIVE_ACCESSIBILITY,
+        rank=40,
+    ),
+    # Generic legacy renderer shell. The neutral Didact descriptor selected upstream remains
     # the pedagogical source of truth; this policy only states what the OpenUI host can
     # do with the already-materialised activity id.
     "DidactActivity": _descriptor(

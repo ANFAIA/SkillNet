@@ -30,6 +30,7 @@ from src.repositories.learner_profile_repo import (
 PERSONAL_TABLES = (
     "node_render_views",
     "node_feedback",
+    "experience_attempts",
     "node_attempts",
     "node_probes",
     "learner_node_states",
@@ -76,8 +77,8 @@ async def _erase() -> tuple[RecordingSession, dict[str, int]]:
 
 
 @pytest.mark.asyncio
-async def test_erasure_deletes_all_seven_personal_tables() -> None:
-    """The headline: 7 of 7, not 5 of 7."""
+async def test_erasure_deletes_all_personal_tables() -> None:
+    """New evidence stores must join erasure in the same release that creates them."""
     session, counts = await _erase()
 
     assert set(session.deleted_tables()) == set(PERSONAL_TABLES)

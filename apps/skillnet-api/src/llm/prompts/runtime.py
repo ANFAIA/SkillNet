@@ -125,9 +125,9 @@ from src.render.spec import FORMATS_REQUIRING_LEAD
 #: ``screen_scheme.py`` (lead + concept block + practice). The generator
 #: fills those slots; it does not invent the didactic form.
 #:
-#: ``runtime/29`` (2026-08-13): one idea per screen; teach with a case or
-#: graphic; practice is a second workplace situation, not the same sentence.
-PROMPT_VERSION = "runtime/36"
+#: ``runtime/37`` (2026-08-14): new renders emit the provider-neutral
+#: ``LearningExperience`` reference; ``DidactActivity`` remains playback-only.
+PROMPT_VERSION = "runtime/37"
 
 _PRESENTATION_PREFERENCES = {
     "balanced": "Combina representaciones segun el objetivo y la fuente.",
@@ -627,10 +627,9 @@ _DIDACT_VERIFICATION_OVERRIDE = """
 
 ## SkillNet: verificacion Didact
 
-La practica de esta pantalla es Didact. Usa uno de:
-Flashcard, HintReveal, DidactGlossary, DidactTimeline, DidactWorkedExample
-o DidactActivity(activity_id, component_id).
-Si el servidor ya preparo una Actividad Didact, esa es la practica de la pantalla.
+La practica de esta pantalla usa una experiencia preparada por el servidor. Incluye
+LearningExperience(experience_id, implementation_ref, definition_ref) con los valores
+exactos presentes en el contexto; no inventes ids ni cambies de implementacion.
 La correccion vive en el servidor: el programa termina con el bloque Didact.
 
 ## SkillNet: un caso, luego otro

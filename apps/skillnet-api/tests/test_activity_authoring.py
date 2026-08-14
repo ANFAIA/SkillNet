@@ -463,6 +463,62 @@ async def test_runtime_authoring_does_not_call_model_when_activity_not_requested
     make_llm.assert_not_awaited()
 
 
+@pytest.mark.asyncio
+async def test_runtime_uses_prepared_binding_without_calling_authoring_model(monkeypatch):
+    binding = SimpleNamespace(
+        id=uuid.uuid4(),
+        implementation_id="didact.quiz.single-choice",
+        implementation_version=1,
+        definition_ref=str(uuid.uuid4()),
+    )
+    intent = SimpleNamespace(id=uuid.uuid4())
+    activity = SimpleNamespace(
+        id=uuid.UUID(binding.definition_ref),
+        component_id="didact.quiz.single-choice",
+    )
+
+    class Result:
+        def first(self):
+            return binding, SimpleNamespace(), intent, activity
+
+    class Session:
+        async def execute(self, _query):
+            return Result()
+
+    class Context:
+        async def __aenter__(self):
+            return Session()
+
+        async def __aexit__(self, *_args):
+            return None
+
+    make_llm = AsyncMock(side_effect=AssertionError("prepared binding reached LLM"))
+    monkeypatch.setattr(
+        runtime_nodes,
+        "_activity_candidates",
+        lambda _state: ("didact.quiz.single-choice",),
+    )
+    monkeypatch.setattr(runtime_nodes, "async_session_factory", lambda: Context())
+    monkeypatch.setattr(runtime_nodes, "_make_llm", make_llm)
+
+    result = await runtime_nodes.author_activity(
+        {
+            "request_id": "r",
+            "org_id": str(uuid.uuid4()),
+            "node_id": str(uuid.uuid4()),
+            "prompt_component_ids": ["DidactActivity", "Table"],
+        }
+    )
+
+    assert result["activity_authoring_status"] == "prepared"
+    assert result["authored_activity"]["experience_id"] == str(binding.id)
+    assert result["authored_activity"]["implementation_ref"] == (
+        "didact.quiz.single-choice@1"
+    )
+    assert result["prompt_component_ids"] == ["LearningExperience", "Table"]
+    make_llm.assert_not_awaited()
+
+
 @pytest.mark.parametrize(
     "component_id",
     [

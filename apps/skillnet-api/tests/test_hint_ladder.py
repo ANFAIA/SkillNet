@@ -141,6 +141,13 @@ class FakeAttempt:
     item_id: str
     passed: bool
     hints_used: int = 0
+    id: uuid.UUID = field(default_factory=uuid.uuid4)
+    user_id: uuid.UUID = USER_ID
+    node_id: uuid.UUID = NODE_ID
+    render_id: uuid.UUID = RENDER_ID
+    score: float = 0.0
+    feedback: str | None = None
+    request_digest: str | None = None
 
 
 class FakeState:
@@ -283,11 +290,24 @@ def _install(monkeypatch: pytest.MonkeyPatch, world: World) -> None:
             rows = self._rows(item_id)
             return rows[-1] if rows else None
 
+        async def lock_attempt(self, _attempt_id: uuid.UUID) -> None:
+            return None
+
+        async def get_attempt(self, attempt_id: uuid.UUID):
+            return next((row for row in world.attempts if row.id == attempt_id), None)
+
         async def record(self, **kwargs: Any) -> FakeAttempt:
             row = FakeAttempt(
+                id=kwargs["id"],
                 item_id=kwargs["item_id"],
                 passed=bool(kwargs["passed"]),
                 hints_used=int(kwargs.get("hints_used") or 0),
+                user_id=kwargs["user_id"],
+                node_id=kwargs["node_id"],
+                render_id=kwargs["render_id"],
+                score=float(kwargs["score"]),
+                feedback=kwargs.get("feedback"),
+                request_digest=kwargs.get("request_digest"),
             )
             world.attempts.append(row)
             return row
@@ -359,10 +379,17 @@ def ask_hint(client: TestClient) -> Any:
     )
 
 
-def answer(client: TestClient, *, selected: int, hints_used: int = 0) -> Any:
+def answer(
+    client: TestClient,
+    *,
+    selected: int,
+    hints_used: int = 0,
+    attempt_id: uuid.UUID | None = None,
+) -> Any:
     return client.post(
         f"{PREFIX}/nodes/{NODE_ID}/answer",
         json={
+            **({"attempt_id": str(attempt_id)} if attempt_id is not None else {}),
             "render_id": str(RENDER_ID),
             "item_id": ITEM_ID,
             "answer": {"selected": selected},
@@ -439,6 +466,20 @@ def test_the_client_cannot_buy_the_answer_with_its_own_hint_count(
     body = fail(client, hints_used=99).json()
     assert body["correct_answer"] is None
     assert body["show_worked_solution"] is False
+
+
+def test_transport_retry_reuses_attempt_without_reapplying_mastery(
+    client: TestClient, world: World
+) -> None:
+    attempt_id = uuid.uuid4()
+    first = answer(client, selected=0, attempt_id=attempt_id)
+    attempts_after_first = world.state.attempts_count
+    second = answer(client, selected=0, attempt_id=attempt_id)
+
+    assert first.status_code == second.status_code == 200
+    assert second.json() == first.json()
+    assert len(world.attempts) == 1
+    assert world.state.attempts_count == attempts_after_first
 
 
 # --------------------------------------------------------------------------------------

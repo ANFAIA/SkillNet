@@ -26,10 +26,15 @@ from src.schemas.activity import (
     ActivityStateWrite,
     ActivitySubmission,
 )
+from src.schemas.learning_experience import (
+    ExperienceAttemptRead,
+    ExperienceAttemptSubmission,
+)
 from src.services.activity_definitions import ActivityDefinitionService, operation_payload
 from src.services.activity_ports import PortDeclined
 from src.services.media.activity_assets import ActivityAssetResolver
 from src.services.activity_progress import project_activity_progress
+from src.services.experience_attempt_service import ExperienceAttemptService
 from src.repositories.learner_node_state_repo import LearnerNodeStateRepository
 from src.repositories.media_artifact_repo import MediaArtifactRepository
 
@@ -216,6 +221,26 @@ async def evaluate_activity(user: CurrentUser, db: DBSession, activity_id: uuid.
     service = _service(db)
     activity = await service.get(activity_id, user.org_id)
     return ActivityOperationRead(**operation_payload(await service.evaluate(activity, body.submission)))
+
+
+@router.post("/{activity_id}/attempts", response_model=ExperienceAttemptRead)
+async def submit_experience_attempt(
+    user: CurrentUser,
+    db: DBSession,
+    activity_id: uuid.UUID,
+    body: ExperienceAttemptSubmission,
+) -> ExperienceAttemptRead:
+    """Evaluate once and atomically persist neutral evidence plus mastery.
+
+    The client supplies identity, binding, raw submission and duration only. Scoring,
+    evidence normalization and all learner-state changes remain server-owned.
+    """
+
+    result = await ExperienceAttemptService(db).submit(
+        user=user, activity_id=activity_id, body=body
+    )
+    await db.commit()
+    return result
 
 
 @router.post("/{activity_id}/transition", response_model=ActivityOperationRead)

@@ -224,6 +224,22 @@ def _didact_parallel_list_errors(component: Component) -> list[str]:
         steps = component.props.get("steps")
         if isinstance(steps, list) and not steps:
             return [f"component {component.id!r}: DidactWorkedExample needs at least one step"]
+    if component.type == "LearningExperience":
+        experience_id = component.props.get("experience_id")
+        implementation_ref = component.props.get("implementation_ref")
+        definition_ref = component.props.get("definition_ref")
+        if not isinstance(experience_id, str) or not experience_id.strip():
+            return [
+                f"component {component.id!r}: LearningExperience needs a non-empty experience_id"
+            ]
+        if not isinstance(implementation_ref, str) or "@" not in implementation_ref:
+            return [
+                f"component {component.id!r}: LearningExperience implementation_ref must pin a version"
+            ]
+        if not isinstance(definition_ref, str) or not definition_ref.strip():
+            return [
+                f"component {component.id!r}: LearningExperience needs a non-empty definition_ref"
+            ]
     if component.type == "DidactActivity":
         activity_id = component.props.get("activity_id")
         component_id = component.props.get("component_id")

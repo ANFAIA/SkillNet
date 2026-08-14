@@ -22,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.models.learner_node_state import LearnerNodeState
 from src.models.learner_profile import LearnerProfile
 from src.models.learning_event import LearningEvent
+from src.models.learning_experience import ExperienceAttempt
 from src.models.node_attempt import NodeAttempt
 from src.models.node_feedback import NodeFeedback
 from src.models.node_probe import NodeProbe
@@ -40,6 +41,7 @@ from src.repositories.base import BaseRepository
 ERASURE_ORDER: tuple[tuple[str, type, object], ...] = (
     ("node_render_views", NodeRenderView, NodeRenderView.user_id),
     ("node_feedback", NodeFeedback, NodeFeedback.user_id),
+    ("experience_attempts", ExperienceAttempt, ExperienceAttempt.user_id),
     ("node_attempts", NodeAttempt, NodeAttempt.user_id),
     ("node_probes", NodeProbe, NodeProbe.user_id),
     ("learner_node_states", LearnerNodeState, LearnerNodeState.user_id),
@@ -76,12 +78,10 @@ class LearnerProfileRepository(BaseRepository[LearnerProfile]):
     async def erase_user_data(self, user_id: uuid.UUID) -> dict[str, int]:
         """Delete every learner-generated row of one user; anonymize renders.
 
-        The seven tables of ``ERASURE_ORDER`` are deleted, in that order:
-        ``node_render_views``, ``node_feedback``, ``node_attempts``,
-        ``node_probes``, ``learner_node_states``, ``learning_events`` and
-        ``learner_profiles``. ``node_attempts`` and ``node_probes`` are the ones
-        that hold the answers the employee typed, so an erasure that skipped them
-        would return ``204`` for a promise it had not kept.
+        Every table in ``ERASURE_ORDER`` is deleted in dependency order. Both
+        ``experience_attempts`` and legacy ``node_attempts`` may hold answers or scored
+        results, so an erasure that skipped either would return ``204`` for a promise it
+        had not kept. ``normalized_evidence`` follows its attempt by ``ON DELETE CASCADE``.
 
         ``node_renders`` is **shared** between learners (``UNIQUE (cache_key)``,
         no ``user_id``), so it is not deleted: ``generated_by`` is set to ``NULL``.

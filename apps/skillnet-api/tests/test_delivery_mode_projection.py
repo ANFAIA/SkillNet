@@ -26,10 +26,20 @@ from typing import Any
 import pytest
 
 from src.models.course import ContentStatus, CourseDeliveryMode, CourseSchemaStatus
+from src.models.user import UserRole
 from src.routes.courses import _detail, _summary
 from src.routes.enrollments import _read
 
 NOW = datetime(2026, 7, 25, 9, 0, tzinfo=timezone.utc)
+
+
+@dataclass(frozen=True)
+class FakeUser:
+    id: uuid.UUID = field(default_factory=uuid.uuid4)
+    role: UserRole = UserRole.ADMIN
+
+
+USER = FakeUser()
 
 
 @dataclass
@@ -86,7 +96,7 @@ def test_course_read_reports_the_effective_delivery_path(
     expected: str,
 ) -> None:
     course = FakeCourse(delivery_mode=delivery, schema_status=schema_status)
-    assert _summary(course, 3).delivery_mode == expected
+    assert _summary(course, 3, user=USER).delivery_mode == expected
 
 
 @pytest.mark.parametrize(("delivery", "schema_status", "expected"), CASES)
@@ -98,7 +108,7 @@ def test_course_detail_agrees_with_the_summary(
     """Two projections of the same course disagreeing would make the badge flicker
     between the list and the detail screen."""
     course = FakeCourse(delivery_mode=delivery, schema_status=schema_status)
-    assert _detail(course, strip=True).delivery_mode == expected
+    assert _detail(course, strip=True, user=USER).delivery_mode == expected
 
 
 @pytest.mark.parametrize(("delivery", "schema_status", "expected"), CASES)

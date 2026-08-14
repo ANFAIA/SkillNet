@@ -8,7 +8,7 @@ import re
 import uuid
 from typing import Any
 
-from src.core.exceptions import NotFoundError, ValidationError
+from src.core.exceptions import ConflictError, NotFoundError, ValidationError
 from src.models.activity_definition import ActivityDefinition
 from src.repositories.activity_definition_repo import (
     ActivityDefinitionRepository,
@@ -192,7 +192,12 @@ class ActivityDefinitionService:
         )
         values = body.model_dump()
         if existing is not None:
-            return await self.definitions.update(existing, **values)
+            if all(getattr(existing, key) == value for key, value in values.items()):
+                return existing
+            raise ConflictError(
+                "activity definition versions are immutable; publish a new version",
+                field="version",
+            )
         return await self.definitions.create(org_id=org_id, **values)
 
     def ensure_ready(self, activity: ActivityDefinition, operation: str) -> PortDeclined | None:

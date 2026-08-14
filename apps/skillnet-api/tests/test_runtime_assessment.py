@@ -139,7 +139,7 @@ def test_live_didact_prompt_requires_authored_activity_not_quizitem() -> None:
             "assessment_block": "DidactActivity",
             "authored_activity": {"activity_id": "a1", "component_id": "didact.sort"},
         }
-    ) == ("DidactActivity",)
+    ) == ("LearningExperience",)
 
 
 def test_live_didact_falls_back_to_direct_closer_not_quizitem() -> None:
@@ -253,7 +253,8 @@ def test_didact_verification_prompt_names_the_practice() -> None:
     didact = ui_generator_system(didact_verification=True)
     assert "QuizItem" in legacy
     assert "verificacion Didact" in didact
-    assert "DidactActivity" in didact
+    assert "LearningExperience" in didact
+    assert "DidactActivity(" not in didact
     assert "Flashcard" in didact
     assert "un caso, luego otro" in didact
     assert "ESQUEMA DE ESTA PANTALLA" in didact

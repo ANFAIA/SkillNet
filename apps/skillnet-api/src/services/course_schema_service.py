@@ -25,6 +25,7 @@ without a database (there is none in CI — §12.2).
 
 from __future__ import annotations
 
+import asyncio
 import uuid
 from collections.abc import Awaitable, Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
@@ -58,6 +59,8 @@ from src.repositories.document_repo import DocumentRepository
 from src.repositories.enrollment_repo import EnrollmentRepository
 from src.repositories.generation_job_repo import GenerationJobRepository
 from src.services.enrollment_service import NodeProgressRow, apply_dynamic_closure
+from src.services.experience_planning import NeutralExperiencePlanner
+from src.services.experience_materialization import ExperienceMaterializer
 from src.services.mastery_service import evaluate_course_completion
 
 logger = get_logger(__name__)
@@ -493,6 +496,8 @@ class CourseSchemaService:
             [CourseNode], Awaitable[tuple[list, dict] | None]
         ]
         | None = None,
+        experience_planner: Any | None = None,
+        experience_materializer: Any | None = None,
     ) -> None:
         self.course_repo = course_repo
         self.node_repo = node_repo
@@ -501,6 +506,12 @@ class CourseSchemaService:
         self.job_repo = job_repo
         self.document_repo = document_repo
         self.probe_pregenerator = probe_pregenerator or _lazy_probe_pregenerator
+        self.experience_planner = experience_planner or NeutralExperiencePlanner(
+            self.session
+        )
+        self.experience_materializer = (
+            experience_materializer or ExperienceMaterializer(self.session)
+        )
 
     # ------------------------------------------------------------- internals --
     @property
@@ -872,7 +883,23 @@ class CourseSchemaService:
         if errors:
             raise SchemaInvalid(errors)
 
+        # Design-time owns the expensive pedagogical decision. The runtime will
+        # select among these approved, provider-neutral variants without authoring
+        # content or waiting for an LLM. Failure here keeps the course static.
+        experience_plan = await self.experience_planner.plan_course(
+            org_id=org_id,
+            course_id=course_id,
+            schema_version=int(course.schema_version or 1),
+            nodes=nodes,
+        )
         pregenerated = await self._pregenerate_probes(nodes)
+        materialization = await self.experience_materializer.materialize_course(
+            org_id=org_id,
+            course_id=course_id,
+            schema_version=int(course.schema_version or 1),
+            nodes=nodes,
+            plans=experience_plan.plans,
+        )
 
         now = datetime.now(timezone.utc)
         course.schema_status = CourseSchemaStatus.VALIDATED
@@ -903,6 +930,29 @@ class CourseSchemaService:
                     == NodeCriticality.CRITICAL.value
                 ),
                 "probes_pregenerated": pregenerated,
+                "experience_plan": {
+                    "planner_version": experience_plan.planner_version,
+                    "plan_digest": experience_plan.plan_digest,
+                    "planned_intents": experience_plan.planned_intents,
+                    "planned_variants": experience_plan.planned_variants,
+                    "inserted_intents": experience_plan.inserted_intents,
+                    "inserted_variants": experience_plan.inserted_variants,
+                },
+                "experience_materialization": {
+                    "materializer_version": materialization.materializer_version,
+                    "materialization_digest": materialization.materialization_digest,
+                    "planned_definitions": materialization.planned_definitions,
+                    "inserted_definitions": materialization.inserted_definitions,
+                    "planned_bindings": materialization.planned_bindings,
+                    "inserted_bindings": materialization.inserted_bindings,
+                    "declined": [
+                        {
+                            "intent_key": item.intent_key,
+                            "reason": item.reason,
+                        }
+                        for item in materialization.declined
+                    ],
+                },
                 "enrollments_recomputed": recomputed,
                 "diff": diff,
             },
@@ -913,10 +963,11 @@ class CourseSchemaService:
     async def _pregenerate_probes(self, nodes: Sequence[CourseNode]) -> int:
         """Pre-generate the probe of every node that has none yet (§7.1 origin 1)."""
         generated = 0
-        for node in nodes:
-            if node.probe_items:
-                continue
-            result = await self.probe_pregenerator(node)
+        pending = [node for node in nodes if not node.probe_items]
+        results = await asyncio.gather(
+            *(self.probe_pregenerator(node) for node in pending)
+        )
+        for node, result in zip(pending, results, strict=True):
             if not result:
                 continue
             items, answer_key = result

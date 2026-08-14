@@ -45,6 +45,13 @@ from src.models.learner_profile import (
     LearnerProfile,
 )
 from src.models.learning_event import LearningEvent
+from src.models.learning_experience import (
+    ExperienceAttempt,
+    ExperienceIntent,
+    ExperienceVariant,
+    ImplementationBinding,
+    NormalizedEvidence,
+)
 from src.models.lesson import Lesson
 from src.models.lesson_progress import LessonProgress
 from src.models.media_artifact import (
@@ -129,6 +136,11 @@ __all__ = [
     "ErrorKind",
     "SCAFFOLD_BANDS",
     "LearningEvent",
+    "ExperienceIntent",
+    "ExperienceVariant",
+    "ImplementationBinding",
+    "ExperienceAttempt",
+    "NormalizedEvidence",
     "NodeRender",
     "UiFormat",
     "NodeRenderStatus",

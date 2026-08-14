@@ -897,7 +897,7 @@ def test_the_parser_accepts_exactly_the_emittable_components() -> None:
         "DidactGlossary",
         "DidactTimeline",
         "DidactWorkedExample",
-        "DidactActivity",
+        "LearningExperience",
         # Layout containers for viewport-fitting (runtime/6).
     }
     # ``Markdown`` is in the kit but ``llm_emittable=False``: reachable from
@@ -913,4 +913,6 @@ def test_the_parser_accepts_exactly_the_emittable_components() -> None:
             if "unknown component" in str(exc):
                 continue
             accepted.add(name)  # rejected for arity/props, so the name itself is known
-    assert accepted == emittable
+    # DidactActivity remains parseable for historical programs but is absent from
+    # the catalogue shown to new-course authoring.
+    assert accepted == emittable | {"DidactActivity"}

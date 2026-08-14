@@ -37,6 +37,7 @@ EXPECTED_CATALOGUE: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("DidactGlossary", ("title", "terms", "definitions")),
     ("DidactTimeline", ("label", "steps", "details")),
     ("DidactWorkedExample", ("problem", "steps", "summary")),
+    ("LearningExperience", ("experience_id", "implementation_ref", "definition_ref")),
     ("DidactActivity", ("activity_id", "component_id")),
 )
 
@@ -83,9 +84,12 @@ def test_positional_prop_order_matches_the_spec_table(name: str, props: tuple[st
     assert component.prop_names == props
 
 
-def test_only_markdown_is_off_limits_to_the_model() -> None:
-    assert UI_KIT.llm_names == tuple(name for name, _ in EXPECTED_CATALOGUE if name != "Markdown")
-    assert len(UI_KIT.llm_names) == len(EXPECTED_CATALOGUE) - 1
+def test_fallback_and_legacy_alias_are_off_limits_to_the_model() -> None:
+    retired = {"Markdown", "DidactActivity"}
+    assert UI_KIT.llm_names == tuple(
+        name for name, _ in EXPECTED_CATALOGUE if name not in retired
+    )
+    assert len(UI_KIT.llm_names) == len(EXPECTED_CATALOGUE) - len(retired)
 
 
 def test_containers_are_stack_and_card() -> None:

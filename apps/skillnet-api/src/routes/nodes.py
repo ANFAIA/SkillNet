@@ -24,6 +24,8 @@ Where the wiring left dangling by other batches gets connected:
 from __future__ import annotations
 
 import uuid
+import hashlib
+import json
 from collections.abc import AsyncIterator
 from typing import Annotated, Any
 
@@ -103,11 +105,9 @@ from src.services.mastery_service import (
     MASTERED,
     NEEDS_REVIEW,
     evaluate_course_completion,
-    mastery_prior,
     may_offer_hint,
-    threshold_for,
-    transition_on_answer,
 )
+from src.services.mastery_evidence_service import MasteryEvidenceService
 from src.services.node_grading import (
     classify_error,
     content_for,
@@ -150,6 +150,16 @@ _SSE_HEADERS = {
 
 #: Events after which the render stream has nothing left to say.
 _TERMINAL_EVENTS = {"ui_done", "node_skipped", "error"}
+
+
+def _node_answer_digest(body: NodeAnswerRequest) -> str:
+    canonical = json.dumps(
+        body.model_dump(mode="json"),
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    )
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
 # --------------------------------------------------------------------------------------
@@ -673,6 +683,46 @@ async def answer_node_item(
     )
 
     attempts = NodeAttemptRepository(db)
+    await attempts.lock_attempt(body.attempt_id)
+    request_digest = _node_answer_digest(body)
+    existing_attempt = await attempts.get_attempt(body.attempt_id)
+    if existing_attempt is not None:
+        if (
+            existing_attempt.user_id != user.id
+            or existing_attempt.node_id != node.id
+            or existing_attempt.render_id != render.id
+            or existing_attempt.item_id != body.item_id
+            or existing_attempt.request_digest != request_digest
+        ):
+            raise ConflictError(
+                "attempt_id is already associated with another answer",
+                field="attempt_id",
+            )
+        existing_state = await LearnerNodeStateRepository(db).get_by_user_and_node(
+            user.id, node.id
+        )
+        state_value = str(
+            getattr(existing_state.state, "value", existing_state.state)
+            if existing_state is not None
+            else "learning"
+        )
+        reveal = bool(existing_attempt.passed) or int(existing_attempt.hints_used or 0) >= HINT_LIMIT
+        return NodeAttemptResult(
+            score=float(existing_attempt.score),
+            passed=bool(existing_attempt.passed),
+            feedback=existing_attempt.feedback,
+            correct_answer=_correct_answer(key_entry) if reveal else None,
+            mastery=float(getattr(existing_state, "mastery", 0.0) or 0.0),
+            state=state_value,
+            consecutive_correct=int(
+                getattr(existing_state, "consecutive_correct", 0) or 0
+            ),
+            consecutive_failed=int(
+                getattr(existing_state, "consecutive_failed", 0) or 0
+            ),
+            next=_next_action(passed=bool(existing_attempt.passed), state=state_value),
+            show_worked_solution=False,
+        )
     hints_used = await attempts.hints_used_for_item(
         user_id=user.id, node_id=node.id, item_id=body.item_id
     )
@@ -692,26 +742,8 @@ async def answer_node_item(
 
     error_kind = None if result.passed else classify_error(item_props, key_entry, body.answer)
 
-    states = LearnerNodeStateRepository(db)
-    skill_level = await _user_skill_level(db, user.id, node.skill_id)
-    state = await states.get_or_create(
-        user_id=user.id, node_id=node.id, mastery=mastery_prior(skill_level)
-    )
-    threshold = threshold_for(node.criticality, node.mastery_threshold)
-    transition = transition_on_answer(
-        state=state.state,
-        mastery=float(state.mastery or 0.0),
-        consecutive_correct=int(state.consecutive_correct or 0),
-        consecutive_failed=int(state.consecutive_failed or 0),
-        score=result.score,
-        passed=result.passed,
-        threshold=threshold,
-        hints_used=hints_used,
-        item_failures=item_failures,
-        error_kind=error_kind,
-    )
-
     await attempts.record(
+        id=body.attempt_id,
         user_id=user.id,
         node_id=node.id,
         render_id=render.id,
@@ -726,46 +758,24 @@ async def answer_node_item(
         hints_used=hints_used,
         latency_ms=body.latency_ms,
         feedback=result.feedback,
+        request_digest=request_digest,
     )
-    await states.apply_transition(state, transition)
-
-    profiles = _profile_service(db)
-    profile = await LearnerProfileRepository(db).get_by_user(user.id)
-    if profile is not None:
-        if transition.increment_nodes_completed:
-            # Rule 6 of §7.3 and the ONLY place this is incremented: a node skipped by the
-            # probe produced no interaction event, so counting it would drop the learner out
-            # of calibration with an empty format_vector (§3.3).
-            await profiles.increment_nodes_completed(profile=profile)
-            # A node closing is also the one moment worth recomputing the inferred vector —
-            # see this module's docstring for why it is not done per event batch.
-            await profiles.refresh_format_vector(profile=profile)
-        await profiles.apply_signals(
-            profile=profile,
-            context=await _signal_context(db, user, node, state),
-        )
-
-    if transition.increment_nodes_completed:
-        # The node just closed by demonstration (rule 6 of §7.3). Two consequences that
-        # only this transition earns, both in the same transaction as the state change:
-        #
-        # 1. `user_skills` gets the `mastery -> skill_level` translation of §3.3, upwards
-        #    only. This is the write half of the bridge whose read half is the probe
-        #    prior of §7.1 — the org's "who knows X" learns something from a node being
-        #    mastered, which it never did before.
-        # 2. §7.5 course closing is re-evaluated: this may have been the last critical
-        #    node. A `waive` is the other event that can close a course; a probe skip is
-        #    *not* excluded either — a mastered probe reaches `close_dynamic_if_mastered`
-        #    through the next node the learner closes, and through `GET .../nodes`, whose
-        #    `can_complete` is computed from the same rule.
-        await SkillService(SkillRepository(db)).record_mastery(
-            user_id=user.id,
-            skill_id=node.skill_id,
-            mastery=float(state.mastery or 0.0),
-        )
-        await _enrollment_service(db).close_dynamic_if_mastered(
-            course=course, user_id=user.id
-        )
+    mastery_result = await MasteryEvidenceService(
+        db,
+        states=LearnerNodeStateRepository(db),
+        profile_repository=LearnerProfileRepository(db),
+    ).apply(
+        user_id=user.id,
+        node=node,
+        course=course,
+        score=result.score,
+        passed=result.passed,
+        error_kind=error_kind,
+        hints_used=hints_used,
+        prior_failures=item_failures,
+    )
+    state = mastery_result.state
+    transition = mastery_result.transition
     await db.commit()
 
     reveal = result.passed or hints_used >= HINT_LIMIT

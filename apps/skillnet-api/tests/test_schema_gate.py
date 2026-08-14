@@ -9,6 +9,7 @@ that was signed off earlier.
 
 from __future__ import annotations
 
+import asyncio
 import uuid
 from datetime import datetime, timezone
 
@@ -580,7 +581,43 @@ async def test_validate_flips_status_and_delivery_and_audits() -> None:
     assert snapshot.course.schema_validated_at is not None
     assert audit_repo.rows[0]["action"] == "course_schema_validated"
     assert audit_repo.rows[0]["detail"]["node_count"] == 1
+    experience_plan = audit_repo.rows[0]["detail"]["experience_plan"]
+    assert experience_plan["planner_version"] == "neutral-experience-plan/1"
+    assert experience_plan["planned_intents"] == 3
+    assert experience_plan["planned_variants"] == 3
+    assert len(experience_plan["plan_digest"]) == 64
+    materialization = audit_repo.rows[0]["detail"]["experience_materialization"]
+    assert materialization["materializer_version"] == (
+        "neutral-experience-materializer/1"
+    )
+    assert materialization["planned_bindings"] >= 1
+    assert len(materialization["materialization_digest"]) == 64
     ensure_node_servable(snapshot.course, node)
+
+
+@pytest.mark.asyncio
+async def test_neutral_plan_must_succeed_before_dynamic_is_activated() -> None:
+    course = make_course()
+    node = make_node(course, position=1)
+
+    class FailingPlanner:
+        async def plan_course(self, **kwargs):
+            assert course.schema_status == CourseSchemaStatus.PROPOSED
+            assert course.delivery_mode == CourseDeliveryMode.STATIC
+            raise RuntimeError("planning failed")
+
+    service, _, audit_repo, _ = make_service(
+        course, [node], experience_planner=FailingPlanner()
+    )
+
+    with pytest.raises(RuntimeError, match="planning failed"):
+        await service.validate(
+            course_id=course.id, org_id=ORG_ID, actor_id=ACTOR_ID
+        )
+
+    assert course.schema_status == CourseSchemaStatus.PROPOSED
+    assert course.delivery_mode == CourseDeliveryMode.STATIC
+    assert audit_repo.rows == []
 
 
 @pytest.mark.asyncio
@@ -650,6 +687,33 @@ async def test_validate_pregenerates_probes_through_the_seam() -> None:
     assert calls == [node]
     assert node.probe_items and node.probe_answer_key == {"0": {"correct": 1}}
     assert audit_repo.rows[0]["detail"]["probes_pregenerated"] == 1
+
+
+@pytest.mark.asyncio
+async def test_validate_runs_independent_probe_producers_in_parallel() -> None:
+    course = make_course()
+    nodes = [
+        make_node(course, position=1, title="A"),
+        make_node(course, position=2, title="B"),
+    ]
+    both_started = asyncio.Event()
+    started = 0
+
+    async def pregenerator(_target: CourseNode):
+        nonlocal started
+        started += 1
+        if started == 2:
+            both_started.set()
+        await asyncio.wait_for(both_started.wait(), timeout=1)
+        return [{"bloom_level": "apply", "type": "test"}], {"0": {"correct": 1}}
+
+    service, _, _, _ = make_service(
+        course, nodes, probe_pregenerator=pregenerator
+    )
+    await service.validate(course_id=course.id, org_id=ORG_ID, actor_id=ACTOR_ID)
+
+    assert started == 2
+    assert all(node.probe_items for node in nodes)
 
 
 @pytest.mark.asyncio

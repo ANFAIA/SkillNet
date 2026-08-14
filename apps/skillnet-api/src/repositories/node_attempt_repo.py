@@ -5,11 +5,12 @@ Separate table from ``exercise_attempts`` because that one requires
 not rows of ``exercises`` (§3.4).
 """
 
+import hashlib
 import uuid
 from collections.abc import Sequence
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models import NodeAttempt
@@ -93,3 +94,22 @@ class NodeAttemptRepository(BaseRepository[NodeAttempt]):
             .limit(limit)
         )
         return (await self.session.execute(query)).scalars().all()
+    async def lock_attempt(self, attempt_id: uuid.UUID) -> None:
+        """Serialize retries before the first attempt row exists."""
+        try:
+            dialect = self.session.get_bind().dialect.name
+        except (AttributeError, TypeError):
+            return
+        if dialect != "postgresql":
+            return
+        key = int.from_bytes(
+            hashlib.sha256(f"node-attempt:{attempt_id}".encode()).digest()[:8],
+            "big",
+            signed=True,
+        )
+        await self.session.execute(
+            text("SELECT pg_advisory_xact_lock(:lock_key)"), {"lock_key": key}
+        )
+
+    async def get_attempt(self, attempt_id: uuid.UUID) -> NodeAttempt | None:
+        return await self.session.get(NodeAttempt, attempt_id)

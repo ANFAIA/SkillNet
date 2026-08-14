@@ -48,6 +48,7 @@ def test_adapter_is_deterministic_and_does_not_mutate_live_kit() -> None:
         "DidactGlossary",
         "DidactTimeline",
         "DidactWorkedExample",
+        "LearningExperience",
         "DidactActivity",
     ]
 

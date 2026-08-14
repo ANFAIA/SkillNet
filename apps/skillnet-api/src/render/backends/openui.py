@@ -565,7 +565,7 @@ def _assert_no_fold_collision(statements: list[_Statement]) -> None:
 def _spec_of(statement: _Statement) -> ComponentSpec:
     """The kit entry for a statement's component, or the closed-catalogue error."""
     spec: ComponentSpec | None = UI_KIT.get(statement.comp_name)
-    if spec is None or not spec.llm_emittable:
+    if spec is None or (not spec.llm_emittable and not spec.legacy_parseable):
         raise RenderParseError(
             f"unknown component {statement.comp_name!r}; the catalogue is closed: "
             f"{', '.join(LLM_COMPONENT_NAMES)}",

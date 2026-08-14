@@ -36,7 +36,7 @@ HintReveal(title: string, hints: string[], solution: string) — Ofrece pistas d
 DidactGlossary(title: string, terms: string[], definitions: string[]) — Definiciones consultables para terminos importantes del contenido
 DidactTimeline(label: string, steps: string[], details: string[]) — Secuencia cronologica o procedimental con detalle opcional por paso
 DidactWorkedExample(problem: string, steps: string[], summary: string) — Solucion razonada que revela progresivamente como resolver un problema
-DidactActivity(activity_id: string, component_id: string) — Actividad Didact revisada, cargada por id desde SkillNet; nunca contiene respuestas en el programa
+LearningExperience(experience_id: string, implementation_ref: string, definition_ref: string) — Experiencia de aprendizaje resuelta por referencia neutral; no expone proveedor, respuestas ni definicion privada
 
 ## Hoisting & Streaming (CRITICAL)
 

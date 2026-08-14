@@ -463,18 +463,24 @@
       ]
     },
     {
-      "name": "DidactActivity",
-      "description": "Actividad Didact revisada, cargada por id desde SkillNet; nunca contiene respuestas en el programa",
-      "signature": "DidactActivity(activity_id: string, component_id: string)",
+      "name": "LearningExperience",
+      "description": "Experiencia de aprendizaje resuelta por referencia neutral; no expone proveedor, respuestas ni definicion privada",
+      "signature": "LearningExperience(experience_id: string, implementation_ref: string, definition_ref: string)",
       "props": [
         {
-          "name": "activity_id",
+          "name": "experience_id",
           "kind": "string",
           "choices": [],
           "optional": false
         },
         {
-          "name": "component_id",
+          "name": "implementation_ref",
+          "kind": "string",
+          "choices": [],
+          "optional": false
+        },
+        {
+          "name": "definition_ref",
           "kind": "string",
           "choices": [],
           "optional": false
@@ -502,11 +508,12 @@
     "DidactGlossary",
     "DidactTimeline",
     "DidactWorkedExample",
+    "LearningExperience",
     "DidactActivity"
   ],
-  "canonical_catalog": "catalog: skillnet-ui/1\nroot: Stack\nStack(children:ref[], gap:enum(sm|md|lg))\nTextContent(text:string, variant:enum(body|lead|caption))\nCard(title:string, children:ref[])\nCallout(tone:enum(info|warn|success), text:string)\nStepSequence(title:string, steps:string[])\nTable(headers:string[], rows:string[][])\nCodeBlock(language:string, code:string)\nChart(kind:enum(bar|line), title:string, labels:string[], values:number[])\nQuizItem(item_id:string, item_type:enum(test|true_false|fill_blank|order_steps|practical_case|dialogue), bloom_level:enum(remember|understand|apply|analyze|evaluate|create), question:string, options:string[])\nBeforeAfter(title:string, beforeLabel:string, beforeContent:string, afterLabel:string, afterContent:string)\nDragOrder(instruction:string, items:string[], correctOrder:string[])\nAudioExplanation(text:string, voice:enum(neutral|warm|formal))\nPronunciationExercise(targetText:string, language:string)\nFlashcard(front:string, back:string)\nHintReveal(title:string, hints:string[], solution:string)\nDidactGlossary(title:string, terms:string[], definitions:string[])\nDidactTimeline(label:string, steps:string[], details:string[])\nDidactWorkedExample(problem:string, steps:string[], summary:string)\nDidactActivity(activity_id:string, component_id:string)\n",
-  "catalog_digest": "07311a40e2ed0883e317feed433937919193fba30d6c01429960c285feafa0af",
-  "catalog_version": "skillnet-ui/1+07311a40e2ed",
-  "prompt_sha256": "6b35488a9b711cc98fe4968f6703cfe178102a0b35c1353150f01f30e4595e86",
-  "prompt_chars": 8668
+  "canonical_catalog": "catalog: skillnet-ui/1\nroot: Stack\nStack(children:ref[], gap:enum(sm|md|lg))\nTextContent(text:string, variant:enum(body|lead|caption))\nCard(title:string, children:ref[])\nCallout(tone:enum(info|warn|success), text:string)\nStepSequence(title:string, steps:string[])\nTable(headers:string[], rows:string[][])\nCodeBlock(language:string, code:string)\nChart(kind:enum(bar|line), title:string, labels:string[], values:number[])\nQuizItem(item_id:string, item_type:enum(test|true_false|fill_blank|order_steps|practical_case|dialogue), bloom_level:enum(remember|understand|apply|analyze|evaluate|create), question:string, options:string[])\nBeforeAfter(title:string, beforeLabel:string, beforeContent:string, afterLabel:string, afterContent:string)\nDragOrder(instruction:string, items:string[], correctOrder:string[])\nAudioExplanation(text:string, voice:enum(neutral|warm|formal))\nPronunciationExercise(targetText:string, language:string)\nFlashcard(front:string, back:string)\nHintReveal(title:string, hints:string[], solution:string)\nDidactGlossary(title:string, terms:string[], definitions:string[])\nDidactTimeline(label:string, steps:string[], details:string[])\nDidactWorkedExample(problem:string, steps:string[], summary:string)\nLearningExperience(experience_id:string, implementation_ref:string, definition_ref:string)\n",
+  "catalog_digest": "dccca8260c0e576bcca43fde7e6033f3c7d72a9ba03dd5a07bcb7186661bc9a5",
+  "catalog_version": "skillnet-ui/1+dccca8260c0e",
+  "prompt_sha256": "e7829ce6571d69f1aaad2aa06b2d7e592886d45be062f983d3fe6c28a8cc7a2e",
+  "prompt_chars": 8719
 }

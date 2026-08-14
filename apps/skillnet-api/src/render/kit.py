@@ -115,6 +115,9 @@ class ComponentSpec:
     is_container: bool = False
     #: ``Markdown`` is reachable from ``fallback_seed`` only; the LLM cannot emit it.
     llm_emittable: bool = True
+    #: Historical programs may still contain a retired authoring symbol. It remains
+    #: parseable for playback without returning to the prompt catalogue.
+    legacy_parseable: bool = False
     #: The functions this component competes for. Empty = it is never proposed by the
     #: function layer and can only arrive by an explicit rule in a prompt.
     functions: tuple[FunctionFit, ...] = ()
@@ -380,7 +383,19 @@ UI_KIT = UIKit(
             ),
         ),
         ComponentSpec(
+            name="LearningExperience",
+            functions=(FunctionFit(ContentFunction.EXPLORAR, 5),),
+            purpose="Experiencia de aprendizaje resuelta por referencia neutral; no expone proveedor, respuestas ni definicion privada",
+            props=(
+                PropSpec("experience_id", PropKind.STRING, "Id opaco de la experiencia dentro del plan publicado"),
+                PropSpec("implementation_ref", PropKind.STRING, "Implementacion y version ya resueltas"),
+                PropSpec("definition_ref", PropKind.STRING, "Definicion publica versionada"),
+            ),
+        ),
+        ComponentSpec(
             name="DidactActivity",
+            llm_emittable=False,
+            legacy_parseable=True,
             functions=(FunctionFit(ContentFunction.EVALUAR, 10), FunctionFit(ContentFunction.EXPLORAR, 10)),
             purpose="Actividad Didact revisada, cargada por id desde SkillNet; nunca contiene respuestas en el programa",
             props=(

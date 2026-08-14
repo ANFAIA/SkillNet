@@ -83,6 +83,7 @@ class NodeAttempt(UUIDMixin, Base):
         SmallInteger, nullable=False, server_default=text("0"), default=0
     )
     feedback: Mapped[str | None] = mapped_column(Text, nullable=True)
+    request_digest: Mapped[str | None] = mapped_column(Text, nullable=True)
     latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     attempted_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=text("now()")
