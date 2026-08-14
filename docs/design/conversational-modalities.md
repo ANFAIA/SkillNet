@@ -39,6 +39,9 @@ La generación de podcasts continúa siendo una función separada. Se mejorarán
 estudio de generación como la calidad del resultado, sin convertir el podcast en parte del
 chat o de Realtime.
 
+El plan modular y configurable se define en
+[podcast-studio-plan.md](podcast-studio-plan.md).
+
 ## Relación con los modos de audiencia
 
 Estas funciones pueden formar parte del núcleo común de SkillNet cuando resulten útiles en

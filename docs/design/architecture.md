@@ -29,6 +29,8 @@
 | [learning-experience-architecture.md](learning-experience-architecture.md) | Contrato pedagógico neutral, variantes, proveedores, generación multiagente y evidencia común hacia mastery |
 | [audience-modes.md](audience-modes.md) | Un núcleo de producto con modos `organization` e `individual`, sin separar clases ni verticales |
 | [conversational-modalities.md](conversational-modalities.md) | Frontera entre audio en chat, Realtime, mascota y podcasts; propósito y alcance por audiencia |
+| [podcast-studio-plan.md](podcast-studio-plan.md) | Plan de Podcast Studio tipo NotebookLM, modular, configurable y agnóstico de proveedor |
+| [future-product-directions.md](future-product-directions.md) | Índice de las direcciones futuras de producto acordadas y su estado |
 | [Cuaderno de experimentos](../personalization-experiments.md) | Hipótesis, resultados, reversiones y aprendizajes reproducibles de personalización |
 
 ---
