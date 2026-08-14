@@ -1,12 +1,25 @@
 # Arquitectura neutral de experiencias de aprendizaje
 
 **Fecha:** 2026-08-14  
-**Estado:** arquitectura objetivo y plan de migración; no describe por completo el runtime actual.  
+**Estado:** contrato base implementado; rollout incremental y retirada legacy en curso.
 **Aplica a:** cursos dinámicos v2, generación de cursos, catálogo educativo y futuras experiencias
 de vídeo, juego, simulación o práctica presencial.  
 **Autoridad:** este documento gana sobre decisiones anteriores que acoplen el plan pedagógico a un
 nombre de componente. `v2-dynamic-courses.md` sigue siendo la autoridad sobre el comportamiento ya
 implementado y `didact-integration.md` sobre el inventario ejecutable actual.
+
+## Corte implementado — 14 de agosto de 2026
+
+El primer corte productivo ya incluye intents, variantes, bindings, intentos y evidencia
+normalizada append-only; planificación y materialización deterministas durante la validación del
+curso; `LearningExperience` con registro lazy; proveedores Didact, texto SkillNet y vídeo con
+checkpoint; y aplicación transaccional e idempotente de evidencia a mastery. Los cursos nuevos no
+emiten `DidactActivity`; el alias permanece únicamente para reproducir programas históricos.
+
+El runtime usa primero un binding preparado y sólo conserva autoría on-the-fly como compatibilidad
+para cursos anteriores a la migración 0016. Las rondas R1–R8 de `output/harness` son un oracle
+offline reproducible, complementado por tests de producto; no sustituyen todavía un experimento
+online con cohortes reales ni una prueba de carga PostgreSQL.
 
 ## 1. Decisión
 

@@ -20,3 +20,35 @@ python output/harness/profile_run.py `
 
 The orchestrator normally passes one JSON object per profile rather than the whole
 array. Reports are generated with `analyze_round.py`.
+
+## Offline architecture rounds (R1-R8)
+
+`architecture_rounds.py` is a deterministic, keyless pre-implementation oracle for the
+provider-neutral learning-experience architecture. It covers the neutral contract,
+idempotent evidence-to-mastery, adapter fallback, multi-agent design-time generation,
+variable rhythms, runtime selection without an LLM, a second-provider stub, and v1/v2
+migration behavior.
+
+Inspect the matrix without executing scenarios:
+
+```powershell
+python output/harness/architecture_rounds.py --mode dry-run
+```
+
+Execute every gate and write a machine-readable and human-readable report:
+
+```powershell
+python output/harness/architecture_rounds.py `
+  --mode offline `
+  --out output/architecture-rounds/latest
+```
+
+Run one or more focused rounds by repeating `--round`:
+
+```powershell
+python output/harness/architecture_rounds.py --round R2 --round R6
+```
+
+The offline suite does not claim production integration. As each architecture phase lands,
+its scenario must be connected to the real adapter, transaction, persistence, or delivery
+path and retain the same quantitative gate.
