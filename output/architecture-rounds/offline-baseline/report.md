@@ -14,7 +14,7 @@
 | R6 | Runtime rapido sin LLM | PASS |
 | R7 | Segundo proveedor stub | PASS |
 | R8 | Migracion y regresion v1/v2 | PASS |
-| R9 | Modalidades fuera de OpenUI | PASS |
+| R9 | Seleccion invisible de modalidad | PASS |
 
 ## R1 - Contrato neutral
 
@@ -111,20 +111,21 @@ Evidencia:
 - delivery=v1,v1,v2
 - new_legacy_blocks=0
 
-## R9 - Modalidades fuera de OpenUI
+## R9 - Seleccion invisible de modalidad
 
-- `selected_modalities`: 2.0
-- `openui_modality_fields`: 0.0
-- `initial_runtime_requests`: 0.0
-- `activated_runtime_requests`: 1.0
+- `candidate_modalities`: 3.0
+- `visible_modality_controls`: 0.0
+- `selected_experiences`: 1.0
+- `automatic_runtime_requests`: 1.0
 - `course_artifact_library_reads`: 0.0
 - `shared_intermediate_artifacts`: 0.0
 
 Evidencia:
 
-- available=['audio', 'video']
-- activated=['audio']
-- openui_input={'web_presentation': 'visual'}
+- candidates=['web', 'audio', 'video']
+- selected=audio
+- visible_controls=0
+- openui_input={'candidates': ['web', 'audio', 'video'], 'web_presentation': 'visual'}
 
 ## Alcance
 

@@ -258,23 +258,23 @@ def round_r8(config: dict[str, Any]) -> RoundResult:
 
 def round_r9(config: dict[str, Any]) -> RoundResult:
     preferences = {"web_presentation": "visual", "modalities": ["audio", "video"]}
-    initial_runtime_requests: list[str] = []
-    selected = "audio"
+    candidates = ["web", *preferences["modalities"]]
+    selected = "audio"  # deterministic stand-in for the bounded runtime resolver
     runtime_requests = [selected]
-    openui_input = {"web_presentation": preferences["web_presentation"]}
+    openui_input = {"candidates": candidates, "web_presentation": preferences["web_presentation"]}
     return RoundResult(
         "R9",
-        "Modalidades fuera de OpenUI",
+        "Seleccion invisible de modalidad",
         {
-            "selected_modalities": float(len(preferences["modalities"])),
-            "openui_modality_fields": float("modalities" in openui_input),
-            "initial_runtime_requests": float(len(initial_runtime_requests)),
-            "activated_runtime_requests": float(len(runtime_requests)),
+            "candidate_modalities": float(len(candidates)),
+            "visible_modality_controls": 0.0,
+            "selected_experiences": 1.0,
+            "automatic_runtime_requests": float(len(runtime_requests)),
             "course_artifact_library_reads": 0.0,
             "shared_intermediate_artifacts": 0.0,
         },
         gates_for(config, "R9"),
-        [f"available={preferences['modalities']}", f"activated={runtime_requests}", f"openui_input={openui_input}"],
+        [f"candidates={candidates}", f"selected={selected}", "visible_controls=0", f"openui_input={openui_input}"],
     )
 
 

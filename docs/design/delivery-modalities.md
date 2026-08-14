@@ -1,7 +1,7 @@
 # Modalidades de entrega y estructura de la experiencia
 
-**Estado:** decisión de arquitectura. La separación web/audio/vídeo está implementada;
-videojuego y UI libre quedan como extensiones futuras, sin superficie productiva.
+**Estado:** decisión de arquitectura. La selección invisible de una única experiencia es la
+dirección vigente; videojuego y UI libre quedan como extensiones futuras.
 
 ## Decisión
 
@@ -10,50 +10,52 @@ web, audio, vídeo y, en el futuro, videojuego. Una **estructura** es la composi
 de una modalidad. En web puede ser explicación breve, ejemplo resuelto, práctica,
 comprobación o transferencia.
 
-No son alternativas en una sola lista. Elegir una estructura web no puede eliminar audio
-o vídeo si la persona los ha pedido. El contrato conceptual es:
+No son pestañas ni opciones que la persona deba gestionar durante el curso. Las preferencias,
+el objetivo, el estado pedagógico y las capacidades disponibles forman la entrada privada del
+agente. Éste elige una sola experiencia para ese momento. El contrato conceptual es:
 
 ```text
 LearningExperience
   pedagogical intent
-  delivery bundle
-    web: runtime structure selected from a bounded slice
-    audio?: on-demand runtime representation
-    video?: on-demand runtime representation
-    game?: future implementation
+  candidate capabilities
+    web structures: bounded slice
+    audio?: when preferred and available
+    video?: when preferred and available
+    game?: future capability
+  runtime decision -> one selected experience
 ```
 
-La web es la modalidad primaria actual. Audio y vídeo son acompañantes acumulables. Las
-preferencias declaradas por el usuario son aditivas: puede seleccionar ambas. El selector
-permanece visible y la representación se genera sólo cuando la persona la activa. Mientras
-se prepara puede volver a web sin perder el estado de la experiencia OpenUI.
+La web es el fallback primario actual. Las preferencias de audio y vídeo son aditivas como
+señales: ambas pueden ampliar el conjunto de candidatos, pero no fuerzan dos salidas ni se muestran
+como navegación. La pantalla queda fijada mientras está abierta. Si una selección de media no puede
+servirse, el runtime cae a la siguiente variante aprobada y finalmente a web.
 
 ## Frontera con OpenUI
 
-OpenUI compone exclusivamente la **estructura de la modalidad web**. Recibe un subconjunto
-pequeño y compatible con el intent, el estado pedagógico, accesibilidad y capacidades del
-cliente. No recibe todo el catálogo global y no decide qué modalidades existen.
+OpenUI recibe un subconjunto pequeño de implementaciones compatibles con el intent, el estado
+pedagógico, la accesibilidad, las preferencias y las capacidades del cliente. No recibe todo el
+catálogo global. El resolver reduce primero el espacio y el agente decide dentro de esa frontera;
+el frontend sólo representa el resultado fijado.
 
-El shell fijo del reproductor, fuera del programa generado, ofrece audio y vídeo. Así un
-fallo, una repetición o una decisión del agente de runtime no puede ocultar una modalidad
-preferida. El catálogo global puede crecer sin aumentar de forma proporcional el prompt:
+No existe un shell con pestañas Web/Audio/Vídeo. El catálogo global puede crecer sin aumentar de
+forma proporcional el prompt:
 
 ```text
-catálogo global -> filtro de modalidad web -> shortlist por intent -> OpenUI runtime
-activación audio/vídeo -> generación runtime por nodo -------> shell del reproductor
+catálogo global -> capacidades/preferencias -> shortlist por intent -> agente runtime
+                                                               -> una experiencia
 ```
 
-La generación del curso prepara contratos pedagógicos, definiciones y bindings que agilizan
-la experiencia, pero no adjunta audio o vídeo precreados al curso. El runtime genera esas
-representaciones al activarlas. La selección web sigue usando referencias aprobadas y una
-shortlist; el productor de cada modalidad es quien resuelve su representación.
+La generación del curso prepara contratos pedagógicos, definiciones y bindings que agilizan la
+experiencia, pero no adjunta audio o vídeo precreados al curso. Si el agente elige una experiencia
+de media, el runtime genera la representación on-time; el productor correspondiente resuelve su
+salida y el fallback permanece aprobado de antemano.
 
 ## Generación on-time
 
-Audio y vídeo no se descubren consultando la biblioteca de artefactos del curso y tampoco
-forman parte del schema del curso. `POST /nodes/{node_id}/modalities/{modality}` pasa por la
-misma autorización de nodo y matrícula que el render web, y arranca el productor sólo tras
-una acción de la persona.
+Audio y vídeo no se descubren consultando la biblioteca de artefactos del curso y tampoco forman
+parte del schema del curso. La selección server-side pasa por la misma autorización de nodo y
+matrícula que el render web. El endpoint de modalidad es infraestructura interna; no constituye
+una acción ni un selector expuesto al alumno.
 
 La infraestructura de media persiste el resultado final como caché para polling, reintentos
 y reutilización tras recargar. Esa fila es un detalle interno del runtime: no es
@@ -106,6 +108,6 @@ sin romper intent, evidencia, historial, personalización ni fallback.
 - generar videojuegos;
 - ejecutar código generado libremente;
 - compartir guiones o representaciones intermedias entre productores;
-- permitir que OpenUI seleccione o suprima modalidades;
-- añadir audio/vídeo a la shortlist web sólo por ser preferencias del usuario.
+- mostrar un selector Web/Audio/Vídeo al alumno;
+- obligar a producir audio o vídeo sólo por ser preferencias del usuario;
 - usar la biblioteca de artefactos generales del curso como fuente del reproductor.

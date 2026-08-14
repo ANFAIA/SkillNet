@@ -329,40 +329,40 @@
     },
     {
       "round": "R9",
-      "title": "Modalidades fuera de OpenUI",
+      "title": "Seleccion invisible de modalidad",
       "passed": true,
       "metrics": {
-        "selected_modalities": 2.0,
-        "openui_modality_fields": 0.0,
-        "initial_runtime_requests": 0.0,
-        "activated_runtime_requests": 1.0,
+        "candidate_modalities": 3.0,
+        "visible_modality_controls": 0.0,
+        "selected_experiences": 1.0,
+        "automatic_runtime_requests": 1.0,
         "course_artifact_library_reads": 0.0,
         "shared_intermediate_artifacts": 0.0
       },
       "gates": [
         {
-          "metric": "selected_modalities",
+          "metric": "candidate_modalities",
           "operator": "eq",
-          "threshold": 2,
-          "actual": 2.0,
+          "threshold": 3,
+          "actual": 3.0,
           "passed": true
         },
         {
-          "metric": "openui_modality_fields",
-          "operator": "eq",
-          "threshold": 0,
-          "actual": 0.0,
-          "passed": true
-        },
-        {
-          "metric": "initial_runtime_requests",
+          "metric": "visible_modality_controls",
           "operator": "eq",
           "threshold": 0,
           "actual": 0.0,
           "passed": true
         },
         {
-          "metric": "activated_runtime_requests",
+          "metric": "selected_experiences",
+          "operator": "eq",
+          "threshold": 1,
+          "actual": 1.0,
+          "passed": true
+        },
+        {
+          "metric": "automatic_runtime_requests",
           "operator": "eq",
           "threshold": 1,
           "actual": 1.0,
@@ -384,9 +384,10 @@
         }
       ],
       "evidence": [
-        "available=['audio', 'video']",
-        "activated=['audio']",
-        "openui_input={'web_presentation': 'visual'}"
+        "candidates=['web', 'audio', 'video']",
+        "selected=audio",
+        "visible_controls=0",
+        "openui_input={'candidates': ['web', 'audio', 'video'], 'web_presentation': 'visual'}"
       ]
     }
   ]

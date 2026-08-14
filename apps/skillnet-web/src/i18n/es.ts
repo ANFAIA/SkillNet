@@ -71,17 +71,6 @@ export const es: Record<string, string> = {
 
   // Node view
   'node.backToCourse': 'Volver al curso',
-  'node.modalities': 'Formato de aprendizaje',
-  'node.modality.web': 'Web',
-  'node.modality.audio': 'Audio',
-  'node.modality.video': 'Vídeo',
-  'node.modality.pending': 'aún no preparado',
-  'node.modality.preparing': 'Preparando {modality} para este contenido…',
-  'node.modality.onDemand': 'Se genera ahora y podrás volver a la vista web cuando quieras.',
-  'node.modality.failed': 'No se pudo preparar {modality}. La lección web sigue disponible.',
-  'node.modality.retry': 'Reintentar',
-  'node.modality.audioTitle': 'Audio de esta lección',
-  'node.modality.videoTitle': 'Vídeo de esta lección',
   'node.pendingReview': 'Este nodo esta pendiente de revision',
   'node.pendingReviewDesc': 'Una persona responsable tiene que revisarlo antes de que se pueda estudiar. No es un error temporal: volver a intentarlo no lo desbloquea.',
   'node.mastered': 'Ya dominas este nodo',

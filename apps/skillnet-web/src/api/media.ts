@@ -117,16 +117,6 @@ export function useMediaArtifact(artifactId: string | undefined) {
   })
 }
 
-/** Activate an audio/video representation for the current node, generated on demand. */
-export function useRequestNodeModality(nodeId: string | undefined) {
-  return useMutation({
-    mutationFn: (body: { modality: 'audio' | 'video'; language: 'es' | 'en' }) =>
-      post<MediaArtifactAccepted>(`/nodes/${nodeId}/modalities/${body.modality}`, {
-        language: body.language,
-      }),
-  })
-}
-
 // --------------------------------------------------------------------------- //
 // SSE progress stream (media:{artifact_id})
 // --------------------------------------------------------------------------- //

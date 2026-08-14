@@ -198,8 +198,9 @@ def preference_bucket(
 ) -> str:
     """Canonical material for the web-render cache key.
 
-    Companion modalities deliberately do not partition OpenUI renders: audio and video
-    live in the fixed delivery shell and never change the generated web structure.
+    Companion preferences deliberately do not partition cache entries by themselves. They are
+    private resolver signals: the runtime fixes one approved experience and the frontend never
+    exposes them as delivery controls.
     ``tts_available`` remains accepted while v2 callers migrate.
     """
     normalized = normalize_learning_preferences(value)

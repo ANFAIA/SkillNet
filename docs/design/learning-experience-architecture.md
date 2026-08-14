@@ -1,8 +1,8 @@
 # Arquitectura neutral de experiencias de aprendizaje
 
-La separación entre modalidad completa (web, audio, vídeo y futuras) y estructura interna
-se define en [delivery-modalities.md](delivery-modalities.md). En caso de duda, OpenUI sólo
-controla la estructura web; las modalidades pertenecen al shell de entrega.
+La relación entre modalidad (web, audio, vídeo y futuras) y estructura interna se define en
+[delivery-modalities.md](delivery-modalities.md). En caso de duda, el agente selecciona una sola
+experiencia para la persona; las modalidades no aparecen como pestañas ni como decisión manual.
 
 **Fecha:** 2026-08-14  
 **Estado:** contrato base implementado; rollout incremental y retirada legacy en curso.
