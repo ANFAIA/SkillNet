@@ -441,6 +441,8 @@ export interface NodeRender {
   status: 'pending' | 'generating' | 'ready' | 'failed' | 'fallback'
   backend: string
   cached: boolean
+  /** Server-owned presentation shell. Missing values are treated as legacy during rollout. */
+  shell_mode: 'legacy_stepper' | 'episode'
   /**
    * The lesson as OpenUI Lang **text**, re-serialized by the backend from the
    * already-validated `UISpec` (`RenderBackend.serialize`). It replaces the `spec`

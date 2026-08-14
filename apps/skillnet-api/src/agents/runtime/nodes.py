@@ -129,7 +129,7 @@ from src.repositories.llm_usage_repo import log_usage
 from src.repositories.node_knowledge_pack_repo import NodeKnowledgePackRepository
 from src.repositories.node_render_repo import NodeRenderRepository
 from src.services.activity_authoring import (
-    ActivityAuthoringDraft,
+    authoring_draft_with_server_refs,
     build_activity_authoring_prompts,
     materialize_authored_activity,
 )
@@ -147,6 +147,24 @@ RETRIEVAL_TOP_K = 8
 #: when the source lesson is long: one lead plus at most two short Markdown blocks.
 FALLBACK_BLOCK_CHARS = 300
 FALLBACK_MAX_BLOCKS = 2
+
+# Closed renderer-safe scope for unscored support. Assessment wrappers and neutral
+# experience references are deliberately absent: they require server materialization.
+_SUPPORT_PROMPT_COMPONENT_IDS = frozenset(
+    {
+        "BeforeAfter",
+        "Chart",
+        "DidactGlossary",
+        "DidactTimeline",
+        "DidactWorkedExample",
+        "Flashcard",
+        "HintReveal",
+        "StepByStepReveal",
+        "StepSequence",
+        "Table",
+        "Tabs",
+    }
+)
 
 STEP_MESSAGES: dict[str, str] = {
     "load_context": "Preparando el nodo...",
@@ -628,6 +646,7 @@ async def load_context(state: NodeRuntimeState) -> dict:
         "longitudinal_decision_digest": history.decision_digest,
         "longitudinal_history": profile_payload["longitudinal_history"],
         "cache_key": cache_key,
+        "generation_policy_key": key.generation_policy_key,
         "render_id": render_id,
         "schema_version": int(state.get("schema_version") or 1),
         "current_step": "load_context",
@@ -742,7 +761,10 @@ async def direct_episode(state: NodeRuntimeState) -> dict:
         EpisodeInputDeclined,
         episode_inputs_from_selection,
     )
-    from src.services.episode_policy import build_episode_brief
+    from src.services.episode_policy import (
+        build_episode_brief,
+        build_support_episode_brief,
+    )
     from src.services.evidence_contract_policy import (
         EvidencePolicyDeclined,
         evidence_contracts_for_pack,
@@ -772,16 +794,38 @@ async def direct_episode(state: NodeRuntimeState) -> dict:
             pack,
             criticality=node_view.get("criticality"),
         )
-        if isinstance(evidence_policy, EvidencePolicyDeclined):
-            return _declined_episode(
-                state,
-                f"evidence_policy:{evidence_policy.reason.value}",
-                refs=evidence_policy.evidence_ids,
-            )
-        node_view["evidence_contracts"] = {
-            key: dict(value)
-            for key, value in evidence_policy.evidence_contracts.items()
+        support_reasons = {
+            "critical_oracle_unavailable",
+            "execution_oracle_unavailable",
+            "rubric_oracle_unavailable",
+            "required_evidence_unsupported",
         }
+        support_only = isinstance(evidence_policy, EvidencePolicyDeclined)
+        if support_only:
+            decline_reason = evidence_policy.reason.value
+            if decline_reason not in support_reasons:
+                return _declined_episode(
+                    state,
+                    f"evidence_policy:{decline_reason}",
+                    refs=evidence_policy.evidence_ids,
+                )
+            # These explicit unavailable markers let the grounding adapter retain the
+            # competency's required evidence constitution. The support brief activates
+            # none of the gates and never exposes these internal refs to the prompt.
+            node_view["evidence_contracts"] = {
+                spec.evidence_id: {
+                    "evidence_type": "unscored-required-evidence",
+                    "oracle_ref": f"unavailable:{decline_reason}:{spec.evidence_id}",
+                }
+                for spec in pack.evidence_specs
+                if spec.required
+            }
+        else:
+            decline_reason = ""
+            node_view["evidence_contracts"] = {
+                key: dict(value)
+                for key, value in evidence_policy.evidence_contracts.items()
+            }
         inputs = episode_inputs_from_selection(
             pack,
             selection,
@@ -793,25 +837,45 @@ async def direct_episode(state: NodeRuntimeState) -> dict:
             return _declined_episode(
                 state, inputs.reason.value, refs=inputs.refs
             )
-        brief = build_episode_brief(
-            inputs.competency,
-            inputs.source_map,
-            inputs.belief,
+        brief = (
+            build_support_episode_brief(
+                inputs.competency,
+                inputs.source_map,
+                inputs.belief,
+                decline_reason=f"evidence_policy:{decline_reason}",
+            )
+            if support_only
+            else build_episode_brief(
+                inputs.competency,
+                inputs.source_map,
+                inputs.belief,
+            )
         )
         trace = build_grounded_episode_plan_trace(pack.objective, dict(state))
-        certified_ids = tuple(
-            dict.fromkeys(
-                component_id
-                for contract in evidence_policy.evidence_contracts.values()
-                for component_id in contract.get("supported_component_ids", ())
+        certified_ids = (
+            ()
+            if support_only
+            else tuple(
+                dict.fromkeys(
+                    component_id
+                    for contract in evidence_policy.evidence_contracts.values()
+                    for component_id in contract.get("supported_component_ids", ())
+                )
             )
         )
         prompt_ids = list(trace.get("prompt_component_ids") or ())
-        if certified_ids and "DidactActivity" not in prompt_ids:
+        if support_only:
+            prompt_ids = [
+                value for value in prompt_ids if value in _SUPPORT_PROMPT_COMPONENT_IDS
+            ]
+            trace["renderer_selection"] = (
+                "planner-unscored" if prompt_ids else "base-shell"
+            )
+        elif certified_ids and "DidactActivity" not in prompt_ids:
             prompt_ids.append("DidactActivity")
             if trace.get("status") != "planned":
                 trace["renderer_selection"] = "evidence-certified"
-        if not prompt_ids:
+        if not support_only and not prompt_ids:
             return _declined_episode(state, "renderer_shortlist_declined")
     except (TypeError, ValueError, KeyError) as exc:
         return _declined_episode(state, f"invalid_episode_inputs:{type(exc).__name__}")
@@ -820,13 +884,15 @@ async def direct_episode(state: NodeRuntimeState) -> dict:
     tier = select_tier(ui_format)
     trace["prompt_component_ids"] = prompt_ids
     trace["episode"] = {
-        "status": "ready",
+        "status": "support_only" if support_only else "ready",
         "episode_id": str(brief.episode_id),
         "strategy": brief.policy_trace.get("strategy"),
         "prompt_version": EPISODE_PROMPT_VERSION,
         "pack_hash": selection.pack_hash,
         "selection_hash": selection.selection_hash,
         "evidence_policy": evidence_policy.policy_version,
+        "evidence_blocked": support_only,
+        "mastery_blocked": support_only,
     }
     request_id = str(state["request_id"])
     await publish_step(request_id, "direct_episode", STEP_MESSAGES["direct_episode"])
@@ -835,17 +901,22 @@ async def direct_episode(state: NodeRuntimeState) -> dict:
     )
     return {
         "episode_brief": brief.model_dump(mode="json"),
-        "episode_status": "ready",
-        "episode_decline_reason": None,
+        "episode_status": "support_only" if support_only else "ready",
+        "episode_decline_reason": (
+            f"evidence_policy:{decline_reason}" if support_only else None
+        ),
         "episode_prompt_version": EPISODE_PROMPT_VERSION,
         "ui_format": ui_format,
         "tier": tier,
         "format_rationale": "adaptive_episode_contract",
+        "shell_mode": "episode",
         "plan_trace": trace,
         "prompt_component_ids": prompt_ids,
-        "assessment_block": "DidactActivity",
-        "assessment_item_type": certified_ids[0],
-        "assessment_hint": "Use the exact server-certified evidence activity.",
+        "assessment_block": "" if support_only else "DidactActivity",
+        "assessment_item_type": None if support_only else certified_ids[0],
+        "assessment_hint": (
+            "" if support_only else "Use the exact server-certified evidence activity."
+        ),
         "episode_certified_component_ids": list(certified_ids),
         "current_step": "direct_episode",
     }
@@ -1262,9 +1333,10 @@ async def author_activity(state: NodeRuntimeState) -> dict:
     episode_payload = state.get("episode_brief")
     if isinstance(episode_payload, dict):
         certified = tuple(state.get("episode_certified_component_ids") or ())
-        candidates = tuple(
-            candidate for candidate in _activity_candidates(state) if candidate in certified
-        )[:1]
+        # The evidence contract is the server-owned authority for adaptive episodes.
+        # Legacy planning may prefer a different Didact exercise shape, but it cannot
+        # veto or replace the component whose scorer was actually certified.
+        candidates = certified[:1]
     else:
         candidates = _activity_candidates(state)[:1]
     if not candidates or "DidactActivity" not in (state.get("prompt_component_ids") or ()):
@@ -1362,6 +1434,50 @@ async def author_activity(state: NodeRuntimeState) -> dict:
         atom_ids = tuple(str(value) for value in state.get("knowledge_atom_ids") or ())
         evidence_ids = tuple(str(value) for value in state.get("knowledge_evidence_ids") or ())
         allowed_refs = (*atom_ids, *evidence_ids)
+        if not allowed_refs:
+            if isinstance(episode_payload, dict):
+                from src.schemas.episode_contracts import EpisodeBrief
+                from src.services.episode_policy import degrade_episode_brief_to_support
+
+                support = degrade_episode_brief_to_support(
+                    EpisodeBrief.model_validate(episode_payload),
+                    decline_reason="grounded_authoring_refs_unavailable",
+                )
+                support_prompt_ids = [
+                    value
+                    for value in state.get("prompt_component_ids") or ()
+                    if value in _SUPPORT_PROMPT_COMPONENT_IDS
+                ]
+                plan_trace = dict(state.get("plan_trace") or {})
+                plan_trace["prompt_component_ids"] = support_prompt_ids
+                plan_trace["renderer_selection"] = (
+                    "planner-unscored" if support_prompt_ids else "base-shell"
+                )
+                return {
+                    "authored_activity": None,
+                    "activity_authoring_status": "support_only:empty_source_refs",
+                    "episode_brief": support.model_dump(mode="json"),
+                    "episode_status": "support_only",
+                    "episode_decline_reason": "grounded_authoring_refs_unavailable",
+                    "shell_mode": "episode",
+                    "ui_format": "explanation",
+                    "tier": select_tier("explanation"),
+                    "assessment_block": "",
+                    "assessment_item_type": None,
+                    "assessment_hint": "",
+                    "prompt_component_ids": support_prompt_ids,
+                    "episode_certified_component_ids": [],
+                    "plan_trace": plan_trace,
+                }
+            return {
+                "authored_activity": None,
+                "activity_authoring_status": "declined:empty_source_refs",
+                "prompt_component_ids": [
+                    value
+                    for value in state.get("prompt_component_ids") or ()
+                    if value != "DidactActivity"
+                ],
+            }
         system, user = build_activity_authoring_prompts(
             candidates=candidates,
             title=str((state.get("node") or {}).get("title") or ""),
@@ -1391,7 +1507,13 @@ async def author_activity(state: NodeRuntimeState) -> dict:
             tokens_out=usage.tokens_out,
             duration_ms=int((time.monotonic() - started) * 1000),
         )
-        draft = ActivityAuthoringDraft.model_validate(parse_json_response(raw))
+        parsed_draft = parse_json_response(raw)
+        if not isinstance(parsed_draft, dict):
+            raise ValueError("activity authoring response must be an object")
+        draft = authoring_draft_with_server_refs(
+            parsed_draft,
+            allowed_source_refs=allowed_refs,
+        )
         async with async_session_factory() as db:
             pack = None
             pack_hash = str(state.get("knowledge_pack_hash") or "")
@@ -2093,6 +2215,12 @@ async def _persist(
     tier = str(state.get("tier") or select_tier(ui_format))
     spec = state.get("ui_spec") or {}
     program = str(state.get("program") or "")
+    persisted_spec = dict(spec)
+    from src.services.node_render_service import generation_provenance_for_state
+
+    persisted_spec["generation"] = generation_provenance_for_state(
+        state, fallback=step == "fallback_seed"
+    )
 
     async with async_session_factory() as db:
         repo = NodeRenderRepository(db)
@@ -2102,7 +2230,7 @@ async def _persist(
         await repo.mark_ready(
             render,
             ui_format=ui_format,
-            ui_spec=dict(spec),
+            ui_spec=persisted_spec,
             answer_key=dict(state.get("answer_key") or {}),
             dialect=program,
             catalog_version=catalog_version(),

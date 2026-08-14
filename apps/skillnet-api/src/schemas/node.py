@@ -130,6 +130,7 @@ class NodeRenderRead(BaseModel):
     ui_format: str
     status: str
     backend: str
+    shell_mode: Literal["legacy_stepper", "episode"]
     cached: bool = False
     #: OpenUI Lang **text**, re-serialized from the validated spec. Never ``raw_dsl``.
     program: str
@@ -143,6 +144,7 @@ class NodeRenderRead(BaseModel):
             ui_format=served.ui_format,
             status=served.status,
             backend=served.backend,
+            shell_mode=served.shell_mode,
             cached=served.cached,
             program=served.program,
         )

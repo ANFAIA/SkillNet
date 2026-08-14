@@ -29,7 +29,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterable, Mapping
-from typing import Any, ClassVar
+from typing import Any, ClassVar, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, model_validator
 from pydantic import ValidationError as PydanticValidationError
@@ -356,6 +356,16 @@ class Component(BaseModel):
         return self
 
 
+class GenerationProvenance(BaseModel):
+    """Server-only provenance stored beside the validated IR, never in dialect text."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    shell_mode: Literal["legacy_stepper", "episode"]
+    generation_policy_key: str = Field(min_length=1, max_length=120)
+    episode_status: Literal["ready", "support_only", "declined", "not_requested"]
+
+
 class UISpec(BaseModel):
     """The persisted IR. Serialized to ``node_renders.ui_spec`` verbatim."""
 
@@ -367,6 +377,10 @@ class UISpec(BaseModel):
     format: str
     root: str
     components: list[Component] = Field(default_factory=list)
+    # Accepted when an archived DB row is revalidated, but excluded from ordinary model
+    # dumps and therefore from OpenUI serialization/golden fixtures. `_persist` alone adds
+    # it to the server-side JSONB after the UI contract has passed.
+    generation: GenerationProvenance | None = Field(default=None, exclude=True)
 
     @model_validator(mode="after")
     def _validate_contract(self, info: ValidationInfo) -> UISpec:

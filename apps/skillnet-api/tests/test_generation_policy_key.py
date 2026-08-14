@@ -38,7 +38,7 @@ def _render_key() -> node_render_service.RenderKey:
 def test_adaptive_episode_rollout_defaults_off() -> None:
     assert Settings.model_fields["ADAPTIVE_EPISODES"].default is False
     assert generation_policy_key(False) == "screen-scheme/v1"
-    assert generation_policy_key(True) == "adaptive-episodes/v1"
+    assert generation_policy_key(True) == "adaptive-episodes/v4"
 
 
 def test_flag_off_keeps_render_identity_deterministic(
@@ -72,11 +72,11 @@ def test_policy_version_change_invalidates_render_identity(
 ) -> None:
     monkeypatch.setattr(settings, "ADAPTIVE_EPISODES", True)
     version_one = _render_key()
-    monkeypatch.setattr(node_render_service, "ADAPTIVE_EPISODES_POLICY_VERSION", "v2")
+    monkeypatch.setattr(node_render_service, "ADAPTIVE_EPISODES_POLICY_VERSION", "v5")
     version_two = _render_key()
 
-    assert version_one.generation_policy_key == "adaptive-episodes/v1"
-    assert version_two.generation_policy_key == "adaptive-episodes/v2"
+    assert version_one.generation_policy_key == "adaptive-episodes/v4"
+    assert version_two.generation_policy_key == "adaptive-episodes/v5"
     assert version_one.cache_key != version_two.cache_key
 
 

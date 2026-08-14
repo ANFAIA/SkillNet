@@ -189,9 +189,8 @@ class Settings(BaseSettings):
     RUNTIME_SELECTION_STRATEGY: SelectionStrategy = SelectionStrategy.TOP5
     RUNTIME_SELECTION_EXECUTION: SelectionExecution = SelectionExecution.LIVE
 
-    # Isolated rollout for on-the-fly EpisodeBrief generation. The runtime graph does not
-    # consume it yet; it already partitions render identities so a later activation cannot
-    # reuse or overwrite renders produced by the ScreenScheme policy.
+    # Isolated rollout for on-the-fly EpisodeBrief generation. Render identities are
+    # partitioned so adaptive episodes never reuse or overwrite ScreenScheme renders.
     ADAPTIVE_EPISODES: bool = False
 
     # Router semantico de funciones de contenido (prototipo, fases 3/4 de

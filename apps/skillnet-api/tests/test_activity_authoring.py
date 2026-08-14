@@ -10,6 +10,7 @@ from src.personalization.didact_catalog import AuthoringStrategy, load_didact_ca
 from src.schemas.activity import assert_public_payload
 from src.services.activity_authoring import (
     ActivityAuthoringDraft,
+    authoring_draft_with_server_refs,
     build_activity_authoring_prompts,
     materialize_authored_activity,
     split_public_private,
@@ -39,6 +40,42 @@ class DefinitionRepo:
         for key, value in values.items():
             setattr(row, key, value)
         return row
+
+
+def _model_authoring_payload(source_refs):
+    return {
+        "component_id": "didact.quiz.true-false",
+        "definition": {"statement": "Grounded statement", "correct": True},
+        "source_refs": source_refs,
+    }
+
+
+def test_server_refs_replace_model_invented_reference_objects_before_validation():
+    draft = authoring_draft_with_server_refs(
+        _model_authoring_payload(
+            [{"ref_id": "invented", "quote": "model-authored provenance"}]
+        ),
+        allowed_source_refs=("atom.server", "evidence.server"),
+    )
+
+    assert draft.source_refs == ["atom.server", "evidence.server"]
+
+
+def test_server_refs_replace_empty_model_citations_with_exact_allowlist():
+    draft = authoring_draft_with_server_refs(
+        _model_authoring_payload([]),
+        allowed_source_refs=("source.b", "source.a", "source.b"),
+    )
+
+    assert draft.source_refs == ["source.b", "source.a"]
+
+
+def test_empty_server_reference_set_cannot_create_evaluable_draft():
+    with pytest.raises(ValueError, match="server-owned source refs"):
+        authoring_draft_with_server_refs(
+            _model_authoring_payload(["model-invented"]),
+            allowed_source_refs=(),
+        )
 
 
 def test_recursive_split_keeps_answers_out_of_public_tree():
@@ -545,6 +582,7 @@ async def test_runtime_authoring_declines_unsupported_before_calling_model(
             "render_id": str(uuid.uuid4()),
             "node": {"title": "Prioridades"},
             "source_context": "Fuente",
+            "knowledge_atom_ids": ["atom.server"],
             "prompt_component_ids": ["DidactActivity", "Table"],
         }
     )

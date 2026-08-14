@@ -36,7 +36,7 @@ import asyncio
 import enum
 import uuid
 from dataclasses import asdict, dataclass
-from typing import Any
+from typing import Any, Literal
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -92,7 +92,7 @@ def current_prompt_version() -> str:
 
 
 SCREEN_SCHEME_POLICY_VERSION = "v1"
-ADAPTIVE_EPISODES_POLICY_VERSION = "v1"
+ADAPTIVE_EPISODES_POLICY_VERSION = "v4"
 
 
 def generation_policy_key(adaptive_episodes: bool | None = None) -> str:
@@ -140,6 +140,57 @@ REFRESH_KEY_PREFIX = "refresh"
 
 def _plain(value: object) -> str:
     return value.value if isinstance(value, enum.Enum) else str(value)
+
+
+ShellMode = Literal["legacy_stepper", "episode"]
+
+
+def generation_provenance_for_state(
+    state: dict[str, Any] | Any, *, fallback: bool
+) -> dict[str, str]:
+    """Freeze the shell chosen by the completed generation, before persistence."""
+
+    get = state.get
+    episode_status = str(get("episode_status") or "")
+    episode_shell = (
+        not fallback
+        and episode_status in {"ready", "support_only"}
+        and isinstance(get("episode_brief"), dict)
+    )
+    return {
+        "shell_mode": "episode" if episode_shell else "legacy_stepper",
+        "generation_policy_key": str(
+            get("generation_policy_key") or "screen-scheme/unknown"
+        ),
+        "episode_status": (
+            episode_status
+            if episode_shell
+            else "declined"
+            if episode_status == "declined"
+            else "not_requested"
+        ),
+    }
+
+
+def shell_mode_for_render(render: Any) -> ShellMode:
+    """Read the shell contract frozen into this render, never the current feature flag.
+
+    Fallbacks are always legacy even when their cache partition requested episodes. Rows
+    created before generation provenance existed also fail closed to the proven legacy
+    shell; an adaptive cache prefix alone only proves which policy was attempted.
+    """
+
+    if _plain(getattr(render, "status", "")) == NodeRenderStatus.FALLBACK.value:
+        return "legacy_stepper"
+    ui_spec = getattr(render, "ui_spec", None)
+    generation = ui_spec.get("generation") if isinstance(ui_spec, dict) else None
+    if (
+        isinstance(generation, dict)
+        and generation.get("shell_mode") == "episode"
+        and generation.get("episode_status") in {"ready", "support_only"}
+    ):
+        return "episode"
+    return "legacy_stepper"
 
 
 # --------------------------------------------------------------------------------------
@@ -373,6 +424,7 @@ class ServedRender:
     ui_format: str
     status: str
     backend: str
+    shell_mode: ShellMode
     cached: bool
     program: str
 
@@ -384,6 +436,7 @@ class ServedRender:
             ui_format=_plain(render.ui_format),
             status=_plain(render.status),
             backend=render.backend,
+            shell_mode=shell_mode_for_render(render),
             cached=cached,
             program=render.dialect or "",
         )
@@ -615,6 +668,7 @@ class NodeRenderService:
             "knowledge_pack_key": key.knowledge_pack_key,
             "selection_strategy": key.selection_strategy,
             "selection_execution": key.selection_execution,
+            "generation_policy_key": key.generation_policy_key,
             "longitudinal_decision_digest": key.longitudinal_decision_digest,
             "longitudinal_history": {
                 **asdict(key.longitudinal_history),
@@ -706,8 +760,10 @@ __all__ = [
     "build_render_key",
     "cancel_in_flight",
     "forget_in_flight",
+    "generation_provenance_for_state",
     "generation_policy_key",
     "in_flight_for",
     "owner_of_request",
+    "shell_mode_for_render",
     "register_in_flight",
 ]

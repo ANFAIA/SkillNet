@@ -367,9 +367,167 @@ def build_episode_brief(
     return brief
 
 
+def build_support_episode_brief(
+    competency: CompetencyContract,
+    source_map: SourceAffordanceMap,
+    belief: LearnerBeliefSnapshot,
+    *,
+    decline_reason: str,
+) -> EpisodeBrief:
+    """Build grounded, explicitly unscored support when no real oracle is available."""
+
+    if not decline_reason.strip():
+        raise ValueError("support decline_reason must not be empty")
+    registry = DEFAULT_EPISODE_STRATEGIES
+    strategy = _select_strategy(competency, belief, registry)
+    affordance, action, used_fallback = strategy.choose(source_map)
+    critical_refs = tuple(error.error_id for error in competency.critical_errors)
+    source_refs = set(competency.required_fact_refs)
+    source_refs.update(affordance.source_refs)
+    for error in competency.critical_errors:
+        source_refs.update(error.source_refs)
+    continuations = [
+        ContinuationCondition(
+            condition_id=f"support-recover-{error.error_id}",
+            kind="critical_error_detected",
+            destination_state=error.recovery_state,
+            critical_error_refs=(error.error_id,),
+            priority=20 + index,
+        )
+        for index, error in enumerate(competency.critical_errors)
+    ]
+    continuations.extend(
+        (
+            ContinuationCondition(
+                condition_id="request-more-support",
+                kind="learner_request",
+                destination_state="next-support",
+                priority=100,
+            ),
+            ContinuationCondition(
+                condition_id="continue-support",
+                kind="always",
+                destination_state="next-support",
+                priority=1000,
+                is_default=True,
+            ),
+        )
+    )
+    brief = EpisodeBrief(
+        episode_id=_episode_uuid(
+            competency,
+            source_map,
+            belief,
+            f"support-only:{decline_reason}:{strategy.name}",
+            action,
+        ),
+        version=1,
+        competency_ref=CompetencyRef(
+            competency_id=competency.competency_id,
+            version=competency.version,
+        ),
+        belief_snapshot=belief,
+        grounding_map_id=source_map.map_id,
+        grounding_map_version=source_map.version,
+        grounding_digest=source_map.map_digest,
+        source_refs=tuple(sorted(source_refs)),
+        affordance_refs=(affordance.affordance_id,),
+        dominant_action=DominantAction(
+            action_id=f"support-only:{strategy.name}:{action}",
+            verb=action,
+            target=competency.outcome,
+            submission_kind="unscored-support-interaction",
+            instructions=(
+                "Use the grounded material to rehearse the task. This support episode "
+                "does not submit scored evidence or establish mastery."
+            ),
+            constraints={"critical_error_refs": list(critical_refs)},
+        ),
+        assessment_mode="none",
+        evidence_gate_refs=(),
+        critical_error_refs=critical_refs,
+        budget=strategy.budget,
+        continuation_conditions=tuple(continuations),
+        policy_trace={
+            "strategy": strategy.name,
+            "reason": decline_reason,
+            "degraded_mode": "support_only",
+            "unscored": True,
+            "evidence_blocked": True,
+            "mastery_blocked": True,
+            "capability_fallback": used_fallback,
+        },
+    )
+    validate_episode_contracts(competency, source_map, brief)
+    return brief
+
+
+def degrade_episode_brief_to_support(
+    episode: EpisodeBrief,
+    *,
+    decline_reason: str,
+) -> EpisodeBrief:
+    """Remove scoring from an already-grounded brief when authoring cannot be grounded."""
+
+    if not decline_reason.strip():
+        raise ValueError("support decline_reason must not be empty")
+    critical_conditions = tuple(
+        condition
+        for condition in episode.continuation_conditions
+        if condition.kind == "critical_error_detected"
+    )
+    support_conditions = (
+        ContinuationCondition(
+            condition_id="request-more-support",
+            kind="learner_request",
+            destination_state="next-support",
+            priority=100,
+        ),
+        ContinuationCondition(
+            condition_id="continue-support",
+            kind="always",
+            destination_state="next-support",
+            priority=1000,
+            is_default=True,
+        ),
+    )
+    payload = episode.model_dump(mode="python")
+    payload.update(
+        {
+            "episode_id": uuid.uuid5(
+                _EPISODE_NAMESPACE,
+                f"{episode.episode_id}:support-only:{decline_reason}",
+            ),
+            "assessment_mode": "none",
+            "evidence_gate_refs": (),
+            "dominant_action": episode.dominant_action.model_copy(
+                update={
+                    "submission_kind": "unscored-support-interaction",
+                    "instructions": (
+                        "Use the grounded material to rehearse the task. This support "
+                        "episode does not submit scored evidence or establish mastery."
+                    ),
+                }
+            ),
+            "continuation_conditions": (*critical_conditions, *support_conditions),
+            "policy_trace": {
+                **episode.policy_trace,
+                "reason": decline_reason,
+                "degraded_mode": "support_only",
+                "unscored": True,
+                "evidence_blocked": True,
+                "mastery_blocked": True,
+            },
+        }
+    )
+    return EpisodeBrief.model_validate(payload)
+
+
 __all__ = [
     "DEFAULT_EPISODE_STRATEGIES",
     "GENERIC_EPISODE_STRATEGY",
     "EpisodeStrategy",
     "build_episode_brief",
+    "build_support_episode_brief",
+    "degrade_episode_brief_to_support",
 ]

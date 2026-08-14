@@ -86,6 +86,30 @@ class ActivityAuthoringDraft(BaseModel):
         return self
 
 
+def authoring_draft_with_server_refs(
+    payload: Mapping[str, Any],
+    *,
+    allowed_source_refs: Iterable[str],
+) -> ActivityAuthoringDraft:
+    """Replace model-authored citations with the exact server-owned grounding set.
+
+    ``source_refs`` from the model is deliberately ignored before Pydantic sees it. This
+    accepts harmless model drift such as objects or an empty list without ever trusting a
+    model-selected citation. An empty server set cannot produce an evaluable activity.
+    """
+
+    refs = list(
+        dict.fromkeys(
+            str(ref).strip() for ref in allowed_source_refs if str(ref).strip()
+        )
+    )
+    if not refs:
+        raise ValueError("activity authoring requires server-owned source refs")
+    normalized = dict(payload)
+    normalized["source_refs"] = refs
+    return ActivityAuthoringDraft.model_validate(normalized)
+
+
 class MaterializedActivity(BaseModel):
     """Safe state handed to the OpenUI generation step."""
 
@@ -312,6 +336,7 @@ def build_activity_authoring_prompts(
 __all__ = [
     "AUTHORING_CONTRACT_VERSION",
     "ActivityAuthoringDraft",
+    "authoring_draft_with_server_refs",
     "MaterializedActivity",
     "build_activity_authoring_prompts",
     "materialize_authored_activity",

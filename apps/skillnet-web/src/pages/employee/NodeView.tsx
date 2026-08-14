@@ -358,6 +358,7 @@ export function NodeView() {
     node: LearningNode
     program: string
     format: UiFormat | null
+    shellMode: 'legacy_stepper' | 'episode'
     key: string
   } | null>(null)
 
@@ -406,6 +407,7 @@ export function NodeView() {
       node,
       program: served.program,
       format: served.ui_format,
+      shellMode: served.shell_mode ?? 'legacy_stepper',
       key: served.render_id,
     })
   }, [served, node])
@@ -641,6 +643,7 @@ export function NodeView() {
 
   const shownProgram = shown?.program ?? null
   const shownFormat = shown?.format ?? null
+  const shownShellMode = shown?.shellMode ?? 'legacy_stepper'
 
   const arriving = !reduceMotion
 
@@ -701,7 +704,7 @@ export function NodeView() {
             <div aria-hidden="true" />
           </div>
 
-          <div className="flex-1 min-h-0 flex flex-col overflow-y-auto">
+          <div className="flex-1 min-h-0 flex flex-col overflow-y-auto" data-node-scroll-root="">
             {/* Lesson content */}
             {/*
               La leccion, centrada en los dos ejes.
@@ -759,29 +762,38 @@ export function NodeView() {
                           animate={{ minHeight: 0 }}
                           transition={transition.resize}
                         >
-                          <ClickableSurface nodeId={node.id} className="flex-1 min-h-0 flex flex-col justify-center">
-                          <stepperProgressContext.Provider value={reportStepProgress}>
-                          <courseIntroContext.Provider value={courseIntro}>
-                            <nextNodeContext.Provider value={nextNode ? { navigate: () => navigate(`${backToCourse}/nodo/${nextNode.id}`), title: nextNode.title } : null}>
-                            <coursePositionContext.Provider value={{ nodeCount: ordered.length, currentNodeIndex: headerIndex }}>
-                            <stepperContext.Provider value={true}>
-                            <lessonFeedbackContext.Provider value={lessonFeedback}>
-                            <courseFinishContext.Provider value={finishCourse}>
-                              <UiSpecRenderer
-                                program={shownProgram}
-                                nodeId={node.id}
-                                renderId={served?.render_id}
-                                format={shownFormat ?? undefined}
-                                arriving={arriving}
-                                recordEvent={events.record}
-                              />
-                            </courseFinishContext.Provider>
-                            </lessonFeedbackContext.Provider>
-                            </stepperContext.Provider>
-                            </coursePositionContext.Provider>
-                            </nextNodeContext.Provider>
-                            </courseIntroContext.Provider>
-                          </stepperProgressContext.Provider>
+                          <ClickableSurface
+                            nodeId={node.id}
+                            className="flex-1 min-h-0 flex flex-col justify-center"
+                          >
+                            <div
+                              className="flex-1 min-h-0 flex flex-col justify-center"
+                              data-episode-shell={shownShellMode === 'episode' ? '' : undefined}
+                              data-shell-mode={shownShellMode}
+                            >
+                              <stepperProgressContext.Provider value={reportStepProgress}>
+                                <courseIntroContext.Provider value={courseIntro}>
+                                  <nextNodeContext.Provider value={nextNode ? { navigate: () => navigate(`${backToCourse}/nodo/${nextNode.id}`), title: nextNode.title } : null}>
+                                    <coursePositionContext.Provider value={{ nodeCount: ordered.length, currentNodeIndex: headerIndex }}>
+                                      <stepperContext.Provider value={shownShellMode === 'legacy_stepper'}>
+                                        <lessonFeedbackContext.Provider value={lessonFeedback}>
+                                          <courseFinishContext.Provider value={finishCourse}>
+                                            <UiSpecRenderer
+                                              program={shownProgram}
+                                              nodeId={node.id}
+                                              renderId={served?.render_id}
+                                              format={shownFormat ?? undefined}
+                                              arriving={arriving}
+                                              recordEvent={events.record}
+                                            />
+                                          </courseFinishContext.Provider>
+                                        </lessonFeedbackContext.Provider>
+                                      </stepperContext.Provider>
+                                    </coursePositionContext.Provider>
+                                  </nextNodeContext.Provider>
+                                </courseIntroContext.Provider>
+                              </stepperProgressContext.Provider>
+                            </div>
                           </ClickableSurface>
                         </motion.div>
                       </motion.div>

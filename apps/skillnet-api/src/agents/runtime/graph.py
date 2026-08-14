@@ -70,14 +70,18 @@ def route_after_decide(state: NodeRuntimeState) -> str:
 
 
 def route_after_direct_episode(state: NodeRuntimeState) -> str:
-    """A declined adaptive projection falls through to the complete legacy path."""
+    """Separate scored episodes, unscored support and genuinely ungrounded decline."""
 
+    if state.get("episode_status") == "support_only" and state.get("episode_brief"):
+        return "support"
     return "ready" if state.get("episode_brief") else "declined"
 
 
 def route_after_author_activity(state: NodeRuntimeState) -> str:
     """A failed adaptive authoring attempt restarts through the legacy router."""
 
+    if state.get("episode_status") == "support_only" and state.get("episode_brief"):
+        return "support"
     if (
         state.get("format_rationale") == "adaptive_episode_contract"
         and not state.get("episode_brief")
@@ -149,7 +153,11 @@ def build_node_graph():
         graph.add_conditional_edges(
             "direct_episode",
             route_after_direct_episode,
-            {"ready": "author_activity", "declined": "decide_formato"},
+            {
+                "ready": "author_activity",
+                "support": "genera_ui",
+                "declined": "decide_formato",
+            },
         )
     graph.add_conditional_edges(
         "decide_formato",
@@ -160,7 +168,11 @@ def build_node_graph():
         graph.add_conditional_edges(
             "author_activity",
             route_after_author_activity,
-            {"generate": "genera_ui", "legacy": "decide_formato"},
+            {
+                "generate": "genera_ui",
+                "legacy": "decide_formato",
+                "support": "genera_ui",
+            },
         )
     else:
         graph.add_edge("author_activity", "genera_ui")

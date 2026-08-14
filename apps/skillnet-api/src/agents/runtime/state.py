@@ -45,6 +45,7 @@ class NodeRuntimeState(TypedDict, total=False):
     #: Versioned selection settings frozen with the cache key before graph start.
     selection_strategy: str
     selection_execution: str
+    generation_policy_key: str
     #: Closed, bounded projection of scored Didact evidence from earlier nodes.
     longitudinal_history: dict
     #: The same projection digest included in the shared render cache key.
@@ -62,10 +63,11 @@ class NodeRuntimeState(TypedDict, total=False):
 
     # --- Adaptive episode rollout ---
     episode_brief: dict | None
-    episode_status: Literal["ready", "declined"]
+    episode_status: Literal["ready", "support_only", "declined"]
     episode_decline_reason: str | None
     episode_prompt_version: str
     episode_certified_component_ids: list[str]
+    shell_mode: Literal["legacy_stepper", "episode"]
 
     # --- Router ---
     ui_format: Literal["explanation", "simulation", "exercise", "chart", "mixed"]

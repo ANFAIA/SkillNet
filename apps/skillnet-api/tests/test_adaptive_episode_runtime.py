@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from src.agents.runtime import nodes
-from src.agents.runtime.graph import build_node_graph
+from src.agents.runtime.graph import build_node_graph, route_after_author_activity
 from src.config import settings
 from src.knowledge_pack.contracts import (
     EvidenceSpec,
@@ -155,6 +155,126 @@ async def test_recognition_pack_builds_ready_episode_with_certified_activity(
     assert "DidactActivity" in result["prompt_component_ids"]
 
 
+async def test_empty_server_refs_degrade_scored_episode_to_support(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, str] = {}
+
+    async def fake_make_llm(_org_id: uuid.UUID, _tier: str) -> SimpleNamespace:
+        return SimpleNamespace(model="fixture/support")
+
+    async def fake_stream(
+        _llm: object,
+        system: str,
+        _user_prompt: str,
+        **_kwargs: object,
+    ) -> str:
+        captured["system"] = system
+        return ""
+
+    monkeypatch.setattr(nodes, "publish_step", AsyncMock())
+    monkeypatch.setattr(nodes, "_make_llm", fake_make_llm)
+    monkeypatch.setattr(nodes, "_stream_program", fake_stream)
+    monkeypatch.setattr(nodes, "log_usage", AsyncMock())
+    pack = _pack(
+        mission=CognitiveMission.RECOGNIZE,
+        atom_kind=MustPreserveKind.FACT,
+    )
+    state = _state(pack)
+    ready = await nodes.direct_episode(state)
+    state.update(ready)
+    state.update(
+        {
+            "render_id": str(uuid.UUID(int=4)),
+            "knowledge_atom_ids": [],
+            "knowledge_evidence_ids": [],
+        }
+    )
+    monkeypatch.setattr(
+        nodes,
+        "_activity_candidates",
+        lambda _state: ("didact.quiz.fill-in-the-blank",),
+    )
+
+    result = await nodes.author_activity(state)
+
+    assert result["episode_status"] == "support_only"
+    assert result["shell_mode"] == "episode"
+    assert result["assessment_block"] == ""
+    assert result["assessment_item_type"] is None
+    assert result["prompt_component_ids"] == []
+    assert result["episode_certified_component_ids"] == []
+    assert result["plan_trace"]["renderer_selection"] == "base-shell"
+    assert result["episode_brief"]["assessment_mode"] == "none"
+    assert result["episode_brief"]["evidence_gate_refs"] == []
+    assert result["episode_brief"]["policy_trace"]["mastery_blocked"] is True
+    assert route_after_author_activity(result) == "support"
+
+    # Apply the graph update to the original scored state and enter the real prompt
+    # resolution path. This catches stale DidactActivity/QuizItem ids, not merely the
+    # shape of the partial node return.
+    state.update(result)
+    state.update({"backend": "openui", "retry_count": 0})
+    generated = await nodes.genera_ui.__wrapped__(state)
+
+    assert generated["raw_dsl"] == ""
+    assert "DidactActivity" not in captured["system"]
+
+
+async def test_legacy_empty_refs_remove_didact_before_prompt_resolution(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, str] = {}
+
+    async def fake_make_llm(_org_id: uuid.UUID, _tier: str) -> SimpleNamespace:
+        return SimpleNamespace(model="fixture/legacy-support")
+
+    async def fake_stream(
+        _llm: object,
+        system: str,
+        _user_prompt: str,
+        **_kwargs: object,
+    ) -> str:
+        captured["system"] = system
+        return ""
+
+    monkeypatch.setattr(
+        nodes, "_activity_candidates", lambda _state: ("didact.quiz.true-false",)
+    )
+    monkeypatch.setattr(nodes, "publish_step", AsyncMock())
+    monkeypatch.setattr(nodes, "_make_llm", fake_make_llm)
+    monkeypatch.setattr(nodes, "_stream_program", fake_stream)
+    monkeypatch.setattr(nodes, "log_usage", AsyncMock())
+    state = {
+        "request_id": "legacy-empty-refs",
+        "org_id": str(uuid.UUID(int=1)),
+        "course_id": str(uuid.UUID(int=2)),
+        "node_id": str(uuid.UUID(int=3)),
+        "render_id": str(uuid.UUID(int=4)),
+        "node": {"title": "Legacy", "criticality": "recommended"},
+        "profile": {},
+        "node_state": {},
+        "source_context": "Grounded source text.",
+        "knowledge_atom_ids": [],
+        "knowledge_evidence_ids": [],
+        "prompt_component_ids": ["DidactActivity", "Table"],
+        "assessment_block": "DidactActivity",
+        "ui_format": "exercise",
+        "tier": "fast",
+        "backend": "openui",
+        "retry_count": 0,
+    }
+
+    result = await nodes.author_activity(state)
+
+    assert result["activity_authoring_status"] == "declined:empty_source_refs"
+    assert result["prompt_component_ids"] == ["Table"]
+    state.update(result)
+    generated = await nodes.genera_ui.__wrapped__(state)
+    assert generated["raw_dsl"] == ""
+    assert "DidactActivity" not in captured["system"]
+
+
 @pytest.mark.parametrize(
     ("pack", "criticality", "reason"),
     [
@@ -177,15 +297,25 @@ async def test_recognition_pack_builds_ready_episode_with_certified_activity(
         ),
     ],
 )
-async def test_unsupported_operational_evidence_declines_to_legacy(
+async def test_unsupported_operational_evidence_becomes_unscored_support(
     pack: NodeKnowledgePack,
     criticality: str,
     reason: str,
 ) -> None:
     result = await nodes.direct_episode(_state(pack, criticality=criticality))
 
-    assert result["episode_brief"] is None
+    brief = result["episode_brief"]
+    assert result["episode_status"] == "support_only"
     assert result["episode_decline_reason"] == f"evidence_policy:{reason}"
+    assert result["shell_mode"] == "episode"
+    assert result["ui_format"] == "explanation"
+    assert result["assessment_block"] == ""
+    assert result["assessment_item_type"] is None
+    assert brief["assessment_mode"] == "none"
+    assert brief["evidence_gate_refs"] == []
+    assert brief["policy_trace"]["mastery_blocked"] is True
+    assert "QuizItem" not in result["prompt_component_ids"]
+    assert "DidactActivity" not in result["prompt_component_ids"]
 
 
 def test_flag_off_graph_is_legacy_and_flag_on_adds_ready_decline_branch(
@@ -204,6 +334,7 @@ def test_flag_off_graph_is_legacy_and_flag_on_adds_ready_decline_branch(
     edges = {(edge.source, edge.data or "", edge.target) for edge in adaptive.edges}
     assert ("probe_gate", "generate", "direct_episode") in edges
     assert ("direct_episode", "ready", "author_activity") in edges
+    assert ("direct_episode", "support", "genera_ui") in edges
     assert ("direct_episode", "declined", "decide_formato") in edges
     assert ("author_activity", "legacy", "decide_formato") in edges
 

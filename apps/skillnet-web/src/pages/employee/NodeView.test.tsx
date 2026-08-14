@@ -122,7 +122,11 @@ function sseResponse(chunks: string[]) {
   })
 }
 
-function servedRender(program: string, renderId = RENDER_ID) {
+function servedRender(
+  program: string,
+  renderId = RENDER_ID,
+  shellMode: 'legacy_stepper' | 'episode' = 'legacy_stepper',
+) {
   return {
     render_id: renderId,
     node_id: NODE_ID,
@@ -130,6 +134,7 @@ function servedRender(program: string, renderId = RENDER_ID) {
     status: 'ready',
     backend: 'openui',
     cached: false,
+    shell_mode: shellMode,
     program,
   }
 }
@@ -159,6 +164,9 @@ function installFetch(scenario: Scenario) {
         onboarding_completed_at: '2026-07-20T10:00:00Z',
         onboarding_skipped: false,
         calibrating: false,
+        learning_preferences: {
+          modalities: ['audio', 'video'],
+        },
       })
     }
     if (url.endsWith(`/nodes/${NODE_ID}/render`) && method === 'POST') {
@@ -270,6 +278,67 @@ describe('NodeView — the frozen frame', () => {
     expect(await screen.findByTestId('opening-line')).toHaveTextContent(
       'Esto te sirve para dominar lo que viniste a resolver.',
     )
+  })
+})
+
+describe('NodeView — server-owned learning shell', () => {
+  it('renders an episode as one coherent mission with one vertical scroll owner', async () => {
+    installFetch({
+      node: learningNode(),
+      renderResponses: [[200, servedRender(PROGRAM_WITH_QUIZ, RENDER_ID, 'episode')]],
+    })
+    const { container } = renderPage()
+
+    await enterLesson()
+
+    await waitFor(() => {
+      expect(container).toHaveTextContent('El plazo de devolucion es de 30 dias.')
+      expect(container).toHaveTextContent('Un cliente vuelve el dia 32. Que haces?')
+    })
+    expect(container.querySelector('[data-stepper-root]')).toBeNull()
+
+    const episode = container.querySelector('[data-episode-shell]')
+    expect(episode).not.toBeNull()
+    expect(episode?.querySelector('.overflow-y-auto')).toBeNull()
+    expect(container.querySelector('[data-node-scroll-root]')).not.toBeNull()
+  })
+
+  it('keeps Web, Audio and Video modalities invisible even when they are preferred', async () => {
+    installFetch({
+      node: learningNode(),
+      renderResponses: [[200, servedRender(PROGRAM, RENDER_ID, 'episode')]],
+    })
+    const { container } = renderPage()
+
+    await enterLesson()
+    await waitFor(() => {
+      expect(container).toHaveTextContent('El plazo de devolucion es de 30 dias.')
+    })
+
+    expect(
+      screen.queryByRole('button', { name: /^(web|audio|v[ií]deo)$/i }),
+    ).toBeNull()
+    expect(screen.queryByRole('navigation', { name: /modalidad/i })).toBeNull()
+  })
+
+  it('preserves the legacy stepper and its solvable split exactly', async () => {
+    installFetch({
+      node: learningNode(),
+      renderResponses: [[200, servedRender(PROGRAM_WITH_QUIZ)]],
+    })
+    const { container } = renderPage()
+
+    await enterLesson()
+    await waitFor(() => {
+      expect(container).toHaveTextContent('El plazo de devolucion es de 30 dias.')
+    })
+    expect(container).not.toHaveTextContent('Un cliente vuelve el dia 32. Que haces?')
+    expect(container.querySelector('[data-stepper-root]')).not.toBeNull()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Siguiente paso' }))
+    await waitFor(() => {
+      expect(container).toHaveTextContent('Un cliente vuelve el dia 32. Que haces?')
+    })
   })
 })
 

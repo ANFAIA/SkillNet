@@ -15,7 +15,12 @@ from src.schemas.episode_contracts import (
     SourceProvenance,
 )
 from src.schemas.episode_contracts import EpisodeBudget
-from src.services.episode_policy import EpisodeStrategy, build_episode_brief
+from src.services.episode_policy import (
+    EpisodeStrategy,
+    build_episode_brief,
+    build_support_episode_brief,
+    degrade_episode_brief_to_support,
+)
 
 SOURCE_DIGEST = "1" * 64
 MAP_DIGEST = "2" * 64
@@ -279,6 +284,60 @@ def test_policy_output_contains_no_render_or_provider_decisions() -> None:
         '"screen"',
     ):
         assert forbidden not in payload
+
+
+def test_support_episode_is_grounded_but_never_claims_evidence_or_mastery() -> None:
+    episode = build_support_episode_brief(
+        ticket_contract(),
+        ticket_sources(),
+        belief(errors=("unsafe-resend",)),
+        decline_reason="evidence_policy:critical_oracle_unavailable",
+    )
+
+    assert episode.assessment_mode == "none"
+    assert episode.evidence_gate_refs == ()
+    assert episode.policy_trace["degraded_mode"] == "support_only"
+    assert episode.policy_trace["unscored"] is True
+    assert episode.policy_trace["mastery_blocked"] is True
+    assert episode.dominant_action.verb in {
+        action
+        for affordance in ticket_sources().affordances
+        for action in affordance.supports_actions
+    }
+    assert any(
+        condition.kind == "learner_request"
+        and condition.destination_state == "next-support"
+        for condition in episode.continuation_conditions
+    )
+    default = next(
+        condition for condition in episode.continuation_conditions if condition.is_default
+    )
+    assert default.destination_state == "next-support"
+
+
+def test_scored_episode_can_be_degraded_without_losing_grounding() -> None:
+    scored = build_episode_brief(
+        ticket_contract(),
+        ticket_sources(),
+        belief(errors=("unsafe-resend",)),
+    )
+
+    support = degrade_episode_brief_to_support(
+        scored,
+        decline_reason="grounded_authoring_refs_unavailable",
+    )
+
+    assert support.episode_id != scored.episode_id
+    assert support.source_refs == scored.source_refs
+    assert support.affordance_refs == scored.affordance_refs
+    assert support.assessment_mode == "none"
+    assert support.evidence_gate_refs == ()
+    assert support.policy_trace["reason"] == "grounded_authoring_refs_unavailable"
+    assert support.policy_trace["mastery_blocked"] is True
+    assert all(
+        condition.kind != "evidence_submitted"
+        for condition in support.continuation_conditions
+    )
 
 
 def test_custom_domain_strategy_is_registered_without_policy_changes() -> None:

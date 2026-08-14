@@ -36,6 +36,7 @@ apps/skillnet-api/data/tts_cache/
 .codex-evidence/
 .pnpm-store/
 tmp/
+/.pytest-*/
 apps/skillnet-api/.tmp-*/
 apps/skillnet-api/.pytest-*/
 AGENTS.md

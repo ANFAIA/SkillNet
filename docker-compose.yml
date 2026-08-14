@@ -61,6 +61,7 @@ services:
       LLM_FIXTURE_DIR: ${LLM_FIXTURE_DIR:-src/llm/fixture_data}
       LLM_FIXTURE_MODE: ${LLM_FIXTURE_MODE:-replay}
       MULTI_AGENT_RENDER: ${MULTI_AGENT_RENDER:-false}
+      ADAPTIVE_EPISODES: ${ADAPTIVE_EPISODES:-false}
       SEMANTIC_ROUTER: ${SEMANTIC_ROUTER:-false}
       UPLOAD_DIR: /data/uploads
       MAX_UPLOAD_SIZE_MB: ${MAX_UPLOAD_SIZE_MB:-50}

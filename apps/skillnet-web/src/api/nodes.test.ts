@@ -293,6 +293,7 @@ describe('render response narrowing', () => {
     status: 'ready' as const,
     backend: 'openui',
     cached: false,
+    shell_mode: 'legacy_stepper' as const,
     program: 'root = Stack([a], "md")',
   }
 

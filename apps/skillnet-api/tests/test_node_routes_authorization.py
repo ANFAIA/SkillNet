@@ -350,8 +350,27 @@ def test_a_previous_version_can_be_reopened_without_its_answer_key(
     body = response.json()
     assert body["render_id"] == str(RENDER_ID)
     assert body["program"] == world.render.dialect
+    assert body["shell_mode"] == "legacy_stepper"
     assert "answer_key" not in body
     assert "ui_spec" not in body
+
+
+def test_previous_episode_version_exposes_its_own_shell_mode(
+    client: TestClient, world: World
+) -> None:
+    assert world.render is not None
+    world.render.ui_spec = {
+        "generation": {
+            "shell_mode": "episode",
+            "generation_policy_key": "adaptive-episodes/v4",
+            "episode_status": "ready",
+        }
+    }
+
+    response = client.get(f"{PREFIX}/nodes/{NODE_ID}/renders/{RENDER_ID}")
+
+    assert response.status_code == 200, response.text
+    assert response.json()["shell_mode"] == "episode"
 
 
 # --------------------------------------------------------------------------------------
