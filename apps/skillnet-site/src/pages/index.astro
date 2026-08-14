@@ -1,71 +1,91 @@
 ---
 import ClaimPanel from '../components/ClaimPanel.astro'
-import Workflow from '../components/Workflow.astro'
+import { HeroExperience } from '../components/HeroExperience'
 import SiteLayout from '../layouts/SiteLayout.astro'
 import { getClaim, siteData } from '../lib/site'
 
 const documentClaim = getClaim('claim-documents-to-courses')
 const workflowClaim = getClaim('claim-company-workflow')
 const hostingClaim = getClaim('claim-open-self-hosted')
+const reviewClaim = getClaim('claim-human-review')
+const practiceClaim = getClaim('claim-learning-practice')
+const adaptiveClaim = getClaim('claim-adaptive-direction')
 
-const steps = [
-  {
-    number: '01',
-    title: 'Start with company knowledge',
-    body: 'Use the documents, procedures and manuals the organisation already maintains.',
-  },
-  {
-    number: '02',
-    title: 'Prepare reviewable training',
-    body: 'Turn that material into structured learning content inside an admin workflow.',
-  },
-  {
-    number: '03',
-    title: 'Learn and follow progress',
-    body: 'Employees work through assigned material while admins keep a view of the learning record.',
-  },
+const foundations = [
+  { claim: documentClaim, label: '01', title: 'Start with living knowledge' },
+  { claim: reviewClaim, label: '02', title: 'Keep people in control' },
+  { claim: practiceClaim, label: '03', title: 'Turn content into practice' },
+  { claim: adaptiveClaim, label: '04', title: 'Let the experience adapt' },
 ]
 ---
 
 <SiteLayout
-  title="SkillNet — Training grounded in company knowledge"
-  description="SkillNet is open-source, self-hosted training software that turns company documents into courses employees can work through."
+  title="SkillNet — Learning that adapts without losing its source"
+  description="SkillNet is an open-source learning system exploring how trusted knowledge can become adaptive, traceable learning experiences."
   canonicalPath="/"
 >
-  <section class="hero shell">
-    <p class="eyebrow">Open-source training software</p>
-    <h1>Turn company knowledge into training people can work through.</h1>
-    <p class="hero-copy">
-      SkillNet is a company-first product for building learning content from internal material,
-      reviewing it and making it available to employees.
-    </p>
-    <div class="action-row">
-      <a class="button button-primary" href="/for/companies/">Explore the company workflow</a>
-      <a
-        class="button button-secondary"
-        href={siteData.primaryCta.href}
-        rel="noreferrer"
-        target="_blank"
-      >
-        {siteData.primaryCta.label}<span class="sr-only"> (opens in a new tab)</span>
-      </a>
+  <HeroExperience client:load repositoryHref={siteData.primaryCta.href} />
+
+  <section id="mission" class="section mission-section shell" aria-labelledby="mission-heading">
+    <p class="kicker">The question behind SkillNet</p>
+    <div class="mission-grid">
+      <h2 id="mission-heading">We changed how people access knowledge. Why is learning still fixed?</h2>
+      <div class="mission-copy">
+        <p>
+          Most learning platforms give every person the same course, sequence, examples and test.
+          Adding AI on top does not change that underlying model.
+        </p>
+        <p>
+          SkillNet explores a different one: plan the sources, objectives and criteria once, then
+          let the explanation, practice and interface respond to the person and the moment.
+        </p>
+      </div>
     </div>
   </section>
 
-  <section class="section shell" aria-labelledby="how-heading">
-    <div class="section-heading">
-      <p class="kicker">The common path</p>
-      <h2 id="how-heading">Documents in. Reviewed learning out.</h2>
-      <p>A restrained description of the current company workflow—without outcome promises.</p>
-    </div>
-    <Workflow steps={steps} />
-  </section>
-
-  <section class="section evidence-band" aria-labelledby="scope-heading">
+  <section class="section principle-section" aria-labelledby="principle-heading">
     <div class="shell">
       <div class="section-heading">
-        <p class="kicker">Verified scope</p>
-        <h2 id="scope-heading">What the repository supports us saying.</h2>
+        <p class="kicker">The product principle</p>
+        <h2 id="principle-heading">Keep the knowledge stable. Let the experience move.</h2>
+      </div>
+      <div class="principle-grid">
+        <article class="principle-card stable-card">
+          <div class="principle-top"><span class="principle-icon lock-icon" aria-hidden="true"></span><span>Shared and accountable</span></div>
+          <h3>Stable</h3>
+          <ul><li>Sources</li><li>Core content</li><li>Objectives</li><li>Evaluation criteria</li><li>Human responsibility</li></ul>
+        </article>
+        <div class="principle-connector" aria-hidden="true"><span></span></div>
+        <article class="principle-card adaptive-card">
+          <div class="principle-top"><span class="principle-icon path-icon" aria-hidden="true"></span><span>Responsive and revisable</span></div>
+          <h3>Adaptable</h3>
+          <ul><li>Starting point</li><li>Explanation</li><li>Examples</li><li>Practice</li><li>Interface and pace</li></ul>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section id="how-it-works" class="section shell" aria-labelledby="how-heading">
+    <div class="section-heading split-heading">
+      <div><p class="kicker">How it works</p><h2 id="how-heading">A learning system, not a course generator.</h2></div>
+      <p>Each layer has a job: preserve trust, help people build, create practice and learn from what happens next.</p>
+    </div>
+    <div class="feature-grid">
+      {foundations.map(({ claim, label, title }) => (
+        <article class:list={['feature-card', claim.availability === 'planned' && 'feature-direction']} data-claim-id={claim.id}>
+          <div class="feature-meta"><span>{label}</span><span class="availability">{claim.availability === 'planned' ? 'Direction' : 'Current foundation'}</span></div>
+          <h3>{title}</h3>
+          <p>{claim.publicWording}</p>
+        </article>
+      ))}
+    </div>
+  </section>
+
+  <section class="section product-band" aria-labelledby="scope-heading">
+    <div class="shell">
+      <div class="section-heading split-heading">
+        <div><p class="kicker">Current product</p><h2 id="scope-heading">What exists underneath the vision.</h2></div>
+        <p>The first release is company-first. These statements describe the present baseline, not an imagined finished product.</p>
       </div>
       <div class="claim-grid">
         <ClaimPanel claim={documentClaim} />
@@ -75,32 +95,46 @@ const steps = [
     </div>
   </section>
 
-  <section class="section shell split" aria-labelledby="one-product-heading">
-    <div>
-      <p class="kicker">One product</p>
-      <h2 id="one-product-heading">One honest starting point.</h2>
+  <section class="section shell" aria-labelledby="audiences-heading">
+    <div class="section-heading">
+      <p class="kicker">One system, different contexts</p>
+      <h2 id="audiences-heading">The mission is shared. The entry point should be specific.</h2>
     </div>
-    <div>
-      <p>
-        The first vertical is for companies because that is the implemented product baseline.
-        Education, training-provider and individual pages stay unpublished until each has its own
-        reviewed workflow and evidence.
-      </p>
-      <a class="text-link" href="/for/companies/">Read the company use case <span aria-hidden="true">→</span></a>
+    <div class="audience-grid">
+      <a class="audience-card is-current" href="/for/companies/">
+        <span>Current vertical</span><h3>Companies</h3><p>Turn internal procedures and knowledge into reviewable training for a team.</p><b>Explore →</b>
+      </a>
+      <article class="audience-card"><span>Direction</span><h3>Educators</h3><p>Keep sources and objectives shared while explanations and practice respond to each learner.</p></article>
+      <article class="audience-card"><span>Direction</span><h3>Training providers</h3><p>Build learning from each client's knowledge without repeating the same production work.</p></article>
+      <article class="audience-card"><span>Direction</span><h3>Individuals</h3><p>Learn from your own sources with a system that can remember what helps you understand.</p></article>
     </div>
   </section>
 
-  <section class="section shell boundary" aria-labelledby="not-claimed-heading">
-    <div class="section-heading compact">
-      <p class="kicker">Clear boundary</p>
-      <h2 id="not-claimed-heading">Not claimed in this cut</h2>
+  <section class="section origin-section" aria-labelledby="origin-heading">
+    <div class="shell origin-grid">
+      <div><p class="kicker">Why this exists</p><h2 id="origin-heading">A person should not have to repeat the same explanation for years so their knowledge can teach others.</h2></div>
+      <div class="origin-copy">
+        <p>
+          SkillNet began with a familiar kind of work: someone becomes responsible for training
+          because they know the process, then spends their time repeating explanations instead of
+          applying their judgement where it matters.
+        </p>
+        <p>
+          The aim is not to remove the trainer or teacher. It is to preserve their sources,
+          decisions and responsibility while making personal support less impossible to scale.
+        </p>
+      </div>
     </div>
-    <ul class="boundary-list">
-      <li>measured learning outcomes or customer results;</li>
-      <li>a hosted SkillNet service or instant sign-up;</li>
-      <li>individual mode as an available product;</li>
-      <li>automatic adaptive regeneration as a current capability;</li>
-      <li>a public live demo.</li>
-    </ul>
+  </section>
+
+  <section class="section shell final-cta" aria-labelledby="open-heading">
+    <div>
+      <p class="kicker">Open by design</p>
+      <h2 id="open-heading">Built in public. Self-hosted. Still asking difficult questions.</h2>
+    </div>
+    <div class="final-cta-actions">
+      <a class="button button-primary" href={siteData.primaryCta.href} rel="noreferrer" target="_blank">Explore GitHub <span aria-hidden="true">↗</span></a>
+      <a class="button button-secondary" href="/docs/">Read the docs</a>
+    </div>
   </section>
 </SiteLayout>

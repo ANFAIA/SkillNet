@@ -3,7 +3,7 @@
 ## Package boundary
 
 - Package: `apps/skillnet-site/` in `ANFAIA/SkillNet`.
-- Direct runtime/build dependency: `astro@5.13.5` only.
+- Direct build dependencies: Astro, the official React integration, React and Framer Motion.
 - Output mode: Astro `static` with directory-format trailing-slash routes.
 - Expected output directory: `dist/`.
 - Runtime process: none; a static server serves `dist/`.
@@ -11,7 +11,8 @@
 - Optional build input: `BUILD_SHA`; release builds must provide it so the static health record is
   attributable.
 - Imports from `apps/skillnet-web`, root packages or repository docs: none.
-- Client-side JavaScript: none requested by source; the route content has no `client:*` directive.
+- Client-side JavaScript: one intentional `client:load` island on the home hero. Navigation,
+  marketing content, vertical pages and Docs remain static Astro HTML.
 
 ## Public route manifest
 
@@ -55,6 +56,6 @@ BUILD_SHA=<source-revision> pnpm run build
 ```
 
 Then verify the five expected output files above, confirm `dist/healthz.json` contains the supplied
-SHA, inspect emitted HTML for zero client scripts, and
+SHA, inspect emitted HTML for a single deliberate client island, and
 run link/accessibility checks against the built output. None of those build-output assertions was
 claimed by this run.

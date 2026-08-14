@@ -11,6 +11,10 @@
     "check": "node scripts/check-contract.mjs"
   },
   "dependencies": {
-    "astro": "5.13.5"
+    "@astrojs/react": "4.4.2",
+    "astro": "5.13.5",
+    "framer-motion": "12.42.2",
+    "react": "19.2.7",
+    "react-dom": "19.2.7"
   }
 }

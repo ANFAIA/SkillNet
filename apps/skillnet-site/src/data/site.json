@@ -16,6 +16,14 @@
   ],
   "navigation": [
     {
+      "label": "Mission",
+      "href": "/#mission"
+    },
+    {
+      "label": "How it works",
+      "href": "/#how-it-works"
+    },
+    {
       "label": "For companies",
       "href": "/for/companies/"
     },
@@ -73,6 +81,49 @@
       "limitations": [
         "Installation and infrastructure remain the operator's responsibility.",
         "This site does not offer a managed cloud service."
+      ]
+    },
+    {
+      "id": "claim-human-review",
+      "publicWording": "AI agents can propose a course structure and learning material, while people remain in the review path before content reaches learners.",
+      "availability": "available",
+      "sourceRefs": [
+        "docs/design/product.md",
+        "docs/design/vision.md"
+      ],
+      "reviewedAt": "2026-08-14",
+      "limitations": [
+        "The quality of generated material still depends on the sources, configuration and human review.",
+        "SkillNet does not transfer accountability for training decisions to an AI model."
+      ]
+    },
+    {
+      "id": "claim-learning-practice",
+      "publicWording": "Courses combine structured modules, exercises and evaluation so a learner can practise rather than only consume generated content.",
+      "availability": "available",
+      "sourceRefs": [
+        "docs/design/product.md",
+        "apps/skillnet-web/src/pages/employee/NodeView.tsx"
+      ],
+      "reviewedAt": "2026-08-14",
+      "limitations": [
+        "No improvement in learning outcomes is claimed without measured evidence.",
+        "The public site does not yet provide a live product walkthrough."
+      ]
+    },
+    {
+      "id": "claim-adaptive-direction",
+      "publicWording": "SkillNet is being designed so the same trusted knowledge can produce different explanations, practice and interfaces as each learner's context changes.",
+      "availability": "planned",
+      "sourceRefs": [
+        "docs/design/vision.md",
+        "docs/design/product.md",
+        "docs/design/adaptive-learning.md"
+      ],
+      "reviewedAt": "2026-08-14",
+      "limitations": [
+        "This is the product direction, not a claim that full adaptive regeneration is available today.",
+        "Adaptation must remain traceable to shared sources, objectives and criteria."
       ]
     }
   ],

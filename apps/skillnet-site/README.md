@@ -8,8 +8,10 @@ This self-contained Astro package implements the first deliberately small public
 - `404.html` — explicit not-found page.
 - `/healthz.json` — static health metadata, prerendered with an optional build SHA.
 
-The visual system is typographic and flat. It uses no logo, mascot, screenshot, product asset,
-framework island or client-side script. The copy is English-first and intentionally provisional.
+The visual system extends the product's neutral surfaces, blue/green palette, compact radii and
+motion language. It uses no current logo, mascot, screenshot or provisional brand asset. One
+deliberate React island uses Framer Motion for the hero and product-model preview; the rest remains
+static Astro HTML. The copy is English-first and intentionally provisional.
 
 ## Local development and checks
 

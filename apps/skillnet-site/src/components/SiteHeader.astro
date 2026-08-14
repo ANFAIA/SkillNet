@@ -4,7 +4,7 @@ import { siteData } from '../lib/site'
 
 <header class="site-header">
   <div class="shell header-inner">
-    <a class="wordmark" href="/" aria-label="SkillNet home">skillnet</a>
+    <a class="wordmark" href="/" aria-label="SkillNet home"><span class="brand-dot"></span>SkillNet</a>
     <nav aria-label="Primary navigation">
       <ul class="nav-list">
         {siteData.navigation.map((item) => (
@@ -18,7 +18,7 @@ import { siteData } from '../lib/site'
       rel="noreferrer"
       target="_blank"
     >
-      Source<span class="sr-only"> (opens in a new tab)</span>
+      GitHub <span aria-hidden="true">↗</span><span class="sr-only"> (opens in a new tab)</span>
     </a>
   </div>
 </header>

@@ -61,7 +61,10 @@ const claimIds = new Set()
 for (const claim of data.claims) {
   assert(!claimIds.has(claim.id), `Duplicate claim id: ${claim.id}`)
   claimIds.add(claim.id)
-  assert(claim.availability === 'available', `${claim.id} has an unsupported availability state`)
+  assert(
+    ['available', 'partial', 'experimental', 'planned'].includes(claim.availability),
+    `${claim.id} has an unsupported availability state`,
+  )
   assert(/^\d{4}-\d{2}-\d{2}$/.test(claim.reviewedAt), `${claim.id} has no valid review date`)
   assert(claim.sourceRefs.length > 0, `${claim.id} has no repository source`)
   assert(claim.limitations.length > 0, `${claim.id} has no limitations`)
@@ -83,7 +86,6 @@ for (const match of sourceText.matchAll(/getClaim\('([^']+)'\)/g)) {
 
 const prohibited = [
   ['href="#"', 'placeholder hash link'],
-  ['client:', 'client-side Astro island'],
   ['<img', 'image asset'],
   ['mascot', 'mascot reference'],
   ['logo.', 'logo asset reference'],
@@ -91,6 +93,12 @@ const prohibited = [
 for (const [needle, label] of prohibited) {
   assert(!sourceText.toLowerCase().includes(needle), `Prohibited ${label} found: ${needle}`)
 }
+
+assert(
+  (sourceText.match(/client:load/g) || []).length === 1,
+  'The public cut must hydrate exactly one deliberate client island',
+)
+assert(sourceText.includes("from 'framer-motion'"), 'The motion island must use Framer Motion')
 
 const layout = await readFile(new URL('src/layouts/SiteLayout.astro', root), 'utf8')
 assert(layout.includes('noindex, nofollow'), 'Provisional pages must remain noindex')
