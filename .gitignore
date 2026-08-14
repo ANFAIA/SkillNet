@@ -32,6 +32,7 @@ apps/skillnet-api/data/tts_cache/
 
 # Agent workspace
 .claude/
+.opencode/
 .codex-evidence/
 .pnpm-store/
 tmp/
