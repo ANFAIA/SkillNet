@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from typing import Any
 
 
-PREFERENCES_VERSION = 2
+PREFERENCES_VERSION = 3
 
 
 class PresentationPreference(str, enum.Enum):
@@ -29,6 +29,18 @@ class ModalityPreference(str, enum.Enum):
     AUDIO = "audio"
     VISUAL = "visual"
     DATA = "data"
+
+
+class WebPresentationPreference(str, enum.Enum):
+    BALANCED = "balanced"
+    TEXT = "text"
+    VISUAL = "visual"
+    DATA = "data"
+
+
+class CompanionModality(str, enum.Enum):
+    AUDIO = "audio"
+    VIDEO = "video"
 
 
 class InteractionPreference(str, enum.Enum):
@@ -51,7 +63,8 @@ class ImagePreference(str, enum.Enum):
 @dataclass(frozen=True, slots=True)
 class LearningPreferences:
     version: int = PREFERENCES_VERSION
-    modality: ModalityPreference = ModalityPreference.BALANCED
+    web_presentation: WebPresentationPreference = WebPresentationPreference.BALANCED
+    modalities: tuple[CompanionModality, ...] = ()
     interaction: InteractionPreference = InteractionPreference.STANDARD
     detail: DetailPreference = DetailPreference.STANDARD
     images: ImagePreference = ImagePreference.WHEN_USEFUL
@@ -62,14 +75,26 @@ class LearningPreferences:
         if self.interaction is InteractionPreference.INTERACTIVE:
             return PresentationPreference.INTERACTIVE
         return {
-            ModalityPreference.VISUAL: PresentationPreference.VISUAL,
-            ModalityPreference.TEXT: PresentationPreference.TEXTUAL,
-        }.get(self.modality, PresentationPreference.BALANCED)
+            WebPresentationPreference.VISUAL: PresentationPreference.VISUAL,
+            WebPresentationPreference.TEXT: PresentationPreference.TEXTUAL,
+        }.get(self.web_presentation, PresentationPreference.BALANCED)
+
+    @property
+    def modality(self) -> ModalityPreference:
+        """Legacy single-value projection for runtime code during v3 rollout."""
+        if CompanionModality.AUDIO in self.modalities:
+            return ModalityPreference.AUDIO
+        return {
+            WebPresentationPreference.TEXT: ModalityPreference.TEXT,
+            WebPresentationPreference.VISUAL: ModalityPreference.VISUAL,
+            WebPresentationPreference.DATA: ModalityPreference.DATA,
+        }.get(self.web_presentation, ModalityPreference.BALANCED)
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "version": self.version,
-            "modality": self.modality.value,
+            "web_presentation": self.web_presentation.value,
+            "modalities": [item.value for item in self.modalities],
             "interaction": self.interaction.value,
             "detail": self.detail.value,
             "images": self.images.value,
@@ -90,7 +115,7 @@ def _enum_or_default(enum_type, value: object, default):
 def normalize_learning_preferences(
     value: Mapping[str, Any] | LearningPreferences | None,
 ) -> LearningPreferences:
-    """Return the canonical v2 bundle, accepting persisted/API v1 values."""
+    """Return the canonical v3 bundle, accepting persisted/API v1 and v2 values."""
     if isinstance(value, LearningPreferences):
         return value
     source = value or {}
@@ -99,27 +124,53 @@ def normalize_learning_preferences(
         version = int(raw_version) if raw_version is not None else 1
     except (TypeError, ValueError):
         version = 0
+    modalities: tuple[CompanionModality, ...] = ()
     if version == 1:
         legacy = _enum_or_default(
             PresentationPreference,
             source.get("presentation"),
             PresentationPreference.BALANCED,
         )
-        modality = {
-            PresentationPreference.TEXTUAL: ModalityPreference.TEXT,
-            PresentationPreference.VISUAL: ModalityPreference.VISUAL,
-        }.get(legacy, ModalityPreference.BALANCED)
+        web_presentation = {
+            PresentationPreference.TEXTUAL: WebPresentationPreference.TEXT,
+            PresentationPreference.VISUAL: WebPresentationPreference.VISUAL,
+        }.get(legacy, WebPresentationPreference.BALANCED)
         interaction = (
             InteractionPreference.INTERACTIVE
             if legacy is PresentationPreference.INTERACTIVE
             else InteractionPreference.STANDARD
         )
-    elif version == PREFERENCES_VERSION:
-        modality = _enum_or_default(
+    elif version == 2:
+        legacy_modality = _enum_or_default(
             ModalityPreference,
             source.get("modality"),
             ModalityPreference.BALANCED,
         )
+        web_presentation = {
+            ModalityPreference.TEXT: WebPresentationPreference.TEXT,
+            ModalityPreference.VISUAL: WebPresentationPreference.VISUAL,
+            ModalityPreference.DATA: WebPresentationPreference.DATA,
+        }.get(legacy_modality, WebPresentationPreference.BALANCED)
+        if legacy_modality is ModalityPreference.AUDIO:
+            modalities = (CompanionModality.AUDIO,)
+        interaction = _enum_or_default(
+            InteractionPreference,
+            source.get("interaction"),
+            InteractionPreference.STANDARD,
+        )
+    elif version == PREFERENCES_VERSION:
+        web_presentation = _enum_or_default(
+            WebPresentationPreference,
+            source.get("web_presentation"),
+            WebPresentationPreference.BALANCED,
+        )
+        raw_modalities = source.get("modalities")
+        if isinstance(raw_modalities, (list, tuple)):
+            modalities = tuple(
+                item
+                for item in CompanionModality
+                if item.value in {str(value) for value in raw_modalities}
+            )
         interaction = _enum_or_default(
             InteractionPreference,
             source.get("interaction"),
@@ -128,7 +179,8 @@ def normalize_learning_preferences(
     else:
         return DEFAULT_LEARNING_PREFERENCES
     return LearningPreferences(
-        modality=modality,
+        web_presentation=web_presentation,
+        modalities=modalities,
         interaction=interaction,
         detail=_enum_or_default(
             DetailPreference, source.get("detail"), DetailPreference.STANDARD
@@ -144,19 +196,18 @@ def preference_bucket(
     *,
     tts_available: bool | None = None,
 ) -> str:
-    """Canonical, non-identifying material for the shared render cache key.
+    """Canonical material for the web-render cache key.
 
-    A deployment without TTS keys declared audio as its effective text modality,
-    so both requests can safely share the same text render.
+    Companion modalities deliberately do not partition OpenUI renders: audio and video
+    live in the fixed delivery shell and never change the generated web structure.
+    ``tts_available`` remains accepted while v2 callers migrate.
     """
     normalized = normalize_learning_preferences(value)
-    modality = normalized.modality
-    if tts_available is False and modality is ModalityPreference.AUDIO:
-        modality = ModalityPreference.TEXT
+    del tts_available
     return ":".join(
         (
             f"p{normalized.version}",
-            modality.value,
+            normalized.web_presentation.value,
             normalized.interaction.value,
             normalized.detail.value,
             normalized.images.value,

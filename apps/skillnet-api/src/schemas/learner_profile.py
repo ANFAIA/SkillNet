@@ -16,7 +16,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from src.schemas.learning_preferences import (
     AccessibilitySubmit,
     LearningPreferencesSubmit,
-    LearningPreferencesV2,
+    LearningPreferencesV3,
 )
 from src.services.learner_profile_service import is_calibrating
 from src.personalization.preferences import normalize_learning_preferences
@@ -38,8 +38,8 @@ class LearnerProfileRead(BaseModel):
     goal: str | None = None
     experience_level: Experience = "unknown"
     preset: Preset = "standard"
-    learning_preferences: LearningPreferencesV2 = Field(
-        default_factory=LearningPreferencesV2
+    learning_preferences: LearningPreferencesV3 = Field(
+        default_factory=LearningPreferencesV3
     )
     nodes_completed: int = 0
     onboarding_completed_at: datetime | None = None
@@ -54,7 +54,7 @@ class LearnerProfileRead(BaseModel):
             goal=profile.goal,
             experience_level=_plain(profile.experience_level),
             preset=_plain(profile.preset),
-            learning_preferences=LearningPreferencesV2.model_validate(
+            learning_preferences=LearningPreferencesV3.model_validate(
                 normalize_learning_preferences(
                     getattr(profile, "learning_preferences", None)
                 ).to_dict()

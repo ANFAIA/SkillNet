@@ -18,7 +18,7 @@ from src.personalization.preferences import (
     ImagePreference,
     InteractionPreference,
     LearningPreferences,
-    ModalityPreference,
+    WebPresentationPreference,
     preference_bucket,
 )
 from src.services.node_render_service import (
@@ -29,7 +29,7 @@ from src.services.node_render_service import (
 
 def _preferences(**overrides) -> LearningPreferences:
     values = {
-        "modality": ModalityPreference.BALANCED,
+        "web_presentation": WebPresentationPreference.BALANCED,
         "interaction": InteractionPreference.STANDARD,
         "detail": DetailPreference.STANDARD,
         "images": ImagePreference.WHEN_USEFUL,
@@ -61,7 +61,7 @@ def _render_key(preferences: LearningPreferences, *, node_id: uuid.UUID | None =
 
 def test_same_normalized_bundle_produces_the_same_bucket_and_render_key() -> None:
     typed = _preferences(
-        modality=ModalityPreference.VISUAL,
+        web_presentation=WebPresentationPreference.VISUAL,
         detail=DetailPreference.DETAILED,
         images=ImagePreference.PREFER,
     )
@@ -78,8 +78,7 @@ def test_same_normalized_bundle_produces_the_same_bucket_and_render_key() -> Non
     first = _render_key(typed)
     second = _render_key(
         LearningPreferences(
-            version=2,
-            modality=ModalityPreference.VISUAL,
+            web_presentation=WebPresentationPreference.VISUAL,
             interaction=InteractionPreference.STANDARD,
             detail=DetailPreference.DETAILED,
             images=ImagePreference.PREFER,
@@ -92,7 +91,7 @@ def test_same_normalized_bundle_produces_the_same_bucket_and_render_key() -> Non
 @pytest.mark.parametrize(
     "changed",
     [
-        _preferences(modality=ModalityPreference.VISUAL),
+        _preferences(web_presentation=WebPresentationPreference.VISUAL),
         _preferences(interaction=InteractionPreference.INTERACTIVE),
         _preferences(detail=DetailPreference.DETAILED),
         _preferences(images=ImagePreference.PREFER),
@@ -140,7 +139,7 @@ def test_next_unpinned_node_uses_the_new_preference_key() -> None:
     old = _render_key(_preferences(), node_id=next_node)
     new = _render_key(
         _preferences(
-            modality=ModalityPreference.VISUAL,
+            web_presentation=WebPresentationPreference.VISUAL,
             detail=DetailPreference.DETAILED,
             images=ImagePreference.PREFER,
         ),
@@ -148,7 +147,7 @@ def test_next_unpinned_node_uses_the_new_preference_key() -> None:
     )
 
     assert old.cache_key != new.cache_key
-    assert new.preference_bucket == "p2:visual:standard:detailed:prefer"
+    assert new.preference_bucket == "p3:visual:standard:detailed:prefer"
 
 
 def test_render_affecting_accessibility_profiles_never_share_a_cache_key() -> None:

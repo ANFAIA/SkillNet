@@ -27,8 +27,9 @@ describe('useUpdateLearnerProfile', () => {
       experience_level: 'unknown',
       preset: 'standard',
       learning_preferences: {
-        version: 2,
-        modality: 'visual',
+        version: 3,
+        web_presentation: 'visual',
+        modalities: [] as Array<'audio' | 'video'>,
         interaction: 'standard',
         detail: 'detailed',
         images: 'prefer',

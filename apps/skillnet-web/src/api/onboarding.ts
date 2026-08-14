@@ -22,6 +22,8 @@ export type LearningPreset = 'standard' | 'focus' | 'fast'
 export type ExperienceLevel = 'none' | 'some' | 'experienced'
 
 export type ModalityPreference = 'balanced' | 'text' | 'audio' | 'visual' | 'data'
+export type WebPresentationPreference = 'balanced' | 'text' | 'visual' | 'data'
+export type CompanionModality = 'audio' | 'video'
 export type InteractionPreference = 'standard' | 'interactive'
 /** Legacy view-model used by the existing preview component. */
 export type PresentationPreference = 'balanced' | 'visual' | 'textual' | 'interactive'
@@ -29,16 +31,18 @@ export type DetailPreference = 'concise' | 'standard' | 'detailed'
 export type ImagePreference = 'when_useful' | 'prefer' | 'avoid'
 
 export interface LearningPreferences {
-  version: 2
-  modality: ModalityPreference
+  version: 3
+  web_presentation: WebPresentationPreference
+  modalities: CompanionModality[]
   interaction: InteractionPreference
   detail: DetailPreference
   images: ImagePreference
 }
 
 export const DEFAULT_LEARNING_PREFERENCES: LearningPreferences = {
-  version: 2,
-  modality: 'balanced',
+  version: 3,
+  web_presentation: 'balanced',
+  modalities: [],
   interaction: 'standard',
   detail: 'standard',
   images: 'when_useful',
@@ -48,13 +52,42 @@ export function normalizeLearningPreferences(
   value: Record<string, unknown> | LearningPreferences | null | undefined,
 ): LearningPreferences {
   const source = value as Record<string, unknown> | null | undefined
+  if (source?.version === 3) {
+    const rawModalities = Array.isArray(source.modalities) ? source.modalities : []
+    return {
+      ...DEFAULT_LEARNING_PREFERENCES,
+      web_presentation:
+        source.web_presentation === 'text' ||
+        source.web_presentation === 'visual' ||
+        source.web_presentation === 'data'
+          ? source.web_presentation
+          : 'balanced',
+      modalities: (['audio', 'video'] as CompanionModality[]).filter((item) =>
+        rawModalities.includes(item),
+      ),
+      interaction: source.interaction === 'interactive' ? 'interactive' : 'standard',
+      detail: source.detail === 'concise' || source.detail === 'detailed' ? source.detail : 'standard',
+      images: source.images === 'prefer' || source.images === 'avoid' ? source.images : 'when_useful',
+    }
+  }
   if (source?.version === 2) {
-    return { ...DEFAULT_LEARNING_PREFERENCES, ...source } as LearningPreferences
+    const modality = source.modality
+    return {
+      ...DEFAULT_LEARNING_PREFERENCES,
+      web_presentation:
+        modality === 'text' || modality === 'visual' || modality === 'data'
+          ? modality
+          : 'balanced',
+      modalities: modality === 'audio' ? ['audio'] : [],
+      interaction: source.interaction === 'interactive' ? 'interactive' : 'standard',
+      detail: source.detail === 'concise' || source.detail === 'detailed' ? source.detail : 'standard',
+      images: source.images === 'prefer' || source.images === 'avoid' ? source.images : 'when_useful',
+    }
   }
   const presentation = source?.presentation
   return {
     ...DEFAULT_LEARNING_PREFERENCES,
-    modality: presentation === 'visual' ? 'visual' : presentation === 'textual' ? 'text' : 'balanced',
+    web_presentation: presentation === 'visual' ? 'visual' : presentation === 'textual' ? 'text' : 'balanced',
     interaction: presentation === 'interactive' ? 'interactive' : 'standard',
     detail: source?.detail === 'concise' || source?.detail === 'detailed' ? source.detail : 'standard',
     images: source?.images === 'prefer' || source?.images === 'avoid' ? source.images : 'when_useful',

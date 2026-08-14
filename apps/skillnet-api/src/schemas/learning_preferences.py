@@ -2,7 +2,7 @@
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class AccessibilitySubmit(BaseModel):
@@ -41,11 +41,27 @@ class LearningPreferencesV2(BaseModel):
     images: Literal["when_useful", "prefer", "avoid"] = "when_useful"
 
 
-LearningPreferencesSubmit = LearningPreferencesV1 | LearningPreferencesV2
+class LearningPreferencesV3(BaseModel):
+    """Web composition and optional delivery modalities are independent axes."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    version: Literal[3] = 3
+    web_presentation: Literal["balanced", "text", "visual", "data"] = "balanced"
+    modalities: list[Literal["audio", "video"]] = Field(default_factory=list)
+    interaction: Literal["standard", "interactive"] = "standard"
+    detail: Literal["concise", "standard", "detailed"] = "standard"
+    images: Literal["when_useful", "prefer", "avoid"] = "when_useful"
+
+
+LearningPreferencesSubmit = (
+    LearningPreferencesV1 | LearningPreferencesV2 | LearningPreferencesV3
+)
 
 __all__ = [
     "AccessibilitySubmit",
     "LearningPreferencesSubmit",
     "LearningPreferencesV1",
     "LearningPreferencesV2",
+    "LearningPreferencesV3",
 ]

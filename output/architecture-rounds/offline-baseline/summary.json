@@ -326,6 +326,51 @@
         "delivery=v1,v1,v2",
         "new_legacy_blocks=0"
       ]
+    },
+    {
+      "round": "R9",
+      "title": "Modalidades fuera de OpenUI",
+      "passed": true,
+      "metrics": {
+        "selected_modalities": 2.0,
+        "openui_modality_fields": 0.0,
+        "preferred_missing_visible": 1.0,
+        "shared_intermediate_artifacts": 0.0
+      },
+      "gates": [
+        {
+          "metric": "selected_modalities",
+          "operator": "eq",
+          "threshold": 2,
+          "actual": 2.0,
+          "passed": true
+        },
+        {
+          "metric": "openui_modality_fields",
+          "operator": "eq",
+          "threshold": 0,
+          "actual": 0.0,
+          "passed": true
+        },
+        {
+          "metric": "preferred_missing_visible",
+          "operator": "eq",
+          "threshold": 1,
+          "actual": 1.0,
+          "passed": true
+        },
+        {
+          "metric": "shared_intermediate_artifacts",
+          "operator": "eq",
+          "threshold": 0,
+          "actual": 0.0,
+          "passed": true
+        }
+      ],
+      "evidence": [
+        "shell=[{'modality': 'audio', 'status': 'pending'}, {'modality': 'video', 'status': 'ready'}]",
+        "openui_input={'web_presentation': 'visual'}"
+      ]
     }
   ]
 }

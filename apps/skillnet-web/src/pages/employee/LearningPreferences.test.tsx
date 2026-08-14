@@ -13,8 +13,9 @@ const PROFILE = {
   experience_level: 'some',
   preset: 'standard',
   learning_preferences: {
-    version: 2,
-    modality: 'visual',
+    version: 3,
+    web_presentation: 'visual',
+    modalities: [],
     interaction: 'standard',
     detail: 'detailed',
     images: 'prefer',
@@ -84,7 +85,7 @@ describe('LearningPreferencesPage', () => {
     expect(screen.getByLabelText('Vista previa')).toBeInTheDocument()
     expect(screen.queryByText('En directo')).not.toBeInTheDocument()
 
-    await user.click(screen.getByRole('radio', { name: /Audio/ }))
+    await user.click(screen.getByRole('button', { name: /Audio/ }))
     await user.click(screen.getByRole('radio', { name: /Más práctica/ }))
     await user.click(screen.getByRole('radio', { name: /Conciso/ }))
     await user.click(screen.getByRole('radio', { name: /Evitar/ }))
@@ -96,8 +97,9 @@ describe('LearningPreferencesPage', () => {
     const patchCall = mockFetch.mock.calls.find((call) => call[1]?.method === 'PATCH')
     expect(JSON.parse(patchCall?.[1]?.body as string)).toEqual({
       learning_preferences: {
-        version: 2,
-        modality: 'audio',
+        version: 3,
+        web_presentation: 'visual',
+        modalities: ['audio'],
         interaction: 'interactive',
         detail: 'concise',
         images: 'avoid',

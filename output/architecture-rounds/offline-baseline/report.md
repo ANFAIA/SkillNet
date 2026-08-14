@@ -2,7 +2,7 @@
 
 - Modo: `offline`
 - Resultado global: **PASS**
-- Rondas: 8
+- Rondas: 9
 
 | Ronda | Hipotesis | Gate |
 |---|---|---|
@@ -14,6 +14,7 @@
 | R6 | Runtime rapido sin LLM | PASS |
 | R7 | Segundo proveedor stub | PASS |
 | R8 | Migracion y regresion v1/v2 | PASS |
+| R9 | Modalidades fuera de OpenUI | PASS |
 
 ## R1 - Contrato neutral
 
@@ -109,6 +110,18 @@ Evidencia:
 
 - delivery=v1,v1,v2
 - new_legacy_blocks=0
+
+## R9 - Modalidades fuera de OpenUI
+
+- `selected_modalities`: 2.0
+- `openui_modality_fields`: 0.0
+- `preferred_missing_visible`: 1.0
+- `shared_intermediate_artifacts`: 0.0
+
+Evidencia:
+
+- shell=[{'modality': 'audio', 'status': 'pending'}, {'modality': 'video', 'status': 'ready'}]
+- openui_input={'web_presentation': 'visual'}
 
 ## Alcance
 

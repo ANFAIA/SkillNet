@@ -16,7 +16,8 @@ import type {
   ImagePreference,
   LearningPreferences,
   InteractionPreference,
-  ModalityPreference,
+  CompanionModality,
+  WebPresentationPreference,
 } from '../../api/onboarding'
 import { Button, Card, PageHeader, SkeletonRow } from '../../components/ui'
 import { AppearanceSettings } from '../../components/settings/AppearanceSettings'
@@ -84,16 +85,26 @@ export function LearningPreferencesPage() {
     return () => window.clearTimeout(timeout)
   }, [accessibility, hydrated, preferences, updateLearningAsync])
 
-  const modalityOptions = [
-    { value: 'balanced' as ModalityPreference, icon: <SettingsIcon name="balance" size={14} /> },
-    { value: 'text' as ModalityPreference, icon: <SettingsIcon name="text" size={14} /> },
-    { value: 'audio' as ModalityPreference, icon: <SettingsIcon name="format" size={14} /> },
-    { value: 'visual' as ModalityPreference, icon: <SettingsIcon name="image" size={14} /> },
-    { value: 'data' as ModalityPreference, icon: <SettingsIcon name="detail" size={14} /> },
+  const webPresentationOptions = [
+    { value: 'balanced' as WebPresentationPreference, icon: <SettingsIcon name="balance" size={14} /> },
+    { value: 'text' as WebPresentationPreference, icon: <SettingsIcon name="text" size={14} /> },
+    { value: 'visual' as WebPresentationPreference, icon: <SettingsIcon name="image" size={14} /> },
+    { value: 'data' as WebPresentationPreference, icon: <SettingsIcon name="detail" size={14} /> },
   ].map((option) => ({
     ...option,
     label: intl.formatMessage({ id: `learningPreferences.modality.${option.value}` }),
   }))
+  const companionModalities: CompanionModality[] = ['audio', 'video']
+
+  function toggleModality(modality: CompanionModality) {
+    const selected = preferences.modalities.includes(modality)
+    changePreference(
+      'modalities',
+      selected
+        ? preferences.modalities.filter((item) => item !== modality)
+        : [...preferences.modalities, modality],
+    )
+  }
   const interactionOptions = [
     { value: 'standard' as InteractionPreference, icon: <SettingsIcon name="balance" size={14} /> },
     { value: 'interactive' as InteractionPreference, icon: <SettingsIcon name="pointer" size={14} /> },
@@ -168,22 +179,49 @@ export function LearningPreferencesPage() {
                 </div>
 
                 <div className="grid items-stretch gap-4 lg:grid-cols-[minmax(0,1.65fr)_minmax(15.5rem,0.85fr)]">
-                  <div className="grid grid-rows-4 overflow-hidden rounded-lg border border-border bg-surface">
+                  <div className="grid grid-rows-5 overflow-hidden rounded-lg border border-border bg-surface">
                     <fieldset className="flex min-h-0 flex-col justify-center gap-3 p-4">
                       <legend className="sr-only">
-                        {intl.formatMessage({ id: 'learningPreferences.modality' })}
+                        {intl.formatMessage({ id: 'learningPreferences.webPresentation' })}
                       </legend>
                       <div className="flex items-center gap-2 text-sm font-medium text-text">
                         <SettingsIcon name="format" size={15} className="text-text-muted" />
-                        {intl.formatMessage({ id: 'learningPreferences.modality' })}
+                        {intl.formatMessage({ id: 'learningPreferences.webPresentation' })}
                       </div>
                       <SegmentedControl
-                        value={preferences.modality}
-                        options={modalityOptions}
-                        onChange={(value) => changePreference('modality', value)}
-                        label={intl.formatMessage({ id: 'learningPreferences.modality' })}
+                        value={preferences.web_presentation}
+                        options={webPresentationOptions}
+                        onChange={(value) => changePreference('web_presentation', value)}
+                        label={intl.formatMessage({ id: 'learningPreferences.webPresentation' })}
                         layoutId="learning-modality"
                       />
+                    </fieldset>
+
+                    <fieldset className="flex min-h-0 flex-col justify-center gap-3 border-t border-border p-4">
+                      <legend className="sr-only">
+                        {intl.formatMessage({ id: 'learningPreferences.companionModalities' })}
+                      </legend>
+                      <div className="flex items-center gap-2 text-sm font-medium text-text">
+                        <SettingsIcon name="format" size={15} className="text-text-muted" />
+                        {intl.formatMessage({ id: 'learningPreferences.companionModalities' })}
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {companionModalities.map((modality) => (
+                          <button
+                            key={modality}
+                            type="button"
+                            aria-pressed={preferences.modalities.includes(modality)}
+                            onClick={() => toggleModality(modality)}
+                            className={`rounded-md border px-3 py-2 text-sm transition-colors ${
+                              preferences.modalities.includes(modality)
+                                ? 'border-primary bg-primary-subtle text-primary'
+                                : 'border-border text-text-secondary hover:bg-bg-muted'
+                            }`}
+                          >
+                            {intl.formatMessage({ id: `learningPreferences.companion.${modality}` })}
+                          </button>
+                        ))}
+                      </div>
                       <p className="text-xs text-text-muted">
                         {intl.formatMessage({ id: 'learningPreferences.audioDeployment' })}
                       </p>
@@ -245,9 +283,9 @@ export function LearningPreferencesPage() {
                     presentation={
                       preferences.interaction === 'interactive'
                         ? 'interactive'
-                        : preferences.modality === 'visual'
+                        : preferences.web_presentation === 'visual'
                           ? 'visual'
-                          : preferences.modality === 'text'
+                          : preferences.web_presentation === 'text'
                             ? 'textual'
                             : 'balanced'
                     }

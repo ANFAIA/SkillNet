@@ -242,8 +242,9 @@ describe('Onboarding — shape (§6.1)', () => {
       experience_level: 'experienced',
       preset: 'focus',
       learning_preferences: {
-        version: 2,
-        modality: 'visual',
+        version: 3,
+        web_presentation: 'visual',
+        modalities: [],
         interaction: 'standard',
         detail: 'standard',
         images: 'when_useful',

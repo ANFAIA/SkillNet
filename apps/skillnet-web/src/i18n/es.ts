@@ -71,6 +71,10 @@ export const es: Record<string, string> = {
 
   // Node view
   'node.backToCourse': 'Volver al curso',
+  'node.modalities': 'También disponible',
+  'node.modality.audio': 'Audio',
+  'node.modality.video': 'Vídeo',
+  'node.modality.pending': 'aún no preparado',
   'node.pendingReview': 'Este nodo esta pendiente de revision',
   'node.pendingReviewDesc': 'Una persona responsable tiene que revisarlo antes de que se pueda estudiar. No es un error temporal: volver a intentarlo no lo desbloquea.',
   'node.mastered': 'Ya dominas este nodo',
@@ -605,6 +609,10 @@ export const es: Record<string, string> = {
   'learningPreferences.presentation.interactive': 'Practico',
   'learningPreferences.presentation.interactive.hint': 'Prioriza ejercicios y exploracion.',
   'learningPreferences.modality': 'Modalidad',
+  'learningPreferences.webPresentation': 'Presentación web',
+  'learningPreferences.companionModalities': 'Modalidades disponibles',
+  'learningPreferences.companion.audio': 'Audio',
+  'learningPreferences.companion.video': 'Vídeo',
   'learningPreferences.modality.balanced': 'Equilibrado',
   'learningPreferences.modality.text': 'Texto',
   'learningPreferences.modality.audio': 'Audio*',

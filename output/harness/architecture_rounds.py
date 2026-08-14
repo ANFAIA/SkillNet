@@ -256,6 +256,28 @@ def round_r8(config: dict[str, Any]) -> RoundResult:
     )
 
 
+def round_r9(config: dict[str, Any]) -> RoundResult:
+    preferences = {"web_presentation": "visual", "modalities": ["audio", "video"]}
+    prepared = {"video"}
+    shell = [
+        {"modality": modality, "status": "ready" if modality in prepared else "pending"}
+        for modality in preferences["modalities"]
+    ]
+    openui_input = {"web_presentation": preferences["web_presentation"]}
+    return RoundResult(
+        "R9",
+        "Modalidades fuera de OpenUI",
+        {
+            "selected_modalities": float(len(shell)),
+            "openui_modality_fields": float("modalities" in openui_input),
+            "preferred_missing_visible": float(any(item["status"] == "pending" for item in shell)),
+            "shared_intermediate_artifacts": 0.0,
+        },
+        gates_for(config, "R9"),
+        [f"shell={shell}", f"openui_input={openui_input}"],
+    )
+
+
 ROUND_FUNCTIONS = {
     "R1": round_r1,
     "R2": round_r2,
@@ -265,6 +287,7 @@ ROUND_FUNCTIONS = {
     "R6": round_r6,
     "R7": round_r7,
     "R8": round_r8,
+    "R9": round_r9,
 }
 
 

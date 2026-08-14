@@ -71,6 +71,10 @@ export const en: Record<string, string> = {
 
   // Node view
   'node.backToCourse': 'Back to course',
+  'node.modalities': 'Also available',
+  'node.modality.audio': 'Audio',
+  'node.modality.video': 'Video',
+  'node.modality.pending': 'not prepared yet',
   'node.pendingReview': 'This node is pending review',
   'node.pendingReviewDesc': 'A responsible person must review it before it can be studied. This is not a temporary error: retrying will not unblock it.',
   'node.mastered': 'You\'ve mastered this node',
@@ -605,6 +609,10 @@ export const en: Record<string, string> = {
   'learningPreferences.presentation.interactive': 'Hands-on',
   'learningPreferences.presentation.interactive.hint': 'Prioritise exercises and exploration.',
   'learningPreferences.modality': 'Modality',
+  'learningPreferences.webPresentation': 'Web presentation',
+  'learningPreferences.companionModalities': 'Available modalities',
+  'learningPreferences.companion.audio': 'Audio',
+  'learningPreferences.companion.video': 'Video',
   'learningPreferences.modality.balanced': 'Balanced',
   'learningPreferences.modality.text': 'Text',
   'learningPreferences.modality.audio': 'Audio*',

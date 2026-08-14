@@ -178,8 +178,12 @@ export function Onboarding() {
     if (preset) body.preset = preset
     if (modality) {
       body.learning_preferences = {
-        version: 2,
-        modality,
+        version: 3,
+        web_presentation:
+          modality === 'text' || modality === 'visual' || modality === 'data'
+            ? modality
+            : 'balanced',
+        modalities: modality === 'audio' ? ['audio'] : [],
         interaction: 'standard',
         detail: 'standard',
         images: 'when_useful',

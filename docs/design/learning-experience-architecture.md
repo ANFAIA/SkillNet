@@ -1,5 +1,9 @@
 # Arquitectura neutral de experiencias de aprendizaje
 
+La separación entre modalidad completa (web, audio, vídeo y futuras) y estructura interna
+se define en [delivery-modalities.md](delivery-modalities.md). En caso de duda, OpenUI sólo
+controla la estructura web; las modalidades pertenecen al shell de entrega.
+
 **Fecha:** 2026-08-14  
 **Estado:** contrato base implementado; rollout incremental y retirada legacy en curso.
 **Aplica a:** cursos dinámicos v2, generación de cursos, catálogo educativo y futuras experiencias
@@ -17,7 +21,7 @@ checkpoint; y aplicación transaccional e idempotente de evidencia a mastery. Lo
 emiten `DidactActivity`; el alias permanece únicamente para reproducir programas históricos.
 
 El runtime usa primero un binding preparado y sólo conserva autoría on-the-fly como compatibilidad
-para cursos anteriores a la migración 0016. Las rondas R1–R8 de `output/harness` son un oracle
+para cursos anteriores a la migración 0016. Las rondas R1–R9 de `output/harness` son un oracle
 offline reproducible, complementado por tests de producto; no sustituyen todavía un experimento
 online con cohortes reales ni una prueba de carga PostgreSQL.
 

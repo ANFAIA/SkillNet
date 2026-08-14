@@ -21,7 +21,7 @@ python output/harness/profile_run.py `
 The orchestrator normally passes one JSON object per profile rather than the whole
 array. Reports are generated with `analyze_round.py`.
 
-## Offline architecture rounds (R1-R8)
+## Offline architecture rounds (R1-R9)
 
 `architecture_rounds.py` is a deterministic, keyless pre-implementation oracle for the
 provider-neutral learning-experience architecture. It covers the neutral contract,

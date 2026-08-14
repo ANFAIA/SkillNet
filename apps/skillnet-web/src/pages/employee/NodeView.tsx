@@ -11,6 +11,7 @@ import { NodeList } from '../../components/courses/NodeList'
 import { stepperContext, coursePositionContext, nextNodeContext, courseIntroContext, stepperProgressContext, lessonFeedbackContext, courseFinishContext } from '../../components/courses/blocks/StepperContext'
 import type { CourseIntro, StepperProgress, StepperProgressCallback } from '../../components/courses/blocks/StepperContext'
 import { NodeChat } from '../../components/courses/NodeChat'
+import { NodeModalityAccess } from '../../components/courses/NodeModalityAccess'
 import { NodeSkeleton, RESERVED_CONTENT_PX } from '../../components/courses/NodeSkeleton'
 import { Mascota, MascotaCompanion } from '../../components/mascota'
 import { ResultGlow } from '../../components/courses/feedback/ResultGlow'
@@ -750,6 +751,13 @@ export function NodeView() {
                           <p className="text-base text-text mb-4 shrink-0" data-testid="opening-line">
                             {openingLine}
                           </p>
+                        )}
+                        {courseId && nodeId && (
+                          <NodeModalityAccess
+                            courseId={courseId}
+                            nodeId={nodeId}
+                            preferred={profile?.learning_preferences?.modalities ?? []}
+                          />
                         )}
                         <motion.div
                           key={shownKey}

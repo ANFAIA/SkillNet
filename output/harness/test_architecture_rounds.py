@@ -1,4 +1,4 @@
-"""Focused tests for the offline R1-R8 experiment oracle."""
+"""Focused tests for the offline R1-R9 experiment oracle."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ class ArchitectureRoundsTest(unittest.TestCase):
         report = run(load_config(CONFIG))
 
         self.assertTrue(report["passed"])
-        self.assertEqual([item["round"] for item in report["rounds"]], [f"R{index}" for index in range(1, 9)])
+        self.assertEqual([item["round"] for item in report["rounds"]], [f"R{index}" for index in range(1, 10)])
         self.assertTrue(all(item["passed"] for item in report["rounds"]))
 
     def test_gate_failure_is_visible(self) -> None:
