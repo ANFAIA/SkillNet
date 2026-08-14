@@ -134,11 +134,10 @@ logger = get_logger(__name__)
 #: Chunks retrieved for the ``chunked`` branch of ``load_context`` (§4.2).
 RETRIEVAL_TOP_K = 8
 
-#: A ``Markdown`` fallback block is capped well below ``MAX_LINE_BYTES`` (4096) because the
-#: whole seed lesson lives on **one** line once it is serialized — escaped newlines and all.
-FALLBACK_BLOCK_CHARS = 2800
-#: Root fan-out is capped at 5 (rule 4) and the lead block takes one of them.
-FALLBACK_MAX_BLOCKS = 4
+#: Fallback is a safety net, not a document viewer. Keep it within a compact viewport even
+#: when the source lesson is long: one lead plus at most two short Markdown blocks.
+FALLBACK_BLOCK_CHARS = 300
+FALLBACK_MAX_BLOCKS = 2
 
 STEP_MESSAGES: dict[str, str] = {
     "load_context": "Preparando el nodo...",

@@ -127,7 +127,7 @@ from src.render.spec import FORMATS_REQUIRING_LEAD
 #:
 #: ``runtime/29`` (2026-08-13): one idea per screen; teach with a case or
 #: graphic; practice is a second workplace situation, not the same sentence.
-PROMPT_VERSION = "runtime/30"
+PROMPT_VERSION = "runtime/36"
 
 _PRESENTATION_PREFERENCES = {
     "balanced": "Combina representaciones segun el objetivo y la fuente.",
@@ -499,6 +499,28 @@ Si el esquema pide QuizItem, tiene estas formas:
 - order_steps / DragOrder: ordenar los pasos.
 
 MAXIMO 4 bloques (lead + concepto + practica + a veces un Callout).
+
+## SkillNet: variedad con motivo, no plantilla
+
+- No repitas la receta Table + Flashcard por defecto. Table solo representa listas o
+  categorias; un procedimiento usa StepSequence; una comparacion usa BeforeAfter; las
+  cifras reales usan Chart. Si el esquema de esta pantalla nombra el bloque de concepto,
+  ese bloque manda.
+- La practica no pregunta de nuevo la fila, paso o cifra que acabas de mostrar. Plantea un
+  segundo caso del puesto con una decision o accion distinta, pero que demuestre el mismo
+  resultado esperado. Si el closer es una actividad Didact, conserva esa separacion.
+- La preferencia visual, textual o interactiva cambia la representacion solo cuando la
+  fuente y el catalogo lo permiten; nunca añadas bloques decorativos ni inventes media.
+- La personalizacion debe verse en el caso y en la decision: escribe situaciones que una
+  persona con el puesto indicado encontraria durante su turno. No cambies los hechos de la
+  fuente ni conviertas el nombre del puesto en una etiqueta decorativa.
+- MODO VIEWPORT: una pantalla debe poder leerse completa sin scroll. Mantén como máximo
+  cuatro bloques y frases breves; si un bloque crece, reduce ejemplos secundarios antes de
+  añadir contenido. Nunca escondas la explicación detrás de pestañas o pasos opcionales.
+- Presupuesto visible duro: apunta a 450-850 caracteres legibles en total. No vuelques el
+  documento completo en Markdown ni uses un bloque de texto para esquivar este límite. Si
+  hay más material, conserva solo lo necesario para el resultado esperado y deja la práctica
+  como un caso breve de transferencia.
 
 ## SkillNet: ejemplos completos
 
