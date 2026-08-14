@@ -3,7 +3,16 @@
 **Estado:** inventario completo integrado; adopción funcional por familias  
 **Didact:** <https://github.com/JoseEstevez520/Didact> (MIT)  
 **Revisión examinada:** [`06c80e8`](https://github.com/JoseEstevez520/Didact/commit/06c80e8a8af4f20ad20ba345b7b6b13e1cc27e0c)  
-**Relacionado:** `openui-adoption.md`, `personalization-architecture.md`, `v2-dynamic-courses.md`
+**Relacionado:** `openui-adoption.md`, `personalization-architecture.md`,
+`learning-experience-architecture.md`, `v2-dynamic-courses.md`
+
+> **Alcance de este documento:** describe el inventario y la integración ejecutable actual de
+> Didact. La arquitectura objetivo neutral —donde Didact es un proveedor reemplazable,
+> `LearningExperience` sustituye la frontera específica y los bloques pedagógicos legacy salen de
+> cursos nuevos— se define en
+> [`learning-experience-architecture.md`](learning-experience-architecture.md). Cuando una decisión
+> histórica de adopción incremental de esta página contradiga ese objetivo, gana el documento
+> neutral; esta página sigue ganando sobre qué tipos y puertos funcionan hoy.
 
 ## Decisión
 
@@ -38,7 +47,13 @@ La integración comenzó con dos experiencias del catálogo real `skillnet-ui/1`
 
 Ambos cumplen el dialecto estático: propiedades literales, estado React local, sin `Query`, `Mutation`, código ejecutable ni identidad. Después se sumaron Glossary, Timeline y WorkedExample como bloques directos, y `DidactActivity` como referencia opaca a definiciones server-owned. Sus esquemas existen en frontend y backend; el test de deriva comprueba nombres, orden de propiedades y artefacto del prompt. La versión del prompt invalida renders producidos con catálogos anteriores.
 
-No se sustituyó `StepSequence` por `Timeline`: hoy representan la misma capacidad y duplicarlas solo añadiría ruido. Tampoco se añadió repetición espaciada; Didact separa correctamente la tarjeta de la planificación de repasos y SkillNet no necesita todavía ese scheduler.
+En la primera adopción no se sustituyó `StepSequence` por `Timeline`: representaban la misma
+capacidad y se evitó duplicarlas en el catálogo. Esta fue una decisión incremental, **no el estado
+objetivo**. Para cursos nuevos, la migración aprobada retira `StepSequence` y los demás componentes
+pedagógicos legacy del catálogo de autoría; Didact entra a través de la frontera neutral
+`LearningExperience`. Los renderers legacy permanecen sólo para reproducir cursos publicados.
+Tampoco se añadió repetición espaciada; Didact separa correctamente la tarjeta de la planificación de
+repasos y SkillNet no necesita todavía ese scheduler.
 
 ## Selección cuando crezca el catálogo
 

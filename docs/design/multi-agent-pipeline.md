@@ -1,15 +1,19 @@
 # Multi-Agent Render Pipeline
 
-> **Estado: plan de implementacion.** Este documento es la fuente unica de verdad para la
-> arquitectura de generacion de contenido de SkillNet. Segmenta el nodo monolitico `genera_ui`
+> **Estado: diseño del pipeline de render actual; migración aprobada.** Este documento conserva la
+> historia y el detalle operativo del subgrafo que segmenta el nodo monolítico `genera_ui`
 > en cuatro agentes especializados, define la estrategia de pre-generacion y streaming, y
 > traza la hoja de ruta hacia el formato multimodal.
 >
-> Complementa a `v2-dynamic-courses.md` (runtime) y a `tuning.md` (diales de calidad).
-> Donde contradiga a otro documento, gana este para el subgrafo de generacion.
+> Para trabajo nuevo, la arquitectura objetivo traslada el trabajo caro a generación/publicación,
+> deja al runtime seleccionar variantes preparadas y usa una frontera neutral. Está definida en
+> [`learning-experience-architecture.md`](learning-experience-architecture.md) y gana sobre este
+> documento en esa dirección. Hasta completar sus gates, esta página sigue describiendo el pipeline
+> implementado.
 
 Depende de: [v2-dynamic-courses.md](v2-dynamic-courses.md),
-[openui-adoption.md](openui-adoption.md), [tuning.md](tuning.md).
+[openui-adoption.md](openui-adoption.md), [tuning.md](tuning.md) y
+[learning-experience-architecture.md](learning-experience-architecture.md).
 
 ---
 

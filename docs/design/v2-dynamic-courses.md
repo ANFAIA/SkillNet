@@ -11,6 +11,12 @@
 > Ningún cambio de este documento puede alterar el comportamiento de `GET /api/v1/courses/{id}`,
 > del pipeline `build_content_graph()` ni del render markdown existente cuando
 > `DYNAMIC_COURSES_MODE=off`.
+>
+> **Evolución aprobada:** la separación entre contrato pedagógico, planes abstractos, variantes
+> preparadas, `LearningExperience` neutral y evidencia normalizada se especifica en
+> [`learning-experience-architecture.md`](learning-experience-architecture.md). Este documento sigue
+> describiendo el runtime implementado; el nuevo diseño debe migrarlo incrementalmente y conservar
+> `src.services.course_delivery.resolve_delivery` como único selector v1/v2.
 
 ---
 

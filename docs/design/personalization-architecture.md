@@ -28,6 +28,12 @@ Esta arquitectura concreta y no sustituye las decisiones de
 [`arquitectura-componentes-funcional.md`](arquitectura-componentes-funcional.md) y
 [`v2-dynamic-courses.md`](v2-dynamic-courses.md).
 
+La arquitectura de publicación que construye variantes durante la generación del curso, expone la
+frontera neutral `LearningExperience` y normaliza evidencia de Didact, vídeo, juegos o simulaciones
+hacia mastery se define en
+[`learning-experience-architecture.md`](learning-experience-architecture.md). Este documento conserva
+la autoridad sobre proyección de perfil, apoyo, caché y resolución por capacidades.
+
 ## 2. Las cinco capas
 
 | Capa | Pregunta | Entrada principal | Salida | Autoridad |
