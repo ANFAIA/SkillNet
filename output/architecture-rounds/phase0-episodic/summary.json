@@ -1,18 +1,84 @@
 {
   "schema_version": 1,
   "benchmark_id": "phase0-screen-scheme-vs-episodic",
-  "status": "contract-only",
-  "disclaimer": "Reference specimens exercise the oracle. They are not measurements of a future EpisodeDirector.",
+  "status": "implementation-connected-phase0",
+  "disclaimer": "Reference specimens remain trajectory oracles; only deterministic direct_episode planning is connected to real code and timed.",
   "benchmark_ready": true,
   "latency_budget_ms": 1500,
   "latency_measurement": {
-    "status": "not-measured",
-    "start": "candidate_request_received",
-    "stop": "validated_trajectory_available",
+    "status": "measured-local",
+    "scope": "deterministic_direct_episode_planning",
+    "start": "direct_episode_called",
+    "stop": "episode_decision_returned",
     "warmup_runs": 1,
     "measured_runs": 30
   },
-  "latency_gate_active": false,
+  "latency_gate_active": true,
+  "latency_gate_scope": "deterministic_direct_episode_planning",
+  "implementation_round": {
+    "stage": "deterministic_direct_episode_planning",
+    "implementation": "src.agents.runtime.nodes.direct_episode",
+    "excludes": [
+      "LLM generation",
+      "runtime activity authoring",
+      "database persistence",
+      "browser rendering",
+      "total learner-visible latency"
+    ],
+    "latency_gate_active": true,
+    "latency_budget_ms": 1500,
+    "rounds": [
+      {
+        "case_id": "recognition-ready",
+        "expected_status": "ready",
+        "actual_status": "ready",
+        "expected_decline_reason": null,
+        "actual_decline_reason": null,
+        "graph_route": "ready",
+        "legacy_fallback_target": null,
+        "outcome_gate_passed": true,
+        "latency_ms": {
+          "p50": 2.3264,
+          "p95": 2.859,
+          "samples": 30
+        },
+        "latency_gate_passed": true
+      },
+      {
+        "case_id": "ticket-critical-support",
+        "expected_status": "support_only",
+        "actual_status": "support_only",
+        "expected_decline_reason": "evidence_policy:critical_oracle_unavailable",
+        "actual_decline_reason": "evidence_policy:critical_oracle_unavailable",
+        "graph_route": "support",
+        "legacy_fallback_target": null,
+        "outcome_gate_passed": true,
+        "latency_ms": {
+          "p50": 2.3923,
+          "p95": 2.8344,
+          "samples": 30
+        },
+        "latency_gate_passed": true
+      },
+      {
+        "case_id": "sql-execution-support",
+        "expected_status": "support_only",
+        "actual_status": "support_only",
+        "expected_decline_reason": "evidence_policy:execution_oracle_unavailable",
+        "actual_decline_reason": "evidence_policy:execution_oracle_unavailable",
+        "graph_route": "support",
+        "legacy_fallback_target": null,
+        "outcome_gate_passed": true,
+        "latency_ms": {
+          "p50": 9.2231,
+          "p95": 10.9055,
+          "samples": 30
+        },
+        "latency_gate_passed": true
+      }
+    ],
+    "passed": true
+  },
   "domains": [
     {
       "domain_id": "gestion-tickets",

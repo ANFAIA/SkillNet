@@ -1,14 +1,15 @@
 {
   "schema_version": 1,
   "benchmark_id": "phase0-screen-scheme-vs-episodic",
-  "status": "contract-only",
-  "disclaimer": "Reference specimens exercise the oracle. They are not measurements of a future EpisodeDirector.",
+  "status": "implementation-connected-phase0",
+  "disclaimer": "Reference specimens remain trajectory oracles; only deterministic direct_episode planning is connected to real code and timed.",
   "viewport_budget_px": 800,
   "latency_budget_ms": 1500,
-  "latency_placeholder": {
-    "status": "not-measured",
-    "start": "candidate_request_received",
-    "stop": "validated_trajectory_available",
+  "latency_measurement": {
+    "status": "measured-local",
+    "scope": "deterministic_direct_episode_planning",
+    "start": "direct_episode_called",
+    "stop": "episode_decision_returned",
     "warmup_runs": 1,
     "measured_runs": 30
   },

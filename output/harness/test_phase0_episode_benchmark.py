@@ -15,6 +15,10 @@ from output.harness.phase0_episode_benchmark import (
 
 
 class Phase0EpisodeBenchmarkTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.report = run(load_fixture())
+
     def setUp(self) -> None:
         self.fixture = load_fixture()
 
@@ -25,13 +29,16 @@ class Phase0EpisodeBenchmarkTest(unittest.TestCase):
             [domain["domain_id"] for domain in self.fixture["domains"]],
             ["gestion-tickets", "sql"],
         )
-        self.assertEqual(self.fixture["status"], "contract-only")
+        self.assertEqual(self.fixture["status"], "implementation-connected-phase0")
 
     def test_expected_contract_passes_without_claiming_future_implementation(self) -> None:
-        report = run(self.fixture)
+        report = self.report
 
         self.assertTrue(report["benchmark_ready"])
-        self.assertFalse(report["latency_gate_active"])
+        self.assertTrue(report["latency_gate_active"])
+        self.assertEqual(
+            report["latency_gate_scope"], "deterministic_direct_episode_planning"
+        )
         for domain in report["domains"]:
             expected = domain["evaluations"]["episodic_contract"]
             self.assertTrue(expected["passed"])
@@ -39,7 +46,7 @@ class Phase0EpisodeBenchmarkTest(unittest.TestCase):
             self.assertEqual(expected["latency"]["status"], "placeholder")
 
     def test_reference_screen_scheme_exposes_cross_domain_evidence_gap(self) -> None:
-        report = run(self.fixture)
+        report = self.report
 
         for domain in report["domains"]:
             baseline = domain["evaluations"]["screen_scheme"]
@@ -97,6 +104,30 @@ class Phase0EpisodeBenchmarkTest(unittest.TestCase):
 
         self.assertIsNone(re.search(r"\b[^\s@]+@[^\s@]+\.[^\s@]+\b", serialized))
         self.assertNotIn("customer_id", serialized)
+
+    def test_real_round_uses_scored_and_unscored_episode_paths(self) -> None:
+        rows = {
+            row["case_id"]: row
+            for row in self.report["implementation_round"]["rounds"]
+        }
+
+        self.assertEqual(rows["recognition-ready"]["actual_status"], "ready")
+        for case_id in ("ticket-critical-support", "sql-execution-support"):
+            self.assertEqual(rows[case_id]["actual_status"], "support_only")
+            self.assertEqual(rows[case_id]["graph_route"], "support")
+            self.assertIsNone(rows[case_id]["legacy_fallback_target"])
+            self.assertTrue(rows[case_id]["outcome_gate_passed"])
+
+    def test_latency_gate_is_only_for_deterministic_planning_without_llm(self) -> None:
+        implementation = self.report["implementation_round"]
+
+        self.assertTrue(implementation["latency_gate_active"])
+        self.assertIn("LLM generation", implementation["excludes"])
+        self.assertIn("total learner-visible latency", implementation["excludes"])
+        for row in implementation["rounds"]:
+            self.assertEqual(row["latency_ms"]["samples"], 30)
+            self.assertGreaterEqual(row["latency_ms"]["p95"], row["latency_ms"]["p50"])
+            self.assertTrue(row["latency_gate_passed"])
 
 
 if __name__ == "__main__":

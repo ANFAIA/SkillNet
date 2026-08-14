@@ -55,17 +55,19 @@ path and retain the same quantitative gate.
 
 ## Phase 0 trajectory benchmark
 
-`phase0_episode_benchmark.py` compares reference ScreenScheme-shaped outputs with the
-explicit output contract expected from a future episodic path. It uses two offline domains:
-Crocantickets recovery with synthetic buyers and SQL `LEFT JOIN`/`NULL` behavior with a
-synthetic schema. It does not implement or claim measurements for an EpisodeDirector.
+`phase0_episode_benchmark.py` retains the ScreenScheme/trajectory reference oracle and also
+runs the real deterministic `direct_episode` planning boundary. The connected round covers
+grounded recognition with scored evidence plus explicitly unscored support for critical
+tickets and SQL when their real execution oracles are unavailable.
 
 ```powershell
-python output/harness/phase0_episode_benchmark.py `
+uv --project apps/skillnet-api run python output/harness/phase0_episode_benchmark.py `
   --out output/architecture-rounds/phase0-episodic
-python -m unittest output.harness.test_phase0_episode_benchmark
+uv --project apps/skillnet-api run python -m unittest `
+  output.harness.test_phase0_episode_benchmark
 ```
 
-Latency is a placeholder until both real paths can run under the same timer. The active
-oracles cover required facts, unsupported claims, one dominant action, producible evidence,
-critical-error coverage, transfer, and viewport budget.
+The active latency gate measures local deterministic policy/direct planning only (p50/p95).
+It explicitly excludes LLM generation, runtime activity authoring, persistence, browser work
+and total learner-visible latency. The trajectory oracles continue to cover required facts,
+unsupported claims, one dominant action, evidence, critical errors, transfer and viewport.
