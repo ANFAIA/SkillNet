@@ -18,15 +18,15 @@ LearningExperience
   pedagogical intent
   delivery bundle
     web: runtime structure selected from a bounded slice
-    audio?: prepared companion artifact
-    video?: prepared companion artifact
+    audio?: on-demand runtime representation
+    video?: on-demand runtime representation
     game?: future implementation
 ```
 
 La web es la modalidad primaria actual. Audio y vídeo son acompañantes acumulables. Las
-preferencias declaradas por el usuario son aditivas: puede seleccionar ambas. Si una
-modalidad solicitada aún no está preparada, la interfaz la mantiene visible como pendiente;
-no la infiere ni la sustituye silenciosamente.
+preferencias declaradas por el usuario son aditivas: puede seleccionar ambas. El selector
+permanece visible y la representación se genera sólo cuando la persona la activa. Mientras
+se prepara puede volver a web sin perder el estado de la experiencia OpenUI.
 
 ## Frontera con OpenUI
 
@@ -40,12 +40,25 @@ preferida. El catálogo global puede crecer sin aumentar de forma proporcional e
 
 ```text
 catálogo global -> filtro de modalidad web -> shortlist por intent -> OpenUI runtime
-artefactos audio/vídeo ---------------------------------------> shell del reproductor
+activación audio/vídeo -> generación runtime por nodo -------> shell del reproductor
 ```
 
-La generación de curso puede dedicar más tiempo a producir definiciones y bindings. El
-runtime sólo resuelve referencias ya aprobadas y selecciona una shortlist; no genera audio
-o vídeo ni llama a otro modelo para decidir cómo reproducirlos.
+La generación del curso prepara contratos pedagógicos, definiciones y bindings que agilizan
+la experiencia, pero no adjunta audio o vídeo precreados al curso. El runtime genera esas
+representaciones al activarlas. La selección web sigue usando referencias aprobadas y una
+shortlist; el productor de cada modalidad es quien resuelve su representación.
+
+## Generación on-time
+
+Audio y vídeo no se descubren consultando la biblioteca de artefactos del curso y tampoco
+forman parte del schema del curso. `POST /nodes/{node_id}/modalities/{modality}` pasa por la
+misma autorización de nodo y matrícula que el render web, y arranca el productor sólo tras
+una acción de la persona.
+
+La infraestructura de media persiste el resultado final como caché para polling, reintentos
+y reutilización tras recargar. Esa fila es un detalle interno del runtime: no es
+un bloque de autoría, no aparece como decisión pedagógica y no permite que el reproductor
+mezcle resultados del panel general del curso.
 
 ## Preferencias versionadas
 
@@ -58,7 +71,7 @@ El contrato v3 separa:
 Los valores v1 y v2 se normalizan a v3. El antiguo valor único `audio` se migra a
 `modalities=[audio]` y deja la presentación web en `balanced`.
 
-## Artefactos compartidos
+## Artefactos intermedios compartidos
 
 No se introduce ahora una capa de artefactos intermedios compartidos entre modalidades.
 Cada productor conserva su definición inmutable y su binding. Esta decisión evita acoplar
@@ -70,7 +83,8 @@ Se podrá añadir más adelante detrás de un contrato de entrada versionado, si
 
 El nivel 3 no será “añadir cientos de componentes al prompt”. Será una implementación
 genérica, por ejemplo `sandboxed.generated-ui@1`, seleccionable por el mismo binding que
-cualquier otra experiencia. Se genera en design-time y se sirve como artefacto inmutable.
+cualquier otra experiencia. Su política de generación on-time o anticipada deberá ser
+explícita; en ambos casos se sirve como salida inmutable y aislada.
 No está registrado ni permitido actualmente.
 
 Antes de activarlo deberá cumplir como mínimo:
@@ -94,3 +108,4 @@ sin romper intent, evidencia, historial, personalización ni fallback.
 - compartir guiones o representaciones intermedias entre productores;
 - permitir que OpenUI seleccione o suprima modalidades;
 - añadir audio/vídeo a la shortlist web sólo por ser preferencias del usuario.
+- usar la biblioteca de artefactos generales del curso como fuente del reproductor.

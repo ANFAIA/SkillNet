@@ -73,7 +73,9 @@
       "gates": [
         {"metric": "selected_modalities", "operator": "eq", "threshold": 2},
         {"metric": "openui_modality_fields", "operator": "eq", "threshold": 0},
-        {"metric": "preferred_missing_visible", "operator": "eq", "threshold": 1},
+        {"metric": "initial_runtime_requests", "operator": "eq", "threshold": 0},
+        {"metric": "activated_runtime_requests", "operator": "eq", "threshold": 1},
+        {"metric": "course_artifact_library_reads", "operator": "eq", "threshold": 0},
         {"metric": "shared_intermediate_artifacts", "operator": "eq", "threshold": 0}
       ]
     }

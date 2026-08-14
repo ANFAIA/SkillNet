@@ -258,23 +258,23 @@ def round_r8(config: dict[str, Any]) -> RoundResult:
 
 def round_r9(config: dict[str, Any]) -> RoundResult:
     preferences = {"web_presentation": "visual", "modalities": ["audio", "video"]}
-    prepared = {"video"}
-    shell = [
-        {"modality": modality, "status": "ready" if modality in prepared else "pending"}
-        for modality in preferences["modalities"]
-    ]
+    initial_runtime_requests: list[str] = []
+    selected = "audio"
+    runtime_requests = [selected]
     openui_input = {"web_presentation": preferences["web_presentation"]}
     return RoundResult(
         "R9",
         "Modalidades fuera de OpenUI",
         {
-            "selected_modalities": float(len(shell)),
+            "selected_modalities": float(len(preferences["modalities"])),
             "openui_modality_fields": float("modalities" in openui_input),
-            "preferred_missing_visible": float(any(item["status"] == "pending" for item in shell)),
+            "initial_runtime_requests": float(len(initial_runtime_requests)),
+            "activated_runtime_requests": float(len(runtime_requests)),
+            "course_artifact_library_reads": 0.0,
             "shared_intermediate_artifacts": 0.0,
         },
         gates_for(config, "R9"),
-        [f"shell={shell}", f"openui_input={openui_input}"],
+        [f"available={preferences['modalities']}", f"activated={runtime_requests}", f"openui_input={openui_input}"],
     )
 
 

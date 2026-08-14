@@ -115,12 +115,15 @@ Evidencia:
 
 - `selected_modalities`: 2.0
 - `openui_modality_fields`: 0.0
-- `preferred_missing_visible`: 1.0
+- `initial_runtime_requests`: 0.0
+- `activated_runtime_requests`: 1.0
+- `course_artifact_library_reads`: 0.0
 - `shared_intermediate_artifacts`: 0.0
 
 Evidencia:
 
-- shell=[{'modality': 'audio', 'status': 'pending'}, {'modality': 'video', 'status': 'ready'}]
+- available=['audio', 'video']
+- activated=['audio']
 - openui_input={'web_presentation': 'visual'}
 
 ## Alcance

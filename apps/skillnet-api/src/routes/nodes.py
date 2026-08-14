@@ -71,6 +71,7 @@ from src.repositories.node_probe_repo import NodeProbeRepository
 from src.repositories.node_render_repo import SERVABLE_STATUSES, NodeRenderRepository
 from src.repositories.node_render_view_repo import NodeRenderViewRepository
 from src.repositories.skill_repo import SkillRepository
+from src.schemas.media import MediaArtifactAccepted
 from src.schemas.node import (
     DEFAULT_ESTIMATED_MINUTES,
     NodeAnswerRequest,
@@ -80,6 +81,7 @@ from src.schemas.node import (
     NodeHintRequest,
     NodeHintResult,
     NodeListRead,
+    NodeModalityRequest,
     NodeRenderAccepted,
     NodeRenderHistoryItem,
     NodeRenderHistoryRead,
@@ -121,6 +123,7 @@ from src.services.node_render_service import (
     owner_of_request,
 )
 from src.services.probe_service import ProbeService
+from src.services.runtime_modalities import RuntimeModality, request_runtime_modality
 from src.services.skill_service import SkillService
 
 router = APIRouter(
@@ -541,6 +544,39 @@ async def request_render(
         request_id=result.request_id,
         cached=result.cached,
         render_id=result.render_id,
+    )
+
+
+@router.post(
+    "/{node_id}/modalities/{modality}",
+    response_model=MediaArtifactAccepted,
+    status_code=202,
+)
+async def request_node_modality(
+    user: CurrentUser,
+    db: DBSession,
+    node_id: uuid.UUID,
+    modality: RuntimeModality,
+    body: NodeModalityRequest | None = None,
+) -> MediaArtifactAccepted:
+    """Prepare audio or video when the learner activates it in the node player.
+
+    This deliberately bypasses the course-overview authoring policy: it is an enrolled
+    learner delivery route, protected by the same dynamic-node gate as the web render.
+    The returned media row is an internal async result/cache, not a course definition.
+    """
+    node, course = await _load_dynamic_node(db, user, node_id)
+    payload = body or NodeModalityRequest()
+    artifact, _created = await request_runtime_modality(
+        db,
+        course=course,
+        node=node,
+        modality=modality,
+        language=payload.language,
+    )
+    return MediaArtifactAccepted(
+        artifact_id=artifact.id,
+        status=str(getattr(artifact.status, "value", artifact.status)),
     )
 
 

@@ -55,6 +55,7 @@ export interface VideoOverviewProps {
   slides: VideoSlideSpec[]
   citations?: SlideCitation[]
   theme?: string
+  title?: string
   /** Called when a citation is activated, so the host can scroll to the passage. */
   onJumpToCitation?: (citationId: string) => void
 }
@@ -91,6 +92,7 @@ export function VideoOverview({
   slides,
   citations = [],
   theme,
+  title,
   onJumpToCitation,
 }: VideoOverviewProps) {
   const intl = useIntl()
@@ -268,11 +270,11 @@ export function VideoOverview({
       onKeyDown={onKeyDown}
       tabIndex={0}
       role="group"
-      aria-roledescription={intl.formatMessage({ id: 'video.title' })}
+      aria-roledescription={title ?? intl.formatMessage({ id: 'video.title' })}
     >
       <div className="flex items-center justify-between gap-3 mb-3">
         <h3 className={BLOCK_TITLE + ' mb-0'}>
-          {intl.formatMessage({ id: 'video.title' })}
+          {title ?? intl.formatMessage({ id: 'video.title' })}
         </h3>
         <div className="flex items-center gap-2">
           {themeLabel && (
@@ -405,7 +407,7 @@ export function VideoOverview({
             </button>
 
             {/* Segmented scrubber across slides */}
-            <div className="flex flex-1 items-center gap-1" role="group" aria-label={intl.formatMessage({ id: 'video.title' })}>
+            <div className="flex flex-1 items-center gap-1" role="group" aria-label={title ?? intl.formatMessage({ id: 'video.title' })}>
               {slides.map((s, i) => (
                 <button
                   key={i}

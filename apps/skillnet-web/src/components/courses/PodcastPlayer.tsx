@@ -41,6 +41,7 @@ export interface PodcastPlayerProps {
   turns: PodcastTurn[]
   citations?: PodcastCitation[]
   format?: string
+  title?: string
   /** Display names for the two host labels. Defaults to Lucía / Marcos. */
   hostNames?: { A: string; B: string }
   /** Called when a citation is activated, so the host can scroll to the passage. */
@@ -59,6 +60,7 @@ export function PodcastPlayer({
   turns,
   citations = [],
   format,
+  title,
   hostNames = { A: 'Lucía', B: 'Marcos' },
   onJumpToCitation,
 }: PodcastPlayerProps) {
@@ -146,7 +148,7 @@ export function PodcastPlayer({
       <div className="mb-4">
         <div className="flex items-center justify-between gap-3 mb-3">
           <h3 className={BLOCK_TITLE + ' mb-0'}>
-            {intl.formatMessage({ id: 'podcast.title' })}
+            {title ?? intl.formatMessage({ id: 'podcast.title' })}
           </h3>
           {formatLabel && (
             <span className="text-xs font-medium text-text-muted rounded-full bg-bg px-2.5 py-1">

@@ -194,18 +194,22 @@ async def list_artifacts(
     course_id: uuid.UUID = Query(...),
     node_id: uuid.UUID | None = Query(default=None),
 ) -> list[MediaArtifactRead]:
-    """Every media artifact of a course (newest first), org-scoped.
+    """Course overviews, or node-runtime results when ``node_id`` is explicit.
 
-    The course-home overviews panel reads this to list what has already been generated and
-    show each one's status. ``node_id`` optionally narrows the list to a single node. Static
-    path (``/artifacts``) so it never shadows ``/artifacts/{artifact_id}``.
+    The course-home panel never receives node-runtime audio/video. Passing ``node_id``
+    returns only that node. The static path cannot shadow ``/artifacts/{artifact_id}``.
     """
     course = await CourseRepository(db).get_scoped(course_id, user.org_id)
     if course is None:
         raise NotFoundError("courses", str(course_id))
 
-    artifacts = await MediaArtifactRepository(db).list_for_course(
-        course_id, user.org_id, node_id=node_id
+    repository = MediaArtifactRepository(db)
+    artifacts = (
+        await repository.list_course_level(course_id, user.org_id)
+        if node_id is None
+        else await repository.list_for_course(
+            course_id, user.org_id, node_id=node_id
+        )
     )
     return [MediaArtifactRead.of(artifact) for artifact in artifacts]
 

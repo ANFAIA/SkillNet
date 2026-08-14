@@ -50,6 +50,9 @@ export interface MediaArtifactAccepted {
 export const courseArtifactsKey = (courseId: string | undefined) =>
   ['media', 'course', courseId] as const
 
+export const mediaArtifactKey = (artifactId: string | undefined) =>
+  ['media', 'artifact', artifactId] as const
+
 // --------------------------------------------------------------------------- //
 // List + create
 // --------------------------------------------------------------------------- //
@@ -98,6 +101,29 @@ export function useCreateArtifact() {
     onSuccess: (_data, vars) => {
       queryClient.invalidateQueries({ queryKey: courseArtifactsKey(vars.course_id) })
     },
+  })
+}
+
+/** One on-demand runtime result; polls only while its background job is active. */
+export function useMediaArtifact(artifactId: string | undefined) {
+  return useQuery({
+    queryKey: mediaArtifactKey(artifactId),
+    queryFn: () => get<MediaArtifactRead>(`/media/artifacts/${artifactId}`),
+    enabled: !!artifactId,
+    refetchInterval: (query) => {
+      const data = query.state.data as MediaArtifactRead | undefined
+      return data && isInFlight(data.status) ? 1000 : false
+    },
+  })
+}
+
+/** Activate an audio/video representation for the current node, generated on demand. */
+export function useRequestNodeModality(nodeId: string | undefined) {
+  return useMutation({
+    mutationFn: (body: { modality: 'audio' | 'video'; language: 'es' | 'en' }) =>
+      post<MediaArtifactAccepted>(`/nodes/${nodeId}/modalities/${body.modality}`, {
+        language: body.language,
+      }),
   })
 }
 

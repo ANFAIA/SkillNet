@@ -752,13 +752,10 @@ export function NodeView() {
                             {openingLine}
                           </p>
                         )}
-                        {courseId && nodeId && (
-                          <NodeModalityAccess
-                            courseId={courseId}
-                            nodeId={nodeId}
-                            preferred={profile?.learning_preferences?.modalities ?? []}
-                          />
-                        )}
+                        <NodeModalityAccess
+                          nodeId={node.id}
+                          preferred={profile?.learning_preferences?.modalities ?? []}
+                        >
                         <motion.div
                           key={shownKey}
                           onClick={onSurfaceClick}
@@ -792,6 +789,7 @@ export function NodeView() {
                           </stepperProgressContext.Provider>
                           </ClickableSurface>
                         </motion.div>
+                        </NodeModalityAccess>
                       </motion.div>
                     ) : (
                       <motion.div

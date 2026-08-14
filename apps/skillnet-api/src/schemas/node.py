@@ -112,6 +112,14 @@ class NodeRenderAccepted(BaseModel):
     render_id: uuid.UUID | None = None
 
 
+class NodeModalityRequest(BaseModel):
+    """Small runtime hint; the server owns grounding, format and generation policy."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    language: Literal["es", "en"] = "es"
+
+
 class NodeRenderRead(BaseModel):
     """``GET /nodes/{node_id}/render``. ``answer_key`` can never appear here."""
 

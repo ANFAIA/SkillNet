@@ -50,3 +50,18 @@ class MediaArtifactRepository(BaseRepository[MediaArtifact]):
             query = query.where(MediaArtifact.node_id == node_id)
         query = query.order_by(MediaArtifact.created_at.desc())
         return (await self.session.execute(query)).scalars().all()
+
+    async def list_course_level(
+        self, course_id: uuid.UUID, org_id: uuid.UUID
+    ) -> Sequence[MediaArtifact]:
+        """Authored course overviews only; excludes node-runtime representations."""
+        query = (
+            select(MediaArtifact)
+            .where(
+                MediaArtifact.course_id == course_id,
+                MediaArtifact.org_id == org_id,
+                MediaArtifact.node_id.is_(None),
+            )
+            .order_by(MediaArtifact.created_at.desc())
+        )
+        return (await self.session.execute(query)).scalars().all()
