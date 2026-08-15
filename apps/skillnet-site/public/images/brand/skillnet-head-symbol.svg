@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="420" viewBox="0 0 480 420" role="img" aria-labelledby="title description">
+  <title id="title">Skillnet seed head, morph-ready base</title>
+  <desc id="description">The compact reference-matched Skillnet head with a horizontal shell band, unified facial mask and independently controllable pupils and highlights.</desc>
+  <style>
+    .shell { fill:#32af78; } .shell-band { fill:#1c8853; }
+    .eye-rim { fill:none; stroke:#1c8853; stroke-width:18; stroke-linecap:round; stroke-linejoin:round; }
+    .eye-mask { fill:#fff; } .pupil { fill:#061c3c; } .highlight { fill:#fff; }
+    #head-rig { transform-origin:240px 220px; } #shell-system { transform-origin:240px 220px; }
+    #face-module { transform-origin:326px 254px; } #pupil-left-control { transform-origin:291px 255px; } #pupil-right-control { transform-origin:396px 226px; }
+  </style>
+  <defs>
+    <!-- Same M + six C + Z command topology as #head-shell: use as the ball key pose. -->
+    <path id="head-shell-ball-pose" data-part="morph-source-ball" d="M 240 50
+      C 295 50, 350 79, 379 124
+      C 407 168, 401 226, 381 269
+      C 352 329, 300 362, 240 362
+      C 180 362, 128 329, 99 269
+      C 79 226, 73 168, 101 124
+      C 130 79, 185 50, 240 50 Z"/>
+    <clipPath id="shell-clip" clipPathUnits="userSpaceOnUse"><use href="#head-shell"/></clipPath>
+    <clipPath id="pupil-left-safe-area" clipPathUnits="userSpaceOnUse"><ellipse cx="291" cy="255" rx="36" ry="44"/></clipPath>
+    <clipPath id="pupil-right-safe-area" clipPathUnits="userSpaceOnUse"><ellipse cx="396" cy="226" rx="32" ry="40"/></clipPath>
+  </defs>
+  <g id="skillnet-head-symbol-v5" data-part="logo-symbol">
+    <g id="head-rig" data-part="head-rig" data-anchor-x="240" data-anchor-y="220" transform="translate(0 0)">
+      <g id="shell-system" data-part="shell-system" transform="translate(0 0)">
+        <!-- Reference silhouette retained; only its lower-left curve is split to create six cubic segments. -->
+        <path id="head-shell" class="shell" data-part="shell" d="M 237 42
+          C 350 40, 431 105, 439 190
+          C 448 279, 386 343, 282 370
+          C 175 396, 76 351, 45 278
+          C 27 235.5, 29.25 190.75, 46.75 151.75
+          C 64.25 112.75, 97 79.5, 140 60
+          C 170 47, 204 41, 237 42 Z"/>
+        <!-- Thin rear band: its final upper contour hands off beneath the facial rim. -->
+        <path id="horizontal-shell-band" class="shell-band" data-part="shell-band" clip-path="url(#shell-clip)" d="M 42 139
+          C 66 218, 146 273, 205 263
+          C 222 260, 218 234, 236 215
+          C 257 195, 285 192, 313 208
+          C 333 220, 344 220, 358 198
+          C 370 179, 383 161, 403 161
+          C 418 165, 431 176, 440 194
+          L 437 216
+          C 428 190, 415 179, 400 180
+          C 383 182, 373 199, 361 215
+          C 347 235, 334 239, 310 224
+          C 286 210, 265 211, 249 226
+          C 230 243, 236 279, 211 288
+          C 147 303, 55 245, 37 165 Z"/>
+      </g>
+      <!-- The rim and mask share a transform parent and must always animate together. -->
+      <g id="face-module" data-part="face-module" data-anchor-x="326" data-anchor-y="254" transform="translate(0 0)">
+        <!-- The rim overlaps the end of the rear band by a few units, avoiding a visual seam without adding weight. -->
+        <path id="eye-mask-rim" class="eye-rim" data-part="eye-rim" d="M 209 263
+          C 212 241, 218 228, 231 218
+          C 250 200, 278 195, 305 209
+          C 328 221, 345 225, 361 201
+          C 376 179, 394 169, 410 178
+          C 426 187, 431 214, 426 240"/>
+        <path id="eye-mask" class="eye-mask" data-part="eye-mask" d="M 231 218
+          C 250 200, 278 195, 305 209
+          C 328 221, 345 225, 361 201
+          C 376 179, 394 169, 410 178
+          C 426 187, 431 214, 426 240
+          C 420 276, 397 297, 367 307
+          C 334 318, 282 321, 253 312
+          C 226 304, 212 281, 214 252
+          C 215 238, 221 227, 231 218 Z"/>
+        <g id="eyes" data-part="eyes">
+          <g id="eye-left" data-part="eye" data-side="left" clip-path="url(#pupil-left-safe-area)">
+            <g id="pupil-left-control" data-part="pupil-control" transform="translate(0 0)">
+              <ellipse id="pupil-left" class="pupil" data-part="pupil" cx="291" cy="255" rx="22" ry="33" transform="rotate(-3 291 255)"/>
+              <g id="highlight-left-control" data-part="highlight-control" transform="translate(0 0)"><circle id="highlight-left" class="highlight" data-part="highlight" cx="279" cy="228" r="8"/></g>
+            </g>
+          </g>
+          <g id="eye-right" data-part="eye" data-side="right" clip-path="url(#pupil-right-safe-area)">
+            <g id="pupil-right-control" data-part="pupil-control" transform="translate(0 0)">
+              <ellipse id="pupil-right" class="pupil" data-part="pupil" cx="396" cy="226" rx="19" ry="29" transform="rotate(-2 396 226)"/>
+              <g id="highlight-right-control" data-part="highlight-control" transform="translate(0 0)"><circle id="highlight-right" class="highlight" data-part="highlight" cx="385" cy="200" r="7"/></g>
+            </g>
+          </g>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>
