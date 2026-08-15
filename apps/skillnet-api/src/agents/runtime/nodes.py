@@ -2030,11 +2030,16 @@ async def validate_ui(state: NodeRuntimeState) -> dict:
         assessment_block == "DidactActivity"
         or assessment_block in _DIRECT_DIDACT_CLOSERS
     ):
+        # The required closer can fall back from LearningExperience to QuizItem when
+        # authoring declines (see _prompt_assessment_required) — genera_ui's prompt
+        # follows that same fallback, so the prohibition below must too, or a correctly
+        # obedient model gets rejected for writing exactly the closer it was told to.
+        allowed_closers = set(_prompt_assessment_required(state))
         forbidden = sorted(
             {
                 component.type
                 for component in spec.components
-                if component.type in {"QuizItem", "DragOrder"}
+                if component.type in {"QuizItem", "DragOrder"} - allowed_closers
             }
         )
         if forbidden:
