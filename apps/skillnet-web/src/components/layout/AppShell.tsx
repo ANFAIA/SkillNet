@@ -27,7 +27,7 @@ function AppShellInner({ role }: { role: SidebarRole }) {
           {!isNodeView && <Header />}
           <motion.main
             layoutId="app-main"
-            className={`flex-1 bg-bg ${isNodeView ? 'flex flex-col overflow-hidden' : 'mt-[50px] overflow-x-clip overflow-y-auto'}`}
+            className={`flex-1 bg-bg ${isNodeView ? 'flex flex-col overflow-hidden' : 'mt-[50px] overflow-x-clip overflow-y-auto overscroll-y-contain'}`}
           >
             <ErrorBoundary
               fallback={(error, reset) => (
