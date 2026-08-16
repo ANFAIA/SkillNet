@@ -11,7 +11,7 @@ const COPY = {
 };
 
 const GITHUB_URL = "https://github.com/ANFAIA/SkillNet";
-const MORE_ANCHOR = "#el-problema";
+const MORE_ANCHOR = "#que-es-skillnet";
 
 export default function Hero() {
   const prefersReducedMotion = useReducedMotion();

@@ -9,10 +9,10 @@ export default function ProblemSection() {
   const reduced = useReducedMotion();
   const sectionRef = useRef<HTMLElement | null>(null);
   const { scrollYProgress } = useScroll({ target: sectionRef, offset: ["start end", "end start"] });
-  const bgY = useTransform(scrollYProgress, [0, 1], ["-6%", "6%"]);
+  const bgY = useTransform(scrollYProgress, [0, 1], ["-12%", "12%"]);
   const reveal = { initial: false } as const;
   return <section id="el-problema" ref={sectionRef} className="relative w-full overflow-hidden bg-[var(--color-primary-deep)]">
-    <motion.div aria-hidden="true" style={{ backgroundImage: `url(${BACKGROUND_URL})`, backgroundSize: "cover", backgroundPosition: "center", backgroundRepeat: "no-repeat", ...(reduced ? {} : { y: bgY }) }} className="pointer-events-none absolute inset-0 scale-110" />
+    <motion.div aria-hidden="true" style={{ backgroundImage: `url(${BACKGROUND_URL})`, backgroundSize: "cover", backgroundPosition: "center", backgroundRepeat: "no-repeat", ...(reduced ? {} : { y: bgY }) }} className="pointer-events-none absolute inset-0 scale-[1.2] will-change-transform" />
     <div className="absolute inset-0 bg-[var(--color-primary-deep)]/70" />
     <div className="relative mx-auto grid w-full max-w-[80%] gap-10 py-24 sm:min-h-[70vh] sm:grid-cols-2 sm:items-center sm:gap-16 sm:py-32">
       <motion.blockquote {...reveal} transition={{ duration: 0.6, ease: [0.38, 0.49, 0, 1] }} className="type-section-title text-balance text-white">&ldquo;{QUOTE}&rdquo;</motion.blockquote>

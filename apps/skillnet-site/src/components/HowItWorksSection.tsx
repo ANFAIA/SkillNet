@@ -12,14 +12,14 @@ const MODES = [
 
 export default function HowItWorksSection() {
   const [active, setActive] = useState<string>("texto");
-  return <section id="como-funciona" className="w-full scroll-mt-24 bg-white px-6 py-20 sm:px-10 sm:py-28">
+  return <section id="como-funciona" className="w-full scroll-mt-24 bg-white px-6 pb-20 pt-10 sm:px-10 sm:pb-28 sm:pt-12">
     <div className="mx-auto w-full max-w-[80%]">
       <motion.h2 initial={false} className="type-section-title text-[var(--color-text)]">Cómo funciona</motion.h2>
       <motion.p initial={false} className="type-lead mt-7 w-full text-[var(--color-text-secondary)]">A medida que la persona interactúa, SkillNet puede reconocer qué conceptos domina, dónde necesita más apoyo y qué formas de explicación le resultan más útiles. Así, la experiencia evoluciona con ella sin perder la referencia original ni los objetivos de aprendizaje.</motion.p>
       <motion.div initial={false} className="multimodal-surface mt-12 sm:mt-16">
         {MODES.map(({ key, label, Icon }) => {
           const selected = active === key;
-          return <motion.button key={key} type="button" aria-pressed={selected} onClick={() => setActive(key)} className={`media-cell media-cell--${key} ${selected ? "is-active" : ""}`} animate={{ scale: selected ? 1 : 0.995 }} whileHover={{ scale: 1 }} transition={{ duration: 0.35, ease: [0.56, 0.27, 0, 1] }}>
+          return <motion.button key={key} type="button" aria-pressed={selected} onClick={() => setActive(key)} className={`media-cell media-cell--${key} ${selected ? "is-active" : ""}`} whileHover={{ y: -2 }} transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}>
             <span className="media-cell__label"><Icon size={19} strokeWidth={1.7} />{label}</span>
             {key === "texto" && <div className="media-text"><strong>Todos aprendemos de forma distinta.</strong><p>{IDEA}</p></div>}
             {key === "imagen" && <div className="media-image" role="img" aria-label="Infografía visual sobre cómo se construye la comprensión" />}
