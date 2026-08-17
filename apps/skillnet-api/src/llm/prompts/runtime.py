@@ -149,7 +149,18 @@ PROMPT_VERSION = "runtime/41"
 #: simple; varias si lo pide), sin numero fijo. El tope del validador (5 hijos de raiz) es
 #: el techo natural. Ademas se anade un critico pedagogico opcional (MULTI_AGENT_RENDER)
 #: que revisa la forma y el generador reescribe UNA vez.
-EPISODE_PROMPT_VERSION = "episode/3"
+#: ``episode/4`` (2026-08-17): reestructuracion del prompt episodico segun best-practices de
+#: prompt-engineering para DeepSeek V3, y DOMAIN-ABSTRACTION de todos los ejemplos. (1) Orden
+#: nuevo: rol + gramatica -> HARD CONSTRAINTS (rubrica de calidad + contrato + limites del
+#: validador) -> formato de salida (sintaxis + clave) -> EJEMPLOS al final -> una linea que
+#: repite la instruccion mas importante. (2) Los ejemplos dejan de usar contenido de
+#: hosteleria/boxeo (que el modelo copiaba como TEMA y contaminaba el dominio del nodo): un
+#: ``_EPISODE_DIDACT_EXAMPLES`` abstracto sustituye al ``_DIDACT_BLOCK_EXAMPLES`` compartido
+#: SOLO en la ruta episodica; el multi-pantalla usa placeholders neutros. (3) Se anaden los
+#: limites del validador que faltaban y causaban fallback medido en el nodo de biomecanica:
+#: Table con EXACTAMENTE 2 argumentos y <=4 filas, <=5 pantallas, <=12 bloques. La ruta
+#: monolitica (PROMPT_VERSION) queda intacta.
+EPISODE_PROMPT_VERSION = "episode/4"
 
 _PRESENTATION_PREFERENCES = {
     "balanced": "Combina representaciones segun el objetivo y la fuente.",
@@ -797,11 +808,65 @@ def _episode_component_grammar(component_prompt: str) -> str:
     return "\n".join(cleaned).rstrip()
 
 
+#: HARD CONSTRAINTS del episodio, escritas como never/always y ANTES de los ejemplos
+#: (best-practice: las restricciones mas importantes en las primeras ~500 palabras). Son la
+#: rubrica de calidad expresada como reglas que el modelo no puede copiar como contenido.
+#: Domain-abstract: hablan de la NATURALEZA del material (procedimiento, concepto, dato,
+#: comparacion, termino), nunca de un tema concreto.
+_EPISODE_QUALITY_RULES = """
+## SkillNet: reglas de calidad (obligatorias)
+
+1. LA INTERACCION APORTA, no es un peaje. Interactuar debe hacer pensar, decidir o intentar
+   ANTES de ver la respuesta. NUNCA escondas detras de un clic informacion que el aprendiz
+   deberia leer directa (una lista de pasos informativos NO va dentro de un reveal). Si
+   esconder algo no obliga a pensar, muestralo entero.
+2. EL COMPONENTE LO ELIGE LA NATURALEZA DEL MATERIAL, no una plantilla:
+   - Informacion secuencial simple que solo hay que leer -> mostrarla entera (StepSequence
+     con los pasos visibles), nunca un reveal.
+   - Caso que hay que razonar paso a paso -> DidactWorkedExample.
+   - Comparar dos estados (correcto/incorrecto, antes/despues) -> BeforeAfter.
+   - Ordenar pasos o prioridades -> DragOrder.
+   - Un termino o dato clave que memorizar -> Flashcard o DidactGlossary.
+   - Cifras reales presentes en la fuente que comparar -> Chart o Table.
+   - Cronologia o procedimiento con matiz -> DidactTimeline.
+   Un contenido en el bloque equivocado es una pantalla mal hecha aunque el programa valide.
+3. INTERACTIVA SIEMPRE, pero no todo es examen. Cada episodio lleva al menos UNA interaccion
+   genuina. La mayoria puede ser exploracion o practica; evalua (QuizItem) SOLO cuando de
+   verdad hay algo comprobable con una respuesta correcta. No cierres por costumbre con un
+   test ni repitas el mismo QuizItem en nodos distintos.
+4. HONESTO CON LA MAESTRIA. Si no se puede evaluar de verdad, la pantalla sigue siendo
+   interactiva pero NO certifica dominio: usa practica no evaluativa (Flashcard, HintReveal,
+   DidactWorkedExample, DidactGlossary, DidactTimeline, DragOrder, BeforeAfter). Nunca finjas
+   un test ni inventes una clave de respuestas.
+5. FIEL A LA FUENTE. Todos los hechos salen de la fuente publica. No inventes datos,
+   interfaces ni escenarios que la fuente no contenga.
+6. SIN RUIDO. Nada de relleno, nada de otro dominio, ningun artefacto ("[Fuente: ...]"). El
+   texto normal se lee como texto normal: solo el primer bloque de la pantalla es "lead".
+"""
+
+#: Limites del validador escritos de forma abstracta. Su ausencia era la causa medida del
+#: fallback en el nodo de biomecanica (2026-08-17): el modelo escribio Table con 3 argumentos
+#: (con titulo) y luego una Table de 8 filas, y ambos rechazos agotaron el reintento.
+_EPISODE_VALIDATOR_LIMITS = """
+## SkillNet: limites de forma (si te pasas, el programa se rechaza)
+
+- Table lleva EXACTAMENTE 2 argumentos y ningun titulo: Table(cabeceras, filas). Como maximo
+  4 filas y celdas cortas. Si la fuente enumera mas de 4 cosas, NO hagas una tabla alta que
+  obligue a hacer scroll: comprime a lo esencial para el resultado, o reparte el resto en
+  otra pantalla. Nunca omitas un hecho obligatorio, pero tampoco vuelques la lista entera.
+- Como maximo 5 PANTALLAS (hijos directos de la raiz) y 12 bloques en total. Si el material
+  no cabe, repartelo por sentido o recorta lo secundario; nunca escondas contenido
+  obligatorio detras de un reveal para hacerlo caber.
+- Cada pantalla se lee de un vistazo, sin scroll: frases breves y pocos bloques por pantalla.
+"""
+
 #: El episodio como FLUJO de pantallas. Cada hijo directo del Stack raiz es una pantalla
 #: que el aprendiz pasa una a una; el frontend pagina. No hay numero fijo: el material
 #: manda. Un nodo simple es UNA pantalla (un solo hijo de la raiz); uno rico son varias
 #: (hasta 5, el tope del validador). El ejemplo es COMPLETO y valido para el validador —
-#: es lo unico que evita que el modelo pequeno se caiga al respaldo (leccion de la fase 1).
+#: es lo unico que evita que el modelo se caiga al respaldo (leccion de la fase 1). Los
+#: ejemplos son DOMAIN-ABSTRACT a proposito: placeholders que ensenan la ESTRUCTURA y la
+#: eleccion por naturaleza sin arrastrar al modelo hacia un tema concreto.
 _EPISODE_MULTISCREEN = """
 ## SkillNet: el episodio es un FLUJO de PANTALLAS (no una pagina)
 
@@ -820,39 +885,117 @@ siguiente (paginacion). Piensa cada hijo como un "beat" autonomo que cabe sin sc
 - No repartas una sola frase en varias pantallas ni metas media leccion en una. Reparte por
   SENTIDO: cada pantalla se sostiene sola.
 
-Ejemplo COMPLETO y valido (copia la ESTRUCTURA de pantallas, no el contenido). Tres
-pantallas: gancho, ejemplo resuelto, y un chequeo:
+Los ejemplos son PLACEHOLDERS abstractos: copia la ESTRUCTURA de pantallas y la eleccion de
+bloque por naturaleza del material, NUNCA el tema ni las palabras. Rellenalos con los hechos
+reales de la fuente de este nodo.
+
+Ejemplo (material que hay que RAZONAR) — tres pantallas: gancho, ejemplo resuelto, chequeo:
 
 root = Stack([pantallaGancho, pantallaEjemplo, pantallaChequeo], "md")
-pantallaGancho = TextContent("Un novato lanza el gancho con el brazo y pierde toda la potencia.", "lead")
-pantallaEjemplo = DidactWorkedExample("Como nace la potencia de un gancho?", ["La cadera gira primero y empuja el tronco.", "El tronco arrastra el hombro y el brazo va detras.", "El puno llega tenso solo en el impacto."], "La potencia sube desde el suelo: cadera, tronco, brazo, en ese orden.")
-pantallaChequeo = QuizItem("q1", "test", "apply", "De donde sale primero la fuerza de un gancho bien dado?", ["Del brazo", "De la cadera", "Del hombro", "De la muneca"])
+pantallaGancho = TextContent("Frase de entrada que situa el problema del punto en un caso concreto del puesto.", "lead")
+pantallaEjemplo = DidactWorkedExample("Como se resuelve el caso tipico?", ["Primer paso del razonamiento, con su porque.", "Segundo paso que se apoya en el anterior.", "Tercer paso que cierra la decision."], "La idea clave que el aprendiz se lleva del ejemplo.")
+pantallaChequeo = QuizItem("q1", "test", "apply", "Ante un caso nuevo del mismo tipo, que decision tomas?", ["Un error plausible que comete la gente", "La opcion correcta", "Otro error tipico distinto", "Un cuarto distractor real"])
 ---ANSWER-KEY---
-{"q1": {"correct": 1, "explanation": "La cadena empieza en la cadera; el brazo solo transmite."}}
+{"q1": {"correct": 1, "explanation": "Por que esa opcion y no las otras, en una o dos frases."}}
 
-Si el nodo es simple, dos pantallas cortas bastan (gancho + una practica):
+Ejemplo (punto SIMPLE, un termino que memorizar) — dos pantallas: gancho + una practica:
 
 root = Stack([gancho, practica], "md")
-gancho = TextContent("El jab es tu golpe mas rapido y el que mas vas a usar.", "lead")
-practica = Flashcard("Con que mano se lanza el jab?", "Con la mano adelantada, en linea recta.")
+gancho = TextContent("Frase de entrada breve que introduce un punto sencillo.", "lead")
+practica = Flashcard("Pregunta de recuerdo activo sobre el termino clave.", "La respuesta que el aprendiz intenta recordar antes de revelar.")
+"""
+
+
+#: Los mismos bloques Didact que el prompt legacy, pero con ejemplos DOMAIN-ABSTRACT: el
+#: prompt legacy (``_DIDACT_BLOCK_EXAMPLES``) usa contenido de hosteleria/boxeo, que el
+#: modelo copia como TEMA y contamina el dominio del nodo. Aqui los ejemplos son placeholders
+#: neutros: ensenan que bloque va con que NATURALEZA de contenido, sin arrastrar hacia un
+#: tema. Ilustrativos: usa un bloque SOLO si el material lo pide.
+_EPISODE_DIDACT_EXAMPLES = """
+## SkillNet: forma de un programa (copia la ESTRUCTURA, no el contenido)
+
+root = Stack([intro, concepto, practica], "md")
+intro = TextContent("Frase de entrada que plantea el punto en un caso concreto.", "lead")
+concepto = StepSequence("Nombre del procedimiento", ["Primer paso, con lo que hay que hacer.", "Segundo paso.", "Tercer paso."])
+practica = Flashcard("Pregunta de recuerdo sobre el punto clave.", "La respuesta que se intenta recordar.")
+
+- Stack SIEMPRE lleva EXACTAMENTE 2 argumentos: la lista de hijos por id y el gap
+  ("sm"|"md"|"lg"). Escribe Stack([intro, concepto, practica], "md"), NUNCA Stack([...]) a
+  secas ni Stack(children=[...], gap="md"). Sin el segundo argumento el programa se rechaza.
+- El root reune de 1 a 5 pantallas por id; declara cada bloque en su propia linea con
+  `id = Bloque(...)`. No metas todo anidado dentro de Stack en una sola expresion.
+
+## SkillNet: interacciones Didact (elige por la NATURALEZA del material)
+
+No toda pantalla termina en pregunta. Segun lo que ES el material, la interaccion puede ser:
+
+- RECUERDO ACTIVO de un termino o dato -> Flashcard(anverso, reverso). El aprendiz intenta
+  recordar antes de revelar. No certifica dominio; es practica.
+  tarjeta = Flashcard("Pregunta sobre el termino o dato clave.", "La respuesta exacta de la fuente.")
+- APOYO GRADUADO ante un caso dificil -> HintReveal(titulo, [pistas...], solucion). Pistas
+  de menor a mayor ayuda y la solucion solo si el aprendiz la pide.
+  ayuda = HintReveal("Titulo del caso", ["Pista suave que orienta.", "Pista mas concreta.", "Pista casi resolutoria."], "La solucion, en una frase.")
+- SOLUCION RAZONADA paso a paso -> DidactWorkedExample(problema, [pasos...], resumen).
+  ejemplo = DidactWorkedExample("Enunciado del caso a razonar.", ["Paso 1 del razonamiento.", "Paso 2 que se apoya en el anterior.", "Paso 3 que decide."], "La idea que se generaliza a otros casos.")
+- TERMINOS CONSULTABLES -> DidactGlossary(titulo, [terminos...], [definiciones...]).
+  glosario = DidactGlossary("Terminos clave", ["Termino A", "Termino B"], ["Definicion breve de A.", "Definicion breve de B."])
+- CRONOLOGIA o procedimiento con matiz -> DidactTimeline(titulo, [pasos...], [detalles...]).
+  linea = DidactTimeline("Nombre del proceso", ["Fase 1", "Fase 2", "Fase 3"], ["Matiz de la fase 1.", "Matiz de la fase 2.", "Matiz de la fase 3."])
+- ORDENAR pasos o prioridades -> DragOrder(instruccion, [items...], [orden correcto...]).
+  ordena = DragOrder("Ordena los pasos:", ["Paso B", "Paso A", "Paso C"], ["Paso A", "Paso B", "Paso C"])
+- COMPARAR dos estados -> BeforeAfter(titulo, etiquetaMal, textoMal, etiquetaBien, textoBien).
+  contraste = BeforeAfter("Titulo de la comparacion", "MAL", "Descripcion del caso incorrecto.", "BIEN", "Descripcion del caso correcto.")
+- EXPERIENCIA PREPARADA POR EL SERVIDOR -> LearningExperience(experience_id,
+  implementation_ref, definition_ref) con los valores EXACTOS del contexto; nunca inventes ids.
+
+Flashcard, HintReveal, DidactGlossary, DidactTimeline y DidactWorkedExample NO llevan clave
+de respuestas: no son evaluacion, son practica. Solo QuizItem y DragOrder la llevan.
+"""
+
+
+#: Best-practice: repetir al FINAL la instruccion mas importante. Para este generador es la
+#: eleccion de forma por naturaleza del material + al menos una interaccion que aporte, sin
+#: esconder informacion ni fingir un examen. Es lo ultimo que el modelo lee antes de escribir.
+_EPISODE_CLOSING_REMINDER = """
+## SkillNet: recuerda antes de escribir
+
+Elige cada bloque por lo que ES el material (procedimiento, concepto, dato, comparacion o
+termino), no por costumbre. Incluye al menos una interaccion que haga PENSAR, sin esconder
+informacion que se deba leer directa y sin fingir un examen cuando no hay respuesta
+comprobable. Responde solo con el programa (y su clave si lleva algun QuizItem).
 """
 
 
 @cache
 def episode_ui_generator_system(component_prompt: str | None = None) -> str:
-    """Dialect and safety rules for formula-free runtime episodes."""
+    """Dialect and safety rules for formula-free runtime episodes.
+
+    Structured per prompt-engineering best-practice: role + grammar (from the artefact),
+    then the HARD CONSTRAINTS (quality rubric + episode contract + validator limits) in the
+    first section, then the output-format (dialect syntax + answer-key protocol), then the
+    worked EXAMPLES last, and finally a one-line repeat of the single most important
+    instruction. All examples are DOMAIN-ABSTRACT so they do not bias the model's topic.
+    """
 
     grammar = _episode_component_grammar(component_prompt or render_prompt())
     return (
         grammar
         + "\n\n"
+        # --- hard constraints first (the rubric + contract + validator limits) ---
+        + _EPISODE_QUALITY_RULES
+        + _EPISODE_GENERATOR_RULES
+        + _EPISODE_VALIDATOR_LIMITS
+        # --- output format: dialect syntax corrections + answer-key protocol ---
+        + "\n"
         + _episode_dialect_rules()
         + "\n"
-        + _DIDACT_BLOCK_EXAMPLES
-        + _EPISODE_MULTISCREEN
-        + _EPISODE_GENERATOR_RULES
-        + "\n"
         + _ANSWER_KEY_PROTOCOL
+        # --- reference material / worked examples LAST (all domain-abstract) ---
+        + "\n"
+        + _EPISODE_DIDACT_EXAMPLES
+        + _EPISODE_MULTISCREEN
+        # --- repeat the single most important instruction at the very END ---
+        + _EPISODE_CLOSING_REMINDER
     )
 
 
@@ -886,8 +1029,8 @@ validador). Tu trabajo es notar si la FORMA encaja con ESTE material y dominio.
 
 Preguntate, sin imponer reglas rigidas:
 - La forma encaja con lo que ES el material? Un procedimiento se practica ordenando pasos;
-  un concepto se practica con un caso; un dato exacto, recordandolo. Un tramite de tickets
-  no se parece a un concepto de boxeo.
+  un concepto se practica con un caso; un dato exacto, recordandolo; una comparacion, con
+  antes/despues. Materiales de distinta naturaleza no se parecen entre si.
 - Los bloques elegidos son los mejores para esto, o hay uno mas natural en el catalogo?
 - Esta demasiado cargado de test/quiz? Falta una interaccion genuina?
 - El numero de pantallas es sensato para el material? (Ni trocear una idea simple en cinco
