@@ -6,7 +6,7 @@ from typing import Annotated
 from fastapi import APIRouter, Query, Response
 
 from src.core.exceptions import ForbiddenError, ValidationError
-from src.deps.auth import AdminUser, CurrentUser
+from src.deps.auth import AdminUser, CurrentUser, OrganizationWorkspace
 from src.deps.db import DBSession
 from src.models import Enrollment, EnrollmentStatus, UserRole
 from src.repositories.course_repo import CourseRepository
@@ -89,7 +89,7 @@ async def list_enrollments(
 
 @router.post("", response_model=list[EnrollmentRead], status_code=201)
 async def create_enrollments(
-    admin: AdminUser, db: DBSession, body: EnrollmentCreate
+    admin: AdminUser, db: DBSession, body: EnrollmentCreate, _org: OrganizationWorkspace
 ) -> list[EnrollmentRead]:
     service = _service(db)
     created = await service.assign(
@@ -139,7 +139,7 @@ async def complete_enrollment(
 
 @router.delete("/{enrollment_id}", status_code=204)
 async def delete_enrollment(
-    admin: AdminUser, db: DBSession, enrollment_id: uuid.UUID
+    admin: AdminUser, db: DBSession, enrollment_id: uuid.UUID, _org: OrganizationWorkspace
 ) -> Response:
     service = _service(db)
     await service.delete(enrollment_id=enrollment_id, org_id=admin.org_id)

@@ -37,15 +37,27 @@ All tables are scoped by `org_id` (directly or through parent FK). Single organi
 One row per deployment. Exists for data scoping and future-proofing.
 
 ```sql
+CREATE TYPE workspace_mode AS ENUM ('organization', 'individual');
+
 CREATE TABLE organizations (
-    id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    name        text NOT NULL,
-    slug        text NOT NULL UNIQUE,
-    settings    jsonb NOT NULL DEFAULT '{}',
-    created_at  timestamptz NOT NULL DEFAULT now(),
-    updated_at  timestamptz NOT NULL DEFAULT now()
+    id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    name           text NOT NULL,
+    slug           text NOT NULL UNIQUE,
+    workspace_mode workspace_mode NOT NULL DEFAULT 'organization',
+    settings       jsonb NOT NULL DEFAULT '{}',
+    created_at     timestamptz NOT NULL DEFAULT now(),
+    updated_at     timestamptz NOT NULL DEFAULT now()
 );
 ```
+
+`workspace_mode` (migration 0017) is the deployment's audience mode — see
+`docs/design/audience-modes.md`. It is a stable per-deployment capability, set
+once when the organization row is created (from `WORKSPACE_MODE`, default
+`organization`), never inferred from the number of users. In `organization` the
+row represents a company/team/class; in `individual` it is one person's personal
+space. Existing deployments upgrade to `organization`, so nothing changes for
+them. The collective, organization-only endpoints (employees, talent, stats,
+course assignment, skills) return 404 in an `individual` workspace.
 
 ### Users
 

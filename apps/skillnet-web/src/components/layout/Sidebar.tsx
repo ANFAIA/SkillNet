@@ -9,6 +9,8 @@ import {
 } from 'framer-motion'
 import { useIntl } from 'react-intl'
 import { useEnrollments } from '../../api/enrollments'
+import { useWorkspaceMode } from '../../hooks/useAuth'
+import type { WorkspaceMode } from '../../types'
 import { useSidebar } from '../../contexts/SidebarContext'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
 import { backdrop, sidebarSlide } from '../../lib/motion'
@@ -24,10 +26,12 @@ interface NavItem {
 
 export type SidebarRole = 'employee' | 'admin'
 
-function useNavItems(role: SidebarRole): NavItem[] {
+function useNavItems(role: SidebarRole, mode: WorkspaceMode): NavItem[] {
   const intl = useIntl()
   return useMemo(
-    () => role === 'employee' ? [
+    () => {
+      const individual = mode === 'individual'
+      return role === 'employee' ? [
       {
         label: intl.formatMessage({ id: 'nav.home' }),
         to: '/empleado',
@@ -99,8 +103,17 @@ function useNavItems(role: SidebarRole): NavItem[] {
         to: '/admin/chat',
         icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>,
       },
-    ],
-    [intl, role],
+    ]
+      // In an individual deployment the owner administers and learns alone: the
+      // collective pages do not exist, and "Content" reads as "My courses".
+      .filter((item) => !individual || (item.to !== '/admin/empleados' && item.to !== '/admin/talento'))
+      .map((item) =>
+        individual && item.to === '/admin/contenido'
+          ? { ...item, label: intl.formatMessage({ id: 'admin.nav.myCourses' }) }
+          : item,
+      )
+    },
+    [intl, role, mode],
   )
 }
 
@@ -193,7 +206,8 @@ function SidebarContent({
 }) {
   const { closeMobile, toggleCollapsed } = useSidebar()
   const intl = useIntl()
-  const navItems = useNavItems(role)
+  const mode = useWorkspaceMode()
+  const navItems = useNavItems(role, mode)
 
   return (
     <>

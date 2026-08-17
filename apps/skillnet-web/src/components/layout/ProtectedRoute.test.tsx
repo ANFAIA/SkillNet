@@ -45,6 +45,10 @@ const EMPLOYEE = {
 
 const ADMIN = { id: 'u2', email: 'admin@skillnet.dev', full_name: 'Admin', role: 'admin' }
 
+// The owner of an individual deployment: an admin who also learns, so the
+// onboarding gate must treat them like a learner. See audience-modes.md.
+const INDIVIDUAL_OWNER = { ...ADMIN, workspace_mode: 'individual' }
+
 function health(): Handler {
   return {
     status: 200,
@@ -229,6 +233,36 @@ describe('ProtectedRoute — onboarding gate (§6.1)', () => {
     renderGuard(employeeGuard())
     expect(await screen.findByText('APP')).toBeInTheDocument()
     expect(screen.queryByText('WIZARD')).toBeNull()
+  })
+
+  it('gates the individual-mode owner (admin) to onboarding when unanswered', async () => {
+    serve({
+      '/health': health(),
+      '/auth/me': { status: 200, body: INDIVIDUAL_OWNER },
+      '/users/me/learner-profile': profile(),
+    })
+    renderGuard(
+      <ProtectedRoute role="admin">
+        <div>APP</div>
+      </ProtectedRoute>,
+      '/admin',
+    )
+    expect(await screen.findByText('WIZARD')).toBeInTheDocument()
+  })
+
+  it('lets the individual-mode owner through once onboarding is answered', async () => {
+    serve({
+      '/health': health(),
+      '/auth/me': { status: 200, body: INDIVIDUAL_OWNER },
+      '/users/me/learner-profile': profile({ onboarding_completed_at: '2026-07-25T09:12:00Z' }),
+    })
+    renderGuard(
+      <ProtectedRoute role="admin">
+        <div>APP</div>
+      </ProtectedRoute>,
+      '/admin',
+    )
+    expect(await screen.findByText('APP')).toBeInTheDocument()
   })
 
   it('skipOnboardingGate keeps /onboarding from redirecting to itself', async () => {

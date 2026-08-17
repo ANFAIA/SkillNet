@@ -7,11 +7,19 @@ import type { UiFormat as UiFormatType } from './node-render'
 
 export type UserRole = 'admin' | 'employee'
 
+// How this deployment is used. Fixed per deployment (see audience-modes.md), it
+// arrives on `/auth/me` so the SPA can derive navigation without a second call.
+// A UX signal only — the API still enforces access server-side.
+export type WorkspaceMode = 'organization' | 'individual'
+
 export interface User {
   id: string
   email: string
   full_name: string
   role: UserRole
+  // Present on the `/auth/me` payload (MeRead). Absent on other user payloads
+  // (list, detail), so treat it as optional and default to 'organization'.
+  workspace_mode?: WorkspaceMode
   // The backend column is the `learning_profile` enum (`src/models/user.py`), not a
   // JSON blob: it is a plain string, non-nullable, defaulting to 'standard'. The
   // previous `Record<string, unknown> | null` made the onboarding wizard unable to
@@ -361,6 +369,7 @@ export interface GenerationProgress {
 export interface OrgSettings {
   name: string
   slug: string
+  workspace_mode: WorkspaceMode
   self_registration_enabled: boolean
   llm_configured: boolean
   llm_model?: string | null

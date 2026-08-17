@@ -5,7 +5,7 @@ import uuid
 from fastapi import APIRouter, Response
 
 from src.core.exceptions import NotFoundError
-from src.deps.auth import AdminUser
+from src.deps.auth import AdminUser, OrganizationWorkspace
 from src.deps.db import DBSession
 from src.repositories.course_folder_repo import CourseFolderRepository
 from src.repositories.course_repo import CourseRepository
@@ -84,6 +84,7 @@ async def assign_folder(
     db: DBSession,
     folder_id: uuid.UUID,
     body: CourseFolderAssignmentCreate,
+    _org: OrganizationWorkspace,
 ) -> CourseFolderAssignmentResult:
     folder_repo = CourseFolderRepository(db)
     folder = await folder_repo.get_scoped(folder_id, admin.org_id)

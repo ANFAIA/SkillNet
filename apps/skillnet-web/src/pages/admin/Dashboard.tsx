@@ -1,5 +1,8 @@
 import { motion } from 'framer-motion'
+import { Link } from 'react-router-dom'
+import { useIntl } from 'react-intl'
 import { useStats } from '../../api/stats'
+import { useAuth, useWorkspaceMode } from '../../hooks/useAuth'
 import { Card, CardTitle, MetricCard, PageHeader, Skeleton } from '../../components/ui'
 import { staggerContainer, staggerItem } from '../../lib/motion'
 import type { RecentActivityItem } from '../../types'
@@ -104,8 +107,54 @@ function formatRelativeTime(isoDate: string): string {
   return `hace ${days}d`
 }
 
+/**
+ * The individual owner's home. In an `individual` deployment there is no team,
+ * so the company panel (employees, collective enrollments, others' activity) has
+ * nothing to show and its `/stats` endpoint 404s. This replaces it with a
+ * personal starting point: create a course, or open the ones you have. See
+ * docs/design/audience-modes.md.
+ */
+function IndividualHome() {
+  const intl = useIntl()
+  const { user } = useAuth()
+  const name = user?.full_name?.split(' ')[0] ?? ''
+  const greeting = name
+    ? intl.formatMessage({ id: 'admin.home.greetingName' }, { name })
+    : intl.formatMessage({ id: 'admin.home.greeting' })
+
+  return (
+    <div>
+      <PageHeader
+        title={greeting}
+        description={intl.formatMessage({ id: 'admin.home.individualSubtitle' })}
+      />
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6">
+        <Link to="/admin/crear-curso" className="block">
+          <Card className="h-full transition-colors hover:border-primary">
+            <CardTitle>{intl.formatMessage({ id: 'admin.nav.createCourse' })}</CardTitle>
+            <p className="mt-2 text-sm text-text-secondary">
+              {intl.formatMessage({ id: 'admin.home.createHint' })}
+            </p>
+          </Card>
+        </Link>
+        <Link to="/admin/contenido" className="block">
+          <Card className="h-full transition-colors hover:border-primary">
+            <CardTitle>{intl.formatMessage({ id: 'admin.nav.myCourses' })}</CardTitle>
+            <p className="mt-2 text-sm text-text-secondary">
+              {intl.formatMessage({ id: 'admin.home.myCoursesHint' })}
+            </p>
+          </Card>
+        </Link>
+      </div>
+    </div>
+  )
+}
+
 export function Dashboard() {
-  const { data: stats, isLoading, isError } = useStats()
+  const mode = useWorkspaceMode()
+  const { data: stats, isLoading, isError } = useStats({ enabled: mode !== 'individual' })
+
+  if (mode === 'individual') return <IndividualHome />
 
   if (isError) {
     return (

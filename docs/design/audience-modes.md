@@ -1,9 +1,11 @@
 # Modos de audiencia: Organization e Individual
 
-> **Estado: dirección de producto, no compromiso de implementación inmediata.**
-> Este documento define cómo puede ampliar SkillNet sus casos de uso como software
-> descargable y self-hosted. No implica crear ahora una web comercial, un SaaS
-> multi-tenant ni dos productos distintos.
+> **Estado: implementado (primera vertical).** El modo es una capacidad estable del
+> despliegue, `organizations.workspace_mode` (migración 0017), fijada al crear la
+> organización desde `WORKSPACE_MODE` (por defecto `organization`) y nunca inferida
+> del número de usuarios. El documento sigue describiendo la dirección de producto;
+> lo ya construido se resume abajo en «Estado de implementación». No implica crear
+> una web comercial, un SaaS multi-tenant ni dos productos distintos.
 
 ## Decisión
 
@@ -161,3 +163,31 @@ La ampliación estará bien resuelta si:
 Audio en el chat, conversaciones en vivo, mascota y podcasts pueden reutilizarse en ambos
 modos. Esta decisión no añade por sí sola más funciones al producto empresarial. La nota
 de dirección está en [conversational-modalities.md](conversational-modalities.md).
+
+## Estado de implementación
+
+Primera vertical construida (mantiene `organization` intacto por defecto):
+
+- **Datos.** `organizations.workspace_mode` (enum `workspace_mode`, migración 0017),
+  default `organization`. Sin multi-tenancy: una fila por despliegue, como antes.
+- **Arranque.** `bootstrap.ensure_organization` lee `WORKSPACE_MODE` (env, default
+  `organization`) sólo al crear la organización; los despliegues existentes conservan
+  su valor.
+- **API.** El modo viaja al cliente en `GET /auth/me` (`workspace_mode`) y en
+  `GET /settings`. Las superficies colectivas —empleados (alta/lista/reset), talento,
+  estadísticas, asignación de cursos y catálogo de skills— pasan por la dependencia
+  `require_organization_workspace`, que responde **404** en `individual`: ahí esos
+  conceptos no existen. La autorización sigue en el servidor; ocultar en la SPA es UX.
+- **Frontend.** La navegación se deriva del modo (`useWorkspaceMode`). En `individual`
+  el propietario es un `admin` que además aprende: la barra lateral omite Empleados y
+  Talento, «Contenido» se presenta como «Mis cursos», y el panel de empresa se
+  sustituye por un inicio personal. El propietario pasa una vez por el onboarding del
+  aprendiz para tener perfil y personalización.
+- **Roles.** Sin rol nuevo: `individual` reutiliza `admin` como propietario-alumno.
+- **Seed.** `src.seed_demo_individual` levanta un espacio personal mínimo (un
+  propietario, un documento, un curso; sin empleados ni matrículas) reutilizando los
+  bloques de `seed_demo_v2`.
+
+Pendiente (fases siguientes): fijar el modo desde un wizard de primer arranque (hoy es
+env), pulir el onboarding del propietario, y la ampliación no destructiva
+`individual → organization`.

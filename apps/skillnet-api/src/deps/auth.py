@@ -5,11 +5,13 @@ from typing import Annotated
 
 from fastapi import Depends
 from fastapi_users import FastAPIUsers
+from sqlalchemy import select
 
 from src.auth.backend import auth_backend
 from src.auth.manager import get_user_manager
-from src.core.exceptions import ForbiddenError
-from src.models import User, UserRole
+from src.core.exceptions import AppError, ForbiddenError
+from src.deps.db import DBSession
+from src.models import Organization, User, UserRole, WorkspaceMode
 
 fastapi_users = FastAPIUsers[User, uuid.UUID](get_user_manager, [auth_backend])
 
@@ -49,6 +51,35 @@ def require_employee_or_admin(user: CurrentUser) -> User:
     return user
 
 
+async def require_organization_workspace(user: CurrentUser, db: DBSession) -> None:
+    """Gate collective, organization-only surfaces (employees, talent, stats,
+    course assignment, skills catalogue).
+
+    In an ``individual`` deployment these concepts do not exist, so the endpoints
+    answer 404 rather than 403: it is not that the caller is *forbidden*, it is
+    that there is no such thing in this workspace. This is server-side
+    enforcement — hiding the sections in the SPA is UX, not authorization. See
+    ``docs/design/audience-modes.md``.
+
+    Scoped to the caller's own organization (``user.org_id``) rather than the
+    ``select().limit(1)`` single-tenant shortcut, so it stays correct even if a
+    database holds more than one organization row. Composes with the role guards
+    (``AdminUser``) already on these endpoints.
+    """
+    mode = (
+        await db.execute(
+            select(Organization.workspace_mode).where(Organization.id == user.org_id)
+        )
+    ).scalar_one_or_none()
+    if mode == WorkspaceMode.INDIVIDUAL:
+        raise AppError(
+            message="Not available in an individual workspace",
+            code="NOT_FOUND",
+            status_code=404,
+        )
+
+
 AdminUser = Annotated[User, Depends(require_admin)]
 EmployeeUser = Annotated[User, Depends(require_employee)]
 EmployeeOrAdminUser = Annotated[User, Depends(require_employee_or_admin)]
+OrganizationWorkspace = Annotated[None, Depends(require_organization_workspace)]

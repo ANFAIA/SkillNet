@@ -8,6 +8,8 @@ from pydantic import BaseModel
 class OrgSettingsRead(BaseModel):
     name: str
     slug: str
+    #: Deployment mode: "organization" or "individual". See audience-modes.md.
+    workspace_mode: str = "organization"
     self_registration_enabled: bool = False
     # Effective LLM config (never exposes the API key).
     llm_configured: bool

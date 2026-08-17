@@ -81,6 +81,28 @@ running it twice is safe, and it prints every account it created.
 There is also a much smaller v1 seed, `src.seed_demo` (1 employee and 16 skills), which
 predates dynamic courses and exists to compare the old static path.
 
+### Individual workspace mode
+
+By default a deployment runs in `organization` mode (a company/team/class, the flow above).
+The other mode is `individual`: one person who installs SkillNet for themselves and both
+administers and learns — no employees, talent, assignments or org reports. See
+[`docs/design/audience-modes.md`](docs/design/audience-modes.md).
+
+The mode is a stable per-deployment setting. To start a fresh deployment in individual mode,
+set it in the environment **before the first boot** (it is read only when the organization row
+is first created):
+
+```bash
+WORKSPACE_MODE=individual   # in your .env, alongside ADMIN_EMAIL / ADMIN_PASSWORD
+```
+
+For a local demo, a minimal individual seed flips the current single-org deployment and seeds
+one owner, one document and one course (no employees, no enrollments):
+
+```bash
+docker compose exec api uv run python -m src.seed_demo_individual
+```
+
 ## Step 5 — Open it
 
 <http://localhost:3000>

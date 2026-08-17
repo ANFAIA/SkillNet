@@ -161,6 +161,11 @@ class Settings(BaseSettings):
     ADMIN_EMAIL: str | None = None
     ADMIN_PASSWORD: str | None = None
     ORG_NAME: str | None = None
+    # How this deployment is used. Read only when creating the organization on a
+    # fresh deployment; existing organizations keep their stored value. A stable
+    # per-deployment capability, never inferred from user count. See
+    # docs/design/audience-modes.md.
+    WORKSPACE_MODE: Literal["organization", "individual"] = "organization"
 
     # Agent-to-agent internal API key (auto-provisioned on startup)
     A2A_INTERNAL_API_KEY: str | None = None

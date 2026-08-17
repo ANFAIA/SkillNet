@@ -3,7 +3,7 @@
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -17,6 +17,7 @@ from src.core.bootstrap import (
 )
 from src.core.exceptions import AppError
 from src.core.logging import configure_logging, get_logger
+from src.deps.auth import require_organization_workspace
 from src.deps.db import async_session_factory, engine
 from src.routes import (
     activities,
@@ -144,14 +145,17 @@ def create_app() -> FastAPI:
     app.include_router(documents.router, prefix=prefix)
     app.include_router(courses.router, prefix=prefix)
     app.include_router(course_folders.router, prefix=prefix)
-    app.include_router(skills.router, prefix=prefix)
-    app.include_router(talent.router, prefix=prefix)
+    # Collective, organization-only surfaces: 404 in an individual workspace.
+    # See docs/design/audience-modes.md and deps.auth.require_organization_workspace.
+    org_only = [Depends(require_organization_workspace)]
+    app.include_router(skills.router, prefix=prefix, dependencies=org_only)
+    app.include_router(talent.router, prefix=prefix, dependencies=org_only)
     app.include_router(exercises.router, prefix=prefix)
     app.include_router(lessons.router, prefix=prefix)
     app.include_router(enrollments.router, prefix=prefix)
     app.include_router(generation_jobs.router, prefix=prefix)
     app.include_router(chat.router, prefix=prefix, tags=["Chat"])
-    app.include_router(stats.router, prefix=prefix)
+    app.include_router(stats.router, prefix=prefix, dependencies=org_only)
     app.include_router(settings_routes.router, prefix=prefix)
     app.include_router(tts.router, prefix=prefix)
     # Rich-media artifacts (NotebookLM spine). Additive, own /media prefix.

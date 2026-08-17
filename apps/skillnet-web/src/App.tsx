@@ -3,7 +3,7 @@ import { Toaster } from 'sonner'
 import { AppLayout } from './components/layout/AppLayout'
 import { AdminLayout } from './components/layout/AdminLayout'
 import { ProtectedRoute } from './components/layout/ProtectedRoute'
-import { useAuth } from './hooks/useAuth'
+import { useAuth, useWorkspaceMode } from './hooks/useAuth'
 import { IntlProvider } from './i18n/IntlProvider'
 import { useRegisterDefaultTools } from './stores/registerDefaultTools'
 import { usePreferences } from './stores/preferences'
@@ -51,6 +51,18 @@ function RootRedirect() {
   return <Navigate to={HOME_BY_ROLE[user.role]} replace />
 }
 
+/**
+ * Collective, organization-only admin pages (Employees, Talent). In an
+ * `individual` deployment these concepts do not exist: the nav omits them and a
+ * direct URL redirects home. The backend also 404s their endpoints — this is UX,
+ * not the authorization boundary. See docs/design/audience-modes.md.
+ */
+function OrganizationOnly({ children }: { children: React.ReactNode }) {
+  const mode = useWorkspaceMode()
+  if (mode === 'individual') return <Navigate to="/admin" replace />
+  return <>{children}</>
+}
+
 function SonnerToaster() {
   const theme = usePreferences((s) => s.theme)
   return <Toaster richColors position="top-center" theme={theme} />
@@ -73,10 +85,13 @@ function App() {
           {/* Outside AppLayout on purpose (§13, B8): the wizard is the whole screen,
               and `skipOnboardingGate` is what keeps the gate in ProtectedRoute from
               redirecting /onboarding to itself. */}
+          {/* No `role`: an employee onboards, and so does the admin owner of an
+              `individual` deployment. The gate in ProtectedRoute only sends
+              learners here, so no organization admin lands on it by accident. */}
           <Route
             path="/onboarding"
             element={
-              <ProtectedRoute role="employee" skipOnboardingGate>
+              <ProtectedRoute skipOnboardingGate>
                 <Onboarding />
               </ProtectedRoute>
             }
@@ -112,8 +127,22 @@ function App() {
             }
           >
             <Route index element={<AdminDashboard />} />
-            <Route path="empleados" element={<Employees />} />
-            <Route path="talento" element={<Talent />} />
+            <Route
+              path="empleados"
+              element={
+                <OrganizationOnly>
+                  <Employees />
+                </OrganizationOnly>
+              }
+            />
+            <Route
+              path="talento"
+              element={
+                <OrganizationOnly>
+                  <Talent />
+                </OrganizationOnly>
+              }
+            />
             <Route path="contenido" element={<Content />} />
             <Route path="crear-curso" element={<CreateCourse />} />
             <Route path="curso/:id" element={<CoursePreview />} />

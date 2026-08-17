@@ -62,7 +62,13 @@ export function ProtectedRoute({
 }) {
   const { user, isLoading } = useAuth()
 
-  const gateApplies = !skipOnboardingGate && user?.role === 'employee'
+  // The onboarding gate applies to every learner: employees always, and — in an
+  // `individual` deployment — the admin owner, who also learns and so needs a
+  // learner profile. Organization admins never onboard. See audience-modes.md.
+  const isIndividualOwner =
+    user?.role === 'admin' && user?.workspace_mode === 'individual'
+  const gateApplies =
+    !skipOnboardingGate && (user?.role === 'employee' || isIndividualOwner)
   const profile = useLearnerProfile({ enabled: gateApplies })
 
   if (isLoading) return <AppSkeleton />

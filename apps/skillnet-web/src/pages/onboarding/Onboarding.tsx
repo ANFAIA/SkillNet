@@ -13,6 +13,7 @@ import { AccessibilityStep } from '../../components/onboarding/AccessibilityStep
 import { LearningPreferencesStep } from '../../components/onboarding/LearningPreferencesStep'
 import { stepSlideVariants, transition } from '../../lib/motion'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
+import { useAuth } from '../../hooks/useAuth'
 import { ApiError } from '../../api/client'
 import {
   NO_ACCESSIBILITY,
@@ -30,8 +31,10 @@ import type {
   OnboardingSubmitBody,
 } from '../../api/onboarding'
 
-/** Where an answered, skipped or unavailable wizard sends the learner. */
-const AFTER_ONBOARDING = '/empleado'
+// Where an answered, skipped or unavailable wizard sends the learner is computed
+// per render from the user's home: an employee returns to /empleado; the owner of
+// an `individual` deployment is an admin and returns to /admin. See
+// `afterOnboarding` inside the component.
 
 /**
  * Built once: the outgoing step leaves in 200 ms and the incoming one lands in 300,
@@ -109,6 +112,10 @@ export function Onboarding() {
   const navigate = useNavigate()
   const intl = useIntl()
   const reduceMotion = useReducedMotion()
+  const { user } = useAuth()
+  // The owner of an `individual` deployment is an admin who also learns, so the
+  // wizard returns them to /admin, not the learner home. See audience-modes.md.
+  const afterOnboarding = user?.role === 'admin' ? '/admin' : '/empleado'
 
   const questionsQuery = useOnboardingQuestions()
   const submit = useSubmitOnboarding()
@@ -204,7 +211,7 @@ export function Onboarding() {
     }
 
     submit.mutate(buildBody(), {
-      onSuccess: () => navigate(AFTER_ONBOARDING, { replace: true }),
+      onSuccess: () => navigate(afterOnboarding, { replace: true }),
     })
   }
 
@@ -217,7 +224,7 @@ export function Onboarding() {
   function handleSkip() {
     if (pending) return
     skip.mutate(undefined, {
-      onSuccess: () => navigate(AFTER_ONBOARDING, { replace: true }),
+      onSuccess: () => navigate(afterOnboarding, { replace: true }),
     })
   }
 
@@ -231,7 +238,7 @@ export function Onboarding() {
     // A 404 means the flag went off mid-session: leave, do not retry a route that
     // no longer exists.
     if (questionsQuery.error instanceof ApiError && questionsQuery.error.status === 404) {
-      return <Navigate to={AFTER_ONBOARDING} replace />
+      return <Navigate to={afterOnboarding} replace />
     }
     return (
       <Shell>
@@ -240,7 +247,7 @@ export function Onboarding() {
           <Button variant="secondary" onClick={() => questionsQuery.refetch()}>
             {intl.formatMessage({ id: 'onboarding.retry' })}
           </Button>
-          <Button variant="ghost" onClick={() => navigate(AFTER_ONBOARDING, { replace: true })}>
+          <Button variant="ghost" onClick={() => navigate(afterOnboarding, { replace: true })}>
             {intl.formatMessage({ id: 'onboarding.skipForNow' })}
           </Button>
         </div>
@@ -248,7 +255,7 @@ export function Onboarding() {
     )
   }
 
-  if (!currentQuestion || total === 0) return <Navigate to={AFTER_ONBOARDING} replace />
+  if (!currentQuestion || total === 0) return <Navigate to={afterOnboarding} replace />
 
   const notice = questionsQuery.data?.notice ?? ''
 

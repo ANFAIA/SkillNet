@@ -200,9 +200,18 @@ All endpoints prefixed with `/api/v1`. Authentication via session cookie on ever
 |--------|------|------|-------------|
 | `POST` | `/auth/login` | public | Email + password. Sets httpOnly session cookie (7-day expiry). Returns user data + role |
 | `POST` | `/auth/logout` | authenticated | Deletes session. Clears cookie |
-| `GET` | `/auth/me` | authenticated | Returns current user (id, email, full_name, role, learning_profile, accessibility) |
+| `GET` | `/auth/me` | authenticated | Returns current user (id, email, full_name, role, learning_profile, accessibility) plus the deployment's `workspace_mode` |
 
 Login response redirects by role: employee -> `/dashboard`, admin -> `/admin`. The frontend reads the role from `/auth/me` on page load.
+
+**Workspace mode.** `/auth/me` (and `/settings`) also carry `workspace_mode`
+(`organization` \| `individual`; see [audience-modes.md](audience-modes.md)). In an
+`individual` deployment the collective, organization-only endpoints — employees
+(list/create/reset), talent, `/stats`, course assignment (`POST`/`DELETE
+/enrollments`, folder assign) and the skills catalogue — return **404** via the
+`require_organization_workspace` dependency: those concepts do not exist in a
+personal workspace. This is server-side enforcement; the SPA additionally hides
+the sections as UX.
 
 #### Users
 

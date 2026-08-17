@@ -47,6 +47,7 @@ class SettingsService:
         return OrgSettingsRead(
             name=org.name,
             slug=org.slug,
+            workspace_mode=org.workspace_mode.value,
             self_registration_enabled=bool(
                 org_settings.get("self_registration_enabled", False)
             ),

@@ -5,7 +5,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Query
 
-from src.deps.auth import AdminUser, CurrentUser
+from src.deps.auth import AdminUser, CurrentUser, OrganizationWorkspace
 from src.deps.db import DBSession
 from src.repositories.skill_repo import SkillRepository
 from src.repositories.user_repo import UserRepository
@@ -37,6 +37,7 @@ def _skill_service(db: DBSession) -> SkillService:
 async def list_users(
     admin: AdminUser,
     db: DBSession,
+    _org: OrganizationWorkspace,
     search: Annotated[str | None, Query()] = None,
     role: Annotated[str | None, Query()] = None,
     is_active: Annotated[bool | None, Query()] = None,
@@ -62,7 +63,7 @@ async def list_users(
 
 @router.post("", response_model=EmployeeCreated, status_code=201)
 async def create_user(
-    admin: AdminUser, db: DBSession, body: UserCreateRequest
+    admin: AdminUser, db: DBSession, body: UserCreateRequest, _org: OrganizationWorkspace
 ) -> EmployeeCreated:
     service = _service(db)
     user, temporary_password = await service.create_employee(
@@ -108,7 +109,9 @@ async def get_my_skills(user: CurrentUser, db: DBSession) -> list[UserSkillRead]
 
 
 @router.get("/{user_id}", response_model=UserRead)
-async def get_user(admin: AdminUser, db: DBSession, user_id: uuid.UUID) -> UserRead:
+async def get_user(
+    admin: AdminUser, db: DBSession, user_id: uuid.UUID, _org: OrganizationWorkspace
+) -> UserRead:
     service = _service(db)
     user = await service.get_user(user_id, admin.org_id)
     return UserRead.model_validate(user)
@@ -116,7 +119,11 @@ async def get_user(admin: AdminUser, db: DBSession, user_id: uuid.UUID) -> UserR
 
 @router.put("/{user_id}", response_model=UserRead)
 async def update_user(
-    admin: AdminUser, db: DBSession, user_id: uuid.UUID, body: UserAdminUpdate
+    admin: AdminUser,
+    db: DBSession,
+    user_id: uuid.UUID,
+    body: UserAdminUpdate,
+    _org: OrganizationWorkspace,
 ) -> UserRead:
     service = _service(db)
     user = await service.update_user(
@@ -136,6 +143,7 @@ async def reset_password(
     db: DBSession,
     user_id: uuid.UUID,
     body: ResetPasswordRequest,
+    _org: OrganizationWorkspace,
 ) -> dict:
     service = _service(db)
     await service.reset_password(

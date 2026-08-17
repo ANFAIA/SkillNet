@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.config import settings
 from src.core.logging import get_logger
-from src.models import ApiKey, Organization, User, UserRole
+from src.models import ApiKey, Organization, User, UserRole, WorkspaceMode
 
 logger = get_logger(__name__)
 
@@ -21,11 +21,19 @@ async def ensure_organization(session: AsyncSession) -> Organization:
     if org is not None:
         return org
 
-    org = Organization(name=settings.ORG_NAME or "SkillNet", slug="default")
+    org = Organization(
+        name=settings.ORG_NAME or "SkillNet",
+        slug="default",
+        workspace_mode=WorkspaceMode(settings.WORKSPACE_MODE),
+    )
     session.add(org)
     await session.commit()
     await session.refresh(org)
-    logger.info("Created default organization: %s", org.name)
+    logger.info(
+        "Created default organization: %s (workspace_mode=%s)",
+        org.name,
+        org.workspace_mode.value,
+    )
     return org
 
 

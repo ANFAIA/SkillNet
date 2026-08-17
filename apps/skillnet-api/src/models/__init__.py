@@ -71,7 +71,7 @@ from src.models.course_folder import CourseFolder
 from src.models.node_probe import NodeProbe
 from src.models.node_render import NodeRender, NodeRenderStatus, UiFormat
 from src.models.node_render_view import NodeRenderView
-from src.models.organization import Organization
+from src.models.organization import Organization, WorkspaceMode
 from src.models.skill import Skill
 from src.models.skill_category import SkillCategory
 from src.models.term_explanation import (
@@ -90,6 +90,7 @@ __all__ = [
     "AccessToken",
     "ApiKey",
     "Organization",
+    "WorkspaceMode",
     "User",
     "UserRole",
     "LearningProfile",
