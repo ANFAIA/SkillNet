@@ -101,6 +101,30 @@ export function useStepperProgressReport(): StepperProgressCallback | null {
 }
 
 /**
+ * Paginación de un EPISODIO multipantalla.
+ *
+ * Un episodio ya no es una sola pantalla: cada hijo directo del Stack raíz es una
+ * PANTALLA que el aprendiz pasa una a una. A diferencia del stepper legacy, avanzar NUNCA
+ * se bloquea (el ejercicio registra su resultado, pero el aprendiz siempre puede seguir).
+ *
+ * NodeView es el dueño del índice de pantalla (`screen`) y del pie ("Siguiente" avanza de
+ * pantalla; en la última avanza de nodo). El StackBlock raíz solo hace dos cosas: informa
+ * cuántas pantallas hay (`reportTotal`) y pinta la pantalla `screen`. Cuando el contexto
+ * es `null` no hay paginación de episodio (modo legacy o fuera de la lección), así que un
+ * Stack anidado dentro de una pantalla se pinta entero.
+ */
+export interface EpisodePager {
+  screen: number
+  reportTotal: (total: number) => void
+}
+
+export const episodePagerContext = createContext<EpisodePager | null>(null)
+
+export function useEpisodePager(): EpisodePager | null {
+  return useContext(episodePagerContext)
+}
+
+/**
  * Feedback de la lección: un bloque interactivo (QuizItem, DragOrder) cuenta lo que
  * ha pasado —acertó, falló, casi— y NodeView lo traduce a respuesta ambiental: el
  * `ResultGlow` en el borde y la reacción de la mascota (celebra / ups). El bloque no

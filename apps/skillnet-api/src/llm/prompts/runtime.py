@@ -143,7 +143,13 @@ from src.schemas.episode_contracts import EpisodeBrief
 #: ``support_only`` deja de ser pasivo: aunque no
 #: certifique dominio, exige una interaccion NO evaluativa desde la fuente.
 PROMPT_VERSION = "runtime/41"
-EPISODE_PROMPT_VERSION = "episode/2"
+#: ``episode/3`` (2026-08-17): un episodio ya no es UNA pantalla. Cada hijo directo del
+#: Stack raiz es una PANTALLA que el aprendiz pasa una a una (paginacion en el frontend,
+#: sin scroll). El generador decide CUANTAS pantallas segun el material (1 si el nodo es
+#: simple; varias si lo pide), sin numero fijo. El tope del validador (5 hijos de raiz) es
+#: el techo natural. Ademas se anade un critico pedagogico opcional (MULTI_AGENT_RENDER)
+#: que revisa la forma y el generador reescribe UNA vez.
+EPISODE_PROMPT_VERSION = "episode/3"
 
 _PRESENTATION_PREFERENCES = {
     "balanced": "Combina representaciones segun el objetivo y la fuente.",
@@ -791,6 +797,47 @@ def _episode_component_grammar(component_prompt: str) -> str:
     return "\n".join(cleaned).rstrip()
 
 
+#: El episodio como FLUJO de pantallas. Cada hijo directo del Stack raiz es una pantalla
+#: que el aprendiz pasa una a una; el frontend pagina. No hay numero fijo: el material
+#: manda. Un nodo simple es UNA pantalla (un solo hijo de la raiz); uno rico son varias
+#: (hasta 5, el tope del validador). El ejemplo es COMPLETO y valido para el validador —
+#: es lo unico que evita que el modelo pequeno se caiga al respaldo (leccion de la fase 1).
+_EPISODE_MULTISCREEN = """
+## SkillNet: el episodio es un FLUJO de PANTALLAS (no una pagina)
+
+Cada hijo directo del Stack raiz es UNA PANTALLA que el aprendiz ve sola y luego pasa a la
+siguiente (paginacion). Piensa cada hijo como un "beat" autonomo que cabe sin scroll:
+
+- Decide CUANTAS pantallas segun el material. NO hay numero fijo. Un punto simple son 1-2
+  pantallas; un punto con gancho + concepto + practica, 2-4. Nunca mas de 5 hijos en la
+  raiz (lo rechaza el validador).
+- UNA idea por pantalla. Un hijo es UN bloque (TextContent, DidactWorkedExample, Flashcard,
+  QuizItem, DidactGlossary, DidactTimeline, HintReveal, BeforeAfter, StepSequence, Table...)
+  o un Card que agrupa 2-3 bloques MUY unidos que solo tienen sentido juntos.
+- La PRIMERA pantalla SIEMPRE engancha con un TextContent "lead" (o un Callout): es el
+  primer hijo de la raiz, obligatorio por la gramatica. Las siguientes desarrollan y
+  practican. Al menos una pantalla es una interaccion genuina (no solo texto).
+- No repartas una sola frase en varias pantallas ni metas media leccion en una. Reparte por
+  SENTIDO: cada pantalla se sostiene sola.
+
+Ejemplo COMPLETO y valido (copia la ESTRUCTURA de pantallas, no el contenido). Tres
+pantallas: gancho, ejemplo resuelto, y un chequeo:
+
+root = Stack([pantallaGancho, pantallaEjemplo, pantallaChequeo], "md")
+pantallaGancho = TextContent("Un novato lanza el gancho con el brazo y pierde toda la potencia.", "lead")
+pantallaEjemplo = DidactWorkedExample("Como nace la potencia de un gancho?", ["La cadera gira primero y empuja el tronco.", "El tronco arrastra el hombro y el brazo va detras.", "El puno llega tenso solo en el impacto."], "La potencia sube desde el suelo: cadera, tronco, brazo, en ese orden.")
+pantallaChequeo = QuizItem("q1", "test", "apply", "De donde sale primero la fuerza de un gancho bien dado?", ["Del brazo", "De la cadera", "Del hombro", "De la muneca"])
+---ANSWER-KEY---
+{"q1": {"correct": 1, "explanation": "La cadena empieza en la cadera; el brazo solo transmite."}}
+
+Si el nodo es simple, dos pantallas cortas bastan (gancho + una practica):
+
+root = Stack([gancho, practica], "md")
+gancho = TextContent("El jab es tu golpe mas rapido y el que mas vas a usar.", "lead")
+practica = Flashcard("Con que mano se lanza el jab?", "Con la mano adelantada, en linea recta.")
+"""
+
+
 @cache
 def episode_ui_generator_system(component_prompt: str | None = None) -> str:
     """Dialect and safety rules for formula-free runtime episodes."""
@@ -802,6 +849,7 @@ def episode_ui_generator_system(component_prompt: str | None = None) -> str:
         + _episode_dialect_rules()
         + "\n"
         + _DIDACT_BLOCK_EXAMPLES
+        + _EPISODE_MULTISCREEN
         + _EPISODE_GENERATOR_RULES
         + "\n"
         + _ANSWER_KEY_PROTOCOL
@@ -821,6 +869,104 @@ def episode_ui_repair_system(component_prompt: str | None = None) -> str:
     """Repair system prompt for the same neutral episode contract and dialect."""
 
     return _EPISODE_REPAIR_HEADER + "\n" + episode_ui_generator_system(component_prompt)
+
+
+# --------------------------------------------------------------------------- #
+# Pedagogy critic (MULTI_AGENT_RENDER): one review + one revision, no rails.
+# --------------------------------------------------------------------------- #
+#: The critic is a SECOND perspective, not a rulebook. It never demands a fixed number of
+#: screens, a fixed component or a mandatory quiz; it nudges fit-for-material and flags when
+#: the shape of the episode does not match THIS content or domain (a ticketing procedure
+#: does not look like a boxing concept). Keeping it advisory is the whole point: rigid rules
+#: work for one case and fail for a thousand.
+EPISODE_CRITIC_SYSTEM = """\
+Eres un CRITICO didactico de SkillNet, una segunda mirada distinta de quien genero la
+pantalla. Revisas la PEDAGOGIA de un episodio ya valido (no su sintaxis, que ya paso el
+validador). Tu trabajo es notar si la FORMA encaja con ESTE material y dominio.
+
+Preguntate, sin imponer reglas rigidas:
+- La forma encaja con lo que ES el material? Un procedimiento se practica ordenando pasos;
+  un concepto se practica con un caso; un dato exacto, recordandolo. Un tramite de tickets
+  no se parece a un concepto de boxeo.
+- Los bloques elegidos son los mejores para esto, o hay uno mas natural en el catalogo?
+- Esta demasiado cargado de test/quiz? Falta una interaccion genuina?
+- El numero de pantallas es sensato para el material? (Ni trocear una idea simple en cinco
+  pantallas, ni comprimir un tema rico en una sola.) NO exijas un numero concreto.
+
+Responde UNICAMENTE con JSON, sin texto alrededor:
+{"revise": true|false, "notes": ["nota accionable y breve", ...]}
+
+- "revise": true SOLO si un cambio mejoraria de verdad la pantalla. Si ya esta bien, false
+  y notes vacio. No reescribas por costumbre.
+- "notes": ordenes concretas y cortas para quien regenere (que cambiar y por que), nunca
+  reglas fijas del tipo "debe tener exactamente N". Maximo 4 notas.
+- No cambies la mision, la fuente, la evidencia ni el idioma. No inventes hechos.
+"""
+
+_EPISODE_REVISE_HEADER = """\
+Un critico didactico reviso tu pantalla y pidio mejoras concretas. Vuelve a emitir el
+programa COMPLETO aplicando esas notas, sin cambiar la mision, la fuente ni los hechos, y
+respetando las reglas del dialecto y del flujo de pantallas de abajo. No expliques nada:
+responde solo con el programa (y su clave si lleva QuizItem).
+"""
+
+
+@cache
+def episode_ui_revise_system(component_prompt: str | None = None) -> str:
+    """Revision system prompt: same episode dialect, plus 'apply the critic's notes'."""
+
+    return _EPISODE_REVISE_HEADER + "\n" + episode_ui_generator_system(component_prompt)
+
+
+def build_episode_critic_prompt(
+    *,
+    title: str,
+    summary: str,
+    domain: str,
+    program: str,
+    screen_count: int,
+    assessment_mode: str,
+) -> str:
+    """Ask the critic to review the pedagogy of an already-valid episode program."""
+
+    return "\n".join(
+        [
+            "NODO",
+            f"- Titulo: {title}",
+            f"- Resumen: {summary}",
+            f"- Dominio: {domain or 'sin declarar'}",
+            f"- Modo de evaluacion: {assessment_mode}",
+            f"- Pantallas actuales (hijos de la raiz): {screen_count}",
+            "",
+            "PANTALLA GENERADA (dialecto ya validado)",
+            program.strip(),
+            "",
+            "Devuelve solo el JSON con 'revise' y 'notes'.",
+        ]
+    )
+
+
+def build_episode_revise_prompt(
+    *,
+    episode: EpisodeBrief | Mapping[str, Any],
+    source_context: str,
+    previous: str,
+    notes: Sequence[str],
+) -> str:
+    """Restate the episode contract and hand the critic's notes to the generator."""
+
+    listed = "\n".join(f"- {note}" for note in notes) or "- mejora la pantalla"
+    context = build_episode_ui_prompt(episode=episode, source_context=source_context)
+    return (
+        "CONTRATO AUTORITATIVO DEL EPISODIO\n"
+        f"{context}\n\n"
+        "NOTAS DEL CRITICO (aplicalas)\n"
+        f"{listed}\n\n"
+        "PANTALLA ANTERIOR\n"
+        f"{previous}\n\n"
+        "Emite el programa completo revisado. Conserva la mision y los hechos; aplica las "
+        "notas del critico."
+    )
 
 
 @cache
@@ -1476,6 +1622,7 @@ __all__ = [
     "DECIDE_MAX_TOKENS",
     "DECIDE_TEMPERATURE",
     "DECIDE_USE_CASE",
+    "EPISODE_CRITIC_SYSTEM",
     "EPISODE_PROMPT_VERSION",
     "FORMAT_DECIDER_SYSTEM",
     "MAX_UI_RETRIES",
@@ -1485,13 +1632,16 @@ __all__ = [
     "UI_TEMPERATURE",
     "UI_USE_CASE",
     "build_format_prompt",
+    "build_episode_critic_prompt",
     "build_episode_repair_prompt",
+    "build_episode_revise_prompt",
     "build_episode_ui_prompt",
     "build_repair_prompt",
     "build_ui_prompt",
     "clip_source",
     "episode_ui_generator_system",
     "episode_ui_repair_system",
+    "episode_ui_revise_system",
     "signal_actions_for_node",
     "ui_generator_system",
     "ui_max_tokens",

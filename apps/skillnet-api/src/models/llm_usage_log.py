@@ -25,6 +25,7 @@ from src.models.base import Base, UUIDMixin
 USE_CASES: tuple[str, ...] = (
     "decide_formato",
     "runtime_activity_authoring",
+    "runtime_episode_critic",
     "genera_ui",
     "explain",
     "probe_generate",

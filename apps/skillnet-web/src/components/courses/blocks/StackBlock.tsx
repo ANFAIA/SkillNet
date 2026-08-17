@@ -2,7 +2,7 @@ import { Children, isValidElement, useState, useCallback, useEffect, useRef, typ
 import { AnimatePresence, motion } from 'framer-motion'
 import { useIntl } from 'react-intl'
 import { blockArrivalContext, useBlockArrival } from './blockArrival'
-import { stepperContext, useStepper, stepperSolveContext, useNextNode, useCourseIntro, useStepperProgressReport, useCourseFinish } from './StepperContext'
+import { stepperContext, useStepper, stepperSolveContext, useNextNode, useCourseIntro, useStepperProgressReport, useCourseFinish, episodePagerContext, useEpisodePager } from './StepperContext'
 import { useReducedMotion } from '../../../hooks/useReducedMotion'
 import { duration, ease } from '../../../lib/motion'
 import type { StackGap } from '../kit/schemas'
@@ -25,6 +25,7 @@ const gapClasses: Record<StackGap, string> = {
 export function StackBlock({ gap = 'md', children }: StackBlockProps) {
   const arriving = useBlockArrival()
   const stepper = useStepper()
+  const pager = useEpisodePager()
   const reduceMotion = useReducedMotion()
 
   if (stepper) {
@@ -34,6 +35,20 @@ export function StackBlock({ gap = 'md', children }: StackBlockProps) {
           <StepperStack>{children}</StepperStack>
         </blockArrivalContext.Provider>
       </stepperContext.Provider>
+    )
+  }
+
+  // Episodio multipantalla: cada hijo directo de la raíz es una pantalla. Se desactiva la
+  // paginación para los hijos (un Stack anidado dentro de una pantalla se pinta entero).
+  if (pager) {
+    return (
+      <episodePagerContext.Provider value={null}>
+        <blockArrivalContext.Provider value={false}>
+          <EpisodeStack screen={pager.screen} reportTotal={pager.reportTotal}>
+            {children}
+          </EpisodeStack>
+        </blockArrivalContext.Provider>
+      </episodePagerContext.Provider>
     )
   }
 
@@ -79,6 +94,62 @@ export function StackItem({ children }: StackItemProps) {
 /** Lee la etiqueta del paso. Un hijo sin etiquetar (Storybook, admin) no cierra nada. */
 function stepNeedsSolving(item: ReactNode): boolean {
   return isValidElement<StackItemProps>(item) && item.type === StackItem && item.props.solvable === true
+}
+
+// ---------------------------------------------------------------------------
+// EpisodeStack — un episodio paginado: cada hijo de la raíz es una pantalla
+// ---------------------------------------------------------------------------
+
+/**
+ * Pagina las pantallas de un episodio. A diferencia de `StepperStack`:
+ *
+ * - Cada HIJO directo es una pantalla (no se agrupan por presentacional/solvable): el
+ *   generador ya decidió el reparto por sentido, un beat por hijo.
+ * - Avanzar NUNCA se bloquea: no hay compuerta por ejercicio sin resolver. El resultado se
+ *   registra igual, pero el aprendiz siempre puede seguir (requisito del episodio).
+ * - El pie ("Siguiente" / anterior / siguiente nodo) lo pone NodeView, que es dueño del
+ *   índice `screen`. Aquí solo informamos cuántas pantallas hay y pintamos la actual.
+ */
+function EpisodeStack({
+  screen,
+  reportTotal,
+  children,
+}: {
+  screen: number
+  reportTotal: (total: number) => void
+  children?: ReactNode
+}) {
+  const items = Children.toArray(children).filter(Boolean)
+  const total = Math.max(items.length, 1)
+  const safe = Math.min(Math.max(screen, 0), total - 1)
+
+  // Informar del total hacia NodeView (dibuja los puntos del cabecero y sabe cuál es la
+  // última pantalla para su pie). Un solo valor primitivo: React descarta si no cambia.
+  useEffect(() => {
+    reportTotal(total)
+  }, [total, reportTotal])
+
+  if (items.length === 0) return null
+
+  return (
+    <div className="flex flex-col h-full min-w-0" data-episode-stack data-episode-total={total}>
+      <div className="flex-1 min-h-0 flex items-center justify-center overflow-y-auto">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={safe}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: duration.normal, ease: [...ease.base] }}
+            className="w-full flex flex-col gap-6 min-w-0"
+            data-episode-screen={safe}
+          >
+            {items[safe]}
+          </motion.div>
+        </AnimatePresence>
+      </div>
+    </div>
+  )
 }
 
 // ---------------------------------------------------------------------------

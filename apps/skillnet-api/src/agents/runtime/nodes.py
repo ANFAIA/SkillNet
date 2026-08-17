@@ -197,6 +197,7 @@ STEP_MESSAGES: dict[str, str] = {
     "author_activity": "Preparando la actividad interactiva...",
     "genera_ui": "Escribiendo la leccion...",
     "validate_ui": "Revisando la leccion...",
+    "critic_episode": "Afinando la pedagogia...",
     "persist_render": "Guardando la leccion...",
     "fallback_seed": "Sirviendo la version de respaldo...",
     "skip_node": "Ya dominas este nodo.",
@@ -2127,6 +2128,167 @@ async def validate_ui(state: NodeRuntimeState) -> dict:
 
 
 # --------------------------------------------------------------------------- #
+# Node 5b: critic_episode (optional, fail-open) — one review + one revision
+# --------------------------------------------------------------------------- #
+def _root_child_count(spec_payload: Any) -> int:
+    """How many screens the paginated episode currently has (root's direct children)."""
+
+    if not isinstance(spec_payload, dict):
+        return 0
+    root_id = spec_payload.get("root")
+    for component in spec_payload.get("components") or ():
+        if isinstance(component, dict) and component.get("id") == root_id:
+            children = component.get("children")
+            return len(children) if isinstance(children, list) else 0
+    return 0
+
+
+async def critic_episode(state: NodeRuntimeState) -> dict:
+    """Review the pedagogy of a valid episode and revise ONCE (``MAX_UI_RETRIES`` unused).
+
+    Lean by construction: it runs only for episode-shell renders when ``MULTI_AGENT_RENDER``
+    is on, calls a single critic from a different perspective, and applies at most one
+    revision. A revision that fails validation is discarded — the already-valid episode is
+    never regressed to fallback, which is the Phase-1 gate-safety promise.
+    """
+
+    from src.config import settings
+
+    episode_payload = state.get("episode_brief")
+    spec_payload = state.get("ui_spec")
+    if (
+        not settings.MULTI_AGENT_RENDER
+        or not isinstance(episode_payload, dict)
+        or not isinstance(spec_payload, dict)
+        or not spec_payload
+    ):
+        return {"current_step": "critic_episode"}
+
+    from src.agents.runtime.agents.episode_critic import run_episode_critic
+    from src.llm.prompts.runtime import (
+        build_episode_revise_prompt,
+        episode_ui_revise_system,
+    )
+
+    request_id = str(state["request_id"])
+    org_id = _uuid(state["org_id"])
+    node = state.get("node") or {}
+    ui_format = coerce_ui_format(state.get("ui_format"))
+    backend_name = str(state.get("backend") or "openui")
+    screen_count = _root_child_count(spec_payload)
+    program = str(state.get("program") or "")
+    assessment_mode = "none" if not state.get("assessment_block") else "evidence"
+
+    await publish_step(request_id, "critic_episode", STEP_MESSAGES["critic_episode"])
+
+    trace = dict(state.get("plan_trace") or {})
+    started = time.monotonic()
+    try:
+        llm = await _make_llm(org_id, "fast")
+        verdict = await run_episode_critic(
+            title=str(node.get("title") or ""),
+            summary=str(node.get("summary") or ""),
+            domain=str(node.get("domain") or ""),
+            program=program,
+            screen_count=screen_count,
+            assessment_mode=assessment_mode,
+            llm=llm,
+        )
+    except Exception:  # noqa: BLE001 - critic is optional
+        logger.info("critic_episode_unavailable", exc_info=True)
+        return {"current_step": "critic_episode"}
+
+    trace["critic"] = {
+        "revise": verdict.revise,
+        "notes": list(verdict.notes),
+        "screens_before": screen_count,
+        "applied": False,
+    }
+    if not verdict.actionable:
+        return {"plan_trace": trace, "current_step": "critic_episode"}
+
+    # One revision. Reuse the episode dialect and re-run the same gate. If anything is off,
+    # keep the original valid episode.
+    try:
+        scoped_prompt, _scope = resolve_runtime_prompt(
+            state.get("prompt_component_ids") or (),
+            additional_required=_prompt_assessment_required(state),
+            enabled=True,
+        )
+        system = episode_ui_revise_system(scoped_prompt)
+        user_prompt = build_episode_revise_prompt(
+            episode=episode_payload,
+            source_context=_source_with_authored_activity(state),
+            previous=program,
+            notes=verdict.notes,
+        )
+        raw, usage = await llm.complete_with_usage(
+            system,
+            user_prompt,
+            temperature=UI_TEMPERATURE,
+            max_tokens=ui_max_tokens(str(state.get("tier") or "fast")),
+            json_mode=False,
+        )
+        program_text, answer_key = split_answer_key(raw)
+        spec, revised_program = canonicalize(
+            program_text,
+            ui_format=ui_format,
+            backend=get_render_backend(backend_name),
+        )
+        if missing_answer_keys(spec, answer_key):
+            raise ValueError("revised episode missing answer key")
+    except Exception as exc:  # noqa: BLE001 - keep the original valid episode
+        logger.info("critic_revision_discarded %s", type(exc).__name__, exc_info=True)
+        await log_usage(
+            async_session_factory,
+            org_id=org_id,
+            user_id=state.get("user_id"),
+            use_case="runtime_episode_critic",
+            purpose=purpose_for("fast"),
+            model=getattr(llm, "model", "unknown"),
+            tier="fast",
+            tokens_in=None,
+            tokens_out=None,
+            duration_ms=int((time.monotonic() - started) * 1000),
+        )
+        return {"plan_trace": trace, "current_step": "critic_episode"}
+
+    await log_usage(
+        async_session_factory,
+        org_id=org_id,
+        user_id=state.get("user_id"),
+        use_case="runtime_episode_critic",
+        purpose=purpose_for("fast"),
+        model=getattr(llm, "model", "unknown"),
+        tier="fast",
+        tokens_in=usage.tokens_in,
+        tokens_out=usage.tokens_out,
+        duration_ms=int((time.monotonic() - started) * 1000),
+    )
+    trace["critic"]["applied"] = True
+    trace["critic"]["screens_after"] = _root_child_count(spec.model_dump())
+    logger.info(
+        "critic_revision_applied node=%s screens %s->%s notes=%s",
+        state.get("node_id"),
+        screen_count,
+        trace["critic"]["screens_after"],
+        list(verdict.notes),
+    )
+    return {
+        "ui_spec": spec.model_dump(),
+        "program": revised_program,
+        "raw_dsl": raw,
+        "answer_key": prune_answer_key(spec, answer_key),
+        "plan_trace": trace,
+        "tokens_in": _accumulate(state.get("tokens_in"), usage.tokens_in),
+        "tokens_out": _accumulate(state.get("tokens_out"), usage.tokens_out),
+        "duration_ms": int(state.get("duration_ms") or 0)
+        + int((time.monotonic() - started) * 1000),
+        "current_step": "critic_episode",
+    }
+
+
+# --------------------------------------------------------------------------- #
 # Node 6: persist_render
 # --------------------------------------------------------------------------- #
 @runtime_node_error_wrapper("persist_render")
@@ -2376,6 +2538,7 @@ __all__ = [
     "STEP_MESSAGES",
     "author_activity",
     "build_fallback_spec",
+    "critic_episode",
     "decide_formato",
     "direct_episode",
     "fallback_seed",

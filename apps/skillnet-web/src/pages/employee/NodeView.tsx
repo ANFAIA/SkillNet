@@ -8,7 +8,7 @@ import { Card, EmptyState, ProgressBar } from '../../components/ui'
 import { ClickableSurface, NO_EXPLAIN_SELECTOR } from '../../components/courses/ClickableSurface'
 import { UiSpecRenderer } from '../../components/courses/UiSpecRenderer'
 import { NodeList } from '../../components/courses/NodeList'
-import { stepperContext, coursePositionContext, nextNodeContext, courseIntroContext, stepperProgressContext, lessonFeedbackContext, courseFinishContext } from '../../components/courses/blocks/StepperContext'
+import { stepperContext, coursePositionContext, nextNodeContext, courseIntroContext, stepperProgressContext, lessonFeedbackContext, courseFinishContext, episodePagerContext } from '../../components/courses/blocks/StepperContext'
 import type { CourseIntro, StepperProgress, StepperProgressCallback } from '../../components/courses/blocks/StepperContext'
 import { NodeChat } from '../../components/courses/NodeChat'
 import { NodeSkeleton, RESERVED_CONTENT_PX } from '../../components/courses/NodeSkeleton'
@@ -297,6 +297,16 @@ export function NodeView() {
   useEffect(() => { setFinished(false) }, [nodeId])
   const finishCourse = useCallback(() => setFinished(true), [])
 
+  // Paginación del episodio multipantalla. NodeView es el dueño del índice de pantalla;
+  // el StackBlock raíz solo informa del total y pinta la pantalla actual. Se reinicia por
+  // nodo (más abajo, junto al resto de estado por-nodo).
+  const [episodeScreen, setEpisodeScreen] = useState(0)
+  const [episodeTotal, setEpisodeTotal] = useState(1)
+  const episodePager = useMemo(
+    () => ({ screen: episodeScreen, reportTotal: setEpisodeTotal }),
+    [episodeScreen],
+  )
+
   // Compuerta de arranque: la pantalla de intro es del aprendiz hasta que pulsa
   // "Empezar". Sin esto, la leccion aparecia sola en cuanto el render estaba listo,
   // sin poder quedarse ni avanzar a voluntad. Se reinicia por nodo (mas abajo).
@@ -380,6 +390,8 @@ export function NodeView() {
     setActivePanel(null)
     setStepProgress(null)
     setEntered(false)
+    setEpisodeScreen(0)
+    setEpisodeTotal(1)
     requestedRef.current = false
     programShownBefore.current = false
     viewedRenderRef.current = null
@@ -696,8 +708,8 @@ export function NodeView() {
             <CourseProgress
               nodeCount={ordered.length}
               currentNodeIndex={headerIndex}
-              currentStep={stepProgress?.currentStep ?? 0}
-              totalSteps={stepProgress?.totalSteps ?? 1}
+              currentStep={shownShellMode === 'episode' ? episodeScreen : (stepProgress?.currentStep ?? 0)}
+              totalSteps={shownShellMode === 'episode' ? episodeTotal : (stepProgress?.totalSteps ?? 1)}
             />
             {/* Contrapeso de la tercera columna: sin el, los puntos se centran en el
                 hueco que sobra a la derecha del titulo, no en la fila. */}
@@ -778,14 +790,16 @@ export function NodeView() {
                                       <stepperContext.Provider value={shownShellMode === 'legacy_stepper'}>
                                         <lessonFeedbackContext.Provider value={lessonFeedback}>
                                           <courseFinishContext.Provider value={finishCourse}>
-                                            <UiSpecRenderer
-                                              program={shownProgram}
-                                              nodeId={node.id}
-                                              renderId={served?.render_id}
-                                              format={shownFormat ?? undefined}
-                                              arriving={arriving}
-                                              recordEvent={events.record}
-                                            />
+                                            <episodePagerContext.Provider value={shownShellMode === 'episode' ? episodePager : null}>
+                                              <UiSpecRenderer
+                                                program={shownProgram}
+                                                nodeId={node.id}
+                                                renderId={served?.render_id}
+                                                format={shownFormat ?? undefined}
+                                                arriving={arriving}
+                                                recordEvent={events.record}
+                                              />
+                                            </episodePagerContext.Provider>
                                           </courseFinishContext.Provider>
                                         </lessonFeedbackContext.Provider>
                                       </stepperContext.Provider>
@@ -809,39 +823,56 @@ export function NodeView() {
                           asi que un episodio nunca es un callejon sin salida, tenga o no
                           ejercicio interactivo dentro.
                         */}
-                        {shownShellMode === 'episode' && (
-                          <div
-                            className="shrink-0 flex items-center gap-3 pt-6"
-                            data-episode-footer=""
-                          >
-                            {previousNode && (
+                        {shownShellMode === 'episode' && (() => {
+                          // "Siguiente" avanza de PANTALLA dentro del nodo; en la última
+                          // avanza de NODO (o termina el curso). "Anterior" retrocede de
+                          // pantalla, y en la primera va al nodo anterior. Avanzar nunca se
+                          // bloquea: el resultado ya se registró en el bloque interactivo.
+                          const isLastScreen = episodeScreen >= episodeTotal - 1
+                          const isFirstScreen = episodeScreen <= 0
+                          const goPrev = () => {
+                            if (!isFirstScreen) setEpisodeScreen((s) => Math.max(0, s - 1))
+                            else if (previousNode) navigate(`${backToCourse}/nodo/${previousNode.id}`)
+                          }
+                          const goNext = () => {
+                            if (!isLastScreen) setEpisodeScreen((s) => Math.min(episodeTotal - 1, s + 1))
+                            else if (nextNode) navigate(`${backToCourse}/nodo/${nextNode.id}`)
+                            else finishCourse()
+                          }
+                          const showPrev = !isFirstScreen || Boolean(previousNode)
+                          const nextLabel = !isLastScreen
+                            ? intl.formatMessage({ id: 'node.nextScreen' })
+                            : nextNode
+                              ? intl.formatMessage({ id: 'node.nextNode' }, { title: nextNode.title })
+                              : intl.formatMessage({ id: 'node.finishCourse' })
+                          return (
+                            <div
+                              className="shrink-0 flex items-center gap-3 pt-6"
+                              data-episode-footer=""
+                              data-episode-screen={episodeScreen}
+                              data-episode-total={episodeTotal}
+                            >
+                              {showPrev && (
+                                <button
+                                  type="button"
+                                  onClick={goPrev}
+                                  className="shrink-0 text-sm font-medium text-text-secondary hover:text-text px-4 py-3 rounded-md transition-colors"
+                                >
+                                  {isFirstScreen
+                                    ? intl.formatMessage({ id: 'node.previousNode' })
+                                    : intl.formatMessage({ id: 'node.previousScreen' })}
+                                </button>
+                              )}
                               <button
                                 type="button"
-                                onClick={() => navigate(`${backToCourse}/nodo/${previousNode.id}`)}
-                                className="shrink-0 text-sm font-medium text-text-secondary hover:text-text px-4 py-3 rounded-md transition-colors"
+                                onClick={goNext}
+                                className={`flex-1 text-white text-sm font-medium px-4 py-3 rounded-md transition-colors ${isLastScreen && !nextNode ? 'bg-accent hover:bg-accent-hover' : 'bg-primary hover:bg-primary-hover'}`}
                               >
-                                {intl.formatMessage({ id: 'node.previousNode' })}
+                                {nextLabel}
                               </button>
-                            )}
-                            {nextNode ? (
-                              <button
-                                type="button"
-                                onClick={() => navigate(`${backToCourse}/nodo/${nextNode.id}`)}
-                                className="flex-1 bg-primary hover:bg-primary-hover text-white text-sm font-medium px-4 py-3 rounded-md transition-colors"
-                              >
-                                {intl.formatMessage({ id: 'node.nextNode' }, { title: nextNode.title })}
-                              </button>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={finishCourse}
-                                className="flex-1 bg-accent hover:bg-accent-hover text-white text-sm font-medium px-4 py-3 rounded-md transition-colors"
-                              >
-                                {intl.formatMessage({ id: 'node.finishCourse' })}
-                              </button>
-                            )}
-                          </div>
-                        )}
+                            </div>
+                          )
+                        })()}
                       </motion.div>
                     ) : (
                       <motion.div

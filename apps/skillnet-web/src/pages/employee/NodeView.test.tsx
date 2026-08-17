@@ -290,7 +290,9 @@ describe('NodeView — the frozen frame', () => {
 })
 
 describe('NodeView — server-owned learning shell', () => {
-  it('renders an episode as one coherent mission with one vertical scroll owner', async () => {
+  it('pages a multi-screen episode one beat at a time (no legacy stepper, never blocks)', async () => {
+    // PROGRAM_WITH_QUIZ has TWO root children (lead + quiz), so the episode is a flow of
+    // TWO screens the learner pages through. Only the current screen is on the DOM.
     installFetch({
       node: learningNode(),
       renderResponses: [[200, servedRender(PROGRAM_WITH_QUIZ, RENDER_ID, 'episode')]],
@@ -299,16 +301,21 @@ describe('NodeView — server-owned learning shell', () => {
 
     await enterLesson()
 
+    // Screen 1: the lead beat only. The quiz beat lives on the next screen.
     await waitFor(() => {
       expect(container).toHaveTextContent('El plazo de devolucion es de 30 dias.')
+    })
+    expect(container).not.toHaveTextContent('Un cliente vuelve el dia 32. Que haces?')
+    // It is an episode, not the legacy stepper.
+    expect(container.querySelector('[data-stepper-root]')).toBeNull()
+    expect(container.querySelector('[data-episode-shell]')).not.toBeNull()
+    expect(container.querySelector('[data-episode-stack]')).not.toBeNull()
+
+    // The footer advances to the NEXT SCREEN (not the next node) while beats remain.
+    await userEvent.click(screen.getByRole('button', { name: 'Siguiente' }))
+    await waitFor(() => {
       expect(container).toHaveTextContent('Un cliente vuelve el dia 32. Que haces?')
     })
-    expect(container.querySelector('[data-stepper-root]')).toBeNull()
-
-    const episode = container.querySelector('[data-episode-shell]')
-    expect(episode).not.toBeNull()
-    expect(episode?.querySelector('.overflow-y-auto')).toBeNull()
-    expect(container.querySelector('[data-node-scroll-root]')).not.toBeNull()
   })
 
   // Regresion: un episodio `support_only` (solo prosa, sin QuizItem que resolver) no

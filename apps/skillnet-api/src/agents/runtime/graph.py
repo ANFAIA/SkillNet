@@ -38,6 +38,7 @@ from langgraph.graph import END, StateGraph
 
 from src.agents.runtime.nodes import (
     author_activity,
+    critic_episode,
     decide_formato,
     direct_episode,
     fallback_seed,
@@ -133,6 +134,10 @@ def build_node_graph():
     else:
         graph.add_node("genera_ui", genera_ui)
     graph.add_node("validate_ui", validate_ui)
+    # One lean pedagogy critic + one revision, between a valid spec and persistence. The
+    # node is a passthrough for legacy renders and when MULTI_AGENT_RENDER is off, so it is
+    # safe to keep on every path; it never regresses a valid episode to fallback.
+    graph.add_node("critic_episode", critic_episode)
     graph.add_node("persist_render", persist_render)
     graph.add_node("fallback_seed", fallback_seed)
     graph.add_node("skip_node", skip_node)
@@ -185,11 +190,12 @@ def build_node_graph():
         "validate_ui",
         route_after_validate,
         {
-            "ok": "persist_render",
+            "ok": "critic_episode",
             "retry": "genera_ui",
             "fallback": "fallback_seed",
         },
     )
+    graph.add_edge("critic_episode", "persist_render")
     graph.add_conditional_edges(
         "persist_render",
         route_after_persist,

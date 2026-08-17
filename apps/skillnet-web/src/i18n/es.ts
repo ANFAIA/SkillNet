@@ -94,6 +94,8 @@ export const es: Record<string, string> = {
   'node.buddyMessage': 'Vamos a por ello.',
   'node.nextNode': 'Siguiente: {title}',
   'node.previousNode': 'Anterior',
+  'node.nextScreen': 'Siguiente',
+  'node.previousScreen': 'Atrás',
   'node.courseComplete': 'Has completado el curso',
   'node.finishCourse': 'Terminar el curso',
   'node.courseCompleteTitle': '¡Curso completado!',
