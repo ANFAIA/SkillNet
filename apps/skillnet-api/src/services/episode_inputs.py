@@ -337,10 +337,27 @@ def episode_inputs_from_selection(
     if criticality not in {"critical", "recommended", "contextual"}:
         criticality = "recommended"
     critical_atoms = tuple(item for item in invariant_atoms if item.critical)
+    # A node declared ``critical`` only needs a critical (safety) atom when it is GENUINELY
+    # a safety competency — i.e. the pack actually carries safety-rule invariants. A
+    # knowledge/recognition node a proposer mislabeled "critical" (five biological kingdoms,
+    # say) has no safety atoms and must NOT be killed here: it certifies with a real varied
+    # assessment like any other knowledge node. Only a node that DOES carry safety rules but
+    # left none of them marked critical is a dishonest safety contract worth declining.
+    has_safety_atoms = any(
+        atom.kind is MustPreserveKind.SAFETY_RULE for atom in invariant_atoms
+    )
     if criticality == "critical" and not critical_atoms:
-        return EpisodeInputDeclined(
-            EpisodeInputDeclineReason.MISSING_CRITICAL_SAFETY
-        )
+        if has_safety_atoms:
+            # Genuine safety competency that forgot to mark its safety atoms critical: a
+            # dishonest contract, decline to support_only rather than fake mastery.
+            return EpisodeInputDeclined(
+                EpisodeInputDeclineReason.MISSING_CRITICAL_SAFETY
+            )
+        # A knowledge/recognition node a proposer mislabeled "critical" — it carries no
+        # safety atoms at all. Do NOT treat it as safety-critical: demote to "recommended"
+        # so its contract is honest (no fake critical errors) and it certifies with a real
+        # varied assessment like any other knowledge node.
+        criticality = "recommended"
     critical_errors = tuple(
         CriticalError(
             error_id=f"violate:{atom.atom_id}",

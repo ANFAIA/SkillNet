@@ -108,6 +108,13 @@ class KnowledgePackRunnerDependencies:
     generator_version: str = DEFAULT_GENERATOR_VERSION
     concurrency: int = DEFAULT_CONCURRENCY
     timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS
+    # Bounded automatic retry of a node that did not reach ``ready``. Defaults to one
+    # attempt so existing callers and unit fixtures keep their exact single-shot
+    # behaviour; the production wiring in ``routes/course_schema.py`` raises it so a
+    # transient provider error, a lost snapshot race, or a repairable review_required
+    # pack is retried instead of being left as a permanent "surprise" on the course.
+    max_attempts: int = 1
+    retry_backoff_seconds: float = 2.0
 
     def __post_init__(self) -> None:
         if not self.generator_version.strip():
@@ -116,6 +123,10 @@ class KnowledgePackRunnerDependencies:
             raise ValueError("concurrency must be at least one")
         if self.timeout_seconds <= 0:
             raise ValueError("timeout_seconds must be positive")
+        if self.max_attempts < 1:
+            raise ValueError("max_attempts must be at least one")
+        if self.retry_backoff_seconds < 0:
+            raise ValueError("retry_backoff_seconds cannot be negative")
 
 
 @dataclass(frozen=True)
@@ -268,7 +279,15 @@ def spawn_packs_for_schema(
     *,
     dependencies: KnowledgePackRunnerDependencies,
 ) -> None:
-    """Schedule the runner after a durable schema commit."""
+    """Schedule the runner after a durable schema commit.
+
+    Any in-flight run for an *earlier* schema version of this course is cancelled first.
+    Each ``PUT /schema`` bumps ``schema_version`` and spawns a fresh run; without this
+    the previous run would keep going with a now-stale source fingerprint, and the two
+    would race — the older one publishing packs the newer run immediately marks stale,
+    which is exactly the "stale limbo" this supersede removes.
+    """
+    task_registry.cancel_by_prefix(f"knowledge-pack:{course_id}:")
     coroutine = run_packs_for_schema(
         course_id,
         org_id,
@@ -310,6 +329,12 @@ async def _load_schema_snapshot(
     return course, nodes
 
 
+# Outcomes that a bounded retry can plausibly turn into ``ready``: a transient
+# provider/timeout failure, a snapshot lost to a superseding run, or a pack the
+# reviewer flagged as review_required (a fresh extraction can close the gap).
+_RETRYABLE_OUTCOMES = frozenset({"failed", "stale", "review_required"})
+
+
 async def _run_node(
     *,
     course: Course,
@@ -318,6 +343,72 @@ async def _run_node(
     schema_version: int,
     dependencies: KnowledgePackRunnerDependencies,
 ) -> NodePackRunResult:
+    """Attempt one node, retrying a non-``ready`` outcome up to ``max_attempts``.
+
+    A ``review_required`` snapshot is terminal to ``claim`` (it is a legitimate
+    finished state), so before re-attempting one we explicitly reopen the row; a
+    ``failed``/``stale`` row is reopened by ``claim`` itself. ``ready``/``skipped``
+    returns immediately. The last observed result is returned once attempts run out,
+    so a node that genuinely cannot be prepared is reported, not hidden.
+    """
+    last: NodePackRunResult | None = None
+    last_record_id: uuid.UUID | None = None
+    for attempt in range(1, dependencies.max_attempts + 1):
+        if attempt > 1 and last is not None and last.outcome == "review_required":
+            await _reopen_snapshot(dependencies, last_record_id)
+        result, record_id = await _attempt_node(
+            course=course,
+            node_id=node_id,
+            org_id=org_id,
+            schema_version=schema_version,
+            dependencies=dependencies,
+        )
+        if result.outcome in ("ready", "skipped"):
+            return result
+        last = result
+        last_record_id = record_id
+        if attempt < dependencies.max_attempts and result.outcome in _RETRYABLE_OUTCOMES:
+            logger.info(
+                "Retrying knowledge-pack node=%s attempt=%s/%s after outcome=%s",
+                node_id,
+                attempt,
+                dependencies.max_attempts,
+                result.outcome,
+            )
+            if dependencies.retry_backoff_seconds > 0:
+                await asyncio.sleep(
+                    min(dependencies.retry_backoff_seconds * attempt, 30.0)
+                )
+            continue
+        break
+    return last if last is not None else _result(node_id, "failed", time.perf_counter())
+
+
+async def _reopen_snapshot(
+    dependencies: KnowledgePackRunnerDependencies, record_id: uuid.UUID | None
+) -> None:
+    """Reset a terminal-but-not-ready snapshot to ``pending`` so a retry regenerates it."""
+    if record_id is None:
+        return
+    try:
+        async with dependencies.session_factory() as db:
+            repo = dependencies.service_for_session(db).store
+            reopen = getattr(repo, "reopen_snapshot", None)
+            if reopen is not None:
+                await reopen(record_id)
+                await _commit(db)
+    except Exception:  # noqa: BLE001 - a failed reopen just means the retry re-claims as-is.
+        logger.warning("Could not reopen knowledge-pack snapshot %s", record_id, exc_info=True)
+
+
+async def _attempt_node(
+    *,
+    course: Course,
+    node_id: uuid.UUID,
+    org_id: uuid.UUID,
+    schema_version: int,
+    dependencies: KnowledgePackRunnerDependencies,
+) -> tuple[NodePackRunResult, uuid.UUID | None]:
     started = time.perf_counter()
     snapshot: KnowledgePackSnapshot | None = None
     record: Any | None = None
@@ -327,7 +418,7 @@ async def _run_node(
         async with dependencies.session_factory() as db:
             node = await _load_one_node(db, node_id, org_id, course.id)
             if node is None:
-                return _result(node_id, "failed", started, error="node no longer exists")
+                return _result(node_id, "failed", started, error="node no longer exists"), None
             source_context = await dependencies.load_source(db, node, org_id)
 
         if not source_context.strip():
@@ -339,7 +430,7 @@ async def _run_node(
         async with dependencies.session_factory() as db:
             node = await _load_one_node(db, node_id, org_id, course.id)
             if node is None:
-                return _result(node_id, "failed", started, error="node no longer exists")
+                return _result(node_id, "failed", started, error="node no longer exists"), None
             existing = await dependencies.load_source(db, node, org_id)
             if (
                 not existing.strip()
@@ -369,7 +460,7 @@ async def _run_node(
                     if record.status == NodeKnowledgePackStatus.READY
                     else "review_required"
                 )
-                return _result(node_id, outcome, started)
+                return _result(node_id, outcome, started), record.id
 
         generated = await asyncio.wait_for(
             dependencies.generator.generate(
@@ -387,8 +478,8 @@ async def _run_node(
             )
             await _commit(db)
         if completed is None:
-            return _result(node_id, "stale", started, generated)
-        return _result(node_id, completed.status.value, started, generated)
+            return _result(node_id, "stale", started, generated), record.id
+        return _result(node_id, completed.status.value, started, generated), record.id
     except asyncio.CancelledError:
         raise
     except Exception as exc:  # noqa: BLE001 - failure is isolated to this node by design.
@@ -403,7 +494,10 @@ async def _run_node(
                     await _commit(db)
             except Exception:  # noqa: BLE001 - never hide the original generation failure.
                 logger.exception("Could not mark knowledge-pack failure node=%s", node_id)
-        return _result(node_id, "failed", started, error=message)
+        return (
+            _result(node_id, "failed", started, error=message),
+            record.id if record is not None else None,
+        )
 
 
 async def _draft_node_source(

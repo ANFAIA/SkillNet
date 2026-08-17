@@ -354,6 +354,7 @@ export function NodeView() {
   const [streamFailure, setStreamFailure] = useState<string | null>(null)
 
   const requestedRef = useRef(false)
+  const wasPreparingRef = useRef(false)
   /**
    * Lo que hay EN PANTALLA: el nodo y su leccion, juntos.
    *
@@ -393,6 +394,7 @@ export function NodeView() {
     setEpisodeScreen(0)
     setEpisodeTotal(1)
     requestedRef.current = false
+    wasPreparingRef.current = false
     programShownBefore.current = false
     viewedRenderRef.current = null
     dwellStartRef.current = null
@@ -400,10 +402,24 @@ export function NodeView() {
     // prefetchedRef is defined later but initialized to null anyway
   }, [nodeId])
 
-  const render = useNodeRender(nodeId, { enabled: phase === 'content' })
+  const [isPreparing, setIsPreparing] = useState(false)
+  const render = useNodeRender(nodeId, {
+    enabled: phase === 'content',
+    // Poll only while "Preparándose…", so the screen flips to the real episode by itself
+    // once the node's knowledge pack lands and the server drops the fallback pin.
+    refetchInterval: isPreparing ? 4000 : false,
+  })
   const requestRender = useRequestRender(nodeId)
 
-  const served = isServedRender(render.data) ? render.data : null
+  const rawServed = isServedRender(render.data) ? render.data : null
+  // A "preparing" fallback (knowledge pack not ready) is NOT a lesson and must never be
+  // shown as content: keep it out of `served` so the intro stays on "Preparándose…" and
+  // the poll above swaps in the real episode when it is ready — never a flat fallback.
+  const served = rawServed && !rawServed.preparing ? rawServed : null
+
+  useEffect(() => {
+    setIsPreparing(!!(rawServed && rawServed.preparing))
+  }, [rawServed])
 
   /**
    * Las dos unicas transiciones de `shown`, y no hay una tercera.
@@ -493,6 +509,24 @@ export function NodeView() {
     if (requestedRef.current) return
     startRender()
   }, [phase, nodeId, served, pending, streamFailure, stream, startRender])
+
+  // Recover from "Preparándose…": while preparing we hold `requestedRef` set so the effect
+  // above does not spin. When the pack lands the server drops the fallback pin, `isPreparing`
+  // clears and `GET /render` has nothing pinned — re-arm one request so the episode is
+  // generated with the now-ready pack instead of leaving the learner on the placeholder.
+  useEffect(() => {
+    if (phase !== 'content') return
+    if (isPreparing) {
+      wasPreparingRef.current = true
+      requestedRef.current = true
+      return
+    }
+    if (wasPreparingRef.current && !served && pending && !pending.request_id) {
+      wasPreparingRef.current = false
+      requestedRef.current = false
+      startRender()
+    }
+  }, [phase, isPreparing, served, pending, startRender])
 
   // --- instrumentation (§3.3) -------------------------------------------------
 
@@ -945,6 +979,11 @@ export function NodeView() {
                             ? intl.formatMessage({ id: 'node.start' })
                             : intl.formatMessage({ id: 'node.preparing' })}
                         </button>
+                        {isPreparing && !shownProgram && (
+                          <p className="text-xs text-text-muted mt-2" role="status">
+                            {intl.formatMessage({ id: 'node.preparingBackground' })}
+                          </p>
+                        )}
                       </motion.div>
                     )}
                   </AnimatePresence>

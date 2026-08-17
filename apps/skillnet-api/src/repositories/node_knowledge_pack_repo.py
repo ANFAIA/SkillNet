@@ -199,6 +199,32 @@ class NodeKnowledgePackRepository(BaseRepository[NodeKnowledgePackRecord]):
         await self.session.flush()
         return int(result.rowcount or 0)
 
+    async def reopen_snapshot(self, record_id: uuid.UUID) -> NodeKnowledgePackRecord | None:
+        """Reset a terminal-but-not-ready snapshot to ``pending`` for a bounded retry.
+
+        Only a ``failed``/``stale``/``review_required`` row is reopened; a ``ready`` row is
+        immutable and left untouched. ``review_required`` is a legitimate finished state, so
+        ``claim`` deliberately will not reopen it — this is the one place that does, and only
+        because the runner has decided to spend another bounded attempt on it.
+        """
+        result = await self.session.execute(
+            update(NodeKnowledgePackRecord)
+            .where(
+                NodeKnowledgePackRecord.id == record_id,
+                NodeKnowledgePackRecord.status.in_(
+                    [
+                        NodeKnowledgePackStatus.FAILED,
+                        NodeKnowledgePackStatus.STALE,
+                        NodeKnowledgePackStatus.REVIEW_REQUIRED,
+                    ]
+                ),
+            )
+            .values(status=NodeKnowledgePackStatus.PENDING, error_message=None)
+            .returning(NodeKnowledgePackRecord)
+        )
+        await self.session.flush()
+        return result.scalar_one_or_none()
+
     async def mark_completed_if_claimed(
         self,
         record_id: uuid.UUID,

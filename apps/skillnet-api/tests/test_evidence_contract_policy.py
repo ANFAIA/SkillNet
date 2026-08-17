@@ -134,6 +134,24 @@ def test_recommended_ticket_case_declines_because_rubric_has_no_real_scorer() ->
     assert "didact.rubric" not in EVALUATED_COMPONENT_MODES
 
 
+def test_critical_knowledge_node_without_safety_atoms_still_certifies() -> None:
+    # A proposer mislabeled this pure knowledge/recognition node "critical", but it carries
+    # no safety-rule atoms. A real varied assessment is a reliable oracle for it, so it must
+    # certify (Accepted) rather than decline to support_only (owner rule, 2026-08-17).
+    pack = _pack(
+        node_id="five-kingdoms-recall",
+        mission=CognitiveMission.RECOGNIZE,
+        source_functions=frozenset({SourceFunction.LOCATE}),
+        atom_kind=MustPreserveKind.FACT,
+    )
+
+    result = evidence_contracts_for_pack(pack, criticality="critical")
+
+    assert isinstance(result, EvidencePolicyAccepted)
+    contract = result.evidence_contracts["evidence:five-kingdoms-recall"]
+    assert contract["evaluation_mode"] == "exact"
+
+
 def test_sql_without_execution_sandbox_declines() -> None:
     pack = _pack(
         node_id="sql-left-join-null",

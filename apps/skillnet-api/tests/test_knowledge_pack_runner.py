@@ -315,6 +315,100 @@ async def test_runner_refuses_a_schema_version_that_is_no_longer_current() -> No
         await run_packs_for_schema(course.id, org_id, 3, dependencies=dependencies)
 
 
+class FlakyGenerator(FakeGenerator):
+    """Fail the first ``fail_first`` attempts for a title, then succeed."""
+
+    def __init__(self, *, fail_first: dict[str, int]) -> None:
+        super().__init__()
+        self.remaining = dict(fail_first)
+
+    async def generate(self, *, course, node, source_context, snapshot):
+        if self.remaining.get(node.title, 0) > 0:
+            self.remaining[node.title] -= 1
+            self.calls.append((course, node, source_context))
+            raise RuntimeError(f"transient: {node.title}")
+        return await super().generate(
+            course=course, node=node, source_context=source_context, snapshot=snapshot
+        )
+
+
+async def test_runner_retries_a_transient_failure_until_ready() -> None:
+    org_id, course, nodes = fixtures()
+    # "Comanda" fails its first attempt, then succeeds on the retry.
+    generator = FlakyGenerator(fail_first={"Comanda": 1})
+    service = FakeService()
+    dependencies = make_dependencies(
+        course, nodes, generator, service, max_attempts=3, retry_backoff_seconds=0
+    )
+
+    metrics = await run_packs_for_schema(course.id, org_id, 4, dependencies=dependencies)
+
+    assert metrics.ready == 3
+    assert metrics.failed == 0
+    # Two generate calls for the flaky node (one failing, one succeeding); one each for the rest.
+    comanda_calls = sum(1 for _c, node, _s in generator.calls if node.title == "Comanda")
+    assert comanda_calls == 2
+
+
+async def test_runner_gives_up_after_bounded_attempts() -> None:
+    org_id, course, nodes = fixtures()
+    generator = FakeGenerator(fail_titles={"Comanda"})
+    service = FakeService()
+    dependencies = make_dependencies(
+        course, nodes, generator, service, max_attempts=3, retry_backoff_seconds=0
+    )
+
+    metrics = await run_packs_for_schema(course.id, org_id, 4, dependencies=dependencies)
+
+    assert metrics.ready == 2
+    assert metrics.failed == 1
+    # Exactly ``max_attempts`` generate attempts were spent on the doomed node, no more.
+    comanda_calls = sum(1 for _c, node, _s in generator.calls if node.title == "Comanda")
+    assert comanda_calls == 3
+
+
+class ReviewThenReadyService(FakeService):
+    """First completion is ``review_required``; after a reopen the retry lands ``ready``."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.reopened: list[uuid.UUID] = []
+        outer = self
+
+        class _Store:
+            async def reopen_snapshot(self, record_id):
+                outer.reopened.append(record_id)
+                return SimpleNamespace(id=record_id)
+
+        self.store = _Store()
+        self._completions = 0
+
+    async def complete(self, record, *, snapshot, pack):
+        self.completed.append((record, snapshot, pack))
+        self._completions += 1
+        status = (
+            NodeKnowledgePackStatus.REVIEW_REQUIRED
+            if self._completions == 1
+            else NodeKnowledgePackStatus.READY
+        )
+        return SimpleNamespace(id=record.id, status=status)
+
+
+async def test_runner_reopens_and_retries_a_review_required_pack() -> None:
+    org_id, course, nodes = fixtures()
+    generator = FakeGenerator()
+    service = ReviewThenReadyService()
+    dependencies = make_dependencies(
+        course, nodes[:1], generator, service, max_attempts=3, retry_backoff_seconds=0
+    )
+
+    metrics = await run_packs_for_schema(course.id, org_id, 4, dependencies=dependencies)
+
+    assert metrics.ready == 1
+    assert metrics.review_required == 0
+    assert service.reopened  # the terminal review_required row was explicitly reopened
+
+
 def test_source_fingerprint_changes_for_source_or_node_contract_not_dict_order() -> None:
     org_id, course, nodes = fixtures()
     node = nodes[0]

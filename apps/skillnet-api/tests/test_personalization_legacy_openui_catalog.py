@@ -45,7 +45,6 @@ def test_adapter_is_deterministic_and_does_not_mutate_live_kit() -> None:
         "PronunciationExercise",
         "Flashcard",
         "HintReveal",
-        "DidactGlossary",
         "DidactTimeline",
         "DidactWorkedExample",
         "LearningExperience",
@@ -60,6 +59,9 @@ def test_structural_and_supporting_blocks_are_not_planning_candidates() -> None:
         adapted_ids
     )
     assert LEGACY_OPENUI_POLICIES["Markdown"].exclusion_reason is not None
+    # DidactGlossary was excluded from planning on 2026-08-17 (redundant with Curio).
+    assert "DidactGlossary" not in adapted_ids
+    assert LEGACY_OPENUI_POLICIES["DidactGlossary"].exclusion_reason is not None
 
 
 def test_legacy_capabilities_are_honest_about_richness_and_producer() -> None:

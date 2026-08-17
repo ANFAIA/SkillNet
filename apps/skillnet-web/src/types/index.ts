@@ -465,6 +465,13 @@ export interface NodeRender {
    * `raw_dsl` stays in the model and in no response schema.
    */
   program: string
+  /**
+   * `true` when this is a **fallback** shell served only because the node's knowledge
+   * pack is not ready yet. The client must show "Preparándose…" and keep polling rather
+   * than present `program` as the lesson; it clears once the pack lands and the episode
+   * is regenerated. Absent/false on a real lesson or an honest legacy decline.
+   */
+  preparing?: boolean
 }
 
 /** `GET /users/me/learner-profile` (§11.2). `format_vector` and `tutor_notes` stay server-side. */

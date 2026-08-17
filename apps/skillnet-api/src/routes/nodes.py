@@ -41,6 +41,7 @@ from src.core.exceptions import (
     NotFoundError,
     ValidationError,
 )
+from src.config import settings
 from src.core.sse import format_sse, subscribe
 from src.deps.auth import CurrentUser
 from src.deps.db import DBSession
@@ -609,8 +610,17 @@ async def get_render(
         )
 
     served = await service.serve(user_id=user.id, render=render, cached=True)
+    # "Preparándose…": a **legacy_stepper** shell (a hard ``fallback`` is one too) served
+    # only because the node's knowledge pack is not ready yet — an adaptive episode is
+    # still coming and will replace it once the pack lands. An honest legacy decline (pack
+    # ready, generation chose legacy) is *not* preparing and is served normally.
+    preparing = (
+        settings.ADAPTIVE_EPISODES
+        and served.shell_mode == "legacy_stepper"
+        and not await service.node_pack_ready(node=node, course=course)
+    )
     await db.commit()
-    return NodeRenderRead.of(served)
+    return NodeRenderRead.of(served, preparing=preparing)
 
 
 @router.get("/{node_id}/renders", response_model=NodeRenderHistoryRead)

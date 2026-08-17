@@ -45,11 +45,12 @@ def test_every_type_retains_its_neutral_manifest_identity() -> None:
 def test_total_catalogue_is_separate_from_openui_emission_readiness() -> None:
     catalog = load_didact_catalog()
 
-    assert len(catalog.emittable) == 29
+    # ``didact.glossary-term`` was blocked on 2026-08-17: "Curio" (click-any-word meaning)
+    # makes an in-lesson glossary redundant, so it is no longer emittable.
+    assert len(catalog.emittable) == 28
     assert {item.type_id for item in catalog.emittable} == {
         "didact.flashcard",
         "didact.hint-reveal",
-        "didact.glossary-term",
         "didact.timeline-steps",
         "didact.worked-example",
         "didact.rubric",
@@ -80,7 +81,6 @@ def test_total_catalogue_is_separate_from_openui_emission_readiness() -> None:
     assert {item.renderer_symbol for item in catalog.emittable} == {
         "Flashcard",
         "HintReveal",
-        "DidactGlossary",
         "DidactTimeline",
         "DidactWorkedExample",
         "DidactActivity",
@@ -100,7 +100,7 @@ def test_unadapted_types_remain_installed_but_await_a_renderer() -> None:
     catalog = load_didact_catalog()
     unadapted = [item for item in catalog.components if not item.renderer_available]
 
-    assert len(unadapted) == 5
+    assert len(unadapted) == 6
     assert all(item.availability_status is AvailabilityStatus.BLOCKED for item in unadapted)
     assert all(item.emission_status is EmissionStatus.DISABLED for item in unadapted)
     assert all(item.renderer_mode is RendererMode.BLOCKED for item in unadapted)

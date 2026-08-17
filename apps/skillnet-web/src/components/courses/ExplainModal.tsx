@@ -31,6 +31,15 @@ import { ChatMarkdown } from '../chat/ChatMarkdown'
 const FOCUSABLE =
   'button, [href], input, textarea, select, [tabindex]:not([tabindex="-1"])'
 
+/**
+ * OpenUI Lang always opens with `root = …`. The tutor streams that program as plain
+ * `token` events and then emits the compiled tree in a trailing `ui` event; if the
+ * `ui` event never lands (layout skipped, connection dropped, program failed the gate),
+ * the accumulated tokens are the raw DSL and must NOT be shown as prose. Same guard
+ * `ChatAnswer` uses so a generative answer never leaks `root = Stack(...)` as text.
+ */
+const PROGRAM_DSL = /^\s*root\s*=/
+
 // ── Types ───────────────────────────────────────────────────────
 
 interface StackEntry {
@@ -237,6 +246,11 @@ function ExplanationPanel({
   const gate = gateProgram(program)
   const showBlocks = Boolean(program) && !gate.blocked && !gate.empty
 
+  // Prose fallback only for content that is actually prose. Streamed OpenUI DSL
+  // (`root = …`) is not a fallback — it is a program whose `ui` event never landed
+  // (or landed invalid), and rendering it as markdown is exactly the raw-DSL leak.
+  const contentIsProse = Boolean(content) && !PROGRAM_DSL.test(content)
+
   const body = error ? (
     <p className="text-sm text-danger">{error}</p>
   ) : showBlocks ? (
@@ -245,8 +259,8 @@ function ExplanationPanel({
     <span className="typing-dots" aria-label={intl.formatMessage({ id: 'explain.generating' })}>
       <span /><span /><span />
     </span>
-  ) : content && !program ? (
-    // Only show content as markdown if no program was attempted
+  ) : contentIsProse && !program ? (
+    // Only show content as markdown if it is prose and no program was attempted
     <ChatMarkdown content={content} isStreaming={false} />
   ) : (
     <p className="text-sm text-text-muted">{intl.formatMessage({ id: 'explain.errorRetry' })}</p>

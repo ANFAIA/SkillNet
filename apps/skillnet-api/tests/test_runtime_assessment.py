@@ -110,15 +110,15 @@ def test_course_position_spreads_didact_closers_across_siblings() -> None:
             course_id="course-a",
             position=position,
         )
-        for position in range(1, 8)
+        for position in range(1, 7)
     ]
     blocks = [plan.block for plan in plans]
-    # Siblings spread across every rotation slot and none degrades to a bare quiz.
-    assert len(set((plan.block, plan.item_type) for plan in plans)) == 7
+    # Siblings spread across every rotation slot: six DISTINCT real assessments.
+    assert len(set((plan.block, plan.item_type) for plan in plans)) == 6
     assert "QuizItem" not in blocks and "DragOrder" not in blocks
-    # Both materialized activities AND direct interactive Didact closers are offered.
-    assert "DidactActivity" in blocks
-    assert any(block in DIRECT_DIDACT_BLOCKS for block in blocks)
+    # Every closer is a real server-scored activity — never a Flashcard/reveal (owner rule).
+    assert all(block == "DidactActivity" for block in blocks)
+    assert not DIRECT_DIDACT_BLOCKS
 
 
 def test_legacy_position_rotation_does_not_collapse_to_true_false() -> None:
@@ -147,21 +147,22 @@ def test_live_didact_prompt_requires_authored_activity_not_quizitem() -> None:
     ) == ("LearningExperience",)
 
 
-def test_live_didact_falls_back_to_an_interactive_block_not_a_bare_quiz() -> None:
+def test_live_didact_falls_back_to_a_real_varied_quiz_never_a_flashcard() -> None:
     from src.agents.runtime.nodes import (
-        _DIDACT_ACTIVITY_FALLBACK_BLOCKS,
+        _didact_activity_fallback_item_type,
         _prompt_assessment_required,
     )
 
-    # When no activity can be materialized the closer stays a genuine interaction
-    # (a direct Didact block), never degrading to a bare QuizItem.
+    # When no activity can be materialized the closer is a REAL check (QuizItem), never a
+    # Flashcard/reveal, and its type varies by node so siblings do not all share one test.
+    item_types = set()
     for node_id in ("node-1", "node-2", "node-3", "boxing-jab"):
-        required = _prompt_assessment_required(
-            {"assessment_block": "DidactActivity", "node_id": node_id}
-        )
-        assert required != ("QuizItem",)
-        assert len(required) == 1
-        assert required[0] in _DIDACT_ACTIVITY_FALLBACK_BLOCKS
+        state = {"assessment_block": "DidactActivity", "node_id": node_id}
+        required = _prompt_assessment_required(state)
+        assert required == ("QuizItem",)
+        item_types.add(_didact_activity_fallback_item_type(state))
+    assert item_types <= set(QUIZ_ROTATION)
+    assert len(item_types) > 1
 
 
 def test_declined_authoring_rewrites_the_verification_hint() -> None:
@@ -174,7 +175,7 @@ def test_declined_authoring_rewrites_the_verification_hint() -> None:
         },
         ("QuizItem",),
     )
-    assert "CASO" in hint
+    assert "QuizItem" in hint
     assert "DidactActivity" not in hint
 
 
@@ -191,7 +192,7 @@ def test_declined_authoring_rewrites_the_screen_scheme_practice() -> None:
         ("QuizItem",),
     )
     assert "concepto = Table" in text
-    assert "QuizItem (test)" in text
+    assert "QuizItem (" in text
     assert "DidactActivity" not in text
 
 
@@ -202,12 +203,12 @@ def test_legacy_assessment_still_requires_quizitem() -> None:
     assert _prompt_assessment_required({"assessment_block": "DragOrder"}) == ("DragOrder",)
 
 
-def test_direct_didact_closer_is_required_in_the_prompt() -> None:
+def test_flashcard_is_never_treated_as_an_assessment_closer() -> None:
     from src.agents.runtime.nodes import _prompt_assessment_required
 
-    assert _prompt_assessment_required({"assessment_block": "Flashcard"}) == (
-        "Flashcard",
-    )
+    # Flashcard is CONTENT (active-recall aid), never the node's test: it is not a valid
+    # assessment block, so the required-closer resolver ignores it entirely.
+    assert _prompt_assessment_required({"assessment_block": "Flashcard"}) == ()
 
 
 def test_activity_candidates_inject_a_planned_type_missing_from_the_shortlist() -> None:
@@ -270,17 +271,13 @@ def test_didact_verification_prompt_names_the_practice() -> None:
     assert "PROHIBIDO" not in didact
 
 
-def test_direct_didact_closers_are_reachable_not_dead_code() -> None:
-    # Previously every rotation entry was DidactActivity, so DIRECT_DIDACT_BLOCKS was
-    # empty and direct Didact closers could never be planned. They must be reachable now.
-    assert DIRECT_DIDACT_BLOCKS
-    assert DIRECT_DIDACT_BLOCKS <= {
-        "Flashcard",
-        "HintReveal",
-        "DidactWorkedExample",
-        "DidactGlossary",
-        "DidactTimeline",
-    }
+def test_no_content_block_is_ever_the_assessment() -> None:
+    # Owner rule (2026-08-17): the TEST is always a real varied check (DidactActivity /
+    # QuizItem), never a content block. No Flashcard/reveal is a closer, so the direct-block
+    # rotation is empty and Flashcard never appears in the assessment rotation.
+    assert not DIRECT_DIDACT_BLOCKS
+    assert all(block == "DidactActivity" for _id, block in DIDACT_CLOSER_ROTATION)
+    assert "Flashcard" not in {block for _id, block in DIDACT_CLOSER_ROTATION}
 
 
 def test_support_only_shortlist_is_kept_interactive() -> None:

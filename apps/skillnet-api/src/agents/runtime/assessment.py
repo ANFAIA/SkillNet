@@ -48,22 +48,17 @@ DIDACT_QUIZ_ROTATION: tuple[str, ...] = (
 )
 DIDACT_PROCEDURE = "didact.sort"
 
-#: Families mixed on purpose so consecutive nodes in one course do not share a closer.
-#: ``block`` is the OpenUI symbol the scoped prompt must include. Two kinds of entry:
-#: a server-materialized ``DidactActivity`` (scored evidence) and a direct interactive
-#: Didact block (``item_type`` ``None``) that closes with genuine practice without needing
-#: a materialized activity. Direct blocks are why a node whose activity cannot be
-#: materialized still ends in an interaction instead of a bare QuizItem.
-#: Only ``Flashcard`` remains as a direct block: it is active recall (the learner must
-#: retrieve the answer before flipping), the sole passive-looking block the owner keeps.
-#: Reveal-only blocks (``DidactWorkedExample`` progressive, ``HintReveal``) are banned — they
-#: hand information to the learner instead of asking the learner to produce it. Everything
-#: else is a server-materialized ``DidactActivity`` where the learner acts (matching,
-#: categorize, sort, word-bank, quiz variants). Widened on 2026-08-17 so the ~24 rich Didact
-#: activities actually reach lessons now that knowledge packs reach ``ready`` with refs.
+#: The ASSESSMENT rotation. Every entry is a REAL, varied check the learner acts on —
+#: matching, categorize, single-choice, word-bank, fill-in-the-blank, sort — materialized as
+#: a server-scored ``DidactActivity``. This is the node's TEST, so it is never a content
+#: block. ``Flashcard`` was removed on 2026-08-17: it is a CONTENT resource (active-recall
+#: aid on a teaching screen), not the test — using it as the closer made every node's
+#: "assessment" a reveal, which is exactly what the owner banned. Reveal-only blocks
+#: (``DidactWorkedExample`` progressive, ``HintReveal``) were already banned for the same
+#: reason. When no ``DidactActivity`` can be materialized the fallback is a real ``QuizItem``
+#: variant (see ``nodes._didact_activity_fallback_block``), never a Flashcard.
 DIDACT_CLOSER_ROTATION: tuple[tuple[str | None, str], ...] = (
     ("didact.matching", "DidactActivity"),
-    (None, "Flashcard"),
     ("didact.categorize", "DidactActivity"),
     ("didact.quiz.single-choice", "DidactActivity"),
     ("didact.word-bank", "DidactActivity"),

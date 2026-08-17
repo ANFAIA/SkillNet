@@ -40,7 +40,6 @@ def test_planner_can_see_all_types_but_emittable_projection_is_explicitly_smalle
     assert {item.component_id for item in export_didact_descriptors(emittable_only=True)} == {
         "didact.flashcard",
         "didact.hint-reveal",
-        "didact.glossary-term",
         "didact.timeline-steps",
         "didact.worked-example",
         "didact.rubric",
@@ -76,16 +75,17 @@ def test_openui_boundary_translates_only_enabled_host_ready_types() -> None:
     ) == ("HintReveal", "Flashcard")
     assert openui_names_for_shortlist(
         [
-            "didact.glossary-term",
             "didact.timeline-steps",
             "didact.worked-example",
         ]
     ) == (
-        "DidactGlossary",
         "DidactTimeline",
         "DidactWorkedExample",
     )
 
+    # ``didact.glossary-term`` is now blocked (Curio replaces it): never OpenUI-emittable.
+    with pytest.raises(DidactExposureError, match="didact.glossary-term"):
+        openui_names_for_shortlist(["didact.glossary-term"])
     with pytest.raises(DidactExposureError, match="didact.simulation-lab"):
         openui_names_for_shortlist(["didact.simulation-lab"])
     assert openui_names_for_shortlist(["didact.self-explanation-prompt"]) == (

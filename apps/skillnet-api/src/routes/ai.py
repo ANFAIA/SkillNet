@@ -72,11 +72,20 @@ For each node return:
 - criticality: one of [critical, recommended, contextual]
 - prerequisites: list of INDICES (0-based) of other nodes in this list
 
+Reserve "critical" for competencies where doing it WRONG causes real
+safety, legal, or serious financial/operational harm (a safety rule, a
+regulated procedure, an irreversible action). A node that is merely
+important, foundational, or a prerequisite is "recommended", NOT "critical".
+Plain knowledge, facts, recognition, or classification are NEVER "critical" —
+knowing them is checked by an assessment, not guarded as a safety rule. Most
+courses have ZERO critical nodes; that is fine and expected.
+
 Rules:
 1. prerequisites uses INDICES of the list you are returning (0 = the first
    node), never identifiers or titles. A node cannot be a prerequisite of
    itself and the graph must be acyclic.
-2. At least one node must be "critical".
+2. Mark a node "critical" ONLY if it meets the safety/consequence bar above.
+   Do not force a critical node: if none qualifies, none is critical.
 3. Order nodes from foundational to advanced. A prerequisite must appear
    BEFORE the node that needs it.
 4. Write title in the SAME LANGUAGE as the course title.

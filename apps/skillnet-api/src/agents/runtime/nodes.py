@@ -27,7 +27,6 @@ Three things in here are the security contract of §5.1 and are not negotiable:
 from __future__ import annotations
 
 import asyncio
-import hashlib
 import json
 import time
 import uuid
@@ -41,7 +40,12 @@ from src.agents.content.helpers import (
     assemble_chunk_text,
     estimate_pages,
 )
-from src.agents.runtime.assessment import AssessmentPlan, plan_assessment
+from src.agents.runtime.assessment import (
+    QUIZ_ROTATION,
+    AssessmentPlan,
+    _closer_index,
+    plan_assessment,
+)
 from src.agents.runtime.classify import classify_function
 from src.agents.runtime.screen_scheme import ScreenScheme, plan_screen_scheme
 from src.agents.runtime.errors import (
@@ -154,11 +158,12 @@ FALLBACK_MAX_BLOCKS = 2
 #: Reveal-only blocks (``DidactWorkedExample``, ``HintReveal``, ``StepByStepReveal``) were
 #: removed on 2026-08-17: a support screen still must not hand information to the learner
 #: behind a click. The learner reads full content or acts; nothing is reveal-gated.
+#: ``DidactGlossary`` removed on 2026-08-17: the platform already has "Curio" (click any
+#: word for its meaning), so an in-lesson glossary block is redundant and never generated.
 _SUPPORT_PROMPT_COMPONENT_IDS = frozenset(
     {
         "BeforeAfter",
         "Chart",
-        "DidactGlossary",
         "DidactTimeline",
         "DragOrder",
         "Flashcard",
@@ -1289,28 +1294,36 @@ def _activity_candidates(state: NodeRuntimeState) -> tuple[str, ...]:
 
 
 _LEGACY_ASSESSMENT_BLOCKS = frozenset({"QuizItem", "DragOrder"})
-#: Direct Didact closers the generator may emit without a server-prepared activity. Only
-#: active blocks: ``Flashcard`` is active recall; ``DidactGlossary``/``DidactTimeline`` show
-#: their content in full (they are not reveal-gated). ``HintReveal`` and ``DidactWorkedExample``
-#: were removed on 2026-08-17: they only reveal information to the learner (owner ban).
-_DIRECT_DIDACT_CLOSERS = (
-    "Flashcard",
-    "DidactGlossary",
-    "DidactTimeline",
-)
+#: No direct Didact block is ever the node's TEST. Emptied on 2026-08-17: ``Flashcard`` is a
+#: CONTENT resource (active recall), ``DidactGlossary`` was dropped platform-wide (Curio
+#: replaces it) and ``DidactTimeline`` is content too — none of them "evaluate", so none may
+#: stand in as the assessment/closer. The real check is a ``DidactActivity`` (matching,
+#: categorize, sort, word-bank, quiz variants) or, when none can be materialized, a real
+#: varied ``QuizItem``. Kept as a name so the (now always-false) closer checks stay readable.
+_DIRECT_DIDACT_CLOSERS: tuple[str, ...] = ()
 
-#: When a ``DidactActivity`` cannot be materialized, the screen still closes with a genuine
-#: interaction instead of a bare QuizItem. ``Flashcard`` is the only reveal-adjacent block
-#: kept — it is active recall, not passive reveal — so it is the safe deterministic fallback.
-_DIDACT_ACTIVITY_FALLBACK_BLOCKS: tuple[str, ...] = ("Flashcard",)
+
+def _didact_activity_fallback_item_type(state: NodeRuntimeState) -> str:
+    """A real, node-varied QuizItem type when a certified activity cannot be materialized.
+
+    Never a Flashcard: the closer is the node's TEST and must actually check the learner.
+    Rotating the ``QuizItem`` type by node keeps sibling fallbacks from all being the same
+    "test" (single-choice/true-false/fill-in-the-blank), the variety the owner asked for.
+    """
+
+    index = _closer_index(
+        node_id=str(state.get("node_id") or ""),
+        course_id=str(state.get("course_id") or ""),
+        position=(state.get("node") or {}).get("position"),
+        size=len(QUIZ_ROTATION),
+    )
+    return QUIZ_ROTATION[index]
 
 
 def _didact_activity_fallback_block(state: NodeRuntimeState) -> str:
-    """Deterministic interactive fallback when authoring an activity declines."""
+    """Deterministic interactive fallback when authoring an activity declines: a real test."""
 
-    seed = hashlib.sha1(str(state.get("node_id") or "").encode("utf-8")).hexdigest()
-    index = int(seed[:8], 16) % len(_DIDACT_ACTIVITY_FALLBACK_BLOCKS)
-    return _DIDACT_ACTIVITY_FALLBACK_BLOCKS[index]
+    return "QuizItem"
 
 
 def _prompt_assessment_required(state: NodeRuntimeState) -> tuple[str, ...]:
@@ -1348,7 +1361,8 @@ def _effective_assessment_hint(state: NodeRuntimeState, required: tuple[str, ...
         )
     closer = required[0] if required else "QuizItem"
     if closer == "QuizItem":
-        return AssessmentPlan(block="QuizItem", item_type="test").instruction()
+        item_type = _didact_activity_fallback_item_type(state)
+        return AssessmentPlan(block="QuizItem", item_type=item_type).instruction()
     return (
         f"VERIFICA con {closer}. El concepto ensena con un caso o una grafica; "
         f"{closer} es otro encargo del puesto."
@@ -1371,7 +1385,11 @@ def _effective_screen_scheme(
             closer = "LearningExperience"
         else:
             closer = required[0] if required else "QuizItem"
-            item_type = "test" if closer == "QuizItem" else None
+            item_type = (
+                _didact_activity_fallback_item_type(state)
+                if closer == "QuizItem"
+                else None
+            )
     return ScreenScheme(
         concept_block=concept,
         practice_block=closer,

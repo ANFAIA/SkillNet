@@ -166,9 +166,41 @@ async def update_schema(
         admin.org_id,
         int(snapshot.course.schema_version or 1),
         dependencies=KnowledgePackRunnerDependencies(
-            generator=ConfiguredKnowledgePackGenerator(llm)
+            generator=ConfiguredKnowledgePackGenerator(llm),
+            # Retry a transient failure / lost-snapshot race / repairable review_required
+            # pack a bounded number of times so a fresh course reaches "all nodes ready"
+            # without a human re-triggering generation.
+            max_attempts=3,
         ),
     )
+    return _read(snapshot)
+
+
+@router.post("/{course_id}/schema/review", response_model=CourseSchemaRead)
+async def review_all_nodes(
+    admin: AdminUser, db: DBSession, course_id: uuid.UUID
+) -> CourseSchemaRead:
+    """Mark every non-archived node of the course human-reviewed in one call.
+
+    The §11.1 gate requires a ``reviewed_at`` on each node before ``validate`` can open,
+    and the create wizard used to stamp them one HTTP call at a time (any silent failure
+    left ``validate`` returning ``409 node_not_reviewed``). Finishing course creation is
+    the owner's single act of sign-off, so this endpoint records it atomically for the
+    whole graph: the wizard calls it right before ``validate`` and no node is left behind.
+    """
+    with _structured_errors():
+        service = _service(db)
+        snapshot = await service.get_schema(course_id=course_id, org_id=admin.org_id)
+        for node in snapshot.nodes:
+            if node.reviewed_at is None and not node.archived:
+                await service.mark_reviewed(
+                    course_id=course_id,
+                    org_id=admin.org_id,
+                    node_id=node.id,
+                    actor_id=admin.id,
+                )
+        await db.commit()
+        snapshot = await service.get_schema(course_id=course_id, org_id=admin.org_id)
     return _read(snapshot)
 
 

@@ -134,9 +134,14 @@ class NodeRenderRead(BaseModel):
     cached: bool = False
     #: OpenUI Lang **text**, re-serialized from the validated spec. Never ``raw_dsl``.
     program: str
+    #: ``True`` when this is a **fallback** shell served only because the node's knowledge
+    #: pack is not ready yet. The client must show "Preparándose…" and keep polling rather
+    #: than present ``program`` as the lesson; it clears the moment the pack lands and the
+    #: episode is regenerated.
+    preparing: bool = False
 
     @classmethod
-    def of(cls, served: Any) -> NodeRenderRead:
+    def of(cls, served: Any, *, preparing: bool = False) -> NodeRenderRead:
         """Project a ``ServedRender``. The field list is the whole contract."""
         return cls(
             render_id=served.render_id,
@@ -147,6 +152,7 @@ class NodeRenderRead(BaseModel):
             shell_mode=served.shell_mode,
             cached=served.cached,
             program=served.program,
+            preparing=preparing,
         )
 
 

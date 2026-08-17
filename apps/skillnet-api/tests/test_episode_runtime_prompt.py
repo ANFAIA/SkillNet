@@ -199,11 +199,12 @@ def test_episode_generator_teaches_didact_interactive_blocks() -> None:
     for name in (
         "Flashcard",
         "DragOrder",
-        "DidactGlossary",
         "DidactTimeline",
         "LearningExperience",
     ):
         assert name in system, name
+    # DidactGlossary was removed from generation (redundant with Curio).
+    assert "DidactGlossary" not in system
     assert "interacciones Didact" in system
     # Reveal-only blocks are banned for episodes: the learner must contribute, not just
     # click to see information. Flashcard (active recall) is the sole kept exception.

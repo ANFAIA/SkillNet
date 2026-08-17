@@ -112,12 +112,24 @@ def _decline(
     )
 
 
-def _recognition_is_supported(pack: NodeKnowledgePack) -> bool:
-    """Recognizing grounded facts is the sole currently safe generic mapping.
+#: Atom kinds a RECOGNIZE mission can certify with a deterministic selected-response scorer.
+#: FACT and PROCEDURE_STEP are both plain text/selection knowledge the learner RECOGNIZES
+#: (which fact is true, which step comes where) and the server scores exactly, with no LLM
+#: judge. SAFETY_RULE, CONSTRAINT and CRITERION are deliberately excluded: recognizing them
+#: is not the same as safely applying/judging them, so a node that hinges on those keeps
+#: declining rather than over-claiming mastery.
+_RECOGNIZABLE_ATOM_KINDS = frozenset(
+    {MustPreserveKind.FACT, MustPreserveKind.PROCEDURE_STEP}
+)
 
-    The existing true/false Didact authoring contract validates a private exact answer,
-    and ``ActivityDefinitionService`` scores that mode locally.  No LLM judge or
-    external port is needed.  This does not claim the learner can perform the task.
+
+def _recognition_is_supported(pack: NodeKnowledgePack) -> bool:
+    """Recognizing grounded facts/steps is the currently safe generic mapping.
+
+    The Didact selected-response authoring contract validates a private exact answer, and
+    ``ActivityDefinitionService`` scores that mode locally. No LLM judge or external port is
+    needed. This does not claim the learner can PERFORM the task — only recognize the
+    knowledge — which is exactly the honest oracle for a knowledge/recognition node.
     """
 
     if pack.objective.mission is not CognitiveMission.RECOGNIZE:
@@ -127,7 +139,7 @@ def _recognition_is_supported(pack: NodeKnowledgePack) -> bool:
     return bool(required) and all(
         spec.atom_refs
         and all(
-            atom_ref in atoms and atoms[atom_ref].kind is MustPreserveKind.FACT
+            atom_ref in atoms and atoms[atom_ref].kind in _RECOGNIZABLE_ATOM_KINDS
             for atom_ref in spec.atom_refs
         )
         for spec in required
@@ -148,9 +160,17 @@ def evidence_contracts_for_pack(
     if not required:
         return _decline(EvidencePolicyDeclineReason.NO_REQUIRED_EVIDENCE, ())
 
-    # A generic selected-response scorer cannot establish safe operational competence.
-    # No exact ticket simulator/evaluator is wired into ActivityPortRegistry today.
-    if _criticality(criticality) == "critical":
+    # A generic selected-response scorer cannot establish safe operational competence, so a
+    # GENUINE safety competency (its pack carries safety-rule invariants) declines when only a
+    # quiz oracle exists: we never fake mastery of a physical/safety skill. But a
+    # knowledge/recognition node a proposer merely mislabeled "critical" carries NO safety
+    # atoms — for it a real varied assessment IS a reliable oracle, so it must NOT be blocked
+    # here; it falls through to the recognition contract below and certifies (owner rule,
+    # 2026-08-17).
+    has_safety_atoms = any(
+        atom.kind is MustPreserveKind.SAFETY_RULE for atom in pack.must_preserve
+    )
+    if _criticality(criticality) == "critical" and has_safety_atoms:
         return _decline(
             EvidencePolicyDeclineReason.CRITICAL_ORACLE_UNAVAILABLE, evidence_ids
         )

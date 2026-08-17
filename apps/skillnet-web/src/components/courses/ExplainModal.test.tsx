@@ -51,8 +51,35 @@ function explainProse(text: string) {
   ])
 }
 
+/**
+ * A `/chat` tutor answer that lays out: the DSL streams as `token` events and the
+ * compiled program lands in a trailing `ui` event — the shape the modal must render.
+ */
+function chatProgram(program: string) {
+  return sse([
+    `event: token\ndata: ${JSON.stringify({ content: program })}\n\n`,
+    `event: ui\ndata: ${JSON.stringify({ program })}\n\n`,
+  ])
+}
+
+/**
+ * The reported-bug shape: the DSL streams as tokens but the `ui` event never lands
+ * (layout skipped, connection dropped). The accumulated tokens are raw OpenUI Lang and
+ * must NOT be shown as prose.
+ */
+function chatRawDsl(program: string) {
+  return sse([`event: token\ndata: ${JSON.stringify({ content: program })}\n\n`])
+}
+
+const PROGRAM = [
+  'root = Stack([intro, pasos], "md")',
+  'intro = TextContent("Consulta siempre la ficha del producto.", "lead")',
+  'pasos = StepSequence("Atender una consulta de alergenos", ["Escucha la pregunta", "Consulta la ficha"])',
+].join('\n')
+
 const PANEL = 'La merma es el producto que se pierde antes de venderse.'
 const GLOSS = 'Producto no vendible.'
+const RETRY = 'No se pudo generar la explicacion. Prueba de nuevo.'
 
 function explainCalls() {
   return mockFetch.mock.calls.filter((call) => String(call[0]).includes('/explain'))
@@ -108,6 +135,43 @@ describe('ExplainModal', () => {
     const urls = mockFetch.mock.calls.map(([url]) => String(url))
     expect(urls).toContain('/api/v1/chat')
     expect(urls).not.toContain('/api/v1/chat/admin')
+  })
+
+  /**
+   * The reported bug: the panel streams an OpenUI program from `/chat` and must RENDER
+   * the compiled blocks (the same `UiSpecRenderer` gate path chat and lessons use), never
+   * print the raw `root = Stack(...)` DSL as text.
+   */
+  describe('rendering the OpenUI program', () => {
+    it('renders the compiled blocks and never leaks the raw DSL', async () => {
+      mockFetch.mockImplementation((url: string) =>
+        String(url).includes('/explain') ? explainProse(GLOSS) : chatProgram(PROGRAM),
+      )
+      renderModal()
+
+      // The kit blocks paint through the shared renderer.
+      await waitFor(() =>
+        expect(document.querySelector('[data-ui-format="explanation"]')).not.toBeNull(),
+      )
+      expect(card().textContent).toContain('Atender una consulta de alergenos')
+      expect(card().textContent).toContain('Consulta siempre la ficha del producto.')
+      // The StepSequence the program asked for, as a real list.
+      expect(card().querySelectorAll('ol > li').length).toBeGreaterThanOrEqual(2)
+      // The raw DSL must not survive anywhere in the card.
+      expect(card().textContent).not.toContain('root = Stack')
+    })
+
+    it('degrades to plain text without leaking the DSL when no valid program lands', async () => {
+      mockFetch.mockImplementation((url: string) =>
+        String(url).includes('/explain') ? explainProse(GLOSS) : chatRawDsl(PROGRAM),
+      )
+      renderModal()
+
+      // Streaming settles on the retry fallback — not the raw program.
+      await screen.findByText(RETRY)
+      expect(card().textContent).not.toContain('root = Stack')
+      expect(document.querySelector('[data-ui-format]')).toBeNull()
+    })
   })
 
   describe('clicking a word inside the panel', () => {

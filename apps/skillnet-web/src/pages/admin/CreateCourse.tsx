@@ -889,11 +889,12 @@ export function CreateCourse() {
       setCreatingStep(2)
       await waitForKnowledgePacks(course.id, schema.nodes.length)
 
-      // Step 4: activate
+      // Step 4: activate. Mark every node reviewed in one atomic server call (the owner's
+      // single act of sign-off for the whole graph) and only then validate — a per-node
+      // loop that silently swallowed a failure used to leave `validate` returning
+      // `409 node_not_reviewed`.
       setCreatingStep(3)
-      for (const node of schema.nodes) {
-        await post(`/courses/${course.id}/schema/nodes/${node.id}/review`, {}).catch(() => {})
-      }
+      await post(`/courses/${course.id}/schema/review`, {})
       await post(`/courses/${course.id}/schema/validate`, {})
 
       // Step 5: pre-render first node (non-blocking — go to success after a few seconds).
@@ -1237,11 +1238,8 @@ export function CreateCourse() {
                     try {
                       // 1. Try to validate directly (fails if not reviewed)
                       await post(`/courses/${courseId}/schema/validate`, {}).catch(async () => {
-                        // Review all nodes first, then validate
-                        const schema = await get<{ nodes: { id: string }[] }>(`/courses/${courseId}/schema`)
-                        for (const node of schema.nodes) {
-                          await post(`/courses/${courseId}/schema/nodes/${node.id}/review`, {}).catch(() => {})
-                        }
+                        // Review every node atomically, then validate.
+                        await post(`/courses/${courseId}/schema/review`, {})
                         await post(`/courses/${courseId}/schema/validate`, {})
                       })
                       // 2. Enroll admin (ignore conflict if already enrolled)

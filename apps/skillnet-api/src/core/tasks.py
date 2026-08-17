@@ -29,6 +29,20 @@ class TaskRegistry:
                 return task
         return self.spawn(coro, name)
 
+    def cancel_by_prefix(self, prefix: str) -> int:
+        """Cancel every still-running task whose name starts with ``prefix``.
+
+        Used to supersede a superseded background job cleanly: when a newer run for the
+        same subject starts, the older one is cancelled instead of being left to race
+        the new one to the same rows.
+        """
+        cancelled = 0
+        for task in list(self._tasks):
+            if not task.done() and task.get_name().startswith(prefix):
+                task.cancel()
+                cancelled += 1
+        return cancelled
+
     def _on_done(self, task: asyncio.Task) -> None:
         self._tasks.discard(task)
         if task.cancelled():

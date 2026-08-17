@@ -249,15 +249,11 @@ LEGACY_OPENUI_POLICIES: dict[str, LegacyComponentPolicy] = {
         accessibility=_INTERACTIVE_ACCESSIBILITY,
         rank=25,
     ),
-    "DidactGlossary": _descriptor(
-        "DidactGlossary",
-        missions=frozenset({CognitiveMission.RECOGNIZE, CognitiveMission.RECONSTRUCT}),
-        source_functions=frozenset({SourceFunction.ENUMERATE, SourceFunction.EXPLORE}),
-        presentations=frozenset({Presentation.TEXT}),
-        producer_kind=ProducerKind.CONTENT,
-        affordances=frozenset({"inspect_term", "reveal_definition"}),
-        accessibility=_INTERACTIVE_ACCESSIBILITY,
-        rank=35,
+    # Removed from generation on 2026-08-17: the platform already ships "Curio" (click any
+    # word to see its meaning), so an in-lesson glossary block is redundant. Excluded from the
+    # planning catalogue (descriptor None) while the kit still exposes the symbol.
+    "DidactGlossary": LegacyComponentPolicy(
+        exclusion_reason="redundant with Curio (click-any-word meaning lookup)"
     ),
     "DidactTimeline": _descriptor(
         "DidactTimeline",

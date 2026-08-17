@@ -146,9 +146,9 @@ export function isPendingRender(
  */
 export function useNodeRender(
   nodeId: string | undefined,
-  options: { enabled?: boolean } = {},
+  options: { enabled?: boolean; refetchInterval?: number | false } = {},
 ) {
-  const { enabled = true } = options
+  const { enabled = true, refetchInterval = false } = options
   return useQuery({
     queryKey: nodeRenderKey(nodeId),
     queryFn: () => get<NodeRenderResponse>(`/nodes/${nodeId}/render`),
@@ -156,6 +156,10 @@ export function useNodeRender(
     retry: false,
     staleTime: Infinity,
     refetchOnWindowFocus: false,
+    // Off by default (a pinned lesson never changes under the learner). Turned on only
+    // while a node is "Preparándose…", so the screen flips to the real episode by itself
+    // the moment its knowledge pack lands and the fallback pin is dropped server-side.
+    refetchInterval,
   })
 }
 

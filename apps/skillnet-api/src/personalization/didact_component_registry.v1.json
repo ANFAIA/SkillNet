@@ -12,7 +12,7 @@
     {"id": "didact.quiz.true-false", "renderer_mode": "activity_definition", "renderer_symbol": "DidactActivity", "emission": "enabled", "required_ports": ["evaluation"], "authoring_strategy": "server_activity"},
     {"id": "didact.quiz.fill-in-the-blank", "renderer_mode": "activity_definition", "renderer_symbol": "DidactActivity", "emission": "enabled", "required_ports": ["evaluation"], "authoring_strategy": "server_activity"},
     {"id": "didact.quiz.short-answer", "renderer_mode": "activity_definition", "renderer_symbol": "DidactActivity", "emission": "enabled", "required_ports": ["evaluation"], "authoring_strategy": "server_activity"},
-    {"id": "didact.glossary-term", "renderer_mode": "direct", "renderer_symbol": "DidactGlossary", "emission": "enabled", "required_ports": [], "authoring_strategy": "inline"},
+    {"id": "didact.glossary-term", "renderer_mode": "blocked", "renderer_symbol": null, "emission": "disabled", "required_ports": [], "authoring_strategy": "unsupported"},
     {"id": "didact.hint-reveal", "renderer_mode": "direct", "renderer_symbol": "HintReveal", "emission": "enabled", "required_ports": [], "authoring_strategy": "inline"},
     {"id": "didact.progress", "renderer_mode": "activity_definition", "renderer_symbol": "DidactActivity", "emission": "enabled", "required_ports": ["progress"], "authoring_strategy": "server_activity"},
     {"id": "didact.mastery-badge", "renderer_mode": "activity_definition", "renderer_symbol": "DidactActivity", "emission": "enabled", "required_ports": ["progress"], "authoring_strategy": "server_activity"},

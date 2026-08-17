@@ -499,6 +499,25 @@ class NodeRenderService:
             ).scalar_one_or_none()
         return dict(org.settings) if org and org.settings else {}
 
+    async def node_pack_ready(self, *, node: CourseNode, course: Course) -> bool:
+        """Whether a ``ready`` knowledge pack exists for this node's current schema.
+
+        This is the signal behind "Preparándose…": a served **fallback** whose pack is not
+        yet ready is not a real lesson, it is a placeholder the anticipatory prefetch pinned
+        while the pack was still generating. The frontend uses it to show the preparing state
+        and keep polling instead of presenting the flat shell as the lesson. A fallback whose
+        pack *is* ready is an honest legacy decline and is served normally.
+        """
+        from src.knowledge_pack.configured_generator import GENERATOR_VERSION
+        from src.repositories.node_knowledge_pack_repo import NodeKnowledgePackRepository
+
+        record = await NodeKnowledgePackRepository(self.db).find_ready_for_schema(
+            node_id=node.id,
+            schema_version=int(getattr(course, "schema_version", 1) or 1),
+            generator_version=GENERATOR_VERSION,
+        )
+        return record is not None
+
     # -- level 2: the pinned render --------------------------------------------
 
     async def pinned_render(
