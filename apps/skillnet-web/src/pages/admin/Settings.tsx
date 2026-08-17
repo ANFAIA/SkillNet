@@ -1,6 +1,8 @@
 import { useIntl } from 'react-intl'
 import { PageHeader, Select, SkeletonRow, Switch } from '../../components/ui'
 import { AppearanceSettings } from '../../components/settings/AppearanceSettings'
+import { LearningPreferencesSection } from '../../components/settings/LearningPreferencesSection'
+import { useWorkspaceMode } from '../../hooks/useAuth'
 import { useSettings, useUpdateFeatures } from '../../api/settings'
 import { ApiError } from '../../api/client'
 import { usePreferences } from '../../stores/preferences'
@@ -72,6 +74,7 @@ function SettingsBody({
   features: ReturnType<typeof useUpdateFeatures>
 }) {
   const intl = useIntl()
+  const workspaceMode = useWorkspaceMode()
   const locale = usePreferences((s) => s.locale)
   const setLocale = usePreferences((s) => s.setLocale)
 
@@ -128,6 +131,18 @@ function SettingsBody({
             ? features.error.body.detail
             : intl.formatMessage({ id: 'settings.saveError' })}
         </p>
+      )}
+
+      {/* The individual-mode owner also learns, so their personalization lives
+          here alongside the deployment settings — the same form the employee has,
+          minus the theme block (already shown above). See audience-modes.md. */}
+      {workspaceMode === 'individual' && (
+        <div className="mt-8 border-t border-border pt-6">
+          <h2 className="text-base font-semibold text-text mb-4">
+            {intl.formatMessage({ id: 'learningPreferences.title' })}
+          </h2>
+          <LearningPreferencesSection showAppearance={false} />
+        </div>
       )}
     </>
   )
