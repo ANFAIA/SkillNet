@@ -64,11 +64,17 @@ function chatProgram(program: string) {
 
 /**
  * The reported-bug shape: the DSL streams as tokens but the `ui` event never lands
- * (layout skipped, connection dropped). The accumulated tokens are raw OpenUI Lang and
- * must NOT be shown as prose.
+ * (layout skipped, the program failed the gate, connection dropped). The accumulated
+ * tokens are raw OpenUI Lang — they must never be shown as raw DSL, but their string
+ * literals are the prose the model wrote, so the modal degrades to that plain text.
  */
 function chatRawDsl(program: string) {
   return sse([`event: token\ndata: ${JSON.stringify({ content: program })}\n\n`])
+}
+
+/** A `/chat` answer that streams nothing at all: no tokens, no `ui` event. */
+function chatNothing() {
+  return sse([])
 }
 
 const PROGRAM = [
@@ -161,15 +167,31 @@ describe('ExplainModal', () => {
       expect(card().textContent).not.toContain('root = Stack')
     })
 
-    it('degrades to plain text without leaking the DSL when no valid program lands', async () => {
+    it('degrades to the salvaged prose without leaking the DSL when no valid program lands', async () => {
       mockFetch.mockImplementation((url: string) =>
         String(url).includes('/explain') ? explainProse(GLOSS) : chatRawDsl(PROGRAM),
       )
       renderModal()
 
-      // Streaming settles on the retry fallback — not the raw program.
-      await screen.findByText(RETRY)
+      // The human text the DSL literals carried is shown as a real answer...
+      await screen.findByText('Atender')
+      expect(card().textContent).toContain('Escucha')
+      expect(card().textContent).toContain('ficha')
+      // ...but never the raw scaffolding, and never the error.
       expect(card().textContent).not.toContain('root = Stack')
+      expect(card().textContent).not.toContain('StepSequence')
+      expect(card().textContent).not.toContain(RETRY)
+      expect(document.querySelector('[data-ui-format]')).toBeNull()
+    })
+
+    it('shows the error only when the answer is genuinely empty', async () => {
+      mockFetch.mockImplementation((url: string) =>
+        String(url).includes('/explain') ? explainProse(GLOSS) : chatNothing(),
+      )
+      renderModal()
+
+      // Nothing streamed and no program: the retry fallback is the honest outcome.
+      await screen.findByText(RETRY)
       expect(document.querySelector('[data-ui-format]')).toBeNull()
     })
   })

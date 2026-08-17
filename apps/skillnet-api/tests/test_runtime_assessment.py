@@ -289,8 +289,14 @@ def test_support_only_shortlist_is_kept_interactive() -> None:
     # A passive planner shortlist gets a non-mastery interaction appended.
     kept = _ensure_support_interaction(["Table", "DidactGlossary"])
     assert any(value in _SUPPORT_INTERACTIVE_IDS for value in kept)
-    # An already-interactive shortlist is left untouched.
-    already = ["Table", "Flashcard"]
+    # An already-interactive shortlist is left untouched. Flashcard is NOT a support
+    # interaction (it is a reveal, banned as a closer), so DragOrder is the real act here.
+    already = ["Table", "DragOrder"]
     assert _ensure_support_interaction(already) == already
+    # A Flashcard does NOT count as the support interaction: it still gets a real one added.
+    assert any(
+        value in _SUPPORT_INTERACTIVE_IDS
+        for value in _ensure_support_interaction(["Table", "Flashcard"])
+    )
     # Even an empty shortlist gains an interaction rather than staying passive.
     assert any(value in _SUPPORT_INTERACTIVE_IDS for value in _ensure_support_interaction([]))

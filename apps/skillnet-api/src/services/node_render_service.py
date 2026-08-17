@@ -34,14 +34,17 @@ from __future__ import annotations
 
 import asyncio
 import enum
+import time
 import uuid
 from dataclasses import asdict, dataclass
+from types import SimpleNamespace
 from typing import Any, Literal
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.config import settings
+from src.deps.db import async_session_factory
 from src.core.exceptions import ConflictError
 from src.core.logging import get_logger
 from src.llm.prompts.runtime import EPISODE_PROMPT_VERSION, PROMPT_VERSION
@@ -641,8 +644,17 @@ class NodeRenderService:
         course: Course,
         force: bool = False,
         preview: bool = False,
+        warm: bool = False,
     ) -> RenderRequest:
         """``POST /nodes/{node_id}/render``.
+
+        ``warm`` is the anticipatory pre-generation path used to fill the *shared* cache
+        before any learner opens the node (see :func:`prewarm_first_nodes`). It behaves
+        exactly like a normal request except that it never pins: the caller is a synthetic
+        default-bucket learner with no ``learner_node_states`` row, so pinning it would hit
+        a foreign key. On a cache miss it spawns the graph, which writes the shared
+        ``node_renders`` row keyed by ``cache_key`` — which is all a warm-up needs, because
+        a real learner of the same bucket then cache-hits it for free.
 
         Order of decisions, and why:
 
@@ -667,7 +679,7 @@ class NodeRenderService:
 
         self.assert_reviewed(node)
 
-        if not preview and not force:
+        if not preview and not force and not warm:
             pinned = await self.pinned_render(
                 user_id=user.id, node_id=node.id, node=node, course=course, user=user
             )
@@ -690,6 +702,10 @@ class NodeRenderService:
         if not preview and not force:
             hit = await self.renders.find_cached(key.cache_key)
             if hit is not None:
+                if warm:
+                    # A warm-up only needs the shared row to exist; the synthetic caller
+                    # has no state row to pin to. Nothing to write, nothing to commit.
+                    return RenderRequest(request_id="", cached=True, render_id=hit.id)
                 await self.pin(
                     user_id=user.id,
                     node_id=node.id,
@@ -800,6 +816,31 @@ class NodeRenderService:
             longitudinal_history=history,
         )
 
+    # -- anticipatory warm-up (creation-time pre-render) -------------------------
+
+    async def warm_default_render(
+        self, *, node: CourseNode, course: Course, warm_user_id: uuid.UUID
+    ) -> bool:
+        """Pre-generate the shared render of the calibration/default learner bucket.
+
+        Returns ``True`` when a generation was spawned (cache miss), ``False`` when the
+        shared row already existed. ``warm_user_id`` must be a **real** user with **no**
+        ``learner_profile`` row — the validating admin is exactly that — because
+        ``node_renders.generated_by`` is a foreign key to ``users`` (a synthetic id fails
+        the constraint) *and* a profile-less user lands in the same bucket a brand-new
+        learner computes (``nodes_completed == 0`` -> empty ``vector_bucket``,
+        ``preset='standard'``, no role/sector). That shared row is what lets the very first
+        open of a freshly created course be an instant cache hit instead of a wait.
+        """
+        self.assert_reviewed(node)
+        warm_user = SimpleNamespace(
+            id=warm_user_id, org_id=node.org_id, accessibility={}
+        )
+        result = await self.request_render(
+            user=warm_user, node=node, course=course, warm=True
+        )
+        return not result.cached
+
     # -- cancellation (§9.1) ----------------------------------------------------
 
     @staticmethod
@@ -807,10 +848,147 @@ class NodeRenderService:
         return cancel_in_flight(user_id, node_id)
 
 
+# --------------------------------------------------------------------------------------
+# Creation-time pre-render (§ "first open is instant")
+#
+# A render is not a knowledge pack: a node can have a ready pack and still have no render,
+# and the first learner to open it then pays the full generation latency (seconds, on
+# DeepSeek) as the "Preparándose…" wait. The pack runner already prepares the study sheets
+# in the background after a schema is published; this closes the loop by pre-rendering the
+# first few nodes' *screens* into the shared cache once their packs are ready, so opening
+# them is a cache hit rather than a live generation.
+# --------------------------------------------------------------------------------------
+
+#: How many leading nodes to warm. The learner gets an instant start and one instant
+#: continuation; the rolling window in ``NodeView`` keeps the rest warm from there.
+DEFAULT_PREWARM_NODES = 2
+_PREWARM_POLL_SECONDS = 3.0
+#: Ceiling on waiting for a node's pack to become ready before warming its render. A pack
+#: is up to three throttled LLM calls (see the pack runner), so this mirrors that budget.
+_PREWARM_PACK_WAIT_SECONDS = 300.0
+
+
+async def prewarm_first_nodes(
+    course_id: uuid.UUID,
+    org_id: uuid.UUID,
+    schema_version: int,
+    warm_user_id: uuid.UUID,
+    *,
+    node_count: int = DEFAULT_PREWARM_NODES,
+) -> int:
+    """Warm the shared render of the first ``node_count`` reviewed nodes of a course.
+
+    Runs entirely in the background, one session per node, holding no transaction across a
+    generation. Each node's render is only warmed once its knowledge pack is ready (bounded
+    wait), so the warmed screen is the real adaptive episode and never a "preparing"
+    fallback — which is exactly the state ``GET /render`` must not have to show for a
+    pre-warmable lesson. Returns the number of renders actually generated.
+    """
+    from src.repositories.course_node_repo import CourseNodeRepository
+    from src.repositories.course_repo import CourseRepository
+
+    async with async_session_factory() as db:
+        course = await CourseRepository(db).get_by_id(course_id)
+        if course is None or course.org_id != org_id:
+            return 0
+        if int(course.schema_version or 1) != int(schema_version):
+            # A newer schema superseded this run before it started; its own run will warm.
+            return 0
+        nodes = list(
+            await CourseNodeRepository(db).list_for_course(
+                course_id, include_archived=False
+            )
+        )
+    leading = [n for n in nodes if n.reviewed_at is not None][:node_count]
+
+    spawned = 0
+    for node_row in leading:
+        node_id = node_row.id
+        deadline = time.monotonic() + _PREWARM_PACK_WAIT_SECONDS
+        while True:
+            async with async_session_factory() as db:
+                course = await CourseRepository(db).get_by_id(course_id)
+                node = await CourseNodeRepository(db).get_scoped(node_id, org_id)
+                if course is None or node is None or node.archived:
+                    break
+                if int(course.schema_version or 1) != int(schema_version):
+                    return spawned  # superseded
+                service = NodeRenderService(db)
+                if await service.node_pack_ready(node=node, course=course):
+                    try:
+                        generated = await service.warm_default_render(
+                            node=node, course=course, warm_user_id=warm_user_id
+                        )
+                        await db.commit()
+                        spawned += int(generated)
+                    except Exception:  # noqa: BLE001 - one node must not sink the warm-up
+                        logger.warning(
+                            "Pre-render warm-up failed course=%s node=%s",
+                            course_id,
+                            node_id,
+                            exc_info=True,
+                        )
+                    break
+            if time.monotonic() >= deadline:
+                logger.info(
+                    "Pre-render warm-up gave up waiting for pack course=%s node=%s",
+                    course_id,
+                    node_id,
+                )
+                break
+            await asyncio.sleep(_PREWARM_POLL_SECONDS)
+    logger.info(
+        "Pre-render warm-up course=%s schema=%s warmed=%s of leading=%s",
+        course_id,
+        schema_version,
+        spawned,
+        len(leading),
+    )
+    return spawned
+
+
+def spawn_prewarm_first_nodes(
+    course_id: uuid.UUID,
+    org_id: uuid.UUID,
+    schema_version: int,
+    warm_user_id: uuid.UUID,
+    *,
+    node_count: int = DEFAULT_PREWARM_NODES,
+) -> None:
+    """Schedule :func:`prewarm_first_nodes` after a course is validated.
+
+    ``warm_user_id`` is the validating admin: a real, profile-less user whose bucket equals
+    a brand-new learner's (see :meth:`NodeRenderService.warm_default_render`). Superseded
+    per course like the pack runner: a re-validate at a newer schema cancels an older
+    warm-up so the two do not race writing the same bucket's row.
+    """
+    from src.core.tasks import task_registry
+
+    task_registry.cancel_by_prefix(f"prewarm:{course_id}:")
+    coroutine = prewarm_first_nodes(
+        course_id, org_id, schema_version, warm_user_id, node_count=node_count
+    )
+    try:
+        task_registry.spawn_unique(
+            coroutine, name=f"prewarm:{course_id}:v{schema_version}"
+        )
+    except Exception:  # noqa: BLE001 - a warm-up that cannot be scheduled is not fatal
+        coroutine.close()
+        logger.warning(
+            "Could not schedule pre-render warm-up course=%s schema=%s",
+            course_id,
+            schema_version,
+            exc_info=True,
+        )
+
+
 __all__ = [
+    "DEFAULT_PREWARM_NODES",
     "NODE_NOT_REVIEWED",
     "PREVIEW_KEY_PREFIX",
     "REFRESH_KEY_PREFIX",
+    "prewarm_first_nodes",
+    "spawn_prewarm_first_nodes",
     "InFlight",
     "NodeRenderService",
     "RenderKey",

@@ -72,7 +72,11 @@ class ActivityAuthoringDraft(BaseModel):
 
     component_id: str = Field(pattern=r"^didact\.[a-z0-9][a-z0-9.-]*$")
     definition: dict[str, Any]
-    source_refs: list[str] = Field(default_factory=list, max_length=32)
+    # Server-owned grounding refs (atom_ids + evidence_ids) replace whatever the model
+    # cites, so this bound sizes the KNOWLEDGE PACK, not model output. A rich node's pack
+    # legitimately carries 40+ atoms; the old cap of 32 rejected the whole activity for
+    # those nodes and dropped them to a static Table, so it is widened to cover real packs.
+    source_refs: list[str] = Field(default_factory=list, max_length=256)
 
     @field_validator("source_refs")
     @classmethod
@@ -84,6 +88,61 @@ class ActivityAuthoringDraft(BaseModel):
         if not self.definition:
             raise ValueError("definition must not be empty")
         return self
+
+
+#: Prompt-echo keys a small model tends to copy back from the authoring *request* object.
+#: They are never part of a Didact ``definition``; when the model flattens the contract it
+#: mixes these wrappers in with the real definition fields, so they are stripped before the
+#: definition is reconstructed. See ``_coerce_authoring_shape``.
+_AUTHORING_WRAPPER_KEYS = frozenset(
+    {
+        "component_id",
+        "selected_component_id",
+        "candidate_component_ids",
+        "definition",
+        "definition_contract",
+        "source_refs",
+        "allowed_source_refs",
+        "source",
+        "title",
+        "outcome",
+    }
+)
+
+
+def _coerce_authoring_shape(payload: Mapping[str, Any]) -> dict[str, Any]:
+    """Fold predictable model drift back onto the ``{component_id, definition}`` contract.
+
+    A small model at low temperature frequently (a) answers with ``selected_component_id``
+    instead of ``component_id`` — the key it was *shown* in the request — and (b) inlines
+    the ``definition_contract`` fields (``items``, ``gaps``, ``options``, ``pairs`` …) at the
+    top level instead of nesting them under ``definition``, echoing the request wrapper keys
+    (``title``, ``outcome``, ``source`` …) alongside them. Both were a dead ``ValidationError``
+    that dropped the whole interactive activity and left the screen a static Table. Neither is
+    a trust decision: the reconstructed definition is still validated against the component's
+    real contract downstream, so a genuinely malformed draft is rejected exactly as before —
+    only the recoverable shapes now survive.
+    """
+
+    normalized = dict(payload)
+    if "component_id" not in normalized and isinstance(
+        normalized.get("selected_component_id"), str
+    ):
+        normalized["component_id"] = normalized["selected_component_id"]
+    definition = normalized.get("definition")
+    if not isinstance(definition, dict) or not definition:
+        rebuilt = {
+            key: value
+            for key, value in normalized.items()
+            if key not in _AUTHORING_WRAPPER_KEYS
+        }
+        if rebuilt:
+            normalized["definition"] = rebuilt
+    return {
+        key: value
+        for key, value in normalized.items()
+        if key in {"component_id", "definition", "source_refs"}
+    }
 
 
 def authoring_draft_with_server_refs(
@@ -105,7 +164,7 @@ def authoring_draft_with_server_refs(
     )
     if not refs:
         raise ValueError("activity authoring requires server-owned source refs")
-    normalized = dict(payload)
+    normalized = _coerce_authoring_shape(payload)
     normalized["source_refs"] = refs
     return ActivityAuthoringDraft.model_validate(normalized)
 
@@ -187,6 +246,92 @@ def stable_definition_key(
     canonical = ":".join((str(node_id), str(render_id), pack_hash or "raw", component_id))
     digest = hashlib.sha256(canonical.encode()).hexdigest()[:32]
     return f"runtime:{node_id}:{digest}"
+
+
+#: Keys whose string value is human-readable CONTENT the model must ground in the source
+#: (as opposed to structural ids, modes and answer keys). Only these are compared against the
+#: contract example, so reusing a structural id like ``item-1`` or a mode like ``assignments``
+#: is never mistaken for un-substituted content.
+_CONTENT_KEYS = frozenset(
+    {
+        "title",
+        "question",
+        "problem",
+        "prompt",
+        "content",
+        "label",
+        "before",
+        "after",
+        "instruction",
+        "text",
+    }
+)
+#: The answer-key subtree is structural/private and never compared for grounding.
+_STRUCTURAL_SUBTREES = frozenset({"evaluation", "expected"})
+
+
+def _content_texts(value: Any) -> list[str]:
+    """Human-readable content leaves, keyed by ``_CONTENT_KEYS``; ids/modes/answers skipped."""
+
+    out: list[str] = []
+    if isinstance(value, Mapping):
+        for key, child in value.items():
+            if str(key) in _STRUCTURAL_SUBTREES:
+                continue
+            if str(key) in _CONTENT_KEYS and isinstance(child, str):
+                text = child.strip()
+                if text:
+                    out.append(text)
+            else:
+                out.extend(_content_texts(child))
+    elif isinstance(value, (list, tuple)):
+        for child in value:
+            out.extend(_content_texts(child))
+    return out
+
+
+def assert_grounded_activity_draft(draft: ActivityAuthoringDraft) -> None:
+    """Runtime grounding gate: reject a draft that echoes the contract example placeholders.
+
+    Kept OUT of ``validate_authoring_draft`` (which is pure shape/boundary validation, and is
+    exercised with the raw contract example by the shell-contract tests) and called from the
+    runtime authoring node instead, so a live draft that copied the example is declined to a
+    grounded fallback while the structural contract itself stays a valid shape.
+    """
+
+    _reject_unsubstituted_example(draft.component_id, draft.definition)
+
+
+def _reject_unsubstituted_example(component_id: str, definition: Mapping[str, Any]) -> None:
+    """Reject a draft that copied the contract's example placeholders instead of grounding.
+
+    The authoring contract ships example values ("Concepto A", "Ejemplo B", "término A",
+    "Segundo paso"...) the model must REPLACE with real source content. A small model at low
+    temperature sometimes echoes them verbatim, which passes every shape validator yet
+    produces an activity of pure nonsense — exactly the "classify cases that make no sense for
+    the topic" the owner reported. The example is server-owned, so any verbatim reuse of its
+    content leaves is a reliable non-grounding signal: two or more distinct echoed leaves means
+    the model did not author from the source, so authoring declines to a grounded fallback
+    rather than serving invented items.
+    """
+
+    try:
+        contract = authoring_definition_contract(component_id)
+    except Exception:  # noqa: BLE001 - a missing contract is handled by shape validation
+        return
+    example_leaves = {text.casefold() for text in _content_texts(contract) if len(text) >= 4}
+    if not example_leaves:
+        return
+    echoed = {
+        text.casefold()
+        for text in _content_texts(definition)
+        if len(text) >= 4 and text.casefold() in example_leaves
+    }
+    if len(echoed) >= 2:
+        raise ValueError(
+            "activity content not grounded: contract example placeholders were not "
+            f"substituted ({sorted(echoed)})"
+        )
 
 
 def validate_authoring_draft(
@@ -307,15 +452,22 @@ def build_activity_authoring_prompts(
     definition_contract = authoring_definition_contract(selected_candidate)
     refs = list(dict.fromkeys(allowed_source_refs))
     system = (
-        "Disenas UNA actividad educativa Didact anclada en la fuente. Devuelve solo JSON "
-        "con component_id, definition y source_refs. component_id debe ser uno de los "
-        "unico candidato indicado. Copia exactamente la estructura del contrato de "
-        "definition y sustituye solo sus valores de ejemplo por contenido de la fuente. "
-        "No inventes UUID ni activity_id. Incluye respuestas, rubricas, "
-        "transiciones o tests dentro de definition: el servidor los separara antes de "
-        "servir la actividad. No uses hechos ausentes de la fuente. Cita al menos un "
-        "source_ref permitido. Si no hay datos suficientes, no inventes series, cifras, "
-        "afirmaciones ni URLs: devuelve una definicion vacia para que el servidor decline."
+        "Disenas UNA actividad educativa Didact anclada en la fuente. Devuelve SOLO un "
+        "objeto JSON con EXACTAMENTE tres claves de nivel superior y ninguna mas: "
+        '{"component_id": "<el candidato indicado>", "definition": { ... }, '
+        '"source_refs": ["..."]}. '
+        "El contenido del contrato (items, gaps, options, pairs, categories, prompt, "
+        "evaluation, etc.) va DENTRO de definition, nunca al nivel superior. NO repitas "
+        "las claves de la peticion (title, outcome, selected_component_id, source, "
+        "definition_contract): son solo tu entrada. "
+        "Copia exactamente la estructura del contrato de definition y sustituye solo sus "
+        "valores de ejemplo por contenido de la fuente. No inventes UUID ni activity_id. "
+        "Incluye respuestas, rubricas, transiciones o tests dentro de definition: el "
+        "servidor los separara antes de servir la actividad. No uses hechos ausentes de la "
+        "fuente: cada item, par, categoria u opcion debe corresponder a un hecho concreto "
+        "del dossier, no a conocimiento general del tema. Cita al menos un source_ref "
+        "permitido. Si no hay datos suficientes, no inventes series, cifras, afirmaciones "
+        "ni URLs: devuelve definition vacia ({}) para que el servidor decline."
     )
     user = json.dumps(
         {
@@ -336,6 +488,7 @@ def build_activity_authoring_prompts(
 __all__ = [
     "AUTHORING_CONTRACT_VERSION",
     "ActivityAuthoringDraft",
+    "assert_grounded_activity_draft",
     "authoring_draft_with_server_refs",
     "MaterializedActivity",
     "build_activity_authoring_prompts",

@@ -210,8 +210,9 @@ async def test_empty_server_refs_degrade_scored_episode_to_support(
     assert result["assessment_block"] == ""
     assert result["assessment_item_type"] is None
     # support_only never certifies mastery, but the screen stays interactive: a
-    # non-mastery self-check block is guaranteed in the shortlist.
-    assert result["prompt_component_ids"] == ["Flashcard"]
+    # non-mastery self-check block is guaranteed in the shortlist. It is DragOrder, never a
+    # Flashcard — a Flashcard is a reveal, banned as the screen's closer/only interaction.
+    assert result["prompt_component_ids"] == ["DragOrder"]
     assert result["episode_certified_component_ids"] == []
     assert result["plan_trace"]["renderer_selection"] == "planner-unscored"
     assert result["episode_brief"]["assessment_mode"] == "none"

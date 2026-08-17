@@ -1013,6 +1013,11 @@ export function NodeView() {
                 nodeId={node.id}
                 title={node.title}
                 summary={node.summary}
+                // In a paginated episode the mascot reads the CURRENT screen's own
+                // text; pass the program + screen index so it speaks per page. The
+                // legacy shell owns its step internally, so it keeps the node summary.
+                program={shownShellMode === 'episode' ? shownProgram : null}
+                screen={episodeScreen}
                 fx={mascotaFx}
                 onOpenChat={() => togglePanel('chat')}
               />

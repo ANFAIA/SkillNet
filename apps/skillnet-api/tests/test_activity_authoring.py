@@ -10,6 +10,7 @@ from src.personalization.didact_catalog import AuthoringStrategy, load_didact_ca
 from src.schemas.activity import assert_public_payload
 from src.services.activity_authoring import (
     ActivityAuthoringDraft,
+    assert_grounded_activity_draft,
     authoring_draft_with_server_refs,
     build_activity_authoring_prompts,
     materialize_authored_activity,
@@ -48,6 +49,63 @@ def _model_authoring_payload(source_refs):
         "definition": {"statement": "Grounded statement", "correct": True},
         "source_refs": source_refs,
     }
+
+
+def test_flattened_draft_is_folded_back_onto_the_contract_shape():
+    # A small model often answers with ``selected_component_id`` and inlines the definition
+    # fields at the top level, echoing the request wrappers. The parser must recover it.
+    flattened = {
+        "selected_component_id": "didact.categorize",
+        "title": "Clasifica los golpes",
+        "outcome": "objetivo",
+        "source": "dossier...",
+        "items": [{"id": "item-1", "content": "Jab"}, {"id": "item-2", "content": "Hook"}],
+        "categories": [
+            {"id": "category-1", "content": "Recto"},
+            {"id": "category-2", "content": "Circular"},
+        ],
+        "evaluation": {"mode": "assignments", "expected": {"item-1": "category-1", "item-2": "category-2"}},
+    }
+    draft = authoring_draft_with_server_refs(flattened, allowed_source_refs=["atom-1"])
+    assert draft.component_id == "didact.categorize"
+    assert "items" in draft.definition and "title" not in draft.definition
+    assert "source" not in draft.definition
+
+
+def test_grounding_gate_rejects_a_draft_that_echoed_the_contract_example():
+    example = dict(authoring_definition_contract("didact.categorize"))
+    draft = ActivityAuthoringDraft(
+        component_id="didact.categorize",
+        definition=example,
+        source_refs=["atom-1"],
+    )
+    # Shape validation still passes (it is a valid shape)...
+    validate_authoring_draft(
+        draft, allowed_component_ids=["didact.categorize"], allowed_source_refs=["atom-1"]
+    )
+    # ...but the runtime grounding gate refuses the un-substituted example.
+    with pytest.raises(ValueError, match="not grounded"):
+        assert_grounded_activity_draft(draft)
+
+
+def test_grounding_gate_accepts_source_substituted_content():
+    draft = ActivityAuthoringDraft(
+        component_id="didact.categorize",
+        definition={
+            "title": "Clasifica cada golpe por su trayectoria",
+            "items": [
+                {"id": "item-1", "content": "El jab es un golpe recto"},
+                {"id": "item-2", "content": "El hook describe un arco lateral"},
+            ],
+            "categories": [
+                {"id": "category-1", "content": "Golpes rectos"},
+                {"id": "category-2", "content": "Golpes circulares"},
+            ],
+            "evaluation": {"mode": "assignments", "expected": {"item-1": "category-1", "item-2": "category-2"}},
+        },
+        source_refs=["atom-1"],
+    )
+    assert_grounded_activity_draft(draft)  # does not raise
 
 
 def test_server_refs_replace_model_invented_reference_objects_before_validation():

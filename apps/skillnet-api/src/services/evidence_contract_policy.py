@@ -113,13 +113,22 @@ def _decline(
 
 
 #: Atom kinds a RECOGNIZE mission can certify with a deterministic selected-response scorer.
-#: FACT and PROCEDURE_STEP are both plain text/selection knowledge the learner RECOGNIZES
-#: (which fact is true, which step comes where) and the server scores exactly, with no LLM
-#: judge. SAFETY_RULE, CONSTRAINT and CRITERION are deliberately excluded: recognizing them
-#: is not the same as safely applying/judging them, so a node that hinges on those keeps
-#: declining rather than over-claiming mastery.
+#: FACT, PROCEDURE_STEP and CRITERION are plain text/selection knowledge the learner
+#: RECOGNIZES (which fact is true, which step comes where, which items are the criteria of
+#: effectiveness) and the server scores exactly, with no LLM judge. CRITERION was added on
+#: 2026-08-18: a knowledge/recognition node whose evidence is "identify the criteria" (e.g.
+#: precision, force, consistency) is honestly certifiable by a real varied activity —
+#: recognizing the criteria is the exact claim, not applying them — and excluding it wedged
+#: every such node into the passive support-only shell (static Table + Flashcard) instead of
+#: a grounded interactive DidactActivity, which is exactly what the owner banned. SAFETY_RULE
+#: and CONSTRAINT stay excluded: recognizing a safety rule is not the same as safely applying
+#: it, and a genuine safety competency (critical + safety atoms) already declines above.
 _RECOGNIZABLE_ATOM_KINDS = frozenset(
-    {MustPreserveKind.FACT, MustPreserveKind.PROCEDURE_STEP}
+    {
+        MustPreserveKind.FACT,
+        MustPreserveKind.PROCEDURE_STEP,
+        MustPreserveKind.CRITERION,
+    }
 )
 
 

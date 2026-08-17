@@ -134,6 +134,7 @@ from src.repositories.llm_usage_repo import log_usage
 from src.repositories.node_knowledge_pack_repo import NodeKnowledgePackRepository
 from src.repositories.node_render_repo import NodeRenderRepository
 from src.services.activity_authoring import (
+    assert_grounded_activity_draft,
     authoring_draft_with_server_refs,
     build_activity_authoring_prompts,
     materialize_authored_activity,
@@ -160,13 +161,17 @@ FALLBACK_MAX_BLOCKS = 2
 #: behind a click. The learner reads full content or acts; nothing is reveal-gated.
 #: ``DidactGlossary`` removed on 2026-08-17: the platform already has "Curio" (click any
 #: word for its meaning), so an in-lesson glossary block is redundant and never generated.
+#: ``Flashcard`` removed on 2026-08-18: even in a support-only episode a Flashcard is a
+#: reveal (front → back), so if it were the last block on the screen the learner "closes" the
+#: node by flipping a card instead of acting — which the bench flags as ``flashcard_as_closer``
+#: and the owner banned outright. Support screens still teach and rehearse, but with blocks the
+#: learner reads or acts on (``DragOrder`` for active recall/ordering), never a reveal-gated card.
 _SUPPORT_PROMPT_COMPONENT_IDS = frozenset(
     {
         "BeforeAfter",
         "Chart",
         "DidactTimeline",
         "DragOrder",
-        "Flashcard",
         "StepSequence",
         "Table",
         "Tabs",
@@ -177,11 +182,13 @@ _SUPPORT_PROMPT_COMPONENT_IDS = frozenset(
 #: means "we do not CERTIFY mastery here", not "passive info only": the screen must still
 #: offer a self-check / rehearsal built from the source. When the planner shortlist for a
 #: support episode contains none of these, one is appended so the episode stays interactive.
-_SUPPORT_INTERACTIVE_IDS = frozenset({"Flashcard", "DragOrder", "BeforeAfter"})
+#: ``Flashcard`` is deliberately absent (see above): a support interaction is a real act, not
+#: a reveal.
+_SUPPORT_INTERACTIVE_IDS = frozenset({"DragOrder", "BeforeAfter"})
 #: Preferred order when forcing an interaction into a support shortlist that lacks one.
-#: ``Flashcard`` first: active recall, always groundable from the source, never a reveal.
+#: ``DragOrder`` first: active recall by ordering/sorting, always groundable from the source,
+#: an act the learner performs — never a Flashcard reveal.
 _SUPPORT_INTERACTIVE_FALLBACK: tuple[str, ...] = (
-    "Flashcard",
     "DragOrder",
     "BeforeAfter",
 )
@@ -1330,9 +1337,10 @@ def _prompt_assessment_required(state: NodeRuntimeState) -> tuple[str, ...]:
     """Components the scoped prompt must include so verification can close the screen.
 
     Prepared activities cross the neutral ``LearningExperience`` boundary. If optional
-    authoring declines, the screen still closes with a genuine interaction: a direct Didact
-    block (worked example, flashcard or graded hints) rather than degrading to a bare
-    QuizItem. None of these fallbacks certify mastery; they are grounded practice.
+    authoring declines, the screen still closes with a genuine interaction: a real
+    ``QuizItem`` variant (see ``_didact_activity_fallback_block``), never a reveal-only
+    Flashcard. ``_DIRECT_DIDACT_CLOSERS`` is empty, so no direct Didact block stands in as
+    the test.
     """
 
     block = str(state.get("assessment_block") or "")
@@ -1566,32 +1574,60 @@ async def author_activity(state: NodeRuntimeState) -> dict:
         # Activity definition is small structured work; it always uses the fast tier even
         # when the eventual screen needs the heavy presentation tier.
         llm = await _make_llm(org_id, "fast")
-        raw, usage = await llm.complete_with_usage(
-            system,
-            user,
-            temperature=0.2,
-            max_tokens=1600,
-            json_mode=True,
-        )
-        await log_usage(
-            async_session_factory,
-            org_id=org_id,
-            user_id=state.get("user_id"),
-            use_case="runtime_activity_authoring",
-            purpose=purpose_for("fast"),
-            model=getattr(llm, "model", "unknown"),
-            tier="fast",
-            tokens_in=usage.tokens_in,
-            tokens_out=usage.tokens_out,
-            duration_ms=int((time.monotonic() - started) * 1000),
-        )
-        parsed_draft = parse_json_response(raw)
-        if not isinstance(parsed_draft, dict):
-            raise ValueError("activity authoring response must be an object")
-        draft = authoring_draft_with_server_refs(
-            parsed_draft,
-            allowed_source_refs=allowed_refs,
-        )
+        # A small model at low temperature sometimes echoes the contract example placeholders
+        # instead of grounding in the source. That is nonsense for the topic, so the grounding
+        # gate rejects it; one retry with a firmer reminder recovers the rich activity often
+        # enough to be worth a single extra fast-tier call before declining to a QuizItem.
+        draft = None
+        for attempt in range(2):
+            attempt_user = user if attempt == 0 else (
+                user
+                + "\n\nEl intento anterior copio los valores de EJEMPLO del contrato sin "
+                "cambiarlos. Cada item, opcion, par o categoria DEBE reescribirse con un "
+                "hecho concreto del dossier (por ejemplo un tipo de golpe, un criterio, un "
+                "paso real). No devuelvas 'Concepto A', 'Ejemplo B', 'termino A' ni ningun "
+                "marcador generico."
+            )
+            raw, usage = await llm.complete_with_usage(
+                system,
+                attempt_user,
+                temperature=0.2 if attempt == 0 else 0.4,
+                max_tokens=1600,
+                json_mode=True,
+            )
+            await log_usage(
+                async_session_factory,
+                org_id=org_id,
+                user_id=state.get("user_id"),
+                use_case="runtime_activity_authoring",
+                purpose=purpose_for("fast"),
+                model=getattr(llm, "model", "unknown"),
+                tier="fast",
+                tokens_in=usage.tokens_in,
+                tokens_out=usage.tokens_out,
+                duration_ms=int((time.monotonic() - started) * 1000),
+            )
+            parsed_draft = parse_json_response(raw)
+            if not isinstance(parsed_draft, dict):
+                raise ValueError("activity authoring response must be an object")
+            # A parse/shape/empty-definition failure is a deliberate decline (the prompt asks
+            # for an empty definition when the source is insufficient), so it is NOT retried.
+            candidate_draft = authoring_draft_with_server_refs(
+                parsed_draft,
+                allowed_source_refs=allowed_refs,
+            )
+            # Grounding gate: a draft that copied the contract's example placeholders instead
+            # of authoring from the source is nonsense for the topic. ONLY this failure is
+            # worth one retry with a firmer reminder before declining to a grounded fallback.
+            try:
+                assert_grounded_activity_draft(candidate_draft)
+            except ValueError:
+                if attempt == 0:
+                    continue
+                raise
+            draft = candidate_draft
+            break
+        assert draft is not None  # loop either sets draft, continues once, or raises
         async with async_session_factory() as db:
             pack = None
             pack_hash = str(state.get("knowledge_pack_hash") or "")
@@ -2144,6 +2180,29 @@ async def validate_ui(state: NodeRuntimeState) -> dict:
                 "retry_count": int(state.get("retry_count") or 0) + 1,
                 "current_step": "validate_ui",
             }
+
+    # Hard guard: the screen must never CLOSE on a Flashcard. The shortlist only steers the
+    # model, so on a support screen it sometimes ends with a Flashcard (a reveal) as the last
+    # block — exactly the ``flashcard_as_closer`` the owner banned. Reject it so the repair
+    # loop re-ends the screen with a real interaction (DragOrder / QuizItem). A Flashcard is
+    # still allowed as CONTENT anywhere earlier on the screen.
+    non_container = [
+        component
+        for component in spec.components
+        if component.type not in {"Stack", "Card"}
+    ]
+    if non_container and non_container[-1].type == "Flashcard":
+        return {
+            "ui_spec": None,
+            "validation_errors": [
+                "La ULTIMA interaccion de la pantalla es una Flashcard, que solo REVELA "
+                "informacion y no evalua. Cierra la pantalla con una interaccion REAL que "
+                "el aprendiz ejecuta (DragOrder para ordenar/emparejar, o un QuizItem). La "
+                "Flashcard puede quedarse antes como contenido de apoyo, nunca como cierre."
+            ],
+            "retry_count": int(state.get("retry_count") or 0) + 1,
+            "current_step": "validate_ui",
+        }
 
     key_problems = missing_answer_keys(spec, answer_key)
     if key_problems:

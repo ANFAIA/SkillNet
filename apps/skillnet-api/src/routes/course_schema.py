@@ -45,6 +45,7 @@ from src.services.course_schema_service import (
     SchemaError,
     SchemaSnapshot,
 )
+from src.services.node_render_service import spawn_prewarm_first_nodes
 
 router = APIRouter(
     prefix="/courses",
@@ -213,6 +214,16 @@ async def validate_schema(
             course_id=course_id, org_id=admin.org_id, actor_id=admin.id
         )
     await db.commit()
+    # A validated course is now servable, but its node *renders* do not exist yet: the
+    # first learner to open a node would otherwise pay the full generation latency as the
+    # "Preparándose…" wait. Warm the first nodes' shared renders in the background (once
+    # their packs are ready) so that very first open is an instant cache hit.
+    spawn_prewarm_first_nodes(
+        course_id,
+        admin.org_id,
+        int(snapshot.course.schema_version or 1),
+        admin.id,
+    )
     return _read(snapshot)
 
 

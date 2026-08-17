@@ -160,7 +160,7 @@ PROMPT_VERSION = "runtime/41"
 #: limites del validador que faltaban y causaban fallback medido en el nodo de biomecanica:
 #: Table con EXACTAMENTE 2 argumentos y <=4 filas, <=5 pantallas, <=12 bloques. La ruta
 #: monolitica (PROMPT_VERSION) queda intacta.
-EPISODE_PROMPT_VERSION = "episode/6"
+EPISODE_PROMPT_VERSION = "episode/7"
 
 _PRESENTATION_PREFERENCES = {
     "balanced": "Combina representaciones segun el objetivo y la fuente.",
@@ -997,7 +997,10 @@ _EPISODE_CLOSING_REMINDER = """
 Elige cada bloque por lo que ES el material (procedimiento, concepto, dato, comparacion o
 termino), no por costumbre. Incluye al menos una interaccion que haga PENSAR, sin esconder
 informacion que se deba leer directa y sin fingir un examen cuando no hay respuesta
-comprobable. Responde solo con el programa (y su clave si lleva algun QuizItem).
+comprobable. El ULTIMO bloque de la pantalla es SIEMPRE una interaccion que el aprendiz
+ejecuta (DragOrder, QuizItem o una actividad Didact); NUNCA cierres con una Flashcard: solo
+revela, no evalua, y puede quedarse antes como apoyo pero jamas como cierre. Responde solo
+con el programa (y su clave si lleva algun QuizItem).
 """
 
 

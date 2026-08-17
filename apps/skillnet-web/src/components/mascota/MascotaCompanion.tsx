@@ -5,6 +5,7 @@ import { Mascota } from './Mascota'
 import type { MascotaAnim } from './Mascota'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
 import { usePreferences } from '../../stores/preferences'
+import { screenReadText } from './screenReadText'
 
 /**
  * The mascot as a proactive companion (inspired by Brilliant's "Koji").
@@ -41,8 +42,19 @@ export interface MascotaCompanionProps {
   nodeId: string
   /** Node title — the fallback read text when the node has no summary. */
   title: string
-  /** Node summary — the grounded source for the read-aloud (its own text). */
+  /** Node summary — the fallback read-aloud source when there is no per-screen text. */
   summary: string | null
+  /**
+   * The lesson program (OpenUI Lang text) of a paginated episode, or `null` in the
+   * legacy shell. When present, the mascot reads the CURRENT screen's own text
+   * instead of the whole-node summary — the companion speaks per page.
+   */
+  program?: string | null
+  /**
+   * Index of the screen the learner is on within a paginated episode. Drives the
+   * per-screen read text and re-read; ignored (stays `0`) in the legacy shell.
+   */
+  screen?: number
   /** Feedback reaction reported by a block; overrides the talking animation. */
   fx: 'celebrar' | 'ups' | null
   /** Open the tutor chat panel (the mascot button keeps its original job). */
@@ -62,7 +74,7 @@ function readableLead(summary: string | null | undefined, title: string): string
   return first.length > MAX_READ_CHARS ? `${first.slice(0, MAX_READ_CHARS).trim()}…` : first
 }
 
-export function MascotaCompanion({ nodeId, title, summary, fx, onOpenChat }: MascotaCompanionProps) {
+export function MascotaCompanion({ nodeId, title, summary, program = null, screen = 0, fx, onOpenChat }: MascotaCompanionProps) {
   const intl = useIntl()
   const reduceMotion = useReducedMotion()
   const locale = usePreferences((s) => s.locale)
@@ -71,7 +83,16 @@ export function MascotaCompanion({ nodeId, title, summary, fx, onOpenChat }: Mas
 
   const [playing, setPlaying] = useState(false)
 
-  const readText = useMemo(() => readableLead(summary, title), [summary, title])
+  // Per page: the current screen's own text when this is a paginated episode, and the
+  // whole-node summary only as a fallback (legacy shell, or a screen with no prose).
+  const readText = useMemo(() => {
+    const perScreen = screenReadText(program, screen)
+    return readableLead(perScreen ?? summary, title)
+  }, [program, screen, summary, title])
+
+  // One read per screen: the cache and the auto-read reset are keyed by node AND screen,
+  // so paging forward speaks the new page and each page's audio is cached on its own.
+  const readKey = `${nodeId}:${screen}`
 
   // Audio plumbing. Blobs are cached per node so replaying (or re-reading on a
   // return visit) never hits the provider twice from the client either.
@@ -95,7 +116,7 @@ export function MascotaCompanion({ nodeId, title, summary, fx, onOpenChat }: Mas
   const speak = useCallback(async () => {
     stop()
     try {
-      let blob = blobCacheRef.current.get(nodeId)
+      let blob = blobCacheRef.current.get(readKey)
       if (!blob) {
         const res = await fetch(`${BASE}/tts/synthesize`, {
           method: 'POST',
@@ -105,7 +126,7 @@ export function MascotaCompanion({ nodeId, title, summary, fx, onOpenChat }: Mas
         })
         if (!res.ok) throw new Error('TTS request failed')
         blob = await res.blob()
-        blobCacheRef.current.set(nodeId, blob)
+        blobCacheRef.current.set(readKey, blob)
       }
 
       const url = URL.createObjectURL(blob)
@@ -121,7 +142,7 @@ export function MascotaCompanion({ nodeId, title, summary, fx, onOpenChat }: Mas
       setPlaying(false)
       throw new Error('speak failed')
     }
-  }, [nodeId, readText, locale, stop])
+  }, [readKey, readText, locale, stop])
 
   // The speaker icon is a mute toggle. Muting stops playback at once and blocks
   // the auto-read on later nodes; un-muting is a user gesture, so we read the
@@ -136,19 +157,20 @@ export function MascotaCompanion({ nodeId, title, summary, fx, onOpenChat }: Mas
     }
   }, [muted, setMascotaMuted, stop, speak])
 
-  // Per-node auto-read: stop the previous node, then read the opening after a
-  // short beat unless muted — silently, since a blocked play() (autoplay policy)
-  // must not nag.
+  // Per-screen auto-read: stop the previous screen's audio, then read this page's
+  // text after a short beat unless muted — silently, since a blocked play()
+  // (autoplay policy) must not nag. Re-runs whenever the node OR the screen changes,
+  // so advancing a page speaks the new page.
   useEffect(() => {
     stop()
     const timer = window.setTimeout(() => {
       if (!muted) void speak().catch(() => undefined)
     }, READ_DELAY_MS)
     return () => window.clearTimeout(timer)
-    // `speak`/`stop` are stable per node; re-running only when the node changes
-    // is the intent (one read per node). `muted` is read fresh inside.
+    // `speak`/`stop` are stable per (node, screen); re-running only when the page
+    // changes is the intent (one read per page). `muted` is read fresh inside.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nodeId])
+  }, [readKey])
 
   // Stop any audio when the companion leaves the screen.
   useEffect(() => stop, [stop])

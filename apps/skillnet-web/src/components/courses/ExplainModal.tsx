@@ -40,6 +40,56 @@ const FOCUSABLE =
  */
 const PROGRAM_DSL = /^\s*root\s*=/
 
+/**
+ * Layout-only atoms of the OpenUI dialect: the `Stack` format, a `TextContent` variant,
+ * a `Callout` tone. They are string literals in the program but carry no reader-facing
+ * text, so they are dropped when we salvage prose from a program that never rendered.
+ */
+const DSL_ATOM = new Set([
+  'md',
+  'lead',
+  'body',
+  'caption',
+  'info',
+  'warn',
+  'success',
+  'danger',
+  'explanation',
+  'exercise',
+])
+
+/** A double-quoted OpenUI Lang string literal, honouring `\"` and `\\` escapes. */
+const DSL_LITERAL = /"((?:[^"\\]|\\.)*)"/g
+
+/**
+ * Pull the human-readable text out of an OpenUI Lang program. When a program never
+ * validates there is no tree to render — but its string literals are the very prose the
+ * model wrote (the lead line, the step texts, a callout body), so a failed layout can
+ * still degrade to a real plain-text answer instead of an error. Structural atoms (the
+ * `"md"` format, a `"lead"` variant, a `"warn"` tone) are dropped so only sentences
+ * remain, and the raw `root = Stack(...)` scaffolding never reaches the reader.
+ */
+function dslToProse(dsl: string): string {
+  const parts: string[] = []
+  for (const match of dsl.matchAll(DSL_LITERAL)) {
+    const text = match[1].replace(/\\(["\\])/g, '$1').trim()
+    if (!text || DSL_ATOM.has(text.toLowerCase())) continue
+    parts.push(text)
+  }
+  return parts.join('\n\n')
+}
+
+/**
+ * The best readable answer to show when no valid program renders. Genuine prose tokens
+ * are returned untouched; DSL-shaped tokens (or an invalid program whose `ui` event never
+ * validated) are stripped down to the text their literals carry. `""` only when there is
+ * genuinely nothing to show, which is the one case that still earns the error message.
+ */
+function readableAnswer(content: string, program: string | null): string {
+  if (content && !PROGRAM_DSL.test(content)) return content
+  return dslToProse(content || program || '')
+}
+
 // ── Types ───────────────────────────────────────────────────────
 
 interface StackEntry {
@@ -246,10 +296,11 @@ function ExplanationPanel({
   const gate = gateProgram(program)
   const showBlocks = Boolean(program) && !gate.blocked && !gate.empty
 
-  // Prose fallback only for content that is actually prose. Streamed OpenUI DSL
-  // (`root = …`) is not a fallback — it is a program whose `ui` event never landed
-  // (or landed invalid), and rendering it as markdown is exactly the raw-DSL leak.
-  const contentIsProse = Boolean(content) && !PROGRAM_DSL.test(content)
+  // No valid program to render. Rather than error out, recover a readable answer: genuine
+  // prose is shown as-is, and DSL-shaped tokens (or an invalid program) are stripped down
+  // to the sentences their literals carry — never the raw `root = Stack(...)` scaffolding.
+  // The fallback chain is: valid program → blocks; else real prose → markdown; else error.
+  const prose = readableAnswer(content, program)
 
   const body = error ? (
     <p className="text-sm text-danger">{error}</p>
@@ -259,9 +310,8 @@ function ExplanationPanel({
     <span className="typing-dots" aria-label={intl.formatMessage({ id: 'explain.generating' })}>
       <span /><span /><span />
     </span>
-  ) : contentIsProse && !program ? (
-    // Only show content as markdown if it is prose and no program was attempted
-    <ChatMarkdown content={content} isStreaming={false} />
+  ) : prose ? (
+    <ChatMarkdown content={prose} isStreaming={false} />
   ) : (
     <p className="text-sm text-text-muted">{intl.formatMessage({ id: 'explain.errorRetry' })}</p>
   )
