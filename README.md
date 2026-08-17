@@ -5,6 +5,7 @@
     <strong>Intelligent system for organizational knowledge evolution and talent development</strong>
   </p>
   <p align="center">
+    <a href="https://skillnet.es"><img src="https://img.shields.io/badge/website-skillnet.es-2ea44f?style=flat-square" alt="Website"></a>
     <a href="https://anfaia.org"><img src="https://img.shields.io/badge/ANFAIA-Grants_2026-blue?style=flat-square" alt="ANFAIA 2026"></a>
     <a href="https://skillnet-docs.vercel.app/"><img src="https://img.shields.io/badge/docs-website-blue?style=flat-square" alt="Docs"></a>
     <img src="https://img.shields.io/badge/license-Apache_2.0-green?style=flat-square" alt="License">
