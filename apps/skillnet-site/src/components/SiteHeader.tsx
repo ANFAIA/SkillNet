@@ -4,7 +4,7 @@ import { Menu, X } from "lucide-react";
 import { FaGithub } from "react-icons/fa";
 
 const GITHUB_URL = "https://github.com/ANFAIA/SkillNet";
-const LOGO_URL = "/images/brand/skillnet-head-symbol.svg";
+const LOGO_URL = "/images/brand/skillnet-logo.png";
 const TRANSITION = { type: "tween", duration: 0.52, ease: [0.22, 1, 0.36, 1] } as const;
 
 const LINKS = [
