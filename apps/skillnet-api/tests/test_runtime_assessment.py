@@ -101,7 +101,7 @@ def test_didact_live_closer_is_stable_for_the_same_node() -> None:
 
 
 def test_course_position_spreads_didact_closers_across_siblings() -> None:
-    types = [
+    plans = [
         plan_assessment(
             _enumeration_plan(),
             ui_format="explanation",
@@ -109,11 +109,16 @@ def test_course_position_spreads_didact_closers_across_siblings() -> None:
             didact=True,
             course_id="course-a",
             position=position,
-        ).item_type
-        for position in range(1, 7)
+        )
+        for position in range(1, 8)
     ]
-    assert len(set(types)) == 6
-    assert types.count("didact.quiz.true-false") <= 1
+    blocks = [plan.block for plan in plans]
+    # Siblings spread across every rotation slot and none degrades to a bare quiz.
+    assert len(set((plan.block, plan.item_type) for plan in plans)) == 7
+    assert "QuizItem" not in blocks and "DragOrder" not in blocks
+    # Both materialized activities AND direct interactive Didact closers are offered.
+    assert "DidactActivity" in blocks
+    assert any(block in DIRECT_DIDACT_BLOCKS for block in blocks)
 
 
 def test_legacy_position_rotation_does_not_collapse_to_true_false() -> None:
@@ -142,18 +147,21 @@ def test_live_didact_prompt_requires_authored_activity_not_quizitem() -> None:
     ) == ("LearningExperience",)
 
 
-def test_live_didact_falls_back_to_a_real_case_question() -> None:
-    from src.agents.runtime.nodes import _prompt_assessment_required
-
-    assert _prompt_assessment_required(
-        {
-            "assessment_block": "DidactActivity",
-            "prompt_component_ids": ["Table", "HintReveal", "Flashcard"],
-        }
-    ) == ("QuizItem",)
-    assert _prompt_assessment_required({"assessment_block": "DidactActivity"}) == (
-        "QuizItem",
+def test_live_didact_falls_back_to_an_interactive_block_not_a_bare_quiz() -> None:
+    from src.agents.runtime.nodes import (
+        _DIDACT_ACTIVITY_FALLBACK_BLOCKS,
+        _prompt_assessment_required,
     )
+
+    # When no activity can be materialized the closer stays a genuine interaction
+    # (a direct Didact block), never degrading to a bare QuizItem.
+    for node_id in ("node-1", "node-2", "node-3", "boxing-jab"):
+        required = _prompt_assessment_required(
+            {"assessment_block": "DidactActivity", "node_id": node_id}
+        )
+        assert required != ("QuizItem",)
+        assert len(required) == 1
+        assert required[0] in _DIDACT_ACTIVITY_FALLBACK_BLOCKS
 
 
 def test_declined_authoring_rewrites_the_verification_hint() -> None:
@@ -260,3 +268,32 @@ def test_didact_verification_prompt_names_the_practice() -> None:
     assert "ESQUEMA DE ESTA PANTALLA" in didact
     assert "segundo encargo" in didact
     assert "PROHIBIDO" not in didact
+
+
+def test_direct_didact_closers_are_reachable_not_dead_code() -> None:
+    # Previously every rotation entry was DidactActivity, so DIRECT_DIDACT_BLOCKS was
+    # empty and direct Didact closers could never be planned. They must be reachable now.
+    assert DIRECT_DIDACT_BLOCKS
+    assert DIRECT_DIDACT_BLOCKS <= {
+        "Flashcard",
+        "HintReveal",
+        "DidactWorkedExample",
+        "DidactGlossary",
+        "DidactTimeline",
+    }
+
+
+def test_support_only_shortlist_is_kept_interactive() -> None:
+    from src.agents.runtime.nodes import (
+        _SUPPORT_INTERACTIVE_IDS,
+        _ensure_support_interaction,
+    )
+
+    # A passive planner shortlist gets a non-mastery interaction appended.
+    kept = _ensure_support_interaction(["Table", "DidactGlossary"])
+    assert any(value in _SUPPORT_INTERACTIVE_IDS for value in kept)
+    # An already-interactive shortlist is left untouched.
+    already = ["Table", "Flashcard"]
+    assert _ensure_support_interaction(already) == already
+    # Even an empty shortlist gains an interaction rather than staying passive.
+    assert any(value in _SUPPORT_INTERACTIVE_IDS for value in _ensure_support_interaction([]))

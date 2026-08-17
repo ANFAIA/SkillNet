@@ -52,7 +52,7 @@ def test_a_list_is_taught_as_a_table() -> None:
     assert scheme.concept_block == "Table"
     assert scheme.concept_block in CONCEPT_BLOCKS
     assert "Table" in scheme.instruction()
-    assert "ESQUEMA DE ESTA PANTALLA" in scheme.instruction()
+    assert "FORMA SUGERIDA DE ESTA PANTALLA" in scheme.instruction()
 
 
 def test_a_procedure_is_taught_as_steps() -> None:
@@ -94,7 +94,7 @@ def test_practice_follows_the_assessment_plan() -> None:
     scheme = plan_screen_scheme(_enumeration(), assessment, ui_format="explanation")
     assert scheme.practice_block == "DidactActivity"
     assert "didact.quiz.single-choice" in scheme.instruction()
-    assert "otro encargo" in scheme.instruction()
+    assert "practica distinta del lead" in scheme.instruction()
 
 
 def test_the_ui_prompt_carries_the_planned_scheme() -> None:
@@ -105,7 +105,7 @@ def test_the_ui_prompt_carries_the_planned_scheme() -> None:
         summary="Donde aparecen en la carta",
         screen_scheme=scheme.instruction(),
     )
-    assert "ESQUEMA DE ESTA PANTALLA" in prompt
+    assert "FORMA SUGERIDA DE ESTA PANTALLA" in prompt
     assert "concepto = Table" in prompt
 
 

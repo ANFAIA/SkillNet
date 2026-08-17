@@ -178,7 +178,7 @@ async def test_decide_formato_observes_once_before_either_openui_generator(
     assert observed[0]["concept_block"] == "StepSequence"
     assert observed[0]["shape_functions"] == ["procedimentar"]
     assert result["concept_block"] == "StepSequence"
-    assert "ESQUEMA DE ESTA PANTALLA" in result["screen_scheme"]
+    assert "FORMA SUGERIDA DE ESTA PANTALLA" in result["screen_scheme"]
     assert result["plan_trace"]["trace_version"] == "plan-trace/test"
     assert "ui_spec" not in result
     assert state["ui_spec"] == {"root": "unchanged"}

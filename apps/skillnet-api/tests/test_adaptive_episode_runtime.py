@@ -202,9 +202,11 @@ async def test_empty_server_refs_degrade_scored_episode_to_support(
     assert result["shell_mode"] == "episode"
     assert result["assessment_block"] == ""
     assert result["assessment_item_type"] is None
-    assert result["prompt_component_ids"] == []
+    # support_only never certifies mastery, but the screen stays interactive: a
+    # non-mastery self-check block is guaranteed in the shortlist.
+    assert result["prompt_component_ids"] == ["HintReveal"]
     assert result["episode_certified_component_ids"] == []
-    assert result["plan_trace"]["renderer_selection"] == "base-shell"
+    assert result["plan_trace"]["renderer_selection"] == "planner-unscored"
     assert result["episode_brief"]["assessment_mode"] == "none"
     assert result["episode_brief"]["evidence_gate_refs"] == []
     assert result["episode_brief"]["policy_trace"]["mastery_blocked"] is True

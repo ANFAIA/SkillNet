@@ -58,17 +58,20 @@ class ScreenScheme:
     practice_item_type: str | None = None
 
     def instruction(self) -> str:
-        """El bloque de prompt: nombra los huecos. El modelo solo rellena."""
+        """El bloque de prompt: sugiere una forma. El modelo puede enriquecerla."""
         fill = _CONCEPT_FILL.get(self.concept_block, "el material de este nodo")
         practice = self.practice_block
         if self.practice_item_type:
             practice = f"{self.practice_block} ({self.practice_item_type})"
         return (
-            "ESQUEMA DE ESTA PANTALLA (ya decidido para este nodo)\n"
-            "1. lead = TextContent(..., \"lead\") — una situacion del puesto\n"
-            f"2. concepto = {self.concept_block}(...) — {fill}\n"
-            f"3. practica = {practice} — otro encargo del puesto, distinto del lead\n"
-            "Rellena estos tres huecos. El concepto no es una definicion."
+            "FORMA SUGERIDA DE ESTA PANTALLA (punto de partida, no una plantilla rigida)\n"
+            "- lead = TextContent(..., \"lead\") — una situacion del puesto\n"
+            f"- concepto = {self.concept_block}(...) — {fill}. Si otro bloque representa "
+            "mejor el material (una linea de tiempo, un glosario, un ejemplo resuelto), usalo.\n"
+            f"- interaccion = {practice} — practica distinta del lead. Puede ser este bloque "
+            "u otra interaccion genuina del catalogo si encaja mejor con el dominio.\n"
+            "El concepto NO es una definicion en prosa. Puedes anadir un bloque mas si el "
+            "material lo pide; no fuerces exactamente estos tres si el nodo diverge."
         )
 
 

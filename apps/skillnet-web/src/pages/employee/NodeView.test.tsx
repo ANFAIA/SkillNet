@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { NodeView } from './NodeView'
 import { declaredReducedMotionContext } from '../../hooks/useReducedMotion'
@@ -94,6 +94,8 @@ interface Scenario {
   streamChunks?: string[]
   renders?: Array<{ render_id: string; created_at: string | null; ui_format: string; status: string }>
   goal?: string | null
+  /** Replace the two-node list — e.g. a single node so the current node is the last. */
+  nodeListOverride?: NodeList
 }
 
 function jsonResponse(status: number, body: unknown) {
@@ -151,7 +153,7 @@ function installFetch(scenario: Scenario) {
       return sseResponse(scenario.streamChunks ?? [])
     }
     if (url.endsWith(`/courses/${COURSE_ID}/nodes`)) {
-      return jsonResponse(200, nodeList(scenario.node))
+      return jsonResponse(200, scenario.nodeListOverride ?? nodeList(scenario.node))
     }
     if (url.endsWith('/users/me/learner-profile')) {
       return jsonResponse(200, {
@@ -208,6 +210,11 @@ function callsTo(fragment: string, method = 'GET') {
  * `matchMedia` exercises the half that only exists because the OS setting is unreachable
  * on a shared work laptop.
  */
+function LocationProbe() {
+  const location = useLocation()
+  return <div data-testid="location" data-pathname={location.pathname} />
+}
+
 function renderPage({ declaredReducedMotion = false } = {}) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
@@ -216,6 +223,7 @@ function renderPage({ declaredReducedMotion = false } = {}) {
     <QueryClientProvider client={client}>
       <declaredReducedMotionContext.Provider value={declaredReducedMotion}>
         <MemoryRouter initialEntries={[`/empleado/curso/${COURSE_ID}/nodo/${NODE_ID}`]}>
+          <LocationProbe />
           <Routes>
             <Route path="/empleado/curso/:id/nodo/:nodeId" element={<NodeView />} />
           </Routes>
@@ -301,6 +309,65 @@ describe('NodeView — server-owned learning shell', () => {
     expect(episode).not.toBeNull()
     expect(episode?.querySelector('.overflow-y-auto')).toBeNull()
     expect(container.querySelector('[data-node-scroll-root]')).not.toBeNull()
+  })
+
+  // Regresion: un episodio `support_only` (solo prosa, sin QuizItem que resolver) no
+  // tiene stepper —el modo episodio lo apaga— y sin un pie de avance propio dejaba al
+  // aprendiz atrapado: ni flechas, ni boton de continuar, ninguna forma de salir.
+  it('an episode with no quiz still offers a working advance control (never a dead end)', async () => {
+    installFetch({
+      node: learningNode(),
+      renderResponses: [[200, servedRender(PROGRAM, RENDER_ID, 'episode')]],
+    })
+    const { container } = renderPage()
+
+    await enterLesson()
+    await waitFor(() => {
+      expect(container).toHaveTextContent('El plazo de devolucion es de 30 dias.')
+    })
+
+    // El episodio tiene un pie con una forma de avanzar, aunque no haya ejercicio.
+    expect(container.querySelector('[data-episode-footer]')).not.toBeNull()
+    const next = screen.getByRole('button', { name: /Siguiente: Excepciones/ })
+
+    // Pulsarlo navega al siguiente nodo, igual que la flecha del stepper legacy.
+    await userEvent.click(next)
+    await waitFor(() => {
+      expect(screen.getByTestId('location').dataset.pathname).toBe(
+        `/empleado/curso/${COURSE_ID}/nodo/${NEXT_NODE_ID}`,
+      )
+    })
+  })
+
+  it('on the last node an episode footer finishes the course', async () => {
+    // Un curso de un solo nodo: no hay siguiente, asi que el pie cierra el curso.
+    const soloNode = learningNode()
+    installFetch({
+      node: soloNode,
+      nodeListOverride: {
+        course_id: COURSE_ID,
+        delivery_mode: 'dynamic',
+        schema_version: 3,
+        nodes: [soloNode],
+        can_complete: true,
+        blocked_by: [],
+        progress_percent: 80,
+      },
+      renderResponses: [[200, servedRender(PROGRAM, RENDER_ID, 'episode')]],
+    })
+    const { container } = renderPage()
+
+    await enterLesson()
+    await waitFor(() => {
+      expect(container).toHaveTextContent('El plazo de devolucion es de 30 dias.')
+    })
+
+    expect(container.querySelector('[data-episode-footer]')).not.toBeNull()
+    const finish = screen.getByRole('button', { name: 'Terminar el curso' })
+    await userEvent.click(finish)
+
+    // El curso se cierra: aparece la pantalla de celebracion.
+    expect(await screen.findByText('¡Curso completado!')).toBeInTheDocument()
   })
 
   it('keeps Web, Audio and Video modalities invisible even when they are preferred', async () => {

@@ -112,7 +112,9 @@ def test_verification_orphan_lands_last_not_before_a_content_block() -> None:
 
 
 def test_orphans_beyond_the_root_cap_are_dropped_not_overflowed() -> None:
-    # Five blueprint blocks already fill the root fan-out cap (MAX_ROOT_CHILDREN=5).
+    from src.render.spec import MAX_ROOT_CHILDREN
+
+    # Blueprint blocks already fill the root fan-out cap (MAX_ROOT_CHILDREN=5).
     blueprint = _bp(
         ("b1", "TextContent", "enganchar"),
         ("b2", "Table", "concepto"),
@@ -137,5 +139,5 @@ def test_orphans_beyond_the_root_cap_are_dropped_not_overflowed() -> None:
     )
     children = _root_children(program)
 
-    assert len(children) == 5, "root fan-out cap is respected"
+    assert len(children) == MAX_ROOT_CHILDREN == 5, "root fan-out cap is respected"
     assert "extra" not in children

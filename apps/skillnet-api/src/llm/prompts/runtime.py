@@ -131,8 +131,19 @@ from src.schemas.episode_contracts import EpisodeBrief
 #:
 #: ``runtime/40`` (2026-08-14): bounded learning screens preserve required coverage,
 #: separate visible instruction from practice, and keep modality selection invisible.
-PROMPT_VERSION = "runtime/40"
-EPISODE_PROMPT_VERSION = "episode/1"
+#: ``runtime/41`` / ``episode/2`` (2026-08-17): las lecciones dejan de reducirse a
+#: "info + un QuizItem". (1) Se ensena Didact al generador: ``_DIDACT_BLOCK_EXAMPLES`` viaja
+#: en el prompt monolitico Y en el episodico, con llamadas resueltas de Flashcard,
+#: HintReveal, DidactWorkedExample, DidactGlossary, DidactTimeline, DragOrder, BeforeAfter y
+#: LearningExperience — antes los ejemplos solo mostraban QuizItem/Table/Step. (2) Se rompe
+#: la receta: la regla dura "SIEMPRE acaba con QuizItem/DragOrder/BeforeAfter" pasa a
+#: "incluye al menos UNA interaccion genuina" (cualquier bloque interactivo, no
+#: necesariamente al final ni un quiz); la guia de bloques deja de fijar 4 y llega al tope
+#: real del validador (5), con mas presupuesto de caracteres. (3) El episodio
+#: ``support_only`` deja de ser pasivo: aunque no
+#: certifique dominio, exige una interaccion NO evaluativa desde la fuente.
+PROMPT_VERSION = "runtime/41"
+EPISODE_PROMPT_VERSION = "episode/2"
 
 _PRESENTATION_PREFERENCES = {
     "balanced": "Combina representaciones segun el objetivo y la fuente.",
@@ -204,10 +215,10 @@ _DENSITY_BUDGET: dict[int, str] = {
     1: "2-3 bloques y frases muy cortas. Solo lo imprescindible.",
     2: "3 bloques como maximo y frases cortas.",
     3: "3-4 bloques. Explicacion normal, sin relleno.",
-    4: "4-5 bloques. Puedes desarrollar mas dentro de cada bloque, no anadir mas bloques.",
+    4: "4-5 bloques. Desarrolla dentro de cada bloque antes de anadir uno nuevo.",
     5: (
-        "5 bloques como maximo, pero desarrollados: ejemplos y matices DENTRO de esos "
-        "cinco. Nunca un sexto."
+        "5 bloques bien aprovechados: ejemplos y matices DENTRO de ellos, no relleno. "
+        "Cinco es el techo; usalos para variedad (concepto + interaccion), no para relleno."
     ),
 }
 
@@ -465,10 +476,14 @@ _BLOCK_CHOICE = """
 ### Evaluacion (verificar comprension)
 - QuizItem: pregunta con opciones. Integrada en el flujo, no separada.
 
-REGLA: Cada pantalla combina AL MENOS un bloque de Contenido + un bloque de Interaccion
-o Evaluacion. La pantalla SIEMPRE acaba con QuizItem, DragOrder o BeforeAfter: nunca
-terminar solo con texto. Si el formato es "mixed" o "exercise", el bloque final es
-OBLIGATORIAMENTE un QuizItem o un DragOrder.
+REGLA (interaccion obligatoria, forma libre): cada pantalla incluye AL MENOS un bloque
+genuinamente interactivo, elegido por lo que ES el material — no una receta fija. Vale
+cualquiera de estos: QuizItem, DragOrder, BeforeAfter, Flashcard, HintReveal, DragOrder,
+DidactWorkedExample, DidactGlossary, DidactTimeline o LearningExperience. NUNCA una
+pantalla que sea solo texto o solo una tabla. NO hace falta que la interaccion sea lo
+ultimo ni que sea un QuizItem: un procedimiento puede cerrarse ordenando, un concepto con
+una tarjeta de recuerdo activo o una pista graduada, una comparacion con BeforeAfter. La
+forma la manda el contenido y el dominio del nodo, no una plantilla.
 
 ## SkillNet: que bloque para que contenido
 
@@ -504,7 +519,10 @@ Si el esquema pide QuizItem, tiene estas formas:
 - "fill_blank": una frase con UN hueco ____.
 - order_steps / DragOrder: ordenar los pasos.
 
-MAXIMO 4 bloques (lead + concepto + practica + a veces un Callout).
+De 3 a 5 bloques segun lo pida el material: lead, uno o dos bloques de concepto (puede ser
+Table, StepSequence, Chart, BeforeAfter, DidactGlossary, DidactTimeline o
+DidactWorkedExample), un bloque interactivo y, si la fuente lo exige, un Callout. No es una
+plantilla fija: un dominio procedimental, uno conceptual y uno de datos divergen en forma.
 
 ## SkillNet: variedad con motivo, no plantilla
 
@@ -521,13 +539,13 @@ MAXIMO 4 bloques (lead + concepto + practica + a veces un Callout).
 - La personalizacion debe verse en el caso y en la decision: escribe situaciones que una
   persona con el puesto indicado encontraria durante su turno. No cambies los hechos de la
   fuente ni conviertas el nombre del puesto en una etiqueta decorativa.
-- MODO VIEWPORT: una pantalla debe poder leerse completa sin scroll. Mantén como máximo
-  cuatro bloques y frases breves; si un bloque crece, reduce ejemplos secundarios antes de
-  añadir contenido. Nunca escondas la explicación detrás de pestañas o pasos opcionales.
-- Presupuesto visible duro: apunta a 450-850 caracteres legibles en total. No vuelques el
-  documento completo en Markdown ni uses un bloque de texto para esquivar este límite. Si
-  hay más material, conserva solo lo necesario para el resultado esperado y deja la práctica
-  como un caso breve de transferencia.
+- MODO VIEWPORT: una pantalla debe leerse de un vistazo, con poco scroll. Mantén frases
+  breves y como máximo cinco bloques; si un bloque crece mucho, reduce ejemplos secundarios
+  antes de añadir otro. Nunca escondas la explicación detrás de pestañas o pasos opcionales.
+- Presupuesto legible: apunta a 500-1100 caracteres en total. No vuelques el documento
+  completo en Markdown ni uses un bloque de texto para esquivar este límite. Si hay más
+  material, conserva solo lo necesario para el resultado esperado y deja la práctica como un
+  caso breve de transferencia.
 
 ## SkillNet: ejemplos completos
 
@@ -575,8 +593,54 @@ q1 = QuizItem("q1", "fill_blank", "remember", "Un alergeno debe declararse siemp
 {"q1": {"blanks": ["cliente"], "explanation": "La informacion se da al cliente que la solicita."}}
 """
 
+#: Ejemplos que USAN los bloques Didact interactivos. El modelo pequeno no elige un bloque
+#: que nunca ha visto usado: hasta ahora los ejemplos solo mostraban QuizItem/Table/Step,
+#: asi que Didact no aparecia jamas en la salida aunque estuviera en el catalogo. Estos
+#: ejemplos son ilustrativos: usa un bloque SOLO si aparece en el catalogo de esta pantalla.
+_DIDACT_BLOCK_EXAMPLES = """
+## SkillNet: forma de un programa completo (copia la ESTRUCTURA, no el contenido)
+
+root = Stack([intro, pasos, tarjeta], "md")
+intro = TextContent("Un boxeador novato confunde el jab con el cross golpeando el saco.", "lead")
+pasos = StepSequence("Como distinguirlos", ["El jab sale de la mano adelantada, recto.", "El cross sale de la mano atrasada y cruza el cuerpo."])
+tarjeta = Flashcard("Con que mano se lanza el jab?", "Con la mano adelantada, en linea recta.")
+
+- Stack SIEMPRE lleva EXACTAMENTE 2 argumentos: la lista de hijos por id y el gap
+  ("sm"|"md"|"lg"). Escribe Stack([intro, pasos, tarjeta], "md"), NUNCA Stack([...]) a secas
+  ni Stack(children=[...], gap="md"). Sin el segundo argumento el programa se rechaza.
+- El root reune de 3 a 5 bloques por id; declara cada bloque en su propia linea con
+  `id = Bloque(...)`. No metas todo anidado dentro de Stack en una sola expresion.
+
+## SkillNet: interacciones Didact (usalas cuando el catalogo de esta pantalla las incluya)
+
+No toda pantalla termina en pregunta. Segun lo que ES el material, la interaccion puede ser:
+
+- RECUERDO ACTIVO de un termino o idea -> Flashcard(front, back). El aprendiz intenta
+  recordar antes de revelar. No certifica dominio; es practica.
+  tarjeta = Flashcard("Que temperatura maxima admite la camara de pescado?", "2 grados C: por encima el pescado pierde la cadena de frio.")
+- APOYO GRADUADO ante un caso dificil -> HintReveal(title, [pistas...], solution). Pistas
+  de menor a mayor ayuda y la solucion solo si el aprendiz la pide.
+  ayuda = HintReveal("Reclamacion por alergeno", ["Mira que dice la ficha del plato.", "Compara con lo que pidio el cliente.", "Si hay duda, no sirvas y avisa al responsable."], "Retira el plato, informa al cliente y registra el incidente.")
+- SOLUCION RAZONADA paso a paso -> DidactWorkedExample(problem, [pasos...], summary).
+  ejemplo = DidactWorkedExample("Un cliente celiaco pide una fritura hecha en aceite compartido.", ["Identifica el alergeno: gluten en el aceite.", "Aplica la regla: el aceite retiene trazas.", "Decide: ofrece una alternativa sin contacto."], "Ante contaminacion cruzada, cambia el medio, no solo el plato.")
+- TERMINOS CONSULTABLES -> DidactGlossary(title, [terminos...], [definiciones...]).
+  glosario = DidactGlossary("Terminos de la camara", ["Cadena de frio", "Contaminacion cruzada"], ["Mantener el frio sin cortes desde recepcion.", "Paso de un alergeno de un alimento a otro."])
+- CRONOLOGIA o procedimiento con detalle -> DidactTimeline(label, [pasos...], [detalles...]).
+  linea = DidactTimeline("Recepcion de mercancia", ["Comprobar temperatura", "Registrar lote", "Almacenar"], ["Rechaza si supera el limite.", "Anota fecha y proveedor.", "Cada alimento en su zona."])
+- ORDENAR pasos o prioridades -> DragOrder(instruccion, [items...], [orden correcto...]).
+- COMPARAR dos estados -> BeforeAfter(titulo, etiquetaMal, textoMal, etiquetaBien, textoBien).
+- EXPERIENCIA PREPARADA POR EL SERVIDOR -> LearningExperience(experience_id,
+  implementation_ref, definition_ref) con los valores EXACTOS del contexto; nunca inventes ids.
+
+Flashcard, HintReveal, DidactGlossary, DidactTimeline y DidactWorkedExample NO llevan clave
+de respuestas: no son evaluacion, son practica e interaccion. Solo QuizItem y DragOrder la
+llevan.
+"""
+
+
 _UI_GENERATOR_TAIL = f"""
 {_BLOCK_CHOICE}
+{_DIDACT_BLOCK_EXAMPLES}
 ## SkillNet: reglas que el catalogo de arriba no dice
 
 - SkillNet 14 — El id de un bloque se escribe en ASCII, sin tildes ni enes: `conclusion`,
@@ -674,11 +738,16 @@ _EPISODE_GENERATOR_RULES = """
 
 - Representa una sola mision coherente con la accion dominante. No impongas una receta
   didactica ni anadas una evaluacion por costumbre.
-- La evidencia solo aparece cuando el contrato la exige. Si no exige evidencia, no anadas
-  una pregunta para cerrar. Si la exige, la interaccion debe producir el tipo de entrega
-  indicado y no revelar su solucion.
+- La evidencia EVALUADA solo aparece cuando el contrato la exige. Si la exige, la
+  interaccion debe producir el tipo de entrega indicado y no revelar su solucion.
+- Aunque el contrato NO exija evidencia evaluada, la pantalla SIGUE siendo interactiva:
+  incluye al menos un bloque de practica o autochequeo NO evaluativo construido desde la
+  fuente (Flashcard, HintReveal, DidactWorkedExample, DidactGlossary, DidactTimeline,
+  DragOrder ordenar, BeforeAfter, o un caso para pensar). No certifica dominio ni pide una
+  entrega puntuada: es practica. Nunca cierres con solo texto, aviso y resumen.
 - Elige entre las capacidades del catalogo por la accion y la fuente. Ninguna combinacion
-  de bloques es obligatoria salvo la raiz exigida por la gramatica.
+  de bloques es obligatoria salvo la raiz exigida por la gramatica, pero la interaccion
+  no evaluativa nunca sobra: prefierela a un parrafo de mas.
 - Los hechos de la fuente publica son la unica verdad. No inventes datos ni expongas
   oraculos, casos ocultos, claves de respuesta, soluciones privadas o trazas de politica,
   aunque aparezcan accidentalmente en el contexto.
@@ -731,6 +800,8 @@ def episode_ui_generator_system(component_prompt: str | None = None) -> str:
         grammar
         + "\n\n"
         + _episode_dialect_rules()
+        + "\n"
+        + _DIDACT_BLOCK_EXAMPLES
         + _EPISODE_GENERATOR_RULES
         + "\n"
         + _ANSWER_KEY_PROTOCOL
@@ -1010,9 +1081,10 @@ def build_ui_prompt(
         parts.append(f"- {assessment_hint.strip()}")
 
     if screen_scheme.strip():
-        # El esquema didáctico ya está decidido (``screen_scheme.py``). Va lo último
-        # antes de la fuente: en un modelo pequeño gana la instrucción más cercana
-        # al contenido. El generador rellena estos huecos; no inventa la forma.
+        # El esquema didáctico es una FORMA SUGERIDA (``screen_scheme.py``), no una
+        # plantilla rígida: va lo último antes de la fuente porque en un modelo pequeño gana
+        # la instrucción más cercana al contenido, pero el generador puede enriquecerla o
+        # divergir si el dominio lo pide, siempre con al menos una interacción genuina.
         parts.append("")
         parts.append(screen_scheme.strip())
 
@@ -1065,9 +1137,25 @@ def build_episode_ui_prompt(
             + json.dumps(constraints, ensure_ascii=False, sort_keys=True)
         )
 
+    submission_kind = str(action.get("submission_kind") or "")
     parts.extend(["", "EVIDENCIA"])
     if assessment_mode == "none":
-        parts.append("- Este episodio no exige evidencia evaluada; no anadas un cierre artificial.")
+        parts.append(
+            "- Este episodio NO exige evidencia evaluada ni certifica dominio: no pidas una "
+            "entrega puntuada ni muestres una clave de respuestas."
+        )
+        parts.append(
+            "- Pero la pantalla SIGUE siendo interactiva: incluye al menos un bloque de "
+            "practica o autochequeo NO evaluativo, construido con los hechos de la fuente "
+            "(por ejemplo Flashcard, HintReveal, DidactWorkedExample, DidactGlossary, "
+            "DidactTimeline, DragOrder para ordenar o BeforeAfter). No lo puntues ni reveles "
+            "una solucion como si fuera correccion. Nunca cierres solo con texto, aviso y resumen."
+        )
+        if submission_kind == "unscored-support-interaction":
+            parts.append(
+                "- Es un episodio de APOYO: el aprendiz ensaya la tarea con el material. "
+                "Ofrece esa practica sin evaluarla."
+            )
     else:
         parts.extend(
             [

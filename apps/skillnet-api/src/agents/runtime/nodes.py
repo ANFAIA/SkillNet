@@ -27,6 +27,7 @@ Three things in here are the security contract of §5.1 and are not negotiable:
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import time
 import uuid
@@ -165,6 +166,28 @@ _SUPPORT_PROMPT_COMPONENT_IDS = frozenset(
         "Tabs",
     }
 )
+
+#: The interactive (non-mastery) blocks a support-only episode may use. ``support_only``
+#: means "we do not CERTIFY mastery here", not "passive info only": the screen must still
+#: offer a self-check / rehearsal built from the source. When the planner shortlist for a
+#: support episode contains none of these, one is appended so the episode stays interactive.
+_SUPPORT_INTERACTIVE_IDS = frozenset(
+    {"Flashcard", "HintReveal", "DidactWorkedExample", "BeforeAfter"}
+)
+#: Preferred order when forcing an interaction into a support shortlist that lacks one.
+_SUPPORT_INTERACTIVE_FALLBACK: tuple[str, ...] = (
+    "HintReveal",
+    "Flashcard",
+    "DidactWorkedExample",
+)
+
+
+def _ensure_support_interaction(prompt_ids: list[str]) -> list[str]:
+    """Keep a support-only shortlist interactive without certifying mastery."""
+
+    if any(value in _SUPPORT_INTERACTIVE_IDS for value in prompt_ids):
+        return prompt_ids
+    return [*prompt_ids, _SUPPORT_INTERACTIVE_FALLBACK[0]]
 
 STEP_MESSAGES: dict[str, str] = {
     "load_context": "Preparando el nodo...",
@@ -868,6 +891,9 @@ async def direct_episode(state: NodeRuntimeState) -> dict:
             prompt_ids = [
                 value for value in prompt_ids if value in _SUPPORT_PROMPT_COMPONENT_IDS
             ]
+            # support_only never certifies mastery, but the screen must still be
+            # interactive: guarantee at least one non-mastery self-check block.
+            prompt_ids = _ensure_support_interaction(prompt_ids)
             trace["renderer_selection"] = (
                 "planner-unscored" if prompt_ids else "base-shell"
             )
@@ -1255,20 +1281,38 @@ _DIRECT_DIDACT_CLOSERS = (
     "DidactWorkedExample",
 )
 
+#: When a ``DidactActivity`` cannot be materialized, the screen still closes with a genuine
+#: interaction instead of a bare QuizItem. These are direct Didact blocks the model can emit
+#: without any server-prepared activity. Rotated by ``node_id`` for variety between siblings.
+_DIDACT_ACTIVITY_FALLBACK_BLOCKS: tuple[str, ...] = (
+    "DidactWorkedExample",
+    "Flashcard",
+    "HintReveal",
+)
+
+
+def _didact_activity_fallback_block(state: NodeRuntimeState) -> str:
+    """Deterministic interactive fallback when authoring an activity declines."""
+
+    seed = hashlib.sha1(str(state.get("node_id") or "").encode("utf-8")).hexdigest()
+    index = int(seed[:8], 16) % len(_DIDACT_ACTIVITY_FALLBACK_BLOCKS)
+    return _DIDACT_ACTIVITY_FALLBACK_BLOCKS[index]
+
 
 def _prompt_assessment_required(state: NodeRuntimeState) -> tuple[str, ...]:
     """Components the scoped prompt must include so verification can close the screen.
 
     Prepared activities cross the neutral ``LearningExperience`` boundary. If optional
-    authoring declines, a concrete-case ``QuizItem`` remains evaluable without inventing
-    an activity id or exposing a reveal card.
+    authoring declines, the screen still closes with a genuine interaction: a direct Didact
+    block (worked example, flashcard or graded hints) rather than degrading to a bare
+    QuizItem. None of these fallbacks certify mastery; they are grounded practice.
     """
 
     block = str(state.get("assessment_block") or "")
     if block == "DidactActivity":
         if isinstance(state.get("authored_activity"), dict):
             return ("LearningExperience",)
-        return ("QuizItem",)
+        return (_didact_activity_fallback_block(state),)
     if block in _DIRECT_DIDACT_CLOSERS:
         return (block,)
     if block in _LEGACY_ASSESSMENT_BLOCKS:
@@ -1443,11 +1487,13 @@ async def author_activity(state: NodeRuntimeState) -> dict:
                     EpisodeBrief.model_validate(episode_payload),
                     decline_reason="grounded_authoring_refs_unavailable",
                 )
-                support_prompt_ids = [
-                    value
-                    for value in state.get("prompt_component_ids") or ()
-                    if value in _SUPPORT_PROMPT_COMPONENT_IDS
-                ]
+                support_prompt_ids = _ensure_support_interaction(
+                    [
+                        value
+                        for value in state.get("prompt_component_ids") or ()
+                        if value in _SUPPORT_PROMPT_COMPONENT_IDS
+                    ]
+                )
                 plan_trace = dict(state.get("plan_trace") or {})
                 plan_trace["prompt_component_ids"] = support_prompt_ids
                 plan_trace["renderer_selection"] = (
@@ -2018,6 +2064,14 @@ async def validate_ui(state: NodeRuntimeState) -> dict:
         )
     except RenderError as exc:
         errors = list(getattr(exc, "errors", None) or [str(exc)])
+        logger.warning(
+            "validate_ui_rejected node=%s retry=%s shell=%s errors=%s raw=%r",
+            state.get("node_id"),
+            state.get("retry_count"),
+            state.get("shell_mode"),
+            errors,
+            program_text[:1500],
+        )
         return {
             "ui_spec": None,
             "validation_errors": errors,

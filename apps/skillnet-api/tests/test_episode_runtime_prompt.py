@@ -162,15 +162,19 @@ def test_builder_allowlist_does_not_leak_private_evaluation_material() -> None:
     assert "No muestres el oraculo" in prompt
 
 
-def test_unassessed_episode_does_not_demand_a_closing_question() -> None:
+def test_unassessed_episode_stays_interactive_without_scored_evidence() -> None:
     episode = ticket_episode()
     episode["assessment_mode"] = "none"
 
     prompt = build_episode_ui_prompt(episode=episode, source_context="Proceso publico.")
 
-    assert "no exige evidencia evaluada" in prompt
-    assert "no anadas un cierre artificial" in prompt
+    # No scored evidence / mastery is demanded...
+    assert "NO exige evidencia evaluada" in prompt
+    assert "ni certifica dominio" in prompt
     assert "Modo declarado" not in prompt
+    # ...but the screen must still carry a genuine, non-evaluative interaction.
+    assert "SIGUE siendo interactiva" in prompt
+    assert "NO evaluativo" in prompt
 
 
 def test_episode_repair_restates_mission_source_and_errors_without_formula() -> None:
@@ -186,3 +190,44 @@ def test_episode_repair_restates_mission_source_and_errors_without_formula() -> 
     assert "referencia code sin definir" in prompt
     assert 'root = Stack([code], "md")' in prompt
     assert_has_no_screen_formula(prompt)
+
+
+def test_episode_generator_teaches_didact_interactive_blocks() -> None:
+    # The generator must be SHOWN Didact used, not merely told the signatures exist:
+    # a small model never picks a block it has never seen in a worked example.
+    system = episode_ui_generator_system("## Component Signatures\n\nStack(...)\n")
+    for name in (
+        "Flashcard",
+        "HintReveal",
+        "DidactWorkedExample",
+        "DidactGlossary",
+        "DidactTimeline",
+    ):
+        assert name in system, name
+    assert "interacciones Didact" in system
+
+
+def support_episode() -> dict:
+    """A support-only shaped brief: unscored, no mastery, rehearsal interaction."""
+    episode = ticket_episode()
+    episode["assessment_mode"] = "none"
+    episode["dominant_action"]["submission_kind"] = "unscored-support-interaction"
+    episode["dominant_action"]["instructions"] = (
+        "Use the grounded material to rehearse the task. This support episode does not "
+        "submit scored evidence or establish mastery."
+    )
+    return episode
+
+
+def test_support_episode_prompt_still_offers_interaction() -> None:
+    prompt = build_episode_ui_prompt(
+        episode=support_episode(),
+        source_context="El proceso publico de recuperacion de entrada.",
+    )
+
+    # Unscored: no mastery certified, no scored evidence demanded.
+    assert "NO exige evidencia evaluada" in prompt
+    assert "ni certifica dominio" in prompt
+    # But still interactive, and flagged explicitly as a support rehearsal.
+    assert "SIGUE siendo interactiva" in prompt
+    assert "episodio de APOYO" in prompt

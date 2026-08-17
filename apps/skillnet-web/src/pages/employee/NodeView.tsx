@@ -796,6 +796,52 @@ export function NodeView() {
                             </div>
                           </ClickableSurface>
                         </motion.div>
+                        {/*
+                          Pie del episodio. Un episodio es UNA pantalla: se ve entero de
+                          golpe y no tiene el stepper que en modo legacy pinta las flechas
+                          de avance. Sin este pie, un episodio `support_only` (solo aviso +
+                          checklist + resumen, sin ejercicio que resolver) no ofrece NINGUNA
+                          forma de salir: el aprendiz queda atrapado. El pie da el mismo
+                          avance que daban las flechas del stepper —anterior / siguiente
+                          nodo, y "terminar curso" en el ultimo— reutilizando exactamente
+                          las mismas rutas de navegacion y `finishCourse` que alimentan
+                          nextNodeContext / courseFinishContext. Siempre visible en episodio,
+                          asi que un episodio nunca es un callejon sin salida, tenga o no
+                          ejercicio interactivo dentro.
+                        */}
+                        {shownShellMode === 'episode' && (
+                          <div
+                            className="shrink-0 flex items-center gap-3 pt-6"
+                            data-episode-footer=""
+                          >
+                            {previousNode && (
+                              <button
+                                type="button"
+                                onClick={() => navigate(`${backToCourse}/nodo/${previousNode.id}`)}
+                                className="shrink-0 text-sm font-medium text-text-secondary hover:text-text px-4 py-3 rounded-md transition-colors"
+                              >
+                                {intl.formatMessage({ id: 'node.previousNode' })}
+                              </button>
+                            )}
+                            {nextNode ? (
+                              <button
+                                type="button"
+                                onClick={() => navigate(`${backToCourse}/nodo/${nextNode.id}`)}
+                                className="flex-1 bg-primary hover:bg-primary-hover text-white text-sm font-medium px-4 py-3 rounded-md transition-colors"
+                              >
+                                {intl.formatMessage({ id: 'node.nextNode' }, { title: nextNode.title })}
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={finishCourse}
+                                className="flex-1 bg-accent hover:bg-accent-hover text-white text-sm font-medium px-4 py-3 rounded-md transition-colors"
+                              >
+                                {intl.formatMessage({ id: 'node.finishCourse' })}
+                              </button>
+                            )}
+                          </div>
+                        )}
                       </motion.div>
                     ) : (
                       <motion.div

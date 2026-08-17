@@ -49,15 +49,19 @@ DIDACT_QUIZ_ROTATION: tuple[str, ...] = (
 DIDACT_PROCEDURE = "didact.sort"
 
 #: Families mixed on purpose so consecutive nodes in one course do not share a closer.
-#: ``block`` is the OpenUI symbol the scoped prompt must include.
-DIDACT_CLOSER_ROTATION: tuple[tuple[str, str], ...] = (
+#: ``block`` is the OpenUI symbol the scoped prompt must include. Two kinds of entry:
+#: a server-materialized ``DidactActivity`` (scored evidence) and a direct interactive
+#: Didact block (``item_type`` ``None``) that closes with genuine practice without needing
+#: a materialized activity. Direct blocks are why a node whose activity cannot be
+#: materialized still ends in an interaction instead of a bare QuizItem.
+DIDACT_CLOSER_ROTATION: tuple[tuple[str | None, str], ...] = (
     ("didact.quiz.single-choice", "DidactActivity"),
-    ("didact.quiz.fill-in-the-blank", "DidactActivity"),
+    (None, "DidactWorkedExample"),
     ("didact.matching", "DidactActivity"),
-    ("didact.quiz.true-false", "DidactActivity"),
-    ("didact.word-bank", "DidactActivity"),
+    (None, "Flashcard"),
+    ("didact.quiz.fill-in-the-blank", "DidactActivity"),
+    (None, "HintReveal"),
     ("didact.categorize", "DidactActivity"),
-    ("didact.quiz.multi-select", "DidactActivity"),
 )
 DIRECT_DIDACT_BLOCKS = frozenset(
     block for _type_id, block in DIDACT_CLOSER_ROTATION if block != "DidactActivity"
