@@ -115,6 +115,15 @@ class ComponentSpec:
     is_container: bool = False
     #: ``Markdown`` is reachable from ``fallback_seed`` only; the LLM cannot emit it.
     llm_emittable: bool = True
+    #: A **broker-scoped** content component: the LLM may emit it, but ONLY when the media
+    #: broker injects it into the episode scope because a READY media artefact of that kind
+    #: exists for the node (and the learner preference allows it). It is a real, validated
+    #: component of the kit — the validator accepts it like any other — but it is kept OUT
+    #: of the frozen frontend catalogue/drift digest (``llm_components``), because the
+    #: generator never sees it in the general closed scope, only through the broker's
+    #: grounded, per-node whitelist addendum. This is what lets ``kit.py`` carry the
+    #: signature without regenerating the frontend prompt artefact.
+    broker_scoped: bool = False
     #: Historical programs may still contain a retired authoring symbol. It remains
     #: parseable for playback without returning to the prompt catalogue.
     legacy_parseable: bool = False
@@ -166,7 +175,20 @@ class UIKit:
 
     @property
     def llm_components(self) -> tuple[ComponentSpec, ...]:
-        return tuple(c for c in self.components if c.llm_emittable)
+        """The components advertised in the frozen frontend catalogue/prompt.
+
+        Excludes broker-scoped components: those are real, validate-able components the LLM
+        may emit, but only when the media broker whitelists them per-node, so they must not
+        enter the general catalogue (and must not shift its drift digest).
+        """
+        return tuple(
+            c for c in self.components if c.llm_emittable and not c.broker_scoped
+        )
+
+    @property
+    def broker_components(self) -> tuple[ComponentSpec, ...]:
+        """Broker-scoped content components, injected per-node when a ready artefact exists."""
+        return tuple(c for c in self.components if c.broker_scoped)
 
     @property
     def llm_names(self) -> tuple[str, ...]:
@@ -323,6 +345,32 @@ UI_KIT = UIKit(
             props=(
                 PropSpec("text", PropKind.STRING, "Texto que se leera en voz alta"),
                 PropSpec("voice", PropKind.ENUM, "Estilo de voz", VOICE_STYLES),
+            ),
+        ),
+        ComponentSpec(
+            name="PodcastPlayer",
+            broker_scoped=True,
+            purpose=(
+                "Reproductor del podcast (audio overview) ya generado para este nodo. "
+                "Referencia un artefacto de audio real por id; nunca inventes el id. "
+                "Solo esta disponible cuando el broker lo ofrece"
+            ),
+            props=(
+                PropSpec("artifact_id", PropKind.STRING, "Id del MediaArtifact de podcast (kind=podcast, status=done)"),
+                PropSpec("title", PropKind.STRING, "Titulo breve que se muestra sobre el reproductor"),
+            ),
+        ),
+        ComponentSpec(
+            name="InfographicImage",
+            broker_scoped=True,
+            purpose=(
+                "Imagen de la infografia ya generada para este nodo. Referencia un artefacto "
+                "de imagen real por id; nunca inventes el id. Solo esta disponible cuando el "
+                "broker lo ofrece"
+            ),
+            props=(
+                PropSpec("artifact_id", PropKind.STRING, "Id del MediaArtifact de infografia (kind=infographic, status=done)"),
+                PropSpec("alt", PropKind.STRING, "Texto alternativo accesible que describe la imagen"),
             ),
         ),
         ComponentSpec(

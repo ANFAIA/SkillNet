@@ -57,6 +57,9 @@ class NodeRuntimeState(TypedDict, total=False):
     #: evita que seis nodos generados por separado abran con la misma frase y hagan la
     #: misma pregunta. Propiedad del esquema, identica para todos los aprendices.
     siblings: list[str]
+    # Broker-offered media components for this node, already gated by learner preference:
+    # each is {kind, component, artifact_id, title} for a READY MediaArtifact.
+    media_offers: list[dict]
 
     # --- Gate ---
     mastered: bool

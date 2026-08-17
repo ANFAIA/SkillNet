@@ -31,6 +31,10 @@ EXPECTED_CATALOGUE: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("Markdown", ("content",)),
     ("DragOrder", ("instruction", "items", "correctOrder")),
     ("AudioExplanation", ("text", "voice")),
+    # Broker-scoped media components (validated by the kit, injected per-node by the media
+    # broker, kept out of the frozen frontend catalogue/drift digest).
+    ("PodcastPlayer", ("artifact_id", "title")),
+    ("InfographicImage", ("artifact_id", "alt")),
     ("PronunciationExercise", ("targetText", "language")),
     ("Flashcard", ("front", "back")),
     ("HintReveal", ("title", "hints", "solution")),
@@ -85,11 +89,13 @@ def test_positional_prop_order_matches_the_spec_table(name: str, props: tuple[st
 
 
 def test_fallback_and_legacy_alias_are_off_limits_to_the_model() -> None:
-    retired = {"Markdown", "DidactActivity"}
+    # ``Markdown``/``DidactActivity`` are not llm_emittable; PodcastPlayer/InfographicImage
+    # are broker-scoped, so they too are excluded from the general emittable catalogue.
+    excluded = {"Markdown", "DidactActivity", "PodcastPlayer", "InfographicImage"}
     assert UI_KIT.llm_names == tuple(
-        name for name, _ in EXPECTED_CATALOGUE if name not in retired
+        name for name, _ in EXPECTED_CATALOGUE if name not in excluded
     )
-    assert len(UI_KIT.llm_names) == len(EXPECTED_CATALOGUE) - len(retired)
+    assert len(UI_KIT.llm_names) == len(EXPECTED_CATALOGUE) - len(excluded)
 
 
 def test_containers_are_stack_and_card() -> None:

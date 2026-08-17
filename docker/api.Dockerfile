@@ -9,7 +9,7 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 # ffmpeg: the media pipeline (podcast/video) concatenates per-turn TTS segments with it
 # when the single-call dialogue path is unavailable. The dev image targets this `builder`
 # stage, so it must live here as well as in runtime.
-RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg \
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg espeak-ng \
     && rm -rf /var/lib/apt/lists/*
 
 # `PYTHONUNBUFFERED` and `PYTHONDONTWRITEBYTECODE` are set in the *builder* stage on
@@ -42,8 +42,9 @@ FROM python:3.12-slim AS runtime
 RUN groupadd -r skillnet && \
     useradd -r -g skillnet -d /app -s /sbin/nologin skillnet
 
-# ffmpeg for audio concatenation in the media (podcast/video) pipeline.
-RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg \
+# ffmpeg for audio concatenation in the media (podcast/video) pipeline; espeak-ng is the
+# offline, no-key/no-quota TTS safety net beneath the cloud voice providers.
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg espeak-ng \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

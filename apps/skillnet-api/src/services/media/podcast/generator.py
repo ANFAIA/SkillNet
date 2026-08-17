@@ -38,13 +38,19 @@ class PodcastGenerator:
         spec = ctx.spec or {}
         fmt = script_mod.coerce_format(spec.get("format"))
         language = str(spec.get("language") or "es")
-        steering = spec.get("prompt") or spec.get("steering")
+        steering = spec.get("prompt") or spec.get("steering") or spec.get("note")
+        scope = str(spec.get("scope") or ("node" if ctx.node is not None else "course"))
         target_seconds = spec.get("target_seconds")
         if target_seconds is not None:
             try:
                 target_seconds = int(target_seconds)
             except (TypeError, ValueError):
                 target_seconds = None
+        # A course-scoped podcast is the "full course" overview: a longer episode that walks
+        # the whole corpus, not one node. When the caller did not pin a length, default a
+        # two-host course episode to a fuller runtime than a single-node one.
+        if target_seconds is None and scope == "course" and fmt is not script_mod.PodcastFormat.THE_BRIEF:
+            target_seconds = 600
 
         await ctx.emit("guion", format=fmt.value)
         script = await script_mod.generate_script(
@@ -69,6 +75,7 @@ class PodcastGenerator:
 
         spec_json = {
             "generator": "podcast",
+            "scope": scope,
             "format": script.format.value,
             "language": script.language,
             "target_seconds": script.target_seconds,

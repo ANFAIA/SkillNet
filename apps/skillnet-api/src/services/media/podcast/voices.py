@@ -238,26 +238,117 @@ def concat_mp3_segments(segments: list[bytes]) -> bytes:
         return Path(out_path).read_bytes()
 
 
+@dataclass(frozen=True)
+class _FallbackVoice:
+    """One fallback TTS provider plus the two host voices it should speak A/B with."""
+
+    service: TTSService
+    voice_a: str
+    voice_b: str
+
+    def voice_for(self, speaker: str) -> str:
+        return self.voice_a if speaker == "A" else self.voice_b
+
+
+def _build_fallback_chain(tts: TTSService | None) -> list[_FallbackVoice]:
+    """The ordered per-turn TTS fallbacks, richest first, ending in an offline safety net.
+
+    1. The **configured** provider (``TTS_PROVIDER`` — ElevenLabs here), spoken with the
+       two ElevenLabs host voices. This is the same client path ``/tts`` uses.
+    2. **Azure AI Speech**, but only when its region+endpoint+key are actually configured
+       (the owner-offered fallback). Spoken with two Spanish Azure neural voices.
+    3. **Offline eSpeak NG** — no key, no quota, always last. Guarantees the pipeline still
+       produces a *real* spoken-audio mp3 when every cloud provider is unavailable or out
+       of quota, instead of failing the whole job.
+    """
+    from src.services.tts_service import (
+        EspeakOfflineProvider,
+        get_tts_provider,
+    )
+
+    chain: list[_FallbackVoice] = []
+
+    # 1. The configured provider (injectable for tests).
+    if tts is not None:
+        chain.append(
+            _FallbackVoice(tts, settings.PODCAST_VOICE_A, settings.PODCAST_VOICE_B)
+        )
+    elif settings.TTS_PROVIDER and settings.TTS_PROVIDER != "disabled":
+        try:
+            chain.append(
+                _FallbackVoice(
+                    TTSService(),
+                    settings.PODCAST_VOICE_A,
+                    settings.PODCAST_VOICE_B,
+                )
+            )
+        except Exception as exc:  # noqa: BLE001 - a mis-configured provider must not block the chain
+            logger.info("Configured TTS provider unavailable for podcast: %s", exc)
+
+    # 2. Azure, only when it is genuinely configured.
+    if (
+        settings.TTS_API_KEY
+        and settings.TTS_AZURE_REGION.strip()
+        and settings.TTS_AZURE_ENDPOINT.strip()
+        and settings.TTS_PROVIDER != "azure"  # already covered above
+    ):
+        try:
+            azure = TTSService(provider=get_tts_provider("azure", settings.TTS_API_KEY))
+            chain.append(
+                _FallbackVoice(azure, "es-ES-AlvaroNeural", "es-ES-ElviraNeural")
+            )
+        except Exception as exc:  # noqa: BLE001 - configured but unusable; skip it
+            logger.info("Azure TTS fallback unavailable: %s", exc)
+
+    # 3. Offline eSpeak NG — the always-present safety net.
+    chain.append(
+        _FallbackVoice(
+            TTSService(provider=EspeakOfflineProvider()), "es+m3", "es+f3"
+        )
+    )
+    return chain
+
+
 async def synthesize_fallback(
     script: PodcastScript, *, tts: TTSService | None = None
 ) -> bytes:
-    """Fallback path. Synthesize each turn through the existing TTS service, then concat.
+    """Fallback path. Synthesize each turn through a chain of TTS providers, then concat.
 
-    Reuses :class:`TTSService` exactly as the ``/tts`` route does (its own disk cache still
-    applies per segment), so there is one ElevenLabs client path, not two. ffmpeg glues the
-    segments into a single episode.
+    Tries each provider in :func:`_build_fallback_chain` for the whole script; the first
+    that voices every turn wins. A provider that fails (no quota, bad key, network) is
+    logged and the next is tried, so a deployment whose paid provider is exhausted still
+    gets a real mp3 from the offline eSpeak safety net. ffmpeg glues the per-turn segments
+    into one episode.
     """
-    service = tts or TTSService()
-    segments: list[bytes] = []
-    for turn in script.turns:
-        audio = await service.synthesize(
-            turn.text, voice=_voice_for(turn.speaker), language=script.language
-        )
-        segments.append(audio)
-
-    # Concatenation is CPU/subprocess work: off the event loop.
-    return await asyncio.get_running_loop().run_in_executor(
-        None, concat_mp3_segments, segments
+    chain = _build_fallback_chain(tts)
+    last_exc: Exception | None = None
+    for fv in chain:
+        try:
+            segments: list[bytes] = []
+            for turn in script.turns:
+                audio = await fv.service.synthesize(
+                    turn.text,
+                    voice=fv.voice_for(turn.speaker),
+                    language=script.language,
+                )
+                segments.append(audio)
+            if fv.service.provider.name != settings.TTS_PROVIDER:
+                logger.info("Podcast voiced via fallback provider %s", fv.service.provider.name)
+            # Concatenation is CPU/subprocess work: off the event loop.
+            return await asyncio.get_running_loop().run_in_executor(
+                None, concat_mp3_segments, segments
+            )
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:  # noqa: BLE001 - try the next provider in the chain
+            last_exc = exc
+            logger.warning(
+                "Podcast TTS provider %s failed, trying next: %s",
+                getattr(fv.service.provider, "name", "?"),
+                exc,
+            )
+    raise RuntimeError(
+        f"All podcast TTS providers failed; last error: {last_exc}"
     )
 
 

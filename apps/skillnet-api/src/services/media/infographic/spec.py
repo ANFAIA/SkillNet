@@ -228,7 +228,7 @@ async def generate_infographic(
     reply = await service.complete(
         system,
         user,
-        model=settings.INFOGRAPHIC_MODEL,
+        model=settings.INFOGRAPHIC_MODEL or None,
         temperature=0.4,
         max_tokens=2048,
         json_mode=True,

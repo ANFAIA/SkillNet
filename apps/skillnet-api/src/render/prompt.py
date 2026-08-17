@@ -263,12 +263,14 @@ def artefact_drift(kit: UIKit = UI_KIT) -> list[str]:
         problems.append(
             "prompt_sha256 does not hash openui_prompt.txt (hand-edited prompt?)"
         )
-    if artifact.render_components is not None and set(artifact.render_components) != set(
-        kit.names
-    ):
+    # Broker-scoped components (e.g. PodcastPlayer/InfographicImage) are validated by the
+    # kit but rendered by the frontend later and injected per-node by the media broker, not
+    # part of the general browser catalogue — so they are excluded from this comparison.
+    browser_names = {c.name for c in kit.components if not c.broker_scoped}
+    if artifact.render_components is not None and set(artifact.render_components) != browser_names:
         problems.append(
             f"the browser renders {sorted(artifact.render_components)} but the kit holds "
-            f"{sorted(kit.names)}"
+            f"{sorted(browser_names)}"
         )
     return problems
 

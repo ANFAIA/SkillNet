@@ -372,6 +372,9 @@ class FakeSession:
             return FakeResult([])
         if "FROM course_nodes" in sql:
             return FakeResult(list(self.siblings))
+        if "FROM media_artifacts" in sql:
+            # The media broker's node -> ready-artefacts lookup; no artefacts in this harness.
+            return FakeResult([])
         raise AssertionError(f"unexpected query: {sql}")
 
     async def get(self, model, pk):

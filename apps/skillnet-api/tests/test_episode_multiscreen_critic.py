@@ -40,7 +40,7 @@ def _extract_programs(text: str) -> list[str]:
 
 def test_episode_prompt_advertises_multiscreen_flow() -> None:
     system = episode_ui_generator_system()
-    assert EPISODE_PROMPT_VERSION == "episode/7"
+    assert EPISODE_PROMPT_VERSION == "episode/8"
     assert "FLUJO de PANTALLAS" in system
 
 

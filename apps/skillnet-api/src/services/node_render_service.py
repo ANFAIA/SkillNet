@@ -250,6 +250,7 @@ def build_render_key(
     refresh_salt: str | None = None,
     knowledge_pack_key: str = "",
     longitudinal_history: LongitudinalHistoryProjection | None = None,
+    media_offer_fingerprint: str = "",
 ) -> RenderKey:
     """Compose the ``cache_key`` of §3.4 from a loaded context.
 
@@ -289,6 +290,12 @@ def build_render_key(
         selection_strategy,
     )
     generation_key = generation_policy_key()
+    # The media broker may widen the emittable scope with a grounded reference to a ready
+    # artefact for this node, gated by the learner's modality preference. When it does, the
+    # produced program differs, so the fingerprint of the offered artefacts must partition
+    # the shared render cache. Empty (the default) leaves every pre-existing key untouched.
+    if media_offer_fingerprint:
+        generation_key = f"{generation_key}+{media_offer_fingerprint}"
     history = longitudinal_history or project_longitudinal_history(
         [], nodes_completed=nodes_completed
     )
@@ -803,6 +810,18 @@ class NodeRenderService:
             events,
             nodes_completed=int(getattr(profile, "nodes_completed", 0) or 0),
         )
+        from src.agents.runtime.media_broker import (
+            gate_offers,
+            offers_fingerprint,
+            ready_media_for_node,
+        )
+
+        ready_media = await ready_media_for_node(
+            self.db, node_id=node.id, org_id=node.org_id
+        )
+        media_fingerprint = offers_fingerprint(
+            gate_offers(ready_media, getattr(profile, "learning_preferences", None))
+        )
         return build_render_key(
             node=node,
             course=course,
@@ -814,6 +833,7 @@ class NodeRenderService:
             refresh_salt=uuid.uuid4().hex[:12] if refresh and not is_preview else None,
             knowledge_pack_key=pack.cache_fragment if pack else "",
             longitudinal_history=history,
+            media_offer_fingerprint=media_fingerprint,
         )
 
     # -- anticipatory warm-up (creation-time pre-render) -------------------------

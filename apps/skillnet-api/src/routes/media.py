@@ -119,7 +119,7 @@ async def _remember_media_steering(
     if _role(user) != UserRole.EMPLOYEE.value:
         return
     spec = body.spec or {}
-    steering = spec.get("prompt") or spec.get("steering")
+    steering = body.note or spec.get("prompt") or spec.get("steering")
     if not isinstance(steering, str) or not steering.strip():
         return
     kind = str(getattr(body.kind, "value", body.kind))
@@ -173,8 +173,22 @@ async def create_artifact(
                 "node_id does not belong to this course", field="node_id"
             )
 
+    spec = dict(body.spec or {})
+    scope = getattr(body.scope, "value", body.scope) or "node"
+    spec["scope"] = scope
+    # The personalization note is the learner's steering text. Keep the existing
+    # ``prompt``/``steering`` keys authoritative if a client already set one; otherwise the
+    # note becomes the steering the generators read.
+    if body.note and body.note.strip():
+        spec["note"] = body.note.strip()
+        spec.setdefault("prompt", body.note.strip())
+        # A standalone artefact is steered by the note: use it to focus grounding retrieval
+        # too, so a node-less artefact still lands on the passages the learner asked about.
+        if scope == "standalone":
+            spec.setdefault("query", body.note.strip())
+
     artifact = await enqueue_artifact(
-        db, course=course, node=node, kind=body.kind, spec=body.spec
+        db, course=course, node=node, kind=body.kind, spec=spec
     )
     await db.commit()
 

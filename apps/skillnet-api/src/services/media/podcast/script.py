@@ -183,9 +183,20 @@ def build_prompts(
     )
 
     system = (
-        "Eres un guionista de podcasts educativos. Produces el guion de un episodio corto "
-        f"en {lang_name} a partir del material aportado.\n\n"
+        "Eres un guionista de podcasts educativos al nivel de NotebookLM. Produces el guion "
+        f"de un episodio en {lang_name} a partir del material aportado.\n\n"
         f"{preset.guidance}\n\n"
+        "CALIDAD DEL DIALOGO (haz que suene a conversacion real, no a locucion):\n"
+        "- Arranca con un gancho concreto (una situacion, una pregunta, un dato que sorprende), "
+        "nada de '¡Hola y bienvenidos!' generico.\n"
+        "- Turnos cortos y desiguales: se interrumpen con matices, reformulan con sus palabras, "
+        "encadenan con '(claro)', '(exacto)', '(a ver)', hacen preguntas de seguimiento reales.\n"
+        "- Aterriza cada idea abstracta en un ejemplo concreto del material (un caso, una cifra, "
+        "una escena de trabajo). Explica el porque, no solo el que.\n"
+        "- Progresion: enganche -> desarrollo con ejemplos -> una idea contraintuitiva o un error "
+        "comun -> cierre con la conclusion practica que el oyente se lleva.\n"
+        "- Nada de relleno, ni resumir '(en resumen)' cada dos turnos, ni leer listas de corrido. "
+        "Suena humano: humor ligero puntual, curiosidad genuina, sin cliches de locutor.\n\n"
         "REGLAS ESTRICTAS:\n"
         '1. Responde SOLO con JSON valido, sin texto antes ni despues, sin ```.\n'
         "2. Esquema exacto: "
@@ -315,7 +326,7 @@ async def generate_script(
     reply = await service.complete(
         system,
         user,
-        model=settings.PODCAST_SCRIPT_MODEL,
+        model=settings.PODCAST_SCRIPT_MODEL or None,
         temperature=0.7,
         max_tokens=2048,
         json_mode=True,

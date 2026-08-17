@@ -13,6 +13,8 @@ from __future__ import annotations
 
 import hashlib
 import os
+import shutil
+import subprocess
 import tempfile
 from abc import ABC, abstractmethod
 from html import escape
@@ -297,6 +299,71 @@ class AzureSpeechProvider(TTSProvider):
 
 
 # ---------------------------------------------------------------------------
+# Offline eSpeak NG (no key, no quota — the last-resort fallback)
+# ---------------------------------------------------------------------------
+
+
+class EspeakOfflineProvider(TTSProvider):
+    """Offline TTS via the ``espeak-ng`` binary, so a deployment with no paid TTS key or
+    quota still produces a *real* spoken-audio file rather than failing the whole job.
+
+    Robotic, not broadcast quality — it is the safety net beneath the cloud providers, not
+    a replacement for them. Renders to WAV with ``espeak-ng`` and transcodes to MP3 with
+    ``ffmpeg`` (already on the image), so its output slots into the same mp3 pipeline
+    (concat, cache, asset store) as every other provider. Needs neither ``api_key`` nor
+    network. ``voice`` is an espeak voice/variant spec (e.g. ``es+m3``); it falls back to
+    the language's base voice when empty.
+    """
+
+    name: ClassVar[str] = "offline"
+    default_voice: ClassVar[str] = "es"
+
+    _VOICES: ClassVar[list[dict[str, str]]] = [
+        {"id": "es+m3", "name": "Español (voz masculina)"},
+        {"id": "es+f3", "name": "Español (voz femenina)"},
+    ]
+
+    def __init__(self, api_key: str = "") -> None:  # noqa: D107 - no key needed
+        super().__init__(api_key)
+
+    async def synthesize(self, text: str, voice: str = default_voice, language: str = "es") -> bytes:
+        import asyncio
+
+        espeak = shutil.which("espeak-ng") or shutil.which("espeak")
+        if espeak is None:
+            raise RuntimeError("espeak-ng not found on PATH; offline TTS unavailable")
+        ffmpeg = shutil.which("ffmpeg")
+        if ffmpeg is None:
+            raise RuntimeError("ffmpeg not found on PATH; cannot transcode offline audio")
+        voice_spec = voice or (language if "-" not in language else language.split("-")[0]) or "es"
+
+        def _run() -> bytes:
+            with tempfile.TemporaryDirectory() as tmp:
+                wav = os.path.join(tmp, "out.wav")
+                mp3 = os.path.join(tmp, "out.mp3")
+                speak = subprocess.run(
+                    [espeak, "-v", voice_spec, "-s", "155", "-w", wav, text],
+                    capture_output=True,
+                )
+                if speak.returncode != 0:
+                    detail = speak.stderr.decode("utf-8", "replace")[-300:]
+                    raise RuntimeError(f"espeak-ng failed ({speak.returncode}): {detail}")
+                trans = subprocess.run(
+                    [ffmpeg, "-y", "-i", wav, "-c:a", "libmp3lame", "-q:a", "5", mp3],
+                    capture_output=True,
+                )
+                if trans.returncode != 0:
+                    detail = trans.stderr.decode("utf-8", "replace")[-300:]
+                    raise RuntimeError(f"ffmpeg transcode failed ({trans.returncode}): {detail}")
+                return Path(mp3).read_bytes()
+
+        return await asyncio.get_running_loop().run_in_executor(None, _run)
+
+    def available_voices(self) -> list[dict[str, str]]:
+        return list(self._VOICES)
+
+
+# ---------------------------------------------------------------------------
 # Factory
 # ---------------------------------------------------------------------------
 
@@ -305,6 +372,7 @@ _PROVIDERS: dict[str, type[TTSProvider]] = {
     "google": GoogleWaveNetProvider,
     "elevenlabs": ElevenLabsProvider,
     "azure": AzureSpeechProvider,
+    "offline": EspeakOfflineProvider,
 }
 
 

@@ -534,6 +534,29 @@ async def load_context(state: NodeRuntimeState) -> dict:
             # raw source under its already-frozen key; the next request gets the pack key.
             pack_selection = None
 
+        # The media broker: offer this node's READY podcast/infographic artefacts to the
+        # generator, gated by the learner's modality preference. Kept in state for the
+        # generation/critic nodes, and its fingerprint partitions the render cache key.
+        from src.agents.runtime.media_broker import (
+            gate_offers,
+            offers_fingerprint,
+            ready_media_for_node,
+        )
+
+        ready_media = await ready_media_for_node(db, node_id=node_id, org_id=org_id)
+        media_offers = gate_offers(
+            ready_media, getattr(profile, "learning_preferences", None)
+        )
+        media_offers_payload = [
+            {
+                "kind": offer.kind,
+                "component": offer.component,
+                "artifact_id": offer.artifact_id,
+                "title": offer.title,
+            }
+            for offer in media_offers
+        ]
+
         key = build_render_key(
             node=node,
             course=course,
@@ -547,6 +570,7 @@ async def load_context(state: NodeRuntimeState) -> dict:
             preview_salt=None,
             knowledge_pack_key=expected_pack_key,
             longitudinal_history=history,
+            media_offer_fingerprint=offers_fingerprint(media_offers),
         )
         cache_key = str(state.get("cache_key") or key.cache_key)
 
@@ -676,6 +700,8 @@ async def load_context(state: NodeRuntimeState) -> dict:
             else []
         ),
         "siblings": siblings,
+        # Broker-offered media components for this node (already gated by preference).
+        "media_offers": media_offers_payload,
         "backend": str(state.get("backend") or "openui"),
         "effective_density": key.effective_density,
         "scaffold_band": key.scaffold_band,
@@ -1734,6 +1760,33 @@ def _source_with_authored_activity(state: NodeRuntimeState) -> str:
     )
 
 
+def _with_media_offers(scoped_prompt: str, state: NodeRuntimeState) -> str:
+    """Append the media broker's grounded whitelist addendum when offers exist for the node.
+
+    Pure over ``state``: reads the ``media_offers`` computed (and preference-gated) in
+    ``load_context`` and, if any, widens the prompt with the id-pinned PodcastPlayer /
+    InfographicImage offer. No offers -> the prompt is returned unchanged, so a node with no
+    ready artefact never sees the block and can never emit the component.
+    """
+    payload = state.get("media_offers") or ()
+    if not payload:
+        return scoped_prompt
+    from src.agents.runtime.media_broker import MediaOffer, offers_prompt_addendum
+
+    offers = [
+        MediaOffer(
+            kind=str(item.get("kind")),
+            component=str(item.get("component")),
+            artifact_id=str(item.get("artifact_id")),
+            title=str(item.get("title") or ""),
+        )
+        for item in payload
+        if item.get("artifact_id")
+    ]
+    addendum = offers_prompt_addendum(offers)
+    return f"{scoped_prompt}\n{addendum}" if addendum else scoped_prompt
+
+
 # --------------------------------------------------------------------------- #
 # Node 5: genera_ui
 # --------------------------------------------------------------------------- #
@@ -1779,6 +1832,10 @@ async def genera_ui(state: NodeRuntimeState) -> dict:
         additional_required=assessment_required,
         enabled=settings.RUNTIME_COMPONENT_SHORTLIST or adaptive_episode,
     )
+    # Broker addendum: when a READY media artefact exists for this node and the learner's
+    # modality preference allows it, widen the closed scope with a grounded, id-pinned
+    # PodcastPlayer/InfographicImage offer. A misused offer still fails the gate -> fallback.
+    scoped_prompt = _with_media_offers(scoped_prompt, state)
     assessment_block = str(state.get("assessment_block") or "")
     didact_verification = (
         "LearningExperience" in assessment_required
@@ -2310,6 +2367,7 @@ async def critic_episode(state: NodeRuntimeState) -> dict:
             additional_required=_prompt_assessment_required(state),
             enabled=True,
         )
+        scoped_prompt = _with_media_offers(scoped_prompt, state)
         system = episode_ui_revise_system(scoped_prompt)
         user_prompt = build_episode_revise_prompt(
             episode=episode_payload,

@@ -122,10 +122,12 @@ class Settings(BaseSettings):
 
     # Audio Overview / Podcast generator (roadmap §2a).
     #
-    # The script agent goes through litellm like every other LLM call; a small, cheap
-    # model is plenty for a short dialogue, so it defaults to gpt-4o-mini rather than the
-    # (possibly larger/pricier) course-generation model.
-    PODCAST_SCRIPT_MODEL: str = "gpt-4o-mini"
+    # The script agent goes through litellm like every other LLM call. Left BLANK it uses
+    # the app's main LLM_MODEL (same provider/key as the rest of the app) — the portable
+    # default, so a DeepSeek/Ollama-only deployment works out of the box. Set it explicitly
+    # (e.g. "gpt-4o-mini") only when a cheaper dedicated model reachable with the SAME key
+    # is wanted; a value whose provider does not match LLM_API_KEY will fail the call.
+    PODCAST_SCRIPT_MODEL: str = ""
     # ElevenLabs Text-to-Dialogue model id for the primary (single-call) voice path.
     PODCAST_DIALOGUE_MODEL: str = "eleven_v3"
     # The two fixed demo voices. Config-overridable so a deployment can pick its own hosts.
@@ -138,8 +140,11 @@ class Settings(BaseSettings):
     # gpt-4o-mini rather than the course-generation model. The KEY discipline (§2d): the
     # facts these produce are structured JSON we render ourselves — never text baked into a
     # generated image.
-    SLIDES_MODEL: str = "gpt-4o-mini"
-    INFOGRAPHIC_MODEL: str = "gpt-4o-mini"
+    # Left BLANK these use the app's main LLM_MODEL (same key), like PODCAST_SCRIPT_MODEL —
+    # the portable default. Set explicitly only for a cheaper model reachable with the SAME
+    # key as LLM_API_KEY.
+    SLIDES_MODEL: str = ""
+    INFOGRAPHIC_MODEL: str = ""
 
     # Video Overview generator (roadmap §2b): narrated slides as HTML, NOT a real video
     # model. It reuses the slide deck content stage, then a small strict-JSON litellm call

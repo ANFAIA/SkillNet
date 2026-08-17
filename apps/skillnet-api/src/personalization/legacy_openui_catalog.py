@@ -212,6 +212,15 @@ LEGACY_OPENUI_POLICIES: dict[str, LegacyComponentPolicy] = {
         accessibility=_INTERACTIVE_ACCESSIBILITY,
         rank=30,
     ),
+    # Broker-scoped media components: never planner candidates. The media broker injects
+    # them per-node when a READY MediaArtifact of that kind exists and the learner
+    # preference allows, so the personalization planner must not propose them.
+    "PodcastPlayer": LegacyComponentPolicy(
+        exclusion_reason="broker-injected reference to a pre-generated podcast artefact, not a planned activity"
+    ),
+    "InfographicImage": LegacyComponentPolicy(
+        exclusion_reason="broker-injected reference to a pre-generated infographic artefact, not a planned activity"
+    ),
     "PronunciationExercise": _descriptor(
         "PronunciationExercise",
         missions=frozenset({CognitiveMission.PRODUCE}),

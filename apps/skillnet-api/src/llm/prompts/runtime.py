@@ -160,7 +160,10 @@ PROMPT_VERSION = "runtime/41"
 #: limites del validador que faltaban y causaban fallback medido en el nodo de biomecanica:
 #: Table con EXACTAMENTE 2 argumentos y <=4 filas, <=5 pantallas, <=12 bloques. La ruta
 #: monolitica (PROMPT_VERSION) queda intacta.
-EPISODE_PROMPT_VERSION = "episode/7"
+# episode/8: the media broker may append a grounded PodcastPlayer/InfographicImage
+# whitelist to the episode scope when a READY artefact exists for the node and the
+# learner's modality preference allows it (see src/agents/runtime/media_broker.py).
+EPISODE_PROMPT_VERSION = "episode/8"
 
 _PRESENTATION_PREFERENCES = {
     "balanced": "Combina representaciones segun el objetivo y la fuente.",

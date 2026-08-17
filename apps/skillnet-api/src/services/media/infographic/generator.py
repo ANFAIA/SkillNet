@@ -50,7 +50,8 @@ class InfographicGenerator:
         orientation = str(spec.get("orientation") or "portrait")
         if orientation not in ("portrait", "landscape"):
             orientation = "portrait"
-        steering = spec.get("prompt") or spec.get("steering")
+        steering = spec.get("prompt") or spec.get("steering") or spec.get("note")
+        scope = str(spec.get("scope") or ("node" if ctx.node is not None else "course"))
 
         await ctx.emit("datos", style=style)
         infographic = await spec_mod.generate_infographic(
@@ -77,6 +78,7 @@ class InfographicGenerator:
 
         spec_json = {
             "generator": "infographic",
+            "scope": scope,
             "title": infographic.title,
             "subtitle": infographic.subtitle,
             "orientation": infographic.orientation,

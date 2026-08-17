@@ -85,6 +85,12 @@ services:
       TTS_TIMEOUT_SECONDS: ${TTS_TIMEOUT_SECONDS:-30}
       VISION_MODEL: ${VISION_MODEL:-}
       VISION_API_KEY: ${VISION_API_KEY:-}
+      # Image generation (infographic poster / cover) for openrouter/* models. Same rule as
+      # the keys above: `.env` is dockerignored, so without this line the key never reaches
+      # the container and every image call goes out with api_key=None -> 401 Unauthorized.
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      IMAGE_MODEL: ${IMAGE_MODEL:-openrouter/google/gemini-2.5-flash-image}
+      IMAGE_FALLBACK_MODEL: ${IMAGE_FALLBACK_MODEL:-gpt-image-1}
     volumes:
       - uploads:/data/uploads
     depends_on:
