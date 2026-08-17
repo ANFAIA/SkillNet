@@ -5,7 +5,7 @@ const BACKGROUND_URL = "/images/landing/skillnet-learning-commons-background-v1.
 const COPY = {
   title: "Es hora de que la educación cambie.",
   subtitle:
-    "SkillNet es una plataforma de aprendizaje abierta y colaborativa: la misma fuente de conocimiento, una experiencia distinta para cada persona.",
+    "SkillNet convierte tus documentos en cursos que se adaptan a cada persona: la misma fuente de conocimiento, una experiencia distinta para cada una.",
   github: "Ver en GitHub",
   moreCta: "Saber más",
 };
