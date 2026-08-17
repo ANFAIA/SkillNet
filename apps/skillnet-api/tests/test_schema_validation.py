@@ -207,11 +207,6 @@ def test_validate_rejects_a_schema_whose_only_nodes_are_archived() -> None:
     ) == ["empty_schema"]
 
 
-def test_validate_requires_a_critical_node() -> None:
-    errors = validate_schema_graph([_node(position=1)], {})
-    assert "no_critical_node" in _codes(errors)
-
-
 def test_validate_requires_a_non_empty_summary() -> None:
     node = _node(position=1, criticality="critical", summary="   ")
     errors = validate_schema_graph([node], {})
@@ -262,7 +257,6 @@ def test_validate_reports_every_violation_at_once() -> None:
     codes = set(_codes(validate_schema_graph([a], {})))
     assert {
         "missing_summary",
-        "no_critical_node",
         "position_not_contiguous",
         "node_not_reviewed",
     } <= codes

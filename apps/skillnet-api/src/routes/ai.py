@@ -55,14 +55,15 @@ def _format_sse(event_type: str, data: dict) -> str:
 # ── Phase 1 (structure) prompt ─────────────────────────────────
 
 _STRUCTURE_SYSTEM = """\
-You are an instructional designer for on-the-job training. Given a course
+You are an instructional designer. Teach the subject on its own terms; reach
+for a workplace framing only when the subject itself calls for one. Given a course
 title, optional description, and a density level, propose ONLY the skeleton:
 node titles, criticality, prerequisites, and a short list of observable skills.
 
-Each node is ONE thing the employee will do on the next shift. The title names
-that thing: "Plazo de devolucion", "Aceite de la freidora", "Regla PAS".
-Chapter titles are the wrong unit: "Conceptos basicos", "Introduccion",
-"Tipos de...", "Importancia de...", "Vision general".
+Each node is ONE concrete thing the learner will be able to DO after it. The title
+names that thing: "Identificar un neurotransmisor por su funcion", "Plazo de
+devolucion", "Regla PAS". Chapter titles are the wrong unit: "Conceptos basicos",
+"Introduccion", "Tipos de...", "Importancia de...", "Vision general".
 
 Do not write summaries or outcomes here. Keep it fast: the tree and the skills.
 

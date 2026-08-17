@@ -584,7 +584,7 @@ class FakeNodeProgress:
     archived: bool = False
 
 
-def test_course_completes_only_when_every_critical_node_is_mastered():
+def test_course_completes_only_when_every_node_is_mastered():
     nodes = [
         FakeNodeProgress("n1", "critical", "mastered", 0.95),
         FakeNodeProgress("n2", "critical", "learning", 0.40),
@@ -593,24 +593,25 @@ def test_course_completes_only_when_every_critical_node_is_mastered():
     ]
     result = evaluate_course_completion(nodes)
     assert result.can_complete is False
-    assert result.blocked_by == ("n2",)
-    assert result.total_critical == 2
+    # Every non-mastered node blocks now, regardless of criticality.
+    assert result.blocked_by == ("n2", "n3", "n4")
+    assert result.total_critical == 4
     assert result.mastered_critical == 1
-    assert result.progress_percent == 50
-    # Score is the mean over critical nodes only: recommended/contextual never count.
-    assert result.score == pytest.approx((0.95 + 0.40) / 2)
+    assert result.progress_percent == 25
+    # Score is the mean over all nodes.
+    assert result.score == pytest.approx((0.95 + 0.40 + 0.0 + 0.0) / 4)
 
 
-def test_recommended_and_contextual_never_block():
+def test_recommended_and_contextual_now_block():
     nodes = [
         FakeNodeProgress("n1", "critical", "mastered", 0.90),
         FakeNodeProgress("n2", "recommended", "learning", 0.10),
         FakeNodeProgress("n3", "contextual", "not_started", 0.0),
     ]
     result = evaluate_course_completion(nodes)
-    assert result.can_complete is True
-    assert result.blocked_by == ()
-    assert result.score == pytest.approx(0.90)
+    assert result.can_complete is False
+    assert result.blocked_by == ("n2", "n3")
+    assert result.score == pytest.approx((0.90 + 0.10 + 0.0) / 3)
 
 
 def test_archiving_the_missing_node_unblocks_the_course():
@@ -630,9 +631,17 @@ def test_archiving_the_missing_node_unblocks_the_course():
     assert evaluate_course_completion(nodes).can_complete is False
 
 
-def test_a_course_with_no_critical_node_cannot_complete():
+def test_a_course_of_only_recommended_nodes_completes_when_mastered():
+    # Criticality no longer gates closure: a mastered node completes regardless.
     nodes = [FakeNodeProgress("n1", "recommended", "mastered", 1.0)]
     result = evaluate_course_completion(nodes)
+    assert result.can_complete is True
+    assert result.score == pytest.approx(1.0)
+    assert result.total_critical == 1
+
+
+def test_an_empty_course_cannot_complete():
+    result = evaluate_course_completion([])
     assert result.can_complete is False
     assert result.score is None
     assert result.total_critical == 0

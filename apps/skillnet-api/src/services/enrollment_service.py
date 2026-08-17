@@ -37,7 +37,7 @@ from sqlalchemy import select
 
 from src.core.exceptions import ConflictError, ForbiddenError, NotFoundError
 from src.core.logging import get_logger
-from src.models import Enrollment, EnrollmentStatus
+from src.models import Enrollment, EnrollmentStatus, User
 from src.models.course_skill import CourseSkill
 from src.models.user_skill import SkillLevel, UserSkill
 from src.repositories.course_node_repo import CourseNodeRepository
@@ -89,12 +89,11 @@ def apply_dynamic_closure(
     verdict. Pure apart from the clock, so both callers (the runtime and the schema
     editor) share one definition of the mutation and not just of the predicate.
 
-    ``total_critical == 0`` is treated as **"no opinion"**, never as "not complete":
-    a course mid-edit with no critical node yet cannot be evaluated, and reopening
-    every completed enrollment because the creator momentarily deleted the last
-    critical node would corrupt real records for a transient state. The validation
-    gate of §11.1 requires at least one critical node, so a *validated* course never
-    reaches this branch.
+    ``total_critical == 0`` (now: the course has *no* non-archived node) is treated as
+    **"no opinion"**, never as "not complete": an empty course mid-edit cannot be
+    evaluated, and reopening every completed enrollment because the creator momentarily
+    deleted the last node would corrupt real records for a transient state. A
+    *validated* course always has at least one node, so it never reaches this branch.
     """
     if completion.total_critical == 0:
         return None
@@ -127,6 +126,32 @@ class EnrollmentService:
             enrollment_repo.session
         )
 
+    async def _assert_users_in_org(
+        self, *, org_id: uuid.UUID, user_ids: Iterable[uuid.UUID]
+    ) -> None:
+        """Refuse to enrol a learner who belongs to another organisation.
+
+        The course is already scoped to ``org_id`` by ``get_scoped``, but nothing
+        constrained the ``user_ids``: an admin of org A could enrol a learner of org B,
+        producing a row whose two ends live in different tenants. It surfaced in the
+        learner's "My Courses" (title visible) and then 404'd on open. This closes the
+        write path; the read path in ``enrollment_repo.list_enrollments`` also filters
+        by ``Course.org_id`` so any pre-existing mismatch stays hidden without deletion.
+        """
+        wanted = {uid for uid in user_ids}
+        if not wanted:
+            return
+        result = await self.enrollment_repo.session.execute(
+            select(User.id).where(User.id.in_(wanted), User.org_id == org_id)
+        )
+        found = {row[0] for row in result.all()}
+        missing = wanted - found
+        if missing:
+            raise ForbiddenError(
+                "Cannot enrol users from another organisation: "
+                + ", ".join(str(uid) for uid in sorted(missing, key=str))
+            )
+
     async def assign(
         self,
         *,
@@ -139,6 +164,7 @@ class EnrollmentService:
         course = await self.course_repo.get_scoped(course_id, org_id)
         if course is None:
             raise NotFoundError("courses", str(course_id))
+        await self._assert_users_in_org(org_id=org_id, user_ids=user_ids)
 
         created: list[Enrollment] = []
         for user_id in user_ids:
@@ -169,6 +195,7 @@ class EnrollmentService:
         deadline: date | None,
     ) -> tuple[list[Enrollment], int]:
         """Assign a published collection while treating existing rows as idempotent."""
+        await self._assert_users_in_org(org_id=org_id, user_ids=user_ids)
         created: list[Enrollment] = []
         skipped = 0
         for course_id in course_ids:

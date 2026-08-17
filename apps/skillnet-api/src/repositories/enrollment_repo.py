@@ -42,8 +42,17 @@ class EnrollmentRepository(BaseRepository[Enrollment]):
         offset: int = 0,
         limit: int = 50,
     ) -> tuple[Sequence[Enrollment], int]:
-        # Org scope is enforced by joining enrollments -> users.
-        filters: list[ColumnElement[bool]] = [User.org_id == org_id]
+        # Org scope requires BOTH ends of the enrollment to live in this org: the
+        # learner (User.org_id) and the course (Course.org_id). Scoping by the user
+        # alone let a cross-org enrollment — a learner of org A enrolled into a course
+        # of org B — surface in the learner's "My Courses", where its title showed but
+        # the course-detail route (correctly scoped to the caller's org) then answered
+        # 404 ("Curso no encontrado"). Requiring the course's org too keeps such a row
+        # from ever listing, without deleting it.
+        filters: list[ColumnElement[bool]] = [
+            User.org_id == org_id,
+            Course.org_id == org_id,
+        ]
         if user_id is not None:
             filters.append(Enrollment.user_id == user_id)
         if course_id is not None:
@@ -51,7 +60,11 @@ class EnrollmentRepository(BaseRepository[Enrollment]):
         if status is not None:
             filters.append(Enrollment.status == status)
 
-        base = select(Enrollment).join(User, User.id == Enrollment.user_id)
+        base = (
+            select(Enrollment)
+            .join(User, User.id == Enrollment.user_id)
+            .join(Course, Course.id == Enrollment.course_id)
+        )
         query = (
             base.where(*filters)
             .options(selectinload(Enrollment.course))
@@ -61,6 +74,7 @@ class EnrollmentRepository(BaseRepository[Enrollment]):
             select(func.count())
             .select_from(Enrollment)
             .join(User, User.id == Enrollment.user_id)
+            .join(Course, Course.id == Enrollment.course_id)
             .where(*filters)
         )
         total = (await self.session.execute(count_query)).scalar_one()

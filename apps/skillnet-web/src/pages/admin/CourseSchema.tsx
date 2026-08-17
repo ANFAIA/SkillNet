@@ -13,7 +13,6 @@ import {
 } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { Button, Card, EmptyState, Skeleton, SkeletonText } from '../../components/ui'
-import { CriticalityBadge } from '../../components/schema/CriticalityBadge'
 import { IntentDensitySlider } from '../../components/schema/IntentDensitySlider'
 import type { DraftNode } from '../../components/schema/NodeEditor'
 import { SchemaTreeNode } from '../../components/schema/SchemaTreeNode'
@@ -195,7 +194,6 @@ export function CourseSchema() {
     draft.some((node) => dirtyByKey.get(node.key))
 
   const liveNodes = draft.filter((node) => !node.archived)
-  const criticalCount = liveNodes.filter((node) => node.criticality === 'critical').length
 
   const totalMinutes = liveNodes.reduce((sum, node) => sum + (node.estimatedMinutes ?? 0), 0)
 
@@ -601,10 +599,6 @@ export function CourseSchema() {
                   <span className="text-text font-medium">{liveNodes.length}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-text-muted">{intl.formatMessage({ id: 'schema.criticalLabel' })}</span>
-                  <span className="text-text font-medium">{criticalCount}</span>
-                </div>
-                <div className="flex justify-between">
                   <span className="text-text-muted">{intl.formatMessage({ id: 'schema.estimatedTime' })}</span>
                   <span className="text-text font-medium">{totalMinutes} min</span>
                 </div>
@@ -673,22 +667,6 @@ export function CourseSchema() {
               </Button>
             </div>
           </motion.div>
-        </div>
-      )}
-
-      {/* ── Footer: critical count ─────────────────────────── */}
-      {draft.length > 0 && (
-        <div className="flex items-center gap-2 mt-6 pt-4 border-t border-border min-w-0">
-          {criticalCount > 0 && (
-            <>
-              <CriticalityBadge criticality="critical" />
-              <span className="text-xs text-text-muted">
-                {criticalCount === 1
-                  ? intl.formatMessage({ id: 'schema.criticalSingular' })
-                  : intl.formatMessage({ id: 'schema.criticalPlural' }, { count: criticalCount })}
-              </span>
-            </>
-          )}
         </div>
       )}
 

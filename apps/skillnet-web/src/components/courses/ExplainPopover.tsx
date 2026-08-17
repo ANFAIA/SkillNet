@@ -8,9 +8,12 @@
  *
  * Two rules from §8.4 that are easy to get wrong:
  *
- * * The content is **not** recursively clickable. It is painted as plain text, so a
- *   click inside it cannot start another generation. Explaining the explanation adds
- *   nothing and loops cost.
+ * * The glimpse is **plain text**, on purpose. A quick word-click answer is one
+ *   sentence, and one sentence needs no kit — rendering it through OpenUI made it read
+ *   as an oversized "lead". The richer, block-based explanation is the job of the
+ *   "Ver mas" modal (`ExplainModal`), which is where OpenUI belongs. The glimpse is also
+ *   **not** wrapped in a `ClickableSurface`, so a click inside it cannot start another
+ *   generation. Explaining the explanation adds nothing and loops cost.
  * * It does carry one action — a next step for someone who did not understand the single
  *   sentence. It used to be **"No lo entiendo"**, which navigated to the v1 chat seeded
  *   with the term and the block text; `2a750f5` made it **"Ver mas"**, which opens
@@ -160,7 +163,8 @@ export function ExplainPopover({
     status === 'error' ? (
       <p className="text-sm text-danger">{error}</p>
     ) : text ? (
-      // Plain text on purpose: the popover is not recursively clickable.
+      // Plain text on purpose: a one-sentence glimpse needs no OpenUI kit. The richer
+      // block-based view is "Ver mas" (ExplainModal).
       <p className="text-sm text-text leading-relaxed">{text}</p>
     ) : (
       <p className="text-sm text-text-muted">Buscando una explicacion...</p>

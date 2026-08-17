@@ -311,6 +311,16 @@ Convenciones respetadas de `data-model.md`: PK `uuid DEFAULT gen_random_uuid()`,
 `jsonb` para lo flexible, `org_id` en tablas **top-level** (las hijas heredan el scoping del padre;
 ver §15.4), enums nombrados en snake_case.
 
+**Aislamiento tenant de matrículas.** Una matrícula tiene dos extremos —el aprendiz y el curso— y
+ambos deben vivir en la misma organización. La creación (`EnrollmentService.assign` /
+`assign_courses`) valida ahora que **todos** los `user_ids` pertenezcan a la org del admin, no solo el
+curso; enrolar a un aprendiz de otra org devuelve `403`. El listado de “Mis cursos”
+(`EnrollmentRepository.list_enrollments`) filtra por `User.org_id` **y** `Course.org_id`, de modo que
+una fila cruzada preexistente no aparece —antes se mostraba su título y luego el detalle respondía
+`404` (“Curso no encontrado”)—. La defensa se aplica en lectura y escritura sin borrar filas: una
+matrícula inconsistente queda oculta, no eliminada. El detalle del curso ya filtraba por la org del
+llamante y se mantiene.
+
 > **Orden de creación en `0005`** — los bloques SQL de abajo están agrupados por tema, no en orden
 > ejecutable. Hay dos referencias hacia adelante: `course_nodes.default_ui_format` necesita el enum
 > `ui_format`, y `learner_node_states.active_render_id` necesita la tabla `node_renders`. Orden real:
@@ -2100,10 +2110,24 @@ Cuatro niveles:
    offline: sin LLM disponible, el curso **sigue funcionando** en modo v1 degradado en lugar de
    romperse.
 
-**Sin pre-generación especulativa de renders** en este PR (los probes del nivel 3 no son especulativos:
-todo el que abre el nodo los recibe). Las proyecciones de coste de pre-generar top-4 de UI
-(+$180/día por 1.000 usuarios) no se justifican antes de medir el ratio de aciertos de caché real.
-Backlog.
+### 9.4 Ventana anticipada de renders
+
+La generación sigue siendo on-the-fly: la representación no se incorpora al curso al validarlo ni se
+produce el recorrido completo. Lo que cambia es el momento de iniciar el trabajo runtime para que la
+latencia del modelo no se convierta en latencia visible:
+
+- al abrir el curso se solicitan las **dos primeras lecciones disponibles**;
+- al quedar servida la lección actual, `NodeView` solicita las **tres siguientes**;
+- al avanzar, esa ventana de tres se desplaza;
+- `POST /nodes/{id}/render {force:false}` es idempotente y reutiliza render listo o tarea en curso;
+- cada render conserva los mismos pins, claves de política, versiones y reglas de invalidación que si
+  se hubiese solicitado al entrar directamente.
+
+La anticipación es por recorrido probable y está acotada; no genera ramas completas ni todos los
+componentes posibles. Por tanto, “pregenerado” aquí significa **render runtime adelantado durante la
+sesión**, no un artefacto pedagógico persistido dentro de la definición del curso. La autoridad y las
+implicaciones para futuros episodios ramificados están en
+[`learning-experience-architecture.md`](learning-experience-architecture.md) §2.1.
 
 ---
 

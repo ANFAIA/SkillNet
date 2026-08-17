@@ -548,7 +548,7 @@ export function NodeView() {
   useEffect(() => {
     if (!served || !node) return
     const ahead = ordered
-      .filter((n) => n.position > node.position)
+      .filter((n) => n.position > node.position && !n.locked && n.state !== 'mastered')
       .slice(0, 3)
     if (ahead.length === 0) return
     const key = ahead.map(n => n.id).join(',')

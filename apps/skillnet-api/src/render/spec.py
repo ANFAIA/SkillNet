@@ -364,6 +364,12 @@ class GenerationProvenance(BaseModel):
     shell_mode: Literal["legacy_stepper", "episode"]
     generation_policy_key: str = Field(min_length=1, max_length=120)
     episode_status: Literal["ready", "support_only", "declined", "not_requested"]
+    # The exact policy code that made the episode decline or degrade
+    # (e.g. "critical_oracle_unavailable", "evidence_policy:pack_not_ready",
+    # "missing_knowledge_pack"). Server-only, like the rest of this model — it exists so
+    # a "declined + legacy_stepper" render is diagnosable in traces and tests instead of
+    # silently discarding the reason. It is a policy identifier, never learner data.
+    episode_decline_reason: str | None = Field(default=None, max_length=200)
 
 
 class UISpec(BaseModel):

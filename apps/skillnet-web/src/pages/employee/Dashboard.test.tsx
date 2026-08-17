@@ -112,7 +112,7 @@ describe('Dashboard — node-based courses', () => {
     renderPage()
 
     expect(await screen.findByText('Politica de devoluciones v2')).toBeInTheDocument()
-    expect(screen.getByText('Por nodos')).toBeInTheDocument()
+    expect(screen.getByText('Por lecciones')).toBeInTheDocument()
   })
 
   it('leaves a static course unmarked', async () => {

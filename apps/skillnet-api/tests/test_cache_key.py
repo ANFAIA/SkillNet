@@ -132,18 +132,27 @@ def test_two_role_titles_do_not_share_a_key():
 
 
 def test_same_role_in_different_sectors_does_not_reuse_a_different_prompt():
-    """Every learner string in the prompt must also partition the shared cache."""
+    """Every learner string in the prompt must also partition the shared cache.
+
+    The cache key partitions by sector unconditionally (via `role_bucket`), even when the
+    role/sector is ungrounded and therefore kept OUT of the prompt text: that is a waste
+    (two entries, identical output) but never a correctness bug, and it is what the key
+    assertion below guards. The prompt itself only carries the sector when the source
+    grounds it, so the two prompts are compared against sources that mention each sector.
+    """
     retail_prompt = build_ui_prompt(
         title="Atencion al cliente",
         summary="Resolver una incidencia",
         role_title="Dependiente",
         sector="retail",
+        source_context="El dependiente de retail resuelve la incidencia en caja.",
     )
     hospitality_prompt = build_ui_prompt(
         title="Atencion al cliente",
         summary="Resolver una incidencia",
         role_title="Dependiente",
         sector="hosteleria",
+        source_context="El dependiente de hosteleria resuelve la incidencia en sala.",
     )
 
     assert retail_prompt != hospitality_prompt

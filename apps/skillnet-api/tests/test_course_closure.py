@@ -172,7 +172,8 @@ def test_every_critical_node_mastered_completes_the_enrollment() -> None:
     assert enrollment.score == pytest.approx(0.95)
 
 
-def test_recommended_and_contextual_nodes_never_block_completion() -> None:
+def test_every_node_must_be_mastered_regardless_of_criticality() -> None:
+    """Closure now requires the whole course: any non-mastered node blocks it."""
     enrollment = FakeEnrollment(status=EnrollmentStatus.IN_PROGRESS)
     completion = evaluate_course_completion(
         [
@@ -182,9 +183,23 @@ def test_recommended_and_contextual_nodes_never_block_completion() -> None:
         ]
     )
 
-    assert apply_dynamic_closure(enrollment, completion) == "completed"
-    # And their mastery does not drag the score down either.
-    assert enrollment.score == pytest.approx(0.9)
+    # A non-mastered recommended/contextual node now blocks closure too.
+    assert apply_dynamic_closure(enrollment, completion) is None
+    assert completion.can_complete is False
+    assert len(completion.blocked_by) == 2
+
+    # Once every node is mastered the course completes, and the score is the mean
+    # mastery over all nodes.
+    done = FakeEnrollment(status=EnrollmentStatus.IN_PROGRESS)
+    all_mastered = evaluate_course_completion(
+        [
+            row(mastery=0.9),
+            row(criticality=NodeCriticality.RECOMMENDED, mastery=0.8),
+            row(criticality=NodeCriticality.CONTEXTUAL, mastery=0.7),
+        ]
+    )
+    assert apply_dynamic_closure(done, all_mastered) == "completed"
+    assert done.score == pytest.approx((0.9 + 0.8 + 0.7) / 3)
 
 
 def test_an_archived_critical_node_does_not_block_completion() -> None:

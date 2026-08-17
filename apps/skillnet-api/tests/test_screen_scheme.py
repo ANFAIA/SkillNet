@@ -116,3 +116,47 @@ def test_the_repair_prompt_repeats_the_scheme() -> None:
         screen_scheme="ESQUEMA DE ESTA PANTALLA (ya decidido para este nodo)",
     )
     assert "ESQUEMA DE ESTA PANTALLA" in prompt
+
+
+def test_an_ungrounded_job_role_is_kept_out_of_the_generative_prompt() -> None:
+    """Cross-domain gate: a hospitality profile on a boxing source must not enter the
+    generative prompt at all.
+
+    Regression: a NEW boxing generation still emitted "Durante el servicio…" and "Un
+    cliente se acerca…" because the learner's shop-assistant role travelled into the
+    prompt and the model dragged the examples toward it. The fix is structural — the
+    role is injected only when the source itself supports it — not a boxing/hospitality
+    blocklist. Here the boxing source mentions no shop-assistant vocabulary, so the role,
+    the sector and any client/service framing must be absent.
+    """
+    prompt = build_ui_prompt(
+        title="Guardia y juego de piernas",
+        summary="Como mantener la guardia alta y desplazarse en el ring",
+        role_title="dependiente",
+        sector="hosteleria",
+        source_context="El boxeo se practica sobre un ring. La guardia protege la cara.",
+    )
+    # The ungrounded role and sector never reach the model.
+    assert "dependiente" not in prompt
+    assert "hosteleria" not in prompt.lower()
+    # And the old topic-hijacking framing is gone in every form.
+    assert "situaciones reales de un/una" not in prompt
+    assert "El puesto del lector" not in prompt
+
+
+def test_a_grounded_job_role_still_frames_the_examples() -> None:
+    """When the source is about the learner's own job, the role is grounded and stays:
+    it still tunes tone/level and may frame examples — within what the source says."""
+    prompt = build_ui_prompt(
+        title="Atención al cliente en caja",
+        summary="Cómo atender una devolución en el mostrador",
+        role_title="dependiente",
+        sector="comercio",
+        source_context=(
+            "El dependiente atiende al cliente en el mostrador y gestiona la devolución "
+            "siguiendo el procedimiento de la tienda."
+        ),
+    )
+    assert "dependiente" in prompt
+    assert "El puesto del lector" in prompt
+    assert "no inventes hechos ni situaciones que no aparezcan en el material" in prompt

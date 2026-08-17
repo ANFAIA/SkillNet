@@ -487,18 +487,17 @@ class CourseCompletion:
 def evaluate_course_completion(
     nodes: Iterable[NodeProgressLike],
 ) -> CourseCompletion:
-    """Completion depends ONLY on non-archived ``critical`` nodes being ``mastered``.
+    """Completion depends on EVERY non-archived node being ``mastered``.
 
-    ``recommended`` and ``contextual`` never block. ``score`` is the mean ``mastery``
-    over exactly those critical nodes — the number a certificate prints, which is why
-    it may not depend on implementation details. A course with no critical node at
-    all cannot complete (the validation gate of §11.1 requires at least one, so this
-    only happens mid-edit).
+    Criticality no longer gates closure: the learner must master the whole course.
+    ``score`` is the mean ``mastery`` over all non-archived nodes — the number a
+    certificate prints. A course with no node at all cannot complete (only happens
+    mid-edit on an empty schema).
 
     Called by ``EnrollmentService`` (B11), including the mandatory recalculation for
-    every active enrollment when ``PUT /courses/{id}/schema`` changes the critical set.
+    every active enrollment when ``PUT /courses/{id}/schema`` changes the node set.
     """
-    critical = [n for n in nodes if _value(n.criticality) == CRITICAL and not n.archived]
+    critical = [n for n in nodes if not n.archived]
     total = len(critical)
     if total == 0:
         return CourseCompletion(

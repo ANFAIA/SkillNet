@@ -1107,7 +1107,7 @@ _SALA_NODES: tuple[NodeSpec, ...] = (
 COURSE_SALA = DynamicCourseSpec(
     title="Servicio de sala: de la comanda al cobro",
     description=(
-        "El proceso completo de un turno de sala, nodo a nodo, con los prerrequisitos que "
+        "El proceso completo de un turno de sala, paso a paso, con los prerrequisitos que "
         "impiden saltarse el orden."
     ),
     outcome="Llevar un turno de sala completo sin supervision.",
@@ -1915,6 +1915,7 @@ async def seed(*, refresh: bool = False) -> None:
                 await _ensure_enrollment(session, users[email_local], course, admin)
 
         await session.commit()
+        await _generate_knowledge_packs(org, courses)
         _report(
             org,
             admin,
@@ -1927,6 +1928,56 @@ async def seed(*, refresh: bool = False) -> None:
         )
 
     await engine.dispose()
+
+
+async def _generate_knowledge_packs(
+    org: Organization, courses: dict[str, Course]
+) -> None:
+    """Build the grounded knowledge packs the adaptive episode shell needs.
+
+    Seeding writes validated dynamic courses straight to the DB, but the episode runtime
+    declines with ``missing_knowledge_pack`` unless a READY ``node_knowledge_packs`` row
+    exists for each node at the current ``schema_version`` — and packs are produced only
+    by the schema-generation agent and ``PUT /schema``, never by seeding. Without this a
+    seeded course can *never* reach the grounded episode shell; it always falls back to
+    ``legacy_stepper``. This runs the same runner ``PUT /schema`` uses, so a seeded course
+    is episode-capable end to end.
+
+    Pack generation is LLM-backed. With a fixture/local model there is nothing to ground
+    against, so this is skipped (the runtime keeps falling back to the legacy stepper,
+    exactly as before). Any failure is swallowed: a missing pack degrades to legacy, it
+    never breaks the seed.
+    """
+    from src.knowledge_pack.configured_generator import ConfiguredKnowledgePackGenerator
+    from src.knowledge_pack.runner import (
+        KnowledgePackRunnerDependencies,
+        run_packs_for_schema,
+    )
+    from src.llm.client import resolve_llm_config
+    from src.llm.fixtures import maybe_fixture_llm
+
+    settings_map = dict(org.settings) if org.settings else {}
+    try:
+        config = resolve_llm_config(settings_map, purpose="generation")
+    except Exception as exc:  # noqa: BLE001 — never let seeding fail on LLM resolution
+        print(f"  Knowledge packs: sin LLM de generacion ({exc}); episodios en legacy.")
+        return
+    if str(getattr(config, "model", "")).startswith("fixture/"):
+        print("  Knowledge packs: LLM fixture/local, se omite; episodios en legacy.")
+        return
+
+    generator = ConfiguredKnowledgePackGenerator(maybe_fixture_llm(config))
+    for title, course in courses.items():
+        try:
+            metrics = await run_packs_for_schema(
+                course.id,
+                org.id,
+                int(course.schema_version or 1),
+                dependencies=KnowledgePackRunnerDependencies(generator=generator),
+            )
+            print(f"  Knowledge packs [{title}]: {metrics}")
+        except Exception as exc:  # noqa: BLE001 — fail-open per course
+            print(f"  Knowledge packs [{title}]: fallo ({exc}); ese curso queda en legacy.")
 
 
 def _report(

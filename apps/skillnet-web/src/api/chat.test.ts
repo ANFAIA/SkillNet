@@ -212,4 +212,36 @@ describe('useChat', () => {
     )
     expect(result.current.messages[1].isStreaming).toBe(false)
   })
+
+  it('threads later turns onto the session the server opened (conversation memory)', async () => {
+    // The server reports the session id on `done`; every turn after the first must send it
+    // back so the tutor loads the conversation's history and follow-ups resolve in-thread.
+    let call = 0
+    mockFetch.mockImplementation((_url: string, init: RequestInit) => {
+      call += 1
+      const body = JSON.parse(String(init.body)) as Record<string, unknown>
+      if (call === 1) {
+        expect(body.session_id).toBeUndefined() // first turn opens a session
+        return sseResponse([
+          event('token', { content: 'Primera.' }),
+          event('done', { message_id: 'm1', session_id: 'sess-42' }),
+        ])
+      }
+      expect(body.session_id).toBe('sess-42') // second turn threads onto it
+      return sseResponse([
+        event('token', { content: 'Segunda.' }),
+        event('done', { message_id: 'm2', session_id: 'sess-42' }),
+      ])
+    })
+
+    const { result } = renderHook(() => useChat('/chat'))
+    await act(async () => {
+      await result.current.sendMessage('primera')
+    })
+    await act(async () => {
+      await result.current.sendMessage('y los pasos?')
+    })
+
+    expect(call).toBe(2)
+  })
 })

@@ -41,7 +41,10 @@ from src.services.node_knowledge_pack_service import (
 logger = get_logger(__name__)
 
 DEFAULT_CONCURRENCY = 2
-DEFAULT_TIMEOUT_SECONDS = 120.0
+# A pack is up to three LLM calls (extract, review, coverage-repair). Under a throttled
+# provider each carries its own rate-limit backoff, so the per-node ceiling has to cover
+# all three plus their waits — 120s timed the third call out on the free tier.
+DEFAULT_TIMEOUT_SECONDS = 300.0
 DEFAULT_GENERATOR_VERSION = GENERATOR_VERSION
 
 

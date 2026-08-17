@@ -14,12 +14,14 @@ Three properties are worth more than the rest and each has its own block below:
    blow the line cap, because it does not type the program. Every one of those was a real
    rejection in ``bench_out/failures/``.
 
-The two surfaces stopped sharing a mechanism on 2026-08-03 (``7a48fa5``): the **tutor**
-still streams prose and buys a second call to classify and populate it, while the **admin**
-is taught the dialect in its own system prompt and the stream *is* the program. Property 1
-holds for both — nothing reaches the browser that is not a re-serialized ``UISpec`` — and
-property 2 changes shape for the admin: there is no second call to fail, so a turn with no
-usable program is simply a turn, with no ``layout_start``/``layout_skipped`` pair around it.
+Since 2026-08-17 **both** surfaces share one mechanism again: single-phase GenUI. Each is
+taught the chat dialect in its own system prompt and the stream *is* the program (admin via
+``admin_genui_system_prompt``, tutor via ``tutor_genui_system_prompt``). Property 1 holds
+for both — nothing reaches the browser that is not a re-serialized ``UISpec`` — and property
+2 has the same shape for both: there is no second call to fail, so a turn with no usable
+program is simply a turn, with no ``layout_start``/``layout_skipped`` pair around it. The
+classify+populate functions (``emit_chat_program`` and friends) are retained as a tested
+utility and still exercised below, but ``ChatService`` no longer calls them.
 """
 
 from __future__ import annotations
@@ -42,7 +44,6 @@ from src.routes import chat as chat_route
 from src.services import chat_service as chat_module
 from src.services.chat_service import (
     ALLOWED_TOOLS,
-    MIN_LAYOUT_CHARS,
     ChatService,
     cited_sources,
     emit_chat_program,
@@ -377,28 +378,6 @@ def test_a_deadline_invented_between_the_two_calls_never_reaches_the_browser() -
     assert invented_figures(program, answer) == ["08", "15", "2026"]
 
 
-async def test_an_invented_figure_costs_the_blocks_and_never_the_answer(monkeypatch) -> None:
-    """End to end: the reader keeps the prose the first call actually produced."""
-    lying = json.dumps(
-        {
-            "shape": "table",
-            "lead": "Asi van.",
-            "headers": ["Empleado", "Avance"],
-            # Nothing in LONG_ANSWER contains 60 or 99.
-            "rows": [["Lucia", "60%"], ["Aitana", "99%"]],
-        }
-    )
-    llm = _FakeLLM(LONG_ANSWER, layout=lying)
-    events, repo = await _run(monkeypatch, llm, generative_ui=True)
-    names = [name for name, _ in events]
-
-    assert llm.completions == 1
-    assert "ui" not in names
-    assert "layout_skipped" in names
-    assert "program" not in repo.messages[-1].message_metadata
-    assert repo.messages[-1].content.strip().startswith("Los alergenos")
-
-
 def test_a_reply_that_is_not_json_is_a_fallback_and_not_a_crash() -> None:
     for raw in ("", "lo siento", NO_UI_SENTINEL, "{roto", "[1, 2]"):
         assert emit_chat_program(parse_layout_json(raw)) is None
@@ -511,13 +490,18 @@ async def test_grounding_is_announced_before_the_first_token(monkeypatch) -> Non
 
 
 async def test_the_program_arrives_after_done(monkeypatch) -> None:
-    """The composer is handed back at ``done``; the blocks are a trailing event."""
-    llm = _FakeLLM(LONG_ANSWER, layout=STEPS_PAYLOAD)
+    """The composer is handed back at ``done``; the blocks are a trailing event.
+
+    Single-phase for the tutor since 2026-08-17: the streamed answer *is* the program, so
+    there is no second call and no ``layout_start``. The ``ui`` event still trails ``done``.
+    """
+    llm = _FakeLLM(VALID_PROGRAM)
     events, repo = await _run(monkeypatch, llm, generative_ui=True)
     names = [name for name, _ in events]
 
+    assert llm.completions == 0  # no second call: the stream was the program
+    assert "layout_start" not in names
     assert names.index("done") < names.index("ui")
-    assert names.index("layout_start") < names.index("citations") < names.index("done")
     program = dict(events[names.index("ui")][1])["program"]
     assert "StepSequence" in program
     # Persisted for the next time the session is opened, canonical text only.
@@ -535,59 +519,42 @@ def test_only_sources_explicitly_cited_by_the_answer_are_exposed() -> None:
     assert cited_sources("Respuesta sin una cita real.", available) == []
 
 
-async def test_an_unusable_shape_degrades_to_the_prose(monkeypatch) -> None:
-    ragged = json.dumps(
-        {"shape": "table", "lead": "L", "headers": ["a", "b"], "rows": [["1"], ["2", "3"]]}
-    )
-    llm = _FakeLLM(LONG_ANSWER, layout=ragged)
+async def test_a_tutor_answer_that_is_prose_is_served_as_prose(monkeypatch) -> None:
+    """Single-phase degradation for the tutor: an answer with no program is just a turn.
+
+    No ``layout_skipped`` — that belonged to the two-phase path. A tutor that answers in
+    prose (the model did not attempt the dialect) leaves the reader the text that streamed.
+    """
+    llm = _FakeLLM(LONG_ANSWER)
     events, repo = await _run(monkeypatch, llm, generative_ui=True)
     names = [name for name, _ in events]
 
+    assert llm.completions == 0
     assert "ui" not in names
-    assert "layout_skipped" in names
+    assert "layout_start" not in names
+    assert "layout_skipped" not in names
     assert repo.messages[-1].content.strip().startswith("Los alergenos")
     assert "program" not in repo.messages[-1].message_metadata
 
 
-async def test_a_model_that_answers_with_a_program_gets_the_prose(monkeypatch) -> None:
-    """Belt and braces on the seam: the old output is not JSON, so it is simply refused.
-
-    Worth asserting because a provider ignoring ``json_mode`` and reverting to its old
-    habit must degrade, not half-work.
-    """
-    llm = _FakeLLM(LONG_ANSWER, layout=VALID_PROGRAM)
-    events, _ = await _run(monkeypatch, llm, generative_ui=True)
-
-    assert "ui" not in [name for name, _ in events]
-    assert "layout_skipped" in [name for name, _ in events]
-
-
-async def test_the_layout_call_asks_for_json_mode(monkeypatch) -> None:
-    """Requested on the call, not just hoped for in the prompt."""
-    seen: dict[str, object] = {}
-
-    class _Recording(_FakeLLM):
-        async def complete(self, _system, _user, **kwargs):
-            seen.update(kwargs)
-            return PROSE_PAYLOAD
-
-    await _run(monkeypatch, _Recording(LONG_ANSWER), generative_ui=True)
-    assert seen["json_mode"] is True
-
-
-async def test_a_provider_failure_during_layout_degrades_to_the_prose(monkeypatch) -> None:
-    llm = _FakeLLM(LONG_ANSWER, layout=RuntimeError("429 rate limit"))
+async def test_a_tutor_program_that_does_not_validate_degrades_to_the_prose(
+    monkeypatch,
+) -> None:
+    """A tutor stream that attempts the dialect and gets it wrong must not blank the bubble."""
+    broken = 'root = Stack([intro, tabla], "md")\nintro = TextContent("Hola.", "lead")\n'
+    llm = _FakeLLM(broken)
     events, _ = await _run(monkeypatch, llm, generative_ui=True)
     names = [name for name, _ in events]
 
+    assert validate_chat_program(broken) is None  # undeclared id — the seam this depends on
     assert "ui" not in names
     assert "error" not in names
-    assert "done" in names
+    assert names[-1] == "done"
 
 
 async def test_generative_ui_off_is_yesterdays_chat(monkeypatch) -> None:
-    """With generative_ui off: no second call, no new events."""
-    llm = _FakeLLM(LONG_ANSWER, layout=STEPS_PAYLOAD)
+    """With generative_ui off: the model is never asked for the dialect, no ``ui`` event."""
+    llm = _FakeLLM(VALID_PROGRAM)
     events, _ = await _run(monkeypatch, llm, generative_ui=False)
     names = [name for name, _ in events]
 
@@ -596,38 +563,38 @@ async def test_generative_ui_off_is_yesterdays_chat(monkeypatch) -> None:
     assert "layout_start" not in names
 
 
-async def test_the_admin_switch_off_costs_nothing_and_reads_the_same(monkeypatch) -> None:
-    """The admin's ``chat_generative_ui=False``, end to end through the composition.
+async def test_the_tutor_switch_off_costs_nothing_and_reads_the_same(monkeypatch) -> None:
+    """The tutor's ``chat_generative_ui=False``, end to end.
 
-    Two claims, and the second is the one worth a test: the layout model is never called
-    (the point of the switch is the *call*, not the blocks), and what the learner gets is
-    indistinguishable from the automatic fall back to prose — same answer, same citations,
-    same grounding label.
+    Off, a stream that happens to contain a program is not served: ``self.generative_ui``
+    is checked before the answer is even looked at. And a turn whose model simply wrote
+    prose (GenUI on, nothing to render) is indistinguishable from it — same answer, same
+    citations, same grounding, no ``ui`` either way.
     """
     org_off = {"chat_generative_ui": False}
     generative_ui = chat_generative_ui_enabled(org_off)
     assert generative_ui is False
 
-    off_llm = _FakeLLM(LONG_ANSWER, layout=STEPS_PAYLOAD)
+    off_llm = _FakeLLM(VALID_PROGRAM)
     off_events, off_repo = await _run(monkeypatch, off_llm, generative_ui=generative_ui)
 
-    # ...and the same turn where the model simply returned something unusable.
-    rejected_llm = _FakeLLM(LONG_ANSWER, layout="lo siento, no puedo")
-    rejected_events, _ = await _run(monkeypatch, rejected_llm, generative_ui=True)
+    prose_llm = _FakeLLM(LONG_ANSWER)
+    prose_events, _ = await _run(monkeypatch, prose_llm, generative_ui=True)
 
     assert off_llm.completions == 0
-    assert rejected_llm.completions == 1
+    assert prose_llm.completions == 0
     assert "program" not in off_repo.messages[-1].message_metadata
 
-    def answer(events):
+    def summary(events):
+        # The citation *list* and grounding label match; the streamed `content` does not
+        # (off serves the raw program text, prose serves the sentence) and is not compared.
         return (
-            "".join(d["content"] for n, d in events if n == "token"),
-            next(d for n, d in events if n == "citations"),
-            next(d for n, d in events if n == "grounding"),
+            next(d["citations"] for n, d in events if n == "citations"),
+            next(d["grounding"] for n, d in events if n == "grounding"),
             "ui" in [n for n, _ in events],
         )
 
-    assert answer(off_events) == answer(rejected_events)
+    assert summary(off_events) == summary(prose_events)
 
 
 def test_the_admin_route_composes_the_switch_the_same_way_the_tutor_route_does() -> None:
@@ -654,15 +621,6 @@ def test_the_admin_route_composes_the_switch_the_same_way_the_tutor_route_does()
 def test_the_org_switch_controls_generative_ui(org_settings, expected) -> None:
     enabled = chat_generative_ui_enabled(org_settings)
     assert enabled is expected
-
-
-async def test_a_short_answer_does_not_pay_for_a_second_call(monkeypatch) -> None:
-    llm = _FakeLLM("Si, siempre.", layout=STEPS_PAYLOAD)
-    events, _ = await _run(monkeypatch, llm, generative_ui=True)
-
-    assert len("Si, siempre.") < MIN_LAYOUT_CHARS
-    assert llm.completions == 0
-    assert "ui" not in [name for name, _ in events]
 
 
 async def _run_admin_layout(monkeypatch, llm, *, generative_ui: bool):
@@ -799,6 +757,127 @@ async def test_a_sentence_in_front_of_the_program_costs_the_whole_program(
     assert "ui" not in names
     assert "error" not in names
     assert names[-1] == "done"
+
+
+# -- small talk short-circuits the admin path -------------------------------------------
+async def _run_admin_message(monkeypatch, llm, message: str, *, generative_ui: bool):
+    """Like ``_run_admin_layout`` but with an arbitrary message, and it records whether
+    the two expensive steps (retrieval, org snapshot) were even reached."""
+    reached = {"ground": False, "snapshot": False}
+
+    async def fake_ground(*_args, **_kwargs):
+        reached["ground"] = True
+        return GroundedContext("general")
+
+    async def fake_build(*_args, **_kwargs):
+        reached["snapshot"] = True
+        raise RuntimeError("no database in this test")
+
+    monkeypatch.setattr(chat_module, "ground_question", fake_ground)
+    monkeypatch.setattr(chat_module, "build_org_snapshot", fake_build)
+    service = ChatService(
+        _FakeDB(),  # type: ignore[arg-type]
+        llm,  # type: ignore[arg-type]
+        object(),  # type: ignore[arg-type]
+        generative_ui=generative_ui,
+    )
+    repo = _FakeRepo()
+    service.repo = repo  # type: ignore[assignment]
+    user = SimpleNamespace(id=uuid.uuid4(), org_id=uuid.uuid4())
+    events = _events(
+        [event async for event in service.stream_admin(user, message, None, None)]
+    )
+    return events, repo, reached
+
+
+async def test_a_greeting_is_a_fast_plain_reply_with_no_model_call(monkeypatch) -> None:
+    """"hola" costs no model call, no retrieval and no snapshot, and is served as prose.
+
+    This is the regression: in single-phase GenUI the program-forcing prompt wrapped even
+    a greeting in a bold OpenUI ``lead`` block, and the turn still paid for retrieval and
+    the eight-query snapshot. The small-talk short-circuit answers before any of them.
+    """
+    llm = _FakeLLM(ADMIN_PROGRAM)  # would emit a program if it were ever called
+    events, repo, reached = await _run_admin_message(
+        monkeypatch, llm, "hola", generative_ui=True
+    )
+    names = [name for name, _ in events]
+
+    assert llm.completions == 0
+    assert reached == {"ground": False, "snapshot": False}
+    # No GenUI: prose, no program, no bold lead block.
+    assert "ui" not in names
+    assert "layout_start" not in names
+    assert "org_data" not in names
+    assert names[-1] == "done"
+    # The learner gets the canned prose, and it is persisted as such.
+    visible = "".join(d["content"] for n, d in events if n == "token")
+    assert visible.strip().startswith("Hola")
+    assert repo.messages[-1].message_metadata["small_talk"] is True
+    assert "program" not in repo.messages[-1].message_metadata
+
+
+async def test_a_greeting_glued_to_a_real_question_still_hits_the_data_path(
+    monkeypatch,
+) -> None:
+    """The matcher is whole-message equality: "hola, como van mis empleados" is a question.
+
+    It must reach the full path (retrieval + snapshot) and render its table, exactly as it
+    does without the "hola" in front — the fast path never swallows a real request.
+    """
+    llm = _FakeLLM(ADMIN_PROGRAM)
+    events, _repo, reached = await _run_admin_message(
+        monkeypatch, llm, "hola, como van mis empleados", generative_ui=True
+    )
+    names = [name for name, _ in events]
+
+    assert reached["ground"] is True  # the expensive path was taken
+    assert names.index("done") < names.index("ui")
+    program = dict(events[names.index("ui")][1])["program"]
+    assert "Table(" in program
+
+
+async def test_a_tutor_greeting_is_a_fast_plain_reply_with_no_model_call(
+    monkeypatch,
+) -> None:
+    """A greeting to the TUTOR is answered by small talk, in the tutor's own voice.
+
+    The mirror of the admin case: with single-phase GenUI on, "hola" would otherwise be
+    wrapped in a bold OpenUI lead block after a full model call and retrieval. The
+    short-circuit keeps it an instant plain bubble, and the canned reply names *learning*
+    help ("tus cursos"), not admin capabilities.
+    """
+    reached = {"ground": False}
+
+    async def fake_ground(*_args, **_kwargs):
+        reached["ground"] = True
+        return GroundedContext("general")
+
+    monkeypatch.setattr(chat_module, "ground_question", fake_ground)
+    llm = _FakeLLM(VALID_PROGRAM)  # would emit a program if it were ever called
+    service = ChatService(
+        _FakeDB(),  # type: ignore[arg-type]
+        llm,  # type: ignore[arg-type]
+        object(),  # type: ignore[arg-type]
+        generative_ui=True,
+    )
+    repo = _FakeRepo()
+    service.repo = repo  # type: ignore[assignment]
+    user = SimpleNamespace(id=uuid.uuid4(), org_id=uuid.uuid4())
+    events = _events(
+        [event async for event in service.stream_tutor(user, "hola", None, None)]
+    )
+    names = [name for name, _ in events]
+
+    assert llm.completions == 0
+    assert reached["ground"] is False
+    assert "ui" not in names
+    assert names[-1] == "done"
+    visible = "".join(d["content"] for n, d in events if n == "token")
+    assert visible.strip().startswith("Hola")
+    assert "cursos" in visible  # the tutor's voice, not the admin's
+    assert repo.messages[-1].message_metadata["small_talk"] is True
+    assert "program" not in repo.messages[-1].message_metadata
 
 
 async def test_a_user_with_nothing_still_gets_an_answer(monkeypatch) -> None:

@@ -157,19 +157,28 @@ def generation_provenance_for_state(
         and episode_status in {"ready", "support_only"}
         and isinstance(get("episode_brief"), dict)
     )
-    return {
+    resolved_status = (
+        episode_status
+        if episode_shell
+        else "declined"
+        if episode_status == "declined"
+        else "not_requested"
+    )
+    provenance: dict[str, str] = {
         "shell_mode": "episode" if episode_shell else "legacy_stepper",
         "generation_policy_key": str(
             get("generation_policy_key") or "screen-scheme/unknown"
         ),
-        "episode_status": (
-            episode_status
-            if episode_shell
-            else "declined"
-            if episode_status == "declined"
-            else "not_requested"
-        ),
+        "episode_status": resolved_status,
     }
+    # Keep the exact decline/degrade code so a "declined + legacy_stepper" render is
+    # diagnosable after the fact. Recorded whenever the graph produced one — both for a
+    # hard decline (status "declined") and for a degrade the shell survived
+    # (support_only). Server-only: `UISpec.generation` is excluded from client dumps.
+    reason = get("episode_decline_reason")
+    if reason:
+        provenance["episode_decline_reason"] = str(reason)[:200]
+    return provenance
 
 
 def shell_mode_for_render(render: Any) -> ShellMode:
@@ -493,12 +502,29 @@ class NodeRenderService:
     # -- level 2: the pinned render --------------------------------------------
 
     async def pinned_render(
-        self, *, user_id: uuid.UUID, node_id: uuid.UUID
+        self,
+        *,
+        user_id: uuid.UUID,
+        node_id: uuid.UUID,
+        node: CourseNode | None = None,
+        course: Course | None = None,
+        user: Any | None = None,
     ) -> NodeRender | None:
         """The render fixed for this ``(user, node)``, without recomputing anything.
 
         This is what ``GET /nodes/{id}/render`` answers with. It is also what makes a
         revisit to an already-seen node serve the last render rather than a new one (§5.5).
+
+        One exception, and only one: a **flat** (``legacy_stepper``) pin that was fixed
+        *before* the node's knowledge pack was ready. The anticipatory prefetch can pin the
+        fallback shell for a node whose pack is still generating, and because the pin is
+        never recomputed that flat screen would shadow the episode forever even after the
+        pack lands. When ``node``/``course``/``user`` are supplied we detect exactly that
+        case — a legacy pin whose ``cache_key`` no longer matches the freshly computed key
+        (the fresh key now carries the ready pack's fragment) — and drop the pin so the next
+        render regenerates the episode. It is loop-safe: a render produced *with* the pack
+        that still came out legacy (an honest decline) already carries the pack fragment, so
+        its key matches and the pin stands.
         """
         state = await self.states.get_by_user_and_node(user_id, node_id)
         if state is None or not state.render_pinned or state.active_render_id is None:
@@ -511,6 +537,18 @@ class NodeRenderService:
             return None
         if not cache_key_uses_current_screen_contract(render.cache_key):
             return None
+        if (
+            settings.ADAPTIVE_EPISODES
+            and shell_mode_for_render(render) == "legacy_stepper"
+            and node is not None
+            and course is not None
+            and user is not None
+        ):
+            fresh = await self.render_key_for(
+                user=user, node=node, course=course
+            )
+            if fresh.cache_key != render.cache_key:
+                return None
         return render
 
     async def pin(
@@ -611,7 +649,9 @@ class NodeRenderService:
         self.assert_reviewed(node)
 
         if not preview and not force:
-            pinned = await self.pinned_render(user_id=user.id, node_id=node.id)
+            pinned = await self.pinned_render(
+                user_id=user.id, node_id=node.id, node=node, course=course, user=user
+            )
             if pinned is not None:
                 return RenderRequest(
                     request_id="", cached=True, render_id=pinned.id

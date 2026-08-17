@@ -154,13 +154,21 @@ _CONTEXT_HEADERS: dict[str, str] = {
 _CHAT_SPEC: str | None = None
 
 
-def _load_chat_spec() -> str:
-    """Lazily load the chat-specific OpenUI spec from ``src/render/openui_chat_prompt.txt``."""
+def load_chat_spec() -> str:
+    """Lazily load the chat-specific OpenUI spec from ``src/render/openui_chat_prompt.txt``.
+
+    Shared by the admin and tutor single-phase GenUI prompts: both surfaces teach the model
+    the *same* eight-component chat dialect, so the spec has one home and one reader.
+    """
     global _CHAT_SPEC  # noqa: PLW0603
     if _CHAT_SPEC is None:
         spec_path = Path(__file__).resolve().parent.parent.parent / "render" / "openui_chat_prompt.txt"
         _CHAT_SPEC = spec_path.read_text(encoding="utf-8")
     return _CHAT_SPEC
+
+
+#: Back-compat alias for the previously private name (kept for any external importer).
+_load_chat_spec = load_chat_spec
 
 
 def _block_key(grounding: Grounding) -> str:
@@ -175,7 +183,7 @@ def admin_genui_system_prompt(grounding: Grounding, *, org_data: bool = False) -
     StepSequence, Table, Chart, Card, CodeBlock, Stack) and concrete examples,
     instead of the full 19-component course catalog.
     """
-    chat_spec = _load_chat_spec()
+    chat_spec = load_chat_spec()
 
     sections = [ADMIN_PERSONA]
     if org_data:
@@ -231,4 +239,5 @@ __all__ = [
     "admin_genui_system_prompt",
     "admin_system_prompt",
     "build_admin_turn",
+    "load_chat_spec",
 ]

@@ -23,13 +23,13 @@ headings here become the spine of the course.
 
 from __future__ import annotations
 
-SOURCE_WRITER_SYSTEM = """Eres redactor de material de referencia para formacion en el puesto de trabajo, en una pyme espanola.
+SOURCE_WRITER_SYSTEM = """Eres redactor de material de referencia sobre el tema que se te da. Ensena la materia por si misma; usa un encuadre laboral solo si el propio tema lo pide.
 
 Escribes el DOCUMENTO FUENTE del que despues otro sistema sacara un curso. No escribes el curso.
 
 Como tiene que ser el texto:
-- Material de referencia: secciones, procedimientos, datos concretos, casos limite. Como un manual interno bien escrito, no como una leccion ni como un articulo de blog.
-- En espanol claro y directo, dirigido a alguien que hace ese trabajo, no a un experto.
+- Material de referencia: secciones, procedimientos, datos concretos, casos limite. Como un manual de referencia bien escrito, no como una leccion ni como un articulo de blog.
+- En espanol claro y directo, dirigido a alguien que quiere dominar el tema, no a un experto.
 - Estructurado en secciones con encabezados Markdown de nivel 2 (##). Entre 4 y 8 secciones.
 - Cada seccion con contenido real y util: pasos, listas de comprobacion, cifras, que hacer cuando algo sale mal.
 
@@ -63,13 +63,13 @@ def build_source_prompt(*, title: str, idea: str) -> str:
     )
 
 
-NODE_SOURCE_WRITER_SYSTEM = """Eres redactor de material de referencia para UN punto de formacion en el puesto, en una pyme espanola.
+NODE_SOURCE_WRITER_SYSTEM = """Eres redactor de material de referencia sobre UN punto de aprendizaje concreto. Ensena la materia por si misma; usa un encuadre laboral solo si el propio tema lo pide.
 
 Escribes el DOCUMENTO FUENTE de este punto. Otro sistema sacara de aqui el dossier y la pantalla. No escribes la leccion.
 
 Como tiene que ser el texto:
 - Material de referencia de este punto solo: hechos, pasos, cifras, casos limite.
-- En espanol claro, dirigido a quien hace el trabajo.
+- En espanol claro, dirigido a quien quiere aprenderlo.
 - Dos o tres secciones con encabezados Markdown de nivel 2 (##).
 - Cada seccion con contenido util: un procedimiento, una lista de comprobacion, o los datos que hacen falta para dominar este resultado.
 

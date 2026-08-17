@@ -347,12 +347,6 @@ def validate_schema_graph(
     if missing_summary:
         errors.append({"code": "missing_summary", "node_ids": missing_summary})
 
-    if not any(
-        _criticality_value(node.criticality) == NodeCriticality.CRITICAL.value
-        for node in live
-    ):
-        errors.append({"code": "no_critical_node"})
-
     orphans: list[str] = []
     for node in live:
         for prereq in prerequisites.get(node.id, ()) or ():
@@ -1065,10 +1059,9 @@ class CourseSchemaService:
     ) -> dict[str, int]:
         """Re-evaluate §7.5 closure for every enrollment of this course.
 
-        Closure = every non-archived ``critical`` node of the course is
-        ``mastered``. Because the schema just changed, a completed enrollment can
-        reopen (a new ``critical`` node appeared) and a stuck one can complete (the
-        missing node was archived).
+        Closure = every non-archived node of the course is ``mastered``. Because the
+        schema just changed, a completed enrollment can reopen (a new node appeared)
+        and a stuck one can complete (the missing node was archived).
 
         The *rule* is not implemented here (B11): ``evaluate_course_completion`` is the
         pure predicate and ``apply_dynamic_closure`` is the one mutation, both shared
@@ -1081,11 +1074,6 @@ class CourseSchemaService:
         nodes = list(
             await self.node_repo.list_for_course(course.id, include_archived=False)
         )
-        critical = [
-            node
-            for node in nodes
-            if _criticality_value(node.criticality) == NodeCriticality.CRITICAL.value
-        ]
         enrollments, _ = await self.enrollment_repo.list_enrollments(
             org_id=org_id, course_id=course.id, limit=ENROLLMENT_RECOMPUTE_LIMIT
         )
@@ -1093,8 +1081,8 @@ class CourseSchemaService:
             return {"completed": 0, "reopened": 0}
 
         rows = (
-            await self.node_repo.mastery_rows([node.id for node in critical])
-            if critical
+            await self.node_repo.mastery_rows([node.id for node in nodes])
+            if nodes
             else []
         )
         by_user: dict[uuid.UUID, dict[uuid.UUID, tuple[str, float]]] = {}
@@ -1113,7 +1101,7 @@ class CourseSchemaService:
                     state=states.get(node.id, (NodeState.NOT_STARTED.value, 0.0))[0],
                     mastery=states.get(node.id, (NodeState.NOT_STARTED.value, 0.0))[1],
                 )
-                for node in critical
+                for node in nodes
             ]
             outcome = apply_dynamic_closure(
                 enrollment, evaluate_course_completion(progress), now=now

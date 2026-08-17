@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react'
 import { useIntl } from 'react-intl'
 import { Button, Card, Select } from '../ui'
 import { useUsers } from '../../api/users'
@@ -18,17 +19,28 @@ export function CourseSettingsPanel({ course }: { course: CourseRead }) {
   const enrollments = enrollmentsQuery.data?.items ?? []
   const enrolledIds = new Set(enrollments.map((row) => row.user_id))
   const nameById = new Map(users.map((user) => [user.id, user.full_name || user.email]))
-  const policy = (course.artifact_generate_policy ?? 'admin') as Policy
-  const selected = new Set(course.artifact_generator_ids ?? [])
   const saving = updateCourse.isPending || assign.isPending || unassign.isPending
 
+  // Local, optimistic source of truth: deriving straight from the (slow to
+  // refetch) server state made rapid toggles overwrite each other. We seed from
+  // the course and re-seed only when switching courses.
+  const [policy, setPolicyState] = useState<Policy>((course.artifact_generate_policy ?? 'admin') as Policy)
+  const [selected, setSelected] = useState<Set<string>>(new Set(course.artifact_generator_ids ?? []))
+  const courseIdRef = useRef(course.id)
+  useEffect(() => {
+    if (courseIdRef.current === course.id) return
+    courseIdRef.current = course.id
+    setPolicyState((course.artifact_generate_policy ?? 'admin') as Policy)
+    setSelected(new Set(course.artifact_generator_ids ?? []))
+  }, [course.id, course.artifact_generate_policy, course.artifact_generator_ids])
+
   function setPolicy(next: Policy) {
+    setPolicyState(next)
+    const ids = next === 'selected' ? [...selected] : []
+    if (next !== 'selected') setSelected(new Set())
     updateCourse.mutate({
       id: course.id,
-      payload: {
-        artifact_generate_policy: next,
-        artifact_generator_ids: next === 'selected' ? [...selected] : [],
-      },
+      payload: { artifact_generate_policy: next, artifact_generator_ids: ids },
     })
   }
 
@@ -36,6 +48,8 @@ export function CourseSettingsPanel({ course }: { course: CourseRead }) {
     const next = new Set(selected)
     if (next.has(userId)) next.delete(userId)
     else next.add(userId)
+    setSelected(next)
+    setPolicyState('selected')
     updateCourse.mutate({
       id: course.id,
       payload: { artifact_generate_policy: 'selected', artifact_generator_ids: [...next] },

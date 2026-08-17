@@ -82,6 +82,24 @@ RECORDED_OK: dict[str, Any] = {
     "usage": {"prompt_tokens": 812, "completion_tokens": 96, "total_tokens": 908},
 }
 
+#: A **non-empty** answer cut off for length: the model wrote text but never reached the
+#: end. In ``json_mode`` this is unparseable — the closing braces never arrived — so it
+#: must be retried like the empty case rather than handed to the caller's parser.
+RECORDED_TRUNCATED_NONEMPTY: dict[str, Any] = {
+    "id": "chatcmpl-truncated",
+    "object": "chat.completion",
+    "created": 1753600005,
+    "model": "openai/gpt-oss-120b",
+    "choices": [
+        {
+            "index": 0,
+            "message": {"role": "assistant", "content": '{"must_preserve": [{"atom_id"'},
+            "finish_reason": "length",
+        }
+    ],
+    "usage": {"prompt_tokens": 812, "completion_tokens": 1200, "total_tokens": 2012},
+}
+
 #: An answer that is empty because the model had nothing to say — `finish_reason` is
 #: `stop`. Nothing about it is a budget problem and nothing about it may be retried.
 RECORDED_EMPTY_BUT_FINISHED: dict[str, Any] = {
@@ -389,6 +407,43 @@ async def test_the_retry_is_bounded(
     assert len(provider.calls) == 2
     assert usage.tokens_out == 2400
     assert any(r.levelno == logging.ERROR for r in caplog.records)
+
+
+async def test_truncated_json_with_content_is_retried_with_more_budget(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """In ``json_mode`` a length-cut answer is unparseable however much text it carries —
+    the braces never closed. Handing that partial JSON to the caller's parser is exactly
+    the ``KnowledgePackGenerationError: extractor returned invalid JSON`` failure; the
+    client must buy more budget instead, like the empty case."""
+    provider = RecordedProvider(RECORDED_TRUNCATED_NONEMPTY, RECORDED_OK)
+    monkeypatch.setattr(litellm, "acompletion", provider)
+
+    with caplog.at_level(logging.WARNING):
+        text, _usage = await _service(FAST_MODEL).complete_with_usage(
+            "sys", "user", max_tokens=1200, json_mode=True
+        )
+
+    assert text == 'Screen(title: "Retencion")'
+    assert provider.budgets == [1200, 1200 * 3]
+    assert BUDGET_EXHAUSTED in caplog.text
+
+
+async def test_truncated_free_text_with_content_is_kept(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Outside ``json_mode`` a cut-off answer is still an answer — a half-written prose
+    reply is usable where half-written JSON is not — so it is returned, not paid for
+    again."""
+    provider = RecordedProvider(RECORDED_TRUNCATED_NONEMPTY)
+    monkeypatch.setattr(litellm, "acompletion", provider)
+
+    text, _usage = await _service(FAST_MODEL).complete_with_usage(
+        "sys", "user", max_tokens=1200
+    )
+
+    assert text == '{"must_preserve": [{"atom_id"'
+    assert len(provider.calls) == 1
 
 
 async def test_an_answer_that_is_empty_on_purpose_is_not_retried(

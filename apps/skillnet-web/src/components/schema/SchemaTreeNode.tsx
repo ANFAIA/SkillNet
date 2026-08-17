@@ -5,16 +5,12 @@ import { useIntl } from 'react-intl'
 import { duration } from '../../lib/motion'
 import { InfoTooltip } from '../ui/InfoTooltip'
 import { Button } from '../ui'
-import {
-  CRITICALITY,
-  CRITICALITY_ORDER,
-  DEFAULT_MASTERY_THRESHOLD,
-} from './CriticalityBadge'
+import { DEFAULT_MASTERY_THRESHOLD } from './CriticalityBadge'
 import { PrerequisitePicker, type PrerequisiteOption } from './PrerequisitePicker'
 import { SELECTABLE_UI_FORMATS } from './NodeEditor'
 import type { DraftNode } from './NodeEditor'
 import { NodeKnowledgePreparation } from './NodeKnowledgePreparation'
-import type { NodeCriticality, NodeKnowledgePack } from '../../types'
+import type { NodeKnowledgePack } from '../../types'
 
 // ── Icons ──────────────────────────────────────────────────
 
@@ -95,24 +91,6 @@ export function SchemaTreeNode({
 
   const disabled = locked
 
-  const critClass =
-    node.criticality === 'critical'
-      ? 'bg-primary-subtle text-primary'
-      : node.criticality === 'recommended'
-        ? 'bg-accent-subtle text-accent'
-        : 'bg-bg-muted text-text-muted'
-
-  const critLabel = intl.formatMessage({ id: CRITICALITY[node.criticality].labelKey })
-
-  function changeCriticality(next: NodeCriticality) {
-    const wasDefault =
-      Math.abs(node.masteryThreshold - DEFAULT_MASTERY_THRESHOLD[node.criticality]) < 0.001
-    onChange({
-      criticality: next,
-      masteryThreshold: wasDefault ? DEFAULT_MASTERY_THRESHOLD[next] : node.masteryThreshold,
-    })
-  }
-
   const thresholdIsDefault =
     Math.abs(node.masteryThreshold - DEFAULT_MASTERY_THRESHOLD[node.criticality]) < 0.001
 
@@ -152,8 +130,8 @@ export function SchemaTreeNode({
           <ChevronIcon open={expanded} />
         </button>
 
-        {/* Number dot (colored by criticality) */}
-        <span className={`text-xs font-medium rounded-full w-5 h-5 flex items-center justify-center shrink-0 ml-1 mt-0.5 ${critClass}`}>
+        {/* Node number */}
+        <span className="text-xs font-medium text-text-muted w-5 flex items-center justify-center shrink-0 ml-1 mt-0.5">
           {index + 1}
         </span>
 
@@ -184,11 +162,6 @@ export function SchemaTreeNode({
 
           {!expanded && node.archived && (
             <span className="text-xs text-text-muted">Arch.</span>
-          )}
-          {!expanded && critLabel && (
-            <span className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${critClass}`}>
-              {critLabel}
-            </span>
           )}
           {node.estimatedMinutes != null && (
             <span className="text-xs text-text-muted whitespace-nowrap">{node.estimatedMinutes} min</span>
@@ -230,35 +203,6 @@ export function SchemaTreeNode({
               placeholder={intl.formatMessage({ id: 'schemaNode.outcomePlaceholder' })}
               disabled={disabled}
             />
-          </div>
-
-          {/* Criticality */}
-          <div className="flex items-center gap-0 px-2 py-1 rounded hover:bg-bg-muted">
-            <span className="w-24 shrink-0 text-xs text-text-muted flex items-center">
-              {intl.formatMessage({ id: 'schemaNode.criticality' })}
-              <InfoTooltip text={intl.formatMessage({ id: 'schemaNode.criticalityTooltip' })} />
-            </span>
-            <div className="flex gap-1">
-              {CRITICALITY_ORDER.map((value) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => changeCriticality(value)}
-                  disabled={disabled}
-                  className={`text-xs px-2.5 py-0.5 rounded-full border transition-colors disabled:opacity-50 ${
-                    node.criticality === value
-                      ? value === 'critical'
-                        ? 'bg-primary-subtle text-primary border-primary'
-                        : value === 'recommended'
-                          ? 'bg-accent-subtle text-accent border-accent'
-                          : 'bg-bg-muted text-text-muted border-border-strong'
-                      : 'border-border text-text-muted hover:border-primary'
-                  }`}
-                >
-                  {intl.formatMessage({ id: CRITICALITY[value].labelKey })}
-                </button>
-              ))}
-            </div>
           </div>
 
           {/* Format */}

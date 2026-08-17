@@ -23,8 +23,39 @@ import { useUsers } from '../../api/users'
 import { useAssignCourse } from '../../api/enrollments'
 import { ApiError, get, post, put } from '../../api/client'
 import { useAuth } from '../../hooks/useAuth'
-import type { GenerationProgress as GenProgress, User, Lesson, Exercise, ExerciseContent } from '../../types'
+import type { GenerationProgress as GenProgress, User, Lesson, Exercise, ExerciseContent, CourseKnowledgePacks } from '../../types'
 import type { ProposedNode, Phase, SourceType, DeliveryChoice } from './createCourseTypes'
+
+/**
+ * Block until every node's knowledge pack has left `pending`.
+ *
+ * `PUT /schema` spawns pack generation in the background; a pack becomes an actual
+ * lesson episode only once it is `ready`. Validating and pre-rendering before the packs
+ * land pins the flat fallback screen forever, so course creation must wait here. Polls
+ * `GET /schema/knowledge-packs` (the same endpoint the schema editor already polls) until
+ * there is one terminal row per node or the ceiling is hit — a stuck pack must not trap the
+ * creator on this screen indefinitely.
+ */
+async function waitForKnowledgePacks(
+  courseId: string,
+  expectedNodeCount: number,
+  { intervalMs = 2000, maxWaitMs = 300000 }: { intervalMs?: number; maxWaitMs?: number } = {},
+): Promise<void> {
+  if (expectedNodeCount <= 0) return
+  const deadline = Date.now() + maxWaitMs
+  for (;;) {
+    let done = false
+    try {
+      const packs = await get<CourseKnowledgePacks>(`/courses/${courseId}/schema/knowledge-packs`)
+      const rows = packs.nodes ?? []
+      done = rows.length >= expectedNodeCount && !rows.some((row) => row.status === 'pending')
+    } catch {
+      // A transient read error should not abort creation; retry until the ceiling.
+    }
+    if (done || Date.now() >= deadline) return
+    await new Promise((resolve) => setTimeout(resolve, intervalMs))
+  }
+}
 
 // ── Icons ────────────────────────────────────────────────────
 
@@ -759,6 +790,7 @@ export function CreateCourse() {
   const creatingSteps = [
     intl.formatMessage({ id: 'create.creatingTitle' }, { title: title.trim() || intl.formatMessage({ id: 'create.title' }) }),
     intl.formatMessage({ id: 'create.savingNodes' }, { count: proposedNodes.length }),
+    intl.formatMessage({ id: 'create.generatingLessons' }),
     intl.formatMessage({ id: 'create.activating' }),
     intl.formatMessage({ id: 'create.preparingFirst' }),
   ]
@@ -840,16 +872,25 @@ export function CreateCourse() {
         })
       }
 
-      // Step 3: activate
-      setCreatingStep(2)
       const schema = await get<{ nodes: { id: string }[] }>(`/courses/${course.id}/schema`)
+
+      // Step 3: generate lessons. The last PUT above spawned pack generation; a node is a
+      // real episode only once its pack is ready. Blocking here — before validate and the
+      // first pre-render — is what stops the creator being dropped into a flat, half-baked
+      // course whose opening screens are pinned to the fallback shell.
+      setCreatingStep(2)
+      await waitForKnowledgePacks(course.id, schema.nodes.length)
+
+      // Step 4: activate
+      setCreatingStep(3)
       for (const node of schema.nodes) {
         await post(`/courses/${course.id}/schema/nodes/${node.id}/review`, {}).catch(() => {})
       }
       await post(`/courses/${course.id}/schema/validate`, {})
 
-      // Step 4: pre-render first node (non-blocking — go to success after a few seconds)
-      setCreatingStep(3)
+      // Step 5: pre-render first node (non-blocking — go to success after a few seconds).
+      // Safe to pin now: the packs are ready, so this warms an episode, not the fallback.
+      setCreatingStep(4)
       const firstNode = schema.nodes[0]
       if (firstNode) {
         post(`/nodes/${firstNode.id}/render`, { force: false }).catch(() => {})

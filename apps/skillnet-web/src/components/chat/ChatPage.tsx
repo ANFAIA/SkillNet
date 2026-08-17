@@ -21,8 +21,12 @@ export function ChatPage({
   emptyTitle,
   emptySubtitle,
   placeholder,
-  generative = false,
+  generative,
 }: ChatPageProps) {
+  // `generative` is passed through undefined-and-all: `useChat` defaults it to `true` for
+  // the admin endpoint, whose single-phase GenUI streams raw OpenUI Lang that must stay
+  // behind dots until the `ui` event lands. Forcing `false` here (the old default) made the
+  // admin bubble render that dialect as markdown prose — the raw `root = Stack([...])` bug.
   const { messages, sendMessage, cancel, isStreaming } = useChat(endpoint, undefined, { generative })
   const [input, setInput] = useState('')
   const endRef = useRef<HTMLDivElement>(null)
@@ -31,6 +35,7 @@ export function ChatPage({
     return cancel
   }, [cancel])
   useEffect(() => {
+    if (messages.length === 0) return
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
@@ -42,7 +47,7 @@ export function ChatPage({
   }
 
   return (
-    <div className="flex min-h-[calc(100dvh-82px)] flex-col md:min-h-[calc(100dvh-98px)]">
+    <div className="flex min-h-[calc(100dvh-114px)] flex-col md:min-h-[calc(100dvh-122px)]">
       <div className="mb-4"><PageHeader title={title} description={subtitle} /></div>
 
       <div className="flex-1 space-y-4 pb-4">
@@ -56,7 +61,7 @@ export function ChatPage({
         <div ref={endRef} />
       </div>
 
-      <form onSubmit={(event) => { event.preventDefault(); handleSend() }} className="sticky bottom-0 bg-bg py-4">
+      <form onSubmit={(event) => { event.preventDefault(); handleSend() }} className="sticky bottom-0 -mb-8 bg-bg py-4">
         <ChatInput
           value={input}
           onChange={setInput}

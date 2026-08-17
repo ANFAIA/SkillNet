@@ -23,7 +23,7 @@ export function Select({ label, hideLabel = false, className = '', children, ...
       <span className={hideLabel ? 'sr-only' : 'mb-1.5 block'}>{label}</span>
       <div className="relative">
         <select
-          className="w-full appearance-none rounded-lg border border-border bg-bg py-2 pl-3 pr-8 text-sm text-text outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-50"
+          className="w-full appearance-none [-webkit-appearance:none] [-moz-appearance:none] [&::-ms-expand]:hidden rounded-lg border border-border bg-bg py-2 pl-3 pr-8 text-sm text-text outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-50"
           {...props}
         >
           {children}

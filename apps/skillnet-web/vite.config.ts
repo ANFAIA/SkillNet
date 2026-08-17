@@ -24,6 +24,12 @@ export default defineConfig({
     },
   },
   test: {
+    // Cap worker parallelism. The default (one worker per CPU) oversubscribes this host:
+    // jsdom + framer-motion across ~65 files saturate the CPU, and correct tests that run
+    // in ~1s in isolation then blow the default 5s timeout under contention — the flaky
+    // "610/614, passes in isolation" failures. Half the cores keeps throughput while
+    // leaving headroom so timings stay honest.
+    maxWorkers: '50%',
     projects: [
       // Unit tests — jsdom, fast, no browser
       {
@@ -33,6 +39,16 @@ export default defineConfig({
           environment: 'jsdom',
           include: ['src/**/*.test.{ts,tsx}'],
           setupFiles: ['src/test/setup.ts'],
+          // Generous enough that a slow-but-correct test under load does not fail; a real
+          // hang still trips it. Paired with the worker cap above.
+          testTimeout: 15000,
+          hookTimeout: 15000,
+          // A couple of async-mount tests (Didact) assert with `getBy` on a component that
+          // finishes mounting a tick later; under full-suite CPU load that tick slips and
+          // the element is momentarily null — they pass alone and when re-run. One retry
+          // absorbs that load-timing jitter without hiding a real break: a deterministic
+          // failure still fails every attempt.
+          retry: 1,
         },
       },
       // Storybook interaction tests — browser via Playwright

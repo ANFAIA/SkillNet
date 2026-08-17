@@ -398,14 +398,20 @@ class LLMService:
             response = await self._completion_call(kwargs)
             spent = spent.plus(Usage.of(response))
             content = _message_content(response)
-            if content or _finish_reason(response) != "length":
+            truncated = _finish_reason(response) == "length"
+            # A length-truncated ``json_mode`` answer is unparseable however much text it
+            # carries — the closing braces never arrived — so it must buy more budget like
+            # the empty case rather than reach the caller's parser as invalid JSON. In
+            # free-text mode a truncated answer is still an answer, so only an *empty* cut
+            # is retried there.
+            if not (truncated and (json_mode or not content)):
                 return content, spent
-            # Empty *and* cut off for length: the model never got to the answer. Handing
-            # this to the caller would look like an invalid generation and start a repair
-            # loop over a program the model never wrote.
+            # Cut off before finishing: the model never reached (or never closed) the
+            # answer. Handing this to the caller would look like an invalid generation and
+            # start a repair loop over a program the model never wrote.
             if attempt == MAX_BUDGET_RETRIES:
                 logger.error(
-                    "%s: %s returned no content at max_tokens=%d after %d attempt(s); "
+                    "%s: %s did not finish at max_tokens=%d after %d attempt(s); "
                     "giving up",
                     BUDGET_EXHAUSTED,
                     model_name,
@@ -414,7 +420,7 @@ class LLMService:
                 )
                 break
             logger.warning(
-                "%s: %s spent all %d tokens before answering; retrying at %d",
+                "%s: %s spent all %d tokens before finishing; retrying at %d",
                 BUDGET_EXHAUSTED,
                 model_name,
                 budget,

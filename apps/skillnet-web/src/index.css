@@ -120,6 +120,26 @@
   --lesson-measure: 32rem;
 }
 
+/* OpenUI blocks inside a CHAT or EXPLAIN surface read as UI, not as a page.
+   The shared TextContent/Table/etc. blocks default to the larger lesson type
+   scale above, which made a plain chat answer look oversized and quote-like —
+   a single sentence forced into a big "lead". Scoped here (never on the lesson
+   canvas), the same blocks fall back to the app's normal text size: a plain
+   sentence reads like normal web text, and a "lead" stays emphasised by weight
+   alone rather than by being blown up. Unlayered so it wins over the layered
+   `text-lesson-*` utilities regardless of their source order. */
+.openui-chat .text-lesson-lead {
+  font-size: 0.9375rem;
+  line-height: 1.55;
+}
+.openui-chat .text-lesson-body {
+  font-size: 0.9375rem;
+  line-height: 1.6;
+}
+.openui-chat .text-lesson-caption {
+  font-size: 0.8125rem;
+}
+
 /* ── Chrome (frame) surface tokens ────────────────────────────────────────
    The sidebar is its own surface, distinct from the content palette. In LIGHT
    it uses a flat spider-blue; the surrounding shells can retain the gradient;

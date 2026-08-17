@@ -276,7 +276,7 @@ describe('NodeView — the frozen frame', () => {
     // The opening line lives in the lesson content, past the start gate.
     await enterLesson()
     expect(await screen.findByTestId('opening-line')).toHaveTextContent(
-      'Esto te sirve para dominar lo que viniste a resolver.',
+      'Va directo al problema que querias resolver.',
     )
   })
 })
@@ -447,7 +447,7 @@ describe('NodeView — streaming', () => {
     expect(await screen.findByTestId('node-skeleton')).toBeInTheDocument()
     // A cut stream is not a failed render: the graph is still running server-side and
     // `GET /render` remains the source of truth, so no failure sentence is shown.
-    expect(screen.queryByText('No se pudo preparar esta leccion.')).not.toBeInTheDocument()
+    expect(screen.queryByText('No se pudo preparar esta lección.')).not.toBeInTheDocument()
   })
 
   it('asks for the seed after `error` with `fallback: true`', async () => {
@@ -479,7 +479,7 @@ describe('NodeView — streaming', () => {
     })
     renderPage()
 
-    expect(await screen.findByText('No se pudo preparar esta leccion.')).toBeInTheDocument()
+    expect(await screen.findByText('No se pudo preparar esta lección.')).toBeInTheDocument()
     // One POST, and no second one: there is nothing to serve and a retry loop against a
     // blank screen is the failure this branch exists to prevent.
     const posts = callsTo(`/nodes/${NODE_ID}/render`, 'POST')
@@ -528,7 +528,7 @@ describe('NodeView — the pinned render is the lesson (§5.5)', () => {
     // A render that is already pinned is served, not re-requested — with or without force.
     expect(callsTo(`/nodes/${NODE_ID}/render`, 'POST')).toHaveLength(0)
     // And no affordance offers to: the feedback row is optional and changes nothing.
-    expect(screen.queryByRole('button', { name: 'Actualizar esta leccion' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Actualizar esta lección' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Ver la version anterior' })).toBeNull()
   })
 })
@@ -593,7 +593,7 @@ describe('NodeView — click to explain (§8.5)', () => {
   /**
    * The control clicked here is a quiz option, not the page's own chrome.
    *
-   * It used to be "Actualizar esta leccion", which `fc6a348` removed — and that button was
+   * It used to be "Actualizar esta lección", which `fc6a348` removed — and that button was
    * a weak subject anyway: it sat in the surface, but so does every other button, and a
    * quiz option is the case §8.5 was written for. Explaining the words of an option the
    * learner just clicked hands out a free, uncounted hint on the correct answer.
@@ -626,7 +626,7 @@ describe('NodeView — an unreviewed node', () => {
     })
     renderPage()
 
-    expect(await screen.findByText('Este nodo esta pendiente de revision')).toBeInTheDocument()
+    expect(await screen.findByText('Esta lección esta pendiente de revision')).toBeInTheDocument()
     expect(callsTo(`/nodes/${NODE_ID}/render`, 'POST')).toHaveLength(0)
   })
 })

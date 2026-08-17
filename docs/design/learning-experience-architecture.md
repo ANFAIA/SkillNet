@@ -74,6 +74,28 @@ que el runtime puede generar sin inventar.
 reproducibilidad. Esa caché es consecuencia de una decisión runtime, no un plan de presentación
 preparado durante la publicación.
 
+### 2.1 Generación anticipada durante la sesión
+
+“On-the-fly” describe **cuándo se decide** la experiencia, no obliga a esperar con la pantalla vacía.
+La decisión sigue usando la constitución vigente, el estado del aprendiz y la política runtime, pero
+se puede ejecutar unos pasos antes de que la persona abra la lección:
+
+1. al abrir el mapa del curso, el cliente solicita en segundo plano las dos primeras lecciones
+   disponibles;
+2. cuando una lección ya tiene un render servido, el cliente mantiene una ventana móvil con las tres
+   lecciones siguientes solicitadas;
+3. al avanzar, la ventana se desplaza y prepara la nueva lección que entra por delante;
+4. solicitudes repetidas son idempotentes: un render listo o en curso no inicia otra generación;
+5. al abrir una lección se fija su render, de modo que refrescar, responder o volver atrás no cambia
+   silenciosamente lo que la persona estaba viendo.
+
+Esto **no** vuelve estático el curso ni mezcla artefactos de presentación con su definición. Son
+renders runtime anticipados y cacheados. No se genera el curso completo, no se eligen de antemano
+todas las ramas y la invalidación sigue dependiendo de versiones, digests y `generation_policy_key`.
+La ventana usa hoy lecciones del recorrido publicado; cuando una competencia admita varios episodios
+internos o ramas probabilísticas, la misma regla deberá aplicarse a las continuaciones elegibles, no
+a fabricar todas las alternativas.
+
 ## 3. Contratos estables
 
 ### 3.1 `CompetencyContract`
@@ -172,6 +194,51 @@ capacidad certificada para producir la evidencia requerida. En ese modo:
 
 Para convertir ese apoyo en evidencia hace falta otra experiencia evaluable, con puerto, binding y
 oráculo server-owned. No basta con añadir un botón de “completado” o un checkpoint de reproducción.
+Una competencia sin oráculo cableado nunca se sintetiza: no concede mastery y no se transforma en un
+quiz inventado; declina hacia `support_only` (con material grounded) o hacia un decline explícito.
+
+### 6.0 Requisito de grounding: el knowledge pack
+
+El shell episódico grounded **exige** un `node_knowledge_packs` en estado `READY` para el nodo,
+con el `schema_version` y el `generator_version` vigentes. Sin él, `direct_episode` declina con
+`missing_knowledge_pack` y el nodo cae a `legacy_stepper`: es la razón de fondo por la que un curso
+recién sembrado o solo validado nunca alcanza el episodio.
+
+Los packs los produce **únicamente** el runner respaldado por LLM (`run_packs_for_schema`), y solo se
+dispara desde el agente de generación de esquema y desde `PUT /{course_id}/schema`. **Ni el sembrado
+ni `POST /schema/validate` crean packs.** Por eso `seed_demo_v2` ahora, tras validar sus cursos
+dinámicos, ejecuta ese mismo runner (`_generate_knowledge_packs`) cuando hay un LLM de generación real
+configurado: así un curso sembrado es capaz de episodio de principio a fin. Con modelo `fixture/local`
+no hay nada que fundamentar y el paso se omite —el runtime sigue en `legacy_stepper`, sin romperse—.
+El runner es fail-open: un pack que falta degrada a legacy, nunca tumba la generación ni el sembrado.
+
+Consecuencia operativa para la demo: un curso debe pasar por generación/`PUT /schema` (o por el
+sembrado con LLM) para tener packs `READY`; activar `ADAPTIVE_EPISODES` por sí solo no basta —solo
+enciende la rama que después declina si no hay pack—.
+
+### 6.1 Motivo del decline, conservado y server-only
+
+Cuando el episodio declina o degrada, el código exacto de la política se congela en la provenance
+server-only del render (`GenerationProvenance.episode_decline_reason`, junto a `shell_mode` y
+`episode_status`). Así un render `declined + legacy_stepper` deja de ser un síntoma opaco: el motivo
+—`evidence_policy:pack_not_ready`, `critical_oracle_unavailable`, `missing_knowledge_pack`…— queda
+inspeccionable en trazas y tests. Es un identificador de política, no dato del aprendiz, y como todo
+`UISpec.generation` se excluye de los dumps hacia el cliente. Un decline es un fallback seguro para un
+fallo real, no una excusa para reducir la fórmula a lead/concepto/práctica: los motivos “oracle
+unavailable / unsupported” conservan el shell episódico como `support_only`; solo un fallo de
+generación real cae al `legacy_stepper`.
+
+### 6.2 El perfil laboral solo entra si la fuente lo respalda
+
+El puesto y el sector del aprendiz **no** entran en el prompt generativo salvo que la propia fuente
+los respalde. La comprobación es estructural (`_profile_is_grounded` en `llm/prompts/runtime.py`):
+tokeniza el puesto/sector y solo los inyecta si alguno aparece en el texto de la fuente. Cuando no
+—un perfil de tienda sobre una fuente de boxeo— el puesto se **omite por completo**, no se marca “sin
+declarar”: sin un rol al que arrastrar los ejemplos, el modelo no puede inventar “un cliente se
+acerca…” en un curso que no trata de atención al cliente. No hay lista de dominios; el perfil solo
+ajusta dificultad, apoyo y ejemplos **compatibles**, y la fuente y el nodo prevalecen siempre. El
+`role_bucket` sigue particionando la caché aunque el rol no entre en el texto (desperdicio acotado,
+nunca un cruce incorrecto).
 
 ## 7. Shell episódico y modalidades
 

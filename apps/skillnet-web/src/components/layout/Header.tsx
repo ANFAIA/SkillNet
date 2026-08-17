@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import { useIntl } from 'react-intl'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useMe, useLogout } from '../../api/auth'
-import { ThemeToggle } from '../ui/ThemeToggle'
 import { useSidebar } from '../../contexts/SidebarContext'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
 import { transition, duration, ease, spring } from '../../lib/motion'
@@ -109,12 +108,6 @@ export function Header() {
                   {intl.formatMessage({ id: 'header.learningPreferences' })}
                 </motion.button>
               )}
-              <div className="px-4 py-3 border-b border-border">
-                <p className="text-xs font-medium text-text-secondary mb-2">
-                  {intl.formatMessage({ id: 'settings.theme' })}
-                </p>
-                <ThemeToggle compact />
-              </div>
               <motion.button
                 type="button"
                 role="menuitem"

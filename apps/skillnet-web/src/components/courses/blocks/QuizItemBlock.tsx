@@ -203,11 +203,28 @@ export function QuizItemBlock({
   // Keep one idempotency key for every logical submission. Transport retries reuse
   // it; the explicit learner retry below rotates it for the next attempt.
   const attemptId = useRef(crypto.randomUUID())
+  // The graded result lives in local state, not `submit.data`. `useMutation`'s reset()
+  // clears its own state through the query client's notify manager, which in a real
+  // browser (unlike RTL's `act()`-wrapped test runs) can land a render tick apart from
+  // the `setSelected(null)` right next to it in `retry()` — the radios re-enable but
+  // `submit.data` is still the stale result for one paint, and the click that follows
+  // races it. Owning `result` directly means `retry()` clears it in the same state
+  // update as everything else, with no dependency on when the mutation's own
+  // subscribers get notified.
+  const [result, setResult] = useState<NodeAttemptResult | null>(null)
+  // Bumped on every explicit learner retry. It keys the answer region so the radios /
+  // textarea are torn down and rebuilt from scratch each attempt. Clearing `result` and
+  // `selected` already re-enables them through `attemptFinished`, but in the real browser
+  // a graded attempt leaves a checked+disabled radio whose reset depended on a re-render
+  // landing in the same tick; remounting the subtree makes "unchecked and enabled again"
+  // unconditional instead of derived, which is what the RTL harness could not surface.
+  const [attemptNonce, setAttemptNonce] = useState(0)
 
   const submit = useMutation({
     mutationFn: (body: NodeAnswerRequest) =>
       post<NodeAttemptResult>(`/nodes/${nodeId}/answer`, body),
     onSuccess: (result) => {
+      setResult(result)
       // Mastery moved server-side; the node list and the enrollment progress
       // that depend on it are now stale.
       queryClient.invalidateQueries({ queryKey: ['nodes'] })
@@ -248,7 +265,6 @@ export function QuizItemBlock({
     },
   })
 
-  const result = submit.data ?? null
   const isSingleChoice = SINGLE_CHOICE_TYPES.includes(item_type)
   const choices =
     item_type === 'true_false' && (!options || options.length === 0)
@@ -265,15 +281,23 @@ export function QuizItemBlock({
   // it on the first attempt.
   const workedSolution = result?.show_worked_solution === true
   const locked = result?.passed === true || workedSolution
+  // Once the server has graded an attempt, freeze its controls until the learner
+  // explicitly starts a new attempt. Previously a failed result left the radios and
+  // "Comprobar" enabled: choosing another option reused the old idempotency key, the
+  // server correctly rejected it as a conflicting payload, and the UI made every
+  // subsequent option look wrong. `retry()` rotates that key and clears the result.
+  const attemptFinished = result !== null
   const answer = buildAnswer(item_type, selected, text)
   const readOnly = !renderId
 
   function retry() {
+    setResult(null)
     submit.reset()
     setSelected(null)
     setText('')
     openedAt.current = Date.now()
     attemptId.current = crypto.randomUUID()
+    setAttemptNonce((n) => n + 1)
   }
 
   function send() {
@@ -310,19 +334,22 @@ export function QuizItemBlock({
 
       {isSingleChoice ? (
         <SingleChoiceItem
-          // Scoped by node so two renders of the same item on one page keep
-          // independent radio groups.
-          name={`${nodeId}:${item_id}`}
+          // `attemptNonce` forces a fresh subtree per attempt (see `retry`). Scoped by
+          // node so two renders of the same item on one page keep independent radio
+          // groups.
+          key={`choice-${attemptNonce}`}
+          name={`${nodeId}:${item_id}:${attemptNonce}`}
           options={choices}
           selected={selected}
-          disabled={locked || readOnly || submit.isPending}
+          disabled={attemptFinished || readOnly || submit.isPending}
           onSelect={setSelected}
         />
       ) : (
         <ConstructedAnswerItem
+          key={`text-${attemptNonce}`}
           value={text}
           rows={item_type === 'fill_blank' ? 2 : 5}
-          disabled={locked || readOnly || submit.isPending}
+          disabled={attemptFinished || readOnly || submit.isPending}
           onChange={setText}
         />
       )}
@@ -332,7 +359,7 @@ export function QuizItemBlock({
           {intl.formatMessage({ id: 'quiz.previewOnly' })}
         </p>
       ) : (
-        !locked && (
+        !attemptFinished && (
           <Button
             size="sm"
             className="mt-4"

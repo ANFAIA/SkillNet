@@ -593,6 +593,179 @@ describe('UiSpecRenderer — autonomous QuizItemBlock', () => {
     expect(screen.getByRole('radio', { name: 'Aceptar la devolucion' })).not.toBeChecked()
   })
 
+  it('fully resets the item on retry: result gone, radio unchecked and re-enabled, next attempt gets a fresh id', async () => {
+    // Regression: `retry()` used to clear the graded result by calling only
+    // `submit.reset()`. Deriving `result` from `submit.data` meant the radios'
+    // `disabled` state and the result panel both depended on the mutation
+    // observer's own notification timing, which is not guaranteed to land in the
+    // same tick as the sibling `setSelected(null)` outside of `act()`-flushed
+    // tests. This asserts the whole post-retry state in one attempt: no result
+    // text, radio unchecked AND enabled, and the next submission carries a
+    // different `attempt_id`.
+    mockedPost
+      .mockResolvedValueOnce({
+        score: 0,
+        passed: false,
+        feedback: null,
+        correct_answer: null,
+        mastery: 0.2,
+        state: 'learning',
+        consecutive_correct: 0,
+        consecutive_failed: 1,
+        next: 'retry',
+      })
+      .mockResolvedValueOnce({
+        score: 1,
+        passed: true,
+        feedback: null,
+        correct_answer: { selected: 1 },
+        mastery: 0.8,
+        state: 'mastered',
+        consecutive_correct: 1,
+        consecutive_failed: 0,
+        next: 'next_item',
+      })
+
+    const user = userEvent.setup()
+    renderWithQuery(
+      <UiSpecRenderer program={validPrograms.mixed_quiz} nodeId="node-7" renderId="render-9" />,
+    )
+
+    await user.click(screen.getByRole('radio', { name: 'Aceptar la devolucion' }))
+    await user.click(screen.getByRole('button', { name: 'Comprobar' }))
+    expect(await screen.findByText('Incorrecto')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Reintentar' }))
+
+    expect(screen.queryByText('Incorrecto')).not.toBeInTheDocument()
+    const radio = screen.getByRole('radio', { name: 'Aceptar la devolucion' })
+    expect(radio).not.toBeChecked()
+    expect(radio).toBeEnabled()
+
+    await user.click(radio)
+    await user.click(screen.getByRole('button', { name: 'Comprobar' }))
+    expect(await screen.findByText('Correcto')).toBeInTheDocument()
+
+    expect(mockedPost).toHaveBeenCalledTimes(2)
+    expect((mockedPost.mock.calls[1][1] as { attempt_id: string }).attempt_id)
+      .not.toBe((mockedPost.mock.calls[0][1] as { attempt_id: string }).attempt_id)
+  })
+
+  it('does not reuse a finished attempt when the learner changes option', async () => {
+    mockedPost
+      .mockResolvedValueOnce({
+        score: 0,
+        passed: false,
+        feedback: null,
+        correct_answer: null,
+        mastery: 0.2,
+        state: 'learning',
+        consecutive_correct: 0,
+        consecutive_failed: 1,
+        next: 'retry',
+      })
+      .mockResolvedValueOnce({
+        score: 1,
+        passed: true,
+        feedback: null,
+        correct_answer: { selected: 1 },
+        mastery: 0.8,
+        state: 'mastered',
+        consecutive_correct: 1,
+        consecutive_failed: 0,
+        next: 'next_item',
+      })
+
+    const program = [
+      'root = Stack([q], "md")',
+      'q = QuizItem("q1", "test", "understand", "Un cliente se queja de un producto defectuoso. ¿Cuál es el primer paso?", ["Ofrecer una solución inmediata", "Disculparte y reconocer la queja", "Registrar la incidencia", "Escalar al encargado"])',
+    ].join('\n')
+    const user = userEvent.setup()
+    renderWithQuery(<UiSpecRenderer program={program} nodeId="node-7" renderId="render-9" />)
+
+    await user.click(screen.getByRole('radio', { name: 'Registrar la incidencia' }))
+    await user.click(screen.getByRole('button', { name: 'Comprobar' }))
+    expect(await screen.findByText('Incorrecto')).toBeInTheDocument()
+
+    // A graded payload cannot be silently mutated under the same attempt id.
+    expect(screen.getByRole('radio', { name: 'Disculparte y reconocer la queja' })).toBeDisabled()
+    expect(screen.queryByRole('button', { name: 'Comprobar' })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Reintentar' }))
+    await user.click(screen.getByRole('radio', { name: 'Disculparte y reconocer la queja' }))
+    await user.click(screen.getByRole('button', { name: 'Comprobar' }))
+
+    expect(await screen.findByText('Correcto')).toBeInTheDocument()
+    expect(mockedPost).toHaveBeenCalledTimes(2)
+    expect(mockedPost.mock.calls[1][1]).toMatchObject({ answer: { selected: 1 } })
+    expect((mockedPost.mock.calls[1][1] as { attempt_id: string }).attempt_id)
+      .not.toBe((mockedPost.mock.calls[0][1] as { attempt_id: string }).attempt_id)
+  })
+
+  it('reproduces the browser retry: wrong → Reintentar leaves the old choice unchecked and enabled, a different choice then grades correct', async () => {
+    // The exact sequence the real-browser check exercised (and the RTL harness had not):
+    // fail on one option, press Reintentar, and confirm the *previously chosen* radio is
+    // no longer checked and no longer disabled — then pick a DIFFERENT option and pass.
+    // `retry()` remounts the answer region (keyed by `attemptNonce`), so "unchecked and
+    // enabled" is a fresh DOM fact, not a re-derivation racing the graded result.
+    mockedPost
+      .mockResolvedValueOnce({
+        score: 0,
+        passed: false,
+        feedback: null,
+        correct_answer: null,
+        mastery: 0.2,
+        state: 'learning',
+        consecutive_correct: 0,
+        consecutive_failed: 1,
+        next: 'retry',
+      })
+      .mockResolvedValueOnce({
+        score: 1,
+        passed: true,
+        feedback: null,
+        correct_answer: { selected: 1 },
+        mastery: 0.9,
+        state: 'mastered',
+        consecutive_correct: 1,
+        consecutive_failed: 0,
+        next: 'next_item',
+      })
+
+    const program = [
+      'root = Stack([q], "md")',
+      'q = QuizItem("q1", "test", "understand", "Un cliente devuelve un producto. Primer paso?", ["Registrar la incidencia", "Disculparte y reconocer la queja", "Escalar al encargado", "Ofrecer un vale"])',
+    ].join('\n')
+    const user = userEvent.setup()
+    renderWithQuery(<UiSpecRenderer program={program} nodeId="node-7" renderId="render-9" />)
+
+    const wrongFirst = () => screen.getByRole('radio', { name: 'Registrar la incidencia' })
+    await user.click(wrongFirst())
+    await user.click(screen.getByRole('button', { name: 'Comprobar' }))
+    expect(await screen.findByText('Incorrecto')).toBeInTheDocument()
+    expect(wrongFirst()).toBeChecked()
+    expect(wrongFirst()).toBeDisabled()
+
+    await user.click(screen.getByRole('button', { name: 'Reintentar' }))
+
+    // The browser symptom, asserted directly: old choice cleared, all radios usable.
+    expect(screen.queryByText('Incorrecto')).not.toBeInTheDocument()
+    expect(wrongFirst()).not.toBeChecked()
+    expect(wrongFirst()).toBeEnabled()
+    const right = screen.getByRole('radio', { name: 'Disculparte y reconocer la queja' })
+    expect(right).toBeEnabled()
+
+    await user.click(right)
+    await user.click(screen.getByRole('button', { name: 'Comprobar' }))
+    expect(await screen.findByText('Correcto')).toBeInTheDocument()
+
+    expect(mockedPost).toHaveBeenCalledTimes(2)
+    expect(mockedPost.mock.calls[1][1]).toMatchObject({ answer: { selected: 1 } })
+    expect((mockedPost.mock.calls[1][1] as { attempt_id: string }).attempt_id).not.toBe(
+      (mockedPost.mock.calls[0][1] as { attempt_id: string }).attempt_id,
+    )
+  })
+
   it('never reports a client-side hint count, not even across retries', async () => {
     // §11.3: the server uses `hints_used` to decide whether it reveals
     // `correct_answer`, so a number this client picks must never grow. The count of

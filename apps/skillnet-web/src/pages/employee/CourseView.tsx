@@ -80,9 +80,9 @@ export function CourseView() {
   // with the node map is precisely the layout jump §5.5 forbids.
   const dynamicPending = nodesQuery.isLoading
 
-  // --- prefetch first unlocked nodes on course open (fire-and-forget) ---------
+  // --- prefetch first two unlocked lessons on course open (fire-and-forget) ---
   //
-  // When the dynamic node list arrives, pre-render the first 2-3 unlocked nodes
+  // When the dynamic course map arrives, pre-render the first two unlocked lessons
   // that are `not_started` or `learning`. The backend is idempotent: if a render
   // already exists or is in-flight, it returns immediately. Tracked by ref to
   // avoid re-firing on re-renders.
@@ -90,13 +90,13 @@ export function CourseView() {
 
   const nodesToPrefetch = useMemo(() => {
     if (!dynamicNodes) return []
-    // Pre-render the next unlocked node the learner is likely to open.
-    // Only 1 ahead — remaining nodes generate on-the-fly adapted to the
-    // learner's profile. Future: auto-adjust lookahead based on model speed.
+    // Give the learner an immediate start and one immediate continuation. The
+    // remaining lessons are still generated at learning time; NodeView maintains
+    // the rolling three-ahead window once the learner enters the course.
     return [...dynamicNodes.nodes]
       .sort((a, b) => a.position - b.position)
       .filter((n) => !n.locked && (n.state === 'not_started' || n.state === 'learning'))
-      .slice(0, 3)
+      .slice(0, 2)
   }, [dynamicNodes])
 
   useEffect(() => {

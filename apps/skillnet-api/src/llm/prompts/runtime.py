@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import json
 import re
+import unicodedata
 from collections.abc import Mapping, Sequence
 from functools import cache
 from typing import Any
@@ -840,6 +841,44 @@ def ui_repair_system(
     )
 
 
+def _normalize_for_grounding(text: str) -> str:
+    """Lowercase, strip accents, collapse to spaces — so grounding compares meaning,
+    not diacritics or punctuation. `Atención al cliente` → `atencion al cliente`."""
+    stripped = "".join(
+        ch
+        for ch in unicodedata.normalize("NFKD", text)
+        if not unicodedata.combining(ch)
+    )
+    return re.sub(r"[^a-z0-9]+", " ", stripped.lower()).strip()
+
+
+# Profile tokens this short carry no domain signal (articles, prepositions, "de/la/al"),
+# so they must never make a role look grounded on their own.
+_PROFILE_STOPWORD_LEN = 4
+
+
+def _profile_is_grounded(
+    *, role_title: str | None, sector: str | None, source_context: str
+) -> bool:
+    """Does the learner's declared job actually appear in the source material?
+
+    Structural and domain-neutral: it never names a domain. It tokenizes the learner's
+    ``role_title``/``sector`` and asks whether any meaningful token occurs in the source
+    text. When none does — a shop-assistant profile on a boxing source — the role is
+    *not* grounded and must not enter the generative prompt at all, because a role the
+    source cannot support is exactly what makes the model invent "un cliente se acerca…"
+    in a course that has no clients. With no source text there is nothing to ground
+    against, so the role stays out.
+    """
+    source = _normalize_for_grounding(source_context)
+    if not source:
+        return False
+    source_tokens = set(source.split())
+    profile = _normalize_for_grounding(f"{role_title or ''} {sector or ''}")
+    tokens = [t for t in profile.split() if len(t) >= _PROFILE_STOPWORD_LEN]
+    return any(t in source_tokens for t in tokens)
+
+
 def build_ui_prompt(
     *,
     title: str,
@@ -870,9 +909,12 @@ def build_ui_prompt(
     """The user prompt for ``genera_ui``.
 
     ``role_title`` and ``sector`` are the only learner-declared strings that travel
-    literally (§3.3, §6.2): they are what the examples get framed around, and the reason
-    ``role_bucket`` is part of the ``cache_key``. ``goal`` and ``accessibility`` do not
-    travel, by design.
+    literally (§3.3, §6.2), and the reason ``role_bucket`` is part of the ``cache_key``.
+    They adapt tone and difficulty; they do **not** set the topic. The source and the
+    node win over the profile: the role only frames examples when it fits the source's
+    subject, and never introduces a role, a client or a workplace scenario the source
+    does not support (that was the boxing-course-with-a-shop-assistant contamination).
+    ``goal`` and ``accessibility`` do not travel, by design.
 
     ``shape_hints`` come from :func:`src.agents.runtime.shape.analyze_shape` and are the
     one part of this prompt derived from reading the source rather than from describing
@@ -894,12 +936,22 @@ def build_ui_prompt(
     # this line was being copied straight into ``Callout("critical", ...)``.
     parts.append(f"- {_criticality_rule(criticality)}")
 
-    parts.extend(
+    # El perfil laboral solo entra en el prompt generativo cuando la propia fuente lo
+    # respalda. Si el puesto/sector del lector no aparece en el material, se OMITE por
+    # completo: no es "sin declarar", es que no debe influir. Así el modelo no tiene un
+    # rol al que arrastrar los ejemplos y no puede inventar "un cliente se acerca…" en un
+    # curso que no trata de atención al cliente. La comprobación es estructural (¿está el
+    # rol en la fuente?), nunca una lista de dominios.
+    role_grounded = bool(role_title) and _profile_is_grounded(
+        role_title=role_title, sector=sector, source_context=source_context
+    )
+    audience_lines = ["", "PARA QUIEN ESCRIBES"]
+    if role_grounded:
+        audience_lines.append(f"- Puesto: {role_title}")
+        if sector:
+            audience_lines.append(f"- Sector: {sector}")
+    audience_lines.extend(
         [
-            "",
-            "PARA QUIEN ESCRIBES",
-            f"- Puesto: {role_title or 'sin declarar'}",
-            f"- Sector: {sector or 'sin declarar'}",
             f"- Experiencia declarada: {experience_level}",
             f"- Preset de lectura: {preset}",
             "",
@@ -909,10 +961,16 @@ def build_ui_prompt(
             f"- Nivel cognitivo del ejercicio, si lo hay: {target_bloom}",
         ]
     )
-    if role_title:
+    parts.extend(audience_lines)
+    if role_grounded:
+        # El puesto aparece en la fuente: puede enmarcar los ejemplos, pero sigue
+        # ajustando tono y nivel, no el tema. Aun así, nunca inventa hechos ni situaciones
+        # que la fuente no respalde.
+        role_frame = f"un/una {role_title}" + (f" del sector {sector}" if sector else "")
         parts.append(
-            f"- Los ejemplos son situaciones reales de un/una {role_title}"
-            + (f" del sector {sector}." if sector else ".")
+            f"- El puesto del lector ({role_frame}) ajusta el tono y el nivel y puede "
+            "enmarcar los ejemplos, siempre dentro de lo que dice la fuente; no inventes "
+            "hechos ni situaciones que no aparezcan en el material."
         )
     if last_error_kind and last_error_kind in _ERROR_RULES:
         parts.append(f"- {_ERROR_RULES[last_error_kind]}")

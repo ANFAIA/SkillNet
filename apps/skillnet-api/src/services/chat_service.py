@@ -51,15 +51,27 @@ already is. Deterministic, ``org_id``-scoped, and it carries no field of the pri
 profile — see ``src/services/org_snapshot.py``, which is where the privacy line is drawn and
 tested.
 
-**4. Single-phase GenUI for the admin** (2026-08-03). The admin assistant no longer uses the
-two-phase approach (prose + layout call). Instead, the LLM is prompted with the OpenUI Lang
-spec directly and generates a program in a single call. If the model fails to produce valid
-OpenUI Lang, the streamed text is served as prose — same degradation contract as before,
-minus the second call and its latency. The tutor still uses the two-phase path.
+**4. Single-phase GenUI for BOTH surfaces** (admin 2026-08-03, tutor 2026-08-17). Neither
+assistant uses the two-phase approach (prose + a second layout call) any more. Instead the
+LLM is prompted with the OpenUI Lang spec directly (``admin_genui_system_prompt`` /
+``tutor_genui_system_prompt``) and generates a program in a single call. If the model fails
+to produce valid OpenUI Lang, the streamed text is served as prose — same degradation
+contract as before, minus the second call and its latency. The tutor was the last surface
+answering in plain prose; moving it to single-phase is what makes a lesson-chat answer
+render in the SkillNet kit like every other chat in the app. The classify+populate
+functions below (``emit_chat_program`` and friends) are retained as a tested, self-contained
+utility — the shapes they document are still the shapes a chat answer takes — but ``_stream``
+no longer calls them.
 
-The small-talk module (``src/services/small_talk.py``) is no longer used by the chat service.
-All messages — greetings included — go through the LLM, which now has enough persona context
-to handle them. The module itself is kept for its tests and potential reuse elsewhere.
+**5. Small talk short-circuits BOTH paths** (admin restored 2026-08-17, tutor added the same
+day). A greeting, a thanks, a goodbye or "quien eres" is answered by
+``src/services/small_talk.py`` before any model call, retrieval or org snapshot: the canned
+reply is streamed as if generated. Once a surface went single-phase GenUI the program-forcing
+prompt would wrap *every* message — "hola" included — in a bold OpenUI ``lead`` block, and the
+turn still pays for retrieval (and, for the admin, eight snapshot queries) it cannot use. The
+matcher is whole-message equality (see that module), so "hola, como van mis empleados" is a
+real question and reaches the full data path unchanged. The reply text is chosen per audience:
+the admin's names admin capabilities, the tutor's names learning help.
 """
 
 from __future__ import annotations
@@ -83,7 +95,6 @@ from src.llm.prompts.admin import (
     build_admin_turn,
 )
 from src.llm.prompts.tutor import (
-    CHAT_LAYOUT_SYSTEM,
     CHAT_SHAPES,
     MAX_DEFINITION_POINTS,
     MAX_STEPS,
@@ -92,8 +103,8 @@ from src.llm.prompts.tutor import (
     NO_UI_SENTINEL,
     TUTOR_PROMPT_VERSION,
     Grounding,
-    build_chat_layout_prompt,
     build_user_turn,
+    tutor_genui_system_prompt,
     tutor_system_prompt,
 )
 from src.models import ChatMessage, ChatSession, User
@@ -104,6 +115,7 @@ from src.repositories.chat_repo import ChatRepository
 from src.services.chat_retrieval_policy import course_retrieval_required
 from src.services.org_snapshot import build_org_snapshot, render_snapshot
 from src.services.retrieval import GroundedContext, ground_question
+from src.services.small_talk import small_talk_reply
 
 logger = get_logger(__name__)
 
@@ -122,16 +134,6 @@ LEARNER_MEMORY_MAX_CHARS = 1_200
 #: so a long node does not blow the turn's token budget — the lead blocks carry the gist,
 #: and anything past this is almost always the tail of a long StepSequence.
 LESSON_BODY_MAX_CHARS = 2_500
-
-#: Below this many characters an answer is one idea, and a ``Stack`` around one idea is
-#: worse than the paragraph it replaces. Also the cheap half of the rate-limit story: the
-#: short answers are the frequent ones, and skipping them skips most of the second calls.
-MIN_LAYOUT_CHARS = 220
-
-#: The layout call is a reformatting job, not a writing one. Low temperature, and a budget
-#: a six-block program fits into twice over.
-LAYOUT_TEMPERATURE = 0.2
-LAYOUT_MAX_TOKENS = 1_200
 
 #: Chat programs are always ``explanation``: there is no exercise in a chat (rule Chat 2),
 #: and ``explanation`` is the format whose contract rule 7 demands the lead line, which is
@@ -818,6 +820,37 @@ class ChatService:
         ):
             yield event
 
+    async def _stream_small_talk(
+        self, session: ChatSession, reply: str, *, prompt_version: str
+    ) -> AsyncIterator[str]:
+        """A full, clean turn for a canned reply: no model, no retrieval, no snapshot.
+
+        Emits exactly the events an ordinary turn does up to ``done`` — ``grounding``,
+        one ``token``, ``citations`` — minus everything that only a data answer earns:
+        no ``org_data``, no ``layout_start``, no ``ui``. The reply is prose, so the GenUI
+        path never sees a program and the frontend renders a plain bubble. This is what
+        keeps a greeting an instant plain reply on both surfaces even with GenUI on.
+        """
+        yield format_sse("grounding", {"grounding": "general"})
+        yield format_sse("token", {"content": reply})
+        yield format_sse("citations", {"citations": [], "content": reply})
+        assistant = await self.repo.add_message(
+            session_id=session.id,
+            role="assistant",
+            content=reply,
+            metadata={
+                "citations": [],
+                "grounding": "general",
+                "retrieval_attempted": False,
+                "prompt_version": prompt_version,
+                "small_talk": True,
+            },
+        )
+        await self.db.commit()
+        yield format_sse(
+            "done", {"message_id": str(assistant.id), "session_id": str(session.id)}
+        )
+
     async def _stream(
         self,
         user: User,
@@ -847,6 +880,26 @@ class ChatService:
                 session_id=session.id, role="user", content=message
             )
             await self.db.commit()
+
+            # Fast path: a greeting, a thanks, a goodbye or "quien eres" is answered here,
+            # without a model call, retrieval or the org snapshot — the frequent, dataless
+            # message the surface pays the most for relative to what it returns. Both
+            # surfaces, since the tutor also went single-phase GenUI: the program-forcing
+            # prompt would otherwise wrap even "hola" in a bold OpenUI lead block. The
+            # canned reply is chosen per audience (the admin lists admin capabilities, the
+            # tutor lists learning help) and carries no program, so the greeting stays an
+            # instant plain bubble.
+            audience = "tutor" if agent_type == "tutor" else "admin"
+            canned = small_talk_reply(message, audience=audience)
+            if canned is not None:
+                prompt_version = (
+                    TUTOR_PROMPT_VERSION if agent_type == "tutor" else ADMIN_PROMPT_VERSION
+                )
+                async for event in self._stream_small_talk(
+                    session, canned, prompt_version=prompt_version
+                ):
+                    yield event
+                return
 
             org_data: dict | None = None
             should_retrieve = agent_type == "admin" or course_retrieval_required(
@@ -917,12 +970,6 @@ class ChatService:
             citations = cited_sources(answer_with_markers, grounded.citations)
             answer = _CITATION_MARKER_RE.sub("", answer_with_markers).strip()
 
-            # Tell reveal-at-once clients that this turn will receive a block layout
-            # before `done`, so prose never flashes for one frame between the two phases.
-            should_lay_out = self._should_lay_out(agent_type, answer)
-            if should_lay_out:
-                yield format_sse("layout_start", {})
-
             # `content` replaces the streamed draft after citation markers and action
             # directives have been removed. The browser never has to infer provenance.
             yield format_sse("citations", {"citations": citations, "content": answer})
@@ -944,10 +991,15 @@ class ChatService:
                 },
             )
             await self.db.commit()
-            # ``done`` goes out BEFORE the layout call. The turn is over as far as the
-            # learner is concerned: the answer is complete and the input re-enables. The
+            # ``done`` goes out BEFORE the program is validated. The turn is over as far as
+            # the learner is concerned: the answer is complete and the input re-enables. The
             # optional program arrives later on the same open stream, if it validates.
-            yield format_sse("done", {"message_id": str(assistant.id)})
+            # ``session_id`` rides along so the client can thread the next turn onto this
+            # same session and the tutor keeps the conversation's memory (see ``_stream``).
+            yield format_sse(
+                "done",
+                {"message_id": str(assistant.id), "session_id": str(session.id)},
+            )
 
             # Distil one cheap, non-verbatim observation into the learner's memory: which
             # lesson topic they consulted the tutor about. Done after ``done`` so it never
@@ -959,25 +1011,18 @@ class ChatService:
             for action in actions:
                 yield format_sse("action", action)
 
-            # -- generative UI --------------------------------------------------------
-            # Admin GenUI (single-phase): the model was already prompted to produce
-            # OpenUI Lang directly.  Check whether it did; if valid, emit the program.
-            # If not (plain prose, or invalid program), the streamed text stands as-is.
-            if agent_type == "admin" and self.generative_ui and self._is_genui_candidate(answer):
+            # -- generative UI (single-phase, both surfaces) --------------------------
+            # The model was prompted to produce OpenUI Lang directly (admin and tutor
+            # alike since the tutor moved off the two-phase path). Check whether it did;
+            # if it validates, emit the program. If not (plain prose, or an invalid
+            # program), the streamed text stands as-is — the degradation contract, minus
+            # any second call. No ``layout_start``/``layout_skipped``: there is no second
+            # phase to announce.
+            if self.generative_ui and self._is_genui_candidate(answer):
                 program = self._extract_genui_program(answer)
                 if program:
                     await self._persist_program(assistant, program)
                     yield format_sse("ui", {"program": program, "format": CHAT_UI_FORMAT})
-
-            # Tutor GenUI (two-phase): a second LLM call classifies and re-lays the
-            # answer.  Admin no longer uses this path.
-            elif should_lay_out:
-                program = await self._lay_out(message, answer)
-                if program:
-                    await self._persist_program(assistant, program)
-                    yield format_sse("ui", {"program": program, "format": CHAT_UI_FORMAT})
-                else:
-                    yield format_sse("layout_skipped", {})
 
         except Exception as exc:  # noqa: BLE001 - stream must always terminate cleanly
             detail = exc.message if isinstance(exc, AppError) else str(exc)
@@ -1060,50 +1105,7 @@ class ChatService:
             return None
         return program
 
-    # -- the two-phase layout call (tutor only) ---------------------------------
-
-    def _should_lay_out(self, agent_type: str, answer: str) -> bool:
-        """Whether this answer earns a second (two-phase) layout call.
-
-        Only the tutor uses the two-phase path now. The admin assistant switched to
-        single-phase GenUI: the model produces OpenUI Lang directly, so there is no
-        second call to classify the shape. ``MIN_LAYOUT_CHARS`` still applies: a short
-        answer is one idea, and a ``Stack`` around one idea is worse than the paragraph.
-        """
-        return (
-            self.generative_ui
-            and agent_type == "tutor"
-            and self.tutor_llm is not None
-            and len(answer.strip()) >= MIN_LAYOUT_CHARS
-        )
-
-    async def _lay_out(self, question: str, answer: str) -> str | None:
-        """Re-lay ``answer`` in the kit. ``None`` means "serve the prose", always.
-
-        The model classifies and populates; **this process writes the program**. See
-        ``emit_chat_program`` above and :data:`src.llm.prompts.tutor.CHAT_SHAPES` for why.
-        """
-        try:
-            raw = await self.tutor_llm.complete(  # type: ignore[union-attr]
-                CHAT_LAYOUT_SYSTEM,
-                build_chat_layout_prompt(question, answer),
-                temperature=LAYOUT_TEMPERATURE,
-                max_tokens=LAYOUT_MAX_TOKENS,
-                json_mode=True,
-            )
-        except Exception as exc:  # noqa: BLE001 - the prose is already on screen
-            logger.info("Chat layout call failed, serving prose: %s", exc)
-            return None
-        program = emit_chat_program(parse_layout_json(raw))
-        if program is None:
-            return None
-        invented = invented_figures(program, answer)
-        if invented:
-            logger.info(
-                "Chat layout rejected: figures not in the answer: %s", ", ".join(invented)
-            )
-            return None
-        return validate_chat_program(program)
+    # -- persist the single-phase program ---------------------------------------
 
     async def _persist_program(self, assistant: ChatMessage, program: str) -> None:
         """Store the canonical program so reopening the session repaints the blocks.
@@ -1173,6 +1175,10 @@ class ChatService:
             system = admin_genui_system_prompt(grounding, org_data=bool(snapshot_block))
         elif is_admin:
             system = admin_system_prompt(grounding, org_data=bool(snapshot_block))
+        elif self.generative_ui:
+            # Tutor, single-phase GenUI: taught the chat dialect up front, exactly like the
+            # admin, so its streamed answer *is* the program (no second layout call).
+            system = tutor_genui_system_prompt(grounding)
         else:
             system = tutor_system_prompt(grounding)
         messages: list[dict[str, str]] = [{"role": "system", "content": system}]
@@ -1233,7 +1239,6 @@ __all__ = [
     "ALLOWED_TOOLS",
     "CHAT_UI_FORMAT",
     "MEMORY_TURNS",
-    "MIN_LAYOUT_CHARS",
     "MIN_SHAPE_ITEMS",
     "RETRIEVAL_TOP_K",
     "ChatService",

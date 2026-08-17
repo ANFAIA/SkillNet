@@ -24,9 +24,9 @@ PROBE_TEMPERATURE = 0.2
 PROBE_USE_CASE = "probe_generate"
 
 PROBE_GENERATOR_SYSTEM = """\
-Eres un disenador de evaluacion diagnostica para formacion en el puesto de trabajo.
-Tu tarea es escribir un pre-test muy corto que sirva para decidir si una persona YA
-domina un nodo de aprendizaje concreto, antes de mostrarle contenido.
+Eres un disenador de evaluacion diagnostica. Tu tarea es escribir un pre-test muy corto
+que sirva para decidir si una persona YA domina un nodo de aprendizaje concreto, antes de
+mostrarle contenido.
 
 Escribes SIEMPRE en el mismo idioma que el material de origen.
 

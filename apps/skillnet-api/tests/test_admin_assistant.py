@@ -407,71 +407,66 @@ async def test_the_snapshot_travels_even_when_no_document_matched(monkeypatch) -
     assert "Lucia Fernandez Vila" in llm.turn
 
 
-# -- a pleasantry is a turn now ------------------------------------------------------
-# These four replace the four that asserted the opposite. ``7a48fa5`` removed the canned
-# path deliberately — "all messages go through the LLM, which now has enough persona
-# context to handle them" — so what used to be free is now priced, and what used to be
-# guaranteed by a lookup table is now guaranteed by the persona. Both halves are asserted,
-# because a greeting that costs a provider call *and* comes back with "No tengo suficiente
-# informacion" would be the reported defect back at a higher price.
+# -- a pleasantry is answered without a model, again ---------------------------------
+# ``7a48fa5`` unwired the small-talk classifier ("all messages go through the LLM, which
+# now has enough persona context"). That was harmless while the admin answered in prose,
+# where a greeting reaching the model was one wasted call. Once the admin went single-phase
+# GenUI the cost changed: the program-forcing prompt wraps *every* message — "hola"
+# included — in a bold OpenUI ``lead`` block, and the turn still pays for retrieval and the
+# eight snapshot queries it cannot use. So the short-circuit is restored on the admin path
+# (2026-08-17), and these four assert the fast path: no provider call, no snapshot, canned
+# prose, no program.
 @pytest.mark.parametrize("message", ["hola", "que tal", "gracias", "quien eres"])
-async def test_a_pleasantry_now_reaches_the_provider_like_every_other_message(
+async def test_a_pleasantry_is_answered_without_a_provider_call(
     monkeypatch, message: str
 ) -> None:
     llm = _RecordingLLM()
     events, repo, seen = await _run_admin(monkeypatch, llm, message=message)
     names = [name for name, _ in events]
 
-    assert llm.calls, "there is no canned path left: the model answers this"
-    assert llm.turn.rstrip().endswith(f"Pregunta: {message}")
-    # No canned answer means no marker for one.
-    assert "small_talk" not in repo.messages[-1].message_metadata
+    assert not llm.calls, "a greeting is canned; the model is never called"
+    # The canned reply is persisted and marked as such.
+    assert repo.messages[-1].message_metadata["small_talk"] is True
+    assert repo.messages[-1].content
     assert names[-1] == "done"
 
 
-async def test_the_greeting_is_answered_by_the_persona_now_instead_of_a_lookup_table(
-    monkeypatch,
-) -> None:
-    """*"que tal"* -> *"No tengo suficiente informacion"* was the reported defect, and the
-    first fix was to answer it without a provider at all.
+async def test_the_greeting_is_answered_by_the_canned_reply(monkeypatch) -> None:
+    """*"que tal"* -> *"No tengo suficiente informacion"* was the reported defect.
 
-    That fix is gone. What has to hold instead is that the model is not put in the position
-    that produced the refusal: it is a document assistant handed an allergen manual and a
-    pleasantry unless the persona tells it that a dead end is not an answer, and that a
-    question about itself is answered from itself.
+    The fix that is right for it is the one restored here: the greeting never reaches the
+    model at all, so it cannot be handed an allergen manual and asked to answer "que tal"
+    from it. The learner gets the canned reply, which doubles as discoverability.
     """
     llm = _RecordingLLM()
-    _, _, _ = await _run_admin(monkeypatch, llm, message="que tal")
+    events, repo, _ = await _run_admin(monkeypatch, llm, message="que tal")
 
-    assert "no puedo comprender la pregunta" in llm.system  # forbidden, verbatim
-    assert "Nunca escribas" in llm.system
-    assert "la respuesta eres TU" in llm.system
-    assert "asistente del administrador de SkillNet" in llm.system
+    assert not llm.calls  # the model is never asked
+    visible = "".join(d["content"] for n, d in events if n == "token")
+    assert visible == small_talk_reply("que tal")
+    assert repo.messages[-1].content == small_talk_reply("que tal")
 
 
-async def test_a_pleasantry_now_pays_for_the_snapshot_too(monkeypatch) -> None:
-    """The measurable cost of removing the canned path, stated rather than discovered.
+async def test_a_pleasantry_pays_for_no_snapshot(monkeypatch) -> None:
+    """The point of the fast path, stated rather than discovered.
 
-    Before ``7a48fa5``, *"hola"* skipped retrieval and skipped the eight aggregate queries
-    of ``build_org_snapshot``. It no longer does: the gate that decided "this needs no
-    context" was the small-talk classifier, and there is nothing in its place. Asserted so
-    that a future change back to a cheap path fails here and gets read, rather than
-    quietly re-diverging from what this file claims.
+    *"hola"* skips retrieval and skips the eight aggregate queries of
+    ``build_org_snapshot``: ``seen`` stays empty because ``fake_build`` is never reached.
+    A future change that routes greetings back through the snapshot fails here.
     """
     _, _, seen = await _run_admin(monkeypatch, _RecordingLLM(), message="hola")
-    assert "org_id" in seen
+    assert seen == {}
 
 
 @pytest.mark.parametrize("message", ["hola", "quien eres", "gracias"])
-async def test_one_turn_is_still_exactly_one_provider_call(monkeypatch, message: str) -> None:
-    """Single-phase, on the cheapest messages there are.
+async def test_a_pleasantry_costs_zero_provider_calls_and_no_genui(
+    monkeypatch, message: str
+) -> None:
+    """The cheapest messages there are, and in GenUI mode they cost nothing extra.
 
-    Its ancestor asserted that a canned answer paid for no *layout* call — the identity
-    reply is comfortably longer than ``MIN_LAYOUT_CHARS``, so the moment the admin path
-    started laying out, the one question guaranteed never to reach a provider began
-    emitting ``layout_start``. The canned answer is gone and so is the second call: the
-    admin's blocks come out of the same stream as its prose, and ``complete`` is never
-    reached on this path at all.
+    No ``stream`` call, no ``complete`` call, and — the fix for the second reported defect —
+    no ``ui`` event and no ``layout_start``: the canned reply is prose, so a greeting is
+    never wrapped in a bold OpenUI ``lead`` block.
     """
     llm = _RecordingLLM()
     service, user, _ = _service(monkeypatch, llm)
@@ -479,11 +474,13 @@ async def test_one_turn_is_still_exactly_one_provider_call(monkeypatch, message:
     events = _events(
         [event async for event in service.stream_admin(user, message, None, None)]
     )
+    names = [name for name, _ in events]
 
-    assert len(llm.calls) == 1
+    assert len(llm.calls) == 0
     assert llm.completions == 0
-    assert "layout_start" not in [name for name, _ in events]
-    assert [name for name, _ in events][-1] == "done"
+    assert "ui" not in names
+    assert "layout_start" not in names
+    assert names[-1] == "done"
 
 
 async def test_every_turn_closes_the_stream_the_way_the_frontend_needs(
@@ -491,10 +488,9 @@ async def test_every_turn_closes_the_stream_the_way_the_frontend_needs(
 ) -> None:
     """The frontend re-enables the composer on ``done``; every turn must send one.
 
-    Written for the canned path, kept for the ordinary one: this used to be the only test
-    covering a turn that skipped grounding, and its ``citations == []`` assertion was an
-    artefact of that skip. A greeting is grounded like anything else now, so what is pinned
-    is the event order, which is what the composer depends on.
+    Pinned on the canned path (``gracias``): even the turn that skips the model still emits
+    the event order the composer depends on — ``grounding`` first, a ``token``, then
+    ``citations`` before ``done``.
     """
     events, _, _ = await _run_admin(monkeypatch, _RecordingLLM(), message="gracias")
     names = [name for name, _ in events]
@@ -507,13 +503,19 @@ async def test_every_turn_closes_the_stream_the_way_the_frontend_needs(
 
 # -- the employee tutor is untouched --------------------------------------------------
 async def test_the_tutor_gets_no_snapshot_and_no_admin_persona(monkeypatch) -> None:
-    """Everything above is on the ``admin`` path. The tutor's ladder landed yesterday."""
+    """Everything above is on the ``admin`` path. The tutor's ladder landed yesterday.
+
+    A real question (not a greeting — those short-circuit on both surfaces now) so the
+    model is actually reached and its system prompt can be inspected.
+    """
     llm = _RecordingLLM()
     service, user, seen = _service(monkeypatch, llm)
-    events = [event async for event in service.stream_tutor(user, "hola", None, None)]
+    events = [
+        event async for event in service.stream_tutor(user, "que es un alergeno", None, None)
+    ]
 
     assert seen == {}
-    assert llm.calls, "the tutor still calls the model for a greeting"
+    assert llm.calls, "the tutor still calls the model for a real question"
     assert "DATOS DE LA PLATAFORMA" not in llm.turn
     assert "tutor de SkillNet" in llm.system
     assert "org_data" not in [name for name, _ in _events(events)]

@@ -23,6 +23,11 @@ Wire format of ``POST /explain`` (SSE):
   and knows whether it came from cache.
 * ``error`` — ``{"detail"}``. Only after the stream has started; anything knowable
   up front (422 too long, 429 rate limit) is a real HTTP status from the route.
+
+The word-click **glimpse** is deliberately PLAIN TEXT: a one-sentence answer needs no
+kit, and forcing it through OpenUI made a single sentence read as an oversized lead. The
+richer, block-based explanation lives in the "Ver más" modal, which reaches the tutor
+(``POST /chat``) and gets generative UI there. So this endpoint emits no ``ui`` event.
 """
 
 from __future__ import annotations

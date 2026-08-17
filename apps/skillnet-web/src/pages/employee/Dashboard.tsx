@@ -110,7 +110,7 @@ export function Dashboard() {
                   badge={
                     e.delivery_mode === 'dynamic' ? (
                       <Badge variant="primary" badgeStyle="plain">
-                        Por nodos
+                        Por lecciones
                       </Badge>
                     ) : undefined
                   }

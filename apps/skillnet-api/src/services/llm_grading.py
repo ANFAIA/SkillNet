@@ -19,7 +19,7 @@ from src.schemas.exercise import AttemptResult
 logger = get_logger(__name__)
 
 _GRADER_SYSTEM = (
-    "Eres un evaluador de respuestas abiertas para formacion laboral. Evalua la "
+    "Eres un evaluador de respuestas abiertas. Evalua la "
     "respuesta de la persona contra los criterios dados. Se justo pero riguroso. "
     'Responde SOLO en JSON valido: {"score": <0..1>, "passed": <bool>, '
     '"feedback": "<comentario breve y util>"}.'

@@ -486,6 +486,46 @@ def test_explain_messages_are_label_free_and_system_first():
         assert banned not in messages[1]["content"]
 
 
+# ------------------------------------------------------------- the glimpse is plain text
+# The word-click glimpse is a single sentence and renders as PLAIN TEXT: it emits no ``ui``
+# event. Rendering one sentence through OpenUI made it read as an oversized lead. The
+# richer, block-based view is the "Ver mas" modal, which goes through the tutor (POST
+# /chat) and gets generative UI there.
+
+
+async def test_the_glimpse_stream_emits_no_ui_event():
+    store, session, user = FakeStore(), FakeSession(), _user()
+    llm = ScriptedLLM(["Es el plazo maximo."])
+    service = ExplainService(session, llm, repo=store)
+
+    events = await _run(service, user, term="plazo", context="El plazo es de 30 dias.")
+
+    names = [name for name, _ in events]
+    assert names == ["token", "done"]
+    assert "ui" not in names
+
+
+async def test_a_cache_hit_is_also_plain_text():
+    store, session, user = FakeStore(), FakeSession(), _user()
+    service = ExplainService(session, ScriptedLLM(["Es el plazo maximo."]), repo=store)
+
+    await _run(service, user, term="plazo", context="El plazo es de 30 dias.")
+    events = await _run(service, user, term="plazo", context="El plazo es de 30 dias.")
+
+    assert [name for name, _ in events] == ["token", "done"]
+    assert "ui" not in [name for name, _ in events]
+
+
+async def test_an_error_stream_never_emits_a_ui_event():
+    store, session, user = FakeStore(), FakeSession(), _user()
+    service = ExplainService(session, BrokenLLM(), repo=store)
+
+    events = await _run(service, user, term="plazo", context="El plazo es de 30 dias.")
+
+    assert "ui" not in [name for name, _ in events]
+    assert events[-1][0] == "error"
+
+
 # -------------------------------------------------------------------- the SSE stream
 
 
@@ -516,6 +556,7 @@ async def test_second_request_is_a_cache_hit_with_a_single_token_event():
     await _run(service, user, term="Mercurio", context=CHEMISTRY_CONTEXT)
     events = await _run(service, user, term="Mercurio", context=CHEMISTRY_CONTEXT)
 
+    # One token (the whole cached text), then done. The glimpse is plain text.
     assert [name for name, _ in events] == ["token", "done"]
     assert events[-1][1]["cached"] is True
     assert store.touches == 1

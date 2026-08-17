@@ -111,7 +111,7 @@ describe('MyCourses — node-based courses', () => {
     await openInProgress()
 
     expect(await screen.findByText('Politica de devoluciones v2')).toBeInTheDocument()
-    expect(screen.getByText('Por nodos')).toBeInTheDocument()
+    expect(screen.getByText('Por lecciones')).toBeInTheDocument()
   })
 
   it('leaves a static course unmarked', async () => {
@@ -137,7 +137,7 @@ describe('MyCourses — node-based courses', () => {
     await openInProgress()
 
     await screen.findByText('Devoluciones en tienda')
-    expect(screen.getAllByText('Por nodos')).toHaveLength(1)
+    expect(screen.getAllByText('Por lecciones')).toHaveLength(1)
   })
 
   it('still opens the course, which is where the node map lives', async () => {

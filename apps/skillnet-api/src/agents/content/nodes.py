@@ -604,7 +604,7 @@ async def publish(state: GenerationState) -> dict:
             for position, gen_lesson in enumerate(gen_lessons, start=1):
                 lesson = Lesson(
                     module_id=module.id,
-                    title=gen_lesson.get("title", "Leccion"),
+                    title=gen_lesson.get("title", "Lección"),
                     content=gen_lesson.get("content", ""),
                     position=gen_lesson.get("position", position),
                 )
@@ -615,7 +615,7 @@ async def publish(state: GenerationState) -> dict:
             if last_lesson is None:
                 # A module must own at least one lesson to host its exercises.
                 last_lesson = Lesson(
-                    module_id=module.id, title=spec.get("title", "Leccion"),
+                    module_id=module.id, title=spec.get("title", "Lección"),
                     content="", position=1,
                 )
                 db.add(last_lesson)

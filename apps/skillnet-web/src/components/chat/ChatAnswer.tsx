@@ -30,6 +30,7 @@ export function ChatAnswer({ message }: ChatAnswerProps) {
           nodeId=""
           format={CHAT_UI_FORMAT}
           arriving
+          className="openui-chat"
         />
       </ClickableSurface>
     )

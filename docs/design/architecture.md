@@ -119,7 +119,12 @@ Most of SkillNet is Level 1 and 2. Level 3 applies only where content, context, 
 
 **Level 3 latency: no longer deferred, and smaller than assumed.** v2 (dynamic courses) is the Level 3 implementation, and its generation latency has been measured against real Groq (2026-07-27): **sub-second to ~3 s per render, ~0.0008 USD per render**. The "20-30 second generation" problem this section was written to worry about **does not exist on this stack** — the 60-150 s figures in the research came from a 7B model on local CPU.
 
-The shipped approach is therefore the cheap one: skeleton + SSE streaming (a `ui_block` event per completed component), no pre-generation and no waiting screen. See [`v2-dynamic-courses.md`](v2-dynamic-courses.md) §14.2 #2 for the measurement and [`tuning.md`](tuning.md) for the dials.
+The shipped approach combines skeleton + SSE streaming with bounded anticipatory generation. Opening
+the course primes the first two available lessons; once learning starts, the client maintains a
+rolling window of three lessons ahead. These are runtime renders created with the learner's current
+context and cached idempotently, not presentation artifacts baked into the published course. See
+[`learning-experience-architecture.md`](learning-experience-architecture.md) §2.1 and
+[`v2-dynamic-courses.md`](v2-dynamic-courses.md) §9 for the latency model.
 
 Note also that Level 3 as built does **not** inject agent-generated HTML: the model emits a typed dialect that is parsed to a `UISpec`, re-serialized, and rendered by native React components. Never HTML, so the shadow-DOM/iframe isolation contemplated below is not needed.
 

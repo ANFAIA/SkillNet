@@ -6,10 +6,22 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from src.core.exceptions import ConflictError, NotFoundError
+from src.core.exceptions import ConflictError, ForbiddenError, NotFoundError
 from src.services.course_folder_service import CourseFolderService
 from src.services.enrollment_service import EnrollmentService
 from src.services.skill_service import SkillService
+
+
+def _session_with_users(user_ids):
+    """Fake session whose `execute(select(User.id)...)` returns those ids.
+
+    `_assert_users_in_org` runs one `select(User.id).where(id.in_(...), org_id==...)`
+    and reads `.all()` as `[(id,), ...]`. This mock reports exactly `user_ids` as the
+    users that live in the queried org, so the caller can model "all present" or
+    "one belongs to another org" by choosing what it returns.
+    """
+    result = SimpleNamespace(all=lambda: [(uid,) for uid in user_ids])
+    return SimpleNamespace(execute=AsyncMock(return_value=result))
 
 
 @pytest.mark.asyncio
@@ -83,7 +95,7 @@ async def test_assign_courses_is_idempotent_across_a_folder() -> None:
     existing = SimpleNamespace(id=uuid.uuid4())
     created = SimpleNamespace(id=uuid.uuid4())
     enrollment_repo = SimpleNamespace(
-        session=object(),
+        session=_session_with_users([user_id]),
         get_by_user_and_course=AsyncMock(side_effect=[existing, None]),
         create=AsyncMock(return_value=created),
     )
@@ -107,3 +119,64 @@ async def test_assign_courses_is_idempotent_across_a_folder() -> None:
     assert skipped == 1
     assert course_repo.get_scoped.await_count == 2
     enrollment_repo.create.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_assign_rejects_a_user_from_another_organisation() -> None:
+    """A course scoped to the admin's org must not enrol a learner of another org."""
+    org_id = uuid.uuid4()
+    own_user = uuid.uuid4()
+    foreign_user = uuid.uuid4()
+    enrollment_repo = SimpleNamespace(
+        # Only `own_user` lives in `org_id`; `foreign_user` is absent from the query.
+        session=_session_with_users([own_user]),
+        get_by_user_and_course=AsyncMock(return_value=None),
+        create=AsyncMock(),
+    )
+    course_repo = SimpleNamespace(get_scoped=AsyncMock(return_value=object()))
+    service = EnrollmentService(
+        enrollment_repo,
+        course_repo,
+        SimpleNamespace(),
+        lesson_progress_repo=SimpleNamespace(),
+    )
+
+    with pytest.raises(ForbiddenError):
+        await service.assign(
+            org_id=org_id,
+            assigned_by=uuid.uuid4(),
+            course_id=uuid.uuid4(),
+            user_ids=[own_user, foreign_user],
+            deadline=None,
+        )
+    # Nothing is written when any user is out of tenant.
+    enrollment_repo.create.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_assign_courses_rejects_a_user_from_another_organisation() -> None:
+    org_id = uuid.uuid4()
+    own_user = uuid.uuid4()
+    foreign_user = uuid.uuid4()
+    enrollment_repo = SimpleNamespace(
+        session=_session_with_users([own_user]),
+        get_by_user_and_course=AsyncMock(return_value=None),
+        create=AsyncMock(),
+    )
+    course_repo = SimpleNamespace(get_scoped=AsyncMock(return_value=object()))
+    service = EnrollmentService(
+        enrollment_repo,
+        course_repo,
+        SimpleNamespace(),
+        lesson_progress_repo=SimpleNamespace(),
+    )
+
+    with pytest.raises(ForbiddenError):
+        await service.assign_courses(
+            org_id=org_id,
+            assigned_by=uuid.uuid4(),
+            course_ids=[uuid.uuid4()],
+            user_ids=[own_user, foreign_user],
+            deadline=None,
+        )
+    enrollment_repo.create.assert_not_awaited()

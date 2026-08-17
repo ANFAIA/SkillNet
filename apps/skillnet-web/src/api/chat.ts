@@ -58,6 +58,11 @@ export function useChat(
   const [isStreaming, setIsStreaming] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
   const sentCountRef = useRef(0)
+  // The server creates a session on the first turn and reports its id on `done`. We keep
+  // it here and send it on every later turn so they land on the SAME session — which is
+  // what lets the tutor load the conversation's recent history and answer follow-ups
+  // ("vale pero qué pasos debo seguir") against the ongoing thread instead of near-blind.
+  const sessionIdRef = useRef<string | null>(null)
   // Derived to a stable boolean so a fresh `options` object each render does not churn
   // the `sendMessage` callback identity.
   const generativeMode = options?.generative ?? endpoint === '/chat/admin'
@@ -93,6 +98,9 @@ export function useChat(
         sentCountRef.current += 1
         const payload: Record<string, unknown> = { message: text }
         if (isFirst && firstMessageContext) payload.context = firstMessageContext
+        // Thread every turn after the first onto the session the server opened, so the
+        // tutor carries the conversation's memory.
+        if (sessionIdRef.current) payload.session_id = sessionIdRef.current
 
         const res = await fetch(`/api/v1${endpoint}`, {
           method: 'POST',
@@ -186,6 +194,9 @@ export function useChat(
                 const args = (data.args ?? {}) as Record<string, unknown>
                 if (tool) executeTool(tool, args)
               } else if (eventType === 'done') {
+                // Remember the session so the next turn threads onto it (memory).
+                const sid = data.session_id
+                if (typeof sid === 'string' && sid) sessionIdRef.current = sid
                 setMessages((prev) =>
                   prev.map((m) =>
                     m.id === assistantId ? { ...m, isStreaming: false } : m,
@@ -258,6 +269,10 @@ export function useChat(
 
   const clear = useCallback(() => {
     setMessages([])
+    // A cleared thread is a new conversation: drop the session so the next message opens
+    // a fresh one instead of appending to the old memory.
+    sessionIdRef.current = null
+    sentCountRef.current = 0
   }, [])
 
   return { messages, sendMessage, cancel, clear, isStreaming }

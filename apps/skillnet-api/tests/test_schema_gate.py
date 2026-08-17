@@ -790,26 +790,27 @@ async def test_archiving_the_missing_node_completes_a_stuck_enrollment() -> None
 
 
 @pytest.mark.asyncio
-async def test_recompute_ignores_non_critical_nodes() -> None:
+async def test_recompute_requires_every_node_mastered() -> None:
     course = make_course()
     user_id = uuid.uuid4()
-    critical = make_node(course, position=1, title="Plazo")
+    first = make_node(course, position=1, title="Plazo")
     optional = make_node(
         course, position=2, title="Tono", criticality=NodeCriticality.CONTEXTUAL
     )
     service, node_repo, _, enrollment_repo = make_service(
         course,
-        [critical, optional],
+        [first, optional],
         enrollments=[FakeEnrollment(user_id, EnrollmentStatus.IN_PROGRESS)],
     )
     node_repo.mastery = [
-        (user_id, critical.id, "mastered", 1.0),
+        (user_id, first.id, "mastered", 1.0),
         (user_id, optional.id, "learning", 0.2),
     ]
 
+    # The non-critical node now blocks closure: the enrollment stays in progress.
     result = await service.recompute_enrollment_closure(course, org_id=ORG_ID)
-    assert result == {"completed": 1, "reopened": 0}
-    assert enrollment_repo.enrollments[0].status == EnrollmentStatus.COMPLETED
+    assert result == {"completed": 0, "reopened": 0}
+    assert enrollment_repo.enrollments[0].status == EnrollmentStatus.IN_PROGRESS
 
 
 # --------------------------------------------------------------------------- #

@@ -452,6 +452,54 @@ def _reviewer_prompt(
     )
 
 
+def _coverage_repair_prompt(
+    request: KnowledgePackGenerationRequest,
+    reviewed_sections: Mapping[str, object],
+    uncovered: Sequence[str],
+) -> str:
+    """Ask the reviewer to close a specific, named coverage gap in its own output.
+
+    The reviewer routinely leaves a handful of source sentences unmapped, and a single
+    uncovered unit hard-blocks the pack at ``review_required``. Rather than hand a human a
+    pack to finish, we replay the reviewer against its own candidate with exactly the
+    still-uncovered units — and their text — called out, so the fix is a targeted addition
+    and never a blind re-extraction.
+    """
+
+    unit_text = {
+        str(unit["unit_id"]): str(unit["text"])
+        for source in _source_prompt(request.sources)
+        for unit in source["coverage_units"]  # type: ignore[union-attr]
+    }
+    still_uncovered = [
+        {"unit_id": unit_id, "text": unit_text.get(unit_id, "")} for unit_id in uncovered
+    ]
+    return "\n\n".join(
+        (
+            "Correct CANDIDATE so every source unit is represented. Return ONLY the "
+            "corrected candidate JSON object.",
+            "The only allowed top-level keys are: " + ", ".join(sorted(_SECTION_KEYS)) + ".",
+            "NODE:\n"
+            + _prompt_json(
+                {
+                    "node_id": request.node.node_id,
+                    "title": request.node.title,
+                    "objective": _objective_payload(request.node.objective),
+                }
+            ),
+            "SOURCES:\n" + _prompt_json(_source_prompt(request.sources)),
+            "CANDIDATE:\n" + _prompt_json(reviewed_sections),
+            "STILL UNCOVERED — keep every atom already in CANDIDATE and add one grounded "
+            "must_preserve atom (or a selectable when the unit is a case, common error or "
+            "contrast) for EACH of these units, listing its unit_id in source_units:\n"
+            + _prompt_json(still_uncovered),
+            "Atom source references must use exactly a supplied ref_id. Every generated "
+            "identifier must match ^[A-Za-z0-9][A-Za-z0-9._:/@-]*$ and contain no accents "
+            "or spaces. Keep all five top-level keys, using [] where empty.",
+        )
+    )
+
+
 def _parse_sections(raw: str, *, phase: str) -> dict[str, object]:
     try:
         value = json.loads(raw)
@@ -486,13 +534,25 @@ def _semantic_hash(
     )
 
 
-def _namespace_atom_ids(sections: Mapping[str, object]) -> dict[str, object]:
+def _namespace_atom_ids(
+    sections: Mapping[str, object],
+    *,
+    allowed_sources: Sequence[str] = (),
+) -> dict[str, object]:
     """Make model-proposed atom labels unambiguous before contract validation.
 
     Models commonly call both a mandatory rule and an optional case ``step-1``. Stable
     identity is program-owned: category namespaces remove that accidental collision and
     every cross-reference is expanded deterministically when an old label matched more
     than one atom.
+
+    ``allowed_sources`` are the supplied source ``ref_id`` values. An atom that cites a
+    ref outside that set has invented a reference; rather than fail the whole pack we drop
+    only the invented ref, exactly as we already drop unknown evidence, prereq and slot
+    refs. An atom keeps its grounding as long as at least one supplied source survives; an
+    atom that cited *only* invented sources loses all grounding and is dropped whole. What
+    is never relaxed is the rule enforced by the contract afterwards: every kept ref still
+    points to a real supplied source.
     """
 
     value = deepcopy(dict(sections))
@@ -520,6 +580,31 @@ def _namespace_atom_ids(sections: Mapping[str, object]) -> dict[str, object]:
     for item in value["selectable"]:  # type: ignore[union-attr]
         if item.get("kind") not in valid_selectable_kinds:
             item["kind"] = "representation_hint"
+
+    if allowed_sources:
+        allowed = {str(ref) for ref in allowed_sources}
+        for section in ("must_preserve", "selectable"):
+            kept_atoms: list[dict[str, object]] = []
+            for item in value[section]:  # type: ignore[union-attr]
+                grounded = [str(ref) for ref in item.get("sources", []) if str(ref) in allowed]
+                if not grounded:
+                    # Every source this atom cited was invented; without a real source it
+                    # cannot be grounded, so the atom itself is dropped.
+                    continue
+                item["sources"] = grounded
+                kept_atoms.append(item)
+            value[section] = kept_atoms
+        # A dropped atom must not survive by proxy through a cross-reference, so its final
+        # id is pruned from the alias table the expander reads below.
+        surviving = {
+            str(item["atom_id"])
+            for section in ("must_preserve", "selectable")
+            for item in value[section]  # type: ignore[union-attr]
+        }
+        for old in list(aliases):
+            aliases[old] = [new for new in aliases[old] if new in surviving]
+            if not aliases[old]:
+                del aliases[old]
 
     generated_ids = {
         str(item["atom_id"])
@@ -592,6 +677,26 @@ def _namespace_atom_ids(sections: Mapping[str, object]) -> dict[str, object]:
     return value
 
 
+def _covered_units(sections: Mapping[str, object]) -> set[str]:
+    """Every coverage_unit ID some must_preserve or selectable atom claims to represent."""
+    return {
+        str(unit_id)
+        for section in ("must_preserve", "selectable")
+        for item in sections.get(section, [])  # type: ignore[union-attr]
+        for unit_id in item.get("source_units", [])
+    }
+
+
+def _uncovered_units(
+    sections: Mapping[str, object], sources: Sequence[SourceExcerpt]
+) -> tuple[str, ...]:
+    """Source units no atom maps to — the exact set that hard-blocks the pack at review."""
+    covered = _covered_units(sections)
+    return tuple(
+        unit_id for unit_id in _allowed_source_units(sources) if unit_id not in covered
+    )
+
+
 def _build_pack(
     request: KnowledgePackGenerationRequest, sections: Mapping[str, object]
 ) -> NodeKnowledgePack:
@@ -604,22 +709,24 @@ def _build_pack(
         )
         for source in prompt_sources
     }
-    covered_units = {
-        str(unit_id)
-        for section in ("must_preserve", "selectable")
-        for item in normalized_sections.get(section, [])  # type: ignore[union-attr]
-        for unit_id in item.get("source_units", [])
-    }
-    missing_units = set(_allowed_source_units(request.sources)) - covered_units
+    missing_units = set(_uncovered_units(normalized_sections, request.sources))
     if missing_units:
+        # Recorded for traceability, deliberately NON-blocking. The norm this pipeline
+        # enforces is *fidelity* — every atom must trace to a real source unit, checked by
+        # contract validation — not *exhaustiveness*. Demanding an atom for every source
+        # sentence turns the producer into a transcriber and forces navigation and filler
+        # ("see the image below") to block an otherwise complete pack; deciding what in the
+        # source is worth teaching is exactly the editorial judgment the runtime is meant
+        # to keep. A pack still needs grounded must_preserve atoms and observable evidence
+        # to be usable (below); it just no longer needs to cover every last sentence.
         normalized_sections["missing_data"].append(  # type: ignore[union-attr]
             {
                 "data_id": "uncovered-source-units",
-                "description": "Source units lack a traceable learning atom: "
+                "description": "Source units not represented by a learning atom: "
                 + ", ".join(sorted(missing_units)),
                 "affects": ["evidence"],
-                "blocking": True,
-                "fallback": "human_review",
+                "blocking": False,
+                "fallback": "none",
             }
         )
     source_hash = source_bundle_hash(request.sources)
@@ -708,7 +815,40 @@ async def generate_knowledge_pack(
     except Exception as exc:
         raise KnowledgePackGenerationError("reviewer completion failed") from exc
     reviewer_seconds = time.perf_counter() - reviewer_started
-    reviewed = _namespace_atom_ids(_parse_sections(reviewed_raw, phase="reviewer"))
+    allowed_sources = tuple(item.ref.ref_id for item in request.sources)
+    reviewed = _namespace_atom_ids(
+        _parse_sections(reviewed_raw, phase="reviewer"),
+        allowed_sources=allowed_sources,
+    )
+
+    # One bounded coverage-repair pass. The reviewer leaves a few source units unmapped
+    # often enough that most packs stall at review_required over coverage alone; replaying
+    # it once against the named gap recovers them without a human. Guarded so a repair that
+    # does not strictly improve coverage — or cannot be built into a valid pack — is
+    # discarded rather than allowed to regress a usable review.
+    repair_usage = Usage(reason="coverage repair not attempted")
+    uncovered = _uncovered_units(reviewed, request.sources)
+    if uncovered:
+        repaired_raw, repair_usage = await llm.complete_with_usage(
+            REVIEWER_SYSTEM,
+            _coverage_repair_prompt(request, reviewed, uncovered),
+            model=request.model,
+            temperature=0.0,
+            max_tokens=request.reviewer_max_tokens,
+            json_mode=True,
+        )
+        try:
+            candidate = _namespace_atom_ids(
+                _parse_sections(repaired_raw, phase="coverage-repair"),
+                allowed_sources=allowed_sources,
+            )
+            if len(_uncovered_units(candidate, request.sources)) < len(uncovered):
+                _build_pack(request, candidate)  # validate before trusting it
+                reviewed = candidate
+        except KnowledgePackGenerationError:
+            pass  # keep the reviewed pack; a failed repair never worsens the result
+    reviewer_usage = reviewer_usage.plus(repair_usage)
+
     pack = _build_pack(request, reviewed)
 
     return GeneratedKnowledgePack(

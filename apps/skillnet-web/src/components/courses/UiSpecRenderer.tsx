@@ -70,6 +70,13 @@ export interface UiSpecRendererProps {
    * `quiz_wrong` without a direct prop path through the OpenUI runtime.
    */
   recordEvent?: (event: NodeEventInput) => void
+  /**
+   * Extra class on the wrapper. The one caller that uses it is the chat/explain surface,
+   * which passes `openui-chat` to opt the blocks into the app's normal text size instead
+   * of the larger lesson type scale — a chat answer is UI, not a page to read (see
+   * `.openui-chat` in `index.css`). A lesson render passes nothing and keeps its scale.
+   */
+  className?: string
 }
 
 /**
@@ -124,6 +131,7 @@ export function UiSpecRenderer({
   onViolations,
   onError,
   recordEvent,
+  className,
 }: UiSpecRendererProps) {
   const gate = useMemo(() => gateProgram(program, { streaming: isStreaming }), [program, isStreaming])
   const target = useMemo(() => ({ nodeId, renderId, recordEvent }), [nodeId, renderId, recordEvent])
@@ -147,7 +155,7 @@ export function UiSpecRenderer({
     <nodeRenderContext.Provider value={target}>
       <blockArrivalContext.Provider value={arriving}>
         <div
-          className="min-w-0 flex-1 flex flex-col [&>div]:flex [&>div]:flex-col [&>div]:flex-1 [&>div]:min-h-0 [&>div>div]:flex [&>div>div]:flex-col [&>div>div]:flex-1 [&>div>div]:min-h-0"
+          className={`min-w-0 flex-1 flex flex-col [&>div]:flex [&>div]:flex-col [&>div]:flex-1 [&>div]:min-h-0 [&>div>div]:flex [&>div>div]:flex-col [&>div>div]:flex-1 [&>div>div]:min-h-0${className ? ` ${className}` : ''}`}
           data-ui-format={format}
         >
           <ErrorBoundary fallback={() => null}>

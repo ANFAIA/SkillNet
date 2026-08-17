@@ -59,6 +59,7 @@ async def test_configured_adapter_persists_the_complete_canonical_contract() -> 
                 "kind": "fact",
                 "text": "El fondo se comprueba antes de abrir.",
                 "sources": [ref_id],
+                "source_units": ["unit.001"],
                 "evidence": [],
                 "critical": True,
             }

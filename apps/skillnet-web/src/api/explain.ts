@@ -70,11 +70,20 @@ export interface StreamExplainOptions {
   signal?: AbortSignal
   /** Called with the full text so far on every `token` event. */
   onText?: (text: string) => void
+  /**
+   * Called once with the canonical OpenUI program when the server emits a `ui`
+   * event. The program is server-written from the same sentence the `token` events
+   * carry, so a client that ignores it still shows the plain text — the program is
+   * the richer rendering, the text is the always-present fallback.
+   */
+  onProgram?: (program: string) => void
 }
 
 export interface ExplainOutcome {
   explanation: string
   cached: boolean
+  /** Canonical OpenUI program, or `null` when none was emitted (serve the text). */
+  program: string | null
 }
 
 /**
@@ -84,7 +93,7 @@ export interface ExplainOutcome {
  */
 export async function streamExplain(
   body: ExplainRequestBody,
-  { signal, onText }: StreamExplainOptions = {},
+  { signal, onText, onProgram }: StreamExplainOptions = {},
 ): Promise<ExplainOutcome> {
   const res = await fetch('/api/v1/explain', {
     method: 'POST',
@@ -110,6 +119,7 @@ export async function streamExplain(
   let eventType = ''
   let text = ''
   let cached = false
+  let program: string | null = null
   let failure: string | null = null
 
   for (;;) {
@@ -138,6 +148,9 @@ export async function streamExplain(
       if (eventType === 'token') {
         text = String(data.content ?? '')
         onText?.(text)
+      } else if (eventType === 'ui') {
+        program = String(data.program ?? '')
+        if (program) onProgram?.(program)
       } else if (eventType === 'done') {
         if (typeof data.explanation === 'string') {
           text = data.explanation
@@ -152,12 +165,18 @@ export async function streamExplain(
   }
 
   if (failure) throw new Error(failure)
-  return { explanation: text, cached }
+  return { explanation: text, cached, program }
 }
 
 export interface UseExplainResult {
   status: ExplainStatus
   text: string
+  /**
+   * Canonical OpenUI program for the glimpse, or `null` when none arrived. When set,
+   * the popover renders it through the shared `UiSpecRenderer`; when `null` (or the
+   * program fails the client gate) it shows `text` instead.
+   */
+  program: string | null
   /** Ready-to-show message. `null` unless `status === 'error'`. */
   error: string | null
   run: (body: ExplainRequestBody) => void
@@ -174,6 +193,7 @@ const RATE_LIMIT_MESSAGE = 'Demasiadas consultas seguidas'
 export function useExplain(): UseExplainResult {
   const [status, setStatus] = useState<ExplainStatus>('idle')
   const [text, setText] = useState('')
+  const [program, setProgram] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
 
@@ -188,12 +208,16 @@ export function useExplain(): UseExplainResult {
 
     setStatus('loading')
     setText('')
+    setProgram(null)
     setError(null)
 
     streamExplain(body, {
       signal: controller.signal,
       onText: (value) => {
         if (!controller.signal.aborted) setText(value)
+      },
+      onProgram: (value) => {
+        if (!controller.signal.aborted) setProgram(value)
       },
     })
       .then(() => {
@@ -219,8 +243,9 @@ export function useExplain(): UseExplainResult {
     abortRef.current = null
     setStatus('idle')
     setText('')
+    setProgram(null)
     setError(null)
   }, [])
 
-  return { status, text, error, run, reset }
+  return { status, text, program, error, run, reset }
 }

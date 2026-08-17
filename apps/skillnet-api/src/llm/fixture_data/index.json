@@ -9,10 +9,20 @@
     "prompt_preview": "Eres el generador de pantallas de SkillNet, formacion de cumplimiento normativo para empleados. Responde UNICAMENTE con un programa en el dialecto descrito abaj",
     "use_case": "genera_ui"
   },
+  "375dea806d244a44": {
+    "file": "genera_ui/openui_explanation.txt",
+    "prompt_preview": "Eres el generador de pantallas de SkillNet, formacion de cumplimiento normativo para empleados. Responde UNICAMENTE con un programa en el dialecto descrito abaj",
+    "use_case": "genera_ui"
+  },
   "649471a037fb107d": {
     "file": "explain/mercurio_quimica.json",
     "prompt_preview": "Eres el explicador de SkillNet. Una persona que esta estudiando ha hecho clic en una palabra o ha seleccionado una frase y quiere un vistazo rapido. Responde co",
     "use_case": "explain"
+  },
+  "68e35e79bc55f277": {
+    "file": "genera_ui/openui_explanation.txt",
+    "prompt_preview": "Eres el generador de pantallas de SkillNet, formacion de cumplimiento normativo para empleados. Responde UNICAMENTE con un programa en el dialecto descrito abaj",
+    "use_case": "genera_ui"
   },
   "6d8af06feaefe27a": {
     "file": "explain/mercurio_planeta.json",
@@ -39,9 +49,9 @@
     "prompt_preview": "Eres el selector de formato de SkillNet, una plataforma de formacion en el puesto de trabajo. Recibes la ficha de un nodo de aprendizaje y el perfil del aprendi",
     "use_case": "decide_formato"
   },
-  "c5a0fca440fe4f0e": {
+  "e246339bb86e289f": {
     "file": "probe_generate/plazo_devolucion.json",
-    "prompt_preview": "Eres un disenador de evaluacion diagnostica para formacion en el puesto de trabajo. Tu tarea es escribir un pre-test muy corto que sirva para decidir si una per",
+    "prompt_preview": "Eres un disenador de evaluacion diagnostica. Tu tarea es escribir un pre-test muy corto que sirva para decidir si una persona YA domina un nodo de aprendizaje c",
     "use_case": "probe_generate"
   },
   "ca81d7d587225375": {

@@ -120,3 +120,72 @@ def test_generation_provenance_is_accepted_but_not_serialized_as_openui_ir() -> 
 
     assert spec.generation is not None and spec.generation.shell_mode == "episode"
     assert "generation" not in spec.model_dump(mode="json")
+
+
+def test_declined_provenance_records_the_exact_reason_for_diagnosis() -> None:
+    """A "declined + legacy_stepper" render used to discard *why* it declined, leaving
+    the symptom undiagnosable. The reason is now frozen into the server-only provenance.
+    """
+    state = {
+        "episode_status": "declined",
+        "episode_decline_reason": "evidence_policy:pack_not_ready",
+        "generation_policy_key": "adaptive-episodes/v4",
+    }
+
+    prov = generation_provenance_for_state(state, fallback=False)
+
+    assert prov["shell_mode"] == "legacy_stepper"
+    assert prov["episode_status"] == "declined"
+    assert prov["episode_decline_reason"] == "evidence_policy:pack_not_ready"
+
+
+def test_support_only_provenance_keeps_its_degrade_reason() -> None:
+    state = {
+        "episode_status": "support_only",
+        "episode_brief": {"episode_id": "support"},
+        "shell_mode": "episode",
+        "episode_decline_reason": "evidence_policy:critical_oracle_unavailable",
+        "generation_policy_key": "adaptive-episodes/v4",
+    }
+
+    prov = generation_provenance_for_state(state, fallback=False)
+
+    assert prov["shell_mode"] == "episode"
+    assert prov["episode_status"] == "support_only"
+    assert prov["episode_decline_reason"] == "evidence_policy:critical_oracle_unavailable"
+
+
+def test_a_ready_episode_records_no_decline_reason() -> None:
+    state = {
+        "episode_status": "ready",
+        "episode_brief": {"episode_id": "opaque"},
+        "generation_policy_key": "adaptive-episodes/v4",
+    }
+
+    assert "episode_decline_reason" not in generation_provenance_for_state(
+        state, fallback=False
+    )
+
+
+def test_the_decline_reason_is_server_only_never_in_the_client_dump() -> None:
+    spec = UISpec.model_validate(
+        {
+            "version": "skillnet-ui/1",
+            "format": "exercise",
+            "root": "root",
+            "components": [
+                {"id": "root", "type": "Stack", "props": {"gap": "md"}, "children": []}
+            ],
+            "generation": {
+                "shell_mode": "legacy_stepper",
+                "generation_policy_key": "adaptive-episodes/v4",
+                "episode_status": "declined",
+                "episode_decline_reason": "missing_knowledge_pack",
+            },
+        }
+    )
+
+    assert spec.generation is not None
+    assert spec.generation.episode_decline_reason == "missing_knowledge_pack"
+    # `generation` is excluded from ordinary dumps, so the reason never leaves the server.
+    assert "generation" not in spec.model_dump(mode="json")

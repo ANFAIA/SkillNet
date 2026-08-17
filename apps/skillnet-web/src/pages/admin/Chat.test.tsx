@@ -214,6 +214,43 @@ describe('admin Chat', () => {
     expect(container.textContent).not.toContain('Datos del equipo')
   })
 
+  it('never paints the streamed OpenUI Lang as text, then swaps in blocks', async () => {
+    // Single-phase admin GenUI streams the *program itself* as tokens — `root = Stack(...)`,
+    // not prose. The bubble must hold dots through that stream (the dialect is not an answer
+    // a human reads) and reveal blocks only when the `ui` event validates it. This is the
+    // regression guard: with the admin surface stuck in non-generative mode, those tokens
+    // rendered straight to the bubble as raw `root = Stack([...])` text.
+    const { release } = stream(
+      [
+        event('grounding', { grounding: 'document' }),
+        ...tokens(PROGRAM),
+        event('done', { message_id: 'm1' }),
+      ],
+      [event('ui', { program: PROGRAM, format: 'explanation' })],
+    )
+
+    const { container } = render(<AdminChat />)
+    await ask()
+
+    // Mid-turn: answer "complete", program not yet landed. The raw dialect must be nowhere
+    // on screen — dots stand in for it instead.
+    await waitFor(() =>
+      expect(container.querySelector('[role="status"]')).not.toBeNull(),
+    )
+    expect(container.textContent).not.toContain('root = Stack')
+    expect(container.textContent).not.toContain('TextContent(')
+
+    release()
+
+    await waitFor(() =>
+      expect(container.querySelector('[data-ui-format="explanation"]')).not.toBeNull(),
+    )
+    expect(container.querySelectorAll('table thead th')).toHaveLength(3)
+    expect(container.textContent).toContain('Tres de cinco empleados van con retraso.')
+    // And the dialect never leaked at any point.
+    expect(container.textContent).not.toContain('root = Stack')
+  })
+
   it('does not run the question the admin typed through markdown', async () => {
     stream([event('token', { content: 'Vale.' }), event('done', { message_id: 'm1' })])
 

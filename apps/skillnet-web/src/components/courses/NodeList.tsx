@@ -83,12 +83,6 @@ function NodeRow({
     needs_review: intl.formatMessage({ id: 'nodelist.stateNeedsReview' }),
   }
 
-  const CRITICALITY_LABEL: Record<string, string> = {
-    critical: intl.formatMessage({ id: 'nodelist.criticalityCritical' }),
-    recommended: intl.formatMessage({ id: 'nodelist.criticalityRecommended' }),
-    contextual: intl.formatMessage({ id: 'nodelist.criticalityContextual' }),
-  }
-
   const body = (
     <>
       <div className="flex items-center gap-2 min-w-0">
@@ -104,7 +98,6 @@ function NodeRow({
         <p className="mt-1 text-sm text-text-secondary line-clamp-2">{node.summary}</p>
       )}
       <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-text-muted">
-        <span>{CRITICALITY_LABEL[node.criticality]}</span>
         <span className="tabular-nums">{node.estimated_minutes} min</span>
         <span className="tabular-nums">{intl.formatMessage({ id: 'nodelist.mastery' }, { pct: Math.round(node.mastery * 100) })}</span>
       </div>

@@ -591,11 +591,13 @@ async def get_render(
     refetch on window focus returns the same bytes. ``202`` while there is nothing pinned
     yet; only ``POST …/render {"force": true}`` repins.
     """
-    node, _course = await _load_dynamic_node(db, user, node_id)
+    node, course = await _load_dynamic_node(db, user, node_id)
     service = NodeRenderService(db)
     service.assert_reviewed(node)
 
-    render = await service.pinned_render(user_id=user.id, node_id=node.id)
+    render = await service.pinned_render(
+        user_id=user.id, node_id=node.id, node=node, course=course, user=user
+    )
     if render is None:
         running = in_flight_for(user.id, node.id)
         return JSONResponse(

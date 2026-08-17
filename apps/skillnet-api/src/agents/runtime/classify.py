@@ -60,7 +60,7 @@ ROUTER_MAX_TOKENS = 120
 ROUTER_USE_CASE = "clasifica_funcion"
 
 FUNCTION_ROUTER_SYSTEM = """\
-Eres un clasificador. Lees material de formacion laboral y dices que HACE ese material,
+Eres un clasificador. Lees material de aprendizaje y dices que HACE ese material,
 no como se veria en pantalla.
 
 Responde SOLO con JSON: {"funcion": "<valor>", "evidencia": "<cita literal breve>"}

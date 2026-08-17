@@ -163,6 +163,28 @@ _REPLIES: dict[str, str] = {
 }
 
 
+#: What the tutor can do, in an employee's words. Kept in one place so the greeting and
+#: the goodbye promise the same thing. Deliberately about *learning*, never about other
+#: people's records — an employee tutor has no business naming a colleague's progress.
+_TUTOR_CAPABILITIES = (
+    "Estoy aqui para echarte una mano con tus cursos: te explico lo que no se entienda, "
+    "te resumo un tema o te doy los pasos de un procedimiento."
+)
+
+#: Employee-facing canned replies. The admin set names admin capabilities ("como van tus
+#: empleados"), which would be wrong here, so the tutor gets its own, warmer and about the
+#: lesson in front of the learner.
+_TUTOR_REPLIES: dict[str, str] = {
+    "greeting": f"Hola. {_TUTOR_CAPABILITIES}\n\n"
+    'Prueba con "explicame esto mas facil" o "dame los pasos".',
+    "thanks": "A ti. Si te atascas con algo del curso, aqui sigo.",
+    "farewell": "Hasta luego. Cuando quieras seguir con el curso, aqui me tienes.",
+    "identity": "Soy el tutor de SkillNet, tu companero para la formacion. "
+    f"{_TUTOR_CAPABILITIES}\n\n"
+    'Preguntame lo que no entiendas del curso, o pideme "un ejemplo" o "los pasos".',
+}
+
+
 def _fold(text: str) -> str:
     """Lower-case, strip accents and drop everything that is not a letter or a space.
 
@@ -193,10 +215,20 @@ def classify_small_talk(message: str) -> SmallTalkKind | None:
     return None
 
 
-def small_talk_reply(message: str) -> str | None:
-    """The canned answer for ``message``, or ``None`` when it is a real question."""
+def small_talk_reply(
+    message: str, *, audience: Literal["admin", "tutor"] = "admin"
+) -> str | None:
+    """The canned answer for ``message``, or ``None`` when it is a real question.
+
+    ``audience`` picks the voice: the admin assistant lists admin capabilities, the tutor
+    lists learning help. The *matcher* is shared — a greeting is a greeting on either
+    surface — only the reply text differs.
+    """
     kind = classify_small_talk(message)
-    return _REPLIES[kind] if kind else None
+    if kind is None:
+        return None
+    replies = _TUTOR_REPLIES if audience == "tutor" else _REPLIES
+    return replies[kind]
 
 
 __all__ = [

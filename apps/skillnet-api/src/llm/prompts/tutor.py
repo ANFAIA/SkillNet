@@ -28,7 +28,7 @@ untouched, so no cached render is invalidated by anything in this file.
 
 from __future__ import annotations
 
-from src.llm.prompts.admin import ADMIN_PERSONA, admin_system_prompt
+from src.llm.prompts.admin import ADMIN_PERSONA, admin_system_prompt, load_chat_spec
 from src.llm.prompts.grounding import Grounding
 from src.llm.prompts.tools import FRONTEND_TOOLS_BLOCK
 from src.render.prompt import render_prompt
@@ -113,6 +113,26 @@ def _block_key(grounding: Grounding) -> str:
 def tutor_system_prompt(grounding: Grounding) -> str:
     """The employee tutor's system prompt for a turn with this grounding."""
     return f"{TUTOR_PERSONA}\n\n{FRONTEND_TOOLS_BLOCK}\n\n{_GROUNDING_BLOCKS[_block_key(grounding)]}"
+
+
+def tutor_genui_system_prompt(grounding: Grounding) -> str:
+    """Single-phase GenUI prompt for the tutor: persona + chat OpenUI spec + grounding.
+
+    The mirror of :func:`src.llm.prompts.admin.admin_genui_system_prompt`, minus the org
+    data block (the tutor answers about documents and lesson content, never about the
+    organization's training records). The model is taught the eight-component chat dialect
+    up front and its answer *is* the program — the same one-call contract the admin uses,
+    so ``ChatService`` runs both surfaces through one path. A model that fails to produce a
+    valid program degrades to the prose it streamed, exactly as the admin does.
+    """
+    return "\n\n".join(
+        [
+            TUTOR_PERSONA,
+            FRONTEND_TOOLS_BLOCK,
+            load_chat_spec(),
+            _GROUNDING_BLOCKS[_block_key(grounding)],
+        ]
+    )
 
 
 # --------------------------------------------------------------------------------------
@@ -321,5 +341,6 @@ __all__ = [
     "build_chat_ui_prompt",
     "build_user_turn",
     "chat_ui_system",
+    "tutor_genui_system_prompt",
     "tutor_system_prompt",
 ]

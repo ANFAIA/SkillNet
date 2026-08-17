@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Sequence
+from copy import deepcopy
 
 import pytest
 
@@ -200,23 +201,55 @@ async def test_pack_without_invariants_requires_review_instead_of_claiming_ready
     reviewed["must_preserve"] = []
     reviewed["evidence_specs"] = []
     reviewed["selectable"] = []
-    llm = FakeLLM((json.dumps(reviewed), json.dumps(reviewed)))
+    # Third response feeds the coverage-repair pass; it does not improve coverage, so the
+    # guard discards it and the empty pack still fails closed to review_required.
+    llm = FakeLLM((json.dumps(reviewed), json.dumps(reviewed), json.dumps(reviewed)))
 
     result = await generate_knowledge_pack(_request(), llm)
 
     assert result.pack.status.value == "review_required"
 
 
-async def test_generator_rejects_hallucinated_source_references_after_review() -> None:
+async def test_generator_drops_an_invented_source_ref_and_keeps_the_grounded_atom() -> None:
+    """A single hallucinated source ref no longer fails the whole pack: it is dropped and
+    the atom survives as long as one supplied source remains, exactly as unknown evidence
+    and prereq refs are already dropped."""
+    extracted = json.dumps(_sections())
+    hallucinated = _sections()
+    # The atom still cites the real source, plus one invented one.
+    hallucinated["must_preserve"][0]["sources"] = [  # type: ignore[index]
+        "manual.allergens",
+        "invented.source",
+    ]
+    llm = FakeLLM((extracted, json.dumps(hallucinated)))
+
+    result = await generate_knowledge_pack(_request(), llm)
+
+    assert len(llm.calls) == 2
+    # The invented ref is gone; the real, grounded one is kept.
+    assert result.pack.must_preserve[0].sources == ("manual.allergens",)
+    assert result.pack.status.value == "ready"
+
+
+async def test_generator_drops_an_atom_that_cites_only_invented_sources() -> None:
+    """When every source an atom cited was invented it loses all grounding, so the atom
+    itself is dropped — but the rest of the pack still builds instead of raising."""
     extracted = json.dumps(_sections())
     hallucinated = _sections()
     hallucinated["must_preserve"][0]["sources"] = ["invented.source"]  # type: ignore[index]
-    llm = FakeLLM((extracted, json.dumps(hallucinated)))
+    # Dropping the only must_preserve atom leaves unit.001 uncovered, so the bounded
+    # coverage-repair pass runs once; it returns the same ungrounded candidate, so the
+    # guard discards it and the pack still builds.
+    llm = FakeLLM((extracted, json.dumps(hallucinated), json.dumps(hallucinated)))
 
-    with pytest.raises(KnowledgePackGenerationError, match="failed contract validation"):
-        await generate_knowledge_pack(_request(), llm)
+    result = await generate_knowledge_pack(_request(), llm)
 
-    assert len(llm.calls) == 2
+    # The ungrounded must_preserve atom is gone; the grounded selectable atom stays.
+    assert result.pack.must_preserve == ()
+    assert result.pack.selectable[0].sources == ("manual.allergens",)
+    # No must_preserve invariant remains, so the pack fails closed to review_required
+    # rather than raising KnowledgePackGenerationError.
+    assert result.pack.status.value == "review_required"
 
 
 def test_prompts_constrain_atom_sources_to_the_supplied_reference_ids() -> None:
@@ -291,7 +324,10 @@ async def test_unknown_atom_kind_degrades_to_factual_metadata() -> None:
     assert result.pack.must_preserve[0].kind.value == "fact"
 
 
-async def test_uncovered_source_unit_creates_a_blocking_review_gap() -> None:
+async def test_uncovered_source_unit_is_recorded_but_does_not_block_ready() -> None:
+    """Fidelity, not exhaustiveness: an unmapped source sentence is noted for
+    traceability but must not hold back an otherwise grounded, evidenced pack. Forcing an
+    atom for every sentence is the transcriber behaviour the runtime exists to avoid."""
     request = _request()
     source = SourceExcerpt(
         ref=request.sources[0].ref,
@@ -302,13 +338,46 @@ async def test_uncovered_source_unit_creates_a_blocking_review_gap() -> None:
         sources=(source,),
     )
     sections = _sections()
-    llm = FakeLLM((json.dumps(sections), json.dumps(sections)))
+    # Extractor, reviewer, and the coverage-repair pass, which returns the same sections —
+    # unit.002 stays uncovered — so the guard rejects it, exercising the non-blocking path.
+    llm = FakeLLM((json.dumps(sections), json.dumps(sections), json.dumps(sections)))
 
     result = await generate_knowledge_pack(request, llm)
 
-    assert result.pack.status.value == "review_required"
+    assert result.pack.status.value == "ready"
     assert result.pack.source_refs[0].coverage_unit_ids == ("unit.001", "unit.002")
-    assert result.pack.missing_data[0].data_id == "uncovered-source-units"
+    uncovered = next(
+        item for item in result.pack.missing_data if item.data_id == "uncovered-source-units"
+    )
+    assert uncovered.blocking is False
+    assert "unit.002" in uncovered.description
+
+
+async def test_coverage_repair_pass_closes_a_gap_and_reaches_ready() -> None:
+    request = _request()
+    source = SourceExcerpt(
+        ref=request.sources[0].ref,
+        text=request.sources[0].text + " Otra regla queda sin representar.",
+    )
+    request = KnowledgePackGenerationRequest(node=request.node, sources=(source,))
+
+    # Reviewer leaves unit.002 uncovered; the repair pass adds an atom mapping it, which
+    # strictly improves coverage, so the guard accepts it and the pack reaches ready.
+    reviewed = _sections()
+    repaired = _sections()
+    extra = deepcopy(repaired["must_preserve"][0])  # type: ignore[index]
+    extra["atom_id"] = "second-rule"
+    extra["text"] = "Otra regla queda representada."
+    extra["source_units"] = ["unit.002"]
+    repaired["must_preserve"].append(extra)  # type: ignore[union-attr]
+    llm = FakeLLM((json.dumps(reviewed), json.dumps(reviewed), json.dumps(repaired)))
+
+    result = await generate_knowledge_pack(request, llm)
+
+    assert len(llm.calls) == 3
+    assert "STILL UNCOVERED" in str(llm.calls[2]["user"])
+    assert result.pack.source_refs[0].coverage_unit_ids == ("unit.001", "unit.002")
+    assert result.pack.status.value == "ready"
 
 
 async def test_generator_fails_closed_for_invalid_extractor_json_without_calling_reviewer() -> None:

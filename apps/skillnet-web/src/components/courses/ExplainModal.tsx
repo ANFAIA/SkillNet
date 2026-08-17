@@ -240,7 +240,7 @@ function ExplanationPanel({
   const body = error ? (
     <p className="text-sm text-danger">{error}</p>
   ) : showBlocks ? (
-    <UiSpecRenderer program={program!} nodeId="" format="explanation" arriving />
+    <UiSpecRenderer program={program!} nodeId="" format="explanation" arriving className="openui-chat" />
   ) : isLoading ? (
     <span className="typing-dots" aria-label={intl.formatMessage({ id: 'explain.generating' })}>
       <span /><span /><span />

@@ -185,6 +185,30 @@ describe('CourseView — v1 non-regression', () => {
 })
 
 describe('CourseView — the dynamic branch', () => {
+  it('prepares exactly the first two available lessons when the course opens', async () => {
+    const dynamic = nodeList('dynamic')
+    dynamic.nodes = Array.from({ length: 4 }, (_, index) => ({
+      ...dynamic.nodes[0],
+      id: `aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa${index}`,
+      title: `Leccion ${index + 1}`,
+      position: index + 1,
+    }))
+    installFetch({ nodes: dynamic })
+    renderPage()
+
+    await screen.findByRole('heading', { name: 'Devoluciones en tienda' })
+    await waitFor(() => {
+      const renderCalls = mockFetch.mock.calls.filter(([input, init]) =>
+        String(input).includes('/nodes/') && String(input).endsWith('/render') && init?.method === 'POST',
+      )
+      expect(renderCalls).toHaveLength(2)
+      expect(renderCalls.map(([input]) => String(input))).toEqual([
+        expect.stringContaining('/nodes/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa0/render'),
+        expect.stringContaining('/nodes/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1/render'),
+      ])
+    })
+  })
+
   it('renders the overview and opens the first unlocked node from its main action', async () => {
     installFetch({ nodes: nodeList('dynamic') })
     renderPage()
