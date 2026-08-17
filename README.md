@@ -37,6 +37,7 @@ SkillNet takes a company's internal knowledge · manuals, processes, documentati
 - **Living knowledge** · The system learns from usage, improves content and evolves with the company
 - **Adaptive** · Content and pace tailored to each individual
 - **Accessible** · Designed for any user profile, including neurodiversity
+- **One product, two modes** · The same core serves an organization (company, team, class, academy) or a single individual who installs it for themselves — chosen at first boot, no forks. See [`docs/design/audience-modes.md`](docs/design/audience-modes.md)
 
 ## How it works
 

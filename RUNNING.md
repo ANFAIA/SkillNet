@@ -88,13 +88,17 @@ The other mode is `individual`: one person who installs SkillNet for themselves 
 administers and learns — no employees, talent, assignments or org reports. See
 [`docs/design/audience-modes.md`](docs/design/audience-modes.md).
 
-The mode is a stable per-deployment setting. To start a fresh deployment in individual mode,
-set it in the environment **before the first boot** (it is read only when the organization row
-is first created):
+The mode is a stable per-deployment setting, chosen one of two ways:
 
-```bash
-WORKSPACE_MODE=individual   # in your .env, alongside ADMIN_EMAIL / ADMIN_PASSWORD
-```
+- **First-boot wizard (UI).** If you leave `ADMIN_EMAIL`/`ADMIN_PASSWORD` unset, the first
+  time you open the app it shows a `/setup` screen: pick the mode (Organization / Just me),
+  create the owner, and you are signed in. The wizard closes for good once an owner exists.
+- **Headless (`.env`).** Set the owner and mode before the first boot (the mode is read only
+  when the organization row is first created):
+
+  ```bash
+  WORKSPACE_MODE=individual   # in your .env, alongside ADMIN_EMAIL / ADMIN_PASSWORD
+  ```
 
 For a local demo, a minimal individual seed flips the current single-org deployment and seeds
 one owner, one document and one course (no employees, no enrollments):
