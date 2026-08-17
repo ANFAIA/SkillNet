@@ -8,7 +8,7 @@ export interface SkillRead {
   description: string | null
 }
 
-export function useSkills(search = '') {
+export function useSkills(search = '', options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ['skills', { search }],
     queryFn: () => {
@@ -17,6 +17,9 @@ export function useSkills(search = '') {
       return get<Paginated<SkillRead>>(`/skills?${params.toString()}`)
     },
     staleTime: 60_000,
+    // The skills catalogue is a talent (organization-only) concept: it 404s in an
+    // individual workspace, so callers there disable the query.
+    enabled: options?.enabled ?? true,
   })
 }
 

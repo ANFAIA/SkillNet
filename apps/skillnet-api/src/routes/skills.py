@@ -5,7 +5,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Query, Response
 
-from src.deps.auth import AdminUser
+from src.deps.auth import AdminUser, OrganizationWorkspace
 from src.deps.db import DBSession
 from src.repositories.skill_repo import SkillRepository
 from src.schemas.common import PaginatedResponse
@@ -19,6 +19,11 @@ from src.services.skill_service import SkillService
 
 router = APIRouter(tags=["Skills"])
 
+# The standalone /skills catalogue is a talent (organization-only) concept, so
+# its CRUD endpoints 404 in an individual workspace. The course-authoring
+# endpoints below (/courses/{id}/skills) stay open — an individual owner still
+# authors courses. See docs/design/audience-modes.md.
+
 
 def _service(db: DBSession) -> SkillService:
     return SkillService(SkillRepository(db))
@@ -28,6 +33,7 @@ def _service(db: DBSession) -> SkillService:
 async def list_skills(
     admin: AdminUser,
     db: DBSession,
+    _org: OrganizationWorkspace,
     search: Annotated[str | None, Query()] = None,
     offset: Annotated[int, Query(ge=0)] = 0,
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
@@ -45,7 +51,7 @@ async def list_skills(
 
 @router.post("/skills", response_model=SkillRead, status_code=201)
 async def create_skill(
-    admin: AdminUser, db: DBSession, body: SkillCreate
+    admin: AdminUser, db: DBSession, body: SkillCreate, _org: OrganizationWorkspace
 ) -> SkillRead:
     skill = await _service(db).create_skill(
         org_id=admin.org_id, name=body.name, description=body.description
@@ -60,6 +66,7 @@ async def update_skill(
     db: DBSession,
     skill_id: uuid.UUID,
     body: SkillUpdate,
+    _org: OrganizationWorkspace,
 ) -> SkillRead:
     skill = await _service(db).update_skill(
         org_id=admin.org_id,
@@ -72,7 +79,7 @@ async def update_skill(
 
 @router.delete("/skills/{skill_id}", status_code=204)
 async def delete_skill(
-    admin: AdminUser, db: DBSession, skill_id: uuid.UUID
+    admin: AdminUser, db: DBSession, skill_id: uuid.UUID, _org: OrganizationWorkspace
 ) -> Response:
     await _service(db).delete_skill(org_id=admin.org_id, skill_id=skill_id)
     await db.commit()

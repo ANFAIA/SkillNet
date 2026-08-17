@@ -22,7 +22,7 @@ import { useReplaceCourseSkills, useSkills } from '../../api/skills'
 import { useUsers } from '../../api/users'
 import { useAssignCourse } from '../../api/enrollments'
 import { ApiError, get, post, put } from '../../api/client'
-import { useAuth } from '../../hooks/useAuth'
+import { useAuth, useWorkspaceMode } from '../../hooks/useAuth'
 import type { GenerationProgress as GenProgress, User, Lesson, Exercise, ExerciseContent, CourseKnowledgePacks } from '../../types'
 import type { ProposedNode, Phase, SourceType, DeliveryChoice } from './createCourseTypes'
 
@@ -560,7 +560,12 @@ export function CreateCourse() {
   const generate = useGenerateContent()
   const publish = usePublishCourse()
   const assign = useAssignCourse()
-  const skillsQuery = useSkills()
+  // Skills and course assignment are talent/organization concepts: they do not
+  // exist in an individual workspace (the endpoints 404). The owner just creates
+  // a course for themselves, so this flow skips the skills step and the assign
+  // step there. See docs/design/audience-modes.md.
+  const individual = useWorkspaceMode() === 'individual'
+  const skillsQuery = useSkills('', { enabled: !individual })
   const replaceCourseSkills = useReplaceCourseSkills()
 
   // Track uploaded document
@@ -631,7 +636,7 @@ export function CreateCourse() {
           )
           structureRef.nodes = proposed
           setProposedNodes(proposed)
-          setProposedSkills(skills.slice(0, 6).map((name) => ({ name })))
+          if (!individual) setProposedSkills(skills.slice(0, 6).map((name) => ({ name })))
           setStreamPhase('structure')
         },
         onNodeDetail: (result) => {
@@ -668,7 +673,7 @@ export function CreateCourse() {
       },
     )
     proposeAbortRef.current = controller
-  }, [title, idea, assignKeys])
+  }, [title, idea, assignKeys, individual])
 
   // Auto-propose when entering schema from details -- re-propose if title/idea changed
   const prevPhaseRef = useRef<Phase>('choose')
@@ -820,18 +825,21 @@ export function CreateCourse() {
 
       // Skills belong to the course, not to individual nodes. Persist the reviewed
       // proposal before activating the schema so completion can grant them reliably.
-      await replaceCourseSkills.mutateAsync({
-        courseId: course.id,
-        skills: proposedSkills.reduce<Array<{ id?: string; name?: string }>>((items, skill) => {
-          if (skill.id) {
-            items.push({ id: skill.id })
+      // Skipped in an individual workspace, where skills do not exist.
+      if (!individual) {
+        await replaceCourseSkills.mutateAsync({
+          courseId: course.id,
+          skills: proposedSkills.reduce<Array<{ id?: string; name?: string }>>((items, skill) => {
+            if (skill.id) {
+              items.push({ id: skill.id })
+              return items
+            }
+            const name = skill.name.trim()
+            if (name) items.push({ name })
             return items
-          }
-          const name = skill.name.trim()
-          if (name) items.push({ name })
-          return items
-        }, []),
-      })
+          }, []),
+        })
+      }
 
       // Step 2: save nodes
       setCreatingStep(1)
@@ -1159,9 +1167,11 @@ export function CreateCourse() {
               >
                 {testingCourse ? intl.formatMessage({ id: 'create.testing' }) : intl.formatMessage({ id: 'create.test' })}
               </Button>
-              <Button variant="secondary" onClick={() => setPhase('assign')}>
-                {intl.formatMessage({ id: 'create.assign' })}
-              </Button>
+              {!individual && (
+                <Button variant="secondary" onClick={() => setPhase('assign')}>
+                  {intl.formatMessage({ id: 'create.assign' })}
+                </Button>
+              )}
               <Button variant="ghost" onClick={() => navigate('/admin/contenido')}>
                 {intl.formatMessage({ id: 'create.backToContent' })}
               </Button>
@@ -1180,7 +1190,13 @@ export function CreateCourse() {
         </div>
         {courseId && <StepReview courseId={courseId} onPublish={handlePublish} publishing={publish.isPending} published={published} />}
         <div className="flex justify-end mt-8 pt-5 border-t border-border">
-          <Button variant="primary" onClick={() => setPhase('assign')}>{intl.formatMessage({ id: 'create.next' })}</Button>
+          {individual ? (
+            <Button variant="primary" onClick={() => navigate('/admin/contenido')}>
+              {intl.formatMessage({ id: 'create.finish' })}
+            </Button>
+          ) : (
+            <Button variant="primary" onClick={() => setPhase('assign')}>{intl.formatMessage({ id: 'create.next' })}</Button>
+          )}
         </div>
       </div>
     )
@@ -1396,6 +1412,7 @@ export function CreateCourse() {
                         skills={proposedSkills}
                         availableSkills={skillsQuery.data?.items ?? []}
                         onSkillsChange={setProposedSkills}
+                        showSkills={!individual}
                       />
                     </motion.div>
                   )}
@@ -1501,6 +1518,7 @@ export function CreateCourse() {
                         skills={proposedSkills}
                         availableSkills={skillsQuery.data?.items ?? []}
                         onSkillsChange={setProposedSkills}
+                        showSkills={!individual}
                       />
                     </motion.div>
                   )}

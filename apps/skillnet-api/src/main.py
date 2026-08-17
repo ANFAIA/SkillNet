@@ -148,7 +148,10 @@ def create_app() -> FastAPI:
     # Collective, organization-only surfaces: 404 in an individual workspace.
     # See docs/design/audience-modes.md and deps.auth.require_organization_workspace.
     org_only = [Depends(require_organization_workspace)]
-    app.include_router(skills.router, prefix=prefix, dependencies=org_only)
+    # skills: the standalone /skills catalogue is a talent concept and is gated
+    # per-endpoint inside the router, but the course-authoring endpoints
+    # (/courses/{id}/skills) are NOT — an individual owner still authors courses.
+    app.include_router(skills.router, prefix=prefix)
     app.include_router(talent.router, prefix=prefix, dependencies=org_only)
     app.include_router(exercises.router, prefix=prefix)
     app.include_router(lessons.router, prefix=prefix)

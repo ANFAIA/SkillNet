@@ -53,6 +53,9 @@ export interface SchemaContentProps {
   skills: SkillOption[]
   availableSkills: SkillOption[]
   onSkillsChange: (skills: SkillOption[]) => void
+  /** Whether to show the course-skills editor. Off in an individual workspace,
+   *  where skills (a talent concept) do not exist. See audience-modes.md. */
+  showSkills?: boolean
   /** Which nodes have received their detail enrichment (by index). */
   enrichedNodes?: Set<number>
   /** Current streaming phase for progressive UI. */
@@ -79,6 +82,7 @@ export function SchemaContent({
   skills,
   availableSkills,
   onSkillsChange,
+  showSkills = true,
   enrichedNodes,
   streamPhase = 'idle',
 }: SchemaContentProps) {
@@ -324,7 +328,7 @@ export function SchemaContent({
           )}
         </AnimatePresence>
 
-        {!isStreaming && (
+        {!isStreaming && showSkills && (
           <div className="mb-5">
             <CourseSkillsEditor
               skills={skills}
