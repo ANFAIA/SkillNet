@@ -64,15 +64,17 @@ are valid.
 
 ## Step 4 — Load the demo data
 
-**Do not skip this.**
+**This step is for *exploring* the demo (La Espiga).** A real deployment skips it: you
+create your own content in the app — upload a document or describe a topic and let it
+generate a course. Run this only if you want the ready-made example to click around.
 
 ```bash
 docker compose exec api uv run python -m src.seed_demo_v2
 ```
 
 Startup creates the organization and the admin user, but no courses, no documents and no
-employees. Without this step you log in to an empty dashboard and there is nothing to look
-at — which is not a failure, just an empty database.
+employees. Without this seed you log in to an empty dashboard — which is exactly right for a
+fresh install, and just an empty database if you meant to try the demo.
 
 This seed builds a complete Spanish SME (a bakery-café): 5 employees, 3 source documents
 indexed for the tutor, and 2 validated dynamic courses of 3 and 7 nodes. It is idempotent, so

@@ -114,10 +114,12 @@ The short version, if you already have an OpenAI key:
 cp .env.example .env                                         # then set SECRET_KEY,
                                                              # POSTGRES_PASSWORD, LLM_API_KEY
 docker compose up -d --build
-docker compose exec api uv run python -m src.seed_demo_v2    # do not skip: creates the data
+docker compose exec api uv run python -m src.seed_demo_v2    # optional: loads the demo (La Espiga)
 ```
 
-Then <http://localhost:3000>, as `admin@skillnet.dev` / `admin123`.
+Then <http://localhost:3000>, as `admin@skillnet.dev` / `admin123`. For your own install,
+leave `ADMIN_EMAIL`/`ADMIN_PASSWORD` blank in `.env` and the first visit opens a `/setup`
+wizard to pick the mode and create your owner account — see [`RUNNING.md`](RUNNING.md).
 
 ### Try Gen UI (dynamic courses)
 
