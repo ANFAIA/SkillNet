@@ -7,6 +7,7 @@ from fastapi import APIRouter, Query
 
 from src.deps.auth import AdminUser, CurrentUser, OrganizationWorkspace
 from src.deps.db import DBSession
+from src.repositories.learner_profile_repo import LearnerProfileRepository
 from src.repositories.skill_repo import SkillRepository
 from src.repositories.user_repo import UserRepository
 from src.schemas.common import PaginatedResponse
@@ -71,6 +72,14 @@ async def create_user(
         email=body.email,
         full_name=body.full_name,
         password=body.password,
+    )
+    # Every employee is a learner. Create their learner-profile row now (onboarding
+    # not yet completed) so the onboarding gate fires on their first login — without
+    # it, a brand-new employee has no profile row, the profile endpoint 404s, and the
+    # gate reads that as "do not redirect", silently skipping onboarding. See
+    # docs/design/audience-modes.md.
+    await LearnerProfileRepository(db).get_or_create(
+        user_id=user.id, org_id=admin.org_id
     )
     await db.commit()
     return EmployeeCreated(

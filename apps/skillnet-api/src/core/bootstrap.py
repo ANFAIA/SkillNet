@@ -65,6 +65,19 @@ async def maybe_create_admin(session: AsyncSession) -> None:
         is_verified=True,
     )
     session.add(admin)
+    await session.flush()
+
+    # In an individual workspace the bootstrap admin is the owner-who-also-learns,
+    # so give them a learner profile (onboarding not yet completed) — the onboarding
+    # gate then fires on first entry. An organization admin does not learn. This
+    # mirrors the UI setup path. See docs/design/audience-modes.md.
+    if org.workspace_mode is WorkspaceMode.INDIVIDUAL:
+        from src.repositories.learner_profile_repo import LearnerProfileRepository
+
+        await LearnerProfileRepository(session).get_or_create(
+            user_id=admin.id, org_id=org.id
+        )
+
     await session.commit()
     logger.info("Created bootstrap admin user: %s", settings.ADMIN_EMAIL)
 

@@ -22,6 +22,7 @@ from src.core.exceptions import ConflictError
 from src.deps.auth import auth_backend
 from src.deps.db import DBSession
 from src.models import User, UserRole, WorkspaceMode
+from src.repositories.learner_profile_repo import LearnerProfileRepository
 from src.schemas.setup import SetupRequest, SetupStatus
 
 router = APIRouter(prefix="/setup", tags=["Setup"])
@@ -72,6 +73,17 @@ async def setup(
         is_verified=True,
     )
     db.add(owner)
+    await db.flush()
+
+    # In an individual workspace the owner also learns, so give them a learner
+    # profile now (onboarding not yet completed) — the onboarding gate then fires
+    # on first entry, exactly as for an employee. An organization admin does not
+    # learn, so gets none. See docs/design/audience-modes.md.
+    if mode is WorkspaceMode.INDIVIDUAL:
+        await LearnerProfileRepository(db).get_or_create(
+            user_id=owner.id, org_id=org.id
+        )
+
     await db.commit()
     await db.refresh(owner)
 
