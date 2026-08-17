@@ -3,8 +3,7 @@ import { Outlet, useLocation } from 'react-router-dom'
 import { useIntl } from 'react-intl'
 import { ErrorBoundary } from '../ErrorBoundary'
 import { SidebarProvider, useSidebar } from '../../contexts/SidebarContext'
-import { useReducedMotion } from '../../hooks/useReducedMotion'
-import { duration, ease, spring } from '../../lib/motion'
+import { duration, ease } from '../../lib/motion'
 import { Header } from './Header'
 import { Sidebar, type SidebarRole } from './Sidebar'
 
@@ -12,17 +11,14 @@ function AppShellInner({ role }: { role: SidebarRole }) {
   const location = useLocation()
   const intl = useIntl()
   const { collapsed } = useSidebar()
-  const reducedMotion = useReducedMotion()
   const isNodeView = /\/nodo\/[^/]+$/.test(location.pathname)
 
   return (
     <LayoutGroup>
       <div className="flex h-screen overflow-hidden bg-bg">
         {!isNodeView && <Sidebar role={role} />}
-        <motion.div
-          layout="position"
-          transition={reducedMotion ? { duration: 0 } : spring.gentle}
-          className={`flex min-w-0 flex-1 flex-col ${isNodeView ? 'ml-0' : collapsed ? 'ml-0 md:ml-16' : 'ml-0 md:ml-[248px]'}`}
+        <div
+          className={`flex min-w-0 flex-1 flex-col transition-[margin] duration-[320ms] [transition-timing-function:var(--ease-base)] motion-reduce:transition-none ${isNodeView ? 'ml-0 delay-0' : collapsed ? 'ml-0 md:ml-16 delay-[180ms]' : 'ml-0 md:ml-[248px] delay-0'}`}
         >
           {!isNodeView && <Header />}
           <motion.main
@@ -54,7 +50,7 @@ function AppShellInner({ role }: { role: SidebarRole }) {
               </motion.div>
             </ErrorBoundary>
           </motion.main>
-        </motion.div>
+        </div>
       </div>
     </LayoutGroup>
   )

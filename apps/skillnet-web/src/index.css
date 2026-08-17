@@ -464,6 +464,14 @@ h1, h2, h3, .text-xl, .text-2xl, .text-3xl {
   letter-spacing: -0.01em;
 }
 
+/* Stop the document itself from rubber-band overscrolling. The shell is a fixed
+   h-screen frame, so any bounce of the page just exposes the blue `body` gradient
+   underneath — most visible on pages whose main pane is shorter than the viewport
+   (e.g. Talent), where the gesture never reaches the inner scroller to be contained. */
+html {
+  overscroll-behavior: none;
+}
+
 body {
   margin: 0;
   font-family: var(--font-sans);
@@ -473,6 +481,7 @@ body {
      and behind the login / onboarding shells, so it must track the theme too. */
   background: var(--frame-gradient);
   background-attachment: fixed;
+  overscroll-behavior: none;
 }
 
 /* ── Click-to-explain (§8.2, §8.5) ─────────────────────────────

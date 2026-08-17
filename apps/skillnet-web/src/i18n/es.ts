@@ -93,6 +93,7 @@ export const es: Record<string, string> = {
   'node.goalCustom': 'Esto te sirve para: {goal}',
   'node.buddyMessage': 'Vamos a por ello.',
   'node.nextNode': 'Siguiente: {title}',
+  'node.previousNode': 'Anterior',
   'node.courseComplete': 'Has completado el curso',
   'node.finishCourse': 'Terminar el curso',
   'node.courseCompleteTitle': '¡Curso completado!',

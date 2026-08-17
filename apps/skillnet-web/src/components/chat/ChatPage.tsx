@@ -7,7 +7,7 @@ import { PageHeader } from '../ui/PageHeader'
 interface ChatPageProps {
   endpoint: '/chat' | '/chat/admin'
   title: string
-  subtitle: string
+  subtitle?: string
   emptyTitle: string
   emptySubtitle: string
   placeholder?: string

@@ -11,7 +11,7 @@ import { useIntl } from 'react-intl'
 import { useEnrollments } from '../../api/enrollments'
 import { useSidebar } from '../../contexts/SidebarContext'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
-import { backdrop, sidebarSlide, spring } from '../../lib/motion'
+import { backdrop, sidebarSlide } from '../../lib/motion'
 import { ContinueCoursePanel } from './ContinueCoursePanel'
 import { NavPill } from './NavPill'
 
@@ -126,6 +126,60 @@ function EmployeeContinueCourse({ onNavigate }: { onNavigate: () => void }) {
   return <ContinueCoursePanel enrollment={activeEnrollment} onNavigate={onNavigate} />
 }
 
+const TYPE_CHAR = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1 },
+}
+
+/**
+ * The sidebar label as a typewriter: on expand the letters are written in
+ * left-to-right, cascaded per nav item; on collapse they are erased from the end
+ * (staggerDirection -1). The outer span still owns the layout collapse (max-width)
+ * so the icon can center when narrow; the per-letter reveal rides on top.
+ */
+function TypewriterLabel({
+  text,
+  expanded,
+  index = 0,
+}: {
+  text: string
+  expanded: boolean
+  index?: number
+}) {
+  const reduced = useReducedMotion()
+  return (
+    <span
+      className={`relative z-10 overflow-hidden whitespace-nowrap transition-[max-width,margin] duration-[300ms] [transition-timing-function:var(--ease-base)] ${
+        expanded ? 'ml-3 max-w-40 delay-0' : 'ml-0 max-w-0 delay-[180ms]'
+      }`}
+    >
+      <span className="sr-only">{text}</span>
+      {reduced ? (
+        <span aria-hidden="true" className={expanded ? 'opacity-100' : 'opacity-0'}>
+          {text}
+        </span>
+      ) : (
+        <motion.span
+          aria-hidden="true"
+          className="inline-block"
+          initial={false}
+          animate={expanded ? 'visible' : 'hidden'}
+          variants={{
+            visible: { transition: { staggerChildren: 0.015, delayChildren: 0.06 + index * 0.015 } },
+            hidden: { transition: { staggerChildren: 0.016, staggerDirection: -1 } },
+          }}
+        >
+          {Array.from(text).map((ch, i) => (
+            <motion.span key={i} variants={TYPE_CHAR} transition={{ duration: 0.02 }} className="whitespace-pre">
+              {ch}
+            </motion.span>
+          ))}
+        </motion.span>
+      )}
+    </span>
+  )
+}
+
 function SidebarContent({
   collapsed,
   pillId,
@@ -172,18 +226,16 @@ function SidebarContent({
       </div>
 
       <nav className="mt-5 flex flex-col gap-1.5">
-        {navItems.map((item) => (
+        {navItems.map((item, itemIndex) => (
           <NavLink
             key={item.to}
             to={item.to}
             end={item.end}
             onClick={closeMobile}
             className={({ isActive }) =>
-              `relative flex h-[42px] items-center text-sm font-medium transition-colors duration-200 ${
-                collapsed
-                  ? 'ml-2 justify-center rounded-l-lg px-0'
-                  : 'ml-3 rounded-l-xl pl-3 pr-4'
-              } ${isActive ? 'text-text' : 'text-text-secondary hover:text-text'}`
+              `relative flex h-[42px] items-center ml-3 rounded-l-xl pl-3 pr-4 text-sm font-medium transition-colors duration-200 ${
+                isActive ? 'text-text' : 'text-text-secondary hover:text-text'
+              }`
             }
             title={collapsed ? item.label : undefined}
           >
@@ -191,13 +243,7 @@ function SidebarContent({
               <>
                 {isActive && <NavPill layoutId={pillId} collapsed={collapsed} connected />}
                 <span className="relative z-10 shrink-0">{item.icon}</span>
-                <span
-                  className={`relative z-10 overflow-hidden whitespace-nowrap transition-[max-width,opacity,margin] duration-300 [transition-timing-function:var(--ease-base)] ${
-                    collapsed ? 'ml-0 max-w-0 opacity-0' : 'ml-3 max-w-40 opacity-100'
-                  }`}
-                >
-                  {item.label}
-                </span>
+                <TypewriterLabel text={item.label} expanded={!collapsed} index={itemIndex} />
               </>
             )}
           </NavLink>
@@ -213,11 +259,9 @@ function SidebarContent({
           to={role === 'employee' ? '/empleado/ajustes' : '/admin/ajustes'}
           onClick={closeMobile}
           className={({ isActive }) =>
-            `relative flex h-[42px] items-center text-sm font-medium transition-colors duration-200 ${
-              collapsed
-                ? 'ml-2 justify-center rounded-l-lg px-0'
-                : 'ml-3 rounded-l-xl pl-3 pr-4'
-            } ${isActive ? 'text-text' : 'text-text-secondary hover:text-text'}`
+            `relative flex h-[42px] items-center ml-3 rounded-l-xl pl-3 pr-4 text-sm font-medium transition-colors duration-200 ${
+              isActive ? 'text-text' : 'text-text-secondary hover:text-text'
+            }`
           }
           title={collapsed ? intl.formatMessage({ id: 'nav.settings' }) : undefined}
         >
@@ -230,13 +274,11 @@ function SidebarContent({
                   <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V21h-4v-.09A1.7 1.7 0 0 0 9 19.36a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.63 15 1.7 1.7 0 0 0 3.09 14H3v-4h.09A1.7 1.7 0 0 0 4.64 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.63 1.7 1.7 0 0 0 10 3.09V3h4v.09A1.7 1.7 0 0 0 15 4.64a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.36 9 1.7 1.7 0 0 0 20.91 10H21v4h-.09A1.7 1.7 0 0 0 19.4 15z" />
                 </svg>
               </span>
-              <span
-                className={`relative z-10 overflow-hidden whitespace-nowrap transition-[max-width,opacity,margin] duration-300 [transition-timing-function:var(--ease-base)] ${
-                  collapsed ? 'ml-0 max-w-0 opacity-0' : 'ml-3 max-w-40 opacity-100'
-                }`}
-              >
-                {intl.formatMessage({ id: role === 'employee' ? 'nav.settings' : 'admin.nav.settings' })}
-              </span>
+              <TypewriterLabel
+                text={intl.formatMessage({ id: role === 'employee' ? 'nav.settings' : 'admin.nav.settings' })}
+                expanded={!collapsed}
+                index={navItems.length}
+              />
             </>
           )}
         </NavLink>
@@ -261,14 +303,13 @@ export function Sidebar({ role = 'employee' }: { role?: SidebarRole }) {
 
   return (
     <>
-      <motion.aside
-        initial={false}
-        animate={{ width: collapsed ? 64 : 248 }}
-        transition={reducedMotion ? { duration: 0 } : spring.gentle}
-        className="connected-sidebar group/sidebar fixed inset-y-0 left-0 z-20 hidden flex-col md:flex"
+      <aside
+        className={`connected-sidebar group/sidebar fixed inset-y-0 left-0 z-20 hidden flex-col transition-[width] duration-[320ms] [transition-timing-function:var(--ease-base)] motion-reduce:transition-none md:flex ${
+          collapsed ? 'w-16 delay-[180ms]' : 'w-[248px] delay-0'
+        }`}
       >
         <SidebarContent collapsed={collapsed} pillId={`${role}-nav-pill`} showCollapse role={role} />
-      </motion.aside>
+      </aside>
 
       <AnimatePresence>
         {mobileOpen && (

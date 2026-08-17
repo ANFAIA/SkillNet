@@ -7,7 +7,6 @@ import { InfoTooltip } from '../ui/InfoTooltip'
 import { Button } from '../ui'
 import { DEFAULT_MASTERY_THRESHOLD } from './CriticalityBadge'
 import { PrerequisitePicker, type PrerequisiteOption } from './PrerequisitePicker'
-import { SELECTABLE_UI_FORMATS } from './NodeEditor'
 import type { DraftNode } from './NodeEditor'
 import { NodeKnowledgePreparation } from './NodeKnowledgePreparation'
 import type { NodeKnowledgePack } from '../../types'
@@ -205,53 +204,6 @@ export function SchemaTreeNode({
             />
           </div>
 
-          {/* Format */}
-          <div className="flex items-center gap-0 px-2 py-1 rounded hover:bg-bg-muted">
-            <span className="w-24 shrink-0 text-xs text-text-muted">{intl.formatMessage({ id: 'schemaNode.format' })}</span>
-            <div className="flex gap-1 flex-wrap">
-              {SELECTABLE_UI_FORMATS.map((f) => (
-                <button
-                  key={f.value}
-                  type="button"
-                  onClick={() => onChange({ defaultUiFormat: f.value })}
-                  disabled={disabled}
-                  title={f.hint}
-                  className={`text-xs px-2.5 py-0.5 rounded-full border transition-colors disabled:opacity-50 ${
-                    node.defaultUiFormat === f.value
-                      ? 'bg-primary-subtle text-primary border-primary'
-                      : 'border-border text-text-muted hover:border-primary'
-                  }`}
-                >
-                  {f.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Minutes */}
-          <div className="flex items-center gap-0 px-2 py-1 rounded hover:bg-bg-muted">
-            <span className="w-24 shrink-0 text-xs text-text-muted">{intl.formatMessage({ id: 'schemaNode.minutes' })}</span>
-            <input
-              type="number"
-              min={1}
-              max={240}
-              className="w-16 text-sm text-text bg-transparent border-none focus:outline-none p-0 focus:bg-bg focus:shadow-[0_0_0_1px_var(--color-primary)] focus:rounded focus:px-1.5 focus:-mx-1.5 disabled:opacity-50"
-              value={node.estimatedMinutes ?? ''}
-              disabled={disabled}
-              placeholder="-"
-              onChange={(e) => {
-                const raw = e.target.value.trim()
-                if (raw === '') {
-                  onChange({ estimatedMinutes: null })
-                  return
-                }
-                const parsed = Number(raw)
-                if (Number.isNaN(parsed)) return
-                onChange({ estimatedMinutes: parsed })
-              }}
-            />
-          </div>
-
           {/* Mastery threshold */}
           <div className="flex items-center gap-0 px-2 py-1 rounded hover:bg-bg-muted">
             <span className="w-24 shrink-0 text-xs text-text-muted flex items-center">
@@ -260,48 +212,24 @@ export function SchemaTreeNode({
             </span>
             <input
               type="number"
-              min={0.5}
-              max={1}
-              step={0.05}
+              min={50}
+              max={100}
+              step={5}
               className="w-16 text-sm text-text bg-transparent border-none focus:outline-none p-0 focus:bg-bg focus:shadow-[0_0_0_1px_var(--color-primary)] focus:rounded focus:px-1.5 focus:-mx-1.5 disabled:opacity-50"
-              value={node.masteryThreshold}
+              value={Math.round(node.masteryThreshold * 100)}
               disabled={disabled}
               onChange={(e) => {
                 const parsed = Number(e.target.value)
                 if (Number.isNaN(parsed)) return
-                onChange({ masteryThreshold: parsed })
+                onChange({ masteryThreshold: parsed / 100 })
               }}
             />
+            <span className="text-xs text-text-muted ml-1">%</span>
             <span className="text-xs text-text-muted ml-2">
               {thresholdIsDefault
                 ? intl.formatMessage({ id: 'schemaNode.thresholdDefault' })
                 : intl.formatMessage({ id: 'schemaNode.thresholdCustom' })}
             </span>
-          </div>
-
-          {/* Source headings */}
-          <div className="flex items-start gap-0 px-2 py-1 rounded hover:bg-bg-muted">
-            <span className="w-24 shrink-0 text-xs text-text-muted pt-0.5">{intl.formatMessage({ id: 'schemaNode.sourceHeadings' })}</span>
-            <textarea
-              className="flex-1 min-w-0 text-xs text-text bg-transparent border-none focus:outline-none p-0 resize-none leading-relaxed font-mono focus:bg-bg focus:shadow-[0_0_0_1px_var(--color-primary)] focus:rounded focus:px-1.5 focus:py-0.5 focus:-mx-1.5 focus:-my-0.5 disabled:opacity-50"
-              rows={2}
-              value={node.sourceHeadings.join('\n')}
-              disabled={disabled}
-              placeholder={intl.formatMessage({ id: 'schemaNode.sourceHeadingsPlaceholder' })}
-              onChange={(e) =>
-                onChange({
-                  sourceHeadings: e.target.value
-                    .split('\n')
-                    .map((line) => line.trim())
-                    .filter(Boolean),
-                })
-              }
-              onInput={(e) => {
-                const t = e.target as HTMLTextAreaElement
-                t.style.height = 'auto'
-                t.style.height = t.scrollHeight + 'px'
-              }}
-            />
           </div>
 
           {/* Prerequisites */}
