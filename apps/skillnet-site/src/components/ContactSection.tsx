@@ -17,9 +17,9 @@ export default function ContactSection() {
           <p className="contact-anfaia mt-10">Desarrollado bajo <a href={ANFAIA_URL} target="_blank" rel="noopener noreferrer">Anfaia<ArrowUpRight size={19} /></a></p>
         </div>
         <div className="contact-actions">
-          <a href={EMAIL_URL} className="contact-card"><Mail size={22} /><span>Escríbenos</span><ArrowUpRight className="contact-card__arrow" size={18} /></a>
-          <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer" className="contact-card"><FaGithub size={22} /><span>GitHub</span><ArrowUpRight className="contact-card__arrow" size={18} /></a>
-          <a href={LINKEDIN_URL} target="_blank" rel="noopener noreferrer" className="contact-card"><FaLinkedin size={22} /><span>LinkedIn</span><ArrowUpRight className="contact-card__arrow" size={18} /></a>
+          <a href={EMAIL_URL} className="contact-card contact-card--mail"><Mail size={22} /><span>Escríbenos</span><ArrowUpRight className="contact-card__arrow" size={18} /></a>
+          <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer" className="contact-card contact-card--github"><FaGithub size={22} /><span>GitHub</span><ArrowUpRight className="contact-card__arrow" size={18} /></a>
+          <a href={LINKEDIN_URL} target="_blank" rel="noopener noreferrer" className="contact-card contact-card--linkedin"><FaLinkedin size={22} /><span>LinkedIn</span><ArrowUpRight className="contact-card__arrow" size={18} /></a>
         </div>
       </div>
     </div>

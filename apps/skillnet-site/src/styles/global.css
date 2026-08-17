@@ -483,13 +483,7 @@ a {
   color: var(--color-text);
   font-size: var(--type-ui);
   font-weight: 600;
-  transition: border-color .2s, transform .2s, box-shadow .2s;
-}
-
-.contact-card:hover {
-  transform: translateY(-2px);
-  border-color: color-mix(in srgb, var(--color-primary) 55%, white);
-  box-shadow: 0 12px 30px rgba(30,61,110,.07);
+  transition: border-color .2s, color .2s;
 }
 
 .contact-card span {
@@ -498,12 +492,28 @@ a {
 
 .contact-card__arrow {
   color: var(--color-text-secondary);
-  transition: color .2s, transform .2s;
+  transition: color .2s;
 }
 
+/* On hover: tint the whole card (text, icon and arrow use currentColor) in the
+   brand's colour, with no lift and no shadow. */
 .contact-card:hover .contact-card__arrow {
+  color: inherit;
+}
+
+.contact-card--mail:hover {
+  border-color: var(--color-accent);
   color: var(--color-accent);
-  transform: translate(2px, -2px);
+}
+
+.contact-card--github:hover {
+  border-color: #24292f;
+  color: #24292f;
+}
+
+.contact-card--linkedin:hover {
+  border-color: #0a66c2;
+  color: #0a66c2;
 }
 
 .contact-anfaia {
