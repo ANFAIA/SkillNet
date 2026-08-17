@@ -54,14 +54,21 @@ DIDACT_PROCEDURE = "didact.sort"
 #: Didact block (``item_type`` ``None``) that closes with genuine practice without needing
 #: a materialized activity. Direct blocks are why a node whose activity cannot be
 #: materialized still ends in an interaction instead of a bare QuizItem.
+#: Only ``Flashcard`` remains as a direct block: it is active recall (the learner must
+#: retrieve the answer before flipping), the sole passive-looking block the owner keeps.
+#: Reveal-only blocks (``DidactWorkedExample`` progressive, ``HintReveal``) are banned — they
+#: hand information to the learner instead of asking the learner to produce it. Everything
+#: else is a server-materialized ``DidactActivity`` where the learner acts (matching,
+#: categorize, sort, word-bank, quiz variants). Widened on 2026-08-17 so the ~24 rich Didact
+#: activities actually reach lessons now that knowledge packs reach ``ready`` with refs.
 DIDACT_CLOSER_ROTATION: tuple[tuple[str | None, str], ...] = (
-    ("didact.quiz.single-choice", "DidactActivity"),
-    (None, "DidactWorkedExample"),
     ("didact.matching", "DidactActivity"),
     (None, "Flashcard"),
-    ("didact.quiz.fill-in-the-blank", "DidactActivity"),
-    (None, "HintReveal"),
     ("didact.categorize", "DidactActivity"),
+    ("didact.quiz.single-choice", "DidactActivity"),
+    ("didact.word-bank", "DidactActivity"),
+    ("didact.quiz.fill-in-the-blank", "DidactActivity"),
+    ("didact.sort", "DidactActivity"),
 )
 DIRECT_DIDACT_BLOCKS = frozenset(
     block for _type_id, block in DIDACT_CLOSER_ROTATION if block != "DidactActivity"

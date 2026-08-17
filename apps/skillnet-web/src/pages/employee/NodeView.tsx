@@ -553,7 +553,7 @@ export function NodeView() {
   // so the learner does not wait when they navigate forward. The backend is
   // idempotent: if the render already exists or is in-flight, it returns
   // immediately. One fire per node visit, tracked by ref.
-  // Sliding window: pre-render the next 3 nodes ahead of the current position.
+  // Sliding window: pre-render the next 4 nodes ahead of the current position.
   // As the learner advances, the window slides forward.
   const prefetchedRef = useRef<string | null>(null)
 
@@ -561,7 +561,7 @@ export function NodeView() {
     if (!served || !node) return
     const ahead = ordered
       .filter((n) => n.position > node.position && !n.locked && n.state !== 'mastered')
-      .slice(0, 3)
+      .slice(0, 4)
     if (ahead.length === 0) return
     const key = ahead.map(n => n.id).join(',')
     if (prefetchedRef.current === key) return
@@ -769,7 +769,12 @@ export function NodeView() {
                         <motion.div
                           key={shownKey}
                           onClick={onSurfaceClick}
-                          className="flex-1 min-h-0 flex flex-col justify-center"
+                          // `overflow-hidden`: la leccion se desplaza DENTRO de su propia caja
+                          // (StepperStack / EpisodeStack tienen su scroll interno). Recortar
+                          // aqui impide que un ejercicio alto pinte por encima del pie del
+                          // episodio —un hermano `shrink-0` justo debajo—, que era como el
+                          // boton de avanzar quedaba tapado en pantallas con contenido alto.
+                          className="flex-1 min-h-0 flex flex-col justify-center overflow-hidden"
                           initial={arriving && fromSkeleton ? { minHeight: RESERVED_CONTENT_PX } : false}
                           animate={{ minHeight: 0 }}
                           transition={transition.resize}

@@ -6,12 +6,43 @@ from __future__ import annotations
 import json
 import re
 
+from collections.abc import Mapping
+from typing import Any
+
 from src.agents.runtime.agents.types import Blueprint, ContentOutput, InteractionOutput
 from src.core.logging import get_logger
 from src.llm.prompts.runtime import ANSWER_KEY_SENTINEL
 from src.render.spec import MAX_ROOT_CHILDREN
 
 logger = get_logger(__name__)
+
+
+def _authored_experience_line(authored_activity: Mapping[str, Any]) -> str | None:
+    """The server-owned ``LearningExperience`` closer, or None if refs are incomplete.
+
+    The activity was authored, scored and persisted server-side; the closer is not the LLM's
+    to invent. When one exists we emit it deterministically instead of trusting a small model
+    to reproduce the opaque ids, which is why the rich interactive Didact activities
+    (matching, categorize, sort, word-bank...) reliably reach the multi-agent render.
+    """
+
+    experience_id = authored_activity.get("experience_id") or authored_activity.get(
+        "activity_id"
+    )
+    implementation_ref = authored_activity.get("implementation_ref") or (
+        f"{authored_activity.get('component_id')}@1"
+        if authored_activity.get("component_id")
+        else None
+    )
+    definition_ref = authored_activity.get("definition_ref") or authored_activity.get(
+        "activity_id"
+    )
+    if not (experience_id and implementation_ref and definition_ref):
+        return None
+    return (
+        f'experiencia = LearningExperience("{experience_id}", '
+        f'"{implementation_ref}", "{definition_ref}")'
+    )
 
 
 #: A declaration whose right-hand side is a verification component. Matched on the raw
@@ -53,6 +84,7 @@ def assemble(
     content_output: ContentOutput,
     interaction_output: InteractionOutput | None,
     ui_format: str,
+    authored_activity: Mapping[str, Any] | None = None,
 ) -> tuple[str, dict]:
     """Assemble the complete program + answer key. Returns (raw_dsl, answer_key)."""
     # 1. Collect declarations, keyed by block_id (last-write-wins on duplicates)
@@ -69,6 +101,22 @@ def assemble(
                     block_id,
                 )
             declarations[block_id] = line
+
+    # A server-authored activity owns the closer. Emit the neutral LearningExperience block
+    # deterministically and drop any QuizItem/DragOrder the agents wrote for that slot — the
+    # small model must never invent the opaque ids, and validate_ui forbids those closers when
+    # a DidactActivity was certified. This is the seam that makes matching/categorize/sort/
+    # word-bank actually render instead of degrading to a plain quiz.
+    experience_line: str | None = None
+    if isinstance(authored_activity, dict):
+        experience_line = _authored_experience_line(authored_activity)
+        if experience_line is not None:
+            declarations = {
+                block_id: line
+                for block_id, line in declarations.items()
+                if not _is_verification_line(line)
+            }
+            declarations["experiencia"] = experience_line
 
     # 2. Build root line
     # Children are the blueprint ids IN ORDER, filtered by what was actually declared.
@@ -137,6 +185,17 @@ def assemble(
     if verify_positions and verify_positions[-1] != len(root_children) - 1:
         root_children.append(root_children.pop(verify_positions[-1]))
 
+    # The server-owned experience is the closer: force it to the last root child. Orphan
+    # wiring above inserts it before the last child, so move it explicitly to the end.
+    if experience_line is not None:
+        if "experiencia" not in root_children:
+            room_left = MAX_ROOT_CHILDREN - len(root_children)
+            if room_left <= 0 and root_children:
+                root_children.pop()  # make space by dropping the trailing content block
+            root_children.append("experiencia")
+        else:
+            root_children.append(root_children.pop(root_children.index("experiencia")))
+
     gap = "md"
     root_line = f'root = Stack([{", ".join(root_children)}], "{gap}")'
 
@@ -156,6 +215,9 @@ def assemble(
     answer_key = {}
     if interaction_output:
         answer_key = interaction_output.answer_key
+    # A server-scored experience carries no client-side answer key; drop any the agents wrote.
+    if experience_line is not None:
+        answer_key = {}
 
     # 5. Reconstruct raw_dsl (program + sentinel + key)
     raw_dsl = program

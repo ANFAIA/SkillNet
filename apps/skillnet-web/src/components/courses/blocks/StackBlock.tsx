@@ -133,20 +133,30 @@ function EpisodeStack({
 
   return (
     <div className="flex flex-col h-full min-w-0" data-episode-stack data-episode-total={total}>
-      <div className="flex-1 min-h-0 flex items-center justify-center overflow-y-auto">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={safe}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: duration.normal, ease: [...ease.base] }}
-            className="w-full flex flex-col gap-6 min-w-0"
-            data-episode-screen={safe}
-          >
-            {items[safe]}
-          </motion.div>
-        </AnimatePresence>
+      {/*
+        Una pantalla se centra cuando cabe y se desplaza cuando no. `items-center` en un
+        contenedor flex NO permite las dos cosas: al desbordar, recorta el borde superior y
+        no deja llegar a el. El patron correcto es el scroll en el contenedor y el centrado
+        en un hijo con `min-h-full` — asi el contenido queda centrado si sobra alto y fluye
+        de forma natural (accesible por scroll, sin recortes) cuando falta. El pie vive fuera
+        de esta caja de scroll, en NodeView, asi que nunca lo tapa el contenido de la pantalla.
+      */}
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        <div className="min-h-full flex flex-col justify-center">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={safe}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: duration.normal, ease: [...ease.base] }}
+              className="w-full flex flex-col gap-6 min-w-0"
+              data-episode-screen={safe}
+            >
+              {items[safe]}
+            </motion.div>
+          </AnimatePresence>
+        </div>
       </div>
     </div>
   )

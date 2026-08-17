@@ -8,7 +8,7 @@
  * The rich, block-based view is the job of the "Ver mas" modal, not the glimpse.
  */
 
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ExplainPopover } from './ExplainPopover'

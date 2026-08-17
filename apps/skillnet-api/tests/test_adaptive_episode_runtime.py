@@ -150,8 +150,15 @@ async def test_recognition_pack_builds_ready_episode_with_certified_activity(
     assert result["episode_status"] == "ready", result
     assert result["ui_format"] == "exercise"
     assert result["assessment_block"] == "DidactActivity"
-    assert result["assessment_item_type"] == "didact.quiz.true-false"
-    assert result["episode_certified_component_ids"] == ["didact.quiz.true-false"]
+    # A family of deterministically-scored recognition activities is certified (not only
+    # true/false) so rich interactive Didact activities surface; the node picks one
+    # deterministically via a stable rotation.
+    from src.services.evidence_contract_policy import _FACT_RECOGNITION_COMPONENTS
+
+    certified = result["episode_certified_component_ids"]
+    assert set(certified) == set(_FACT_RECOGNITION_COMPONENTS)
+    assert result["assessment_item_type"] == certified[0]
+    assert result["assessment_item_type"] in _FACT_RECOGNITION_COMPONENTS
     assert "DidactActivity" in result["prompt_component_ids"]
 
 
@@ -204,7 +211,7 @@ async def test_empty_server_refs_degrade_scored_episode_to_support(
     assert result["assessment_item_type"] is None
     # support_only never certifies mastery, but the screen stays interactive: a
     # non-mastery self-check block is guaranteed in the shortlist.
-    assert result["prompt_component_ids"] == ["HintReveal"]
+    assert result["prompt_component_ids"] == ["Flashcard"]
     assert result["episode_certified_component_ids"] == []
     assert result["plan_trace"]["renderer_selection"] == "planner-unscored"
     assert result["episode_brief"]["assessment_mode"] == "none"

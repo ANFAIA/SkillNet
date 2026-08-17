@@ -628,7 +628,12 @@ async def run_graph(state: dict) -> dict:
 # --------------------------------------------------------------------------------------
 # Wiring
 # --------------------------------------------------------------------------------------
-def test_the_graph_is_the_pipeline_of_4_2() -> None:
+def test_the_graph_is_the_pipeline_of_4_2(monkeypatch: pytest.MonkeyPatch) -> None:
+    # §4.2 describes the legacy (non-adaptive) pipeline. Pin the flags so the assertion is
+    # deterministic regardless of the ambient .env: with ADAPTIVE_EPISODES on, the graph
+    # swaps in the episode path (direct_episode + critic_episode) instead of these nodes.
+    monkeypatch.setattr(settings, "ADAPTIVE_EPISODES", False)
+    monkeypatch.setattr(settings, "MULTI_AGENT_RENDER", False)
     drawn = build_node_graph().get_graph()
 
     assert set(drawn.nodes) == {
@@ -639,6 +644,7 @@ def test_the_graph_is_the_pipeline_of_4_2() -> None:
         "author_activity",
         "genera_ui",
         "validate_ui",
+        "critic_episode",
         "persist_render",
         "fallback_seed",
         "skip_node",
@@ -652,7 +658,9 @@ def test_the_graph_is_the_pipeline_of_4_2() -> None:
     assert ("decide_formato", "ok", "author_activity") in edges
     assert ("author_activity", "", "genera_ui") in edges
     assert ("genera_ui", "ok", "validate_ui") in edges
-    assert ("validate_ui", "ok", "persist_render") in edges
+    # A valid spec passes through the lean pedagogy critic before it is persisted.
+    assert ("validate_ui", "ok", "critic_episode") in edges
+    assert ("critic_episode", "", "persist_render") in edges
     # The repair loop and the safety net, the two edges §4.2 draws explicitly.
     assert ("validate_ui", "retry", "genera_ui") in edges
     assert ("validate_ui", "fallback", "fallback_seed") in edges

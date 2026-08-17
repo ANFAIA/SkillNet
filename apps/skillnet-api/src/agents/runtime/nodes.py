@@ -151,16 +151,17 @@ FALLBACK_MAX_BLOCKS = 2
 
 # Closed renderer-safe scope for unscored support. Assessment wrappers and neutral
 # experience references are deliberately absent: they require server materialization.
+#: Reveal-only blocks (``DidactWorkedExample``, ``HintReveal``, ``StepByStepReveal``) were
+#: removed on 2026-08-17: a support screen still must not hand information to the learner
+#: behind a click. The learner reads full content or acts; nothing is reveal-gated.
 _SUPPORT_PROMPT_COMPONENT_IDS = frozenset(
     {
         "BeforeAfter",
         "Chart",
         "DidactGlossary",
         "DidactTimeline",
-        "DidactWorkedExample",
+        "DragOrder",
         "Flashcard",
-        "HintReveal",
-        "StepByStepReveal",
         "StepSequence",
         "Table",
         "Tabs",
@@ -171,14 +172,13 @@ _SUPPORT_PROMPT_COMPONENT_IDS = frozenset(
 #: means "we do not CERTIFY mastery here", not "passive info only": the screen must still
 #: offer a self-check / rehearsal built from the source. When the planner shortlist for a
 #: support episode contains none of these, one is appended so the episode stays interactive.
-_SUPPORT_INTERACTIVE_IDS = frozenset(
-    {"Flashcard", "HintReveal", "DidactWorkedExample", "BeforeAfter"}
-)
+_SUPPORT_INTERACTIVE_IDS = frozenset({"Flashcard", "DragOrder", "BeforeAfter"})
 #: Preferred order when forcing an interaction into a support shortlist that lacks one.
+#: ``Flashcard`` first: active recall, always groundable from the source, never a reveal.
 _SUPPORT_INTERACTIVE_FALLBACK: tuple[str, ...] = (
-    "HintReveal",
     "Flashcard",
-    "DidactWorkedExample",
+    "DragOrder",
+    "BeforeAfter",
 )
 
 
@@ -887,6 +887,21 @@ async def direct_episode(state: NodeRuntimeState) -> dict:
                 )
             )
         )
+        # The evidence policy certifies a FAMILY of deterministically-scored components; the
+        # authoring node picks certified_ids[0]. Rotate the family by node so sibling nodes
+        # do not all land on the same activity (matching/categorize/sort/word-bank/quiz),
+        # which is exactly the variety the owner asked for. Stable per node (never shifts
+        # under a returning learner) via the assessment rotation helper.
+        if certified_ids:
+            from src.agents.runtime.assessment import _closer_index
+
+            offset = _closer_index(
+                node_id=str(state["node_id"]),
+                course_id=str(state.get("course_id") or ""),
+                position=(state.get("node") or {}).get("position"),
+                size=len(certified_ids),
+            )
+            certified_ids = certified_ids[offset:] + certified_ids[:offset]
         prompt_ids = list(trace.get("prompt_component_ids") or ())
         if support_only:
             prompt_ids = [
@@ -1274,22 +1289,20 @@ def _activity_candidates(state: NodeRuntimeState) -> tuple[str, ...]:
 
 
 _LEGACY_ASSESSMENT_BLOCKS = frozenset({"QuizItem", "DragOrder"})
+#: Direct Didact closers the generator may emit without a server-prepared activity. Only
+#: active blocks: ``Flashcard`` is active recall; ``DidactGlossary``/``DidactTimeline`` show
+#: their content in full (they are not reveal-gated). ``HintReveal`` and ``DidactWorkedExample``
+#: were removed on 2026-08-17: they only reveal information to the learner (owner ban).
 _DIRECT_DIDACT_CLOSERS = (
     "Flashcard",
-    "HintReveal",
     "DidactGlossary",
     "DidactTimeline",
-    "DidactWorkedExample",
 )
 
 #: When a ``DidactActivity`` cannot be materialized, the screen still closes with a genuine
-#: interaction instead of a bare QuizItem. These are direct Didact blocks the model can emit
-#: without any server-prepared activity. Rotated by ``node_id`` for variety between siblings.
-_DIDACT_ACTIVITY_FALLBACK_BLOCKS: tuple[str, ...] = (
-    "DidactWorkedExample",
-    "Flashcard",
-    "HintReveal",
-)
+#: interaction instead of a bare QuizItem. ``Flashcard`` is the only reveal-adjacent block
+#: kept — it is active recall, not passive reveal — so it is the safe deterministic fallback.
+_DIDACT_ACTIVITY_FALLBACK_BLOCKS: tuple[str, ...] = ("Flashcard",)
 
 
 def _didact_activity_fallback_block(state: NodeRuntimeState) -> str:
@@ -2017,6 +2030,11 @@ async def genera_ui_multi(state: NodeRuntimeState) -> dict:
         content_output=content_output,
         interaction_output=interaction_output,
         ui_format=ui_format,
+        # A server-authored Didact activity owns the closer: the assembler emits the neutral
+        # LearningExperience deterministically so the rich interactive activities surface.
+        authored_activity=state.get("authored_activity")
+        if isinstance(state.get("authored_activity"), dict)
+        else None,
     )
 
     duration_ms = int((time.monotonic() - started) * 1000)

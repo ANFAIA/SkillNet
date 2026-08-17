@@ -377,6 +377,93 @@ describe('NodeView — server-owned learning shell', () => {
     expect(await screen.findByText('¡Curso completado!')).toBeInTheDocument()
   })
 
+  // Regresion: en una pantalla con ejercicio, el boton de avanzar quedaba TAPADO por el
+  // contenido del ejercicio. El pie debe reservar su hueco (hermano `shrink-0`, no
+  // superpuesto) y el contenido desplazarse/recortarse dentro de su propia caja, de modo
+  // que un ejercicio alto nunca pinte por encima del control de avance.
+  it('reserves the episode footer outside the clipped content so tall exercises never cover the advance control', async () => {
+    installFetch({
+      node: learningNode(),
+      renderResponses: [[200, servedRender(PROGRAM_WITH_QUIZ, RENDER_ID, 'episode')]],
+    })
+    const { container } = renderPage()
+
+    await enterLesson()
+    await waitFor(() => {
+      expect(container).toHaveTextContent('El plazo de devolucion es de 30 dias.')
+    })
+
+    const footer = container.querySelector('[data-episode-footer]') as HTMLElement
+    expect(footer).not.toBeNull()
+    // El control de avance vive en el pie y es alcanzable.
+    expect(footer.querySelector('button')).not.toBeNull()
+    // El pie reserva hueco (`shrink-0`) en vez de flotar sobre el contenido, y NO esta
+    // posicionado de forma absoluta/fija (que dejaria que el contenido lo tapara).
+    expect(footer.className).toContain('shrink-0')
+    expect(footer.className).not.toMatch(/\babsolute\b|\bfixed\b/)
+
+    // El contenido de la leccion vive en un hermano RECORTADO (`overflow-hidden`) que
+    // precede al pie bajo el mismo padre: un ejercicio que desborde no puede derramarse
+    // sobre el control de avance.
+    const shell = container.querySelector('[data-episode-shell]') as HTMLElement
+    const clipped = shell.closest('.overflow-hidden') as HTMLElement
+    expect(clipped).not.toBeNull()
+    const parent = footer.parentElement as HTMLElement
+    expect(parent.contains(clipped)).toBe(true)
+    const kids = Array.from(parent.children)
+    expect(kids.indexOf(clipped)).toBeGreaterThanOrEqual(0)
+    expect(kids.indexOf(clipped)).toBeLessThan(kids.indexOf(footer))
+
+    // La pantalla del episodio se desplaza dentro de su propia caja (scroll interno), no
+    // arrastrando al pie.
+    const stack = container.querySelector('[data-episode-stack]') as HTMLElement
+    expect(stack.querySelector('.overflow-y-auto')).not.toBeNull()
+  })
+
+  it('prefetches the next 4 nodes ahead (sliding window), not the 5th', async () => {
+    const aheadIds = ['ahead-a', 'ahead-b', 'ahead-c', 'ahead-d', 'ahead-e']
+    const current = learningNode()
+    const nodes = [
+      current,
+      ...aheadIds.map((id, i) =>
+        learningNode({
+          id,
+          title: `Nodo ${i + 2}`,
+          position: i + 2,
+          state: 'not_started',
+          mastery: 0,
+          locked: false,
+        }),
+      ),
+    ]
+    installFetch({
+      node: current,
+      nodeListOverride: {
+        course_id: COURSE_ID,
+        delivery_mode: 'dynamic',
+        schema_version: 3,
+        nodes,
+        can_complete: false,
+        blocked_by: [],
+        progress_percent: 10,
+      },
+      renderResponses: [[200, servedRender(PROGRAM, RENDER_ID, 'episode')]],
+    })
+    renderPage()
+
+    // El prefetch se dispara al servirse el render del nodo actual (dispara-y-olvida,
+    // idempotente en el servidor). No hay que entrar en la leccion.
+    await waitFor(() => {
+      expect(callsTo(`/nodes/${aheadIds[3]}/render`, 'POST')).toHaveLength(1)
+    })
+    // Los cuatro siguientes nodos se pre-generan.
+    for (const id of aheadIds.slice(0, 4)) {
+      expect(callsTo(`/nodes/${id}/render`, 'POST')).toHaveLength(1)
+    }
+    // El quinto queda fuera de la ventana deslizante.
+    expect(callsTo(`/nodes/${aheadIds[4]}/render`, 'POST')).toHaveLength(0)
+  })
+
   it('keeps Web, Audio and Video modalities invisible even when they are preferred', async () => {
     installFetch({
       node: learningNode(),

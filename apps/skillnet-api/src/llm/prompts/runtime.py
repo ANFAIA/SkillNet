@@ -160,7 +160,7 @@ PROMPT_VERSION = "runtime/41"
 #: limites del validador que faltaban y causaban fallback medido en el nodo de biomecanica:
 #: Table con EXACTAMENTE 2 argumentos y <=4 filas, <=5 pantallas, <=12 bloques. La ruta
 #: monolitica (PROMPT_VERSION) queda intacta.
-EPISODE_PROMPT_VERSION = "episode/4"
+EPISODE_PROMPT_VERSION = "episode/5"
 
 _PRESENTATION_PREFERENCES = {
     "balanced": "Combina representaciones segun el objetivo y la fuente.",
@@ -758,10 +758,11 @@ _EPISODE_GENERATOR_RULES = """
 - La evidencia EVALUADA solo aparece cuando el contrato la exige. Si la exige, la
   interaccion debe producir el tipo de entrega indicado y no revelar su solucion.
 - Aunque el contrato NO exija evidencia evaluada, la pantalla SIGUE siendo interactiva:
-  incluye al menos un bloque de practica o autochequeo NO evaluativo construido desde la
-  fuente (Flashcard, HintReveal, DidactWorkedExample, DidactGlossary, DidactTimeline,
-  DragOrder ordenar, BeforeAfter, o un caso para pensar). No certifica dominio ni pide una
-  entrega puntuada: es practica. Nunca cierres con solo texto, aviso y resumen.
+  incluye al menos un bloque de practica activa NO evaluativa construido desde la fuente
+  donde el aprendiz aporta (Flashcard de recuerdo activo, DragOrder para ordenar, emparejar
+  o clasificar, BeforeAfter, o un caso para pensar). No certifica dominio ni pide una entrega
+  puntuada: es practica. Nunca cierres con solo texto, aviso y resumen, y nunca con un bloque
+  que solo revela informacion al pulsar.
 - Elige entre las capacidades del catalogo por la accion y la fuente. Ninguna combinacion
   de bloques es obligatoria salvo la raiz exigida por la gramatica, pero la interaccion
   no evaluativa nunca sobra: prefierela a un parrafo de mas.
@@ -816,28 +817,33 @@ def _episode_component_grammar(component_prompt: str) -> str:
 _EPISODE_QUALITY_RULES = """
 ## SkillNet: reglas de calidad (obligatorias)
 
-1. LA INTERACCION APORTA, no es un peaje. Interactuar debe hacer pensar, decidir o intentar
-   ANTES de ver la respuesta. NUNCA escondas detras de un clic informacion que el aprendiz
-   deberia leer directa (una lista de pasos informativos NO va dentro de un reveal). Si
-   esconder algo no obliga a pensar, muestralo entero.
+1. INTERACCION = EL APRENDIZ APORTA. Una interaccion es genuina SOLO si el aprendiz piensa,
+   produce o actua: ordena (DragOrder), responde (QuizItem), empareja, clasifica, completa o
+   recuerda antes de comprobar (Flashcard). Un componente que solo REVELA informacion al
+   pulsar NO es interaccion y esta PROHIBIDO: nada de "mostrar pasos", nada de pistas que solo
+   destapan datos, nada de ejemplos que van revelando su solucion por clics. Si algo hay que
+   leerlo, muestralo ENTERO de una vez (TextContent, StepSequence con pasos visibles,
+   DidactGlossary, DidactTimeline); no lo escondas detras de un clic que no obliga a pensar.
+   Excepcion unica: Flashcard, porque el aprendiz intenta RECORDAR la respuesta antes de girar
+   (recuerdo activo). No emitas nunca un bloque de solo-revelar.
 2. EL COMPONENTE LO ELIGE LA NATURALEZA DEL MATERIAL, no una plantilla:
-   - Informacion secuencial simple que solo hay que leer -> mostrarla entera (StepSequence
-     con los pasos visibles), nunca un reveal.
-   - Caso que hay que razonar paso a paso -> DidactWorkedExample.
+   - Informacion secuencial que solo hay que leer -> mostrarla entera (StepSequence visible).
+   - Ordenar pasos o prioridades -> DragOrder (el aprendiz arrastra).
+   - Emparejar, clasificar o rellenar con banco -> experiencia preparada por el servidor,
+     emitida como LearningExperience (el aprendiz une, reparte o completa).
    - Comparar dos estados (correcto/incorrecto, antes/despues) -> BeforeAfter.
-   - Ordenar pasos o prioridades -> DragOrder.
-   - Un termino o dato clave que memorizar -> Flashcard o DidactGlossary.
+   - Un termino o dato clave que memorizar -> Flashcard (recuerdo activo) o DidactGlossary.
    - Cifras reales presentes en la fuente que comparar -> Chart o Table.
    - Cronologia o procedimiento con matiz -> DidactTimeline.
    Un contenido en el bloque equivocado es una pantalla mal hecha aunque el programa valide.
 3. INTERACTIVA SIEMPRE, pero no todo es examen. Cada episodio lleva al menos UNA interaccion
-   genuina. La mayoria puede ser exploracion o practica; evalua (QuizItem) SOLO cuando de
-   verdad hay algo comprobable con una respuesta correcta. No cierres por costumbre con un
-   test ni repitas el mismo QuizItem en nodos distintos.
+   genuina donde el aprendiz actua. La mayoria puede ser practica activa (Flashcard, DragOrder,
+   emparejar, clasificar); evalua (QuizItem) SOLO cuando de verdad hay algo comprobable con una
+   respuesta correcta. No cierres por costumbre con un test ni repitas el mismo QuizItem.
 4. HONESTO CON LA MAESTRIA. Si no se puede evaluar de verdad, la pantalla sigue siendo
-   interactiva pero NO certifica dominio: usa practica no evaluativa (Flashcard, HintReveal,
-   DidactWorkedExample, DidactGlossary, DidactTimeline, DragOrder, BeforeAfter). Nunca finjas
-   un test ni inventes una clave de respuestas.
+   interactiva pero NO certifica dominio: usa practica activa no evaluativa (Flashcard, DragOrder,
+   emparejar, clasificar, DidactGlossary, DidactTimeline, BeforeAfter). Nunca finjas un test ni
+   inventes una clave, y nunca sustituyas la practica por un bloque de solo-revelar.
 5. FIEL A LA FUENTE. Todos los hechos salen de la fuente publica. No inventes datos,
    interfaces ni escenarios que la fuente no contenga.
 6. SIN RUIDO. Nada de relleno, nada de otro dominio, ningun artefacto ("[Fuente: ...]"). El
@@ -876,24 +882,36 @@ siguiente (paginacion). Piensa cada hijo como un "beat" autonomo que cabe sin sc
 - Decide CUANTAS pantallas segun el material. NO hay numero fijo. Un punto simple son 1-2
   pantallas; un punto con gancho + concepto + practica, 2-4. Nunca mas de 5 hijos en la
   raiz (lo rechaza el validador).
-- UNA idea por pantalla. Un hijo es UN bloque (TextContent, DidactWorkedExample, Flashcard,
-  QuizItem, DidactGlossary, DidactTimeline, HintReveal, BeforeAfter, StepSequence, Table...)
-  o un Card que agrupa 2-3 bloques MUY unidos que solo tienen sentido juntos.
+- UN SOLO FOCO POR PANTALLA. Cada hijo lleva UNA cosa: O una idea, O un conjunto de
+  definiciones, O una interaccion. NUNCA las tres juntas. Si una pantalla explica algo Y
+  define tres terminos Y pide ordenar, esta mal: son TRES pantallas. Un hijo es UN bloque
+  (TextContent, Flashcard, QuizItem, DragOrder, DidactGlossary, DidactTimeline, BeforeAfter,
+  StepSequence, Table, LearningExperience...) o un Card que agrupa 2-3 bloques MUY unidos que
+  solo tienen sentido juntos (nunca para amontonar cosas distintas).
 - La PRIMERA pantalla SIEMPRE engancha con un TextContent "lead" (o un Callout): es el
   primer hijo de la raiz, obligatorio por la gramatica. Las siguientes desarrollan y
-  practican. Al menos una pantalla es una interaccion genuina (no solo texto).
+  practican. Al menos una pantalla es una interaccion genuina donde el aprendiz actua.
 - No repartas una sola frase en varias pantallas ni metas media leccion en una. Reparte por
-  SENTIDO: cada pantalla se sostiene sola.
+  SENTIDO: cada pantalla se sostiene sola y se lee de un vistazo, sin scroll.
+
+Ejemplo de REPARTO (lo que NO se debe hacer, y como se arregla):
+MAL — una sola pantalla amontonada:
+  pantalla = Card([intro, glosario, ordenar], "sm")   # idea + 3 definiciones + ejercicio juntos
+BIEN — tres pantallas, un foco cada una:
+  root = Stack([pantallaIdea, pantallaTerminos, pantallaPractica], "md")
+  pantallaIdea = TextContent("La idea central del punto en un caso del puesto.", "lead")
+  pantallaTerminos = DidactGlossary("Terminos clave", ["Termino A", "Termino B", "Termino C"], ["Definicion de A.", "Definicion de B.", "Definicion de C."])
+  pantallaPractica = DragOrder("Ordena los pasos:", ["Paso B", "Paso A", "Paso C"], ["Paso A", "Paso B", "Paso C"])
 
 Los ejemplos son PLACEHOLDERS abstractos: copia la ESTRUCTURA de pantallas y la eleccion de
 bloque por naturaleza del material, NUNCA el tema ni las palabras. Rellenalos con los hechos
 reales de la fuente de este nodo.
 
-Ejemplo (material que hay que RAZONAR) — tres pantallas: gancho, ejemplo resuelto, chequeo:
+Ejemplo (material que hay que APLICAR) — tres pantallas: gancho, procedimiento visible, chequeo:
 
-root = Stack([pantallaGancho, pantallaEjemplo, pantallaChequeo], "md")
+root = Stack([pantallaGancho, pantallaProcedimiento, pantallaChequeo], "md")
 pantallaGancho = TextContent("Frase de entrada que situa el problema del punto en un caso concreto del puesto.", "lead")
-pantallaEjemplo = DidactWorkedExample("Como se resuelve el caso tipico?", ["Primer paso del razonamiento, con su porque.", "Segundo paso que se apoya en el anterior.", "Tercer paso que cierra la decision."], "La idea clave que el aprendiz se lleva del ejemplo.")
+pantallaProcedimiento = StepSequence("Nombre del procedimiento", ["Primer paso, con lo que hay que hacer.", "Segundo paso que se apoya en el anterior.", "Tercer paso que cierra la decision."])
 pantallaChequeo = QuizItem("q1", "test", "apply", "Ante un caso nuevo del mismo tipo, que decision tomas?", ["Un error plausible que comete la gente", "La opcion correcta", "Otro error tipico distinto", "Un cuarto distractor real"])
 ---ANSWER-KEY---
 {"q1": {"correct": 1, "explanation": "Por que esa opcion y no las otras, en una o dos frases."}}
@@ -930,14 +948,13 @@ practica = Flashcard("Pregunta de recuerdo sobre el punto clave.", "La respuesta
 No toda pantalla termina en pregunta. Segun lo que ES el material, la interaccion puede ser:
 
 - RECUERDO ACTIVO de un termino o dato -> Flashcard(anverso, reverso). El aprendiz intenta
-  recordar antes de revelar. No certifica dominio; es practica.
+  recordar antes de revelar (unica excepcion permitida al veto de solo-revelar). Es practica.
   tarjeta = Flashcard("Pregunta sobre el termino o dato clave.", "La respuesta exacta de la fuente.")
-- APOYO GRADUADO ante un caso dificil -> HintReveal(titulo, [pistas...], solucion). Pistas
-  de menor a mayor ayuda y la solucion solo si el aprendiz la pide.
-  ayuda = HintReveal("Titulo del caso", ["Pista suave que orienta.", "Pista mas concreta.", "Pista casi resolutoria."], "La solucion, en una frase.")
-- SOLUCION RAZONADA paso a paso -> DidactWorkedExample(problema, [pasos...], resumen).
-  ejemplo = DidactWorkedExample("Enunciado del caso a razonar.", ["Paso 1 del razonamiento.", "Paso 2 que se apoya en el anterior.", "Paso 3 que decide."], "La idea que se generaliza a otros casos.")
-- TERMINOS CONSULTABLES -> DidactGlossary(titulo, [terminos...], [definiciones...]).
+- EMPAREJAR, CLASIFICAR o RELLENAR CON BANCO -> experiencia preparada por el servidor. Cuando
+  el contexto trae una experiencia (matching, categorize, word-bank...), el aprendiz une,
+  reparte o completa: es interaccion genuina. Se emite con LearningExperience usando los
+  valores EXACTOS del contexto (ver mas abajo); nunca inventes ids ni escribas la actividad a mano.
+- TERMINOS CONSULTABLES (se leen enteros, no se ocultan) -> DidactGlossary(titulo, [terminos...], [definiciones...]).
   glosario = DidactGlossary("Terminos clave", ["Termino A", "Termino B"], ["Definicion breve de A.", "Definicion breve de B."])
 - CRONOLOGIA o procedimiento con matiz -> DidactTimeline(titulo, [pasos...], [detalles...]).
   linea = DidactTimeline("Nombre del proceso", ["Fase 1", "Fase 2", "Fase 3"], ["Matiz de la fase 1.", "Matiz de la fase 2.", "Matiz de la fase 3."])
@@ -948,8 +965,9 @@ No toda pantalla termina en pregunta. Segun lo que ES el material, la interaccio
 - EXPERIENCIA PREPARADA POR EL SERVIDOR -> LearningExperience(experience_id,
   implementation_ref, definition_ref) con los valores EXACTOS del contexto; nunca inventes ids.
 
-Flashcard, HintReveal, DidactGlossary, DidactTimeline y DidactWorkedExample NO llevan clave
-de respuestas: no son evaluacion, son practica. Solo QuizItem y DragOrder la llevan.
+Flashcard, DidactGlossary y DidactTimeline NO llevan clave de respuestas: no son evaluacion,
+son practica. Solo QuizItem y DragOrder la llevan; las experiencias del servidor se corrigen
+en el servidor. PROHIBIDO emitir HintReveal o DidactWorkedExample: solo revelan informacion.
 """
 
 
@@ -1435,10 +1453,10 @@ def build_episode_ui_prompt(
         )
         parts.append(
             "- Pero la pantalla SIGUE siendo interactiva: incluye al menos un bloque de "
-            "practica o autochequeo NO evaluativo, construido con los hechos de la fuente "
-            "(por ejemplo Flashcard, HintReveal, DidactWorkedExample, DidactGlossary, "
-            "DidactTimeline, DragOrder para ordenar o BeforeAfter). No lo puntues ni reveles "
-            "una solucion como si fuera correccion. Nunca cierres solo con texto, aviso y resumen."
+            "practica activa NO evaluativa donde el aprendiz aporta, construida con los hechos "
+            "de la fuente (por ejemplo Flashcard de recuerdo activo, DragOrder para ordenar, "
+            "DidactGlossary, DidactTimeline o BeforeAfter). No lo puntues ni emitas un bloque "
+            "de solo-revelar. Nunca cierres solo con texto, aviso y resumen."
         )
         if submission_kind == "unscored-support-interaction":
             parts.append(

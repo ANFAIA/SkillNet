@@ -141,3 +141,40 @@ def test_orphans_beyond_the_root_cap_are_dropped_not_overflowed() -> None:
 
     assert len(children) == MAX_ROOT_CHILDREN == 5, "root fan-out cap is respected"
     assert "extra" not in children
+
+
+def test_authored_activity_replaces_verification_with_learning_experience() -> None:
+    # When the server has authored a Didact activity, the assembler emits the neutral
+    # LearningExperience closer deterministically and drops the QuizItem/DragOrder the agents
+    # wrote — the small model must never invent the opaque ids, and validate_ui forbids those
+    # closers when a DidactActivity was certified. This is the seam that makes the rich
+    # interactive Didact activities (matching/categorize/sort/word-bank) actually render.
+    blueprint = _bp(("intro", "TextContent", "enganchar"), ("q1", "QuizItem", "verificar"))
+    content = ContentOutput(
+        declarations='intro = TextContent("La postura decide la potencia del golpe.", "lead")'
+    )
+    interaction = InteractionOutput(
+        declarations='q1 = QuizItem("q1", "test", "apply", "Que revisas primero?", ["a", "b"])',
+        answer_key={"q1": {"correct": 0}},
+    )
+
+    program, answer_key = assemble(
+        blueprint=blueprint,
+        content_output=content,
+        interaction_output=interaction,
+        ui_format="exercise",
+        authored_activity={
+            "experience_id": "exp-123",
+            "implementation_ref": "didact.matching@1",
+            "definition_ref": "def-456",
+        },
+    )
+    children = _root_children(program)
+
+    # The server-owned experience is the last child (the closer)...
+    assert children[-1] == "experiencia"
+    assert 'LearningExperience("exp-123", "didact.matching@1", "def-456")' in program
+    # ...the model's QuizItem is gone, and no client-side key survives for a server-scored block.
+    assert "QuizItem(" not in program
+    assert "q1" not in children
+    assert answer_key == {}

@@ -174,7 +174,7 @@ def test_unassessed_episode_stays_interactive_without_scored_evidence() -> None:
     assert "Modo declarado" not in prompt
     # ...but the screen must still carry a genuine, non-evaluative interaction.
     assert "SIGUE siendo interactiva" in prompt
-    assert "NO evaluativo" in prompt
+    assert "practica activa NO evaluativa" in prompt
 
 
 def test_episode_repair_restates_mission_source_and_errors_without_formula() -> None:
@@ -198,13 +198,16 @@ def test_episode_generator_teaches_didact_interactive_blocks() -> None:
     system = episode_ui_generator_system("## Component Signatures\n\nStack(...)\n")
     for name in (
         "Flashcard",
-        "HintReveal",
-        "DidactWorkedExample",
+        "DragOrder",
         "DidactGlossary",
         "DidactTimeline",
+        "LearningExperience",
     ):
         assert name in system, name
     assert "interacciones Didact" in system
+    # Reveal-only blocks are banned for episodes: the learner must contribute, not just
+    # click to see information. Flashcard (active recall) is the sole kept exception.
+    assert "PROHIBIDO emitir HintReveal o DidactWorkedExample" in system
 
 
 def support_episode() -> dict:

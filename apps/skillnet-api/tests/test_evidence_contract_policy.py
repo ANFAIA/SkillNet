@@ -163,6 +163,14 @@ def test_simple_fact_recognition_uses_existing_exact_scoring() -> None:
     assert result.policy_version == EVIDENCE_CONTRACT_POLICY_VERSION
     contract = result.evidence_contracts["evidence:recognize-refund-window"]
     assert contract["evaluation_mode"] == "exact"
-    assert contract["supported_component_ids"] == ("didact.quiz.true-false",)
+    # A FAMILY of deterministically-scored recognition components is certified so the rich
+    # interactive Didact activities (matching/categorize/word-bank/sort) can surface, not
+    # only true/false. Every id must be backed by a built-in scorer.
+    supported = contract["supported_component_ids"]
+    assert "didact.quiz.true-false" in supported
+    assert "didact.matching" in supported
+    assert all(
+        EVALUATED_COMPONENT_MODES[cid] in BUILTIN_EVALUATION_MODES for cid in supported
+    )
     assert "exact" in BUILTIN_EVALUATION_MODES
     assert contract["oracle_ref"].startswith("activity-definition-evaluation/1:")

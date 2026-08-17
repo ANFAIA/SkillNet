@@ -25,9 +25,49 @@ from src.services.activity_definitions import (
     BUILTIN_EVALUATION_VERSION,
 )
 
-EVIDENCE_CONTRACT_POLICY_VERSION = "evidence-contract-policy/1"
+EVIDENCE_CONTRACT_POLICY_VERSION = "evidence-contract-policy/2"
+
+#: Components whose evidence is scored by a built-in deterministic oracle AND whose input can
+#: be authored purely from grounded FACT atoms (text/selection recall, no numbers, coordinates
+#: or diagrams). This is the family a RECOGNIZE mission may certify: the learner recognizes,
+#: matches, classifies or completes grounded facts, and the server scores it locally with no
+#: LLM judge. Widened on 2026-08-17 from the single true/false component so the rich
+#: interactive Didact activities actually reach lessons.
+#:
+#: EXTENSION POINT: to make a new component certifiable it must (1) appear in the Didact
+#: registry with ``renderer_mode`` ``activity_definition`` (or ``direct``), (2) declare a
+#: built-in evaluation mode in ``EVALUATED_COMPONENT_MODES``, and (3) be listed here if it can
+#: be grounded in plain facts. The import-time guard below rejects any id that is not actually
+#: scorable, so this tuple can never drift from the runtime's real capabilities.
+_FACT_RECOGNITION_COMPONENTS: tuple[str, ...] = (
+    "didact.quiz.true-false",
+    "didact.quiz.single-choice",
+    "didact.quiz.multi-select",
+    "didact.quiz.fill-in-the-blank",
+    "didact.matching",
+    "didact.categorize",
+    "didact.word-bank",
+    "didact.sort",
+)
+
+#: Guard: every certifiable component must be backed by a real deterministic scorer. If this
+#: fails, the tuple above lists a component the runtime cannot actually grade — a fallback bug
+#: waiting to happen — so we refuse to import rather than certify something we cannot score.
+_UNSCORABLE = tuple(
+    component_id
+    for component_id in _FACT_RECOGNITION_COMPONENTS
+    if EVALUATED_COMPONENT_MODES.get(component_id) not in BUILTIN_EVALUATION_MODES
+)
+if _UNSCORABLE:  # pragma: no cover - configuration guard
+    raise RuntimeError(
+        "evidence_contract_policy lists components with no built-in scorer: "
+        + ", ".join(_UNSCORABLE)
+    )
+
+#: The representative oracle recorded on the contract. The chosen component's own mode
+#: (from ``EVALUATED_COMPONENT_MODES``) drives the actual scoring at materialization time.
 _RECOGNITION_COMPONENT = "didact.quiz.true-false"
-_RECOGNITION_MODE = "exact"
+_RECOGNITION_MODE = EVALUATED_COMPONENT_MODES[_RECOGNITION_COMPONENT]
 
 
 class EvidencePolicyDeclineReason(StrEnum):
@@ -82,10 +122,6 @@ def _recognition_is_supported(pack: NodeKnowledgePack) -> bool:
 
     if pack.objective.mission is not CognitiveMission.RECOGNIZE:
         return False
-    if EVALUATED_COMPONENT_MODES.get(_RECOGNITION_COMPONENT) != _RECOGNITION_MODE:
-        return False
-    if _RECOGNITION_MODE not in BUILTIN_EVALUATION_MODES:
-        return False
     atoms = {item.atom_id: item for item in pack.must_preserve}
     required = tuple(item for item in pack.evidence_specs if item.required)
     return bool(required) and all(
@@ -138,7 +174,7 @@ def evidence_contracts_for_pack(
                     ),
                     "adapter_version": BUILTIN_EVALUATION_VERSION,
                     "evaluation_mode": _RECOGNITION_MODE,
-                    "supported_component_ids": (_RECOGNITION_COMPONENT,),
+                    "supported_component_ids": _FACT_RECOGNITION_COMPONENTS,
                     "source_atom_refs": tuple(sorted(spec.atom_refs)),
                     "policy_version": EVIDENCE_CONTRACT_POLICY_VERSION,
                 }
