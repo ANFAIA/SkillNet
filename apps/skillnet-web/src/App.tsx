@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useParams, useLocation } from 'react-router-dom'
 import { Toaster } from 'sonner'
 import { AppLayout } from './components/layout/AppLayout'
 import { AdminLayout } from './components/layout/AdminLayout'
@@ -9,6 +9,8 @@ import { useRegisterDefaultTools } from './stores/registerDefaultTools'
 import { usePreferences } from './stores/preferences'
 import { useTheme } from './hooks/useTheme'
 import { Login } from './pages/auth/Login'
+import { Setup } from './pages/setup/Setup'
+import { useSetupStatus } from './api/setup'
 import { Onboarding } from './pages/onboarding/Onboarding'
 import { Dashboard } from './pages/employee/Dashboard'
 import { MyCourses } from './pages/employee/MyCourses'
@@ -52,6 +54,22 @@ function RootRedirect() {
 }
 
 /**
+ * First-boot gate. Until the deployment has an owner, every route redirects to
+ * the `/setup` wizard; once it does, `/setup` redirects away. Fails open — if the
+ * status probe errors we assume initialized, so a transient failure never traps
+ * anyone in setup. See docs/design/audience-modes.md.
+ */
+function SetupBoundary({ children }: { children: React.ReactNode }) {
+  const { data, isLoading } = useSetupStatus()
+  const location = useLocation()
+  if (isLoading) return null
+  const initialized = data?.initialized ?? true
+  if (!initialized && location.pathname !== '/setup') return <Navigate to="/setup" replace />
+  if (initialized && location.pathname === '/setup') return <Navigate to="/login" replace />
+  return <>{children}</>
+}
+
+/**
  * Collective, organization-only admin pages (Employees, Talent). In an
  * `individual` deployment these concepts do not exist: the nav omits them and a
  * direct URL redirects home. The backend also 404s their endpoints — this is UX,
@@ -78,9 +96,11 @@ function App() {
     <IntlProvider>
       <SonnerToaster />
       <BrowserRouter>
+        <SetupBoundary>
         <Routes>
           <Route path="/" element={<RootRedirect />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/setup" element={<Setup />} />
 
           {/* Outside AppLayout on purpose (§13, B8): the wizard is the whole screen,
               and `skipOnboardingGate` is what keeps the gate in ProtectedRoute from
@@ -168,6 +188,7 @@ function App() {
           />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        </SetupBoundary>
       </BrowserRouter>
     </IntlProvider>
   )

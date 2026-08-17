@@ -188,6 +188,10 @@ Primera vertical construida (mantiene `organization` intacto por defecto):
   propietario, un documento, un curso; sin empleados ni matrículas) reutilizando los
   bloques de `seed_demo_v2`.
 
-Pendiente (fases siguientes): fijar el modo desde un wizard de primer arranque (hoy es
-env), pulir el onboarding del propietario, y la ampliación no destructiva
-`individual → organization`.
+Primer arranque por UI: `GET /setup/status` + `POST /setup` (públicos, cerrados en cuanto
+existe un usuario) y el wizard `/setup` en la SPA eligen el modo y crean al propietario
+(auto-login → onboarding). El `.env` (`WORKSPACE_MODE` + `ADMIN_EMAIL/PASSWORD`) sigue
+siendo el camino headless equivalente.
+
+Pendiente (fases siguientes): pulir el onboarding del propietario, y la ampliación no
+destructiva `individual → organization`.
