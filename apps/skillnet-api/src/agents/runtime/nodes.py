@@ -2522,6 +2522,18 @@ async def critic_episode(state: NodeRuntimeState) -> dict:
             json_mode=False,
         )
         program_text, answer_key = split_answer_key(raw)
+        # The revision is a fresh generation, so it re-invents LearningExperience refs just
+        # like the first pass. Re-apply the same server authority as validate_ui, or the
+        # critic silently reintroduces the hallucinated refs it can't be trusted to copy —
+        # and unlike validate_ui there is no repair loop here, so a bad ref would be served.
+        authored_activity = state.get("authored_activity")
+        if isinstance(authored_activity, dict):
+            program_text = _pin_authored_experience_refs(program_text, authored_activity)
+        elif "LearningExperience(" in program_text:
+            # No prepared activity: a LearningExperience here references nothing real and
+            # would 404 at serve time ("no se pudo cargar la actividad"). Discard the
+            # revision and keep the original valid episode validate_ui already pinned.
+            raise ValueError("revised episode invented an unbacked LearningExperience")
         spec, revised_program = canonicalize(
             program_text,
             ui_format=ui_format,
