@@ -59,6 +59,8 @@ import {
   DidactTimelineBlock,
   DidactWorkedExampleBlock,
   LearningExperience,
+  PodcastPlayerBlock,
+  InfographicImageBlock,
   StackBlock,
   StackItem,
   StepSequenceBlock,
@@ -98,6 +100,8 @@ import {
   didactWorkedExampleProps,
   didactActivityProps,
   learningExperienceProps,
+  podcastPlayerProps,
+  infographicImageProps,
   quizItemProps,
   stackProps,
   stepSequenceProps,
@@ -366,6 +370,31 @@ const LearningExperienceComponent = defineComponent({
   ),
 })
 /**
+ * Broker-scoped renderers (§runtime/8). Not in the frozen prompt catalogue — the model is
+ * never taught them; the media broker injects them per node when a ready artefact exists and
+ * the learner prefers that modality. They are registered here only so the browser paints them
+ * when they appear in an episode program; the descriptions are for parity, not the prompt.
+ */
+const PodcastPlayer = defineComponent({
+  name: 'PodcastPlayer',
+  description:
+    'Reproductor del podcast (audio overview) ya generado para este nodo, referenciado por id',
+  props: podcastPlayerProps,
+  component: ({ props }: ComponentRenderProps<{ artifact_id: string; title: string }>) => (
+    <PodcastPlayerBlock artifactId={readString(props.artifact_id)} title={readString(props.title)} />
+  ),
+})
+
+const InfographicImage = defineComponent({
+  name: 'InfographicImage',
+  description: 'Imagen de la infografia ya generada para este nodo, referenciada por id',
+  props: infographicImageProps,
+  component: ({ props }: ComponentRenderProps<{ artifact_id: string; alt: string }>) => (
+    <InfographicImageBlock artifactId={readString(props.artifact_id)} alt={readString(props.alt)} />
+  ),
+})
+
+/**
  * The render library.
  *
  * `root: 'Stack'` is contract rule 1 (§5.2) as far as the vendor can express it:
@@ -402,6 +431,8 @@ export const skillnetLibrary = createLibrary({
     DidactWorkedExample,
     LearningExperienceComponent,
     DidactActivity,
+    PodcastPlayer,
+    InfographicImage,
   ],
 })
 

@@ -19,6 +19,14 @@ import { get, post } from './client'
 /** The four kinds the course-home overviews panel can generate (`MediaKind` subset). */
 export type MediaKind = 'podcast' | 'slides' | 'infographic' | 'video'
 
+/**
+ * Where an artefact is anchored (`MediaScope`): a single `node` (grounded on its own source
+ * and referenceable inline by `PodcastPlayer`/`InfographicImage`), the whole `course`, or a
+ * node-less `standalone` steered by the note. The backend infers it from `node_id` when
+ * omitted, so sending it explicitly only matters to keep node-less scopes node-less.
+ */
+export type MediaScope = 'node' | 'course' | 'standalone'
+
 /** `MediaArtifactStatus` lifecycle: the runner walks pending -> running -> done|error. */
 export type MediaStatus = 'pending' | 'running' | 'done' | 'error'
 
@@ -90,12 +98,18 @@ export function useCreateArtifact() {
       course_id: string
       kind: MediaKind
       node_id?: string
+      /** Generation mode. Omit to let the backend infer it from `node_id`. */
+      scope?: MediaScope
+      /** Free-text personalization instruction, folded into the generator's steering. */
+      note?: string
       spec?: Record<string, unknown>
     }) =>
       post<MediaArtifactAccepted>('/media/artifacts', {
         course_id: body.course_id,
         kind: body.kind,
         node_id: body.node_id,
+        scope: body.scope,
+        note: body.note,
         spec: body.spec ?? { language: 'es' },
       }),
     onSuccess: (_data, vars) => {

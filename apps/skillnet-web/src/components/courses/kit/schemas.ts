@@ -208,6 +208,28 @@ export const learningExperienceProps = z.object({
   definition_ref: z.string().describe('Definicion publica versionada'),
 })
 
+/**
+ * Broker-scoped components (`broker_scoped=True` in `src/render/kit.py`). They are NOT part
+ * of the frozen §5.3 prompt catalogue — the model is never taught them; the media broker
+ * injects them per node when a ready artefact exists and the learner prefers that modality —
+ * so they are deliberately absent from `KIT_COMPONENT_NAMES`, `openui_catalog.json` and the
+ * drift check. But the browser must still render them, so they get a prop schema here and a
+ * renderer in `library.tsx`. Key order = positional argument order, mirroring the backend.
+ */
+export const podcastPlayerProps = z.object({
+  artifact_id: z.string().describe('Id del MediaArtifact de podcast (kind=podcast, status=done)'),
+  title: z.string().describe('Titulo breve que se muestra sobre el reproductor'),
+})
+
+export const infographicImageProps = z.object({
+  artifact_id: z.string().describe('Id del MediaArtifact de infografia (kind=infographic, status=done)'),
+  alt: z.string().describe('Texto alternativo accesible que describe la imagen'),
+})
+
+/** The broker-scoped names, mirroring the `broker_scoped=True` specs of `src/render/kit.py`. */
+export const BROKER_COMPONENT_NAMES = ['PodcastPlayer', 'InfographicImage'] as const
+export type BrokerComponentName = (typeof BROKER_COMPONENT_NAMES)[number]
+
 /** The frozen names, in the order of the §5.3 table. */
 export const KIT_COMPONENT_NAMES = [
   'Stack',

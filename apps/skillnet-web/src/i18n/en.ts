@@ -791,6 +791,8 @@ export const en: Record<string, string> = {
 
   // Infographic component (Infographic, media spine §2d)
   'infographic.title': 'Infographic',
+  'infographic.loading': 'Preparing infographic...',
+  'infographic.unavailable': 'Infographic unavailable',
   'infographic.sources': 'Sources',
   'infographic.noSources': 'No cited sources',
   'infographic.page': 'p. {page}',
@@ -833,6 +835,14 @@ export const en: Record<string, string> = {
   'overviews.generate': 'Generate',
   'overviews.steeringPlaceholder': 'Add a focus or extra info (optional)',
   'overviews.steeringLabel': 'Focus or extra info for the generation',
+  'overviews.scope.course': 'Whole course',
+  'overviews.scope.node': 'A lesson',
+  'overviews.scope.standalone': 'Free-standing',
+  'overviews.scope.label': 'What to base it on',
+  'overviews.nodeLabel': 'Lesson',
+  'overviews.nodePlaceholder': 'Pick a lesson...',
+  'overviews.nodeRequired': 'Pick a lesson first',
+  'overviews.notePlaceholder': 'Personalize it (e.g. focus it on new baristas)',
   'overviews.kind.podcast': 'Podcast',
   'overviews.kind.video': 'Video',
   'overviews.kind.infographic': 'Infographic',

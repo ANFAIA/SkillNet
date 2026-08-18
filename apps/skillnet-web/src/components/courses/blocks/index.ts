@@ -57,3 +57,9 @@ export { CheckpointVideoExperience } from './CheckpointVideoExperience'
 export type { HintRevealBlockProps } from './HintRevealBlock'
 
 export { InlineMarkdown } from './InlineMarkdown'
+
+export { PodcastPlayerBlock } from './PodcastPlayerBlock'
+export type { PodcastPlayerBlockProps } from './PodcastPlayerBlock'
+
+export { InfographicImageBlock } from './InfographicImageBlock'
+export type { InfographicImageBlockProps } from './InfographicImageBlock'

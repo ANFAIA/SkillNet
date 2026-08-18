@@ -21,6 +21,7 @@ import { describe, expect, it } from 'vitest'
 import { skillnetLibrary, skillnetLibrarySchema } from './library'
 import {
   BLOOM_LEVELS,
+  BROKER_COMPONENT_NAMES,
   CALLOUT_TONES,
   CHART_KINDS,
   ITEM_TYPES,
@@ -104,10 +105,21 @@ function propOrder(component: string): string[] {
 }
 
 describe('the kit is the catalogue of §5.3', () => {
-  it('registers the frozen components under the library root Stack', () => {
-    expect(Object.keys(skillnetLibrary.components).sort()).toEqual([...KIT_COMPONENT_NAMES].sort())
+  it('registers the frozen components plus the broker-scoped renderers under root Stack', () => {
+    // The library paints the frozen §5.3 catalogue AND the broker-scoped components
+    // (PodcastPlayer/InfographicImage): those are injected per node by the media broker, so
+    // they are renderable but never part of the frozen prompt catalogue (see schemas.ts).
+    expect(Object.keys(skillnetLibrary.components).sort()).toEqual(
+      [...KIT_COMPONENT_NAMES, ...BROKER_COMPONENT_NAMES].sort(),
+    )
     expect(skillnetLibrary.root).toBe('Stack')
     expect(skillnetLibrary.id).toBe('skillnet-ui/1')
+  })
+
+  it('keeps the broker-scoped components out of the frozen catalogue names', () => {
+    for (const name of BROKER_COMPONENT_NAMES) {
+      expect(KIT_COMPONENT_NAMES).not.toContain(name)
+    }
   })
 
   it('puts every prop in the dialect positional order', () => {
