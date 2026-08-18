@@ -64,21 +64,31 @@ are valid.
 
 ## Step 4 — Load the demo data
 
-**This step is for *exploring* the demo (La Espiga).** A real deployment skips it: you
-create your own content in the app — upload a document or describe a topic and let it
-generate a course. Run this only if you want the ready-made example to click around.
+**This step is for *exploring* the demo.** A real deployment skips it: you create your own
+content in the app — upload a document or describe a topic and let it generate a course. Run
+this only if you want the ready-made example to click around.
 
 ```bash
-docker compose exec api uv run python -m src.seed_demo_v2
+docker compose exec api uv run python -m src.seed_learning_demo
 ```
 
 Startup creates the organization and the admin user, but no courses, no documents and no
 employees. Without this seed you log in to an empty dashboard — which is exactly right for a
 fresh install, and just an empty database if you meant to try the demo.
 
-This seed builds a complete Spanish SME (a bakery-café): 5 employees, 3 source documents
-indexed for the tutor, and 2 validated dynamic courses of 3 and 7 nodes. It is idempotent, so
-running it twice is safe, and it prints every account it created.
+This seed is the public, self-branded SkillNet demo, on the meta theme of **how we learn**:
+four short, Brilliant-style courses ("Cómo aprende tu cerebro", "Sesgos cognitivos", "La
+ciencia de los hábitos", "Memoria y olvido"), all generated and validated at seed time, plus
+three demo learners with different declared learning styles. The showcase course carries a
+podcast and an infographic per node so the in-lesson media components appear; the other three
+carry a course-level podcast. It is idempotent and re-runnable (it reuses an already-validated
+course of the same title), and it prints every account and per-course result. Generation is
+LLM-backed, so a full run is slow — that is expected.
+
+> The previous demo (a Spanish bakery-café, "La Espiga", `src.seed_demo_v2`) has been
+> retired as the public demo. The `seed_demo_v2` module still exists and imports cleanly, but
+> `seed_learning_demo` is now the documented default and deletes any leftover La Espiga data
+> from the default org when it runs.
 
 There is also a much smaller v1 seed, `src.seed_demo` (1 employee and 16 skills), which
 predates dynamic courses and exists to compare the old static path.
@@ -116,8 +126,9 @@ docker compose exec api uv run python -m src.seed_demo_individual
 | Role | Email | Password |
 |------|-------|----------|
 | **Admin** | `admin@skillnet.dev` | `admin123` |
-| Employee — with a learning profile | `lucia.fernandez@laespiga.example` | `espiga2026` |
-| Employee — **no** profile, to walk the onboarding wizard | `noa.pereira@laespiga.example` | `espiga2026` |
+| Learner — metaphors + audio (sees the in-lesson podcast) | `ana@skillnet.dev` | `aprender2026` |
+| Learner — definitions-first + visual (sees the in-lesson infographic) | `bruno@skillnet.dev` | `aprender2026` |
+| Learner — **no** profile, to walk the onboarding wizard | `carla@skillnet.dev` | `aprender2026` |
 
 Log in as the admin to author courses, or as an employee to take them.
 
