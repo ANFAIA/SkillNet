@@ -203,6 +203,11 @@ class Settings(BaseSettings):
     # partitioned so adaptive episodes never reuse or overwrite ScreenScheme renders.
     ADAPTIVE_EPISODES: bool = False
 
+    #: Force the onboarding wizard for learners without a completed profile. Off is a
+    #: testing convenience: learners enter straight to their home on the default profile
+    #: bucket (they can still onboard later). The frontend reads this via /setup/status.
+    ONBOARDING_ENABLED: bool = True
+
     # Router semantico de funciones de contenido (prototipo, fases 3/4 de
     # docs/design/arquitectura-componentes-funcional.md). Cuando esta activo,
     # decide_formato hace una llamada corta que clasifica QUE HACE el material

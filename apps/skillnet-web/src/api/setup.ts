@@ -4,6 +4,8 @@ import type { WorkspaceMode } from '../types'
 
 export interface SetupStatus {
   initialized: boolean
+  /** When false, the SPA does not force the onboarding wizard (testing convenience). */
+  onboarding_enabled?: boolean
 }
 
 export interface SetupBody {

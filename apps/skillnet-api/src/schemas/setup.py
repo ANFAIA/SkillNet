@@ -14,6 +14,8 @@ from pydantic import BaseModel, EmailStr, Field
 class SetupStatus(BaseModel):
     #: True once at least one user exists — the setup wizard is then closed forever.
     initialized: bool
+    #: When False, the SPA does not force the onboarding wizard (testing convenience).
+    onboarding_enabled: bool = True
 
 
 class SetupRequest(BaseModel):

@@ -3,6 +3,7 @@ import { Navigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { declaredReducedMotionContext } from '../../hooks/useReducedMotion'
 import { useLearnerProfile } from '../../api/onboarding'
+import { useSetupStatus } from '../../api/setup'
 import type { UserRole } from '../../types'
 
 const HOME_BY_ROLE: Record<UserRole, string> = {
@@ -61,6 +62,12 @@ export function ProtectedRoute({
   children: ReactNode
 }) {
   const { user, isLoading } = useAuth()
+  const setup = useSetupStatus()
+
+  // Deployment-level kill switch (ONBOARDING_ENABLED, testing convenience). Only an
+  // explicit `false` disables the gate; undefined/loading defaults to enabled so the
+  // gate never silently disappears while the flag is in flight.
+  const onboardingForced = setup.data?.onboarding_enabled !== false
 
   // The onboarding gate applies to every learner: employees always, and — in an
   // `individual` deployment — the admin owner, who also learns and so needs a
@@ -68,7 +75,9 @@ export function ProtectedRoute({
   const isIndividualOwner =
     user?.role === 'admin' && user?.workspace_mode === 'individual'
   const gateApplies =
-    !skipOnboardingGate && (user?.role === 'employee' || isIndividualOwner)
+    onboardingForced &&
+    !skipOnboardingGate &&
+    (user?.role === 'employee' || isIndividualOwner)
   const profile = useLearnerProfile({ enabled: gateApplies })
 
   if (isLoading) return <AppSkeleton />

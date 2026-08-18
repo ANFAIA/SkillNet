@@ -17,6 +17,7 @@ from fastapi_users.password import PasswordHelper
 from sqlalchemy import select
 
 from src.auth.backend import get_database_strategy
+from src.config import settings
 from src.core.bootstrap import ensure_organization
 from src.core.exceptions import ConflictError
 from src.deps.auth import auth_backend
@@ -34,7 +35,10 @@ async def _has_any_user(db: DBSession) -> bool:
 
 @router.get("/status", response_model=SetupStatus)
 async def setup_status(db: DBSession) -> SetupStatus:
-    return SetupStatus(initialized=await _has_any_user(db))
+    return SetupStatus(
+        initialized=await _has_any_user(db),
+        onboarding_enabled=settings.ONBOARDING_ENABLED,
+    )
 
 
 @router.post("")
