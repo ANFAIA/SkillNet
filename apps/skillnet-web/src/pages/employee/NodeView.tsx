@@ -101,7 +101,6 @@ function ConfigPanel() {
   const intl = useIntl()
   const locale = usePreferences((s) => s.locale)
   const setLocale = usePreferences((s) => s.setLocale)
-  const mascotaEnabled = usePreferences((s) => s.mascotaEnabled)
 
   return (
     <div className="space-y-4">
@@ -264,6 +263,7 @@ export function NodeView() {
   const intl = useIntl()
   const { id: courseId, nodeId } = useParams<{ id: string; nodeId: string }>()
   const navigate = useNavigate()
+  const mascotaEnabled = usePreferences((s) => s.mascotaEnabled)
 
   const clearMorph = useNodeMorph((s) => s.clear)
   /** Which slide panel is open, if any. */
