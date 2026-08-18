@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 import time
 import uuid
 from typing import Any
@@ -2250,6 +2251,36 @@ async def genera_ui_multi(state: NodeRuntimeState) -> dict:
     }
 
 
+_LEARNING_EXPERIENCE_CALL = re.compile(
+    r'LearningExperience\(\s*"(?:[^"\\]|\\.)*"\s*,\s*"(?:[^"\\]|\\.)*"\s*,'
+    r'\s*"(?:[^"\\]|\\.)*"\s*\)'
+)
+
+
+def _pin_authored_experience_refs(program_text: str, authored: dict[str, Any]) -> str:
+    """Rewrite ``LearningExperience`` refs with the server-authoritative ones.
+
+    The three refs (``experience_id``, ``implementation_ref@version``, ``definition_ref``)
+    are server-owned identity: ``author_activity`` resolves them from the published plan and
+    injects them into the prompt for the model to copy verbatim. Models routinely drop the
+    ``@version`` suffix or invent semantic-looking ids ("impl_memoria_fases"), which the gate
+    then rejects (`implementation_ref must pin a version`), and the whole personalized episode
+    falls back to a flat Markdown seed. Rewriting the call from ``authored_activity`` makes
+    that class of copy-fidelity failures impossible instead of asking an 8B model to copy an
+    opaque versioned id perfectly. No-op unless authoring prepared a full, version-pinned ref.
+    """
+    experience_id = str(authored.get("experience_id") or "")
+    implementation_ref = str(authored.get("implementation_ref") or "")
+    definition_ref = str(authored.get("definition_ref") or "")
+    if not (experience_id and "@" in implementation_ref and definition_ref):
+        return program_text
+    replacement = (
+        f'LearningExperience("{experience_id}", '
+        f'"{implementation_ref}", "{definition_ref}")'
+    )
+    return _LEARNING_EXPERIENCE_CALL.sub(replacement, program_text)
+
+
 # --------------------------------------------------------------------------- #
 # Node 5: validate_ui
 # --------------------------------------------------------------------------- #
@@ -2273,6 +2304,26 @@ async def validate_ui(state: NodeRuntimeState) -> dict:
     )
 
     program_text, answer_key = split_answer_key(raw)
+    authored = state.get("authored_activity")
+    if isinstance(authored, dict):
+        program_text = _pin_authored_experience_refs(program_text, authored)
+    elif "LearningExperience(" in program_text:
+        # No experience was prepared for this node (authoring declined), so a
+        # ``LearningExperience`` here references nothing real: the model invented its ids and
+        # the gate would reject it with the opaque "must pin a version", which sends the one
+        # repair attempt chasing a version suffix instead of the real fix. Fail with an
+        # actionable message so the repair closes with a real interaction, as Ana's render did.
+        return {
+            "ui_spec": None,
+            "validation_errors": [
+                "No hay ninguna experiencia preparada por el servidor para este nodo, asi "
+                "que NO uses LearningExperience (inventarias ids que no existen). Cierra la "
+                "pantalla con una interaccion REAL anclada en la fuente: un QuizItem o un "
+                "DragOrder."
+            ],
+            "retry_count": int(state.get("retry_count") or 0) + 1,
+            "current_step": "validate_ui",
+        }
     try:
         spec, program = canonicalize(
             program_text,

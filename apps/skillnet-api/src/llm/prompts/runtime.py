@@ -240,9 +240,12 @@ UI_USE_CASE = "genera_ui"
 #: two-tier router.
 UI_MAX_TOKENS: dict[str, int] = {"fast": 1400, "heavy": 2800}
 
-#: One repair attempt, then the seed fallback. A second retry costs another full
-#: generation for a model that has already failed twice on the same instructions.
-MAX_UI_RETRIES = 1
+#: Two repair attempts, then the seed fallback. Most rejections are stochastic DSL slips
+#: (a Table matrix flattened into positional args, a missing comma) that a fresh attempt
+#: clears; one extra retry meaningfully cuts the fallback rate on adaptive episodes for the
+#: cost of a second generation only on the hard cases. Beyond this a model that keeps failing
+#: the same instructions is better served by the seed than by burning more budget.
+MAX_UI_RETRIES = 2
 
 #: How much of the source text travels with ``genera_ui``. Above this the prompt stops
 #: being about the node and starts being about the document.
