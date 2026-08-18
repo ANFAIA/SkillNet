@@ -122,7 +122,7 @@ from src.personalization.projection import (
     project_longitudinal_history,
 )
 from src.render.backends import get_render_backend
-from src.render.errors import RenderError
+from src.render.errors import RenderError, RenderValidationError
 from src.render.gate import canonicalize
 from src.render.kit import ContentFunction
 from src.render.prompt import catalog_version, library_version
@@ -2595,9 +2595,126 @@ async def critic_episode(state: NodeRuntimeState) -> dict:
 # --------------------------------------------------------------------------- #
 # Node 6: persist_render
 # --------------------------------------------------------------------------- #
+#: Root must keep at least this many children after a phantom experience is dropped for
+#: the render to be worth serving as content. A lead-only screen (1 child) is effectively
+#: empty, so we fall back rather than serve it.
+_MIN_ROOT_CHILDREN_AFTER_DROP = 2
+
+
+async def _definition_ref_resolves(
+    db: Any, definition_ref: Any, org_id: uuid.UUID
+) -> bool:
+    """Whether ``definition_ref`` is a REAL ``activity_definitions`` row in this org.
+
+    Mirrors exactly how the serve-time route resolves it: ``ActivityDefinitionService.get``
+    -> ``ActivityDefinitionRepository.get_scoped(activity_id, org_id)``. A hallucinated ref
+    (``def_memoria_almacenes``) is not even a UUID, so it fails the parse; a well-formed but
+    non-existent UUID fails the scoped lookup. Either way the frontend would 404 and show
+    "esta actividad no esta disponible", so we treat both as unresolvable.
+    """
+    try:
+        activity_id = uuid.UUID(str(definition_ref))
+    except (ValueError, AttributeError, TypeError):
+        return False
+    row = await ActivityDefinitionRepository(db).get_scoped(activity_id, org_id)
+    return row is not None
+
+
+async def _phantom_experience_ids(
+    spec_payload: dict[str, Any], org_id: uuid.UUID, db: Any
+) -> set[str]:
+    """Component ids of ``LearningExperience`` blocks whose ``definition_ref`` is phantom."""
+    phantom: set[str] = set()
+    for component in spec_payload.get("components") or ():
+        if not isinstance(component, dict) or component.get("type") != "LearningExperience":
+            continue
+        props = component.get("props") or {}
+        definition_ref = props.get("definition_ref")
+        if not await _definition_ref_resolves(db, definition_ref, org_id):
+            component_id = component.get("id")
+            if isinstance(component_id, str):
+                phantom.add(component_id)
+    return phantom
+
+
+def _drop_components(spec_payload: dict[str, Any], drop_ids: set[str]) -> dict[str, Any]:
+    """Remove ``drop_ids`` from the flat list and from every ``children`` array."""
+    components: list[dict[str, Any]] = []
+    for component in spec_payload.get("components") or ():
+        if not isinstance(component, dict) or component.get("id") in drop_ids:
+            continue
+        cloned = dict(component)
+        cloned["children"] = [
+            child
+            for child in (component.get("children") or [])
+            if child not in drop_ids
+        ]
+        components.append(cloned)
+    pruned = {**spec_payload, "components": components}
+    # ``generation`` is server-only provenance added by ``_persist`` after the contract
+    # passes; it is excluded from ordinary dumps, so a re-validation here must not carry it.
+    pruned.pop("generation", None)
+    return pruned
+
+
 @runtime_node_error_wrapper("persist_render")
 async def persist_render(state: NodeRuntimeState) -> dict:
-    """Write ``status='ready'`` with the canonical program and its provenance (§3.4)."""
+    """Write ``status='ready'`` with the canonical program and its provenance (§3.4).
+
+    Before anything is stored, a deterministic serve-time guard closes the phantom
+    ``LearningExperience`` class end to end (§5.1). A rendered episode can carry a
+    ``LearningExperience(experience_id, implementation_ref, definition_ref)`` whose refs the
+    model invented (``def_memoria_almacenes``) instead of copying the real activity-definition
+    UUID; earlier pins in ``validate_ui`` / the critic reduced but did not eliminate it, and a
+    cached render could still ship one. At serve time the frontend fetches
+    ``GET /activities/{definition_ref}/definition`` and gets a 404 -> "esta actividad no esta
+    disponible". Here every ``LearningExperience`` is resolved against ``activity_definitions``
+    in the node's org exactly as the route does; any that does not resolve is DROPPED (its id
+    also pulled from every ``children`` array) and the spec is re-canonicalized. If dropping
+    leaves a servable screen (>= a lead plus real content) it is served; otherwise this render
+    falls back to the seed lesson rather than serve a broken activity.
+    """
+    spec_payload = state.get("ui_spec")
+    if isinstance(spec_payload, dict) and spec_payload:
+        org_id = _uuid(state["org_id"])
+        async with async_session_factory() as db:
+            phantom = await _phantom_experience_ids(spec_payload, org_id, db)
+        if phantom:
+            logger.warning(
+                "persist_render dropping %d phantom LearningExperience component(s) "
+                "node=%s render=%s ids=%s",
+                len(phantom),
+                state.get("node_id"),
+                state.get("render_id"),
+                sorted(phantom),
+            )
+            pruned = _drop_components(spec_payload, phantom)
+            backend = get_render_backend(str(state.get("backend") or "openui"))
+            try:
+                spec = parse_spec(pruned)
+                root = spec.component(spec.root)
+                if root is None or len(root.children) < _MIN_ROOT_CHILDREN_AFTER_DROP:
+                    raise RenderValidationError(
+                        ["dropping the phantom experience left no servable content"]
+                    )
+                program = backend.serialize(spec)
+            except RenderError as exc:
+                logger.warning(
+                    "persist_render could not salvage spec after dropping phantom "
+                    "experience(s) node=%s render=%s: %s; serving fallback",
+                    state.get("node_id"),
+                    state.get("render_id"),
+                    exc,
+                )
+                return await _serve_fallback(state)
+            # A dropped closer carries no client-side answer key of its own; the surviving
+            # QuizItem entries (if any) are re-pruned against the reduced spec.
+            state = {
+                **state,
+                "ui_spec": spec.model_dump(),
+                "program": program,
+                "answer_key": prune_answer_key(spec, dict(state.get("answer_key") or {})),
+            }
     return await _persist(state, status=NodeRenderStatus.READY, step="persist_render")
 
 
@@ -2620,7 +2737,6 @@ async def fallback_seed(state: NodeRuntimeState) -> dict:
       paragraph boundaries keeps the whole gate applicable instead of special-casing it.
     """
     request_id = str(state["request_id"])
-    node = state.get("node") or {}
     if not state.get("render_id"):
         # ``load_context`` failed before claiming a row, so there is no row to write and
         # nothing to serve. Say so **once**, with ``fallback: false``: telling the client to
@@ -2633,6 +2749,21 @@ async def fallback_seed(state: NodeRuntimeState) -> dict:
         )
         return {"current_step": "failed"}
 
+    await publish_step(request_id, "fallback_seed", STEP_MESSAGES["fallback_seed"])
+    return await _serve_fallback(state, step="fallback_seed")
+
+
+async def _serve_fallback(
+    state: NodeRuntimeState | dict, *, step: str = "persist_render"
+) -> dict:
+    """Build the v1 seed-lesson fallback spec and persist it as ``status='fallback'``.
+
+    Shared by ``fallback_seed`` (the graph's safety net) and ``persist_render`` (the
+    serve-time phantom-experience guard, when dropping the bad activity leaves nothing
+    servable). The seed lesson, then the node's source, then its summary — whichever is the
+    first non-empty — becomes the Markdown body.
+    """
+    node = state.get("node") or {}
     seed_lesson_id = node.get("seed_lesson_id")
     content = ""
 
@@ -2652,7 +2783,6 @@ async def fallback_seed(state: NodeRuntimeState) -> dict:
     backend = get_render_backend(str(state.get("backend") or "openui"))
     program = backend.serialize(spec)
 
-    await publish_step(request_id, "fallback_seed", STEP_MESSAGES["fallback_seed"])
     return await _persist(
         {
             **state,
@@ -2662,7 +2792,7 @@ async def fallback_seed(state: NodeRuntimeState) -> dict:
             "ui_format": "explanation",
         },
         status=NodeRenderStatus.FALLBACK,
-        step="fallback_seed",
+        step=step,
     )
 
 

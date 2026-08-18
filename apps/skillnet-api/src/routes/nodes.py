@@ -826,6 +826,18 @@ async def answer_node_item(
     transition = mastery_result.transition
     await db.commit()
 
+    if transition.increment_nodes_completed:
+        # Progress moved forward: pre-warm the next nodes on this learner's own key so the
+        # next lessons are ready when they get there (sliding window). Fire-and-forget.
+        from src.services.node_render_service import spawn_prewarm_sliding_window
+
+        spawn_prewarm_sliding_window(
+            user_id=user.id,
+            node_id=node.id,
+            course_id=node.course_id,
+            org_id=node.org_id,
+        )
+
     reveal = result.passed or hints_used >= HINT_LIMIT
     state_value = str(getattr(state.state, "value", state.state))
     return NodeAttemptResult(

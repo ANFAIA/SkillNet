@@ -198,6 +198,18 @@ class ExperienceAttemptService:
             evidence_digest=_digest(evidence_values),
         )
         await self.attempts.create_attempt(attempt=attempt, evidence=[evidence])
+        if getattr(mastery.transition, "increment_nodes_completed", False):
+            # Progress advanced: pre-warm the next nodes on this learner's own key so the
+            # following lessons are ready when they reach them (sliding window). The warm task
+            # runs in its own sessions off committed state; scheduling it is fire-and-forget.
+            from src.services.node_render_service import spawn_prewarm_sliding_window
+
+            spawn_prewarm_sliding_window(
+                user_id=user.id,
+                node_id=node.id,
+                course_id=course.id,
+                org_id=user.org_id,
+            )
         return await self._read(attempt, evidence=[evidence])
 
     async def _authorize_chain(self, *, user: Any, activity: ActivityDefinition, chain):

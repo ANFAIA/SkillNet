@@ -981,6 +981,125 @@ async def prewarm_first_nodes(
     return spawned
 
 
+#: Sliding window: how many nodes AHEAD of the one a learner just completed to pre-warm on
+#: their own cache key. Bounded and small on purpose — the point is that the *next* lesson (and
+#: the one after) is ready when they get there, not to warm the whole course speculatively.
+DEFAULT_SLIDING_WINDOW = 2
+
+
+async def prewarm_sliding_window(
+    *,
+    user_id: uuid.UUID,
+    node_id: uuid.UUID,
+    course_id: uuid.UUID,
+    org_id: uuid.UUID,
+    window: int = DEFAULT_SLIDING_WINDOW,
+) -> int:
+    """Warm the next ``window`` reviewed nodes on the LEARNER'S OWN cache key.
+
+    Triggered by progression (a node the learner just mastered), never by a timer. Where
+    ``prewarm_first_nodes`` warms the shared default-bucket row at course-creation time, this
+    warms the row the *specific* learner will cache-hit and pin when they advance — its key
+    carries their ``learning_note`` and media-offer fingerprints, exactly like
+    ``render_key_for`` computes at open time. Everything is recomputed from committed DB state
+    (its own sessions), so it must run AFTER the mastery transaction has committed.
+
+    Bounded and best-effort: a node whose knowledge pack is not yet ready is skipped (never
+    waited on — this is on the live path, not course creation), and ``request_render``'s own
+    in-flight/cache-hit dedup keeps a manual open from racing it. Returns the number of
+    renders actually spawned.
+    """
+    from src.models import User
+    from src.repositories.course_node_repo import CourseNodeRepository
+    from src.repositories.course_repo import CourseRepository
+
+    async with async_session_factory() as db:
+        course = await CourseRepository(db).get_by_id(course_id)
+        if course is None or course.org_id != org_id:
+            return 0
+        nodes = list(
+            await CourseNodeRepository(db).list_for_course(
+                course_id, include_archived=False
+            )
+        )
+    reviewed = [n for n in nodes if n.reviewed_at is not None]
+    index = next((i for i, n in enumerate(reviewed) if n.id == node_id), None)
+    if index is None:
+        return 0
+    ahead = reviewed[index + 1 : index + 1 + max(0, window)]
+
+    spawned = 0
+    for node_row in ahead:
+        try:
+            async with async_session_factory() as db:
+                user = await db.get(User, user_id)
+                node = await CourseNodeRepository(db).get_scoped(node_row.id, org_id)
+                course = await CourseRepository(db).get_by_id(course_id)
+                if user is None or node is None or node.archived or course is None:
+                    continue
+                service = NodeRenderService(db)
+                if not await service.node_pack_ready(node=node, course=course):
+                    # Its render would be a "preparing" fallback, not the real episode.
+                    continue
+                result = await service.request_render(
+                    user=user, node=node, course=course
+                )
+                await db.commit()
+                spawned += int(not result.cached)
+        except Exception:  # noqa: BLE001 - one node must not sink the window
+            logger.warning(
+                "Sliding-window warm failed user=%s node=%s",
+                user_id,
+                node_row.id,
+                exc_info=True,
+            )
+    logger.info(
+        "Sliding-window warm user=%s from_node=%s warmed=%s of ahead=%s",
+        user_id,
+        node_id,
+        spawned,
+        len(ahead),
+    )
+    return spawned
+
+
+def spawn_prewarm_sliding_window(
+    *,
+    user_id: uuid.UUID,
+    node_id: uuid.UUID,
+    course_id: uuid.UUID,
+    org_id: uuid.UUID,
+    window: int = DEFAULT_SLIDING_WINDOW,
+) -> None:
+    """Schedule :func:`prewarm_sliding_window` in the background after progress advances.
+
+    Best-effort and non-fatal: a window that cannot be scheduled just means the learner's next
+    open generates live, exactly as it does today. Superseded per ``(user, from-node)`` so a
+    learner who answers twice in quick succession does not launch two overlapping windows.
+    """
+    from src.core.tasks import task_registry
+
+    name = f"slidewarm:{user_id}:{node_id}"
+    task_registry.cancel_by_prefix(f"{name}:")
+    coroutine = prewarm_sliding_window(
+        user_id=user_id,
+        node_id=node_id,
+        course_id=course_id,
+        org_id=org_id,
+        window=window,
+    )
+    try:
+        task_registry.spawn_unique(coroutine, name=f"{name}:v1")
+    except Exception:  # noqa: BLE001 - a warm-up that cannot be scheduled is not fatal
+        coroutine.close()
+        logger.warning(
+            "Could not schedule sliding-window warm user=%s node=%s",
+            user_id,
+            node_id,
+            exc_info=True,
+        )
+
+
 def spawn_prewarm_first_nodes(
     course_id: uuid.UUID,
     org_id: uuid.UUID,
@@ -1018,6 +1137,9 @@ def spawn_prewarm_first_nodes(
 
 __all__ = [
     "DEFAULT_PREWARM_NODES",
+    "DEFAULT_SLIDING_WINDOW",
+    "prewarm_sliding_window",
+    "spawn_prewarm_sliding_window",
     "NODE_NOT_REVIEWED",
     "PREVIEW_KEY_PREFIX",
     "REFRESH_KEY_PREFIX",
