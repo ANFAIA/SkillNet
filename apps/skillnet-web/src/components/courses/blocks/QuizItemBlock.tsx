@@ -79,14 +79,11 @@ function ResultPanel({
         result.passed ? 'border-accent bg-accent-subtle' : 'border-danger bg-danger/5'
       }`}
     >
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex items-center gap-2">
         <span
           className={`text-lesson-body font-medium ${result.passed ? 'text-accent' : 'text-danger'}`}
         >
           {result.passed ? intl.formatMessage({ id: 'quiz.correct' }) : intl.formatMessage({ id: 'quiz.incorrect' })}
-        </span>
-        <span className="text-lesson-caption text-text-secondary tabular-nums">
-          {intl.formatMessage({ id: 'quiz.mastery' }, { pct: Math.round((result.mastery ?? 0) * 100) })}
         </span>
       </div>
       {result.feedback ? <p className="text-lesson-body text-text mt-2">{result.feedback}</p> : null}
