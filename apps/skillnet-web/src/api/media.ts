@@ -55,8 +55,10 @@ export interface MediaArtifactAccepted {
 // Query keys
 // --------------------------------------------------------------------------- //
 
-export const courseArtifactsKey = (courseId: string | undefined) =>
-  ['media', 'course', courseId] as const
+export const courseArtifactsKey = (
+  courseId: string | undefined,
+  includeNodes = false,
+) => ['media', 'course', courseId, includeNodes ? 'all' : 'course-level'] as const
 
 export const mediaArtifactKey = (artifactId: string | undefined) =>
   ['media', 'artifact', artifactId] as const
@@ -77,11 +79,17 @@ function isInFlight(status: string): boolean {
  * "poll while in flight" half of the media UX. So even a job the user is not actively
  * streaming settles its status in the list on its own.
  */
-export function useCourseArtifacts(courseId: string | undefined) {
+export function useCourseArtifacts(
+  courseId: string | undefined,
+  options: { includeNodes?: boolean } = {},
+) {
+  const { includeNodes = false } = options
   return useQuery({
-    queryKey: courseArtifactsKey(courseId),
+    queryKey: courseArtifactsKey(courseId, includeNodes),
     queryFn: () =>
-      get<MediaArtifactRead[]>(`/media/artifacts?course_id=${courseId}`),
+      get<MediaArtifactRead[]>(
+        `/media/artifacts?course_id=${courseId}${includeNodes ? '&include_nodes=true' : ''}`,
+      ),
     enabled: !!courseId,
     refetchInterval: (query) => {
       const data = query.state.data as MediaArtifactRead[] | undefined
@@ -113,7 +121,9 @@ export function useCreateArtifact() {
         spec: body.spec ?? { language: 'es' },
       }),
     onSuccess: (_data, vars) => {
-      queryClient.invalidateQueries({ queryKey: courseArtifactsKey(vars.course_id) })
+      // Both list variants (course-level and include-nodes) share the ['media','course',id]
+      // prefix; invalidate the prefix so a node-scoped generation refreshes the studio list.
+      queryClient.invalidateQueries({ queryKey: ['media', 'course', vars.course_id] })
     },
   })
 }

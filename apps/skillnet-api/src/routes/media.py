@@ -207,24 +207,34 @@ async def list_artifacts(
     db: DBSession,
     course_id: uuid.UUID = Query(...),
     node_id: uuid.UUID | None = Query(default=None),
+    include_nodes: bool = Query(default=False),
 ) -> list[MediaArtifactRead]:
-    """Course overviews, or node-runtime results when ``node_id`` is explicit.
+    """Course overviews, one node's results, or everything for the course.
 
-    The course-home panel never receives node-runtime audio/video. Passing ``node_id``
-    returns only that node. The static path cannot shadow ``/artifacts/{artifact_id}``.
+    Three shapes, all org-scoped:
+
+    * ``node_id`` set -> only that node's artefacts.
+    * ``include_nodes=true`` -> every artefact of the course (course-level *and*
+      node-scoped), newest first, so the studio can list and manage the per-node podcasts
+      and infographics the old course-only listing hid.
+    * neither -> just the authored course-level overviews (the original default, so the
+      course-home panel still never receives node-runtime audio/video).
+
+    The static path cannot shadow ``/artifacts/{artifact_id}``.
     """
     course = await CourseRepository(db).get_scoped(course_id, user.org_id)
     if course is None:
         raise NotFoundError("courses", str(course_id))
 
     repository = MediaArtifactRepository(db)
-    artifacts = (
-        await repository.list_course_level(course_id, user.org_id)
-        if node_id is None
-        else await repository.list_for_course(
+    if node_id is not None:
+        artifacts = await repository.list_for_course(
             course_id, user.org_id, node_id=node_id
         )
-    )
+    elif include_nodes:
+        artifacts = await repository.list_for_course(course_id, user.org_id)
+    else:
+        artifacts = await repository.list_course_level(course_id, user.org_id)
     return [MediaArtifactRead.of(artifact) for artifact in artifacts]
 
 

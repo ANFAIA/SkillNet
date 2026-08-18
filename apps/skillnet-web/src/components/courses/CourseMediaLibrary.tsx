@@ -1,7 +1,8 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useIntl } from 'react-intl'
 import { Card, EmptyState, Modal } from '../ui'
 import { useCourseArtifacts, type MediaArtifactRead } from '../../api/media'
+import { useCourseNodes } from '../../api/nodes'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
 import { CourseArtifactView } from './CourseArtifactView'
 import { CourseMediaIcon } from './CourseMediaIcon'
@@ -15,7 +16,15 @@ interface CourseMediaLibraryProps {
 export function CourseMediaLibrary({ courseId, operational = false }: CourseMediaLibraryProps) {
   const intl = useIntl()
   const animated = !useReducedMotion()
-  const { data: artifacts } = useCourseArtifacts(courseId)
+  // The studio (operational) view lists every artefact including per-node ones, so the
+  // podcasts/infographics attached to a lesson are visible and manageable — not just the
+  // course-level overviews. The learner-facing library stays course-level only.
+  const { data: artifacts } = useCourseArtifacts(courseId, { includeNodes: operational })
+  const { data: nodeList } = useCourseNodes(courseId, { enabled: operational })
+  const nodeLabelById = useMemo(() => {
+    const sorted = [...(nodeList?.nodes ?? [])].sort((a, b) => a.position - b.position)
+    return new Map(sorted.map((node, index) => [node.id, `${index + 1}. ${node.title}`]))
+  }, [nodeList])
   const [openArtifact, setOpenArtifact] = useState<MediaArtifactRead | null>(null)
   const [origin, setOrigin] = useState<DOMRect | null>(null)
   const kindLabel = useCallback(
@@ -54,7 +63,19 @@ export function CourseMediaLibrary({ courseId, operational = false }: CourseMedi
                     <CourseMediaIcon kind={artifact.kind} size={19} />
                   </span>
                   <div className="min-w-0">
-                    <span className="block text-sm font-medium text-text">{kindLabel(artifact.kind)}</span>
+                    <span className="flex flex-wrap items-center gap-2 text-sm font-medium text-text">
+                      {kindLabel(artifact.kind)}
+                      {operational && artifact.node_id && (
+                        <span className="inline-flex items-center rounded-full border border-border bg-bg-subtle px-2 py-0.5 text-[11px] font-normal text-text-secondary">
+                          {nodeLabelById.get(artifact.node_id) ?? intl.formatMessage({ id: 'overviews.node.badge' })}
+                        </span>
+                      )}
+                      {operational && !artifact.node_id && (
+                        <span className="inline-flex items-center rounded-full border border-border bg-bg-subtle px-2 py-0.5 text-[11px] font-normal text-text-muted">
+                          {intl.formatMessage({ id: 'overviews.node.courseBadge' })}
+                        </span>
+                      )}
+                    </span>
                     {operational && artifact.status === 'error' && artifact.error && <p className="mt-0.5 truncate text-xs text-danger">{artifact.error}</p>}
                     {!operational && (
                       <>

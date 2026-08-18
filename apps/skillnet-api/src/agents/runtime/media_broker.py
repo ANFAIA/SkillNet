@@ -166,24 +166,28 @@ def offers_prompt_addendum(offers: Sequence[MediaOffer]) -> str:
         "## Material multimedia disponible para este nodo (broker)",
         "",
         (
-            "Ademas de los componentes del scope cerrado, para ESTE nodo existe material "
-            "multimedia ya generado y verificado. PUEDES (no es obligatorio) incrustar como "
-            "maximo UNO de cada uno, usando EXACTAMENTE el artifact_id indicado (nunca lo "
-            "inventes ni lo modifiques). Colocalo donde refuerce la leccion, no como unico "
-            "contenido:"
+            "Para ESTE nodo existe material multimedia ya generado y verificado, elegido "
+            "porque coincide con la preferencia de modalidad de este aprendiz. INCLUYE en la "
+            "leccion UNO (y solo uno) de cada componente listado abajo: es contenido de "
+            "apoyo que el aprendiz espera ver. Usa EXACTAMENTE el artifact_id indicado (nunca "
+            "lo inventes ni lo modifiques) y colocalo donde refuerce la leccion (por ejemplo "
+            "cerca del cierre o junto al concepto que ilustra), nunca como unico contenido de "
+            "la pantalla:"
         ),
         "",
     ]
     for offer in offers:
         if offer.component == "PodcastPlayer":
             lines.append(
-                f'- PodcastPlayer(artifact_id: "{offer.artifact_id}", title: "{offer.title}") '
-                "— reproductor del audio-overview de este nodo."
+                f'- PodcastPlayer("{offer.artifact_id}", "{offer.title}") '
+                "— reproductor del audio-overview de este nodo. Argumentos POSICIONALES: "
+                "primero el artifact_id, luego el titulo."
             )
         elif offer.component == "InfographicImage":
             lines.append(
-                f'- InfographicImage(artifact_id: "{offer.artifact_id}", alt: "{offer.title}") '
-                "— imagen de la infografia de este nodo (pon un alt descriptivo)."
+                f'- InfographicImage("{offer.artifact_id}", "{offer.title}") '
+                "— imagen de la infografia de este nodo. Argumentos POSICIONALES: primero el "
+                "artifact_id, luego un alt descriptivo."
             )
     lines.append("")
     return "\n".join(lines)

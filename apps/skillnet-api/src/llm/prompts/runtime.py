@@ -163,7 +163,11 @@ PROMPT_VERSION = "runtime/41"
 # episode/8: the media broker may append a grounded PodcastPlayer/InfographicImage
 # whitelist to the episode scope when a READY artefact exists for the node and the
 # learner's modality preference allows it (see src/agents/runtime/media_broker.py).
-EPISODE_PROMPT_VERSION = "episode/8"
+# episode/9: the broker addendum was strengthened from an optional ("PUEDES") to a
+# directive ("INCLUYE UNO") instruction, so a preference-matching learner reliably sees
+# the artefact inline instead of the model silently dropping it. The wording change alters
+# the produced program, so the version bump invalidates episode renders cached under it.
+EPISODE_PROMPT_VERSION = "episode/9"
 
 _PRESENTATION_PREFERENCES = {
     "balanced": "Combina representaciones segun el objetivo y la fuente.",

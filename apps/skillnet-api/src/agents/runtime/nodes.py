@@ -1787,6 +1787,68 @@ def _with_media_offers(scoped_prompt: str, state: NodeRuntimeState) -> str:
     return f"{scoped_prompt}\n{addendum}" if addendum else scoped_prompt
 
 
+def _guarantee_media_offers(
+    spec_dict: dict, program: str, state: NodeRuntimeState | dict
+) -> tuple[dict, str]:
+    """Deterministically place any preference-gated media offer the model did not emit.
+
+    The broker widens the prompt so the model *may* embed a ready PodcastPlayer/
+    InfographicImage, but a plan-driven episode (or the critic) routinely drops the optional
+    reference, so a preference-matching learner would not reliably see the artefact. This is
+    the guarantee: after a program has already validated, if a gated offer for this node is
+    not already referenced, append the id-pinned broker component to the root and
+    re-serialize from the spec. Nothing here can crash a render — on any error the original
+    (already valid) spec and program are returned untouched, honouring the gate-valid-program
+    rule.
+    """
+    offers = state.get("media_offers") or ()
+    if not offers:
+        return spec_dict, program
+    try:
+        spec = UISpec.model_validate(spec_dict)
+        present = {
+            str(component.props.get("artifact_id"))
+            for component in spec.components
+            if component.props.get("artifact_id")
+        }
+        components = list(spec.components)
+        root = next((c for c in components if c.id == spec.root), None)
+        if root is None:
+            return spec_dict, program
+
+        added_ids: list[str] = []
+        for index, offer in enumerate(offers):
+            artifact_id = str(offer.get("artifact_id") or "")
+            component_type = str(offer.get("component") or "")
+            if not artifact_id or artifact_id in present:
+                continue
+            if component_type == "PodcastPlayer":
+                props = {"artifact_id": artifact_id, "title": str(offer.get("title") or "Audio overview")}
+            elif component_type == "InfographicImage":
+                props = {"artifact_id": artifact_id, "alt": str(offer.get("title") or "Infografia")}
+            else:
+                continue
+            new_id = f"brokerMedia{index + 1}"
+            components.append(Component(id=new_id, type=component_type, props=props))
+            added_ids.append(new_id)
+            present.add(artifact_id)
+
+        if not added_ids:
+            return spec_dict, program
+
+        new_root = root.model_copy(
+            update={"children": [*root.children, *added_ids]}
+        )
+        components = [new_root if c.id == root.id else c for c in components]
+        new_spec = spec.model_copy(update={"components": components})
+        backend = get_render_backend(str(state.get("backend") or "openui"))
+        new_program = backend.serialize(new_spec)
+        return new_spec.model_dump(), new_program
+    except Exception as exc:  # noqa: BLE001 - a media guarantee must never break a render
+        logger.warning("Could not inject broker media offer into render: %s", exc)
+        return spec_dict, program
+
+
 # --------------------------------------------------------------------------- #
 # Node 5: genera_ui
 # --------------------------------------------------------------------------- #
@@ -1865,6 +1927,11 @@ async def genera_ui(state: NodeRuntimeState) -> dict:
             episode=episode_payload,
             source_context=_source_with_authored_activity(state),
         )
+        # The episode brief in the user turn is what the model treats as authoritative, so a
+        # media offer folded only into the system grammar (which makes the component valid but
+        # unplanned) is reliably dropped. Repeat the id-pinned directive here so a
+        # preference-matching learner actually gets the artefact placed into the episode.
+        user_prompt = _with_media_offers(user_prompt, state)
     else:
         system = ui_generator_system(
             scoped_prompt, didact_verification=didact_verification
@@ -2589,7 +2656,13 @@ async def _persist(
     tier = str(state.get("tier") or select_tier(ui_format))
     spec = state.get("ui_spec") or {}
     program = str(state.get("program") or "")
-    persisted_spec = dict(spec)
+    # Guarantee the preference-gated media offer is present before the row is frozen: the
+    # model may (and often does) drop the optional broker reference, so this is what makes a
+    # matching learner reliably see the podcast/infographic inline. Never fatal.
+    if spec:
+        persisted_spec, program = _guarantee_media_offers(dict(spec), program, state)
+    else:
+        persisted_spec = dict(spec)
     from src.services.node_render_service import generation_provenance_for_state
 
     persisted_spec["generation"] = generation_provenance_for_state(
