@@ -39,6 +39,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import sys
+import time
 import uuid
 from dataclasses import dataclass, field
 
@@ -528,6 +529,91 @@ async def _resolve_identity() -> tuple[Organization, User]:
         return org, admin
 
 
+# --------------------------------------------------------------------------- #
+# Per-persona episode pre-render
+# --------------------------------------------------------------------------- #
+_PERSONA_PREWARM_NODES = 2
+_PERSONA_PREWARM_ATTEMPTS = 4
+_PERSONA_RENDER_TIMEOUT_S = 150.0
+
+
+async def _render_until_ready(
+    user_id: uuid.UUID, node_id: uuid.UUID, course_id: uuid.UUID
+) -> str:
+    """Force a personalized render and retry until it lands READY (a real episode).
+
+    Adaptive-episode generation is stochastic: a fresh attempt sometimes emits a malformed
+    Table or a hallucinated component and the render degrades to a flat fallback. For a
+    turnkey demo we don't want a persona's *cached* first lesson to be that fallback, so we
+    force a render and, on a fallback, drop the row (freeing the learner's ``cache_key``) and
+    try again a bounded number of times. The key carries the learner's learning-note
+    fingerprint, so this warms exactly the row their normal open will cache-hit and pin.
+    """
+    from src.models import Course, CourseNode, NodeRender, User
+    from src.services.node_render_service import NodeRenderService
+
+    for _attempt in range(_PERSONA_PREWARM_ATTEMPTS):
+        # Free the learner's base cache_key so the forced render writes to it, not a salt.
+        async with async_session_factory() as db:
+            await db.execute(
+                text("DELETE FROM node_renders WHERE node_id = :n AND generated_by = :u"),
+                {"n": node_id, "u": user_id},
+            )
+            await db.commit()
+        async with async_session_factory() as db:
+            user = await db.get(User, user_id)
+            node = await db.get(CourseNode, node_id)
+            course = await db.get(Course, course_id)
+            if user is None or node is None or course is None:
+                return "missing"
+            await NodeRenderService(db).request_render(
+                user=user, node=node, course=course, force=True
+            )
+            await db.commit()
+        deadline = time.monotonic() + _PERSONA_RENDER_TIMEOUT_S
+        while time.monotonic() < deadline:
+            await asyncio.sleep(3.0)
+            async with async_session_factory() as db:
+                status = (
+                    await db.execute(
+                        select(NodeRender.status)
+                        .where(
+                            NodeRender.node_id == node_id,
+                            NodeRender.generated_by == user_id,
+                        )
+                        .order_by(NodeRender.created_at.desc())
+                        .limit(1)
+                    )
+                ).scalar_one_or_none()
+            if status is None:
+                continue
+            value = str(getattr(status, "value", status))
+            if value == "ready":
+                return "ready"
+            if value in {"fallback", "failed"}:
+                break  # a fresh attempt clears most stochastic DSL slips
+    return "fallback"
+
+
+async def _prewarm_persona_episodes(
+    persona_ids: list[uuid.UUID], course_id: uuid.UUID
+) -> dict[str, int]:
+    """Warm the first nodes of the showcase course for each persona until they render clean."""
+    from src.repositories.course_node_repo import CourseNodeRepository
+
+    async with async_session_factory() as db:
+        nodes = list(
+            await CourseNodeRepository(db).list_for_course(course_id, include_archived=False)
+        )
+    leading = [n.id for n in nodes if n.reviewed_at is not None][:_PERSONA_PREWARM_NODES]
+    summary: dict[str, int] = {}
+    for user_id in persona_ids:
+        for node_id in leading:
+            outcome = await _render_until_ready(user_id, node_id, course_id)
+            summary[outcome] = summary.get(outcome, 0) + 1
+    return summary
+
+
 async def seed(*, skip_delete: bool = False) -> None:
     org, admin = await _resolve_identity()
     org_id, admin_id = org.id, admin.id
@@ -609,7 +695,20 @@ async def seed(*, skip_delete: bool = False) -> None:
         org_row = await db.get(Organization, org_id)
         await _enrol_personas(db, org_row, admin_row, course_ids, persona_ids)
 
-    # 5. Course-level podcast for the three non-showcase courses.
+    # 5. Pre-render the showcase course's first lessons for each persona until they land a
+    #    clean adaptive episode, so the demo opens on a personalized episode (not a fallback)
+    #    the moment a persona logs in.
+    showcase_title = next((s.title for s in COURSES if s.showcase), None)
+    showcase_id = title_to_id.get(showcase_title) if showcase_title else None
+    if showcase_id is not None and persona_ids:
+        print(f"  Pre-renderizando episodios del escaparate para {len(persona_ids)} personas...")
+        warm = await _prewarm_persona_episodes(persona_ids, showcase_id)
+        print(
+            f"    -> episodios listos: {warm.get('ready', 0)}, "
+            f"fallback: {warm.get('fallback', 0)}"
+        )
+
+    # 6. Course-level podcast for the three non-showcase courses.
     for spec in COURSES:
         if spec.showcase:
             continue
@@ -623,7 +722,7 @@ async def seed(*, skip_delete: bool = False) -> None:
                 if r.spec.title == spec.title:
                     r.artifact_ids.append(art_id)
 
-    # 6. Wait for every artefact to reach a terminal state.
+    # 7. Wait for every artefact to reach a terminal state.
     all_artifacts = [a for r in reports for a in r.artifact_ids]
     print(f"  Esperando {len(all_artifacts)} artefactos multimedia...")
     art_summary = await _wait_for_artifacts(all_artifacts)
