@@ -624,6 +624,11 @@ export const en: Record<string, string> = {
   'learningPreferences.loadError': 'Your preferences could not be loaded.',
   'learningPreferences.retry': 'Retry',
   'learningPreferences.learningStyle': 'How I learn',
+  'learningPreferences.learningNote': 'How you like to learn',
+  'learningPreferences.learningNoteHelp':
+    'Tell us in your own words how you like things explained. We will adapt the FORM of each lesson (not what is taught) to your style.',
+  'learningPreferences.learningNotePlaceholder':
+    'E.g. "I learn best with metaphors" or "I like to understand the fundamentals first"',
   'learningPreferences.presentation': 'Format',
   'learningPreferences.presentationDesc': 'This is a priority, not a fixed label: an activity may combine several formats.',
   'learningPreferences.presentation.balanced': 'Balanced',

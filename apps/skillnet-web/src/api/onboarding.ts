@@ -159,6 +159,7 @@ export interface LearnerProfileRead {
   role_title: string | null
   sector: string | null
   goal: string | null
+  learning_note: string | null
   experience_level: string
   preset: string
   learning_preferences: LearningPreferences
@@ -213,6 +214,7 @@ export interface LearnerProfileUpdate {
   role_title?: string | null
   sector?: string | null
   goal?: string | null
+  learning_note?: string | null
   preset?: LearningPreset
   learning_preferences?: LearningPreferences
   accessibility?: AccessibilitySettings

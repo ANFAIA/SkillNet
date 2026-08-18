@@ -624,6 +624,11 @@ export const es: Record<string, string> = {
   'learningPreferences.loadError': 'No se pudieron cargar tus preferencias.',
   'learningPreferences.retry': 'Reintentar',
   'learningPreferences.learningStyle': 'Como aprendo',
+  'learningPreferences.learningNote': 'Como te gusta aprender',
+  'learningPreferences.learningNoteHelp':
+    'Cuentanos con tus palabras como te gusta que te expliquen las cosas. Ajustaremos la FORMA de cada leccion (no lo que se ensena) a tu estilo.',
+  'learningPreferences.learningNotePlaceholder':
+    'Ej.: "me gustan las metaforas para aprender" o "me gusta entender las bases primero"',
   'learningPreferences.presentation': 'Formato',
   'learningPreferences.presentationDesc': 'Es una prioridad, no una etiqueta fija: una actividad puede combinar varios formatos.',
   'learningPreferences.presentation.balanced': 'Equilibrado',

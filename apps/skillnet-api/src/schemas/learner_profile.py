@@ -19,6 +19,7 @@ from src.schemas.learning_preferences import (
     LearningPreferencesV3,
 )
 from src.services.learner_profile_service import is_calibrating
+from src.personalization.learning_note import LEARNING_NOTE_MAX_CHARS
 from src.personalization.preferences import normalize_learning_preferences
 
 if TYPE_CHECKING:  # pragma: no cover - typing only, keeps this module DB-unaware
@@ -36,6 +37,7 @@ class LearnerProfileRead(BaseModel):
     role_title: str | None = None
     sector: str | None = None
     goal: str | None = None
+    learning_note: str | None = None
     experience_level: Experience = "unknown"
     preset: Preset = "standard"
     learning_preferences: LearningPreferencesV3 = Field(
@@ -52,6 +54,7 @@ class LearnerProfileRead(BaseModel):
             role_title=profile.role_title,
             sector=profile.sector,
             goal=profile.goal,
+            learning_note=getattr(profile, "learning_note", None),
             experience_level=_plain(profile.experience_level),
             preset=_plain(profile.preset),
             learning_preferences=LearningPreferencesV3.model_validate(
@@ -80,6 +83,9 @@ class LearnerProfileUpdate(BaseModel):
     role_title: str | None = Field(default=None, max_length=120)
     sector: str | None = Field(default=None, max_length=120)
     goal: str | None = Field(default=None, max_length=200)
+    # The learner's own "how I like to learn" note. Free text, length-capped: it steers only
+    # HOW a lesson is explained and is treated as data (never as instructions) downstream.
+    learning_note: str | None = Field(default=None, max_length=LEARNING_NOTE_MAX_CHARS)
     learning_preferences: LearningPreferencesSubmit | None = None
     accessibility: AccessibilitySubmit | None = None
 

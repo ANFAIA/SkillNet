@@ -56,6 +56,7 @@ export function LearningPreferencesSection({
     DEFAULT_LEARNING_PREFERENCES,
   )
   const [accessibility, setAccessibility] = useState<AccessibilitySettings>(NO_ACCESSIBILITY)
+  const [learningNote, setLearningNote] = useState('')
   const [hydrated, setHydrated] = useState(false)
   const [saved, setSaved] = useState(false)
   const changeVersion = useRef(0)
@@ -64,6 +65,7 @@ export function LearningPreferencesSection({
     if (hydrated || !profile.data || !me.data) return
     setPreferences(normalizeLearningPreferences(profile.data.learning_preferences))
     setAccessibility(normalizeAccessibility(me.data.accessibility))
+    setLearningNote(profile.data.learning_note ?? '')
     setHydrated(true)
   }, [hydrated, me.data, profile.data])
 
@@ -88,6 +90,7 @@ export function LearningPreferencesSection({
       updateLearningAsync({
         learning_preferences: preferences,
         accessibility,
+        learning_note: learningNote.trim() ? learningNote.trim() : null,
       })
         .then(() => {
           if (changeVersion.current === version) setSaved(true)
@@ -98,7 +101,7 @@ export function LearningPreferencesSection({
     }, 500)
 
     return () => window.clearTimeout(timeout)
-  }, [accessibility, hydrated, preferences, updateLearningAsync])
+  }, [accessibility, hydrated, learningNote, preferences, updateLearningAsync])
 
   const webPresentationOptions = [
     { value: 'balanced' as WebPresentationPreference, icon: <SettingsIcon name="balance" size={14} /> },
@@ -307,6 +310,33 @@ export function LearningPreferencesSection({
                     images={preferences.images}
                   />
                 </div>
+              </section>
+
+              <section className="border-t border-border p-5">
+                <div className="mb-3 flex items-center gap-2 text-text">
+                  <SettingsIcon name="sparkles" size={16} className="text-text-muted" />
+                  <h2 className="text-base font-semibold">
+                    {intl.formatMessage({ id: 'learningPreferences.learningNote' })}
+                  </h2>
+                </div>
+                <p className="mb-3 text-sm text-text-muted">
+                  {intl.formatMessage({ id: 'learningPreferences.learningNoteHelp' })}
+                </p>
+                <textarea
+                  value={learningNote}
+                  maxLength={500}
+                  rows={3}
+                  aria-label={intl.formatMessage({ id: 'learningPreferences.learningNote' })}
+                  placeholder={intl.formatMessage({
+                    id: 'learningPreferences.learningNotePlaceholder',
+                  })}
+                  onChange={(event) => {
+                    changeVersion.current += 1
+                    setSaved(false)
+                    setLearningNote(event.target.value)
+                  }}
+                  className="w-full resize-y rounded-lg border border-border bg-surface p-3 text-sm text-text placeholder:text-text-muted focus:border-primary focus:outline-none"
+                />
               </section>
 
               <section className="border-t border-border p-5">

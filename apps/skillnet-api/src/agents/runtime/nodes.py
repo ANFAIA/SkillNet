@@ -111,6 +111,10 @@ from src.models import (
     Organization,
     User,
 )
+from src.personalization.learning_note import (
+    learning_note_fingerprint,
+    normalize_learning_note,
+)
 from src.personalization.preferences import normalize_learning_preferences
 from src.personalization.projection import (
     longitudinal_projection_from_mapping,
@@ -571,6 +575,12 @@ async def load_context(state: NodeRuntimeState) -> dict:
             knowledge_pack_key=expected_pack_key,
             longitudinal_history=history,
             media_offer_fingerprint=offers_fingerprint(media_offers),
+            # The learner's free-text note partitions the render cache: two learners with
+            # different notes get different renders, and changing your note re-renders.
+            # Mirrors the pre-graph key in NodeRenderService.render_key_for exactly.
+            learning_note_fingerprint=learning_note_fingerprint(
+                getattr(profile, "learning_note", None)
+            ),
         )
         cache_key = str(state.get("cache_key") or key.cache_key)
 
@@ -618,6 +628,13 @@ async def load_context(state: NodeRuntimeState) -> dict:
             # `goal` is deliberately absent: it never reaches the LLM (§3.3).
             "role_title": getattr(profile, "role_title", None),
             "sector": getattr(profile, "sector", None),
+            # The learner's own "how I like to learn" note. Unlike memory_md, this DOES steer
+            # the (cached) generation prompt — the render is partitioned by its fingerprint
+            # (see build_render_key), so no cross-learner leak. It changes only HOW the same
+            # content is explained, never WHAT is taught.
+            "learning_note": normalize_learning_note(
+                getattr(profile, "learning_note", None)
+            ),
             "experience_level": _plain(getattr(profile, "experience_level", "unknown")),
             "preset": _plain(getattr(profile, "preset", "standard")),
             "nodes_completed": int(getattr(profile, "nodes_completed", 0) or 0),
@@ -1911,6 +1928,7 @@ async def genera_ui(state: NodeRuntimeState) -> dict:
             source_context=_source_with_authored_activity(state),
             previous=str(state.get("raw_dsl") or ""),
             errors=list(state.get("validation_errors") or []),
+            learning_note=str(profile.get("learning_note") or ""),
         )
     elif retry:
         system = ui_repair_system(scoped_prompt, didact_verification=didact_verification)
@@ -1926,6 +1944,7 @@ async def genera_ui(state: NodeRuntimeState) -> dict:
         user_prompt = build_episode_ui_prompt(
             episode=episode_payload,
             source_context=_source_with_authored_activity(state),
+            learning_note=str(profile.get("learning_note") or ""),
         )
         # The episode brief in the user turn is what the model treats as authoritative, so a
         # media offer folded only into the system grammar (which makes the component valid but
@@ -1962,6 +1981,7 @@ async def genera_ui(state: NodeRuntimeState) -> dict:
             detail_preference=preferences.detail.value,
             image_preference=preferences.images.value,
             longitudinal_support_level=_history_support_level(state),
+            learning_note=str(profile.get("learning_note") or ""),
         )
 
     await publish_step(request_id, "genera_ui", STEP_MESSAGES["genera_ui"])
@@ -2441,6 +2461,7 @@ async def critic_episode(state: NodeRuntimeState) -> dict:
             source_context=_source_with_authored_activity(state),
             previous=program,
             notes=verdict.notes,
+            learning_note=str((state.get("profile") or {}).get("learning_note") or ""),
         )
         raw, usage = await llm.complete_with_usage(
             system,

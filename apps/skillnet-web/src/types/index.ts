@@ -479,6 +479,7 @@ export interface LearnerProfile {
   role_title: string | null
   sector: string | null
   goal: string | null
+  learning_note: string | null
   experience_level: 'unknown' | 'none' | 'some' | 'experienced'
   preset: 'standard' | 'focus' | 'fast'
   nodes_completed: number

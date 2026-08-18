@@ -251,6 +251,7 @@ def build_render_key(
     knowledge_pack_key: str = "",
     longitudinal_history: LongitudinalHistoryProjection | None = None,
     media_offer_fingerprint: str = "",
+    learning_note_fingerprint: str = "",
 ) -> RenderKey:
     """Compose the ``cache_key`` of §3.4 from a loaded context.
 
@@ -296,6 +297,13 @@ def build_render_key(
     # the shared render cache. Empty (the default) leaves every pre-existing key untouched.
     if media_offer_fingerprint:
         generation_key = f"{generation_key}+{media_offer_fingerprint}"
+    # The learner's free-text "how I like to learn" note steers HOW the episode is explained,
+    # so its render must be partitioned from the neutral render and from learners with a
+    # different note. Empty (no note) leaves every pre-existing key untouched, so a learner
+    # without a note keeps sharing the neutral render; two learners with the SAME note share
+    # (same fingerprint), exactly like the media-offer fingerprint above.
+    if learning_note_fingerprint:
+        generation_key = f"{generation_key}+{learning_note_fingerprint}"
     history = longitudinal_history or project_longitudinal_history(
         [], nodes_completed=nodes_completed
     )
@@ -822,6 +830,11 @@ class NodeRenderService:
         media_fingerprint = offers_fingerprint(
             gate_offers(ready_media, getattr(profile, "learning_preferences", None))
         )
+        from src.personalization.learning_note import learning_note_fingerprint
+
+        note_fingerprint = learning_note_fingerprint(
+            getattr(profile, "learning_note", None)
+        )
         return build_render_key(
             node=node,
             course=course,
@@ -834,6 +847,7 @@ class NodeRenderService:
             knowledge_pack_key=pack.cache_fragment if pack else "",
             longitudinal_history=history,
             media_offer_fingerprint=media_fingerprint,
+            learning_note_fingerprint=note_fingerprint,
         )
 
     # -- anticipatory warm-up (creation-time pre-render) -------------------------

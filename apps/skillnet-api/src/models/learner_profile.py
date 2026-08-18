@@ -74,6 +74,13 @@ class LearnerProfile(UUIDMixin, TimestampMixin, Base):
     role_title: Mapped[str | None] = mapped_column(Text, nullable=True)
     sector: Mapped[str | None] = mapped_column(Text, nullable=True)
     goal: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # The learner's own free-text "how I like to learn" note (e.g. "me gustan las metaforas",
+    # "me gusta entender las bases"). Self-service on /users/me/learner-profile. It steers only
+    # the FORM of an explanation (metaphors, first-principles, examples, tone), never the facts:
+    # injected into the episode generation prompt as bounded style DATA and folded into the
+    # render-cache fingerprint so two learners with different notes get different renders and
+    # changing your note re-renders. Length-capped in the Pydantic layer (LEARNING_NOTE_MAX_CHARS).
+    learning_note: Mapped[str | None] = mapped_column(Text, nullable=True)
     experience_level: Mapped[LearnerExperience] = mapped_column(
         SAEnum(
             LearnerExperience,

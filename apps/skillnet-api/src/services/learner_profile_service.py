@@ -39,6 +39,7 @@ from src.models import (
 )
 from src.repositories.learner_profile_repo import LearnerProfileRepository
 from src.repositories.learning_event_repo import EventInput, EventSample, LearningEventRepository
+from src.personalization.learning_note import normalize_learning_note
 from src.personalization.preferences import normalize_learning_preferences
 
 # ---------------------------------------------------------------------------
@@ -104,6 +105,7 @@ PATCHABLE_FIELDS: frozenset[str] = frozenset(
         "role_title",
         "sector",
         "goal",
+        "learning_note",
         "learning_preferences",
         "accessibility",
     }
@@ -481,6 +483,15 @@ class LearnerProfileService:
             if field_name in changes:
                 setattr(profile, field_name, _clean(changes[field_name]))
         personalization_changed = False
+        if "learning_note" in changes:
+            # Normalize the same way the cache fingerprint does, so a whitespace-only edit
+            # neither re-renders nor forks the cache. Store None when it normalizes empty.
+            normalized_note = normalize_learning_note(changes["learning_note"]) or None
+            if normalized_note != (getattr(profile, "learning_note", None) or None):
+                profile.learning_note = normalized_note
+                # The note steers the generation prompt and partitions the render cache, so a
+                # changed note must drop this learner's render pins to force a fresh render.
+                personalization_changed = True
         if "learning_preferences" in changes:
             normalized_preferences = normalize_learning_preferences(
                 changes["learning_preferences"]

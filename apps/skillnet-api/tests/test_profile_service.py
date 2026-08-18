@@ -645,6 +645,70 @@ async def test_update_profile_applies_accessibility_atomically_and_advances_once
     profiles.session.execute.assert_awaited_once()
 
 
+async def test_update_profile_sets_learning_note_and_advances_personalization():
+    """Setting the note stores it normalized and unpins renders (cache re-render)."""
+    profile = make_profile()
+    profile.personalization_revision = 2
+    profile.learning_note = None
+    service, profiles, _ = make_service(profile)
+    user = make_user()
+
+    await service.update_profile(
+        user=user, changes={"learning_note": "  me gustan las   metaforas "}
+    )
+
+    assert profile.learning_note == "me gustan las metaforas"  # normalized
+    # A changed note forces a fresh render for this learner.
+    assert profile.personalization_revision == 3
+    profiles.session.execute.assert_awaited_once()
+
+
+async def test_update_profile_clears_learning_note_with_blank():
+    profile = make_profile()
+    profile.personalization_revision = 1
+    profile.learning_note = "me gustan las metaforas"
+    service, _, _ = make_service(profile)
+
+    await service.update_profile(user=make_user(), changes={"learning_note": "   "})
+
+    assert profile.learning_note is None
+    assert profile.personalization_revision == 2
+
+
+async def test_update_profile_note_unchanged_does_not_advance():
+    """Re-submitting the same note (modulo whitespace) must not re-render."""
+    profile = make_profile()
+    profile.personalization_revision = 7
+    profile.learning_note = "me gustan las metaforas"
+    service, profiles, _ = make_service(profile)
+
+    await service.update_profile(
+        user=make_user(), changes={"learning_note": "me gustan  las metaforas"}
+    )
+
+    assert profile.personalization_revision == 7
+    profiles.session.execute.assert_not_awaited()
+
+
+def test_learner_profile_read_round_trips_the_note():
+    from src.schemas.learner_profile import LearnerProfileRead, LearnerProfileUpdate
+
+    profile = make_profile()
+    profile.learning_note = "me gusta entender las bases"
+    profile.nodes_completed = 5
+    profile.onboarding_completed_at = None
+    profile.onboarding_skipped = False
+    read = LearnerProfileRead.from_profile(profile)
+    assert read.learning_note == "me gusta entender las bases"
+
+    # PATCH schema accepts the field and caps its length.
+    from pydantic import ValidationError as PydValidationError
+
+    assert LearnerProfileUpdate(learning_note="hola").learning_note == "hola"
+    with pytest.raises(PydValidationError):
+        LearnerProfileUpdate(learning_note="x" * 5000)
+
+
 async def test_get_or_404_raises_when_there_is_no_profile():
     from src.core.exceptions import NotFoundError
 

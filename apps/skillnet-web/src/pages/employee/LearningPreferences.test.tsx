@@ -10,6 +10,7 @@ const PROFILE = {
   role_title: 'Cajero',
   sector: 'retail',
   goal: 'assigned',
+  learning_note: null,
   experience_level: 'some',
   preset: 'standard',
   learning_preferences: {
@@ -110,8 +111,34 @@ describe('LearningPreferencesPage', () => {
         high_contrast: false,
         extra_time: false,
       },
+      learning_note: null,
     })
     expect(mockFetch.mock.calls.some((call) => call[1]?.method === 'PUT')).toBe(false)
+  })
+
+  it('saves the free-text learning note', async () => {
+    mockFetch.mockImplementation((input: string, options?: RequestInit) => {
+      const url = String(input)
+      if (url.endsWith('/users/me/learner-profile') && !options?.method) return json(PROFILE)
+      if (url.endsWith('/auth/me')) return json(USER)
+      if (url.endsWith('/users/me/learner-profile') && options?.method === 'PATCH') {
+        return json({ ...PROFILE, learning_note: JSON.parse(String(options.body)).learning_note })
+      }
+      return json({ detail: 'Not Found' }, 404)
+    })
+    const user = userEvent.setup()
+    renderPage()
+
+    const note = await screen.findByLabelText('Como te gusta aprender')
+    await user.type(note, 'me gustan las metaforas para aprender')
+
+    await waitFor(() => {
+      expect(screen.getByRole('status')).toHaveTextContent('Preferencias guardadas')
+    })
+    const patchCall = mockFetch.mock.calls.find((call) => call[1]?.method === 'PATCH')
+    expect(JSON.parse(patchCall?.[1]?.body as string).learning_note).toBe(
+      'me gustan las metaforas para aprender',
+    )
   })
 
   it('renders an inline error and retry action when loading fails', async () => {
