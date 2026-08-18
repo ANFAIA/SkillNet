@@ -101,6 +101,7 @@ function ConfigPanel() {
   const intl = useIntl()
   const locale = usePreferences((s) => s.locale)
   const setLocale = usePreferences((s) => s.setLocale)
+  const mascotaEnabled = usePreferences((s) => s.mascotaEnabled)
 
   return (
     <div className="space-y-4">
@@ -1000,7 +1001,7 @@ export function NodeView() {
             alta (estilo "Koji" de Brilliant). Antes colgaba de un hilo arriba a la
             derecha; abajo se posa (sin hilo) y es más grande. */}
         <AnimatePresence>
-          {served && !activePanel && (
+          {served && !activePanel && mascotaEnabled && (
             <motion.div
               key="spider"
               className="absolute left-4 bottom-6 md:left-12 md:bottom-8 z-10"

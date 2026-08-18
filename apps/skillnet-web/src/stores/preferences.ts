@@ -27,6 +27,15 @@ interface PreferencesState {
    */
   mascotaMuted: boolean
 
+  /** Show the mascot at all. When `false` the companion is not rendered. */
+  mascotaEnabled: boolean
+  /**
+   * When `false` the mascot is a silent presence: no bubble and no voice — just
+   * the character. Independent of `mascotaMuted` (which only silences the voice
+   * while keeping the bubble).
+   */
+  mascotaSpeaks: boolean
+
   setLocale: (locale: Locale) => void
   setTheme: (theme: Theme) => void
   setAccentColor: (accentColor: AccentColor) => void
@@ -34,6 +43,8 @@ interface PreferencesState {
   setUiPreset: (uiPreset: UiPreset) => void
   setSidebarCollapsed: (collapsed: boolean) => void
   setMascotaMuted: (muted: boolean) => void
+  setMascotaEnabled: (enabled: boolean) => void
+  setMascotaSpeaks: (speaks: boolean) => void
 }
 
 export const usePreferences = create<PreferencesState>()(
@@ -46,6 +57,8 @@ export const usePreferences = create<PreferencesState>()(
       uiPreset: DEFAULT_UI_PRESET,
       sidebarCollapsed: false,
       mascotaMuted: false,
+      mascotaEnabled: true,
+      mascotaSpeaks: true,
 
       setLocale: (locale) => set({ locale }),
       setTheme: (theme) => set({ theme }),
@@ -54,6 +67,8 @@ export const usePreferences = create<PreferencesState>()(
       setUiPreset: (uiPreset) => set({ uiPreset }),
       setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
       setMascotaMuted: (muted) => set({ mascotaMuted: muted }),
+      setMascotaEnabled: (enabled) => set({ mascotaEnabled: enabled }),
+      setMascotaSpeaks: (speaks) => set({ mascotaSpeaks: speaks }),
     }),
     { name: 'skillnet-preferences' },
   ),

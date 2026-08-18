@@ -2,8 +2,43 @@ import { useIntl } from 'react-intl'
 import { useTheme } from '../../hooks/useTheme'
 import { ACCENT_COLOR_OPTIONS } from '../../lib/accent-themes'
 import type { Theme } from '../../stores/preferences'
+import { usePreferences } from '../../stores/preferences'
 import { SegmentedControl } from './SegmentedControl'
 import { SettingsIcon } from './SettingsIcon'
+
+function ToggleRow({
+  label,
+  hint,
+  checked,
+  disabled = false,
+  onChange,
+}: {
+  label: string
+  hint?: string
+  checked: boolean
+  disabled?: boolean
+  onChange: (next: boolean) => void
+}) {
+  return (
+    <label className={`flex items-center justify-between gap-4 py-2 ${disabled ? 'opacity-50' : 'cursor-pointer'}`}>
+      <span className="min-w-0">
+        <span className="block text-sm text-text">{label}</span>
+        {hint && <span className="block text-xs text-text-muted">{hint}</span>}
+      </span>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        aria-label={label}
+        disabled={disabled}
+        onClick={() => onChange(!checked)}
+        className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${checked && !disabled ? 'bg-primary' : 'bg-border'} ${disabled ? '' : 'cursor-pointer'}`}
+      >
+        <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${checked ? 'translate-x-5' : 'translate-x-0.5'}`} />
+      </button>
+    </label>
+  )
+}
 
 type AppearanceIconProps = {
   size?: number
@@ -45,6 +80,10 @@ export function AppearanceSettings({
     setAccentColor,
     setCustomAccent,
   } = useTheme()
+  const mascotaEnabled = usePreferences((s) => s.mascotaEnabled)
+  const setMascotaEnabled = usePreferences((s) => s.setMascotaEnabled)
+  const mascotaSpeaks = usePreferences((s) => s.mascotaSpeaks)
+  const setMascotaSpeaks = usePreferences((s) => s.setMascotaSpeaks)
   const colorModes = [
     { value: 'light' as Theme, label: intl.formatMessage({ id: 'settings.themeLight' }), icon: <SettingsIcon name="sun" size={15} /> },
     { value: 'dark' as Theme, label: intl.formatMessage({ id: 'settings.themeDark' }), icon: <SettingsIcon name="moon" size={15} /> },
@@ -113,6 +152,26 @@ export function AppearanceSettings({
               <PipetteIcon size={11} />
             </span>
           </label>
+        </div>
+      </fieldset>
+
+      <fieldset className={compact ? '' : 'mt-6'}>
+        <legend className="text-sm font-medium text-text">
+          {intl.formatMessage({ id: 'appearance.mascotaTitle' })}
+        </legend>
+        <div className="mt-2 max-w-xl divide-y divide-border">
+          <ToggleRow
+            label={intl.formatMessage({ id: 'appearance.mascotaShow' })}
+            checked={mascotaEnabled}
+            onChange={setMascotaEnabled}
+          />
+          <ToggleRow
+            label={intl.formatMessage({ id: 'appearance.mascotaSpeaks' })}
+            hint={intl.formatMessage({ id: 'appearance.mascotaSpeaksHint' })}
+            checked={mascotaSpeaks}
+            disabled={!mascotaEnabled}
+            onChange={setMascotaSpeaks}
+          />
         </div>
       </fieldset>
       </div>

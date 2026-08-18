@@ -80,6 +80,8 @@ export function MascotaCompanion({ nodeId, title, summary, program = null, scree
   const locale = usePreferences((s) => s.locale)
   const muted = usePreferences((s) => s.mascotaMuted)
   const setMascotaMuted = usePreferences((s) => s.setMascotaMuted)
+  // When false the companion is a silent presence: no bubble, no voice.
+  const speaks = usePreferences((s) => s.mascotaSpeaks)
 
   const [playing, setPlaying] = useState(false)
 
@@ -164,7 +166,7 @@ export function MascotaCompanion({ nodeId, title, summary, program = null, scree
   useEffect(() => {
     stop()
     const timer = window.setTimeout(() => {
-      if (!muted) void speak().catch(() => undefined)
+      if (speaks && !muted) void speak().catch(() => undefined)
     }, READ_DELAY_MS)
     return () => window.clearTimeout(timer)
     // `speak`/`stop` are stable per (node, screen); re-running only when the page
@@ -192,9 +194,10 @@ export function MascotaCompanion({ nodeId, title, summary, program = null, scree
         <Mascota anim={anim} size="100%" followCursor />
       </motion.button>
 
-      {/* The bubble with what the mascot "says" is always shown. The speaker in
-          its top-right corner controls only the audio: mute silences the read
-          (icon slashed) but the text stays; un-muting reads the current node. */}
+      {/* The bubble with what the mascot "says". Hidden entirely when speech is off
+          (silent-presence mode); the speaker in its top-right corner controls only the
+          audio: mute silences the read (icon slashed) but the text stays. */}
+      {speaks && (
       <div className="relative mb-1 max-w-[210px] md:max-w-[260px] rounded-2xl rounded-bl-sm border border-border bg-bg shadow-sm px-3 py-2">
         <p className="pr-6 text-xs leading-relaxed text-text" role="status">
           {readText}
@@ -221,6 +224,7 @@ export function MascotaCompanion({ nodeId, title, summary, program = null, scree
           )}
         </button>
       </div>
+      )}
     </div>
   )
 }
