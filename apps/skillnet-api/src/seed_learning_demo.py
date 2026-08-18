@@ -408,7 +408,10 @@ async def _ensure_persona(session, org: Organization, spec: PersonaSpec) -> User
             user=user,
             role_title=spec.role_title,
             sector=None,
-            goal="self_knowledge",
+            # No goal: the "Esto te sirve para X" opening line is derived from it, and for a
+            # curiosity-driven demo that line is noise on every screen. A null goal makes the
+            # frontend omit the line entirely (openingLineFor returns null).
+            goal=None,
             experience_level=spec.experience,
             preset="standard",
             learning_preferences=spec.learning_preferences,
@@ -420,6 +423,7 @@ async def _ensure_persona(session, org: Organization, spec: PersonaSpec) -> User
         profile.learning_preferences = normalize_learning_preferences(
             spec.learning_preferences
         ).to_dict()
+        profile.goal = None  # drop any legacy goal so the opening line stays hidden
     profile.learning_note = normalize_learning_note(spec.learning_note) or None
     await session.flush()
     return user

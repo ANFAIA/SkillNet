@@ -1111,6 +1111,12 @@ Preguntate, sin imponer reglas rigidas:
 - UN SOLO FOCO POR PANTALLA. Cada hijo de la raiz lleva UNA cosa (una idea, O un contenido,
   O una interaccion), nunca las tres amontonadas. Si una pantalla explica algo Y define varios
   terminos Y pide actuar, pide trocearla.
+- CARGA POR PANTALLA. Aunque sea todo contenido del mismo tema, una pantalla (o un Card) que
+  apila varios bloques PESADOS a la vez (p. ej. texto largo + una tabla + una secuencia de
+  pasos + un aviso) obliga a hacer scroll y se lee como si fueran varias pantallas metidas en
+  una. Si lo ves, pide REPARTIRLO en pantallas contiguas (hay hasta cinco): una tabla o una
+  secuencia densa suele merecer su propia pantalla. No es un limite de bloques fijo; es que
+  cada pantalla se lea de un vistazo.
 - CONTENIDO vs EVALUACION separados. El CONTENIDO ensena o ayuda (texto, tabla, antes/despues,
   cronologia, ejemplo resuelto mostrado entero, flashcard de apoyo) y NUNCA evalua. La
   EVALUACION es una comprobacion REAL. Marca como error: una flashcard (o cualquier bloque que
