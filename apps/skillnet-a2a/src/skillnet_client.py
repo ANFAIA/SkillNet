@@ -63,3 +63,32 @@ class SkillNetClient:
             resp = await client.get(f"/ext/v1/skills/users/{user_id}/skills")
             resp.raise_for_status()
             return resp.json()
+
+    async def create_course(
+        self,
+        title: str,
+        *,
+        document_id: str | None = None,
+        intent_density: int = 3,
+        enroll_user_id: str | None = None,
+        generate_artifacts: list[str] | None = None,
+    ) -> dict:
+        """Create a course end to end in one call.
+
+        The end-to-end flow (propose schema, generate knowledge packs with retry,
+        review, validate, prewarm) runs server-side and can take a few minutes on a
+        real provider, so this request uses a long timeout instead of the default 30s.
+        """
+        payload: dict = {"title": title, "intent_density": intent_density}
+        if document_id:
+            payload["document_id"] = document_id
+        if enroll_user_id:
+            payload["enroll_user_id"] = enroll_user_id
+        if generate_artifacts:
+            payload["generate_artifacts"] = generate_artifacts
+        async with httpx.AsyncClient(
+            base_url=self._base, headers=self._headers, timeout=600.0
+        ) as client:
+            resp = await client.post("/ext/v1/courses/full", json=payload)
+            resp.raise_for_status()
+            return resp.json()

@@ -256,6 +256,25 @@ compose file does not forward is silently ignored. That includes most of the tun
 [`docs/design/tuning.md`](docs/design/tuning.md) — to use one, add it to the `environment:`
 block of `api` first.
 
+### Agent tools (a2a + external API)
+
+The `a2a` service (profile `a2a`) exposes SkillNet to external agents over A2A JSON-RPC:
+`who_knows`, `get_gap`, `verify_skill`, `list_skills`, `get_user_skills`, and — new — a
+one-call **`create_course`** that builds a full dynamic course end to end (propose schema,
+generate knowledge packs with retry, review, validate, optional enrol + media artefacts).
+The same capability is a REST endpoint, `POST /ext/v1/courses/full` (API-key auth,
+`courses:write`). All three surfaces — the a2a tool, the endpoint, and the
+`scripts/create_course.py` CLI — call one orchestrator,
+`src/services/course_orchestration.py::create_course_end_to_end`, which reuses the existing
+authoring services rather than reimplementing generation. Full reference (auth, inputs,
+outputs, examples): [`docs/design/mcp-external-api.md`](docs/design/mcp-external-api.md) §8.1.2 and §8.9.
+
+```bash
+# Create a fully-validated course in one command (runs inside the api container):
+docker compose exec -T api sh -c \
+  'cd /app && uv run python scripts/create_course.py "Food safety basics"'
+```
+
 ### Local development
 
 ```bash

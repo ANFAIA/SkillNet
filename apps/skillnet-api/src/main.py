@@ -49,6 +49,7 @@ from src.routes import (
 from src.routes import (
     settings as settings_routes,
 )
+from src.routes.ext import courses as ext_courses
 from src.routes.ext import skills as ext_skills
 from src.services.embedding_check import check_embedding_dimensions
 from src.services.media import infographic as _infographic  # noqa: F401
@@ -190,6 +191,7 @@ def create_app() -> FastAPI:
     ext_prefix = "/ext/v1"
     app.include_router(ext_skills.router, prefix=ext_prefix)
     app.include_router(ext_skills.user_router, prefix=ext_prefix)
+    app.include_router(ext_courses.router, prefix=ext_prefix)
 
     return app
 

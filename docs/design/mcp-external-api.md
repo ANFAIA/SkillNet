@@ -336,6 +336,71 @@ Encuentra empleados con una skill determinada, opcionalmente filtrado por nivel 
 }
 ```
 
+##### Crear un curso completo en una llamada
+
+```
+POST /ext/v1/courses/full
+```
+
+**Implementado (2026-08).** Crea un curso dinamico de principio a fin en una sola peticion:
+propone el esquema, genera los knowledge packs (con reintentos automaticos), revisa todos los nodos,
+valida el curso y calienta los primeros renders. Opcionalmente matricula a un empleado y genera
+artefactos (podcast, infografia). Sustituye el baile de siete llamadas que hacia el asistente de
+creacion (`create -> propose -> poll job -> PUT schema -> poll packs -> review -> validate`).
+
+La `org_id` y el admin creador salen del API key (columna `created_by`). Requiere scope
+`courses:write`. Debajo reutiliza los mismos servicios que el panel de administracion; no reimplementa
+nada de la generacion. La logica vive en `apps/skillnet-api/src/services/course_orchestration.py`
+(`create_course_end_to_end`).
+
+**Request body:**
+
+```json
+{
+  "title": "Higiene y manipulacion de alimentos",
+  "document_id": "uuid | null",
+  "intent_density": 3,
+  "enroll_user_id": "uuid | null",
+  "generate_artifacts": ["podcast", "infographic"],
+  "artifact_node_limit": 1
+}
+```
+
+Solo `title` es obligatorio. `document_id` ancla el esquema en un documento ya procesado
+(`status='ready'`); sin el, el curso se sintetiza desde el titulo. `intent_density` (1-5) regula la
+profundidad.
+
+**Response 201** (reporta exito parcial con honestidad — nunca se cuelga esperando):
+
+```json
+{
+  "course_id": "uuid",
+  "title": "Higiene y manipulacion de alimentos",
+  "schema_status": "validated",
+  "schema_version": 2,
+  "node_count": 8,
+  "packs_ready": 6,
+  "packs_all_ready": false,
+  "packs_summary": "6/8 nodes ready",
+  "nodes": [
+    {"node_id": "uuid", "title": "Importancia de la higiene", "status": "ready"},
+    {"node_id": "uuid", "title": "Limpieza y desinfeccion", "status": "failed"}
+  ],
+  "reviewed": true,
+  "validated": true,
+  "enrolled_user_id": "uuid | null",
+  "prewarm_spawned": true,
+  "artifacts": [{"artifact_id": "uuid", "node_id": "uuid", "kind": "podcast", "status": "pending"}],
+  "warnings": ["only 6/8 knowledge packs reached ready within the timeout"]
+}
+```
+
+El estado por nodo de `packs` puede ser `ready`, `review_required`, `failed`, `pending`, `stale` o
+`missing`. Como DeepSeek es inestable con JSON estricto, el runner reintenta de forma acotada
+(`max_attempts=3`) y supersede versiones anteriores del esquema; si algun nodo no converge dentro del
+tiempo limite, el curso sale igualmente validado (la validacion no depende de los packs) con un
+`warning` y el conteo real. Los packs restantes siguen completandose en segundo plano.
+
 ##### Sugerencias de mentoria
 
 ```
@@ -1420,3 +1485,87 @@ que ningun directorio.
 
 El paso 2 es barato y responde a la pregunta que importa — si el producto se siente util dentro de
 un asistente. No conviene pagar el paso 3 sin haber pasado por el 2.
+
+---
+
+### 8.9 Servicio A2A implementado (`apps/skillnet-a2a`)
+
+**Estado: implementado y en el compose.** Es la materializacion del paso 2 del roadmap de 8.8.8:
+un servidor remoto que envuelve `/ext/v1` y expone las capacidades de SkillNet a agentes externos.
+No habla con PostgreSQL: es un cliente HTTP de `/ext/v1` (principio de 8.8.3). Vive en su propio
+proceso/contenedor (`docker/a2a.Dockerfile`, perfil de compose), publicado solo en `127.0.0.1`.
+
+#### 8.9.1 Protocolo y autenticacion
+
+Habla **A2A JSON-RPC 2.0 sobre HTTP** (no MCP todavia; misma familia de "tools para agentes"):
+
+- `GET /.well-known/agent.json` — el AgentCard: nombre, version, `skills[]` y esquema de auth.
+- `POST /` — metodos `message/send` y `tasks/get`.
+
+Dos credenciales, en dos saltos:
+
+1. El agente externo se autentica ante el A2A con un **bearer `A2A_AUTH_KEY`** (obligatorio: el
+   servidor se niega a arrancar sin el, ver `require_auth_key` en `src/main.py`).
+2. El A2A llama a `/ext/v1` con su propia **API key interna** (`A2A_INTERNAL_API_KEY`), creada en el
+   bootstrap con scopes `skills:read`, `skills:write`, `users:read`, `courses:write`.
+
+Entre medias hay un orquestador LLM (`src/orchestrator.py`) que interpreta el lenguaje natural del
+mensaje y decide que tool llamar, en un bucle de tool-calling acotado.
+
+#### 8.9.2 Tools expuestas
+
+Cada tool es una envoltura fina sobre un endpoint `/ext/v1` (`src/tools.py` + `src/skillnet_client.py`):
+
+| Tool | Endpoint `/ext/v1` | Que hace |
+|------|--------------------|----------|
+| `who_knows` | `GET /skills/who-knows` | Encuentra empleados con una skill (filtro por nivel minimo) |
+| `get_gap` | `GET /skills/gaps` | Analiza gaps de skills en la organizacion |
+| `verify_skill` | `POST /skills/verify` | Registra/actualiza el nivel de una skill de un empleado |
+| `list_skills` | `GET /skills` | Lista la taxonomia de skills por categoria |
+| `get_user_skills` | `GET /users/{id}/skills` | Perfil completo de skills de un empleado |
+| **`create_course`** | `POST /courses/full` | **Crea un curso completo de principio a fin en una llamada** |
+
+#### 8.9.3 `create_course` (nuevo, 2026-08)
+
+La tool que pedia el owner: un agente crea un curso "como el resto de tools que tiene". Envuelve
+`POST /ext/v1/courses/full` (8.1.2). El cliente usa un timeout largo (600 s) porque el flujo completo
+—proponer esquema, generar packs con reintentos, revisar, validar, calentar— corre en el servidor y
+puede tardar minutos con un proveedor real.
+
+**Parametros:** `title` (obligatorio), `document_id`, `intent_density` (1-5), `enroll_user_id`,
+`generate_artifacts` (p.ej. `["podcast", "infographic"]`).
+
+**Ejemplos en lenguaje natural** que el orquestador mapea a la tool:
+
+- "Crea un curso sobre seguridad alimentaria" -> `create_course(title="Seguridad alimentaria")`
+- "Monta un curso de onboarding de 5 nodos desde el documento X y matricula a Maria" ->
+  `create_course(title="Onboarding", document_id="X", enroll_user_id="<Maria>")`
+
+**Devuelve** el `course_id`, el estado por nodo de los packs, `validated`, `enrolled_user_id` y
+`artifacts` (ver el cuerpo de respuesta en 8.1.2). Reporta exito parcial con honestidad.
+
+#### 8.9.4 CLI directa (`scripts/create_course.py`)
+
+Para uso directo o de subagentes sin pasar por HTTP, hay una CLI que llama al orquestador
+**en proceso** (necesita acceso a la BD y a la config de LLM, asi que corre dentro del contenedor api):
+
+```bash
+docker compose exec -T api sh -c \
+  'cd /app && uv run python scripts/create_course.py "Fundamentos de seguridad alimentaria"'
+
+# con documento, matricula y artefacto:
+docker compose exec -T api sh -c 'cd /app && uv run python scripts/create_course.py \
+  "Onboarding" --document-id <uuid> --enroll-user-id <uuid> --artifacts podcast'
+```
+
+Por defecto actua como el admin de la primera organizacion; se puede fijar con `--org-id` /
+`--admin-id`. Sale con codigo 0 si el curso quedo validado, 1 si no. Imprime el mismo JSON estructurado
+que el endpoint.
+
+#### 8.9.5 Los tres caminos, un solo orquestador
+
+Los tres canales (tool A2A, CLI, endpoint HTTP `/ext/v1/courses/full`) convergen en una sola funcion,
+`create_course_end_to_end` en `src/services/course_orchestration.py`, fiel al principio del inicio de
+este documento: una misma capa de logica de negocio, no se duplica codigo. El orquestador reutiliza
+`CourseService`, `CourseSchemaService`, el runner de knowledge packs (con su reintento/supersede), el
+prewarm de renders, `EnrollmentService` y los generadores de media — no reimplementa la generacion.

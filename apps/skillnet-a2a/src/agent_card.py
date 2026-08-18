@@ -49,6 +49,19 @@ AGENT_CARD = {
             "examples": ["What skills do we track?", "Show me the skill categories"],
         },
         {
+            "id": "create_course",
+            "name": "Create a course",
+            "description": (
+                "Create a full training course end to end in one call: propose the "
+                "schema, generate knowledge packs, review and validate it. Optionally "
+                "ground on a document, enrol an employee, and generate media artefacts."
+            ),
+            "examples": [
+                "Create a course on food safety basics",
+                "Build a 5-node onboarding course from document X and enrol Maria",
+            ],
+        },
+        {
             "id": "get_user_skills",
             "name": "Get employee skills",
             "description": "Get the complete skill profile of an employee",

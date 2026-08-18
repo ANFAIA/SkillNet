@@ -112,7 +112,7 @@ async def maybe_create_a2a_api_key(
         created_by=admin.id,
         name="A2A Internal",
         key_hash=key_hash,
-        scopes=["skills:read", "skills:write", "users:read"],
+        scopes=["skills:read", "skills:write", "users:read", "courses:write"],
         is_active=True,
     )
     session.add(api_key)

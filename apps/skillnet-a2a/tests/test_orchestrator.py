@@ -42,6 +42,12 @@ def mock_skillnet_client():
                 {"name": "SQL", "level": "medium"},
             ]
         })
+        client.create_course = AsyncMock(return_value={
+            "course_id": "course-789",
+            "validated": True,
+            "packs_ready": 3,
+            "node_count": 3,
+        })
         yield client
 
 
@@ -119,6 +125,30 @@ async def test_execute_tool_get_user_skills(mock_skillnet_client):
 
 
 @pytest.mark.asyncio
+async def test_execute_tool_create_course(mock_skillnet_client):
+    """Tool executor should call create_course with title and optional args."""
+    from src.tools import execute_tool
+
+    result = await execute_tool("create_course", {
+        "title": "Food safety basics",
+        "intent_density": 3,
+        "enroll_user_id": "abc-123",
+        "generate_artifacts": ["podcast"],
+    })
+    parsed = json.loads(result)
+
+    mock_skillnet_client.create_course.assert_awaited_once_with(
+        title="Food safety basics",
+        document_id=None,
+        intent_density=3,
+        enroll_user_id="abc-123",
+        generate_artifacts=["podcast"],
+    )
+    assert parsed["validated"] is True
+    assert parsed["course_id"] == "course-789"
+
+
+@pytest.mark.asyncio
 async def test_execute_tool_unknown():
     """Unknown tool should return error."""
     from src.tools import execute_tool
@@ -142,7 +172,8 @@ async def test_agent_card_endpoint():
     assert resp.status_code == 200
     card = resp.json()
     assert card["name"] == "SkillNet"
-    assert len(card["skills"]) == 5
+    assert len(card["skills"]) == 6
+    assert any(s["id"] == "create_course" for s in card["skills"])
     assert card["capabilities"]["streaming"] is False
 
 
