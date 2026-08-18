@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { IntlProvider } from '../../i18n/IntlProvider'
 import { Dashboard } from './Dashboard'
 
 /**
@@ -77,6 +78,7 @@ function renderPage() {
   })
   return render(
     <QueryClientProvider client={client}>
+      <IntlProvider>
       <MemoryRouter initialEntries={['/empleado']}>
         <Routes>
           <Route path="/empleado" element={<Dashboard />} />
@@ -87,6 +89,7 @@ function renderPage() {
           <Route path="*" element={<div>FALLBACK</div>} />
         </Routes>
       </MemoryRouter>
+      </IntlProvider>
     </QueryClientProvider>,
   )
 }
@@ -111,16 +114,33 @@ describe('Dashboard — node-based courses', () => {
     ])
     renderPage()
 
-    expect(await screen.findByText('Politica de devoluciones v2')).toBeInTheDocument()
-    expect(screen.getByText('Por lecciones')).toBeInTheDocument()
+    expect((await screen.findAllByText('Politica de devoluciones v2')).length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Por lecciones').length).toBeGreaterThan(0)
   })
 
   it('leaves a static course unmarked', async () => {
     installFetch([enrollment()])
     renderPage()
 
-    expect(await screen.findByText('Devoluciones en tienda')).toBeInTheDocument()
+    expect((await screen.findAllByText('Devoluciones en tienda')).length).toBeGreaterThan(0)
     expect(screen.queryByText('Por nodos')).toBeNull()
+  })
+
+  it('surfaces an assigned (not-yet-started) course so a new learner has something to do', async () => {
+    installFetch([
+      enrollment({
+        status: 'assigned',
+        progress: 0,
+        started_at: null,
+        course_title: 'La ciencia de los habitos',
+      }),
+    ])
+    renderPage()
+
+    // The course appears (not hidden behind an "in progress only" filter) and the hero
+    // invites the learner to start it.
+    expect((await screen.findAllByText('La ciencia de los habitos')).length).toBeGreaterThan(0)
+    expect(screen.getByRole('button', { name: /Empezar/ })).toBeInTheDocument()
   })
 
   it('renders normalized enrollment scores as a percentage', async () => {

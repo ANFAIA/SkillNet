@@ -118,4 +118,21 @@ disponible, la resolución de modalidad degrada audio → texto (`fallback_reaso
 **Modelo de imagen** (`src/services/media/images.py`) — `generate_image` vía litellm; primario
 `IMAGE_MODEL = "openrouter/google/gemini-2.5-flash-image"` (la "Nano Banana" de NotebookLM vía
 OpenRouter), fallback `IMAGE_FALLBACK_MODEL = "gpt-image-1"` (un intento). Claves: `openrouter/*`
-usa `OPENROUTER_API_KEY`, en otro caso `LLM_API_KEY`.
+usa `OPENROUTER_API_KEY`, en otro caso `LLM_API_KEY`. Sin clave la imagen es *best-effort*:
+degrada a `has_image=False` (infografía sin póster) sin romper el trabajo.
+
+### Dependencia de claves y "baked at seed time"
+
+Dos consecuencias prácticas de esta cadena, importantes para demos y para el UX:
+
+1. **La calidad del audio/imagen es la de las claves de quien corrió el seed.** Los artefactos
+   (podcast mp3, póster PNG) se generan **en el seed**, se guardan direccionados por contenido
+   en `data/media_assets` y se sirven a **todos** los aprendices desde almacenamiento; no se
+   regeneran por usuario. Un aprendiz sobre una BD ya sembrada oye/ve lo que se generó entonces.
+2. **Hueco conocido en la voz en vivo del mascota.** A diferencia del podcast (que degrada a
+   eSpeak offline), la ruta `POST /api/v1/tts/synthesize` **falla en duro con 500** cuando
+   ElevenLabs no tiene clave/crédito — no cae al proveedor offline. El frontend ya lo traga en
+   silencio (`MascotaCompanion.tsx`), pero la superficie de admin/settings no lo indica.
+
+El plan para exponer estos estados degradados en la interfaz (banner de admin, `/health`
+ampliado, onboarding) está en [`degraded-mode-ux.md`](degraded-mode-ux.md).

@@ -1,10 +1,24 @@
 import { useNavigate } from 'react-router-dom'
+import { useIntl } from 'react-intl'
 import { motion } from 'framer-motion'
-import { Badge, Card, CardTitle, CourseItem, EmptyState, MetricCard, PageHeader, SkillBars, SkeletonRow } from '../../components/ui'
+import {
+  Badge,
+  Button,
+  Card,
+  CardTitle,
+  CourseItem,
+  EmptyState,
+  MetricCard,
+  PageHeader,
+  ProgressBar,
+  SkillBars,
+  SkeletonRow,
+} from '../../components/ui'
 import { useMe } from '../../api/auth'
 import { useEnrollments } from '../../api/enrollments'
 import { useMySkills } from '../../api/users'
 import { staggerContainer, staggerItem } from '../../lib/motion'
+import type { EnrollmentRead } from '../../types'
 
 function BookIcon() {
   return (
@@ -41,29 +55,124 @@ function TrendUpIcon() {
   )
 }
 
+function PlayIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <polygon points="6 4 20 12 6 20 6 4" />
+    </svg>
+  )
+}
+
 export function Dashboard() {
+  const intl = useIntl()
   const navigate = useNavigate()
   const { data: me } = useMe()
   const { data: enrollmentData, isLoading, error } = useEnrollments()
 
   const enrollments = enrollmentData?.items ?? []
-  const active = enrollments.filter((e) => e.status === 'in_progress' || e.status === 'overdue')
-  const completed = enrollments.filter((e) => e.status === 'completed')
-  const pending = enrollments.filter((e) => e.status === 'not_started' || e.status === 'assigned')
+  const isDone = (e: EnrollmentRead) => e.status === 'completed' || (e.progress ?? 0) >= 1
+  const active = enrollments.filter((e) => !isDone(e) && (e.status === 'in_progress' || e.status === 'overdue'))
+  const completed = enrollments.filter((e) => isDone(e))
+  const pending = enrollments.filter((e) => !isDone(e) && (e.status === 'not_started' || e.status === 'assigned'))
+  // Everything the learner still has to work on, newest attention first: courses in
+  // progress (highest progress first) then the not-yet-started ones. This is what makes
+  // the home useful for a freshly-onboarded learner — every enrollment starts as
+  // `assigned` with progress 0, so a "only show in_progress" list is empty on day one.
+  const ongoing = [...active, ...pending].sort((a, b) => {
+    const aStarted = a.status === 'in_progress' || a.status === 'overdue'
+    const bStarted = b.status === 'in_progress' || b.status === 'overdue'
+    if (aStarted !== bStarted) return aStarted ? -1 : 1
+    return (b.progress ?? 0) - (a.progress ?? 0)
+  })
+  const resume = ongoing[0]
+
   const scored = completed.filter((e) => e.score !== null)
   const avgScore = scored.length
-    ? Math.round(
-        (scored.reduce((acc, e) => acc + (e.score ?? 0), 0) / scored.length) * 100,
-      )
+    ? Math.round((scored.reduce((acc, e) => acc + (e.score ?? 0), 0) / scored.length) * 100)
     : 0
 
   const { data: userSkills, isLoading: skillsLoading } = useMySkills()
   const dashboardSkills = (userSkills ?? []).slice(0, 4)
   const firstName = me?.full_name?.split(' ')[0] ?? ''
 
+  const statusLabel: Record<string, string> = {
+    not_started: intl.formatMessage({ id: 'mycourses.statusPending' }),
+    assigned: intl.formatMessage({ id: 'mycourses.statusPending' }),
+    in_progress: intl.formatMessage({ id: 'mycourses.statusInProgress' }),
+    completed: intl.formatMessage({ id: 'mycourses.statusCompleted' }),
+    overdue: intl.formatMessage({ id: 'mycourses.statusOverdue' }),
+  }
+
+  function dynamicBadge(e: EnrollmentRead) {
+    if (e.delivery_mode !== 'dynamic') return undefined
+    return (
+      <Badge variant="primary" badgeStyle="plain">
+        {intl.formatMessage({ id: 'mycourses.byNodes' })}
+      </Badge>
+    )
+  }
+
+  function subtitleFor(e: EnrollmentRead): string {
+    const label = statusLabel[e.status] ?? e.status
+    if (e.deadline) {
+      return intl.formatMessage({ id: 'mycourses.deadline' }, { label, date: new Date(e.deadline).toLocaleDateString() })
+    }
+    return label
+  }
+
+  const started = resume ? resume.status === 'in_progress' || resume.status === 'overdue' : false
+
   return (
     <div>
-      <div className="mb-6"><PageHeader title={`Hola${firstName ? `, ${firstName}` : ''}`} description="Lo que toca hoy" /></div>
+      <div className="mb-6">
+        <PageHeader
+          title={
+            firstName
+              ? intl.formatMessage({ id: 'home.greetingName' }, { name: firstName })
+              : intl.formatMessage({ id: 'home.greeting' })
+          }
+          description={intl.formatMessage({ id: 'home.subtitle' })}
+        />
+      </div>
+
+      {/* Continue / start hero — the primary call to action. Only shown once we know the
+          learner has an open course; hidden while loading or when everything is done. */}
+      {!isLoading && !error && resume && (
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
+          <Card className="border-primary/30 bg-primary/[0.04]">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-medium uppercase tracking-wide text-primary">
+                  {intl.formatMessage({ id: started ? 'home.resumeEyebrow' : 'home.startEyebrow' })}
+                </p>
+                <div className="mt-1 flex items-center gap-2">
+                  <h2 className="truncate text-lg font-semibold text-text">{resume.course_title}</h2>
+                  {dynamicBadge(resume)}
+                </div>
+                <div className="mt-3 flex items-center gap-3">
+                  <ProgressBar
+                    value={Math.round((resume.progress ?? 0) * 100)}
+                    color="var(--color-primary)"
+                    size="md"
+                    className="max-w-xs flex-1"
+                  />
+                  <span className="shrink-0 text-xs font-medium text-text-secondary">
+                    {intl.formatMessage({ id: 'home.percentComplete' }, { progress: Math.round((resume.progress ?? 0) * 100) })}
+                  </span>
+                </div>
+              </div>
+              <Button
+                size="lg"
+                className="shrink-0 gap-2"
+                onClick={() => navigate(`/empleado/curso/${resume.course_id}`)}
+              >
+                <PlayIcon />
+                {intl.formatMessage({ id: started ? 'home.resumeCta' : 'home.startCta' })}
+              </Button>
+            </div>
+          </Card>
+        </motion.div>
+      )}
 
       <motion.div
         className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6"
@@ -72,60 +181,74 @@ export function Dashboard() {
         animate="visible"
       >
         <motion.div variants={staggerItem}>
-          <MetricCard value={String(active.length)} label="Cursos activos" icon={<BookIcon />} />
+          <MetricCard value={String(active.length)} label={intl.formatMessage({ id: 'home.metricActive' })} icon={<BookIcon />} />
         </motion.div>
         <motion.div variants={staggerItem}>
-          <MetricCard value={String(completed.length)} label="Completados" icon={<CheckIcon />} />
+          <MetricCard value={String(completed.length)} label={intl.formatMessage({ id: 'home.metricCompleted' })} icon={<CheckIcon />} />
         </motion.div>
         <motion.div variants={staggerItem}>
-          <MetricCard value={String(pending.length)} label="Pendientes" icon={<ClockIcon />} />
+          <MetricCard value={String(pending.length)} label={intl.formatMessage({ id: 'home.metricPending' })} icon={<ClockIcon />} />
         </motion.div>
         <motion.div variants={staggerItem}>
-          <MetricCard value={`${avgScore}%`} label="Nota media" icon={<TrendUpIcon />} />
+          <MetricCard value={`${avgScore}%`} label={intl.formatMessage({ id: 'home.metricAvgScore' })} icon={<TrendUpIcon />} />
         </motion.div>
       </motion.div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Card>
-          <CardTitle className="mb-2">Cursos en progreso</CardTitle>
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <CardTitle>{intl.formatMessage({ id: 'home.coursesTitle' })}</CardTitle>
+            {ongoing.length > 0 && (
+              <button
+                type="button"
+                onClick={() => navigate('/empleado/cursos')}
+                className="shrink-0 text-xs font-medium text-primary hover:underline cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-1 rounded"
+              >
+                {intl.formatMessage({ id: 'home.viewAllCourses' })}
+              </button>
+            )}
+          </div>
           {isLoading ? (
             <div className="space-y-1">
               <SkeletonRow />
               <SkeletonRow />
             </div>
           ) : error ? (
-            <EmptyState title="No se pudieron cargar tus cursos" />
-          ) : active.length === 0 ? (
-            <EmptyState
-              title="No tienes cursos en progreso"
-              description="Empieza un curso desde Mis Cursos"
-              action={{ label: 'Ver mis cursos', onClick: () => navigate('/empleado/cursos') }}
-            />
+            <EmptyState title={intl.formatMessage({ id: 'home.loadError' })} />
+          ) : ongoing.length === 0 ? (
+            enrollments.length === 0 ? (
+              <EmptyState
+                title={intl.formatMessage({ id: 'home.coursesEmptyTitle' })}
+                description={intl.formatMessage({ id: 'home.coursesEmptyDesc' })}
+                action={{ label: intl.formatMessage({ id: 'home.viewAllCourses' }), onClick: () => navigate('/empleado/cursos') }}
+              />
+            ) : (
+              <EmptyState
+                title={intl.formatMessage({ id: 'home.coursesAllDoneTitle' })}
+                description={intl.formatMessage({ id: 'home.coursesAllDoneDesc' })}
+                action={{ label: intl.formatMessage({ id: 'home.viewAllCourses' }), onClick: () => navigate('/empleado/cursos') }}
+              />
+            )
           ) : (
-            <div>
-              {active.map((e) => (
-                <CourseItem
-                  key={e.id}
-                  title={e.course_title}
-                  badge={
-                    e.delivery_mode === 'dynamic' ? (
-                      <Badge variant="primary" badgeStyle="plain">
-                        Por lecciones
-                      </Badge>
-                    ) : undefined
-                  }
-                  subtitle={e.deadline ? `Fecha limite ${new Date(e.deadline).toLocaleDateString()}` : 'En progreso'}
-                  progress={Math.round((e.progress ?? 0) * 100)}
-                  color="var(--color-primary)"
-                  onClick={() => navigate(`/empleado/curso/${e.course_id}`)}
-                />
+            <motion.div initial="hidden" animate="visible" variants={staggerContainer}>
+              {ongoing.map((e) => (
+                <motion.div key={e.id} variants={staggerItem}>
+                  <CourseItem
+                    title={e.course_title}
+                    badge={dynamicBadge(e)}
+                    subtitle={subtitleFor(e)}
+                    progress={Math.round((e.progress ?? 0) * 100)}
+                    color="var(--color-primary)"
+                    onClick={() => navigate(`/empleado/curso/${e.course_id}`)}
+                  />
+                </motion.div>
               ))}
-            </div>
+            </motion.div>
           )}
         </Card>
 
         <Card>
-          <CardTitle className="mb-4">Mi Skill Map</CardTitle>
+          <CardTitle className="mb-4">{intl.formatMessage({ id: 'home.skillMapTitle' })}</CardTitle>
           {skillsLoading ? (
             <div className="space-y-1">
               <SkeletonRow />
@@ -133,9 +256,9 @@ export function Dashboard() {
             </div>
           ) : dashboardSkills.length === 0 ? (
             <EmptyState
-              title="Sin skills registradas"
-              description="Completa cursos para desarrollar tus competencias"
-              action={{ label: 'Ver Skill Map', onClick: () => navigate('/empleado/skillmap') }}
+              title={intl.formatMessage({ id: 'home.skillsEmptyTitle' })}
+              description={intl.formatMessage({ id: 'home.skillsEmptyDesc' })}
+              action={{ label: intl.formatMessage({ id: 'home.skillsEmptyAction' }), onClick: () => navigate('/empleado/skillmap') }}
             />
           ) : (
             <div className="space-y-3">

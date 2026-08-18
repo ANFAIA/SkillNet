@@ -220,6 +220,55 @@ falls back to `LLM_MODEL`, which works fine. Tuning generation quality is docume
 [`docs/design/tuning.md`](docs/design/tuning.md); the full design is in
 [`docs/design/v2-dynamic-courses.md`](docs/design/v2-dynamic-courses.md).
 
+## Audio, images and the render cache
+
+SkillNet leans on a few **external API keys** for its richest output. The app runs without
+them, but specific features degrade in specific ways — and because most media is generated
+**at seed time** and stored, the audio and images a learner sees depend on the keys of
+whoever ran the seed, not on the learner's own session.
+
+### What each key controls, and what happens without it
+
+| Key (`.env`) | Powers | Missing / no credits → |
+|---|---|---|
+| `LLM_API_KEY` (+ `LLM_MODEL`) | All content generation: courses, knowledge packs, per-lesson renders, podcast scripts | Generation cannot run at all. Use the [keyless fixtures mode](#dynamic-courses-v2) (`LLM_MODEL=fixture/local`) to explore without a key. |
+| `TTS_PROVIDER` + `TTS_API_KEY` (ElevenLabs) | The mascot's live read-aloud voice, and the primary (natural, two-host) podcast voice | Two different behaviours — see below. |
+| `OPENROUTER_API_KEY` | The infographic **poster image** (`openrouter/google/gemini-2.5-flash-image`) | Image generation is best-effort: the infographic degrades to its text/data sheet with **no poster image** (`has_image=false`), the job does **not** fail. |
+
+TTS is **disabled by default** (`TTS_PROVIDER=disabled`). Two things degrade differently when
+ElevenLabs has no key or no credits:
+
+- **The mascot's live voice** — `POST /api/v1/tts/synthesize` — **hard-fails with a 500 and
+  does *not* fall back to the offline voice.** This is a known gap. The frontend already
+  swallows the error silently (the bubble text stays, no error is shown), so a learner just
+  gets no audio rather than a broken screen.
+- **Podcast generation** falls back through a provider chain (ElevenLabs → Azure, if
+  configured → **offline eSpeak NG**), so a podcast is always produced — but on the offline
+  path it is a robotic, non-broadcast voice.
+
+### Media is baked at seed time and shared by everyone
+
+Podcasts, infographics and other artefacts are generated **when the seed runs** and stored on
+disk, content-addressed (`data/media_assets`). Learners opening an already-seeded database
+hear and see **whatever voice and images were generated then** — media is *not* regenerated
+per learner. So the quality of the audio in a demo is exactly the quality of the TTS key that
+was configured at seed time.
+
+### Why a lesson may briefly load the first time
+
+Lessons ("episodes") are **rendered per learner** and cached under a key that includes the
+learner's learning-note and media preferences, so each learner/persona gets a distinct cached
+render (`src/services/node_render_service.py`). The seed **pre-warms** the first couple of
+lessons into the shared cache so learners do not wait. If a lesson is not pre-warmed for that
+learner's key, the first open **regenerates on demand** — a short "Preparándose…" wait.
+Generation is stochastic (DeepSeek et al.), so a lesson can occasionally come back as a flat
+fallback version. Bumping a course's `schema_version` (e.g. `--refresh`) or deleting cached
+renders forces regeneration.
+
+For the design-level detail see [`docs/design/media-artifacts.md`](docs/design/media-artifacts.md)
+§5, [`docs/design/personalization.md`](docs/design/personalization.md), and the in-app
+degraded-mode plan in [`docs/design/degraded-mode-ux.md`](docs/design/degraded-mode-ux.md).
+
 ## Services and ports
 
 **A default `docker compose up -d` publishes exactly one port: 3000.** Everything else

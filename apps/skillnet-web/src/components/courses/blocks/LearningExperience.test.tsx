@@ -89,6 +89,52 @@ describe('LearningExperience', () => {
     expect(requests.some((request) => request.url.endsWith('/evaluate'))).toBe(false)
   })
 
+  it('evaluates an authored activity directly when it has no separate binding', async () => {
+    const requests: Array<{ url: string; body?: unknown }> = []
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      const url = String(input)
+      requests.push({ url, body: init?.body ? JSON.parse(String(init.body)) : undefined })
+      if (url.endsWith('/definition')) {
+        return new Response(JSON.stringify({
+          activity_id: 'activity-1',
+          component_id: 'didact.sort',
+          family: 'assessment',
+          schema_version: 1,
+          public_definition: {
+            title: 'Ordena el procedimiento',
+            items: [{ id: 'step-1', content: 'Primero' }, { id: 'step-2', content: 'Después' }],
+          },
+          required_ports: ['evaluation'],
+          provenance: {},
+          status: 'ready',
+          decline_reason: null,
+        }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+      }
+      if (url.endsWith('/evaluate')) {
+        return new Response(JSON.stringify({
+          status: 'completed',
+          result: { outcome: 'correct', passed: true, score: 1, feedback: null },
+          decline_reason: null,
+        }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+      }
+      return new Response(null, { status: 204 })
+    })
+
+    // Authored activity: the runtime reuses the activity id for both neutral refs.
+    renderExperience({
+      experienceId: 'activity-1',
+      definitionRef: 'activity-1',
+      implementationRef: 'didact.sort@1',
+    })
+    await userEvent.click(await screen.findByRole('button', { name: 'Comprobar respuesta' }))
+    expect(await screen.findByText('Respuesta correcta.')).toBeInTheDocument()
+
+    const evaluate = requests.find((request) => request.url.endsWith('/evaluate'))
+    expect(evaluate?.url).toBe('/api/v1/activities/activity-1/evaluate')
+    expect(evaluate?.body).toMatchObject({ submission: { answer: ['step-1', 'step-2'] } })
+    expect(requests.some((request) => request.url.endsWith('/attempts'))).toBe(false)
+  })
+
   it('announces an unavailable implementation without attempting a network request', async () => {
     const fetch = vi.spyOn(globalThis, 'fetch')
     renderExperience({ implementationRef: 'video.checkpoint@1' })

@@ -53,12 +53,12 @@ export function InfographicImageBlock({ artifactId, alt }: InfographicImageBlock
         </p>
       )}
       {url && !error && (
-        <figure className="rounded-xl border border-border bg-bg overflow-hidden">
+        <figure className="flex justify-center rounded-xl border border-border bg-bg overflow-hidden p-2">
           <img
             src={url}
             alt={altText}
             data-testid="infographic-block-image"
-            className="block h-auto w-full max-w-full"
+            className="mx-auto block h-auto max-h-[26rem] w-auto max-w-full object-contain"
           />
         </figure>
       )}

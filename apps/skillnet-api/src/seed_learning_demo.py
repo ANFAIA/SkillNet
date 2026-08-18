@@ -599,22 +599,41 @@ async def _render_until_ready(
     return "fallback"
 
 
-async def _prewarm_persona_episodes(
-    persona_ids: list[uuid.UUID], course_id: uuid.UUID
-) -> dict[str, int]:
-    """Warm the first nodes of the showcase course for each persona until they render clean."""
+async def _leading_nodes(course_id: uuid.UUID, node_count: int) -> list[uuid.UUID]:
     from src.repositories.course_node_repo import CourseNodeRepository
 
     async with async_session_factory() as db:
         nodes = list(
             await CourseNodeRepository(db).list_for_course(course_id, include_archived=False)
         )
-    leading = [n.id for n in nodes if n.reviewed_at is not None][:_PERSONA_PREWARM_NODES]
+    return [n.id for n in nodes if n.reviewed_at is not None][:node_count]
+
+
+async def _prewarm_persona_episodes(
+    persona_ids: list[uuid.UUID], course_counts: list[tuple[uuid.UUID, int]]
+) -> dict[str, int]:
+    """Warm the first node(s) of EVERY demo course, per persona, until they render clean.
+
+    ``course_counts`` pairs each course with how many leading nodes to warm (the showcase
+    gets an instant start *and* one continuation; the other courses get an instant start).
+
+    Two things make this land on the row a persona's normal open will cache-hit:
+
+    * ``_render_until_ready`` forces the render on the persona's BASE ``cache_key`` (it deletes
+      any existing per-user row first, so the force never salts), and that key carries the
+      persona's learning-note *and* media-offer fingerprints.
+    * This MUST run only after the courses' media artefacts are ``done``. The media-offer
+      fingerprint is empty while an artefact is still generating, so warming earlier would key
+      the render differently from the open-time key (podcast/infographic now ready) and the
+      persona would cache-miss and wait — the exact bug this seeding step exists to prevent.
+    """
     summary: dict[str, int] = {}
-    for user_id in persona_ids:
-        for node_id in leading:
-            outcome = await _render_until_ready(user_id, node_id, course_id)
-            summary[outcome] = summary.get(outcome, 0) + 1
+    for course_id, node_count in course_counts:
+        leading = await _leading_nodes(course_id, node_count)
+        for user_id in persona_ids:
+            for node_id in leading:
+                outcome = await _render_until_ready(user_id, node_id, course_id)
+                summary[outcome] = summary.get(outcome, 0) + 1
     return summary
 
 
@@ -699,20 +718,7 @@ async def seed(*, skip_delete: bool = False) -> None:
         org_row = await db.get(Organization, org_id)
         await _enrol_personas(db, org_row, admin_row, course_ids, persona_ids)
 
-    # 5. Pre-render the showcase course's first lessons for each persona until they land a
-    #    clean adaptive episode, so the demo opens on a personalized episode (not a fallback)
-    #    the moment a persona logs in.
-    showcase_title = next((s.title for s in COURSES if s.showcase), None)
-    showcase_id = title_to_id.get(showcase_title) if showcase_title else None
-    if showcase_id is not None and persona_ids:
-        print(f"  Pre-renderizando episodios del escaparate para {len(persona_ids)} personas...")
-        warm = await _prewarm_persona_episodes(persona_ids, showcase_id)
-        print(
-            f"    -> episodios listos: {warm.get('ready', 0)}, "
-            f"fallback: {warm.get('fallback', 0)}"
-        )
-
-    # 6. Course-level podcast for the three non-showcase courses.
+    # 5. Course-level podcast for the three non-showcase courses.
     for spec in COURSES:
         if spec.showcase:
             continue
@@ -734,6 +740,27 @@ async def seed(*, skip_delete: bool = False) -> None:
         f"  Artefactos: {art_summary['done']} done, {art_summary['error']} error, "
         f"{art_summary['pending']} pendientes."
     )
+
+    # 8. Per-persona pre-render of the FIRST lesson of EVERY demo course, run *after* the
+    #    media artefacts are done so the warmed row is keyed with the same media-offer
+    #    fingerprint the persona's normal open computes (else they cache-miss and wait).
+    #    The showcase gets an instant start plus one continuation; the rest, an instant start.
+    if persona_ids and title_to_id:
+        course_counts: list[tuple[uuid.UUID, int]] = []
+        for spec in COURSES:
+            cid = title_to_id.get(spec.title)
+            if cid is None:
+                continue
+            course_counts.append((cid, _PERSONA_PREWARM_NODES if spec.showcase else 1))
+        print(
+            f"  Pre-renderizando la primera lección de {len(course_counts)} cursos "
+            f"para {len(persona_ids)} personas..."
+        )
+        warm = await _prewarm_persona_episodes(persona_ids, course_counts)
+        print(
+            f"    -> episodios listos: {warm.get('ready', 0)}, "
+            f"fallback: {warm.get('fallback', 0)}, faltantes: {warm.get('missing', 0)}"
+        )
 
     _report(org, admin, deleted, reports, title_to_id, art_summary)
     await engine.dispose()

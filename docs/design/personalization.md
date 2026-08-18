@@ -117,3 +117,16 @@ render distinto de uno sin ellos.
 
 Ambas se reflejan en la clave de render para que el material personalizado se cachee por
 separado sin contaminar el de los demás aprendices.
+
+## 4. Caché de render por aprendiz y pre-warm (por qué la primera lección puede tardar)
+
+Como la clave de render incluye la nota y las preferencias de modalidad, **cada aprendiz /
+persona tiene su propio render cacheado**. El seed **pre-calienta** las primeras lecciones en
+la caché compartida (`prewarm_first_nodes` en `src/services/node_render_service.py`) para que
+el arranque sea instantáneo. Si una lección **no** está pre-caliente para la clave de ese
+aprendiz, la primera apertura **regenera bajo demanda** — una espera corta ("Preparándose…").
+La generación es estocástica, así que ocasionalmente sale un fallback plano. Subir
+`schema_version` (p. ej. `--refresh`) o borrar renders cacheados fuerza regeneración.
+
+Cómo exponer estados degradados (TTS/imagen sin clave, cuota agotada) en la interfaz:
+[`degraded-mode-ux.md`](degraded-mode-ux.md).
