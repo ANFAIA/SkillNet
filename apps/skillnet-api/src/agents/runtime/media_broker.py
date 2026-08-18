@@ -120,25 +120,44 @@ def _prefers_visual(prefs: LearningPreferences) -> bool:
     )
 
 
+def _preferred_kind(prefs: LearningPreferences) -> str | None:
+    """The single media kind this learner should be offered, or ``None`` for no offer.
+
+    Exclusive by construction — a learner is never mapped to both modalities:
+
+    * audio preference       → podcast,
+    * both audio and visual  → podcast (an explicit companion-audio preference is the
+      stronger, opt-in signal, and audio is the one persona whose contrast we protect),
+    * visual preference only → infographic,
+    * neither declared       → ``None`` (a balanced learner gets no pushed media; the
+      sensible default is to stay out of the way rather than force an artefact on a
+      learner who declared no modality at all).
+    """
+    if _prefers_audio(prefs):
+        return MediaKind.PODCAST.value
+    if _prefers_visual(prefs):
+        return MediaKind.INFOGRAPHIC.value
+    return None
+
+
 def gate_offers(
     ready: Mapping[str, MediaOffer],
     preferences: LearningPreferences | Mapping[str, object] | None,
 ) -> list[MediaOffer]:
-    """Filter the ready artefacts by the learner's declared modality preference. Pure.
+    """Pick the ONE ready artefact matching the learner's modality preference. Pure.
 
-    Manual preference today (audio → podcast, visual → infographic); the signature is the
-    hook where an *inferred* preference can later be merged before gating. Order is stable
-    (podcast before infographic) so the prompt and the cache fingerprint are deterministic.
+    Exclusive gating: an audio learner is offered the podcast and never the infographic, a
+    visual learner the infographic and never the podcast, a learner who declared both gets
+    the podcast only, and a balanced learner (neither declared) gets nothing. The broker
+    therefore never places both modalities on the same lesson — the returned list holds at
+    most one offer, and only when its artefact is actually ready for this node.
     """
     prefs = normalize_learning_preferences(preferences)
-    offers: list[MediaOffer] = []
-    podcast = ready.get(MediaKind.PODCAST.value)
-    if podcast is not None and _prefers_audio(prefs):
-        offers.append(podcast)
-    infographic = ready.get(MediaKind.INFOGRAPHIC.value)
-    if infographic is not None and _prefers_visual(prefs):
-        offers.append(infographic)
-    return offers
+    preferred = _preferred_kind(prefs)
+    if preferred is None:
+        return []
+    offer = ready.get(preferred)
+    return [offer] if offer is not None else []
 
 
 def offers_fingerprint(offers: Sequence[MediaOffer]) -> str:
