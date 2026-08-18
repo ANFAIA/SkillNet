@@ -111,7 +111,7 @@ export const en: Record<string, string> = {
   'node.previousMastered': 'You\'ve mastered {title}. This is the next step.',
   'node.start': 'Start',
   'node.preparing': 'Preparing lesson\u2026',
-  'node.preparingBackground': 'Getting ready\u2026 it is being generated in the background and will appear on its own once it is done.',
+  'node.preparingBackground': 'Loading the lesson\u2026',
   'node.introSubtitle': '{count} lessons \u00b7 {minutes} min',
   'node.goalOnboarding': 'One more step to find your feet in the role.',
   'node.goalSpecificGap': 'This goes straight to the problem you came to solve.',
