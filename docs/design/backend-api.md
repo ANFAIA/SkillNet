@@ -229,6 +229,44 @@ the sections as UX.
 | `GET` | `/users/me/skills` | employee | Own skill levels grouped by category |
 | `GET` | `/users/me/activity` | employee | Recent activity (exercise attempts, lessons completed). Paginated, default last 20 |
 
+#### Learner profile (personalization)
+
+Router `src/routes/learner_profile.py`, prefix `/users/me/learner-profile`. See
+[`personalization.md`](personalization.md).
+
+| Method | Path | Role | Description |
+|--------|------|------|-------------|
+| `GET` | `/users/me/learner-profile` | authenticated | Read the learner profile, incl. `learning_note` and `learning_preferences` |
+| `PATCH` | `/users/me/learner-profile` | authenticated | Update editable fields incl. the free-text `learning_note` (max 500 chars, normalized; steers form not facts). Writing it drops that learner's render pins |
+| `DELETE` | `/users/me/learner-profile` | authenticated | Clear the profile |
+
+#### Media artifacts
+
+Router `src/routes/media.py`, prefix `/media`. See [`media-artifacts.md`](media-artifacts.md).
+
+| Method | Path | Role | Description |
+|--------|------|------|-------------|
+| `POST` | `/media/artifacts` | generator | Enqueue one media job. Body `MediaArtifactCreate` incl. `kind`, `scope` (`node\|course\|standalone`) and a personalization `note`. Returns `202 {artifact_id, status}`. Permission via `can_generate_artifacts` |
+| `GET` | `/media/artifacts` | authenticated | List artefacts. Query `course_id` (required), `node_id`, `include_nodes`. Three shapes: one node / all course / course-level only |
+| `GET` | `/media/artifacts/{id}` | authenticated | Single artefact |
+| `GET` | `/media/artifacts/{id}/stream` | authenticated | SSE on channel `media:{id}`: `media_step` events then terminal `media_done`/`media_error` |
+| `GET` | `/media/artifacts/{id}/asset` | authenticated | Rendered asset bytes, or 404 |
+| `GET` | `/media/artifacts/{id}/asset/{ref}` | authenticated | One sub-asset by content-hash (`ref` must be a sha256 the spec lists) |
+
+#### Course schema (create flow)
+
+Router `src/routes/course_schema.py`. Admin course-schema lifecycle: propose -> PUT (spawn
+packs) -> review -> validate -> prewarm. See [`create-course-flow`](create-course-flow.html)
+and [`learning-experience-architecture.md`](learning-experience-architecture.md).
+
+| Method | Path | Role | Description |
+|--------|------|------|-------------|
+| `POST` | `/courses/{course_id}/schema/propose` | admin | `202` + `job_id`. Propose a schema draft |
+| `PUT` | `/courses/{course_id}/schema` | admin | Persist the edited schema; spawns knowledge packs (bounded retry `max_attempts=3`); bumping `schema_version` supersedes any in-flight run for an earlier version |
+| `POST` | `/courses/{course_id}/schema/review` | admin | Bulk-mark every non-archived node human-reviewed (the wizard calls it right before validate) |
+| `POST` | `/courses/{course_id}/schema/nodes/{node_id}/review` | admin | Mark one node reviewed. `reviewed_at` is a serving precondition; render returns `409 node_not_reviewed` otherwise |
+| `POST` | `/courses/{course_id}/schema/validate` | admin | Validate the schema; on commit spawns background prewarm of the first nodes' shared renders |
+
 #### Documents
 
 | Method | Path | Role | Description |

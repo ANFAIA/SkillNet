@@ -838,3 +838,40 @@ de fuente. Un snapshot nuevo marca los anteriores como `stale`; un worker solo p
 fila que sigue `pending` con el fingerprint que reclamó. El Markdown no se reimporta: para selección,
 auditoría y caché la autoridad es `pack_payload` + `pack_hash`. `review_required` conserva el
 payload y el Markdown para inspección, pero solo `ready` puede alimentar OpenUI.
+
+**Pack states and the `ready` criterion (grounded).** The persisted `PackStatus` enum
+(`knowledge_pack/contracts.py`) is `DRAFT`, `READY`, `REVIEW_REQUIRED`, `REJECTED`; `stale`
+and `failed` are **runner outcomes**, not row statuses (`knowledge_pack/runner.py`
+`_RETRYABLE_OUTCOMES = {"failed", "stale", "review_required"}`). A pack becomes `ready` only
+when `generator.py::_build_pack` finds all three: at least one `must_preserve` atom, at least
+one `required` evidence_spec, and **no blocking** missing-data gap
+(`usable = bool(must_preserve) and has_required_evidence and not blocking_gap`). Uncovered
+source units are recorded non-blocking; a pack that is not `usable` is stored as
+`REVIEW_REQUIRED` with its payload and Markdown preserved for inspection.
+
+### Learning note (free-text personalization)
+
+Migration **`0018_learner_learning_note`** adds `learner_profiles.learning_note`, a nullable
+`Text` column holding the learner's free-text *"how I like to learn"* note. It steers **the
+form of an explanation, never the facts** (see [`personalization.md`](personalization.md)). It
+is length-capped at the Pydantic layer (`LEARNING_NOTE_MAX_CHARS = 500`,
+`src/personalization/learning_note.py`), normalized on write, and its 12-char sha1
+`learning_note_fingerprint` partitions the render cache key
+(`node_render_service.build_render_key`): an empty note leaves every existing key untouched;
+two learners with the same note share a render. Writing it sets `personalization_changed`,
+dropping that learner's render pins.
+
+### Media artifacts
+
+Two org-scoped tables back the generated media (see [`media-artifacts.md`](media-artifacts.md)).
+
+- **`media_artifacts`** (`src/models/media_artifact.py`) — one generated media asset.
+  `kind` enum `MediaKind`: `podcast, slides, infographic, video, mindmap, report, cover_image`.
+  `status` enum `MediaArtifactStatus`: `pending -> running -> done | error` (the failure state
+  is `error`, not "failed"). Columns: `org_id`, `course_id`, `node_id` (nullable), `kind`,
+  `status`, `spec_json` (JSONB, holds the `scope` — `node|course|standalone` — the personalization
+  `note`, citations and sub-asset refs), `asset_path` (nullable), `content_hash` (sha256 dedup
+  key), `error`. There is **no `scope` column**: scope lives inside `spec_json`. Org-scoped, not
+  per-user.
+- **`course_artifact_generators`** (`src/models/course_artifact_generator.py`) — composite PK
+  `(course_id, user_id)`. Records who, besides admins, may generate course-level media.

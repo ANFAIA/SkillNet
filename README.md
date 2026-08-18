@@ -50,6 +50,42 @@ graph LR
     learner -->|progress| knowledge
 ```
 
+## Didact: a component library for learning
+
+Generating a lesson as a web page is only half the problem. The other half is *what the page is
+made of*. A tutorial site can reach for a component library — buttons, cards, tables — but there
+was no equivalent for **teaching**: no off-the-shelf library of interactive learning primitives
+with the contracts that pedagogy actually needs. A flashcard is not a card; a quiz is not a form;
+a worked example that reveals itself step by step, a hotspot on a diagram, a drag-to-order task,
+a rubric backed by a real scorer — none of these ship in a UI kit.
+
+So SkillNet built its own: **Didact**, a catalogue of accessible, interactive learning
+components with explicit educational identity. Each component declares what it teaches or checks,
+which host capabilities it needs (evaluation, persistence, progress, assets…) and whether it may
+certify mastery. The runtime treats it as a library, not a black box: components are pinned by a
+content hash, exposed to the model through a strict boundary, and validated on the way out.
+
+How the runtime composes them:
+
+- **The kit and the boundary** — a frozen UI Kit is the source of truth for validation (exact
+  props, closed enums, positional order). The generator only ever sees a small, closed slice of
+  the catalogue, and every emitted screen is validated against the kit before it is served.
+- **OpenUI** — lessons are generated as a declarative component tree (a root `Stack` whose direct
+  children are the paged screens), not as free-form HTML. The model picks *from the catalogue*; it
+  cannot invent a component or smuggle answers into the page.
+- **The broker** — grounded, per-node capabilities (a ready podcast or infographic that matches
+  the learner's modality) are injected as an addendum that *widens* what may be emitted without
+  weakening validation.
+- **LearningExperience** — a neutral, versioned reference that lets a server-owned interactive
+  experience appear in a lesson without exposing its provider, its private definition, or its
+  answers.
+
+The catalogue, what is live, what is blocked, and what is still missing are documented in
+[`docs/design/didact-components.md`](docs/design/didact-components.md); the integration and the
+neutral target architecture in [`docs/design/didact-integration.md`](docs/design/didact-integration.md)
+and [`docs/design/learning-experience-architecture.md`](docs/design/learning-experience-architecture.md);
+adding a new component in [`docs/design/extensibility.md`](docs/design/extensibility.md).
+
 ## What's being explored
 
 The project is in its research phase. These are the areas currently under investigation and how they connect to SkillNet:

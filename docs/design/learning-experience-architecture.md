@@ -262,6 +262,59 @@ La continuación pertenece al episodio y a su evidencia, no a la posición del s
 puede continuar a práctica adicional, recuperación, siguiente estado o revisión humana según sus
 condiciones; el shell sólo presenta esa decisión.
 
+### 7.1 Episodio multipantalla, contenido vs evaluación, crítico y pre-warm
+
+**Multipantalla.** Un episodio ya no es UNA pantalla. Cada **hijo directo del Stack raíz es una
+PANTALLA** que el aprendiz pasa una a una (paginación en el frontend, sin scroll)
+(`llm/prompts/runtime.py`, nota de versión `episode/3`, y el bloque `_EPISODE_MULTISCREEN`). El
+techo natural es el tope del validador: `MAX_ROOT_CHILDREN = 5` (`render/spec.py`). El primer
+hijo es siempre un `TextContent variant="lead"` (regla 7 de `spec.py`). Regla de foco: **UN SOLO
+FOCO POR PANTALLA** —una idea, O un conjunto de definiciones, O una interacción, nunca las tres.
+Un nodo simple es una pantalla; uno rico son varias. El planificador determinista de esquema
+(`agents/runtime/screen_scheme.py`) reparte tres slots lead/concepto/práctica, y el bloque de
+concepto sale de la forma del material (`Table`, `Chart`, `StepSequence`, `BeforeAfter`), nunca
+prosa. Evaluación post-hoc catalogue-agnostic en `agents/runtime/screen_eval.py`.
+
+**Contenido vs evaluación.** La distinción más importante del prompt
+(`_EPISODE_QUALITY_RULES`, `runtime.py`): CONTENIDO/RECURSO enseña o ayuda a estudiar
+(`TextContent`, `Table`, `BeforeAfter`, `DidactTimeline`, y también `Flashcard`) y **nunca**
+certifica; EVALUACIÓN/TEST es una comprobación real (`QuizItem`, `DragOrder` o una experiencia
+de servidor). Un bloque de contenido usado como test es un error aunque el programa valide. El
+planificador `agents/runtime/assessment.py` elige el cierre-test con una rotación determinista
+(`DIDACT_CLOSER_ROTATION`); `Flashcard` se retiró como cierre el 2026-08-17 porque convertía
+cada "evaluación" en un simple *reveal*.
+
+**Certificación vs `support_only`.** La política vive en
+`src/services/evidence_contract_policy.py`. Se **certifica** (accept,
+`evidence_type="grounded_fact_recognition"` con `oracle_ref`) solo una misión `RECOGNIZE` cuyos
+átomos estén todos en `{FACT, PROCEDURE_STEP, CRITERION}`, respaldada por un scorer determinista
+real (guard `_UNSCORABLE`). En otro caso el nodo **declina a `support_only`** con motivo tipado
+(`CRITICAL_ORACLE_UNAVAILABLE`, `EXECUTION_ORACLE_UNAVAILABLE`, `RUBRIC_ORACLE_UNAVAILABLE`,
+`REQUIRED_EVIDENCE_UNSUPPORTED`). El guard de proyección de `src/services/episode_inputs.py` es
+fail-closed: un nodo `critical` sin átomos de seguridad se degrada a `recommended` en vez de
+morir, y las puertas de evidencia exigen `oracle_ref` + `evidence_type` server-owned o declinan
+(`MISSING_REQUIRED_EVIDENCE`). El estado de procedencia es
+`episode_status ∈ {ready, support_only, declined, not_requested}` (`render/spec.py`).
+
+**Generador lean + crítico.** Con `MULTI_AGENT_RENDER`, el episodio lo componen agentes
+especializados (`agents/runtime/agents/`): `blueprint` (decide la estructura de pantallas sin
+escribir contenido; "el bloque de CONCEPTO siempre es interactivo o estructurado, NUNCA prosa"),
+`content_writer`, `interaction_designer` y `assembler` (Python puro, sin LLM; fuerza el
+`LearningExperience` server-owned al último hijo de la raíz). El **crítico**
+(`agents/runtime/agents/episode_critic.py`) hace *una* revisión y *una* revisión de un episodio
+**ya válido** (pedagogía, no sintaxis): un solo foco por pantalla, contenido vs evaluación
+separados (marca un flashcard/reveal usado como test y cualquier `DidactGlossary`), ajuste del
+componente al material, variedad de la evaluación y número sensato de pantallas. Es fail-open
+(`_MAX_NOTES = 4`, cualquier error → sin revisión).
+
+**Pre-warm en validate.** Un curso validado es servible, pero sus renders aún no existen. Tras
+`validate` (`routes/course_schema.py`) se lanza `spawn_prewarm_first_nodes`
+(`services/node_render_service.py`), que calienta en background los renders **compartidos** de
+los primeros nodos (con un aprendiz sintético de bucket por defecto que nunca fija pins) para que
+la primera apertura sea un cache hit instantáneo. Se supersede por curso
+(`cancel_by_prefix(f"prewarm:{course_id}:")`) y espera a que los packs estén listos
+(`_PREWARM_PACK_WAIT_SECONDS = 300.0`).
+
 ## 8. Compatibilidad y rollout
 
 `ScreenScheme` y la fórmula histórica de pantalla permanecen únicamente como fallback de rollout.
