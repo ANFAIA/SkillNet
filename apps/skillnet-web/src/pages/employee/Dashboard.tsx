@@ -138,7 +138,7 @@ export function Dashboard() {
       {/* Continue / start hero — the primary call to action. Only shown once we know the
           learner has an open course; hidden while loading or when everything is done. */}
       {!isLoading && !error && resume && (
-        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="mb-6" data-tour="home-hero">
           <Card className="border-primary/30 bg-primary/[0.04]">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0 flex-1">
@@ -164,6 +164,7 @@ export function Dashboard() {
               <Button
                 size="lg"
                 className="shrink-0 gap-2"
+                data-tour="home-start"
                 onClick={() => navigate(`/empleado/curso/${resume.course_id}`)}
               >
                 <PlayIcon />
@@ -195,7 +196,7 @@ export function Dashboard() {
       </motion.div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card>
+        <Card data-tour="home-courses">
           <div className="mb-2 flex items-center justify-between gap-2">
             <CardTitle>{intl.formatMessage({ id: 'home.coursesTitle' })}</CardTitle>
             {ongoing.length > 0 && (
@@ -247,7 +248,7 @@ export function Dashboard() {
           )}
         </Card>
 
-        <Card>
+        <Card data-tour="home-skillmap">
           <CardTitle className="mb-4">{intl.formatMessage({ id: 'home.skillMapTitle' })}</CardTitle>
           {skillsLoading ? (
             <div className="space-y-1">

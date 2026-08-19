@@ -6,6 +6,7 @@ import { useMe, useLogout } from '../../api/auth'
 import { useSidebar } from '../../contexts/SidebarContext'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
 import { transition, duration, ease, spring } from '../../lib/motion'
+import { TourTrigger } from '../../features/onboarding/TourTrigger'
 
 export function Header() {
   const intl = useIntl()
@@ -58,6 +59,10 @@ export function Header() {
           <line x1="3" y1="18" x2="21" y2="18" />
         </svg>
       </motion.button>
+
+      <div className="flex items-center gap-2">
+        {/* Reopen the product tour. Employee-only: the admin has no Fase 0 tour. */}
+        {canRerunOnboarding && <TourTrigger />}
 
       <div className="relative" ref={menuRef}>
         <motion.button
@@ -122,6 +127,7 @@ export function Header() {
             </motion.div>
           )}
         </AnimatePresence>
+      </div>
       </div>
     </motion.header>
   )

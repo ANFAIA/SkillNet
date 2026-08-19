@@ -1021,4 +1021,21 @@ export const en: Record<string, string> = {
   // PracticalCaseExercise
   'exercise.responsePlaceholder': 'Type your answer...',
   'exercise.submitResponse': 'Submit answer',
+
+  // Onboarding tour (Fase 0) — closeable guide that ends by opening the first lesson
+  'onboarding.tour.progress': 'Step {current} of {total}',
+  'onboarding.tour.next': 'Next',
+  'onboarding.tour.back': 'Back',
+  'onboarding.tour.skip': 'Skip',
+  'onboarding.tour.done': 'Start',
+  'onboarding.tour.close': 'Close',
+  'onboarding.tour.reopen': 'Show the welcome tour',
+  'onboarding.tour.welcome.title': 'Welcome aboard',
+  'onboarding.tour.welcome.body': 'This is your home base — everything of yours starts here. Quick tour?',
+  'onboarding.tour.courses.title': 'Your courses',
+  'onboarding.tour.courses.body': 'Here lives what you are learning and what is coming up next.',
+  'onboarding.tour.skillmap.title': 'Your skill map',
+  'onboarding.tour.skillmap.body': 'Watch what you master grow as you make progress.',
+  'onboarding.tour.start.title': 'Open your first lesson',
+  'onboarding.tour.start.body': 'Tap here and dive in — the best way to get it is by doing it.',
 }

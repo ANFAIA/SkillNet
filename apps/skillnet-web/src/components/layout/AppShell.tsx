@@ -6,6 +6,7 @@ import { SidebarProvider, useSidebar } from '../../contexts/SidebarContext'
 import { duration, ease } from '../../lib/motion'
 import { Header } from './Header'
 import { Sidebar, type SidebarRole } from './Sidebar'
+import { EmployeeTour } from '../../features/onboarding/EmployeeTour'
 
 function AppShellInner({ role }: { role: SidebarRole }) {
   const location = useLocation()
@@ -15,6 +16,8 @@ function AppShellInner({ role }: { role: SidebarRole }) {
 
   return (
     <LayoutGroup>
+      {/* Fase 0 product tour — employee only, overlay orthogonal to routing. */}
+      {role === 'employee' && <EmployeeTour />}
       <div className="flex h-screen overflow-hidden bg-bg">
         {!isNodeView && <Sidebar role={role} />}
         <div

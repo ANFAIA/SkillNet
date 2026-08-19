@@ -1021,4 +1021,21 @@ export const es: Record<string, string> = {
   // PracticalCaseExercise
   'exercise.responsePlaceholder': 'Escribe tu respuesta...',
   'exercise.submitResponse': 'Enviar respuesta',
+
+  // Onboarding tour (Fase 0) — guía cerrable que termina abriendo la primera lección
+  'onboarding.tour.progress': 'Paso {current} de {total}',
+  'onboarding.tour.next': 'Siguiente',
+  'onboarding.tour.back': 'Atrás',
+  'onboarding.tour.skip': 'Saltar',
+  'onboarding.tour.done': 'Empezar',
+  'onboarding.tour.close': 'Cerrar',
+  'onboarding.tour.reopen': 'Ver la guía de bienvenida',
+  'onboarding.tour.welcome.title': 'Te damos la bienvenida',
+  'onboarding.tour.welcome.body': 'Esta es tu casa: todo lo tuyo empieza aquí. Te la enseñamos en un minuto.',
+  'onboarding.tour.courses.title': 'Tus cursos',
+  'onboarding.tour.courses.body': 'Aquí vive lo que estás aprendiendo y lo que tienes por delante.',
+  'onboarding.tour.skillmap.title': 'Tu mapa de habilidades',
+  'onboarding.tour.skillmap.body': 'Ves crecer lo que dominas a medida que avanzas.',
+  'onboarding.tour.start.title': 'Abre tu primera lección',
+  'onboarding.tour.start.body': 'Toca aquí y empieza: la mejor forma de verlo es haciéndolo.',
 }
