@@ -171,45 +171,46 @@ importa → primera victoria**.
 Motor del tour: **react-joyride** (spotlight, "paso 1 de N", saltar/cerrar, control de pasos).
 Nosotros ponemos los **datos y el estado** (§2.3, §2.4), no el motor.
 
-### Fase 0 — MVP (casi todo ya existe)
-- Asegurar **home no-vacía** con el demo (seed ya lo da).
-- **Tour joyride** empleado (home + primera lección pre-generada), cerrable, `localStorage`.
-- **Perfil no bloqueante** (reusa `ONBOARDING_ENABLED` + captura existente).
-- Solo elementos **estáticos** (sin "otro", sin preview en vivo).
-- *Esfuerzo: bajo.*
+> **Estado (2026-08-21):** Fase 0 ✅, la infra de Fase 2 (`Capabilities`/`<Gated>`) ✅ y el
+> banner de degradado ✅ están hechos y en `main`; el tour de admin (Fase 1) también. Queda,
+> con decisión/diseño de por medio: el 3-way de arquetipo + `resolveDefaults`, el empujón de
+> contraste, la API key desde la UI, la generación en 2º plano, y la Fase 3.
 
-### Fase 1 — hacer visible el diferenciador
-- **Empujón de contraste** (dos personas, datos del seed).
-- **Tour de admin** (mismo joyride, contenido admin).
-- **1 smart-default**: pregunta de arquetipo → empresa apaga la mascota (reusa el toggle
-  existente) + la línea que lo explica. Primer uso del `resolveDefaults`.
-- *Esfuerzo: medio-bajo.*
+### Fase 0 — MVP ✅ HECHO
+- **home no-vacía** con el demo (seed). ✅
+- **Tour joyride** empleado (home → primera lección pre-generada), cerrable, `localStorage`. ✅
+- **Perfil no bloqueante** (`ONBOARDING_ENABLED` + captura existente). ✅
+- Solo elementos **estáticos**. ✅
 
-### Fase 2 — el desbloqueo self-hosted (la capa de IA en el onboarding)
-- **`Capabilities` + `useCapabilities()` + `<Gated>`** (§2.1–2.2) — la infra que enciende lo de IA.
-- **API key desde la UI**: pegar + **validar en vivo** (hoy vive en `.env`).
-- Encender los elementos `requires`: **"otro"** libre, **preview generado**, **chat con el
-  tutor** sobre el demo.
-- **Generación en segundo plano + aviso**; banners de degradado (ver degraded-mode-ux).
-- *Esfuerzo: medio-alto.*
+### Fase 1 — hacer visible el diferenciador  ◑ PARCIAL (resto: con diseño)
+- ○ **Empujón de contraste** (dos personas, datos del seed) — pendiente.
+- ✅ **Tour de admin** — hecho: `ProductTour` role-aware (mismo joyride, pasos admin).
+- ○ **1 smart-default**: arquetipo empresa/educación → `resolveDefaults` (empresa apaga la
+  mascota) + la línea que lo explica — pendiente (necesita backend del arquetipo).
 
-### Fase 3 — lo complejo, al final
-- **Inferir el perfil del comportamiento** (qué abre/relee/salta) → afina personalización sin
-  preguntar. Módulo separable de señales.
-- Estado del onboarding **por usuario** (cross-device), reabrir/pulido, arquetipos más finos.
-- *Esfuerzo: alto.*
+### Fase 2 — el desbloqueo self-hosted (la capa de IA)  ◑ PARCIAL
+- ✅ **`Capabilities` + `useCapabilities()` + `<Gated>`** (§2.1–2.2) — infra hecha (backend
+  deriva de las claves y lo expone en `/setup/status`; front la consume).
+- ✅ **Banners de degradado** (`CapabilityHealthBanner` en admin) — hecho.
+- ○ **API key desde la UI** (pegar + validar) — pendiente (decisión de almacenamiento/seguridad).
+- ○ Encender los `requires`: **"otro"** libre, **preview generado**, **chat con el tutor**.
+- ○ **Generación en segundo plano + aviso**.
+
+### Fase 3 — lo complejo, al final  ○ PENDIENTE
+- **Inferir el perfil del comportamiento** (qué abre/relee/salta). Módulo separable de señales.
+- Estado del onboarding **cross-device**, arquetipos más finos.
 
 ---
 
-## 5. Qué ya existe vs. qué construir
+## 5. Qué ya existe vs. qué falta
 
-| Ya existe | Construir |
+| Ya existe (✅) | Falta (○) |
 |---|---|
-| Setup wizard, login, home rediseñada | Pregunta de **arquetipo** + `resolveDefaults` |
-| Curso demo (seed) + lecciones pre-generadas (prewarm) | **Tour joyride** (datos + estado + reabrible) |
-| Captura de perfil + flag `ONBOARDING_ENABLED` | **`Capabilities` + `useCapabilities` + `<Gated>`** |
-| Toggles de mascota (para los defaults) | **API key en UI** (pegar + validar) — hoy en `.env` |
-| `degraded-mode-ux.md` (estado sin clave) | **Empujón de contraste** + generación en 2º plano |
+| Setup wizard + **bienvenida** (logo/mascota/degradado), login, home | Pregunta de **arquetipo** + `resolveDefaults` |
+| Curso demo (seed) + lecciones pre-generadas (prewarm) | **Empujón de contraste** (dos personas) |
+| **Tour joyride role-aware** (empleado + admin), reabrible, estado por rol | **API key en UI** (pegar+validar) — hoy en `.env` |
+| Captura de perfil + flag `ONBOARDING_ENABLED` | **Generación en 2º plano** + `requires` ("otro"/preview/tutor) |
+| **`Capabilities` + `useCapabilities` + `<Gated>`** + banner de degradado | Fase 3 (inferir perfil, cross-device) |
 
 ---
 
