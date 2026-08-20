@@ -277,6 +277,14 @@ export const es: Record<string, string> = {
   'settings.saveError': 'No se pudo guardar el ajuste',
   'settings.noModel': 'No hay ningun modelo de IA configurado, asi que no se puede generar contenido ni responder en el chat.',
   'settings.noModelHint': 'Se configura en el .env del despliegue: LLM_MODEL y LLM_API_KEY.',
+
+  // Degraded-mode health banner (docs/design/degraded-mode-ux.md §1)
+  'capabilityBanner.title': 'Algunas funciones estan en modo reducido en esta instalacion:',
+  'capabilityBanner.ai': 'La IA no esta configurada: anade una clave de LLM para generar cursos y usar el tutor.',
+  'capabilityBanner.tts': 'Sin clave de voz: la mascota y los podcasts usaran una voz basica sin conexion. Anade una clave de ElevenLabs para voz natural.',
+  'capabilityBanner.images': 'Generacion de imagenes desactivada: las infografias saldran sin poster hasta anadir una clave de OpenRouter.',
+  'capabilityBanner.envHint': 'Las claves se configuran en el .env del despliegue.',
+  'capabilityBanner.dismiss': 'Descartar aviso',
   'settings.language': 'Idioma',
   'settings.languageDesc': 'Cambia el idioma de la interfaz.',
   'settings.langEs': 'Espanol',

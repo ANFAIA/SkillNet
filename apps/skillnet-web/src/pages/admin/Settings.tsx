@@ -1,6 +1,7 @@
 import { useIntl } from 'react-intl'
 import { PageHeader, Select, SkeletonRow, Switch } from '../../components/ui'
 import { AppearanceSettings } from '../../components/settings/AppearanceSettings'
+import { CapabilityHealthBanner } from '../../components/settings/CapabilityHealthBanner'
 import { LearningPreferencesSection } from '../../components/settings/LearningPreferencesSection'
 import { useWorkspaceMode } from '../../hooks/useAuth'
 import { useSettings, useUpdateFeatures } from '../../api/settings'
@@ -80,16 +81,10 @@ function SettingsBody({
 
   return (
     <>
-      {!settings.llm_configured && (
-        <div className="mt-4 rounded-lg border border-warning/40 bg-warning/5 p-3">
-          <p className="text-sm text-text">
-            {intl.formatMessage({ id: 'settings.noModel' })}
-          </p>
-          <p className="text-xs text-text-muted mt-1">
-            {intl.formatMessage({ id: 'settings.noModelHint' })}
-          </p>
-        </div>
-      )}
+      {/* Consolidated, dismissible health notice: what is degraded and why
+          (docs/design/degraded-mode-ux.md §1). Replaces the old model-only warning —
+          the `!ai` line covers the "no model configured" case and adds voice / images. */}
+      <CapabilityHealthBanner />
 
       <AppearanceSettings className="mt-4" />
 
