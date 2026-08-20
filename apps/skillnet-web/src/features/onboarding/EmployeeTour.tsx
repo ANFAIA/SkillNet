@@ -5,6 +5,7 @@ import { employeeTourSteps, resolveSteps } from './steps'
 import { TourTooltip } from './TourTooltip'
 import { shouldAutoRun, writeOnboardingState } from './storage'
 import { useTourStore } from './useTourStore'
+import { useReducedMotion } from '../../hooks/useReducedMotion'
 
 const HOME_PATH = '/empleado'
 
@@ -22,6 +23,7 @@ const HOME_PATH = '/empleado'
  */
 export function EmployeeTour() {
   const location = useLocation()
+  const reduce = useReducedMotion()
   const onHome = location.pathname === HOME_PATH
   const run = useTourStore((s) => s.run)
   const runId = useTourStore((s) => s.runId)
@@ -90,12 +92,12 @@ export function EmployeeTour() {
       continuous
       showSkipButton
       disableScrolling={false}
-      scrollToFirstStep
+      scrollToFirstStep={!reduce}
       disableOverlayClose
       spotlightPadding={6}
       tooltipComponent={TourTooltip}
       callback={handleCallback}
-      floaterProps={{ disableAnimation: false }}
+      floaterProps={{ disableAnimation: reduce }}
       styles={{
         options: {
           // The spotlight arrow is drawn as an SVG fill — a CSS var keeps it on the
