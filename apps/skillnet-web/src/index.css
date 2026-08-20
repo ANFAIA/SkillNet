@@ -1024,3 +1024,42 @@ body {
   border-radius: 999px;
   opacity: 0;
 }
+
+/* First-run welcome background (Setup). A soft brand gradient — mint/aqua for
+   light, a deeper aurora/sunset for dark — with a faint grain overlay drawn on
+   the ::before. Themed the same three ways as the palette above: bare :root is
+   the light default, the OS-dark media block is guarded so an explicit light
+   choice beats it, and the data-theme="dark" rule wins the toggle. */
+.setup-welcome-bg {
+  background:
+    radial-gradient(120% 90% at 15% 0%, #d7f5e6 0%, transparent 55%),
+    radial-gradient(110% 100% at 100% 100%, #c7eef0 0%, transparent 60%),
+    linear-gradient(160deg, #eafaf1 0%, #e2f6f4 100%);
+}
+
+.setup-welcome-bg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.4;
+  /* Tiny inline SVG fractal-noise tile — a very subtle grain, no external asset. */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  mix-blend-mode: soft-light;
+}
+
+:root[data-theme='dark'] .setup-welcome-bg {
+  background:
+    radial-gradient(120% 90% at 12% 0%, #16324a 0%, transparent 55%),
+    radial-gradient(120% 100% at 100% 100%, #3a1f3f 0%, transparent 60%),
+    linear-gradient(160deg, #0b1622 0%, #150f1e 100%);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .setup-welcome-bg {
+    background:
+      radial-gradient(120% 90% at 12% 0%, #16324a 0%, transparent 55%),
+      radial-gradient(120% 100% at 100% 100%, #3a1f3f 0%, transparent 60%),
+      linear-gradient(160deg, #0b1622 0%, #150f1e 100%);
+  }
+}
