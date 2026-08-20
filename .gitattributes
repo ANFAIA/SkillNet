@@ -1,0 +1,5 @@
+# Hash-locked vendor snapshots: their tests assert byte-for-byte SHA-256, so the bytes
+# (including line endings) must be identical on every platform. `-text` disables all
+# line-ending conversion so a Windows checkout keeps LF and the pinned hashes still match.
+apps/skillnet-api/tests/_vendor/** -text
+apps/skillnet-web/vendor/** -text
