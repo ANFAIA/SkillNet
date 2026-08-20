@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useIntl } from 'react-intl'
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion'
-import { Button, Input } from '../../components/ui'
+import { Button, Input, Logo } from '../../components/ui'
 import { ApiError } from '../../api/client'
 import { useSubmitSetup } from '../../api/setup'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
@@ -155,7 +155,7 @@ export function Setup() {
     <div className="min-h-screen flex items-center justify-center p-4">
       <div className="w-full max-w-2xl">
         <div className="mb-6 flex items-center gap-3">
-          <img src="/logo.png" alt="SkillNet" className="w-8 h-8" />
+          <Logo size={32} />
           <div>
             <h1 className="text-base font-semibold text-text">
               {intl.formatMessage({ id: 'setup.title' })}

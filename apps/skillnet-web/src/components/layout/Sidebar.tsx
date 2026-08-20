@@ -14,6 +14,7 @@ import type { WorkspaceMode } from '../../types'
 import { useSidebar } from '../../contexts/SidebarContext'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
 import { backdrop, sidebarSlide } from '../../lib/motion'
+import { Logo } from '../ui'
 import { ContinueCoursePanel } from './ContinueCoursePanel'
 import { NavPill } from './NavPill'
 
@@ -214,7 +215,7 @@ function SidebarContent({
       <div className={`flex min-h-12 items-center gap-3 px-4 ${collapsed ? 'justify-center' : ''}`}>
         {(!collapsed || !showCollapse) && (
           <>
-            <img src="/logo.png" alt="SkillNet" className="size-8 shrink-0 object-contain" />
+            <Logo size={32} className="shrink-0" />
             <span className="min-w-0 max-w-32 overflow-hidden whitespace-nowrap">
               <strong className="text-sm font-semibold text-text">SkillNet</strong>
             </span>

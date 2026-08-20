@@ -19,6 +19,9 @@ export type { EmptyStateProps } from './EmptyState'
 export { FileUploadZone } from './FileUploadZone'
 export type { FileUploadZoneProps } from './FileUploadZone'
 
+export { Logo } from './Logo'
+export type { LogoProps, LogoTone } from './Logo'
+
 export { InfoTooltip } from './InfoTooltip'
 export type { InfoTooltipProps } from './InfoTooltip'
 

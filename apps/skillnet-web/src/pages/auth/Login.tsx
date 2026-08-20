@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useIntl } from 'react-intl'
-import { Button, Card, Input } from '../../components/ui'
+import { Button, Card, Input, Logo } from '../../components/ui'
 import { useLogin } from '../../api/auth'
 import { useAuth } from '../../hooks/useAuth'
 import { ApiError } from '../../api/client'
@@ -52,7 +52,7 @@ export function Login() {
     <div className="min-h-screen flex items-center justify-center p-4">
       <Card className="w-full max-w-sm bg-surface">
         <div className="flex flex-col items-center mb-6">
-          <img src="/logo.png" alt="SkillNet" className="w-12 h-12 drop-shadow" />
+          <Logo size={48} className="drop-shadow" />
           <h1 className="text-lg font-semibold text-text mt-3">SkillNet</h1>
           <p className="text-sm text-text-secondary mt-0.5">{intl.formatMessage({ id: 'login.subtitle' })}</p>
         </div>

@@ -3,7 +3,7 @@ import type { FormEvent, ReactNode } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { useIntl } from 'react-intl'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Button, Card, StepIndicator } from '../../components/ui'
+import { Button, Card, Logo, StepIndicator } from '../../components/ui'
 import { ShimmerSkeleton } from '../../components/ui/ShimmerSkeleton'
 import { RoleStep } from '../../components/onboarding/RoleStep'
 import { GoalStep } from '../../components/onboarding/GoalStep'
@@ -65,7 +65,7 @@ function Shell({ children, indicator }: { children: ReactNode; indicator?: React
     <div className="min-h-screen flex items-center justify-center p-4">
       <Card className="w-full max-w-lg bg-surface">
         <div className="flex items-center justify-between gap-4 mb-6">
-          <img src="/logo.png" alt="SkillNet" className="w-8 h-8" />
+          <Logo size={32} />
           {indicator}
         </div>
         {children}
