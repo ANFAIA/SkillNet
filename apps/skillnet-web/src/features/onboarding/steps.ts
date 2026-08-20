@@ -59,9 +59,9 @@ export const employeeTourSteps: OnboardingStep[] = [
  * individual workspace), so the same list stays correct in both modes without a
  * branch here.
  *
- * The create step is the natural place for a `requires: 'generation'` tag once the
- * Capabilities hook lands (Fase 2) — dropping it when there is no AI key so the tour
- * never ends on a dead action. Left untagged for now: that signal does not exist yet.
+ * The create step carries `requires: 'generation'` (Fase 2): the runner passes live
+ * capabilities into `resolveSteps`, so with no AI key the step is dropped and the tour
+ * never ends on a dead action.
  */
 export const adminTourSteps: OnboardingStep[] = [
   {
@@ -94,6 +94,9 @@ export const adminTourSteps: OnboardingStep[] = [
     target: '[data-tour="admin-create-course"]',
     title: 'onboarding.tour.admin.create.title',
     body: 'onboarding.tour.admin.create.body',
+    // Course creation needs a usable LLM. Without it the tour must not end on a dead
+    // action, so the step is dropped when `generation` is absent (§2.3).
+    requires: 'generation',
     order: 4,
   },
 ]

@@ -5,6 +5,7 @@ import { tourSteps, resolveSteps } from './steps'
 import { TourTooltip } from './TourTooltip'
 import { shouldAutoRun, writeOnboardingState } from './storage'
 import { useTourStore } from './useTourStore'
+import { useCapabilities } from '../../api/setup'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
 import type { SidebarRole } from '../../components/layout/Sidebar'
 
@@ -47,6 +48,7 @@ export function ProductTour({ role }: { role: SidebarRole }) {
   const runId = useTourStore((s) => s.runId)
   const start = useTourStore((s) => s.start)
   const stop = useTourStore((s) => s.stop)
+  const capabilities = useCapabilities()
 
   // Re-key Joyride on each (re)start so it always resets to step 0.
   const [mountKey, setMountKey] = useState(0)
@@ -70,9 +72,9 @@ export function ProductTour({ role }: { role: SidebarRole }) {
   // now. Re-scanned on every (re)start (runId) so late-mounting or mode-specific
   // anchors are picked up. `runId` is an intentional dep for that rescan.
   const visibleSteps = useMemo(
-    () => resolveSteps(tourSteps, role).filter((s) => isVisible(s.target)),
+    () => resolveSteps(tourSteps, role, capabilities).filter((s) => isVisible(s.target)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [role, runId],
+    [role, runId, capabilities],
   )
 
   const steps: Step[] = useMemo(
