@@ -59,7 +59,7 @@ COPY --from=builder /app/pyproject.toml /app/pyproject.toml
 # only in the development image and bare `python ...` only in the production one, because
 # the venv `PATH` is added just below. Every documented command was therefore valid in
 # exactly one of the two modes — including the two the README prints three lines apart.
-# With this, `docker compose exec api uv run python -m src.seed_demo_v2` works in both.
+# With this, `docker compose exec api uv run python -m src.seed_learning_demo` works in both.
 COPY --from=builder /usr/local/bin/uv /usr/local/bin/uv
 
 ENV PATH="/app/.venv/bin:$PATH" \

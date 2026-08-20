@@ -206,11 +206,12 @@ recién sembrado o solo validado nunca alcanza el episodio.
 
 Los packs los produce **únicamente** el runner respaldado por LLM (`run_packs_for_schema`), y solo se
 dispara desde el agente de generación de esquema y desde `PUT /{course_id}/schema`. **Ni el sembrado
-ni `POST /schema/validate` crean packs.** Por eso `seed_demo_v2` ahora, tras validar sus cursos
-dinámicos, ejecuta ese mismo runner (`_generate_knowledge_packs`) cuando hay un LLM de generación real
-configurado: así un curso sembrado es capaz de episodio de principio a fin. Con modelo `fixture/local`
-no hay nada que fundamentar y el paso se omite —el runtime sigue en `legacy_stepper`, sin romperse—.
-El runner es fail-open: un pack que falta degrada a legacy, nunca tumba la generación ni el sembrado.
+ni `POST /schema/validate` crean packs.** Por eso el seed público (`seed_learning_demo`, vía el
+orquestador `create_course_end_to_end`) ejecuta ese mismo runner tras validar cada curso cuando hay
+un LLM de generación real configurado: así un curso sembrado es capaz de episodio de principio a fin.
+Con modelo `fixture/local` no hay nada que fundamentar y el paso se omite —el runtime sigue en
+`legacy_stepper`, sin romperse—. El runner es fail-open: un pack que falta degrada a legacy, nunca
+tumba la generación ni el sembrado.
 
 Consecuencia operativa para la demo: un curso debe pasar por generación/`PUT /schema` (o por el
 sembrado con LLM) para tener packs `READY`; activar `ADAPTIVE_EPISODES` por sí solo no basta —solo

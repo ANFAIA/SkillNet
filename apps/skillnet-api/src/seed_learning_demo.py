@@ -195,23 +195,27 @@ class CourseReport:
 # Deletion of the old La Espiga data (idempotent).
 # --------------------------------------------------------------------------------------
 async def _delete_la_espiga(session, org: Organization) -> dict[str, int]:
-    """Remove the seed_demo_v2 ("La Espiga") runtime data from the default org.
+    """Remove the retired "La Espiga" runtime data from the default org.
 
-    Titles/emails are imported from ``seed_demo_v2`` so this stays true to that seed even if
-    it is edited. Order respects the NO ACTION foreign keys (enrolments, chat sessions and
-    generation jobs must go before the course/user/document they point at); everything else
-    is ``ON DELETE CASCADE``. Never touches the admin account or the sponsor org.
+    The old bakery-café seed (``seed_demo_v2``) was removed from the codebase, so its
+    identifiers are inlined here as literal constants (legacy cleanup for DBs seeded before
+    La Espiga was removed — harmless and idempotent on fresh installs, where nothing matches).
+    Order respects the NO ACTION foreign keys (enrolments, chat sessions and generation jobs
+    must go before the course/user/document they point at); everything else is
+    ``ON DELETE CASCADE``. Never touches the admin account or the sponsor org.
     """
-    from src.seed_demo_v2 import (
-        COURSE_ALERGENOS,
-        COURSE_SALA,
-        DOCUMENTS,
-        EMAIL_DOMAIN,
-        STATIC_COURSE_TITLE,
-    )
-
-    course_titles = [COURSE_ALERGENOS.title, COURSE_SALA.title, STATIC_COURSE_TITLE]
-    doc_titles = [d.title for d in DOCUMENTS]
+    # Legacy La Espiga identifiers (formerly imported from the deleted ``seed_demo_v2``).
+    EMAIL_DOMAIN = "laespiga.example"
+    course_titles = [
+        "Alergenos: informar sin equivocarse",
+        "Servicio de sala: de la comanda al cobro",
+        "Manejo de caja y arqueo diario (v1 estatico)",
+    ]
+    doc_titles = [
+        "Manual de alergenos e informacion al cliente",
+        "Protocolo de sala: de la comanda al cobro",
+        "Manejo de caja y arqueo diario",
+    ]
 
     course_ids = list(
         (

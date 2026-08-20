@@ -184,9 +184,9 @@ Primera vertical construida (mantiene `organization` intacto por defecto):
   sustituye por un inicio personal. El propietario pasa una vez por el onboarding del
   aprendiz para tener perfil y personalización.
 - **Roles.** Sin rol nuevo: `individual` reutiliza `admin` como propietario-alumno.
-- **Seed.** `src.seed_demo_individual` levanta un espacio personal mínimo (un
-  propietario, un documento, un curso; sin empleados ni matrículas) reutilizando los
-  bloques de `seed_demo_v2`.
+- **Seed.** El modo `individual` se fija por `WORKSPACE_MODE=individual` en el `.env`
+  antes del primer arranque, o por el wizard `/setup`. (El antiguo seed dedicado
+  `src.seed_demo_individual`, construido sobre la panadería retirada, se eliminó.)
 
 Primer arranque por UI: `GET /setup/status` + `POST /setup` (públicos, cerrados en cuanto
 existe un usuario) y el wizard `/setup` en la SPA eligen el modo y crean al propietario

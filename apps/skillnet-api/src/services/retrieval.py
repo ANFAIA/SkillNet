@@ -26,8 +26,8 @@ Postgres, at chunk granularity, with stemming, and yields a located passage carr
 heading and a page instead of 8 000 characters of pasted document.
 
 Rung 3 is still needed: a document too small to have been chunked is a legitimate
-production state (``src/seed_demo_v2.py`` keeps documents at or under 5 pages so they take
-the ``full_text`` branch of ``load_source_context``, §4.2), and it is also what an org gets
+production state (a short document at or under 5 pages takes the ``full_text`` branch of
+``load_source_context``, §4.2), and it is also what an org gets
 when the embedding provider was down during ingestion — ``src/services/ingestion.py`` logs
 that and stores ``full_text`` alone.
 

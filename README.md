@@ -175,8 +175,8 @@ is in your `.env`. The showcase course carries a podcast and an infographic per 
 in-lesson media components appear.
 
 It is idempotent and re-runnable: it reuses an already-validated course of the same title and
-deletes any leftover data from the retired "La Espiga" demo (`src.seed_demo_v2`, still
-importable but no longer the documented default). See [`RUNNING.md`](RUNNING.md) and
+cleans up any leftover data from the retired bakery-café demo on dev databases that still
+carry it. See [`RUNNING.md`](RUNNING.md) and
 [`docs/design/onboarding.md`](docs/design/onboarding.md).
 
 ### Dynamic courses (v2)

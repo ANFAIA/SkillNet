@@ -254,7 +254,7 @@ answers v2 routes that production 404s. A debugging tool, not a sandbox.
 ```bash
 docker compose up -d --build                                 # start
 docker compose logs -f api                                   # follow the API
-docker compose exec api uv run python -m src.seed_demo_v2    # demo data (recommended)
+docker compose exec api uv run python -m src.seed_learning_demo  # demo data (recommended)
 curl http://localhost:3000/api/v1/health                     # db + embeddings + flags
 docker compose down                                          # stop, keep data
 docker compose down -v                                       # stop, destroy data

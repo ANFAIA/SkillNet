@@ -85,10 +85,9 @@ carry a course-level podcast. It is idempotent and re-runnable (it reuses an alr
 course of the same title), and it prints every account and per-course result. Generation is
 LLM-backed, so a full run is slow — that is expected.
 
-> The previous demo (a Spanish bakery-café, "La Espiga", `src.seed_demo_v2`) has been
-> retired as the public demo. The `seed_demo_v2` module still exists and imports cleanly, but
-> `seed_learning_demo` is now the documented default and deletes any leftover La Espiga data
-> from the default org when it runs.
+> The previous demo (a Spanish bakery-café) has been retired and removed from the codebase.
+> `seed_learning_demo` is the public default; when it runs it also cleans up any leftover
+> bakery-café data from the default org on dev databases that still carry it.
 
 There is also a much smaller v1 seed, `src.seed_demo` (1 employee and 16 skills), which
 predates dynamic courses and exists to compare the old static path.
@@ -111,13 +110,6 @@ The mode is a stable per-deployment setting, chosen one of two ways:
   ```bash
   WORKSPACE_MODE=individual   # in your .env, alongside ADMIN_EMAIL / ADMIN_PASSWORD
   ```
-
-For a local demo, a minimal individual seed flips the current single-org deployment and seeds
-one owner, one document and one course (no employees, no enrollments):
-
-```bash
-docker compose exec api uv run python -m src.seed_demo_individual
-```
 
 ## Step 5 — Open it
 

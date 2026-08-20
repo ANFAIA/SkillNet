@@ -55,44 +55,35 @@ generacion, porque no genera nada.
 ## 2. Sembrar los datos de prueba
 
 ```bash
-docker compose exec api uv run python -m src.seed_demo_v2
+docker compose exec api uv run python -m src.seed_learning_demo
 ```
 
-Crea una pyme espanola completa — una panaderia-cafeteria con obrador y sala — dentro de la
-unica organizacion que la aplicacion arranca. Es idempotente: correrlo dos veces no cambia
-nada.
+Es la demo publica: un tema meta y on-brand sobre **como aprende la mente**, dentro de la
+unica organizacion que la aplicacion arranca. Genera y valida cada curso en el seed, asi que
+la generacion es LLM-backed y un run completo es lento (es lo esperado). Es idempotente y
+re-ejecutable: reusa un curso ya validado con el mismo titulo. Al arrancar limpia los datos
+de la panaderia retirada ("La Espiga") en bases de dev que todavia los arrastren.
 
-**Cinco empleados**, contrasena `espiga2026` para todos. Cada uno existe para provocar una
-rama distinta del motor, y por eso conviene no probar siempre con el mismo:
+**Tres aprendices demo**, contrasena `aprender2026` para todos. Cada uno declara un estilo
+distinto para ejercitar la personalizacion:
 
 | Cuenta | Para que esta |
 |---|---|
-| `lucia.fernandez@laespiga.example` | Perfil medio. El caso normal contra el que comparar todo lo demas. |
-| `marcos.iglesias@laespiga.example` | Experto declarado + preset rapido: los pre-assessments deberian saltarle nodos. |
-| `aitana.souto@laespiga.example` | Novata declarada: su primer probe es diagnostico y no puntua, y `short_blocks` recorta la densidad. |
-| `diego.varela@laespiga.example` | Fuera del periodo de calibracion (`nodes_completed=4`): en sus nodos **si** corre `decide_formato` y el router de dos niveles. |
-| `noa.pereira@laespiga.example` | **Sin perfil de aprendiz a proposito.** Es la cuenta con la que se recorre el onboarding. |
+| `ana@skillnet.dev` | Metaforas + AUDIO: el broker de medios le ofrece el `PodcastPlayer` inline. |
+| `bruno@skillnet.dev` | Definiciones primero + VISUAL: ve la `InfographicImage` inline. |
+| `carla@skillnet.dev` | **Sin perfil de aprendiz a proposito.** Es la cuenta con la que se recorre el onboarding. |
 
 El admin es el `ADMIN_EMAIL` / `ADMIN_PASSWORD` del `.env`.
 
-**Tres cursos**: dos dinamicos ya validados (uno de 3 nodos, "Alergenos"; otro de 7,
-"Servicio de sala") y uno estatico v1 ("Manejo de caja"), que esta ahi para poder comparar
-los dos caminos en la misma instancia. El script imprime los ids y las rutas al terminar.
+**Cuatro cursos dinamicos**, todos validados en el seed: "Como aprende tu cerebro" (el
+escaparate, con podcast + infografia por nodo), "Sesgos cognitivos", "La ciencia de los
+habitos" y "Memoria y olvido" (estos tres con un podcast a nivel de curso). El script imprime
+los ids y los resultados por curso al terminar.
 
-### El bucle de calidad del contenido
+`--skip-delete` omite la limpieza de datos antiguos y solo crea/actualiza la demo nueva.
 
-`--refresh` es la razon por la que el seed es un fichero de Python y no un volcado de SQL:
-
-```bash
-docker compose exec api uv run python -m src.seed_demo_v2 --refresh
-```
-
-Se editan las especificaciones de los nodos en `src/seed_demo_v2.py`, se relanza con
-`--refresh`, y los campos de diseno de los nodos existentes se reescriben en su sitio,
-`courses.schema_version` sube — y como forma parte del `cache_key`, invalida los renders
-cacheados — y se sueltan los renders fijados a cada aprendiz. **El progreso del aprendiz se
-conserva.** Es el ciclo corto para ajustar titulos, resultados y encabezados de fuente sin
-volver a empezar.
+> Nota: esta demo no siembra ningun curso **estatico v1**, asi que el recorrido §4.3 (comparar
+> los dos caminos en la misma instancia) requiere crear a mano un curso `delivery_mode='static'`.
 
 ---
 
@@ -121,7 +112,7 @@ revisar, o se puede editar despues de validar, es un fallo grave y no cosmetico.
 
 ## 4. Recorrido del aprendiz
 
-### 4.1 Onboarding — con `noa.pereira@laespiga.example`
+### 4.1 Onboarding — con `carla@skillnet.dev`
 
 Es la unica cuenta sin perfil, asi que al entrar el gate la manda al asistente. Preguntas
 cortas: puesto, sector, objetivo, experiencia declarada y necesidades de lectura.
@@ -137,15 +128,16 @@ salen en blanco, no precargados, y un envio completo sobrepisa el perfil entero.
 
 ### 4.2 Un nodo, de principio a fin
 
-Con cualquiera de las cuentas con perfil, abrir **Alergenos: informar sin equivocarse**.
+Con cualquiera de las cuentas con perfil (`ana@` o `bruno@`), abrir **Como aprende tu
+cerebro**.
 
 1. **La lista de nodos.** Los nodos con prerrequisitos sin cumplir salen bloqueados. En el
    panel y en Mis Cursos los cursos dinamicos llevan una etiqueta **Por nodos** para
    distinguirlos de los v1 antes de abrirlos.
 2. **El pre-assessment.** Antes de generar nada, el nodo pregunta. Si el aprendiz demuestra
    que ya lo sabe, el nodo se salta y **cuesta cero tokens**: es el ahorro que justifica
-   todo el diseno. Con `marcos` deberia pasar; con `aitana` el probe es diagnostico y no
-   puntua.
+   todo el diseno. Con `ana@` (audio) y `bruno@` (visual) el broker de medios ademas ofrece
+   distintos componentes inline segun el estilo declarado de cada uno.
 3. **La generacion.** La pantalla se construye al vuelo para *ese* aprendiz. Mirar la
    secuencia de pasos que llega por SSE: `load_context → probe_gate → decide_formato →
    genera_ui → validate_ui → persist_render`.
@@ -178,9 +170,10 @@ calidad (§8), que vuelca la queja literal del validador y la salida cruda del m
 
 ### 4.3 Comparar los dos caminos
 
-Con la misma cuenta, abrir **Manejo de caja y arqueo diario (v1 estatico)**. Es el arbol de
-modulos y lecciones de siempre, en la misma instancia y para el mismo usuario. Ver los dos
-seguidos es la forma mas rapida de entender que cambia v2.
+La demo publica no siembra ningun curso estatico v1. Para comparar los dos caminos en la
+misma instancia, crear a mano un curso con `delivery_mode='static'` (el arbol de modulos y
+lecciones de siempre) y recorrerlo junto a uno dinamico: verlos seguidos es la forma mas
+rapida de entender que cambia v2.
 
 ---
 

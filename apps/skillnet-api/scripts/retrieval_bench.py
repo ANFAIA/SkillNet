@@ -23,9 +23,11 @@ cada texto en un vector unitario aleatorio y consulta y pasaje quedan ortogonale
     # detalle por caso, con lo que devolvio cada uno
     uv run python scripts/retrieval_bench.py --verbose
 
-Es un **script, no un test**: el nombre no casa con `test_*.py`. Necesita el Postgres
-sembrado con `seed_demo_v2`, que es un estado que una suite no puede exigir. Los tests
-de `tests/integration/test_retrieval_fts.py` cubren el contrato; esto mide la calidad.
+Es un **script, no un test**: el nombre no casa con `test_*.py`. Mide la calidad de
+recuperacion sobre un corpus fijo de tres documentos (alergenos, sala, caja) que ya **no**
+forma parte del seed publico por defecto: hay que sembrar ese corpus a mano en Postgres
+antes de correrlo. Los tests de `tests/integration/test_retrieval_fts.py` cubren el
+contrato; esto mide la calidad.
 
 Que se mide
 ===========
@@ -200,7 +202,11 @@ def _evaluar(caso: Caso, filas: list[dict], peldano: str | None = None) -> Resul
 async def _org_id(db) -> object:
     org = (await db.execute(select(Organization).limit(1))).scalar_one_or_none()
     if org is None:
-        sys.exit("No hay ninguna organizacion. Lanza `python -m src.seed_demo_v2` primero.")
+        sys.exit(
+            "No hay ninguna organizacion. Arranca la app y siembra un corpus primero "
+            "(este banco necesita los tres documentos-corpus de la panaderia: 'Manual de "
+            "alergenos...', 'Protocolo de sala...' y 'Manejo de caja...')."
+        )
     return org.id
 
 

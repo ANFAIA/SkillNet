@@ -38,11 +38,11 @@ from pathlib import Path
 from typing import Any
 
 DEFAULT_USERS = (
-    "aitana.souto@laespiga.example",
-    "diego.varela@laespiga.example",
-    "lucia.fernandez@laespiga.example",
+    "ana@skillnet.dev",
+    "bruno@skillnet.dev",
+    "carla@skillnet.dev",
 )
-DEFAULT_COURSE = "Servicio de sala: de la comanda al cobro"
+DEFAULT_COURSE = "Cómo aprende tu cerebro"
 COMPONENT_RE = re.compile(r"(?m)^\s*([A-Z][A-Za-z0-9_]*)\s*\(")
 
 
