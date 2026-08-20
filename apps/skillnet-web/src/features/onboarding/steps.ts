@@ -48,6 +48,60 @@ export const employeeTourSteps: OnboardingStep[] = [
 ]
 
 /**
+ * The admin product tour (docs/design/onboarding.md §3.2, Fase 1). Same "encuadre →
+ * recorrido → primera victoria" shape as the employee one, but the *aha* is
+ * "esto genera formación solo": it ends on the create-course action, the owner's
+ * first win.
+ *
+ * Every step anchors to the admin sidebar — the always-present control panel on the
+ * `/admin` home, stable across the org and individual workspace modes. The runner
+ * drops any step whose anchor is not visible (e.g. "Empleados" is absent in an
+ * individual workspace), so the same list stays correct in both modes without a
+ * branch here.
+ *
+ * The create step is the natural place for a `requires: 'generation'` tag once the
+ * Capabilities hook lands (Fase 2) — dropping it when there is no AI key so the tour
+ * never ends on a dead action. Left untagged for now: that signal does not exist yet.
+ */
+export const adminTourSteps: OnboardingStep[] = [
+  {
+    id: 'admin-welcome',
+    role: 'admin',
+    target: '[data-tour="admin-home"]',
+    title: 'onboarding.tour.admin.welcome.title',
+    body: 'onboarding.tour.admin.welcome.body',
+    order: 1,
+  },
+  {
+    id: 'admin-content',
+    role: 'admin',
+    target: '[data-tour="admin-content"]',
+    title: 'onboarding.tour.admin.content.title',
+    body: 'onboarding.tour.admin.content.body',
+    order: 2,
+  },
+  {
+    id: 'admin-team',
+    role: 'admin',
+    target: '[data-tour="admin-employees"]',
+    title: 'onboarding.tour.admin.team.title',
+    body: 'onboarding.tour.admin.team.body',
+    order: 3,
+  },
+  {
+    id: 'admin-create',
+    role: 'admin',
+    target: '[data-tour="admin-create-course"]',
+    title: 'onboarding.tour.admin.create.title',
+    body: 'onboarding.tour.admin.create.body',
+    order: 4,
+  },
+]
+
+/** Every tour step, both roles. The runner picks its slice with `resolveSteps`. */
+export const tourSteps: OnboardingStep[] = [...employeeTourSteps, ...adminTourSteps]
+
+/**
  * Steps for a role, capability-filtered and ordered. In Fase 0 `capabilities` is
  * absent and no step declares `requires`, so this is just the ordered role list;
  * the signature is already the §2.3 filter so Fase 1/2 pass real capabilities.

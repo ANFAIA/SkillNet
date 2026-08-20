@@ -23,6 +23,8 @@ interface NavItem {
   to: string
   icon: React.ReactNode
   end?: boolean
+  /** Stable anchor for the product tour spotlight (docs/design/onboarding.md). */
+  tourId?: string
 }
 
 export type SidebarRole = 'employee' | 'admin'
@@ -77,11 +79,13 @@ function useNavItems(role: SidebarRole, mode: WorkspaceMode): NavItem[] {
         label: intl.formatMessage({ id: 'admin.nav.home' }),
         to: '/admin',
         end: true,
+        tourId: 'admin-home',
         icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /></svg>,
       },
       {
         label: intl.formatMessage({ id: 'admin.nav.employees' }),
         to: '/admin/empleados',
+        tourId: 'admin-employees',
         icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>,
       },
       {
@@ -92,11 +96,13 @@ function useNavItems(role: SidebarRole, mode: WorkspaceMode): NavItem[] {
       {
         label: intl.formatMessage({ id: 'admin.nav.content' }),
         to: '/admin/contenido',
+        tourId: 'admin-content',
         icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" /></svg>,
       },
       {
         label: intl.formatMessage({ id: 'admin.nav.createCourse' }),
         to: '/admin/crear-curso',
+        tourId: 'admin-create-course',
         icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><path d="M12 8v8M8 12h8" /></svg>,
       },
       {
@@ -247,6 +253,7 @@ function SidebarContent({
             to={item.to}
             end={item.end}
             onClick={closeMobile}
+            data-tour={item.tourId}
             className={({ isActive }) =>
               `relative flex h-[42px] items-center ml-3 rounded-l-xl pl-3 pr-4 text-sm font-medium transition-colors duration-200 ${
                 isActive ? 'text-text' : 'text-text-secondary hover:text-text'

@@ -19,11 +19,16 @@ export function Header() {
   const menuRef = useRef<HTMLDivElement>(null)
 
   /**
+   * The product tour exists for both roles (employee learns, admin sets up), so the
+   * reopen "?" shows for either. Only the role's own tour is reopened.
+   */
+  const tourRole = user?.role === 'admin' ? 'admin' : 'employee'
+  const canReopenTour = user?.role === 'employee' || user?.role === 'admin'
+
+  /**
    * Permanent entry point for the learner's editable preferences. The initial
    * onboarding stays a short declaration flow; later changes belong to Settings.
-   *
-   * Gated on the employee role: this header is also the admin one, and an admin has
-   * no onboarding wizard.
+   * Employee-only: the admin has no learning-preferences flow.
    */
   const canRerunOnboarding = user?.role === 'employee'
 
@@ -61,8 +66,8 @@ export function Header() {
       </motion.button>
 
       <div className="flex items-center gap-2">
-        {/* Reopen the product tour. Employee-only: the admin has no Fase 0 tour. */}
-        {canRerunOnboarding && <TourTrigger />}
+        {/* Reopen the product tour — each role reopens its own. */}
+        {canReopenTour && <TourTrigger role={tourRole} />}
 
       <div className="relative" ref={menuRef}>
         <motion.button

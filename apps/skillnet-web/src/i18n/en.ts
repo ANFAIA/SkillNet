@@ -1043,4 +1043,13 @@ export const en: Record<string, string> = {
   'onboarding.tour.skillmap.body': 'Watch what you master grow as you make progress.',
   'onboarding.tour.start.title': 'Open your first lesson',
   'onboarding.tour.start.body': 'Tap here and dive in — the best way to get it is by doing it.',
+  // Admin tour (Fase 1) — ends on "create your first course": it generates training on its own
+  'onboarding.tour.admin.welcome.title': 'Welcome to your panel',
+  'onboarding.tour.admin.welcome.body': "This is where you build your team's training. Quick tour?",
+  'onboarding.tour.admin.content.title': 'Your courses',
+  'onboarding.tour.admin.content.body': 'Here live your courses and how each one is progressing.',
+  'onboarding.tour.admin.team.title': 'Your team',
+  'onboarding.tour.admin.team.body': 'Add your people and assign them what they need to learn.',
+  'onboarding.tour.admin.create.title': 'Create your first course',
+  'onboarding.tour.admin.create.body': 'Give it a topic and SkillNet generates the whole course. Try it here.',
 }

@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { TooltipRenderProps } from 'react-joyride'
 import { TourTooltip } from './TourTooltip'
 import { TourTrigger } from './TourTrigger'
-import { employeeTourSteps, resolveSteps } from './steps'
+import { adminTourSteps, employeeTourSteps, resolveSteps, tourSteps } from './steps'
 import {
   ONBOARDING_STORAGE_KEY,
   readOnboardingState,
@@ -55,6 +55,16 @@ describe('onboarding tour — steps data', () => {
     expect(steps.map((s) => s.order)).toEqual([...steps.map((s) => s.order)].sort((a, b) => a - b))
     // The tour ends by pointing at the start CTA — "abre tu primera lección".
     expect(steps[steps.length - 1].target).toBe('[data-tour="home-start"]')
+  })
+
+  it('resolves the admin tour by role from the shared list, ending on create-course', () => {
+    const steps = resolveSteps(tourSteps, 'admin')
+    expect(steps).toEqual(adminTourSteps)
+    expect(steps.every((s) => s.role === 'admin')).toBe(true)
+    // No employee step leaks into the admin slice (per-role, not shared state).
+    expect(steps.some((s) => s.target.startsWith('[data-tour="home-'))).toBe(false)
+    // The admin "aha" / first win is creating a course — the tour ends there.
+    expect(steps[steps.length - 1].target).toBe('[data-tour="admin-create-course"]')
   })
 })
 

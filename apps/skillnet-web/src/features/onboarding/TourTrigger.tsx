@@ -3,24 +3,29 @@ import { useIntl } from 'react-intl'
 import { motion } from 'framer-motion'
 import { transition } from '../../lib/motion'
 import { useTourStore } from './useTourStore'
+import type { SidebarRole } from '../../components/layout/Sidebar'
 
-const HOME_PATH = '/empleado'
+const HOME_PATH: Record<SidebarRole, string> = {
+  employee: '/empleado',
+  admin: '/admin',
+}
 
 /**
  * The persistent, unobtrusive "?" that reopens the tour (docs/design/onboarding.md
- * §2.4 — "reabrible desde un '?' persistente"). Lives in the employee header next to
- * the account button. The tour's anchors are on the home, so if the learner is
- * elsewhere we route home first, then start once the dashboard has mounted.
+ * §2.4 — "reabrible desde un '?' persistente"). Lives in the header next to the
+ * account button, for both roles. The tour's anchors are on the role's home, so if
+ * the user is elsewhere we route home first, then start once it has mounted.
  */
-export function TourTrigger() {
+export function TourTrigger({ role = 'employee' }: { role?: SidebarRole }) {
   const intl = useIntl()
   const navigate = useNavigate()
   const location = useLocation()
   const start = useTourStore((s) => s.start)
+  const homePath = HOME_PATH[role]
 
   function handleClick() {
-    if (location.pathname !== HOME_PATH) {
-      navigate(HOME_PATH)
+    if (location.pathname !== homePath) {
+      navigate(homePath)
       // Let the route + dashboard cards mount before the spotlight looks for them.
       window.setTimeout(() => start(), 450)
       return
