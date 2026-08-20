@@ -11,7 +11,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { useIntl } from 'react-intl'
 import { ChatInput } from '../chat/ChatInput'
 import { ChatAnswer } from '../chat/ChatAnswer'
-import { Mascota } from '../mascota'
+import { Mascota } from '../../features/mascot'
 import { useChat } from '../../api/chat'
 import type { ChatContext } from '../../api/chat'
 import type { ChatMessage } from '../../types'
@@ -165,7 +165,7 @@ export function NodeChat({
                 ease: ease.base,
               }}
             >
-              <Mascota anim="saludar" size={88} followCursor />
+              <Mascota expression="happy" size={88} />
               <p className="text-sm text-text-secondary max-w-[15rem]">
                 {intl.formatMessage({ id: nodeId ? 'nodeChat.empty' : 'courseChat.empty' })}
               </p>

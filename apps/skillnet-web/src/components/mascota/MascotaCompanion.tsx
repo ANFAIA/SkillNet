@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { useIntl } from 'react-intl'
-import { Mascota } from './Mascota'
-import type { MascotaAnim } from './Mascota'
+import { Mascota } from '../../features/mascot'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
 import { usePreferences } from '../../stores/preferences'
 import { screenReadText } from './screenReadText'
@@ -83,7 +82,9 @@ export function MascotaCompanion({ nodeId, title, summary, program = null, scree
   // When false the companion is a silent presence: no bubble, no voice.
   const speaks = usePreferences((s) => s.mascotaSpeaks)
 
-  const [playing, setPlaying] = useState(false)
+  // Playback state still drives stop()/speak() plumbing; the new brand mascot
+  // itself only shows idle / happy, so the getter is not read for the visual.
+  const [, setPlaying] = useState(false)
 
   // Per page: the current screen's own text when this is a paginated episode, and the
   // whole-node summary only as a fallback (legacy shell, or a screen with no prose).
@@ -177,7 +178,10 @@ export function MascotaCompanion({ nodeId, title, summary, program = null, scree
   // Stop any audio when the companion leaves the screen.
   useEffect(() => stop, [stop])
 
-  const anim: MascotaAnim = fx ?? (playing ? 'talk' : 'idle')
+  // The brand mascot shows only idle / happy. A "celebrar" beat (the learner just
+  // answered correctly) is a clean positive signal → happy; everything else
+  // (idle, talking, and the "ups" miss) stays the calm idle face.
+  const expression = fx === 'celebrar' ? 'happy' : 'idle'
 
   return (
     <div className="flex items-end gap-2 md:gap-3" data-no-explain="">
@@ -185,13 +189,13 @@ export function MascotaCompanion({ nodeId, title, summary, program = null, scree
       <motion.button
         type="button"
         onClick={onOpenChat}
-        className="w-14 h-14 md:w-[72px] md:h-[72px] shrink-0 cursor-pointer"
+        className="w-16 h-16 md:w-[72px] md:h-[72px] shrink-0 cursor-pointer inline-flex items-center justify-center"
         whileHover={reduceMotion ? undefined : { scale: 1.08, y: -2 }}
         whileTap={reduceMotion ? undefined : { scale: 0.95 }}
         transition={{ type: 'spring', stiffness: 400, damping: 20 }}
         aria-label={intl.formatMessage({ id: 'panel.chat' })}
       >
-        <Mascota anim={anim} size="100%" followCursor />
+        <Mascota expression={expression} size={64} />
       </motion.button>
 
       {/* The bubble with what the mascot "says". Hidden entirely when speech is off

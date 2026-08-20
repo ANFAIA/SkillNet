@@ -12,7 +12,8 @@ import { stepperContext, coursePositionContext, nextNodeContext, courseIntroCont
 import type { CourseIntro, StepperProgress, StepperProgressCallback } from '../../components/courses/blocks/StepperContext'
 import { NodeChat } from '../../components/courses/NodeChat'
 import { NodeSkeleton, RESERVED_CONTENT_PX } from '../../components/courses/NodeSkeleton'
-import { Mascota, MascotaCompanion } from '../../components/mascota'
+import { MascotaCompanion } from '../../components/mascota'
+import { Mascota } from '../../features/mascot'
 import { ResultGlow } from '../../components/courses/feedback/ResultGlow'
 import type { Resultado } from '../../components/courses/feedback/ResultGlow'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
@@ -1051,7 +1052,7 @@ export function NodeView() {
               transition={{ duration: duration.normal, ease: ease.base }}
             >
               <div className="flex flex-col items-center text-center gap-5 max-w-sm">
-                <Mascota anim="celebrar" size={128} followCursor={false} />
+                <Mascota expression="happy" size={128} />
                 <h2 className="text-2xl font-semibold text-text">
                   {intl.formatMessage({ id: 'node.courseCompleteTitle' })}
                 </h2>
