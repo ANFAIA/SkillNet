@@ -1031,10 +1031,8 @@ body {
    the light default, the OS-dark media block is guarded so an explicit light
    choice beats it, and the data-theme="dark" rule wins the toggle. */
 .setup-welcome-bg {
-  background:
-    radial-gradient(120% 90% at 15% 0%, #d7f5e6 0%, transparent 55%),
-    radial-gradient(110% 100% at 100% 100%, #c7eef0 0%, transparent 60%),
-    linear-gradient(160deg, #eafaf1 0%, #e2f6f4 100%);
+  /* Soft airy mint, lighter toward the upper-centre — matches the brand onboarding art. */
+  background: radial-gradient(135% 115% at 50% 34%, #eefbf4 0%, #d6f1e3 58%, #c2ebd6 100%);
 }
 
 .setup-welcome-bg::before {
@@ -1050,9 +1048,7 @@ body {
 
 :root[data-theme='dark'] .setup-welcome-bg {
   background:
-    radial-gradient(120% 90% at 12% 0%, #13473a 0%, transparent 55%),
-    radial-gradient(120% 100% at 100% 100%, #0e3a2c 0%, transparent 60%),
-    linear-gradient(160deg, #08211b 0%, #0a2a22 100%);
+    radial-gradient(135% 115% at 50% 34%, #124436 0%, #0b2c23 58%, #071f19 100%);
 }
 
 @media (prefers-color-scheme: dark) {

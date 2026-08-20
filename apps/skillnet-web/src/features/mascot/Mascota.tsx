@@ -67,8 +67,8 @@ export function Mascota({
   // The outer gentle float (idle life). Skipped entirely under reduced motion.
   const floatAnimate = reduce
     ? undefined
-    : { y: [0, -6, 0], rotate: [0, 0.8, 0, -0.8, 0] }
-  const floatTransition = { duration: 4, repeat: Infinity, ease: 'easeInOut' as const }
+    : { y: [0, -8, 0], rotate: [0, 2.2, 0, -2.2, 0] }
+  const floatTransition = { duration: 4.4, repeat: Infinity, ease: 'easeInOut' as const }
 
   // The eyes do NOT animate: idle is float-only with steady open eyes; `happy`
   // simply swaps to the smiling arcs. No blink, no pupil drift, no pop loop.

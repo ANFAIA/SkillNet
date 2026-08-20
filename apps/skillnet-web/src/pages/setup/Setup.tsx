@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useIntl } from 'react-intl'
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion'
-import { Button, Input, Logo } from '../../components/ui'
+import { Button, Input } from '../../components/ui'
 import { Mascota } from '../../features/mascot'
 import { ApiError } from '../../api/client'
 import { useSubmitSetup } from '../../api/setup'
@@ -228,10 +228,6 @@ export function Setup() {
 
   return (
     <div className="setup-welcome-bg relative min-h-screen overflow-hidden flex flex-col items-center justify-center p-4">
-      <div className="absolute top-6 left-1/2 -translate-x-1/2">
-        <Logo size={30} tone="accent" />
-      </div>
-
       <LayoutGroup>
         <motion.div layout={!reduce} className="w-full max-w-2xl flex flex-col items-center">
           {/* One continuous mascot: it repositions (layout) and scales down as we
@@ -242,7 +238,7 @@ export function Setup() {
             transition={reduce ? { duration: 0 } : spring.gentle}
             className="origin-center"
           >
-            <Mascota size={200} expression={stage === 'welcome' ? 'idle' : 'happy'} />
+            <Mascota size={200} expression="happy" />
           </motion.div>
 
           <AnimatePresence mode="wait" initial={false}>
