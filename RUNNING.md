@@ -145,6 +145,30 @@ checking, because a wrong embedding dimension is the one misconfiguration that o
 fails silently: documents look ingested but nothing can retrieve them, and the tutor answers
 from weaker sources without saying so.
 
+## Developing the frontend (hot reload)
+
+The `web` container on `:3000` is the **production** build — an nginx image baked at
+`docker compose build`. Rebuilding it for every CSS tweak is the slow way and is **not** how
+you develop the UI. For frontend work, run the API and database in Docker and the frontend
+with **Vite on the host**, which hot-reloads on save:
+
+```bash
+# 1. API + DB in Docker (the dev overlay publishes the API on 127.0.0.1:8000)
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d db api
+
+# 2. Frontend on the host — the one thing that needs Node (≥20) + pnpm locally
+pnpm --dir apps/skillnet-web install      # first time only
+pnpm --dir apps/skillnet-web dev          # Vite dev server
+```
+
+Then open **<http://localhost:5173>** (Vite's port), **not** 3000. Vite proxies `/api` to
+`http://127.0.0.1:8000`, so it talks to the dockerized API; point it elsewhere with
+`SKILLNET_API_PROXY`. Edit anything under `apps/skillnet-web/src` and the change appears
+instantly — **no `docker compose build web`**.
+
+Rebuild the `web` container only to check the real production bundle:
+`docker compose build web && docker compose up -d web` → served on `:3000`.
+
 ## When something is wrong
 
 | Symptom | Cause |
