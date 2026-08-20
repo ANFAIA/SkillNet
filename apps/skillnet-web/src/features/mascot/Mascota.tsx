@@ -35,34 +35,6 @@ const MASK_RIM = '#08764d'
 const WHITE = '#ffffff'
 const PUPIL = '#071c3f'
 
-const LOOP = 3.2
-
-// GSAP cue seconds → normalised fractions of the 3.2s loop.
-const s = (sec: number) => sec / LOOP
-
-// Pupil control keyframe cues (shared times for every pupil property).
-const PUPIL_TIMES = [0, s(0.12), s(0.34), s(0.45), s(0.55), s(0.58), s(2.52), s(2.9), 1]
-const PUPIL_SCALE_X = [1, 1.035, 1, 1.12, 1.12, 1.12, 1.12, 1, 1]
-const PUPIL_SCALE_Y = [1, 1, 1, 0.2, 0.2, 0.2, 0.2, 1, 1]
-const PUPIL_OPACITY = [1, 1, 1, 1, 1, 0, 0, 1, 1]
-const PUPIL_DRIFT = 2.5 // px, toward centre then back
-
-// Happy smile-arc cues.
-const HAPPY_TIMES = [0, s(0.55), s(0.78), s(2.45), s(2.63), 1]
-const HAPPY_OPACITY = [0, 0, 1, 1, 0, 0]
-const HAPPY_SCALE = [0.72, 0.72, 1, 1, 0.72, 0.72]
-
-// Head bob (part of the pop beat).
-const HEAD_TIMES = [0, s(0.12), s(0.34), s(0.54), s(0.9), s(1.6), s(2.3), 1]
-const HEAD_Y = [0, 0, -2, 0, 0, -1.5, 0, 0]
-
-const loopTransition = (times: number[]) => ({
-  duration: LOOP,
-  times,
-  repeat: Infinity,
-  ease: 'easeInOut' as const,
-})
-
 export type MascotExpression = 'idle' | 'happy'
 
 export interface MascotaProps {
@@ -98,11 +70,8 @@ export function Mascota({
     : { y: [0, -6, 0], rotate: [0, 0.8, 0, -0.8, 0] }
   const floatTransition = { duration: 4, repeat: Infinity, ease: 'easeInOut' as const }
 
-  // Pupil animation: only when we run the live idle loop.
-  const runLoop = !staticHappy
-  const originStyle = (cx: number, cy: number) =>
-    ({ transformBox: 'fill-box', transformOrigin: `${cx}px ${cy}px` }) as const
-
+  // The eyes do NOT animate: idle is float-only with steady open eyes; `happy`
+  // simply swaps to the smiling arcs. No blink, no pupil drift, no pop loop.
   return (
     <motion.div
       className={className}
@@ -135,12 +104,8 @@ export function Mascota({
           />
         </defs>
 
-        {/* head-rig: carries the pop bob during the idle loop. */}
-        <motion.g
-          style={originStyle(256, 260)}
-          animate={runLoop ? { y: HEAD_Y } : undefined}
-          transition={runLoop ? loopTransition(HEAD_TIMES) : undefined}
-        >
+        {/* head-rig: static; the whole mascot only gets the outer gentle float. */}
+        <g>
           {/* shell + band */}
           <path
             id={id('head-shell')}
@@ -165,77 +130,41 @@ export function Mascota({
             />
             <use href={`#${id('eye-mask-shape')}`} fill={WHITE} />
 
-            {/* Round open eyes — animated (or hidden in the static happy face). */}
-            {!staticHappy && (
-              <g>
+            {staticHappy ? (
+              /* Happy: two smiling arcs, steady. */
+              <>
+                <path
+                  d="M138 278c10-20 32-25 49-2"
+                  fill="none"
+                  stroke={PUPIL}
+                  strokeWidth={16}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M325 276c17-23 39-18 49 2"
+                  fill="none"
+                  stroke={PUPIL}
+                  strokeWidth={16}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </>
+            ) : (
+              /* Idle: round open eyes, steady (no blink, no drift). */
+              <>
                 <g clipPath={`url(#${id('eye-left-safe')})`}>
-                  <motion.g
-                    style={originStyle(176, 276)}
-                    animate={{
-                      x: [0, PUPIL_DRIFT, 0, 0, 0, 0, 0, 0, 0],
-                      scaleX: PUPIL_SCALE_X,
-                      scaleY: PUPIL_SCALE_Y,
-                      opacity: PUPIL_OPACITY,
-                    }}
-                    transition={loopTransition(PUPIL_TIMES)}
-                  >
-                    <ellipse cx="176" cy="276" rx="24" ry="36" fill={PUPIL} />
-                    <circle cx="163" cy="248" r="8" fill={WHITE} />
-                  </motion.g>
+                  <ellipse cx="176" cy="276" rx="24" ry="36" fill={PUPIL} />
+                  <circle cx="163" cy="248" r="8" fill={WHITE} />
                 </g>
                 <g clipPath={`url(#${id('eye-right-safe')})`}>
-                  <motion.g
-                    style={originStyle(336, 276)}
-                    animate={{
-                      x: [0, -PUPIL_DRIFT, 0, 0, 0, 0, 0, 0, 0],
-                      scaleX: PUPIL_SCALE_X,
-                      scaleY: PUPIL_SCALE_Y,
-                      opacity: PUPIL_OPACITY,
-                    }}
-                    transition={loopTransition(PUPIL_TIMES)}
-                  >
-                    <ellipse cx="336" cy="276" rx="24" ry="36" fill={PUPIL} />
-                    <circle cx="323" cy="248" r="8" fill={WHITE} />
-                  </motion.g>
+                  <ellipse cx="336" cy="276" rx="24" ry="36" fill={PUPIL} />
+                  <circle cx="323" cy="248" r="8" fill={WHITE} />
                 </g>
-              </g>
+              </>
             )}
-
-            {/* Happy smile arcs — static when pinned/reduced, else pop on the loop. */}
-            <motion.path
-              d="M138 278c10-20 32-25 49-2"
-              fill="none"
-              stroke={PUPIL}
-              strokeWidth={16}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              style={originStyle(176, 276)}
-              initial={false}
-              animate={
-                staticHappy
-                  ? { opacity: 1, scale: 1 }
-                  : { opacity: HAPPY_OPACITY, scale: HAPPY_SCALE }
-              }
-              transition={staticHappy ? undefined : loopTransition(HAPPY_TIMES)}
-            />
-            <motion.path
-              d="M325 276c17-23 39-18 49 2"
-              fill="none"
-              stroke={PUPIL}
-              strokeWidth={16}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              style={originStyle(336, 276)}
-              initial={false}
-              animate={
-                staticHappy
-                  ? { opacity: 1, scale: 1 }
-                  : { opacity: HAPPY_OPACITY, scale: HAPPY_SCALE }
-              }
-              transition={staticHappy ? undefined : loopTransition(HAPPY_TIMES)}
-            />
           </g>
-        </motion.g>
+        </g>
       </svg>
     </motion.div>
   )
