@@ -1,0 +1,218 @@
+{
+  "commit": "06c80e8a8af4f20ad20ba345b7b6b13e1cc27e0c",
+  "files": [
+    {
+      "path": "packages/core/src/components/branching-scenario.tsx",
+      "sha256": "e78c1cf5987577b6bda14a8222562ce3e387f7390ba3bff239da80e84189769b"
+    },
+    {
+      "path": "packages/core/src/components/code-exercise.tsx",
+      "sha256": "38792f16f14068c29495a9a08b8c7d4e8c17e278f2eb3b697db0fb8d8713d33d"
+    },
+    {
+      "path": "packages/core/src/components/concept-map.tsx",
+      "sha256": "c7d829babf4b7eb602e3fbdf77cf14e1b537be8e56230e32b3144cbbb61003af"
+    },
+    {
+      "path": "packages/core/src/components/data-explorer.tsx",
+      "sha256": "ce4addcc22239a0e36664509430b2df9bff856d72a073a14bd380a38dcf06309"
+    },
+    {
+      "path": "packages/core/src/components/drawing-response.tsx",
+      "sha256": "fcfe6ee94643d2b4a56fad3f0828b83bbc80c58e99d0093aa6fded513e1972dd"
+    },
+    {
+      "path": "packages/core/src/components/equation-workbench.tsx",
+      "sha256": "aef6b2dd80a0886c3abd3127ddce7217e236c5fe62ca1e66411bc7dca41cb9e0"
+    },
+    {
+      "path": "packages/core/src/components/evidence-annotation.tsx",
+      "sha256": "4df896260e2f7edbca27d67f5b5d010909484a69d62038944c95122ab276e595"
+    },
+    {
+      "path": "packages/core/src/components/flashcard.tsx",
+      "sha256": "e3f5990e4c2d747ffb1197c3ce2e4b84afda16c40df0a82ce5d75255bc2a0931"
+    },
+    {
+      "path": "packages/core/src/components/generative-learning.tsx",
+      "sha256": "28feb58598a46ae6173665c0126a4d6b3e34110ea9ba232b92796570f59ba01b"
+    },
+    {
+      "path": "packages/core/src/components/glossary.tsx",
+      "sha256": "eb8495cb6a3f8b51bd4a52c247479d0bad442891e3abe3531756192eae27f682"
+    },
+    {
+      "path": "packages/core/src/components/hint-reveal.tsx",
+      "sha256": "4d558c137a054d95a0c2dae1d6167f914ba6561ee7cb57fe30f146e70c9a99c2"
+    },
+    {
+      "path": "packages/core/src/components/hotspot.tsx",
+      "sha256": "5b289f32c940a7030cf3ef5001fefab1a38f6db3514acce184bd144a8aa3818b"
+    },
+    {
+      "path": "packages/core/src/components/interactive-media.tsx",
+      "sha256": "837daca660c4a4f4a9143c4509b37af35c2af323d0032b64cd1b8dbe6ef919f6"
+    },
+    {
+      "path": "packages/core/src/components/label-diagram.tsx",
+      "sha256": "fa23778780509b52c92a27c2d65d1f148590b5d28c41b37b1cebaf216a1cd183"
+    },
+    {
+      "path": "packages/core/src/components/mastery-badge.tsx",
+      "sha256": "3120f47fab2dc1b07f2c5c5c6ec82169ef8c0418e9b83c2c0a8a974b4325ab07"
+    },
+    {
+      "path": "packages/core/src/components/matching-exercises.tsx",
+      "sha256": "aa4f5cc8f583a5b6662b9bf081f87e5f61dea7d60a66ddbe433b8d3d9a3ccfa8"
+    },
+    {
+      "path": "packages/core/src/components/measurement-lab.tsx",
+      "sha256": "a7cf836f10ee741fd46b469c0cb0d3b6fd9e0c1a2fc6e9d5efe2a165c11fc4c5"
+    },
+    {
+      "path": "packages/core/src/components/media-player.tsx",
+      "sha256": "aa5cd0730adc1ce3c2cd4a40df4754d482b65671d70e08e27d75d782d9854ed0"
+    },
+    {
+      "path": "packages/core/src/components/numeric-question.tsx",
+      "sha256": "7dddf62791455c6130724ebc07ef2356d2b5980cd77cad921b403903d9231bbf"
+    },
+    {
+      "path": "packages/core/src/components/practice-set.tsx",
+      "sha256": "5cc773aa399cbba91c61f14e3c89ba69bfdeb7fdbb1c7a9b7bda63396c841be9"
+    },
+    {
+      "path": "packages/core/src/components/progress-indicator.tsx",
+      "sha256": "2ef84d29a3078b83dbda38a27afc3882d284257f8c9aff9a1192423445b6bde1"
+    },
+    {
+      "path": "packages/core/src/components/quiz-item.tsx",
+      "sha256": "83f959076fbf708f1fa311a9313f1a42f06803aa3d775792fbd24fd4363c9c27"
+    },
+    {
+      "path": "packages/core/src/components/retrieval-practice-session.tsx",
+      "sha256": "b05e9a8e63797ff6b4471b92390c93c9b4b83976b580c8d80b43013224912774"
+    },
+    {
+      "path": "packages/core/src/components/rubric.tsx",
+      "sha256": "f0c534d0af5ad9b73b3e98a2dc3803d4acd4e514bcc11a1a0430c82edb3660aa"
+    },
+    {
+      "path": "packages/core/src/components/simulation-lab.tsx",
+      "sha256": "80151c127544176d66ec826367df7af6f6071fbc12ca1dc4d6e614fb6afda711"
+    },
+    {
+      "path": "packages/core/src/components/timeline.tsx",
+      "sha256": "0cb71503227f945280f33f03943e31f0a32d8f60c974a0118774006a41408dc2"
+    },
+    {
+      "path": "packages/core/src/components/word-bank.tsx",
+      "sha256": "d56ca2fb8c5b082ad11f6961350ff20b4af43b86c81e63b68c925c19e23a4072"
+    },
+    {
+      "path": "packages/core/src/lib/cn.ts",
+      "sha256": "b33d9fdb0c05429050d4751d8d292035d6766c825714423c9004d3f2d85da924"
+    },
+    {
+      "path": "packages/schema/src/artifact-execution.ts",
+      "sha256": "d6f8ace505020322e565d0ad71bbb11394325332c96e2fa7bc09a0e165d7a816"
+    },
+    {
+      "path": "packages/schema/src/data-coordinate.ts",
+      "sha256": "b1819325b0ddda42a4b0e919f55031f5ba9a5b95a404e48a34fab1f93943061e"
+    },
+    {
+      "path": "packages/schema/src/decision-graph.ts",
+      "sha256": "b4eb8e21a9b6cbfe356f359cdcf100d9776f53a416bd3f7db5c405b18170b6b3"
+    },
+    {
+      "path": "packages/schema/src/interactive-media.ts",
+      "sha256": "6e4e158e6cafbb64043c7a12d4b7584f9393c4bcc7d750f7fd567197842a0f8f"
+    },
+    {
+      "path": "packages/schema/src/simulation.ts",
+      "sha256": "fcc0bf27739b05dd18e0aa393153cc91de8494ce7c07744d97a66c778cbc6df8"
+    },
+    {
+      "path": "packages/schema/src/taxonomy.ts",
+      "sha256": "00411b8319b7530e298c308bc79588c19a9405f83678bc0ba01712064bb8c4b8"
+    },
+    {
+      "path": "packages/schema/src/types.ts",
+      "sha256": "0a06ee075af1ff32297730c655e5ebb858a99e9c862a5ee77a442a594d706114"
+    },
+    {
+      "path": "packages/spaced-repetition/src/sm2.ts",
+      "sha256": "3de4d81f30278357e03b636c8d1053861a18cca1a9126799281bcfbf427ab274"
+    },
+    {
+      "path": "packages/spaced-repetition/src/types.ts",
+      "sha256": "872d7e32e067b3853a3f3cd44ced021a69b8e0c1622baf4d65fe67795c25364a"
+    },
+    {
+      "path": "packages/ui/src/components/badge.tsx",
+      "sha256": "04373b00965e534bdda230bc84352d3466e180790077210c5089b1a296920fb3"
+    },
+    {
+      "path": "packages/ui/src/components/button.tsx",
+      "sha256": "30f6670ab890d7ae791b0f3471db6f82f8a2b0980b66d42fe6fbfe92ac88c137"
+    },
+    {
+      "path": "packages/ui/src/components/card.tsx",
+      "sha256": "b8fc087198e81356f5f630685d46731feda93eaf50be3758787366bffdadc906"
+    },
+    {
+      "path": "packages/ui/src/components/checkbox.tsx",
+      "sha256": "1537b2aa83ef9ef3025aeaf031e769d544ba58b3793d88b96397699e04105c69"
+    },
+    {
+      "path": "packages/ui/src/components/input.tsx",
+      "sha256": "2d9132abb7ea771d547e9e25751771e2ba040e9f3cd0c715b1d484c288c13ae0"
+    },
+    {
+      "path": "packages/ui/src/components/label.tsx",
+      "sha256": "3733964fb3b4d855aabfad7888c8152d3d9d632c339f61e6a7be4f7b83ebb91a"
+    },
+    {
+      "path": "packages/ui/src/components/popover.tsx",
+      "sha256": "94e38203c10fffa8ecb13c111598eb8b2e59b12e7988b8718522c4fab4cbbeb3"
+    },
+    {
+      "path": "packages/ui/src/components/progress.tsx",
+      "sha256": "3e830f998ef3548915627cea591722118c976d71e4b4bca7c8fe453d028869ba"
+    },
+    {
+      "path": "packages/ui/src/components/radio-group.tsx",
+      "sha256": "0da7cc4cc2afb51f59532cd3ec698d636396de103c9e17471d98efeaa4df85b7"
+    },
+    {
+      "path": "packages/ui/src/components/separator.tsx",
+      "sha256": "72dc5d623a40df7f295a9158ac6acef3d6592fb76c6a428aed536f683a2627e5"
+    },
+    {
+      "path": "packages/ui/src/components/textarea.tsx",
+      "sha256": "456a19f82152f2b4ecad9a457c30301c612f08e303446851d52d8929cab5914e"
+    },
+    {
+      "path": "packages/ui/src/components/toggle-group.tsx",
+      "sha256": "dbca3c730f4022710c4c7c8ae0229dfb3be252ac4306d7e915b67051e0d5ef8d"
+    },
+    {
+      "path": "packages/ui/src/components/toggle.tsx",
+      "sha256": "2d30c36f255776e9a2580561b4a9f3fcd4df1bfa20a3a36e8a50e3ca3204f13f"
+    },
+    {
+      "path": "packages/ui/src/lib/cn.ts",
+      "sha256": "feede97e7f9ffc83bc18961b62e11909a13f276bf210c28fbabc002c13216558"
+    }
+  ],
+  "license": "LICENSE",
+  "license_sha256": "66d92da3751875d2786297d8f61c912d4ccfa6e4ee47cf25ce3ec5d069f4ddb4",
+  "notice": "README.md",
+  "notice_sha256": "007a9645f4e164f507ab1ed9ed21143c60da9474a58ab4e0d9a62ee3e7c2d87c",
+  "registry_closure": "registry-closure.json",
+  "registry_closure_sha256": "2f97bb5d30fe1a5ad0459a270573ff4b24b3b02293ae19e7d891be8daa8ec07b",
+  "repository": "https://github.com/JoseEstevez520/Didact",
+  "schema_version": 1,
+  "source_tree_sha256": "82ab1c1bb6e5e67f09c1fc0737c0b307d199fd910526ee5778da10136285a455"
+}

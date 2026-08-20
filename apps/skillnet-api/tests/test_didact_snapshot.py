@@ -13,7 +13,29 @@ from typing import Any
 ROOT = Path(__file__).parents[1]
 SNAPSHOT_PATH = ROOT / "src/personalization/didact_snapshot.json"
 LOCK_PATH = ROOT / "src/personalization/didact.lock.json"
-VENDOR_ROOT = ROOT.parent / "skillnet-web/vendor/didact"
+
+
+def _resolve_vendor_root() -> Path:
+    """Locate the vendored Didact closure.
+
+    Canonically it lives in the frontend at ``skillnet-web/vendor/didact``, reachable
+    when the whole repo is checked out. The api container only mounts
+    ``apps/skillnet-api`` at ``/app`` though, so a hash-identical copy is bundled at
+    ``tests/_vendor/didact`` and used when the frontend tree is absent. The lock
+    hashes are pinned, so whichever copy is used must match byte-for-byte — the copy
+    can never silently drift from the source.
+    """
+    candidates = (
+        ROOT.parent / "skillnet-web/vendor/didact",
+        ROOT / "tests/_vendor/didact",
+    )
+    for candidate in candidates:
+        if (candidate / "registry-closure.json").is_file():
+            return candidate
+    return candidates[0]
+
+
+VENDOR_ROOT = _resolve_vendor_root()
 PINNED_COMMIT = "06c80e8a8af4f20ad20ba345b7b6b13e1cc27e0c"
 PINNED_SNAPSHOT_SHA256 = "b517ea1edba79e1e4e7c34ed6afb866c8c22488a39aef127efda6f2c1a4cf675"
 PINNED_CLOSURE_SHA256 = "2f97bb5d30fe1a5ad0459a270573ff4b24b3b02293ae19e7d891be8daa8ec07b"

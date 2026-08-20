@@ -11,11 +11,33 @@ from typing import Literal
 from pydantic import BaseModel, EmailStr, Field
 
 
+class Capabilities(BaseModel):
+    """Which AI capabilities are available, derived from config (no live calls).
+
+    The single source of truth for capability-driven onboarding and degraded-mode
+    UX (docs/design/onboarding.md §2.1). Computed by
+    ``services.capabilities.derive_capabilities``.
+    """
+
+    #: A usable LLM exists (API key or fixture model). Nothing AI works without it.
+    ai: bool
+    #: Generate courses/lessons (same LLM as ``ai``).
+    generation: bool
+    #: Chat tutor (same LLM as ``ai``).
+    tutor: bool
+    #: Voice (mascot / podcast); degrades to offline when absent — see degraded-mode.
+    tts: bool
+    #: Infographics / generated images.
+    images: bool
+
+
 class SetupStatus(BaseModel):
     #: True once at least one user exists — the setup wizard is then closed forever.
     initialized: bool
     #: When False, the SPA does not force the onboarding wizard (testing convenience).
     onboarding_enabled: bool = True
+    #: The AI capabilities this deployment has, for capability-driven onboarding.
+    capabilities: Capabilities
 
 
 class SetupRequest(BaseModel):

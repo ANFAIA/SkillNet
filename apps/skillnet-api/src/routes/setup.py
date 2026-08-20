@@ -25,6 +25,7 @@ from src.deps.db import DBSession
 from src.models import User, UserRole, WorkspaceMode
 from src.repositories.learner_profile_repo import LearnerProfileRepository
 from src.schemas.setup import SetupRequest, SetupStatus
+from src.services.capabilities import derive_capabilities
 
 router = APIRouter(prefix="/setup", tags=["Setup"])
 
@@ -38,6 +39,7 @@ async def setup_status(db: DBSession) -> SetupStatus:
     return SetupStatus(
         initialized=await _has_any_user(db),
         onboarding_enabled=settings.ONBOARDING_ENABLED,
+        capabilities=derive_capabilities(),
     )
 
 
