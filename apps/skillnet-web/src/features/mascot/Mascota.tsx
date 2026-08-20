@@ -60,9 +60,13 @@ export function Mascota({
   const uid = useId().replace(/:/g, '')
   const id = (name: string) => `${name}-${uid}`
 
-  // Static: reduced motion OR the caller pinned "happy". Show the smile arcs,
-  // hide the round pupils, no loop.
-  const staticHappy = reduce || expression === 'happy'
+  // Which face to show. Idle = steady open eyes; happy = smiling arcs. The switch
+  // between them cross-fades (open eyes close + fade while the smile pops in), or is
+  // instant under reduced motion.
+  const showHappy = expression === 'happy'
+  const eyeSwap = reduce
+    ? { duration: 0 }
+    : ({ type: 'spring', stiffness: 300, damping: 20 } as const)
 
   // The outer gentle float (idle life). Skipped entirely under reduced motion.
   const floatAnimate = reduce
@@ -70,8 +74,6 @@ export function Mascota({
     : { y: [0, -8, 0], rotate: [0, 2.2, 0, -2.2, 0] }
   const floatTransition = { duration: 4.4, repeat: Infinity, ease: 'easeInOut' as const }
 
-  // The eyes do NOT animate: idle is float-only with steady open eyes; `happy`
-  // simply swaps to the smiling arcs. No blink, no pupil drift, no pop loop.
   return (
     <motion.div
       className={className}
@@ -130,39 +132,47 @@ export function Mascota({
             />
             <use href={`#${id('eye-mask-shape')}`} fill={WHITE} />
 
-            {staticHappy ? (
-              /* Happy: two smiling arcs, steady. */
-              <>
-                <path
-                  d="M138 278c10-20 32-25 49-2"
-                  fill="none"
-                  stroke={PUPIL}
-                  strokeWidth={16}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-                <path
-                  d="M325 276c17-23 39-18 49 2"
-                  fill="none"
-                  stroke={PUPIL}
-                  strokeWidth={16}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </>
-            ) : (
-              /* Idle: round open eyes, steady (no blink, no drift). */
-              <>
-                <g clipPath={`url(#${id('eye-left-safe')})`}>
-                  <ellipse cx="176" cy="276" rx="24" ry="36" fill={PUPIL} />
-                  <circle cx="163" cy="248" r="8" fill={WHITE} />
-                </g>
-                <g clipPath={`url(#${id('eye-right-safe')})`}>
-                  <ellipse cx="336" cy="276" rx="24" ry="36" fill={PUPIL} />
-                  <circle cx="323" cy="248" r="8" fill={WHITE} />
-                </g>
-              </>
-            )}
+            {/* Both faces coexist and cross-fade: open eyes "close" (fade + squash)
+                while the smile pops in — animated on expression change, instant under
+                reduced motion. `initial={false}` so mount shows the target with no entrance. */}
+            <motion.g
+              initial={false}
+              style={{ transformBox: 'fill-box', transformOrigin: '256px 276px' }}
+              animate={{ opacity: showHappy ? 0 : 1, scaleY: showHappy ? 0.3 : 1 }}
+              transition={eyeSwap}
+            >
+              <g clipPath={`url(#${id('eye-left-safe')})`}>
+                <ellipse cx="176" cy="276" rx="24" ry="36" fill={PUPIL} />
+                <circle cx="163" cy="248" r="8" fill={WHITE} />
+              </g>
+              <g clipPath={`url(#${id('eye-right-safe')})`}>
+                <ellipse cx="336" cy="276" rx="24" ry="36" fill={PUPIL} />
+                <circle cx="323" cy="248" r="8" fill={WHITE} />
+              </g>
+            </motion.g>
+            <motion.g
+              initial={false}
+              style={{ transformBox: 'fill-box', transformOrigin: '256px 276px' }}
+              animate={{ opacity: showHappy ? 1 : 0, scale: showHappy ? 1 : 0.55 }}
+              transition={eyeSwap}
+            >
+              <path
+                d="M138 278c10-20 32-25 49-2"
+                fill="none"
+                stroke={PUPIL}
+                strokeWidth={16}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M325 276c17-23 39-18 49 2"
+                fill="none"
+                stroke={PUPIL}
+                strokeWidth={16}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </motion.g>
           </g>
         </g>
       </svg>
