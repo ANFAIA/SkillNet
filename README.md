@@ -150,7 +150,7 @@ The short version, if you already have an OpenAI key:
 cp .env.example .env                                         # then set SECRET_KEY,
                                                              # POSTGRES_PASSWORD, LLM_API_KEY
 docker compose up -d --build
-docker compose exec api uv run python -m src.seed_demo_v2    # optional: loads the demo (La Espiga)
+docker compose exec api uv run python -m src.seed_learning_demo   # optional: loads the public demo
 ```
 
 Then <http://localhost:3000>, as `admin@skillnet.dev` / `admin123`. For your own install,
@@ -163,20 +163,21 @@ Gen UI generates each learning screen on the fly, personalized for the learner.
 Both static (v1) and dynamic (v2) courses are always available — the choice is per-course.
 
 1. Run [step 4](#step-4--load-the-demo-data-recommended) if you have not already
-2. Log in as any employee (password: `espiga2026`)
-3. Go to **Mis Cursos** and open a dynamic course
+2. Log in as a learner (password: `aprender2026`), e.g. `ana@skillnet.dev`
+3. Go to **Mis Cursos** and open the showcase course, *Cómo aprende tu cerebro*
 
-The v2 seed creates a Spanish bakery-café organization: five employees (four with populated
-learner profiles, one deliberately without — that is the one to walk the onboarding wizard
-with), three source documents indexed for the tutor, and two validated dynamic courses of 3
-and 7 nodes. Every employee shares the password `espiga2026`; the admin keeps whatever is in
-your `.env`.
+The public demo (`src.seed_learning_demo`) is on the meta theme of **how we learn**: four
+short, Brilliant-style courses generated and validated at seed time, plus three demo learners
+with different declared styles — `ana@` (metaphors + audio, sees the in-lesson podcast),
+`bruno@` (definitions-first + visual, sees the infographic) and `carla@` (no profile, to walk
+the onboarding wizard). All three share the password `aprender2026`; the admin keeps whatever
+is in your `.env`. The showcase course carries a podcast and an infographic per node so the
+in-lesson media components appear.
 
-It is idempotent, so running it twice changes nothing. `--refresh` is the content-editing
-loop: edit the node specs in `src/seed_demo_v2.py`, re-run with `--refresh`, and the
-design-time fields of the existing nodes are overwritten in place while learner progress is
-kept. It also bumps `courses.schema_version`, which is part of the render `cache_key`, so
-cached renders are invalidated and the next visit regenerates.
+It is idempotent and re-runnable: it reuses an already-validated course of the same title and
+deletes any leftover data from the retired "La Espiga" demo (`src.seed_demo_v2`, still
+importable but no longer the documented default). See [`RUNNING.md`](RUNNING.md) and
+[`docs/design/onboarding.md`](docs/design/onboarding.md).
 
 ### Dynamic courses (v2)
 
