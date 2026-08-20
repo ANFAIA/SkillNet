@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/logo.svg" alt="SkillNet" width="140">
+  <img src="assets/logo.png" alt="SkillNet" width="160">
   <h1 align="center">SkillNet</h1>
   <p align="center">
     <strong>Intelligent system for organizational knowledge evolution and talent development</strong>
