@@ -219,7 +219,9 @@ describe('ProtectedRoute — onboarding gate (§6.1)', () => {
       '/users/me/learner-profile': 'pending',
     })
     renderGuard(employeeGuard())
-    expect(await screen.findByAltText('SkillNet')).toBeInTheDocument()
+    // The skeleton paints the brand Logo, an inline SVG exposed as role="img"
+    // (aria-label), not an <img alt>. ByAltText cannot match an aria-labelled SVG.
+    expect(await screen.findByRole('img', { name: 'SkillNet' })).toBeInTheDocument()
     expect(screen.queryByText('WIZARD')).toBeNull()
     expect(screen.queryByText('APP')).toBeNull()
   })
@@ -263,6 +265,35 @@ describe('ProtectedRoute — onboarding gate (§6.1)', () => {
       '/admin',
     )
     expect(await screen.findByText('APP')).toBeInTheDocument()
+  })
+
+  // ONBOARDING_ENABLED kill switch. `useSetupStatus` reads /setup/status; the gate
+  // only stands down on an explicit `onboarding_enabled === false`.
+  it('disables the gate when onboarding_enabled is explicitly false', async () => {
+    serve({
+      '/health': health(),
+      '/auth/me': { status: 200, body: EMPLOYEE },
+      '/setup/status': { status: 200, body: { initialized: true, onboarding_enabled: false } },
+      // An unanswered profile that would otherwise redirect.
+      '/users/me/learner-profile': profile(),
+    })
+    renderGuard(employeeGuard())
+    // The kill switch wins: the app renders and the profile is never even queried.
+    expect(await screen.findByText('APP')).toBeInTheDocument()
+    expect(screen.queryByText('WIZARD')).toBeNull()
+    expect(profileCalls()).toHaveLength(0)
+  })
+
+  it('keeps the gate enabled when onboarding_enabled is absent (undefined defaults to enabled)', async () => {
+    serve({
+      '/health': health(),
+      '/auth/me': { status: 200, body: EMPLOYEE },
+      // Status payload present but without the flag → treated as enabled.
+      '/setup/status': { status: 200, body: { initialized: true } },
+      '/users/me/learner-profile': profile(),
+    })
+    renderGuard(employeeGuard())
+    expect(await screen.findByText('WIZARD')).toBeInTheDocument()
   })
 
   it('skipOnboardingGate keeps /onboarding from redirecting to itself', async () => {

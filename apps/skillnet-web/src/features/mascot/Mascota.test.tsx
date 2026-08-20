@@ -21,6 +21,28 @@ describe('Mascota', () => {
     expect(svg).toHaveAttribute('height', '220')
   })
 
+  it('mounts both eye layers (open eyes + smile) in idle, so the cross-fade has both ends', () => {
+    // idle and happy do not swap which layer is mounted — both coexist and cross-fade
+    // via opacity/scale, so the open-eye pupils AND the smile arcs are always present.
+    const { container } = render(<Mascota />)
+    // Two navy pupils (ellipses) for the open-eye layer.
+    expect(container.querySelectorAll('ellipse[fill="#071c3f"]').length).toBe(2)
+    // Two smile arcs (stroked paths) for the happy layer.
+    const smilePaths = Array.from(container.querySelectorAll('path')).filter(
+      (p) => p.getAttribute('stroke') === '#071c3f',
+    )
+    expect(smilePaths.length).toBe(2)
+  })
+
+  it('mounts both eye layers in the happy expression too', () => {
+    const { container } = render(<Mascota expression="happy" />)
+    expect(container.querySelectorAll('ellipse[fill="#071c3f"]').length).toBe(2)
+    const smilePaths = Array.from(container.querySelectorAll('path')).filter(
+      (p) => p.getAttribute('stroke') === '#071c3f',
+    )
+    expect(smilePaths.length).toBe(2)
+  })
+
   it('renders static (no float loop) when reduced motion is declared', () => {
     // The declared preference alone must silence motion — the hook ORs it with the OS
     // setting, so a provider value of true is enough. The reduced-motion branch drops the

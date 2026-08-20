@@ -22,6 +22,11 @@ describe('Logo', () => {
     expect(screen.getByRole('img', { name: 'SkillNet' })).toHaveStyle({ color: '#ffffff' })
   })
 
+  it('on-light tone uses the dark brand neutral', () => {
+    render(<Logo tone="on-light" />)
+    expect(screen.getByRole('img', { name: 'SkillNet' })).toHaveStyle({ color: '#18181b' })
+  })
+
   it('honours an explicit size', () => {
     render(<Logo size={64} />)
     const svg = screen.getByRole('img', { name: 'SkillNet' })
