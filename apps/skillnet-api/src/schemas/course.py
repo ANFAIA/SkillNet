@@ -45,6 +45,9 @@ class CourseRead(BaseModel):
     module_count: int | None = None
     node_count: int | None = None
     schema_status: str | None = None
+    #: Marks the per-org demo course. Read-only, set by the demo seed; the admin preview
+    #: screen uses it to decide whether to offer the personalization variant toggle.
+    is_demo: bool = False
     #: The **effective** delivery path of §11.3, not the raw ``courses.delivery_mode``
     #: column. It is whatever ``resolve_delivery`` computes, which checks the column and
     #: the schema status — so with the schema not yet validated every course reads

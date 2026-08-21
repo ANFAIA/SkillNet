@@ -46,9 +46,17 @@ import type { UiFormat } from '../types/node-render'
 export const courseNodesKey = (courseId: string | undefined) =>
   ['nodes', 'course', courseId] as const
 
-/** The pinned render of one node for the current learner. */
-export const nodeRenderKey = (nodeId: string | undefined) =>
-  ['nodes', nodeId, 'render'] as const
+/**
+ * The pinned render of one node for the current learner.
+ *
+ * `previewPref` (admin demo preview only) is part of the key so the audio and visual
+ * variants are cached as separate entries and toggling between them does not clobber
+ * one with the other.
+ */
+export const nodeRenderKey = (
+  nodeId: string | undefined,
+  previewPref?: 'audio' | 'visual',
+) => ['nodes', nodeId, 'render', previewPref ?? 'default'] as const
 
 /** "Ver la version anterior" (§5.5) — the renders *this* learner was served. */
 export const nodeRenderHistoryKey = (nodeId: string | undefined) =>
@@ -146,12 +154,26 @@ export function isPendingRender(
  */
 export function useNodeRender(
   nodeId: string | undefined,
-  options: { enabled?: boolean; refetchInterval?: number | false } = {},
+  options: {
+    enabled?: boolean
+    refetchInterval?: number | false
+    /**
+     * Admin demo preview only: fetch a pre-baked personalization variant of the same
+     * lesson (`audio` or `visual`) via `?preview_pref=`. Absent = normal per-learner
+     * pinned render. Each value is cached separately (see `nodeRenderKey`).
+     */
+    previewPref?: 'audio' | 'visual'
+  } = {},
 ) {
-  const { enabled = true, refetchInterval = false } = options
+  const { enabled = true, refetchInterval = false, previewPref } = options
   return useQuery({
-    queryKey: nodeRenderKey(nodeId),
-    queryFn: () => get<NodeRenderResponse>(`/nodes/${nodeId}/render`),
+    queryKey: nodeRenderKey(nodeId, previewPref),
+    queryFn: () =>
+      get<NodeRenderResponse>(
+        previewPref
+          ? `/nodes/${nodeId}/render?preview_pref=${previewPref}`
+          : `/nodes/${nodeId}/render`,
+      ),
     enabled: !!nodeId && enabled,
     retry: false,
     staleTime: Infinity,

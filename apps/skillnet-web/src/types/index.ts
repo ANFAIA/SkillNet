@@ -82,6 +82,8 @@ export interface CourseRead {
   module_count: number
   node_count: number | null
   schema_status: string | null
+  /** Marks the per-org demo course. Read-only; drives the admin preview variant toggle. */
+  is_demo?: boolean
   /**
    * The **effective** delivery path (§11.3), computed server-side by `resolve_delivery`.
    *
