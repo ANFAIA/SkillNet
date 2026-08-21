@@ -20,7 +20,6 @@ const innerFadeIn = {
   initial: { opacity: 0 },
   animate: { opacity: 1, transition: { duration: duration.normal, ease: ease.base, delay: 0.35 } },
 }
-const innerFadeOut = { exit: { opacity: 0, transition: { duration: duration.fast, ease: ease.base } } }
 
 const MODES: { key: WorkspaceMode; titleId: string; descId: string }[] = [
   { key: 'organization', titleId: 'setup.mode.organization', descId: 'setup.mode.organizationDesc' },
@@ -50,6 +49,13 @@ export function Setup() {
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  // Password validity feedback (best practice: don't nag mid-typing).
+  //   idle  → muted requirement hint (untouched, or still typing)
+  //   error → red (only after the field is blurred while too short)
+  //   ok    → green check (>= 8 chars), reassuring the requirement is met
+  const [passwordTouched, setPasswordTouched] = useState(false)
+  const passwordOk = password.length >= 8
+  const passwordError = passwordTouched && password.length > 0 && !passwordOk
 
   const isOrg = mode === 'organization'
   const canSubmit =
@@ -127,15 +133,23 @@ export function Setup() {
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            onBlur={() => setPasswordTouched(true)}
             autoComplete="new-password"
+            error={passwordError ? intl.formatMessage({ id: 'setup.passwordHint' }) : undefined}
+            aria-invalid={passwordError || undefined}
           />
-          <p
-            className={`mt-1 text-xs ${
-              password.length > 0 && password.length < 8 ? 'text-danger' : 'text-text-muted'
-            }`}
-          >
-            {intl.formatMessage({ id: 'setup.passwordHint' })}
-          </p>
+          {/* When the Input already shows its red error message, don't repeat it. */}
+          {!passwordError &&
+            (passwordOk ? (
+              <p className="mt-1 flex items-center gap-1 text-xs text-success">
+                <span aria-hidden>✓</span>
+                {intl.formatMessage({ id: 'setup.passwordOk' })}
+              </p>
+            ) : (
+              <p className="mt-1 text-xs text-text-muted">
+                {intl.formatMessage({ id: 'setup.passwordHint' })}
+              </p>
+            ))}
         </div>
 
         {errorText && (
@@ -195,22 +209,25 @@ export function Setup() {
                       : 'border-border bg-bg/70 hover:border-primary cursor-pointer'
                 }`}
               >
-                <AnimatePresence mode="wait" initial={false}>
-                  {expanded && active ? (
-                    <motion.div key="form" {...innerFadeIn} {...innerFadeOut}>
-                      {ownerForm()}
-                    </motion.div>
-                  ) : (
-                    <motion.div key="summary" {...innerFadeIn} {...innerFadeOut}>
-                      <h2 className="text-base font-semibold text-text">
-                        {intl.formatMessage({ id: titleId })}
-                      </h2>
-                      <p className="mt-1 text-sm text-text-secondary">
-                        {intl.formatMessage({ id: descId })}
-                      </p>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                {/* Mirrors CreateCourse exactly: the summary is a plain conditional
+                    (no exit animation — it just unmounts), so there is no
+                    out-then-in `mode="wait"` wait. The box morphs via layoutId and
+                    the new content fades in after the spring settles (delay 0.35).
+                    One fluid beat, not two. */}
+                {expanded && active ? (
+                  <motion.div key="form" {...innerFadeIn}>
+                    {ownerForm()}
+                  </motion.div>
+                ) : (
+                  <motion.div key="summary" {...innerFadeIn}>
+                    <h2 className="text-base font-semibold text-text">
+                      {intl.formatMessage({ id: titleId })}
+                    </h2>
+                    <p className="mt-1 text-sm text-text-secondary">
+                      {intl.formatMessage({ id: descId })}
+                    </p>
+                  </motion.div>
+                )}
               </motion.div>
             )
           })}

@@ -44,6 +44,7 @@ export const es: Record<string, string> = {
   'setup.email': 'Correo electronico',
   'setup.password': 'Contrasena',
   'setup.passwordHint': 'Al menos 8 caracteres.',
+  'setup.passwordOk': 'La contrasena cumple los requisitos.',
   'admin.home.greeting': 'Hola de nuevo',
   'admin.home.greetingName': 'Hola de nuevo, {name}',
   'admin.home.individualSubtitle': 'Tus documentos y cursos, en un mismo lugar.',

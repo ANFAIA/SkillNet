@@ -44,6 +44,7 @@ export const en: Record<string, string> = {
   'setup.email': 'Email',
   'setup.password': 'Password',
   'setup.passwordHint': 'At least 8 characters.',
+  'setup.passwordOk': 'Password meets the requirements.',
   'admin.home.greeting': 'Welcome back',
   'admin.home.greetingName': 'Welcome back, {name}',
   'admin.home.individualSubtitle': 'Your documents and courses, all in one place.',
