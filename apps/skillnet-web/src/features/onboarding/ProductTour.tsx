@@ -58,13 +58,7 @@ export function ProductTour({ role }: { role: SidebarRole }) {
 
   // Auto-run once for a first-time user of this role, only while on the home route so
   // the spotlight targets exist. A short delay lets the home cards mount first.
-  //
-  // The admin no longer auto-runs the spotlight tour: the interactive onboarding
-  // scene (features/onboarding/adminScene) is the admin's first-run experience
-  // (docs/design/onboarding.md §3.2). The admin tour stays available on demand from
-  // the header "?" trigger, so its steps and copy are kept; only the auto-start is off.
   useEffect(() => {
-    if (role === 'admin') return
     if (!onHome) return
     if (!shouldAutoRun(role)) return
     if (useTourStore.getState().run) return

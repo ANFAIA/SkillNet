@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom'
 import { useIntl } from 'react-intl'
 import { useStats } from '../../api/stats'
 import { useAuth, useWorkspaceMode } from '../../hooks/useAuth'
-import { AdminOnboardingScene, useAdminScene } from '../../features/onboarding/adminScene'
 import { Card, CardTitle, MetricCard, PageHeader, Skeleton } from '../../components/ui'
 import { staggerContainer, staggerItem } from '../../lib/motion'
 import type { RecentActivityItem } from '../../types'
@@ -154,17 +153,8 @@ function IndividualHome() {
 export function Dashboard() {
   const mode = useWorkspaceMode()
   const { data: stats, isLoading, isError } = useStats({ enabled: mode !== 'individual' })
-  const { dismissed: sceneDismissed, dismiss: dismissScene } = useAdminScene()
 
   if (mode === 'individual') return <IndividualHome />
-
-  // First run: an org admin with no content yet gets the interactive onboarding
-  // scene in place of an empty panel (docs/design/onboarding.md §3.2). It is
-  // dismissible and, once there is any real course, the gate falls through to the
-  // real panel on its own — nothing to clean up.
-  if (!isLoading && !isError && stats && stats.total_courses === 0 && !sceneDismissed) {
-    return <AdminOnboardingScene onDismiss={dismissScene} />
-  }
 
   if (isError) {
     return (
