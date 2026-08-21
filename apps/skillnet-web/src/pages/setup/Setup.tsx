@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useIntl } from 'react-intl'
-import { motion, AnimatePresence, LayoutGroup } from 'framer-motion'
+import { motion, AnimatePresence, LayoutGroup, useInstantLayoutTransition } from 'framer-motion'
 import { Button, Input } from '../../components/ui'
 import { Mascota } from '../../features/mascot'
 import { ApiError } from '../../api/client'
@@ -38,6 +38,10 @@ export function Setup() {
   const navigate = useNavigate()
   const reduce = useReducedMotion()
   const submit = useSubmitSetup()
+  // Official hook, exactly as CreateCourse uses it: state changes inside the
+  // callback skip the layout animation, so the reverse (Atrás) morph is instant
+  // instead of springing backwards while the second card re-mounts.
+  const startInstant = useInstantLayoutTransition()
 
   const [stage, setStage] = useState<Stage>('welcome')
   const [mode, setMode] = useState<WorkspaceMode | null>(null)
@@ -140,7 +144,7 @@ export function Setup() {
           <Button
             type="button"
             variant="ghost"
-            onClick={() => setExpanded(false)}
+            onClick={() => (reduce ? setExpanded(false) : startInstant(() => setExpanded(false)))}
             disabled={submit.isPending}
           >
             {intl.formatMessage({ id: 'setup.back' })}
@@ -159,8 +163,11 @@ export function Setup() {
   // the chosen one morphs open to reveal the owner form. Extracted so the new
   // welcome stage can sit in front of it.
   function modeChooser() {
+    // No nested LayoutGroup here: the cards morph inside the single outer
+    // LayoutGroup (mirroring CreateCourse), so there is one coherent layout
+    // context and the `mode-card-*` layoutId morph does not fight a second one.
     return (
-      <LayoutGroup>
+      <>
         <div className={expanded ? '' : 'grid grid-cols-1 sm:grid-cols-2 gap-4'}>
           {MODES.map(({ key, titleId, descId }) => {
             const active = mode === key
@@ -216,7 +223,7 @@ export function Setup() {
             </Button>
           </div>
         )}
-      </LayoutGroup>
+      </>
     )
   }
 
@@ -229,11 +236,14 @@ export function Setup() {
   return (
     <div className="setup-welcome-bg relative min-h-screen overflow-hidden flex flex-col items-center justify-center p-4">
       <LayoutGroup>
-        <motion.div layout={!reduce} className="w-full max-w-2xl flex flex-col items-center">
-          {/* One continuous mascot: it repositions (layout) and scales down as we
-              move from welcome to the mode choice, rather than unmounting. */}
+        <div className="w-full max-w-2xl flex flex-col items-center">
+          {/* One continuous mascot: it scales down (transform only) as we move from
+              welcome to the mode choice, rather than unmounting. Deliberately NOT a
+              `layout` animation — during the mode→form step the card morph owns the
+              single layout spring, and a second `layout` here (on the mascot and its
+              wrapper) is exactly what made the transition read as two beats. A pure
+              transform scale never competes with the card's `layoutId` morph. */}
           <motion.div
-            layout={!reduce}
             animate={{ scale: stage === 'welcome' ? 1 : 0.62 }}
             transition={reduce ? { duration: 0 } : spring.gentle}
             className="origin-center"
@@ -272,7 +282,7 @@ export function Setup() {
               </motion.div>
             )}
           </AnimatePresence>
-        </motion.div>
+        </div>
       </LayoutGroup>
     </div>
   )
