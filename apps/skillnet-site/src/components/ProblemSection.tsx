@@ -1,7 +1,7 @@
 import { useRef } from "react";
 import { motion, useReducedMotion, useScroll, useTransform } from "framer-motion";
 
-const BACKGROUND_URL = "/images/landing/skillnet-adaptive-assessment-plaza-v1.png";
+const BACKGROUND_URL = "/images/landing/skillnet-adaptive-assessment-plaza-v1.webp";
 const QUOTE = "No puedes juzgar a un pez por cómo trepa un árbol.";
 const EXPLANATION = "Todos aprendemos de maneras distintas. Cambian lo que ya sabemos, nuestro contexto, el ritmo, los intereses y el apoyo que necesitamos. Una misma explicación no funciona igual para todas las personas; la experiencia educativa debería poder responder a esas diferencias.";
 

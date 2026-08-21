@@ -21,6 +21,12 @@ const { title, description } = Astro.props;
     <link rel="icon" type="image/png" href="/images/brand/skillnet-logo.png?v=3" />
     <link rel="shortcut icon" type="image/png" href="/images/brand/skillnet-logo.png?v=3" />
     <link rel="apple-touch-icon" href="/images/brand/skillnet-logo.png?v=3" />
+    <link
+      rel="preload"
+      as="image"
+      href="/images/landing/skillnet-learning-commons-background-v1.webp"
+      fetchpriority="high"
+    />
     <title>{title}</title>
     <meta name="description" content={description} />
   </head>

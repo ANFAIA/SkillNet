@@ -1,6 +1,6 @@
 import { motion, useReducedMotion } from "framer-motion";
 
-const BACKGROUND_URL = "/images/landing/skillnet-learning-commons-background-v1.png";
+const BACKGROUND_URL = "/images/landing/skillnet-learning-commons-background-v1.webp";
 
 const COPY = {
   title: "Es hora de que la educación cambie.",
