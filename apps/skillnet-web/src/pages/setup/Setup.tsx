@@ -129,7 +129,11 @@ export function Setup() {
             onChange={(e) => setPassword(e.target.value)}
             autoComplete="new-password"
           />
-          <p className="mt-1 text-xs text-text-muted">
+          <p
+            className={`mt-1 text-xs ${
+              password.length > 0 && password.length < 8 ? 'text-danger' : 'text-text-muted'
+            }`}
+          >
             {intl.formatMessage({ id: 'setup.passwordHint' })}
           </p>
         </div>
