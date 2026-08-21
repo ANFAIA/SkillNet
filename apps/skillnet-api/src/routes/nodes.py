@@ -583,7 +583,10 @@ async def request_node_modality(
 
 @router.get("/{node_id}/render")
 async def get_render(
-    user: CurrentUser, db: DBSession, node_id: uuid.UUID
+    user: CurrentUser,
+    db: DBSession,
+    node_id: uuid.UUID,
+    preview_pref: str | None = Query(default=None),
 ) -> Any:
     """The **pinned** render. Recomputes nothing (§5.5).
 
@@ -591,10 +594,21 @@ async def get_render(
     not recalculated here, so answering an item cannot change the screen and a TanStack
     refetch on window focus returns the same bytes. ``202`` while there is nothing pinned
     yet; only ``POST …/render {"force": true}`` repins.
+
+    ``preview_pref=audio|visual`` is the onboarding hook: when the node has a pre-baked demo
+    variant for that preference bucket it is returned as a cache hit, never generated, so the
+    admin tour can flip between variants instantly. Absent (or a node with no pre-baked
+    variant), behaviour is exactly as before.
     """
     node, course = await _load_dynamic_node(db, user, node_id)
     service = NodeRenderService(db)
     service.assert_reviewed(node)
+
+    if preview_pref is not None:
+        prebaked = await service.prebaked_preview(node=node, bucket=preview_pref)
+        if prebaked is not None:
+            served = ServedRender.of(prebaked, cached=True)
+            return NodeRenderRead.of(served)
 
     render = await service.pinned_render(
         user_id=user.id, node_id=node.id, node=node, course=course, user=user

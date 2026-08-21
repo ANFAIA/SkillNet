@@ -90,6 +90,20 @@ async def setup(
             user_id=owner.id, org_id=org.id
         )
 
+    # A genuinely new org: seed the pre-baked (no-LLM) demo course so the admin onboarding
+    # tour has real content on the real screens. Idempotent, so a retry never duplicates it,
+    # and best-effort: a demo that fails to seed must not block first-boot.
+    try:
+        from src.services.org_demo_seed import seed_org_demo
+
+        await seed_org_demo(db, org)
+    except Exception:  # noqa: BLE001 - the demo is a convenience, not a setup precondition
+        from src.core.logging import get_logger
+
+        get_logger(__name__).warning(
+            "Could not seed onboarding demo course for org %s", org.id, exc_info=True
+        )
+
     await db.commit()
     await db.refresh(owner)
 

@@ -649,6 +649,31 @@ class NodeRenderService:
         """The one accessor. Used by grading, never by a response model (§5.2 rule 5)."""
         return dict(render.answer_key or {})
 
+    # -- pre-baked onboarding preview -------------------------------------------
+
+    async def prebaked_preview(
+        self, *, node: CourseNode, bucket: str
+    ) -> NodeRender | None:
+        """The pre-baked demo variant for ``bucket`` on ``node``, or ``None``.
+
+        Serves the ``is_preview`` render seeded by ``org_demo_seed.seed_org_demo`` for the
+        onboarding tour: a guaranteed cache hit that never triggers generation. Returns
+        ``None`` for a node that has no pre-baked variant (i.e. every non-demo node), so the
+        caller falls back to normal behaviour.
+        """
+        from src.services.org_demo_seed import PREVIEW_BUCKETS, demo_preview_cache_key
+
+        if bucket not in PREVIEW_BUCKETS:
+            return None
+        render = await self.renders.get_by_cache_key(
+            demo_preview_cache_key(node.id, bucket)
+        )
+        if render is None or render.node_id != node.id or render.org_id != node.org_id:
+            return None
+        if render.status not in (NodeRenderStatus.READY, NodeRenderStatus.FALLBACK):
+            return None
+        return render
+
     # -- level 1: the shared cache, and starting the graph ----------------------
 
     async def request_render(

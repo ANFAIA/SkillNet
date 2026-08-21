@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     DateTime,
     Enum as SAEnum,
@@ -78,6 +79,11 @@ class Course(UUIDMixin, TimestampMixin, Base):
     title: Mapped[str] = mapped_column(String, nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     outcome: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # A pre-baked onboarding demo course, seeded per-org at setup time (no LLM). Marks the
+    # course so the seed is idempotent and so it can be told apart from real content.
+    is_demo: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("false"), default=False
+    )
     status: Mapped[ContentStatus] = mapped_column(
         SAEnum(
             ContentStatus,
