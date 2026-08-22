@@ -174,7 +174,7 @@ a {
 
 .media-image {
   background-image:
-    url('/images/landing/multimodal/learning-differences-infographic-en-v1.png');
+    url('/images/landing/multimodal/learning-differences-infographic-en-v1.webp');
   background-color: #0755ab;
   background-position: center;
   background-repeat: no-repeat;
@@ -202,7 +202,7 @@ a {
   border-radius: 8px 8px 0 0;
   background-image:
     linear-gradient(rgba(30,61,110,.08), rgba(30,61,110,.22)),
-    url('/images/landing/multimodal/learning-differences-video-frame-v1.png');
+    url('/images/landing/multimodal/learning-differences-video-frame-v1.webp');
   background-position: center;
   background-size: cover;
 }

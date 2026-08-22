@@ -2,9 +2,9 @@ import { useEffect, useState } from "react";
 import { AnimatePresence, MotionConfig, motion } from "framer-motion";
 import { Menu, X } from "lucide-react";
 import { FaGithub } from "react-icons/fa";
+import Logo from "./Logo";
 
 const GITHUB_URL = "https://github.com/ANFAIA/SkillNet";
-const LOGO_URL = "/images/brand/skillnet-logo.png";
 const TRANSITION = { type: "tween", duration: 0.52, ease: [0.22, 1, 0.36, 1] } as const;
 
 const LINKS = [
@@ -32,7 +32,7 @@ export default function SiteHeader() {
         style={{ willChange: "transform, width, border-radius" }}
         className={`pointer-events-auto flex items-center ${scrolled ? "mt-3 gap-4 rounded-full border border-white/15 bg-[color-mix(in_srgb,var(--color-primary-deep)_94%,transparent)] px-5 py-2.5 shadow-[0_12px_34px_rgba(4,26,62,0.18)] backdrop-blur-md sm:gap-6 sm:px-6" : "mt-6 w-full max-w-[80%] justify-between"}`}
       >
-        <motion.a layout="position" href="#" aria-label="Volver al inicio" className="flex shrink-0 items-center"><img src={LOGO_URL} alt="" className="h-6 w-auto sm:h-7" /></motion.a>
+        <motion.a layout="position" href="#" aria-label="Volver al inicio" className="flex shrink-0 items-center text-white"><Logo size={26} /></motion.a>
 
         {/* Desktop navigation */}
         <motion.nav layout="position" className="hidden items-center gap-6 md:flex" aria-label="Navegación principal">
