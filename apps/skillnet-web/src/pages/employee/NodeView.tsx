@@ -12,7 +12,6 @@ import { stepperContext, coursePositionContext, nextNodeContext, courseIntroCont
 import type { CourseIntro, StepperProgress, StepperProgressCallback } from '../../components/courses/blocks/StepperContext'
 import { NodeChat } from '../../components/courses/NodeChat'
 import { NodeSkeleton, RESERVED_CONTENT_PX } from '../../components/courses/NodeSkeleton'
-import { SegmentedControl } from '../../components/settings/SegmentedControl'
 import { MascotaCompanion } from '../../components/mascota'
 import { Mascota } from '../../features/mascot'
 import { ResultGlow } from '../../components/courses/feedback/ResultGlow'
@@ -405,43 +404,12 @@ export function NodeView() {
     // prefetchedRef is defined later but initialized to null anyway
   }, [nodeId])
 
-  // Admin demo preview: a control to switch the showcase lesson between the two pre-baked
-  // personalization variants (audio ↔ visual). Only on the admin "probar-curso" screen,
-  // only for the demo course, and only on the showcase node (the first one, which is the
-  // node the backend actually bakes variants for). Everywhere else this stays off and the
-  // render behaves exactly as it does for a real learner.
-  const { pathname } = useLocation()
-  const isAdminPreview = pathname.includes('/admin/probar-curso/')
-  const isShowcaseNode = index === 0
-  /**
-   * Synchronous route intent: on the admin preview showcase node we *might* show the
-   * pre-baked variant. It is knowable from the URL and the node index without waiting on
-   * any request, which is what lets us hold the normal generation path (below) before
-   * `is_demo` resolves — otherwise a phantom `POST /render` fires in that window and the
-   * stream it starts clobbers the preview that arrives a tick later (the empty-lesson bug).
-   */
-  const maybePreview = isAdminPreview && isShowcaseNode
-  /** True only while we still don't know whether this preview node is the demo course. */
-  const awaitingDemoCheck = maybePreview && !courseQuery.data && !courseQuery.isError
-  /** Confirmed: show the control and fetch the pre-baked variant instead of generating. */
-  const showPreviewControl = maybePreview && !!courseQuery.data?.is_demo
-  const [previewPref, setPreviewPref] = useState<'audio' | 'visual'>('audio')
-
-  // Admin demo preview is meant to be effortless — an adapted lesson to *look at*, not a
-  // lesson to work through. Skip the "Empezar" gate and drop the learner straight onto the
-  // rendered lesson once we've confirmed this is the demo course.
-  useEffect(() => {
-    if (showPreviewControl) setEntered(true)
-  }, [showPreviewControl])
-
   const [isPreparing, setIsPreparing] = useState(false)
   const render = useNodeRender(nodeId, {
     enabled: phase === 'content',
     // Poll only while "Preparándose…", so the screen flips to the real episode by itself
     // once the node's knowledge pack lands and the server drops the fallback pin.
     refetchInterval: isPreparing ? 4000 : false,
-    // Admin demo preview only; undefined everywhere else = normal per-learner render.
-    previewPref: showPreviewControl ? previewPref : undefined,
   })
   const requestRender = useRequestRender(nodeId)
 
@@ -454,7 +422,6 @@ export function NodeView() {
   useEffect(() => {
     setIsPreparing(!!(rawServed && rawServed.preparing))
   }, [rawServed])
-
 
   /**
    * Las dos unicas transiciones de `shown`, y no hay una tercera.
@@ -476,10 +443,8 @@ export function NodeView() {
   }, [served, node])
 
   useEffect(() => {
-    // A served pre-baked preview is never generated and never streams, so a stale stream
-    // failure from the (suppressed) normal path must not blank it out.
-    if (streamFailure && !showPreviewControl) setShown(null)
-  }, [streamFailure, showPreviewControl])
+    if (streamFailure) setShown(null)
+  }, [streamFailure])
   const pending = isPendingRender(render.data) ? render.data : null
 
   const reduceMotion = useReducedMotion()
@@ -535,12 +500,6 @@ export function NodeView() {
   // a request we can listen to, or nothing has been asked for yet.
   useEffect(() => {
     if (phase !== 'content' || !nodeId) return
-    // Admin demo preview: never generate for the showcase node. While `is_demo` is still
-    // unknown we hold off (a phantom render here would clobber the preview); once it is
-    // confirmed a demo, the pre-baked variant is served as a cache hit and there is
-    // nothing to generate. If it is confirmed NOT a demo, neither guard is set and the
-    // normal path resumes untouched.
-    if (awaitingDemoCheck || showPreviewControl) return
     if (served || streamFailure) return
     if (!pending) return
     if (pending.request_id) {
@@ -551,7 +510,7 @@ export function NodeView() {
     }
     if (requestedRef.current) return
     startRender()
-  }, [phase, nodeId, served, pending, streamFailure, stream, startRender, awaitingDemoCheck, showPreviewControl])
+  }, [phase, nodeId, served, pending, streamFailure, stream, startRender])
 
   // Recover from "Preparándose…": while preparing we hold `requestedRef` set so the effect
   // above does not spin. When the pack lands the server drops the fallback pin, `isPreparing`
@@ -672,6 +631,7 @@ export function NodeView() {
   // --- frame ------------------------------------------------------------------
 
   const openingLine = openingLineFor(profile, intl)
+  const { pathname } = useLocation()
   // Derive base from current URL so links work for both /empleado/curso/:id
   // and /admin/probar-curso/:id
   const backToCourse = pathname.replace(/\/nodo\/[^/]+$/, '')
@@ -837,20 +797,6 @@ export function NodeView() {
                         exit={{ opacity: 0 }}
                         transition={{ duration: duration.normal, ease: ease.base }}
                       >
-                        {showPreviewControl && (
-                          <div className="mb-4 shrink-0 max-w-sm" data-no-explain="">
-                            <SegmentedControl
-                              value={previewPref}
-                              onChange={setPreviewPref}
-                              label={intl.formatMessage({ id: 'nodePreview.label' })}
-                              layoutId="node-preview-pref"
-                              options={[
-                                { value: 'audio', label: intl.formatMessage({ id: 'nodePreview.audio' }) },
-                                { value: 'visual', label: intl.formatMessage({ id: 'nodePreview.visual' }) },
-                              ]}
-                            />
-                          </div>
-                        )}
                         {openingLine && (
                           <p className="text-base text-text mb-4 shrink-0" data-testid="opening-line">
                             {openingLine}

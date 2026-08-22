@@ -411,8 +411,8 @@ a {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  justify-content: space-between;
-  gap: 40px;
+  justify-content: center;
+  gap: 24px;
   background: var(--color-primary-deep);
   color: #fff;
   transition: transform .25s var(--ease-base), background .25s var(--ease-base);
