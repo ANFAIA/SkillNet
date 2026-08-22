@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useLocation } from 'react-router-dom'
-import Joyride, { STATUS, type CallBackProps, type Step } from 'react-joyride'
+import { useLocation, useNavigate } from 'react-router-dom'
+import Joyride, { ACTIONS, EVENTS, STATUS, type CallBackProps, type Step } from 'react-joyride'
 import { tourSteps, resolveSteps } from './steps'
 import { TourTooltip } from './TourTooltip'
 import { shouldAutoRun, writeOnboardingState } from './storage'
@@ -9,10 +9,8 @@ import { useCapabilities } from '../../api/setup'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
 import type { SidebarRole } from '../../components/layout/Sidebar'
 
-const HOME_PATH: Record<SidebarRole, string> = {
-  employee: '/empleado',
-  admin: '/admin',
-}
+const EMPLOYEE_HOME = '/empleado'
+const ADMIN_HOME = '/admin'
 
 /** A spotlight target is only usable if it is in the DOM *and* actually painted. */
 function isVisible(selector: string): boolean {
@@ -21,29 +19,28 @@ function isVisible(selector: string): boolean {
   return el instanceof HTMLElement && el.getClientRects().length > 0
 }
 
+/** Shared themed joyride options so both runners read as part of SkillNet. */
+const JOYRIDE_STYLES = {
+  options: {
+    // The spotlight arrow is drawn as an SVG fill — a CSS var keeps it on the active
+    // theme's surface without recomputing on theme swap.
+    arrowColor: 'var(--color-surface)',
+    overlayColor: 'rgba(9, 9, 11, 0.55)',
+    zIndex: 10_000,
+  },
+  spotlight: { borderRadius: 12 },
+} as const
+
 /**
- * The role-aware product tour runner (docs/design/onboarding.md §3, Fase 0/1). One
- * component drives both roles: it reads its steps from the shared declarative list,
- * anchors on the role's home (`/empleado` vs `/admin`), and reuses the same themed
- * tooltip, per-role localStorage, run store and reduced-motion handling — the
- * behaviour is never forked, only the data (steps + home route) differ.
- *
- * - Runs by default for a first-time user of this role (localStorage §2.4, keyed per
- *   role so the two tours never suppress each other).
- * - Fully closeable/skippable at every step; reopenable from the header "?" trigger.
- * - An overlay orthogonal to routing: it never redirects, and closing it just leaves
- *   the user in the (non-empty) app.
- * - Steps whose anchor is not visible right now are dropped, so a workspace that hides
- *   a surface (e.g. no "Empleados" in an individual workspace) simply skips that step.
- *
- * Mounted once inside each shell. The tour only makes sense on its home (its anchors
- * live there), so it auto-runs and reopens only on that route.
+ * The employee product tour: a single-page walkthrough of `/empleado`. Every step
+ * anchors to the employee home, so it auto-runs and reopens only on that route and
+ * drops any anchor that is not painted. This is the original tour behaviour, left
+ * intact — the admin flow is a separate runner below.
  */
-export function ProductTour({ role }: { role: SidebarRole }) {
+function EmployeeTourRunner() {
   const location = useLocation()
   const reduce = useReducedMotion()
-  const homePath = HOME_PATH[role]
-  const onHome = location.pathname === homePath
+  const onHome = location.pathname === EMPLOYEE_HOME
   const run = useTourStore((s) => s.run)
   const runId = useTourStore((s) => s.runId)
   const start = useTourStore((s) => s.start)
@@ -56,25 +53,24 @@ export function ProductTour({ role }: { role: SidebarRole }) {
     if (run) setMountKey((k) => k + 1)
   }, [run, runId])
 
-  // Auto-run once for a first-time user of this role, only while on the home route so
-  // the spotlight targets exist. A short delay lets the home cards mount first.
+  // Auto-run once for a first-time user, only while on the home route so the spotlight
+  // targets exist. A short delay lets the home cards mount first.
   useEffect(() => {
     if (!onHome) return
-    if (!shouldAutoRun(role)) return
+    if (!shouldAutoRun('employee')) return
     if (useTourStore.getState().run) return
     const t = window.setTimeout(() => {
-      if (shouldAutoRun(role) && !useTourStore.getState().run) start()
+      if (shouldAutoRun('employee') && !useTourStore.getState().run) start()
     }, 600)
     return () => window.clearTimeout(t)
-  }, [onHome, role, start])
+  }, [onHome, start])
 
-  // Resolve the role's steps and keep only the ones whose anchor is on screen right
-  // now. Re-scanned on every (re)start (runId) so late-mounting or mode-specific
-  // anchors are picked up. `runId` is an intentional dep for that rescan.
+  // Resolve the employee steps and keep only the ones whose anchor is on screen right
+  // now. Re-scanned on every (re)start (runId) so late-mounting anchors are picked up.
   const visibleSteps = useMemo(
-    () => resolveSteps(tourSteps, role, capabilities).filter((s) => isVisible(s.target)),
+    () => resolveSteps(tourSteps, 'employee', capabilities).filter((s) => isVisible(s.target)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [role, runId, capabilities],
+    [runId, capabilities],
   )
 
   const steps: Step[] = useMemo(
@@ -94,24 +90,19 @@ export function ProductTour({ role }: { role: SidebarRole }) {
   function handleCallback(data: CallBackProps) {
     const { status, index, type } = data
 
-    // Remember where the user was, so a reopen can say "you were here" later.
     if (type === 'step:after' || type === 'tooltip') {
-      writeOnboardingState({ lastStepId: stepIds[index] }, role)
+      writeOnboardingState({ lastStepId: stepIds[index] }, 'employee')
     }
 
     if (status === STATUS.FINISHED) {
-      writeOnboardingState({ completed: true, lastStepId: stepIds[stepIds.length - 1] }, role)
+      writeOnboardingState({ completed: true, lastStepId: stepIds[stepIds.length - 1] }, 'employee')
       stop()
     } else if (status === STATUS.SKIPPED) {
-      // Skip / close is a dismissal, not a completion — reopenable from the header.
-      writeOnboardingState({ dismissedAt: new Date().toISOString() }, role)
+      writeOnboardingState({ dismissedAt: new Date().toISOString() }, 'employee')
       stop()
     }
   }
 
-  // Only mount the overlay while running AND on the home route, and only if at least
-  // one anchor is present: a route change mid tour must not leave a spotlight hunting
-  // for an element that no longer exists.
   if (!run || !onHome || steps.length === 0) return null
 
   return (
@@ -128,16 +119,164 @@ export function ProductTour({ role }: { role: SidebarRole }) {
       tooltipComponent={TourTooltip}
       callback={handleCallback}
       floaterProps={{ disableAnimation: reduce }}
-      styles={{
-        options: {
-          // The spotlight arrow is drawn as an SVG fill — a CSS var keeps it on the
-          // active theme's surface without recomputing on theme swap.
-          arrowColor: 'var(--color-surface)',
-          overlayColor: 'rgba(9, 9, 11, 0.55)',
-          zIndex: 10_000,
-        },
-        spotlight: { borderRadius: 12 },
-      }}
+      styles={JOYRIDE_STYLES}
     />
   )
+}
+
+/**
+ * The admin product tour: a guided, multi-screen sequence. Each step lives on its own
+ * real onboarding screen (see `adminTourSteps`), so joyride runs in CONTROLLED mode:
+ *
+ * - The store holds the current step index, surviving the client-side navigation from
+ *   one step's route to the next (the store is a module singleton).
+ * - We only render the overlay when the current step's `route` matches the pathname
+ *   AND its target is actually painted (a short poll after navigation). Otherwise we
+ *   render nothing, so no spotlight ever hunts for an element on the wrong screen.
+ * - "Next" advances the index and, when the next step sits on a different screen,
+ *   navigates there; the box reappears once that screen mounts its anchor.
+ * - `spotlightClicks` keeps the highlighted element interactive; `disableOverlayClose`
+ *   makes the box dismissible via Skip / ✕ only.
+ */
+function AdminTourRunner() {
+  const location = useLocation()
+  const navigate = useNavigate()
+  const reduce = useReducedMotion()
+  const run = useTourStore((s) => s.run)
+  const runId = useTourStore((s) => s.runId)
+  const index = useTourStore((s) => s.index)
+  const setIndex = useTourStore((s) => s.setIndex)
+  const start = useTourStore((s) => s.start)
+  const stop = useTourStore((s) => s.stop)
+  const capabilities = useCapabilities()
+
+  // The admin steps are stable (only capability-gating drops one), so resolve once.
+  const adminSteps = useMemo(
+    () => resolveSteps(tourSteps, 'admin', capabilities),
+    [capabilities],
+  )
+
+  const joyrideSteps: Step[] = useMemo(
+    () =>
+      adminSteps.map((s) => ({
+        target: s.target,
+        title: s.title,
+        content: s.body,
+        disableBeacon: true,
+        placement: 'auto',
+      })),
+    [adminSteps],
+  )
+
+  // Auto-run once for a first-time admin, only from the first step's route.
+  useEffect(() => {
+    if (location.pathname !== ADMIN_HOME) return
+    if (!shouldAutoRun('admin')) return
+    if (useTourStore.getState().run) return
+    const t = window.setTimeout(() => {
+      if (shouldAutoRun('admin') && !useTourStore.getState().run) start()
+    }, 600)
+    return () => window.clearTimeout(t)
+  }, [location.pathname, start])
+
+  const current = adminSteps[index]
+  const onRoute = Boolean(current) && current.route === location.pathname
+
+  // The box appears only once the router has landed on the step's screen and the
+  // anchor is painted. After a navigation the target can mount a beat late, so poll
+  // briefly before showing.
+  const [ready, setReady] = useState(false)
+  useEffect(() => {
+    if (!run || !onRoute || !current) {
+      setReady(false)
+      return
+    }
+    if (isVisible(current.target)) {
+      setReady(true)
+      return
+    }
+    setReady(false)
+    let tries = 0
+    const id = window.setInterval(() => {
+      tries += 1
+      if (isVisible(current.target)) {
+        setReady(true)
+        window.clearInterval(id)
+      } else if (tries >= 25) {
+        window.clearInterval(id)
+      }
+    }, 100)
+    return () => window.clearInterval(id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [run, onRoute, current?.target, runId])
+
+  // Move to step `i`: persist, update the index, and navigate if it lives elsewhere.
+  function goTo(i: number) {
+    const target = adminSteps[i]
+    if (!target) return
+    setIndex(i)
+    writeOnboardingState({ lastStepId: target.id }, 'admin')
+    if (target.route && target.route !== location.pathname) navigate(target.route)
+  }
+
+  function handleCallback(data: CallBackProps) {
+    const { action, index: jIndex, status, type } = data
+
+    // Skip / ✕ is a dismissal, not a completion — reopenable from the header.
+    if (status === STATUS.SKIPPED || action === ACTIONS.CLOSE) {
+      writeOnboardingState({ dismissedAt: new Date().toISOString() }, 'admin')
+      stop()
+      return
+    }
+
+    // Controlled stepping: joyride reports where it wants to go, we drive the index.
+    if (type === EVENTS.STEP_AFTER) {
+      if (action === ACTIONS.PREV) {
+        goTo(Math.max(0, jIndex - 1))
+        return
+      }
+      const next = jIndex + 1
+      if (next >= adminSteps.length) {
+        writeOnboardingState(
+          { completed: true, lastStepId: adminSteps[adminSteps.length - 1]?.id },
+          'admin',
+        )
+        stop()
+      } else {
+        goTo(next)
+      }
+    }
+  }
+
+  if (!run || !onRoute || !ready || joyrideSteps.length === 0) return null
+
+  return (
+    <Joyride
+      steps={joyrideSteps}
+      run={run}
+      stepIndex={index}
+      continuous
+      showSkipButton
+      disableScrolling={false}
+      scrollToFirstStep={false}
+      disableOverlayClose
+      spotlightClicks
+      spotlightPadding={6}
+      tooltipComponent={TourTooltip}
+      callback={handleCallback}
+      floaterProps={{ disableAnimation: reduce }}
+      styles={JOYRIDE_STYLES}
+    />
+  )
+}
+
+/**
+ * The role-aware product tour runner (docs/design/onboarding.md §3, Fase 0/1). Mounted
+ * once inside each shell. The employee tour is a single-page walkthrough of `/empleado`;
+ * the admin tour is a guided, multi-screen sequence that walks the owner through the
+ * real onboarding screens, navigating between them as they advance. Both auto-run for a
+ * first-time user of the role, are fully closeable, and reopen from the header "?".
+ */
+export function ProductTour({ role }: { role: SidebarRole }) {
+  return role === 'admin' ? <AdminTourRunner /> : <EmployeeTourRunner />
 }

@@ -50,14 +50,18 @@ export const employeeTourSteps: OnboardingStep[] = [
 /**
  * The admin product tour (docs/design/onboarding.md §3.2, Fase 1). Same "encuadre →
  * recorrido → primera victoria" shape as the employee one, but the *aha* is
- * "esto genera formación solo": it ends on the create-course action, the owner's
- * first win.
+ * "esto genera formación solo": it walks the owner THROUGH the real onboarding
+ * screens and ends on the create-course action, the owner's first win.
  *
- * Every step anchors to the admin sidebar — the always-present control panel on the
- * `/admin` home, stable across the org and individual workspace modes. The runner
- * drops any step whose anchor is not visible (e.g. "Empleados" is absent in an
- * individual workspace), so the same list stays correct in both modes without a
- * branch here.
+ * Unlike the employee tour (one page, many anchors), each admin step sits on its own
+ * real screen and declares its `route`. The runner drives joyride in controlled mode:
+ * it navigates to a step's route as the step becomes active and only shows the box
+ * once the router has landed there. The flow is:
+ *
+ *   1. /admin           — welcome (sidebar Inicio)
+ *   2. /admin/contenido — "here's your example course, open it" (the "Ver ejemplo" btn)
+ *   3. /admin/demo      — "switch the learner and watch it adapt" (the Ana/Bruno toggle)
+ *   4. /admin/demo      — "when you're ready, create your own" (the create CTA)
  *
  * The create step carries `requires: 'generation'` (Fase 2): the runner passes live
  * capabilities into `resolveSteps`, so with no AI key the step is dropped and the tour
@@ -67,6 +71,7 @@ export const adminTourSteps: OnboardingStep[] = [
   {
     id: 'admin-welcome',
     role: 'admin',
+    route: '/admin',
     target: '[data-tour="admin-home"]',
     title: 'onboarding.tour.admin.welcome.title',
     body: 'onboarding.tour.admin.welcome.body',
@@ -75,23 +80,26 @@ export const adminTourSteps: OnboardingStep[] = [
   {
     id: 'admin-content',
     role: 'admin',
-    target: '[data-tour="admin-content"]',
+    route: '/admin/contenido',
+    target: '[data-tour="content-demo-open"]',
     title: 'onboarding.tour.admin.content.title',
     body: 'onboarding.tour.admin.content.body',
     order: 2,
   },
   {
-    id: 'admin-team',
+    id: 'admin-preview',
     role: 'admin',
-    target: '[data-tour="admin-employees"]',
-    title: 'onboarding.tour.admin.team.title',
-    body: 'onboarding.tour.admin.team.body',
+    route: '/admin/demo',
+    target: '[data-tour="demo-preview-toggle"]',
+    title: 'onboarding.tour.admin.preview.title',
+    body: 'onboarding.tour.admin.preview.body',
     order: 3,
   },
   {
     id: 'admin-create',
     role: 'admin',
-    target: '[data-tour="admin-create-course"]',
+    route: '/admin/demo',
+    target: '[data-tour="demo-create-cta"]',
     title: 'onboarding.tour.admin.create.title',
     body: 'onboarding.tour.admin.create.body',
     // Course creation needs a usable LLM. Without it the tour must not end on a dead

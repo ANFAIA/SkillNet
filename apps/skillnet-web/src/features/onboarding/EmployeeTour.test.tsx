@@ -57,15 +57,17 @@ describe('onboarding tour — steps data', () => {
     expect(steps[steps.length - 1].target).toBe('[data-tour="home-start"]')
   })
 
-  it('resolves the admin tour by role from the shared list, ending on create-course', () => {
+  it('resolves the admin tour by role from the shared list, ending on the create CTA', () => {
     // The create step needs `generation`; pass it so the full admin tour resolves.
     const steps = resolveSteps(tourSteps, 'admin', { generation: true })
     expect(steps).toEqual(adminTourSteps)
     expect(steps.every((s) => s.role === 'admin')).toBe(true)
     // No employee step leaks into the admin slice (per-role, not shared state).
     expect(steps.some((s) => s.target.startsWith('[data-tour="home-'))).toBe(false)
-    // The admin "aha" / first win is creating a course — the tour ends there.
-    expect(steps[steps.length - 1].target).toBe('[data-tour="admin-create-course"]')
+    // Every admin step declares the real screen it lives on (guided multi-screen flow).
+    expect(steps.every((s) => Boolean(s.route))).toBe(true)
+    // The admin "aha" / first win is creating a course — the tour ends on that CTA.
+    expect(steps[steps.length - 1].target).toBe('[data-tour="demo-create-cta"]')
   })
 
   it('drops the create-course step when generation is unavailable (§2.3)', () => {
@@ -76,7 +78,7 @@ describe('onboarding tour — steps data', () => {
     expect(withGen.some((s) => s.id === 'admin-create')).toBe(true)
     expect(withoutGen.some((s) => s.id === 'admin-create')).toBe(false)
     // Every other (ungated) admin step survives regardless.
-    expect(withoutGen.map((s) => s.id)).toEqual(['admin-welcome', 'admin-content', 'admin-team'])
+    expect(withoutGen.map((s) => s.id)).toEqual(['admin-welcome', 'admin-content', 'admin-preview'])
   })
 })
 

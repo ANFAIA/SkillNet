@@ -11,6 +11,13 @@ export interface OnboardingStep {
   role: 'employee' | 'admin'
   /** CSS selector for the element to spotlight — a stable `[data-tour="…"]`. */
   target: string
+  /**
+   * Route this step lives on. Set for the admin tour, whose steps each sit on their
+   * own real screen: the runner navigates here when the step becomes active and only
+   * shows the box once the router has landed on this path. Omitted for the
+   * single-page employee tour, whose steps all share the home route.
+   */
+  route?: string
   /** i18n id for the step title. */
   title: string
   /** i18n id for the step body (one short sentence). */

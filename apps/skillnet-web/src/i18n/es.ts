@@ -1140,13 +1140,16 @@ export const es: Record<string, string> = {
   'onboarding.tour.skillmap.body': 'Ves crecer lo que dominas a medida que avanzas.',
   'onboarding.tour.start.title': 'Abre tu primera lección',
   'onboarding.tour.start.body': 'Toca aquí y empieza: la mejor forma de verlo es haciéndolo.',
-  // Admin tour (Fase 1) — termina en "crea tu primer curso": esto genera formación solo
+  // Admin tour (Fase 1) — recorrido guiado por las pantallas reales del onboarding,
+  // termina en "crea tu propio curso": esto genera formación solo
   'onboarding.tour.admin.welcome.title': 'Bienvenido a tu panel',
   'onboarding.tour.admin.welcome.body': 'Desde aquí montas la formación de tu equipo. Te lo enseñamos en un momento.',
-  'onboarding.tour.admin.content.title': 'Tus cursos',
-  'onboarding.tour.admin.content.body': 'Aquí viven tus cursos y ves cómo avanza cada uno.',
+  'onboarding.tour.admin.content.title': 'Tu curso de ejemplo',
+  'onboarding.tour.admin.content.body': 'Este es un curso ya hecho. Ábrelo para verlo por dentro.',
+  'onboarding.tour.admin.preview.title': 'Cámbialo y verás',
+  'onboarding.tour.admin.preview.body': 'Cambia de aprendiz y mira cómo el mismo curso se adapta a cada uno.',
   'onboarding.tour.admin.team.title': 'Tu equipo',
   'onboarding.tour.admin.team.body': 'Da de alta a tu gente y asígnale lo que debe aprender.',
-  'onboarding.tour.admin.create.title': 'Crea tu primer curso',
-  'onboarding.tour.admin.create.body': 'Dale un tema y SkillNet te genera el curso entero. Pruébalo aquí.',
+  'onboarding.tour.admin.create.title': 'Crea el tuyo',
+  'onboarding.tour.admin.create.body': 'Cuando lo tengas claro, crea tu propio curso. SkillNet lo genera entero.',
 }
