@@ -3,7 +3,7 @@ import { useIntl } from 'react-intl'
 import { useNavigate } from 'react-router-dom'
 import { useCourses } from '../../api/courses'
 import { isServedRender, useCourseNodes, useNodeRender } from '../../api/nodes'
-import { Card, EmptyState, PageHeader, Skeleton } from '../../components/ui'
+import { Button, Card, EmptyState, PageHeader, Skeleton } from '../../components/ui'
 import { SegmentedControl } from '../../components/settings/SegmentedControl'
 import { UiSpecRenderer } from '../../components/courses/UiSpecRenderer'
 
@@ -113,6 +113,17 @@ export function DemoLesson() {
           id: pref === 'audio' ? 'demoLesson.noteAudio' : 'demoLesson.noteVisual',
         })}
       </p>
+
+      {/* Lead out of the demo and into the first real win (docs/design/onboarding.md
+          §3.2): the guided flow always ends pointing at "create your first course". */}
+      <div className="mt-6 flex items-center justify-between gap-3 rounded-xl border border-primary/40 bg-gradient-to-r from-primary/10 to-success/10 p-4" data-tour="demo-create-cta">
+        <p className="text-sm text-text-secondary">
+          {intl.formatMessage({ id: 'demoLesson.createHint' })}
+        </p>
+        <Button variant="primary" onClick={() => navigate('/admin/crear-curso')}>
+          {intl.formatMessage({ id: 'demoLesson.createCta' })}
+        </Button>
+      </div>
     </div>
   )
 }
