@@ -2576,7 +2576,7 @@ B0 ──┬── B1 ──┬── B5 ──┬── B9 ── B12
   alcance exacto de §3: sin `op.execute("COMMIT")`, dejando los 2 valores de enum huérfanos)
 - `src/models/{course_node.py, course_node_prerequisite.py, learner_profile.py, learner_node_state.py, learning_event.py, node_render.py, node_render_view.py, node_probe.py, node_attempt.py, node_feedback.py, term_explanation.py, llm_usage_log.py, audit_log.py}` (nuevos — 13)
 - `src/models/course.py` (+6 columnas, 2 enums), `src/models/generation_job.py` (+2 miembros), `src/models/__init__.py`
-- `src/config.py` (`DYNAMIC_COURSES_MODE`, `RENDER_BACKEND`, `LLM_RUNTIME_FAST_MODEL`, `LLM_RUNTIME_HEAVY_MODEL`, `LLM_FIXTURE_DIR`, `LLM_FIXTURE_MODE`)
+- `src/config.py` (`RENDER_BACKEND`, `LLM_RUNTIME_FAST_MODEL`, `LLM_RUNTIME_HEAVY_MODEL`, `LLM_FIXTURE_DIR`, `LLM_FIXTURE_MODE`)
 - `src/llm/fixtures.py` (nuevo: `FixtureLLMService`, `FixtureEmbeddingService`, `maybe_fixture_llm`, `maybe_fixture_embedder`), `src/llm/fixture_data/` (directorio de fixtures, dentro del paquete)
 - **Los 8 puntos de construcción de §12.1** pasan por los helpers: `src/deps/llm.py` (4), `src/agents/content/nodes.py` (2), `src/services/settings_service.py` (1), `src/services/ingestion.py` (1)
 - `src/services/course_delivery.py` (nuevo, `resolve_delivery`)
