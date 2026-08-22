@@ -427,6 +427,13 @@ export function NodeView() {
   const showPreviewControl = maybePreview && !!courseQuery.data?.is_demo
   const [previewPref, setPreviewPref] = useState<'audio' | 'visual'>('audio')
 
+  // Admin demo preview is meant to be effortless — an adapted lesson to *look at*, not a
+  // lesson to work through. Skip the "Empezar" gate and drop the learner straight onto the
+  // rendered lesson once we've confirmed this is the demo course.
+  useEffect(() => {
+    if (showPreviewControl) setEntered(true)
+  }, [showPreviewControl])
+
   const [isPreparing, setIsPreparing] = useState(false)
   const render = useNodeRender(nodeId, {
     enabled: phase === 'content',
@@ -447,6 +454,7 @@ export function NodeView() {
   useEffect(() => {
     setIsPreparing(!!(rawServed && rawServed.preparing))
   }, [rawServed])
+
 
   /**
    * Las dos unicas transiciones de `shown`, y no hay una tercera.

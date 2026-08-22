@@ -23,7 +23,8 @@ export function SegmentedControl<Value extends string>({
   layoutId: string
   className?: string
 }) {
-  const columns = options.length === 4 ? 'grid-cols-4' : 'grid-cols-3'
+  const columns =
+    options.length === 4 ? 'grid-cols-4' : options.length === 2 ? 'grid-cols-2' : 'grid-cols-3'
 
   return (
     <div
