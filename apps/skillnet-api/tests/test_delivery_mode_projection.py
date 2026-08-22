@@ -56,6 +56,7 @@ class FakeCourse:
     created_at: datetime = NOW
     updated_at: datetime = NOW
     modules: list = field(default_factory=list)
+    is_demo: bool = False
 
 
 @dataclass

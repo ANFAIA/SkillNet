@@ -1,3 +1,4 @@
+import { useIntl } from 'react-intl'
 import { MetricCard } from '../ui'
 import { TalentMetricIcon } from './TalentMetricIcon'
 
@@ -12,22 +13,23 @@ type TalentSummaryProps = {
 type SummaryKey = keyof TalentSummaryProps
 type SummaryKind = 'people' | 'enrollments' | 'progress' | 'completed' | 'skills'
 
-const summaryItems: Array<{ key: SummaryKey; label: string; kind: SummaryKind }> = [
-  { key: 'people', label: 'Personas visibles', kind: 'people' },
-  { key: 'assigned', label: 'Matrículas', kind: 'enrollments' },
-  { key: 'inProgress', label: 'En curso', kind: 'progress' },
-  { key: 'completed', label: 'Completadas', kind: 'completed' },
-  { key: 'skills', label: 'Habilidades', kind: 'skills' },
+const summaryItems: Array<{ key: SummaryKey; labelId: string; kind: SummaryKind }> = [
+  { key: 'people', labelId: 'talent.summary.peopleVisible', kind: 'people' },
+  { key: 'assigned', labelId: 'talent.summary.enrollments', kind: 'enrollments' },
+  { key: 'inProgress', labelId: 'talent.summary.inProgress', kind: 'progress' },
+  { key: 'completed', labelId: 'talent.summary.completed', kind: 'completed' },
+  { key: 'skills', labelId: 'talent.summary.skills', kind: 'skills' },
 ]
 
 export function TalentSummary(props: TalentSummaryProps) {
+  const intl = useIntl()
   return (
-    <section className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5" aria-label="Resumen del talento visible">
+    <section className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5" aria-label={intl.formatMessage({ id: 'talent.summary.ariaLabel' })}>
       {summaryItems.map((item) => (
         <MetricCard
           key={item.key}
           value={String(props[item.key])}
-          label={item.label}
+          label={intl.formatMessage({ id: item.labelId })}
           icon={<TalentMetricIcon kind={item.kind} />}
         />
       ))}

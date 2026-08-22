@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
-import { useIntl } from 'react-intl'
+import { useIntl, type IntlShape } from 'react-intl'
 import { useStats } from '../../api/stats'
 import { useAuth, useWorkspaceMode } from '../../hooks/useAuth'
 import { Card, CardTitle, MetricCard, PageHeader, Skeleton } from '../../components/ui'
@@ -67,24 +67,24 @@ function ActivitySkeleton() {
   )
 }
 
-function formatActivityLabel(item: RecentActivityItem): { employee: string; action: string; detail: string } {
+function formatActivityLabel(item: RecentActivityItem, intl: IntlShape): { employee: string; action: string; detail: string } {
   switch (item.type) {
     case 'enrollment_completed':
       return {
-        employee: item.user_name ?? 'Usuario',
-        action: 'completo curso',
+        employee: item.user_name ?? intl.formatMessage({ id: 'admin.dashboard.activity.defaultUser' }),
+        action: intl.formatMessage({ id: 'admin.dashboard.activity.completedCourse' }),
         detail: item.course_title ?? '',
       }
     case 'course_published':
       return {
-        employee: 'Sistema',
-        action: 'publico curso',
+        employee: intl.formatMessage({ id: 'admin.dashboard.activity.system' }),
+        action: intl.formatMessage({ id: 'admin.dashboard.activity.publishedCourse' }),
         detail: item.course_title ?? '',
       }
     case 'user_created':
       return {
-        employee: item.user_name ?? 'Nuevo empleado',
-        action: 'se registro',
+        employee: item.user_name ?? intl.formatMessage({ id: 'admin.dashboard.activity.newEmployee' }),
+        action: intl.formatMessage({ id: 'admin.dashboard.activity.signedUp' }),
         detail: '',
       }
     default:
@@ -96,15 +96,15 @@ function formatActivityLabel(item: RecentActivityItem): { employee: string; acti
   }
 }
 
-function formatRelativeTime(isoDate: string): string {
+function formatRelativeTime(isoDate: string, intl: IntlShape): string {
   const diff = Date.now() - new Date(isoDate).getTime()
   const minutes = Math.floor(diff / 60_000)
-  if (minutes < 1) return 'ahora'
-  if (minutes < 60) return `hace ${minutes}m`
+  if (minutes < 1) return intl.formatMessage({ id: 'admin.dashboard.time.now' })
+  if (minutes < 60) return intl.formatMessage({ id: 'admin.dashboard.time.minutes' }, { count: minutes })
   const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `hace ${hours}h`
+  if (hours < 24) return intl.formatMessage({ id: 'admin.dashboard.time.hours' }, { count: hours })
   const days = Math.floor(hours / 24)
-  return `hace ${days}d`
+  return intl.formatMessage({ id: 'admin.dashboard.time.days' }, { count: days })
 }
 
 /**
@@ -151,6 +151,7 @@ function IndividualHome() {
 }
 
 export function Dashboard() {
+  const intl = useIntl()
   const mode = useWorkspaceMode()
   const { data: stats, isLoading, isError } = useStats({ enabled: mode !== 'individual' })
 
@@ -159,10 +160,13 @@ export function Dashboard() {
   if (isError) {
     return (
       <div>
-        <PageHeader title="Panel de empresa" description="Vista general del equipo y la formación." />
+        <PageHeader
+          title={intl.formatMessage({ id: 'admin.dashboard.title' })}
+          description={intl.formatMessage({ id: 'admin.dashboard.description' })}
+        />
         <Card className="mt-6">
           <p className="text-sm text-danger">
-            Error al cargar las estadisticas. Intenta recargar la pagina.
+            {intl.formatMessage({ id: 'admin.dashboard.loadError' })}
           </p>
         </Card>
       </div>
@@ -171,7 +175,10 @@ export function Dashboard() {
 
   return (
     <div>
-      <PageHeader title="Panel de empresa" description="Vista general del equipo y la formación." />
+      <PageHeader
+        title={intl.formatMessage({ id: 'admin.dashboard.title' })}
+        description={intl.formatMessage({ id: 'admin.dashboard.description' })}
+      />
 
       {/* Metric cards */}
       <motion.div
@@ -192,28 +199,28 @@ export function Dashboard() {
             <motion.div variants={staggerItem}>
               <MetricCard
                 value={`${stats!.active_employees}/${stats!.total_employees}`}
-                label="Empleados activos"
+                label={intl.formatMessage({ id: 'admin.dashboard.activeEmployees' })}
                 icon={<UsersIcon />}
               />
             </motion.div>
             <motion.div variants={staggerItem}>
               <MetricCard
                 value={String(stats!.published_courses)}
-                label="Cursos publicados"
+                label={intl.formatMessage({ id: 'admin.dashboard.publishedCourses' })}
                 icon={<BookIcon />}
               />
             </motion.div>
             <motion.div variants={staggerItem}>
               <MetricCard
                 value={String(stats!.total_enrollments)}
-                label="Inscripciones"
+                label={intl.formatMessage({ id: 'admin.dashboard.enrollments' })}
                 icon={<TargetIcon />}
               />
             </motion.div>
             <motion.div variants={staggerItem}>
               <MetricCard
                 value={stats!.avg_score != null ? `${Math.round(stats!.avg_score * 100)}%` : '--'}
-                label="Puntuacion media"
+                label={intl.formatMessage({ id: 'admin.dashboard.avgScore' })}
                 icon={<ChartIcon />}
               />
             </motion.div>
@@ -224,7 +231,7 @@ export function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
         {/* Enrollment summary */}
         <Card>
-          <CardTitle>Inscripciones</CardTitle>
+          <CardTitle>{intl.formatMessage({ id: 'admin.dashboard.enrollmentsTitle' })}</CardTitle>
           {isLoading ? (
             <div className="mt-3 space-y-3">
               <Skeleton className="h-3.5 w-full" />
@@ -234,19 +241,19 @@ export function Dashboard() {
           ) : (
             <div className="mt-3 space-y-0">
               <div className="flex items-center justify-between py-3 border-b border-border">
-                <span className="text-sm text-text-secondary">Completadas</span>
+                <span className="text-sm text-text-secondary">{intl.formatMessage({ id: 'admin.dashboard.completed' })}</span>
                 <span className="text-sm font-medium text-text">{stats!.completed_enrollments}</span>
               </div>
               <div className="flex items-center justify-between py-3 border-b border-border">
-                <span className="text-sm text-text-secondary">En progreso</span>
+                <span className="text-sm text-text-secondary">{intl.formatMessage({ id: 'admin.dashboard.inProgress' })}</span>
                 <span className="text-sm font-medium text-text">{stats!.in_progress_enrollments}</span>
               </div>
               <div className="flex items-center justify-between py-3 border-b border-border">
-                <span className="text-sm text-text-secondary">Total cursos</span>
+                <span className="text-sm text-text-secondary">{intl.formatMessage({ id: 'admin.dashboard.totalCourses' })}</span>
                 <span className="text-sm font-medium text-text">{stats!.total_courses}</span>
               </div>
               <div className="flex items-center justify-between py-3">
-                <span className="text-sm text-text-secondary">Borradores</span>
+                <span className="text-sm text-text-secondary">{intl.formatMessage({ id: 'admin.dashboard.drafts' })}</span>
                 <span className="text-sm font-medium text-text">{stats!.draft_courses}</span>
               </div>
             </div>
@@ -255,13 +262,13 @@ export function Dashboard() {
 
         {/* Recent activity */}
         <Card>
-          <CardTitle>Actividad reciente</CardTitle>
+          <CardTitle>{intl.formatMessage({ id: 'admin.dashboard.recentActivity' })}</CardTitle>
           {isLoading ? (
             <div className="mt-3">
               <ActivitySkeleton />
             </div>
           ) : stats!.recent_activity.length === 0 ? (
-            <p className="mt-3 text-sm text-text-muted">Sin actividad reciente.</p>
+            <p className="mt-3 text-sm text-text-muted">{intl.formatMessage({ id: 'admin.dashboard.noRecentActivity' })}</p>
           ) : (
             <motion.div
               className="mt-3 space-y-0"
@@ -270,7 +277,7 @@ export function Dashboard() {
               animate="visible"
             >
               {stats!.recent_activity.map((activity, i) => {
-                const { employee, action, detail } = formatActivityLabel(activity)
+                const { employee, action, detail } = formatActivityLabel(activity, intl)
                 return (
                   <motion.div
                     key={i}
@@ -287,7 +294,7 @@ export function Dashboard() {
                       )}
                     </div>
                     <span className="text-xs text-text-muted shrink-0 ml-4">
-                      {formatRelativeTime(activity.at)}
+                      {formatRelativeTime(activity.at, intl)}
                     </span>
                   </motion.div>
                 )
