@@ -26,6 +26,7 @@ import { Content } from './pages/admin/Content'
 import { CreateCourse } from './pages/admin/CreateCourse'
 import { AdminChat } from './pages/admin/Chat'
 import { CoursePreview } from './pages/admin/CoursePreview'
+import { DemoLesson } from './pages/admin/DemoLesson'
 import { CourseSchema } from './pages/admin/CourseSchema'
 import { Settings as AdminSettings } from './pages/admin/Settings'
 import { MotionDemo } from './pages/dev/MotionDemo'
@@ -147,6 +148,7 @@ function App() {
             }
           >
             <Route index element={<AdminDashboard />} />
+            <Route path="demo" element={<DemoLesson />} />
             <Route
               path="empleados"
               element={
