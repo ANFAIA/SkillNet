@@ -1,0 +1,28 @@
+---
+import { getCollection, render } from "astro:content";
+import DocsLayout from "../../layouts/DocsLayout.astro";
+
+export async function getStaticPaths() {
+  const entries = await getCollection("docs");
+  return entries.map((entry) => ({
+    params: { slug: entry.id },
+    props: { entry },
+  }));
+}
+
+const { entry } = Astro.props;
+const { Content } = await render(entry);
+
+const allEntries = (await getCollection("docs"))
+  .map((e) => ({ slug: e.id, title: e.data.title, order: e.data.order, section: e.data.section }))
+  .sort((a, b) => a.order - b.order);
+---
+
+<DocsLayout
+  title={entry.data.title}
+  description={`Documentación de SkillNet — ${entry.data.title}.`}
+  navEntries={allEntries}
+  currentSlug={entry.id}
+>
+  <Content />
+</DocsLayout>

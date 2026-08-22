@@ -1,0 +1,62 @@
+---
+import { getCollection } from "astro:content";
+import DocsLayout from "../../layouts/DocsLayout.astro";
+import { SECTION_LABELS, SECTION_ORDER } from "../../data/docsNav";
+
+const entries = (await getCollection("docs"))
+  .map((e) => ({ slug: e.id, title: e.data.title, order: e.data.order, section: e.data.section }))
+  .sort((a, b) => a.order - b.order);
+
+const groups = SECTION_ORDER.map((section) => ({
+  section,
+  label: SECTION_LABELS[section],
+  items: entries.filter((e) => e.section === section),
+})).filter((g) => g.items.length > 0);
+---
+
+<DocsLayout
+  title="Documentación"
+  description="Documentación técnica de SkillNet: arquitectura, API, generación de contenido, RAG y el diseño de los cursos dinámicos."
+  navEntries={entries}
+>
+  <h1>Documentación</h1>
+  <p class="type-lead">
+    Arranque rápido, arquitectura del sistema y el diseño de cada pieza — generación de
+    contenido, RAG, chat con agentes, cursos dinámicos y personalización. Esta documentación
+    sigue de cerca <code>docs/design/</code> en el repositorio.
+  </p>
+
+  {groups.map((group) => (
+    <section class="docs-index__group">
+      <h2>{group.label}</h2>
+      <ul class="docs-index__list">
+        {group.items.map((item) => (
+          <li>
+            <a href={`/docs/${item.slug}`}>{item.title}</a>
+          </li>
+        ))}
+      </ul>
+    </section>
+  ))}
+</DocsLayout>
+
+<style>
+  .docs-index__group {
+    margin-bottom: 8px;
+  }
+
+  .docs-index__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .docs-index__list a {
+    display: block;
+    padding: 4px 0;
+    font-size: 1.02rem;
+  }
+</style>

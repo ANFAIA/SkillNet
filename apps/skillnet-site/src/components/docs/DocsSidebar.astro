@@ -1,0 +1,95 @@
+---
+// Static (zero-JS) docs navigation. Active page is highlighted by comparing
+// Astro.url.pathname at build/request time — no client-side JS needed.
+import { SECTION_LABELS, SECTION_ORDER } from "../../data/docsNav";
+
+interface NavEntry {
+  slug: string;
+  title: string;
+  section: string;
+}
+
+interface Props {
+  entries: NavEntry[];
+  currentSlug?: string;
+}
+
+const { entries, currentSlug } = Astro.props;
+
+const bySection = SECTION_ORDER.map((section) => ({
+  section,
+  label: SECTION_LABELS[section],
+  items: entries.filter((e) => e.section === section),
+})).filter((group) => group.items.length > 0);
+---
+
+<nav aria-label="Navegación de documentación" class="docs-sidebar">
+  {bySection.map((group) => (
+    <div class="docs-sidebar__group">
+      <p class="docs-sidebar__label type-ui">{group.label}</p>
+      <ul>
+        {group.items.map((item) => (
+          <li>
+            <a
+              href={`/docs/${item.slug}`}
+              aria-current={item.slug === currentSlug ? "page" : undefined}
+              class="docs-sidebar__link type-body"
+            >
+              {item.title}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  ))}
+</nav>
+
+<style>
+  .docs-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .docs-sidebar__group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .docs-sidebar__label {
+    margin: 0 0 4px;
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .docs-sidebar__group ul {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .docs-sidebar__link {
+    display: block;
+    border-radius: 8px;
+    padding: 7px 10px;
+    color: var(--color-text-secondary);
+    line-height: 1.4;
+    transition: background 0.15s var(--ease-base), color 0.15s var(--ease-base);
+  }
+
+  .docs-sidebar__link:hover {
+    background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+    color: var(--color-text);
+  }
+
+  .docs-sidebar__link[aria-current="page"] {
+    background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+    color: var(--color-primary-deep);
+    font-weight: 600;
+  }
+</style>

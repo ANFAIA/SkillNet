@@ -1,0 +1,205 @@
+---
+import BaseLayout from "./BaseLayout.astro";
+import SiteHeader from "../components/SiteHeader.tsx";
+import SiteFooter from "../components/SiteFooter.tsx";
+import DocsSidebar from "../components/docs/DocsSidebar.astro";
+
+interface NavEntry {
+  slug: string;
+  title: string;
+  section: string;
+}
+
+interface Props {
+  title: string;
+  description: string;
+  navEntries: NavEntry[];
+  currentSlug?: string;
+}
+
+const { title, description, navEntries, currentSlug } = Astro.props;
+---
+
+<BaseLayout title={`${title} · Documentación SkillNet`} description={description}>
+  <SiteHeader client:load variant="docs" />
+  <div class="docs-shell">
+    <aside class="docs-shell__sidebar">
+      <DocsSidebar entries={navEntries} currentSlug={currentSlug} />
+    </aside>
+    <main class="docs-shell__content">
+      <article class="prose-docs">
+        <slot />
+      </article>
+    </main>
+  </div>
+  <SiteFooter client:load />
+</BaseLayout>
+
+<style>
+  .docs-shell {
+    display: grid;
+    grid-template-columns: 260px minmax(0, 1fr);
+    gap: 48px;
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 128px 32px 96px;
+  }
+
+  .docs-shell__sidebar {
+    position: sticky;
+    top: 112px;
+    align-self: start;
+    max-height: calc(100vh - 140px);
+    overflow-y: auto;
+  }
+
+  .docs-shell__content {
+    min-width: 0;
+  }
+
+  .prose-docs {
+    max-width: 720px;
+    color: var(--color-text);
+    font-size: var(--type-body);
+    line-height: 1.72;
+  }
+
+  .prose-docs :global(h1) {
+    font-size: var(--type-section);
+    font-weight: 600;
+    line-height: 1.15;
+    letter-spacing: -0.028em;
+    margin: 0 0 20px;
+  }
+
+  .prose-docs :global(h2) {
+    font-size: 1.5rem;
+    font-weight: 600;
+    letter-spacing: -0.018em;
+    margin: 40px 0 16px;
+    padding-top: 8px;
+    border-top: 1px solid var(--color-border);
+  }
+
+  .prose-docs :global(h2:first-child) {
+    border-top: none;
+    padding-top: 0;
+  }
+
+  .prose-docs :global(h3) {
+    font-size: 1.15rem;
+    font-weight: 600;
+    margin: 28px 0 12px;
+  }
+
+  .prose-docs :global(p) {
+    margin: 0 0 16px;
+    color: var(--color-text);
+  }
+
+  .prose-docs :global(a) {
+    color: var(--color-primary);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .prose-docs :global(a:hover) {
+    color: var(--color-primary-deep);
+  }
+
+  .prose-docs :global(ul),
+  .prose-docs :global(ol) {
+    margin: 0 0 16px;
+    padding-left: 1.4em;
+  }
+
+  .prose-docs :global(li) {
+    margin: 6px 0;
+  }
+
+  .prose-docs :global(blockquote) {
+    margin: 0 0 20px;
+    border-left: 3px solid var(--color-primary);
+    background: color-mix(in srgb, var(--color-primary) 5%, transparent);
+    padding: 4px 16px;
+    color: var(--color-text-secondary);
+    border-radius: 0 8px 8px 0;
+  }
+
+  .prose-docs :global(blockquote p:last-child) {
+    margin-bottom: 0;
+  }
+
+  .prose-docs :global(code) {
+    background: color-mix(in srgb, var(--color-text) 6%, var(--color-bg));
+    border-radius: 4px;
+    padding: 0.15em 0.4em;
+    font-size: 0.88em;
+  }
+
+  .prose-docs :global(pre) {
+    margin: 0 0 20px;
+    overflow-x: auto;
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--color-text) 4%, var(--color-bg));
+    padding: 16px;
+  }
+
+  .prose-docs :global(pre code) {
+    background: none;
+    padding: 0;
+    font-size: 0.85em;
+    line-height: 1.6;
+  }
+
+  .prose-docs :global(table) {
+    width: 100%;
+    margin: 0 0 20px;
+    border-collapse: collapse;
+    font-size: 0.92em;
+  }
+
+  .prose-docs :global(.table-wrap) {
+    overflow-x: auto;
+    margin: 0 0 20px;
+  }
+
+  .prose-docs :global(th),
+  .prose-docs :global(td) {
+    border: 1px solid var(--color-border);
+    padding: 8px 12px;
+    text-align: left;
+    vertical-align: top;
+  }
+
+  .prose-docs :global(th) {
+    background: color-mix(in srgb, var(--color-text) 4%, var(--color-bg));
+    font-weight: 600;
+  }
+
+  .prose-docs :global(hr) {
+    border: none;
+    border-top: 1px solid var(--color-border);
+    margin: 32px 0;
+  }
+
+  @media (max-width: 860px) {
+    .docs-shell {
+      grid-template-columns: 1fr;
+      padding: 112px 20px 64px;
+    }
+
+    .docs-shell__sidebar {
+      position: static;
+      max-height: none;
+      border-bottom: 1px solid var(--color-border);
+      padding-bottom: 24px;
+      margin-bottom: 8px;
+    }
+
+    .prose-docs {
+      max-width: none;
+    }
+  }
+</style>

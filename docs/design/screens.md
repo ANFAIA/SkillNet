@@ -321,7 +321,7 @@ Overview of all content (courses + manuals).
 - **Content list** — title, type (course/manual), status (draft/published/archived), creation date, source document
 - **Filter** — by type, by status
 - **Create new** button -> `/admin/crear-curso`
-- **Esquema** button per course -> `/admin/curso/:id/esquema`, only with `DYNAMIC_COURSES_MODE` at `shadow` or `on`
+- **Esquema** button per course -> `/admin/curso/:id/esquema`
 
 **Data:**
 - `GET /api/v1/courses` — all courses
@@ -459,10 +459,10 @@ rename of `App.tsx` and the `Link`s, with no effect on the API.
 | `/admin/ajustes` | Admin Settings | admin |
 | `/dev/motion` | Motion demo (development only) | public |
 
-Three of these are mounted **unconditionally** even though they belong to v2: `/onboarding`,
-`/empleado/curso/:id/nodo/:nodeId` and `/admin/curso/:id/esquema` exist whatever
-`DYNAMIC_COURSES_MODE` says. With the flag off the runtime routes 404 and the screen explains
-that the course is served in its v1 format — which beats a route that silently does not exist.
+Three of these belong to v2: `/onboarding`, `/empleado/curso/:id/nodo/:nodeId` and
+`/admin/curso/:id/esquema`. They are always mounted; whether they show v2 content depends on
+the course, not on any global setting — a course that is not `dynamic`+`validated` is served in
+its v1 format instead (`resolve_delivery`, see `v2-dynamic-courses.md` §10).
 
 There is no employee settings page and no manual viewer page; both are specified above but
 unbuilt.

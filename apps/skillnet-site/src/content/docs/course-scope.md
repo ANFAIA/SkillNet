@@ -1,3 +1,9 @@
+---
+title: "Alcance de v1"
+order: 12
+section: "v2"
+---
+
 # v1 Scope & Decisions
 
 > **Este documento define el producto v1 y tiene PRIORIDAD sobre los demas docs de design/ en

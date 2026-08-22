@@ -1,3 +1,9 @@
+---
+title: "Arranque rápido"
+order: 1
+section: "start"
+---
+
 # Running SkillNet
 
 In order, top to bottom. Nothing to skip, and only one thing to decide (step 2).

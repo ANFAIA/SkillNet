@@ -1,3 +1,9 @@
+---
+title: "Cursos dinámicos (v2)"
+order: 11
+section: "v2"
+---
+
 # v2 — Cursos dinámicos
 
 > **Estado: spec de implementación. Rama `feat/dynamic-courses`.**

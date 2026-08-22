@@ -1,3 +1,9 @@
+---
+title: "Modelo de datos"
+order: 4
+section: "core"
+---
+
 # Data Model
 
 > **Status: v1.** PostgreSQL + pgvector. Self-hosted, one instance per company.

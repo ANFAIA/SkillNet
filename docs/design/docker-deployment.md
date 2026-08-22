@@ -103,9 +103,8 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build   # ho
 ```
 
 The overlay switches `api` to `target: builder`, runs uvicorn with
-`--reload --reload-dir src`, publishes `8000` and `5432` on loopback, sets `LOG_LEVEL=debug`,
-and defaults `DYNAMIC_COURSES_MODE` to `shadow` — a developer gets the admin schema surface
-without exposing anything to employees. It does **not** override `web`; for frontend work,
+`--reload --reload-dir src`, publishes `8000` and `5432` on loopback, and sets
+`LOG_LEVEL=debug`. It does **not** override `web`; for frontend work,
 run Vite on the host instead (`npm run dev` in `apps/skillnet-web`, which proxies `/api` to
 `localhost:8000`).
 
@@ -245,9 +244,9 @@ docker compose --profile fixtures up -d db api-fixtures   # http://127.0.0.1:800
 ```
 
 `docker/nginx.conf` proxies to `api` unconditionally, with no variable to change, so the SPA
-never reaches `api-fixtures`. It is a second API for `curl` and Swagger, it shares
-`SECRET_KEY` and the database with the real one, and it forces `DYNAMIC_COURSES_MODE=on` so it
-answers v2 routes that production 404s. A debugging tool, not a sandbox.
+never reaches `api-fixtures`. It is a second, keyless API for `curl` and Swagger
+(`LLM_MODEL=fixture/local`, `EMBEDDING_MODEL=fixture/local`), and it shares `SECRET_KEY` and
+the database with the real one. A debugging tool, not a sandbox.
 
 ### 5.10 Quick reference
 

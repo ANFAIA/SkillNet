@@ -7,22 +7,32 @@ import Logo from "./Logo";
 const GITHUB_URL = "https://github.com/ANFAIA/SkillNet";
 const TRANSITION = { type: "tween", duration: 0.52, ease: [0.22, 1, 0.36, 1] } as const;
 
-const LINKS = [
+const LANDING_LINKS = [
   { href: "#que-es-skillnet", label: "Qué es SkillNet" },
   { href: "#como-funciona", label: "Cómo funciona" },
   { href: "#para-quien", label: "Para quién" },
   { href: "#contacto", label: "Contacto" },
+  { href: "/docs", label: "Documentación" },
 ];
 
-export default function SiteHeader() {
-  const [scrolled, setScrolled] = useState(false);
+const DOCS_LINKS = [{ href: "/", label: "Volver al inicio" }];
+
+interface Props {
+  variant?: "landing" | "docs";
+}
+
+export default function SiteHeader({ variant = "landing" }: Props) {
+  const [scrolled, setScrolled] = useState(variant === "docs");
   const [open, setOpen] = useState(false);
+  const LINKS = variant === "docs" ? DOCS_LINKS : LANDING_LINKS;
+  const logoHref = variant === "docs" ? "/" : "#";
   useEffect(() => {
+    if (variant === "docs") return;
     const onScroll = () => setScrolled(window.scrollY > 40);
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+  }, [variant]);
 
   return <header className="pointer-events-none fixed inset-x-0 top-0 z-50 flex flex-col items-center">
     <MotionConfig transition={TRANSITION}>
@@ -32,7 +42,7 @@ export default function SiteHeader() {
         style={{ willChange: "transform, width, border-radius" }}
         className={`pointer-events-auto flex items-center ${scrolled ? "mt-3 gap-4 rounded-full border border-white/15 bg-[color-mix(in_srgb,var(--color-primary-deep)_94%,transparent)] px-5 py-2.5 shadow-[0_12px_34px_rgba(4,26,62,0.18)] backdrop-blur-md sm:gap-6 sm:px-6" : "mt-6 w-full max-w-[80%] justify-between"}`}
       >
-        <motion.a layout="position" href="#" aria-label="Volver al inicio" className="flex shrink-0 items-center text-white"><Logo size={26} /></motion.a>
+        <motion.a layout="position" href={logoHref} aria-label="Volver al inicio" className="flex shrink-0 items-center text-white"><Logo size={26} /></motion.a>
 
         {/* Desktop navigation */}
         <motion.nav layout="position" className="hidden items-center gap-6 md:flex" aria-label="Navegación principal">
