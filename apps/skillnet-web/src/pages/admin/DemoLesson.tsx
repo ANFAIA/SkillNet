@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useIntl } from 'react-intl'
 import { useNavigate } from 'react-router-dom'
 import { useCourses } from '../../api/courses'
@@ -6,6 +7,8 @@ import { isServedRender, useCourseNodes, useNodeRender } from '../../api/nodes'
 import { Button, Card, EmptyState, PageHeader, Skeleton } from '../../components/ui'
 import { SegmentedControl } from '../../components/settings/SegmentedControl'
 import { UiSpecRenderer } from '../../components/courses/UiSpecRenderer'
+import { useReducedMotion } from '../../hooks/useReducedMotion'
+import { duration, ease } from '../../lib/motion'
 
 type PreviewPref = 'audio' | 'visual'
 
@@ -24,6 +27,7 @@ type PreviewPref = 'audio' | 'visual'
 export function DemoLesson() {
   const intl = useIntl()
   const navigate = useNavigate()
+  const reduce = useReducedMotion()
   const [pref, setPref] = useState<PreviewPref>('audio')
 
   // Find the per-org pre-baked demo course, then its showcase (first) node.
@@ -92,20 +96,37 @@ export function DemoLesson() {
         />
       </div>
 
-      <Card>
-        {loading || (!program && render.isLoading) ? (
-          <div className="space-y-3">
-            <Skeleton className="h-5 w-2/3" />
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-5/6" />
-            <Skeleton className="h-24 w-full rounded-lg" />
-          </div>
-        ) : program ? (
-          <UiSpecRenderer program={program} nodeId={showcaseNode!.id} renderId={served?.render_id} />
-        ) : (
-          <p className="text-sm text-text-muted">{intl.formatMessage({ id: 'demoLesson.empty' })}</p>
-        )}
-      </Card>
+      {/* Animate the container's height as the two variants (different lengths) swap,
+          and crossfade the content, so toggling learner feels fluid instead of jumping. */}
+      <motion.div
+        layout={!reduce}
+        transition={reduce ? { duration: 0 } : { layout: { type: 'spring', stiffness: 260, damping: 30 } }}
+      >
+        <Card>
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={loading || (!program && render.isLoading) ? 'loading' : program ? pref : 'empty'}
+              initial={reduce ? false : { opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={reduce ? undefined : { opacity: 0 }}
+              transition={{ duration: duration.fast, ease: ease.base }}
+            >
+              {loading || (!program && render.isLoading) ? (
+                <div className="space-y-3">
+                  <Skeleton className="h-5 w-2/3" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-5/6" />
+                  <Skeleton className="h-24 w-full rounded-lg" />
+                </div>
+              ) : program ? (
+                <UiSpecRenderer program={program} nodeId={showcaseNode!.id} renderId={served?.render_id} />
+              ) : (
+                <p className="text-sm text-text-muted">{intl.formatMessage({ id: 'demoLesson.empty' })}</p>
+              )}
+            </motion.div>
+          </AnimatePresence>
+        </Card>
+      </motion.div>
 
       <p className="mt-3 flex items-center gap-1.5 text-xs text-primary">
         <span aria-hidden>✦</span>

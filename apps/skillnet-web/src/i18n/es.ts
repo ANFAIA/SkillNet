@@ -33,7 +33,7 @@ export const es: Record<string, string> = {
   'setup.creating': 'Configurando...',
   'setup.submitError': 'No se pudo completar la configuracion. Intentalo de nuevo.',
   'setup.mode.organization': 'Organizacion',
-  'setup.mode.organizationDesc': 'Una empresa, equipo, clase o academia: gestionas a las personas que aprenden.',
+  'setup.mode.organizationDesc': 'Un equipo u organización: gestionas a las personas que aprenden.',
   'setup.mode.individual': 'Solo yo',
   'setup.mode.individualDesc': 'Instalas SkillNet para ti: gestionas tu contenido y aprendes.',
   'setup.ownerTitle': 'Tu cuenta',
@@ -448,7 +448,7 @@ export const es: Record<string, string> = {
   'employees.newEmployee': 'Nuevo empleado',
   'employees.fullNameLabel': 'Nombre completo',
   'employees.fullNamePlaceholder': 'Ej: Laura Martinez',
-  'employees.emailPlaceholder': 'laura@empresa.com',
+  'employees.emailPlaceholder': 'laura@ejemplo.com',
   'employees.passwordLabel': 'Contraseña (opcional)',
   'employees.passwordPlaceholder': 'Se genera una si la dejas vacia',
   'employees.passwordTooShort': 'La contraseña debe tener al menos 8 caracteres.',
@@ -571,8 +571,8 @@ export const es: Record<string, string> = {
   'empChat.emptyTitle': 'Hazme una pregunta',
   'empChat.emptySubtitle': 'Puedo ayudarte con cualquier tema de tus cursos y procedimientos.',
 
-  // Admin: Dashboard (panel de empresa)
-  'admin.dashboard.title': 'Panel de empresa',
+  // Admin: Dashboard (panel de la organización)
+  'admin.dashboard.title': 'Panel de la organización',
   'admin.dashboard.description': 'Vista general del equipo y la formación.',
   'admin.dashboard.loadError': 'Error al cargar las estadisticas. Intenta recargar la pagina.',
   'admin.dashboard.activeEmployees': 'Empleados activos',
@@ -722,7 +722,7 @@ export const es: Record<string, string> = {
   // Auth: Login page
   'login.subtitle': 'Inicia sesion para continuar',
   'login.emailLabel': 'Correo electronico',
-  'login.emailPlaceholder': 'tucorreo@empresa.com',
+  'login.emailPlaceholder': 'tucorreo@ejemplo.com',
   'login.passwordLabel': 'Contraseña',
   'login.wrongCredentials': 'Correo o contraseña incorrectos',
   'login.genericError': 'No se pudo iniciar sesion. Intentalo de nuevo.',

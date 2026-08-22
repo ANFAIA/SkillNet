@@ -33,7 +33,7 @@ export const en: Record<string, string> = {
   'setup.creating': 'Setting up...',
   'setup.submitError': 'Could not complete setup. Please try again.',
   'setup.mode.organization': 'Organization',
-  'setup.mode.organizationDesc': 'A company, team, class or academy: you manage people who learn.',
+  'setup.mode.organizationDesc': 'A team or organization: you manage the people who learn.',
   'setup.mode.individual': 'Just me',
   'setup.mode.individualDesc': 'You install SkillNet for yourself — you manage your content and learn.',
   'setup.ownerTitle': 'Your account',
@@ -448,7 +448,7 @@ export const en: Record<string, string> = {
   'employees.newEmployee': 'New employee',
   'employees.fullNameLabel': 'Full name',
   'employees.fullNamePlaceholder': 'E.g.: Laura Martinez',
-  'employees.emailPlaceholder': 'laura@company.com',
+  'employees.emailPlaceholder': 'laura@example.com',
   'employees.passwordLabel': 'Password (optional)',
   'employees.passwordPlaceholder': 'A password is generated if left empty',
   'employees.passwordTooShort': 'Password must be at least 8 characters.',
@@ -571,8 +571,8 @@ export const en: Record<string, string> = {
   'empChat.emptyTitle': 'Ask me a question',
   'empChat.emptySubtitle': 'I can help with any topic from your courses and procedures.',
 
-  // Admin: Dashboard (company panel)
-  'admin.dashboard.title': 'Company panel',
+  // Admin: Dashboard (organization panel)
+  'admin.dashboard.title': 'Organization panel',
   'admin.dashboard.description': 'Overview of your team and training.',
   'admin.dashboard.loadError': 'Error loading statistics. Try reloading the page.',
   'admin.dashboard.activeEmployees': 'Active employees',
@@ -722,7 +722,7 @@ export const en: Record<string, string> = {
   // Auth: Login page
   'login.subtitle': 'Sign in to continue',
   'login.emailLabel': 'Email address',
-  'login.emailPlaceholder': 'youremail@company.com',
+  'login.emailPlaceholder': 'youremail@example.com',
   'login.passwordLabel': 'Password',
   'login.wrongCredentials': 'Incorrect email or password',
   'login.genericError': 'Could not sign in. Try again.',
