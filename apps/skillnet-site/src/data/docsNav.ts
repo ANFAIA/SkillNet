@@ -7,13 +7,15 @@ export const SECTION_LABELS: Record<"es" | "en", Record<string, string>> = {
     core: "Núcleo (v1)",
     v2: "Cursos dinámicos (v2)",
     extensibility: "Personalización y extensibilidad",
+    research: "Investigación",
   },
   en: {
     start: "Getting started",
     core: "Core (v1)",
     v2: "Dynamic courses (v2)",
     extensibility: "Personalization and extensibility",
+    research: "Research",
   },
 };
 
-export const SECTION_ORDER = ["start", "core", "v2", "extensibility"] as const;
+export const SECTION_ORDER = ["start", "core", "v2", "extensibility", "research"] as const;

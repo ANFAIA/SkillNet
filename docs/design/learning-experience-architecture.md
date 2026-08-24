@@ -349,9 +349,9 @@ simulación o experiencia de nivel 3 sólo se habilita cuando aporta:
 - presupuesto de latencia cumplido y fallback honesto.
 
 El generador selecciona recipes y definiciones tipadas; no genera código libre ejecutable dentro del
-programa OpenUI. El primer piloto debe demostrar al menos un caso operativo como Gestión Tickets y
-otro ejecutable como SQL. Si ambos requieren editar el contrato central, la abstracción aún no es
-suficiente.
+programa OpenUI. El primer piloto debe demostrar al menos un caso operativo como una herramienta de
+gestión de incidencias y otro ejecutable como SQL. Si ambos requieren editar el contrato central, la
+abstracción aún no es suficiente.
 
 ## 10. Checklist de validación de rollout
 

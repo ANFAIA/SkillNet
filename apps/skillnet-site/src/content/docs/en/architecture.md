@@ -30,14 +30,14 @@ section: "core"
 | [frontend-backend-integration.md](frontend-backend-integration.md) | TanStack Query, SSE, Level 2/3 UI, file upload |
 | [snml-spec.md](snml-spec.md) | SNML content format — Markdown + interactive components, dual render (doc/web) |
 | [ai-course-design.md](ai-course-design.md) | Stateless AI endpoints, commit-on-create, multi-model routing for course design |
-| [adaptive-learning.md](adaptive-learning.md) | Preferencias explícitas, estrategia pedagógica, medición y contrato con la librería de componentes |
-| [personalization-architecture.md](personalization-architecture.md) | Separación objetivo, misión, representación, componente, apoyo y planificador en sombra |
-| [learning-experience-architecture.md](learning-experience-architecture.md) | Contrato pedagógico neutral, variantes, proveedores, generación multiagente y evidencia común hacia mastery |
-| [audience-modes.md](audience-modes.md) | Un núcleo de producto con modos `organization` e `individual`, sin separar clases ni verticales |
-| [conversational-modalities.md](conversational-modalities.md) | Frontera entre audio en chat, Realtime, mascota y podcasts; propósito y alcance por audiencia |
-| [podcast-studio-plan.md](podcast-studio-plan.md) | Plan de Podcast Studio tipo NotebookLM, modular, configurable y agnóstico de proveedor |
-| [future-product-directions.md](future-product-directions.md) | Índice de las direcciones futuras de producto acordadas y su estado |
-| [Cuaderno de experimentos](../personalization-experiments.md) | Hipótesis, resultados, reversiones y aprendizajes reproducibles de personalización |
+| [adaptive-learning.md](adaptive-learning.md) | Explicit preferences, pedagogical strategy, measurement, and contract with the component library |
+| [personalization-architecture.md](personalization-architecture.md) | Separation of goal, mission, representation, component, support, and shadow planner |
+| [learning-experience-architecture.md](learning-experience-architecture.md) | Neutral pedagogical contract, variants, providers, multi-agent generation, and shared evidence toward mastery |
+| [audience-modes.md](audience-modes.md) | One product core with `organization` and `individual` modes, without splitting into classes or verticals |
+| [conversational-modalities.md](conversational-modalities.md) | Boundary between audio in chat, Realtime, the mascot, and podcasts; purpose and scope per audience |
+| [podcast-studio-plan.md](podcast-studio-plan.md) | Plan for a NotebookLM-style Podcast Studio, modular, configurable, and provider-agnostic |
+| [future-product-directions.md](future-product-directions.md) | Index of the agreed future product directions and their status |
+| [Experiment notebook](../personalization-experiments.md) | Hypotheses, results, reversals, and reproducible personalization learnings |
 
 ---
 

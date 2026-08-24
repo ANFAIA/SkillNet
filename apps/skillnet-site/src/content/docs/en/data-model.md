@@ -812,39 +812,39 @@ The shape of the addition, so you know whether you need to look:
 a value from an enum. That is documented rather than fixed, and asserted by
 `tests/integration/test_migration_0005.py`.
 
-### Preferencias de aprendizaje y revisión de personalización
+### Learning preferences and personalization revision
 
-La migración **`0011_learner_preferences`** añade la primera preferencia declarada que puede
-modificar un render dinámico:
+Migration **`0011_learner_preferences`** adds the first declared preference that can modify a
+dynamic render:
 
-- `learner_profiles.learning_preferences`: JSONB cerrado y versionado con presentación
-  (`balanced|visual|textual|interactive`), detalle (`concise|standard|detailed`) e imágenes
+- `learner_profiles.learning_preferences`: a closed, versioned JSONB with presentation
+  (`balanced|visual|textual|interactive`), detail (`concise|standard|detailed`), and images
   (`when_useful|prefer|avoid`);
-- `learner_profiles.personalization_revision`: revisión monotónica que cambia cuando cambia
-  realmente el bundle;
-- `learner_node_states.pinned_personalization_revision`: revisión con la que se fijó el render.
+- `learner_profiles.personalization_revision`: a monotonic revision that changes when the
+  bundle actually changes;
+- `learner_node_states.pinned_personalization_revision`: the revision the render was pinned to.
 
-La preferencia declarada no se mezcla con `format_vector` (evidencia inferida) ni con
-`users.accessibility` (necesidades funcionales). Antes de influir en los prompts se normaliza a un
-bucket canónico no identificativo que forma parte de `cache_key`. Al guardar un bundle diferente se
-incrementa la revisión y se despejan los pins de ese aprendiz sin borrar el historial compartido.
-El guard al fijar impide que una generación iniciada con una revisión antigua vuelva a convertirse
-en el render vigente después de un cambio concurrente.
+The declared preference is not mixed with `format_vector` (inferred evidence) or with
+`users.accessibility` (functional needs). Before it can influence prompts it is normalized to a
+non-identifying canonical bucket that becomes part of `cache_key`. Saving a different bundle
+bumps the revision and clears that learner's pins without deleting the shared history. The pin
+guard prevents a generation started with a stale revision from becoming the current render again
+after a concurrent change.
 
-### Dossiers pedagógicos preparados
+### Prepared pedagogical dossiers
 
-La migración **`0012_node_knowledge_packs`** añade `node_knowledge_packs`, una tabla de snapshots
-inmutables por `(node_id, source_fingerprint, generator_version)`. Cada fila pertenece a una
-organización, curso y nodo, y registra `schema_version`, estado
+Migration **`0012_node_knowledge_packs`** adds `node_knowledge_packs`, a table of immutable
+snapshots keyed by `(node_id, source_fingerprint, generator_version)`. Each row belongs to an
+organization, course, and node, and records `schema_version`, state
 (`pending|ready|review_required|stale|failed`),
-Markdown revisable, contrato JSON completo (`pack_payload`), vista compacta de átomos, procedencia,
-hashes, tokens, duración y error.
+reviewable Markdown, the full JSON contract (`pack_payload`), a compact atom view, provenance,
+hashes, tokens, duration, and error.
 
-`source_fingerprint` incluye los campos pedagógicamente relevantes del nodo y el hash del contexto
-de fuente. Un snapshot nuevo marca los anteriores como `stale`; un worker solo puede completar la
-fila que sigue `pending` con el fingerprint que reclamó. El Markdown no se reimporta: para selección,
-auditoría y caché la autoridad es `pack_payload` + `pack_hash`. `review_required` conserva el
-payload y el Markdown para inspección, pero solo `ready` puede alimentar OpenUI.
+`source_fingerprint` includes the pedagogically relevant fields of the node plus the hash of the
+source context. A new snapshot marks the previous ones as `stale`; a worker can only complete the
+row that is `pending` with the fingerprint it claimed. The Markdown is not re-imported: for
+selection, audit, and caching, the authority is `pack_payload` + `pack_hash`. `review_required`
+keeps the payload and the Markdown for inspection, but only `ready` can feed OpenUI.
 
 **Pack states and the `ready` criterion (grounded).** The persisted `PackStatus` enum
 (`knowledge_pack/contracts.py`) is `DRAFT`, `READY`, `REVIEW_REQUIRED`, `REJECTED`; `stale`
