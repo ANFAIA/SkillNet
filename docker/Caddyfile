@@ -1,0 +1,37 @@
+# SkillNet — Caddyfile for docker-compose.caddy.yml
+#
+# {$DOMAIN} and {$CADDY_EMAIL} are Caddy's documented env-var placeholder syntax
+# (https://caddyserver.com/docs/caddyfile/concepts#environment-variables): Caddy
+# expands them from the process environment when it parses this file, so the
+# `environment:` block on the `caddy` service in the overlay is what actually
+# supplies them — this file itself has no default.
+{
+	# Global options block. `email` has to live here, not on the site block below —
+	# a bare `{$CADDY_EMAIL}` inside `{$DOMAIN} { ... }` is not a recognized directive
+	# and Caddy would just ignore it silently. This is what actually registers the
+	# ACME account email with Let's Encrypt (renewal/expiry notices).
+	# https://caddyserver.com/docs/caddyfile/options#email
+	email {$CADDY_EMAIL}
+}
+
+{$DOMAIN} {
+	# Automatic HTTPS: Caddy requests and renews a Let's Encrypt certificate for
+	# {$DOMAIN} on first request — no `tls` directive needed.
+	# https://caddyserver.com/docs/automatic-https
+
+	reverse_proxy web:80
+}
+
+# ── Local testing without a real domain ─────────────────────────────────────
+# Real ACME issuance needs a public domain with DNS pointed at this host — you
+# can't get one for `localhost`. To smoke-test this Caddyfile without that, run
+# with DOMAIN=localhost and swap the site block above for:
+#
+#   localhost {
+#       tls internal
+#       reverse_proxy web:80
+#   }
+#
+# `tls internal` is Caddy's own local-CA self-signed cert, documented at
+# https://caddyserver.com/docs/caddyfile/directives/tls#internal — it never
+# talks to Let's Encrypt, so it works offline and without a domain.

@@ -1,0 +1,71 @@
+# SkillNet — Public exposure via Caddy (automatic TLS).
+# Usage: docker compose -f docker-compose.yml -f docker-compose.caddy.yml up -d --build
+#
+# Puts Caddy in front of `web` as the public entrypoint, and takes `web` off the public
+# port entirely — see the `web` override below. Requires a real domain with its DNS A
+# record pointed at this host's public IP, and ports 80/443 open on the router/firewall;
+# see RUNNING.md, "Exposing SkillNet on your own domain".
+#
+# ## Why `web`'s ports are overridden here, and why `!override` is required
+#
+# Compose's default merge for a sequence field like `ports:` is to APPEND and de-duplicate
+# across files, not replace — confirmed by actually running `docker compose ... config`
+# without the tag below, which came back publishing BOTH the base file's `0.0.0.0:3000` and
+# this file's `127.0.0.1:3000` for `web`. The `!override` YAML tag on `web.ports` forces full
+# replacement for that field instead:
+# https://docs.docker.com/reference/compose-file/merge/#override
+#
+# ## Why this file publishes on 0.0.0.0
+#
+# Every other optional port in this repo binds `127.0.0.1:` deliberately (see
+# docker-compose.dev.yml, docker-compose.ollama.yml, and the `api-fixtures` service) because
+# Docker's published ports use DNAT rules that bypass the host firewall, so "loopback only"
+# is the norm here. `caddy` is the one intentional exception: the entire point of this
+# overlay is to serve SkillNet to the public internet, so 80/443 have to be reachable from
+# outside — that is not an oversight, it's the feature.
+
+services:
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN:?Set DOMAIN in .env to the public hostname pointed at this host}
+      # Required, not just nice-to-have: the Caddyfile's global `email` directive has no
+      # syntax for "omit if unset" — an empty value is a parse error (verified with
+      # `caddy validate`: "wrong argument count ... after 'email'"), so caddy would refuse
+      # to start at all rather than just skip registering an ACME account email.
+      CADDY_EMAIL: ${CADDY_EMAIL:?Set CADDY_EMAIL in .env — required by Caddy's ACME email directive, can't be blank}
+    volumes:
+      - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      # Named volumes, not bind mounts: this is where Caddy keeps the issued certificate
+      # and its ACME account state, so a restart doesn't re-request a cert from Let's
+      # Encrypt every time (and doesn't risk their rate limits).
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      web:
+        condition: service_healthy
+
+  # Overrides the base file's `ports: ["${PORT:-3000}:80"]`: `web` is no longer the public
+  # entrypoint once Caddy is in front of it, so it drops back to loopback-only, matching
+  # every other internal service in this compose project (see docker-compose.dev.yml).
+  #
+  # `!override` is required, not decoration. Compose's default sequence-merge behavior for
+  # `ports:` is to APPEND and de-duplicate entries across files, not replace them — verified
+  # by running `docker compose -f docker-compose.yml -f docker-compose.caddy.yml config`
+  # without this tag: the merged `web` service came back publishing BOTH the base file's
+  # `0.0.0.0:3000->80` and this file's `127.0.0.1:3000->80`, defeating the entire point of
+  # this overlay. The Compose Spec's `!override` YAML tag forces full replacement instead of
+  # merge for the tagged value: https://docs.docker.com/reference/compose-file/merge/#override
+  web:
+    ports: !override
+      - "127.0.0.1:${PORT:-3000}:80"
+
+volumes:
+  caddy_data:
+    driver: local
+  caddy_config:
+    driver: local

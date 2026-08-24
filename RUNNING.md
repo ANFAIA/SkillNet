@@ -189,6 +189,72 @@ a shared network — Docker publishes ports with DNAT rules that **bypass the ho
 localhost over plain HTTP, note that `COOKIE_SECURE` defaults to `false`, so session cookies
 travel unencrypted. Put it behind TLS and set `COOKIE_SECURE=true`.
 
+## Exposing SkillNet on your own domain
+
+The default stack is loopback-friendly, not internet-friendly: `web` speaks plain HTTP, which
+is fine on `localhost` but not something to hand a real domain. `docker-compose.caddy.yml` is
+an optional overlay that puts [Caddy](https://caddyserver.com/) in front of `web` as a
+reverse proxy with automatic Let's Encrypt TLS.
+
+**Prerequisites:**
+
+- A domain (or subdomain) you control.
+- Its DNS **A record** already pointing at this host's public IP.
+- Ports **80** and **443** open and forwarded to this host on the router/firewall — Caddy
+  needs 80 to answer Let's Encrypt's HTTP-01 challenge, and 443 to serve over TLS afterward.
+
+**Run it:**
+
+```bash
+# in .env
+DOMAIN=courses.example.com
+CADDY_EMAIL=you@example.com   # required — Caddy's `email` directive can't be blank
+
+docker compose -f docker-compose.yml -f docker-compose.caddy.yml up -d --build
+```
+
+This overlay also takes `web` off its own public port — Caddy becomes the only public
+entrypoint, and `web` falls back to `127.0.0.1:${PORT:-3000}` like the rest of the internal
+services (see [Ports](#ports) above).
+
+Once this is live, set `COOKIE_SECURE=true` in `.env` and restart `api` — session cookies
+should not travel unencrypted once there is a real TLS front door.
+
+### Exposing SkillNet without opening a port
+
+The Caddy path above needs a domain, DNS pointed at your public IP, and 80/443 open on
+your router. If any of that isn't possible — you're behind CGNAT, on a laptop that
+changes networks, or just don't want to touch the firewall — a Cloudflare Tunnel gets you
+a public HTTPS URL with none of it: `cloudflared` makes an outbound-only connection to
+Cloudflare's edge, and Cloudflare forwards public traffic back down it. No inbound port,
+no public IP required.
+
+**Prerequisites:** a free Cloudflare account, and a domain added to it (Cloudflare manages
+its DNS). The token-based flow used here is the durable, named-tunnel kind meant for a
+real deployment — it does not support the free `*.trycloudflare.com` "quick tunnel"
+option, since that mode skips the dashboard/token setup entirely and hands you a
+random hostname that changes on every restart. A domain in Cloudflare is required.
+
+**1. Create the tunnel:**
+- Cloudflare Zero Trust dashboard → Networks → Tunnels → Create a tunnel.
+- Choose **Docker** as the connector. Cloudflare shows a `docker run cloudflared ... --token <TOKEN>` command — copy just the token.
+- Add a public hostname for the tunnel (e.g. `skillnet.yourdomain.com`) pointing at service `http://web:80`.
+
+**2. Configure and run:**
+
+```bash
+# .env
+CLOUDFLARE_TUNNEL_TOKEN=<the token from the dashboard>
+
+docker compose -f docker-compose.yml -f docker-compose.cloudflared.yml up -d --build
+```
+
+No router or firewall changes of any kind — unlike the Caddy path, there is nothing to
+open on 80/443. Once the tunnel connects (check with `docker compose logs cloudflared`),
+the hostname you set in step 1 serves SkillNet over HTTPS, TLS handled entirely by
+Cloudflare. Set `COOKIE_SECURE=true` once traffic is genuinely arriving over HTTPS through
+the tunnel — see the `COOKIE_SECURE` note next to `DOMAIN` in `.env.example`.
+
 ## Stopping it
 
 ```bash
