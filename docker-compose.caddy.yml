@@ -60,6 +60,14 @@ services:
   # `0.0.0.0:3000->80` and this file's `127.0.0.1:3000->80`, defeating the entire point of
   # this overlay. The Compose Spec's `!override` YAML tag forces full replacement instead of
   # merge for the tagged value: https://docs.docker.com/reference/compose-file/merge/#override
+  # Cookies over HTTPS only. The base file defaults this to `false` so the stack works on
+  # plain-HTTP localhost; this overlay exists precisely because there IS TLS in front, so
+  # the default flips here instead of relying on the operator remembering a manual step.
+  # Still overridable from `.env` for anyone debugging over plain HTTP.
+  api:
+    environment:
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+
   web:
     ports: !override
       - "127.0.0.1:${PORT:-3000}:80"
