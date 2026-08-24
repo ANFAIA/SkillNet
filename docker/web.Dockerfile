@@ -26,6 +26,12 @@ FROM nginx:1.27-alpine AS runtime
 
 RUN rm /etc/nginx/conf.d/default.conf
 COPY docker/nginx.conf /etc/nginx/conf.d/skillnet.conf
+# skillnet.conf `include`s this from several blocks; without it nginx refuses to start
+# at all (emerg: open() ... failed), so it is not optional decoration. Deliberately NOT
+# in conf.d/: the stock nginx.conf does `include /etc/nginx/conf.d/*.conf` inside `http`,
+# so a .conf left there would ALSO be pulled into the http context and the headers would
+# be declared twice.
+COPY docker/security-headers.conf /etc/nginx/security-headers.conf
 COPY --from=builder /build/dist /usr/share/nginx/html
 
 EXPOSE 80
