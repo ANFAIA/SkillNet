@@ -34,6 +34,9 @@ async def get_stats(admin: AdminUser, db: DBSession) -> StatsResponse:
     active_employees: int = emp_row.active
 
     # --- Course counts ---
+    # Excludes the pre-baked demo course (`is_demo`) seeded for the onboarding tour:
+    # it isn't content the admin authored, so counting it as "published" or folding
+    # its activity into the feed made a genuinely empty org look non-empty.
     course_q = select(
         func.count().label("total"),
         func.count()
@@ -42,7 +45,7 @@ async def get_stats(admin: AdminUser, db: DBSession) -> StatsResponse:
         func.count()
         .filter(Course.status == ContentStatus.DRAFT)
         .label("draft"),
-    ).where(Course.org_id == org_id)
+    ).where(Course.org_id == org_id, Course.is_demo.is_(False))
     course_row = (await db.execute(course_q)).one()
     total_courses: int = course_row.total
     published_courses: int = course_row.published
@@ -60,7 +63,7 @@ async def get_stats(admin: AdminUser, db: DBSession) -> StatsResponse:
             .label("in_progress"),
         )
         .join(Course, Enrollment.course_id == Course.id)
-        .where(Course.org_id == org_id)
+        .where(Course.org_id == org_id, Course.is_demo.is_(False))
     )
     enroll_row = (await db.execute(enroll_q)).one()
     total_enrollments: int = enroll_row.total
@@ -73,6 +76,7 @@ async def get_stats(admin: AdminUser, db: DBSession) -> StatsResponse:
         .join(Course, Enrollment.course_id == Course.id)
         .where(
             Course.org_id == org_id,
+            Course.is_demo.is_(False),
             Enrollment.score.isnot(None),
         )
     )
@@ -91,6 +95,7 @@ async def get_stats(admin: AdminUser, db: DBSession) -> StatsResponse:
         .join(Course, Enrollment.course_id == Course.id)
         .where(
             Course.org_id == org_id,
+            Course.is_demo.is_(False),
             Enrollment.status == EnrollmentStatus.COMPLETED,
             Enrollment.completed_at.isnot(None),
         )
@@ -103,6 +108,7 @@ async def get_stats(admin: AdminUser, db: DBSession) -> StatsResponse:
         Course.updated_at.label("at"),
     ).where(
         Course.org_id == org_id,
+        Course.is_demo.is_(False),
         Course.status == ContentStatus.PUBLISHED,
     )
 
