@@ -84,6 +84,16 @@ class ParsedSection:
 
 def clean_text(text: str) -> str:
     """Normalize extracted text for embedding quality."""
+    # Strip NUL and the other C0 control characters that carry no text.
+    #
+    # Not cosmetic: PostgreSQL cannot store 0x00 in a text column at all, so one NUL
+    # anywhere in a PDF aborted the entire ingestion with
+    #     invalid byte sequence for encoding "UTF8": 0x00
+    # which reached the user as the opaque "Error processing document. Check the server
+    # logs for details." Measured on a real corpus: 3 of 99 PDFs from ordinary office
+    # tooling carried one. Tab, newline and carriage return stay — the rest of this
+    # function depends on them.
+    text = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f]", "", text)
     # Collapse horizontal whitespace.
     text = re.sub(r"[ \t]+", " ", text)
     # Collapse 3+ line breaks into a paragraph break.

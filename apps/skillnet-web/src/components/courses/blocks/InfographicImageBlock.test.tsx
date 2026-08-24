@@ -16,13 +16,26 @@ function wrap(node: ReactNode) {
 
 afterEach(() => vi.restoreAllMocks())
 
+/**
+ * El doble de `fetch` devuelve lo UNICO que consume `useArtifactAsset`: `ok` y `blob()`.
+ *
+ * Antes construia un `Response` de verdad con un `Blob` como cuerpo, y eso depende de que
+ * el `Blob` global de jsdom y el `Response` de undici encajen entre si. En Node 24 encajan;
+ * en Node 22 —el del CI— no, y el constructor revienta con
+ * `TypeError: object.stream is not a function` antes siquiera de llegar a la asercion.
+ * Un objeto plano no tiene esa dependencia y prueba exactamente lo mismo.
+ */
+function assetResponse(bytes: string, type: string) {
+  return { ok: true, status: 200, blob: async () => new Blob([bytes], { type }) } as unknown as Response
+}
+
 describe('InfographicImageBlock', () => {
   it('fetches the artefact asset and renders a responsive image with the alt text', async () => {
     vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:info-1')
     vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
     const fetchSpy = vi
       .spyOn(globalThis, 'fetch')
-      .mockResolvedValue(new Response(new Blob(['png'], { type: 'image/png' }), { status: 200 }))
+      .mockResolvedValue(assetResponse('png', 'image/png'))
 
     wrap(<InfographicImageBlock artifactId="art-9" alt="Flujo de caja del cafe" />)
 
@@ -39,7 +52,7 @@ describe('InfographicImageBlock', () => {
     vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:info-2')
     vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(new Blob(['png'], { type: 'image/png' }), { status: 200 }),
+      assetResponse('png', 'image/png'),
     )
 
     wrap(<InfographicImageBlock artifactId="art-10" alt="" />)
