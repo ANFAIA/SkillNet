@@ -81,7 +81,7 @@ other interactions designed for learning.
 - Ask questions grounded in course material.
 - Record learning activity, attempts and progress.
 - Choose an organization or individual workspace at first setup.
-- Create a complete course through the UI, external API or A2A service.
+- Create a complete course through the UI, external API, A2A service or MCP server.
 - Run the system locally or self-host it with Docker.
 
 The project is still in development. Some adaptive directions are documented and being tested, but
@@ -95,6 +95,7 @@ SkillNet is the main project. The surrounding repositories explore parts of the 
 - [Didact](https://github.com/JoseEstevez520/Didact) — educational components used by SkillNet.
 - [OpenUI](https://github.com/thesysdev/openui) — the current generated-interface layer.
 - [mcp-md-reader](https://github.com/JoseEstevez520/mcp-md-reader) — structural Markdown reading for agent workflows.
+- [SkillNet MCP](packages/skillnet-mcp/) — use SkillNet from MCP-compatible chats and agents.
 - [A2TL-Web](https://github.com/JoseEstevez520/a2tl-web) — earlier research into compact generated interfaces.
 - [A2TL-Video](https://github.com/JoseEstevez520/a2tl-video) — related work for agent-generated video.
 - [Curio](https://github.com/JoseEstevez520/curio) — contextual reading and explanation research.
