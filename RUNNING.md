@@ -149,7 +149,8 @@ with **Vite on the host**, which hot-reloads on save:
 # 1. API + DB in Docker (the dev overlay publishes the API on 127.0.0.1:8000)
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d db api
 
-# 2. Frontend on the host — the one thing that needs Node (≥20) + pnpm locally
+# 2. Frontend on the host — the one thing that needs Node (≥22) + pnpm locally
+#    (22, not 20: pnpm 11 needs the node:sqlite builtin, which Node 20 does not have)
 pnpm --dir apps/skillnet-web install      # first time only
 pnpm --dir apps/skillnet-web dev          # Vite dev server
 ```
