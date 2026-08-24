@@ -138,6 +138,19 @@ checking, because a wrong embedding dimension is the one misconfiguration that o
 fails silently: documents look ingested but nothing can retrieve them, and the tutor answers
 from weaker sources without saying so.
 
+## Optional services
+
+A default `docker compose up -d` runs three containers: `db`, `api` and `web`. Three more
+exist behind Compose profiles, off unless you ask for them.
+
+| Service | Start it with | What it is for |
+|---|---|---|
+| `api-fixtures` | `docker compose --profile fixtures up -d db api-fixtures` | A second API on `127.0.0.1:8001` that answers every model call from recorded fixtures. For `curl` and Swagger — **the web app does not use it**, because the bundled nginx proxies to `api` unconditionally. To run the whole stack keyless, set `LLM_MODEL=fixture/local` and `EMBEDDING_MODEL=fixture/local` in `.env` instead |
+| `a2a` | set `A2A_INTERNAL_API_KEY` and `A2A_AUTH_KEY` in `.env`, then `docker compose --profile a2a up -d` | Agent-to-Agent server on `127.0.0.1:5000`, so external agents can drive SkillNet |
+| `mcp` | `docker compose --profile mcp up -d` | MCP server on `127.0.0.1:3001`, to use SkillNet from MCP-compatible chats and agents. See [`packages/skillnet-mcp/`](packages/skillnet-mcp/) |
+
+None of the three is needed to create courses or to learn from them.
+
 ## Developing the frontend (hot reload)
 
 The `web` container on `:3000` is the **production** build — an nginx image baked at
