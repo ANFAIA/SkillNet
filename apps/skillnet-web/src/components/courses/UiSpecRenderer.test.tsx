@@ -162,7 +162,7 @@ describe('UiSpecRenderer — valid programs', () => {
 
     expect(screen.getByRole('button', { name: 'Mostrar respuesta' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Lo sabía' })).toBeNull()
-    await user.click(screen.getByRole('button', { name: 'Mostrar respuesta' }))
+    await user.click(await screen.findByRole('button', { name: 'Mostrar respuesta' }))
     expect(screen.getByRole('button', { name: 'Lo sabía' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Necesito repasarlo' })).toBeInTheDocument()
   })
@@ -177,7 +177,7 @@ describe('UiSpecRenderer — valid programs', () => {
     renderWithQuery(<UiSpecRenderer program={program} nodeId="node-1" />)
 
     expect(screen.queryByText('Mira el importe.')).toBeNull()
-    await user.click(screen.getByRole('button', { name: 'Mostrar siguiente pista' }))
+    await user.click(await screen.findByRole('button', { name: 'Mostrar siguiente pista' }))
     expect(document.body).toHaveTextContent('Mira el importe.')
     expect(screen.getByText('Pista 1 de 2')).toBeInTheDocument()
   })
@@ -546,8 +546,8 @@ describe('UiSpecRenderer — autonomous QuizItemBlock', () => {
       <UiSpecRenderer program={validPrograms.mixed_quiz} nodeId="node-7" renderId="render-9" />,
     )
 
-    await user.click(screen.getByRole('radio', { name: 'Ofrecer garantia del fabricante' }))
-    await user.click(screen.getByRole('button', { name: 'Comprobar' }))
+    await user.click(await screen.findByRole('radio', { name: 'Ofrecer garantia del fabricante' }))
+    await user.click(await screen.findByRole('button', { name: 'Comprobar' }))
 
     await waitFor(() => expect(mockedPost).toHaveBeenCalledTimes(1))
     const [path, body] = mockedPost.mock.calls[0]
@@ -560,10 +560,19 @@ describe('UiSpecRenderer — autonomous QuizItemBlock', () => {
     })
     expect((body as { latency_ms: number }).latency_ms).toBeGreaterThanOrEqual(0)
 
-    const status = await screen.findByRole('status')
+    // `findByRole('status')` resuelve en cuanto EXISTE el nodo, que es antes de que
+    // llegue el feedback corregido; y al repintar, React sustituye el elemento, asi que
+    // una referencia capturada aqui puede quedarse huerfana. Se espera al TEXTO concreto,
+    // reconsultando, y solo despues se afirma sobre el nodo ya asentado.
+    await waitFor(() => {
+      expect(screen.getByRole('status')).toHaveTextContent('pasados 30 dias')
+    })
+    const status = screen.getByRole('status')
     expect(within(status).getByText('Correcto')).toBeInTheDocument()
-    expect(status).toHaveTextContent('pasados 30 dias')
-    expect(status).toHaveTextContent('Dominio: 82%')
+    // El panel de resultado NO muestra el dominio bruto: se quito a proposito
+    // (ce909d6, "don't show the raw 'Dominio: X%' mastery score to the learner").
+    // La asercion se invierte para que sirva de guardia de esa decision.
+    expect(status).not.toHaveTextContent('Dominio')
   })
 
   it('offers a retry after a failed attempt', async () => {
@@ -584,11 +593,11 @@ describe('UiSpecRenderer — autonomous QuizItemBlock', () => {
       <UiSpecRenderer program={validPrograms.mixed_quiz} nodeId="node-7" renderId="render-9" />,
     )
 
-    await user.click(screen.getByRole('radio', { name: 'Aceptar la devolucion' }))
-    await user.click(screen.getByRole('button', { name: 'Comprobar' }))
+    await user.click(await screen.findByRole('radio', { name: 'Aceptar la devolucion' }))
+    await user.click(await screen.findByRole('button', { name: 'Comprobar' }))
 
     expect(await screen.findByText('Incorrecto')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Reintentar' }))
+    await user.click(await screen.findByRole('button', { name: 'Reintentar' }))
     expect(screen.queryByText('Incorrecto')).not.toBeInTheDocument()
     expect(screen.getByRole('radio', { name: 'Aceptar la devolucion' })).not.toBeChecked()
   })
@@ -631,11 +640,11 @@ describe('UiSpecRenderer — autonomous QuizItemBlock', () => {
       <UiSpecRenderer program={validPrograms.mixed_quiz} nodeId="node-7" renderId="render-9" />,
     )
 
-    await user.click(screen.getByRole('radio', { name: 'Aceptar la devolucion' }))
-    await user.click(screen.getByRole('button', { name: 'Comprobar' }))
+    await user.click(await screen.findByRole('radio', { name: 'Aceptar la devolucion' }))
+    await user.click(await screen.findByRole('button', { name: 'Comprobar' }))
     expect(await screen.findByText('Incorrecto')).toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: 'Reintentar' }))
+    await user.click(await screen.findByRole('button', { name: 'Reintentar' }))
 
     expect(screen.queryByText('Incorrecto')).not.toBeInTheDocument()
     const radio = screen.getByRole('radio', { name: 'Aceptar la devolucion' })
@@ -643,7 +652,7 @@ describe('UiSpecRenderer — autonomous QuizItemBlock', () => {
     expect(radio).toBeEnabled()
 
     await user.click(radio)
-    await user.click(screen.getByRole('button', { name: 'Comprobar' }))
+    await user.click(await screen.findByRole('button', { name: 'Comprobar' }))
     expect(await screen.findByText('Correcto')).toBeInTheDocument()
 
     expect(mockedPost).toHaveBeenCalledTimes(2)
@@ -683,17 +692,17 @@ describe('UiSpecRenderer — autonomous QuizItemBlock', () => {
     const user = userEvent.setup()
     renderWithQuery(<UiSpecRenderer program={program} nodeId="node-7" renderId="render-9" />)
 
-    await user.click(screen.getByRole('radio', { name: 'Registrar la incidencia' }))
-    await user.click(screen.getByRole('button', { name: 'Comprobar' }))
+    await user.click(await screen.findByRole('radio', { name: 'Registrar la incidencia' }))
+    await user.click(await screen.findByRole('button', { name: 'Comprobar' }))
     expect(await screen.findByText('Incorrecto')).toBeInTheDocument()
 
     // A graded payload cannot be silently mutated under the same attempt id.
     expect(screen.getByRole('radio', { name: 'Disculparte y reconocer la queja' })).toBeDisabled()
     expect(screen.queryByRole('button', { name: 'Comprobar' })).not.toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: 'Reintentar' }))
-    await user.click(screen.getByRole('radio', { name: 'Disculparte y reconocer la queja' }))
-    await user.click(screen.getByRole('button', { name: 'Comprobar' }))
+    await user.click(await screen.findByRole('button', { name: 'Reintentar' }))
+    await user.click(await screen.findByRole('radio', { name: 'Disculparte y reconocer la queja' }))
+    await user.click(await screen.findByRole('button', { name: 'Comprobar' }))
 
     expect(await screen.findByText('Correcto')).toBeInTheDocument()
     expect(mockedPost).toHaveBeenCalledTimes(2)
@@ -741,12 +750,12 @@ describe('UiSpecRenderer — autonomous QuizItemBlock', () => {
 
     const wrongFirst = () => screen.getByRole('radio', { name: 'Registrar la incidencia' })
     await user.click(wrongFirst())
-    await user.click(screen.getByRole('button', { name: 'Comprobar' }))
+    await user.click(await screen.findByRole('button', { name: 'Comprobar' }))
     expect(await screen.findByText('Incorrecto')).toBeInTheDocument()
     expect(wrongFirst()).toBeChecked()
     expect(wrongFirst()).toBeDisabled()
 
-    await user.click(screen.getByRole('button', { name: 'Reintentar' }))
+    await user.click(await screen.findByRole('button', { name: 'Reintentar' }))
 
     // The browser symptom, asserted directly: old choice cleared, all radios usable.
     expect(screen.queryByText('Incorrecto')).not.toBeInTheDocument()
@@ -756,7 +765,7 @@ describe('UiSpecRenderer — autonomous QuizItemBlock', () => {
     expect(right).toBeEnabled()
 
     await user.click(right)
-    await user.click(screen.getByRole('button', { name: 'Comprobar' }))
+    await user.click(await screen.findByRole('button', { name: 'Comprobar' }))
     expect(await screen.findByText('Correcto')).toBeInTheDocument()
 
     expect(mockedPost).toHaveBeenCalledTimes(2)
@@ -788,11 +797,11 @@ describe('UiSpecRenderer — autonomous QuizItemBlock', () => {
       <UiSpecRenderer program={validPrograms.mixed_quiz} nodeId="node-7" renderId="render-9" />,
     )
 
-    await user.click(screen.getByRole('radio', { name: 'Aceptar la devolucion' }))
-    await user.click(screen.getByRole('button', { name: 'Comprobar' }))
+    await user.click(await screen.findByRole('radio', { name: 'Aceptar la devolucion' }))
+    await user.click(await screen.findByRole('button', { name: 'Comprobar' }))
     await user.click(await screen.findByRole('button', { name: 'Reintentar' }))
-    await user.click(screen.getByRole('radio', { name: 'Ofrecer garantia del fabricante' }))
-    await user.click(screen.getByRole('button', { name: 'Comprobar' }))
+    await user.click(await screen.findByRole('radio', { name: 'Ofrecer garantia del fabricante' }))
+    await user.click(await screen.findByRole('button', { name: 'Comprobar' }))
 
     await waitFor(() => expect(mockedPost).toHaveBeenCalledTimes(2))
     for (const call of mockedPost.mock.calls) {
@@ -808,8 +817,8 @@ describe('UiSpecRenderer — autonomous QuizItemBlock', () => {
       <UiSpecRenderer program={validPrograms.mixed_quiz} nodeId="node-7" renderId="render-9" />,
     )
 
-    await user.click(screen.getByRole('radio', { name: 'Rechazar sin mas' }))
-    await user.click(screen.getByRole('button', { name: 'Comprobar' }))
+    await user.click(await screen.findByRole('radio', { name: 'Rechazar sin mas' }))
+    await user.click(await screen.findByRole('button', { name: 'Comprobar' }))
 
     expect(await screen.findByText('No se pudo enviar la respuesta.')).toBeInTheDocument()
     expect(screen.getByRole('radio', { name: 'Rechazar sin mas' })).toBeInTheDocument()
