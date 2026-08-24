@@ -1,6 +1,7 @@
 """Admin dashboard statistics endpoint."""
 
 import uuid
+from datetime import date
 
 from fastapi import APIRouter
 from sqlalchemy import func, literal, select, union_all
@@ -82,6 +83,23 @@ async def get_stats(admin: AdminUser, db: DBSession) -> StatsResponse:
     )
     avg_score: float | None = (await db.execute(avg_q)).scalar()
 
+    # --- Overdue assignments: a fact about the assignment (past its deadline, not
+    # yet completed), not a label on the person — mirrors EnrollmentFact.is_overdue
+    # in org_snapshot.py. ---
+    overdue_q = (
+        select(func.count())
+        .select_from(Enrollment)
+        .join(Course, Enrollment.course_id == Course.id)
+        .where(
+            Course.org_id == org_id,
+            Course.is_demo.is_(False),
+            Enrollment.deadline.isnot(None),
+            Enrollment.deadline < date.today(),
+            Enrollment.status != EnrollmentStatus.COMPLETED,
+        )
+    )
+    overdue_assignments: int = (await db.execute(overdue_q)).scalar_one()
+
     # --- Recent activity (last 10 events) ---
     # Union of: completed enrollments, published courses, new employees
     completed_q = (
@@ -148,5 +166,6 @@ async def get_stats(admin: AdminUser, db: DBSession) -> StatsResponse:
         completed_enrollments=completed_enrollments,
         in_progress_enrollments=in_progress_enrollments,
         avg_score=round(avg_score, 2) if avg_score is not None else None,
+        overdue_assignments=overdue_assignments,
         recent_activity=recent_activity,
     )

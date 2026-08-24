@@ -46,15 +46,6 @@ function ClockIcon() {
   )
 }
 
-function TrendUpIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
-      <polyline points="17 6 23 6 23 12" />
-    </svg>
-  )
-}
-
 function PlayIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -85,11 +76,6 @@ export function Dashboard() {
     return (b.progress ?? 0) - (a.progress ?? 0)
   })
   const resume = ongoing[0]
-
-  const scored = completed.filter((e) => e.score !== null)
-  const avgScore = scored.length
-    ? Math.round((scored.reduce((acc, e) => acc + (e.score ?? 0), 0) / scored.length) * 100)
-    : 0
 
   const { data: userSkills, isLoading: skillsLoading } = useMySkills()
   const dashboardSkills = (userSkills ?? []).slice(0, 4)
@@ -176,7 +162,7 @@ export function Dashboard() {
       )}
 
       <motion.div
-        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6"
+        className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6"
         variants={staggerContainer}
         initial="hidden"
         animate="visible"
@@ -189,9 +175,6 @@ export function Dashboard() {
         </motion.div>
         <motion.div variants={staggerItem}>
           <MetricCard value={String(pending.length)} label={intl.formatMessage({ id: 'home.metricPending' })} icon={<ClockIcon />} />
-        </motion.div>
-        <motion.div variants={staggerItem}>
-          <MetricCard value={`${avgScore}%`} label={intl.formatMessage({ id: 'home.metricAvgScore' })} icon={<TrendUpIcon />} />
         </motion.div>
       </motion.div>
 

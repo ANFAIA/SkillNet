@@ -22,4 +22,5 @@ class StatsResponse(BaseModel):
     completed_enrollments: int
     in_progress_enrollments: int
     avg_score: float | None
+    overdue_assignments: int
     recent_activity: list[RecentActivityItem]

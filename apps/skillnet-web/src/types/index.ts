@@ -412,6 +412,7 @@ export interface StatsResponse {
   completed_enrollments: number
   in_progress_enrollments: number
   avg_score: number | null
+  overdue_assignments: number
   recent_activity: RecentActivityItem[]
 }
 

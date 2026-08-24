@@ -37,12 +37,13 @@ function TargetIcon() {
   )
 }
 
-function ChartIcon() {
+function AlertClockIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="18" y1="20" x2="18" y2="10" />
-      <line x1="12" y1="20" x2="12" y2="4" />
-      <line x1="6" y1="20" x2="6" y2="14" />
+      <circle cx="12" cy="13" r="8" />
+      <path d="M12 9v4l2.5 2.5" />
+      <path d="M5 3 3 5" />
+      <path d="m21 5-2-2" />
     </svg>
   )
 }
@@ -212,16 +213,20 @@ export function Dashboard() {
             </motion.div>
             <motion.div variants={staggerItem}>
               <MetricCard
-                value={String(stats!.total_enrollments)}
-                label={intl.formatMessage({ id: 'admin.dashboard.enrollments' })}
+                value={
+                  stats!.total_enrollments > 0
+                    ? `${Math.round((stats!.completed_enrollments / stats!.total_enrollments) * 100)}%`
+                    : '--'
+                }
+                label={intl.formatMessage({ id: 'admin.dashboard.completionRate' })}
                 icon={<TargetIcon />}
               />
             </motion.div>
             <motion.div variants={staggerItem}>
               <MetricCard
-                value={stats!.avg_score != null ? `${Math.round(stats!.avg_score * 100)}%` : '--'}
-                label={intl.formatMessage({ id: 'admin.dashboard.avgScore' })}
-                icon={<ChartIcon />}
+                value={String(stats!.overdue_assignments)}
+                label={intl.formatMessage({ id: 'admin.dashboard.overdueAssignments' })}
+                icon={<AlertClockIcon />}
               />
             </motion.div>
           </>
