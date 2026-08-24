@@ -26,8 +26,9 @@ It is self-hosted and licensed under Apache 2.0.
 ## From ideas and sources to courses
 
 You can begin by describing what you want to teach or learn, or by uploading the material that
-already contains that knowledge. SkillNet turns it into a course. When source material is used,
-the generated content stays connected to the material it came from.
+already contains that knowledge. SkillNet turns it into a course. Uploaded material remains the
+grounding source; when you start from an idea, SkillNet creates a generated source, records that
+provenance and builds the course from it.
 
 SkillNet builds that path:
 
@@ -42,17 +43,18 @@ idea or source material
 The result is not limited to a single fixed presentation. The same course can support different
 explanations, activities, media and interfaces while preserving its knowledge and objectives.
 
-## The same knowledge, a different experience
+## The same knowledge and objective, a different experience
 
 The knowledge and objectives can remain stable while the parts around them change for the person
 learning:
 
 | What stays stable | What can change |
 | --- | --- |
-| knowledge, objectives, evidence and criteria | route, explanation, example, practice, interface and pace |
+| knowledge, objectives, evidence and criteria | explanation, example, activity, support and interface |
 
-The knowledge and objectives stay shared. The route, explanation, example, practice, interface and
-pace can change for each learner.
+In a dynamic course, the shared knowledge and objectives stay stable while the explanation,
+activity, support and interface can adapt using the learner's declared preferences, role, level and
+progress. These signals shape the experience without being treated as fixed learning styles.
 
 ## How it works
 
@@ -73,12 +75,13 @@ other interactions designed for learning.
 
 ## What is available
 
-- Create a course from a topic or from uploaded material.
+- Create a course from a topic or from PDF, DOCX, Markdown or TXT material.
 - Generate its structure, lessons and exercises.
 - Support static and dynamic course paths.
 - Ask questions grounded in course material.
 - Record learning activity, attempts and progress.
 - Choose an organization or individual workspace at first setup.
+- Create a complete course through the UI, external API or A2A service.
 - Run the system locally or self-host it with Docker.
 
 The project is still in development. Some adaptive directions are documented and being tested, but
@@ -106,8 +109,7 @@ The complete [running guide](RUNNING.md) covers setup, demo data, configuration,
 and troubleshooting.
 
 ```bash
-cp .env.example .env                                          # then set SECRET_KEY,
-                                                                # POSTGRES_PASSWORD, LLM_API_KEY
+cp .env.example .env                      # set the two secrets, then choose API, local model or fixtures
 docker compose up -d --build
 docker compose exec api uv run python -m src.seed_learning_demo   # optional: loads the public demo
 ```
