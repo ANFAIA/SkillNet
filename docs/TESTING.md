@@ -55,7 +55,7 @@ generacion, porque no genera nada.
 ## 2. Sembrar los datos de prueba
 
 ```bash
-docker compose exec api uv run python -m src.seed_learning_demo
+docker compose exec api python -m src.seed_learning_demo
 ```
 
 Es la demo publica: un tema meta y on-brand sobre **como aprende la mente**, dentro de la

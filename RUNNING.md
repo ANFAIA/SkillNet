@@ -83,13 +83,25 @@ created for you. Either way, use your own password: nothing in this repo ships o
 content in the app — upload a document or describe a topic and let it generate a course. Run
 this only if you want the ready-made example to click around.
 
-It comes **after** step 4, not before: the seed attaches its courses and learners to an
-existing organization, so with no owner yet it stops with `No organization found. Boot the
-app once, then re-run.`
+It comes **after** step 4, not before: the seed hangs its courses and learners off the owner
+account, so with no owner yet it stops with `No admin user found in the organization.` and
+does nothing.
 
 ```bash
-docker compose exec api uv run python -m src.seed_learning_demo
+docker compose exec api python -m src.seed_learning_demo
 ```
+
+Plain `python`, not `uv run python`: inside the container `uv run` re-syncs the virtualenv
+on first use — it installed 12 extra packages into a production image and, more to the
+point, needs to reach PyPI. On a machine with no package-index access that is a failure
+nobody warned you about. The module runs identically without it.
+
+> **The demo seed needs a real model.** On the keyless `fixture/local` path it runs, exits 0
+> and creates the four courses — but empty: `schema proposal did not complete (job
+> status=failed); no nodes to generate`, and every course shows `0/0 ready`. The recordings
+> cover the interface, not authoring a course from scratch. Use an API key or the Ollama
+> overlay for this step.
+
 
 Creating the owner in step 4 makes the organization, but no courses, no documents and no
 learners. Without this seed you log in to an empty dashboard — which is exactly right for a

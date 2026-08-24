@@ -48,8 +48,9 @@ conexión sin escapar, así que un `@`, `:`, `/` o `#` — exactamente lo que pr
 contraseñas — rompe la URL, y la API entonces falla al acceder a la base de datos con un error
 que nunca menciona la contraseña.
 
-`.env.example` ya trae credenciales de demo funcionando (`admin@skillnet.dev` / `admin123`),
-así que no hay nada más que configurar. Los cursos dinámicos (v2) no necesitan ningún flag — los
+`.env.example` deja `ADMIN_EMAIL` y `ADMIN_PASSWORD` **vacíos a propósito**: este repositorio no
+trae ninguna cuenta hecha. La cuenta de propietario la creas tú en el paso 4, desde el
+navegador. Los cursos dinámicos (v2) no necesitan ningún flag — los
 datos de la semilla ya incluyen un curso dinámico validado, y cualquier curso nuevo puede optar
 por ello por curso.
 
@@ -70,18 +71,48 @@ modelos (unos cuantos GB) antes de que la API arranque, así que dale tiempo al 
 Ver [`docker-compose.ollama.yml`](docker-compose.ollama.yml) para saber qué hace y qué ids de
 modelo son válidos.
 
-## Paso 4 — Cargar los datos de demo
+## Paso 4 — Abrirlo y crear tu cuenta
+
+<http://localhost:3000> — o el puerto que hayas puesto en `PORT`.
+
+Lo primero que ves es la **pantalla `/setup`**, porque `.env.example` deja `ADMIN_EMAIL` y
+`ADMIN_PASSWORD` vacíos. Eliges el modo de espacio de trabajo (Organización o Solo yo), creas la
+cuenta de propietario y quedas conectado. El asistente se cierra definitivamente en cuanto existe
+un propietario.
+
+Si prefieres saltarte el paso del navegador — para una instalación automatizada o repetible —
+pon tus **propios** `ADMIN_EMAIL` y `ADMIN_PASSWORD` en `.env` **antes del primer arranque** y el
+propietario se crea solo. En cualquiera de los dos casos, usa tu propia contraseña: aquí no viene
+ninguna puesta.
+
+## Paso 5 — Cargar los datos de demo (opcional)
 
 **Este paso es para *explorar* la demo.** Un despliegue real se lo salta: creas tu propio
 contenido en la aplicación — subes un documento o describes un tema y dejas que genere un
 curso. Ejecuta esto solo si quieres el ejemplo ya preparado para navegar.
 
+Va **después** del paso 4, no antes: el seed cuelga sus cursos y aprendices de la cuenta de
+propietario, así que sin propietario se detiene con `No admin user found in the organization.`
+y no hace nada.
+
 ```bash
-docker compose exec api uv run python -m src.seed_learning_demo
+docker compose exec api python -m src.seed_learning_demo
 ```
 
-El arranque crea la organización y el usuario administrador, pero ningún curso, documento ni
-empleado. Sin esta semilla entras a un panel vacío — que es exactamente lo correcto para una
+`python` a secas, no `uv run python`: dentro del contenedor, `uv run` resincroniza el
+entorno virtual la primera vez —instaló 12 paquetes extra en una imagen de producción— y,
+sobre todo, necesita llegar a PyPI. En una máquina sin acceso al índice de paquetes eso es
+un fallo del que nadie te avisó. El módulo funciona igual sin él.
+
+> **El seed de la demo necesita un modelo de verdad.** Por el camino sin claves
+> (`fixture/local`) se ejecuta, termina con código 0 y crea los cuatro cursos — pero vacíos:
+> `schema proposal did not complete (job status=failed); no nodes to generate`, y todos
+> quedan en `0/0 ready`. Las grabaciones cubren la interfaz, no la creación de un curso desde
+> cero. Para este paso usa una clave de API o la overlay de Ollama.
+
+
+Crear el propietario en el paso 4 crea la organización, pero ningún curso, documento ni
+aprendiz. Sin esta semilla entras a un panel vacío — que es exactamente lo correcto para una
 instalación nueva, y simplemente una base de datos vacía si tu intención era probar la demo.
 
 Esta semilla es la demo pública y de marca propia de SkillNet, sobre el tema meta de **cómo
@@ -122,18 +153,15 @@ El modo es un ajuste estable por despliegue, elegido de una de estas dos formas:
   WORKSPACE_MODE=individual   # en tu .env, junto a ADMIN_EMAIL / ADMIN_PASSWORD
   ```
 
-## Paso 5 — Abrirlo
+Con la semilla vienen tres aprendices de demo. Su contraseña es `aprender2026`:
 
-<http://localhost:3000>
+| Aprendiz | Email |
+|---|---|
+| Metáforas + audio (ve el podcast dentro de la lección) | `ana@skillnet.dev` |
+| Definiciones primero + visual (ve la infografía dentro de la lección) | `bruno@skillnet.dev` |
+| **Sin** perfil, para recorrer el asistente de onboarding | `carla@skillnet.dev` |
 
-| Rol | Email | Contraseña |
-|------|-------|----------|
-| **Admin** | `admin@skillnet.dev` | `admin123` |
-| Aprendiz — metáforas + audio (ve el podcast dentro de la lección) | `ana@skillnet.dev` | `aprender2026` |
-| Aprendiz — definiciones primero + visual (ve la infografía dentro de la lección) | `bruno@skillnet.dev` | `aprender2026` |
-| Aprendiz — **sin** perfil, para recorrer el asistente de onboarding | `carla@skillnet.dev` | `aprender2026` |
-
-Conéctate como admin para autorar cursos, o como empleado para tomarlos.
+Entra con tu propia cuenta de propietario para autorar cursos, o con una de estas para tomarlos.
 
 ## ¿Funcionó?
 
@@ -178,7 +206,7 @@ Reconstruye el contenedor `web` solo para comprobar el paquete de producción re
 |---|---|
 | `docker compose up` se queja de una variable que falta | `SECRET_KEY` o `POSTGRES_PASSWORD` está vacía en `.env` |
 | La API no puede llegar a la base de datos, el error no menciona la contraseña | La contraseña contiene `@`, `:`, `/`, `#` o `?`. Ver paso 2 |
-| El panel está vacío tras iniciar sesión | Se saltó el paso 4 |
+| El panel está vacío tras iniciar sesión | Se saltó el paso 5 |
 | `embeddings.status: mismatch` en `/health` | `EMBEDDING_DIMENSIONS` no coincide con la columna. El mensaje dice qué hacer |
 | Los cursos existen pero se abren en blanco, usando `fixture/local` | No hay grabación para ese prompt. Esperado; usa una clave de API o el modelo local |
 | Algo en `.env` parece estar siendo ignorado | Probablemente lo es. Solo las variables listadas en `docker-compose.yml` llegan al contenedor — no hay `env_file`. Añádela al bloque `environment:` de `api` |

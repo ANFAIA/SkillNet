@@ -107,7 +107,7 @@ uv run python scripts/quality_bench.py --offline   # generation quality, no API 
 docker compose up -d --build
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build      # hot reload
 docker compose -f docker-compose.yml -f docker-compose.ollama.yml up -d --build   # local model
-docker compose exec api uv run python -m src.seed_learning_demo               # public demo dataset
+docker compose exec api python -m src.seed_learning_demo                     # public demo dataset
 ```
 
 `uv run pytest -m integration` leaves `document_chunks` empty — the downgrade in

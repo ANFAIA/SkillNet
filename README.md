@@ -117,7 +117,7 @@ and troubleshooting.
 ```bash
 cp .env.example .env                      # set the two secrets, then choose API, local model or fixtures
 docker compose up -d --build
-docker compose exec api uv run python -m src.seed_learning_demo   # optional: loads the public demo
+docker compose exec api python -m src.seed_learning_demo   # optional: loads the public demo
 ```
 
 Then open <http://localhost:3000>. The repository also includes a keyless fixture mode for local
