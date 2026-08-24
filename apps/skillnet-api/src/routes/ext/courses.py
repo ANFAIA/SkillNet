@@ -14,7 +14,7 @@ import uuid
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
-from src.routes.ext.auth import ExtApiKey
+from src.routes.ext.auth import RequireCoursesWrite
 from src.services.course_orchestration import create_course_end_to_end
 
 router = APIRouter(prefix="/courses", tags=["Courses (external)"])
@@ -41,7 +41,7 @@ class FullCourseRequest(BaseModel):
 
 
 @router.post("/full", status_code=201)
-async def create_full_course(api_key: ExtApiKey, body: FullCourseRequest) -> dict:
+async def create_full_course(api_key: RequireCoursesWrite, body: FullCourseRequest) -> dict:
     """Create a dynamic course end to end and return a structured result.
 
     The API key carries the organization and the admin the key was created for; the

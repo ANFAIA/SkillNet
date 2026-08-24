@@ -24,4 +24,5 @@ class ApiKey(UUIDMixin, Base):
     scopes: Mapped[list[str]] = mapped_column(ARRAY(String), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     last_used_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    expires_at: Mapped[datetime | None] = mapped_column(nullable=True)
     created_at: Mapped[datetime] = mapped_column(server_default=text("now()"))
