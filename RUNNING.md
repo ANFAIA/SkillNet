@@ -172,6 +172,7 @@ Rebuild the `web` container only to check the real production bundle:
 | `embeddings.status: mismatch` in `/health` | `EMBEDDING_DIMENSIONS` does not match the column. The message says what to do |
 | Courses exist but open blank, using `fixture/local` | No recording for that prompt. Expected; use an API key or the local model |
 | Something in `.env` seems to be ignored | Probably is. Only variables listed in `docker-compose.yml` reach the container — there is no `env_file`. Add it to the `environment:` block of `api` |
+| `port is already allocated` when `web` starts | Something else on the host holds port 3000 — often an earlier SkillNet still running (`docker compose ps`). Either stop it, or set `PORT=3100` in `.env` and open that port instead |
 | `git clone` on Windows ends in `Filename too long` / `unable to checkout working tree` | Windows caps a path at 260 characters unless told otherwise, and the clone leaves a half-written tree. Run `git config --global core.longpaths true`, delete the broken folder and clone again — or clone somewhere shorter, like `C:\SkillNet` |
 
 Logs: `docker compose logs -f api`.
