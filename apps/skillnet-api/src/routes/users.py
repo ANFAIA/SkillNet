@@ -5,7 +5,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Query
 
-from src.deps.auth import AdminUser, CurrentUser, OrganizationWorkspace
+from src.deps.auth import AdminUser, CurrentUser, IndividualWorkspace, OrganizationWorkspace
 from src.deps.db import DBSession
 from src.repositories.learner_profile_repo import LearnerProfileRepository
 from src.repositories.skill_repo import SkillRepository
@@ -13,6 +13,9 @@ from src.repositories.user_repo import UserRepository
 from src.schemas.common import PaginatedResponse
 from src.schemas.skill import UserSkillRead
 from src.schemas.user import (
+    ChangeEmailRequest,
+    ChangePasswordRequest,
+    DeleteAccountRequest,
     EmployeeCreated,
     ResetPasswordRequest,
     UserAdminUpdate,
@@ -115,6 +118,45 @@ async def get_my_skills(user: CurrentUser, db: DBSession) -> list[UserSkillRead]
     service = _skill_service(db)
     skills = await service.get_user_skills(user.org_id, user.id)
     return [UserSkillRead(**s) for s in skills]
+
+
+@router.post("/me/change-password")
+async def change_password(
+    user: CurrentUser, db: DBSession, body: ChangePasswordRequest
+) -> dict:
+    service = _service(db)
+    await service.change_own_password(
+        user=user,
+        current_password=body.current_password,
+        new_password=body.new_password,
+    )
+    await db.commit()
+    return {"ok": True}
+
+
+@router.put("/me/email", response_model=UserRead)
+async def change_email(
+    user: CurrentUser, db: DBSession, body: ChangeEmailRequest
+) -> UserRead:
+    service = _service(db)
+    updated = await service.change_own_email(
+        user=user,
+        org_id=user.org_id,
+        new_email=body.new_email,
+        current_password=body.current_password,
+    )
+    await db.commit()
+    return UserRead.model_validate(updated)
+
+
+@router.delete("/me")
+async def delete_account(
+    user: CurrentUser, db: DBSession, body: DeleteAccountRequest, _mode: IndividualWorkspace
+) -> dict:
+    service = _service(db)
+    await service.delete_own_account(user=user, current_password=body.current_password)
+    await db.commit()
+    return {"ok": True}
 
 
 @router.get("/{user_id}", response_model=UserRead)

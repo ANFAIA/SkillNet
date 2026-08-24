@@ -64,7 +64,8 @@ export const put = <T>(path: string, body: unknown) =>
 export const patch = <T>(path: string, body: unknown) =>
   api<T>(path, { method: 'PATCH', body: JSON.stringify(body) })
 
-export const del = <T>(path: string) => api<T>(path, { method: 'DELETE' })
+export const del = <T>(path: string, body?: unknown) =>
+  api<T>(path, { method: 'DELETE', body: body === undefined ? undefined : JSON.stringify(body) })
 
 // Multipart upload — omit Content-Type so the browser sets the boundary.
 export const upload = <T>(path: string, formData: FormData) =>

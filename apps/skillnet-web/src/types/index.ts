@@ -28,6 +28,7 @@ export interface User {
   org_id?: string | null
   accessibility?: Record<string, unknown> | null
   hired_at?: string | null
+  is_active?: boolean
 }
 
 export interface Paginated<T> {

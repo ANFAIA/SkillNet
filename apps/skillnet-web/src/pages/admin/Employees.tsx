@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useIntl } from 'react-intl'
 import { motion } from 'framer-motion'
 import { Badge, Button, Card, CardTitle, EmptyState, Input, Modal, PageHeader, SearchField, Select, SkeletonRow } from '../../components/ui'
-import { useUsers, useCreateUser, useResetPassword } from '../../api/users'
+import { useUsers, useCreateUser, useResetPassword, useSetEmployeeActive } from '../../api/users'
 import { useCourses } from '../../api/courses'
 import { useEnrollments, useAssignCourse } from '../../api/enrollments'
 import { ApiError } from '../../api/client'
@@ -190,17 +190,61 @@ function EmployeeDetail({ employee }: { employee: User }) {
   const { data: enrollmentData, isLoading } = useEnrollments({ user_id: employee.id })
   const enrollments = enrollmentData?.items ?? []
   const [showResetPw, setShowResetPw] = useState(false)
+  const setActive = useSetEmployeeActive()
+  const isActive = employee.is_active !== false
+
+  function toggleActive() {
+    const next = !isActive
+    if (
+      !next &&
+      !window.confirm(
+        intl.formatMessage({ id: 'employees.deactivateConfirm' }, { name: employee.full_name }),
+      )
+    ) {
+      return
+    }
+    setActive.mutate({ userId: employee.id, isActive: next })
+  }
 
   return (
     <div>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 pr-8">
-          <h3 className="text-lg font-semibold text-text truncate">{employee.full_name}</h3>
+          <div className="flex items-center gap-2">
+            <h3 className="text-lg font-semibold text-text truncate">{employee.full_name}</h3>
+            {!isActive && (
+              <Badge variant="danger" badgeStyle="plain">
+                {intl.formatMessage({ id: 'employees.statusInactive' })}
+              </Badge>
+            )}
+          </div>
           <p className="text-sm text-text-secondary truncate">{employee.email}</p>
         </div>
-        <Button size="sm" variant="ghost" onClick={() => setShowResetPw(true)}>
-          {intl.formatMessage({ id: 'employees.resetPassword' })}
+        <div className="flex shrink-0 gap-2">
+          <Button size="sm" variant="ghost" onClick={() => setShowResetPw(true)}>
+            {intl.formatMessage({ id: 'employees.resetPassword' })}
+          </Button>
+        </div>
+      </div>
+
+      <div className="mt-3">
+        <Button
+          size="sm"
+          variant={isActive ? 'secondary' : 'primary'}
+          onClick={toggleActive}
+          disabled={setActive.isPending}
+        >
+          {isActive
+            ? intl.formatMessage({ id: 'employees.deactivate' })
+            : intl.formatMessage({ id: 'employees.reactivate' })}
         </Button>
+        {setActive.isError && (
+          <p className="text-sm text-danger mt-2">
+            {setActive.error instanceof ApiError
+              ? setActive.error.body.detail
+              : intl.formatMessage({ id: 'employees.statusUpdateError' })}
+          </p>
+        )}
       </div>
 
       <div className="mt-6">
@@ -311,7 +355,14 @@ export function Employees() {
                     className="border-b border-border last:border-b-0 hover:bg-bg-subtle transition-colors cursor-pointer"
                     onClick={(e) => openDetail(emp, e)}
                   >
-                    <td className="py-3 px-5"><span className="font-medium text-text">{emp.full_name}</span></td>
+                    <td className="py-3 px-5">
+                      <span className="font-medium text-text">{emp.full_name}</span>
+                      {emp.is_active === false && (
+                        <Badge variant="danger" badgeStyle="plain" className="ml-2">
+                          {intl.formatMessage({ id: 'employees.statusInactive' })}
+                        </Badge>
+                      )}
+                    </td>
                     <td className="py-3 px-4 text-text-secondary">{emp.email}</td>
                     <td className="py-3 px-4">
                       <Badge variant="primary" badgeStyle="plain">{roleLabel(emp.role)}</Badge>
@@ -342,7 +393,14 @@ export function Employees() {
               <Card variant="interactive" onClick={(e) => openDetail(emp, e)}>
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="font-medium text-text truncate">{emp.full_name}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium text-text truncate">{emp.full_name}</p>
+                      {emp.is_active === false && (
+                        <Badge variant="danger" badgeStyle="plain">
+                          {intl.formatMessage({ id: 'employees.statusInactive' })}
+                        </Badge>
+                      )}
+                    </div>
                     <p className="text-sm text-text-secondary mt-0.5 truncate">{emp.email}</p>
                   </div>
                   <Badge variant="primary" badgeStyle="plain">{roleLabel(emp.role)}</Badge>

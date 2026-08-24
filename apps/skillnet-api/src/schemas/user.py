@@ -12,6 +12,9 @@ __all__ = [
     "UserAdminUpdate",
     "UserSelfUpdate",
     "ResetPasswordRequest",
+    "ChangePasswordRequest",
+    "ChangeEmailRequest",
+    "DeleteAccountRequest",
 ]
 
 
@@ -51,3 +54,17 @@ class UserSelfUpdate(BaseModel):
 
 class ResetPasswordRequest(BaseModel):
     new_password: str = Field(min_length=6)
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str = Field(min_length=8)
+
+
+class ChangeEmailRequest(BaseModel):
+    new_email: EmailStr
+    current_password: str
+
+
+class DeleteAccountRequest(BaseModel):
+    current_password: str

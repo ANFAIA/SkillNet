@@ -79,7 +79,29 @@ async def require_organization_workspace(user: CurrentUser, db: DBSession) -> No
         )
 
 
+async def require_individual_workspace(user: CurrentUser, db: DBSession) -> None:
+    """Gate the self-service "delete my account" endpoint to `individual` workspaces.
+
+    An organization has no self-delete path: the admin represents the whole org, so
+    deleting them would orphan it. That needs an explicit ownership-transfer flow,
+    which does not exist yet — out of scope here. In `individual` mode the account
+    holder is the only person the deletion affects, so it is safe to self-serve.
+    """
+    mode = (
+        await db.execute(
+            select(Organization.workspace_mode).where(Organization.id == user.org_id)
+        )
+    ).scalar_one_or_none()
+    if mode != WorkspaceMode.INDIVIDUAL:
+        raise AppError(
+            message="Account deletion is only self-service in an individual workspace",
+            code="NOT_FOUND",
+            status_code=404,
+        )
+
+
 AdminUser = Annotated[User, Depends(require_admin)]
 EmployeeUser = Annotated[User, Depends(require_employee)]
 EmployeeOrAdminUser = Annotated[User, Depends(require_employee_or_admin)]
+IndividualWorkspace = Annotated[None, Depends(require_individual_workspace)]
 OrganizationWorkspace = Annotated[None, Depends(require_organization_workspace)]

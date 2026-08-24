@@ -6,7 +6,12 @@ from collections.abc import Mapping, Sequence
 
 from fastapi_users.password import PasswordHelper
 
-from src.core.exceptions import ConflictError, ForbiddenError, NotFoundError, ValidationError
+from src.core.exceptions import (
+    ConflictError,
+    ForbiddenError,
+    NotFoundError,
+    ValidationError,
+)
 from src.models import LearningProfile, User, UserRole
 from src.repositories.user_repo import UserRepository
 
@@ -140,3 +145,47 @@ class UserService:
         if not changes:
             return user
         return await self.repo.update(user, **changes)
+
+    async def change_own_password(
+        self, *, user: User, current_password: str, new_password: str
+    ) -> None:
+        verified, _ = _password_helper.verify_and_update(
+            current_password, user.hashed_password
+        )
+        if not verified:
+            raise ValidationError(
+                "Current password is incorrect", field="current_password"
+            )
+        await self.repo.update(user, hashed_password=_password_helper.hash(new_password))
+
+    async def change_own_email(
+        self, *, user: User, org_id: uuid.UUID, new_email: str, current_password: str
+    ) -> User:
+        verified, _ = _password_helper.verify_and_update(
+            current_password, user.hashed_password
+        )
+        if not verified:
+            raise ValidationError("Password is incorrect", field="current_password")
+        if new_email != user.email and await self.repo.get_by_email(org_id, new_email):
+            raise ConflictError("A user with this email already exists", field="email")
+        return await self.repo.update(user, email=new_email)
+
+    async def delete_own_account(self, *, user: User, current_password: str) -> None:
+        """Soft-delete: deactivate and scramble the email rather than a hard row
+        delete. `user_id` is referenced from a couple dozen tables (enrollments,
+        chat sessions, learning events, generation jobs, ...) without a cascade
+        rule defined for most of them — a real DELETE would either 500 on the
+        first FK it hits or (if a cascade *is* set somewhere) silently take
+        unrelated history with it. Deactivating plus freeing the email gets the
+        actual outcome the user wants (can't log in, can sign up again with the
+        same address) without that risk.
+        """
+        verified, _ = _password_helper.verify_and_update(
+            current_password, user.hashed_password
+        )
+        if not verified:
+            raise ValidationError("Password is incorrect", field="current_password")
+        scrambled_email = f"deleted-{user.id}@deleted.local"
+        await self.repo.update(
+            user, is_active=False, email=scrambled_email
+        )

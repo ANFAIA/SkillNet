@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { get, post, put } from './client'
+import { del, get, post, put } from './client'
 import type { AccessibilitySettings, LearningPreset } from './onboarding'
 import type { Paginated, User, UserSkillRead } from '../types'
 
@@ -97,5 +97,44 @@ export function useResetPassword() {
   return useMutation({
     mutationFn: ({ userId, newPassword }: { userId: string; newPassword: string }) =>
       post<{ ok: boolean }>(`/users/${userId}/reset-password`, { new_password: newPassword }),
+  })
+}
+
+/** Toggle an employee's `is_active` — admin-side deactivate/reactivate, reversible. */
+export function useSetEmployeeActive() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ userId, isActive }: { userId: string; isActive: boolean }) =>
+      put<User>(`/users/${userId}`, { is_active: isActive }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] })
+    },
+  })
+}
+
+export function useChangePassword() {
+  return useMutation({
+    mutationFn: (payload: { current_password: string; new_password: string }) =>
+      post<{ ok: boolean }>('/users/me/change-password', payload),
+  })
+}
+
+export function useChangeEmail() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (payload: { new_email: string; current_password: string }) =>
+      put<User>('/users/me/email', payload),
+    onSuccess: (user) => {
+      queryClient.setQueryData(['users', 'me'], user)
+    },
+  })
+}
+
+/** Individual workspace only (server-enforced, 404 otherwise) — see
+ * `require_individual_workspace`. Soft-deletes: deactivates and frees the email. */
+export function useDeleteAccount() {
+  return useMutation({
+    mutationFn: (payload: { current_password: string }) =>
+      del<{ ok: boolean }>('/users/me', payload),
   })
 }
