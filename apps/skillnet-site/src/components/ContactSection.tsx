@@ -8,7 +8,7 @@ const EMAIL_URL = "mailto:jose@skillnet.es";
 const ANFAIA_URL = "https://anfaia.org";
 
 export default function ContactSection() {
-  return <section id="contacto" className="w-full scroll-mt-24 bg-white px-6 py-20 sm:px-10 sm:py-28">
+  return <section id="contacto" data-nav-theme="light" className="w-full scroll-mt-24 bg-white px-6 py-20 sm:px-10 sm:py-28">
     <div className="mx-auto w-full max-w-[80%]">
       <div className="contact-grid">
         <div className="contact-intro">

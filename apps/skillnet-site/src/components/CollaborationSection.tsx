@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 const GITHUB_URL = "https://github.com/ANFAIA/SkillNet";
 
 export default function CollaborationSection() {
-  return <section id="open-source" className="w-full scroll-mt-24 bg-white px-6 py-20 sm:px-10 sm:py-28">
+  return <section id="open-source" data-nav-theme="light" className="w-full scroll-mt-24 bg-white px-6 py-20 sm:px-10 sm:py-28">
     <div className="mx-auto w-full max-w-[80%]">
       <motion.h2 initial={false} className="type-section-title">Open source</motion.h2>
       <motion.div initial={false} className="open-source-row mt-10">

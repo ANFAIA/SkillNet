@@ -12,7 +12,7 @@ const MODES = [
 
 export default function HowItWorksSection() {
   const [active, setActive] = useState<string>("texto");
-  return <section id="como-funciona" className="w-full scroll-mt-24 bg-white px-6 pb-20 pt-10 sm:px-10 sm:pb-28 sm:pt-12">
+  return <section id="como-funciona" data-nav-theme="light" className="w-full scroll-mt-24 bg-white px-6 pb-20 pt-10 sm:px-10 sm:pb-28 sm:pt-12">
     <div className="mx-auto w-full max-w-[80%]">
       <motion.h2 initial={false} className="type-section-title text-[var(--color-text)]">Cómo funciona</motion.h2>
       <motion.p initial={false} className="type-lead mt-7 w-full text-[var(--color-text-secondary)]">El conocimiento y los objetivos pueden mantenerse mientras cambian la explicación, la actividad, el apoyo y la propia interfaz. SkillNet utiliza las preferencias declaradas, el rol, el nivel y el progreso de cada persona como señales para adaptar la experiencia, no como etiquetas fijas sobre cómo aprende.</motion.p>

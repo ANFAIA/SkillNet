@@ -8,7 +8,7 @@ const PROFILES = [
 ];
 
 export default function ProfilesSection() {
-  return <section id="para-quien" className="w-full scroll-mt-24 bg-white px-6 py-12 sm:px-10 sm:py-16">
+  return <section id="para-quien" data-nav-theme="light" className="w-full scroll-mt-24 bg-white px-6 py-12 sm:px-10 sm:py-16">
     <div className="mx-auto w-full max-w-[80%]">
       <motion.h2 initial={false} className="type-section-title">Para quién</motion.h2>
       <motion.p initial={false} className="type-lead mt-4 w-full text-[var(--color-text-secondary)]">Esta misma idea puede aplicarse al onboarding y la formación interna de una empresa, a una clase o al aprendizaje individual con materiales propios.</motion.p>
