@@ -39,7 +39,9 @@ tmp/
 /.pytest-*/
 apps/skillnet-api/.tmp-*/
 apps/skillnet-api/.pytest-*/
-AGENTS.md
+# AGENTS.md is deliberately NOT ignored: README.md and RUNNING.md link to it as the
+# project's conventions, so it has to exist for anyone who clones. CLAUDE.md stays local
+# (working notes), and CLAUDE.local.md above stays local too (per-machine paths).
 CLAUDE.md
 
 # Editor / OS

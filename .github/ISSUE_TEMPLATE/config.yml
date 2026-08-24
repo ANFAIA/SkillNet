@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: It will not start
+    url: https://github.com/ANFAIA/SkillNet/blob/main/RUNNING.md
+    about: RUNNING.md is the whole setup answer, and its troubleshooting table covers the common failures — an empty dashboard, a database the API cannot reach, a wrong embedding dimension.
+  - name: Security vulnerability
+    url: https://github.com/ANFAIA/SkillNet/security/advisories/new
+    about: Report privately. Never in a public issue.
