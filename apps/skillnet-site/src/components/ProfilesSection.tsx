@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 const PROFILES = [
   { label: "Empresas", Icon: Building2, detail: "Onboarding y formación interna a partir de la documentación propia de la organización." },
   { label: "Educación", Icon: GraduationCap, detail: "Clases y materiales que conservan objetivos comunes mientras cambia la experiencia de cada estudiante." },
-  { label: "Personas", Icon: UserRound, detail: "Aprendizaje individual a partir de apuntes, documentos, webs y otras fuentes propias." },
+  { label: "Personas", Icon: UserRound, detail: "Aprendizaje individual a partir de una idea, apuntes o materiales propios." },
 ];
 
 export default function ProfilesSection() {

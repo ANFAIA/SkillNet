@@ -9,7 +9,7 @@ export default function WhatWeDoSection() {
     <div aria-hidden="true" style={{ backgroundImage: TOP_FADE }} className="absolute inset-x-0 top-0 h-40" />
     <div className="relative mx-auto w-full max-w-[80%]">
       <motion.h2 {...reveal} transition={{ duration: 0.65, ease: [0.38, 0.49, 0, 1] }} className="type-section-title text-[var(--color-text)]">Qué es SkillNet</motion.h2>
-      <motion.p {...reveal} transition={{ duration: 0.65, delay: reduced ? 0 : 0.1, ease: [0.38, 0.49, 0, 1] }} className="type-lead mt-7 w-full text-[var(--color-text-secondary)]">SkillNet convierte cualquier fuente —un documento, una web, un audio, un vídeo o una simple idea— en un curso interactivo. A partir de ese material, adapta el curso al contexto de cada persona, a lo que ya sabe y a cómo aprende, sin perder los objetivos comunes. No inventa contenido: lo recupera y lo verifica contra tus documentos con RAG.</motion.p>
+      <motion.p {...reveal} transition={{ duration: 0.65, delay: reduced ? 0 : 0.1, ease: [0.38, 0.49, 0, 1] }} className="type-lead mt-7 w-full text-[var(--color-text-secondary)]">SkillNet es un sistema de aprendizaje adaptativo y open source. Puedes partir de una idea o subir material en PDF, DOCX, Markdown o TXT. A partir de ahí genera la estructura, las lecciones y los ejercicios de un curso. Si utilizas material propio, conserva su procedencia y lo usa como fuente. Si partes de una idea, registra que la fuente ha sido generada.</motion.p>
     </div>
   </section>;
 }
