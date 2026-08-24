@@ -15,7 +15,7 @@ export default function HowItWorksSection() {
   return <section id="como-funciona" className="w-full scroll-mt-24 bg-white px-6 pb-20 pt-10 sm:px-10 sm:pb-28 sm:pt-12">
     <div className="mx-auto w-full max-w-[80%]">
       <motion.h2 initial={false} className="type-section-title text-[var(--color-text)]">Cómo funciona</motion.h2>
-      <motion.p initial={false} className="type-lead mt-7 w-full text-[var(--color-text-secondary)]">A medida que la persona avanza por el curso, SkillNet reconoce qué conceptos domina, dónde necesita más apoyo y qué formas de explicación le resultan más útiles. Así, el curso evoluciona con ella —con explicaciones, práctica y evaluación— sin perder la referencia original ni los objetivos de aprendizaje.</motion.p>
+      <motion.p initial={false} className="type-lead mt-7 w-full text-[var(--color-text-secondary)]">El conocimiento y los objetivos pueden mantenerse mientras cambian la explicación, la actividad, el apoyo y la propia interfaz. SkillNet utiliza las preferencias declaradas, el rol, el nivel y el progreso de cada persona como señales para adaptar la experiencia, no como etiquetas fijas sobre cómo aprende.</motion.p>
       <motion.div initial={false} className="multimodal-surface mt-12 sm:mt-16">
         {MODES.map(({ key, label, Icon }) => {
           const selected = active === key;
@@ -28,7 +28,7 @@ export default function HowItWorksSection() {
           </motion.button>;
         })}
       </motion.div>
-      <p className="type-caption mt-4 text-[var(--color-text-secondary)]">Una representación de la dirección del producto: el formato es solo una de las dimensiones que pueden adaptarse.</p>
+      <p className="type-caption mt-4 text-[var(--color-text-secondary)]">El formato es solo una parte. La explicación, la práctica y la interfaz también pueden cambiar.</p>
     </div>
   </section>;
 }

@@ -5,8 +5,8 @@ const BACKGROUND_URL = "/images/landing/skillnet-learning-commons-background-v1.
 const COPY = {
   title: "Aprender no tiene por qué ser igual para todos.",
   subtitle:
-    "SkillNet convierte tus documentos en cursos que se adaptan a cada persona: la misma fuente de conocimiento, una experiencia distinta para cada una.",
-  github: "Ver en GitHub",
+    "SkillNet convierte una idea o fuente en un curso que puede adaptar sus explicaciones, actividades e interfaz a cada persona.",
+  github: "Explorar en GitHub",
   moreCta: "Saber más",
 };
 
