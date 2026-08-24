@@ -7,7 +7,11 @@ from fastapi import APIRouter, Query
 
 from src.deps.db import DBSession
 from src.repositories.skill_repo import SkillRepository
-from src.routes.ext.auth import ExtApiKey
+from src.routes.ext.auth import (
+    RequireSkillsRead,
+    RequireSkillsWrite,
+    RequireUsersRead,
+)
 from src.schemas.skill import (
     GapReport,
     GapReportEntry,
@@ -32,7 +36,7 @@ def _service(db: DBSession) -> SkillService:
 
 @router.get("", response_model=list[SkillCategoryRead])
 async def list_skills(
-    api_key: ExtApiKey,
+    api_key: RequireSkillsRead,
     db: DBSession,
 ) -> list[SkillCategoryRead]:
     service = _service(db)
@@ -42,7 +46,7 @@ async def list_skills(
 
 @router.get("/who-knows", response_model=WhoKnowsResponse)
 async def who_knows(
-    api_key: ExtApiKey,
+    api_key: RequireSkillsRead,
     db: DBSession,
     skill: Annotated[str, Query(description="Skill name to search for")],
     min_level: Annotated[str | None, Query(description="Minimum level: low, medium, high")] = None,
@@ -57,7 +61,7 @@ async def who_knows(
 
 @router.get("/gaps", response_model=GapReport)
 async def get_gaps(
-    api_key: ExtApiKey,
+    api_key: RequireSkillsRead,
     db: DBSession,
 ) -> GapReport:
     service = _service(db)
@@ -67,7 +71,7 @@ async def get_gaps(
 
 @router.post("/verify", response_model=VerifySkillResponse, status_code=200)
 async def verify_skill(
-    api_key: ExtApiKey,
+    api_key: RequireSkillsWrite,
     db: DBSession,
     body: VerifySkillRequest,
 ) -> VerifySkillResponse:
@@ -85,7 +89,7 @@ async def verify_skill(
 
 @user_router.get("/{user_id}/skills", response_model=list[UserSkillRead])
 async def get_user_skills(
-    api_key: ExtApiKey,
+    api_key: RequireUsersRead,
     db: DBSession,
     user_id: uuid.UUID,
 ) -> list[UserSkillRead]:
