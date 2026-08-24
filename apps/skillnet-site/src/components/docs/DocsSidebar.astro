@@ -12,18 +12,22 @@ interface NavEntry {
 interface Props {
   entries: NavEntry[];
   currentSlug?: string;
+  locale: "es" | "en";
 }
 
-const { entries, currentSlug } = Astro.props;
+const { entries, currentSlug, locale } = Astro.props;
+const labels = SECTION_LABELS[locale];
+const basePath = locale === "en" ? "/en/docs" : "/docs";
+const navLabel = locale === "en" ? "Documentation navigation" : "Navegación de documentación";
 
 const bySection = SECTION_ORDER.map((section) => ({
   section,
-  label: SECTION_LABELS[section],
+  label: labels[section],
   items: entries.filter((e) => e.section === section),
 })).filter((group) => group.items.length > 0);
 ---
 
-<nav aria-label="Navegación de documentación" class="docs-sidebar">
+<nav aria-label={navLabel} class="docs-sidebar">
   {bySection.map((group) => (
     <div class="docs-sidebar__group">
       <p class="docs-sidebar__label type-ui">{group.label}</p>
@@ -31,7 +35,7 @@ const bySection = SECTION_ORDER.map((section) => ({
         {group.items.map((item) => (
           <li>
             <a
-              href={`/docs/${item.slug}`}
+              href={`${basePath}/${item.slug}`}
               aria-current={item.slug === currentSlug ? "page" : undefined}
               class="docs-sidebar__link type-body"
             >

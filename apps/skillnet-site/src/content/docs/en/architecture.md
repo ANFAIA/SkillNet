@@ -1,5 +1,5 @@
 ---
-title: "Arquitectura"
+title: "Architecture"
 order: 2
 section: "core"
 ---

@@ -8,19 +8,20 @@ import "../styles/global.css";
 interface Props {
   title: string;
   description: string;
+  lang?: string;
 }
 
-const { title, description } = Astro.props;
+const { title, description, lang = "es" } = Astro.props;
 ---
 
 <!doctype html>
-<html lang="es">
+<html lang={lang}>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="icon" type="image/png" href="/images/brand/skillnet-logo.png?v=4" />
-    <link rel="shortcut icon" type="image/png" href="/images/brand/skillnet-logo.png?v=4" />
-    <link rel="apple-touch-icon" href="/images/brand/skillnet-logo.png?v=4" />
+    <link rel="icon" type="image/png" href="/images/brand/skillnet-logo.png?v=5" />
+    <link rel="shortcut icon" type="image/png" href="/images/brand/skillnet-logo.png?v=5" />
+    <link rel="apple-touch-icon" href="/images/brand/skillnet-logo.png?v=5" />
     <link
       rel="preload"
       as="image"
@@ -29,6 +30,7 @@ const { title, description } = Astro.props;
     />
     <title>{title}</title>
     <meta name="description" content={description} />
+    <slot name="head" />
   </head>
   <body>
     <slot />

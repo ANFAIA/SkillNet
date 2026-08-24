@@ -142,3 +142,4 @@ Dos consecuencias prácticas de esta cadena, importantes para demos y para el UX
 
 El plan para exponer estos estados degradados en la interfaz (banner de admin, `/health`
 ampliado, onboarding) está en [`degraded-mode-ux.md`](degraded-mode-ux.md).
+</content>

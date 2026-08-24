@@ -136,3 +136,4 @@ La generación es estocástica, así que ocasionalmente sale un fallback plano. 
 
 Cómo exponer estados degradados (TTS/imagen sin clave, cuota agotada) en la interfaz:
 [`degraded-mode-ux.md`](degraded-mode-ux.md).
+</content>

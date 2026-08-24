@@ -1,5 +1,5 @@
 ---
-title: "Chat y agentes"
+title: "Chat and agents"
 order: 6
 section: "core"
 ---

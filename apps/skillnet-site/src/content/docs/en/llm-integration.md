@@ -1,5 +1,5 @@
 ---
-title: "Integración LLM"
+title: "LLM integration"
 order: 7
 section: "core"
 ---

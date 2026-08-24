@@ -15,16 +15,36 @@ interface Props {
   description: string;
   navEntries: NavEntry[];
   currentSlug?: string;
+  locale: "es" | "en";
+  /** Slug of the equivalent page in the other locale, if it exists. */
+  altSlug?: string;
 }
 
-const { title, description, navEntries, currentSlug } = Astro.props;
+const { title, description, navEntries, currentSlug, locale, altSlug } = Astro.props;
+
+const isEn = locale === "en";
+const siteTitle = isEn ? "SkillNet Documentation" : "Documentación SkillNet";
+const otherLocale = isEn ? "es" : "en";
+const otherBasePath = isEn ? "/docs" : "/en/docs";
+const thisBasePath = isEn ? "/en/docs" : "/docs";
+const otherHref = altSlug ? `${otherBasePath}/${altSlug}` : otherBasePath;
+const canonicalPath = currentSlug ? `${thisBasePath}/${currentSlug}` : thisBasePath;
+
+const site = Astro.site ?? new URL(Astro.url.origin);
+const canonicalUrl = new URL(canonicalPath, site).toString();
+const otherUrl = new URL(otherHref, site).toString();
 ---
 
-<BaseLayout title={`${title} · Documentación SkillNet`} description={description}>
-  <SiteHeader client:load variant="docs" />
+<BaseLayout title={`${title} · ${siteTitle}`} description={description} lang={locale}>
+  <Fragment slot="head">
+    <link rel="alternate" hreflang="es" href={isEn ? otherUrl : canonicalUrl} />
+    <link rel="alternate" hreflang="en" href={isEn ? canonicalUrl : otherUrl} />
+    <link rel="alternate" hreflang="x-default" href={isEn ? otherUrl : canonicalUrl} />
+  </Fragment>
+  <SiteHeader client:load variant="docs" locale={locale} altHref={otherHref} />
   <div class="docs-shell">
     <aside class="docs-shell__sidebar">
-      <DocsSidebar entries={navEntries} currentSlug={currentSlug} />
+      <DocsSidebar entries={navEntries} currentSlug={currentSlug} locale={locale} />
     </aside>
     <main class="docs-shell__content">
       <article class="prose-docs">

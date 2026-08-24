@@ -109,3 +109,4 @@ section: "v2"
 - Human-in-the-loop en generacion
 - Personalizacion on-the-fly (v2)
 - MCP server externo
+</content>

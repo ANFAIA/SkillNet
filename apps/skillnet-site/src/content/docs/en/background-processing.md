@@ -1,5 +1,5 @@
 ---
-title: "Procesos en segundo plano"
+title: "Background processing"
 order: 10
 section: "core"
 ---

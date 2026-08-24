@@ -1,5 +1,5 @@
 ---
-title: "Sistema de diseño"
+title: "Design system"
 order: 16
 section: "extensibility"
 ---

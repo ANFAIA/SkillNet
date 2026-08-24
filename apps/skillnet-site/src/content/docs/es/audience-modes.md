@@ -201,3 +201,4 @@ siendo el camino headless equivalente.
 
 Pendiente (fases siguientes): pulir el onboarding del propietario, y la ampliación no
 destructiva `individual → organization`.
+</content>

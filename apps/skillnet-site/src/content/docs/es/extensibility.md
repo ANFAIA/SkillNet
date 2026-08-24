@@ -117,3 +117,4 @@ fiable la pantalla se queda en práctica y **no** certifica.
    `evidence_contract_policy.py`; si no hay oráculo fiable, que declive a `support_only`.
 6. Verifica con el banco de calidad: `uv run python scripts/lesson_quality_bench.py --self-test`
    y, contra renders reales, `--db`.
+</content>

@@ -4,13 +4,13 @@ order: 4
 section: "core"
 ---
 
-# Data Model
+# Modelo de datos
 
-> **Status: v1.** PostgreSQL + pgvector. Self-hosted, one instance per company.
+> **Estado: v1.** PostgreSQL + pgvector. Autoalojado, una instancia por empresa.
 
 ---
 
-## Overview
+## Visión general
 
 ```
 organizations ─┬── users ──┬── user_sessions
@@ -32,15 +32,15 @@ generation_jobs
 course_feedback
 ```
 
-All tables are scoped by `org_id` (directly or through parent FK). Single organization per deployment.
+Todas las tablas están delimitadas por `org_id` (directamente o a través de una FK padre). Una única organización por despliegue.
 
 ---
 
-## Schema
+## Esquema
 
 ### Organizations
 
-One row per deployment. Exists for data scoping and future-proofing.
+Una fila por despliegue. Existe para delimitar los datos y prepararse para el futuro.
 
 ```sql
 CREATE TYPE workspace_mode AS ENUM ('organization', 'individual');
@@ -56,14 +56,14 @@ CREATE TABLE organizations (
 );
 ```
 
-`workspace_mode` (migration 0017) is the deployment's audience mode — see
-`docs/design/audience-modes.md`. It is a stable per-deployment capability, set
-once when the organization row is created (from `WORKSPACE_MODE`, default
-`organization`), never inferred from the number of users. In `organization` the
-row represents a company/team/class; in `individual` it is one person's personal
-space. Existing deployments upgrade to `organization`, so nothing changes for
-them. The collective, organization-only endpoints (employees, talent, stats,
-course assignment, skills) return 404 in an `individual` workspace.
+`workspace_mode` (migración 0017) es el modo de audiencia del despliegue — ver
+`docs/design/audience-modes.md`. Es una capacidad estable por despliegue, fijada
+una vez cuando se crea la fila de organización (a partir de `WORKSPACE_MODE`, por defecto
+`organization`), nunca inferida a partir del número de usuarios. En `organization` la
+fila representa una empresa/equipo/clase; en `individual` es el espacio personal de
+una persona. Los despliegues existentes se actualizan a `organization`, así que nada cambia para
+ellos. Los endpoints colectivos, exclusivos de organización (empleados, talento, stats,
+asignación de cursos, skills) devuelven 404 en un espacio de trabajo `individual`.
 
 ### Users
 
@@ -88,15 +88,15 @@ CREATE TABLE users (
 );
 ```
 
-`accessibility` stores flags the employee opts into during onboarding:
+`accessibility` almacena flags que el empleado activa voluntariamente durante el onboarding:
 
 ```json
 {"tea": false, "tdah": true, "dislexia": false}
 ```
 
-The frontend reads these to adapt rendering. The backend never uses them for logic.
+El frontend lee estos valores para adaptar el renderizado. El backend nunca los usa para lógica.
 
-### Documents (uploaded source material)
+### Documents (material fuente subido)
 
 ```sql
 CREATE TYPE document_status AS ENUM ('pending', 'processing', 'ready', 'error');
@@ -120,7 +120,7 @@ CREATE TABLE documents (
 );
 ```
 
-### Document chunks (RAG with pgvector)
+### Document chunks (RAG con pgvector)
 
 ```sql
 CREATE TABLE document_chunks (
@@ -142,17 +142,17 @@ CREATE INDEX idx_chunks_embedding ON document_chunks
 CREATE INDEX idx_chunks_search ON document_chunks USING gin(search_vector);
 ```
 
-`metadata` holds position info from the source document:
+`metadata` guarda información de posición del documento fuente:
 
 ```json
 {"page": 3, "section": "Devoluciones", "heading": "Plazo"}
 ```
 
-**Embedding dimension:** 384 for `multilingual-e5-small`. Change to 1024 if using `multilingual-e5-large`. The `vector(N)` declaration and index must match the model.
+**Dimensión del embedding:** 384 para `multilingual-e5-small`. Cámbialo a 1024 si usas `multilingual-e5-large`. La declaración `vector(N)` y el índice deben coincidir con el modelo.
 
-**IVFFlat `lists`:** rule of thumb is `sqrt(num_rows)`. Start with 10, increase as the chunk count grows past a few thousand.
+**`lists` de IVFFlat:** la regla general es `sqrt(num_filas)`. Empieza con 10, auméntalo a medida que el número de chunks crezca por encima de unos pocos miles.
 
-### Skills taxonomy
+### Taxonomía de skills
 
 ```sql
 CREATE TABLE skill_categories (
@@ -174,7 +174,7 @@ CREATE TABLE skills (
 );
 ```
 
-Example taxonomy:
+Ejemplo de taxonomía:
 
 ```
 Ventas (category)
@@ -206,7 +206,7 @@ CREATE TABLE courses (
 );
 ```
 
-`outcome` is what the employee will be able to do after completing the course. Required before publishing.
+`outcome` es lo que el empleado será capaz de hacer tras completar el curso. Obligatorio antes de publicar.
 
 ### Modules
 
@@ -254,7 +254,7 @@ CREATE TABLE exercises (
 );
 ```
 
-The `content` jsonb varies by type:
+El jsonb `content` varía según el tipo:
 
 ```json
 // test
@@ -309,7 +309,7 @@ The `content` jsonb varies by type:
 
 ### Skill checkpoints
 
-Maps module completion to skill level changes. When an employee completes a module, their skill level updates automatically.
+Vincula la finalización de un módulo con cambios en el nivel de skill. Cuando un empleado completa un módulo, su nivel de skill se actualiza automáticamente.
 
 ```sql
 CREATE TYPE skill_level AS ENUM ('low', 'medium', 'high');
@@ -324,13 +324,13 @@ CREATE TABLE skill_checkpoints (
 );
 ```
 
-Example: course "Returns" teaches skill "devoluciones":
-- Complete module 3 -> level = medium
-- Complete module 5 -> level = high
+Ejemplo: el curso "Devoluciones" enseña la skill "devoluciones":
+- Completar el módulo 3 -> nivel = medium
+- Completar el módulo 5 -> nivel = high
 
-### Manuals (reference material)
+### Manuals (material de referencia)
 
-Always generated alongside a course. Can also exist standalone.
+Siempre se genera junto a un curso. También puede existir de forma independiente.
 
 ```sql
 CREATE TABLE manuals (
@@ -347,7 +347,7 @@ CREATE TABLE manuals (
 );
 ```
 
-Rule: a course always has a manual. A manual can exist without a course.
+Regla: un curso siempre tiene un manual. Un manual puede existir sin curso.
 
 ### Enrollments
 
@@ -384,9 +384,9 @@ CREATE TABLE exercise_attempts (
 );
 ```
 
-Multiple attempts per exercise allowed. The latest attempt is the current state.
+Se permiten múltiples intentos por ejercicio. El intento más reciente es el estado actual.
 
-### User skills (the skill graph)
+### User skills (el grafo de skills)
 
 ```sql
 CREATE TABLE user_skills (
@@ -401,9 +401,9 @@ CREATE TABLE user_skills (
 );
 ```
 
-`source`: `'checkpoint'` (system set it via module completion) or `'manual'` (admin assigned it directly).
+`source`: `'checkpoint'` (el sistema lo fijó al completar un módulo) o `'manual'` (el admin lo asignó directamente).
 
-Level never decreases from checkpoints. Admin can override to any level.
+El nivel nunca baja por los checkpoints. El admin puede anularlo a cualquier nivel.
 
 ### Spaced repetition (HLR)
 
@@ -421,15 +421,15 @@ CREATE TABLE spaced_repetition (
 );
 ```
 
-Algorithm:
-- Initial half-life: 7 days
-- Correct answer: `half_life *= 2`
-- Wrong answer: `half_life /= 2`
-- Review scheduled when: `P(forget) = 1 - exp(-elapsed / half_life) > 0.3`
+Algoritmo:
+- Vida media inicial: 7 días
+- Respuesta correcta: `half_life *= 2`
+- Respuesta incorrecta: `half_life /= 2`
+- Repaso programado cuando: `P(olvido) = 1 - exp(-tiempo_transcurrido / half_life) > 0.3`
 
 ### Generation jobs
 
-Tracks the multi-step content generation pipeline. The admin sees progress in real time.
+Sigue el pipeline de generación de contenido multipaso. El admin ve el progreso en tiempo real.
 
 ```sql
 CREATE TYPE generation_output AS ENUM ('course_and_manual', 'manual_only');
@@ -458,7 +458,7 @@ CREATE TABLE generation_jobs (
 
 ### Course feedback
 
-Post-course survey: 3 questions that generate a revision report for the course creator.
+Encuesta posterior al curso: 3 preguntas que generan un informe de revisión para el creador del curso.
 
 ```sql
 CREATE TABLE course_feedback (
@@ -471,7 +471,7 @@ CREATE TABLE course_feedback (
 );
 ```
 
-### User sessions (auth tokens)
+### User sessions (tokens de autenticación)
 
 ```sql
 CREATE TABLE user_sessions (
@@ -608,9 +608,9 @@ CREATE TABLE webhook_deliveries (
 
 ---
 
-## Key queries
+## Consultas clave
 
-### Skills matrix (admin view)
+### Matriz de skills (vista de admin)
 
 ```sql
 SELECT u.full_name, s.name AS skill, us.level
@@ -621,10 +621,10 @@ WHERE u.org_id = $1
 ORDER BY u.full_name, s.name;
 ```
 
-### "What's due today" (employee dashboard)
+### "Lo que toca hoy" (dashboard del empleado)
 
 ```sql
--- Spaced repetition reviews due
+-- Repasos de repetición espaciada pendientes
 SELECT e.id, e.content, sr.next_review_at
 FROM spaced_repetition sr
 JOIN exercises e ON e.id = sr.exercise_id
@@ -633,7 +633,7 @@ WHERE sr.user_id = $1
 ORDER BY sr.next_review_at
 LIMIT 3;
 
--- Active enrollments with nearest deadline
+-- Inscripciones activas con la fecha límite más cercana
 SELECT c.title, en.status, en.deadline,
        COUNT(DISTINCT m.id) AS total_modules
 FROM enrollments en
@@ -645,7 +645,7 @@ ORDER BY en.deadline NULLS LAST
 LIMIT 3;
 ```
 
-### Semantic search (RAG)
+### Búsqueda semántica (RAG)
 
 ```sql
 SELECT dc.content, dc.metadata,
@@ -657,9 +657,9 @@ ORDER BY dc.embedding <=> $2
 LIMIT 5;
 ```
 
-`$2` is the embedding vector of the user's question.
+`$2` es el vector de embedding de la pregunta del usuario.
 
-### Mentor matching
+### Emparejamiento de mentores
 
 ```sql
 SELECT
@@ -679,29 +679,29 @@ WHERE us_high.level = 'high'
 
 ---
 
-## Indexes
+## Índices
 
-Beyond the pgvector index on `document_chunks.embedding`:
+Además del índice pgvector en `document_chunks.embedding`:
 
 ```sql
--- Lookups by org
+-- Búsquedas por org
 CREATE INDEX idx_users_org ON users(org_id);
 CREATE INDEX idx_documents_org ON documents(org_id);
 CREATE INDEX idx_courses_org ON courses(org_id);
 CREATE INDEX idx_skills_org ON skills(org_id);
 
--- Enrollment lookups
+-- Búsquedas de inscripciones
 CREATE INDEX idx_enrollments_user ON enrollments(user_id);
 CREATE INDEX idx_enrollments_course ON enrollments(course_id);
 
--- Exercise attempts for progress tracking
+-- Intentos de ejercicio para el seguimiento del progreso
 CREATE INDEX idx_attempts_user ON exercise_attempts(user_id);
 CREATE INDEX idx_attempts_exercise ON exercise_attempts(exercise_id);
 
--- Spaced repetition scheduling
+-- Programación de la repetición espaciada
 CREATE INDEX idx_sr_next_review ON spaced_repetition(user_id, next_review_at);
 
--- User skills for matrix queries
+-- User skills para las consultas de la matriz
 CREATE INDEX idx_user_skills_user ON user_skills(user_id);
 CREATE INDEX idx_user_skills_skill ON user_skills(skill_id);
 
@@ -721,7 +721,7 @@ CREATE INDEX idx_background_jobs_org ON background_jobs(org_id);
 CREATE INDEX idx_background_jobs_status ON background_jobs(status);
 CREATE INDEX idx_background_jobs_scheduled ON background_jobs(scheduled_at);
 
--- Chat sessions and messages
+-- Chat sessions y messages
 CREATE INDEX idx_chat_sessions_user ON chat_sessions(user_id);
 CREATE INDEX idx_chat_sessions_org ON chat_sessions(org_id);
 CREATE INDEX idx_chat_messages_session ON chat_messages(session_id);
@@ -730,7 +730,7 @@ CREATE INDEX idx_chat_messages_session ON chat_messages(session_id);
 CREATE INDEX idx_api_keys_org ON api_keys(org_id);
 CREATE INDEX idx_api_keys_hash ON api_keys(key_hash);
 
--- Webhooks and deliveries
+-- Webhooks y deliveries
 CREATE INDEX idx_webhooks_org ON webhooks(org_id);
 CREATE INDEX idx_webhook_deliveries_webhook ON webhook_deliveries(webhook_id);
 CREATE INDEX idx_webhook_deliveries_status ON webhook_deliveries(status);
@@ -738,7 +738,7 @@ CREATE INDEX idx_webhook_deliveries_status ON webhook_deliveries(status);
 
 ### LLM usage log
 
-Operational logging for token usage tracking and cost analysis. Not a core domain table — exists for observability.
+Registro operativo para el seguimiento de uso de tokens y el análisis de costes. No es una tabla del dominio central — existe para observabilidad.
 
 ```sql
 CREATE TABLE llm_usage_log (
@@ -760,7 +760,7 @@ CREATE INDEX idx_llm_usage_log_user ON llm_usage_log(user_id, created_at);
 
 ---
 
-## Extensions required
+## Extensiones necesarias
 
 ```sql
 CREATE EXTENSION IF NOT EXISTS pgcrypto;    -- gen_random_uuid()
@@ -769,47 +769,49 @@ CREATE EXTENSION IF NOT EXISTS vector;       -- pgvector
 
 ---
 
-## Notes
+## Notas
 
-- **27 tables total** across core domain, learning tracking, content generation, chat, and platform infrastructure. See the overview diagram for the full hierarchy.
-- **UUID primary keys** everywhere. No auto-increment integers. Clean for distributed systems and API exposure.
-- **`org_id` on all top-level tables.** Even with single-tenant deployment, this keeps queries explicit and makes future multi-tenancy possible without schema changes.
-- **`jsonb` for flexible fields.** Exercise content, accessibility flags, organization settings, document chunk metadata. Avoids schema changes when adding new exercise types or config options.
-- **Soft delete not implemented.** For MVP, hard deletes with CASCADE. If audit trail is needed later, add `deleted_at` columns.
-- **Timestamps are `timestamptz`.** Always UTC in the database, converted to local time in the frontend. One exception survived until migration `0006`: `user_skills.last_assessed_at` came from `0003` as `timestamp without time zone`, while both of its writers pass aware datetimes. asyncpg refuses that combination, so *raising* an existing skill row crashed. `0006` converts it with `AT TIME ZONE 'UTC'`. The other naive columns from `0003` are only ever filled server-side by `now()`/`onupdate` and were deliberately left alone.
+- **27 tablas en total** repartidas entre el dominio central, el seguimiento del aprendizaje, la generación de contenido, el chat y la infraestructura de la plataforma. Ver el diagrama de visión general para la jerarquía completa.
+- **Claves primarias UUID** en todas partes. Sin enteros autoincrementales. Limpio para sistemas distribuidos y exposición por API.
+- **`org_id` en todas las tablas de primer nivel.** Incluso con un despliegue de un solo tenant, esto mantiene las consultas explícitas y hace posible el multi-tenancy futuro sin cambios de esquema.
+- **`jsonb` para campos flexibles.** Contenido de ejercicio, flags de accesibilidad, ajustes de organización, metadatos de chunk de documento. Evita cambios de esquema al añadir nuevos tipos de ejercicio u opciones de configuración.
+- **El borrado suave no está implementado.** Para el MVP, borrados definitivos con CASCADE. Si más adelante se necesita un rastro de auditoría, se añaden columnas `deleted_at`.
+- **Los timestamps son `timestamptz`.** Siempre UTC en la base de datos, convertidos a hora local en el frontend. Una excepción sobrevivió hasta la migración `0006`: `user_skills.last_assessed_at` venía de `0003` como `timestamp without time zone`, mientras que ambos escritores le pasan datetimes con zona horaria. asyncpg rechaza esa combinación, así que *elevar* una fila de skill existente fallaba. `0006` la convierte con `AT TIME ZONE 'UTC'`. Las otras columnas ingenuas de `0003` solo se rellenan en el servidor mediante `now()`/`onupdate` y se dejaron deliberadamente sin tocar.
 
 ---
 
-## Appendix: the v2 schema (dynamic courses)
+## Apéndice: el esquema v2 (cursos dinámicos)
 
-**This document describes the v1 schema and is not rewritten here.** Everything below is still
-accurate and still what a v1 course (any course not on the `dynamic`+`validated` path) runs on
-in production.
+**Este documento describe el esquema v1 y no se reescribe aquí.** Todo lo de abajo sigue siendo
+correcto y sigue siendo sobre lo que corre en producción un curso v1 (cualquier curso que no esté en la ruta
+`dynamic`+`validated`).
 
-v2 (dynamic courses) adds a substantial amount of schema on top, and its design of record is
-**[`v2-dynamic-courses.md`](v2-dynamic-courses.md) §3**, not this file. Go there for column-level
-detail, the `cache_key` composition, the retention rules and the reasoning.
+v2 (cursos dinámicos) añade una cantidad considerable de esquema encima, y su documento de diseño de referencia es
+**[`v2-dynamic-courses.md`](v2-dynamic-courses.md) §3**, no este fichero. Ve allí para el detalle a
+nivel de columna, la composición de `cache_key`, las reglas de retención y el razonamiento.
 
-The shape of the addition, so you know whether you need to look:
+La forma de la adición, para que sepas si necesitas mirarlo:
 
-- Migration **`0005`** creates **13 tables and 8 enums**, adds **6 columns** to `courses`
-  (including `delivery_mode`, `schema_status`, `schema_version` and `intent_density`) and adds 2
-  values to the `generation_step` enum. It is hand-written, not autogenerated, and creation order
-  matters — there are two forward references in the v2 schema.
-- The new tables cover: the course graph (`course_nodes`, `course_node_prerequisites`), generated
-  screens and who saw them (`node_renders`, `node_render_views`), per-learner state
-  (`learner_profiles`, `learner_node_states`, `node_probes`, `node_attempts`), feedback and
-  telemetry (`node_feedback`, `learning_events`, `llm_usage_log`, `term_explanations`) and
+- La migración **`0005`** crea **13 tablas y 8 enums**, añade **6 columnas** a `courses`
+  (incluyendo `delivery_mode`, `schema_status`, `schema_version` e `intent_density`) y añade 2
+  valores al enum `generation_step`. Está escrita a mano, no autogenerada, y el orden de creación
+  importa — hay dos referencias hacia adelante en el esquema v2.
+- Las tablas nuevas cubren: el grafo de curso (`course_nodes`, `course_node_prerequisites`), las
+  pantallas generadas y quién las vio (`node_renders`, `node_render_views`), el estado por aprendiz
+  (`learner_profiles`, `learner_node_states`, `node_probes`, `node_attempts`), feedback y
+  telemetría (`node_feedback`, `learning_events`, `llm_usage_log`, `term_explanations`) y
   `audit_log`.
-- **Nothing in v1 changes shape.** The v2 columns on `courses` all have defaults that reproduce
-  v1 behaviour, which is what lets the flag default to `off`.
-- Two properties worth knowing before you query any of it: `node_renders` has **no `user_id`**
-  (the cache is shared per bucket, and the per-user read trail lives in `node_render_views`), and
-  `answer_key` is a **separate column** that no response schema includes.
+- **Nada en v1 cambia de forma.** Las columnas v2 en `courses` tienen todas valores por defecto
+  que reproducen el comportamiento v1, que es lo que permite que el flag esté desactivado por
+  defecto.
+- Dos propiedades que conviene conocer antes de consultar cualquiera de esto: `node_renders` **no
+  tiene `user_id`** (la caché se comparte por bucket, y el rastro de lectura por usuario vive en
+  `node_render_views`), y `answer_key` es una **columna separada** que ningún esquema de respuesta
+  incluye.
 
-`downgrade()` on `0005` drops the 13 tables, the 6 columns and the 8 enums, but leaves
-`schema_proposing` and `schema_proposed` orphaned in `generation_step` — PostgreSQL cannot remove
-a value from an enum. That is documented rather than fixed, and asserted by
+`downgrade()` en `0005` elimina las 13 tablas, las 6 columnas y los 8 enums, pero deja
+`schema_proposing` y `schema_proposed` huérfanos en `generation_step` — PostgreSQL no puede
+eliminar un valor de un enum. Eso está documentado en lugar de arreglado, y lo verifica
 `tests/integration/test_migration_0005.py`.
 
 ### Preferencias de aprendizaje y revisión de personalización
@@ -846,39 +848,40 @@ fila que sigue `pending` con el fingerprint que reclamó. El Markdown no se reim
 auditoría y caché la autoridad es `pack_payload` + `pack_hash`. `review_required` conserva el
 payload y el Markdown para inspección, pero solo `ready` puede alimentar OpenUI.
 
-**Pack states and the `ready` criterion (grounded).** The persisted `PackStatus` enum
-(`knowledge_pack/contracts.py`) is `DRAFT`, `READY`, `REVIEW_REQUIRED`, `REJECTED`; `stale`
-and `failed` are **runner outcomes**, not row statuses (`knowledge_pack/runner.py`
-`_RETRYABLE_OUTCOMES = {"failed", "stale", "review_required"}`). A pack becomes `ready` only
-when `generator.py::_build_pack` finds all three: at least one `must_preserve` atom, at least
-one `required` evidence_spec, and **no blocking** missing-data gap
-(`usable = bool(must_preserve) and has_required_evidence and not blocking_gap`). Uncovered
-source units are recorded non-blocking; a pack that is not `usable` is stored as
-`REVIEW_REQUIRED` with its payload and Markdown preserved for inspection.
+**Estados del pack y el criterio de `ready` (fundamentado).** El enum persistido `PackStatus`
+(`knowledge_pack/contracts.py`) es `DRAFT`, `READY`, `REVIEW_REQUIRED`, `REJECTED`; `stale`
+y `failed` son **resultados del runner**, no estados de fila (`knowledge_pack/runner.py`
+`_RETRYABLE_OUTCOMES = {"failed", "stale", "review_required"}`). Un pack se vuelve `ready` solo
+cuando `generator.py::_build_pack` encuentra los tres: al menos un átomo `must_preserve`, al menos
+un `evidence_spec` `required`, y **ninguna** brecha de falta de datos que bloquee
+(`usable = bool(must_preserve) and has_required_evidence and not blocking_gap`). Las unidades de
+fuente no cubiertas se registran de forma no bloqueante; un pack que no es `usable` se almacena como
+`REVIEW_REQUIRED` con su payload y Markdown conservados para inspección.
 
-### Learning note (free-text personalization)
+### Learning note (personalización en texto libre)
 
-Migration **`0018_learner_learning_note`** adds `learner_profiles.learning_note`, a nullable
-`Text` column holding the learner's free-text *"how I like to learn"* note. It steers **the
-form of an explanation, never the facts** (see [`personalization.md`](personalization.md)). It
-is length-capped at the Pydantic layer (`LEARNING_NOTE_MAX_CHARS = 500`,
-`src/personalization/learning_note.py`), normalized on write, and its 12-char sha1
-`learning_note_fingerprint` partitions the render cache key
-(`node_render_service.build_render_key`): an empty note leaves every existing key untouched;
-two learners with the same note share a render. Writing it sets `personalization_changed`,
-dropping that learner's render pins.
+La migración **`0018_learner_learning_note`** añade `learner_profiles.learning_note`, una columna
+`Text` anulable que guarda la nota de texto libre del aprendiz *"cómo me gusta aprender"*. Guía
+**la forma de una explicación, nunca los hechos** (ver [`personalization.md`](personalization.md)). Está
+limitada en longitud en la capa Pydantic (`LEARNING_NOTE_MAX_CHARS = 500`,
+`src/personalization/learning_note.py`), normalizada al escribirse, y su huella sha1 de 12
+caracteres `learning_note_fingerprint` particiona la clave de la caché de render
+(`node_render_service.build_render_key`): una nota vacía deja intacta cualquier clave existente;
+dos aprendices con la misma nota comparten render. Escribirla fija `personalization_changed`,
+eliminando los pins de render de ese aprendiz.
 
-### Media artifacts
+### Artefactos multimedia
 
-Two org-scoped tables back the generated media (see [`media-artifacts.md`](media-artifacts.md)).
+Dos tablas delimitadas por org respaldan los medios generados (ver [`media-artifacts.md`](media-artifacts.md)).
 
-- **`media_artifacts`** (`src/models/media_artifact.py`) — one generated media asset.
-  `kind` enum `MediaKind`: `podcast, slides, infographic, video, mindmap, report, cover_image`.
-  `status` enum `MediaArtifactStatus`: `pending -> running -> done | error` (the failure state
-  is `error`, not "failed"). Columns: `org_id`, `course_id`, `node_id` (nullable), `kind`,
-  `status`, `spec_json` (JSONB, holds the `scope` — `node|course|standalone` — the personalization
-  `note`, citations and sub-asset refs), `asset_path` (nullable), `content_hash` (sha256 dedup
-  key), `error`. There is **no `scope` column**: scope lives inside `spec_json`. Org-scoped, not
-  per-user.
-- **`course_artifact_generators`** (`src/models/course_artifact_generator.py`) — composite PK
-  `(course_id, user_id)`. Records who, besides admins, may generate course-level media.
+- **`media_artifacts`** (`src/models/media_artifact.py`) — un asset multimedia generado.
+  Enum `kind`, `MediaKind`: `podcast, slides, infographic, video, mindmap, report, cover_image`.
+  Enum `status`, `MediaArtifactStatus`: `pending -> running -> done | error` (el estado de fallo
+  es `error`, no "failed"). Columnas: `org_id`, `course_id`, `node_id` (anulable), `kind`,
+  `status`, `spec_json` (JSONB, guarda el `scope` — `node|course|standalone` — la `note` de
+  personalización, las citas y las referencias a sub-assets), `asset_path` (anulable),
+  `content_hash` (clave de deduplicación sha256), `error`. **No hay columna `scope`**: el scope
+  vive dentro de `spec_json`. Delimitado por org, no por usuario.
+- **`course_artifact_generators`** (`src/models/course_artifact_generator.py`) — PK compuesta
+  `(course_id, user_id)`. Registra quién, además de los admins, puede generar medios a nivel de
+  curso.

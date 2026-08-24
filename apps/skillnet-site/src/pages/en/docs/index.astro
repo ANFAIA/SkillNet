@@ -1,15 +1,15 @@
 ---
 import { getCollection } from "astro:content";
-import DocsLayout from "../../layouts/DocsLayout.astro";
-import { splitDocId } from "../../content.config";
-import { SECTION_LABELS, SECTION_ORDER } from "../../data/docsNav";
+import DocsLayout from "../../../layouts/DocsLayout.astro";
+import { splitDocId } from "../../../content.config";
+import { SECTION_LABELS, SECTION_ORDER } from "../../../data/docsNav";
 
 const entries = (await getCollection("docs"))
   .map((e) => ({ ...splitDocId(e.id), title: e.data.title, order: e.data.order, section: e.data.section }))
-  .filter((e) => e.locale === "es")
+  .filter((e) => e.locale === "en")
   .sort((a, b) => a.order - b.order);
 
-const labels = SECTION_LABELS.es;
+const labels = SECTION_LABELS.en;
 
 const groups = SECTION_ORDER.map((section) => ({
   section,
@@ -19,16 +19,16 @@ const groups = SECTION_ORDER.map((section) => ({
 ---
 
 <DocsLayout
-  title="Documentación"
-  description="Documentación técnica de SkillNet: arquitectura, API, generación de contenido, RAG y el diseño de los cursos dinámicos."
+  title="Documentation"
+  description="SkillNet technical documentation: architecture, API, content generation, RAG, and the design of dynamic courses."
   navEntries={entries}
-  locale="es"
+  locale="en"
 >
-  <h1>Documentación</h1>
+  <h1>Documentation</h1>
   <p class="type-lead">
-    Arranque rápido, arquitectura del sistema y el diseño de cada pieza — generación de
-    contenido, RAG, chat con agentes, cursos dinámicos y personalización. Esta documentación
-    sigue de cerca <code>docs/design/</code> en el repositorio.
+    Quickstart, system architecture, and the design of each piece — content generation, RAG,
+    chat with agents, dynamic courses, and personalization. This documentation closely follows
+    <code>docs/design/</code> in the repository.
   </p>
 
   {groups.map((group) => (
@@ -37,7 +37,7 @@ const groups = SECTION_ORDER.map((section) => ({
       <ul class="docs-index__list">
         {group.items.map((item) => (
           <li>
-            <a href={`/docs/${item.slug}`}>{item.title}</a>
+            <a href={`/en/docs/${item.slug}`}>{item.title}</a>
           </li>
         ))}
       </ul>

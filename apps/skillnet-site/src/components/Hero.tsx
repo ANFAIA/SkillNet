@@ -3,7 +3,7 @@ import { motion, useReducedMotion } from "framer-motion";
 const BACKGROUND_URL = "/images/landing/skillnet-learning-commons-background-v1.webp";
 
 const COPY = {
-  title: "Es hora de que la educación cambie.",
+  title: "Aprender no tiene por qué ser igual para todos.",
   subtitle:
     "SkillNet convierte tus documentos en cursos que se adaptan a cada persona: la misma fuente de conocimiento, una experiencia distinta para cada una.",
   github: "Ver en GitHub",

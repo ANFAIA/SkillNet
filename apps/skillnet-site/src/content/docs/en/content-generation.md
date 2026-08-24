@@ -1,5 +1,5 @@
 ---
-title: "Generación de contenido"
+title: "Content generation"
 order: 5
 section: "core"
 ---

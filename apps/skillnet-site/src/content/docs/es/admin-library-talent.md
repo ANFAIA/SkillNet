@@ -83,3 +83,4 @@ No se añade un segundo sistema de progreso. Talento proyecta inscripciones, pro
 Pueden añadirse posteriormente criterios, evidencias, relaciones, vigencia, perfiles de puesto o
 consultas explicables. Ninguno de esos conceptos debe anticiparse mediante campos genéricos en esta
 versión. Una necesidad futura se modelará como una capa separada sobre el registro actual.
+</content>

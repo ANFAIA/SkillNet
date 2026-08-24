@@ -1,5 +1,5 @@
 ---
-title: "Seguridad"
+title: "Security"
 order: 9
 section: "core"
 ---

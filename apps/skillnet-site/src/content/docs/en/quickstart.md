@@ -1,5 +1,5 @@
 ---
-title: "Arranque rápido"
+title: "Quickstart"
 order: 1
 section: "start"
 ---

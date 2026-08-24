@@ -10,17 +10,17 @@ tags: [rag, retrieval, embeddings, chunking, pgvector, reranking, skillnet]
 fecha: 2026-07-14
 ---
 
-## 3. RAG & Retrieval Architecture
+## 3. Arquitectura de RAG y recuperación
 
-Complete retrieval architecture for SkillNet: document ingestion, multi-strategy search, reranking, context assembly, embedding management, and update strategy.
+Arquitectura de recuperación completa para SkillNet: ingesta de documentos, búsqueda multiestrategia, reranking, ensamblado de contexto, gestión de embeddings y estrategia de actualización.
 
-Builds on top of: [[rag_condicional]] (when to use RAG vs full-text), [[fuentes_contenido]] (document sources), and the research in `07_ANFAIA/investigacion/graphify_pageindex/detalle.md` (hybrid search, PageIndex pattern, GraphRAG analysis).
+Se apoya en: [[rag_condicional]] (cuándo usar RAG frente a texto completo), [[fuentes_contenido]] (fuentes de documentos) y la investigación en `07_ANFAIA/investigacion/graphify_pageindex/detalle.md` (búsqueda híbrida, patrón PageIndex, análisis de GraphRAG).
 
 ---
 
-### 3.1 Document Ingestion Pipeline
+### 3.1 Pipeline de ingesta de documentos
 
-#### 3.1.1 End-to-End Flow
+#### 3.1.1 Flujo de extremo a extremo
 
 ```
 Upload (PDF/DOCX)
@@ -57,15 +57,15 @@ Decide Strategy:
   Generate tsvector for Full-Text Search
 ```
 
-#### 3.1.2 Parsing Libraries
+#### 3.1.2 Librerías de parsing
 
-| Format | Library | Why |
+| Formato | Librería | Por qué |
 |--------|---------|-----|
-| **PDF** | `pymupdf` (fitz) | Fast C-based extraction, preserves layout/headings, page-level text. Fallback: `pdfplumber` for table-heavy PDFs (better table detection via `pdfminer`). |
-| **DOCX** | `python-docx` | Native access to `document.paragraphs` and `paragraph.style.name` (Heading 1, Heading 2, Normal). Preserves structural hierarchy natively. |
-| **Plaintext** | Built-in | `open().read()` with encoding detection via `charset-normalizer`. |
+| **PDF** | `pymupdf` (fitz) | Extracción rápida basada en C, preserva el layout/encabezados, texto a nivel de página. Fallback: `pdfplumber` para PDFs con muchas tablas (mejor detección de tablas vía `pdfminer`). |
+| **DOCX** | `python-docx` | Acceso nativo a `document.paragraphs` y `paragraph.style.name` (Heading 1, Heading 2, Normal). Preserva la jerarquía estructural de forma nativa. |
+| **Texto plano** | Integrado | `open().read()` con detección de codificación vía `charset-normalizer`. |
 
-**Parsing implementation:**
+**Implementación del parsing:**
 
 ```python
 # app/services/document_parser.py
@@ -199,9 +199,9 @@ def parse_docx(file_path: Path) -> list[ParsedSection]:
     return sections
 ```
 
-#### 3.1.3 Text Cleaning & Normalization
+#### 3.1.3 Limpieza y normalización de texto
 
-Applied after parsing, before chunking:
+Se aplica tras el parsing, antes del chunking:
 
 ```python
 def clean_text(text: str) -> str:
@@ -227,9 +227,9 @@ def clean_text(text: str) -> str:
     return text.strip()
 ```
 
-#### 3.1.4 Chunking Strategy: Semantic-First with Fixed-Size Fallback
+#### 3.1.4 Estrategia de chunking: semántica primero, con fallback de tamaño fijo
 
-**Algorithm:**
+**Algoritmo:**
 
 ```
 Input: list[ParsedSection] from parser
@@ -258,16 +258,16 @@ Output: list[Chunk] ready for embedding
    the embedding model understand what the chunk is about.
 ```
 
-**Parameters:**
+**Parámetros:**
 
-| Parameter | Value | Rationale |
+| Parámetro | Valor | Justificación |
 |-----------|-------|-----------|
-| `MAX_CHUNK_TOKENS` | 512 | Sweet spot for multilingual-e5 models (trained on 512 max). Covers ~1 page of text. |
-| `MIN_CHUNK_TOKENS` | 50 | Avoid meaningless fragments (single sentences with no context). |
-| `OVERLAP_SENTENCES` | 2 | Enough context to avoid boundary-split answers without heavy duplication. |
-| `CONTEXTUAL_PREFIX` | Yes | Document title + section heading prepended. Improves retrieval by 35% (Anthropic research). |
+| `MAX_CHUNK_TOKENS` | 512 | Punto óptimo para los modelos multilingual-e5 (entrenados con un máximo de 512). Cubre ~1 página de texto. |
+| `MIN_CHUNK_TOKENS` | 50 | Evita fragmentos sin sentido (frases sueltas sin contexto). |
+| `OVERLAP_SENTENCES` | 2 | Contexto suficiente para evitar respuestas cortadas en el límite del chunk sin duplicación excesiva. |
+| `CONTEXTUAL_PREFIX` | Sí | Título del documento + encabezado de sección antepuestos. Mejora la recuperación un 35% (investigación de Anthropic). |
 
-**Implementation:**
+**Implementación:**
 
 ```python
 # app/services/chunker.py
@@ -387,24 +387,24 @@ def chunk_sections(
     return chunks
 ```
 
-#### 3.1.5 Metadata Captured Per Chunk
+#### 3.1.5 Metadatos capturados por chunk
 
-| Field | Type | Source | Use |
+| Campo | Tipo | Origen | Uso |
 |-------|------|--------|-----|
-| `page_start` | int | PDF parser | Citation: "page 5" |
-| `page_end` | int | PDF parser | Page range for multi-page sections |
-| `heading` | str | Parser heading detection | Display in results, contextual prefix |
-| `heading_level` | int | Parser (1=H1, 2=H2...) | Hierarchy navigation (PageIndex pattern) |
-| `position` | int | Sequential counter | Reconstruct document order for context assembly |
-| `section_type` | str | Chunker (`complete`, `split_N`) | Know if chunk is self-contained or partial |
-| `char_count` | int | Computed | Quick size reference |
-| `language` | str | Detected via `langdetect` | Potential future use for multilingual routing |
+| `page_start` | int | Parser de PDF | Cita: "página 5" |
+| `page_end` | int | Parser de PDF | Rango de páginas para secciones multipágina |
+| `heading` | str | Detección de encabezados del parser | Mostrar en resultados, prefijo contextual |
+| `heading_level` | int | Parser (1=H1, 2=H2...) | Navegación jerárquica (patrón PageIndex) |
+| `position` | int | Contador secuencial | Reconstruir el orden del documento para el ensamblado de contexto |
+| `section_type` | str | Chunker (`complete`, `split_N`) | Saber si el chunk es autocontenido o parcial |
+| `char_count` | int | Calculado | Referencia rápida de tamaño |
+| `language` | str | Detectado vía `langdetect` | Posible uso futuro para enrutamiento multilingüe |
 
-These are stored in the `metadata` JSONB column of `document_chunks`.
+Se almacenan en la columna JSONB `metadata` de `document_chunks`.
 
-#### 3.1.6 Embedding Generation
+#### 3.1.6 Generación de embeddings
 
-**Batch processing for ingestion:**
+**Procesamiento por lotes para la ingesta:**
 
 ```python
 # app/services/embedder.py
@@ -476,7 +476,7 @@ async def embed_query(query: str) -> np.ndarray:
     return embedding
 ```
 
-**API-based embeddings alternative (DeepSeek / OpenAI-compatible):**
+**Alternativa de embeddings vía API (DeepSeek / compatible con OpenAI):**
 
 ```python
 # app/services/embedder_api.py
@@ -507,7 +507,7 @@ async def embed_chunks_api(
     return embeddings
 ```
 
-#### 3.1.7 Storage (PostgreSQL + pgvector)
+#### 3.1.7 Almacenamiento (PostgreSQL + pgvector)
 
 ```sql
 -- Already decided: document_chunks table
@@ -544,7 +544,7 @@ CREATE INDEX idx_chunks_document ON document_chunks (document_id);
 CREATE INDEX idx_chunks_metadata ON document_chunks USING GIN (metadata);
 ```
 
-**Parent `documents` table context:**
+**Contexto de la tabla padre `documents`:**
 
 ```sql
 -- documents table (part of the 15-table data model)
@@ -564,7 +564,7 @@ CREATE TABLE documents (
 );
 ```
 
-#### 3.1.8 Complete Ingestion Orchestrator
+#### 3.1.8 Orquestador completo de ingesta
 
 ```python
 # app/services/ingestion.py
@@ -627,22 +627,22 @@ async def ingest_document(document_id: UUID, file_path: Path, db: AsyncSession):
 
 ---
 
-### 3.2 Retrieval Strategies
+### 3.2 Estrategias de recuperación
 
-SkillNet uses different retrieval strategies depending on the use case. All strategies operate within tenant isolation (`org_id` filter applied first).
+SkillNet usa diferentes estrategias de recuperación según el caso de uso. Todas las estrategias operan dentro del aislamiento por tenant (el filtro `org_id` se aplica primero).
 
-#### 3.2.1 Strategy Selection Map
+#### 3.2.1 Mapa de selección de estrategia
 
-| Use Case | Strategy | Phase |
+| Caso de uso | Estrategia | Fase |
 |----------|----------|-------|
-| Tutor answers from **small doc** (<=3 pages) | Full text in prompt (no retrieval) | MVP |
-| Tutor answers from **large doc** | Semantic search on `document_chunks` | MVP |
-| Employee searches within **a course** | SQL structured (PageIndex pattern over modules/lessons) | MVP |
-| Employee searches **across courses** | Hybrid (semantic + keyword) with RRF | Phase 2 |
-| Admin finds **specific term** in documents | Keyword search (full-text) | Phase 1.5 |
-| Course generation from **large PDF** | Semantic search + ordered retrieval | MVP |
+| El tutor responde desde un **documento pequeño** (<=3 páginas) | Texto completo en el prompt (sin recuperación) | MVP |
+| El tutor responde desde un **documento grande** | Búsqueda semántica sobre `document_chunks` | MVP |
+| El empleado busca dentro de **un curso** | SQL estructurado (patrón PageIndex sobre módulos/lecciones) | MVP |
+| El empleado busca **entre cursos** | Híbrida (semántica + palabra clave) con RRF | Fase 2 |
+| El admin busca un **término específico** en documentos | Búsqueda por palabra clave (texto completo) | Fase 1.5 |
+| Generación de curso a partir de un **PDF grande** | Búsqueda semántica + recuperación ordenada | MVP |
 
-#### 3.2.2 Semantic Search (pgvector cosine similarity)
+#### 3.2.2 Búsqueda semántica (similitud coseno con pgvector)
 
 ```sql
 -- Core semantic search function
@@ -682,15 +682,15 @@ AS $$
 $$;
 ```
 
-**Parameters and tuning:**
+**Parámetros y ajuste:**
 
-| Parameter | Default | Rationale |
+| Parámetro | Valor por defecto | Justificación |
 |-----------|---------|-----------|
-| `match_count` (top-K) | 10 | Retrieve 10, then rerank/filter to 3-5 for prompt. Over-retrieve to compensate for imperfect embeddings. |
-| `match_threshold` | 0.3 | With normalized E5 embeddings on cosine distance, 0.3 filters noise while keeping relevant matches. Tuned empirically per domain. |
-| `<=>` operator | cosine distance | E5 models are trained with cosine similarity. `<=>` is pgvector's cosine distance (1 - similarity). |
+| `match_count` (top-K) | 10 | Recuperar 10 y luego reordenar/filtrar a 3-5 para el prompt. Se sobre-recupera para compensar embeddings imperfectos. |
+| `match_threshold` | 0.3 | Con embeddings E5 normalizados sobre distancia coseno, 0.3 filtra ruido manteniendo coincidencias relevantes. Ajustado empíricamente por dominio. |
+| Operador `<=>` | distancia coseno | Los modelos E5 se entrenan con similitud coseno. `<=>` es la distancia coseno de pgvector (1 - similitud). |
 
-#### 3.2.3 Keyword Search (PostgreSQL Full-Text Search)
+#### 3.2.3 Búsqueda por palabra clave (búsqueda de texto completo de PostgreSQL)
 
 ```sql
 -- Full-text search with ranking
@@ -726,13 +726,13 @@ AS $$
 $$;
 ```
 
-**Why `plainto_tsquery` and not `to_tsquery`:**
-- `plainto_tsquery` handles natural language input without requiring boolean syntax
-- User types "plazo devoluciones 30 dias" and it works
-- `to_tsquery` requires operators (`&`, `|`) — bad for end-user input
-- For admin power-search: expose `websearch_to_tsquery` which supports quoted phrases and `-` negation
+**Por qué `plainto_tsquery` y no `to_tsquery`:**
+- `plainto_tsquery` gestiona entradas en lenguaje natural sin requerir sintaxis booleana
+- El usuario escribe "plazo devoluciones 30 dias" y funciona
+- `to_tsquery` requiere operadores (`&`, `|`) — malo para la entrada del usuario final
+- Para la búsqueda avanzada del admin: exponer `websearch_to_tsquery`, que admite frases entre comillas y negación con `-`
 
-**Spanish language configuration:**
+**Configuración del idioma español:**
 ```sql
 -- PostgreSQL ships with 'spanish' text search config
 -- Includes stemming: "devoluciones" matches "devolucion", "devolver"
@@ -740,9 +740,9 @@ $$;
 -- If custom dictionary needed (industry terms), create a custom config
 ```
 
-#### 3.2.4 Hybrid Search with Reciprocal Rank Fusion (RRF)
+#### 3.2.4 Búsqueda híbrida con Reciprocal Rank Fusion (RRF)
 
-Combines semantic and keyword results. Used for cross-course search (Phase 2) and ambiguous queries.
+Combina resultados semánticos y por palabra clave. Se usa para la búsqueda entre cursos (Fase 2) y consultas ambiguas.
 
 ```python
 # app/services/retrieval.py
@@ -846,29 +846,29 @@ def _adjust_alpha(query: str, default: float) -> float:
     return default
 ```
 
-#### 3.2.5 Structured Filters (Pre-filter before Vector Search)
+#### 3.2.5 Filtros estructurados (pre-filtrado antes de la búsqueda vectorial)
 
-All searches are scoped by tenant and optionally by document/course. This is enforced at the SQL level (see `WHERE d.org_id = match_org_id` in the functions above).
+Todas las búsquedas están acotadas por tenant y, opcionalmente, por documento/curso. Esto se aplica a nivel de SQL (véase `WHERE d.org_id = match_org_id` en las funciones anteriores).
 
-Available filters:
+Filtros disponibles:
 
-| Filter | Column | Applied To | Example |
+| Filtro | Columna | Se aplica a | Ejemplo |
 |--------|--------|-----------|---------|
-| `org_id` | `documents.org_id` | **Always** (tenant isolation) | Mandatory |
-| `document_id` | `document_chunks.document_id` | Tutor answering from specific doc | "Answer from this manual" |
-| `course_id` | via `course_documents` join | In-course tutor | "Find in this course's materials" |
-| `heading` | `metadata->>'heading'` | Section-specific search | "Find in 'Politica de Devoluciones'" |
-| `page_range` | `metadata->>'page_start'` | Page-scoped retrieval | "What does page 5 say?" |
+| `org_id` | `documents.org_id` | **Siempre** (aislamiento por tenant) | Obligatorio |
+| `document_id` | `document_chunks.document_id` | El tutor responde desde un documento específico | "Responde desde este manual" |
+| `course_id` | vía join con `course_documents` | Tutor dentro del curso | "Busca en el material de este curso" |
+| `heading` | `metadata->>'heading'` | Búsqueda específica de sección | "Busca en 'Política de Devoluciones'" |
+| `page_range` | `metadata->>'page_start'` | Recuperación acotada por página | "¿Qué dice la página 5?" |
 
-**Filter application order:**
-1. `org_id` (RLS or explicit WHERE — non-negotiable)
-2. `document_id` or `course_id` (narrows the search space — helps IVFFlat performance)
-3. Vector/keyword search on filtered subset
-4. Threshold + top-K applied last
+**Orden de aplicación de filtros:**
+1. `org_id` (RLS o WHERE explícito — innegociable)
+2. `document_id` o `course_id` (acota el espacio de búsqueda — ayuda al rendimiento de IVFFlat)
+3. Búsqueda vectorial/por palabra clave sobre el subconjunto filtrado
+4. Umbral + top-K aplicados al final
 
-#### 3.2.6 PageIndex Pattern (SQL-based Tree Navigation)
+#### 3.2.6 Patrón PageIndex (navegación en árbol basada en SQL)
 
-For **in-course** content navigation — when an employee asks a question while taking a course. No embeddings needed because the content is already structured in PostgreSQL.
+Para la navegación de contenido **dentro de un curso** — cuando un empleado hace una pregunta mientras realiza un curso. No hacen falta embeddings porque el contenido ya está estructurado en PostgreSQL.
 
 ```python
 # app/services/retrieval_course.py
@@ -930,33 +930,33 @@ Which module number(s) contain the answer? Reply with just the number(s), comma-
     return context
 ```
 
-**Cost:** 2 SQL queries + 1 short LLM call (~20 tokens output). Cheaper and more precise than vector search for structured content.
+**Coste:** 2 consultas SQL + 1 llamada corta al LLM (~20 tokens de salida). Más barato y más preciso que la búsqueda vectorial para contenido estructurado.
 
-**When to use PageIndex vs semantic search:**
+**Cuándo usar PageIndex frente a búsqueda semántica:**
 
-| Signal | Use PageIndex | Use Semantic Search |
+| Señal | Usar PageIndex | Usar búsqueda semántica |
 |--------|--------------|-------------------|
-| User is inside a course | Yes | No |
-| Question about specific topic in a known doc | Yes | No |
-| Free-text search across all content | No | Yes |
-| User doesn't know which doc has the answer | No | Yes |
+| El usuario está dentro de un curso | Sí | No |
+| Pregunta sobre un tema concreto en un documento conocido | Sí | No |
+| Búsqueda de texto libre en todo el contenido | No | Sí |
+| El usuario no sabe en qué documento está la respuesta | No | Sí |
 
 ---
 
 ### 3.3 Reranking
 
-Optional cross-encoder reranking applied **after** retrieval, **before** context assembly. Improves precision at the cost of latency.
+Reranking opcional con cross-encoder aplicado **después** de la recuperación, **antes** del ensamblado de contexto. Mejora la precisión a costa de latencia.
 
-#### 3.3.1 When to Use
+#### 3.3.1 Cuándo usarlo
 
-| Scenario | Rerank? | Why |
+| Escenario | ¿Rerank? | Por qué |
 |----------|---------|-----|
-| Tutor answering employee question | **No** (MVP), **Yes** (Phase 2) | Speed matters for chat. Add when latency budget allows. |
-| Course generation (ingestion time) | **Yes** | Not real-time. Higher precision = better generated content. |
-| Cross-course search | **Yes** | Results from different docs need quality ranking. |
-| Small doc (full text in prompt) | **No** | No retrieval = nothing to rerank. |
+| El tutor responde a la pregunta de un empleado | **No** (MVP), **Sí** (Fase 2) | La velocidad importa en el chat. Se añade cuando el presupuesto de latencia lo permite. |
+| Generación de curso (en tiempo de ingesta) | **Sí** | No es en tiempo real. Mayor precisión = mejor contenido generado. |
+| Búsqueda entre cursos | **Sí** | Los resultados de distintos documentos necesitan un ranking de calidad. |
+| Documento pequeño (texto completo en el prompt) | **No** | Sin recuperación no hay nada que reordenar. |
 
-#### 3.3.2 Implementation
+#### 3.3.2 Implementación
 
 ```python
 # app/services/reranker.py
@@ -1004,9 +1004,9 @@ async def rerank(
     return results[:top_k]
 ```
 
-#### 3.3.3 API-based Reranking Alternative
+#### 3.3.3 Alternativa de reranking vía API
 
-For deployments without local GPU, use Cohere Rerank or Jina Reranker API:
+Para despliegues sin GPU local, usar la API de Cohere Rerank o Jina Reranker:
 
 ```python
 async def rerank_api(
@@ -1040,9 +1040,9 @@ async def rerank_api(
 
 ---
 
-### 3.4 Context Assembly
+### 3.4 Ensamblado de contexto
 
-How retrieved chunks are assembled into the final LLM prompt.
+Cómo se ensamblan los chunks recuperados en el prompt final del LLM.
 
 #### 3.4.1 Pipeline
 
@@ -1071,9 +1071,9 @@ Assemble prompt:
   [User question]
 ```
 
-#### 3.4.2 Deduplication
+#### 3.4.2 Deduplicación
 
-Chunks may overlap (contextual overlap from chunking) or appear in both semantic and keyword results.
+Los chunks pueden solaparse (solapamiento contextual del chunking) o aparecer tanto en resultados semánticos como por palabra clave.
 
 ```python
 def deduplicate_chunks(chunks: list[RetrievalResult]) -> list[RetrievalResult]:
@@ -1112,9 +1112,9 @@ def _calculate_overlap(a: str, b: str) -> float:
     return len(words_a & words_b) / len(words_a | words_b)
 ```
 
-#### 3.4.3 Ordering Strategy
+#### 3.4.3 Estrategia de ordenación
 
-After deduplication, chunks are reordered by **document position** (not relevance score). This preserves the narrative flow of the source document, which helps the LLM generate coherent answers.
+Tras la deduplicación, los chunks se reordenan por **posición en el documento** (no por puntuación de relevancia). Esto preserva el flujo narrativo del documento fuente, lo que ayuda al LLM a generar respuestas coherentes.
 
 ```python
 def order_chunks(chunks: list[RetrievalResult]) -> list[RetrievalResult]:
@@ -1132,7 +1132,7 @@ def order_chunks(chunks: list[RetrievalResult]) -> list[RetrievalResult]:
     ))
 ```
 
-#### 3.4.4 Token Budget Management
+#### 3.4.4 Gestión del presupuesto de tokens
 
 ```python
 # Token budget allocation for the LLM prompt
@@ -1179,9 +1179,9 @@ def fit_to_budget(
     return selected
 ```
 
-#### 3.4.5 Citation Metadata Injection
+#### 3.4.5 Inyección de metadatos de citación
 
-Each chunk in the prompt gets a citation tag. The LLM is instructed to reference these tags in its answer.
+Cada chunk del prompt recibe una etiqueta de citación. Se instruye al LLM para que referencie estas etiquetas en su respuesta.
 
 ```python
 def assemble_context_block(chunks: list[RetrievalResult]) -> str:
@@ -1229,33 +1229,35 @@ Instrucciones:
     ]
 ```
 
-> **SUPERSEDED (2026-07-27).** The last instruction is the bug, not the contract. Measured
-> in the demo organization: three documents, 6 710 characters of `full_text`, **zero**
-> chunks and zero embeddings — because a document at or under 5 pages takes the
-> `full_text` branch of `load_source_context` (§4.2) and is never chunked — so this branch
-> fired on every question ever asked and the tutor refused every one of them.
+> **SUSTITUIDO (2026-07-27).** La última instrucción es el bug, no el contrato. Medido
+> en la organización de la demo: tres documentos, 6.710 caracteres de `full_text`, **cero**
+> chunks y cero embeddings — porque un documento de 5 páginas o menos toma la rama
+> `full_text` de `load_source_context` (§4.2) y nunca se trocea — así que esta rama
+> saltaba en cada pregunta que se hacía y el tutor las rechazaba todas.
 >
-> An empty retrieval is now a *rung*, not a dead end. `ground_question` in
-> `src/services/retrieval.py` walks **chunks -> the whole enrolled document -> general
-> knowledge** and returns which rung it stood on. Two details worth carrying into any
-> future revision of this document:
+> Una recuperación vacía es ahora un *peldaño*, no un callejón sin salida. `ground_question`
+> en `src/services/retrieval.py` recorre **chunks -> el documento matriculado completo ->
+> conocimiento general** y devuelve en qué peldaño se quedó. Dos detalles que merece la pena
+> arrastrar a cualquier revisión futura de este documento:
 >
-> - A hit below `SIMILARITY_FLOOR` (0.25) counts as no hit. That is not a relevance
->   threshold — real sentence embeddings never come back that low — it is how a
->   non-semantic embedder is told apart from a real one. Measured with
->   `EMBEDDING_MODEL=fixture/local`, which is what `.env` configures locally: the five
->   best "hits" for *"¿Qué son los alérgenos?"* scored 0.107, 0.105, 0.070, 0.058, 0.053,
->   i.e. random. Without the floor the tutor answers an allergen question from a chunk
->   about the cash float, which is worse than the refusal because it looks right.
-> - The whole-document rung orders documents by a lexical term count, accent-folded. The
->   demo's most likely question shares zero literal terms with the document that answers
->   it (`alérgenos` vs `alergenos`), and without folding the ranking is arbitrary.
+> - Un resultado por debajo de `SIMILARITY_FLOOR` (0,25) cuenta como no-resultado. Eso no es
+>   un umbral de relevancia — los embeddings de frases reales nunca bajan tanto — es la forma
+>   de distinguir un embedder no semántico de uno real. Medido con
+>   `EMBEDDING_MODEL=fixture/local`, que es lo que configura `.env` en local: los cinco
+>   mejores "resultados" para *"¿Qué son los alérgenos?"* puntuaron 0,107, 0,105, 0,070,
+>   0,058, 0,053, es decir, al azar. Sin el suelo, el tutor responde una pregunta sobre
+>   alérgenos con un chunk sobre el fondo de caja, lo cual es peor que la negativa porque
+>   parece correcto.
+> - El peldaño de documento completo ordena los documentos por un recuento léxico de
+>   términos, con el acento normalizado. La pregunta más probable de la demo no comparte
+>   ningún término literal con el documento que la responde (`alérgenos` frente a
+>   `alergenos`), y sin esa normalización el ranking sería arbitrario.
 
 ---
 
-### 3.5 Embedding Model Management
+### 3.5 Gestión del modelo de embeddings
 
-#### 3.5.1 Model Configuration
+#### 3.5.1 Configuración del modelo
 
 ```python
 # app/config.py
@@ -1282,14 +1284,14 @@ class EmbeddingConfig(BaseSettings):
     EMBEDDING_QUERY_PREFIX: str = "query: "
 ```
 
-#### 3.5.2 Model Switching (Dimension Change = Reindex)
+#### 3.5.2 Cambio de modelo (cambio de dimensión = reindexado)
 
-Switching from `multilingual-e5-small` (384d) to `multilingual-e5-large` (1024d) requires:
+Pasar de `multilingual-e5-small` (384d) a `multilingual-e5-large` (1024d) requiere:
 
-1. **Schema migration:** `ALTER TABLE document_chunks ALTER COLUMN embedding TYPE vector(1024);`
-2. **Drop + recreate IVFFlat index** (cannot alter vector dimensions in-place)
-3. **Re-embed all existing chunks** (batch job)
-4. **Update `documents.embedding_model` and `documents.embedding_dim`** for all affected docs
+1. **Migración de esquema:** `ALTER TABLE document_chunks ALTER COLUMN embedding TYPE vector(1024);`
+2. **Eliminar y recrear el índice IVFFlat** (no se pueden alterar las dimensiones del vector in situ)
+3. **Reincrustar todos los chunks existentes** (trabajo por lotes)
+4. **Actualizar `documents.embedding_model` y `documents.embedding_dim`** para todos los documentos afectados
 
 ```python
 # app/services/model_migration.py
@@ -1356,37 +1358,37 @@ async def migrate_embedding_model(
     await db.commit()
 ```
 
-#### 3.5.3 Local vs API Embeddings
+#### 3.5.3 Embeddings locales frente a vía API
 
-| Aspect | Local (`sentence-transformers`) | API (DeepSeek / OpenAI-compatible) |
+| Aspecto | Local (`sentence-transformers`) | API (DeepSeek / compatible con OpenAI) |
 |--------|-------------------------------|--------------------------------------|
-| **Latency** | ~10ms per chunk (GPU), ~50ms (CPU) | ~100-300ms per batch (network) |
-| **Cost** | Free (hardware cost only) | ~$0.01-0.10 per 1M tokens |
-| **Privacy** | Data never leaves server | Data sent to API provider |
-| **RAM** | ~500MB (e5-small), ~2GB (e5-large) | None |
-| **Quality** | Excellent for multilingual | Varies by provider |
-| **Offline** | Works without internet | Requires internet |
-| **Recommended** | Self-hosted instances (privacy, offline) | SaaS instances (no GPU, lower maintenance) |
+| **Latencia** | ~10ms por chunk (GPU), ~50ms (CPU) | ~100-300ms por lote (red) |
+| **Coste** | Gratis (solo coste de hardware) | ~0,01-0,10 $ por 1M de tokens |
+| **Privacidad** | Los datos nunca salen del servidor | Los datos se envían al proveedor de la API |
+| **RAM** | ~500MB (e5-small), ~2GB (e5-large) | Ninguna |
+| **Calidad** | Excelente para multilingüe | Varía según el proveedor |
+| **Sin conexión** | Funciona sin internet | Requiere internet |
+| **Recomendado** | Instancias autoalojadas (privacidad, sin conexión) | Instancias SaaS (sin GPU, menor mantenimiento) |
 
-**Default for MVP:** Local `multilingual-e5-small` (384d). Runs on CPU, no GPU needed for SME-scale (~10K chunks).
+**Por defecto para el MVP:** `multilingual-e5-small` local (384d). Funciona en CPU, sin necesitar GPU a escala de pyme (~10K chunks).
 
-#### 3.5.4 Batch vs Single Embedding
+#### 3.5.4 Embedding por lotes frente a individual
 
-| Operation | Mode | Why |
+| Operación | Modo | Por qué |
 |-----------|------|-----|
-| Document ingestion | **Batch** (64 chunks at a time) | Throughput: GPU parallelism, API rate limits. |
-| User query | **Single** (1 embedding) | Latency: user is waiting. One call, ~10ms. |
-| Model migration | **Batch** (64 chunks) | Same as ingestion — background job. |
+| Ingesta de documentos | **Por lotes** (64 chunks a la vez) | Rendimiento: paralelismo de GPU, límites de tasa de la API. |
+| Consulta del usuario | **Individual** (1 embedding) | Latencia: el usuario está esperando. Una llamada, ~10ms. |
+| Migración de modelo | **Por lotes** (64 chunks) | Igual que la ingesta — trabajo en segundo plano. |
 
 ---
 
-### 3.6 Update Strategy
+### 3.6 Estrategia de actualización
 
-When source documents change (admin uploads new version, or edits content).
+Cuando los documentos fuente cambian (el admin sube una nueva versión, o edita contenido).
 
-#### 3.6.1 Full Re-ingestion (Default)
+#### 3.6.1 Reingesta completa (por defecto)
 
-**When:** Admin uploads a new version of a document or replaces the file.
+**Cuándo:** El admin sube una nueva versión de un documento o reemplaza el fichero.
 
 ```python
 async def update_document(document_id: UUID, new_file_path: Path, db: AsyncSession):
@@ -1408,29 +1410,29 @@ async def update_document(document_id: UUID, new_file_path: Path, db: AsyncSessi
     await ingest_document(document_id, new_file_path, db)
 ```
 
-**Why full re-ingestion over incremental:**
-- Documents in SME context are typically <100 pages (seconds to re-process)
-- Incremental diffing of PDF content is fragile (layout changes = false diffs)
-- Section reordering in a new doc version would corrupt chunk indices
-- Full re-ingestion is simple, correct, and fast enough for the expected scale
+**Por qué la reingesta completa frente a la incremental:**
+- Los documentos en el contexto pyme suelen tener <100 páginas (segundos para reprocesar)
+- El diffing incremental de contenido PDF es frágil (cambios de layout = falsos diffs)
+- Reordenar secciones en una nueva versión del documento corrompería los índices de chunk
+- La reingesta completa es simple, correcta y suficientemente rápida para la escala esperada
 
-#### 3.6.2 When to NOT Re-ingest
+#### 3.6.2 Cuándo NO reingerir
 
-| Scenario | Action | Why |
+| Escenario | Acción | Por qué |
 |----------|--------|-----|
-| Admin edits metadata (title, tags) | Update `documents` row only | Chunk content unchanged |
-| Admin edits a course (not the source doc) | No document re-ingestion | Course content is separate from source docs |
-| Admin archives a document | Soft-delete (status = 'archived') | Preserves history, excludes from search |
+| El admin edita metadatos (título, etiquetas) | Actualizar solo la fila de `documents` | El contenido del chunk no cambia |
+| El admin edita un curso (no el documento fuente) | Sin reingesta del documento | El contenido del curso es independiente de los documentos fuente |
+| El admin archiva un documento | Borrado suave (status = 'archived') | Preserva el historial, se excluye de la búsqueda |
 
-#### 3.6.3 Chunk Versioning Considerations
+#### 3.6.3 Consideraciones sobre el versionado de chunks
 
-For the MVP, SkillNet uses **replace-on-update** (no versioning). This means:
+Para el MVP, SkillNet usa **sustitución en la actualización** (sin versionado). Esto implica:
 
-- Old chunks are deleted when a document is re-ingested
-- Any course that referenced specific chunk IDs may have dangling references
-- Mitigation: courses reference `document_id` + `heading` (not `chunk_id`), so they survive re-ingestion as long as the heading structure is preserved
+- Los chunks antiguos se eliminan cuando se reingiere un documento
+- Cualquier curso que referenciara IDs de chunk específicos podría quedar con referencias colgantes
+- Mitigación: los cursos referencian `document_id` + `heading` (no `chunk_id`), así que sobreviven a la reingesta mientras se preserve la estructura de encabezados
 
-**Phase 2 consideration:** If audit trails or historical comparisons are needed:
+**Consideración para la Fase 2:** Si se necesitan rastros de auditoría o comparaciones históricas:
 
 ```sql
 -- Future: version tracking
@@ -1441,14 +1443,14 @@ ALTER TABLE document_chunks ADD COLUMN superseded_by UUID REFERENCES document_ch
 -- Queries filter: WHERE superseded_by IS NULL
 ```
 
-This is deferred because:
-1. SMEs rarely need version history of training documents
-2. It adds query complexity (every search must filter `superseded_by IS NULL`)
-3. Storage grows with every edit (embeddings are ~1.5KB per chunk at 384d)
+Esto se aplaza porque:
+1. Las pymes rara vez necesitan un historial de versiones de los documentos de formación
+2. Añade complejidad a las consultas (cada búsqueda debe filtrar por `superseded_by IS NULL`)
+3. El almacenamiento crece con cada edición (los embeddings ocupan ~1,5KB por chunk a 384d)
 
-#### 3.6.4 Cascading Updates to Generated Content
+#### 3.6.4 Actualizaciones en cascada al contenido generado
 
-When a source document is updated, courses generated from it may be outdated. SkillNet handles this with notifications, not automatic regeneration:
+Cuando se actualiza un documento fuente, los cursos generados a partir de él pueden quedar desactualizados. SkillNet lo gestiona con notificaciones, no con regeneración automática:
 
 ```
 Document updated
@@ -1465,11 +1467,11 @@ Check: any courses linked to this document?
   |-- No  --> Done
 ```
 
-The admin stays in control. SkillNet does not silently regenerate course content.
+El admin mantiene el control. SkillNet no regenera el contenido del curso silenciosamente.
 
 ---
 
-### 3.7 Architecture Summary
+### 3.7 Resumen de la arquitectura
 
 ```
                     INGESTION                              RETRIEVAL
@@ -1515,33 +1517,33 @@ The admin stays in control. SkillNet does not silently regenerate course content
 
 ---
 
-### 3.8 Configuration Defaults (MVP)
+### 3.8 Valores de configuración por defecto (MVP)
 
-| Parameter | Value | Note |
+| Parámetro | Valor | Nota |
 |-----------|-------|------|
-| Embedding model | `multilingual-e5-small` | 384 dims, ~500MB RAM, CPU-friendly |
-| Chunk size | 512 tokens max | Aligned with E5 training window |
-| Chunk overlap | 2 sentences | Prevents boundary-split answers |
-| Contextual prefix | Yes | Document title + section heading |
-| IVFFlat lists | 10 | Grow to `sqrt(n)` when >10K chunks |
-| Semantic top-K | 10 | Over-retrieve, then filter to 3-5 |
-| Similarity threshold | 0.3 | Cosine, with normalized embeddings |
-| RRF K constant | 60 | Standard value from literature |
-| Hybrid alpha | 0.5 | Auto-adjusted by query heuristic |
-| Reranking | Disabled (MVP) | Enable Phase 2 for cross-course search |
-| Full-text search config | `spanish` | PostgreSQL built-in, includes stemming |
-| Token budget for context | Model-dependent | Conservative: 16K minus reserves |
-| Batch size (embedding) | 64 (local), 32 (API) | Balance throughput vs memory |
+| Modelo de embeddings | `multilingual-e5-small` | 384 dims, ~500MB RAM, adecuado para CPU |
+| Tamaño de chunk | 512 tokens máx. | Alineado con la ventana de entrenamiento de E5 |
+| Solapamiento de chunk | 2 frases | Evita respuestas cortadas en el límite |
+| Prefijo contextual | Sí | Título del documento + encabezado de sección |
+| Listas IVFFlat | 10 | Crecer a `sqrt(n)` cuando haya >10K chunks |
+| Top-K semántico | 10 | Sobre-recuperar y luego filtrar a 3-5 |
+| Umbral de similitud | 0,3 | Coseno, con embeddings normalizados |
+| Constante K de RRF | 60 | Valor estándar de la literatura |
+| Alpha híbrido | 0,5 | Autoajustado según la heurística de la consulta |
+| Reranking | Deshabilitado (MVP) | Habilitar en la Fase 2 para búsqueda entre cursos |
+| Configuración de búsqueda de texto completo | `spanish` | Integrada en PostgreSQL, incluye stemming |
+| Presupuesto de tokens para el contexto | Depende del modelo | Conservador: 16K menos reservas |
+| Tamaño de lote (embedding) | 64 (local), 32 (API) | Equilibrio entre rendimiento y memoria |
 
 ---
 
-### 3.9 Phase Rollout
+### 3.9 Despliegue por fases
 
-| Phase | What | Retrieval Strategy |
+| Fase | Qué | Estrategia de recuperación |
 |-------|------|--------------------|
-| **MVP** | Single-doc tutor, course generation | Full text (small docs) + semantic search (large docs) + PageIndex (in-course) |
-| **1.5** | Keyword search in admin panel | + `tsvector` full-text search |
-| **2** | Cross-course search, combined search UI | + Hybrid RRF + reranking + origin labels |
-| **2+** | Large PDF optimization | + PageIndex pattern for ingestion |
-| **3** | Inter-course relationships | + Structured metadata queries + prerequisite graph |
-| **3+** | GraphRAG (if >100 courses) | + Community detection for thematic exploration |
+| **MVP** | Tutor de un solo documento, generación de cursos | Texto completo (docs pequeños) + búsqueda semántica (docs grandes) + PageIndex (dentro del curso) |
+| **1.5** | Búsqueda por palabra clave en el panel de admin | + búsqueda de texto completo con `tsvector` |
+| **2** | Búsqueda entre cursos, UI de búsqueda combinada | + RRF híbrido + reranking + etiquetas de origen |
+| **2+** | Optimización de PDF grandes | + patrón PageIndex para la ingesta |
+| **3** | Relaciones entre cursos | + consultas de metadatos estructurados + grafo de prerrequisitos |
+| **3+** | GraphRAG (si hay >100 cursos) | + detección de comunidades para exploración temática |

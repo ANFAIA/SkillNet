@@ -1,5 +1,5 @@
 ---
-title: "Diseño de cursos con IA"
+title: "Diseño de curso asistido por IA"
 order: 17
 section: "extensibility"
 ---
@@ -206,3 +206,4 @@ Nada de esto esta implementado ni planificado a corto plazo.
 Prerequisito comun: volumen de datos suficiente. Una organizacion con 5 cursos no tiene
 datos para fine-tuning. Esto es relevante cuando haya decenas de organizaciones con
 cientos de cursos validados.
+</content>

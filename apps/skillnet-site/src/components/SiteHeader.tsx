@@ -15,17 +15,23 @@ const LANDING_LINKS = [
   { href: "/docs", label: "Documentación" },
 ];
 
-const DOCS_LINKS = [{ href: "/", label: "Volver al inicio" }];
+const DOCS_LINKS_ES = [{ href: "/", label: "Volver al inicio" }];
+const DOCS_LINKS_EN = [{ href: "/", label: "Back to home" }];
 
 interface Props {
   variant?: "landing" | "docs";
+  locale?: "es" | "en";
+  /** For variant="docs": href of the equivalent page in the other locale. */
+  altHref?: string;
 }
 
-export default function SiteHeader({ variant = "landing" }: Props) {
+export default function SiteHeader({ variant = "landing", locale = "es", altHref }: Props) {
   const [scrolled, setScrolled] = useState(variant === "docs");
   const [open, setOpen] = useState(false);
-  const LINKS = variant === "docs" ? DOCS_LINKS : LANDING_LINKS;
+  const LINKS = variant === "docs" ? (locale === "en" ? DOCS_LINKS_EN : DOCS_LINKS_ES) : LANDING_LINKS;
   const logoHref = variant === "docs" ? "/" : "#";
+  const otherLocaleLabel = locale === "en" ? "ES" : "EN";
+  const langToggleAriaLabel = locale === "en" ? "Switch to Spanish" : "Cambiar a inglés";
   useEffect(() => {
     if (variant === "docs") return;
     const onScroll = () => setScrolled(window.scrollY > 40);
@@ -48,6 +54,11 @@ export default function SiteHeader({ variant = "landing" }: Props) {
         <motion.nav layout="position" className="hidden items-center gap-6 md:flex" aria-label="Navegación principal">
           {LINKS.map(({ href, label }) => <a key={href} href={href} className="type-ui whitespace-nowrap text-white/85 hover:text-white">{label}</a>)}
           <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer" className="type-ui flex items-center gap-1.5 whitespace-nowrap text-white/85 hover:text-white"><FaGithub size={17} /><span>GitHub</span></a>
+          {variant === "docs" && altHref && (
+            <a href={altHref} aria-label={langToggleAriaLabel} className="type-ui whitespace-nowrap rounded-full border border-white/25 px-2.5 py-1 text-white/85 hover:border-white/50 hover:text-white">
+              {otherLocaleLabel}
+            </a>
+          )}
         </motion.nav>
 
         {/* Mobile hamburger */}
@@ -69,6 +80,11 @@ export default function SiteHeader({ variant = "landing" }: Props) {
         >
           {LINKS.map(({ href, label }) => <a key={href} href={href} onClick={() => setOpen(false)} className="type-ui rounded-xl px-4 py-3 text-white/90 hover:bg-white/10 hover:text-white">{label}</a>)}
           <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer" onClick={() => setOpen(false)} className="type-ui flex items-center gap-2 rounded-xl px-4 py-3 text-white/90 hover:bg-white/10 hover:text-white"><FaGithub size={17} />GitHub</a>
+          {variant === "docs" && altHref && (
+            <a href={altHref} onClick={() => setOpen(false)} aria-label={langToggleAriaLabel} className="type-ui rounded-xl px-4 py-3 text-white/90 hover:bg-white/10 hover:text-white">
+              {otherLocaleLabel}
+            </a>
+          )}
         </motion.nav>}
       </AnimatePresence>
     </MotionConfig>
