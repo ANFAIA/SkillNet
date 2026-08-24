@@ -42,9 +42,10 @@ without escaping, so a `@`, `:`, `/` or `#` — exactly what a password manager 
 splits the URL, and the API then fails to reach the database with an error that never
 mentions the password.
 
-`.env.example` already ships working demo credentials (`admin@skillnet.dev` / `admin123`), so
-there is nothing else to set. Dynamic courses (v2) need no flag — the seed data already
-includes a validated dynamic course, and any new course can opt in per-course.
+That is everything you have to set. There is no owner account to configure here: the first
+time you open the app it asks you to create one (step 4). Dynamic courses (v2) need no flag —
+the seed data already includes a validated dynamic course, and any new course can opt in
+per-course.
 
 ## Step 3 — Start it
 
@@ -63,18 +64,35 @@ GB) before the API comes up, so give the first start time. See
 [`docker-compose.ollama.yml`](docker-compose.ollama.yml) for what it does and which model ids
 are valid.
 
-## Step 4 — Load the demo data
+## Step 4 — Open it and create your account
+
+<http://localhost:3000> — or whatever you set `PORT` to.
+
+The first thing you get is the **`/setup` screen**, because `.env.example` ships
+`ADMIN_EMAIL` and `ADMIN_PASSWORD` blank. Pick the workspace mode (Organization or Just me),
+create the owner account, and you are signed in. The wizard closes for good once an owner
+exists.
+
+To skip the browser step instead — for an automated or repeatable install — put your own
+`ADMIN_EMAIL` and `ADMIN_PASSWORD` in `.env` **before the first start**, and the owner is
+created for you. Either way, use your own password: nothing in this repo ships one.
+
+## Step 5 — Load the demo data (optional)
 
 **This step is for *exploring* the demo.** A real deployment skips it: you create your own
 content in the app — upload a document or describe a topic and let it generate a course. Run
 this only if you want the ready-made example to click around.
 
+It comes **after** step 4, not before: the seed attaches its courses and learners to an
+existing organization, so with no owner yet it stops with `No organization found. Boot the
+app once, then re-run.`
+
 ```bash
 docker compose exec api uv run python -m src.seed_learning_demo
 ```
 
-Startup creates the organization and the admin user, but no courses, no documents and no
-employees. Without this seed you log in to an empty dashboard — which is exactly right for a
+Creating the owner in step 4 makes the organization, but no courses, no documents and no
+learners. Without this seed you log in to an empty dashboard — which is exactly right for a
 fresh install, and just an empty database if you meant to try the demo.
 
 This seed is the public, self-branded SkillNet demo, on the meta theme of **how we learn**:
@@ -112,18 +130,15 @@ The mode is a stable per-deployment setting, chosen one of two ways:
   WORKSPACE_MODE=individual   # in your .env, alongside ADMIN_EMAIL / ADMIN_PASSWORD
   ```
 
-## Step 5 — Open it
+Three demo learners come with it. Their password is `aprender2026`:
 
-<http://localhost:3000>
+| Learner | Email |
+|---|---|
+| Metaphors + audio (sees the in-lesson podcast) | `ana@skillnet.dev` |
+| Definitions-first + visual (sees the in-lesson infographic) | `bruno@skillnet.dev` |
+| **No** profile, to walk the onboarding wizard | `carla@skillnet.dev` |
 
-| Role | Email | Password |
-|------|-------|----------|
-| **Admin** | `admin@skillnet.dev` | `admin123` |
-| Learner — metaphors + audio (sees the in-lesson podcast) | `ana@skillnet.dev` | `aprender2026` |
-| Learner — definitions-first + visual (sees the in-lesson infographic) | `bruno@skillnet.dev` | `aprender2026` |
-| Learner — **no** profile, to walk the onboarding wizard | `carla@skillnet.dev` | `aprender2026` |
-
-Log in as the admin to author courses, or as an employee to take them.
+Sign in as your own owner account to author courses, or as one of these to take them.
 
 ## Did it work?
 

@@ -19,10 +19,11 @@ someone exploring the project. Several of them are **not** safe for a real deplo
 them are documented next to the setting in `.env.example`; collected here because they matter
 together.
 
-**Credentials.** `.env.example` ships with a working demo owner account,
-`admin@skillnet.dev` / `admin123`. Change both before anyone else can reach the instance, or
-leave `ADMIN_EMAIL` and `ADMIN_PASSWORD` blank and create the owner through the `/setup` wizard
-on first boot. Generate your own `SECRET_KEY` and `POSTGRES_PASSWORD` — never reuse an example.
+**Credentials.** Nothing in this repository ships a usable password. `ADMIN_EMAIL` and
+`ADMIN_PASSWORD` are blank in `.env.example` on purpose, so the first visit gives you the
+`/setup` wizard and you create the owner account yourself. If you fill them in instead — the
+right move for an automated install — use your own values. Same for `SECRET_KEY` and
+`POSTGRES_PASSWORD`: generate them, never reuse an example.
 
 **Cookies.** `COOKIE_SECURE` defaults to `false` so the stack works over plain HTTP on
 `localhost`. Session cookies then travel unencrypted. Set it to `true` as soon as there is real

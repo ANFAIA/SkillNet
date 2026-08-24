@@ -39,6 +39,14 @@ tmp/
 /.pytest-*/
 apps/skillnet-api/.tmp-*/
 apps/skillnet-api/.pytest-*/
+
+# Internal working output: quality-bench campaign reports, journey dumps, per-session
+# PLAN/STATUS notes, and the browser screenshots and sweep reports under
+# docs/evidencia-testing. Useful while working, noise for anyone who clones — and the
+# source of the 148-character paths that broke `git clone` on Windows. Still on disk,
+# just not versioned; git history keeps what was already committed.
+output/
+docs/evidencia-testing/
 # AGENTS.md is deliberately NOT ignored: README.md and RUNNING.md link to it as the
 # project's conventions, so it has to exist for anyone who clones. CLAUDE.md stays local
 # (working notes), and CLAUDE.local.md above stays local too (per-machine paths).
