@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useIntl } from 'react-intl'
 import { useNavigate } from 'react-router-dom'
@@ -11,6 +11,42 @@ import { useReducedMotion } from '../../hooks/useReducedMotion'
 import { duration, ease } from '../../lib/motion'
 
 type PreviewPref = 'audio' | 'visual'
+
+// Same morph convention as CreateCourse/Setup: the container box springs to its new
+// size via a shared layoutId, and inner content is opacity-only (no blur, never
+// scaled) and fades in only once the spring has had time to settle — so the text is
+// never visible while the box is still resizing, which is what avoids the distortion
+// a bare `layout` on a text-bearing box causes.
+const cardMorphTransition = { type: 'spring' as const, stiffness: 200, damping: 28 }
+const innerFadeOut = { exit: { opacity: 0, transition: { duration: duration.fast, ease: ease.base } } }
+const innerFadeIn = {
+  initial: { opacity: 0 },
+  animate: { opacity: 1, transition: { duration: duration.normal, ease: ease.base, delay: 0.35 } },
+}
+
+/**
+ * `layout` animates a size change with a transform-scale trick and resolves the real
+ * DOM box to its final height immediately — so anything below in normal flow (the
+ * note, the CTA banner) snaps to its new position at once while only the card *looks*
+ * like it is still resizing, reading as "everything jumps". Measuring the real content
+ * height and animating the wrapper's actual `height` (with `overflow: hidden`) instead
+ * means the box's footprint changes for real, frame by frame, so anything below
+ * reflows in the same smooth motion instead of snapping ahead of it.
+ */
+function useMeasuredHeight<T extends HTMLElement>() {
+  const ref = useRef<T>(null)
+  const [height, setHeight] = useState<number>()
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const update = () => setHeight(el.offsetHeight)
+    update()
+    const observer = new ResizeObserver(update)
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+  return { ref, height }
+}
 
 /**
  * The onboarding "aha" as a lightweight, effortless comparison — not the full lesson
@@ -29,6 +65,7 @@ export function DemoLesson() {
   const navigate = useNavigate()
   const reduce = useReducedMotion()
   const [pref, setPref] = useState<PreviewPref>('audio')
+  const { ref: contentRef, height: contentHeight } = useMeasuredHeight<HTMLDivElement>()
 
   // Find the per-org pre-baked demo course, then its showcase (first) node.
   const courses = useCourses()
@@ -83,7 +120,7 @@ export function DemoLesson() {
         description={intl.formatMessage({ id: 'demoLesson.subtitle' })}
       />
 
-      <div className="mt-5 mb-4 max-w-sm" data-tour="demo-preview-toggle">
+      <div className="mt-5 mb-4" data-tour="demo-preview-toggle">
         <SegmentedControl<PreviewPref>
           value={pref}
           onChange={setPref}
@@ -96,36 +133,40 @@ export function DemoLesson() {
         />
       </div>
 
-      {/* Animate the container's height as the two variants (different lengths) swap,
-          and crossfade the content, so toggling learner feels fluid instead of jumping. */}
+      {/* The wrapper animates its real `height` to the content's measured height
+          (useMeasuredHeight), not framer's `layout` — a real height change makes
+          anything below reflow in the same smooth motion instead of snapping to its
+          final position while only the card looks like it's still resizing. Content
+          is opacity-only (never scaled) and, with a real height animating in, doesn't
+          need the fade-in delay a `layout` scale-hack would — it's simply revealed. */}
       <motion.div
-        layout={!reduce}
-        transition={reduce ? { duration: 0 } : { layout: { type: 'spring', stiffness: 260, damping: 30 } }}
+        style={{ overflow: 'hidden' }}
+        animate={{ height: reduce || contentHeight === undefined ? 'auto' : contentHeight }}
+        transition={reduce ? { duration: 0 } : cardMorphTransition}
       >
-        <Card>
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.div
-              key={loading || (!program && render.isLoading) ? 'loading' : program ? pref : 'empty'}
-              initial={reduce ? false : { opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={reduce ? undefined : { opacity: 0 }}
-              transition={{ duration: duration.fast, ease: ease.base }}
-            >
-              {loading || (!program && render.isLoading) ? (
-                <div className="space-y-3">
-                  <Skeleton className="h-5 w-2/3" />
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-5/6" />
-                  <Skeleton className="h-24 w-full rounded-lg" />
-                </div>
-              ) : program ? (
-                <UiSpecRenderer program={program} nodeId={showcaseNode!.id} renderId={served?.render_id} />
-              ) : (
-                <p className="text-sm text-text-muted">{intl.formatMessage({ id: 'demoLesson.empty' })}</p>
-              )}
-            </motion.div>
-          </AnimatePresence>
-        </Card>
+        <div ref={contentRef}>
+          <Card>
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.div
+                key={loading || (!program && render.isLoading) ? 'loading' : program ? pref : 'empty'}
+                {...(reduce ? {} : { ...innerFadeIn, ...innerFadeOut })}
+              >
+                {loading || (!program && render.isLoading) ? (
+                  <div className="space-y-3">
+                    <Skeleton className="h-5 w-2/3" />
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-5/6" />
+                    <Skeleton className="h-24 w-full rounded-lg" />
+                  </div>
+                ) : program ? (
+                  <UiSpecRenderer program={program} nodeId={showcaseNode!.id} renderId={served?.render_id} />
+                ) : (
+                  <p className="text-sm text-text-muted">{intl.formatMessage({ id: 'demoLesson.empty' })}</p>
+                )}
+              </motion.div>
+            </AnimatePresence>
+          </Card>
+        </div>
       </motion.div>
 
       <p className="mt-3 flex items-center gap-1.5 text-xs text-primary">

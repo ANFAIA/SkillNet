@@ -32,6 +32,21 @@ const JOYRIDE_STYLES = {
 } as const
 
 /**
+ * react-floater (the library behind the tooltip box, via react-joyride) reserves
+ * room for its arrow with a default `margin: 8` on top of the arrow's own
+ * `length: 16` — that extra margin is what read as a gap between the arrow tip
+ * and our tooltip card. This is the library's own documented arrow config
+ * (`floaterProps.styles.arrow`), not a hand-tuned distance: zeroing the margin
+ * lets the arrow sit flush against the card, as react-floater intends when a
+ * consumer supplies its own fully-styled tooltip body (ours already has its own
+ * padding/border/shadow, so it doesn't need the library's default breathing room).
+ */
+const FLOATER_PROPS = (reduce: boolean) => ({
+  disableAnimation: reduce,
+  styles: { arrow: { length: 12, spread: 20, margin: 0 } },
+})
+
+/**
  * The employee product tour: a single-page walkthrough of `/empleado`. Every step
  * anchors to the employee home, so it auto-runs and reopens only on that route and
  * drops any anchor that is not painted. This is the original tour behaviour, left
@@ -118,7 +133,7 @@ function EmployeeTourRunner() {
       spotlightPadding={6}
       tooltipComponent={TourTooltip}
       callback={handleCallback}
-      floaterProps={{ disableAnimation: reduce }}
+      floaterProps={FLOATER_PROPS(reduce)}
       styles={JOYRIDE_STYLES}
     />
   )
@@ -264,7 +279,7 @@ function AdminTourRunner() {
       spotlightPadding={6}
       tooltipComponent={TourTooltip}
       callback={handleCallback}
-      floaterProps={{ disableAnimation: reduce }}
+      floaterProps={FLOATER_PROPS(reduce)}
       styles={JOYRIDE_STYLES}
     />
   )

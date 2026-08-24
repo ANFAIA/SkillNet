@@ -6,6 +6,7 @@ import { Button, Input } from '../../components/ui'
 import { Mascota } from '../../features/mascot'
 import { ApiError } from '../../api/client'
 import { useSubmitSetup } from '../../api/setup'
+import { useTourStore } from '../../features/onboarding/useTourStore'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
 import { duration, ease, spring } from '../../lib/motion'
 import type { WorkspaceMode } from '../../types'
@@ -77,6 +78,12 @@ export function Setup() {
       })
       // Auto-logged in. The owner also learns in individual mode, so send them to
       // the learner onboarding; an organization admin goes to their dashboard.
+      //
+      // A brand-new org is the one moment we know for certain the admin tour
+      // should run — start it directly here instead of relying on ProductTour's
+      // localStorage heuristic when landing on /admin, which is a fallback for
+      // reloads mid-tour, not the primary trigger for a first-time admin.
+      if (mode !== 'individual') useTourStore.getState().start()
       navigate(mode === 'individual' ? '/onboarding' : '/admin', { replace: true })
     } catch {
       // Surfaced below via submit.error.
@@ -235,8 +242,10 @@ export function Setup() {
 
         {!expanded && (
           <div className="mt-6 flex items-center justify-between gap-3">
-            <Button variant="ghost" onClick={() => setStage('welcome')}>
-              {'← '}
+            <Button variant="ghost" onClick={() => setStage('welcome')} className="flex items-center gap-1">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
               {intl.formatMessage({ id: 'setup.previous' })}
             </Button>
             <Button variant="primary" disabled={!mode} onClick={() => setExpanded(true)}>
@@ -255,7 +264,7 @@ export function Setup() {
   }
 
   return (
-    <div className="setup-welcome-bg relative min-h-screen overflow-hidden flex flex-col items-center justify-center p-4">
+    <div className="setup-welcome-bg relative min-h-screen overflow-hidden flex flex-col items-center pt-8 sm:pt-12 p-4">
       <LayoutGroup>
         <div className="w-full max-w-2xl flex flex-col items-center">
           {/* One continuous mascot: it scales down (transform only) as we move from
