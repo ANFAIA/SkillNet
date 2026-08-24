@@ -39,7 +39,12 @@ function useMeasuredHeight<T extends HTMLElement>() {
   useLayoutEffect(() => {
     const el = ref.current
     if (!el) return
-    const update = () => setHeight(el.offsetHeight)
+    // `offsetHeight` rounds to an integer; when the real rendered height is a
+    // fraction of a pixel above that (sub-pixel layout, common with borders), the
+    // overflow-hidden wrapper below clips the last sliver of the card's bottom
+    // border. getBoundingClientRect() keeps the fraction, and rounding up (not
+    // to-nearest) guarantees the wrapper is never a hair shorter than the content.
+    const update = () => setHeight(Math.ceil(el.getBoundingClientRect().height))
     update()
     const observer = new ResizeObserver(update)
     observer.observe(el)
