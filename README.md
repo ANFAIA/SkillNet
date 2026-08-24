@@ -5,7 +5,7 @@
 <h1 align="center">SkillNet</h1>
 
 <p align="center">
-  <strong>SkillNet turns your documents into courses that adapt to each person: the same source of knowledge, a different experience for each learner.</strong>
+  <strong>SkillNet turns an idea or source into a course whose explanations, activities and interface can adapt to each person.</strong>
 </p>
 
 <p align="center">
@@ -15,51 +15,51 @@
   <a href="https://github.com/ANFAIA/SkillNet">GitHub</a>
 </p>
 
-SkillNet turns the documents an organization already has into courses, lessons and exercises. Each
-learner can move through that material differently while staying connected to the same source of
-knowledge.
+SkillNet is an open-source adaptive learning system. Start with a topic or existing material and it
+builds a structured course that can present the same knowledge differently to each learner.
 
-It is an open-source, self-hosted project.
+It can run as a shared space for an organization or class, or as an individual learning workspace.
+It is self-hosted and licensed under Apache 2.0.
 
 **[Start here: run SkillNet locally →](RUNNING.md)**
 
-## From documents to courses
+## From ideas and sources to courses
 
-Most organizations already have the material they need to teach something: manuals, processes,
-policies, recordings or the knowledge of someone who does the work. The difficult part is turning
-that material into something a person can learn from.
+You can begin by describing what you want to teach or learn, or by uploading the material that
+already contains that knowledge. SkillNet turns it into a course. When source material is used,
+the generated content stays connected to the material it came from.
 
 SkillNet builds that path:
 
 ```text
-company documents
-        → structured knowledge
+idea or source material
+        → structured course knowledge
         → course and lesson generation
         → exercises, explanations and practice
         → a learning experience for each learner
 ```
 
-The same source can support a course, a reference manual, an exercise or a tutor conversation. The
-content is connected to the material it came from instead of being created as a separate artifact.
+The result is not limited to a single fixed presentation. The same course can support different
+explanations, activities, media and interfaces while preserving its knowledge and objectives.
 
-## The same source, a different experience
+## The same knowledge, a different experience
 
 The knowledge and objectives can remain stable while the parts around them change for the person
 learning:
 
-| The source stays stable | The experience can change |
+| What stays stable | What can change |
 | --- | --- |
-| facts, objectives, evidence and criteria | route, explanation, example, practice, interface and pace |
+| knowledge, objectives, evidence and criteria | route, explanation, example, practice, interface and pace |
 
-The source stays shared. The route, explanation, example, practice, interface and pace can change
-for each learner.
+The knowledge and objectives stay shared. The route, explanation, example, practice, interface and
+pace can change for each learner.
 
 ## How it works
 
 ```mermaid
 graph LR
-    docs["Company knowledge"] --> agents["SkillNet agents"]
-    agents --> knowledge["Grounded knowledge"]
+    docs["Idea or source material"] --> agents["SkillNet agents"]
+    agents --> knowledge["Course knowledge"]
     knowledge --> openui["OpenUI interface description"]
     openui --> didact["Didact learning components"]
     didact --> learner["Learner"]
@@ -67,17 +67,18 @@ graph LR
 ```
 
 SkillNet combines a knowledge layer, specialised agents and learning surfaces. The current
-generated-interface path uses [OpenUI](https://github.com/openai/openui). [Didact](https://github.com/JoseEstevez520/Didact)
+generated-interface path uses [OpenUI](https://github.com/thesysdev/openui). [Didact](https://github.com/JoseEstevez520/Didact)
 provides the educational components: flashcards, worked examples, diagrams, practice activities and
 other interactions designed for learning.
 
 ## What is available
 
-- Upload and process organisational documents.
-- Generate courses, lessons and exercises from that knowledge.
+- Create a course from a topic or from uploaded material.
+- Generate its structure, lessons and exercises.
 - Support static and dynamic course paths.
 - Ask questions grounded in course material.
 - Record learning activity, attempts and progress.
+- Choose an organization or individual workspace at first setup.
 - Run the system locally or self-host it with Docker.
 
 The project is still in development. Some adaptive directions are documented and being tested, but
@@ -89,7 +90,7 @@ knows how every person learns.
 SkillNet is the main project. The surrounding repositories explore parts of the same direction:
 
 - [Didact](https://github.com/JoseEstevez520/Didact) — educational components used by SkillNet.
-- [OpenUI](https://github.com/openai/openui) — the current generated-interface layer.
+- [OpenUI](https://github.com/thesysdev/openui) — the current generated-interface layer.
 - [mcp-md-reader](https://github.com/JoseEstevez520/mcp-md-reader) — structural Markdown reading for agent workflows.
 - [A2TL-Web](https://github.com/JoseEstevez520/a2tl-web) — earlier research into compact generated interfaces.
 - [A2TL-Video](https://github.com/JoseEstevez520/a2tl-video) — related work for agent-generated video.
@@ -105,9 +106,10 @@ The complete [running guide](RUNNING.md) covers setup, demo data, configuration,
 and troubleshooting.
 
 ```bash
-cp .env.example .env
+cp .env.example .env                                          # then set SECRET_KEY,
+                                                                # POSTGRES_PASSWORD, LLM_API_KEY
 docker compose up -d --build
-docker compose exec api uv run python -m src.seed_learning_demo
+docker compose exec api uv run python -m src.seed_learning_demo   # optional: loads the public demo
 ```
 
 Then open <http://localhost:3000>. The repository also includes a keyless fixture mode for local
