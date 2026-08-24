@@ -14,6 +14,8 @@ from src.render import (
     RenderValidationError,
     parse_spec,
 )
+from src.render import kit as kit_module
+from src.render import spec as spec_module
 from src.render.kit import PropKind
 
 # The table of §5.3, verbatim: name -> positional prop order.
@@ -639,3 +641,94 @@ def test_partial_mode_still_rejects_an_unknown_component() -> None:
     }
     with pytest.raises(RenderValidationError):
         parse_spec(payload, partial=True)
+
+
+# -- _build_ui_kit derivation from the artefact (regression, session 2026-08-24) ----
+#
+# The original version of _build_ui_kit() iterated _CATALOGUE_ORDER to assemble UI_KIT,
+# so a component the artefact advertised but that predated the tuple was silently
+# dropped. These two tests pin the fix down: a fresh UIKit built from a fabricated
+# artefact, never touching the real openui_catalog.json on disk.
+
+
+#: Real §5.3 shapes for the names these tests reuse from the actual catalogue, so a
+#: fabricated artefact still produces a component that parses like the real one.
+_REAL_PROPS: dict[str, list[dict[str, object]]] = {
+    "Stack": [
+        {"name": "children", "kind": "ref[]"},
+        {"name": "gap", "kind": "enum", "choices": ["sm", "md", "lg"]},
+    ],
+    "TextContent": [
+        {"name": "text", "kind": "string"},
+        {"name": "variant", "kind": "enum", "choices": ["body", "lead", "caption"]},
+    ],
+}
+
+
+def _fake_artifact(*names: str, extra_props: dict[str, list[dict[str, object]]] | None = None) -> dict:
+    extra_props = extra_props or {}
+    return {
+        "prompt_components": [
+            {
+                "name": name,
+                "description": f"{name} de prueba",
+                "props": _REAL_PROPS.get(name) or extra_props.get(name) or [{"name": "label", "kind": "string"}],
+            }
+            for name in names
+        ]
+    }
+
+
+def test_a_component_absent_from_catalogue_order_is_not_dropped(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A name the artefact carries but `_CATALOGUE_ORDER` predates still surfaces in UI_KIT."""
+    # `_CATALOGUE_ORDER` is shrunk to only the names this fake artefact declares, so the
+    # "artefact is missing a name the tuple expects" guard does not fire for unrelated
+    # §5.3 names that this fake artefact does not bother to carry.
+    monkeypatch.setattr(kit_module, "_CATALOGUE_ORDER", ("Stack",))
+    monkeypatch.setattr(
+        kit_module,
+        "_load_catalog_artifact",
+        lambda: _fake_artifact("Stack", "NuevoComponente"),
+    )
+    fresh = kit_module._build_ui_kit()
+    assert "NuevoComponente" in fresh.names
+    component = fresh.get("NuevoComponente")
+    assert component is not None
+    assert component.prop_names == ("label",)
+
+
+def test_a_component_without_backend_metadata_gets_safe_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
+    """No `_BACKEND_METADATA` entry -> not a container, no function claim, still valid as a leaf."""
+    monkeypatch.setattr(kit_module, "_CATALOGUE_ORDER", ("Stack", "TextContent"))
+    monkeypatch.setattr(
+        kit_module,
+        "_load_catalog_artifact",
+        lambda: _fake_artifact("Stack", "TextContent", "SinMetadata"),
+    )
+    fresh = kit_module._build_ui_kit()
+    component = fresh.get("SinMetadata")
+    assert component is not None
+    assert component.is_container is False
+    assert component.functions == ()
+
+    # Valid as a leaf (second child, so rule 7's lead slot is satisfied by "a").
+    monkeypatch.setattr(spec_module, "UI_KIT", fresh)
+    monkeypatch.setattr(spec_module, "CONTAINER_NAMES", fresh.container_names)
+    payload = {
+        "version": "skillnet-ui/1",
+        "format": "explanation",
+        "root": "root",
+        "components": [
+            {"id": "root", "type": "Stack", "props": {"gap": "md"}, "children": ["a", "b"]},
+            {"id": "a", "type": "TextContent", "props": {"text": "Guia.", "variant": "lead"}},
+            {"id": "b", "type": "SinMetadata", "props": {"label": "hola"}},
+        ],
+    }
+    spec = parse_spec(payload)
+    assert spec.components[2].type == "SinMetadata"
+
+    # Rejected as root: not a container, so rule 1 fails with a clear message.
+    payload_as_root = {**payload, "root": "b"}
+    with pytest.raises(RenderValidationError) as excinfo:
+        parse_spec(payload_as_root)
+    assert any("rule 1" in e for e in excinfo.value.errors)

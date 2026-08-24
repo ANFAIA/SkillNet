@@ -62,36 +62,30 @@ const SCHEMAS_CANDIDATES = [
   'src/components/courses/kit/schemas.mjs',
 ]
 
-// name -> [zod export in kit/schemas.ts, description]. The order is the order of the §5.3
-// table and therefore of the prompt catalogue. `Markdown` is last and is excluded from the
-// prompt: the server authors it for fallback_seed, the model may not emit it.
-// Componentes que existen en el kit y el modelo NO puede emitir. `Markdown` lo escribe
-// el servidor para `fallback_seed`.
-const NOT_EMITTABLE = new Set(['Markdown', 'DidactActivity'])
+// The catalogue itself is NOT declared here. `kit/schemas.ts` already exports
+// `KIT_COMPONENT_NAMES` (order), `KIT_PROP_SCHEMAS` (name -> zod object) and
+// `KIT_DESCRIPTIONS` (name -> prompt copy) — a hand-written list here would be a
+// fourth place carrying the same nineteen rows and would drift the day someone
+// adds a component without knowing this file exists. `componentsFromSchemas`
+// below reads those three exports directly.
+//
+// Only used by strategy 1 below (a full rendered library, not the schemas fallback
+// this repo actually uses today): if a `library.ts` entry ever exports the FULL kit
+// rather than just the emittable subset, these are the names to drop. Resolved from
+// `kit/schemas.ts` (KIT_COMPONENT_NAMES minus LLM_COMPONENT_NAMES) via
+// `notEmittableNames()` below whenever schemas.ts is loadable, so this cannot drift
+// from the frontend's own declaration; the two-name literal here only fires as a
+// last-resort fallback if schemas.ts is not loadable in that run.
+const NOT_EMITTABLE_FALLBACK = new Set(['Markdown', 'DidactActivity'])
 
-const CATALOGUE = [
-  ['Stack', 'stackProps', 'Contenedor vertical. Envuelve la pantalla entera; siempre es el root'],
-  ['TextContent', 'textContentProps', 'Prosa breve: el gancho inicial o una transicion. No vuelques aqui el contenido'],
-  ['Card', 'cardProps', 'Agrupa bajo un titulo propio un caso practico o un ejemplo cerrado'],
-  ['Callout', 'calloutProps', 'Una regla critica o excepcion que no se puede pasar por alto. Uno por pantalla'],
-  ['StepSequence', 'stepSequenceProps', 'Pasos en orden que se entienden solos. Prefierelo con 3-7 pasos cortos'],
-  ['Table', 'tableProps', 'Varios elementos comparados por varios atributos. Si solo contrastas DOS estados usa BeforeAfter'],
-  ['CodeBlock', 'codeBlockProps', 'Fragmento de codigo de ejemplo'],
-  ['Chart', 'chartProps', 'Cifras comparables entre categorias. Solo si las cifras estan en la fuente'],
-  ['QuizItem', 'quizItemProps', 'Pregunta de evaluacion sobre un caso concreto'],
-  ['BeforeAfter', 'beforeAfterProps', 'Contrasta exactamente DOS estados: correcto frente a incorrecto, antes frente a despues. Prefierelo a Table cuando la comparacion es de dos'],
-  ['Markdown', 'markdownProps', 'Solo para fallback_seed; el modelo no puede emitirlo'],
-  ['DragOrder', 'dragOrderProps', 'Evaluar reordenando pasos o prioridades arrastrando'],
-  ['AudioExplanation', 'audioExplanationProps', 'Texto leido en voz alta con resaltado de palabras'],
-  ['PronunciationExercise', 'pronunciationExerciseProps', 'Escuchar y practicar la pronunciacion de un termino'],
-  ['Flashcard', 'flashcardProps', 'Recordar activamente una idea antes de revelar la respuesta; no sustituye una evaluacion'],
-  ['HintReveal', 'hintRevealProps', 'Ofrece pistas de menor a mayor ayuda y una solucion solo bajo peticion'],
-  ['DidactGlossary', 'didactGlossaryProps', 'Definiciones consultables para terminos importantes del contenido'],
-  ['DidactTimeline', 'didactTimelineProps', 'Secuencia cronologica o procedimental con detalle opcional por paso'],
-  ['DidactWorkedExample', 'didactWorkedExampleProps', 'Solucion razonada que revela progresivamente como resolver un problema'],
-  ['LearningExperience', 'learningExperienceProps', 'Experiencia de aprendizaje resuelta por referencia neutral; no expone proveedor, respuestas ni definicion privada'],
-  ['DidactActivity', 'didactActivityProps', 'Actividad Didact revisada, cargada por id desde SkillNet; nunca contiene respuestas en el programa'],
-]
+async function notEmittableNames() {
+  const { mod } = await importCandidate(SCHEMAS_CANDIDATES)
+  if (mod?.KIT_COMPONENT_NAMES && mod?.LLM_COMPONENT_NAMES) {
+    const emittable = new Set(mod.LLM_COMPONENT_NAMES)
+    return new Set([...mod.KIT_COMPONENT_NAMES].filter((name) => !emittable.has(name)))
+  }
+  return NOT_EMITTABLE_FALLBACK
+}
 
 // ---------------------------------------------------------------------------------
 // The Spanish prompt SkillNet owns. `library.prompt()` contributes the syntax block,
@@ -302,31 +296,27 @@ async function importCandidate(candidates) {
 // ---------------------------------------------------------------------------------
 
 function componentsFromSchemas(schemas, { defineComponent }) {
-  const missing = CATALOGUE.filter(([, exportName]) => !schemas[exportName])
-  if (missing.length) {
-    throw new Error(
-      'kit/schemas.ts does not export ' +
-        missing.map(([name, exportName]) => `${exportName} (${name})`).join(', ') +
-        '. Either the catalogue changed or the export names did; fix this table.',
-    )
+  const { KIT_COMPONENT_NAMES, KIT_PROP_SCHEMAS, KIT_DESCRIPTIONS, LLM_COMPONENT_NAMES } = schemas
+  const required = ['KIT_COMPONENT_NAMES', 'KIT_PROP_SCHEMAS', 'KIT_DESCRIPTIONS', 'LLM_COMPONENT_NAMES']
+  const missingExports = required.filter((name) => !schemas[name])
+  if (missingExports.length) {
+    throw new Error(`kit/schemas.ts no exporta ${missingExports.join(', ')}; ` + 'ese es el contrato que este script necesita.')
   }
-  const built = CATALOGUE.map(([name, exportName, description]) =>
+  const missingSchemas = [...KIT_COMPONENT_NAMES].filter((name) => !KIT_PROP_SCHEMAS[name])
+  if (missingSchemas.length) {
+    throw new Error(`KIT_PROP_SCHEMAS no tiene entrada para ${missingSchemas.join(', ')}.`)
+  }
+  const built = [...KIT_COMPONENT_NAMES].map((name) =>
     defineComponent({
       name,
-      description,
-      props: schemas[exportName],
+      description: KIT_DESCRIPTIONS[name] ?? '',
+      props: KIT_PROP_SCHEMAS[name],
       component: () => null,
     }),
   )
-  const names = schemas.KIT_COMPONENT_NAMES
-  if (names && [...names].join(',') !== CATALOGUE.map(([name]) => name).join(',')) {
-    throw new Error(
-      `kit/schemas.ts declares ${[...names].join(', ')} but this build step expects ` +
-        `${CATALOGUE.map(([name]) => name).join(', ')}`,
-    )
-  }
+  const emittableNames = new Set(LLM_COMPONENT_NAMES)
   return {
-    emittable: built.filter((component) => !NOT_EMITTABLE.has(component.name)),
+    emittable: built.filter((component) => emittableNames.has(component.name)),
     all: built,
   }
 }
@@ -426,8 +416,9 @@ async function main() {
         : null)
     if (!promptLibrary && rendered) {
       // Only a full library is exported: drop the components the model may not emit.
+      const notEmittable = await notEmittableNames()
       const emittable = Object.values(rendered.components).filter(
-        (component) => !NOT_EMITTABLE.has(component.name),
+        (component) => !notEmittable.has(component.name),
       )
       promptLibrary = core.createLibrary({ id: rendered.id, root: rendered.root, components: emittable })
     }
