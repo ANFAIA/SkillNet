@@ -160,6 +160,18 @@ curl http://localhost:3000/api/v1/health
 
 `database` must say `connected` and `embeddings.status` must say `ok`.
 
+To check a login from the command line rather than the browser, note that the endpoint takes
+an OAuth2 **form** body, not JSON — posting JSON returns `422` with a validation error that
+does not make the reason obvious:
+
+```bash
+curl -i -X POST http://localhost:3000/api/v1/auth/login   -d 'username=you@example.com&password=your-password'
+```
+
+`204 No Content` with a `Set-Cookie: skillnet_session=...` header is success. Behind TLS that
+cookie should also carry `Secure`; if it does not, `COOKIE_SECURE` is still false — see
+[Letting other people in](#letting-other-people-in).
+
 If `embeddings.status` is `mismatch`, the response also states exactly what to change. Worth
 checking, because a wrong embedding dimension is the one misconfiguration that otherwise
 fails silently: documents look ingested but nothing can retrieve them, and the tutor answers
@@ -250,6 +262,13 @@ docker compose -f docker-compose.yml -f docker-compose.quicktunnel.yml up -d --b
 docker compose -f docker-compose.yml -f docker-compose.quicktunnel.yml logs quicktunnel | grep trycloudflare
 ```
 
+Every `-f` has to be repeated on every later command, including `logs` and `down` — Compose
+has no memory of the overlay you started with. And if you passed `-p somename` to the first
+`up`, pass the same `-p` here: the project name is what ties these containers to the ones
+already running, and a different one silently builds a second, separate stack. With no `-p`
+at all it defaults to the directory name, which is why plain `docker compose` commands find
+each other.
+
 The second command prints something like `https://against-region-afternoon-bucks.trycloudflare.com`.
 That address works from any network in the world, over HTTPS, immediately. No Cloudflare
 account, no domain, no DNS record, and nothing to open on your router — `cloudflared` dials
@@ -338,6 +357,14 @@ embeddings — all of which cost real model calls to produce), the uploaded docu
 generated podcasts and infographics. `docker compose down` keeps them. `docker compose down -v`
 destroys them, permanently, with no prompt.
 
+On **Windows with Git Bash**, the two `docker run` lines below need help: Git Bash rewrites
+`/out/...` into a Windows path before Docker ever sees it, and the container then reports
+`tar: can't open 'C:/Program Files/Git/out/...'`. Prefix the container-side paths with a
+second slash and disable the conversion — `MSYS_NO_PATHCONV=1 docker run --rm -v
+skillnet_uploads://d -v "$PWD://out" alpine tar czf //out/uploads.tar.gz -C //d .`.
+PowerShell and cmd need neither change, and `pg_dump` is unaffected either way: it writes
+through the shell's own redirection, not through a container path.
+
 There is no scheduled backup in this repo. One command gets you a restorable copy:
 
 ```bash
@@ -351,18 +378,6 @@ docker run --rm -v skillnet_media_assets:/d -v "$PWD:/out" alpine   tar czf /out
 
 The volume names are prefixed with the Compose project, which defaults to the directory name —
 check yours with `docker volume ls`.
-
-On **Windows with Git Bash**, those two `docker run` lines need help: Git Bash rewrites
-`/out/...` into a Windows path before Docker ever sees it, and the container then reports
-`tar: can't open 'C:/Program Files/Git/out/...'`. Prefix the container-side paths with a
-second slash and disable the conversion:
-
-```bash
-MSYS_NO_PATHCONV=1 docker run --rm -v skillnet_uploads://d -v "$PWD://out" alpine   tar czf //out/skillnet-uploads.tar.gz -C //d .
-```
-
-PowerShell and cmd need neither change. `pg_dump` above is unaffected — it writes through the
-shell's own redirection, not through a container path.
 
 To restore the database into a fresh stack, bring it up, let the migrations run once, then:
 
