@@ -56,6 +56,19 @@ class ArtifactGeneratePolicy(str, enum.Enum):
     SELECTED = "selected"
 
 
+class CourseTutorStyle(str, enum.Enum):
+    """How the learner tutor answers questions inside this course.
+
+    ``SOCRATIC`` asks a guiding question before giving the answer;
+    ``DIRECT`` answers plainly. Auto-detected by the schema designer at
+    creation time (``src/agents/schema/nodes.py``), editable afterward like
+    any other course setting.
+    """
+
+    SOCRATIC = "socratic"
+    DIRECT = "direct"
+
+
 class Course(UUIDMixin, TimestampMixin, Base):
     __tablename__ = "courses"
     __table_args__ = (
@@ -138,6 +151,16 @@ class Course(UUIDMixin, TimestampMixin, Base):
         nullable=False,
         server_default=ArtifactGeneratePolicy.ADMIN.value,
         default=ArtifactGeneratePolicy.ADMIN,
+    )
+    tutor_style: Mapped[CourseTutorStyle] = mapped_column(
+        SAEnum(
+            CourseTutorStyle,
+            name="course_tutor_style",
+            values_callable=lambda e: [m.value for m in e],
+        ),
+        nullable=False,
+        server_default=CourseTutorStyle.SOCRATIC.value,
+        default=CourseTutorStyle.SOCRATIC,
     )
 
     modules: Mapped[list["Module"]] = relationship(

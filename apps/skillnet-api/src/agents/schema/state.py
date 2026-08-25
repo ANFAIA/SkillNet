@@ -33,6 +33,10 @@ class SchemaState(TypedDict, total=False):
     # title, summary, outcome, criticality, prerequisites (indices), source_headings
     proposed_nodes: list[dict]
     schema_warnings: list[str]
+    # "socratic" | "direct" — auto-detected alongside the node graph, defaults to
+    # "socratic" when the designer's response omits or mangles it (course.py's
+    # CourseTutorStyle enum is the source of truth for valid values).
+    tutor_style: str
 
     # --- Control / progress ---
     error: str | None

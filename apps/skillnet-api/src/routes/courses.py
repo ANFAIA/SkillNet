@@ -65,6 +65,13 @@ def _policy(course: Course) -> str:
     return str(getattr(raw, "value", raw))
 
 
+def _tutor_style(course: Course) -> str:
+    raw = getattr(course, "tutor_style", None)
+    if raw is None:
+        return "socratic"
+    return str(getattr(raw, "value", raw))
+
+
 def _can_generate(course: Course, user, generator_ids: list[uuid.UUID]) -> bool:
     return can_generate_artifacts(
         role=user.role,
@@ -102,6 +109,7 @@ def _summary(
         artifact_generate_policy=_policy(course),
         artifact_generator_ids=ids,
         can_generate_artifacts=_can_generate(course, user, ids),
+        tutor_style=_tutor_style(course),
     )
 
 
@@ -167,6 +175,7 @@ def _detail(
         artifact_generate_policy=_policy(course),
         artifact_generator_ids=list(generator_ids or []),
         can_generate_artifacts=_can_generate(course, user, list(generator_ids or [])),
+        tutor_style=_tutor_style(course),
         modules=modules,
     )
 

@@ -6,7 +6,14 @@ from datetime import datetime, timezone
 from sqlalchemy import func, select
 
 from src.core.exceptions import ConflictError, NotFoundError, ValidationError
-from src.models import ArtifactGeneratePolicy, ContentStatus, Course, EnrollmentStatus, User
+from src.models import (
+    ArtifactGeneratePolicy,
+    ContentStatus,
+    Course,
+    CourseTutorStyle,
+    EnrollmentStatus,
+    User,
+)
 from src.repositories.course_repo import CourseRepository
 from src.repositories.course_folder_repo import CourseFolderRepository
 from src.services.course_delivery import resolve_delivery
@@ -70,6 +77,14 @@ class CourseService:
                 raise ValidationError(
                     "Invalid artifact generate policy",
                     field="artifact_generate_policy",
+                ) from exc
+        raw_tutor_style = changes.get("tutor_style")
+        if raw_tutor_style is not None:
+            try:
+                changes["tutor_style"] = CourseTutorStyle(raw_tutor_style)
+            except ValueError as exc:
+                raise ValidationError(
+                    "Invalid tutor style", field="tutor_style"
                 ) from exc
         clean = {
             k: v

@@ -110,13 +110,43 @@ def _block_key(grounding: Grounding) -> str:
     return "chunks" if grounding == "chunks_fts" else grounding
 
 
-def tutor_system_prompt(grounding: Grounding) -> str:
-    """The employee tutor's system prompt for a turn with this grounding."""
-    return f"{TUTOR_PERSONA}\n\n{FRONTEND_TOOLS_BLOCK}\n\n{_GROUNDING_BLOCKS[_block_key(grounding)]}"
+# --------------------------------------------------------------------------------------
+# Tutor style. Per-course (``courses.tutor_style``), auto-detected by the schema
+# designer at creation (``src/agents/schema/nodes.py``), editable afterward via
+# ``PUT /courses/{id}``. Defaults to "socratic" everywhere a caller has no course in
+# context (general employee chat) or the column read failed, matching the column's
+# own default so a missing lookup degrades to today's behavior, not a KeyError.
+# --------------------------------------------------------------------------------------
+_STYLE_BLOCKS: dict[str, str] = {
+    "socratic": """\
+Estilo de este curso: guia antes de responder. Si la pregunta admite razonarla, haz
+PRIMERO una pregunta corta que empuje a la persona a pensarlo, y solo da la respuesta
+completa si pide que se la digas directamente o si ya lo ha intentado. No lo hagas con
+preguntas puramente factuales (un plazo, un numero, un requisito): eso se responde
+directo, sin rodeos.""",
+    "direct": """\
+Estilo de este curso: responde directo. Da la respuesta correcta primero, sin
+preguntas previas ni rodeos socraticos, y anade el porque solo si aporta.""",
+}
+
+DEFAULT_TUTOR_STYLE = "socratic"
 
 
-def tutor_genui_system_prompt(grounding: Grounding) -> str:
-    """Single-phase GenUI prompt for the tutor: persona + chat OpenUI spec + grounding.
+def tutor_system_prompt(
+    grounding: Grounding, tutor_style: str = DEFAULT_TUTOR_STYLE
+) -> str:
+    """The employee tutor's system prompt for a turn with this grounding and style."""
+    style_block = _STYLE_BLOCKS.get(tutor_style, _STYLE_BLOCKS[DEFAULT_TUTOR_STYLE])
+    return (
+        f"{TUTOR_PERSONA}\n\n{style_block}\n\n{FRONTEND_TOOLS_BLOCK}\n\n"
+        f"{_GROUNDING_BLOCKS[_block_key(grounding)]}"
+    )
+
+
+def tutor_genui_system_prompt(
+    grounding: Grounding, tutor_style: str = DEFAULT_TUTOR_STYLE
+) -> str:
+    """Single-phase GenUI prompt for the tutor: persona + style + chat spec + grounding.
 
     The mirror of :func:`src.llm.prompts.admin.admin_genui_system_prompt`, minus the org
     data block (the tutor answers about documents and lesson content, never about the
@@ -125,9 +155,11 @@ def tutor_genui_system_prompt(grounding: Grounding) -> str:
     so ``ChatService`` runs both surfaces through one path. A model that fails to produce a
     valid program degrades to the prose it streamed, exactly as the admin does.
     """
+    style_block = _STYLE_BLOCKS.get(tutor_style, _STYLE_BLOCKS[DEFAULT_TUTOR_STYLE])
     return "\n\n".join(
         [
             TUTOR_PERSONA,
+            style_block,
             FRONTEND_TOOLS_BLOCK,
             load_chat_spec(),
             _GROUNDING_BLOCKS[_block_key(grounding)],
@@ -327,6 +359,7 @@ __all__ = [
     "CHAT_LAYOUT_SYSTEM",
     "CHAT_SHAPES",
     "CHAT_UI_RULES",
+    "DEFAULT_TUTOR_STYLE",
     "FRONTEND_TOOLS_BLOCK",
     "MAX_DEFINITION_POINTS",
     "MAX_STEPS",

@@ -59,6 +59,9 @@ class CourseRead(BaseModel):
     artifact_generate_policy: Literal["admin", "everyone", "selected"] = "admin"
     artifact_generator_ids: list[uuid.UUID] = []
     can_generate_artifacts: bool = False
+    #: How the learner tutor answers inside this course. Auto-detected at
+    #: creation by the schema designer, editable via ``PUT /courses/{id}``.
+    tutor_style: Literal["socratic", "direct"] = "socratic"
 
 
 class CourseDetail(CourseRead):
@@ -89,6 +92,7 @@ class CourseUpdate(BaseModel):
     folder_id: uuid.UUID | None = None
     artifact_generate_policy: Literal["admin", "everyone", "selected"] | None = None
     artifact_generator_ids: list[uuid.UUID] | None = None
+    tutor_style: Literal["socratic", "direct"] | None = None
 
     @field_validator("title")
     @classmethod
