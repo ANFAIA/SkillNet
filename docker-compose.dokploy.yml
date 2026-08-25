@@ -15,8 +15,13 @@
 #   host / path `/ext`  -> service skillnet-api, container port 8000   (external API only)
 #
 # Traefik ranks routers by rule length, so `/api` wins over `/` with no manual priority.
-# Miss the second entry and the app loads, then every call falls through to index.html:
-# a white screen after login rather than an error.
+# Miss the second entry and the app loads, then every call falls through to index.html —
+# `GET /api/v1/setup/status` comes back 200 with `filename="index.html"` and the SPA is
+# parsing HTML as JSON. It reads like a frontend bug and is a missing route.
+#
+# Leave "Strip Path" OFF on that entry. `/api/v1` is where FastAPI actually mounts its
+# routes (src/main.py), not a routing prefix to peel off: strip it and the API gets
+# `/v1/setup/status` and answers 404 — same broken login, different cause.
 #
 # The domain lives in that tab and NOT as Traefik labels in this file. Labels here used
 # to work, but Dokploy writes its own for whatever you add in the UI, and two routers
