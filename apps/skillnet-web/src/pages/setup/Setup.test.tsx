@@ -1,9 +1,10 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
 import { Setup } from './Setup'
+import * as setupApi from '../../api/setup'
 
 // Setup needs a QueryClient (its `useSubmitSetup` mutation) and a Router
 // (`useNavigate`). Intl is supplied globally by the test setup mock, so — like the
@@ -73,5 +74,33 @@ describe('Setup — first-boot wizard', () => {
     // The owner form surfaces (its submit CTA is "Crear y continuar").
     expect(await screen.findByRole('heading', { name: 'Tu cuenta' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Crear y continuar' })).toBeInTheDocument()
+  })
+
+  it('does not warn about a missing AI key when one is configured (default)', async () => {
+    const user = userEvent.setup()
+    renderSetup()
+    await user.click(screen.getByRole('button', { name: 'Comenzar' }))
+    await user.click(await screen.findByRole('heading', { name: 'Organizacion' }))
+    await user.click(screen.getByRole('button', { name: 'Continuar' }))
+    await screen.findByRole('heading', { name: 'Tu cuenta' })
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
+  it('warns about a missing AI key on the owner form when the deployment has none', async () => {
+    vi.spyOn(setupApi, 'useCapabilities').mockReturnValue({
+      ai: false,
+      generation: false,
+      tutor: false,
+      tts: true,
+      images: true,
+    })
+    const user = userEvent.setup()
+    renderSetup()
+    await user.click(screen.getByRole('button', { name: 'Comenzar' }))
+    await user.click(await screen.findByRole('heading', { name: 'Organizacion' }))
+    await user.click(screen.getByRole('button', { name: 'Continuar' }))
+    await screen.findByRole('heading', { name: 'Tu cuenta' })
+    expect(screen.getByRole('status')).toHaveTextContent('LLM_API_KEY')
+    vi.restoreAllMocks()
   })
 })
