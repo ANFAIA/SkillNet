@@ -245,6 +245,13 @@ localhost over plain HTTP, note that `COOKIE_SECURE` defaults to `false`, so ses
 travel unencrypted. Put it behind TLS and set `COOKIE_SECURE=true`.
 
 ## Letting other people in
+> **Create your owner account before you expose it, not after.** `/setup` is public until an
+> owner exists — it has to be, since it is how the first one is made. Bring the stack up on
+> localhost, complete the wizard, and only then start the tunnel. Do it the other way round
+> and there is a window in which anyone who reaches the URL first becomes the owner of your
+> deployment: a tunnel hostname is guessable, and a Caddy certificate is published in
+> Certificate Transparency logs the moment it is issued.
+
 
 Three ways, and they are rungs on a ladder rather than alternatives. Pick by how long the
 thing has to keep working.

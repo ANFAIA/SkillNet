@@ -7,6 +7,13 @@
 # hands back a random `https://<words>.trycloudflare.com` hostname that works from anywhere.
 # No Cloudflare account, no domain, no DNS record, and nothing to open on the router.
 #
+# ## Complete /setup BEFORE you start this
+#
+# `POST /setup` is public until an owner exists — it has to be, since it is how the first one
+# is created, and it closes for good afterwards. Start the stack on localhost, create your
+# owner, and only then bring up this overlay. The other order leaves a window where whoever
+# reaches the URL first owns the deployment, and a tunnel hostname is guessable.
+#
 # ## What you are trading away, stated plainly
 #
 # The hostname is EPHEMERAL. It changes every time this container restarts, Cloudflare offers
