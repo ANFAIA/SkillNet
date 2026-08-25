@@ -84,6 +84,7 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS:-["http://localhost:3000"]}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       ENVIRONMENT: ${ENVIRONMENT:-production}
+      SETUP_WINDOW_MINUTES: ${SETUP_WINDOW_MINUTES:-30}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
       ORG_NAME: ${ORG_NAME:-SkillNet}
@@ -168,6 +169,7 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS:-["http://localhost:3000"]}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       ENVIRONMENT: ${ENVIRONMENT:-production}
+      SETUP_WINDOW_MINUTES: ${SETUP_WINDOW_MINUTES:-30}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
       ORG_NAME: ${ORG_NAME:-SkillNet}

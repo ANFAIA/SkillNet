@@ -10,11 +10,13 @@ from fastapi.responses import JSONResponse
 
 from src.config import settings
 from src.core.bootstrap import (
+    deployment_has_owner,
     ensure_organization,
     maybe_create_a2a_api_key,
     maybe_create_admin,
     run_migrations,
 )
+from src.core.setup_window import window as setup_window
 from src.core.exceptions import AppError
 from src.core.logging import configure_logging, get_logger
 from src.deps.auth import require_organization_workspace
@@ -84,6 +86,10 @@ async def lifespan(app: FastAPI):
             # Solo avisa: sin embeddings el resto del producto sigue en pie, asi que
             # tumbar el arranque seria peor que el fallo que se quiere hacer visible.
             await check_embedding_dimensions(session)
+            # Solo si el despliegue sigue sin propietario: es lo que hace publica la
+            # ruta /setup, y por tanto lo que hay que acotar en el tiempo.
+            if not await deployment_has_owner(session):
+                setup_window.open(settings.SETUP_WINDOW_MINUTES)
     except Exception as exc:  # noqa: BLE001
         logger.error("Bootstrap (org/admin) failed: %s", exc)
 

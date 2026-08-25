@@ -163,6 +163,9 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
 
     # Bootstrap
+    #: Minutes that the public `POST /setup` stays open after a boot with no owner.
+    #: 0 disables the limit. See src/core/setup_window.py for why there is one at all.
+    SETUP_WINDOW_MINUTES: int = 30
     ADMIN_EMAIL: str | None = None
     ADMIN_PASSWORD: str | None = None
     ORG_NAME: str | None = None
