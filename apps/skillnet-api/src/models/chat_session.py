@@ -24,7 +24,8 @@ class ChatSession(UUIDMixin, TimestampMixin, Base):
     __tablename__ = "chat_sessions"
     __table_args__ = (
         CheckConstraint(
-            "agent_type IN ('tutor', 'admin')", name="ck_chat_sessions_agent_type"
+            "agent_type IN ('tutor', 'admin', 'admin_agent')",
+            name="ck_chat_sessions_agent_type",
         ),
     )
 

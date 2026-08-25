@@ -13,6 +13,7 @@ from src.models.course import (
     Course,
     CourseDeliveryMode,
     CourseSchemaStatus,
+    CourseTutorStyle,
 )
 from src.models.course_artifact_generator import CourseArtifactGenerator
 from src.models.course_node import (
@@ -124,6 +125,7 @@ __all__ = [
     # --- v2 dynamic courses ---
     "CourseDeliveryMode",
     "CourseSchemaStatus",
+    "CourseTutorStyle",
     "CourseNode",
     "CourseNodePrerequisite",
     "NodeCriticality",
