@@ -1,3 +1,15 @@
+# Log rotation, applied to every long-running service below.
+#
+# Docker's default json-file driver keeps growing with NO limit: on a self-hosted box that
+# runs for months, an API logging every request eventually fills the disk, and the failure
+# looks like the database dying rather than like a log file. 10 MB x 3 per service is enough
+# history to debug yesterday and bounded enough to forget about.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 # SkillNet — Production Docker Compose
 # One command: docker compose up -d
 # Docs: https://github.com/ANFAIA/SkillNet
@@ -7,6 +19,7 @@ services:
   db:
     image: pgvector/pgvector:pg16
     restart: unless-stopped
+    logging: *default-logging
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-skillnet}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
@@ -25,6 +38,7 @@ services:
       context: .
       dockerfile: docker/api.Dockerfile
     restart: unless-stopped
+    logging: *default-logging
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-skillnet}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-skillnet}
       SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env (32 caracteres o mas)}
@@ -129,6 +143,7 @@ services:
       context: .
       dockerfile: docker/api.Dockerfile
     restart: unless-stopped
+    logging: *default-logging
     profiles: [fixtures]
     # `127.0.0.1:` is mandatory here. This service shares `SECRET_KEY` and the database
     # with `api`, so its session cookies are valid against the real API; it has no nginx
@@ -186,6 +201,7 @@ services:
       context: .
       dockerfile: docker/a2a.Dockerfile
     restart: unless-stopped
+    logging: *default-logging
     profiles: [a2a]
     ports:
       - "127.0.0.1:${A2A_PORT:-5000}:5000"
@@ -216,6 +232,7 @@ services:
       context: .
       dockerfile: packages/skillnet-mcp/Dockerfile
     restart: unless-stopped
+    logging: *default-logging
     profiles: [mcp]
     ports:
       - "127.0.0.1:${SKILLNET_MCP_PORT:-3001}:3001"
@@ -236,6 +253,7 @@ services:
       context: .
       dockerfile: docker/web.Dockerfile
     restart: unless-stopped
+    logging: *default-logging
     ports:
       - "${PORT:-3000}:80"
     depends_on:

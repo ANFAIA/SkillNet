@@ -331,6 +331,61 @@ the hostname you set in step 1 serves SkillNet over HTTPS, TLS handled entirely 
 Cloudflare. Set `COOKIE_SECURE=true` once traffic is genuinely arriving over HTTPS through
 the tunnel — see the `COOKIE_SECURE` note next to `DOMAIN` in `.env.example`.
 
+## Backing it up
+
+Everything you generate lives in Docker volumes: the database (courses, validated schemas,
+embeddings — all of which cost real model calls to produce), the uploaded documents, and the
+generated podcasts and infographics. `docker compose down` keeps them. `docker compose down -v`
+destroys them, permanently, with no prompt.
+
+There is no scheduled backup in this repo. One command gets you a restorable copy:
+
+```bash
+# Database (the expensive part)
+docker compose exec -T db pg_dump -U skillnet skillnet | gzip > skillnet-$(date +%F).sql.gz
+
+# Uploads and generated media
+docker run --rm -v skillnet_uploads:/d -v "$PWD:/out" alpine   tar czf /out/skillnet-uploads-$(date +%F).tar.gz -C /d .
+docker run --rm -v skillnet_media_assets:/d -v "$PWD:/out" alpine   tar czf /out/skillnet-media-$(date +%F).tar.gz -C /d .
+```
+
+The volume names are prefixed with the Compose project, which defaults to the directory name —
+check yours with `docker volume ls`.
+
+On **Windows with Git Bash**, those two `docker run` lines need help: Git Bash rewrites
+`/out/...` into a Windows path before Docker ever sees it, and the container then reports
+`tar: can't open 'C:/Program Files/Git/out/...'`. Prefix the container-side paths with a
+second slash and disable the conversion:
+
+```bash
+MSYS_NO_PATHCONV=1 docker run --rm -v skillnet_uploads://d -v "$PWD://out" alpine   tar czf //out/skillnet-uploads.tar.gz -C //d .
+```
+
+PowerShell and cmd need neither change. `pg_dump` above is unaffected — it writes through the
+shell's own redirection, not through a container path.
+
+To restore the database into a fresh stack, bring it up, let the migrations run once, then:
+
+```bash
+gunzip -c skillnet-2026-08-25.sql.gz | docker compose exec -T db psql -U skillnet skillnet
+```
+
+## Updating to a newer version
+
+```bash
+git pull
+docker compose up -d --build
+```
+
+Migrations run by themselves when the API starts, so there is no separate step. Two things
+worth knowing before you pull:
+
+- **Back up first** if the instance holds anything you care about. See above. A migration is
+  not reversible in practice — the downgrade path exists for tests, and one of them changes a
+  vector dimension, which cannot preserve the vectors.
+- **Read the diff of `.env.example`.** New settings appear there, and a setting that only
+  exists in your `.env` but not in `docker-compose.yml` never reaches the container.
+
 ## Stopping it
 
 ```bash

@@ -8,7 +8,8 @@
 # node gets real source_headings.
 services:
   ollama:
-    image: ollama/ollama:latest
+    # Pinned, same reason as docker-compose.ollama.yml.
+    image: ollama/ollama:0.32.6
     restart: unless-stopped
     volumes:
       - ollama:/root/.ollama

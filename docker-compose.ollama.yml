@@ -46,7 +46,8 @@
 
 services:
   ollama:
-    image: ollama/ollama:latest
+    # Pinned: a floating tag can change the model runtime under a working install.
+    image: ollama/ollama:0.32.6
     restart: unless-stopped
     volumes:
       - ollama:/root/.ollama
