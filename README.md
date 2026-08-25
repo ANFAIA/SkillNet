@@ -9,6 +9,11 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/ANFAIA/SkillNet/actions/workflows/ci.yml"><img src="https://github.com/ANFAIA/SkillNet/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-blue.svg" alt="License: Apache 2.0"></a>
+</p>
+
+<p align="center">
   <a href="https://skillnet.es">Website</a> ·
   <a href="https://skillnet.es/docs/">Documentation</a> ·
   <a href="RUNNING.md">Quick start</a> ·
@@ -112,7 +117,7 @@ and troubleshooting.
 ```bash
 cp .env.example .env                      # set the two secrets, then choose API, local model or fixtures
 docker compose up -d --build
-docker compose exec api uv run python -m src.seed_learning_demo   # optional: loads the public demo
+docker compose exec api python -m src.seed_learning_demo   # optional: loads the public demo
 ```
 
 Then open <http://localhost:3000>. The repository also includes a keyless fixture mode for local
@@ -126,6 +131,12 @@ experiments; see [`RUNNING.md`](RUNNING.md) for the available options.
 - [`docs/design/didact-integration.md`](docs/design/didact-integration.md) — how Didact components enter SkillNet.
 - [`docs/research/generative-ui/`](docs/research/generative-ui/) — experiments with generated interfaces.
 - [`docs/research/post-markdown/`](docs/research/post-markdown/) — how agents read existing documentation.
+
+## Contributing
+
+[`CONTRIBUTING.md`](CONTRIBUTING.md) covers the development setup, the checks CI runs, and the
+conventions in [`AGENTS.md`](AGENTS.md). Security issues go through
+[`SECURITY.md`](SECURITY.md), never a public issue.
 
 ## License
 

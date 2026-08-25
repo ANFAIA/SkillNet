@@ -1,0 +1,92 @@
+name: Bug report
+description: Something does not work the way it should
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before filing: three symptoms have known causes and are answered in
+        [RUNNING.md](../../blob/main/RUNNING.md) — an empty dashboard after logging in (the
+        seed step was skipped), a database the API cannot reach with an error that never
+        mentions the password (the password contains `@`, `:`, `/` or `#`), and blank course
+        screens on `fixture/local` (there is no recording for that prompt).
+
+        **Never paste your `.env`.** It holds your API key, database password and `SECRET_KEY`.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what you got instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: health
+    attributes:
+      label: Output of the health endpoint
+      description: |
+        `curl http://localhost:3000/api/v1/health`
+
+        This one command resolves most reports: it says whether the database is connected and
+        whether the embedding dimension matches the schema — the misconfiguration that
+        otherwise fails silently, where documents look ingested but nothing retrieves them.
+      render: json
+    validations:
+      required: true
+
+  - type: dropdown
+    id: llm-path
+    attributes:
+      label: What is powering it
+      description: Which row of RUNNING.md step 2 you chose. This changes what counts as a bug.
+      options:
+        - An API key (OpenAI, Anthropic, Groq, DeepSeek, other litellm provider)
+        - A local model (the Ollama overlay)
+        - Nothing — recorded fixtures (LLM_MODEL=fixture/local)
+        - Not sure
+    validations:
+      required: true
+
+  - type: input
+    id: model
+    attributes:
+      label: Model id
+      description: The value of `LLM_MODEL`. The key itself is not needed and must not be pasted.
+      placeholder: gpt-4o-mini
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: API logs
+      description: Last ~30 lines of `docker compose logs api`. Redact anything that looks like a key.
+      render: shell
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Output of `git rev-parse --short HEAD`, or the release you are on.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: how-running
+    attributes:
+      label: How it is running
+      options:
+        - Docker Compose, default (docker compose up -d)
+        - Docker Compose + the dev overlay
+        - Docker Compose + Caddy or Cloudflare Tunnel
+        - Frontend on Vite (host) against a dockerized API
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: Ubuntu 24.04 / macOS 15 / Windows 11 + WSL2
+    validations:
+      required: true

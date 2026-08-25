@@ -266,7 +266,7 @@ de datos con la real. Una herramienta de depuración, no un sandbox.
 ```bash
 docker compose up -d --build                                 # arrancar
 docker compose logs -f api                                   # seguir la API
-docker compose exec api uv run python -m src.seed_learning_demo  # datos de demo (recomendado)
+docker compose exec api python -m src.seed_learning_demo  # datos de demo (recomendado)
 curl http://localhost:3000/api/v1/health                     # db + embeddings + flags
 docker compose down                                          # parar, conservar datos
 docker compose down -v                                       # parar, destruir datos

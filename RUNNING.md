@@ -42,9 +42,10 @@ without escaping, so a `@`, `:`, `/` or `#` — exactly what a password manager 
 splits the URL, and the API then fails to reach the database with an error that never
 mentions the password.
 
-`.env.example` already ships working demo credentials (`admin@skillnet.dev` / `admin123`), so
-there is nothing else to set. Dynamic courses (v2) need no flag — the seed data already
-includes a validated dynamic course, and any new course can opt in per-course.
+That is everything you have to set. There is no owner account to configure here: the first
+time you open the app it asks you to create one (step 4). Dynamic courses (v2) need no flag —
+the seed data already includes a validated dynamic course, and any new course can opt in
+per-course.
 
 ## Step 3 — Start it
 
@@ -63,18 +64,47 @@ GB) before the API comes up, so give the first start time. See
 [`docker-compose.ollama.yml`](docker-compose.ollama.yml) for what it does and which model ids
 are valid.
 
-## Step 4 — Load the demo data
+## Step 4 — Open it and create your account
+
+<http://localhost:3000> — or whatever you set `PORT` to.
+
+The first thing you get is the **`/setup` screen**, because `.env.example` ships
+`ADMIN_EMAIL` and `ADMIN_PASSWORD` blank. Pick the workspace mode (Organization or Just me),
+create the owner account, and you are signed in. The wizard closes for good once an owner
+exists.
+
+To skip the browser step instead — for an automated or repeatable install — put your own
+`ADMIN_EMAIL` and `ADMIN_PASSWORD` in `.env` **before the first start**, and the owner is
+created for you. Either way, use your own password: nothing in this repo ships one.
+
+## Step 5 — Load the demo data (optional)
 
 **This step is for *exploring* the demo.** A real deployment skips it: you create your own
 content in the app — upload a document or describe a topic and let it generate a course. Run
 this only if you want the ready-made example to click around.
 
+It comes **after** step 4, not before: the seed hangs its courses and learners off the owner
+account, so with no owner yet it stops with `No admin user found in the organization.` and
+does nothing.
+
 ```bash
-docker compose exec api uv run python -m src.seed_learning_demo
+docker compose exec api python -m src.seed_learning_demo
 ```
 
-Startup creates the organization and the admin user, but no courses, no documents and no
-employees. Without this seed you log in to an empty dashboard — which is exactly right for a
+Plain `python`, not `uv run python`: inside the container `uv run` re-syncs the virtualenv
+on first use — it installed 12 extra packages into a production image and, more to the
+point, needs to reach PyPI. On a machine with no package-index access that is a failure
+nobody warned you about. The module runs identically without it.
+
+> **The demo seed needs a real model.** On the keyless `fixture/local` path it runs, exits 0
+> and creates the four courses — but empty: `schema proposal did not complete (job
+> status=failed); no nodes to generate`, and every course shows `0/0 ready`. The recordings
+> cover the interface, not authoring a course from scratch. Use an API key or the Ollama
+> overlay for this step.
+
+
+Creating the owner in step 4 makes the organization, but no courses, no documents and no
+learners. Without this seed you log in to an empty dashboard — which is exactly right for a
 fresh install, and just an empty database if you meant to try the demo.
 
 This seed is the public, self-branded SkillNet demo, on the meta theme of **how we learn**:
@@ -112,18 +142,15 @@ The mode is a stable per-deployment setting, chosen one of two ways:
   WORKSPACE_MODE=individual   # in your .env, alongside ADMIN_EMAIL / ADMIN_PASSWORD
   ```
 
-## Step 5 — Open it
+Three demo learners come with it. Their password is `aprender2026`:
 
-<http://localhost:3000>
+| Learner | Email |
+|---|---|
+| Metaphors + audio (sees the in-lesson podcast) | `ana@skillnet.dev` |
+| Definitions-first + visual (sees the in-lesson infographic) | `bruno@skillnet.dev` |
+| **No** profile, to walk the onboarding wizard | `carla@skillnet.dev` |
 
-| Role | Email | Password |
-|------|-------|----------|
-| **Admin** | `admin@skillnet.dev` | `admin123` |
-| Learner — metaphors + audio (sees the in-lesson podcast) | `ana@skillnet.dev` | `aprender2026` |
-| Learner — definitions-first + visual (sees the in-lesson infographic) | `bruno@skillnet.dev` | `aprender2026` |
-| Learner — **no** profile, to walk the onboarding wizard | `carla@skillnet.dev` | `aprender2026` |
-
-Log in as the admin to author courses, or as an employee to take them.
+Sign in as your own owner account to author courses, or as one of these to take them.
 
 ## Did it work?
 
@@ -133,10 +160,35 @@ curl http://localhost:3000/api/v1/health
 
 `database` must say `connected` and `embeddings.status` must say `ok`.
 
+To check a login from the command line rather than the browser, note that the endpoint takes
+an OAuth2 **form** body, not JSON — posting JSON returns `422` with a validation error that
+does not make the reason obvious:
+
+```bash
+curl -i -X POST http://localhost:3000/api/v1/auth/login   -d 'username=you@example.com&password=your-password'
+```
+
+`204 No Content` with a `Set-Cookie: skillnet_session=...` header is success. Behind TLS that
+cookie should also carry `Secure`; if it does not, `COOKIE_SECURE` is still false — see
+[Letting other people in](#letting-other-people-in).
+
 If `embeddings.status` is `mismatch`, the response also states exactly what to change. Worth
 checking, because a wrong embedding dimension is the one misconfiguration that otherwise
 fails silently: documents look ingested but nothing can retrieve them, and the tutor answers
 from weaker sources without saying so.
+
+## Optional services
+
+A default `docker compose up -d` runs three containers: `db`, `api` and `web`. Three more
+exist behind Compose profiles, off unless you ask for them.
+
+| Service | Start it with | What it is for |
+|---|---|---|
+| `api-fixtures` | `docker compose --profile fixtures up -d db api-fixtures` | A second API on `127.0.0.1:8001` that answers every model call from recorded fixtures. For `curl` and Swagger — **the web app does not use it**, because the bundled nginx proxies to `api` unconditionally. To run the whole stack keyless, set `LLM_MODEL=fixture/local` and `EMBEDDING_MODEL=fixture/local` in `.env` instead |
+| `a2a` | set `A2A_INTERNAL_API_KEY` and `A2A_AUTH_KEY` in `.env`, then `docker compose --profile a2a up -d` | Agent-to-Agent server on `127.0.0.1:5000`, so external agents can drive SkillNet |
+| `mcp` | `docker compose --profile mcp up -d` | MCP server on `127.0.0.1:3001`, to use SkillNet from MCP-compatible chats and agents. See [`packages/skillnet-mcp/`](packages/skillnet-mcp/) |
+
+None of the three is needed to create courses or to learn from them.
 
 ## Developing the frontend (hot reload)
 
@@ -149,7 +201,8 @@ with **Vite on the host**, which hot-reloads on save:
 # 1. API + DB in Docker (the dev overlay publishes the API on 127.0.0.1:8000)
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d db api
 
-# 2. Frontend on the host — the one thing that needs Node (≥20) + pnpm locally
+# 2. Frontend on the host — the one thing that needs Node (≥22) + pnpm locally
+#    (22, not 20: pnpm 11 needs the node:sqlite builtin, which Node 20 does not have)
 pnpm --dir apps/skillnet-web install      # first time only
 pnpm --dir apps/skillnet-web dev          # Vite dev server
 ```
@@ -172,6 +225,8 @@ Rebuild the `web` container only to check the real production bundle:
 | `embeddings.status: mismatch` in `/health` | `EMBEDDING_DIMENSIONS` does not match the column. The message says what to do |
 | Courses exist but open blank, using `fixture/local` | No recording for that prompt. Expected; use an API key or the local model |
 | Something in `.env` seems to be ignored | Probably is. Only variables listed in `docker-compose.yml` reach the container — there is no `env_file`. Add it to the `environment:` block of `api` |
+| `port is already allocated` when `web` starts | Something else on the host holds port 3000 — often an earlier SkillNet still running (`docker compose ps`). Either stop it, or set `PORT=3100` in `.env` and open that port instead |
+| `git clone` on Windows ends in `Filename too long` / `unable to checkout working tree` | Windows caps a path at 260 characters unless told otherwise, and the clone leaves a half-written tree. Run `git config --global core.longpaths true`, delete the broken folder and clone again — or clone somewhere shorter, like `C:\SkillNet` |
 
 Logs: `docker compose logs -f api`.
 
@@ -188,6 +243,46 @@ a shared network — Docker publishes ports with DNAT rules that **bypass the ho
 `web` on `3000` is the deliberate exception; it is the front door. If you serve it beyond
 localhost over plain HTTP, note that `COOKIE_SECURE` defaults to `false`, so session cookies
 travel unencrypted. Put it behind TLS and set `COOKIE_SECURE=true`.
+
+## Letting other people in
+
+Three ways, and they are rungs on a ladder rather than alternatives. Pick by how long the
+thing has to keep working.
+
+| I want… | Use | Needs |
+|---|---|---|
+| people to try it **today** | the quick tunnel below | nothing at all |
+| a **stable** address on my own domain | [`docker-compose.cloudflared.yml`](docker-compose.cloudflared.yml) | a free Cloudflare account with a domain in it |
+| my own domain **and** my own certificate | [`docker-compose.caddy.yml`](docker-compose.caddy.yml) | a domain, DNS pointed at this host, ports 80/443 open |
+
+### A public URL in one command, no account
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.quicktunnel.yml up -d --build
+docker compose -f docker-compose.yml -f docker-compose.quicktunnel.yml logs quicktunnel | grep trycloudflare
+```
+
+Every `-f` has to be repeated on every later command, including `logs` and `down` — Compose
+has no memory of the overlay you started with. And if you passed `-p somename` to the first
+`up`, pass the same `-p` here: the project name is what ties these containers to the ones
+already running, and a different one silently builds a second, separate stack. With no `-p`
+at all it defaults to the directory name, which is why plain `docker compose` commands find
+each other.
+
+The second command prints something like `https://against-region-afternoon-bucks.trycloudflare.com`.
+That address works from any network in the world, over HTTPS, immediately. No Cloudflare
+account, no domain, no DNS record, and nothing to open on your router — `cloudflared` dials
+**out** to Cloudflare, so it works behind CGNAT and on a laptop that changes networks.
+
+What you are giving up, plainly: **the hostname is ephemeral.** It changes every time the
+container restarts, Cloudflare offers it with no uptime guarantee, and anyone who has the URL
+can reach your instance — there is no access control in front of it. Fine for a demo, a class
+or a colleague trying it from home. Not for anything that has to still work tomorrow; that is
+what the other two rows are for.
+
+The overlay also sets `COOKIE_SECURE=true` for you, because the tunnel really is HTTPS. Note
+that an explicit `COOKIE_SECURE=` line in your `.env` overrides that — `.env.example` leaves
+it commented out on purpose so the overlays can raise it.
 
 ## Exposing SkillNet on your own domain
 
@@ -254,6 +349,57 @@ open on 80/443. Once the tunnel connects (check with `docker compose logs cloudf
 the hostname you set in step 1 serves SkillNet over HTTPS, TLS handled entirely by
 Cloudflare. Set `COOKIE_SECURE=true` once traffic is genuinely arriving over HTTPS through
 the tunnel — see the `COOKIE_SECURE` note next to `DOMAIN` in `.env.example`.
+
+## Backing it up
+
+Everything you generate lives in Docker volumes: the database (courses, validated schemas,
+embeddings — all of which cost real model calls to produce), the uploaded documents, and the
+generated podcasts and infographics. `docker compose down` keeps them. `docker compose down -v`
+destroys them, permanently, with no prompt.
+
+On **Windows with Git Bash**, the two `docker run` lines below need help: Git Bash rewrites
+`/out/...` into a Windows path before Docker ever sees it, and the container then reports
+`tar: can't open 'C:/Program Files/Git/out/...'`. Prefix the container-side paths with a
+second slash and disable the conversion — `MSYS_NO_PATHCONV=1 docker run --rm -v
+skillnet_uploads://d -v "$PWD://out" alpine tar czf //out/uploads.tar.gz -C //d .`.
+PowerShell and cmd need neither change, and `pg_dump` is unaffected either way: it writes
+through the shell's own redirection, not through a container path.
+
+There is no scheduled backup in this repo. One command gets you a restorable copy:
+
+```bash
+# Database (the expensive part)
+docker compose exec -T db pg_dump -U skillnet skillnet | gzip > skillnet-$(date +%F).sql.gz
+
+# Uploads and generated media
+docker run --rm -v skillnet_uploads:/d -v "$PWD:/out" alpine   tar czf /out/skillnet-uploads-$(date +%F).tar.gz -C /d .
+docker run --rm -v skillnet_media_assets:/d -v "$PWD:/out" alpine   tar czf /out/skillnet-media-$(date +%F).tar.gz -C /d .
+```
+
+The volume names are prefixed with the Compose project, which defaults to the directory name —
+check yours with `docker volume ls`.
+
+To restore the database into a fresh stack, bring it up, let the migrations run once, then:
+
+```bash
+gunzip -c skillnet-2026-08-25.sql.gz | docker compose exec -T db psql -U skillnet skillnet
+```
+
+## Updating to a newer version
+
+```bash
+git pull
+docker compose up -d --build
+```
+
+Migrations run by themselves when the API starts, so there is no separate step. Two things
+worth knowing before you pull:
+
+- **Back up first** if the instance holds anything you care about. See above. A migration is
+  not reversible in practice — the downgrade path exists for tests, and one of them changes a
+  vector dimension, which cannot preserve the vectors.
+- **Read the diff of `.env.example`.** New settings appear there, and a setting that only
+  exists in your `.env` but not in `docker-compose.yml` never reaches the container.
 
 ## Stopping it
 

@@ -1,3 +1,15 @@
+# Log rotation, applied to every long-running service below.
+#
+# Docker's default json-file driver keeps growing with NO limit: on a self-hosted box that
+# runs for months, an API logging every request eventually fills the disk, and the failure
+# looks like the database dying rather than like a log file. 10 MB x 3 per service is enough
+# history to debug yesterday and bounded enough to forget about.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 # SkillNet — Production Docker Compose
 # One command: docker compose up -d
 # Docs: https://github.com/ANFAIA/SkillNet
@@ -7,6 +19,7 @@ services:
   db:
     image: pgvector/pgvector:pg16
     restart: unless-stopped
+    logging: *default-logging
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-skillnet}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
@@ -25,6 +38,7 @@ services:
       context: .
       dockerfile: docker/api.Dockerfile
     restart: unless-stopped
+    logging: *default-logging
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-skillnet}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-skillnet}
       SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env (32 caracteres o mas)}
@@ -86,15 +100,28 @@ services:
       TTS_AZURE_ENDPOINT: ${TTS_AZURE_ENDPOINT:-}
       TTS_TIMEOUT_SECONDS: ${TTS_TIMEOUT_SECONDS:-30}
       VISION_MODEL: ${VISION_MODEL:-}
-      VISION_API_KEY: ${VISION_API_KEY:-}
       # Image generation (infographic poster / cover) for openrouter/* models. Same rule as
       # the keys above: `.env` is dockerignored, so without this line the key never reaches
       # the container and every image call goes out with api_key=None -> 401 Unauthorized.
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
       IMAGE_MODEL: ${IMAGE_MODEL:-openrouter/google/gemini-2.5-flash-image}
       IMAGE_FALLBACK_MODEL: ${IMAGE_FALLBACK_MODEL:-gpt-image-1}
+      # Generated media (podcast mp3, infographic/cover png) and the TTS cache. Both
+      # default to paths RELATIVE to WORKDIR (`/app/data/...`, see src/config.py), which is
+      # image filesystem, not a volume: every `docker compose up --build` threw them away
+      # and the demo course came back with broken media. Pointed at `/data` here so the
+      # named volumes below actually hold them.
+      MEDIA_ASSETS_DIR: ${MEDIA_ASSETS_DIR:-/data/media_assets}
+      TTS_CACHE_DIR: ${TTS_CACHE_DIR:-/data/tts_cache}
+      # Runtime component selection for dynamic courses. Documented in .env.example, so
+      # they have to reach the container — there is no env_file, and a setting that is
+      # documented but not wired changes nothing and says nothing when you set it.
+      RUNTIME_SELECTION_STRATEGY: ${RUNTIME_SELECTION_STRATEGY:-top5/v1}
+      RUNTIME_SELECTION_EXECUTION: ${RUNTIME_SELECTION_EXECUTION:-live}
     volumes:
       - uploads:/data/uploads
+      - media_assets:/data/media_assets
+      - tts_cache:/data/tts_cache
     depends_on:
       db:
         condition: service_healthy
@@ -116,6 +143,7 @@ services:
       context: .
       dockerfile: docker/api.Dockerfile
     restart: unless-stopped
+    logging: *default-logging
     profiles: [fixtures]
     # `127.0.0.1:` is mandatory here. This service shares `SECRET_KEY` and the database
     # with `api`, so its session cookies are valid against the real API; it has no nginx
@@ -143,8 +171,14 @@ services:
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
       ORG_NAME: ${ORG_NAME:-SkillNet}
+      # Same reason as in `api` above: these default to paths relative to WORKDIR, which
+      # is image filesystem, so without them a rebuild silently discards generated media.
+      MEDIA_ASSETS_DIR: ${MEDIA_ASSETS_DIR:-/data/media_assets}
+      TTS_CACHE_DIR: ${TTS_CACHE_DIR:-/data/tts_cache}
     volumes:
       - uploads:/data/uploads
+      - media_assets:/data/media_assets
+      - tts_cache:/data/tts_cache
     depends_on:
       db:
         condition: service_healthy
@@ -167,6 +201,7 @@ services:
       context: .
       dockerfile: docker/a2a.Dockerfile
     restart: unless-stopped
+    logging: *default-logging
     profiles: [a2a]
     ports:
       - "127.0.0.1:${A2A_PORT:-5000}:5000"
@@ -197,6 +232,7 @@ services:
       context: .
       dockerfile: packages/skillnet-mcp/Dockerfile
     restart: unless-stopped
+    logging: *default-logging
     profiles: [mcp]
     ports:
       - "127.0.0.1:${SKILLNET_MCP_PORT:-3001}:3001"
@@ -217,13 +253,14 @@ services:
       context: .
       dockerfile: docker/web.Dockerfile
     restart: unless-stopped
+    logging: *default-logging
     ports:
       - "${PORT:-3000}:80"
     depends_on:
       api:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/ || exit 1"]
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -233,4 +270,10 @@ volumes:
   pgdata:
     driver: local
   uploads:
+    driver: local
+  # Generated media and synthesized audio are content-addressed and expensive to rebuild
+  # (a seed run costs real model calls), so they outlive the container like the database.
+  media_assets:
+    driver: local
+  tts_cache:
     driver: local

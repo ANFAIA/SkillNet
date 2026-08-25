@@ -34,7 +34,9 @@
 
 services:
   cloudflared:
-    image: cloudflare/cloudflared:latest
+    # Pinned, not `latest`: everything else in this repo pins, and a `docker compose pull`
+    # should not be able to change how a live deployment behaves.
+    image: cloudflare/cloudflared:2026.8.2
     restart: unless-stopped
     command: ["tunnel", "--no-autoupdate", "run", "--token", "${CLOUDFLARE_TUNNEL_TOKEN:?Set CLOUDFLARE_TUNNEL_TOKEN in .env — create a tunnel in the Cloudflare Zero Trust dashboard first}"]
     depends_on:
@@ -51,6 +53,14 @@ services:
   # completely defeating the point of this overlay. Verified directly against
   # `docker compose ... config` output: without the tag, `web.ports` came back as a
   # 2-entry list containing both bindings. https://docs.docker.com/reference/compose-file/merge/#override
+  # Cookies over HTTPS only. The base file defaults this to `false` so the stack works on
+  # plain-HTTP localhost; this overlay exists precisely because there IS TLS in front, so
+  # the default flips here instead of relying on the operator remembering a manual step.
+  # Still overridable from `.env` for anyone debugging over plain HTTP.
+  api:
+    environment:
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+
   web:
     ports: !override
       - "127.0.0.1:${PORT:-3000}:80"

@@ -1,0 +1,113 @@
+name: Docker boot
+
+# CI that runs the test suites proves the code compiles. It does NOT prove that someone can
+# download this repository and start it — which is the promise RUNNING.md makes. This
+# workflow is that promise, executed.
+#
+# It caught its own reason for existing during development: a commit added an `include` to
+# nginx.conf without copying the included file into the image, so nginx refused to start with
+# `[emerg] open() ... failed`. Both test suites stayed green. Only booting the stack failed.
+#
+# Runs the keyless path — LLM_MODEL=fixture/local — so it needs no secrets and works on a
+# fork's pull request.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    # Only when something that can break the boot changes. A CSS tweak does not need six
+    # minutes of Docker build.
+    paths:
+      - 'docker-compose*.yml'
+      - 'docker/**'
+      - 'apps/skillnet-api/**'
+      - 'apps/skillnet-web/**'
+      - '.env.example'
+      - '.github/workflows/docker.yml'
+  schedule:
+    # Weekly, because this can break without anyone touching the repo: a base image moves, a
+    # dependency yanks a version. Monday morning is a good time to find out.
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+concurrency:
+  group: docker-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  boot:
+    name: Clean clone boots and answers
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write a .env the way RUNNING.md step 2 says to
+        run: |
+          cp .env.example .env
+          # The keyless row: recorded fixtures, no API key of any kind.
+          sed -i 's|^LLM_MODEL=.*|LLM_MODEL=fixture/local|' .env
+          sed -i 's|^EMBEDDING_MODEL=.*|EMBEDDING_MODEL=fixture/local|' .env
+          # The two always-required values. Letters, digits, - and _ only: the password is
+          # interpolated into a connection URL without escaping.
+          sed -i "s|^SECRET_KEY=.*|SECRET_KEY=$(openssl rand -hex 32)|" .env
+          sed -i "s|^POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=$(openssl rand -hex 16)|" .env
+          # ADMIN_EMAIL and ADMIN_PASSWORD stay blank, which is what .env.example ships and
+          # what sends a real user to the /setup wizard. Asserted below.
+
+      - name: Build and start
+        run: docker compose up -d --build --wait --wait-timeout 300
+
+      - name: Every service reports healthy
+        run: |
+          docker compose ps
+          # --wait already gated on this, but assert it rather than trust it: a service with
+          # no healthcheck at all would sail through the flag above.
+          for svc in db api web; do
+            state=$(docker inspect --format '{{.State.Health.Status}}' "$(docker compose ps -q $svc)")
+            echo "$svc: $state"
+            [ "$state" = "healthy" ] || { echo "::error::$svc is $state"; exit 1; }
+          done
+
+      - name: /health says what RUNNING.md promises
+        run: |
+          body=$(curl -fsS http://localhost:3000/api/v1/health)
+          echo "$body"
+          echo "$body" | grep -q '"database":"connected"' \
+            || { echo '::error::database is not connected'; exit 1; }
+          echo "$body" | grep -q '"status":"ok"' \
+            || { echo '::error::embeddings status is not ok — dimension mismatch?'; exit 1; }
+
+      - name: The SPA is served, with its security headers
+        run: |
+          curl -fsS http://localhost:3000/ | grep -q '<title>SkillNet</title>' \
+            || { echo '::error::the SPA did not come back'; exit 1; }
+          # These live in an `include` that has to be COPYied into the image. nginx not
+          # starting is one failure mode; starting without the headers is the quieter one.
+          for h in x-frame-options x-content-type-options referrer-policy; do
+            curl -fsSI http://localhost:3000/ | grep -qi "^$h" \
+              || { echo "::error::$h missing on the SPA"; exit 1; }
+          done
+
+      - name: A fresh install offers the setup wizard
+        run: |
+          # With ADMIN_* blank there must be no owner yet, and no usable password anywhere.
+          curl -fsS http://localhost:3000/api/v1/setup/status | grep -q '"initialized":false' \
+            || { echo '::error::something already created an owner'; exit 1; }
+
+      - name: The wizard creates an owner who can log in
+        run: |
+          curl -fsS -X POST http://localhost:3000/api/v1/setup \
+            -H 'Content-Type: application/json' \
+            -d '{"workspace_mode":"organization","org_name":"CI","owner_full_name":"CI Owner","owner_email":"ci@example.com","owner_password":"aLongEnoughPassword1"}'
+          code=$(curl -s -o /dev/null -w '%{http_code}' -X POST \
+            http://localhost:3000/api/v1/auth/login \
+            -d 'username=ci@example.com&password=aLongEnoughPassword1')
+          echo "login -> $code"
+          [ "$code" = "204" ] || { echo "::error::login returned $code"; exit 1; }
+
+      - name: API logs, on failure only
+        if: failure()
+        run: docker compose logs --tail 200
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v

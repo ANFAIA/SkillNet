@@ -24,7 +24,7 @@ export default function Hero() {
       };
 
   return (
-    <section className="relative h-screen w-full overflow-hidden bg-[var(--color-primary-deep)]">
+    <section data-nav-theme="dark" className="relative h-screen w-full overflow-hidden bg-[var(--color-primary-deep)]">
       {/* Depth 1: illustration, background plane — fully static */}
       <div
         aria-hidden="true"

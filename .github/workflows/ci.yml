@@ -1,0 +1,86 @@
+name: CI
+
+# Unit tests only: no database, no API keys, no network calls to a model provider.
+# The API suite is written to run that way (`-m "not integration"`), and the web suite's
+# `unit` project is too — which is what makes this workflow runnable on a fork's PR with
+# no secrets configured. Integration tests need a live PostgreSQL and live somewhere else.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# A new push to the same branch cancels the previous run: these two jobs take minutes and
+# there is no value in finishing a run for a commit that has already been superseded.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  api:
+    name: API — ruff + unit tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/skillnet-api
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: apps/skillnet-api/uv.lock
+
+      # `requires-python = ">=3.12"` in pyproject.toml. Pinned rather than floating so a
+      # CI failure is never explained by "the runner moved to a newer Python".
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync --locked
+
+      - name: Lint
+        run: uv run ruff check src tests
+
+      - name: Unit tests
+        run: uv run pytest -m "not integration" -q
+
+  web:
+    name: Web — lint + unit tests + build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/skillnet-web
+    steps:
+      - uses: actions/checkout@v4
+
+      # Pinned to the version this repo develops against (package.json packageManager),
+      # not a floating major: pnpm 11.23 pulls `node:sqlite`, which does not exist before
+      # Node 22, so `version: 11` + Node 20 failed on install with ERR_UNKNOWN_BUILTIN_MODULE.
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.9.0
+
+      - uses: actions/setup-node@v4
+        with:
+          # 22, not 20: pnpm 11 requires the node:sqlite builtin, added in Node 22.
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: apps/skillnet-web/pnpm-lock.yaml
+
+      # --frozen-lockfile: a PR that changes package.json without regenerating the lockfile
+      # fails here instead of silently resolving different versions than everyone else runs.
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Unit tests
+        run: pnpm test
+
+      # Not decoration: this is the only step that catches a TypeScript error before someone
+      # discovers it at the end of a `docker compose up --build`, minutes into a cold build.
+      - name: Build
+        run: pnpm build

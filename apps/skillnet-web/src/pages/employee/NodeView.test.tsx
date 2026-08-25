@@ -302,9 +302,18 @@ describe('NodeView — server-owned learning shell', () => {
     await enterLesson()
 
     // Screen 1: the lead beat only. The quiz beat lives on the next screen.
+    // El contenido monta DESPUES de que la intro termine su salida: la envuelve un
+    // `AnimatePresence mode="wait"`, que no monta la rama nueva hasta que la vieja
+    // acaba. Esperar al TEXTO no basta como puerta —en modo episodio la mascota
+    // tambien lo lee, fuera de la rama de la leccion, asi que aparece antes que el
+    // armazon— y la comprobacion sincrona que venia despues llegaba demasiado pronto.
     await waitFor(() => {
-      expect(container).toHaveTextContent('El plazo de devolucion es de 30 dias.')
+      // Esperar al PIE, no al armazon: es lo que comprueban las aserciones de abajo, y
+      // montan en commits distintos. Esperar a otra cosa deja una carrera que en esta
+      // maquina no se ve y en un runner de CI, mas lento, falla.
+      expect(container.querySelector('[data-episode-footer]')).not.toBeNull()
     })
+    expect(container).toHaveTextContent('El plazo de devolucion es de 30 dias.')
     expect(container).not.toHaveTextContent('Un cliente vuelve el dia 32. Que haces?')
     // It is an episode, not the legacy stepper.
     expect(container.querySelector('[data-stepper-root]')).toBeNull()
@@ -329,9 +338,18 @@ describe('NodeView — server-owned learning shell', () => {
     const { container } = renderPage()
 
     await enterLesson()
+    // El contenido monta DESPUES de que la intro termine su salida: la envuelve un
+    // `AnimatePresence mode="wait"`, que no monta la rama nueva hasta que la vieja
+    // acaba. Esperar al TEXTO no basta como puerta —en modo episodio la mascota
+    // tambien lo lee, fuera de la rama de la leccion, asi que aparece antes que el
+    // armazon— y la comprobacion sincrona que venia despues llegaba demasiado pronto.
     await waitFor(() => {
-      expect(container).toHaveTextContent('El plazo de devolucion es de 30 dias.')
+      // Esperar al PIE, no al armazon: es lo que comprueban las aserciones de abajo, y
+      // montan en commits distintos. Esperar a otra cosa deja una carrera que en esta
+      // maquina no se ve y en un runner de CI, mas lento, falla.
+      expect(container.querySelector('[data-episode-footer]')).not.toBeNull()
     })
+    expect(container).toHaveTextContent('El plazo de devolucion es de 30 dias.')
 
     // El episodio tiene un pie con una forma de avanzar, aunque no haya ejercicio.
     expect(container.querySelector('[data-episode-footer]')).not.toBeNull()
@@ -365,9 +383,18 @@ describe('NodeView — server-owned learning shell', () => {
     const { container } = renderPage()
 
     await enterLesson()
+    // El contenido monta DESPUES de que la intro termine su salida: la envuelve un
+    // `AnimatePresence mode="wait"`, que no monta la rama nueva hasta que la vieja
+    // acaba. Esperar al TEXTO no basta como puerta —en modo episodio la mascota
+    // tambien lo lee, fuera de la rama de la leccion, asi que aparece antes que el
+    // armazon— y la comprobacion sincrona que venia despues llegaba demasiado pronto.
     await waitFor(() => {
-      expect(container).toHaveTextContent('El plazo de devolucion es de 30 dias.')
+      // Esperar al PIE, no al armazon: es lo que comprueban las aserciones de abajo, y
+      // montan en commits distintos. Esperar a otra cosa deja una carrera que en esta
+      // maquina no se ve y en un runner de CI, mas lento, falla.
+      expect(container.querySelector('[data-episode-footer]')).not.toBeNull()
     })
+    expect(container).toHaveTextContent('El plazo de devolucion es de 30 dias.')
 
     expect(container.querySelector('[data-episode-footer]')).not.toBeNull()
     const finish = screen.getByRole('button', { name: 'Terminar el curso' })
@@ -389,9 +416,18 @@ describe('NodeView — server-owned learning shell', () => {
     const { container } = renderPage()
 
     await enterLesson()
+    // El contenido monta DESPUES de que la intro termine su salida: la envuelve un
+    // `AnimatePresence mode="wait"`, que no monta la rama nueva hasta que la vieja
+    // acaba. Esperar al TEXTO no basta como puerta —en modo episodio la mascota
+    // tambien lo lee, fuera de la rama de la leccion, asi que aparece antes que el
+    // armazon— y la comprobacion sincrona que venia despues llegaba demasiado pronto.
     await waitFor(() => {
-      expect(container).toHaveTextContent('El plazo de devolucion es de 30 dias.')
+      // Esperar al PIE, no al armazon: es lo que comprueban las aserciones de abajo, y
+      // montan en commits distintos. Esperar a otra cosa deja una carrera que en esta
+      // maquina no se ve y en un runner de CI, mas lento, falla.
+      expect(container.querySelector('[data-episode-footer]')).not.toBeNull()
     })
+    expect(container).toHaveTextContent('El plazo de devolucion es de 30 dias.')
 
     const footer = container.querySelector('[data-episode-footer]') as HTMLElement
     expect(footer).not.toBeNull()

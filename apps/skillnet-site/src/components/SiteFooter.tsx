@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 const ANFAIA_URL = "https://anfaia.org";
 
 export default function SiteFooter() {
-  return <motion.footer initial={false} className="w-full bg-white px-6 pb-10 pt-16 sm:px-10 sm:pt-24">
+  return <motion.footer data-nav-theme="light" initial={false} className="w-full bg-white px-6 pb-10 pt-16 sm:px-10 sm:pt-24">
     <div className="mx-auto w-full max-w-[80%] pt-10">
       <div className="footer-main">
         <div>

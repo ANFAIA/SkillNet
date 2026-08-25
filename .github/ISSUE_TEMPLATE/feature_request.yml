@@ -1,0 +1,57 @@
+name: Feature request
+description: Suggest something SkillNet should do
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Worth a look first: [`docs/ROADMAP.md`](../../blob/main/docs/ROADMAP.md) and
+        [`docs/design/`](../../tree/main/docs/design) — a fair amount is already designed and
+        written down, and the design note usually explains the trade-offs better than a fresh
+        thread can.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: |
+        What are you trying to do that SkillNet makes hard or impossible? Describe the
+        situation, not the solution — it is the part that cannot be guessed, and it often
+        turns out an existing feature covers it from a different angle.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you have in mind
+      description: Optional. If you already have a shape for it, describe it here.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Course generation and quality
+        - The learner experience
+        - Admin and authoring
+        - Adaptation and personalization
+        - Media (podcast, images, TTS)
+        - Deployment, Docker, configuration
+        - External API, A2A or MCP
+        - Something else
+    validations:
+      required: true
+
+  - type: dropdown
+    id: workspace-mode
+    attributes:
+      label: Which workspace mode this is about
+      description: See `docs/design/audience-modes.md`. Some requests only make sense in one.
+      options:
+        - Organization (company, team, class)
+        - Individual (one person learning alone)
+        - Both
+        - Not sure
+    validations:
+      required: true
