@@ -2,7 +2,7 @@ import { useState } from "react";
 import { AudioLines, FileText, Image as ImageIcon, Pause, Play, Video } from "lucide-react";
 import { motion } from "framer-motion";
 
-const IDEA = "Todos aprendemos de forma distinta. Cambian lo que ya sabemos, el contexto, el ritmo y el apoyo que necesitamos. La misma idea puede necesitar otra explicación, otro ejemplo o una forma diferente de practicarla.";
+const IDEA = "Cambian lo que ya sabemos, el contexto, el ritmo y el apoyo que necesitamos. La misma idea puede necesitar otra explicación, otro ejemplo o una forma diferente de practicarla.";
 const MODES = [
   { key: "texto", label: "Texto", Icon: FileText },
   { key: "imagen", label: "Imagen", Icon: ImageIcon },
@@ -15,7 +15,7 @@ export default function HowItWorksSection() {
   return <section id="como-funciona" data-nav-theme="light" className="w-full scroll-mt-24 bg-white px-6 pb-20 pt-10 sm:px-10 sm:pb-28 sm:pt-12">
     <div className="mx-auto w-full max-w-[80%]">
       <motion.h2 initial={false} className="type-section-title text-[var(--color-text)]">Cómo funciona</motion.h2>
-      <motion.p initial={false} className="type-lead mt-7 w-full text-[var(--color-text-secondary)]">El conocimiento y los objetivos pueden mantenerse mientras cambian la explicación, la actividad, el apoyo y la propia interfaz. SkillNet utiliza las preferencias declaradas, el rol, el nivel y el progreso de cada persona como señales para adaptar la experiencia, no como etiquetas fijas sobre cómo aprende.</motion.p>
+      <motion.p initial={false} className="type-lead mt-7 w-full text-[var(--color-text-secondary)]">El curso parte de un conocimiento y unos objetivos comunes. A partir de ahí, las preferencias declaradas, el rol, el nivel y el progreso de cada persona sirven como señales para decidir qué explicación, actividad, apoyo o interfaz mostrar. Son hipótesis que pueden cambiar, no etiquetas fijas sobre cómo aprende alguien.</motion.p>
       <motion.div initial={false} className="multimodal-surface mt-12 sm:mt-16">
         {MODES.map(({ key, label, Icon }) => {
           const selected = active === key;

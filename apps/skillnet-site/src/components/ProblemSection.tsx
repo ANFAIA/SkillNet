@@ -3,7 +3,7 @@ import { motion, useReducedMotion, useScroll, useTransform } from "framer-motion
 
 const BACKGROUND_URL = "/images/landing/skillnet-adaptive-assessment-plaza-v1.webp";
 const QUOTE = "No puedes juzgar a un pez por cómo trepa un árbol.";
-const EXPLANATION = "Todos aprendemos de maneras distintas. Cambian lo que ya sabemos, nuestro contexto, el ritmo, los intereses y el apoyo que necesitamos. Una misma explicación no funciona igual para todas las personas; la experiencia educativa debería poder responder a esas diferencias.";
+const EXPLANATION = "La misma meta no obliga a recorrer el mismo camino. Una persona puede necesitar otro ejemplo, más contexto, una práctica distinta o una interfaz que le permita explorar la idea. Personalizar no significa cambiar lo que se aprende, sino adaptar cómo se llega a comprenderlo.";
 
 export default function ProblemSection() {
   const reduced = useReducedMotion();

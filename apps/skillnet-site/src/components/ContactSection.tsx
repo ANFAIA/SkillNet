@@ -13,7 +13,7 @@ export default function ContactSection() {
       <div className="contact-grid">
         <div className="contact-intro">
           <motion.h2 initial={false} className="type-section-title">Contacto</motion.h2>
-          <motion.p initial={false} className="type-lead mt-6 text-[var(--color-text-secondary)]">SkillNet sigue en desarrollo. Si la idea te interesa, puedes probarlo, compartir lo que no entiendas, abrir un issue o contribuir al proyecto.</motion.p>
+          <motion.p initial={false} className="type-lead mt-6 text-[var(--color-text-secondary)]">SkillNet sigue en desarrollo. Si la idea te interesa, puedes probarlo, contarme qué mejorarías o contribuir directamente al proyecto.</motion.p>
           <p className="contact-anfaia mt-10">Desarrollado bajo <a href={ANFAIA_URL} target="_blank" rel="noopener noreferrer">Anfaia<ArrowUpRight size={19} /></a></p>
         </div>
         <div className="contact-actions">
