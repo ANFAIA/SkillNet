@@ -53,6 +53,13 @@ jobs:
           # ADMIN_EMAIL and ADMIN_PASSWORD stay blank, which is what .env.example ships and
           # what sends a real user to the /setup wizard. Asserted below.
 
+      # A YAML error here surfaces at deploy time on someone else's host otherwise, and
+      # `config` needs neither the external network nor a running daemon's networks.
+      - name: The PaaS compose file is valid too
+        run: |
+          docker compose -f docker-compose.dokploy.yml config >/dev/null
+          echo "docker-compose.dokploy.yml parses"
+
       - name: Build and start
         run: docker compose up -d --build --wait --wait-timeout 300
 

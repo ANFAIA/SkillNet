@@ -180,6 +180,24 @@ checking, because a wrong embedding dimension is the one misconfiguration that o
 fails silently: documents look ingested but nothing can retrieve them, and the tutor answers
 from weaker sources without saying so.
 
+## Keeping your documents off a third party
+
+There is a middle path between "everything through an API key" and "everything local", and
+it is the one worth knowing about when the material belongs to a client:
+
+```bash
+docker compose -f docker-compose.yml -f docker/compose/embed.yml up -d --build
+```
+
+That points **embeddings only** at a local Ollama and leaves course generation on whatever
+`LLM_MODEL` says. Embeddings are the cheap half to run locally — `nomic-embed-text` outputs
+exactly the 768 dimensions the database column expects — and they are the half that sees
+every page of every document you ingest. Generation still goes to your provider, because
+the quality gap there is large and it costs cents per course.
+
+The full-local path is [`docker/compose/ollama.yml`](docker/compose/ollama.yml) instead: no
+key at all, and measured at ~185 s per lesson screen on CPU.
+
 ## Optional services
 
 A default `docker compose up -d` runs three containers: `db`, `api` and `web`. Three more
@@ -444,4 +462,6 @@ docker compose down -v    # stop, destroy the database and uploads
 **Next:** [`README.md`](README.md) for what SkillNet is and how it works,
 [`AGENTS.md`](AGENTS.md) for conventions and boundaries when changing the code, and
 [`docs/design/docker-deployment.md`](docs/design/docker-deployment.md) for why the deployment
-is shaped this way.
+is shaped this way, and [`docs/design/compose-layout.md`](docs/design/compose-layout.md) for
+why the compose files are laid out the way they are — including the three designs that were
+tried and discarded.
