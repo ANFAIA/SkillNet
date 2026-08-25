@@ -15,6 +15,7 @@ import hashlib
 import os
 import shutil
 import subprocess
+import re
 import tempfile
 from abc import ABC, abstractmethod
 from html import escape
@@ -33,6 +34,9 @@ logger = get_logger(__name__)
 # Abstract provider
 # ---------------------------------------------------------------------------
 
+
+# Language code plus optional variant: "es", "es+m3", "en-us". Nothing else is a voice.
+_ESPEAK_VOICE_RE = re.compile(r"[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})?(?:\+[A-Za-z0-9]{1,8})?")
 
 class TTSProvider(ABC):
     """Uniform interface every TTS backend must implement."""
@@ -336,13 +340,27 @@ class EspeakOfflineProvider(TTSProvider):
         if ffmpeg is None:
             raise RuntimeError("ffmpeg not found on PATH; cannot transcode offline audio")
         voice_spec = voice or (language if "-" not in language else language.split("-")[0]) or "es"
+        # `voice` reaches here straight from the request: `_resolve_voice` in routes/tts.py
+        # passes unknown values through, so it is attacker-controlled and lands in argv.
+        # An espeak voice spec is a language code with optional variant ("es", "es+m3",
+        # "en-us"); anything else is not a voice and must not become an option.
+        if not _ESPEAK_VOICE_RE.fullmatch(voice_spec):
+            voice_spec = "es"
 
         def _run() -> bytes:
             with tempfile.TemporaryDirectory() as tmp:
                 wav = os.path.join(tmp, "out.wav")
                 mp3 = os.path.join(tmp, "out.mp3")
                 speak = subprocess.run(
-                    [espeak, "-v", voice_spec, "-s", "155", "-w", wav, text],
+                    # `--` terminates option parsing, and it is load-bearing, not style.
+                    # espeak-ng parses with getopt_long, which PERMUTES arguments: without
+                    # the terminator a `text` beginning with a dash is read as an option,
+                    # not as words to speak. `{"text": "-f/proc/self/environ"}` posted to
+                    # /api/v1/tts/synthesize then returned an mp3 reading the container's
+                    # environment aloud — SECRET_KEY, LLM_API_KEY and the database
+                    # password. Any authenticated user could reach it, because this
+                    # provider is the automatic fallback whenever the paid one fails.
+                    [espeak, "-v", voice_spec, "-s", "155", "-w", wav, "--", text],
                     capture_output=True,
                 )
                 if speak.returncode != 0:

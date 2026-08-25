@@ -222,10 +222,23 @@ class Settings(BaseSettings):
     @classmethod
     def _validate_secret_key(cls, value: str, info) -> str:
         environment = info.data.get("ENVIRONMENT", "development")
-        if environment == "production" and len(value) < 32:
-            raise ValueError(
-                "SECRET_KEY must be at least 32 characters in production"
-            )
+        if environment == "production":
+            # The length check alone was not enough: the development default is 47
+            # characters, so it sailed through. Compose demands the variable
+            # (`${SECRET_KEY:?...}`), but a deployment outside Compose — uvicorn direct, k8s,
+            # systemd — booted in production with a key published in this repository.
+            # That key derives, via PBKDF2, the Fernet key that encrypts each
+            # organization's LLM provider credentials, which is the whole point of
+            # src/core/secrets.py.
+            if value == _DEV_SECRET_KEY:
+                raise ValueError(
+                    "SECRET_KEY is still the development default. Generate one: "
+                    'python -c "import secrets; print(secrets.token_urlsafe(32))"'
+                )
+            if len(value) < 32:
+                raise ValueError(
+                    "SECRET_KEY must be at least 32 characters in production"
+                )
         return value
 
 
