@@ -10,15 +10,15 @@ section: "core"
 deployment looks the way it does, and the traps that are not obvious from reading the files.
 
 It used to inline full copies of `docker-compose.yml`, both Dockerfiles, `.env.example` and
-`docker-compose.dev.yml`. Those copies drifted: by 2026-08-04 the `db` healthcheck here
+`docker/compose/dev.yml`. Those copies drifted: by 2026-08-04 the `db` healthcheck here
 differed from the real one, the dev override described a Vite-based `web` service that does
 not exist, and two sections documented a file that never existed at all. A design document
 whose body is a stale duplicate of the source is worse than no document, because it is
 confidently wrong. So the files are linked, not pasted.
 
 - [`docker-compose.yml`](../../docker-compose.yml) — the stack
-- [`docker-compose.dev.yml`](../../docker-compose.dev.yml) — hot-reload overlay
-- [`docker-compose.ollama.yml`](../../docker-compose.ollama.yml) — local-model overlay
+- [`docker/compose/dev.yml`](../../docker/compose/dev.yml) — hot-reload overlay
+- [`docker/compose/ollama.yml`](../../docker/compose/ollama.yml) — local-model overlay
 - [`docker/api.Dockerfile`](../../docker/api.Dockerfile), [`docker/web.Dockerfile`](../../docker/web.Dockerfile), [`docker/nginx.conf`](../../docker/nginx.conf)
 - [`.env.example`](../../.env.example) — every variable, with the reasoning inline
 
@@ -83,7 +83,7 @@ Two asymmetries bit repeatedly and are now fixed:
 
 One still open: `builder` runs as root, so the dev container writes to your source tree as
 root. On Linux and WSL that leaves root-owned `__pycache__` and alembic revisions in the repo,
-which then break `git clean` and the editor. `docker-compose.dev.yml` already solves the same
+which then break `git clean` and the editor. `docker/compose/dev.yml` already solves the same
 class of problem for `.venv` with an anonymous volume; the rest of the tree is not covered.
 
 ### 5.4 The `.env` only half arrives
@@ -105,7 +105,7 @@ beats a Python default, so the code's default never applied inside Docker at all
 
 ```bash
 docker compose up -d --build                                                # production
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build   # hot reload
+docker compose -f docker-compose.yml -f docker/compose/dev.yml up --build   # hot reload
 ```
 
 The overlay switches `api` to `target: builder`, runs uvicorn with
@@ -193,10 +193,10 @@ authentication, courses, lessons and progress all still work without embeddings.
 
 ### 5.8 Running on a local model
 
-Use [`docker-compose.ollama.yml`](../../docker-compose.ollama.yml):
+Use [`docker/compose/ollama.yml`](../../docker/compose/ollama.yml):
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.ollama.yml up -d --build
+docker compose -f docker-compose.yml -f docker/compose/ollama.yml up -d --build
 ```
 
 **Why an overlay file and not a `profiles:` entry.** It was a profile until 2026-08-04, and

@@ -1,5 +1,5 @@
 # SkillNet — Development overrides.
-# Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+# Usage: docker compose -f docker-compose.yml -f docker/compose/dev.yml up --build
 # Adds hot reload, debug logging, exposed db/api ports.
 #
 # `--build` is not decoration: this file overrides `target` to `builder`, and without a

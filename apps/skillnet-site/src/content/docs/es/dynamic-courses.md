@@ -2493,7 +2493,7 @@ replay, el test falla con el sha y una vista previa del prompt, no con un `KeyEr
 `EMBEDDING_MODEL=fixture/local`, para que el flujo completo se pueda demostrar en local sin
 ninguna clave (el camino v2 se activa por curso, no por env var — ver §10). Funciona en el
 compose de producción porque las fixtures viajan
-dentro de `src/` (§10.2); `docker-compose.dev.yml`, que bind-montea `./apps/skillnet-api:/app`,
+dentro de `src/` (§10.2); `docker/compose/dev.yml`, que bind-montea `./apps/skillnet-api:/app`,
 funciona igual.
 
 ### 12.2 Qué se testea y cómo
@@ -2824,7 +2824,7 @@ son bugs de **v1** que llevaban ahí desde antes de v2.
 
 **Entorno.**
 
-7. `docker-compose.dev.yml` montaba el repo del host sobre `/app`, así que `uv run` dentro del
+7. `docker/compose/dev.yml` montaba el repo del host sobre `/app`, así que `uv run` dentro del
    contenedor veía un virtualenv con binarios ajenos, lo daba por roto y **borraba el `.venv` del
    host** para reconstruirlo. Resuelto con un volumen anónimo sobre `/app/.venv`.
 

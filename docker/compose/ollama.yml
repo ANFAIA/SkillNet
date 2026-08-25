@@ -1,6 +1,6 @@
 # SkillNet — run entirely on a local model, no API key, no account.
 #
-#   docker compose -f docker-compose.yml -f docker-compose.ollama.yml up -d --build
+#   docker compose -f docker-compose.yml -f docker/compose/ollama.yml up -d --build
 #
 # ## Why this is a separate file and not a `profiles:` entry
 #

@@ -17,7 +17,7 @@ Responder con **evidencia real** (capturas + texto de las pantallas) a:
 ## 1. Prerrequisitos (dejar listos ANTES de lanzar el agente)
 - **App levantada y estable:**
   - API + DB + ollama en Docker (desde el worktree `repo-notebook-media`):
-    `docker compose -f docker-compose.yml -f docker-compose.dev.yml -f docker-compose.embed.yml up -d`
+    `docker compose -f docker-compose.yml -f docker/compose/dev.yml -f docker/compose/embed.yml up -d`
   - **Vite en un terminal REAL** (no en background del agente, que se muere):
     `cd apps/skillnet-web && pnpm dev --port 5174` → app en `http://localhost:5174`
   - Datos sembrados: `... exec api uv run python -m src.seed_demo_v2` (migraciones antes: `alembic upgrade head`).

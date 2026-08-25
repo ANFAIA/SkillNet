@@ -63,12 +63,12 @@ docker compose up -d --build
 O, si elegiste el modelo local en el paso 2:
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.ollama.yml up -d --build
+docker compose -f docker-compose.yml -f docker/compose/ollama.yml up -d --build
 ```
 
 Una construcción en frío tarda un par de minutos. El overlay de ollama también descarga los
 modelos (unos cuantos GB) antes de que la API arranque, así que dale tiempo al primer arranque.
-Ver [`docker-compose.ollama.yml`](docker-compose.ollama.yml) para saber qué hace y qué ids de
+Ver [`docker/compose/ollama.yml`](docker/compose/ollama.yml) para saber qué hace y qué ids de
 modelo son válidos.
 
 ## Paso 4 — Abrirlo y crear tu cuenta
@@ -210,7 +210,7 @@ y el frontend con **Vite en el host**, que recarga en caliente al guardar:
 
 ```bash
 # 1. API + BD en Docker (el overlay de dev publica la API en 127.0.0.1:8000)
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d db api
+docker compose -f docker-compose.yml -f docker/compose/dev.yml up -d db api
 
 # 2. Frontend en el host — lo único que necesita Node (≥22) + pnpm en local
 #    (22, no 20: pnpm 11 necesita el módulo nativo node:sqlite, que Node 20 no tiene)
@@ -263,14 +263,14 @@ tenga que seguir funcionando la cosa.
 | Quiero… | Usar | Necesita |
 |---|---|---|
 | que la gente lo pruebe **hoy** | el túnel rápido de abajo | nada en absoluto |
-| una dirección **estable** en mi propio dominio | el overlay `docker-compose.cloudflared.yml` | una cuenta gratuita de Cloudflare con un dominio dentro |
-| mi propio dominio **y** mi propio certificado | el overlay `docker-compose.caddy.yml` | un dominio, DNS apuntando a este host, puertos 80/443 abiertos |
+| una dirección **estable** en mi propio dominio | el overlay `docker/compose/cloudflared.yml` | una cuenta gratuita de Cloudflare con un dominio dentro |
+| mi propio dominio **y** mi propio certificado | el overlay `docker/compose/caddy.yml` | un dominio, DNS apuntando a este host, puertos 80/443 abiertos |
 
 ### Una URL pública en un solo comando, sin cuenta
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.quicktunnel.yml up -d --build
-docker compose -f docker-compose.yml -f docker-compose.quicktunnel.yml logs quicktunnel | grep trycloudflare
+docker compose -f docker-compose.yml -f docker/compose/quicktunnel.yml up -d --build
+docker compose -f docker-compose.yml -f docker/compose/quicktunnel.yml logs quicktunnel | grep trycloudflare
 ```
 
 Cada `-f` hay que repetirlo en todos los comandos posteriores, incluidos `logs` y `down`:
@@ -299,7 +299,7 @@ propósito para que los overlays puedan subirla.
 ## Publicar SkillNet en tu propio dominio
 
 La pila por defecto es amable con el loopback, no con internet: `web` habla HTTP plano, lo cual
-está bien en `localhost` pero no es algo que dar a un dominio real. `docker-compose.caddy.yml`
+está bien en `localhost` pero no es algo que dar a un dominio real. `docker/compose/caddy.yml`
 es un overlay opcional que pone [Caddy](https://caddyserver.com/) delante de `web` como proxy
 inverso, con TLS automático de Let's Encrypt.
 
@@ -318,7 +318,7 @@ inverso, con TLS automático de Let's Encrypt.
 DOMAIN=cursos.ejemplo.com
 CADDY_EMAIL=tu@ejemplo.com   # obligatorio — la directiva `email` de Caddy no puede estar vacía
 
-docker compose -f docker-compose.yml -f docker-compose.caddy.yml up -d --build
+docker compose -f docker-compose.yml -f docker/compose/caddy.yml up -d --build
 ```
 
 Este overlay además le quita a `web` su puerto público: Caddy pasa a ser el único punto de
@@ -355,7 +355,7 @@ Cloudflare.
 # .env
 CLOUDFLARE_TUNNEL_TOKEN=<el token del panel>
 
-docker compose -f docker-compose.yml -f docker-compose.cloudflared.yml up -d --build
+docker compose -f docker-compose.yml -f docker/compose/cloudflared.yml up -d --build
 ```
 
 Ningún cambio de router ni de cortafuegos de ningún tipo: al contrario que con Caddy, no hay

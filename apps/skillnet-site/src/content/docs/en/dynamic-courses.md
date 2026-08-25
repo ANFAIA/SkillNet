@@ -2499,7 +2499,7 @@ with the sha and a preview of the prompt, not an opaque `KeyError`.
 `docker-compose.yml` has a `fixtures` profile with `LLM_MODEL=fixture/local` and
 `EMBEDDING_MODEL=fixture/local`, so the whole flow can be demoed locally with no keys at all (the
 v2 path is enabled per course, not by env var — see §10). It works in the production compose file
-because fixtures travel inside `src/` (§10.2); `docker-compose.dev.yml`, which bind-mounts
+because fixtures travel inside `src/` (§10.2); `docker/compose/dev.yml`, which bind-mounts
 `./apps/skillnet-api:/app`, works the same way.
 
 ### 12.2 What is tested and how
@@ -2829,7 +2829,7 @@ had been there since before v2.
 
 **Environment.**
 
-7. `docker-compose.dev.yml` mounted the host repo over `/app`, so `uv run` inside the container saw
+7. `docker/compose/dev.yml` mounted the host repo over `/app`, so `uv run` inside the container saw
    a virtualenv with binaries from another OS, decided it was broken, and **deleted the host's
    `.venv`** to rebuild it. Fixed with an anonymous volume over `/app/.venv`.
 

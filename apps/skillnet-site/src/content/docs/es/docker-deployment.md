@@ -10,15 +10,15 @@ section: "core"
 el despliegue tiene la forma que tiene, y las trampas que no son obvias leyendo los ficheros.
 
 Antes incluía copias completas de `docker-compose.yml`, ambos Dockerfiles, `.env.example` y
-`docker-compose.dev.yml`. Esas copias se desincronizaban: para el 2026-08-04 el healthcheck de
+`docker/compose/dev.yml`. Esas copias se desincronizaban: para el 2026-08-04 el healthcheck de
 `db` aquí difería del real, el override de dev describía un servicio `web` basado en Vite que
 no existe, y dos secciones documentaban un fichero que nunca existió. Un documento de diseño
 cuyo cuerpo es una copia obsoleta de la fuente es peor que ningún documento, porque está
 seguro de sí mismo y equivocado. Así que los ficheros se enlazan, no se pegan.
 
 - [`docker-compose.yml`](../../docker-compose.yml) — la pila
-- [`docker-compose.dev.yml`](../../docker-compose.dev.yml) — capa de hot-reload
-- [`docker-compose.ollama.yml`](../../docker-compose.ollama.yml) — capa de modelo local
+- [`docker/compose/dev.yml`](../../docker/compose/dev.yml) — capa de hot-reload
+- [`docker/compose/ollama.yml`](../../docker/compose/ollama.yml) — capa de modelo local
 - [`docker/api.Dockerfile`](../../docker/api.Dockerfile), [`docker/web.Dockerfile`](../../docker/web.Dockerfile), [`docker/nginx.conf`](../../docker/nginx.conf)
 - [`.env.example`](../../.env.example) — todas las variables, con el razonamiento en línea
 
@@ -87,7 +87,7 @@ Dos asimetrías mordieron repetidamente y ahora están arregladas:
 
 Una sigue abierta: `builder` corre como root, así que el contenedor de dev escribe en tu árbol
 de código como root. En Linux y WSL eso deja `__pycache__` y revisiones de alembic propiedad de
-root en el repo, que luego rompen `git clean` y el editor. `docker-compose.dev.yml` ya resuelve
+root en el repo, que luego rompen `git clean` y el editor. `docker/compose/dev.yml` ya resuelve
 la misma clase de problema para `.venv` con un volumen anónimo; el resto del árbol no está
 cubierto.
 
@@ -111,7 +111,7 @@ de Docker. Poner solo `LLM_API_KEY` no arrancaba nada.
 
 ```bash
 docker compose up -d --build                                                # producción
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build   # hot reload
+docker compose -f docker-compose.yml -f docker/compose/dev.yml up --build   # hot reload
 ```
 
 El overlay cambia `api` a `target: builder`, ejecuta uvicorn con `--reload --reload-dir src`,
@@ -200,10 +200,10 @@ embeddings.
 
 ### 5.8 Corriendo sobre un modelo local
 
-Usar [`docker-compose.ollama.yml`](../../docker-compose.ollama.yml):
+Usar [`docker/compose/ollama.yml`](../../docker/compose/ollama.yml):
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.ollama.yml up -d --build
+docker compose -f docker-compose.yml -f docker/compose/ollama.yml up -d --build
 ```
 
 **Por qué un fichero overlay y no una entrada `profiles:`.** Fue un perfil hasta el 2026-08-04,

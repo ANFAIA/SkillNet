@@ -1,6 +1,6 @@
 # SkillNet — a public HTTPS URL in one command, with no account and no domain.
-# Usage: docker compose -f docker-compose.yml -f docker-compose.quicktunnel.yml up -d --build
-#        docker compose -f docker-compose.yml -f docker-compose.quicktunnel.yml logs quicktunnel
+# Usage: docker compose -f docker-compose.yml -f docker/compose/quicktunnel.yml up -d --build
+#        docker compose -f docker-compose.yml -f docker/compose/quicktunnel.yml logs quicktunnel
 #
 # For letting a few people in from outside your network **today** — a demo, a class, a
 # colleague trying it from home. `cloudflared` dials out to Cloudflare's edge and Cloudflare
@@ -19,15 +19,15 @@
 # The hostname is EPHEMERAL. It changes every time this container restarts, Cloudflare offers
 # it with no uptime guarantee, and anyone who has the URL can reach the site — there is no
 # access control in front of it. That makes this the wrong tool for anything that has to keep
-# working tomorrow. For that, use `docker-compose.cloudflared.yml` (a named tunnel with a
-# stable hostname on your own domain) or `docker-compose.caddy.yml` (your own domain and
+# working tomorrow. For that, use `docker/compose/cloudflared.yml` (a named tunnel with a
+# stable hostname on your own domain) or `docker/compose/caddy.yml` (your own domain and
 # certificate). This file is the third rung of that ladder, not a replacement for either.
 #
 # ## The URL is in the logs, not here
 #
 # Cloudflare assigns it at connect time, so nothing in this file can predict it:
 #
-#   docker compose -f docker-compose.yml -f docker-compose.quicktunnel.yml logs quicktunnel \
+#   docker compose -f docker-compose.yml -f docker/compose/quicktunnel.yml logs quicktunnel \
 #     | grep trycloudflare.com
 #
 # ## Why this file also touches `api` and `web`

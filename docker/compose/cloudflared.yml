@@ -1,5 +1,5 @@
 # SkillNet — Public exposure via a Cloudflare Tunnel (no open ports, no public IP).
-# Usage: docker compose -f docker-compose.yml -f docker-compose.cloudflared.yml up -d --build
+# Usage: docker compose -f docker-compose.yml -f docker/compose/cloudflared.yml up -d --build
 #
 # `cloudflared` opens an outbound-only connection from this host to Cloudflare's edge and
 # Cloudflare forwards public traffic back down it to `web`. Unlike the Caddy overlay, there
@@ -17,7 +17,7 @@
 #
 # ## Why `web`'s ports are overridden here too
 #
-# Same reasoning as docker-compose.caddy.yml: Compose's default merge rule for a
+# Same reasoning as docker/compose/caddy.yml: Compose's default merge rule for a
 # sequence field like `ports:` is to APPEND across files, not replace — restating the
 # key below without `!override` left `web` published on BOTH the base file's
 # unrestricted `0.0.0.0:3000` AND this file's `127.0.0.1:3000` at once, confirmed

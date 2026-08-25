@@ -105,8 +105,8 @@ uv run python scripts/quality_bench.py --offline   # generation quality, no API 
 
 # Full stack (from root)
 docker compose up -d --build
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build      # hot reload
-docker compose -f docker-compose.yml -f docker-compose.ollama.yml up -d --build   # local model
+docker compose -f docker-compose.yml -f docker/compose/dev.yml up --build      # hot reload
+docker compose -f docker-compose.yml -f docker/compose/ollama.yml up -d --build   # local model
 docker compose exec api python -m src.seed_learning_demo                     # public demo dataset
 ```
 

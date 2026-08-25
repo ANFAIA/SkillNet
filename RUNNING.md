@@ -59,12 +59,12 @@ docker compose up -d --build
 Or, if you picked the local model in step 2:
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.ollama.yml up -d --build
+docker compose -f docker-compose.yml -f docker/compose/ollama.yml up -d --build
 ```
 
 A cold build takes a couple of minutes. The ollama overlay also downloads the models (a few
 GB) before the API comes up, so give the first start time. See
-[`docker-compose.ollama.yml`](docker-compose.ollama.yml) for what it does and which model ids
+[`docker/compose/ollama.yml`](docker/compose/ollama.yml) for what it does and which model ids
 are valid.
 
 ## Step 4 — Open it and create your account
@@ -202,7 +202,7 @@ with **Vite on the host**, which hot-reloads on save:
 
 ```bash
 # 1. API + DB in Docker (the dev overlay publishes the API on 127.0.0.1:8000)
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d db api
+docker compose -f docker-compose.yml -f docker/compose/dev.yml up -d db api
 
 # 2. Frontend on the host — the one thing that needs Node (≥22) + pnpm locally
 #    (22, not 20: pnpm 11 needs the node:sqlite builtin, which Node 20 does not have)
@@ -262,14 +262,35 @@ thing has to keep working.
 | I want… | Use | Needs |
 |---|---|---|
 | people to try it **today** | the quick tunnel below | nothing at all |
-| a **stable** address on my own domain | [`docker-compose.cloudflared.yml`](docker-compose.cloudflared.yml) | a free Cloudflare account with a domain in it |
-| my own domain **and** my own certificate | [`docker-compose.caddy.yml`](docker-compose.caddy.yml) | a domain, DNS pointed at this host, ports 80/443 open |
+| to deploy on a **PaaS** (Dokploy) | `docker-compose.dokploy.yml` | a Dokploy host |
+| a **stable** address on my own domain | [`docker/compose/cloudflared.yml`](docker/compose/cloudflared.yml) | a free Cloudflare account with a domain in it |
+| my own domain **and** my own certificate | [`docker/compose/caddy.yml`](docker/compose/caddy.yml) | a domain, DNS pointed at this host, ports 80/443 open |
+
+### On a PaaS that already has a reverse proxy
+
+If the host runs Dokploy — or anything else that fronts containers with its own Traefik —
+use **`docker-compose.dokploy.yml`** and none of the overlays. Dokploy loads exactly one
+compose file, and that one is written for it: no published ports, the web service on
+Dokploy's external network, and cookies marked `Secure` because Traefik terminates the TLS.
+
+    Project -> Compose -> Provider: Git -> Compose Path: ./docker-compose.dokploy.yml
+    Environment tab: SECRET_KEY, POSTGRES_PASSWORD, LLM_API_KEY
+    Domains tab: ONE entry -> service `skillnet-web`, container port 80
+
+**One domain entry, not two.** `skillnet-web` already proxies `/api` and `/ext` to the API
+inside the container, so the router only needs to know about the front door. Deployments
+that drop that service have to add a second entry for `/api`, and forgetting it produces a
+failure that reads like a frontend bug: the app loads, then `GET /api/v1/setup/status`
+returns 200 with `index.html` and the SPA parses HTML as JSON — "invalid response" on
+login, and no setup wizard.
+
+**Create your owner before you attach the domain**, for the reason in the box above.
 
 ### A public URL in one command, no account
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.quicktunnel.yml up -d --build
-docker compose -f docker-compose.yml -f docker-compose.quicktunnel.yml logs quicktunnel | grep trycloudflare
+docker compose -f docker-compose.yml -f docker/compose/quicktunnel.yml up -d --build
+docker compose -f docker-compose.yml -f docker/compose/quicktunnel.yml logs quicktunnel | grep trycloudflare
 ```
 
 Every `-f` has to be repeated on every later command, including `logs` and `down` — Compose
@@ -297,7 +318,7 @@ it commented out on purpose so the overlays can raise it.
 ## Exposing SkillNet on your own domain
 
 The default stack is loopback-friendly, not internet-friendly: `web` speaks plain HTTP, which
-is fine on `localhost` but not something to hand a real domain. `docker-compose.caddy.yml` is
+is fine on `localhost` but not something to hand a real domain. `docker/compose/caddy.yml` is
 an optional overlay that puts [Caddy](https://caddyserver.com/) in front of `web` as a
 reverse proxy with automatic Let's Encrypt TLS.
 
@@ -315,7 +336,7 @@ reverse proxy with automatic Let's Encrypt TLS.
 DOMAIN=courses.example.com
 CADDY_EMAIL=you@example.com   # required — Caddy's `email` directive can't be blank
 
-docker compose -f docker-compose.yml -f docker-compose.caddy.yml up -d --build
+docker compose -f docker-compose.yml -f docker/compose/caddy.yml up -d --build
 ```
 
 This overlay also takes `web` off its own public port — Caddy becomes the only public
@@ -351,7 +372,7 @@ random hostname that changes on every restart. A domain in Cloudflare is require
 # .env
 CLOUDFLARE_TUNNEL_TOKEN=<the token from the dashboard>
 
-docker compose -f docker-compose.yml -f docker-compose.cloudflared.yml up -d --build
+docker compose -f docker-compose.yml -f docker/compose/cloudflared.yml up -d --build
 ```
 
 No router or firewall changes of any kind — unlike the Caddy path, there is nothing to

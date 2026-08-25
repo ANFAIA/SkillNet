@@ -1,14 +1,14 @@
 # SkillNet — local Ollama for EMBEDDINGS ONLY, keeping the cloud LLM (gpt-4o-mini).
 #
-#   docker compose -f docker-compose.yml -f docker-compose.dev.yml -f docker-compose.embed.yml up -d
+#   docker compose -f docker-compose.yml -f docker/compose/dev.yml -f docker/compose/embed.yml up -d
 #
-# Unlike docker-compose.ollama.yml, this does NOT override LLM_*: the LLM stays whatever
+# Unlike docker/compose/ollama.yml, this does NOT override LLM_*: the LLM stays whatever
 # the .env says (gpt-4o-mini via the cloud key). Only the embedding provider is pointed at
 # the local ollama, so document ingestion can actually store chunks (vector(768)) and every
 # node gets real source_headings.
 services:
   ollama:
-    # Pinned, same reason as docker-compose.ollama.yml.
+    # Pinned, same reason as docker/compose/ollama.yml.
     image: ollama/ollama:0.32.6
     restart: unless-stopped
     volumes:

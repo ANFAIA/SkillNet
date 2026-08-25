@@ -1,5 +1,5 @@
 # SkillNet — Public exposure via Caddy (automatic TLS).
-# Usage: docker compose -f docker-compose.yml -f docker-compose.caddy.yml up -d --build
+# Usage: docker compose -f docker-compose.yml -f docker/compose/caddy.yml up -d --build
 #
 # Puts Caddy in front of `web` as the public entrypoint, and takes `web` off the public
 # port entirely — see the `web` override below. Requires a real domain with its DNS A
@@ -18,7 +18,7 @@
 # ## Why this file publishes on 0.0.0.0
 #
 # Every other optional port in this repo binds `127.0.0.1:` deliberately (see
-# docker-compose.dev.yml, docker-compose.ollama.yml, and the `api-fixtures` service) because
+# docker/compose/dev.yml, docker/compose/ollama.yml, and the `api-fixtures` service) because
 # Docker's published ports use DNAT rules that bypass the host firewall, so "loopback only"
 # is the norm here. `caddy` is the one intentional exception: the entire point of this
 # overlay is to serve SkillNet to the public internet, so 80/443 have to be reachable from
@@ -51,11 +51,11 @@ services:
 
   # Overrides the base file's `ports: ["${PORT:-3000}:80"]`: `web` is no longer the public
   # entrypoint once Caddy is in front of it, so it drops back to loopback-only, matching
-  # every other internal service in this compose project (see docker-compose.dev.yml).
+  # every other internal service in this compose project (see docker/compose/dev.yml).
   #
   # `!override` is required, not decoration. Compose's default sequence-merge behavior for
   # `ports:` is to APPEND and de-duplicate entries across files, not replace them — verified
-  # by running `docker compose -f docker-compose.yml -f docker-compose.caddy.yml config`
+  # by running `docker compose -f docker-compose.yml -f docker/compose/caddy.yml config`
   # without this tag: the merged `web` service came back publishing BOTH the base file's
   # `0.0.0.0:3000->80` and this file's `127.0.0.1:3000->80`, defeating the entire point of
   # this overlay. The Compose Spec's `!override` YAML tag forces full replacement instead of
