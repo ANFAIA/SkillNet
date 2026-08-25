@@ -1,0 +1,166 @@
+# SkillNet — Docker Compose for Dokploy (https://dokploy.com)
+#
+# In Dokploy: create a project -> "Compose" -> Provider: Git (this repo) ->
+# Compose Path: `docker-compose.dokploy.yml` -> put your settings in the
+# Environment tab -> Deploy.
+#
+# ## Why this file exists instead of just pointing Dokploy at docker-compose.yml
+#
+# Dokploy loads exactly ONE compose file, so the `-f base -f overlay` pattern the rest of
+# this repo uses (see docker-compose.caddy.yml) is not available. Three things have to
+# change for a Dokploy host, and none of them can be expressed from the UI alone:
+#
+#   1. `web` must NOT publish a host port. Dokploy's Traefik reaches it over the shared
+#      `dokploy-network`, and a published port would both bypass the host firewall (Docker
+#      publishes via DNAT) and collide with whatever else on the box already holds 3000.
+#   2. Every routed service must join the external `dokploy-network`, or Traefik cannot
+#      see it and the domain 404s.
+#   3. TLS terminates at Traefik, so `COOKIE_SECURE` has to flip to true — same reason
+#      docker-compose.caddy.yml flips it.
+#
+# ## Why `extends:` and not a copy of the base file
+#
+# `api`'s environment block is ~60 keys, and this repo's history is mostly bugs where one
+# of them failed to reach the container. A second hand-maintained copy would drift, and
+# the symptom would be "the feature I configured in Dokploy does nothing". `extends` keeps
+# docker-compose.yml the single source of truth for what `db` and `api` are; this file only
+# states the deltas.
+#
+# One sharp edge: `extends` DOES carry `depends_on` over, pointing at the base file's
+# service names. Since those names change here, the inherited value is a dangling
+# reference (`depends on undefined service "db"`, and compose refuses to start) — and
+# re-declaring it would MERGE with the inherited one, not replace it. Hence the
+# `!override` tag: https://docs.docker.com/reference/compose-file/merge/#override
+#
+# ## Why the services are renamed, and why they keep network aliases
+#
+# `db` / `api` / `web` are fine inside a project that owns the whole daemon, but a Dokploy
+# host runs every project's containers side by side and the names show up in its UI, in
+# `docker ps` and in Traefik's dashboard. So they are `skillnet-postgres`, `skillnet-api`
+# and `skillnet-web` here.
+#
+# The `aliases:` below are NOT decoration — the old names are hardcoded in two places this
+# file does not own:
+#
+#   * `docker/nginx.conf` proxies /api/, /ext/ and /health to `http://api:8000`. That file
+#     is baked into the web image and shared with every other compose overlay in the repo.
+#   * `DATABASE_URL` is inherited from docker-compose.yml and points at `@db:5432`.
+#
+# An alias makes both names resolve to the same container, so the rename stays cosmetic
+# instead of turning into an edit of files the non-Dokploy deployments also use.
+#
+# ## Not included
+#
+# The `a2a`, `mcp` and `api-fixtures` services stay out: they are profile-gated in the base
+# file and Dokploy gives no place to pass `--profile`. Add them here explicitly (same
+# `extends` shape, minus `profiles`) if you want them on this host.
+
+services:
+  # ── Database ────────────────────────────────────────────────
+  # Not on dokploy-network and no published port: nothing outside this compose project
+  # should be able to reach PostgreSQL. `api` finds it on the project's default network.
+  skillnet-postgres:
+    extends:
+      file: docker-compose.yml
+      service: db
+    networks:
+      default:
+        # The inherited DATABASE_URL says `db:5432`. Keep that name resolvable.
+        aliases:
+          - db
+
+  # ── Backend API ─────────────────────────────────────────────
+  # Also internal-only. The SPA talks to it through nginx (`web` proxies /api/, /ext/ and
+  # /health to api:8000, see docker/nginx.conf), so it needs no domain of its own.
+  skillnet-api:
+    extends:
+      file: docker-compose.yml
+      service: api
+    networks:
+      default:
+        # nginx inside the web image proxies to `api:8000` — see docker/nginx.conf.
+        aliases:
+          - api
+    environment:
+      # Traefik terminates TLS in front of the whole stack, so session cookies can and
+      # should be HTTPS-only. The base file defaults this to `false` so a plain-HTTP
+      # localhost run works; here there is always TLS.
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      # The SPA is served from the same origin it calls, so this matters only for external
+      # API clients — but the base default (`http://localhost:3000`) is wrong for a
+      # deployed host, and a wrong default here is a browser error with no server log.
+      CORS_ORIGINS: ${CORS_ORIGINS:-["https://${DOMAIN}"]}
+    depends_on: !override
+      skillnet-postgres:
+        condition: service_healthy
+
+  # ── Frontend (nginx + React SPA) ────────────────────────────
+  # Written out in full rather than extended, because the one thing it inherits that must
+  # not survive is `ports:` — and Compose MERGES sequences like `ports` instead of
+  # replacing them (the same trap documented at length in docker-compose.caddy.yml).
+  skillnet-web:
+    build:
+      context: .
+      dockerfile: docker/web.Dockerfile
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      # `default` has to be listed explicitly: naming any network opts a service out of
+      # the implicit default, and without it nginx could not resolve the API at all.
+      default: {}
+      dokploy-network: {}
+    labels:
+      - traefik.enable=true
+      # Which network Traefik should use to reach this container. Omitting it makes
+      # Traefik pick one of the two at random and half the requests time out.
+      - traefik.docker.network=dokploy-network
+      # Router names are global to the Dokploy instance's Traefik, not scoped to this
+      # project — change `skillnet` here if you deploy SkillNet twice on one host.
+      - traefik.http.routers.skillnet.rule=Host(`${DOMAIN:?Set DOMAIN in the Dokploy Environment tab to the public hostname}`)
+      - traefik.http.routers.skillnet.entrypoints=websecure
+      # `letsencrypt` is the resolver Dokploy's own Traefik ships with; certificates are
+      # issued and renewed by Dokploy, so there is no Caddy/ACME state to keep here.
+      - traefik.http.routers.skillnet.tls.certresolver=letsencrypt
+      # The container listens on 80 (nginx). Traefik cannot infer this when a service
+      # exposes no published port, which is exactly our case.
+      - traefik.http.services.skillnet.loadbalancer.server.port=80
+      # Plain HTTP -> HTTPS. Dokploy does not redirect globally, and without this the site
+      # answers on http:// with `COOKIE_SECURE=true` — a login that silently never sticks.
+      - traefik.http.routers.skillnet-http.rule=Host(`${DOMAIN}`)
+      - traefik.http.routers.skillnet-http.entrypoints=web
+      - traefik.http.routers.skillnet-http.middlewares=skillnet-https
+      - traefik.http.middlewares.skillnet-https.redirectscheme.scheme=https
+      - traefik.http.middlewares.skillnet-https.redirectscheme.permanent=true
+    depends_on:
+      skillnet-api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+networks:
+  # Created by Dokploy itself when it installs; declared external so this project attaches
+  # to it instead of trying to own it. If `docker network ls` has no `dokploy-network`,
+  # this file is being run somewhere Dokploy was never installed — use docker-compose.yml.
+  dokploy-network:
+    external: true
+
+# `extends` copies a service's `volumes:` but not the top-level definitions they point at,
+# so these have to be repeated here. Same set, same reasons as in docker-compose.yml:
+# database, uploaded documents, and generated media that is expensive to re-create.
+volumes:
+  pgdata:
+    driver: local
+  uploads:
+    driver: local
+  media_assets:
+    driver: local
+  tts_cache:
+    driver: local
