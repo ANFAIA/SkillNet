@@ -1,4 +1,4 @@
-# SkillNet — Caddyfile for docker-compose.caddy.yml
+# SkillNet — Caddyfile for docker/compose/caddy.yml
 #
 # {$DOMAIN} and {$CADDY_EMAIL} are Caddy's documented env-var placeholder syntax
 # (https://caddyserver.com/docs/caddyfile/concepts#environment-variables): Caddy

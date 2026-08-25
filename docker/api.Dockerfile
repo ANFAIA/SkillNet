@@ -14,7 +14,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg espeak-n
 
 # `PYTHONUNBUFFERED` and `PYTHONDONTWRITEBYTECODE` are set in the *builder* stage on
 # purpose, so `runtime` inherits them too. They used to live only in `runtime`, and
-# `docker-compose.dev.yml` builds `target: builder` — so development lost two things:
+# `docker/compose/dev.yml` builds `target: builder` — so development lost two things:
 # anything written to `stdout` (uvicorn's access log, arriving in 8 KB blocks, and every
 # `print()`, which is how the seed scripts talk when run without a TTY), and `.pyc` files
 # were written into the bind-mounted host source tree.
