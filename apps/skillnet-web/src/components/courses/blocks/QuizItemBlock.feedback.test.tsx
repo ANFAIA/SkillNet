@@ -35,7 +35,7 @@ function renderQuiz() {
         <QuizItemBlock
           item_id="q1"
           item_type="test"
-          bloom_level="comprender"
+          bloom_level="understand"
           question="Cual es?"
           options={OPCIONES}
           nodeId="node-1"
