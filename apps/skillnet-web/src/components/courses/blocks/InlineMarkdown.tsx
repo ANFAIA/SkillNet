@@ -1,7 +1,9 @@
 import { useId } from 'react'
 import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import type { Components } from 'react-markdown'
 import { clickify, useClickableText } from '../ClickableText'
+import { autolinkBareDomains } from './autolinkBareDomains'
 
 // §5.2 rule 6: `props.text` is plain text or *inline* markdown (`**`, `*`,
 // backticks, links). Never HTML. So we reuse react-markdown — already a
@@ -53,11 +55,12 @@ export function InlineMarkdown({ children }: { children: string }) {
 
   return (
     <ReactMarkdown
+      remarkPlugins={[remarkGfm]}
       components={clickable ? clickableComponents(prefix) : components}
       allowedElements={['p', 'strong', 'em', 'code', 'a', 'del']}
       unwrapDisallowed
     >
-      {children}
+      {autolinkBareDomains(children)}
     </ReactMarkdown>
   )
 }
