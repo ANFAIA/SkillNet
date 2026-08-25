@@ -2,7 +2,16 @@
 #
 # In Dokploy: create a project -> "Compose" -> Provider: Git (this repo) ->
 # Compose Path: `./docker-compose.dokploy.yml` -> put your settings in the
-# Environment tab -> Deploy.
+# Environment tab -> Deploy. Then add the domain from the Domains tab, pointing it at
+# service `skillnet-web`, container port `80` (see below).
+#
+# ## Where the domain is configured, and why not here
+#
+# In the Domains tab, not in this file. Traefik labels used to live on `skillnet-web`,
+# and they work — but Dokploy's UI writes its OWN labels for whatever domain you add
+# there, so using both leaves two routers claiming the same `Host()` rule and which one
+# answers is a coin flip. One owner only: the UI. That is also why `skillnet-web`
+# publishes a `80` the UI can point at, and nothing else.
 #
 # ## What a Dokploy host needs that docker-compose.yml cannot give it
 #
@@ -14,8 +23,9 @@
 #      shared `dokploy-network`, and a published port would both bypass the host firewall
 #      (Docker publishes via DNAT) and collide with whatever already holds 3000 on a box
 #      that runs other projects too.
-#   2. Every routed service must join the external `dokploy-network`, or Traefik cannot
-#      see it and the domain 404s.
+#   2. `skillnet-web` must join the external `dokploy-network`, or the Traefik that
+#      Dokploy runs cannot see it and the domain 404s. This is the half of the routing
+#      the UI cannot do for you — the Domains tab adds labels, not networks.
 #   3. TLS terminates at Traefik, so `COOKIE_SECURE` has to flip to true — the same change
 #      docker-compose.caddy.yml makes.
 #
@@ -141,7 +151,7 @@ services:
       # for external clients — but the base default `http://localhost:3000` is simply
       # wrong on a deployed host, and a wrong value here is a browser-side error with
       # no server-side log to find it by.
-      CORS_ORIGINS: ${CORS_ORIGINS:-["https://${DOMAIN}"]}
+      CORS_ORIGINS: ${CORS_ORIGINS:-["https://${DOMAIN:?Set DOMAIN in the Dokploy Environment tab to the hostname you added in the Domains tab, or set CORS_ORIGINS explicitly}"]}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       ENVIRONMENT: ${ENVIRONMENT:-production}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
@@ -193,8 +203,9 @@ services:
       start_period: 30s
 
   # ── Frontend (nginx + React SPA) ────────────────────────────
-  # The only service Traefik routes to, and the only one with no `ports:` — that absence
-  # is the point, see the header.
+  # The only service Traefik routes to. Point the Domains tab at THIS service name, on
+  # container port 80 — that is the port nginx listens on inside the container
+  # (docker/web.Dockerfile), not a host port: there is deliberately no `ports:` here.
   skillnet-web:
     build:
       context: .
@@ -206,29 +217,6 @@ services:
       # the implicit default, and without it nginx could not resolve the API at all.
       default: {}
       dokploy-network: {}
-    labels:
-      - traefik.enable=true
-      # Which network Traefik should use to reach this container. Without it Traefik picks
-      # one of the two and half the requests time out.
-      - traefik.docker.network=dokploy-network
-      # Router names are global to the host's Traefik, not scoped to this project — change
-      # `skillnet` here if you ever deploy SkillNet twice on the same Dokploy instance.
-      - traefik.http.routers.skillnet.rule=Host(`${DOMAIN:?Set DOMAIN in the Dokploy Environment tab to the public hostname}`)
-      - traefik.http.routers.skillnet.entrypoints=websecure
-      # `letsencrypt` is the resolver Dokploy's own Traefik ships with: certificates are
-      # issued and renewed by Dokploy, so unlike the Caddy overlay there is no ACME state
-      # to keep in a volume here.
-      - traefik.http.routers.skillnet.tls.certresolver=letsencrypt
-      # nginx listens on 80. Traefik cannot infer the port when a service publishes none,
-      # which is exactly this case.
-      - traefik.http.services.skillnet.loadbalancer.server.port=80
-      # Plain HTTP -> HTTPS. Dokploy does not redirect globally, and without this the site
-      # answers over http:// with COOKIE_SECURE=true — a login that silently never sticks.
-      - traefik.http.routers.skillnet-http.rule=Host(`${DOMAIN}`)
-      - traefik.http.routers.skillnet-http.entrypoints=web
-      - traefik.http.routers.skillnet-http.middlewares=skillnet-https
-      - traefik.http.middlewares.skillnet-https.redirectscheme.scheme=https
-      - traefik.http.middlewares.skillnet-https.redirectscheme.permanent=true
     depends_on:
       skillnet-api:
         condition: service_healthy
