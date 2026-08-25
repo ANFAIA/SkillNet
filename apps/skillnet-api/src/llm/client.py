@@ -8,6 +8,7 @@ Anthropic, DeepSeek, Ollama, etc. requires no code change.
 
 from __future__ import annotations
 
+import json
 import re
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
@@ -428,6 +429,59 @@ class LLMService:
             )
             budget *= BUDGET_RETRY_MULTIPLIER
         return "", spent
+
+    async def complete_with_tools(
+        self,
+        messages: list[dict[str, Any]],
+        *,
+        tools: list[dict[str, Any]],
+        model: str | None = None,
+        temperature: float = 0.2,
+        max_tokens: int = 1024,
+        tool_choice: str = "auto",
+    ) -> tuple[str, list[dict[str, Any]]]:
+        """One non-streamed turn with native function-calling.
+
+        Returns ``(text, tool_calls)``. ``tool_calls`` is ``[]`` when the provider
+        answered in prose; each entry is ``{"id", "name", "arguments"}`` with
+        ``arguments`` already parsed from the provider's JSON string — a malformed
+        JSON on the provider's end raises ``LLMError`` rather than handing the
+        agent loop a string it would fail to call ``.get`` on.
+
+        Separate from :meth:`complete`/:meth:`complete_with_usage`: those two have
+        no ``tools`` concept and eight call sites between them that must not change
+        shape for one new caller (the admin agent).
+        """
+        model_name = model or self._config.model
+        kwargs = self._base_kwargs(model)
+        kwargs["messages"] = messages
+        kwargs["temperature"] = temperature
+        kwargs["max_tokens"] = budget_for(model_name, max_tokens)
+        kwargs["tools"] = tools
+        kwargs["tool_choice"] = tool_choice
+        kwargs.update(reasoning_kwargs(model_name))
+
+        response = await self._completion_call(kwargs)
+        choices = getattr(response, "choices", None) or ()
+        message = getattr(choices[0], "message", None) if choices else None
+        raw_calls = getattr(message, "tool_calls", None) or []
+
+        tool_calls: list[dict[str, Any]] = []
+        for call in raw_calls:
+            function = getattr(call, "function", None)
+            name = getattr(function, "name", None) or ""
+            raw_arguments = getattr(function, "arguments", None) or "{}"
+            try:
+                arguments = json.loads(raw_arguments)
+            except (json.JSONDecodeError, TypeError) as exc:
+                raise LLMError(
+                    f"Provider requested tool '{name}' with malformed arguments"
+                ) from exc
+            tool_calls.append(
+                {"id": getattr(call, "id", None), "name": name, "arguments": arguments}
+            )
+
+        return (getattr(message, "content", None) or ""), tool_calls
 
     async def _completion_call(self, kwargs: dict[str, Any]) -> Any:
         """One provider call, with provider errors normalized to :class:`LLMError`.

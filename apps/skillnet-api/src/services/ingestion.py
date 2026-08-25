@@ -49,6 +49,56 @@ def _safe_error_message(exc: Exception) -> str:
     return "Error processing document. Check the server logs for details."
 
 
+def _decode_pdf_image(img: dict) -> bytes | None:
+    """Return real PNG/JPEG-encoded bytes for one ``page.images[i]`` entry, or ``None``.
+
+    There is no ``page.extract_image()`` on the installed pdfplumber (0.11.x) — the
+    correct way to reach the pixel data is the image dict's own ``stream``. That data has
+    already run through the PDF filter chain, so a ``DCTDecode`` (JPEG) image comes back
+    as real, already-encoded JPEG bytes; a ``FlateDecode`` one (the common case for
+    screenshots) comes back as *raw, uncompressed pixels* with no file header at all —
+    handing those straight to a vision model is not a decodable image. Reconstruct that
+    case with PIL from the dict's own ``srcsize``/``colorspace`` before re-encoding as PNG.
+    """
+    raw = img["stream"].get_data()
+    if raw[:4] == b"\x89PNG" or raw[:2] == b"\xff\xd8":
+        return raw
+
+    try:
+        import io
+
+        from PIL import Image
+    except ImportError:
+        return None
+
+    width, height = img.get("srcsize") or (None, None)
+    if not width or not height:
+        return None
+
+    colorspace = img.get("colorspace")
+    first = colorspace[0] if isinstance(colorspace, list) and colorspace else colorspace
+    mode = "RGB"
+    if first in ("/DeviceGray", "DeviceGray", "/CalGray", "CalGray"):
+        mode = "L"
+    elif first in ("/DeviceCMYK", "DeviceCMYK"):
+        mode = "CMYK"
+    channels = {"RGB": 3, "L": 1, "CMYK": 4}[mode]
+
+    expected = width * height * channels
+    if len(raw) < expected:
+        return None
+
+    try:
+        pil_image = Image.frombytes(mode, (width, height), raw[:expected])
+        if mode == "CMYK":
+            pil_image = pil_image.convert("RGB")
+        buf = io.BytesIO()
+        pil_image.save(buf, format="PNG")
+        return buf.getvalue()
+    except Exception:  # noqa: BLE001 - a stream this module can't decode is not fatal
+        return None
+
+
 async def _describe_pdf_images(
     path: Path, sections: list[ParsedSection], org_settings: dict,
 ) -> list[ParsedSection]:
@@ -83,11 +133,8 @@ async def _describe_pdf_images(
             for page_num, page in enumerate(pdf.pages, 1):
                 for img in page.images:
                     try:
-                        extracted = page.extract_image(img)
-                        if not extracted or not extracted.get("stream"):
-                            continue
-                        image_bytes = extracted["stream"].get_data()
-                        if len(image_bytes) < MIN_IMAGE_BYTES:
+                        image_bytes = _decode_pdf_image(img)
+                        if image_bytes is None or len(image_bytes) < MIN_IMAGE_BYTES:
                             continue
                         desc = await describe_image(image_bytes, config)
                         if desc:

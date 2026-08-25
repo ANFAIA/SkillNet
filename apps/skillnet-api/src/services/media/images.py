@@ -82,13 +82,22 @@ async def generate_image(
 
     last_exc: Exception | None = None
     for candidate in attempts:
+        api_key = _api_key_for(candidate)
+        if not api_key:
+            # Mirrors the TTS path (DialogueUnsupported before any network call): skip a
+            # candidate with no configured key instead of spending a real round-trip on a
+            # request that is guaranteed to fail auth, so a deployment with no image key
+            # degrades to spec-only immediately rather than after two wasted attempts.
+            last_exc = LLMError(f"no API key configured for {candidate}")
+            logger.info("Skipping image model %s: no API key configured", candidate)
+            continue
         try:
             resp = await litellm.aimage_generation(
                 model=candidate,
                 prompt=prompt,
                 size=size,
                 n=1,
-                api_key=_api_key_for(candidate),
+                api_key=api_key,
             )
             return await _decode_image(resp)
         except Exception as exc:  # noqa: BLE001 - normalized and possibly retried below
