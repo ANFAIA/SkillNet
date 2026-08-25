@@ -2,16 +2,25 @@
 #
 # In Dokploy: create a project -> "Compose" -> Provider: Git (this repo) ->
 # Compose Path: `./docker-compose.dokploy.yml` -> put your settings in the
-# Environment tab -> Deploy. Then add the domain from the Domains tab, pointing it at
-# service `skillnet-web`, container port `80` (see below).
+# Environment tab -> Deploy. Then add the domain from the Domains tab (see below).
 #
-# ## Where the domain is configured, and why not here
+# ## Domains: TWO entries on the same hostname, not one
 #
-# In the Domains tab, not in this file. Traefik labels used to live on `skillnet-web`,
-# and they work — but Dokploy's UI writes its OWN labels for whatever domain you add
-# there, so using both leaves two routers claiming the same `Host()` rule and which one
-# answers is a coin flip. One owner only: the UI. That is also why `skillnet-web`
-# publishes a `80` the UI can point at, and nothing else.
+# The SPA calls the API on relative paths (`/api/v1/...`) and has no configurable API
+# base URL, so something has to route `/api` to the API container. In the nginx image
+# that was nginx; here it is Traefik, which means the Domains tab needs both halves:
+#
+#   host / path `/`     -> service skillnet-web, container port 3000
+#   host / path `/api`  -> service skillnet-api, container port 8000
+#   host / path `/ext`  -> service skillnet-api, container port 8000   (external API only)
+#
+# Traefik ranks routers by rule length, so `/api` wins over `/` with no manual priority.
+# Miss the second entry and the app loads, then every call falls through to index.html:
+# a white screen after login rather than an error.
+#
+# The domain lives in that tab and NOT as Traefik labels in this file. Labels here used
+# to work, but Dokploy writes its own for whatever you add in the UI, and two routers
+# claiming the same `Host()` rule is a coin flip over which answers. One owner: the UI.
 #
 # ## What a Dokploy host needs that docker-compose.yml cannot give it
 #
@@ -89,8 +98,10 @@ services:
       retries: 10
 
   # ── Backend API ─────────────────────────────────────────────
-  # Also internal only. The SPA reaches it through nginx, which proxies /api/, /ext/ and
-  # /health to it (docker/nginx.conf), so it needs no domain and no published port.
+  # On dokploy-network because Traefik routes `/api` straight to it now that no nginx
+  # proxies on its behalf. Still no published port: Traefik reaches it over that network,
+  # and the paths it serves publicly are the same ones nginx used to forward, so this is
+  # not new surface — just a shorter path to it.
   skillnet-api:
     build:
       context: .
@@ -98,10 +109,10 @@ services:
     restart: unless-stopped
     logging: *default-logging
     networks:
-      default:
-        aliases:
-          # nginx in the web image proxies to `api:8000`; see the header.
-          - api
+      # `default` must be listed explicitly: naming any network opts the service out of
+      # the implicit one, and that is how it reaches PostgreSQL.
+      default: {}
+      dokploy-network: {}
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-skillnet}:${POSTGRES_PASSWORD}@skillnet-postgres:5432/${POSTGRES_DB:-skillnet}
       SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env (32 caracteres o mas)}
@@ -203,25 +214,27 @@ services:
       start_period: 30s
 
   # ── Frontend (nginx + React SPA) ────────────────────────────
-  # The only service Traefik routes to. Point the Domains tab at THIS service name, on
-  # container port 80 — that is the port nginx listens on inside the container
-  # (docker/web.Dockerfile), not a host port: there is deliberately no `ports:` here.
+  # Static build served by `serve` on 3000 — no nginx, because Traefik already is the
+  # reverse proxy on a Dokploy host (see docker/web.dokploy.Dockerfile). Point the `/`
+  # domain entry at THIS service, container port 3000: that is the port inside the
+  # container, not a host port — there is deliberately no `ports:` here.
   skillnet-web:
     build:
       context: .
-      dockerfile: docker/web.Dockerfile
+      dockerfile: docker/web.dokploy.Dockerfile
     restart: unless-stopped
     logging: *default-logging
     networks:
-      # `default` has to be listed explicitly: naming any network opts a service out of
-      # the implicit default, and without it nginx could not resolve the API at all.
       default: {}
       dokploy-network: {}
     depends_on:
       skillnet-api:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/health || exit 1"]
+      # `/` and not `/health`: that endpoint was nginx proxying to the API, and this
+      # image has no proxy. Serving index.html is the whole job here, so it is also the
+      # honest thing to check.
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:3000/ || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
