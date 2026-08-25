@@ -142,7 +142,20 @@ from src.schemas.episode_contracts import EpisodeBrief
 #: real del validador (5), con mas presupuesto de caracteres. (3) El episodio
 #: ``support_only`` deja de ser pasivo: aunque no
 #: certifique dominio, exige una interaccion NO evaluativa desde la fuente.
-PROMPT_VERSION = "runtime/41"
+#: ``runtime/42`` (2026-08-25): la evaluacion deja de compartir pantalla con la explicacion.
+#: Reportado desde el producto: "hay veces que se genera la prueba en la misma pagina en la
+#: que te explica el concepto, me pasa varias veces". No era el modelo desviandose, era este
+#: prompt pidiendolo: ``_BLOCK_CHOICE`` decia "cada PANTALLA incluye AL MENOS un bloque
+#: genuinamente interactivo" y describia ``QuizItem`` como "integrada en el flujo, no
+#: separada" — con "pantalla" ya redefinida como hijo directo de la raiz (``episode/3``), eso
+#: es una orden de meter el ejercicio junto al texto que lo responde, y contradecia de frente
+#: el "UN SOLO FOCO POR PANTALLA" de :data:`_EPISODE_MULTISCREEN`. Ahora la interaccion
+#: obligatoria se pide por LECCION y hay una regla explicita: un bloque que evalua es un hijo
+#: de la raiz el solo, nunca en el mismo Card ni en el mismo Stack anidado que la explicacion.
+#: El frontend ya partia las pantallas por la etiqueta ``solvable`` del hijo de la raiz
+#: (``kit/solvableSteps.ts``), asi que un ejercicio anidado con su explicacion era la unica
+#: forma de saltarse esa separacion.
+PROMPT_VERSION = "runtime/42"
 #: ``episode/3`` (2026-08-17): un episodio ya no es UNA pantalla. Cada hijo directo del
 #: Stack raiz es una PANTALLA que el aprendiz pasa una a una (paginacion en el frontend,
 #: sin scroll). El generador decide CUANTAS pantallas segun el material (1 si el nodo es
@@ -533,16 +546,22 @@ _BLOCK_CHOICE = """
 - DragOrder: ordenar elementos arrastrando.
 
 ### Evaluacion (verificar comprension)
-- QuizItem: pregunta con opciones. Integrada en el flujo, no separada.
+- QuizItem: pregunta con opciones. Va en SU PROPIA pantalla (su propio hijo de la raiz),
+  nunca dentro de la pantalla que explica lo que pregunta.
 
-REGLA (interaccion obligatoria, forma libre): cada pantalla incluye AL MENOS un bloque
+REGLA (interaccion obligatoria, forma libre): la LECCION incluye AL MENOS un bloque
 genuinamente interactivo, elegido por lo que ES el material — no una receta fija. Vale
-cualquiera de estos: QuizItem, DragOrder, BeforeAfter, Flashcard, HintReveal, DragOrder,
-DidactWorkedExample, DidactTimeline o LearningExperience. NUNCA una
-pantalla que sea solo texto o solo una tabla. NO hace falta que la interaccion sea lo
-ultimo ni que sea un QuizItem: un procedimiento puede cerrarse ordenando, un concepto con
-una tarjeta de recuerdo activo o una pista graduada, una comparacion con BeforeAfter. La
-forma la manda el contenido y el dominio del nodo, no una plantilla.
+cualquiera de estos: QuizItem, DragOrder, BeforeAfter, Flashcard, HintReveal,
+DidactWorkedExample, DidactTimeline o LearningExperience. NO hace falta que la interaccion
+sea lo ultimo ni que sea un QuizItem: un procedimiento puede cerrarse ordenando, un
+concepto con una tarjeta de recuerdo activo o una pista graduada, una comparacion con
+BeforeAfter. La forma la manda el contenido y el dominio del nodo, no una plantilla.
+
+REGLA (explicar y comprobar no comparten pantalla): un bloque que EVALUA (QuizItem,
+DragOrder) es un hijo de la raiz el solo. Nunca lo metas en el mismo hijo —ni en el mismo
+Card, ni en un Stack anidado— que el texto, la tabla o los pasos que explican la respuesta.
+Explicar algo y preguntarlo a la vez es ensenar la respuesta: son DOS pantallas, primero la
+explicacion y despues la comprobacion.
 
 ## SkillNet: que bloque para que contenido
 

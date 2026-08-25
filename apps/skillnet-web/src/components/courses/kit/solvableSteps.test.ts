@@ -9,7 +9,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
-import { SOLVABLE_COMPONENTS, hasSolvableItem } from './solvableSteps'
+import { SOLVABLE_COMPONENTS, hasSolvableItem, splitMixedScreens } from './solvableSteps'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const BLOCKS_DIR = join(here, '..', 'blocks')
@@ -69,5 +69,48 @@ describe('SOLVABLE_COMPONENTS', () => {
 
     expect(conSolve).toEqual(['DragOrderBlock.tsx', 'QuizItemBlock.tsx'])
     expect([...SOLVABLE_COMPONENTS].sort()).toEqual(['DragOrder', 'QuizItem'])
+  })
+})
+
+/**
+ * La pantalla que explicaba y preguntaba a la vez.
+ *
+ * Reportado desde el producto: la prueba salia en la misma pagina que el concepto. El
+ * stepper ya separa por hijo de la raiz, asi que la unica forma de colarse era que el
+ * ejercicio viajase DENTRO del mismo hijo que su explicacion, en un `Stack` anidado.
+ */
+describe('splitMixedScreens', () => {
+  const texto = el('TextContent', { text: 'la merma es lo que se pierde' })
+  const tabla = el('Table', { headers: [], rows: [] })
+  const quiz = el('QuizItem', { item_id: 'q1' })
+
+  it('parte el hijo que mezcla explicacion y ejercicio', () => {
+    const mezclado = el('Stack', { children: [texto, quiz], gap: 'md' })
+    expect(splitMixedScreens([mezclado])).toEqual([texto, quiz])
+  })
+
+  it('deja intacto un hijo que solo explica', () => {
+    const soloContenido = el('Stack', { children: [texto, tabla], gap: 'md' })
+    expect(splitMixedScreens([soloContenido])).toEqual([soloContenido])
+  })
+
+  it('no toca un ejercicio que ya venia solo en su hijo', () => {
+    expect(splitMixedScreens([texto, quiz])).toEqual([texto, quiz])
+  })
+
+  it('nunca desarma un Card: agrupar con borde lo decidio el generador', () => {
+    const card = el('Card', { title: 'Practica', children: [texto, quiz] })
+    expect(splitMixedScreens([card])).toEqual([card])
+  })
+
+  it('baja tantos niveles como haga falta', () => {
+    const dentro = el('Stack', { children: [tabla, quiz], gap: 'sm' })
+    const fuera = el('Stack', { children: [texto, dentro], gap: 'md' })
+    expect(splitMixedScreens([fuera])).toEqual([texto, tabla, quiz])
+  })
+
+  it('conserva todo el contenido: partir no puede perder un bloque', () => {
+    const mezclado = el('Stack', { children: [texto, tabla, quiz], gap: 'md' })
+    expect(splitMixedScreens([mezclado])).toHaveLength(3)
   })
 })

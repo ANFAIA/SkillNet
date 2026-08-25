@@ -76,7 +76,7 @@ import {
   readStringMatrix,
 } from './coerce'
 import { QuizItemRenderer } from './QuizItemRenderer'
-import { hasSolvableItem } from './solvableSteps'
+import { hasSolvableItem, splitMixedScreens } from './solvableSteps'
 import {
   CALLOUT_TONES,
   CHART_KINDS,
@@ -130,7 +130,7 @@ const Stack = defineComponent({
   props: stackProps,
   component: ({ props, renderNode }: ComponentRenderProps<{ children: unknown[]; gap: string }>) => (
     <StackBlock gap={readEnum(props.gap, STACK_GAPS, 'md')}>
-      {readChildren(props.children).map((child, i) => (
+      {splitMixedScreens(readChildren(props.children)).map((child, i) => (
         <StackItem key={i} solvable={hasSolvableItem(child)}>
           {renderNode(child)}
         </StackItem>

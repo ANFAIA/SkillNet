@@ -60,3 +60,42 @@ export function hasSolvableItem(value: unknown, seen: WeakSet<object> = new Weak
   }
   return Object.values(value as Record<string, unknown>).some((entry) => hasSolvableItem(entry, seen))
 }
+
+/**
+ * Los hijos de la raiz, con las pantallas que mezclaban explicacion y ejercicio partidas.
+ *
+ * El stepper ya separa: cada hijo de la raiz que lleve un ejercicio dentro se queda solo en
+ * su pantalla (`blocks/StackBlock.tsx`). Lo que no puede separar es un hijo que lleve las
+ * DOS cosas — el texto que explica y el `QuizItem` que lo pregunta — dentro de un `Stack`
+ * anidado: eso es UN hijo, luego UNA pantalla, y ahi el ejercicio sale con la respuesta
+ * escrita justo encima. El prompt ya no lo pide (`runtime/42`), pero los cursos generados
+ * antes siguen en la base de datos y hay que servirlos bien.
+ *
+ * Un `Stack` anidado es solo maquetacion —apila en columna, igual que el de la raiz—, asi
+ * que subir sus hijos un nivel no cambia lo que se ve fuera del stepper y dentro convierte
+ * la pantalla mezclada en las dos que siempre debio ser. Se hace SOLO cuando mezcla: un
+ * `Stack` de puro contenido se queda intacto, y un `Card` NUNCA se toca (agrupar con borde
+ * es una decision de diseno del generador, no un contenedor accidental).
+ */
+export function splitMixedScreens(children: unknown[]): unknown[] {
+  const out: unknown[] = []
+  for (const child of children) {
+    const nested = mixedNestedStackChildren(child)
+    if (nested) out.push(...splitMixedScreens(nested))
+    else out.push(child)
+  }
+  return out
+}
+
+/**
+ * Los hijos de `value` si es un `Stack` anidado que mezcla ejercicio y contenido; `null`
+ * en cualquier otro caso.
+ */
+function mixedNestedStackChildren(value: unknown): unknown[] | null {
+  if (!isElementNode(value) || value.typeName !== 'Stack') return null
+  const raw = (value.props as { children?: unknown } | undefined)?.children
+  const kids = (Array.isArray(raw) ? raw : [raw]).flat().filter((kid) => kid != null)
+  if (kids.length < 2) return null
+  const solvable = kids.filter((kid) => hasSolvableItem(kid)).length
+  return solvable > 0 && solvable < kids.length ? kids : null
+}
