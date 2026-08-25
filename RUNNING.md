@@ -232,6 +232,39 @@ a shared network — Docker publishes ports with DNAT rules that **bypass the ho
 localhost over plain HTTP, note that `COOKIE_SECURE` defaults to `false`, so session cookies
 travel unencrypted. Put it behind TLS and set `COOKIE_SECURE=true`.
 
+## Letting other people in
+
+Three ways, and they are rungs on a ladder rather than alternatives. Pick by how long the
+thing has to keep working.
+
+| I want… | Use | Needs |
+|---|---|---|
+| people to try it **today** | the quick tunnel below | nothing at all |
+| a **stable** address on my own domain | [`docker-compose.cloudflared.yml`](docker-compose.cloudflared.yml) | a free Cloudflare account with a domain in it |
+| my own domain **and** my own certificate | [`docker-compose.caddy.yml`](docker-compose.caddy.yml) | a domain, DNS pointed at this host, ports 80/443 open |
+
+### A public URL in one command, no account
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.quicktunnel.yml up -d --build
+docker compose -f docker-compose.yml -f docker-compose.quicktunnel.yml logs quicktunnel | grep trycloudflare
+```
+
+The second command prints something like `https://against-region-afternoon-bucks.trycloudflare.com`.
+That address works from any network in the world, over HTTPS, immediately. No Cloudflare
+account, no domain, no DNS record, and nothing to open on your router — `cloudflared` dials
+**out** to Cloudflare, so it works behind CGNAT and on a laptop that changes networks.
+
+What you are giving up, plainly: **the hostname is ephemeral.** It changes every time the
+container restarts, Cloudflare offers it with no uptime guarantee, and anyone who has the URL
+can reach your instance — there is no access control in front of it. Fine for a demo, a class
+or a colleague trying it from home. Not for anything that has to still work tomorrow; that is
+what the other two rows are for.
+
+The overlay also sets `COOKIE_SECURE=true` for you, because the tunnel really is HTTPS. Note
+that an explicit `COOKIE_SECURE=` line in your `.env` overrides that — `.env.example` leaves
+it commented out on purpose so the overlays can raise it.
+
 ## Exposing SkillNet on your own domain
 
 The default stack is loopback-friendly, not internet-friendly: `web` speaks plain HTTP, which
