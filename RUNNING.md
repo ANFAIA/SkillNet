@@ -30,6 +30,9 @@ values in your `.env`, and move on.
 | **A local model** | Nothing — use the overlay in step 3 | Free, private, offline. But **slow**: measured ~185 s to generate one lesson screen on CPU. Needs ~8 GB of RAM and ~5 GB of disk. Good for trying it without an account; not comfortable for real use. |
 | **Nothing at all** | `LLM_MODEL=fixture/local` and `EMBEDDING_MODEL=fixture/local` | Free and instant, but only screens with a recorded response render. Enough to click through the interface; not enough to author a course. |
 
+`.env.example` opens with the three lines you have to fill in, boxed off at the top: the
+two secrets below and your provider key. Everything after that box already works.
+
 Whichever row you picked, two values are always required:
 
 | Variable | How to fill it |
