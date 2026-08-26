@@ -3,27 +3,31 @@ import { AnimatePresence, MotionConfig, motion } from "framer-motion";
 import { Menu, X } from "lucide-react";
 import { FaGithub } from "react-icons/fa";
 import Logo from "./Logo";
+import { LANG_STORAGE_KEY, type Locale } from "../i18n/config";
+import { t } from "../i18n/ui";
+import { GITHUB_URL } from "../data/links";
 
-const GITHUB_URL = "https://github.com/ANFAIA/SkillNet";
 const TRANSITION = { type: "tween", duration: 0.52, ease: [0.22, 1, 0.36, 1] } as const;
 /** Tailwind's `2xl` breakpoint: above it the desktop nav replaces the mobile menu. */
 const DESKTOP_QUERY = "(min-width: 96rem)";
 
-const LANDING_LINKS = [
-  { href: "#que-es-skillnet", label: "Qué es SkillNet" },
-  { href: "#como-funciona", label: "Cómo funciona" },
-  { href: "#para-quien", label: "Para quién" },
-  { href: "#contacto", label: "Contacto" },
-  { href: "/docs", label: "Documentación" },
-];
-
-const DOCS_LINKS_ES = [{ href: "/", label: "Volver al inicio" }];
-const DOCS_LINKS_EN = [{ href: "/", label: "Back to home" }];
+/**
+ * Remember an explicit language choice so browser detection never overrides it
+ * on the next visit. Storage can throw outright (Safari private mode, a browser
+ * set to block site data), and a failed write must not stop the navigation.
+ */
+function rememberLocale(locale: Locale) {
+  try {
+    window.localStorage.setItem(LANG_STORAGE_KEY, locale);
+  } catch {
+    /* the choice just will not survive this visit */
+  }
+}
 
 interface Props {
   variant?: "landing" | "docs";
-  locale?: "es" | "en";
-  /** For variant="docs": href of the equivalent page in the other locale. */
+  locale?: Locale;
+  /** Href of the equivalent page in the other locale, when one exists. */
   altHref?: string;
 }
 
@@ -36,10 +40,22 @@ export default function SiteHeader({ variant = "landing", locale = "es", altHref
   // out: otherwise it narrows to a pill while the panel is still in the flow, and
   // the morph lands on a tall sliver instead of the bar.
   const [expanded, setExpanded] = useState(false);
-  const LINKS = variant === "docs" ? (locale === "en" ? DOCS_LINKS_EN : DOCS_LINKS_ES) : LANDING_LINKS;
-  const logoHref = variant === "docs" ? "/" : "#";
-  const otherLocaleLabel = locale === "en" ? "ES" : "EN";
-  const langToggleAriaLabel = locale === "en" ? "Switch to Spanish" : "Cambiar a inglés";
+  const copy = t(locale);
+  const home = locale === "en" ? "/en/" : "/";
+  const docsHome = locale === "en" ? "/en/docs" : "/docs";
+  const LINKS = variant === "docs"
+    ? [{ href: home, label: copy.nav.backHome }]
+    : [
+        { href: "#que-es-skillnet", label: copy.nav.what },
+        { href: "#como-funciona", label: copy.nav.how },
+        { href: "#para-quien", label: copy.nav.who },
+        { href: "#contacto", label: copy.nav.contact },
+        { href: docsHome, label: copy.nav.docs },
+      ];
+  const logoHref = variant === "docs" ? home : "#";
+  const otherLocale: Locale = locale === "en" ? "es" : "en";
+  const otherLocaleLabel = otherLocale.toUpperCase();
+  const langToggleAriaLabel = copy.nav.switchLang;
   useEffect(() => {
     if (open) setExpanded(true);
   }, [open]);
@@ -112,21 +128,21 @@ export default function SiteHeader({ variant = "landing", locale = "es", altHref
         className={`pointer-events-auto flex flex-col transition-colors duration-300 ${surfaceShape}`}
       >
         <motion.div layout className={`flex items-center ${expanded ? "justify-between px-2" : scrolled ? "gap-4 sm:gap-5" : "justify-between"}`}>
-          <motion.a layout href={logoHref} aria-label="Volver al inicio" className={`flex shrink-0 items-center transition-colors duration-300 ${scrolled && lightTheme ? "text-[var(--color-primary)]" : "text-current"}`}><Logo size={26} /></motion.a>
+          <motion.a layout href={logoHref} aria-label={copy.nav.backHome} className={`flex shrink-0 items-center transition-colors duration-300 ${scrolled && lightTheme ? "text-[var(--color-primary)]" : "text-current"}`}><Logo size={26} /></motion.a>
 
           {/* Desktop navigation */}
-          <nav className="hidden items-center gap-6 2xl:flex" aria-label="Navegación principal">
+          <nav className="hidden items-center gap-6 2xl:flex" aria-label={copy.nav.main}>
             {LINKS.map(({ href, label }) => <a key={href} href={href} className={`type-ui whitespace-nowrap transition-colors duration-300 ${scrolled ? linkClass : "text-white/85 hover:text-white"}`}>{label}</a>)}
             <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer" className={`type-ui flex items-center gap-1.5 whitespace-nowrap transition-colors duration-300 ${scrolled ? linkClass : "text-white/85 hover:text-white"}`}><FaGithub size={17} /><span>GitHub</span></a>
-            {variant === "docs" && altHref && (
-              <a href={altHref} aria-label={langToggleAriaLabel} className="type-ui whitespace-nowrap rounded-full border border-white/25 px-2.5 py-1 text-white/85 hover:border-white/50 hover:text-white">
+            {altHref && (
+              <a href={altHref} onClick={() => rememberLocale(otherLocale)} lang={otherLocale} aria-label={langToggleAriaLabel} className={`type-ui whitespace-nowrap rounded-full border px-2.5 py-1 transition-colors duration-300 ${scrolled && lightTheme ? "border-[color-mix(in_srgb,var(--color-primary-deep)_22%,transparent)] text-[color-mix(in_srgb,var(--color-primary-deep)_78%,transparent)] hover:border-[var(--color-primary-deep)] hover:text-[var(--color-primary-deep)]" : "border-white/25 text-white/85 hover:border-white/50 hover:text-white"}`}>
                 {otherLocaleLabel}
               </a>
             )}
           </nav>
 
           {/* Mobile hamburger */}
-          <motion.button layout type="button" onClick={() => setOpen((v) => !v)} aria-label={open ? "Cerrar menú" : "Abrir menú"} aria-expanded={open} className="flex h-9 w-9 shrink-0 items-center justify-center text-current 2xl:hidden">
+          <motion.button layout type="button" onClick={() => setOpen((v) => !v)} aria-label={open ? copy.nav.closeMenu : copy.nav.openMenu} aria-expanded={open} className="flex h-9 w-9 shrink-0 items-center justify-center text-current 2xl:hidden">
             {open ? <X size={22} /> : <Menu size={22} />}
           </motion.button>
         </motion.div>
@@ -138,13 +154,13 @@ export default function SiteHeader({ variant = "landing", locale = "es", altHref
             initial={{ opacity: 0 }}
             animate={{ opacity: 1, transition: { duration: 0.22, delay: 0.3, ease: "linear" } }}
             exit={{ opacity: 0, transition: { duration: 0.16, delay: 0, ease: "linear" } }}
-            aria-label="Menú"
+            aria-label={copy.nav.menu}
             className="mt-2 flex w-full flex-col overflow-hidden 2xl:hidden"
           >
             {LINKS.map(({ href, label }) => <a key={href} href={href} onClick={() => setOpen(false)} className={`type-ui rounded-xl px-3 py-3 transition-colors duration-200 ${menuLinkClass}`}>{label}</a>)}
             <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer" onClick={() => setOpen(false)} className={`type-ui flex items-center gap-2 rounded-xl px-3 py-3 transition-colors duration-200 ${menuLinkClass}`}><FaGithub size={17} />GitHub</a>
-            {variant === "docs" && altHref && (
-              <a href={altHref} onClick={() => setOpen(false)} aria-label={langToggleAriaLabel} className={`type-ui rounded-xl px-3 py-3 transition-colors duration-200 ${menuLinkClass}`}>
+            {altHref && (
+              <a href={altHref} onClick={() => { rememberLocale(otherLocale); setOpen(false); }} lang={otherLocale} aria-label={langToggleAriaLabel} className={`type-ui rounded-xl px-3 py-3 transition-colors duration-200 ${menuLinkClass}`}>
                 {otherLocaleLabel}
               </a>
             )}

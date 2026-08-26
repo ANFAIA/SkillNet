@@ -4,14 +4,52 @@ import "@fontsource/poppins/500.css";
 import "@fontsource/poppins/600.css";
 import "@fontsource/poppins/700.css";
 import "../styles/global.css";
+import { LANG_STORAGE_KEY, type Locale } from "../i18n/config";
 
 interface Props {
   title: string;
   description: string;
-  lang?: string;
+  lang?: Locale;
+  /**
+   * Path of the equivalent page in the other locale. Omitted when this page has
+   * no counterpart, which both suppresses the hreflang pair and stops the
+   * detector from redirecting into a URL that does not exist.
+   */
+  altHref?: string;
 }
 
-const { title, description, lang = "es" } = Astro.props;
+const { title, description, lang = "es", altHref } = Astro.props;
+
+const site = Astro.site ?? new URL(Astro.url.origin);
+const canonicalUrl = new URL(Astro.url.pathname, site).toString();
+const altUrl = altHref ? new URL(altHref, site).toString() : null;
+const esUrl = lang === "es" ? canonicalUrl : altUrl;
+const enUrl = lang === "en" ? canonicalUrl : altUrl;
+
+/**
+ * Language detection, inline and render-blocking.
+ *
+ * The site is built by `astro build` and served by nginx as flat files, so
+ * there is no server to negotiate on `Accept-Language`: the redirect has to
+ * happen in the browser. Running it here, in <head>, means it fires before the
+ * body is parsed and painted, so a redirected visitor never sees the wrong
+ * language flash. Inline (not a module, not deferred) for the same reason.
+ *
+ * The rules are asymmetric on purpose, which is what makes a loop impossible:
+ *  - an explicit stored choice always wins, in both directions;
+ *  - with no stored choice, only the Spanish (default-locale) page auto-sends
+ *    an English browser to /en/. The /en/ page never auto-sends anyone back,
+ *    so a shared /en/ link keeps working for a Spanish-speaking reader.
+ * Every redirect therefore lands on a page whose own rules resolve to "stay".
+ */
+const detectScript = `(function(){try{
+var cur=${JSON.stringify(lang)},alt=${JSON.stringify(altHref ?? null)};
+if(!alt)return;
+var stored=null;try{stored=localStorage.getItem(${JSON.stringify(LANG_STORAGE_KEY)});}catch(e){}
+if(stored!=="es"&&stored!=="en")stored=null;
+var want=stored?stored:(cur==="es"&&/^en\\b/i.test(navigator.language||"")?"en":cur);
+if(want!==cur)location.replace(alt+location.hash);
+}catch(e){}})();`;
 ---
 
 <!doctype html>
@@ -19,6 +57,7 @@ const { title, description, lang = "es" } = Astro.props;
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script is:inline set:html={detectScript} />
     <link rel="icon" type="image/png" href="/images/brand/skillnet-logo.png?v=5" />
     <link rel="shortcut icon" type="image/png" href="/images/brand/skillnet-logo.png?v=5" />
     <link rel="apple-touch-icon" href="/images/brand/skillnet-logo.png?v=5" />
@@ -30,6 +69,16 @@ const { title, description, lang = "es" } = Astro.props;
     />
     <title>{title}</title>
     <meta name="description" content={description} />
+    <link rel="canonical" href={canonicalUrl} />
+    {/* What makes Google and the LinkedIn preview serve the right language. */}
+    {esUrl && <link rel="alternate" hreflang="es" href={esUrl} />}
+    {enUrl && <link rel="alternate" hreflang="en" href={enUrl} />}
+    {esUrl && <link rel="alternate" hreflang="x-default" href={esUrl} />}
+    <meta property="og:locale" content={lang === "en" ? "en_US" : "es_ES"} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonicalUrl} />
+    <meta property="og:type" content="website" />
     <slot name="head" />
   </head>
   <body>

@@ -26,24 +26,13 @@ const isEn = locale === "en";
 const siteTitle = isEn ? "SkillNet Documentation" : "Documentación SkillNet";
 const otherLocale = isEn ? "es" : "en";
 const otherBasePath = isEn ? "/docs" : "/en/docs";
-const thisBasePath = isEn ? "/en/docs" : "/docs";
 const otherHref = altSlug ? `${otherBasePath}/${altSlug}` : otherBasePath;
-const canonicalPath = currentSlug ? `${thisBasePath}/${currentSlug}` : thisBasePath;
 
 const navSummary = isEn ? "Browse the documentation" : "Explorar la documentación";
 const navHere = isEn ? "On this page" : "Estás en";
-
-const site = Astro.site ?? new URL(Astro.url.origin);
-const canonicalUrl = new URL(canonicalPath, site).toString();
-const otherUrl = new URL(otherHref, site).toString();
 ---
 
-<BaseLayout title={`${title} · ${siteTitle}`} description={description} lang={locale}>
-  <Fragment slot="head">
-    <link rel="alternate" hreflang="es" href={isEn ? otherUrl : canonicalUrl} />
-    <link rel="alternate" hreflang="en" href={isEn ? canonicalUrl : otherUrl} />
-    <link rel="alternate" hreflang="x-default" href={isEn ? otherUrl : canonicalUrl} />
-  </Fragment>
+<BaseLayout title={`${title} · ${siteTitle}`} description={description} lang={locale} altHref={otherHref}>
   <SiteHeader client:load variant="docs" locale={locale} altHref={otherHref} />
   <div class="docs-shell">
     <aside class="docs-shell__sidebar">
@@ -65,7 +54,7 @@ const otherUrl = new URL(otherHref, site).toString();
       </article>
     </main>
   </div>
-  <SiteFooter client:load />
+  <SiteFooter client:load lang={locale} />
 </BaseLayout>
 
 <style>

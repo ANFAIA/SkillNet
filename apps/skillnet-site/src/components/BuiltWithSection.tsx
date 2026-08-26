@@ -1,5 +1,8 @@
 import { motion } from "framer-motion";
 import { useEntrance } from "./useEntrance";
+import type { Locale } from "../i18n/config";
+import { t } from "../i18n/ui";
+import { CURIO_URL, DIDACT_URL } from "../data/links";
 
 /**
  * "Built with" — the two sibling projects SkillNet leans on. A signal, not a
@@ -11,9 +14,6 @@ import { useEntrance } from "./useEntrance";
  */
 
 const EASE = [0.38, 0.49, 0, 1] as const;
-
-const CURIO_URL = "https://github.com/JoseEstevez520/curio";
-const DIDACT_URL = "https://github.com/JoseEstevez520/Didact";
 
 const letterIn = {
   hidden: { opacity: 0.25, transition: { duration: 0 } },
@@ -55,15 +55,16 @@ function DidactWordmark({ state }: { state: "hidden" | "show" }) {
   );
 }
 
-export default function BuiltWithSection() {
+export default function BuiltWithSection({ lang = "es" }: { lang?: Locale }) {
+  const copy = t(lang).builtWith;
   const { ref, state } = useEntrance<HTMLDivElement>(0.4);
 
   return (
     <section id="hecho-con" data-nav-theme="light" className="w-full scroll-mt-24 bg-white px-6 py-16 sm:px-10 sm:py-20">
       <div className="mx-auto w-full max-w-[80%]">
-        <motion.h2 initial={false} className="type-section-title">Hecho con</motion.h2>
+        <motion.h2 initial={false} className="type-section-title">{copy.title}</motion.h2>
         <motion.p initial={false} className="type-lead mt-4 w-full text-[var(--color-text-secondary)]">
-          Dos proyectos propios y abiertos que SkillNet usa por dentro.
+          {copy.lead}
         </motion.p>
 
         <div className="builtwith-list mt-8" ref={ref}>
@@ -72,11 +73,8 @@ export default function BuiltWithSection() {
               <DidactWordmark state={state} />
             </span>
             <span className="builtwith-card__body">
-              <strong>Componentes para aprender</strong>
-              <small>
-                La biblioteca de componentes React con la que SkillNet compone lo que aparece dentro
-                de una lección.
-              </small>
+              <strong>{copy.didactTitle}</strong>
+              <small>{copy.didactDetail}</small>
             </span>
           </a>
 
@@ -95,11 +93,8 @@ export default function BuiltWithSection() {
               <span className="builtwith-name">Curio</span>
             </span>
             <span className="builtwith-card__body">
-              <strong>Explicar en contexto</strong>
-              <small>
-                El patrón de pulsar una palabra y ver su explicación sin salir de lo que estabas
-                leyendo, traído a las lecciones.
-              </small>
+              <strong>{copy.curioTitle}</strong>
+              <small>{copy.curioDetail}</small>
             </span>
           </a>
         </div>

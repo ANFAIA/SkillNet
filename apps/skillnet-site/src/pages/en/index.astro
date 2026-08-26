@@ -1,0 +1,34 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Hero from "../../components/Hero.tsx";
+import SiteHeader from "../../components/SiteHeader.tsx";
+import WhatWeDoSection from "../../components/WhatWeDoSection.tsx";
+import ProblemSection from "../../components/ProblemSection.tsx";
+import HowItWorksSection from "../../components/HowItWorksSection.tsx";
+import StableAdaptSection from "../../components/StableAdaptSection.tsx";
+import BuiltWithSection from "../../components/BuiltWithSection.tsx";
+import CollaborationSection from "../../components/CollaborationSection.tsx";
+import ProfilesSection from "../../components/ProfilesSection.tsx";
+import ContactSection from "../../components/ContactSection.tsx";
+import SiteFooter from "../../components/SiteFooter.tsx";
+import { t } from "../../i18n/ui";
+
+const lang = "en";
+const copy = t(lang);
+---
+
+<BaseLayout title={copy.meta.title} description={copy.meta.description} lang={lang} altHref="/">
+  <Hero client:load lang={lang} />
+  <main class="relative z-10 bg-white">
+    <WhatWeDoSection client:load lang={lang} />
+    <HowItWorksSection client:load lang={lang} />
+    <ProblemSection client:load lang={lang} />
+    <ProfilesSection client:load lang={lang} />
+    <CollaborationSection client:load lang={lang} />
+    <StableAdaptSection client:load lang={lang} />
+    <BuiltWithSection client:load lang={lang} />
+    <ContactSection client:load lang={lang} />
+    <SiteFooter client:load lang={lang} />
+  </main>
+  <SiteHeader client:load locale={lang} altHref="/" />
+</BaseLayout>
