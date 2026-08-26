@@ -114,6 +114,4 @@ Este hardware existe hoy como servicio —no requiere despliegue on-premise.
 ## Decisiones relacionadas
 
 - [Hoja de ruta de producción: páginas en vivo](/docs/inference-production-roadmap)
-- [Needle: enrutador de modelos especializados](/docs/inference-needle-router)
-- [Opciones de servicio de LoRA](/docs/inference-lora-serving) — dónde alojar un LoRA personalizado para una generación de UI más rápida
 </content>

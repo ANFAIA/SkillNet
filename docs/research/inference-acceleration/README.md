@@ -107,5 +107,3 @@ This hardware exists today as a service — no on-premise deployment needed.
 ## Related Decisions
 
 - [Production Roadmap: Live Pages](./production-roadmap.md)
-- [Needle: Router for Specialized Models](./needle-router.md)
-- [LoRA Serving Options](./lora-serving-options.md) — where to host a custom LoRA for faster UI generation

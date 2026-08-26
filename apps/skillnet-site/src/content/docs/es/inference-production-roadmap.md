@@ -102,7 +102,7 @@ Primero que funcione, luego optimizar. El concepto se valida con modelos gratuit
 ## Decisiones Futuras
 
 - [ ] Modelo base para la LoRA (Llama 3.1 8B, Qwen3 8B, Gemma 4)
-- [x] Hosting para el modelo fine-tuned — ver [Opciones de servicio de LoRA](/docs/inference-lora-serving)
+- [x] Hosting para el modelo fine-tuned
 - [ ] Tamaño del dataset (500, 1.000, 2.000 pares)
 - [ ] Idiomas prioritarios (francés, alemán, portugués, chino)
 - [ ] Caché: duración, estrategia de invalidación

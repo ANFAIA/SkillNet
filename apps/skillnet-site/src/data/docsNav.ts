@@ -58,7 +58,7 @@ export interface DocsTreeGroup {
  *  1. `group` in the frontmatter. Docs of a section that declare the same group
  *     form a family, and the one with the lowest `order` is its index page; the
  *     rest hang under it. This holds a family together when its slugs share no
- *     prefix (`inference-acceleration` owns `inference-needle-router`,
+ *     prefix (`inference-acceleration` owns `inference-production-roadmap`,
  *     `multi-agent-coordination` owns `multi-agent-communication`).
  *  2. The slugs, for docs with no group: a doc whose slug is the dash-prefix of
  *     other slugs in the same section is their parent (`personalization` owns

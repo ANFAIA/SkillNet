@@ -84,8 +84,6 @@ const entries = [
   { slug: "post-markdown", title: "Post-Markdown", titleEn: "Post-Markdown", order: 59, section: "research", group: "post-markdown", src: join(repoRoot, "docs/research/post-markdown/README.md") },
   { slug: "post-markdown-md-reader", title: "Cómo funciona md-reader", titleEn: "How md-reader works", order: 60, section: "research", group: "post-markdown", src: join(repoRoot, "docs/research/post-markdown/how-md-reader-works.md") },
   { slug: "inference-acceleration", title: "Aceleración de inferencia", titleEn: "Inference acceleration", order: 61, section: "research", group: "inference", src: join(repoRoot, "docs/research/inference-acceleration/README.md") },
-  { slug: "inference-lora-serving", title: "Opciones de servicio LoRA", titleEn: "LoRA serving options", order: 63, section: "research", group: "inference", src: join(repoRoot, "docs/research/inference-acceleration/lora-serving-options.md") },
-  { slug: "inference-needle-router", title: "Needle router", titleEn: "Needle router", order: 64, section: "research", group: "inference", src: join(repoRoot, "docs/research/inference-acceleration/needle-router.md") },
   { slug: "inference-production-roadmap", title: "Hoja de ruta de producción", titleEn: "Production roadmap", order: 62, section: "research", group: "inference", src: join(repoRoot, "docs/research/inference-acceleration/production-roadmap.md") },
 ];
 
