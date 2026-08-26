@@ -65,7 +65,17 @@ COPY --from=builder /usr/local/bin/uv /usr/local/bin/uv
 ENV PATH="/app/.venv/bin:$PATH" \
     UPLOAD_DIR=/data/uploads
 
-RUN mkdir -p /data/uploads && chown -R skillnet:skillnet /data /app
+# All THREE mount points the compose files declare, not just uploads.
+#
+# A named volume takes its ownership from whatever the image has at the mount point: a
+# directory that exists here is copied in with its owner, and one that does NOT is created
+# by Docker as root:root, mode 755 — unwritable for the `skillnet` user this image runs as.
+# So `uploads` worked and `media_assets` / `tts_cache` did not, which meant every podcast
+# and every infographic died on `PermissionError: [Errno 13] Permission denied:
+# '/data/media_assets/...'` in a clean `docker compose up`. Measured: 14 of 14 artifacts of
+# the demo seed. Creating them here is what makes the volumes inherit the right owner.
+RUN mkdir -p /data/uploads /data/media_assets /data/tts_cache \
+    && chown -R skillnet:skillnet /data /app
 
 USER skillnet
 
