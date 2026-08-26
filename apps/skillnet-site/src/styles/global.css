@@ -111,7 +111,9 @@ a {
   position: relative;
   display: flex;
   min-width: 0;
-  min-height: 380px;
+  /* Fluid instead of a fixed step: the cell follows the viewport, so the media
+     inside it keeps its shape on every width. */
+  min-height: clamp(272px, 38vw, 380px);
   flex-direction: column;
   align-items: stretch;
   overflow: hidden;
@@ -137,8 +139,6 @@ a {
 }
 
 .media-cell__label {
-  position: relative;
-  z-index: 2;
   display: flex;
   width: max-content;
   align-items: center;
@@ -155,7 +155,7 @@ a {
 }
 
 .media-text {
-  margin-top: 44px;
+  margin-top: 24px;
   color: var(--color-primary-deep);
 }
 
@@ -172,33 +172,42 @@ a {
   line-height: 1.65;
 }
 
-.media-image {
-  background-image:
-    url('/images/landing/multimodal/learning-differences-infographic-en-v1.webp');
-  background-color: #0755ab;
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: contain;
-}
+/* The media panes flow under the label instead of being pinned over it: that is
+   what lets them shrink with the card. */
 
+/* The infographic. The pane is exactly the file's own 1672x941 box, so `cover`
+   crops nothing and no letterbox band is painted: the frame and the graphic are
+   the same rectangle. What is left over in a taller cell is plain card. */
 .media-image {
-  position: absolute;
-  inset: 64px 20px 20px;
+  width: 100%;
+  flex: none;
+  margin: auto 0;
+  aspect-ratio: 1672 / 941;
   border: 1px solid color-mix(in srgb, var(--color-primary) 22%, white);
   border-radius: 8px;
+  background-image: url('/images/landing/multimodal/learning-differences-infographic-en-v1.webp');
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
 }
 
 .media-video {
-  position: absolute;
-  inset: 64px 20px 20px;
   display: flex;
+  flex: 1;
+  min-height: 0;
+  margin-top: 24px;
   flex-direction: column;
 }
 
 .media-video__still {
-  position: relative;
+  display: flex;
   flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
   overflow: hidden;
+  padding: 14px;
   border-radius: 8px 8px 0 0;
   background-image:
     linear-gradient(rgba(30,61,110,.08), rgba(30,61,110,.22)),
@@ -208,8 +217,7 @@ a {
 }
 
 .media-video__subtitle {
-  position: absolute;
-  inset: auto 14px 14px;
+  width: 100%;
   border-radius: 6px;
   background: rgba(8,20,38,.74);
   padding: 8px 10px;
@@ -222,14 +230,12 @@ a {
 }
 
 .media-play {
-  position: absolute;
-  left: 50%;
-  top: 50%;
   display: grid;
   width: 52px;
   height: 52px;
+  flex: none;
   place-items: center;
-  transform: translate(-50%, -50%);
+  margin: auto 0;
   border: 1px solid rgba(255,255,255,.8);
   border-radius: 50%;
   background: rgba(30,61,110,.64);
@@ -257,9 +263,10 @@ a {
 }
 
 .media-audio {
-  position: absolute;
-  inset: 64px 24px 24px;
   display: flex;
+  flex: 1;
+  min-height: 0;
+  margin-top: 24px;
   flex-direction: column;
   align-items: center;
   justify-content: center;
@@ -616,9 +623,125 @@ a.social-link:hover {
   color: var(--color-accent);
 }
 
+.builtwith-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.builtwith-card {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 12px;
+  background: #fff;
+  padding: 24px 26px;
+  color: var(--color-text);
+  transition: border-color .3s var(--ease-base), transform .3s var(--ease-base);
+}
+
+.builtwith-card:hover {
+  border-color: color-mix(in srgb, var(--color-primary) 55%, white);
+  transform: translateY(-2px);
+}
+
+.builtwith-card:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+}
+
+.builtwith-card__mark {
+  display: flex;
+  width: 116px;
+  flex: 0 0 116px;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.builtwith-card__blob {
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+  animation: builtwith-float 5.5s var(--ease-base) infinite;
+}
+
+.builtwith-name,
+.builtwith-wordmark {
+  color: var(--color-primary-deep);
+  font-size: 1.15rem;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+
+/* Didact has no logo of its own, so its mark is the name itself: the letters
+   settle in, then a rule draws under them. */
+.builtwith-wordmark {
+  position: relative;
+  display: inline-flex;
+  padding-bottom: 8px;
+  font-size: 1.5rem;
+}
+
+.builtwith-wordmark__rule {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: var(--color-accent);
+  transform-origin: left center;
+}
+
+.builtwith-card__body {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.builtwith-card__body strong {
+  color: var(--color-primary-deep);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.builtwith-card__body small {
+  color: var(--color-text-secondary);
+  font-size: .88rem;
+  line-height: 1.6;
+}
+
+@keyframes builtwith-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .builtwith-card__blob {
+    animation: none;
+  }
+}
+
 @media (max-width: 1000px) {
-  .media-cell {
-    min-height: 340px;
+  /* Narrow panes: from here down a media cell is only ~215px wide, whether the
+     grid still has two columns or has already collapsed to one. */
+
+  /* 48 bars with a 3px gap need 189px of gutter alone, so the bars collapsed to
+     nothing and the row spilled out of the clipped card. */
+  .waveform {
+    height: 68px;
+    gap: 1px;
+  }
+
+  .media-audio__track {
+    gap: 12px;
+  }
+
+  .media-video__subtitle {
+    padding: 6px 8px;
+    font-size: .66rem;
   }
 
   .profile-list {
@@ -627,12 +750,9 @@ a.social-link:hover {
 }
 
 @media (max-width: 700px) {
+
   .multimodal-surface {
     grid-template-columns: 1fr;
-  }
-
-  .media-cell {
-    min-height: 340px;
   }
 
   .media-audio p {
@@ -648,9 +768,26 @@ a.social-link:hover {
     gap: 36px;
   }
 
-  .open-source-row,
-  .education-copy {
+  .open-source-row {
     grid-template-columns: 1fr;
+  }
+
+  .builtwith-list {
+    grid-template-columns: 1fr;
+  }
+
+  .builtwith-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 18px;
+  }
+
+  /* Stacked, the mark's flex-basis would become a fixed height and leave a gap
+     under the shorter of the two marks. */
+  .builtwith-card__mark {
+    width: auto;
+    flex: none;
+    align-items: flex-start;
   }
 
   .open-source-copy,
