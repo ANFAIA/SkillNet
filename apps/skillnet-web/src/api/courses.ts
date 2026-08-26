@@ -78,8 +78,13 @@ export function useDeleteCourse() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => del(`/courses/${id}`),
-    onSuccess: () => {
+    onSuccess: (_data, id) => {
+      // Drop the detail rather than invalidate it: refetching a course that no longer
+      // exists only buys a 404 for whatever screen is still holding it.
+      queryClient.removeQueries({ queryKey: ['courses', id] })
       queryClient.invalidateQueries({ queryKey: ['courses'] })
+      // The folder sidebar counts the courses it holds; one of them just left.
+      queryClient.invalidateQueries({ queryKey: ['course-folders'] })
     },
   })
 }

@@ -52,8 +52,8 @@ const COURSE = {
   ],
 }
 
-function installFetch() {
-  mockFetch.mockImplementation((input: string) => {
+function installFetch(onDelete?: () => ReturnType<typeof jsonResponse>) {
+  mockFetch.mockImplementation((input: string, options?: RequestInit) => {
     const url = String(input)
     if (url.endsWith('/health')) {
       return jsonResponse(200, {
@@ -61,6 +61,9 @@ function installFetch() {
         version: '1',
         database: 'ok',
       })
+    }
+    if (url.endsWith(`/courses/${COURSE_ID}`) && options?.method === 'DELETE') {
+      return onDelete ? onDelete() : jsonResponse(204, null)
     }
     if (url.endsWith(`/courses/${COURSE_ID}`)) {
       return jsonResponse(200, COURSE)
@@ -112,5 +115,33 @@ describe('CoursePreview — the settings entry point', () => {
     expect(screen.getByRole('button', { name: 'Ajustes' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Publicar' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Contenido' })).toBeInTheDocument()
+  })
+})
+
+describe('CoursePreview — deleting the draft on screen', () => {
+  it('asks first, deletes, and returns to the library', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    installFetch()
+    renderPage()
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Eliminar' }))
+
+    expect(window.confirm).toHaveBeenCalledWith(expect.stringContaining('Devoluciones en tienda'))
+    expect(mockFetch.mock.calls.some(([input, options]) =>
+      String(input).endsWith(`/courses/${COURSE_ID}`) &&
+      (options as RequestInit | undefined)?.method === 'DELETE',
+    )).toBe(true)
+    expect(await screen.findByText('CONTENIDO')).toBeInTheDocument()
+  })
+
+  it('stays put and shows what the server said when the delete is refused', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    installFetch(() => jsonResponse(409, { detail: 'Cannot delete a course that has enrollments', code: 'CONFLICT' }))
+    renderPage()
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Eliminar' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Cannot delete a course that has enrollments')
+    expect(screen.queryByText('CONTENIDO')).toBeNull()
   })
 })

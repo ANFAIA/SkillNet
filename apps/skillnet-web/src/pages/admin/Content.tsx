@@ -8,9 +8,10 @@ import { CourseFolderSidebar, type FolderFilter } from '../../components/courses
 import { CourseFolderPicker } from '../../components/courses/CourseFolderPicker'
 import { FolderAssignmentDialog } from '../../components/courses/FolderAssignmentDialog'
 import { useCourseFolders, type CourseFolder } from '../../api/course-folders'
-import { useArchiveCourse, useCourses, usePublishCourse, useUpdateCourse } from '../../api/courses'
+import { useArchiveCourse, useCourses, useDeleteCourse, usePublishCourse, useUpdateCourse } from '../../api/courses'
 import { ApiError, post } from '../../api/client'
 import { useAuth } from '../../hooks/useAuth'
+import { canDeleteCourse } from '../../lib/canDeleteCourse'
 import { staggerContainer, staggerItem } from '../../lib/motion'
 import type { CourseRead, CourseStatus } from '../../types'
 
@@ -55,7 +56,7 @@ function canPublish(course: CourseRead): boolean {
   return (course.module_count ?? 0) > 0
 }
 
-function CourseRow({ course, folders, onMove, moving, onOpen, onPublish, onArchive, publishing, archiving }: {
+function CourseRow({ course, folders, onMove, moving, onOpen, onPublish, onArchive, onDelete, publishing, archiving, deleting }: {
   course: CourseRead
   folders: { id: string; name: string }[]
   onMove: (course: CourseRead, folderId: string | null) => void
@@ -63,8 +64,10 @@ function CourseRow({ course, folders, onMove, moving, onOpen, onPublish, onArchi
   onOpen: (path: string) => void
   onPublish: (courseId: string) => void
   onArchive: (courseId: string) => void
+  onDelete: (course: CourseRead) => void
   publishing: boolean
   archiving: boolean
+  deleting: boolean
 }) {
   const intl = useIntl()
   const status = useStatusConfig()(course.status)
@@ -98,6 +101,7 @@ function CourseRow({ course, folders, onMove, moving, onOpen, onPublish, onArchi
           {canPublish(course) && <Button variant="ghost" size="sm" onClick={() => onPublish(course.id)} disabled={publishing}>{publishing ? intl.formatMessage({ id: 'preview.publishing' }) : intl.formatMessage({ id: 'preview.publish' })}</Button>}
           {course.status === 'published' && <Button variant="ghost" size="sm" onClick={() => onArchive(course.id)} disabled={archiving}>{archiving ? intl.formatMessage({ id: 'preview.archiving' }) : intl.formatMessage({ id: 'preview.archive' })}</Button>}
           <Button variant="ghost" size="sm" onClick={() => onOpen(`/admin/curso/${course.id}/ajustes`)}>{intl.formatMessage({ id: 'content.schema' })}</Button>
+          {canDeleteCourse(course) && <Button variant="ghost" size="sm" onClick={() => onDelete(course)} disabled={deleting}>{deleting ? intl.formatMessage({ id: 'content.courseDeleting' }) : intl.formatMessage({ id: 'content.courseDelete' })}</Button>}
         </div>
       </div>
     </Card>
@@ -113,7 +117,8 @@ export function Content() {
   const folder: FolderFilter = params.get('folder') || 'all'
   const search = params.get('q') ?? ''
   const deferredSearch = useDeferredValue(search.trim())
-  const [moveError, setMoveError] = useState<string | null>(null)
+  // One slot for whatever the last row action had to say: they share a place on screen.
+  const [actionError, setActionError] = useState<string | null>(null)
   const [assigningFolder, setAssigningFolder] = useState<CourseFolder | null>(null)
   const foldersQuery = useCourseFolders()
   const coursesQuery = useCourses({
@@ -127,6 +132,7 @@ export function Content() {
   const updateCourse = useUpdateCourse()
   const publishCourse = usePublishCourse()
   const archiveCourse = useArchiveCourse()
+  const deleteCourse = useDeleteCourse()
   const courses = coursesQuery.data?.items ?? []
   const folders = foldersQuery.data ?? []
 
@@ -139,11 +145,23 @@ export function Content() {
   }
 
   async function moveCourse(course: CourseRead, folderId: string | null) {
-    setMoveError(null)
+    setActionError(null)
     try {
       await updateCourse.mutateAsync({ id: course.id, payload: { folder_id: folderId } })
     } catch (reason) {
-      setMoveError(reason instanceof ApiError ? reason.body.detail : intl.formatMessage({ id: 'content.moveError' }))
+      setActionError(reason instanceof ApiError ? reason.body.detail : intl.formatMessage({ id: 'content.moveError' }))
+    }
+  }
+
+  async function removeCourse(course: CourseRead) {
+    if (!window.confirm(intl.formatMessage({ id: 'content.courseDeleteConfirm' }, { title: course.title }))) return
+    setActionError(null)
+    try {
+      await deleteCourse.mutateAsync(course.id)
+    } catch (reason) {
+      // A 409 says why — enrollments, or a course that is no longer a draft. Show it:
+      // the admin can act on that, and a silent failure is what sent them to support.
+      setActionError(reason instanceof ApiError ? reason.body.detail : intl.formatMessage({ id: 'content.courseDeleteError' }))
     }
   }
 
@@ -178,7 +196,7 @@ export function Content() {
             <p className="text-xs text-text-muted">{coursesQuery.data && intl.formatMessage({ id: 'content.resultsCount' }, { count: coursesQuery.data.total })}</p>
             {hasFilters && <button type="button" onClick={() => setParams({}, { replace: true })} className="text-xs font-medium text-primary hover:text-primary-hover">{intl.formatMessage({ id: 'content.clearFilters' })}</button>}
           </div>
-          {moveError && <p role="alert" className="mt-2 border border-danger/30 rounded-lg px-3 py-2 text-sm text-danger">{moveError}</p>}
+          {actionError && <p role="alert" className="mt-2 border border-danger/30 rounded-lg px-3 py-2 text-sm text-danger">{actionError}</p>}
 
           <div className="mt-2">
             {coursesQuery.isLoading ? <LibrarySkeleton /> : coursesQuery.error ? (
@@ -187,7 +205,7 @@ export function Content() {
               <Card><EmptyState title={intl.formatMessage({ id: hasFilters ? 'content.noResultsTitle' : 'content.emptyTitle' })} description={intl.formatMessage({ id: hasFilters ? 'content.noResultsDesc' : 'content.emptyDesc' })} action={hasFilters ? { label: intl.formatMessage({ id: 'content.clearFilters' }), onClick: () => setParams({}, { replace: true }) } : { label: intl.formatMessage({ id: 'content.emptyAction' }), onClick: () => navigate('/admin/crear-curso') }} /></Card>
             ) : (
               <motion.div className="space-y-2" initial="hidden" animate="visible" variants={staggerContainer}>
-                {courses.map((course) => <CourseRow key={course.id} course={course} folders={folders} moving={updateCourse.isPending} onMove={moveCourse} onOpen={navigate} onPublish={(id) => publishCourse.mutate(id)} onArchive={(id) => archiveCourse.mutate(id)} publishing={publishCourse.isPending} archiving={archiveCourse.isPending} />)}
+                {courses.map((course) => <CourseRow key={course.id} course={course} folders={folders} moving={updateCourse.isPending} onMove={moveCourse} onOpen={navigate} onPublish={(id) => publishCourse.mutate(id)} onArchive={(id) => archiveCourse.mutate(id)} onDelete={removeCourse} publishing={publishCourse.isPending} archiving={archiveCourse.isPending} deleting={deleteCourse.isPending && deleteCourse.variables === course.id} />)}
               </motion.div>
             )}
           </div>

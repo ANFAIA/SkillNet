@@ -5,8 +5,10 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Button, Badge, Card, EmptyState, Input, Skeleton, SkeletonText } from '../../components/ui'
 import { LessonContent } from '../../components/courses/LessonContent'
 import { ExerciseRenderer } from '../../components/exercises/ExerciseRenderer'
-import { useCourse, useUpdateCourse, usePublishCourse, useArchiveCourse } from '../../api/courses'
+import { useCourse, useUpdateCourse, usePublishCourse, useArchiveCourse, useDeleteCourse } from '../../api/courses'
+import { ApiError } from '../../api/client'
 import { useDocument } from '../../api/documents'
+import { canDeleteCourse } from '../../lib/canDeleteCourse'
 import { slideVariants, staggerContainer, staggerItem, duration, ease, transition } from '../../lib/motion'
 
 const lessonSlide = slideVariants(48)
@@ -46,10 +48,13 @@ export function CoursePreview() {
   const updateCourse = useUpdateCourse()
   const publishCourse = usePublishCourse()
   const archiveCourse = useArchiveCourse()
+  const deleteCourse = useDeleteCourse()
 
   const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set())
   const [activeLessonId, setActiveLessonId] = useState<string>('')
   const [direction, setDirection] = useState<1 | -1>(1)
+
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const [editing, setEditing] = useState(false)
   const [editTitle, setEditTitle] = useState('')
@@ -103,6 +108,19 @@ export function CoursePreview() {
 
   function cancelEditing() {
     setEditing(false)
+  }
+
+  async function removeCourse() {
+    if (!id || !course) return
+    if (!window.confirm(intl.formatMessage({ id: 'content.courseDeleteConfirm' }, { title: course.title }))) return
+    setDeleteError(null)
+    try {
+      await deleteCourse.mutateAsync(id)
+      // The screen is a view of a course that no longer exists: leave before it 404s.
+      navigate('/admin/contenido')
+    } catch (reason) {
+      setDeleteError(reason instanceof ApiError ? reason.body.detail : intl.formatMessage({ id: 'content.courseDeleteError' }))
+    }
   }
 
   function saveEditing() {
@@ -245,10 +263,23 @@ export function CoursePreview() {
                   {archiveCourse.isPending ? intl.formatMessage({ id: 'preview.archiving' }) : intl.formatMessage({ id: 'preview.archive' })}
                 </Button>
               )}
+              {canDeleteCourse(course) && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={removeCourse}
+                  disabled={deleteCourse.isPending}
+                >
+                  {deleteCourse.isPending ? intl.formatMessage({ id: 'content.courseDeleting' }) : intl.formatMessage({ id: 'content.courseDelete' })}
+                </Button>
+              )}
               {(publishCourse.isError || archiveCourse.isError) && (
                 <span className="text-xs text-danger">{intl.formatMessage({ id: 'preview.statusError' })}</span>
               )}
             </div>
+            {deleteError && (
+              <p role="alert" className="mt-2 text-sm text-danger">{deleteError}</p>
+            )}
           </>
         )}
       </div>
