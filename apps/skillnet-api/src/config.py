@@ -138,6 +138,11 @@ class Settings(BaseSettings):
     # gpt-image-1 on the existing OpenAI key is the fallback selectable per call.
     IMAGE_MODEL: str = "openrouter/google/gemini-2.5-flash-image"
     IMAGE_FALLBACK_MODEL: str = "gpt-image-1"
+    # The image provider's own key. Set it when the image account is NOT the text account:
+    # without it the image call falls back to OPENROUTER_API_KEY (openrouter/* models) or
+    # LLM_API_KEY (everything else), which silently sends e.g. a Groq key to OpenAI for
+    # gpt-image-1. See src/services/media/images.api_key_for.
+    IMAGE_API_KEY: str = ""
     # Read by litellm for openrouter/* models. Lives in the repo-root .env.
     OPENROUTER_API_KEY: str = ""
 

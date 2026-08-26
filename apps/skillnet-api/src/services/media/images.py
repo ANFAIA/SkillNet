@@ -20,21 +20,59 @@ import litellm
 from src.config import settings
 from src.core.exceptions import LLMError
 from src.core.logging import get_logger
+from src.services import provider_health
 
 logger = get_logger(__name__)
 
 
-def _api_key_for(model: str) -> str | None:
-    """The key litellm needs for this model's provider.
+def api_key_for(model: str) -> str | None:
+    """The key litellm needs for this model's provider, or ``None`` if none is configured.
 
-    OpenRouter models authenticate with ``OPENROUTER_API_KEY``; ``gpt-image-1`` and other
-    OpenAI models use the same key the rest of the app uses (``LLM_API_KEY``). Passed
-    explicitly rather than relying on ``os.environ`` so the config file is the single
-    source of truth.
+    Resolution order:
+
+    1. ``IMAGE_API_KEY`` when set — it always wins, whatever the model is.
+    2. Otherwise the historic rule: ``openrouter/*`` authenticates with
+       ``OPENROUTER_API_KEY``, anything else reuses ``LLM_API_KEY``.
+
+    ``IMAGE_API_KEY`` exists because rule 2 quietly assumes the text and the image provider
+    are the same account. They often are not: a deployment on Groq for text and OpenAI for
+    ``gpt-image-1`` sends the Groq key to OpenAI, which fails auth and looks *exactly* like
+    a missing key — the same symptom, a different cause, and no way to tell them apart from
+    the outside. One explicit setting removes the guess.
+
+    This is the one function that answers "can this deployment generate images", and
+    ``services.capabilities`` imports it rather than mirroring it. The mirror it replaces
+    had already drifted: it consulted only ``IMAGE_MODEL`` and so reported ``images=False``
+    for a deployment whose ``gpt-image-1`` fallback would have worked.
+
+    Passed explicitly to litellm rather than relying on ``os.environ`` so the config file
+    stays the single source of truth.
     """
+    if settings.IMAGE_API_KEY:
+        return settings.IMAGE_API_KEY
     if model.startswith("openrouter/"):
         return settings.OPENROUTER_API_KEY or None
     return settings.LLM_API_KEY or None
+
+
+def model_candidates(model: str | None = None, *, fallback: bool = True) -> list[str]:
+    """The models :func:`generate_image` will try, in order.
+
+    Shared with the capability derivation so "what will be attempted" and "is any of it
+    usable" can never answer about different lists.
+    """
+    # An empty setting is "no model", not a model named "": without this guard the blank
+    # fallback resolves to the text key and reports images as available.
+    candidates = [name for name in (model or settings.IMAGE_MODEL,) if name]
+    if fallback and settings.IMAGE_FALLBACK_MODEL:
+        if settings.IMAGE_FALLBACK_MODEL not in candidates:
+            candidates.append(settings.IMAGE_FALLBACK_MODEL)
+    return candidates
+
+
+def images_are_available() -> bool:
+    """True when at least one configured image model has a key to authenticate with."""
+    return any(api_key_for(candidate) for candidate in model_candidates())
 
 
 async def _decode_image(resp: object) -> bytes:
@@ -75,14 +113,11 @@ async def generate_image(
     the OpenAI key) is tried once — the roadmap's declared stopgap. The final failure is
     normalized to :class:`LLMError`, same as the text client.
     """
-    primary = model or settings.IMAGE_MODEL
-    attempts = [primary]
-    if fallback and settings.IMAGE_FALLBACK_MODEL not in attempts:
-        attempts.append(settings.IMAGE_FALLBACK_MODEL)
+    attempts = model_candidates(model, fallback=fallback)
 
     last_exc: Exception | None = None
     for candidate in attempts:
-        api_key = _api_key_for(candidate)
+        api_key = api_key_for(candidate)
         if not api_key:
             # Mirrors the TTS path (DialogueUnsupported before any network call): skip a
             # candidate with no configured key instead of spending a real round-trip on a
@@ -102,6 +137,11 @@ async def generate_image(
             return await _decode_image(resp)
         except Exception as exc:  # noqa: BLE001 - normalized and possibly retried below
             last_exc = exc
+            # A key that is present but out of quota looks perfect to the config read in
+            # `services.capabilities`; this is the only place that knows better.
+            provider_health.record_failure(
+                provider_health.IMAGES, provider_health.failure_kind(exc)
+            )
             logger.warning("Image generation with %s failed: %s", candidate, exc)
 
     raise LLMError(
@@ -109,4 +149,4 @@ async def generate_image(
     )
 
 
-__all__ = ["generate_image"]
+__all__ = ["api_key_for", "generate_image", "images_are_available", "model_candidates"]
