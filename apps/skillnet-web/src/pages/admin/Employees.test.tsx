@@ -39,10 +39,10 @@ function installFetch(emp: ReturnType<typeof employee>) {
   mockFetch.mockImplementation((input: string, options?: RequestInit) => {
     const url = String(input)
     const method = options?.method ?? 'GET'
-    if (url.startsWith('/api/v1/users?')) {
+    if (/^\/api\/v1\/users(\?|$)/.test(url) && method === 'GET') {
       return jsonResponse(200, { items: [emp], total: 1, offset: 0, limit: 50 })
     }
-    if (url.startsWith('/api/v1/courses?')) {
+    if (url.startsWith('/api/v1/courses')) {
       return jsonResponse(200, { items: [], total: 0, offset: 0, limit: 100 })
     }
     if (url.startsWith('/api/v1/enrollments?')) {

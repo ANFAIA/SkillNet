@@ -18,6 +18,13 @@ from src.repositories.user_repo import UserRepository
 _password_helper = PasswordHelper()
 
 
+def _role_of(user: User) -> UserRole:
+    """The stored role as an enum. SQLAlchemy hands back the enum; the fakes used by
+    the unit tests hand back its string value, and both have to compare the same."""
+    role = user.role
+    return role if isinstance(role, UserRole) else UserRole(str(role))
+
+
 def _to_enum(enum_cls: type, value: str, field: str) -> object:
     try:
         return enum_cls(value)
@@ -62,9 +69,17 @@ class UserService:
         email: str,
         full_name: str,
         password: str | None = None,
+        role: str | None = None,
     ) -> tuple[User, str | None]:
-        """Create an employee. Returns the user and, when the password was
-        auto-generated, its plaintext value (so the admin can share it)."""
+        """Create a member of the organization. Returns the user and, when the
+        password was auto-generated, its plaintext value (so the admin can share it).
+
+        `role` defaults to `employee`; passing `"admin"` is how an administrator
+        invites another administrator. The caller is already required to be an admin
+        of `org_id` by the route guard, and `org_id` comes from the *caller's* own
+        account, never from the request body — that is what keeps one organization's
+        admin out of another's user list.
+        """
         if await self.repo.get_by_email(org_id, email) is not None:
             raise ConflictError("A user with this email already exists", field="email")
         generated: str | None = None
@@ -78,7 +93,7 @@ class UserService:
             email=email,
             full_name=full_name,
             hashed_password=_password_helper.hash(raw_password),
-            role=UserRole.EMPLOYEE,
+            role=_to_enum(UserRole, role, "role") if role else UserRole.EMPLOYEE,
             learning_profile=LearningProfile.STANDARD,
             is_active=True,
         )
@@ -89,10 +104,18 @@ class UserService:
         *,
         user_id: uuid.UUID,
         org_id: uuid.UUID,
+        actor_id: uuid.UUID | None = None,
         full_name: str | None = None,
         role: str | None = None,
         is_active: bool | None = None,
     ) -> User:
+        """Admin edit of another account, including its role.
+
+        `get_user` scopes the lookup to `org_id` and 404s otherwise, so an admin of
+        one organization cannot even *see* a user of another, let alone promote or
+        demote them. `org_id` is always the caller's own — the route reads it from
+        the authenticated admin, not from the path or body.
+        """
         user = await self.get_user(user_id, org_id)
         changes: dict = {}
         if full_name is not None:
@@ -103,7 +126,49 @@ class UserService:
             changes["is_active"] = is_active
         if not changes:
             return user
+        await self._guard_last_admin(
+            user=user,
+            org_id=org_id,
+            actor_id=actor_id,
+            new_role=changes.get("role"),
+            new_is_active=changes.get("is_active"),
+        )
         return await self.repo.update(user, **changes)
+
+    async def _guard_last_admin(
+        self,
+        *,
+        user: User,
+        org_id: uuid.UUID,
+        actor_id: uuid.UUID | None,
+        new_role: UserRole | None,
+        new_is_active: bool | None,
+    ) -> None:
+        """Refuse any edit that would leave the organization with no usable admin.
+
+        Two ways to reach the same dead end, so both are checked here rather than at
+        the two call sites: demoting the last admin to employee, and deactivating
+        them. Either one locks every remaining person out of user management
+        permanently, with no in-app way back — the recovery is a hand-written SQL
+        UPDATE on the server, which is not a thing a product should require.
+        """
+        if _role_of(user) is not UserRole.ADMIN:
+            return
+        loses_admin = new_role is not None and new_role is not UserRole.ADMIN
+        loses_access = new_is_active is False
+        if not (loses_admin or loses_access):
+            return
+        if await self.repo.count_admins(org_id, exclude_user_id=user.id) > 0:
+            return
+        if actor_id is not None and actor_id == user.id:
+            raise ForbiddenError(
+                "You are the only administrator of this organization. Promote "
+                "someone else before changing your own role."
+            )
+        raise ForbiddenError(
+            "This is the only administrator of this organization. Promote someone "
+            "else first."
+        )
 
     async def reset_password(
         self,

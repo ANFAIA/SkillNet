@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useIntl } from 'react-intl'
 import { motion } from 'framer-motion'
 import { Badge, Button, Card, CardTitle, EmptyState, Input, Modal, PageHeader, SearchField, Select, SkeletonRow } from '../../components/ui'
-import { useUsers, useCreateUser, useResetPassword, useSetEmployeeActive } from '../../api/users'
+import { useUsers, useCreateUser, useResetPassword, useSetEmployeeActive, useSetUserRole } from '../../api/users'
 import { useCourses } from '../../api/courses'
 import { useEnrollments, useAssignCourse } from '../../api/enrollments'
 import { ApiError } from '../../api/client'
@@ -15,6 +15,7 @@ function CreateEmployeeForm({ onDone }: { onDone: () => void }) {
   const [email, setEmail] = useState('')
   const [fullName, setFullName] = useState('')
   const [password, setPassword] = useState('')
+  const [role, setRole] = useState<'admin' | 'employee'>('employee')
 
   const created = create.data
   const passwordTooShort = password.length > 0 && password.length < 8
@@ -25,6 +26,7 @@ function CreateEmployeeForm({ onDone }: { onDone: () => void }) {
       email: email.trim(),
       full_name: fullName.trim(),
       password: password.trim() || undefined,
+      role,
     })
   }
 
@@ -60,7 +62,20 @@ function CreateEmployeeForm({ onDone }: { onDone: () => void }) {
           onChange={(e) => setPassword(e.target.value)}
           placeholder={intl.formatMessage({ id: 'employees.passwordPlaceholder' })}
         />
+        <Select
+          label={intl.formatMessage({ id: 'employees.roleLabel' })}
+          value={role}
+          onChange={(e) => setRole(e.target.value as 'admin' | 'employee')}
+        >
+          <option value="employee">{intl.formatMessage({ id: 'employees.roleEmployee' })}</option>
+          <option value="admin">{intl.formatMessage({ id: 'employees.roleAdmin' })}</option>
+        </Select>
       </div>
+      <p className="text-sm text-text-muted mt-2">
+        {role === 'admin'
+          ? intl.formatMessage({ id: 'employees.roleAdminHint' })
+          : intl.formatMessage({ id: 'employees.roleEmployeeHint' })}
+      </p>
       {passwordTooShort && (
         <p className="text-sm text-danger mt-2">{intl.formatMessage({ id: 'employees.passwordTooShort' })}</p>
       )}
@@ -191,7 +206,24 @@ function EmployeeDetail({ employee }: { employee: User }) {
   const enrollments = enrollmentData?.items ?? []
   const [showResetPw, setShowResetPw] = useState(false)
   const setActive = useSetEmployeeActive()
+  const setRole = useSetUserRole()
   const isActive = employee.is_active !== false
+  const isAdmin = employee.role === 'admin'
+
+  function toggleRole() {
+    const next = isAdmin ? 'employee' : 'admin'
+    if (
+      !window.confirm(
+        intl.formatMessage(
+          { id: next === 'admin' ? 'employees.promoteConfirm' : 'employees.demoteConfirm' },
+          { name: employee.full_name },
+        ),
+      )
+    ) {
+      return
+    }
+    setRole.mutate({ userId: employee.id, role: next })
+  }
 
   function toggleActive() {
     const next = !isActive
@@ -227,7 +259,7 @@ function EmployeeDetail({ employee }: { employee: User }) {
         </div>
       </div>
 
-      <div className="mt-3">
+      <div className="mt-3 flex flex-wrap gap-2">
         <Button
           size="sm"
           variant={isActive ? 'secondary' : 'primary'}
@@ -238,14 +270,28 @@ function EmployeeDetail({ employee }: { employee: User }) {
             ? intl.formatMessage({ id: 'employees.deactivate' })
             : intl.formatMessage({ id: 'employees.reactivate' })}
         </Button>
-        {setActive.isError && (
-          <p className="text-sm text-danger mt-2">
-            {setActive.error instanceof ApiError
-              ? setActive.error.body.detail
-              : intl.formatMessage({ id: 'employees.statusUpdateError' })}
-          </p>
-        )}
+        <Button size="sm" variant="secondary" onClick={toggleRole} disabled={setRole.isPending}>
+          {isAdmin
+            ? intl.formatMessage({ id: 'employees.demoteToEmployee' })
+            : intl.formatMessage({ id: 'employees.promoteToAdmin' })}
+        </Button>
       </div>
+      {/* The server owns both safeguards (last admin, cross-organization), so its
+          message is the one shown — the UI never second-guesses which rule fired. */}
+      {setActive.isError && (
+        <p className="text-sm text-danger mt-2">
+          {setActive.error instanceof ApiError
+            ? setActive.error.body.detail
+            : intl.formatMessage({ id: 'employees.statusUpdateError' })}
+        </p>
+      )}
+      {setRole.isError && (
+        <p className="text-sm text-danger mt-2">
+          {setRole.error instanceof ApiError
+            ? setRole.error.body.detail
+            : intl.formatMessage({ id: 'employees.roleUpdateError' })}
+        </p>
+      )}
 
       <div className="mt-6">
         <CardTitle>{intl.formatMessage({ id: 'employees.assignedCourses' })}</CardTitle>
@@ -286,9 +332,16 @@ export function Employees() {
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<User | null>(null)
   const [creating, setCreating] = useState(false)
+  const [roleFilter, setRoleFilter] = useState('')
   const [createOrigin, setCreateOrigin] = useState<DOMRect | null>(null)
   const [detailOrigin, setDetailOrigin] = useState<DOMRect | null>(null)
-  const { data, isLoading, error } = useUsers({ role: 'employee', search: search || undefined })
+  // No hardcoded `role: 'employee'` any more: administrators are members of the
+  // organization too, and a list that hides them makes it impossible to see who can
+  // change roles — or to demote anyone.
+  const { data, isLoading, error } = useUsers({
+    role: roleFilter || undefined,
+    search: search || undefined,
+  })
 
   function openDetail(emp: User, e: { currentTarget: Element }) {
     setDetailOrigin(e.currentTarget.getBoundingClientRect())
@@ -317,13 +370,25 @@ export function Employees() {
         )}
       />
 
-      <SearchField
-          label={intl.formatMessage({ id: 'employees.searchPlaceholder' })}
-          placeholder={intl.formatMessage({ id: 'employees.searchPlaceholder' })}
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="mt-5"
-      />
+      <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-end">
+        <SearchField
+            label={intl.formatMessage({ id: 'employees.searchPlaceholder' })}
+            placeholder={intl.formatMessage({ id: 'employees.searchPlaceholder' })}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="flex-1"
+        />
+        <Select
+          label={intl.formatMessage({ id: 'employees.filterRoleLabel' })}
+          value={roleFilter}
+          onChange={(e) => setRoleFilter(e.target.value)}
+          className="sm:w-52"
+        >
+          <option value="">{intl.formatMessage({ id: 'employees.filterRoleAll' })}</option>
+          <option value="admin">{intl.formatMessage({ id: 'employees.roleAdmin' })}</option>
+          <option value="employee">{intl.formatMessage({ id: 'employees.roleEmployee' })}</option>
+        </Select>
+      </div>
 
       {/* Desktop table */}
       <Card className="mt-4 hidden overflow-hidden p-0 md:block">

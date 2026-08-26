@@ -41,8 +41,13 @@ export interface EmployeeCreated extends User {
 export function useCreateUser() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (payload: { email: string; full_name: string; password?: string }) =>
-      post<EmployeeCreated>('/users', payload),
+    mutationFn: (payload: {
+      email: string
+      full_name: string
+      password?: string
+      /** Omitted means `employee`. `admin` is how an admin invites another admin. */
+      role?: 'admin' | 'employee'
+    }) => post<EmployeeCreated>('/users', payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] })
     },
@@ -106,6 +111,26 @@ export function useSetEmployeeActive() {
   return useMutation({
     mutationFn: ({ userId, isActive }: { userId: string; isActive: boolean }) =>
       put<User>(`/users/${userId}`, { is_active: isActive }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] })
+    },
+  })
+}
+
+/**
+ * Promote a member to admin or demote them back to employee — the only two roles
+ * that exist.
+ *
+ * Every rule lives on the server: an admin may only touch users of their own
+ * organization, and the last active admin can be neither demoted nor deactivated.
+ * The UI reads the resulting 403 and shows it; it does not try to predict it, so
+ * there is one implementation of the safeguard and not two that can disagree.
+ */
+export function useSetUserRole() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ userId, role }: { userId: string; role: 'admin' | 'employee' }) =>
+      put<User>(`/users/${userId}`, { role }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] })
     },
