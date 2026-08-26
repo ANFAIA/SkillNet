@@ -63,8 +63,11 @@ class GenerationJob(UUIDMixin, TimestampMixin, Base):
     progress: Mapped[dict] = mapped_column(
         JSONB, nullable=False, server_default=text("'{}'::jsonb")
     )
+    # SET NULL, not CASCADE: the job is the audit trail of a generation run and outlives
+    # the course it produced. Deleting a failed draft empties this reference; it does not
+    # erase the record that the run happened (migration 0024).
     result_course_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("courses.id"), nullable=True
+        ForeignKey("courses.id", ondelete="SET NULL"), nullable=True
     )
     # No manuals table in v1: kept as a plain nullable column, unused.
     result_manual_id: Mapped[uuid.UUID | None] = mapped_column(

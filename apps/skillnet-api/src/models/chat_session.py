@@ -41,8 +41,10 @@ class ChatSession(UUIDMixin, TimestampMixin, Base):
     summary_covers_until: Mapped[int] = mapped_column(
         Integer, server_default=text("0")
     )
+    # SET NULL, not CASCADE: the transcript belongs to the learner, not to the course.
+    # Deleting the course degrades the thread to a general one (migration 0024).
     course_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("courses.id"), nullable=True
+        ForeignKey("courses.id", ondelete="SET NULL"), nullable=True
     )
     is_active: Mapped[bool] = mapped_column(Boolean, server_default=text("true"))
 
