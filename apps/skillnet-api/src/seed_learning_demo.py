@@ -71,6 +71,7 @@ from src.repositories.learner_profile_repo import LearnerProfileRepository
 from src.repositories.learning_event_repo import LearningEventRepository
 from src.services.enrollment_service import EnrollmentService
 from src.services.learner_profile_service import LearnerProfileService
+from src.core.exceptions import CapabilityBlockedError
 from src.services.media.jobs import enqueue_artifact, spawn_media_job
 from src.services.course_orchestration import (
     CourseEndToEndResult,
@@ -464,9 +465,16 @@ async def _enqueue_course_podcast(session, course_id: uuid.UUID, org_id: uuid.UU
     course = await CourseRepository(session).get_scoped(course_id, org_id)
     if course is None:
         return None
-    artifact = await enqueue_artifact(
-        session, course=course, node=None, kind=MediaKind.PODCAST, spec={"scope": "course"}
-    )
+    try:
+        artifact = await enqueue_artifact(
+            session, course=course, node=None, kind=MediaKind.PODCAST, spec={"scope": "course"}
+        )
+    except CapabilityBlockedError as exc:
+        # The demo is meant to seed anywhere, including a deployment with no voice key.
+        # Skipping the podcast leaves the courses intact; failing here would leave a
+        # half-seeded database over an optional extra.
+        logger.info("Skipping the course podcast: %s", exc.message)
+        return None
     await session.commit()
     spawn_media_job(artifact.id)
     return artifact.id

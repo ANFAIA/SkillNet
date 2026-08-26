@@ -252,3 +252,33 @@ def test_a_kind_that_needs_nothing_is_never_refused(
     response = client.post("/api/v1/media/artifacts", json=_body("mindmap"))
 
     assert response.status_code == 202
+
+
+@pytest.mark.asyncio
+async def test_every_starter_is_gated_not_just_the_studio_route(monkeypatch):
+    """The gate lives on ``enqueue_artifact``, the one door all of them go through.
+
+    It was on the studio route alone, and the lesson player's own audio/video button
+    (``POST /nodes/{id}/modalities/{m}`` -> ``request_runtime_modality``) walked straight
+    past it — so the learner, not the admin, got the accepted-then-dead job this whole
+    feature exists to prevent.
+    """
+    from src.services.media import jobs as jobs_mod
+
+    monkeypatch.setattr(
+        jobs_mod,
+        "derive_capabilities",
+        lambda **_: _capabilities(images=Capability(
+            status=CapabilityStatus.BLOCKED, reason=CapabilityReason.MISSING_API_KEY
+        )),
+    )
+
+    class _Course:
+        id = COURSE_ID
+        org_id = ORG_ID
+
+    with pytest.raises(CapabilityBlockedError) as err:
+        await jobs_mod.enqueue_artifact(
+            object(), course=_Course(), kind=MediaKind.INFOGRAPHIC, spec={}
+        )
+    assert err.value.details["capability"] == "images"

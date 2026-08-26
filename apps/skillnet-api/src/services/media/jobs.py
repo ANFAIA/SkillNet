@@ -44,6 +44,8 @@ from src.models import (
 from src.repositories.course_node_repo import CourseNodeRepository
 from src.repositories.course_repo import CourseRepository
 from src.repositories.media_artifact_repo import MediaArtifactRepository
+from src.services.capabilities import derive_capabilities
+from src.services.media.requirements import ensure_kind_is_available
 from src.services import provider_health
 from src.services.media.assets import AssetStore
 from src.services.media.grounding import GroundedBundle, build_grounding_bundle
@@ -284,7 +286,15 @@ async def enqueue_artifact(
 
     Kept separate from spawning so the row is committed inside the request's transaction
     before any background task can race to read it — the same order node-render uses.
+
+    Raises :class:`CapabilityBlockedError` when the deployment cannot produce this kind.
+    The check lives here, at the one place every starter passes through, rather than on
+    the route that happens to be user-facing today: the studio was gated and the lesson
+    player's own audio/video button was not, so the learner got exactly the accepted-then-
+    dead job the gate exists to prevent. A caller that spawns artefacts best-effort (the
+    seed, the end-to-end orchestrator) catches this and skips instead of failing.
     """
+    ensure_kind_is_available(kind, derive_capabilities())
     return await MediaArtifactRepository(db).create(
         org_id=course.org_id,
         course_id=course.id,
