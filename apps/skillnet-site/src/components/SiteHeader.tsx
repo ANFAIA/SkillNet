@@ -130,16 +130,20 @@ export default function SiteHeader({ variant = "landing", locale = "es", altHref
         <motion.div layout className={`flex items-center ${expanded ? "justify-between px-2" : scrolled ? "gap-4 sm:gap-5" : "justify-between"}`}>
           <motion.a layout href={logoHref} aria-label={copy.nav.backHome} className={`flex shrink-0 items-center transition-colors duration-300 ${scrolled && lightTheme ? "text-[var(--color-primary)]" : "text-current"}`}><Logo size={26} /></motion.a>
 
-          {/* Desktop navigation */}
-          <nav className="hidden items-center gap-6 2xl:flex" aria-label={copy.nav.main}>
-            {LINKS.map(({ href, label }) => <a key={href} href={href} className={`type-ui whitespace-nowrap transition-colors duration-300 ${scrolled ? linkClass : "text-white/85 hover:text-white"}`}>{label}</a>)}
-            <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer" className={`type-ui flex items-center gap-1.5 whitespace-nowrap transition-colors duration-300 ${scrolled ? linkClass : "text-white/85 hover:text-white"}`}><FaGithub size={17} /><span>GitHub</span></a>
+          {/* Desktop nav: `layout` on the row and on every fixed-size child. The row's
+              own box never changes size between states (only its place inside the
+              surface does), so each child rides the parent's interpolation instead of
+              being stretched by it. Without this the links keep their FINAL layout box
+              from frame one and the parent's scale distorts their glyph boxes. */}
+          <motion.nav layout className="hidden items-center gap-6 2xl:flex" aria-label={copy.nav.main}>
+            {LINKS.map(({ href, label }) => <motion.a layout key={href} href={href} className={`type-ui whitespace-nowrap transition-colors duration-300 ${scrolled ? linkClass : "text-white/85 hover:text-white"}`}>{label}</motion.a>)}
+            <motion.a layout href={GITHUB_URL} target="_blank" rel="noopener noreferrer" className={`type-ui flex items-center gap-1.5 whitespace-nowrap transition-colors duration-300 ${scrolled ? linkClass : "text-white/85 hover:text-white"}`}><FaGithub size={17} /><span>GitHub</span></motion.a>
             {altHref && (
-              <a href={altHref} onClick={() => rememberLocale(otherLocale)} lang={otherLocale} aria-label={langToggleAriaLabel} className={`type-ui whitespace-nowrap rounded-full border px-2.5 py-1 transition-colors duration-300 ${scrolled && lightTheme ? "border-[color-mix(in_srgb,var(--color-primary-deep)_22%,transparent)] text-[color-mix(in_srgb,var(--color-primary-deep)_78%,transparent)] hover:border-[var(--color-primary-deep)] hover:text-[var(--color-primary-deep)]" : "border-white/25 text-white/85 hover:border-white/50 hover:text-white"}`}>
+              <motion.a layout href={altHref} onClick={() => rememberLocale(otherLocale)} lang={otherLocale} aria-label={langToggleAriaLabel} className={`type-ui whitespace-nowrap rounded-full border px-2.5 py-1 transition-colors duration-300 ${scrolled && lightTheme ? "border-[color-mix(in_srgb,var(--color-primary-deep)_22%,transparent)] text-[color-mix(in_srgb,var(--color-primary-deep)_78%,transparent)] hover:border-[var(--color-primary-deep)] hover:text-[var(--color-primary-deep)]" : "border-white/25 text-white/85 hover:border-white/50 hover:text-white"}`}>
                 {otherLocaleLabel}
-              </a>
+              </motion.a>
             )}
-          </nav>
+          </motion.nav>
 
           {/* Mobile hamburger */}
           <motion.button layout type="button" onClick={() => setOpen((v) => !v)} aria-label={open ? copy.nav.closeMenu : copy.nav.openMenu} aria-expanded={open} className="flex h-9 w-9 shrink-0 items-center justify-center text-current 2xl:hidden">
