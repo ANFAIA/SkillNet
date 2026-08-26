@@ -303,6 +303,22 @@ a {
   font-size: .7rem;
 }
 
+.media-video__step {
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  padding: 0;
+  color: inherit;
+  cursor: pointer;
+}
+
+.media-video__step:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
 .media-video__controls i {
   height: 3px;
   border-radius: 999px;

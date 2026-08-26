@@ -58,7 +58,12 @@ const es = {
       "Otro prefiere escucharlo.",
       "Mismo conocimiento, distinto camino.",
     ],
-    videoPlay: "Reproducir la secuencia",
+    /** Second at which each caption starts in `how-it-works-video-es.mp3`.
+        Measured from the real duration of each narrated line, so the caption on
+        screen is always the one being spoken. */
+    videoCuts: [0, 3.6, 6, 7.99],
+    videoDuration: 11.22,
+    videoPlay: "Reproducir la secuencia con narración",
     videoPause: "Pausar la secuencia",
     videoNext: "Ver el siguiente fotograma",
     audioPlay: "Reproducir el resumen en audio",
@@ -188,7 +193,9 @@ const en: typeof es = {
       "Another would rather hear it.",
       "Same knowledge, a different route.",
     ],
-    videoPlay: "Play the sequence",
+    videoCuts: [0, 2.49, 4.74, 6.88],
+    videoDuration: 9.37,
+    videoPlay: "Play the sequence with narration",
     videoPause: "Pause the sequence",
     videoNext: "Show the next frame",
     audioPlay: "Play the audio overview",

@@ -15,62 +15,96 @@ const VIDEO_FRAMES = [
   "/images/landing/multimodal/learning-differences-video-frame-4-v1.webp",
 ] as const;
 
-/** Seconds each frame holds. Four frames make a 14 s sequence. */
-const FRAME_SECONDS = 3.5;
-const VIDEO_SECONDS = VIDEO_FRAMES.length * FRAME_SECONDS;
-
 /** Bars in the audio waveform. Low enough that they stay legible on a 215px pane. */
 const WAVEFORM_BARS = 28;
+
+/**
+ * Only one narration may sound at a time.
+ *
+ * Both cells hand their element to `playSolo`, which pauses whatever was
+ * sounding before starting the new one. A single shared reference, so no cell
+ * has to know the other exists and nothing sweeps the document for `<audio>`.
+ */
+let sounding: HTMLAudioElement | null = null;
+
+function playSolo(audio: HTMLAudioElement) {
+  if (sounding && sounding !== audio) sounding.pause();
+  sounding = audio;
+  return audio.play();
+}
+
+function releaseSolo(audio: HTMLAudioElement) {
+  if (sounding === audio) sounding = null;
+}
 
 function formatTime(seconds: number): string {
   const whole = Math.max(0, Math.floor(seconds));
   return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, "0")}`;
 }
 
+/** Index of the caption being spoken at `time`, given the locale's cut points. */
+function frameAt(cuts: readonly number[], time: number): number {
+  let index = 0;
+  for (let i = 0; i < cuts.length && i < VIDEO_FRAMES.length; i += 1) {
+    if (time >= cuts[i]) index = i;
+  }
+  return index;
+}
+
 /**
- * The video cell: four stills with their caption, advancing on a real clock.
+ * The video cell: four stills with their caption, driven by a narration track.
  *
  * It is deliberately not a `<video>` — the piece really is a short sequence of
- * images, and four webp frames weigh a fraction of any encoded clip. With
- * `prefers-reduced-motion` there is no timer at all: the play control becomes a
- * step control and the viewer advances the sequence themselves.
+ * images, and four webp frames plus one mp3 weigh a fraction of any encoded
+ * clip. The frame, the caption, the counter and the progress bar all read the
+ * same `currentTime`, so what is on screen is always what is being said; a
+ * second clock would drift against the voice within a line or two.
+ *
+ * With `prefers-reduced-motion` the narration still works — reduced motion is
+ * about movement, not sound — but nothing starts on its own and the crossfade
+ * is off (CSS). A step control appears as well, which simply seeks the
+ * narration to the start of the next line, so stepping never puts a caption on
+ * screen that disagrees with the voice.
  */
-function VideoCell({ copy, reduced }: { copy: Copy["howItWorks"]; reduced: boolean }) {
+function VideoCell({ copy, lang, reduced }: { copy: Copy["howItWorks"]; lang: Locale; reduced: boolean }) {
+  const audioRef = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
-  const [elapsed, setElapsed] = useState(0);
-  const [step, setStep] = useState(0);
-  const elapsedRef = useRef(0);
-  elapsedRef.current = elapsed;
+  const [time, setTime] = useState(0);
+  const [duration, setDuration] = useState(copy.videoDuration);
 
+  // `timeupdate` only fires about four times a second, which is enough for a
+  // progress bar but visibly late for a caption change. While the narration
+  // sounds, read `currentTime` every frame instead -- still the audio's clock,
+  // just sampled often enough that the caption turns over on the word.
   useEffect(() => {
-    if (!playing || reduced) return;
-    const start = performance.now() - elapsedRef.current * 1000;
-    const id = window.setInterval(() => {
-      const next = (performance.now() - start) / 1000;
-      if (next >= VIDEO_SECONDS) {
-        setElapsed(0);
-        setPlaying(false);
-        return;
-      }
-      setElapsed(next);
-    }, 100);
-    return () => window.clearInterval(id);
-  }, [playing, reduced]);
+    if (!playing) return;
+    let raf = 0;
+    const tick = () => {
+      const audio = audioRef.current;
+      if (audio) setTime(audio.currentTime);
+      raf = window.requestAnimationFrame(tick);
+    };
+    raf = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(raf);
+  }, [playing]);
 
-  const index = reduced
-    ? step
-    : Math.min(VIDEO_FRAMES.length - 1, Math.floor(elapsed / FRAME_SECONDS));
-  const progress = reduced
-    ? ((step + 1) / VIDEO_FRAMES.length) * 100
-    : (elapsed / VIDEO_SECONDS) * 100;
-  const label = reduced ? copy.videoNext : playing ? copy.videoPause : copy.videoPlay;
+  const cuts = copy.videoCuts;
+  const index = frameAt(cuts, time);
+  const progress = duration ? Math.min(100, (time / duration) * 100) : 0;
 
-  const advance = () => {
-    if (reduced) {
-      setStep((prev) => (prev + 1) % VIDEO_FRAMES.length);
-      return;
-    }
-    setPlaying((prev) => !prev);
+  const toggle = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (audio.paused) void playSolo(audio).catch(() => setPlaying(false));
+    else audio.pause();
+  };
+
+  const stepForward = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    const next = (index + 1) % VIDEO_FRAMES.length;
+    audio.currentTime = cuts[next];
+    setTime(cuts[next]);
   };
 
   return <div className="media-video">
@@ -87,17 +121,43 @@ function VideoCell({ copy, reduced }: { copy: Copy["howItWorks"]; reduced: boole
         />)}
       </div>
       <div className="media-video__overlay">
-        <button type="button" className="media-play" onClick={advance} aria-label={label}>
-          {reduced ? <ChevronRight size={22} /> : playing ? <Pause size={22} fill="currentColor" /> : <Play size={22} fill="currentColor" />}
+        <button
+          type="button"
+          className="media-play"
+          onClick={toggle}
+          aria-label={playing ? copy.videoPause : copy.videoPlay}
+        >
+          {playing ? <Pause size={22} fill="currentColor" /> : <Play size={22} fill="currentColor" />}
         </button>
         <span className="media-video__subtitle">{copy.videoCaptions[index]}</span>
       </div>
     </div>
     <div className="media-video__controls">
-      {reduced ? <ChevronRight size={14} /> : playing ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" />}
-      <span>{reduced ? `${step + 1}/${VIDEO_FRAMES.length}` : `${formatTime(elapsed)} / ${formatTime(VIDEO_SECONDS)}`}</span>
+      {reduced
+        ? <button type="button" className="media-video__step" onClick={stepForward} aria-label={copy.videoNext}>
+            <ChevronRight size={14} />
+          </button>
+        : playing ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" />}
+      <span>{formatTime(time)} / {formatTime(duration)}</span>
       <i style={{ "--progress": `${progress}%` } as React.CSSProperties} />
     </div>
+    <audio
+      ref={audioRef}
+      src={`/audio/landing/how-it-works-video-${lang}.mp3`}
+      preload="none"
+      onPlay={() => setPlaying(true)}
+      onPause={() => setPlaying(false)}
+      onLoadedMetadata={(event) => {
+        const value = event.currentTarget.duration;
+        if (Number.isFinite(value) && value > 0) setDuration(value);
+      }}
+      onTimeUpdate={(event) => setTime(event.currentTarget.currentTime)}
+      onEnded={(event) => {
+        releaseSolo(event.currentTarget);
+        event.currentTarget.currentTime = 0;
+        setTime(0);
+      }}
+    />
   </div>;
 }
 
@@ -115,7 +175,7 @@ function AudioCell({ copy, lang }: { copy: Copy["howItWorks"]; lang: Locale }) {
   const toggle = () => {
     const audio = audioRef.current;
     if (!audio) return;
-    if (audio.paused) void audio.play().catch(() => setPlaying(false));
+    if (audio.paused) void playSolo(audio).catch(() => setPlaying(false));
     else audio.pause();
   };
 
@@ -148,7 +208,10 @@ function AudioCell({ copy, lang }: { copy: Copy["howItWorks"]; lang: Locale }) {
         const audio = event.currentTarget;
         setProgress(audio.duration ? audio.currentTime / audio.duration : 0);
       }}
-      onEnded={() => setProgress(0)}
+      onEnded={(event) => {
+        releaseSolo(event.currentTarget);
+        setProgress(0);
+      }}
     />
   </div>;
 }
@@ -172,7 +235,7 @@ export default function HowItWorksSection({ lang = "es" }: { lang?: Locale }) {
             <span className="media-cell__label"><Icon size={19} strokeWidth={1.7} />{copy.modes[key]}</span>
             {key === "texto" && <div className="media-text"><strong>{copy.mediaHeading}</strong><p>{copy.idea}</p></div>}
             {key === "imagen" && <div className="media-image" role="img" aria-label={copy.imageAlt} />}
-            {key === "video" && <VideoCell copy={copy} reduced={reduced} />}
+            {key === "video" && <VideoCell copy={copy} lang={lang} reduced={reduced} />}
             {key === "audio" && <AudioCell copy={copy} lang={lang} />}
           </motion.div>;
         })}
