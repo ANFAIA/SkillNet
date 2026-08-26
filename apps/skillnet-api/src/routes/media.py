@@ -26,7 +26,7 @@ from src.core.logging import get_logger
 from src.core.sse import format_sse, subscribe
 from src.deps.auth import CurrentUser
 from src.deps.db import DBSession
-from src.models import User, UserRole
+from src.models import MediaKind, User, UserRole
 from src.repositories.course_repo import CourseRepository
 from src.repositories.learner_profile_repo import LearnerProfileRepository
 from src.repositories.media_artifact_repo import MediaArtifactRepository
@@ -36,9 +36,11 @@ from src.schemas.media import (
     MediaArtifactRead,
 )
 from src.services.artifact_access import can_generate_artifacts
+from src.services.capabilities import derive_capabilities
 from src.services.learner_memory import LearnerMemoryService
 from src.services.media.assets import AssetStore
 from src.services.media.jobs import enqueue_artifact, media_channel, spawn_media_job
+from src.services.media.requirements import ensure_kind_is_available
 
 logger = get_logger(__name__)
 
@@ -150,6 +152,10 @@ async def create_artifact(
 
     The row is committed inside this request before the background task is spawned, so the
     task cannot race ahead of a row that does not exist yet (same order as node-render).
+
+    A kind whose required capabilities are blocked is refused here with ``409
+    capability_blocked`` rather than accepted: a job that cannot succeed must not be
+    enqueued, run for half a minute and then show the user a provider's exception text.
     """
     course = await CourseRepository(db).get_scoped(body.course_id, user.org_id)
     if course is None:
@@ -162,6 +168,10 @@ async def create_artifact(
         generator_ids=generator_ids,
     ):
         raise ForbiddenError("You cannot generate overviews for this course")
+
+    # ``MediaArtifactCreate`` is built with ``use_enum_values``, so ``kind`` arrives as the
+    # plain string the client sent; the registry is keyed by the enum member.
+    ensure_kind_is_available(MediaKind(str(body.kind)), derive_capabilities())
 
     node = None
     if body.node_id is not None:

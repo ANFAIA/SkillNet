@@ -10,10 +10,14 @@ from pathlib import Path
 
 import pytest
 
+from src.core.exceptions import LLMError
 from src.models import MediaArtifactStatus, MediaKind
 from src.services.media.assets import AssetStore
 from src.services.media.grounding import GroundedBundle, GroundedPassage
 from src.services.media.jobs import (
+    ERROR_INTERNAL,
+    ERROR_LLM_FAILED,
+    ERROR_PROVIDER_QUOTA,
     EchoGenerator,
     GeneratedArtifact,
     MediaJobContext,
@@ -91,8 +95,49 @@ async def test_generator_exception_transitions_to_error(tmp_path: Path) -> None:
 
     assert result.status == MediaArtifactStatus.ERROR
     assert result.asset_path is None
-    assert "provider exploded" in result.error
-    assert result.error.startswith("RuntimeError")
+    assert result.error_code == ERROR_INTERNAL
+    assert result.error
+
+
+@pytest.mark.asyncio
+async def test_the_stored_failure_never_carries_the_exception_text(
+    tmp_path: Path,
+) -> None:
+    """It used to be ``f"{type(exc).__name__}: {exc}"``, shown verbatim to the learner."""
+    result = await execute_generation(_ctx(), _BoomGenerator(), AssetStore(tmp_path))
+
+    assert "provider exploded" not in result.error
+    assert "RuntimeError" not in result.error
+
+
+@pytest.mark.asyncio
+async def test_an_llm_failure_gets_its_own_code(tmp_path: Path) -> None:
+    class _LLMDown:
+        kind = MediaKind.SLIDES
+
+        async def generate(self, ctx: MediaJobContext) -> GeneratedArtifact:
+            raise LLMError("LLM request failed: AuthenticationError")
+
+    result = await execute_generation(_ctx(), _LLMDown(), AssetStore(tmp_path))
+
+    assert result.error_code == ERROR_LLM_FAILED
+    assert "AuthenticationError" not in result.error
+
+
+@pytest.mark.asyncio
+async def test_a_quota_failure_gets_its_own_code(tmp_path: Path) -> None:
+    class _Quota(Exception):
+        status_code = 429
+
+    class _OutOfQuota:
+        kind = MediaKind.SLIDES
+
+        async def generate(self, ctx: MediaJobContext) -> GeneratedArtifact:
+            raise _Quota("rate limited")
+
+    result = await execute_generation(_ctx(), _OutOfQuota(), AssetStore(tmp_path))
+
+    assert result.error_code == ERROR_PROVIDER_QUOTA
 
 
 @pytest.mark.asyncio

@@ -104,5 +104,8 @@ class MediaArtifact(UUIDMixin, TimestampMixin, Base):
     asset_path: Mapped[str | None] = mapped_column(Text, nullable=True)
     # sha256 of the stored bytes: the dedup key. NULL when there are no bytes.
     content_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
-    # Failure detail, surfaced to the admin. NULL unless status is 'error'.
+    # Short, user-safe failure message. NULL unless status is 'error'. Never a provider's
+    # raw exception text: that goes to the log, where it cannot reach a learner's screen.
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # The stable code the client keys its own wording off (see media.jobs.classify_failure).
+    error_code: Mapped[str | None] = mapped_column(Text, nullable=True)

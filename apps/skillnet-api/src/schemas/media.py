@@ -95,7 +95,11 @@ class MediaArtifactRead(BaseModel):
     has_asset: bool
     asset_ref: str | None
     content_hash: str | None
+    #: Short, user-safe failure text. Never a provider's raw exception string.
     error: str | None
+    #: The stable failure code (``src.services.media.jobs``), for clients that want to
+    #: word the failure themselves. ``None`` on rows that failed before it existed.
+    error_code: str | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -118,6 +122,7 @@ class MediaArtifactRead(BaseModel):
             ),
             content_hash=artifact.content_hash,
             error=artifact.error,
+            error_code=artifact.error_code,
             created_at=artifact.created_at,
             updated_at=artifact.updated_at,
         )

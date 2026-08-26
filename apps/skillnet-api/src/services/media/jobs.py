@@ -30,6 +30,7 @@ from dataclasses import dataclass, field
 from typing import Protocol, runtime_checkable
 
 from src.core import sse
+from src.core.exceptions import LLMError
 from src.core.logging import get_logger
 from src.core.tasks import task_registry
 from src.deps.db import async_session_factory
@@ -43,6 +44,7 @@ from src.models import (
 from src.repositories.course_node_repo import CourseNodeRepository
 from src.repositories.course_repo import CourseRepository
 from src.repositories.media_artifact_repo import MediaArtifactRepository
+from src.services import provider_health
 from src.services.media.assets import AssetStore
 from src.services.media.grounding import GroundedBundle, build_grounding_bundle
 
@@ -54,6 +56,43 @@ SUBSCRIBER_WAIT_SECONDS = 0.5
 
 #: How much of a failure reaches the stored ``error`` column and the client.
 _ERROR_CHARS = 500
+
+#: Stable failure codes. The row's ``error`` column and the ``media_error`` SSE event both
+#: carry one, and the frontend keys its message off the code — never off the text.
+#:
+#: What used to travel was ``f"{type(exc).__name__}: {exc}"``: a provider's raw exception
+#: string, shown verbatim to a learner. That is unreadable at best, and at worst it is a
+#: URL, a model name or an account identifier from inside the deployment. The code is the
+#: contract; the message beside it is short, safe and English.
+ERROR_LLM_FAILED = "llm_failed"
+ERROR_PROVIDER_QUOTA = "provider_quota"
+ERROR_PROVIDER_DOWN = "provider_down"
+ERROR_CANCELLED = "cancelled"
+ERROR_INTERNAL = "internal_error"
+
+_ERROR_MESSAGES: dict[str, str] = {
+    ERROR_LLM_FAILED: "The AI provider could not produce this content.",
+    ERROR_PROVIDER_QUOTA: "The provider is out of quota. Try again later.",
+    ERROR_PROVIDER_DOWN: "The provider is unavailable right now. Try again later.",
+    ERROR_CANCELLED: "The generation was cancelled.",
+    ERROR_INTERNAL: "This generation failed. The details are in the server log.",
+}
+
+
+def classify_failure(exc: BaseException) -> tuple[str, str]:
+    """Map an exception to ``(error_code, safe message)``. Never leaks the exception text.
+
+    The full exception, with its traceback, is logged at the point of failure — the
+    operator keeps everything, the user gets a code and a sentence.
+    """
+    kind = provider_health.failure_kind(exc)
+    if kind == "quota":
+        return ERROR_PROVIDER_QUOTA, _ERROR_MESSAGES[ERROR_PROVIDER_QUOTA]
+    if isinstance(exc, LLMError):
+        return ERROR_LLM_FAILED, _ERROR_MESSAGES[ERROR_LLM_FAILED]
+    if isinstance(exc, (TimeoutError, ConnectionError)):
+        return ERROR_PROVIDER_DOWN, _ERROR_MESSAGES[ERROR_PROVIDER_DOWN]
+    return ERROR_INTERNAL, _ERROR_MESSAGES[ERROR_INTERNAL]
 
 #: A generator's optional progress reporter: ``(step, extra) -> awaitable``. The runner
 #: binds one to the job's SSE channel and hands it to the generator via the context, so a
@@ -183,7 +222,10 @@ class GenerationResult:
     spec_json: dict = field(default_factory=dict)
     asset_path: str | None = None
     content_hash: str | None = None
+    #: The user-safe failure message. ``None`` unless ``status`` is ``ERROR``.
     error: str | None = None
+    #: The stable failure code the client keys its own message off. Paired with ``error``.
+    error_code: str | None = None
 
 
 async def execute_generation(
@@ -194,9 +236,10 @@ async def execute_generation(
     """Run one generator and turn its outcome into a row state.
 
     Success with bytes -> ``done`` + stored asset (deduped by content hash). Success
-    without bytes -> ``done`` with a spec only. Any exception -> ``error`` with the
-    message. ``CancelledError`` is re-raised untouched: a cancelled job is not a failed
-    one, same rule as the node-render runner.
+    without bytes -> ``done`` with a spec only. Any exception -> ``error`` with a stable
+    code and a safe message, the exception itself going to the log and nowhere else.
+    ``CancelledError`` is re-raised untouched: a cancelled job is not a failed one, same
+    rule as the node-render runner.
     """
     try:
         produced = await generator.generate(ctx)
@@ -204,8 +247,12 @@ async def execute_generation(
         raise
     except Exception as exc:  # noqa: BLE001 - generator boundary; recorded, not swallowed
         logger.error("Media generator for %s failed: %s", ctx.kind, exc, exc_info=True)
-        message = f"{type(exc).__name__}: {exc}"[:_ERROR_CHARS]
-        return GenerationResult(status=MediaArtifactStatus.ERROR, error=message)
+        code, message = classify_failure(exc)
+        return GenerationResult(
+            status=MediaArtifactStatus.ERROR,
+            error=message[:_ERROR_CHARS],
+            error_code=code,
+        )
 
     asset_path: str | None = None
     digest: str | None = None
@@ -255,14 +302,21 @@ def spawn_media_job(artifact_id: uuid.UUID) -> asyncio.Task:
     )
 
 
-async def _mark_error(artifact_id: uuid.UUID, message: str) -> None:
-    """Best-effort ``status = 'error'`` in a fresh session. Never raises."""
+async def _mark_error(artifact_id: uuid.UUID, code: str) -> None:
+    """Best-effort ``status = 'error'`` in a fresh session. Never raises.
+
+    Takes a *code*, not a message: the stored message is looked up from the code, so no
+    caller can accidentally hand this an exception string on its way to a user's screen.
+    """
     try:
         async with async_session_factory() as db:
             artifact = await MediaArtifactRepository(db).get_by_id(artifact_id)
             if artifact is not None:
                 artifact.status = MediaArtifactStatus.ERROR
-                artifact.error = message[:_ERROR_CHARS]
+                artifact.error = _ERROR_MESSAGES.get(
+                    code, _ERROR_MESSAGES[ERROR_INTERNAL]
+                )[:_ERROR_CHARS]
+                artifact.error_code = code
                 await db.commit()
     except Exception:  # noqa: BLE001 - failure bookkeeping must never raise
         logger.error("Failed to mark media artifact %s errored", artifact_id, exc_info=True)
@@ -336,6 +390,7 @@ async def run_media_job(artifact_id: uuid.UUID) -> None:
             artifact.asset_path = result.asset_path
             artifact.content_hash = result.content_hash
             artifact.error = result.error
+            artifact.error_code = result.error_code
             await db.commit()
 
         if result.status == MediaArtifactStatus.DONE:
@@ -348,20 +403,34 @@ async def run_media_job(artifact_id: uuid.UUID) -> None:
                 },
             )
         else:
+            # Same event name the frontend already listens to, same ``message`` key; the
+            # message is now the safe one and ``code`` rides alongside it.
             await sse.publish(
-                channel, "media_error", {"message": (result.error or "")[:200]}
+                channel,
+                "media_error",
+                {
+                    "message": (result.error or "")[:200],
+                    "code": result.error_code or ERROR_INTERNAL,
+                },
             )
     except asyncio.CancelledError:
-        await _mark_error(artifact_id, "cancelled")
+        await _mark_error(artifact_id, ERROR_CANCELLED)
         logger.info("Media job %s cancelled", artifact_id)
         raise
     except Exception as exc:  # noqa: BLE001 - top-level safety net, mirrors node runner
         logger.error("Media job %s failed: %s", artifact_id, exc, exc_info=True)
-        await _mark_error(artifact_id, f"{type(exc).__name__}: {exc}")
-        await sse.publish(channel, "media_error", {"message": str(exc)[:200]})
+        code, message = classify_failure(exc)
+        await _mark_error(artifact_id, code)
+        await sse.publish(channel, "media_error", {"message": message, "code": code})
 
 
 __all__ = [
+    "ERROR_CANCELLED",
+    "ERROR_INTERNAL",
+    "ERROR_LLM_FAILED",
+    "ERROR_PROVIDER_DOWN",
+    "ERROR_PROVIDER_QUOTA",
+    "classify_failure",
     "media_channel",
     "ProgressFn",
     "MediaJobContext",
