@@ -1,27 +1,14 @@
-import { motion, useReducedMotion } from "framer-motion";
+import type { Locale } from "../i18n/config";
+import { t } from "../i18n/ui";
+import { GITHUB_URL } from "../data/links";
 
 const BACKGROUND_URL = "/images/landing/skillnet-learning-commons-background-v1.webp";
 
-const COPY = {
-  title: "Aprender no tiene por qué ser igual para todos.",
-  subtitle:
-    "SkillNet convierte una idea o fuente en un curso que puede adaptar sus explicaciones, actividades e interfaz a cada persona.",
-  github: "Explorar en GitHub",
-  moreCta: "Saber más",
-};
-
-const GITHUB_URL = "https://github.com/ANFAIA/SkillNet";
+/** Section ids are shared by both locales, so the anchor needs no translation. */
 const MORE_ANCHOR = "#que-es-skillnet";
 
-export default function Hero() {
-  const prefersReducedMotion = useReducedMotion();
-
-  const entrance = prefersReducedMotion
-    ? {}
-    : {
-        initial: { opacity: 0, y: 16 },
-        animate: { opacity: 1, y: 0 },
-      };
+export default function Hero({ lang = "es" }: { lang?: Locale }) {
+  const COPY = t(lang).hero;
 
   return (
     <section data-nav-theme="dark" className="relative h-screen w-full overflow-hidden bg-[var(--color-primary-deep)]">
@@ -47,35 +34,13 @@ export default function Hero() {
 
       {/* Depth 3: foreground copy, stays essentially still */}
       <div className="relative mx-auto flex h-full w-full max-w-[80%] flex-col items-center justify-center text-center">
-        <motion.h1
-          {...entrance}
-          transition={{ duration: 0.7, ease: [0.38, 0.49, 0, 1] }}
-          className="type-display w-full text-balance text-white"
-        >
-          {COPY.title}
-        </motion.h1>
+        <h1 className="hero-rise type-display w-full text-balance text-white">{COPY.title}</h1>
 
-        <motion.p
-          {...entrance}
-          transition={{
-            duration: 0.7,
-            ease: [0.38, 0.49, 0, 1],
-            delay: prefersReducedMotion ? 0 : 0.12,
-          }}
-          className="type-lead mx-auto mt-6 max-w-2xl text-balance text-white/85"
-        >
+        <p className="hero-rise hero-rise--delay-1 type-lead mx-auto mt-6 max-w-2xl text-balance text-white/85">
           {COPY.subtitle}
-        </motion.p>
+        </p>
 
-        <motion.div
-          {...entrance}
-          transition={{
-            duration: 0.7,
-            ease: [0.38, 0.49, 0, 1],
-            delay: prefersReducedMotion ? 0 : 0.24,
-          }}
-          className="mt-10 flex flex-col items-center gap-4 sm:flex-row"
-        >
+        <div className="hero-rise hero-rise--delay-2 mt-10 flex flex-col items-center gap-4 sm:flex-row">
           <a
             href={GITHUB_URL}
             target="_blank"
@@ -91,7 +56,7 @@ export default function Hero() {
           >
             {COPY.moreCta}
           </a>
-        </motion.div>
+        </div>
       </div>
     </section>
   );

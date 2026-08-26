@@ -523,23 +523,61 @@ a {
   color: #0a66c2;
 }
 
-.contact-anfaia {
+/* Attribution credits: a lead-in phrase followed by the partner's mark.
+   Both marks are transparent PNGs of dark, single-ink artwork, and every
+   surface they appear on is `bg-white`, so they sit directly on the page
+   rather than inside a plate. Sizing is by HEIGHT, never width: the two
+   logos have very different aspect ratios (2.8:1 and 4.3:1) and matching
+   their widths would make one of them tower over the other. */
+.credit-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
   margin-bottom: 0;
   color: var(--color-text-secondary);
   font-size: 1.25rem;
   line-height: 1.4;
 }
 
-.contact-anfaia a {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-weight: 700;
-  color: var(--color-primary);
+.credit-logo {
+  display: block;
+  width: auto;
+  transition: opacity .2s;
 }
 
-.contact-anfaia a:hover {
-  color: var(--color-accent);
+.credit-line a:hover .credit-logo {
+  opacity: .68;
+}
+
+/* The Anfaia mark carries a fine lighthouse drawing above the wordmark, so it
+   needs a couple more pixels of height than the tickets wordmark to stay
+   legible; the extra height is what makes the two read as the same weight. */
+.credit-logo--anfaia {
+  height: 34px;
+}
+
+.credit-logo--tickets {
+  height: 26px;
+}
+
+.credit-line--small {
+  gap: 4px 9px;
+  font-size: var(--type-caption);
+}
+
+.credit-line--small .credit-logo--anfaia {
+  height: 22px;
+}
+
+.credit-line--small .credit-logo--tickets {
+  height: 17px;
+}
+
+@media (max-width: 640px) {
+  .credit-line {
+    font-size: 1.05rem;
+  }
 }
 
 .footer-main {
@@ -614,13 +652,13 @@ a.social-link:hover {
   color: inherit;
 }
 
-.footer-anfaia {
-  font-weight: 600;
-  color: var(--color-primary);
-}
-
-.footer-anfaia:hover {
-  color: var(--color-accent);
+.footer-credits {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px 40px;
+  margin-top: 32px;
+  color: var(--color-text-secondary);
 }
 
 .builtwith-list {
@@ -808,5 +846,39 @@ a.social-link:hover {
   .footer-meta {
     flex-direction: column;
     gap: 8px;
+  }
+}
+
+/* Hero entrance.
+   framer-motion writes its `initial` styles into the HTML Astro renders on the
+   server, which shipped the main heading as `opacity: 0` -- invisible without
+   JavaScript, and to anything reading the page before it runs. A CSS animation
+   carries the same curve without touching the server-rendered markup. */
+@keyframes hero-rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.hero-rise {
+  animation: hero-rise 0.7s cubic-bezier(0.38, 0.49, 0, 1) both;
+}
+
+.hero-rise--delay-1 {
+  animation-delay: 0.12s;
+}
+
+.hero-rise--delay-2 {
+  animation-delay: 0.24s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-rise {
+    animation: none;
   }
 }
