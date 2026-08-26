@@ -43,8 +43,8 @@ con **una sola fuente de verdad** en vez de `if (hayClave)` esparcidos por todo 
 
 ```
                  ┌──────────────────────┐
-   settings/env  │  Capabilities        │  ai, generation, tutor, tts, images
-   claves        │  (¿qué IA hay?)      │  → GET /capabilities  (o /setup/status)
+   settings/env  │  Capabilities        │  ai, generation, tutor, tts, images,
+   claves        │  (¿qué IA hay?)      │  google_login → GET /setup/status
                  └──────────┬───────────┘
                             │  useCapabilities()
         ┌───────────────────┼────────────────────┐
@@ -103,13 +103,20 @@ interface Capabilities {
 En lugar de esparcir condicionales, un componente/hook único:
 
 ```tsx
-<Gated requires="tutor">
-  <TutorPromptChip />        {/* solo se pinta si capabilities.tutor */}
+<Gated requires="tutor">                {/* modo `hide`, el de por defecto */}
+  <TutorPromptChip />                   {/* no se pinta si tutor está bloqueado */}
 </Gated>
 ```
 
-Regla: **el elemento de IA se enciende solo si su capacidad está.** Sin clave **no se muestra**
-(no un callejón/error). Ejemplos:
+Regla: **el elemento de IA se enciende solo si su capacidad está.** Ojo con la comprobación:
+una capacidad es un objeto y **todo objeto es truthy**, así que `capabilities[name]` a secas
+está siempre encendido — hay que preguntar por su `status` (`isReady` / `isAvailable` en
+`api/setup.ts`).
+
+`hide` es una de dos modalidades. La otra, `mode="explain"`, hace lo contrario a propósito:
+deja el control visible e inerte con el motivo a la vista. Se usa donde esconder confundiría
+más que explicar — la opción existe, simplemente no está disponible aquí. Ver
+[`degraded-mode-ux.md`](degraded-mode-ux.md) §5. Ejemplos del modo `hide`:
 
 | Siempre (estático / pre-cocinado) | `requires` (se enciende con clave) |
 |---|---|
@@ -136,8 +143,10 @@ interface OnboardingStep {
 }
 ```
 
-Filtro en runtime: `steps.filter(role).filter(cap => !s.requires || capabilities[s.requires])`.
-Un paso que habla del tutor **desaparece** sin clave, sin ramas ad-hoc.
+Filtro en runtime: `steps.filter(role).filter(s => !s.requires || flags[s.requires])`, donde
+`flags` viene de aplanar las capacidades a booleanos (`readyFlags`, en `ProductTour.tsx`).
+Preguntar directamente por `capabilities[s.requires]` **no filtra nada**: son objetos, y todos
+son truthy. Un paso que habla del tutor **desaparece** sin clave, sin ramas ad-hoc.
 
 ### 2.4 Estado del onboarding — por usuario, persistido, reabrible
 ```ts

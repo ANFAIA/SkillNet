@@ -49,8 +49,8 @@ The elegant point: onboarding, no-key degradation, and smart defaults are **the 
 
 ```
                  ┌──────────────────────┐
-   settings/env  │  Capabilities        │  ai, generation, tutor, tts, images
-   keys          │  (what AI is there?) │  → GET /capabilities  (or /setup/status)
+   settings/env  │  Capabilities        │  ai, generation, tutor, tts, images,
+   keys          │  (what AI is there?) │  google_login → GET /setup/status
                  └──────────┬───────────┘
                             │  useCapabilities()
         ┌───────────────────┼────────────────────┐
@@ -63,14 +63,36 @@ The elegant point: onboarding, no-key degradation, and smart defaults are **the 
 An object derived from the presence (and validity) of keys, exposed by the backend:
 
 ```ts
+type CapabilityStatus = 'ready' | 'degraded' | 'blocked'
+type CapabilityReason =
+  | 'missing_api_key'   // no usable key for that capability's provider
+  | 'not_configured'    // provider deliberately switched off in config
+  | 'provider_quota'    // a recent 429/402 from the provider
+  | 'provider_down'     // recent hard failures or timeouts
+
+interface Capability {
+  status: CapabilityStatus
+  reason?: CapabilityReason | null
+  hint?: string | null   // ADMIN ONLY; always null on public responses
+}
+
 interface Capabilities {
-  ai: boolean          // is there a usable LLM (nothing works without this)
-  generation: boolean  // generate courses/lessons
-  tutor: boolean       // tutor chat
-  tts: boolean         // voice (mascot / podcast) — degrades to offline, see degraded-mode
-  images: boolean      // infographics
+  ai: Capability           // a usable LLM exists (nothing works without this)
+  generation: Capability   // generate courses/lessons
+  tutor: Capability        // tutor chat
+  tts: Capability          // voice (mascot / podcast) — degrades to the offline engine, never blocks
+  images: Capability       // infographics, slide illustrations — blocks, does not degrade
+  google_login: Capability // "Sign in with Google" is configured
 }
 ```
+
+A boolean could hide a control and could not explain one, so every deployment that was
+missing something looked the same. `GET /setup/status` is **public and pre-authentication**:
+it carries `status` and `reason`, and `hint` always as `null` — a hint names environment
+variables, and telling an anonymous caller which key a deployment is missing is
+configuration disclosure. The version with `hint` lives at `GET /settings/capabilities`,
+which requires an admin. Both responses also carry `media_requirements`: which capabilities
+each media kind needs, so the client keeps no copy of that table.
 
 - Backend: computed in one place (presence of `LLM_API_KEY`, `TTS_API_KEY`, `OPENROUTER_API_KEY`).
   Today `GET /setup/status` already exists and is the natural place (we already added
@@ -87,8 +109,14 @@ Instead of scattering conditionals, a single component/hook:
 </Gated>
 ```
 
-Rule: **the AI element turns on only if its capability is present.** Without a key it **is not
-shown** (not a dead end/error). Examples:
+Rule: **the AI element turns on only if its capability is present.** Mind the check: a
+capability is an object and **every object is truthy**, so a bare `capabilities[name]` is
+always on — ask for its `status` (`isReady` / `isAvailable` in `api/setup.ts`).
+
+`hide` is one of two modes. The other, `mode="explain"`, does the opposite on purpose:
+it leaves the control visible and inert with the reason attached, for the places where
+hiding would confuse more than explaining. See
+[`degraded-mode-ux.md`](/en/docs/degraded-mode-ux) §5. Examples of `hide`:
 
 | Always (static / pre-baked) | `requires` (turns on with a key) |
 |---|---|
@@ -115,7 +143,10 @@ interface OnboardingStep {
 }
 ```
 
-Runtime filter: `steps.filter(role).filter(cap => !s.requires || capabilities[s.requires])`.
+Runtime filter: `steps.filter(role).filter(s => !s.requires || flags[s.requires])`, where
+`flags` comes from flattening the capabilities to booleans (`readyFlags`, in
+`ProductTour.tsx`). Asking `capabilities[s.requires]` directly **filters nothing**: they
+are objects, and every object is truthy.
 A step that talks about the tutor **disappears** without a key, with no ad-hoc branches.
 
 ### 2.4 Onboarding state — per user, persisted, reopenable

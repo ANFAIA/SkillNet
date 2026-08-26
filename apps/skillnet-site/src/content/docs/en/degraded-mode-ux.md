@@ -6,108 +6,99 @@ section: "core"
 
 # Degraded mode: surfacing it in the UI
 
-**Status:** plan (not implemented, except as noted in §2)
-**Related:** [`media-artifacts.md`](/en/docs/media-artifacts) §5,
-[`personalization.md`](/en/docs/personalization) §4, [`backend-api.md`](/en/docs/backend-api),
-[`configuration.md`](/en/docs/configuration), `README.md` §"Audio, images and the render cache"
+**Status:** implemented (2026-08-26). This file describes what is in the code.
+**Related:** [`onboarding.md`](/en/docs/onboarding) §2, [`media-artifacts.md`](/en/docs/media-artifacts) §5,
+[`configuration.md`](/en/docs/configuration), [`security.md`](/en/docs/security)
 
-> SkillNet degrades in specific ways when external keys are missing (ElevenLabs / OpenRouter)
-> or the provider returns quota errors. Today those degradations are **invisible** to admins
-> and learners, which confuses ("why is the voice robotic?", "why is there no image?", "why
-> doesn't the speaker make sound?"). This document is the plan to make them visible and
-> non-alarming, without implementing the UI (except §2, already resolved in code).
+> SkillNet degrades in specific ways when an external key is missing or a provider returns
+> a quota error. Those degradations used to be **invisible**: the interface accepted the
+> job, ran it, and thirty seconds later showed the provider's raw exception. Now every
+> capability says what state it is in and why, and whoever is looking decides.
 
-## 0. The three degraded states to communicate
+## 1. Three states, not two
 
-Verified against the code (see `media-artifacts.md` §5):
+A capability is no longer a boolean. It is `{status, reason, hint}` with
+`status ∈ {ready, degraded, blocked}` (`src/schemas/capabilities.py`).
 
-1. **TTS with no key/credit → mascot voice fails hard (500).** `POST /api/v1/tts/synthesize`
-   (`src/routes/tts.py`) doesn't fall back to the offline provider; `ElevenLabsProvider.synthesize`
-   raises on non-200 (`src/services/tts_service.py`). This is a **known gap**.
-2. **TTS with no key/credit → podcast in offline voice (eSpeak).** The podcast does degrade
-   through the chain `ElevenLabs → Azure → eSpeak NG` (`src/services/media/podcast/voices.py`),
-   but it sounds robotic.
-3. **OpenRouter with no key → infographic without poster.** `generate_image`
-   (`src/services/media/images.py`) is best-effort; the infographic ships with `has_image=false`.
+| State | Meaning | What the interface does |
+|---|---|---|
+| `ready` | It works | Nothing special |
+| `degraded` | It works with less | Lets you run it, and says what will come back reduced |
+| `blocked` | It cannot work | Control visible, inert, with the reason attached |
 
-All of this is **baked into the seed** and shared across learners, so the right message is at
-the **deployment/admin** level, not per-user.
+The distinction is not cosmetic. The podcast carries the offline eSpeak voice at the end of
+its chain (`src/services/media/podcast/voices.py`), so `tts` **degrades and never blocks**:
+turning the button off would take away something that works today. `images` does block — a
+deliberate product decision, see §4.
 
-## 1. Media health banner / indicator (admin)
+`reason` is an enum (`missing_api_key`, `not_configured`, `provider_quota`,
+`provider_down`), never a sentence: the wording belongs to i18n in the client.
 
-**Where.** Backend: extend `GET /health` (`src/routes/health.py`) — or add
-`GET /api/v1/settings/media-status` if separating public from authenticated is preferred.
-Frontend: consume in `src/api/health.ts` (`HealthRead`) and render on the admin page
-`src/pages/admin/Settings.tsx`, which **already has the exact pattern**: today it shows a
-single warning line when no LLM model is configured. The media indicator is the same idea.
+## 2. Where it comes from: config AND runtime
 
-**Backend — the minimal shape.** Add a `media` block to the `/health` response derived
-**purely from configuration** (without calling providers):
+`derive_capabilities()` (`src/services/capabilities.py`) crosses two layers:
 
-```jsonc
-"media": {
-  "tts": { "provider": "elevenlabs", "configured": true, "live_voice_fallback": false },
-  "images": { "configured": false }
-}
-```
+- **Config**, pure: reads `settings`, calls nobody, cannot fail. That is what makes it safe
+  to serve on a public endpoint.
+- **Runtime**: `src/services/provider_health.py`, an in-process TTL registry fed by the real
+  failure paths (429/402 → `quota`, anything else → `down`). It can only make a capability
+  **worse**, never better, and it heals on its own when the TTL expires.
 
-- `tts.configured` = `settings.TTS_PROVIDER != "disabled"` and `settings.TTS_API_KEY` not empty
-  (or `provider == "offline"`). Reuse `tts_is_available` from `src/personalization/modality.py`.
-- `tts.live_voice_fallback = false` documents the gap: **live voice has no offline safety net**
-  even though the podcast does.
-- `images.configured` = `bool(settings.OPENROUTER_API_KEY)` or `IMAGE_MODEL` not being
-  `openrouter/*` (in which case it uses `LLM_API_KEY`).
+Single-worker assumption, the same one `_INFLIGHT` in `node_render_service` already makes.
+It is a hint for the interface, never a source of truth: losing it on restart is correct.
 
-**Exhausted quota** detection (optional, phase 2): an in-process counter of 429/402 errors per
-provider (same single-worker assumption as `_INFLIGHT` in `node_render_service.py`), exposed
-as `"quota_exhausted": true`. V1 stays at "configured / not configured", which already covers
-90% of the confusion.
+There are no active probes against the provider. They spend quota and lie just as fast.
 
-**Frontend — the minimal shape.** In `Settings.tsx`, next to the model warning, a `SettingRow`
-(or a discreet banner up top) that only appears when something is degraded. Messages:
+## 3. Who sees what
 
-- No TTS: *"Audio will use a basic offline voice (robotic) until an ElevenLabs key with
-  credit is added. The mascot's live voice will be mute."*
-- No images: *"Infographics will be generated without a poster until
-  `OPENROUTER_API_KEY` is configured."*
+`GET /setup/status` is **public and pre-authentication**. It carries `status` and `reason`;
+`hint` always travels as `null`. Naming the environment variable that would fix the problem
+is an inventory of the deployment's configuration handed to an anonymous caller.
 
-With no degradation, nothing is shown (same discipline as the rest of `Settings.tsx`).
+`GET /settings/capabilities` (`src/routes/settings.py`) serves the same object **with**
+`hint`, behind the admin dependency. One derivation, two audiences.
 
-## 2. Mascot voice degrading silently (ALREADY IMPLEMENTED)
+In the client the wording is role-aware too (`src/lib/capabilityCopy.ts`): a learner is told
+the feature is unavailable in this installation and nothing more — the shape of the `.env` is
+not their business and they can do nothing with it; an admin gets the action that ends it.
 
-**Where.** `src/components/mascota/MascotaCompanion.tsx`.
+## 4. Refusing at the door
 
-**Status: already correct — no changes needed.** `speak()` throws on `!res.ok`, and **every**
-caller swallows it (`void speak().catch(() => undefined)` in auto-read and in
-`handleToggleMute`). A TTS 500 shows no error: the speech bubble text remains and only the
-audio is missing. Verified in the current component.
+`MEDIA_KIND_REQUIREMENTS` (`src/services/media/requirements.py`) declares which capabilities
+each media kind needs, and `enqueue_artifact` checks it. It lives there, at the one door
+every job starter goes through, rather than on the route that happens to be the admin's: the
+lesson player's own audio/video button never went through the studio route.
 
-**Optional improvement (low priority).** When the §1 health status says `tts.configured =
-false`, **hide the speaker icon** instead of leaving a button that does nothing. This would
-mean: pass a `ttsAvailable` prop (from the §1 `useHealth()`) to `MascotaCompanion` and wrap the
-mute `<button>` in `ttsAvailable && (...)`. The text bubble always stays. It's purely
-cosmetic; the behavior is already safe.
+Only `blocked` refuses (409, `code: capability_blocked`); `degraded` passes. The callers that
+create artefacts best-effort (the seed, the end-to-end course orchestrator) catch it and
+carry on.
 
-## 3. Mention in onboarding (conditional)
+**A product decision, not a bug fix:** with no image key, infographics and slide decks are
+**blocked**. They used to degrade to a structured sheet with no poster (`has_image=false`)
+and stay useful. The preference is not to offer what cannot be delivered. It is written down
+here because it is a feature lost, not gained.
 
-**Where.** `src/pages/onboarding/Onboarding.tsx` and the modality preferences step
-(`src/components/onboarding/`, next to `AccessibilityStep.tsx`).
+## 5. What a learner sees on a blocked control
 
-**What.** Onboarding lets the learner choose an audio/visual preference. If `tts.configured =
-false` (from §1), in the step where "audio" is offered, add an inline note: *"Audio is in
-basic mode on this installation (offline voice)."* — so choosing "audio" doesn't create an
-expectation the installation can't meet. It doesn't block the choice (modality resolution
-already degrades audio → text via `resolve_declared_modality`), it only informs.
+`<Gated mode="explain">` (`src/components/CapabilityExplain.tsx`) renders the control
+**visible and inert**:
 
-**Priority.** The lowest of the three: it only matters if the deployment runs without TTS and
-uses onboarding. Implement after §1.
+- **`aria-disabled`, never the `disabled` attribute.** `disabled` removes it from the tab
+  order, and a control nobody can reach is a control whose explanation nobody can read.
+  Since `aria-disabled` blocks nothing by itself, activation is suppressed by hand: the
+  click, and the Enter/Space a button turns into one.
+- **The sentence always lives in the DOM**, in an `sr-only` span that `aria-describedby`
+  points at. The bubble that hover, focus or tap summons is a second `aria-hidden` copy. A
+  screen reader does not hover.
+- No `z-index`: the wrapper is `relative` only while the bubble is open.
 
-## Suggested implementation order
+`CapabilityHealthBanner` remains the deployment-level summary and complements this; it does
+not repeat it.
 
-1. **§1 backend** — extend `/health` with the `media` block (cheap, no external calls).
-2. **§1 frontend** — conditional banner in `Settings.tsx` reusing `useHealth()`.
-3. **§2 optional improvement** — hide the mascot speaker when there's no TTS.
-4. **§3** — onboarding note.
+## 6. What is no longer true of the previous version of this document
 
-Each step is independent and doesn't touch generation or the media pipeline; they're all
-config reads + conditional rendering.
+- The mascot-voice gap (a hard 500 with no key) is **closed**: `src/routes/tts.py` falls back
+  to eSpeak and returns 204.
+- `GET /health` was not extended and `GET /settings/media-status` was never created. The
+  information travels on the capabilities payload.
+- There is no `tts.configured` and no `"media": {...}` block of the kind this file proposed.
