@@ -19,3 +19,72 @@ export const SECTION_LABELS: Record<"es" | "en", Record<string, string>> = {
 };
 
 export const SECTION_ORDER = ["start", "core", "v2", "extensibility", "research"] as const;
+
+export interface DocEntry {
+  slug: string;
+  title: string;
+  section: string;
+  order: number;
+}
+
+export interface DocsTreeNode {
+  entry: DocEntry;
+  children: DocEntry[];
+}
+
+export interface DocsTreeGroup {
+  section: string;
+  label: string;
+  nodes: DocsTreeNode[];
+  /** Total link count in the group, children included — used for the collapsed hint. */
+  count: number;
+  /** True when this group holds the page being rendered. */
+  containsCurrent: boolean;
+}
+
+/**
+ * Derives the two-level document tree from the entries themselves — never from a
+ * hand-written list, so adding a doc updates the navigation with no edit here.
+ *
+ * Level one is the `section` field of the frontmatter, in SECTION_ORDER.
+ * Level two comes from the slugs: a doc whose slug is the dash-prefix of other
+ * slugs in the same section is their parent (`semantic-boundaries` owns
+ * `semantic-boundaries-dsac-bench`, `personalization` owns
+ * `personalization-architecture`). Every doc that no other doc claims stays a
+ * top-level leaf of its section. Declared `order` decides the sequence at both
+ * levels.
+ */
+export function buildDocsTree(entries: DocEntry[], locale: "es" | "en", currentSlug?: string): DocsTreeGroup[] {
+  const labels = SECTION_LABELS[locale];
+
+  return SECTION_ORDER.map((section) => {
+    const inSection = entries.filter((e) => e.section === section).sort((a, b) => a.order - b.order);
+
+    // A doc is a parent when another doc in the section extends its slug with "-".
+    const isParent = (e: DocEntry) => inSection.some((o) => o.slug.startsWith(`${e.slug}-`));
+    // Pick the longest parent slug that claims this doc, so the deepest owner wins.
+    const parentOf = (e: DocEntry) =>
+      inSection
+        .filter((o) => o.slug !== e.slug && e.slug.startsWith(`${o.slug}-`))
+        .sort((a, b) => b.slug.length - a.slug.length)[0];
+
+    const nodes: DocsTreeNode[] = [];
+    for (const entry of inSection) {
+      // A child of a parent is rendered inside it, not at the top level. A doc
+      // that is itself a parent always stays at the top level, so a chain like
+      // a -> a-b -> a-b-c never nests deeper than one visible level.
+      if (!isParent(entry) && parentOf(entry)) continue;
+      nodes.push({
+        entry,
+        children: inSection.filter((o) => !isParent(o) && parentOf(o)?.slug === entry.slug),
+      });
+    }
+
+    const count = nodes.reduce((total, node) => total + 1 + node.children.length, 0);
+    const containsCurrent = nodes.some(
+      (node) => node.entry.slug === currentSlug || node.children.some((c) => c.slug === currentSlug),
+    );
+
+    return { section, label: labels[section], nodes, count, containsCurrent };
+  }).filter((group) => group.nodes.length > 0);
+}

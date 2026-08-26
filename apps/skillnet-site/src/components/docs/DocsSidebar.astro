@@ -1,99 +1,179 @@
 ---
-// Static (zero-JS) docs navigation. Active page is highlighted by comparing
-// Astro.url.pathname at build/request time — no client-side JS needed.
-import { SECTION_LABELS, SECTION_ORDER } from "../../data/docsNav";
-
-interface NavEntry {
-  slug: string;
-  title: string;
-  section: string;
-}
+// Static (zero-JS) docs navigation, rendered as a collapsible tree.
+//
+// Native <details>/<summary> does the collapsing, so the whole tree works with
+// JavaScript off and needs no hydration — which also keeps it clear of the
+// framer-motion SSR problem (an `initial` opacity serialized into the HTML).
+// The open/closed state is decided at build time: the section holding the
+// current page is open, the rest are closed. Both levels come from
+// buildDocsTree, which derives them from the entries themselves.
+import { buildDocsTree, type DocEntry } from "../../data/docsNav";
 
 interface Props {
-  entries: NavEntry[];
+  entries: DocEntry[];
   currentSlug?: string;
   locale: "es" | "en";
 }
 
 const { entries, currentSlug, locale } = Astro.props;
-const labels = SECTION_LABELS[locale];
 const basePath = locale === "en" ? "/en/docs" : "/docs";
-const navLabel = locale === "en" ? "Documentation navigation" : "Navegación de documentación";
+const isEn = locale === "en";
+const navLabel = isEn ? "Documentation navigation" : "Navegación de documentación";
+const countLabel = (n: number) => (isEn ? `${n} pages` : n === 1 ? "1 página" : `${n} páginas`);
 
-const bySection = SECTION_ORDER.map((section) => ({
-  section,
-  label: labels[section],
-  items: entries.filter((e) => e.section === section),
-})).filter((group) => group.items.length > 0);
+const groups = buildDocsTree(entries, locale, currentSlug);
+// With no page selected (the index) the first section is the useful one to show.
+const openSection = currentSlug
+  ? groups.find((g) => g.containsCurrent)?.section
+  : groups[0]?.section;
 ---
 
-<nav aria-label={navLabel} class="docs-sidebar">
-  {bySection.map((group) => (
-    <div class="docs-sidebar__group">
-      <p class="docs-sidebar__label type-ui">{group.label}</p>
-      <ul>
-        {group.items.map((item) => (
+<nav aria-label={navLabel} class="docs-tree">
+  {groups.map((group) => (
+    <details class="docs-tree__section" open={group.section === openSection}>
+      <summary class="docs-tree__summary">
+        <svg class="docs-tree__caret" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
+          <path d="M3 1.5 L7 5 L3 8.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        <span class="docs-tree__label type-ui">{group.label}</span>
+        <span class="docs-tree__count type-ui">{group.count}</span>
+      </summary>
+
+      <ul class="docs-tree__list">
+        {group.nodes.map((node) => (
           <li>
             <a
-              href={`${basePath}/${item.slug}`}
-              aria-current={item.slug === currentSlug ? "page" : undefined}
-              class="docs-sidebar__link type-body"
+              href={`${basePath}/${node.entry.slug}`}
+              aria-current={node.entry.slug === currentSlug ? "page" : undefined}
+              class="docs-tree__link type-body"
             >
-              {item.title}
+              {node.entry.title}
             </a>
+
+            {node.children.length > 0 && (
+              <ul class="docs-tree__list docs-tree__list--nested" aria-label={countLabel(node.children.length)}>
+                {node.children.map((child) => (
+                  <li>
+                    <a
+                      href={`${basePath}/${child.slug}`}
+                      aria-current={child.slug === currentSlug ? "page" : undefined}
+                      class="docs-tree__link docs-tree__link--child type-body"
+                    >
+                      {child.title}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            )}
           </li>
         ))}
       </ul>
-    </div>
+    </details>
   ))}
 </nav>
 
 <style>
-  .docs-sidebar {
-    display: flex;
-    flex-direction: column;
-    gap: 24px;
-  }
-
-  .docs-sidebar__group {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .docs-sidebar__label {
-    margin: 0 0 4px;
-    color: var(--color-text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-  }
-
-  .docs-sidebar__group ul {
+  .docs-tree {
     display: flex;
     flex-direction: column;
     gap: 2px;
-    margin: 0;
-    padding: 0;
-    list-style: none;
   }
 
-  .docs-sidebar__link {
-    display: block;
+  .docs-tree__summary {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     border-radius: 8px;
-    padding: 7px 10px;
+    padding: 8px 10px;
     color: var(--color-text-secondary);
-    line-height: 1.4;
-    transition: background 0.15s var(--ease-base), color 0.15s var(--ease-base);
+    cursor: pointer;
+    list-style: none;
+    /* The tap target must clear 44px worth of comfort on a phone. */
+    min-height: 40px;
   }
 
-  .docs-sidebar__link:hover {
+  /* Safari/Chrome draw their own marker on summary; the caret replaces it. */
+  .docs-tree__summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .docs-tree__summary:hover {
     background: color-mix(in srgb, var(--color-primary) 8%, transparent);
     color: var(--color-text);
   }
 
-  .docs-sidebar__link[aria-current="page"] {
+  .docs-tree__label {
+    flex: 1;
+    min-width: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 600;
+  }
+
+  .docs-tree__count {
+    flex-shrink: 0;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--color-text) 7%, transparent);
+    padding: 1px 7px;
+    color: var(--color-text-secondary);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .docs-tree__caret {
+    flex-shrink: 0;
+    transition: transform 0.18s var(--ease-base);
+  }
+
+  .docs-tree__section[open] > .docs-tree__summary > .docs-tree__caret {
+    transform: rotate(90deg);
+  }
+
+  .docs-tree__list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin: 2px 0 10px;
+    padding: 0;
+    list-style: none;
+  }
+
+  .docs-tree__list--nested {
+    /* The rail makes the parent/child relation visible without an icon. */
+    margin: 2px 0 4px;
+    border-left: 1px solid var(--color-border);
+    margin-left: 16px;
+    padding-left: 6px;
+  }
+
+  .docs-tree__link {
+    display: block;
+    border-radius: 8px;
+    padding: 7px 10px 7px 26px;
+    color: var(--color-text-secondary);
+    line-height: 1.4;
+    /* Long slugs and identifiers in titles must not widen the sidebar track. */
+    overflow-wrap: anywhere;
+    transition: background 0.15s var(--ease-base), color 0.15s var(--ease-base);
+  }
+
+  .docs-tree__link--child {
+    padding-left: 12px;
+  }
+
+  .docs-tree__link:hover {
+    background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+    color: var(--color-text);
+  }
+
+  .docs-tree__link[aria-current="page"] {
     background: color-mix(in srgb, var(--color-primary) 12%, transparent);
     color: var(--color-primary-deep);
     font-weight: 600;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .docs-tree__caret {
+      transition: none;
+    }
   }
 </style>

@@ -30,6 +30,9 @@ const thisBasePath = isEn ? "/en/docs" : "/docs";
 const otherHref = altSlug ? `${otherBasePath}/${altSlug}` : otherBasePath;
 const canonicalPath = currentSlug ? `${thisBasePath}/${currentSlug}` : thisBasePath;
 
+const navSummary = isEn ? "Browse the documentation" : "Explorar la documentación";
+const navHere = isEn ? "On this page" : "Estás en";
+
 const site = Astro.site ?? new URL(Astro.url.origin);
 const canonicalUrl = new URL(canonicalPath, site).toString();
 const otherUrl = new URL(otherHref, site).toString();
@@ -44,7 +47,17 @@ const otherUrl = new URL(otherHref, site).toString();
   <SiteHeader client:load variant="docs" locale={locale} altHref={otherHref} />
   <div class="docs-shell">
     <aside class="docs-shell__sidebar">
-      <DocsSidebar entries={navEntries} currentSlug={currentSlug} locale={locale} />
+      <input class="docs-nav__toggle" type="checkbox" id="docs-nav-toggle" />
+      <label class="docs-nav__control" for="docs-nav-toggle">
+        <svg class="docs-nav__caret" width="11" height="11" viewBox="0 0 10 10" aria-hidden="true">
+          <path d="M3 1.5 L7 5 L3 8.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        <span class="docs-nav__text type-ui">{navSummary}</span>
+        {currentSlug && <span class="docs-nav__here type-ui">{navHere}: {title}</span>}
+      </label>
+      <div class="docs-nav__panel">
+        <DocsSidebar entries={navEntries} currentSlug={currentSlug} locale={locale} />
+      </div>
     </aside>
     <main class="docs-shell__content">
       <article class="prose-docs">
@@ -90,6 +103,12 @@ const otherUrl = new URL(otherHref, site).toString();
     color: var(--color-text);
     font-size: var(--type-body);
     line-height: 1.7;
+  }
+
+  .prose-docs :global(h1),
+  .prose-docs :global(h2),
+  .prose-docs :global(h3) {
+    overflow-wrap: break-word;
   }
 
   .prose-docs :global(h1) {
@@ -158,12 +177,23 @@ const otherUrl = new URL(otherHref, site).toString();
     margin-bottom: 0;
   }
 
+  /* Long identifiers ("learner_node_states.pinned_at") have no natural break
+     opportunity, so an inline code span used to push the whole document to
+     416px inside a 375px viewport. */
   .prose-docs :global(code) {
+    overflow-wrap: anywhere;
     background: color-mix(in srgb, var(--color-text) 6%, var(--color-bg));
     border-radius: 4px;
     padding: 0.15em 0.4em;
     font-size: 0.86em;
     font-family: "SF Mono", "Fira Code", ui-monospace, monospace;
+  }
+
+  .prose-docs :global(img),
+  .prose-docs :global(svg),
+  .prose-docs :global(iframe) {
+    max-width: 100%;
+    height: auto;
   }
 
   .prose-docs :global(pre) {
@@ -182,8 +212,18 @@ const otherUrl = new URL(otherHref, site).toString();
     line-height: 1.6;
   }
 
+  /* Markdown tables arrive as a bare <table> directly inside the article, which
+     has no horizontal overflow of its own — a wide one pushed the whole document
+     to 671px inside a 375px viewport. Making the table itself the scroll
+     container keeps the overflow in the table: `display: block` moves the
+     scrollbox to the table box while the rows keep their table layout, and
+     `width: max-content` lets columns size to their content rather than being
+     squeezed into a width the phone does not have. */
   .prose-docs :global(table) {
-    width: 100%;
+    display: block;
+    width: max-content;
+    max-width: 100%;
+    overflow-x: auto;
     margin: 0 0 20px;
     border-collapse: collapse;
     font-size: 0.88em;
@@ -213,10 +253,22 @@ const otherUrl = new URL(otherHref, site).toString();
     margin: 32px 0;
   }
 
-  @media (max-width: 860px) {
+  /* The sidebar collapses with a checkbox rather than <details> on purpose. A
+     closed <details> lays its content out without contributing height, which
+     collapsed the desktop sidebar column to 0px, and making it open on desktop
+     needed JavaScript that could race the first paint. A checkbox lets CSS alone
+     decide: above the breakpoint the control is hidden and the panel always
+     shows, below it the panel follows :checked. No script, nothing to race. */
+  .docs-nav__toggle,
+  .docs-nav__control {
+    display: none;
+  }
+
+  @media (max-width: 999px) {
     .docs-shell {
-      grid-template-columns: 1fr;
-      padding: 112px 20px 64px;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 20px;
+      padding: 104px 16px 56px;
     }
 
     .docs-shell__sidebar {
@@ -229,6 +281,78 @@ const otherUrl = new URL(otherHref, site).toString();
 
     .prose-docs {
       max-width: none;
+    }
+
+    /* The 64-link list used to sit above the article and push it to y=2841 on a
+       375px screen. Collapsed by default, the article now starts right below a
+       single row. */
+    .docs-nav__control {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      border: 1px solid var(--color-border);
+      border-radius: 12px;
+      background: color-mix(in srgb, var(--color-text) 3%, var(--color-bg));
+      padding: 11px 14px;
+      min-height: 44px;
+      color: var(--color-text);
+      cursor: pointer;
+      list-style: none;
+    }
+
+    .docs-nav__text {
+      font-weight: 600;
+    }
+
+    .docs-nav__here {
+      flex-basis: 100%;
+      min-width: 0;
+      color: var(--color-text-secondary);
+      overflow-wrap: anywhere;
+    }
+
+    .docs-nav__caret {
+      flex-shrink: 0;
+      color: var(--color-text-secondary);
+      transition: transform 0.18s var(--ease-base);
+    }
+
+    .docs-nav__toggle:checked ~ .docs-nav__control .docs-nav__caret {
+      transform: rotate(90deg);
+    }
+
+    /* Collapsed, the sidebar contributes only its control row. */
+    .docs-nav__panel {
+      display: none;
+      padding-top: 8px;
+    }
+
+    .docs-nav__toggle:checked ~ .docs-nav__panel {
+      display: block;
+    }
+
+    /* The checkbox stays in the accessibility tree and keyboard-focusable; it is
+       only visually removed, so the label keeps working as the control. */
+    .docs-nav__toggle {
+      display: block;
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      margin: 0;
+      pointer-events: none;
+    }
+
+    .docs-nav__toggle:focus-visible ~ .docs-nav__control {
+      outline: 2px solid var(--color-primary);
+      outline-offset: 2px;
+    }
+  }
+
+  @media (max-width: 999px) and (prefers-reduced-motion: reduce) {
+    .docs-nav__caret {
+      transition: none;
     }
   }
 </style>
