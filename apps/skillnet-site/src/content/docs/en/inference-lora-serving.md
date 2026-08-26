@@ -1,10 +1,13 @@
 ---
 title: "LoRA serving options"
-order: 62
+order: 63
 section: "research"
+group: "inference"
 ---
 
 # LoRA Serving Options for SkillNet UI
+
+> **Status:** exploratory. No LoRA was ever trained or hosted — the stack still reaches hosted models through litellm. Kept as a costed survey of the options.
 
 ## Context
 

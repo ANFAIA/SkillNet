@@ -2,6 +2,7 @@
 title: "Comunicación entre agentes"
 order: 58
 section: "research"
+group: "multi-agent"
 ---
 
 # Comunicación entre agentes

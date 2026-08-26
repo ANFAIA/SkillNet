@@ -2,9 +2,12 @@
 title: "Inference acceleration"
 order: 61
 section: "research"
+group: "inference"
 ---
 
 # Inference Acceleration
+
+> **Status:** the July 2026 measurements below still hold, and Groq is a supported `LLM_MODEL` value. The specialized hardware (LPU, wafer-scale) was surveyed, not adopted.
 
 Hardware and models specialized for fast LLM inference, enabling real-time content generation. Instead of waiting 10-30s for a page to translate or adapt, specialized hardware can do it in <1s.
 

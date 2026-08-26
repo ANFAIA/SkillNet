@@ -19,7 +19,7 @@ const { Content } = await render(entry);
 const { slug } = splitDocId(entry.id);
 
 const allEntries = (await getCollection("docs"))
-  .map((e) => ({ ...splitDocId(e.id), title: e.data.title, order: e.data.order, section: e.data.section }))
+  .map((e) => ({ ...splitDocId(e.id), title: e.data.title, order: e.data.order, section: e.data.section, group: e.data.group }))
   .filter((e) => e.locale === "es")
   .sort((a, b) => a.order - b.order);
 

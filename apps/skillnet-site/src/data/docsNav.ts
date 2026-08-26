@@ -25,6 +25,12 @@ export interface DocEntry {
   title: string;
   section: string;
   order: number;
+  /**
+   * Optional family inside a section. Docs sharing a group nest under the one
+   * with the lowest `order`, which becomes the family's index page. Used when
+   * the slugs of a family do not share a common dash-prefix.
+   */
+  group?: string;
 }
 
 export interface DocsTreeNode {
@@ -47,12 +53,19 @@ export interface DocsTreeGroup {
  * hand-written list, so adding a doc updates the navigation with no edit here.
  *
  * Level one is the `section` field of the frontmatter, in SECTION_ORDER.
- * Level two comes from the slugs: a doc whose slug is the dash-prefix of other
- * slugs in the same section is their parent (`semantic-boundaries` owns
- * `semantic-boundaries-dsac-bench`, `personalization` owns
- * `personalization-architecture`). Every doc that no other doc claims stays a
- * top-level leaf of its section. Declared `order` decides the sequence at both
- * levels.
+ * Level two comes from two data signals, in this order:
+ *
+ *  1. `group` in the frontmatter. Docs of a section that declare the same group
+ *     form a family, and the one with the lowest `order` is its index page; the
+ *     rest hang under it. This holds a family together when its slugs share no
+ *     prefix (`inference-acceleration` owns `inference-needle-router`,
+ *     `multi-agent-coordination` owns `multi-agent-communication`).
+ *  2. The slugs, for docs with no group: a doc whose slug is the dash-prefix of
+ *     other slugs in the same section is their parent (`personalization` owns
+ *     `personalization-architecture`).
+ *
+ * Every doc that no other doc claims stays a top-level leaf of its section.
+ * Declared `order` decides the sequence at both levels.
  */
 export function buildDocsTree(entries: DocEntry[], locale: "es" | "en", currentSlug?: string): DocsTreeGroup[] {
   const labels = SECTION_LABELS[locale];
@@ -60,13 +73,23 @@ export function buildDocsTree(entries: DocEntry[], locale: "es" | "en", currentS
   return SECTION_ORDER.map((section) => {
     const inSection = entries.filter((e) => e.section === section).sort((a, b) => a.order - b.order);
 
-    // A doc is a parent when another doc in the section extends its slug with "-".
-    const isParent = (e: DocEntry) => inSection.some((o) => o.slug.startsWith(`${e.slug}-`));
-    // Pick the longest parent slug that claims this doc, so the deepest owner wins.
-    const parentOf = (e: DocEntry) =>
-      inSection
+    // The index of a family is its member with the lowest `order`. inSection is
+    // already sorted by order, so the first match wins.
+    const groupIndexOf = (group: string) => inSection.find((o) => o.group === group);
+    const isGroupIndex = (e: DocEntry) => e.group !== undefined && groupIndexOf(e.group) === e;
+
+    // A doc is a parent when it heads a family, or when another doc in the
+    // section extends its slug with "-".
+    const isParent = (e: DocEntry) =>
+      isGroupIndex(e) || inSection.some((o) => o.group === undefined && o.slug.startsWith(`${e.slug}-`));
+    // A grouped doc belongs to its family index. Otherwise pick the longest
+    // parent slug that claims this doc, so the deepest owner wins.
+    const parentOf = (e: DocEntry) => {
+      if (e.group !== undefined) return isGroupIndex(e) ? undefined : groupIndexOf(e.group);
+      return inSection
         .filter((o) => o.slug !== e.slug && e.slug.startsWith(`${o.slug}-`))
         .sort((a, b) => b.slug.length - a.slug.length)[0];
+    };
 
     const nodes: DocsTreeNode[] = [];
     for (const entry of inSection) {

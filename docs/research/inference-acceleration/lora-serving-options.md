@@ -1,5 +1,7 @@
 # LoRA Serving Options for SkillNet UI
 
+> **Status:** exploratory. No LoRA was ever trained or hosted — the stack still reaches hosted models through litellm. Kept as a costed survey of the options.
+
 ## Context
 
 SkillNet needs to generate UI (A2TL-Web/JSON) using a trained LoRA. The goal is to serve the LoRA faster than a local RTX 4060 (~20-50 tok/s) without managing complex infrastructure.

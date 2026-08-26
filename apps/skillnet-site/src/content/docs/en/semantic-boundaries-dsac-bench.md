@@ -2,6 +2,7 @@
 title: "DSAC bench"
 order: 53
 section: "research"
+group: "semantic-boundaries"
 ---
 
 # DSAC-Bench: Document Sensitivity and Access Classification Benchmark

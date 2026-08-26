@@ -2,6 +2,7 @@
 title: "Semantic boundaries"
 order: 51
 section: "research"
+group: "semantic-boundaries"
 ---
 
 # Semantic Boundaries

@@ -1,10 +1,13 @@
 ---
 title: "Hoja de ruta a producción"
-order: 64
+order: 62
 section: "research"
+group: "inference"
 ---
 
 # Hoja de Ruta a Producción: Páginas Vivas
+
+> **Estado:** propuesta, no un plan en vigor. La función de "páginas vivas" (traducir, simplificar o ampliar una página a demanda) no está implementada; las fases 2 a 4 nunca se empezaron.
 
 ## Filosofía
 

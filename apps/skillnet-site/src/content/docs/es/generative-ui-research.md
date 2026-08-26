@@ -2,6 +2,7 @@
 title: "Generative UI (investigación)"
 order: 55
 section: "research"
+group: "generative-ui"
 ---
 
 # Generative UI

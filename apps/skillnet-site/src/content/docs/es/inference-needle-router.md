@@ -1,10 +1,13 @@
 ---
 title: "Router Needle"
-order: 63
+order: 64
 section: "research"
+group: "inference"
 ---
 
 # Needle: Arquitectura de Router para Modelos Especializados
+
+> **Estado:** exploratorio. Needle no se adoptó. El enrutado de peticiones se resolvió con un router de dos niveles `fast`/`heavy` (`apps/skillnet-api/src/agents/runtime/router.py`), sin modelo clasificador aparte. Se conserva por el argumento arquitectónico.
 
 Needle es un modelo de 26M de parámetros de Cactus Compute, de código abierto (MIT), que hace una sola cosa: dados una consulta y una lista de herramientas, elige la herramienta correcta y rellena sus argumentos. Alcanza 1.200 tok/s de decode en dispositivos de consumo y se cuantiza a 14 MB en INT4.
 

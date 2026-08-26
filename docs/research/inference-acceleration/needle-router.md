@@ -1,5 +1,7 @@
 # Needle: Router Architecture for Specialized Models
 
+> **Status:** exploratory. Needle was not adopted. Request routing shipped instead as a two-tier `fast`/`heavy` prompt router (`apps/skillnet-api/src/agents/runtime/router.py`), with no separate classifier model. Kept for the architecture argument.
+
 Needle is a 26M-parameter model from Cactus Compute, open source (MIT), that does one thing: given a query and a list of tools, it selects the right tool and fills its arguments. It achieves 1,200 tok/s decode on consumer devices and quantizes to 14 MB in INT4.
 
 ## Why This Matters for SkillNet

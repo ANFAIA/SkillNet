@@ -2,6 +2,7 @@
 title: "Multi-agent coordination"
 order: 57
 section: "research"
+group: "multi-agent"
 ---
 
 # Multi-Agent Coordination

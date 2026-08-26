@@ -1,10 +1,13 @@
 ---
 title: "Production roadmap"
-order: 64
+order: 62
 section: "research"
+group: "inference"
 ---
 
 # Production Roadmap: Live Pages
+
+> **Status:** proposal, not a plan of record. The "live pages" feature (translate, simplify or expand a page on demand) is not implemented; phases 2 to 4 were never started.
 
 ## Philosophy
 

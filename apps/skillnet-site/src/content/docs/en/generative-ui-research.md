@@ -2,6 +2,7 @@
 title: "Generative UI (research)"
 order: 55
 section: "research"
+group: "generative-ui"
 ---
 
 # Generative UI

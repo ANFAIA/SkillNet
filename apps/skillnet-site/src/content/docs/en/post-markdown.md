@@ -2,6 +2,7 @@
 title: "Post-Markdown"
 order: 59
 section: "research"
+group: "post-markdown"
 ---
 
 # Post-Markdown: What Comes After Markdown for AI Agents

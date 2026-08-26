@@ -23,6 +23,10 @@ const docs = defineCollection({
     title: z.string(),
     order: z.number(),
     section: z.enum(["start", "core", "v2", "extensibility", "research"]),
+    // Optional family inside a section. Docs sharing a group are nested under
+    // the one with the lowest `order`, which becomes the family's index page.
+    // Lets a family hold together when the slugs do not share a prefix.
+    group: z.string().optional(),
   }),
 });
 

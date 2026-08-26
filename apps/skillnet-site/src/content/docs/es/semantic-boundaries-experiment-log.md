@@ -2,6 +2,7 @@
 title: "Registro de experimentos"
 order: 54
 section: "research"
+group: "semantic-boundaries"
 ---
 
 # Registro de Experimentos

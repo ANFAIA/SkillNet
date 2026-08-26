@@ -2,9 +2,12 @@
 title: "Aceleración de inferencia"
 order: 61
 section: "research"
+group: "inference"
 ---
 
 # Aceleración de inferencia
+
+> **Estado:** las medidas de julio de 2026 siguen siendo válidas y Groq es un valor admitido de `LLM_MODEL`. El hardware especializado (LPU, oblea completa) se estudió, no se adoptó.
 
 Hardware y modelos especializados para inferencia rápida de LLM, que permiten la generación de contenido en tiempo real. En lugar de esperar 10-30s a que una página se traduzca o adapte, hardware especializado puede hacerlo en <1s.
 

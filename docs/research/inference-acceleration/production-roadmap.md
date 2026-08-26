@@ -1,5 +1,7 @@
 # Production Roadmap: Live Pages
 
+> **Status:** proposal, not a plan of record. The "live pages" feature (translate, simplify or expand a page on demand) is not implemented; phases 2 to 4 were never started.
+
 ## Philosophy
 
 First make it work, then optimize. The concept is validated with free, slow models. Once the system works, each piece improves independently.

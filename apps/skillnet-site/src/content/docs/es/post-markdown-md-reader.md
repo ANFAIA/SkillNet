@@ -2,6 +2,7 @@
 title: "Cómo funciona md-reader"
 order: 60
 section: "research"
+group: "post-markdown"
 ---
 
 # Cómo funciona md-reader

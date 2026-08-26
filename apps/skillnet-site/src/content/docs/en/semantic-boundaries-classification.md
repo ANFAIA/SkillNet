@@ -2,6 +2,7 @@
 title: "Content-based classification"
 order: 52
 section: "research"
+group: "semantic-boundaries"
 ---
 
 # 3-Axis Classification System

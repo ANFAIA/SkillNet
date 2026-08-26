@@ -1,10 +1,13 @@
 ---
 title: "Opciones de servicio de LoRA"
-order: 62
+order: 63
 section: "research"
+group: "inference"
 ---
 
 # Opciones de servicio de LoRA para la UI de SkillNet
+
+> **Estado:** exploratorio. Nunca se entrenó ni se alojó ninguna LoRA: la pila sigue llegando a los modelos alojados vía litellm. Se conserva como estudio de opciones con costes.
 
 ## Contexto
 

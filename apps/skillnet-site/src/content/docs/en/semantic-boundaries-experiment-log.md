@@ -2,6 +2,7 @@
 title: "Experiment log"
 order: 54
 section: "research"
+group: "semantic-boundaries"
 ---
 
 # Experiment Log

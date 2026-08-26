@@ -2,6 +2,7 @@
 title: "Coordinación multiagente"
 order: 57
 section: "research"
+group: "multi-agent"
 ---
 
 # Coordinación Multiagente
