@@ -88,3 +88,66 @@ export function buildDocsTree(entries: DocEntry[], locale: "es" | "en", currentS
     return { section, label: labels[section], nodes, count, containsCurrent };
   }).filter((group) => group.nodes.length > 0);
 }
+
+/** A node of the file-tree sidebar, ready to cross the server/client boundary. */
+export interface DocsFileTreeNode {
+  /** Stable identity for the open/closed state ("section:v2", "doc:data-model"). */
+  id: string;
+  label: string;
+  /** Absent on section nodes, which are folders with no page of their own. */
+  href?: string;
+  /** Slug of the doc behind this node, when it has one. */
+  slug?: string;
+  children: DocsFileTreeNode[];
+}
+
+export interface DocsFileTree {
+  nodes: DocsFileTreeNode[];
+  /** Ids that must already be open on arrival: the path down to the current page. */
+  openIds: string[];
+}
+
+/**
+ * Shapes `buildDocsTree` into the recursive form the sidebar island renders, and
+ * works out which branches the current page needs open. The hierarchy still comes
+ * from the entries alone — this only renames the levels.
+ */
+export function buildDocsFileTree(
+  entries: DocEntry[],
+  locale: "es" | "en",
+  currentSlug: string | undefined,
+  basePath: string,
+): DocsFileTree {
+  const groups = buildDocsTree(entries, locale, currentSlug);
+  const openIds: string[] = [];
+
+  const nodes = groups.map((group) => {
+    const sectionId = `section:${group.section}`;
+    // With no page selected (the index) the first section is the useful one.
+    if (group.containsCurrent || (!currentSlug && group === groups[0])) openIds.push(sectionId);
+
+    return {
+      id: sectionId,
+      label: group.label,
+      children: group.nodes.map((node) => {
+        const nodeId = `doc:${node.entry.slug}`;
+        if (node.children.some((c) => c.slug === currentSlug)) openIds.push(nodeId);
+        return {
+          id: nodeId,
+          label: node.entry.title,
+          href: `${basePath}/${node.entry.slug}`,
+          slug: node.entry.slug,
+          children: node.children.map((child) => ({
+            id: `doc:${child.slug}`,
+            label: child.title,
+            href: `${basePath}/${child.slug}`,
+            slug: child.slug,
+            children: [],
+          })),
+        };
+      }),
+    };
+  });
+
+  return { nodes, openIds };
+}
