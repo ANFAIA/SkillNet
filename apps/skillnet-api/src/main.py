@@ -100,10 +100,12 @@ async def lifespan(app: FastAPI):
 
 
 async def app_error_handler(request: Request, exc: AppError) -> JSONResponse:
-    return JSONResponse(
-        status_code=exc.status_code,
-        content={"detail": exc.message, "code": exc.code, "field": exc.field},
-    )
+    content: dict = {"detail": exc.message, "code": exc.code, "field": exc.field}
+    # Only errors that carry structured detail grow the envelope; every other error keeps
+    # exactly the three keys the frontend's ApiErrorBody has always read.
+    if exc.details:
+        content["details"] = exc.details
+    return JSONResponse(status_code=exc.status_code, content=content)
 
 
 async def validation_error_handler(

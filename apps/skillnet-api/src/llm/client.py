@@ -25,6 +25,7 @@ from src.config import settings
 from src.core.exceptions import LLMError
 from src.core.logging import get_logger
 from src.core.secrets import unseal
+from src.services import provider_health
 
 logger = get_logger(__name__)
 
@@ -496,6 +497,13 @@ class LLMService:
             return await self._acompletion(**kwargs)
         except LLMError:
             raise
+        except litellm.RateLimitError as exc:
+            # After `_acompletion`'s own retries. A key that is present but out of quota
+            # looks perfect to the config-only capability read; this is where it learns
+            # otherwise (src/services/provider_health.py).
+            provider_health.record_failure(provider_health.LLM, "quota")
+            logger.error("LLM completion failed: %s", exc, exc_info=True)
+            raise LLMError(_failure_message(exc)) from exc
         except litellm.BadRequestError as exc:
             if "reasoning_effort" not in kwargs:
                 logger.error("LLM completion failed: %s", exc, exc_info=True)
@@ -509,6 +517,9 @@ class LLMService:
             kwargs.pop("allowed_openai_params", None)
             return await self._completion_call(kwargs)
         except Exception as exc:  # noqa: BLE001 - normalize all provider errors
+            # Not `BadRequestError`, which is handled above: a request this app built
+            # wrongly is not evidence that the provider is unwell.
+            provider_health.record_failure(provider_health.LLM, "down")
             logger.error("LLM completion failed: %s", exc, exc_info=True)
             raise LLMError(_failure_message(exc)) from exc
 
@@ -648,5 +659,8 @@ class LLMService:
             kwargs.pop("allowed_openai_params", None)
             state["retreat"] = True
         except Exception as exc:  # noqa: BLE001 - normalize all provider errors
+            provider_health.record_failure(
+                provider_health.LLM, provider_health.failure_kind(exc)
+            )
             logger.error("LLM stream failed: %s", exc, exc_info=True)
             raise LLMError(f"LLM stream failed: {type(exc).__name__}") from exc

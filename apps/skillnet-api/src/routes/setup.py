@@ -29,6 +29,7 @@ from src.models import User, UserRole, WorkspaceMode
 from src.repositories.learner_profile_repo import LearnerProfileRepository
 from src.schemas.setup import SetupRequest, SetupStatus
 from src.services.capabilities import derive_capabilities
+from src.services.media.requirements import requirements_payload
 
 router = APIRouter(prefix="/setup", tags=["Setup"])
 
@@ -39,10 +40,12 @@ async def _has_any_user(db: DBSession) -> bool:
 
 @router.get("/status", response_model=SetupStatus)
 async def setup_status(db: DBSession) -> SetupStatus:
+    """Public and pre-authentication. No ``hint`` travels here — see :class:`SetupStatus`."""
     return SetupStatus(
         initialized=await _has_any_user(db),
         onboarding_enabled=settings.ONBOARDING_ENABLED,
-        capabilities=derive_capabilities(),
+        capabilities=derive_capabilities(include_hints=False),
+        media_requirements=requirements_payload(),
     )
 
 

@@ -54,20 +54,48 @@ con **una sola fuente de verdad** en vez de `if (hayClave)` esparcidos por todo 
 ```
 
 ### 2.1 `Capabilities` — la fuente de verdad
-Un objeto derivado de la presencia (y validez) de claves, expuesto por el backend:
+Un objeto derivado de la presencia (y validez) de claves, expuesto por el backend. Cada
+capacidad **dejó de ser un booleano**: un booleano sabe decir "no", pero no *por qué*, así
+que la UI solo podía apagar un botón sin explicar nada y la API solo podía aceptar un
+trabajo condenado.
 
 ```ts
+type CapabilityStatus = 'ready' | 'degraded' | 'blocked'
+type CapabilityReason =
+  | 'missing_api_key'   // no hay clave utilizable para el proveedor de esa capacidad
+  | 'not_configured'    // proveedor apagado a propósito en la configuración
+  | 'provider_quota'    // 429/402 reciente del proveedor
+  | 'provider_down'     // fallos duros o timeouts recientes
+
+interface Capability {
+  status: CapabilityStatus
+  reason?: CapabilityReason | null
+  hint?: string | null   // SOLO admin; siempre null en las respuestas públicas
+}
+
 interface Capabilities {
-  ai: boolean          // hay un LLM utilizable (nada funciona sin esto)
-  generation: boolean  // generar cursos/lecciones
-  tutor: boolean       // chat tutor
-  tts: boolean         // voz (mascota / podcast) — degrada a offline, ver degraded-mode
-  images: boolean      // infografías
+  ai: Capability           // hay un LLM utilizable (nada funciona sin esto)
+  generation: Capability   // generar cursos/lecciones
+  tutor: Capability        // chat tutor
+  tts: Capability          // voz (mascota / podcast) — degrada al motor offline, nunca bloquea
+  images: Capability       // infografías, ilustraciones de diapositivas — bloquea, no degrada
+  google_login: Capability // "Entrar con Google" configurado
 }
 ```
 
-- Backend: se calcula en un sitio (presencia de `LLM_API_KEY`, `TTS_API_KEY`, `OPENROUTER_API_KEY`).
-  Hoy `GET /setup/status` ya existe y es el sitio natural (ya le añadimos `onboarding_enabled`).
+- Backend: **una sola derivación** (`services/capabilities.derive_capabilities`), en dos
+  capas. La de configuración es una lectura pura de `settings` — sin red, no puede fallar,
+  y por eso se puede servir en el endpoint público. La de runtime
+  (`services/provider_health`) recuerda los fallos recientes del proveedor con un TTL y solo
+  puede **empeorar** una capacidad, nunca mejorarla.
+- `GET /setup/status` es **público y pre-autenticación**: lleva `status` y `reason`, y
+  `hint` siempre a `null`. Un `hint` nombra variables de entorno, y decirle a un anónimo qué
+  clave le falta al despliegue es divulgación de configuración (`docs/design/security.md`).
+  La versión con `hint` vive en `GET /settings/capabilities`, que pide admin.
+- Ambas respuestas llevan además `media_requirements`: qué capacidades necesita cada tipo de
+  artefacto (`{"infographic": ["ai", "images"], ...}`), para que el frontend no mantenga una
+  segunda copia de esa tabla. `POST /media/artifacts` la usa para rechazar en el acto, con
+  `409 capability_blocked`, lo que no puede terminar.
 - Frontend: **un hook `useCapabilities()`**. Cualquier pieza de IA lo consulta; nadie hardcodea
   "hay clave".
 
