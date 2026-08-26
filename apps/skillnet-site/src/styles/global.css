@@ -123,13 +123,12 @@ a {
   padding: 24px;
   color: var(--color-text);
   text-align: left;
-  transition: border-color .3s var(--ease-base), background .3s var(--ease-base), box-shadow .3s var(--ease-base);
+  transition: border-color .3s var(--ease-base), background .3s var(--ease-base);
 }
 
 .media-cell.is-active {
   background: #fbfcff;
   border-color: color-mix(in srgb, var(--color-primary) 62%, white);
-  box-shadow: 0 12px 30px rgba(30,61,110,.07);
 }
 
 .media-cell:focus-visible {
@@ -289,43 +288,24 @@ a {
   outline-offset: 3px;
 }
 
-.media-video__controls {
-  display: grid;
-  grid-template-columns: auto auto 1fr;
-  align-items: center;
-  gap: 9px;
-  min-height: 42px;
-  border: 1px solid var(--color-border);
-  border-top: 0;
-  border-radius: 0 0 8px 8px;
-  padding: 0 12px;
-  color: var(--color-text-secondary);
-  font-size: .7rem;
-}
-
+/* Only rendered under `prefers-reduced-motion`, where it seeks the narration to
+   the next line. It sits beside the play button, so it carries the same weight. */
 .media-video__step {
   display: grid;
   place-items: center;
-  border: 0;
-  border-radius: 4px;
-  background: none;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 999px;
+  background: #fff;
   padding: 0;
-  color: inherit;
+  color: var(--color-text);
   cursor: pointer;
 }
 
 .media-video__step:focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
-}
-
-.media-video__controls i {
-  height: 3px;
-  border-radius: 999px;
-  /* Driven by the element's own --progress, written by the component as it plays. */
-  background: linear-gradient(90deg,
-    var(--color-primary) var(--progress, 0%),
-    var(--color-border) var(--progress, 0%));
 }
 
 .media-audio {

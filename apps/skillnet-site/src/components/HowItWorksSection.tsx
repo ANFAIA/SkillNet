@@ -37,11 +37,6 @@ function releaseSolo(audio: HTMLAudioElement) {
   if (sounding === audio) sounding = null;
 }
 
-function formatTime(seconds: number): string {
-  const whole = Math.max(0, Math.floor(seconds));
-  return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, "0")}`;
-}
-
 /** Index of the caption being spoken at `time`, given the locale's cut points. */
 function frameAt(cuts: readonly number[], time: number): number {
   let index = 0;
@@ -56,8 +51,7 @@ function frameAt(cuts: readonly number[], time: number): number {
  *
  * It is deliberately not a `<video>` — the piece really is a short sequence of
  * images, and four webp frames plus one mp3 weigh a fraction of any encoded
- * clip. The frame, the caption, the counter and the progress bar all read the
- * same `currentTime`, so what is on screen is always what is being said; a
+ * clip. The frame and the caption both read the same `currentTime`, so what is on screen is always what is being said; a
  * second clock would drift against the voice within a line or two.
  *
  * With `prefers-reduced-motion` the narration still works — reduced motion is
@@ -70,7 +64,6 @@ function VideoCell({ copy, lang, reduced }: { copy: Copy["howItWorks"]; lang: Lo
   const audioRef = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
   const [time, setTime] = useState(0);
-  const [duration, setDuration] = useState(copy.videoDuration);
 
   // `timeupdate` only fires about four times a second, which is enough for a
   // progress bar but visibly late for a caption change. While the narration
@@ -90,7 +83,6 @@ function VideoCell({ copy, lang, reduced }: { copy: Copy["howItWorks"]; lang: Lo
 
   const cuts = copy.videoCuts;
   const index = frameAt(cuts, time);
-  const progress = duration ? Math.min(100, (time / duration) * 100) : 0;
 
   const toggle = () => {
     const audio = audioRef.current;
@@ -129,17 +121,11 @@ function VideoCell({ copy, lang, reduced }: { copy: Copy["howItWorks"]; lang: Lo
         >
           {playing ? <Pause size={22} fill="currentColor" /> : <Play size={22} fill="currentColor" />}
         </button>
+        {reduced && <button type="button" className="media-video__step" onClick={stepForward} aria-label={copy.videoNext}>
+          <ChevronRight size={18} />
+        </button>}
         <span className="media-video__subtitle">{copy.videoCaptions[index]}</span>
       </div>
-    </div>
-    <div className="media-video__controls">
-      {reduced
-        ? <button type="button" className="media-video__step" onClick={stepForward} aria-label={copy.videoNext}>
-            <ChevronRight size={14} />
-          </button>
-        : playing ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" />}
-      <span>{formatTime(time)} / {formatTime(duration)}</span>
-      <i style={{ "--progress": `${progress}%` } as React.CSSProperties} />
     </div>
     <audio
       ref={audioRef}
@@ -147,10 +133,6 @@ function VideoCell({ copy, lang, reduced }: { copy: Copy["howItWorks"]; lang: Lo
       preload="none"
       onPlay={() => setPlaying(true)}
       onPause={() => setPlaying(false)}
-      onLoadedMetadata={(event) => {
-        const value = event.currentTarget.duration;
-        if (Number.isFinite(value) && value > 0) setDuration(value);
-      }}
       onTimeUpdate={(event) => setTime(event.currentTarget.currentTime)}
       onEnded={(event) => {
         releaseSolo(event.currentTarget);
@@ -231,7 +213,7 @@ export default function HowItWorksSection({ lang = "es" }: { lang?: Locale }) {
           // A cell is a plain container, not a button: two of them now hold real
           // controls, and a button inside a button is invalid and unreachable by
           // keyboard. Highlighting follows pointer and focus instead of a click.
-          return <motion.div key={key} onMouseEnter={() => setActive(key)} onFocus={() => setActive(key)} className={`media-cell media-cell--${key} ${selected ? "is-active" : ""}`} whileHover={{ y: -2 }} transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}>
+          return <motion.div key={key} onMouseEnter={() => setActive(key)} onFocus={() => setActive(key)} className={`media-cell media-cell--${key} ${selected ? "is-active" : ""}`}>
             <span className="media-cell__label"><Icon size={19} strokeWidth={1.7} />{copy.modes[key]}</span>
             {key === "texto" && <div className="media-text"><strong>{copy.mediaHeading}</strong><p>{copy.idea}</p></div>}
             {key === "imagen" && <div className="media-image" role="img" aria-label={copy.imageAlt} />}
