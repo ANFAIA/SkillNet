@@ -122,9 +122,10 @@ services:
       # named volumes below actually hold them.
       MEDIA_ASSETS_DIR: ${MEDIA_ASSETS_DIR:-/data/media_assets}
       TTS_CACHE_DIR: ${TTS_CACHE_DIR:-/data/tts_cache}
-      # Runtime component selection for dynamic courses. Documented in .env.example, so
-      # they have to reach the container — there is no env_file, and a setting that is
-      # documented but not wired changes nothing and says nothing when you set it.
+      # Runtime component selection for dynamic courses. Research dials, so they are NOT in
+      # .env.example (docs/design/configuration.md, "Do not set"), but they stay wired here:
+      # there is no env_file, and a setting that is documented but not wired changes nothing
+      # and says nothing when you set it.
       RUNTIME_SELECTION_STRATEGY: ${RUNTIME_SELECTION_STRATEGY:-top5/v1}
       RUNTIME_SELECTION_EXECUTION: ${RUNTIME_SELECTION_EXECUTION:-live}
       # nginx sets X-Forwarded-For and X-Forwarded-Proto (docker/nginx.conf), and uvicorn

@@ -14,7 +14,9 @@ confidently wrong. So the files are linked, not pasted.
 - [`docker/compose/dev.yml`](../../docker/compose/dev.yml) — hot-reload overlay
 - [`docker/compose/ollama.yml`](../../docker/compose/ollama.yml) — local-model overlay
 - [`docker/api.Dockerfile`](../../docker/api.Dockerfile), [`docker/web.Dockerfile`](../../docker/web.Dockerfile), [`docker/nginx.conf`](../../docker/nginx.conf)
-- [`.env.example`](../../.env.example) — every variable, with the reasoning inline
+- [`.env.example`](../../.env.example) — the short list of what you have to fill in
+- [`configuration.md`](configuration.md) — every variable, its default, and whether Docker
+  actually passes it into the container
 
 ---
 
