@@ -33,6 +33,30 @@ services:
       retries: 10
 
   # ── Backend API ─────────────────────────────────────────────
+  # ── Data-volume repair (runs once, then exits) ───────────────
+  # A named volume takes its ownership from the image the first time Docker creates it and
+  # never again, so a volume made before the image created these paths stays root-owned
+  # through every rebuild — and every podcast and every infographic dies on
+  # `PermissionError: [Errno 13] Permission denied: '/data/media_assets/...'`. Reported
+  # from a real deployment whose image already carried the fix.
+  #
+  # Same image, `user: root`, `true` as the command: the entrypoint's repair branch runs,
+  # drops privileges, execs `true`, and the container exits 0. Keeping it out of `api`
+  # is what lets that service — and therefore every `docker compose exec` a person types —
+  # stay unprivileged, so a seed never leaves root-owned media behind.
+  api-init:
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+    user: root
+    command: ["true"]
+    restart: "no"
+    logging: *default-logging
+    volumes:
+      - uploads:/data/uploads
+      - media_assets:/data/media_assets
+      - tts_cache:/data/tts_cache
+
   api:
     build:
       context: .
@@ -145,6 +169,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      api-init:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8000/health').raise_for_status()"]
       interval: 10s

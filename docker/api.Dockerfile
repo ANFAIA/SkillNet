@@ -89,6 +89,14 @@ COPY docker/api-entrypoint.sh /usr/local/bin/api-entrypoint.sh
 RUN chmod 0755 /usr/local/bin/api-entrypoint.sh
 ENTRYPOINT ["/usr/local/bin/api-entrypoint.sh"]
 
+# The image runs unprivileged, and so does `docker compose exec` — which matters, because
+# every documented maintenance command is an exec, the seeds write into /data, and a seed
+# running as root would leave root-owned directories that the API then cannot write to.
+# The repair therefore does not live here: it is the `api-init` service, the same image
+# with `user: root` and `true` as its command, which runs the entrypoint's chown branch
+# and exits. `api` waits for it to finish.
+USER skillnet
+
 EXPOSE 8000
 
 # Migrations run on startup via the app lifespan (alembic upgrade head).
