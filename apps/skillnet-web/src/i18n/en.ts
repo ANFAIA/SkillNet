@@ -322,6 +322,52 @@ export const en: Record<string, string> = {
   'capabilityBanner.images': 'Image generation is off: infographics will render without a poster until you add an OpenRouter key.',
   'capabilityBanner.envHint': 'Keys are configured in the deployment .env (LLM_API_KEY for AI, TTS_API_KEY for voice, OPENROUTER_API_KEY for images) and the container needs a restart after editing it.',
   'capabilityBanner.dismiss': 'Dismiss notice',
+
+  // Capability explanations (docs/design/degraded-mode-ux.md) - the per-control half,
+  // shown by <Gated mode="explain"> on a control that is visible but inert. Assembled
+  // in lib/capabilityCopy.ts: a base sentence, plus the reason clause for whoever is
+  // looking. A learner never hears about keys or .env; an admin gets the fix.
+  'capability.unavailable': 'This feature is not available on this installation.',
+  'capability.ai.unavailable': 'AI is not available on this installation.',
+  'capability.generation.unavailable': 'Content generation is not available on this installation.',
+  'capability.tutor.unavailable': 'The tutor is not available on this installation.',
+  'capability.tts.unavailable': 'Voice is not available on this installation.',
+  'capability.images.unavailable': 'Image generation is not available on this installation.',
+  'capability.google_login.unavailable': 'Signing in with Google is not available on this installation.',
+
+  // Learner half. Says what to expect, never how the deployment is configured.
+  'capability.reason.missing_api_key': 'Whoever administers this installation can turn it on.',
+  'capability.reason.not_configured': 'Whoever administers this installation can turn it on.',
+  'capability.reason.provider_quota': 'The usage limit has been reached; try again later.',
+  'capability.reason.provider_down': 'The provider is not responding right now; try again later.',
+  'capability.reason.unknown': 'Whoever administers this installation can turn it on.',
+
+  // Admin half: the one action that ends the problem, appended to the base sentence.
+  'capability.admin.missing_api_key': 'The provider key is missing from the deployment .env.',
+  'capability.admin.not_configured': 'It is not configured in the deployment .env.',
+  'capability.admin.provider_quota': 'The provider returned a usage limit. Check the quota or plan of that key.',
+  'capability.admin.provider_down': 'The provider is not responding. Check its status and the API logs.',
+  'capability.admin.unknown': 'Check the deployment configuration in the .env.',
+  'capability.ai.admin.missing_api_key': 'LLM_API_KEY is missing from the deployment .env; restart the container after adding it.',
+  'capability.generation.admin.missing_api_key': 'LLM_API_KEY is missing from the deployment .env; restart the container after adding it.',
+  'capability.tutor.admin.missing_api_key': 'LLM_API_KEY is missing from the deployment .env; restart the container after adding it.',
+  'capability.tts.admin.missing_api_key': 'TTS_API_KEY is missing from the deployment .env; restart the container after adding it.',
+  'capability.images.admin.missing_api_key': 'IMAGE_API_KEY (or OPENROUTER_API_KEY) is missing from the deployment .env; restart the container after adding it.',
+  'capability.google_login.admin.missing_api_key': 'GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are missing from the deployment .env; restart the container after adding them.',
+
+  // Reduced, not missing: the kind still runs, it just returns less. Said next to the
+  // generate button rather than on the tile, because it describes the RESULT.
+  'capability.degraded': 'This runs in reduced mode: the result will be more limited.',
+  'capability.tts.degraded': 'Audio will use a basic offline voice, more robotic.',
+  'capability.images.degraded': 'It may come out without generated images.',
+
+  // Compact tags for the deployment-level banner, which keeps its own sentences.
+  'capability.statusLabel.degraded': 'Reduced mode',
+  'capability.statusLabel.blocked': 'Unavailable',
+  'capability.reasonLabel.missing_api_key': 'Key missing',
+  'capability.reasonLabel.not_configured': 'Not configured',
+  'capability.reasonLabel.provider_quota': 'Provider limit',
+  'capability.reasonLabel.provider_down': 'Provider unreachable',
   'settings.language': 'Language',
   'settings.languageDesc': 'Change the interface language.',
   'settings.langEs': 'Espanol',

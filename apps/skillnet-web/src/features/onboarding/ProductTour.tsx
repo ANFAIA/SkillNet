@@ -5,7 +5,7 @@ import { tourSteps, resolveSteps } from './steps'
 import { TourTooltip } from './TourTooltip'
 import { shouldAutoRun, writeOnboardingState } from './storage'
 import { useTourStore } from './useTourStore'
-import { useCapabilities } from '../../api/setup'
+import { readyFlags, useCapabilities } from '../../api/setup'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
 import type { SidebarRole } from '../../components/layout/Sidebar'
 
@@ -83,7 +83,7 @@ function EmployeeTourRunner() {
   // Resolve the employee steps and keep only the ones whose anchor is on screen right
   // now. Re-scanned on every (re)start (runId) so late-mounting anchors are picked up.
   const visibleSteps = useMemo(
-    () => resolveSteps(tourSteps, 'employee', capabilities).filter((s) => isVisible(s.target)),
+    () => resolveSteps(tourSteps, 'employee', readyFlags(capabilities)).filter((s) => isVisible(s.target)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [runId, capabilities],
   )
@@ -167,7 +167,7 @@ function AdminTourRunner() {
 
   // The admin steps are stable (only capability-gating drops one), so resolve once.
   const adminSteps = useMemo(
-    () => resolveSteps(tourSteps, 'admin', capabilities),
+    () => resolveSteps(tourSteps, 'admin', readyFlags(capabilities)),
     [capabilities],
   )
 

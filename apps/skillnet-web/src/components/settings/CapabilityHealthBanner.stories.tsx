@@ -1,7 +1,7 @@
 import type { Meta } from '@storybook/react-vite'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { CapabilityHealthBanner } from './CapabilityHealthBanner'
-import type { Capabilities, SetupStatus } from '../../api/setup'
+import type { Capabilities, CapabilityReason, SetupStatus } from '../../api/setup'
 
 /**
  * The admin-facing degraded-mode notice (docs/design/degraded-mode-ux.md §1). It reads
@@ -25,7 +25,16 @@ const meta: Meta<typeof CapabilityHealthBanner> = {
 }
 export default meta
 
-const ALL: Capabilities = { ai: true, generation: true, tutor: true, tts: true, images: true }
+const READY = { status: 'ready' } as const
+const blocked = (reason: CapabilityReason) => ({ status: 'blocked', reason }) as const
+
+const ALL: Capabilities = {
+  ai: READY,
+  generation: READY,
+  tutor: READY,
+  tts: READY,
+  images: READY,
+}
 
 function Story({ capabilities }: { capabilities: Capabilities }) {
   return (
@@ -42,11 +51,23 @@ export const AllPresent = () => <Story capabilities={ALL} />
 
 /** No LLM key: the most severe line, plus voice and images also off. */
 export const NoAi = () => (
-  <Story capabilities={{ ai: false, generation: false, tutor: false, tts: false, images: false }} />
+  <Story
+    capabilities={{
+      ai: blocked('missing_api_key'),
+      generation: blocked('missing_api_key'),
+      tutor: blocked('missing_api_key'),
+      tts: blocked('missing_api_key'),
+      images: blocked('missing_api_key'),
+    }}
+  />
 )
 
 /** Only voice is degraded — offline robotic fallback. */
-export const NoTts = () => <Story capabilities={{ ...ALL, tts: false }} />
+export const NoTts = () => (
+  <Story capabilities={{ ...ALL, tts: blocked('missing_api_key') }} />
+)
 
 /** Only image generation is off — infographics without a poster. */
-export const NoImages = () => <Story capabilities={{ ...ALL, images: false }} />
+export const NoImages = () => (
+  <Story capabilities={{ ...ALL, images: blocked('missing_api_key') }} />
+)

@@ -1,6 +1,10 @@
 import { useState } from 'react'
 import { useIntl } from 'react-intl'
-import { useCapabilities } from '../../api/setup'
+import { isReady, useCapabilities, type CapabilityName } from '../../api/setup'
+import { capabilityTag } from '../../lib/capabilityCopy'
+
+/** Watched in severity order: `ai` first (nothing AI works without it), then voice, then images. */
+const WATCHED: CapabilityName[] = ['ai', 'tts', 'images']
 
 /**
  * Consolidated, dismissible "what is degraded" notice for the admin surface
@@ -14,18 +18,24 @@ import { useCapabilities } from '../../api/setup'
  * Settings). Keys are not entered here — they live in the deployment `.env` — so this
  * only informs and points there; it never offers a form.
  *
- * Ordered by severity: `ai` first (nothing AI works without it), then `tts`, then
- * `images`.
+ * This is the **deployment-level** half of the degraded-mode story; the per-control
+ * half is `<Gated mode="explain">`, which says why *this button* is inert. They must
+ * not restate each other, so the banner keeps its own summary sentence and adds only
+ * what it never had: the machine-readable reason, as a short tag, plus the backend's
+ * admin-only `hint` when it sent one. This surface is admin-only, which is why the
+ * hint may be rendered here at all.
  */
 export function CapabilityHealthBanner() {
   const intl = useIntl()
-  const { ai, tts, images } = useCapabilities()
+  const capabilities = useCapabilities()
   const [dismissed, setDismissed] = useState(false)
 
-  const lines: string[] = []
-  if (!ai) lines.push(intl.formatMessage({ id: 'capabilityBanner.ai' }))
-  if (!tts) lines.push(intl.formatMessage({ id: 'capabilityBanner.tts' }))
-  if (!images) lines.push(intl.formatMessage({ id: 'capabilityBanner.images' }))
+  const lines = WATCHED.filter((name) => !isReady(capabilities[name])).map((name) => ({
+    name,
+    text: intl.formatMessage({ id: `capabilityBanner.${name}` }),
+    tag: capabilityTag(intl, capabilities[name]),
+    hint: capabilities[name].hint ?? null,
+  }))
 
   if (lines.length === 0 || dismissed) return null
 
@@ -39,8 +49,14 @@ export function CapabilityHealthBanner() {
       </p>
       <ul className="mt-1 space-y-1">
         {lines.map((line) => (
-          <li key={line} className="text-sm text-text-secondary">
-            {line}
+          <li key={line.name} className="text-sm text-text-secondary">
+            {line.tag && (
+              <span className="mr-2 rounded border border-warning/40 px-1.5 py-0.5 text-xs font-medium text-text-muted">
+                {line.tag}
+              </span>
+            )}
+            {line.text}
+            {line.hint && <span className="block text-xs text-text-muted">{line.hint}</span>}
           </li>
         ))}
       </ul>

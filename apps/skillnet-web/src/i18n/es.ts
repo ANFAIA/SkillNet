@@ -322,6 +322,52 @@ export const es: Record<string, string> = {
   'capabilityBanner.images': 'Generacion de imagenes desactivada: las infografias saldran sin poster hasta anadir una clave de OpenRouter.',
   'capabilityBanner.envHint': 'Las claves se configuran en el .env del despliegue (LLM_API_KEY para IA, TTS_API_KEY para voz, OPENROUTER_API_KEY para imagenes) y hace falta reiniciar el contenedor despues de editarlo.',
   'capabilityBanner.dismiss': 'Descartar aviso',
+
+  // Capability explanations (docs/design/degraded-mode-ux.md) - the per-control half,
+  // shown by <Gated mode="explain"> on a control that is visible but inert. Assembled
+  // in lib/capabilityCopy.ts: a base sentence, plus the reason clause for whoever is
+  // looking. A learner never hears about keys or .env; an admin gets the fix.
+  'capability.unavailable': 'Esta función no está disponible en esta instalación.',
+  'capability.ai.unavailable': 'La IA no está disponible en esta instalación.',
+  'capability.generation.unavailable': 'La generación de contenido no está disponible en esta instalación.',
+  'capability.tutor.unavailable': 'El tutor no está disponible en esta instalación.',
+  'capability.tts.unavailable': 'La voz no está disponible en esta instalación.',
+  'capability.images.unavailable': 'La generación de imágenes no está disponible en esta instalación.',
+  'capability.google_login.unavailable': 'El acceso con Google no está disponible en esta instalación.',
+
+  // Learner half. Says what to expect, never how the deployment is configured.
+  'capability.reason.missing_api_key': 'Quien administra esta instalación puede activarla.',
+  'capability.reason.not_configured': 'Quien administra esta instalación puede activarla.',
+  'capability.reason.provider_quota': 'Se ha alcanzado el límite de uso; vuelve a intentarlo más tarde.',
+  'capability.reason.provider_down': 'El proveedor no responde ahora mismo; vuelve a intentarlo más tarde.',
+  'capability.reason.unknown': 'Quien administra esta instalación puede activarla.',
+
+  // Admin half: the one action that ends the problem, appended to the base sentence.
+  'capability.admin.missing_api_key': 'Falta la clave del proveedor en el .env del despliegue.',
+  'capability.admin.not_configured': 'No está configurada en el .env del despliegue.',
+  'capability.admin.provider_quota': 'El proveedor ha devuelto un límite de uso. Revisa la cuota o el plan de la clave.',
+  'capability.admin.provider_down': 'El proveedor no responde. Revisa su estado y los logs de la API.',
+  'capability.admin.unknown': 'Revisa la configuración del despliegue en el .env.',
+  'capability.ai.admin.missing_api_key': 'Falta LLM_API_KEY en el .env del despliegue; reinicia el contenedor después de añadirla.',
+  'capability.generation.admin.missing_api_key': 'Falta LLM_API_KEY en el .env del despliegue; reinicia el contenedor después de añadirla.',
+  'capability.tutor.admin.missing_api_key': 'Falta LLM_API_KEY en el .env del despliegue; reinicia el contenedor después de añadirla.',
+  'capability.tts.admin.missing_api_key': 'Falta TTS_API_KEY en el .env del despliegue; reinicia el contenedor después de añadirla.',
+  'capability.images.admin.missing_api_key': 'Falta IMAGE_API_KEY (o OPENROUTER_API_KEY) en el .env del despliegue; reinicia el contenedor después de añadirla.',
+  'capability.google_login.admin.missing_api_key': 'Faltan GOOGLE_CLIENT_ID y GOOGLE_CLIENT_SECRET en el .env del despliegue; reinicia el contenedor después de añadirlas.',
+
+  // Reduced, not missing: the kind still runs, it just returns less. Said next to the
+  // generate button rather than on the tile, because it describes the RESULT.
+  'capability.degraded': 'Esta función está en modo reducido: el resultado será más limitado.',
+  'capability.tts.degraded': 'El audio usará una voz offline básica, más robótica.',
+  'capability.images.degraded': 'Puede salir sin imágenes generadas.',
+
+  // Compact tags for the deployment-level banner, which keeps its own sentences.
+  'capability.statusLabel.degraded': 'Modo reducido',
+  'capability.statusLabel.blocked': 'No disponible',
+  'capability.reasonLabel.missing_api_key': 'Falta la clave',
+  'capability.reasonLabel.not_configured': 'Sin configurar',
+  'capability.reasonLabel.provider_quota': 'Límite del proveedor',
+  'capability.reasonLabel.provider_down': 'Proveedor sin respuesta',
   'settings.language': 'Idioma',
   'settings.languageDesc': 'Cambia el idioma de la interfaz.',
   'settings.langEs': 'Espanol',

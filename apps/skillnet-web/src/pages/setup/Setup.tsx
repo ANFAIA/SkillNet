@@ -5,7 +5,7 @@ import { motion, AnimatePresence, LayoutGroup, useInstantLayoutTransition } from
 import { Button, Input } from '../../components/ui'
 import { Mascota } from '../../features/mascot'
 import { ApiError } from '../../api/client'
-import { useCapabilities, useSubmitSetup } from '../../api/setup'
+import { isAvailable, useCapabilities, useSubmitSetup } from '../../api/setup'
 import { useTourStore } from '../../features/onboarding/useTourStore'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
 import { duration, ease, spring } from '../../lib/motion'
@@ -39,6 +39,8 @@ export function Setup() {
   const reduce = useReducedMotion()
   const submit = useSubmitSetup()
   const { ai } = useCapabilities()
+  // The warning is about having no AI at all; a degraded LLM still generates.
+  const hasAi = isAvailable(ai)
   // Official hook, exactly as CreateCourse uses it: state changes inside the
   // callback skip the layout animation, so the reverse (Atrás) morph is instant
   // instead of springing backwards while the second card re-mounts.
@@ -160,7 +162,7 @@ export function Setup() {
             ))}
         </div>
 
-        {!ai && (
+        {!hasAi && (
           <p role="status" className="rounded-lg border border-warning/40 bg-warning/5 p-3 text-sm text-text-secondary">
             {intl.formatMessage({ id: 'setup.noAiWarning' })}
           </p>

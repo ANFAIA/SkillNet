@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
 import { Setup } from './Setup'
 import * as setupApi from '../../api/setup'
+import { blocked, caps } from '../../test/fixtures/capabilities'
 
 // Setup needs a QueryClient (its `useSubmitSetup` mutation) and a Router
 // (`useNavigate`). Intl is supplied globally by the test setup mock, so — like the
@@ -87,13 +88,11 @@ describe('Setup — first-boot wizard', () => {
   })
 
   it('warns about a missing AI key on the owner form when the deployment has none', async () => {
-    vi.spyOn(setupApi, 'useCapabilities').mockReturnValue({
-      ai: false,
-      generation: false,
-      tutor: false,
-      tts: true,
-      images: true,
-    })
+    vi.spyOn(setupApi, 'useCapabilities').mockReturnValue(
+      caps({ ai: blocked(), generation: blocked(), tutor: blocked() }) as Required<
+        setupApi.Capabilities
+      >,
+    )
     const user = userEvent.setup()
     renderSetup()
     await user.click(screen.getByRole('button', { name: 'Comenzar' }))

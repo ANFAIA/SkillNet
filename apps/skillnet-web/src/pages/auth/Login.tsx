@@ -4,7 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useIntl } from 'react-intl'
 import { Button, Card, Input, Logo } from '../../components/ui'
 import { useLogin } from '../../api/auth'
-import { useCapability } from '../../api/setup'
+import { isAvailable, useCapability } from '../../api/setup'
 import { useAuth } from '../../hooks/useAuth'
 import { ApiError } from '../../api/client'
 import { GoogleSignInButton } from './GoogleSignInButton'
@@ -34,7 +34,7 @@ export function Login() {
   const intl = useIntl()
   const login = useLogin()
   const { user } = useAuth()
-  const googleEnabled = useCapability('google_login')
+  const googleEnabled = isAvailable(useCapability('google_login'))
   const [searchParams] = useSearchParams()
   const googleError = searchParams.get('google_error')
 

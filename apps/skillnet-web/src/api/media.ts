@@ -20,6 +20,13 @@ import { get, post } from './client'
 export type MediaKind = 'podcast' | 'slides' | 'infographic' | 'video'
 
 /**
+ * The four kinds, in the order the studio offers them. The list of *what exists*;
+ * what each one *needs* is the backend's `media_requirements` table (`api/setup.ts`),
+ * never a second copy here.
+ */
+export const MEDIA_KINDS: MediaKind[] = ['podcast', 'video', 'infographic', 'slides']
+
+/**
  * Where an artefact is anchored (`MediaScope`): a single `node` (grounded on its own source
  * and referenceable inline by `PodcastPlayer`/`InfographicImage`), the whole `course`, or a
  * node-less `standalone` steered by the note. The backend infers it from `node_id` when
