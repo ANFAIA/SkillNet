@@ -112,6 +112,19 @@ const { nodes, openIds } = buildDocsFileTree(entries, locale, currentSlug, baseP
     line-height: 1.5;
     color: var(--color-text-secondary);
     text-decoration: none;
+  }
+
+  /* The anchor covers the whole height of its row, so nothing inside the row is
+     a dead tap target; the text keeps the ellipsis. */
+  .docs-tree__link {
+    display: flex;
+    align-items: center;
+    align-self: stretch;
+  }
+
+  .docs-tree__text,
+  .docs-tree__label--section {
+    min-width: 0;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;

@@ -3,6 +3,7 @@ import BaseLayout from "./BaseLayout.astro";
 import SiteHeader from "../components/SiteHeader.tsx";
 import SiteFooter from "../components/SiteFooter.tsx";
 import DocsSidebar from "../components/docs/DocsSidebar.astro";
+import { ClientRouter } from "astro:transitions";
 
 interface NavEntry {
   slug: string;
@@ -33,6 +34,14 @@ const navHere = isEn ? "On this page" : "Estás en";
 ---
 
 <BaseLayout title={`${title} · ${siteTitle}`} description={description} lang={locale} altHref={otherHref}>
+  {/* Docs pages navigate with view transitions so the sidebar below can survive
+      the swap (transition:persist). Without it every click is a full document
+      load: the island remounts, the tree re-collapses to whatever section the
+      new page sits in, and any folder the reader had opened is gone. Measured:
+      the tree jumped from 841px to 232px on a single click. The router lives
+      here and not in BaseLayout on purpose — only the docs section needs it, and
+      the marketing pages keep their plain full-page loads. */}
+  <ClientRouter slot="head" />
   <SiteHeader client:load variant="docs" locale={locale} altHref={otherHref} />
   <div class="docs-shell">
     <aside class="docs-shell__sidebar">
@@ -44,7 +53,11 @@ const navHere = isEn ? "On this page" : "Estás en";
         <span class="docs-nav__text type-ui">{navSummary}</span>
         {currentSlug && <span class="docs-nav__here type-ui">{navHere}: {title}</span>}
       </label>
-      <div class="docs-nav__panel">
+      {/* Only the panel persists across the swap, not the whole sidebar: the
+          checkbox and its label are rebuilt from the new page, so the "you are
+          on" line stays truthful and the phone menu returns to closed by
+          itself — no script racing the paint. */}
+      <div class="docs-nav__panel" transition:persist="docs-nav-panel">
         <DocsSidebar entries={navEntries} currentSlug={currentSlug} locale={locale} />
       </div>
     </aside>

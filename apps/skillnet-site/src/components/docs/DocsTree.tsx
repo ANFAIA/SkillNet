@@ -14,6 +14,24 @@ interface Props {
 const INDENT_BASE = 8;
 const INDENT_STEP = 12;
 
+/** Trailing slashes vary between the built pages and the hrefs; ignore them. */
+const normalize = (path: string) => path.replace(/\/+$/, "") || "/";
+
+/** id -> ids of every branch above it, plus href -> id, for the whole tree. */
+function indexTree(nodes: DocsFileTreeNode[]) {
+  const ancestors = new Map<string, string[]>();
+  const byHref = new Map<string, string>();
+  const walk = (list: DocsFileTreeNode[], trail: string[]) => {
+    for (const node of list) {
+      ancestors.set(node.id, trail);
+      if (node.href) byHref.set(normalize(node.href), node.id);
+      walk(node.children, [...trail, node.id]);
+    }
+  };
+  walk(nodes, []);
+  return { ancestors, byHref };
+}
+
 const COPY = {
   es: { nav: "Navegación de documentación", expand: "Desplegar", collapse: "Plegar" },
   en: { nav: "Documentation navigation", expand: "Expand", collapse: "Collapse" },
@@ -31,6 +49,9 @@ export default function DocsTree({ nodes, openIds, currentSlug, locale }: Props)
   // collapsed state instead of an entrance.
   const [armed, setArmed] = useState(false);
   const [open, setOpen] = useState<Set<string>>(() => new Set(openIds));
+  const [currentId, setCurrentId] = useState<string | undefined>(
+    currentSlug === undefined ? undefined : `doc:${currentSlug}`,
+  );
   // Arming itself must not animate; only what the reader does afterwards.
   const settled = useRef(false);
 
@@ -43,6 +64,29 @@ export default function DocsTree({ nodes, openIds, currentSlug, locale }: Props)
   }, [armed]);
 
   const animate = armed && !reduced && settled.current;
+
+  // Docs pages navigate with Astro's view transitions and this panel carries
+  // `transition:persist`, so the tree DOM — and this React state — survives the
+  // swap. That is the point: no remount, no re-collapse, no entrance replayed,
+  // and the folders the reader opened stay open. The cost is that nothing here
+  // is told the page changed, so the selection would keep pointing at the page
+  // left behind. The URL is the one thing that is always right, so read it.
+  useEffect(() => {
+    const { ancestors, byHref } = indexTree(nodes);
+    const sync = () => {
+      const id = byHref.get(normalize(window.location.pathname));
+      setCurrentId(id);
+      // A page reached from the article body may sit in a folder the reader has
+      // closed; open the way down to it so the selection is never hidden.
+      if (id) {
+        const trail = ancestors.get(id) ?? [];
+        setOpen((prev) => (trail.every((a) => prev.has(a)) ? prev : new Set([...prev, ...trail])));
+      }
+    };
+    sync();
+    document.addEventListener("astro:page-load", sync);
+    return () => document.removeEventListener("astro:page-load", sync);
+  }, [nodes]);
 
   const toggle = (id: string) =>
     setOpen((prev) => {
@@ -61,7 +105,7 @@ export default function DocsTree({ nodes, openIds, currentSlug, locale }: Props)
         armed={armed}
         animate={animate}
         toggle={toggle}
-        currentSlug={currentSlug}
+        currentId={currentId}
         copy={copy}
       />
     </nav>
@@ -76,18 +120,18 @@ interface BranchProps {
   armed: boolean;
   animate: boolean;
   toggle: (id: string) => void;
-  currentSlug?: string;
+  currentId?: string;
   copy: (typeof COPY)[keyof typeof COPY];
 }
 
-function Branch({ nodes, depth, parentOpen, open, armed, animate, toggle, currentSlug, copy }: BranchProps) {
+function Branch({ nodes, depth, parentOpen, open, armed, animate, toggle, currentId, copy }: BranchProps) {
   return (
     <ul className="docs-tree__list">
       {nodes.map((node, index) => {
         // Before arming, every branch is open: that is what the server renders.
         const isOpen = !armed || open.has(node.id);
         const isFolder = node.children.length > 0;
-        const isCurrent = node.slug !== undefined && node.slug === currentSlug;
+        const isCurrent = node.id === currentId;
         const padding = INDENT_BASE + depth * INDENT_STEP;
         const Icon = isFolder ? (isOpen ? FolderOpen : Folder) : FileText;
 
@@ -156,7 +200,11 @@ function Branch({ nodes, depth, parentOpen, open, armed, animate, toggle, curren
                   className="docs-tree__label docs-tree__link"
                   aria-current={isCurrent ? "page" : undefined}
                 >
-                  {node.label}
+                  {/* The text sits in its own span so the anchor can stretch to
+                      the full height of the row — on a phone the row is taller
+                      than the line, and a tap on that padding must still follow
+                      the link — while the ellipsis stays on the text itself. */}
+                  <span className="docs-tree__text">{node.label}</span>
                 </a>
               </div>
             )}
@@ -180,7 +228,7 @@ function Branch({ nodes, depth, parentOpen, open, armed, animate, toggle, curren
                   armed={armed}
                   animate={animate}
                   toggle={toggle}
-                  currentSlug={currentSlug}
+                  currentId={currentId}
                   copy={copy}
                 />
               </motion.div>
