@@ -52,7 +52,33 @@ def api_key_for(model: str) -> str | None:
         return settings.IMAGE_API_KEY
     if model.startswith("openrouter/"):
         return settings.OPENROUTER_API_KEY or None
-    return settings.LLM_API_KEY or None
+    if _same_provider_as_text(model):
+        return settings.LLM_API_KEY or None
+    return None
+
+
+def _provider_of(model: str) -> str:
+    """The provider litellm will route ``model`` to. No prefix means OpenAI, its default."""
+    return model.split("/", 1)[0] if "/" in model else "openai"
+
+
+def _same_provider_as_text(model: str) -> bool:
+    """Whether ``LLM_API_KEY`` can plausibly authenticate ``model``.
+
+    Reusing the text key is only sound when the same account serves both, and the model
+    names say so: `gpt-image-1` with `LLM_MODEL=gpt-4o-mini` is one OpenAI account, while
+    `gpt-image-1` with `LLM_MODEL=groq/llama-3.1-8b-instant` is a Groq key pointed at
+    OpenAI. Reading the second as "images are configured" is worse than reading it as
+    unconfigured: the interface then offers a button whose job dies on a 401, which is
+    the entire failure this gate exists to prevent — and it is the repo's own documented
+    default provider (CLAUDE.md measures against Groq).
+
+    A custom ``LLM_BASE_URL`` disqualifies the reuse too: the key belongs to whatever is
+    behind that endpoint, and nothing here can say what.
+    """
+    if settings.LLM_BASE_URL:
+        return False
+    return _provider_of(settings.LLM_MODEL) == _provider_of(model)
 
 
 def model_candidates(model: str | None = None, *, fallback: bool = True) -> list[str]:
@@ -137,16 +163,34 @@ async def generate_image(
             return await _decode_image(resp)
         except Exception as exc:  # noqa: BLE001 - normalized and possibly retried below
             last_exc = exc
-            # A key that is present but out of quota looks perfect to the config read in
-            # `services.capabilities`; this is the only place that knows better.
-            provider_health.record_failure(
-                provider_health.IMAGES, provider_health.failure_kind(exc)
-            )
             logger.warning("Image generation with %s failed: %s", candidate, exc)
+
+    # Recorded here and not inside the loop: a primary that fails and a fallback that
+    # succeeds is a working deployment, and marking the provider unhealthy on the way to
+    # returning good bytes would 409 every later request for the whole TTL. Only an
+    # attempt that left nothing to return is evidence of anything.
+    #
+    # A malformed request is excluded for the reason `llm.client` gives at its own
+    # boundary: a request this app built wrongly is not evidence that the provider is
+    # unwell, and letting it mark one is how a bug of ours turns into an outage of theirs.
+    if last_exc is not None and not _is_bad_request(last_exc):
+        provider_health.record_failure(
+            provider_health.IMAGES, provider_health.failure_kind(last_exc)
+        )
 
     raise LLMError(
         f"Image generation failed for {attempts}: {type(last_exc).__name__}: {last_exc}"
     )
+
+
+def _is_bad_request(exc: Exception) -> bool:
+    """A 4xx we caused: a bad size, a rejected prompt, our own decoding blowing up."""
+    if isinstance(exc, LLMError):
+        return True
+    status = getattr(exc, "status_code", None)
+    if isinstance(status, int) and status in (400, 422):
+        return True
+    return type(exc).__name__ in ("BadRequestError", "UnprocessableEntityError")
 
 
 __all__ = ["api_key_for", "generate_image", "images_are_available", "model_candidates"]
