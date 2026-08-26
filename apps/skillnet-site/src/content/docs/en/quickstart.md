@@ -36,6 +36,12 @@ values in your `.env`, and move on.
 | **A local model** | Nothing — use the overlay in step 3 | Free, private, offline. But **slow**: measured ~185 s to generate one lesson screen on CPU. Needs ~8 GB of RAM and ~5 GB of disk. Good for trying it without an account; not comfortable for real use. |
 | **Nothing at all** | `LLM_MODEL=fixture/local` and `EMBEDDING_MODEL=fixture/local` | Free and instant, but only screens with a recorded response render. Enough to click through the interface; not enough to author a course. |
 
+`.env.example` is about fifty lines. Its first section, `# ── Required ──`, is the three
+values you have to fill in: the two secrets below and your provider key. Everything after it
+already works. Every variable SkillNet reads — including the ones the example does not list —
+is in [`configuration.md`](/en/docs/configuration), with its default and whether Docker
+actually passes it into the container.
+
 Whichever row you picked, two values are always required:
 
 | Variable | How to fill it |
@@ -353,7 +359,8 @@ No router or firewall changes of any kind — unlike the Caddy path, there is no
 open on 80/443. Once the tunnel connects (check with `docker compose logs cloudflared`),
 the hostname you set in step 1 serves SkillNet over HTTPS, TLS handled entirely by
 Cloudflare. Set `COOKIE_SECURE=true` once traffic is genuinely arriving over HTTPS through
-the tunnel — see the `COOKIE_SECURE` note next to `DOMAIN` in `.env.example`.
+the tunnel — see "`COOKIE_SECURE` and the exposure overlays" in
+[`configuration.md`](/en/docs/configuration).
 
 ## Backing it up
 
@@ -403,8 +410,10 @@ worth knowing before you pull:
 - **Back up first** if the instance holds anything you care about. See above. A migration is
   not reversible in practice — the downgrade path exists for tests, and one of them changes a
   vector dimension, which cannot preserve the vectors.
-- **Read the diff of `.env.example`.** New settings appear there, and a setting that only
-  exists in your `.env` but not in `docker-compose.yml` never reaches the container.
+- **Read the diff of `.env.example`.** New settings you have to fill in appear there. For
+  anything else, [`configuration.md`](/en/docs/configuration) is the full list — and note that
+  a setting which exists in your `.env` but not in `docker-compose.yml` never reaches the
+  container. That page says which ones those are.
 
 ## Stopping it
 

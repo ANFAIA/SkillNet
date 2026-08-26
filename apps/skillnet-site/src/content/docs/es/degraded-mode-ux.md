@@ -9,7 +9,7 @@ section: "core"
 **Estado:** plan (no implementado, salvo lo indicado en §2)
 **Relacionado:** [`media-artifacts.md`](/docs/media-artifacts) §5,
 [`personalization.md`](/docs/personalization) §4, [`backend-api.md`](/docs/backend-api),
-[`../../.env.example`](https://github.com/ANFAIA/SkillNet/blob/main/.env.example), `README.md` §"Audio, images and the render cache"
+[`configuration.md`](/docs/configuration), `README.md` §"Audio, images and the render cache"
 
 > SkillNet degrada de formas concretas cuando faltan claves externas (ElevenLabs / OpenRouter)
 > o el proveedor devuelve errores de cuota. Hoy esas degradaciones son **invisibles** para

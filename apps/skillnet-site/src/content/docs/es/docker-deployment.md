@@ -20,7 +20,9 @@ seguro de sí mismo y equivocado. Así que los ficheros se enlazan, no se pegan.
 - [`docker/compose/dev.yml`](https://github.com/ANFAIA/SkillNet/blob/main/docker/compose/dev.yml) — capa de hot-reload
 - [`docker/compose/ollama.yml`](https://github.com/ANFAIA/SkillNet/blob/main/docker/compose/ollama.yml) — capa de modelo local
 - [`docker/api.Dockerfile`](https://github.com/ANFAIA/SkillNet/blob/main/docker/api.Dockerfile), [`docker/web.Dockerfile`](https://github.com/ANFAIA/SkillNet/blob/main/docker/web.Dockerfile), [`docker/nginx.conf`](https://github.com/ANFAIA/SkillNet/blob/main/docker/nginx.conf)
-- [`.env.example`](https://github.com/ANFAIA/SkillNet/blob/main/.env.example) — todas las variables, con el razonamiento en línea
+- [`.env.example`](https://github.com/ANFAIA/SkillNet/blob/main/.env.example) — la lista corta de lo que tienes que rellenar
+- [`configuration.md`](/docs/configuration) — todas las variables, su valor por defecto y si
+  Docker las pasa de verdad al contenedor
 
 ---
 

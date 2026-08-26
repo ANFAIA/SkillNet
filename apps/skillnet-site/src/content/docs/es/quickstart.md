@@ -36,6 +36,12 @@ valores en tu `.env`, y sigue adelante.
 | **Un modelo local** | Nada — usa el overlay del paso 3 | Gratis, privado, sin conexión. Pero **lento**: medido ~185 s para generar una pantalla de lección en CPU. Necesita ~8 GB de RAM y ~5 GB de disco. Bien para probarlo sin cuenta; no es cómodo para uso real. |
 | **Nada en absoluto** | `LLM_MODEL=fixture/local` y `EMBEDDING_MODEL=fixture/local` | Gratis e instantáneo, pero solo se renderizan las pantallas con una respuesta grabada. Suficiente para navegar por la interfaz; no para autorar un curso. |
 
+`.env.example` tiene unas cincuenta líneas. Su primera sección, `# ── Required ──`, son los
+tres valores que tienes que rellenar: los dos secretos de abajo y tu clave de proveedor.
+Todo lo que va después ya funciona. Todas las variables que lee SkillNet —incluidas las que
+el ejemplo no lista— están en [`configuration.md`](/docs/configuration), con su valor por
+defecto y si Docker las pasa de verdad al contenedor.
+
 Elijas lo que elijas, siempre hacen falta dos valores:
 
 | Variable | Cómo rellenarla |
@@ -362,8 +368,8 @@ Ningún cambio de router ni de cortafuegos de ningún tipo: al contrario que con
 nada que abrir en el 80/443. Una vez que el túnel conecta (compruébalo con
 `docker compose logs cloudflared`), el nombre de host que pusiste en el paso 1 sirve SkillNet
 por HTTPS, con el TLS enteramente en manos de Cloudflare. Pon `COOKIE_SECURE=true` cuando el
-tráfico llegue de verdad por HTTPS a través del túnel — ver la nota sobre `COOKIE_SECURE` junto
-a `DOMAIN` en `.env.example`.
+tráfico llegue de verdad por HTTPS a través del túnel — ver "`COOKIE_SECURE` y los overlays de
+exposición" en [`configuration.md`](/docs/configuration).
 
 ## Hacer copias de seguridad
 
@@ -415,8 +421,10 @@ cosas que conviene saber antes de hacer el pull:
 - **Haz una copia primero** si la instancia guarda algo que te importe. Ver más arriba. En la
   práctica una migración no es reversible: el camino de downgrade existe para los tests, y una
   de ellas cambia una dimensión de vector, lo que no puede conservar los vectores.
-- **Lee el diff de `.env.example`.** Ahí aparecen los ajustes nuevos, y un ajuste que solo
-  existe en tu `.env` pero no en `docker-compose.yml` nunca llega al contenedor.
+- **Lee el diff de `.env.example`.** Ahí aparecen los ajustes nuevos que tienes que rellenar.
+  Para todo lo demás, [`configuration.md`](/docs/configuration) es la lista completa — y ojo:
+  un ajuste que solo existe en tu `.env` pero no en `docker-compose.yml` nunca llega al
+  contenedor. Esa página dice cuáles son.
 
 ## Detenerlo
 

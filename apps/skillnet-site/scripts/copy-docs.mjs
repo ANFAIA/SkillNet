@@ -19,6 +19,7 @@ const esDir = join(here, "..", "src", "content", "docs", "es");
 
 const entries = [
   { slug: "quickstart", title: "Arranque rápido", titleEn: "Quickstart", order: 1, section: "start", src: join(repoRoot, "RUNNING.md") },
+  { slug: "configuration", title: "Configuración", titleEn: "Configuration", order: 2, section: "start", src: join(repoRoot, "docs/design/configuration.md") },
   { slug: "architecture", title: "Arquitectura", titleEn: "Architecture", order: 2, section: "core", src: join(repoRoot, "docs/design/architecture.md") },
   { slug: "backend-api", title: "API backend", titleEn: "Backend API", order: 3, section: "core", src: join(repoRoot, "docs/design/backend-api.md") },
   { slug: "data-model", title: "Modelo de datos", titleEn: "Data model", order: 4, section: "core", src: join(repoRoot, "docs/design/data-model.md") },

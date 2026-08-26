@@ -2191,7 +2191,9 @@ fail — exactly the "the whole flow can be demoed locally with no key" promise.
 **`src/llm/fixture_data/`**, ship in the image with `src`, and there's no need to touch the
 Dockerfile. Tests point at the same directory.
 
-All of these are documented in `.env.example` and in `docker-compose.yml`.
+All of these are documented in [`configuration.md`](/en/docs/configuration), which also says
+which of them actually reach the container: `LLM_FIXTURE_DIR` and `LLM_FIXTURE_MODE` are no
+longer in `.env.example`, because there is no reason to touch them.
 
 ---
 

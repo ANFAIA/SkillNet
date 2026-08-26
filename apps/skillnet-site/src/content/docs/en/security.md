@@ -906,7 +906,7 @@ volumes:
 **Deployment documentation recommends:**
 - Running behind a reverse proxy (nginx, Caddy, Traefik) that handles TLS termination.
 - Using Let's Encrypt for automatic HTTPS certificate management.
-- Setting `POSTGRES_PASSWORD` to a strong random value (the example in `.env.example` is deliberately invalid to force the admin to change it).
+- Setting `POSTGRES_PASSWORD` to a strong random value. `.env.example` ships the line empty, so `docker compose up` refuses to start until it is filled in — and it must use letters, digits, `-` and `_` only, because it goes into the connection URL unescaped. See [`configuration.md`](/en/docs/configuration).
 - Restricting database port (5432) to localhost only — no external access.
 - Regular automated backups of the PostgreSQL data volume.
 

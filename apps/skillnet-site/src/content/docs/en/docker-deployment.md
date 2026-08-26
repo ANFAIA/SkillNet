@@ -20,7 +20,9 @@ confidently wrong. So the files are linked, not pasted.
 - [`docker/compose/dev.yml`](https://github.com/ANFAIA/SkillNet/blob/main/docker/compose/dev.yml) — hot-reload overlay
 - [`docker/compose/ollama.yml`](https://github.com/ANFAIA/SkillNet/blob/main/docker/compose/ollama.yml) — local-model overlay
 - [`docker/api.Dockerfile`](https://github.com/ANFAIA/SkillNet/blob/main/docker/api.Dockerfile), [`docker/web.Dockerfile`](https://github.com/ANFAIA/SkillNet/blob/main/docker/web.Dockerfile), [`docker/nginx.conf`](https://github.com/ANFAIA/SkillNet/blob/main/docker/nginx.conf)
-- [`.env.example`](https://github.com/ANFAIA/SkillNet/blob/main/.env.example) — every variable, with the reasoning inline
+- [`.env.example`](https://github.com/ANFAIA/SkillNet/blob/main/.env.example) — the short list of what you have to fill in
+- [`configuration.md`](/en/docs/configuration) — every variable, its default, and whether Docker
+  actually passes it into the container
 
 ---
 

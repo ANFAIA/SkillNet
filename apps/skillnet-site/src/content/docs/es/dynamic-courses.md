@@ -2185,7 +2185,9 @@ fallarían — justo la promesa de "el flujo completo se demuestra en local sin 
 fixtures viven en **`src/llm/fixture_data/`**, entran en la imagen con `src` y no hay que tocar el
 Dockerfile. Los tests apuntan al mismo directorio.
 
-Todas se documentan en `.env.example` y en `docker-compose.yml`.
+Todas se documentan en [`configuration.md`](/docs/configuration), que dice ademas cuales de
+ellas llegan de verdad al contenedor: `LLM_FIXTURE_DIR` y `LLM_FIXTURE_MODE` ya no aparecen
+en `.env.example`, porque no hay razon para tocarlas.
 
 ---
 
