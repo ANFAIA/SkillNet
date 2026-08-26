@@ -49,19 +49,19 @@ _HINTS: dict[CapabilityReason, dict[str, str]] = {
     },
     CapabilityReason.PROVIDER_QUOTA: {
         "ai": "The LLM provider is refusing calls for quota or credit. Check the account's "
-        "plan; this clears itself once calls succeed again.",
+        "plan; this clears itself a few minutes after the failures stop.",
         "images": "The image provider is refusing calls for quota or credit. Check the "
-        "account's plan; this clears itself once calls succeed again.",
+        "account's plan; this clears itself a few minutes after the failures stop.",
         "tts": "The voice provider is refusing calls for quota or credit. Check the "
-        "account's plan; this clears itself once calls succeed again.",
+        "account's plan; this clears itself a few minutes after the failures stop.",
     },
     CapabilityReason.PROVIDER_DOWN: {
         "ai": "Recent LLM calls failed or timed out. Check LLM_BASE_URL and the provider's "
-        "status; this clears itself once calls succeed again.",
+        "status; this clears itself a few minutes after the failures stop.",
         "images": "Recent image calls failed or timed out. Check IMAGE_MODEL and the "
-        "provider's status; this clears itself once calls succeed again.",
+        "provider's status; this clears itself a few minutes after the failures stop.",
         "tts": "Recent voice calls failed or timed out. Check TTS_PROVIDER and the "
-        "provider's status; this clears itself once calls succeed again.",
+        "provider's status; this clears itself a few minutes after the failures stop.",
     },
 }
 

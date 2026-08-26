@@ -208,7 +208,15 @@ class ElevenLabsProvider(TTSProvider):
             resp = await client.post(url, headers=headers, json=body)
             if resp.status_code != 200:
                 detail = resp.text[:300]
-                raise RuntimeError(f"ElevenLabs API error {resp.status_code}: {detail}")
+                # The status travels on the exception, not only inside its message.
+                # `provider_health.failure_kind` reads a `status_code` attribute and
+                # deliberately parses nothing out of prose, so without this an ElevenLabs
+                # 429 — the one provider here whose quota really does run out — could
+                # only ever be classified as an outage, and the admin would be sent to
+                # check a status page instead of the account's plan.
+                error = RuntimeError(f"ElevenLabs API error {resp.status_code}: {detail}")
+                error.status_code = resp.status_code  # type: ignore[attr-defined]
+                raise error
             return resp.content
 
     def available_voices(self) -> list[dict[str, str]]:

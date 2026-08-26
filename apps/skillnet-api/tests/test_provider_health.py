@@ -147,3 +147,15 @@ def test_classification_never_raises_on_a_hostile_exception() -> None:
             raise ValueError("no")
 
     assert provider_health.failure_kind(_Hostile()) == "down"
+
+
+def test_an_elevenlabs_quota_error_reads_as_quota():
+    """The provider whose quota actually runs out must not be reported as an outage.
+
+    It normalizes its HTTP failure into a RuntimeError; the status has to travel on the
+    exception, because classification deliberately refuses to read the message.
+    """
+    error = RuntimeError("ElevenLabs API error 429: quota exceeded")
+    error.status_code = 429
+
+    assert provider_health.failure_kind(error) == "quota"

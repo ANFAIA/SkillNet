@@ -519,7 +519,14 @@ class LLMService:
         except Exception as exc:  # noqa: BLE001 - normalize all provider errors
             # Not `BadRequestError`, which is handled above: a request this app built
             # wrongly is not evidence that the provider is unwell.
-            provider_health.record_failure(provider_health.LLM, "down")
+            #
+            # Classified, not hardcoded: a 402 out-of-credit reaches here as a plain
+            # `APIError` rather than a `RateLimitError`, and calling that "the provider is
+            # down" sends the admin to check an endpoint's status page when the answer is
+            # to top the account up. The streaming path already asks the same question.
+            provider_health.record_failure(
+                provider_health.LLM, provider_health.failure_kind(exc)
+            )
             logger.error("LLM completion failed: %s", exc, exc_info=True)
             raise LLMError(_failure_message(exc)) from exc
 
