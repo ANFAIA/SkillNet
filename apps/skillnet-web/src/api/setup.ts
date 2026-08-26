@@ -18,6 +18,16 @@ export interface Capabilities {
   tts: boolean
   /** Infographics. */
   images: boolean
+  /**
+   * "Sign in with Google" is configured on the backend. Not an AI capability, but it
+   * travels on the same public, pre-authentication payload the login screen already
+   * reads, which is the only channel available before anyone has a session.
+   *
+   * Optional, like the payload it rides on: a backend from before this feature sends
+   * `capabilities` without it, and `useCapabilities` fills the gap from the defaults
+   * below rather than letting `undefined` reach a consumer.
+   */
+  google_login?: boolean
 }
 
 /**
@@ -26,12 +36,17 @@ export interface Capabilities {
  * capability is never hidden unexpectedly (docs/design/onboarding.md §2.2: the AI
  * side is additive; a missing signal must not silently strip UI that used to work).
  */
-export const DEFAULT_CAPABILITIES: Capabilities = {
+export const DEFAULT_CAPABILITIES: Required<Capabilities> = {
   ai: true,
   generation: true,
   tutor: true,
   tts: true,
   images: true,
+  // The one flag that defaults OFF, deliberately breaking the "default to available"
+  // rule above. That rule protects UI that used to work; this is a button that leads
+  // straight to a 404 unless the backend really does have Google credentials, so the
+  // safe fallback is the opposite one.
+  google_login: false,
 }
 
 export interface SetupStatus {
@@ -75,12 +90,16 @@ export function useSetupStatus() {
  */
 export function useCapabilities(): Capabilities {
   const { data } = useSetupStatus()
-  return data?.capabilities ?? DEFAULT_CAPABILITIES
+  // Merged, not replaced: a backend that predates a flag omits it, and the default
+  // for that one flag is the right answer — dropping to `undefined` is not.
+  return { ...DEFAULT_CAPABILITIES, ...(data?.capabilities ?? {}) }
 }
 
 /** A single capability flag (§2.2). Convenience over {@link useCapabilities}. */
 export function useCapability(name: keyof Capabilities): boolean {
-  return useCapabilities()[name]
+  // `Boolean(...)`, because a flag can be optional on the interface: an absent one
+  // must read as "off" and never leak `undefined` into a JSX condition.
+  return Boolean(useCapabilities()[name])
 }
 
 /** Create the owner and set the workspace mode. On success the session cookie is

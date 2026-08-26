@@ -25,6 +25,7 @@ from src.routes import (
     activities,
     ai,
     auth,
+    auth_google,
     chat,
     course_folders,
     course_schema,
@@ -149,6 +150,8 @@ def create_app() -> FastAPI:
     app.include_router(ai.router, prefix=prefix)
     app.include_router(activities.router, prefix=prefix)
     app.include_router(auth.router, prefix=prefix)
+    # Sign in with Google. Every path 404s unless the deployment has credentials.
+    app.include_router(auth_google.router, prefix=prefix)
     # Public, single-shot first-boot setup (closes once a user exists).
     app.include_router(setup.router, prefix=prefix)
     app.include_router(users.router, prefix=prefix)

@@ -12,6 +12,7 @@ from src.config import settings
 from src.llm.fixtures import FIXTURE_PREFIX
 from src.personalization.modality import tts_is_available
 from src.schemas.setup import Capabilities
+from src.services.google_oauth import is_enabled as google_oauth_is_enabled
 
 
 def _llm_is_available() -> bool:
@@ -40,4 +41,5 @@ def derive_capabilities() -> Capabilities:
         tutor=ai,
         tts=tts_is_available(settings.TTS_PROVIDER) and bool(settings.TTS_API_KEY),
         images=_images_are_available(),
+        google_login=google_oauth_is_enabled(),
     )

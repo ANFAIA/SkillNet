@@ -106,6 +106,13 @@ services:
       SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env (32 caracteres o mas)}
       SESSION_LIFETIME_SECONDS: ${SESSION_LIFETIME_SECONDS:-604800}
       COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      # Sign in with Google (optional). Empty client id/secret keeps the feature off
+      # and the /auth/google/* routes answering 404.
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-}
+      GOOGLE_POST_LOGIN_PATH: ${GOOGLE_POST_LOGIN_PATH:-/}
+      GOOGLE_LOGIN_ERROR_PATH: ${GOOGLE_LOGIN_ERROR_PATH:-/login}
       # Without this line the `.env` never arrives: no service declares `env_file`, and
       # `.dockerignore` keeps `.env` out of the image, so pydantic's `env_file=".env"`
       # finds nothing inside the container. Only the keys listed here get through — which

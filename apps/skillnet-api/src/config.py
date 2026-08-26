@@ -21,6 +21,27 @@ class Settings(BaseSettings):
     COOKIE_NAME: str = "skillnet_session"
     COOKIE_SECURE: bool = True
 
+    # Sign in with Google (OAuth 2.0 authorization code + PKCE).
+    #
+    # Empty CLIENT_ID or CLIENT_SECRET disables the whole feature: the routes answer
+    # 404 and the SPA never shows the button. What Google does with the resulting
+    # identity depends on the organization's `workspace_mode`, not on config — see
+    # src/services/google_oauth.py.
+    GOOGLE_CLIENT_ID: str = ""
+    GOOGLE_CLIENT_SECRET: str = ""
+    #: Absolute URL of this API's callback, registered verbatim as an authorized
+    #: redirect URI in the Google Cloud console. Google rejects the exchange on any
+    #: mismatch, down to the trailing slash. Empty means "derive it from the incoming
+    #: request", which is right behind a single known front door and wrong behind a
+    #: proxy that rewrites Host, so set it explicitly in any real deployment.
+    GOOGLE_REDIRECT_URI: str = ""
+    #: Where the browser lands after the callback has set the session cookie. A path
+    #: on the SPA, not a URL, so it cannot be turned into an open redirect.
+    GOOGLE_POST_LOGIN_PATH: str = "/"
+    #: Where the browser lands when the callback refuses the identity. The reason
+    #: travels as a `google_error` query parameter for the SPA to translate.
+    GOOGLE_LOGIN_ERROR_PATH: str = "/login"
+
     # LLM (defaults, overridable per org)
     LLM_BASE_URL: str = "https://api.openai.com/v1"
     LLM_API_KEY: str = ""

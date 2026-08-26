@@ -1,11 +1,28 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useIntl } from 'react-intl'
 import { Button, Card, Input, Logo } from '../../components/ui'
 import { useLogin } from '../../api/auth'
+import { useCapability } from '../../api/setup'
 import { useAuth } from '../../hooks/useAuth'
 import { ApiError } from '../../api/client'
+import { GoogleSignInButton } from './GoogleSignInButton'
+
+/**
+ * Reasons the Google callback can refuse a sign-in. The backend sends the code, never
+ * the sentence: the callback is a browser redirect, so the message has to be written
+ * here where the language is known.
+ */
+const GOOGLE_ERROR_IDS: Record<string, string> = {
+  not_invited: 'login.googleNotInvited',
+  email_unverified: 'login.googleEmailUnverified',
+  inactive: 'login.googleInactive',
+  already_linked: 'login.googleAlreadyLinked',
+  cancelled: 'login.googleCancelled',
+  invalid_state: 'login.googleExpired',
+  not_initialized: 'login.googleNotInitialized',
+}
 
 const HOME_BY_ROLE = {
   admin: '/admin',
@@ -17,6 +34,9 @@ export function Login() {
   const intl = useIntl()
   const login = useLogin()
   const { user } = useAuth()
+  const googleEnabled = useCapability('google_login')
+  const [searchParams] = useSearchParams()
+  const googleError = searchParams.get('google_error')
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -39,6 +59,10 @@ export function Login() {
     )
   }
 
+  const googleErrorMessage = googleError
+    ? intl.formatMessage({ id: GOOGLE_ERROR_IDS[googleError] ?? 'login.googleGenericError' })
+    : null
+
   const errorMessage =
     login.error instanceof ApiError
       ? login.error.status === 400 || login.error.status === 401
@@ -56,6 +80,12 @@ export function Login() {
           <h1 className="text-lg font-semibold text-text mt-3">SkillNet</h1>
           <p className="text-sm text-text-secondary mt-0.5">{intl.formatMessage({ id: 'login.subtitle' })}</p>
         </div>
+
+        {googleErrorMessage && (
+          <p className="text-sm text-danger mb-4" role="alert">
+            {googleErrorMessage}
+          </p>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input
@@ -88,6 +118,19 @@ export function Login() {
             {login.isPending ? intl.formatMessage({ id: 'login.loggingIn' }) : intl.formatMessage({ id: 'login.submit' })}
           </Button>
         </form>
+
+        {googleEnabled && (
+          <>
+            <div className="flex items-center gap-3 my-5">
+              <span className="h-px flex-1 bg-border" />
+              <span className="text-xs uppercase tracking-wide text-text-muted">
+                {intl.formatMessage({ id: 'login.or' })}
+              </span>
+              <span className="h-px flex-1 bg-border" />
+            </div>
+            <GoogleSignInButton disabled={login.isPending} />
+          </>
+        )}
       </Card>
     </div>
   )

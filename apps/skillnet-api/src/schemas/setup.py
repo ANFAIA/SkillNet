@@ -29,6 +29,10 @@ class Capabilities(BaseModel):
     tts: bool
     #: Infographics / generated images.
     images: bool
+    #: "Sign in with Google" is configured, so the login screen may offer it.
+    #: Not an AI capability, but it rides the same config-derived channel the
+    #: login screen already reads before anyone is authenticated.
+    google_login: bool = False
 
 
 class SetupStatus(BaseModel):
