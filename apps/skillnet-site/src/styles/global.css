@@ -123,7 +123,6 @@ a {
   padding: 24px;
   color: var(--color-text);
   text-align: left;
-  cursor: pointer;
   transition: border-color .3s var(--ease-base), background .3s var(--ease-base), box-shadow .3s var(--ease-base);
 }
 
@@ -200,20 +199,54 @@ a {
 }
 
 .media-video__still {
-  display: flex;
+  display: grid;
+  grid-template-areas: "stack";
   flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: 8px 8px 0 0;
+  background: var(--color-primary-deep);
+}
+
+/* Frames and controls share the one grid cell, so the controls paint over the
+   image because they come later in the DOM -- no stacking context, no z-index. */
+.media-video__still > * {
+  grid-area: stack;
+  min-width: 0;
+}
+
+.media-video__frames {
+  display: grid;
+  grid-template-areas: "frame";
+  overflow: hidden;
+}
+
+.media-video__frame {
+  grid-area: frame;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity .45s var(--ease-base);
+}
+
+.media-video__frame.is-current {
+  opacity: 1;
+}
+
+.media-video__overlay {
+  /* Positioned, so it paints over the replaced <img> elements sharing its grid
+     cell. In-flow images otherwise win against a non-positioned sibling's
+     content, and the play button stops being clickable. No z-index needed. */
+  position: relative;
+  display: flex;
+  min-height: 0;
   flex-direction: column;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  overflow: hidden;
   padding: 14px;
-  border-radius: 8px 8px 0 0;
-  background-image:
-    linear-gradient(rgba(30,61,110,.08), rgba(30,61,110,.22)),
-    url('/images/landing/multimodal/learning-differences-video-frame-v1.webp');
-  background-position: center;
-  background-size: cover;
+  background: linear-gradient(rgba(30,61,110,.08), rgba(30,61,110,.34));
 }
 
 .media-video__subtitle {
@@ -239,7 +272,21 @@ a {
   border: 1px solid rgba(255,255,255,.8);
   border-radius: 50%;
   background: rgba(30,61,110,.64);
+  padding: 0;
   color: #fff;
+  cursor: pointer;
+  transition: background .25s var(--ease-base), transform .25s var(--ease-base);
+}
+
+.media-play:hover {
+  background: rgba(30,61,110,.82);
+  transform: scale(1.05);
+}
+
+.media-play:focus-visible,
+.media-audio__play:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
 }
 
 .media-video__controls {
@@ -259,7 +306,10 @@ a {
 .media-video__controls i {
   height: 3px;
   border-radius: 999px;
-  background: linear-gradient(90deg, var(--color-primary) 38%, var(--color-border) 38%);
+  /* Driven by the element's own --progress, written by the component as it plays. */
+  background: linear-gradient(90deg,
+    var(--color-primary) var(--progress, 0%),
+    var(--color-border) var(--progress, 0%));
 }
 
 .media-audio {
@@ -286,9 +336,18 @@ a {
   width: 54px;
   height: 54px;
   place-items: center;
+  border: 0;
   border-radius: 50%;
   background: var(--color-accent);
+  padding: 0;
   color: #fff;
+  cursor: pointer;
+  transition: transform .25s var(--ease-base), filter .25s var(--ease-base);
+}
+
+.media-audio__play:hover {
+  transform: scale(1.05);
+  filter: brightness(1.06);
 }
 
 .waveform {
@@ -307,7 +366,12 @@ a {
   max-width: 5px;
   border-radius: 4px;
   background: var(--color-accent);
-  opacity: .82;
+  opacity: .24;
+  transition: opacity .18s linear;
+}
+
+.waveform i.is-played {
+  opacity: .92;
 }
 
 .media-audio p {
@@ -760,14 +824,19 @@ a.social-link:hover {
   .builtwith-card__blob {
     animation: none;
   }
+
+  .media-video__frame {
+    transition: none;
+  }
 }
 
 @media (max-width: 1000px) {
   /* Narrow panes: from here down a media cell is only ~215px wide, whether the
      grid still has two columns or has already collapsed to one. */
 
-  /* 48 bars with a 3px gap need 189px of gutter alone, so the bars collapsed to
-     nothing and the row spilled out of the clipped card. */
+  /* 48 bars with a 3px gap needed 189px of gutter alone, so the bars collapsed to
+     nothing and the row spilled out of the clipped card. 28 bars fit; keep the
+     gap tight here anyway. */
   .waveform {
     height: 68px;
     gap: 1px;

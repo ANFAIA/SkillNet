@@ -52,8 +52,17 @@ const es = {
     modes: { texto: "Texto", imagen: "Imagen", video: "Vídeo", audio: "Audio" },
     mediaHeading: "Todos aprendemos de forma distinta.",
     imageAlt: "Infografía: todos aprendemos de forma distinta",
-    videoSubtitle:
-      "The same idea may need another explanation, example or way to practise it.",
+    videoCaptions: [
+      "Cuatro personas, el mismo curso.",
+      "Una lo dibuja para entenderlo.",
+      "Otro prefiere escucharlo.",
+      "Mismo conocimiento, distinto camino.",
+    ],
+    videoPlay: "Reproducir la secuencia",
+    videoPause: "Pausar la secuencia",
+    videoNext: "Ver el siguiente fotograma",
+    audioPlay: "Reproducir el resumen en audio",
+    audioPause: "Pausar el resumen en audio",
     audioQuote: "“Todos aprendemos de forma distinta…”",
     caption:
       "El formato es solo una parte. La explicación, la práctica y la interfaz también pueden cambiar.",
@@ -173,8 +182,17 @@ const en: typeof es = {
     modes: { texto: "Text", imagen: "Image", video: "Video", audio: "Audio" },
     mediaHeading: "We all learn differently.",
     imageAlt: "Infographic: we all learn differently",
-    videoSubtitle:
-      "The same idea may need another explanation, example or way to practise it.",
+    videoCaptions: [
+      "Four people, the same course.",
+      "One draws it to understand it.",
+      "Another would rather hear it.",
+      "Same knowledge, a different route.",
+    ],
+    videoPlay: "Play the sequence",
+    videoPause: "Pause the sequence",
+    videoNext: "Show the next frame",
+    audioPlay: "Play the audio overview",
+    audioPause: "Pause the audio overview",
     audioQuote: "“We all learn differently…”",
     caption:
       "Format is only one part. The explanation, the practice and the interface can change too.",
