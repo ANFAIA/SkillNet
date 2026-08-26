@@ -48,7 +48,7 @@ the output quality will be improved, without turning the podcast into part of ch
 Realtime.
 
 The modular, configurable plan is defined in
-[podcast-studio-plan.md](podcast-studio-plan.md).
+[podcast-studio-plan.md](/en/docs/podcast-studio-plan).
 
 ## Relationship to audience modes
 

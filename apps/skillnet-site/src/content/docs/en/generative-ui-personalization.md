@@ -127,4 +127,4 @@ hide or replace what the person asked for. The system can suggest alternatives, 
 change requires acceptance.
 
 The separation between presentation preference, accessibility, pedagogical strategy, and
-component is defined in [`adaptive-learning.md`](adaptive-learning.md).
+component is defined in [`adaptive-learning.md`](/en/docs/adaptive-learning).

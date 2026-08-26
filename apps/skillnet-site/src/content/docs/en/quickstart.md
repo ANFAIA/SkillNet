@@ -67,7 +67,7 @@ docker compose -f docker-compose.yml -f docker/compose/ollama.yml up -d --build
 
 A cold build takes a couple of minutes. The ollama overlay also downloads the models (a few
 GB) before the API comes up, so give the first start time. See
-[`docker/compose/ollama.yml`](docker/compose/ollama.yml) for what it does and which model ids
+[`docker/compose/ollama.yml`](https://github.com/ANFAIA/SkillNet/blob/main/docker/compose/ollama.yml) for what it does and which model ids
 are valid.
 
 ## Step 4 — Open it and create your account
@@ -134,7 +134,7 @@ predates dynamic courses and exists to compare the old static path.
 By default a deployment runs in `organization` mode (a company/team/class, the flow above).
 The other mode is `individual`: one person who installs SkillNet for themselves and both
 administers and learns — no employees, talent, assignments or org reports. See
-[`docs/design/audience-modes.md`](docs/design/audience-modes.md).
+[`docs/design/audience-modes.md`](/en/docs/audience-modes).
 
 The mode is a stable per-deployment setting, chosen one of two ways:
 
@@ -415,7 +415,7 @@ docker compose down -v    # stop, destroy the database and uploads
 
 ---
 
-**Next:** [`README.md`](README.md) for what SkillNet is and how it works,
-[`AGENTS.md`](AGENTS.md) for conventions and boundaries when changing the code, and
-[`docs/design/docker-deployment.md`](docs/design/docker-deployment.md) for why the deployment
+**Next:** [`README.md`](https://github.com/ANFAIA/SkillNet/blob/main/README.md) for what SkillNet is and how it works,
+[`AGENTS.md`](https://github.com/ANFAIA/SkillNet/blob/main/AGENTS.md) for conventions and boundaries when changing the code, and
+[`docs/design/docker-deployment.md`](/en/docs/docker-deployment) for why the deployment
 is shaped this way.

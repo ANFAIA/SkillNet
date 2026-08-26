@@ -12,9 +12,9 @@ section: "extensibility"
 integration delta),
 `apps/skillnet-api/src/personalization/didact_snapshot.json` (provider inventory),
 `apps/skillnet-api/src/render/kit.py` (the UI Kit known to the validator and the prompt).
-**Related:** [`didact-integration.md`](didact-integration.md),
-[`extensibility.md`](extensibility.md),
-[`learning-experience-architecture.md`](learning-experience-architecture.md)
+**Related:** [`didact-integration.md`](/en/docs/didact-integration),
+[`extensibility.md`](/en/docs/extensibility),
+[`learning-experience-architecture.md`](/en/docs/learning-experience-architecture)
 
 > This document inventories **what components exist today**, which ones are **blocked**,
 > and what **pedagogically valuable types are missing**, with a prioritized list of
@@ -98,7 +98,7 @@ composes in the episode. The ones relevant to this audit:
 - **Synthesized media**: `AudioExplanation`, `PronunciationExercise`, and the two
   **broker-scoped** `PodcastPlayer` / `InfographicImage` — real and validatable, but the
   generator only sees them when the media broker injects them per-node because a READY
-  artifact exists and the learner's modality matches (see [`media-artifacts.md`](media-artifacts.md)).
+  artifact exists and the learner's modality matches (see [`media-artifacts.md`](/en/docs/media-artifacts)).
 - **Neutral boundary**: `LearningExperience` (opaque reference to a resolved experience;
   doesn't expose provider or answers) and `DidactActivity` (`llm_emittable=False`,
   `legacy_parseable=True`: loadable by id, historical playback).

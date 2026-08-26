@@ -120,7 +120,7 @@ examples were copied as content and the proposed evidence references were not co
 atoms. Before another screen test, the current contract will be compared against a JSON Schema
 without example values and with an explicit coverage/atomization phase. The reproducible report is
 at
-[`../evidencia-testing/2026-08-11/knowledge-pack-tuning/report.md`](../evidencia-testing/2026-08-11/knowledge-pack-tuning/report.md).
+[`../evidencia-testing/2026-08-11/knowledge-pack-tuning/report.md`](https://github.com/ANFAIA/SkillNet/blob/main/docs/evidencia-testing/2026-08-11/knowledge-pack-tuning/report.md).
 
 ## Traceable gate adopted (`knowledge-pack/v3`)
 

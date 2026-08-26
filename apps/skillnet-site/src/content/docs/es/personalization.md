@@ -7,10 +7,10 @@ section: "extensibility"
 # Personalización
 
 **Estado:** en producción
-**Relacionado:** [`personalization-architecture.md`](personalization-architecture.md),
-[`generative-ui-personalization.md`](generative-ui-personalization.md),
-[`media-artifacts.md`](media-artifacts.md),
-[`learning-experience-architecture.md`](learning-experience-architecture.md)
+**Relacionado:** [`personalization-architecture.md`](/docs/personalization-architecture),
+[`generative-ui-personalization.md`](/docs/generative-ui-personalization),
+[`media-artifacts.md`](/docs/media-artifacts),
+[`learning-experience-architecture.md`](/docs/learning-experience-architecture)
 
 > Este documento describe las dos palancas de personalización que hoy se aplican en la
 > generación de episodios: la **nota de aprendizaje** en texto libre y las **preferencias de
@@ -135,5 +135,5 @@ La generación es estocástica, así que ocasionalmente sale un fallback plano. 
 `schema_version` (p. ej. `--refresh`) o borrar renders cacheados fuerza regeneración.
 
 Cómo exponer estados degradados (TTS/imagen sin clave, cuota agotada) en la interfaz:
-[`degraded-mode-ux.md`](degraded-mode-ux.md).
+[`degraded-mode-ux.md`](/docs/degraded-mode-ux).
 </content>

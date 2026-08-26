@@ -135,7 +135,7 @@ Construimos cinco prototipos en distintos niveles y los medimos frente a frente 
 4. **Un bucle bidireccional funciona** (el agente genera → el usuario interactúa → el agente regenera) pero cuesta ~3.500 tokens por ciclo
 5. **La calidad visual del Nivel 3 es inconsistente.** Cada página se ve distinta. El Nivel 2 usa un sistema de diseño, así que la salida siempre es consistente.
 
-Datos completos: [experiments/prototype-benchmarks.md](experiments/prototype-benchmarks.md)
+Datos completos: [experiments/prototype-benchmarks.md](/docs/generative-ui-benchmarks)
 
 ## Quién está trabajando en esto
 

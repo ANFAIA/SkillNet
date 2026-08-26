@@ -10,9 +10,9 @@ How a new user comes to *understand and use* SkillNet. This document sets the **
 (principles + flows), the **architecture** that supports it, and a **phased plan**. It is the
 measuring stick: any future onboarding screen is checked against this.
 
-Related: [degraded-mode-ux.md](degraded-mode-ux.md) (states without a key),
-[personalization.md](personalization.md) (learner profile),
-[audience-modes.md](audience-modes.md) (organization / individual).
+Related: [degraded-mode-ux.md](/en/docs/degraded-mode-ux) (states without a key),
+[personalization.md](/en/docs/personalization) (learner profile),
+[audience-modes.md](/en/docs/audience-modes) (organization / individual).
 
 ---
 

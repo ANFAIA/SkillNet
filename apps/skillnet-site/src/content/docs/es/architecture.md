@@ -12,32 +12,32 @@ section: "core"
 
 | Documento | Qué cubre |
 |----------|----------------|
-| [vision.md](vision.md) | Fundamento filosófico — por qué SkillNet está construido así |
-| [architecture.md](architecture.md) | Visión general del sistema, capas, aspectos transversales, decidido vs diferido |
-| [data-model.md](data-model.md) | Esquema de PostgreSQL — 15+ tablas, índices, consultas clave |
-| [screens.md](screens.md) | 20 especificaciones de pantalla con rutas, secciones, datos, estados, acciones |
-| [design-system.md](design-system.md) | Tokens visuales, patrones de componentes, anti-patrones |
-| [product.md](product.md) | Qué es SkillNet, roles, tipos de contenido, adaptación, bucle de aprendizaje |
-| [content-generation.md](content-generation.md) | Pipeline de generación con LangGraph, 7 roles de agente, integración RAG |
-| [chat-agents.md](chat-agents.md) | Agentes de chat de tutor y admin, patrón PageIndex, árbol de decisión RAG |
-| [rag-retrieval.md](rag-retrieval.md) | Ingesta de documentos, chunking, búsqueda híbrida, reranking, embeddings |
-| [backend-api.md](backend-api.md) | Estructura del proyecto FastAPI, 73 endpoints, inyección de dependencias |
-| [llm-integration.md](llm-integration.md) | Abstracción de proveedor, streaming, gestión de prompts, seguimiento de coste |
-| [background-processing.md](background-processing.md) | Persistencia de LangGraph + runner de trabajos en PostgreSQL, flujos de ciclo de vida |
-| [docker-deployment.md](docker-deployment.md) | Servicios de Docker Compose, Dockerfiles, dev/prod, primer arranque |
-| [security.md](security.md) | Autenticación, compartimentos de agentes, RGPD, seguridad de API, secretos |
-| [mcp-external-api.md](mcp-external-api.md) | Servidor MCP, API REST externa, webhooks, integraciones |
-| [frontend-backend-integration.md](frontend-backend-integration.md) | TanStack Query, SSE, UI de Nivel 2/3, subida de ficheros |
-| [snml-spec.md](snml-spec.md) | Formato de contenido SNML — Markdown + componentes interactivos, renderizado dual (doc/web) |
-| [ai-course-design.md](ai-course-design.md) | Endpoints de IA sin estado, commit-on-create, enrutamiento multimodelo para el diseño de cursos |
-| [adaptive-learning.md](adaptive-learning.md) | Preferencias explícitas, estrategia pedagógica, medición y contrato con la librería de componentes |
-| [personalization-architecture.md](personalization-architecture.md) | Separación objetivo, misión, representación, componente, apoyo y planificador en sombra |
-| [learning-experience-architecture.md](learning-experience-architecture.md) | Contrato pedagógico neutral, variantes, proveedores, generación multiagente y evidencia común hacia mastery |
-| [audience-modes.md](audience-modes.md) | Un núcleo de producto con modos `organization` e `individual`, sin separar clases ni verticales |
-| [conversational-modalities.md](conversational-modalities.md) | Frontera entre audio en chat, Realtime, mascota y podcasts; propósito y alcance por audiencia |
-| [podcast-studio-plan.md](podcast-studio-plan.md) | Plan de Podcast Studio tipo NotebookLM, modular, configurable y agnóstico de proveedor |
-| [future-product-directions.md](future-product-directions.md) | Índice de las direcciones futuras de producto acordadas y su estado |
-| [Cuaderno de experimentos](../personalization-experiments.md) | Hipótesis, resultados, reversiones y aprendizajes reproducibles de personalización |
+| [vision.md](/docs/vision) | Fundamento filosófico — por qué SkillNet está construido así |
+| [architecture.md](/docs/architecture) | Visión general del sistema, capas, aspectos transversales, decidido vs diferido |
+| [data-model.md](/docs/data-model) | Esquema de PostgreSQL — 15+ tablas, índices, consultas clave |
+| [screens.md](/docs/screens) | 20 especificaciones de pantalla con rutas, secciones, datos, estados, acciones |
+| [design-system.md](/docs/design-system) | Tokens visuales, patrones de componentes, anti-patrones |
+| [product.md](/docs/product) | Qué es SkillNet, roles, tipos de contenido, adaptación, bucle de aprendizaje |
+| [content-generation.md](/docs/content-generation) | Pipeline de generación con LangGraph, 7 roles de agente, integración RAG |
+| [chat-agents.md](/docs/chat-agents) | Agentes de chat de tutor y admin, patrón PageIndex, árbol de decisión RAG |
+| [rag-retrieval.md](/docs/rag-retrieval) | Ingesta de documentos, chunking, búsqueda híbrida, reranking, embeddings |
+| [backend-api.md](/docs/backend-api) | Estructura del proyecto FastAPI, 73 endpoints, inyección de dependencias |
+| [llm-integration.md](/docs/llm-integration) | Abstracción de proveedor, streaming, gestión de prompts, seguimiento de coste |
+| [background-processing.md](/docs/background-processing) | Persistencia de LangGraph + runner de trabajos en PostgreSQL, flujos de ciclo de vida |
+| [docker-deployment.md](/docs/docker-deployment) | Servicios de Docker Compose, Dockerfiles, dev/prod, primer arranque |
+| [security.md](/docs/security) | Autenticación, compartimentos de agentes, RGPD, seguridad de API, secretos |
+| [mcp-external-api.md](/docs/mcp-external-api) | Servidor MCP, API REST externa, webhooks, integraciones |
+| [frontend-backend-integration.md](/docs/frontend-backend-integration) | TanStack Query, SSE, UI de Nivel 2/3, subida de ficheros |
+| [snml-spec.md](/docs/snml-spec) | SNML, sustituido: por qué el contenido viaja como `ui_spec` en JSON y no como marcado |
+| [ai-course-design.md](/docs/ai-course-design) | Endpoints de IA sin estado, commit-on-create, enrutamiento multimodelo para el diseño de cursos |
+| [adaptive-learning.md](/docs/adaptive-learning) | Preferencias explícitas, estrategia pedagógica, medición y contrato con la librería de componentes |
+| [personalization-architecture.md](/docs/personalization-architecture) | Separación objetivo, misión, representación, componente, apoyo y planificador en sombra |
+| [learning-experience-architecture.md](/docs/learning-experience-architecture) | Contrato pedagógico neutral, variantes, proveedores, generación multiagente y evidencia común hacia mastery |
+| [audience-modes.md](/docs/audience-modes) | Un núcleo de producto con modos `organization` e `individual`, sin separar clases ni verticales |
+| [conversational-modalities.md](/docs/conversational-modalities) | Frontera entre audio en chat, Realtime, mascota y podcasts; propósito y alcance por audiencia |
+| [podcast-studio-plan.md](/docs/podcast-studio-plan) | Plan de Podcast Studio tipo NotebookLM, modular, configurable y agnóstico de proveedor |
+| [future-product-directions.md](/docs/future-product-directions) | Índice de las direcciones futuras de producto acordadas y su estado |
+| `Cuaderno de experimentos` | Hipótesis, resultados, reversiones y aprendizajes reproducibles de personalización |
 
 ---
 
@@ -79,7 +79,7 @@ La memoria del sistema. Almacena conocimiento estructurado y lo pone a disposici
 
 **Lo que sabemos por la investigación:**
 
-- La clasificación de niveles de acceso basada en contenido se limita a un 78% de precisión ([investigación sobre fronteras semánticas](../research/semantic-boundaries/)). La privacidad es una decisión humana, no una propiedad del contenido. El sistema debe hacer cumplir las decisiones de acceso de la organización, no adivinarlas.
+- La clasificación de niveles de acceso basada en contenido se limita a un 78% de precisión ([investigación sobre fronteras semánticas](/docs/semantic-boundaries)). La privacidad es una decisión humana, no una propiedad del contenido. El sistema debe hacer cumplir las decisiones de acceso de la organización, no adivinarlas.
 - El acceso basado en compartimentos (necesidad de conocer) es el modelo más prometedor. Un agente arranca solo con los compartimentos que su tarea requiere. El control ocurre en el arranque (qué puede ver) y en la frontera (qué puede emitir), no dentro del agente.
 
 **Almacén vectorial: pgvector.** Los embeddings viven dentro de PostgreSQL como una columna `vector`. Una sola base de datos para todo — consultas relacionales y búsqueda semántica en la misma transacción. A escala de MVP (decenas de documentos, cientos de empleados), pgvector es más que suficiente. Si el sistema alguna vez necesita manejar millones de vectores a miles de QPS, los embeddings pueden migrar a un almacén dedicado sin tocar el esquema relacional.
@@ -98,7 +98,7 @@ Agentes de IA especializados orquestados con LangGraph. Cada tipo de agente tien
 
 **Lo que sabemos por la investigación:**
 
-- La autoridad entre agentes sigue un modelo de mandato, no de propiedad ([investigación sobre coordinación multiagente](../research/multi-agent-coordination/)). Un agente actúa en nombre de alguien, con un propósito específico, con límites definidos. Cuando sirve a varios usuarios, sus permisos son la intersección de todos los mandatos activos.
+- La autoridad entre agentes sigue un modelo de mandato, no de propiedad ([investigación sobre coordinación multiagente](/docs/multi-agent-coordination)). Un agente actúa en nombre de alguien, con un propósito específico, con límites definidos. Cuando sirve a varios usuarios, sus permisos son la intersección de todos los mandatos activos.
 - El aislamiento entre agentes permite una verificación fiable. Si el revisor y el autor no comparten contexto, las tasas de error se multiplican (verificación independiente).
 
 **Orquestación:** LangGraph gestiona las máquinas de estados y transiciones de los agentes. Cada tipo de agente es un grafo con nodos y aristas definidos.
@@ -121,7 +121,7 @@ La mayor parte de SkillNet es de Nivel 1 y 2. El Nivel 3 se aplica solo donde el
 
 **Lo que existe:**
 
-- [Renderizador A2TL-Web](../../packages/a2tl-web/) — implementación de Nivel 2. Ahorro del 76% de tokens frente a HTML equivalente.
+- [Renderizador A2TL-Web](https://github.com/ANFAIA/SkillNet/tree/main/packages/a2tl-web) — implementación de Nivel 2. Ahorro del 76% de tokens frente a HTML equivalente.
 
 **Latencia del Nivel 3: ya no está diferida, y es menor de lo que se asumía.** v2 (cursos dinámicos) es la implementación de Nivel 3, y su latencia de generación se ha medido contra Groq real (2026-07-27): **de menos de un segundo a ~3 s por render, ~0.0008 USD por render**. El problema de "generación de 20-30 segundos" que esta sección se escribió para preocuparse **no existe en esta pila** — las cifras de 60-150 s de la investigación provenían de un modelo de 7B en CPU local.
 
@@ -129,14 +129,14 @@ El enfoque implementado combina esqueleto + streaming SSE con generación antici
 el curso se preparan las dos primeras lecciones disponibles; una vez que empieza el aprendizaje, el cliente mantiene
 una ventana móvil de tres lecciones por delante. Son renders en tiempo de ejecución creados con el contexto actual
 del aprendiz y cacheados de forma idempotente, no artefactos de presentación horneados en el curso publicado. Ver
-[`learning-experience-architecture.md`](learning-experience-architecture.md) §2.1 y
-[`v2-dynamic-courses.md`](v2-dynamic-courses.md) §9 para el modelo de latencia.
+[`learning-experience-architecture.md`](/docs/learning-experience-architecture) §2.1 y
+[`v2-dynamic-courses.md`](/docs/dynamic-courses) §9 para el modelo de latencia.
 
 Nótese también que el Nivel 3 tal como está construido **no** inyecta HTML generado por el agente: el modelo emite un dialecto tipado que se parsea a un `UISpec`, se reserializa, y se renderiza mediante componentes React nativos. Nunca HTML, así que el aislamiento shadow-DOM/iframe contemplado abajo no es necesario.
 
 **Arquitectura de frontend: una sola SPA.** Una aplicación React con React Router. El Nivel 1 (estático) son componentes React normales. El Nivel 2 (declarativo) usa un componente renderizador que toma una especificación compacta y la pinta — el formato concreto (A2TL-Web u otro) no está fijado. El Nivel 3 (generativo) inyecta HTML generado por el agente en un contenedor aislado (shadow DOM o iframe) para evitar conflictos de CSS. El usuario no sabe qué nivel está viendo — la navegación es igual en todas partes.
 
-**Enrutamiento: rutas fijas con contenido dinámico.** Cada pantalla tiene una URL predecible. Las rutas están en español, siguiendo el código (`apps/skillnet-web/src/App.tsx`): `/empleado`, `/empleado/curso/:id`, `/empleado/curso/:id/nodo/:nodeId`, `/admin/empleados`, `/admin/curso/:id/esquema`. La lista completa está en [`screens.md`](screens.md). Las URLs son compartibles y el avance/retroceso del navegador funciona. Cuando el Nivel 3 genera contenido, se renderiza dentro de la ruta fija — la URL no cambia, solo lo que hay dentro.
+**Enrutamiento: rutas fijas con contenido dinámico.** Cada pantalla tiene una URL predecible. Las rutas están en español, siguiendo el código (`apps/skillnet-web/src/App.tsx`): `/empleado`, `/empleado/curso/:id`, `/empleado/curso/:id/nodo/:nodeId`, `/admin/empleados`, `/admin/curso/:id/esquema`. La lista completa está en [`screens.md`](/docs/screens). Las URLs son compartibles y el avance/retroceso del navegador funciona. Cuando el Nivel 3 genera contenido, se renderiza dentro de la ruta fija — la URL no cambia, solo lo que hay dentro.
 
 **Gestión de estado: React Query (TanStack Query).** El estado del servidor (cursos, progreso, skills, ejercicios) se obtiene y cachea con React Query — el backend es la única fuente de verdad. El estado local de UI (barra lateral abierta, filtro activo, modal visible) usa `useState` normal. No se necesita un store global. Si surge un caso más adelante, Zustand puede añadirse en minutos.
 
@@ -164,7 +164,7 @@ FastAPI sirve como la interfaz entre el frontend y el backend.
 
 **Proveedor de LLM: elección del usuario.** SkillNet no se ata a ningún proveedor. El usuario configura su propia clave de API y endpoint. Cualquier API compatible con OpenAI funciona directamente (OpenAI, DeepSeek, Groq, Together, local vía Ollama/LM Studio, etc.). El backend habla con una única interfaz — URL base + clave de API + nombre de modelo — definida en variables de entorno. Sin código específico de proveedor en la lógica de negocio.
 
-**Procesamiento en segundo plano: híbrido.** Persistencia de LangGraph para el pipeline de generación (ya es un grafo, con checkpointing integrado, interrupt/resume) + un runner de trabajos respaldado por PostgreSQL para todo lo demás (cero dependencias nuevas, `SELECT FOR UPDATE SKIP LOCKED`). No se necesita Redis para el MVP. Diseño completo en [background-processing.md](background-processing.md).
+**Procesamiento en segundo plano: híbrido.** Persistencia de LangGraph para el pipeline de generación (ya es un grafo, con checkpointing integrado, interrupt/resume) + un runner de trabajos respaldado por PostgreSQL para todo lo demás (cero dependencias nuevas, `SELECT FOR UPDATE SKIP LOCKED`). No se necesita Redis para el MVP. Diseño completo en [background-processing.md](/docs/background-processing).
 
 ---
 
@@ -172,7 +172,7 @@ FastAPI sirve como la interfaz entre el frontend y el backend.
 
 ### Modelo de control de acceso
 
-Basado en la investigación de [fronteras semánticas](../research/semantic-boundaries/) y [coordinación multiagente](../research/multi-agent-coordination/):
+Basado en la investigación de [fronteras semánticas](/docs/semantic-boundaries) y [coordinación multiagente](/docs/multi-agent-coordination):
 
 ```
 Arranque ──→ Agente (contexto compartimentado) ──→ Frontera ──→ Salida
@@ -215,9 +215,9 @@ El aprendiz completa un ejercicio ──→ Se registra el progreso
 | Modelo de mandato para la autoridad del agente | |
 | Autoalojado, una instancia por empresa | |
 | Proveedor de LLM agnóstico (API compatible con OpenAI) | |
-| Modelo de datos definido ([data-model.md](data-model.md)) | |
-| Patrones de comunicación entre agentes (ver [content-generation.md](content-generation.md), [chat-agents.md](chat-agents.md)) | |
-| Procesamiento en segundo plano (ver [background-processing.md](background-processing.md)) | |
-| Implementación de mandatos (ver [security.md](security.md)) | |
-| Estrategia de chunking (ver [rag-retrieval.md](rag-retrieval.md)) | |
-| Latencia de Nivel 3 (ver [frontend-backend-integration.md](frontend-backend-integration.md)) | |
+| Modelo de datos definido ([data-model.md](/docs/data-model)) | |
+| Patrones de comunicación entre agentes (ver [content-generation.md](/docs/content-generation), [chat-agents.md](/docs/chat-agents)) | |
+| Procesamiento en segundo plano (ver [background-processing.md](/docs/background-processing)) | |
+| Implementación de mandatos (ver [security.md](/docs/security)) | |
+| Estrategia de chunking (ver [rag-retrieval.md](/docs/rag-retrieval)) | |
+| Latencia de Nivel 3 (ver [frontend-backend-integration.md](/docs/frontend-backend-integration)) | |

@@ -64,7 +64,7 @@ The closed, single-owner case barely needs any of this · a folder and a habit u
 - **Crossing a trust boundary** · a boundary holds only where the runtime is controlled. Once a piece is inside someone else's runtime, the guarantee lapses.
 - **Over-classification** · a cautious union drifts toward marking everything maximally restricted. When it is safe to lower a label again is unresolved.
 
-See the [coordination notes](README.md) for the surrounding model · mandates, boundary customs, and the five protocols.
+See the [coordination notes](https://github.com/ANFAIA/SkillNet/blob/main/README.md) for the surrounding model · mandates, boundary customs, and the five protocols.
 
 ## Concrete implementation
 

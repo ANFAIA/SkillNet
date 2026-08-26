@@ -13,13 +13,13 @@ section: "core"
 >
 > For new work, the target architecture moves the expensive work to generation/publishing,
 > lets the runtime pick prepared variants, and uses a neutral boundary. It's defined in
-> [`learning-experience-architecture.md`](learning-experience-architecture.md) and takes
+> [`learning-experience-architecture.md`](/en/docs/learning-experience-architecture) and takes
 > precedence over this document in that direction. Until its gates are met, this page keeps
 > describing the implemented pipeline.
 
-Depends on: [v2-dynamic-courses.md](v2-dynamic-courses.md),
-[openui-adoption.md](openui-adoption.md), [tuning.md](tuning.md), and
-[learning-experience-architecture.md](learning-experience-architecture.md).
+Depends on: [v2-dynamic-courses.md](/en/docs/dynamic-courses),
+[openui-adoption.md](/en/docs/openui-adoption), [tuning.md](/en/docs/tuning), and
+[learning-experience-architecture.md](/en/docs/learning-experience-architecture).
 
 ---
 

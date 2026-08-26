@@ -45,6 +45,6 @@ The full details of what was tried and what was discovered are in the documents 
 
 ## Deep dives
 
-- [Content-Based Classification](content-based-classification.md). The core discovery: content + provenance + combination, everything that was tried, convergence evidence from independent fields
-- [experiments/dsac-bench.md](experiments/dsac-bench.md). DSAC-Bench benchmark design (1,280 docs, 8 domains)
-- [experiments/experiment-log.md](experiments/experiment-log.md). Complete table of all 46 experiments
+- [Content-Based Classification](/en/docs/semantic-boundaries-classification). The core discovery: content + provenance + combination, everything that was tried, convergence evidence from independent fields
+- [experiments/dsac-bench.md](/en/docs/semantic-boundaries-dsac-bench). DSAC-Bench benchmark design (1,280 docs, 8 domains)
+- [experiments/experiment-log.md](/en/docs/semantic-boundaries-experiment-log). Complete table of all 46 experiments

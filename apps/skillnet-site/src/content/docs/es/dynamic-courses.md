@@ -6,7 +6,9 @@ section: "v2"
 
 # v2 — Cursos dinámicos
 
-> **Estado: spec de implementación. Rama `feat/dynamic-courses`.**
+> **Estado: implementado.** El diseño de esta página se fusionó en `main`; la rama de
+> trabajo `feat/dynamic-courses` se borró el 2026-08-04. v2 se elige por curso
+> (`delivery_mode='dynamic'` con `schema_status='validated'`).
 >
 > Prioridad documental: `v1-scope.md` sigue siendo la verdad **del camino v1**. Este documento
 > define el camino v2 y **sólo** aplica cuando el feature flag está activo. Donde este documento
@@ -21,7 +23,7 @@ section: "v2"
 > **Arquitectura episódica vigente:** la separación entre constitución persistida del curso,
 > `EpisodeBrief` generado on-the-fly, selección neutral de capacidades, `LearningExperience` y
 > evidencia server-owned se especifica en
-> [`learning-experience-architecture.md`](learning-experience-architecture.md). Este documento sigue
+> [`learning-experience-architecture.md`](/docs/learning-experience-architecture). Este documento sigue
 > describiendo persistencia, entrega y compatibilidad del runtime v2. Las secciones que prescriben
 > `ScreenScheme`, una fórmula fija de pantalla o agrupación por pasos aplican sólo al fallback
 > `legacy_stepper`; no restringen el camino `episode`. `shell_mode` lo decide el servidor. La
@@ -100,7 +102,7 @@ de este PR:
 | Neurotipos en `screens.md` | `screens.md` §Employee Settings ("optional: TEA, TDAH, dislexia flags", línea 213) **queda derogado** por la decisión de no almacenar neurotipo. Se corrige en el mismo `chore` de rutas (§14.2 #8), junto con `design-system.md` §Skeleton, que documenta `animate-pulse` mientras `motion-system.md:437,636` lo prohíbe |
 | Escala de dominio primaria | **`mastery` real 0..1** por `(user, node)`, más un enum `node_state` derivado. Shu-Ha-Ri y Bloom son derivaciones, no estado primario |
 | Escala de rating | La existente: `score` real 0..1 (igual que `exercise_attempts`). Sin Rating 1-4 |
-| Preferencia de modalidad | El usuario puede pedir explícitamente imagen, audio, vídeo o texto cuando el kit los soporte. La preferencia declarada prevalece; `format_vector` queda como señal inferida secundaria. Véase [`adaptive-learning.md`](adaptive-learning.md) |
+| Preferencia de modalidad | El usuario puede pedir explícitamente imagen, audio, vídeo o texto cuando el kit los soporte. La preferencia declarada prevalece; `format_vector` queda como señal inferida secundaria. Véase [`adaptive-learning.md`](/docs/adaptive-learning) |
 | Neurodivergencia | **No se almacena etiqueta de neurotipo** (dato de salud, art. 9 RGPD). Sólo ajustes de lectura neutros opt-in en `users.accessibility` |
 | Naturaleza de la validación del creador | **Gate bloqueante** por estado en BD (`schema_status`), no `interrupt()` de LangGraph — sobrevive a reinicios del proceso |
 | Provider LLM | litellm, provider-agnóstico. Los dos niveles del router son **purposes** (`runtime_fast`, `runtime_heavy`), no proveedores. Groq es un valor posible de env var, no una dependencia |
@@ -259,7 +261,7 @@ de este PR:
 ### 2.1 Qué se persiste vs qué se genera
 
 La preparación pedagógica asíncrona situada entre el índice y OpenUI se especifica en
-[`node-knowledge-packs.md`](node-knowledge-packs.md). Tras el commit del índice genera un contrato
+[`node-knowledge-packs.md`](/docs/node-knowledge-packs). Tras el commit del índice genera un contrato
 estructurado y un Markdown derivado por nodo. Solo los packs `ready` alimentan la selección de
 conocimiento del runtime; su hash y el de la selección forman parte de la clave de caché. Los estados
 `review_required`, `failed`, `stale` y la ausencia de pack mantienen el flujo raw anterior como
@@ -1656,7 +1658,7 @@ redirige a /onboarding  ⇔  features.dynamic_courses === 'on'
   en una etiqueta de "estilo de aprendizaje". Sin embargo, cualquier elección explícita posterior
   se respeta y prevalece sobre el `format_vector`. La modalidad pedida puede combinar distintas
   estrategias pedagógicas —recuperación, autoexplicación, contraste o escenario— sin sustituir la
-  elección del usuario. Véase [`adaptive-learning.md`](adaptive-learning.md).
+  elección del usuario. Véase [`adaptive-learning.md`](/docs/adaptive-learning).
 - **Diagnósticos de neurodivergencia.** Un diagnóstico es dato de salud (categoría especial,
   art. 9 RGPD) y no hace falta: los ajustes concretos de la pregunta 5 producen el mismo resultado
   funcional sin el riesgo legal. La pregunta 5 pregunta por **necesidades**, no por condiciones.
@@ -2133,7 +2135,7 @@ La anticipación es por recorrido probable y está acotada; no genera ramas comp
 componentes posibles. Por tanto, “pregenerado” aquí significa **render runtime adelantado durante la
 sesión**, no un artefacto pedagógico persistido dentro de la definición del curso. La autoridad y las
 implicaciones para futuros episodios ramificados están en
-[`learning-experience-architecture.md`](learning-experience-architecture.md) §2.1.
+[`learning-experience-architecture.md`](/docs/learning-experience-architecture) §2.1.
 
 ---
 

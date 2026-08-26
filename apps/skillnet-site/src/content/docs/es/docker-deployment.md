@@ -6,7 +6,7 @@ section: "core"
 
 ## 5. Docker y despliegue
 
-**Cómo arrancarlo está en [`README.md`](../../README.md).** Este documento registra *por qué*
+**Cómo arrancarlo está en [`README.md`](https://github.com/ANFAIA/SkillNet/blob/main/README.md).** Este documento registra *por qué*
 el despliegue tiene la forma que tiene, y las trampas que no son obvias leyendo los ficheros.
 
 Antes incluía copias completas de `docker-compose.yml`, ambos Dockerfiles, `.env.example` y
@@ -16,11 +16,11 @@ no existe, y dos secciones documentaban un fichero que nunca existió. Un docume
 cuyo cuerpo es una copia obsoleta de la fuente es peor que ningún documento, porque está
 seguro de sí mismo y equivocado. Así que los ficheros se enlazan, no se pegan.
 
-- [`docker-compose.yml`](../../docker-compose.yml) — la pila
-- [`docker/compose/dev.yml`](../../docker/compose/dev.yml) — capa de hot-reload
-- [`docker/compose/ollama.yml`](../../docker/compose/ollama.yml) — capa de modelo local
-- [`docker/api.Dockerfile`](../../docker/api.Dockerfile), [`docker/web.Dockerfile`](../../docker/web.Dockerfile), [`docker/nginx.conf`](../../docker/nginx.conf)
-- [`.env.example`](../../.env.example) — todas las variables, con el razonamiento en línea
+- [`docker-compose.yml`](https://github.com/ANFAIA/SkillNet/blob/main/docker-compose.yml) — la pila
+- [`docker/compose/dev.yml`](https://github.com/ANFAIA/SkillNet/blob/main/docker/compose/dev.yml) — capa de hot-reload
+- [`docker/compose/ollama.yml`](https://github.com/ANFAIA/SkillNet/blob/main/docker/compose/ollama.yml) — capa de modelo local
+- [`docker/api.Dockerfile`](https://github.com/ANFAIA/SkillNet/blob/main/docker/api.Dockerfile), [`docker/web.Dockerfile`](https://github.com/ANFAIA/SkillNet/blob/main/docker/web.Dockerfile), [`docker/nginx.conf`](https://github.com/ANFAIA/SkillNet/blob/main/docker/nginx.conf)
+- [`.env.example`](https://github.com/ANFAIA/SkillNet/blob/main/.env.example) — todas las variables, con el razonamiento en línea
 
 ---
 
@@ -36,7 +36,7 @@ seguro de sí mismo y equivocado. Así que los ficheros se enlazan, no se pegan.
 | `ollama` | fichero overlay | servidor de modelo local — ver §5.8 |
 
 Los trabajos en segundo plano corren dentro del proceso a través del JobCoordinator
-([`background-processing.md`](background-processing.md)), respaldado por PostgreSQL con
+([`background-processing.md`](/docs/background-processing)), respaldado por PostgreSQL con
 persistencia de LangGraph. No hay contenedor worker a esta escala, y añadir uno más adelante
 no cambia nada de lo descrito aquí.
 
@@ -51,7 +51,7 @@ Un `docker compose up -d` por defecto publica **solo el 3000**. `api` y `db` sol
 alcanzables desde dentro de la red de compose.
 
 Eso no es minimalismo por sí mismo. Las cabeceras de seguridad y el límite de subida de 55 MB
-viven en [`docker/nginx.conf`](../../docker/nginx.conf), así que un puerto de `api` expuesto es
+viven en [`docker/nginx.conf`](https://github.com/ANFAIA/SkillNet/blob/main/docker/nginx.conf), así que un puerto de `api` expuesto es
 una forma de saltarse ambas cosas.
 
 Todo lo opcional se enlaza a `127.0.0.1`. **Docker publica puertos con reglas DNAT que
@@ -68,7 +68,7 @@ HTTP plano. Detrás de TLS, ponerlo a `true`.
 
 ### 5.3 Las dos fases de la imagen, y la trampa entre ellas
 
-[`docker/api.Dockerfile`](../../docker/api.Dockerfile) construye `builder` (dependencias, `uv`,
+[`docker/api.Dockerfile`](https://github.com/ANFAIA/SkillNet/blob/main/docker/api.Dockerfile) construye `builder` (dependencias, `uv`,
 root) y `runtime` (venv en el `PATH`, usuario no root `skillnet`, mínimo). El overlay de dev
 construye `target: builder` a propósito: el hot reload necesita `uv` y el código montado.
 
@@ -93,13 +93,13 @@ cubierto.
 
 ### 5.4 El `.env` solo llega a medias
 
-**Ningún servicio declara `env_file`**, y [`.dockerignore`](../../.dockerignore) mantiene el
+**Ningún servicio declara `env_file`**, y [`.dockerignore`](https://github.com/ANFAIA/SkillNet/blob/main/.dockerignore) mantiene el
 `.env` fuera de la imagen, así que el `env_file=".env"` de pydantic no encuentra nada dentro del
 contenedor. Solo las variables listadas explícitamente en el bloque `environment:` de un
 servicio llegan a la API.
 
 Añadir una variable al `.env` y no ver ningún efecto es por tanto el resultado esperado, no un
-bug. La mayoría de diales en [`tuning.md`](tuning.md) son inalcanzables en Docker por esta
+bug. La mayoría de diales en [`tuning.md`](/docs/tuning) son inalcanzables en Docker por esta
 razón — para usar uno, añadirlo primero al bloque `environment:` de `api`.
 
 Relacionado, y con la misma causa raíz: los modelos por defecto viven en el fichero compose, no
@@ -162,7 +162,7 @@ fichero tal como se subió y su texto extraído. Los ficheros y sus filas en `do
 transaccionales entre sí: una fila puede sobrevivir a su fichero, y la ingesta marca el
 documento como `error` en vez de fingir lo contrario.
 
-Backup y restauración: [`scripts/backup.sh`](../../scripts/backup.sh) (`pg_dump` a través de
+Backup y restauración: [`scripts/backup.sh`](https://github.com/ANFAIA/SkillNet/blob/main/scripts/backup.sh) (`pg_dump` a través de
 gzip, conservando los últimos siete días). Restaurar con
 `gunzip -c backups/skillnet_*.sql.gz | docker compose exec -T db psql -U skillnet skillnet`.
 Para un backup completo consistente, primero `docker compose stop api`, luego volcar la base de
@@ -177,7 +177,7 @@ columna de 384. El esquema vuelve correcto; los chunks no. Relanzar el seed.
 
 ### 5.7 Primer arranque
 
-El lifespan en [`src/main.py`](../../apps/skillnet-api/src/main.py) crea el directorio de
+El lifespan en [`src/main.py`](https://github.com/ANFAIA/SkillNet/blob/main/apps/skillnet-api/src/main.py) crea el directorio de
 uploads, ejecuta `alembic upgrade head` (que también crea las extensiones `pgcrypto` y
 `vector`), y luego crea la organización y — solo si `ADMIN_EMAIL` y `ADMIN_PASSWORD` están
 puestos — el usuario admin y la clave de API A2A.
@@ -191,7 +191,7 @@ No hay asistente de configuración. Un borrador anterior de este documento descr
 arranque sin interfaz reemplazó la idea y la sección sobrevivió a ella.
 
 El arranque también verifica que `EMBEDDING_DIMENSIONS` coincide con la columna real
-([`embedding_check.py`](../../apps/skillnet-api/src/services/embedding_check.py)), porque un
+([`embedding_check.py`](https://github.com/ANFAIA/SkillNet/blob/main/apps/skillnet-api/src/services/embedding_check.py)), porque un
 desajuste es, si no, invisible: la inserción falla dentro del `except` de la ingesta, el
 documento se marca `READY` solo con `full_text`, y el tutor responde en silencio desde los
 peldaños inferiores de la escalera de recuperación. Lo registra y lo reporta en `GET /health`;
@@ -200,7 +200,7 @@ embeddings.
 
 ### 5.8 Corriendo sobre un modelo local
 
-Usar [`docker/compose/ollama.yml`](../../docker/compose/ollama.yml):
+Usar [`docker/compose/ollama.yml`](https://github.com/ANFAIA/SkillNet/blob/main/docker/compose/ollama.yml):
 
 ```bash
 docker compose -f docker-compose.yml -f docker/compose/ollama.yml up -d --build

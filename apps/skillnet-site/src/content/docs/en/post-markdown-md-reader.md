@@ -8,7 +8,7 @@ section: "research"
 
 Technical reference for `@anfaia/md-reader-mcp` — the MCP server that gives AI agents structural awareness of Markdown files.
 
-Source: [`packages/mcp-md-reader/`](../../../packages/mcp-md-reader/)
+Source: [`packages/mcp-md-reader/`](https://github.com/ANFAIA/SkillNet/tree/main/packages/mcp-md-reader)
 
 ## Overview
 

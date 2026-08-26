@@ -7,8 +7,8 @@ section: "extensibility"
 # Extensibility: how to add a Didact component
 
 **Status:** reference guide (real touch points in the code)
-**Related:** [`didact-components.md`](didact-components.md),
-[`didact-integration.md`](didact-integration.md), [`design-system.md`](design-system.md)
+**Related:** [`didact-components.md`](/en/docs/didact-components),
+[`didact-integration.md`](/en/docs/didact-integration), [`design-system.md`](/en/docs/design-system)
 
 > A learning component doesn't live in a single place: it crosses the availability
 > registry, the validator's UI Kit, the frontend kit (where the prompt comes from), and
@@ -129,7 +129,7 @@ screen stay as practice and **not** certify.
    installed Didact type.
 2. Registry: add the entry in `didact_component_registry.v1.json` with `renderer_mode`,
    `emission`, `required_ports`, `authoring_strategy`. If it requests an unavailable
-   port, it will be blocked (document the gap in [`didact-components.md`](didact-components.md)).
+   port, it will be blocked (document the gap in [`didact-components.md`](/en/docs/didact-components)).
 3. Frontend kit: schema + block + `library.tsx` entry, then regenerate the artifact
    (`generate-openui-prompt.mjs`). `kit.py` derives itself — only add a
    `_BACKEND_METADATA` entry if it's a container or claims a content function.

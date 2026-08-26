@@ -68,7 +68,7 @@ docker compose -f docker-compose.yml -f docker/compose/ollama.yml up -d --build
 
 Una construcción en frío tarda un par de minutos. El overlay de ollama también descarga los
 modelos (unos cuantos GB) antes de que la API arranque, así que dale tiempo al primer arranque.
-Ver [`docker/compose/ollama.yml`](docker/compose/ollama.yml) para saber qué hace y qué ids de
+Ver [`docker/compose/ollama.yml`](https://github.com/ANFAIA/SkillNet/blob/main/docker/compose/ollama.yml) para saber qué hace y qué ids de
 modelo son válidos.
 
 ## Paso 4 — Abrirlo y crear tu cuenta
@@ -138,7 +138,7 @@ anterior a los cursos dinámicos y existe para comparar con la ruta estática an
 Por defecto, un despliegue corre en modo `organization` (una empresa/equipo/clase, el flujo de
 arriba). El otro modo es `individual`: una persona que instala SkillNet para sí misma y a la vez
 administra y aprende — sin empleados, talento, asignaciones ni informes de organización. Ver
-[`docs/design/audience-modes.md`](docs/design/audience-modes.md).
+[`docs/design/audience-modes.md`](/docs/audience-modes).
 
 El modo es un ajuste estable por despliegue, elegido de una de estas dos formas:
 
@@ -427,7 +427,7 @@ docker compose down -v    # detener, destruir la base de datos y las subidas
 
 ---
 
-**Siguiente:** [`README.md`](README.md) para saber qué es SkillNet y cómo funciona,
-[`AGENTS.md`](AGENTS.md) para las convenciones y fronteras al cambiar el código, y
-[`docs/design/docker-deployment.md`](docs/design/docker-deployment.md) para saber por qué el
+**Siguiente:** [`README.md`](https://github.com/ANFAIA/SkillNet/blob/main/README.md) para saber qué es SkillNet y cómo funciona,
+[`AGENTS.md`](https://github.com/ANFAIA/SkillNet/blob/main/AGENTS.md) para las convenciones y fronteras al cambiar el código, y
+[`docs/design/docker-deployment.md`](/docs/docker-deployment) para saber por qué el
 despliegue tiene esta forma.

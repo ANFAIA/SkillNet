@@ -12,32 +12,32 @@ section: "core"
 
 | Document | What it covers |
 |----------|----------------|
-| [vision.md](vision.md) | Philosophical foundation — why SkillNet is built this way |
-| [architecture.md](architecture.md) | System overview, layers, cross-cutting concerns, decided vs deferred |
-| [data-model.md](data-model.md) | PostgreSQL schema — 15+ tables, indexes, key queries |
-| [screens.md](screens.md) | 20 screen specs with routes, sections, data, states, actions |
-| [design-system.md](design-system.md) | Visual tokens, component patterns, anti-patterns |
-| [product.md](product.md) | What SkillNet is, roles, content types, adaptation, learning loop |
-| [content-generation.md](content-generation.md) | LangGraph generation pipeline, 7 agent roles, RAG integration |
-| [chat-agents.md](chat-agents.md) | Tutor and admin chat agents, PageIndex pattern, RAG decision tree |
-| [rag-retrieval.md](rag-retrieval.md) | Document ingestion, chunking, hybrid search, reranking, embeddings |
-| [backend-api.md](backend-api.md) | FastAPI project layout, 73 endpoints, dependency injection |
-| [llm-integration.md](llm-integration.md) | Provider abstraction, streaming, prompt management, cost tracking |
-| [background-processing.md](background-processing.md) | LangGraph persistence + PostgreSQL job runner, lifecycle flows |
-| [docker-deployment.md](docker-deployment.md) | Docker Compose services, Dockerfiles, dev/prod, first-run |
-| [security.md](security.md) | Auth, agent compartments, GDPR, API security, secrets |
-| [mcp-external-api.md](mcp-external-api.md) | MCP Server, external REST API, webhooks, integrations |
-| [frontend-backend-integration.md](frontend-backend-integration.md) | TanStack Query, SSE, Level 2/3 UI, file upload |
-| [snml-spec.md](snml-spec.md) | SNML content format — Markdown + interactive components, dual render (doc/web) |
-| [ai-course-design.md](ai-course-design.md) | Stateless AI endpoints, commit-on-create, multi-model routing for course design |
-| [adaptive-learning.md](adaptive-learning.md) | Explicit preferences, pedagogical strategy, measurement, and contract with the component library |
-| [personalization-architecture.md](personalization-architecture.md) | Separation of goal, mission, representation, component, support, and shadow planner |
-| [learning-experience-architecture.md](learning-experience-architecture.md) | Neutral pedagogical contract, variants, providers, multi-agent generation, and shared evidence toward mastery |
-| [audience-modes.md](audience-modes.md) | One product core with `organization` and `individual` modes, without splitting into classes or verticals |
-| [conversational-modalities.md](conversational-modalities.md) | Boundary between audio in chat, Realtime, the mascot, and podcasts; purpose and scope per audience |
-| [podcast-studio-plan.md](podcast-studio-plan.md) | Plan for a NotebookLM-style Podcast Studio, modular, configurable, and provider-agnostic |
-| [future-product-directions.md](future-product-directions.md) | Index of the agreed future product directions and their status |
-| [Experiment notebook](../personalization-experiments.md) | Hypotheses, results, reversals, and reproducible personalization learnings |
+| [vision.md](/en/docs/vision) | Philosophical foundation — why SkillNet is built this way |
+| [architecture.md](/en/docs/architecture) | System overview, layers, cross-cutting concerns, decided vs deferred |
+| [data-model.md](/en/docs/data-model) | PostgreSQL schema — 15+ tables, indexes, key queries |
+| [screens.md](/en/docs/screens) | 20 screen specs with routes, sections, data, states, actions |
+| [design-system.md](/en/docs/design-system) | Visual tokens, component patterns, anti-patterns |
+| [product.md](/en/docs/product) | What SkillNet is, roles, content types, adaptation, learning loop |
+| [content-generation.md](/en/docs/content-generation) | LangGraph generation pipeline, 7 agent roles, RAG integration |
+| [chat-agents.md](/en/docs/chat-agents) | Tutor and admin chat agents, PageIndex pattern, RAG decision tree |
+| [rag-retrieval.md](/en/docs/rag-retrieval) | Document ingestion, chunking, hybrid search, reranking, embeddings |
+| [backend-api.md](/en/docs/backend-api) | FastAPI project layout, 73 endpoints, dependency injection |
+| [llm-integration.md](/en/docs/llm-integration) | Provider abstraction, streaming, prompt management, cost tracking |
+| [background-processing.md](/en/docs/background-processing) | LangGraph persistence + PostgreSQL job runner, lifecycle flows |
+| [docker-deployment.md](/en/docs/docker-deployment) | Docker Compose services, Dockerfiles, dev/prod, first-run |
+| [security.md](/en/docs/security) | Auth, agent compartments, GDPR, API security, secrets |
+| [mcp-external-api.md](/en/docs/mcp-external-api) | MCP Server, external REST API, webhooks, integrations |
+| [frontend-backend-integration.md](/en/docs/frontend-backend-integration) | TanStack Query, SSE, Level 2/3 UI, file upload |
+| [snml-spec.md](/en/docs/snml-spec) | SNML, superseded: why content travels as JSON `ui_spec` rather than markup |
+| [ai-course-design.md](/en/docs/ai-course-design) | Stateless AI endpoints, commit-on-create, multi-model routing for course design |
+| [adaptive-learning.md](/en/docs/adaptive-learning) | Explicit preferences, pedagogical strategy, measurement, and contract with the component library |
+| [personalization-architecture.md](/en/docs/personalization-architecture) | Separation of goal, mission, representation, component, support, and shadow planner |
+| [learning-experience-architecture.md](/en/docs/learning-experience-architecture) | Neutral pedagogical contract, variants, providers, multi-agent generation, and shared evidence toward mastery |
+| [audience-modes.md](/en/docs/audience-modes) | One product core with `organization` and `individual` modes, without splitting into classes or verticals |
+| [conversational-modalities.md](/en/docs/conversational-modalities) | Boundary between audio in chat, Realtime, the mascot, and podcasts; purpose and scope per audience |
+| [podcast-studio-plan.md](/en/docs/podcast-studio-plan) | Plan for a NotebookLM-style Podcast Studio, modular, configurable, and provider-agnostic |
+| [future-product-directions.md](/en/docs/future-product-directions) | Index of the agreed future product directions and their status |
+| `Experiment notebook` | Hypotheses, results, reversals, and reproducible personalization learnings |
 
 ---
 
@@ -79,7 +79,7 @@ The system's memory. Stores structured knowledge and makes it available to agent
 
 **What we know from research:**
 
-- Content-based classification of access levels caps at 78% accuracy ([semantic boundaries research](../research/semantic-boundaries/)). Privacy is a human decision, not a content property. The system must enforce organizational access decisions, not guess them.
+- Content-based classification of access levels caps at 78% accuracy ([semantic boundaries research](/en/docs/semantic-boundaries)). Privacy is a human decision, not a content property. The system must enforce organizational access decisions, not guess them.
 - Compartment-based access (need-to-know) is the most promising model. An agent is booted with only the compartments its task requires. Control happens at boot (what it can see) and at the boundary (what it can emit), not inside the agent.
 
 **Vector store: pgvector.** Embeddings live inside PostgreSQL as a `vector` column. One database for everything — relational queries and semantic search in the same transaction. At MVP scale (dozens of documents, hundreds of employees), pgvector is more than sufficient. If the system ever needs to handle millions of vectors at thousands of QPS, embeddings can migrate to a dedicated store without touching the relational schema.
@@ -98,7 +98,7 @@ Specialized AI agents orchestrated with LangGraph. Each agent type has a distinc
 
 **What we know from research:**
 
-- Authority between agents follows a mandate model, not ownership ([multi-agent coordination research](../research/multi-agent-coordination/)). An agent acts on someone's behalf, for a specific purpose, with defined limits. When serving multiple users, its permissions are the intersection of all active mandates.
+- Authority between agents follows a mandate model, not ownership ([multi-agent coordination research](/en/docs/multi-agent-coordination)). An agent acts on someone's behalf, for a specific purpose, with defined limits. When serving multiple users, its permissions are the intersection of all active mandates.
 - Agent isolation enables reliable verification. If reviewer and author don't share context, error rates multiply (independent verification).
 
 **Orchestration:** LangGraph manages agent state machines and transitions. Each agent type is a graph with defined nodes and edges.
@@ -121,7 +121,7 @@ Most of SkillNet is Level 1 and 2. Level 3 applies only where content, context, 
 
 **What exists:**
 
-- [A2TL-Web renderer](../../packages/a2tl-web/) — Level 2 implementation. 76% token savings vs equivalent HTML.
+- [A2TL-Web renderer](https://github.com/ANFAIA/SkillNet/tree/main/packages/a2tl-web) — Level 2 implementation. 76% token savings vs equivalent HTML.
 
 **Level 3 latency: no longer deferred, and smaller than assumed.** v2 (dynamic courses) is the Level 3 implementation, and its generation latency has been measured against real Groq (2026-07-27): **sub-second to ~3 s per render, ~0.0008 USD per render**. The "20-30 second generation" problem this section was written to worry about **does not exist on this stack** — the 60-150 s figures in the research came from a 7B model on local CPU.
 
@@ -129,14 +129,14 @@ The shipped approach combines skeleton + SSE streaming with bounded anticipatory
 the course primes the first two available lessons; once learning starts, the client maintains a
 rolling window of three lessons ahead. These are runtime renders created with the learner's current
 context and cached idempotently, not presentation artifacts baked into the published course. See
-[`learning-experience-architecture.md`](learning-experience-architecture.md) §2.1 and
-[`v2-dynamic-courses.md`](v2-dynamic-courses.md) §9 for the latency model.
+[`learning-experience-architecture.md`](/en/docs/learning-experience-architecture) §2.1 and
+[`v2-dynamic-courses.md`](/en/docs/dynamic-courses) §9 for the latency model.
 
 Note also that Level 3 as built does **not** inject agent-generated HTML: the model emits a typed dialect that is parsed to a `UISpec`, re-serialized, and rendered by native React components. Never HTML, so the shadow-DOM/iframe isolation contemplated below is not needed.
 
 **Frontend architecture: single SPA.** One React app with React Router. Level 1 (static) are regular React components. Level 2 (declarative) uses a renderer component that takes a compact spec and paints it — the specific format (A2TL-Web or otherwise) is not locked. Level 3 (generative) injects agent-generated HTML into an isolated container (shadow DOM or iframe) to prevent CSS conflicts. The user doesn't know which level they're seeing — navigation is the same everywhere.
 
-**Routing: fixed routes with dynamic content.** Every screen has a predictable URL. The routes are in Spanish, following the code (`apps/skillnet-web/src/App.tsx`): `/empleado`, `/empleado/curso/:id`, `/empleado/curso/:id/nodo/:nodeId`, `/admin/empleados`, `/admin/curso/:id/esquema`. The full list is in [`screens.md`](screens.md). URLs are shareable and browser back/forward works. When Level 3 generates content, it renders inside the fixed route — the URL doesn't change, only what's inside.
+**Routing: fixed routes with dynamic content.** Every screen has a predictable URL. The routes are in Spanish, following the code (`apps/skillnet-web/src/App.tsx`): `/empleado`, `/empleado/curso/:id`, `/empleado/curso/:id/nodo/:nodeId`, `/admin/empleados`, `/admin/curso/:id/esquema`. The full list is in [`screens.md`](/en/docs/screens). URLs are shareable and browser back/forward works. When Level 3 generates content, it renders inside the fixed route — the URL doesn't change, only what's inside.
 
 **State management: React Query (TanStack Query).** Server state (courses, progress, skills, exercises) is fetched and cached by React Query — the backend is the single source of truth. Local UI state (sidebar open, filter active, modal visible) uses plain `useState`. No global store needed. If a case arises later, Zustand can be added in minutes.
 
@@ -164,7 +164,7 @@ FastAPI serves as the interface between frontend and backend.
 
 **LLM provider: user's choice.** SkillNet doesn't lock into any provider. The user configures their own API key and endpoint. Any OpenAI-compatible API works out of the box (OpenAI, DeepSeek, Groq, Together, local via Ollama/LM Studio, etc.). The backend talks to a single interface — base URL + API key + model name — set in environment variables. No provider-specific code in business logic.
 
-**Background processing: hybrid.** LangGraph persistence for the generation pipeline (already a graph, built-in checkpointing, interrupt/resume) + PostgreSQL-backed job runner for everything else (zero new dependencies, `SELECT FOR UPDATE SKIP LOCKED`). No Redis needed for MVP. Full design in [background-processing.md](background-processing.md).
+**Background processing: hybrid.** LangGraph persistence for the generation pipeline (already a graph, built-in checkpointing, interrupt/resume) + PostgreSQL-backed job runner for everything else (zero new dependencies, `SELECT FOR UPDATE SKIP LOCKED`). No Redis needed for MVP. Full design in [background-processing.md](/en/docs/background-processing).
 
 ---
 
@@ -172,7 +172,7 @@ FastAPI serves as the interface between frontend and backend.
 
 ### Access control model
 
-Based on [semantic boundaries](../research/semantic-boundaries/) and [multi-agent coordination](../research/multi-agent-coordination/) research:
+Based on [semantic boundaries](/en/docs/semantic-boundaries) and [multi-agent coordination](/en/docs/multi-agent-coordination) research:
 
 ```
 Boot ──→ Agent (compartmented context) ──→ Boundary ──→ Output
@@ -215,9 +215,9 @@ Learner completes exercise ──→ Progress recorded
 | Mandate model for agent authority | |
 | Self-hosted, one instance per company | |
 | LLM provider agnostic (OpenAI-compatible API) | |
-| Data model defined ([data-model.md](data-model.md)) | |
-| Agent communication patterns (see [content-generation.md](content-generation.md), [chat-agents.md](chat-agents.md)) | |
-| Background processing (see [background-processing.md](background-processing.md)) | |
-| Mandate implementation (see [security.md](security.md)) | |
-| Chunking strategy (see [rag-retrieval.md](rag-retrieval.md)) | |
-| Level 3 latency (see [frontend-backend-integration.md](frontend-backend-integration.md)) | |
+| Data model defined ([data-model.md](/en/docs/data-model)) | |
+| Agent communication patterns (see [content-generation.md](/en/docs/content-generation), [chat-agents.md](/en/docs/chat-agents)) | |
+| Background processing (see [background-processing.md](/en/docs/background-processing)) | |
+| Mandate implementation (see [security.md](/en/docs/security)) | |
+| Chunking strategy (see [rag-retrieval.md](/en/docs/rag-retrieval)) | |
+| Level 3 latency (see [frontend-backend-integration.md](/en/docs/frontend-backend-integration)) | |

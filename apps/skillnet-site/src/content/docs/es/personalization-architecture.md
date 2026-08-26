@@ -30,14 +30,14 @@ críticos permanecen estables. Así, «personalizar» no significa generar una l
 criterio, sino producir variantes comparables de una misma intención pedagógica.
 
 Esta arquitectura concreta y no sustituye las decisiones de
-[`adaptive-learning.md`](adaptive-learning.md),
-[`arquitectura-componentes-funcional.md`](arquitectura-componentes-funcional.md) y
-[`v2-dynamic-courses.md`](v2-dynamic-courses.md).
+[`adaptive-learning.md`](/docs/adaptive-learning),
+[`arquitectura-componentes-funcional.md`](/docs/arquitectura-componentes-funcional) y
+[`v2-dynamic-courses.md`](/docs/dynamic-courses).
 
 La arquitectura de publicación que construye variantes durante la generación del curso, expone la
 frontera neutral `LearningExperience` y normaliza evidencia de Didact, vídeo, juegos o simulaciones
 hacia mastery se define en
-[`learning-experience-architecture.md`](learning-experience-architecture.md). Este documento conserva
+[`learning-experience-architecture.md`](/docs/learning-experience-architecture). Este documento conserva
 la autoridad sobre proyección de perfil, apoyo, caché y resolución por capacidades.
 
 ## 2. Las cinco capas
@@ -320,4 +320,4 @@ La arquitectura habrá funcionado cuando:
 
 La estrategia concreta para consumir el catálogo grande de Didact, limitar cada decisión a una
 shortlist, distinguir recipes de nuevos componentes y avanzar hacia GenUI de nivel 3 está en
-[`didact-integration-strategy.md`](didact-integration-strategy.md).
+[`didact-integration-strategy.md`](/docs/didact-integration-strategy).

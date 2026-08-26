@@ -6,7 +6,7 @@ section: "core"
 
 # Tutoring & Chat Agents
 
-> **Status: v1.** LangGraph agent architecture for both employee tutor and admin assistant. Builds on [architecture.md](architecture.md) (agent teams, SSE streaming), [rag-retrieval.md](rag-retrieval.md) (retrieval strategies, PageIndex, context assembly), [backend-api.md](backend-api.md) (chat endpoints, dependency injection), and [screens.md](screens.md) (Chat Tutor, Admin Chat).
+> **Status: v1.** LangGraph agent architecture for both employee tutor and admin assistant. Builds on [architecture.md](/en/docs/architecture) (agent teams, SSE streaming), [rag-retrieval.md](/en/docs/rag-retrieval) (retrieval strategies, PageIndex, context assembly), [backend-api.md](/en/docs/backend-api) (chat endpoints, dependency injection), and [screens.md](/en/docs/screens) (Chat Tutor, Admin Chat).
 
 ---
 
@@ -2074,7 +2074,7 @@ rate_limiter = RateLimiter()
 
 ### 6.3 Shared LLMClient
 
-Both agents use the same `AsyncOpenAI` client (configured from org settings or env vars, see [backend-api.md](backend-api.md) section 4.3). The difference is the system prompt and available tools.
+Both agents use the same `AsyncOpenAI` client (configured from org settings or env vars, see [backend-api.md](/en/docs/backend-api) section 4.3). The difference is the system prompt and available tools.
 
 ```python
 # src/services/chat_service.py

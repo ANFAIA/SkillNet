@@ -12,9 +12,9 @@ section: "extensibility"
 integración del host),
 `apps/skillnet-api/src/personalization/didact_snapshot.json` (inventario del proveedor),
 `apps/skillnet-api/src/render/kit.py` (el UI Kit que el validador y el prompt conocen).
-**Relacionado:** [`didact-integration.md`](didact-integration.md),
-[`extensibility.md`](extensibility.md),
-[`learning-experience-architecture.md`](learning-experience-architecture.md)
+**Relacionado:** [`didact-integration.md`](/docs/didact-integration),
+[`extensibility.md`](/docs/extensibility),
+[`learning-experience-architecture.md`](/docs/learning-experience-architecture)
 
 > Este documento inventaría **qué componentes hay hoy**, cuáles están **bloqueados** y qué
 > **tipos pedagógicamente valiosos faltan**, con una lista priorizada de recomendaciones. No
@@ -98,7 +98,7 @@ LLM compone en el episodio. Los relevantes para esta auditoría:
 - **Medios sintetizados**: `AudioExplanation`, `PronunciationExercise`, y los dos
   **broker-scoped** `PodcastPlayer` / `InfographicImage` — reales y validables, pero que el
   generador solo ve cuando el media broker los inyecta por nodo porque existe un artefacto
-  READY y la modalidad del aprendiz coincide (ver [`media-artifacts.md`](media-artifacts.md)).
+  READY y la modalidad del aprendiz coincide (ver [`media-artifacts.md`](/docs/media-artifacts)).
 - **Frontera neutral**: `LearningExperience` (referencia opaca a una experiencia resuelta;
   no expone proveedor ni respuestas) y `DidactActivity` (`llm_emittable=False`,
   `legacy_parseable=True`: cargable por id, playback histórico).

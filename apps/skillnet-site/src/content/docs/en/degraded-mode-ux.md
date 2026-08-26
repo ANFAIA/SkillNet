@@ -7,9 +7,9 @@ section: "core"
 # Degraded mode: surfacing it in the UI
 
 **Status:** plan (not implemented, except as noted in §2)
-**Related:** [`media-artifacts.md`](media-artifacts.md) §5,
-[`personalization.md`](personalization.md) §4, [`backend-api.md`](backend-api.md),
-[`../../.env.example`](../../.env.example), `README.md` §"Audio, images and the render cache"
+**Related:** [`media-artifacts.md`](/en/docs/media-artifacts) §5,
+[`personalization.md`](/en/docs/personalization) §4, [`backend-api.md`](/en/docs/backend-api),
+[`../../.env.example`](https://github.com/ANFAIA/SkillNet/blob/main/.env.example), `README.md` §"Audio, images and the render cache"
 
 > SkillNet degrades in specific ways when external keys are missing (ElevenLabs / OpenRouter)
 > or the provider returns quota errors. Today those degradations are **invisible** to admins

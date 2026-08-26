@@ -8,7 +8,7 @@ section: "extensibility"
 
 > **Componentes educativos:** la adopción progresiva de la biblioteca pública Didact,
 > su filtrado por capacidades y la frontera con este runtime se documentan en
-> [`didact-integration.md`](didact-integration.md).
+> [`didact-integration.md`](/docs/didact-integration).
 
 > **DECISIÓN VIGENTE (2026-07-26, tarde): adopción completa — nivel (c), sin reactividad.**
 >
@@ -34,7 +34,7 @@ section: "extensibility"
 > (1 jul) y precisa la síntesis del 24 jul (`_sintesis_para_repo.md`,
 > `docs/research/generative-ui/README.md`).
 >
-> Estado: decidido y **ejecutado** en la rama `feat/dynamic-courses`.
+> Estado: decidido y **ejecutado**; el trabajo está en `main` desde el 2026-08-04.
 
 Toda la evidencia de este documento se produjo ejecutando `@openuidev/lang-core@0.2.10` y
 `@openuidev/react-lang@0.2.9` reales contra nuestras 16 fixtures. Los scripts viven en un sandbox

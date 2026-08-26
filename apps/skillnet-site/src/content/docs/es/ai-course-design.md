@@ -14,8 +14,8 @@ section: "extensibility"
 > y a `content-generation.md` (pipeline v1). Donde este documento contradice al otro,
 > gana el mas reciente para la fase de diseno; el runtime no se toca aqui.
 
-Depende de: [v2-dynamic-courses.md](v2-dynamic-courses.md),
-[architecture.md](architecture.md), [llm-integration.md](llm-integration.md).
+Depende de: [v2-dynamic-courses.md](/docs/dynamic-courses),
+[architecture.md](/docs/architecture), [llm-integration.md](/docs/llm-integration).
 
 ---
 

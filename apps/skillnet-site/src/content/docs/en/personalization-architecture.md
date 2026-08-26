@@ -31,14 +31,14 @@ critical facts stay stable. So "personalizing" does not mean generating an arbit
 lesson, but producing comparable variants of the same pedagogical intent.
 
 This architecture is concrete and does not replace the decisions in
-[`adaptive-learning.md`](adaptive-learning.md),
-[`arquitectura-componentes-funcional.md`](arquitectura-componentes-funcional.md), and
-[`v2-dynamic-courses.md`](v2-dynamic-courses.md).
+[`adaptive-learning.md`](/en/docs/adaptive-learning),
+[`arquitectura-componentes-funcional.md`](/en/docs/arquitectura-componentes-funcional), and
+[`v2-dynamic-courses.md`](/en/docs/dynamic-courses).
 
 The publishing architecture that builds variants during course generation, exposes the neutral
 `LearningExperience` boundary, and normalizes evidence from Didact, video, games, or simulations
 toward mastery is defined in
-[`learning-experience-architecture.md`](learning-experience-architecture.md). This document keeps
+[`learning-experience-architecture.md`](/en/docs/learning-experience-architecture). This document keeps
 authority over profile projection, support, caching, and capability-based resolution.
 
 ## 2. The five layers
@@ -325,4 +325,4 @@ The architecture will have worked when:
 
 The concrete strategy for consuming Didact's large catalog, limiting each decision to a shortlist,
 distinguishing recipes from new components, and moving toward level-3 GenUI is in
-[`didact-integration-strategy.md`](didact-integration-strategy.md).
+[`didact-integration-strategy.md`](/en/docs/didact-integration-strategy).

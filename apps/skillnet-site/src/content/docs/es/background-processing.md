@@ -6,7 +6,7 @@ section: "core"
 
 # Procesamiento en Segundo Plano
 
-> **Estado: v1.** Resuelve el punto **(abierto)** de [architecture.md](architecture.md): "Background processing. Ingestion and content generation are long-running tasks. Queue system (Celery, Dramatiq, etc.) vs LangGraph's built-in persistence."
+> **Estado: v1.** Resuelve el punto **(abierto)** de [architecture.md](/docs/architecture): "Background processing. Ingestion and content generation are long-running tasks. Queue system (Celery, Dramatiq, etc.) vs LangGraph's built-in persistence."
 
 ---
 

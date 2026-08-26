@@ -8,7 +8,7 @@ section: "extensibility"
 
 > **Educational components:** the progressive adoption of the public Didact library, its
 > capability-based filtering, and the boundary with this runtime are documented in
-> [`didact-integration.md`](didact-integration.md).
+> [`didact-integration.md`](/en/docs/didact-integration).
 
 > **CURRENT DECISION (2026-07-26, afternoon): full adoption — level (c), without reactivity.**
 >
@@ -34,7 +34,7 @@ section: "extensibility"
 > (Jul 1) and refines the July 24 synthesis (`_sintesis_para_repo.md`,
 > `docs/research/generative-ui/README.md`).
 >
-> Status: decided and **executed** on the `feat/dynamic-courses` branch.
+> Status: decided and **executed**; the work has been in `main` since 2026-08-04.
 
 All the evidence in this document was produced by running real
 `@openuidev/lang-core@0.2.10` and `@openuidev/react-lang@0.2.9` against our 16 fixtures. The

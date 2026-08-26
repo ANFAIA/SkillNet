@@ -16,7 +16,7 @@ section: "extensibility"
 > of Didact. The target neutral architecture —where Didact is a replaceable provider,
 > `LearningExperience` replaces the specific boundary, and legacy pedagogical blocks leave
 > new courses— is defined in
-> [`learning-experience-architecture.md`](learning-experience-architecture.md). When a
+> [`learning-experience-architecture.md`](/en/docs/learning-experience-architecture). When a
 > historical incremental-adoption decision on this page contradicts that target, the
 > neutral document wins; this page still wins on which types and ports work today.
 

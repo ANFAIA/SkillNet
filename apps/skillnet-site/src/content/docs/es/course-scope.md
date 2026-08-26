@@ -10,7 +10,7 @@ section: "v2"
 > cuestiones de v1.** Los otros docs fueron escritos para el producto completo (v1 + v2 + futuro).
 >
 > **Lo que ya no hace:** decidir el alcance del proyecto entero. v2 esta implementado
-> (2026-07-27) y su documento de diseno —[`v2-dynamic-courses.md`](v2-dynamic-courses.md)— es
+> (2026-07-27) y su documento de diseno —[`v2-dynamic-courses.md`](/docs/dynamic-courses)— es
 > el que manda en todo lo relativo a v2. Si este fichero y aquel se contradicen sobre v2, gana
 > aquel.
 

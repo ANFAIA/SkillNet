@@ -64,7 +64,7 @@ El caso cerrado de un solo dueño apenas necesita nada de esto · una carpeta y 
 - **Cruzar una frontera de confianza** · una frontera se sostiene solo donde el runtime está controlado. Una vez que una pieza está dentro del runtime de otra persona, la garantía caduca.
 - **Sobreclasificación** · una unión cautelosa deriva hacia marcarlo todo con la máxima restricción. Cuándo es seguro rebajar una etiqueta de nuevo queda sin resolver.
 
-Ver las [notas de coordinación](README.md) para el modelo circundante · mandatos, aduana de frontera, y los cinco protocolos.
+Ver las [notas de coordinación](https://github.com/ANFAIA/SkillNet/blob/main/README.md) para el modelo circundante · mandatos, aduana de frontera, y los cinco protocolos.
 
 ## Implementación concreta
 

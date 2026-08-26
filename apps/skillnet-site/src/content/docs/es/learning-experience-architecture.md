@@ -12,12 +12,12 @@ section: "core"
 **Aplica a:** cursos dinámicos v2, selección de experiencias y futuros proveedores
 
 **Autoridad:** este documento define la frontera entre verdad persistida, dirección episódica,
-selección de capacidades y render. [`v2-dynamic-courses.md`](v2-dynamic-courses.md) conserva la
-especificación del camino v2 y del fallback histórico; [`didact-integration.md`](didact-integration.md)
+selección de capacidades y render. [`v2-dynamic-courses.md`](/docs/dynamic-courses) conserva la
+especificación del camino v2 y del fallback histórico; [`didact-integration.md`](/docs/didact-integration)
 describe el inventario ejecutable de Didact.
 
 La relación entre modalidad y estructura interna se amplía en
-[`delivery-modalities.md`](delivery-modalities.md). Audio y vídeo son representaciones que pueden
+[`delivery-modalities.md`](/docs/delivery-modalities). Audio y vídeo son representaciones que pueden
 vivir dentro de una experiencia; no son destinos de navegación ni pestañas que la persona deba
 elegir.
 
@@ -416,15 +416,15 @@ La abstracción es suficiente cuando:
 
 ## 12. Relación con otros documentos
 
-- [`v2-dynamic-courses.md`](v2-dynamic-courses.md) define entrega v2, persistencia, caché y transición
+- [`v2-dynamic-courses.md`](/docs/dynamic-courses) define entrega v2, persistencia, caché y transición
   de mastery. Sus recetas de pantalla describen el fallback `legacy_stepper`.
-- [`node-knowledge-packs.md`](node-knowledge-packs.md) define la preparación de verdad fuente que
+- [`node-knowledge-packs.md`](/docs/node-knowledge-packs) define la preparación de verdad fuente que
   alimenta `SourceAffordanceMap`.
-- [`delivery-modalities.md`](delivery-modalities.md) define modalidad como affordance y señal de
+- [`delivery-modalities.md`](/docs/delivery-modalities) define modalidad como affordance y señal de
   selección, no como pestaña.
-- [`didact-integration.md`](didact-integration.md) enumera componentes, puertos y bloqueos reales del
+- [`didact-integration.md`](/docs/didact-integration) enumera componentes, puertos y bloqueos reales del
   proveedor Didact.
-- [`didact-integration-strategy.md`](didact-integration-strategy.md) desarrolla recipes y GenUI de
+- [`didact-integration-strategy.md`](/docs/didact-integration-strategy) desarrolla recipes y GenUI de
   nivel 3.
-- [`openui-adoption.md`](openui-adoption.md) conserva las restricciones de dialecto, seguridad y
+- [`openui-adoption.md`](/docs/openui-adoption) conserva las restricciones de dialecto, seguridad y
   renderer.

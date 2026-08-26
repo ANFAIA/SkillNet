@@ -7,10 +7,10 @@ section: "extensibility"
 # Personalization
 
 **Status:** in production
-**Related:** [`personalization-architecture.md`](personalization-architecture.md),
-[`generative-ui-personalization.md`](generative-ui-personalization.md),
-[`media-artifacts.md`](media-artifacts.md),
-[`learning-experience-architecture.md`](learning-experience-architecture.md)
+**Related:** [`personalization-architecture.md`](/en/docs/personalization-architecture),
+[`generative-ui-personalization.md`](/en/docs/generative-ui-personalization),
+[`media-artifacts.md`](/en/docs/media-artifacts),
+[`learning-experience-architecture.md`](/en/docs/learning-experience-architecture)
 
 > This document describes the two personalization levers applied today to episode generation:
 > the free-text **learning note** and the **modality preferences** (audio/visual). Both are built
@@ -131,4 +131,4 @@ wait ("Getting ready…"). Generation is stochastic, so occasionally a flat fall
 Bumping `schema_version` (e.g. `--refresh`) or deleting cached renders forces regeneration.
 
 How degraded states are surfaced in the UI (TTS/image without a key, quota exhausted):
-[`degraded-mode-ux.md`](degraded-mode-ux.md).
+[`degraded-mode-ux.md`](/en/docs/degraded-mode-ux).

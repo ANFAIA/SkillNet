@@ -20,7 +20,7 @@ A single downloadable SkillNet with two future modes:
 
 `class` is not a third mode and `user` is not used as a mode name. The current
 company/employee product is preserved. Full design:
-[audience-modes.md](audience-modes.md).
+[audience-modes.md](/en/docs/audience-modes).
 
 ## 2. Replacing and improving the mascot
 
@@ -33,7 +33,7 @@ validated before being fixed. Brilliant's companion can serve as a targeted refe
 for investigating that behavior, not as a general direction for the courses.
 
 Agreed boundary:
-[conversational-modalities.md](conversational-modalities.md).
+[conversational-modalities.md](/en/docs/conversational-modalities).
 
 ## 3. Podcast Studio with NotebookLM-like quality
 
@@ -45,7 +45,7 @@ The default design may use two voices, but it will work with one or more dependi
 the provider's capabilities. Grounding, editorial planning, script, review, voices, and
 finishing will be replaceable stages.
 
-Full plan: [podcast-studio-plan.md](podcast-studio-plan.md).
+Full plan: [podcast-studio-plan.md](/en/docs/podcast-studio-plan).
 
 ## 4. Audio as chat input
 
@@ -57,7 +57,7 @@ audio -> transcription -> chat -> text
 ```
 
 Agreed boundary:
-[conversational-modalities.md](conversational-modalities.md).
+[conversational-modalities.md](/en/docs/conversational-modalities).
 
 ## 5. Live voice conversations
 
@@ -66,7 +66,7 @@ option, the integration must stay behind an abstraction to support other provide
 
 Its interface, concrete use cases, and implementation priority haven't been fixed yet.
 Agreed boundary:
-[conversational-modalities.md](conversational-modalities.md).
+[conversational-modalities.md](/en/docs/conversational-modalities).
 
 ## 6. Separation of modalities
 
@@ -74,7 +74,7 @@ Web, audio, and video are cumulative modalities, not exclusive variants of a scr
 Multimedia generation stays on-demand and separate from OpenUI composition.
 
 Architecture design:
-[delivery-modalities.md](delivery-modalities.md).
+[delivery-modalities.md](/en/docs/delivery-modalities).
 
 ## Status summary
 

@@ -85,7 +85,7 @@ función educativa y después pide a la librería un componente capaz de impleme
 | Presentación | text, table, image, audio, video, diagram |
 
 Esto extiende `ContentFunction` de
-[`arquitectura-componentes-funcional.md`](arquitectura-componentes-funcional.md): aquella capa
+[`arquitectura-componentes-funcional.md`](/docs/arquitectura-componentes-funcional): aquella capa
 describe la forma de la fuente (`CONTRASTAR`, `PROCEDIMENTAR`); esta añade la acción del aprendiz y
 el resultado observable.
 
@@ -244,7 +244,7 @@ espaciada. Las menciones antiguas en documentos v1 son planes históricos, no ro
 
 La separación ejecutable entre objetivo, misión cognitiva, representación, componente y apoyo, con
 sus invariantes de caché y el plan de migración, se define en
-[`personalization-architecture.md`](personalization-architecture.md).
+[`personalization-architecture.md`](/docs/personalization-architecture).
 
 Los resultados que justifican estas decisiones, incluidos experimentos revertidos, se conservan en
-el [`cuaderno de experimentos de personalización`](../personalization-experiments.md).
+el ``cuaderno de experimentos de personalización``.

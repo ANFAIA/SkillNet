@@ -28,7 +28,7 @@ This path is not closed. There will probably be something after Markdown eventua
 
 ### The token problem with HTML
 
-In parallel, a trend emerged: people started using HTML to visualize their ideas, because it is more expressive than Markdown. Dashboards, charts, interactive pages. But generating HTML through an AI agent is expensive. A single page costs 2,000-8,000 output tokens and takes 20-30 seconds to generate. This is the problem explored in [generative-ui](../generative-ui/), where we built A2TL-Web as a compact alternative.
+In parallel, a trend emerged: people started using HTML to visualize their ideas, because it is more expressive than Markdown. Dashboards, charts, interactive pages. But generating HTML through an AI agent is expensive. A single page costs 2,000-8,000 output tokens and takes 20-30 seconds to generate. This is the problem explored in [generative-ui](/en/docs/generative-ui-research), where we built A2TL-Web as a compact alternative.
 
 ### Smarter readers
 
@@ -66,7 +66,7 @@ An MCP server (`@anfaia/md-reader-mcp`, v1.4.1) that parses Markdown headings in
 
 **Workflow:** `md_find` first with what you're looking for → it returns matching sections ranked. Then `md_section` to read the one you picked. `md_tree` when you need one file's full structure, `md_vault_index` to explore links between notes.
 
-Source: [`packages/mcp-md-reader/`](../../../packages/mcp-md-reader/)
+Source: [`packages/mcp-md-reader/`](https://github.com/ANFAIA/SkillNet/tree/main/packages/mcp-md-reader)
 
 ## Key Numbers
 

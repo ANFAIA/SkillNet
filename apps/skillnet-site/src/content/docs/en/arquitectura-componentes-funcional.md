@@ -360,8 +360,8 @@ During the migration, old adapters and library components will coexist. Each rep
 pass golden specs for structure, accessibility, and events before the local block is retired; the
 component's name must not be hardwired again into central detectors. The full contract and its
 relationship to QTI, H5P, and xAPI are described in
-[`adaptive-learning.md`](adaptive-learning.md).
+[`adaptive-learning.md`](/en/docs/adaptive-learning).
 
 The continuation with Didact's real catalog — 24 current educational types, facet-based
 resolution, candidate shortlists, recipes, and declarative molecules for level-3 GenUI — is
-defined in [`didact-integration-strategy.md`](didact-integration-strategy.md).
+defined in [`didact-integration-strategy.md`](/en/docs/didact-integration-strategy).

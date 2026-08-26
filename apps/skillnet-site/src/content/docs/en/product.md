@@ -10,7 +10,7 @@ section: "start"
 >
 > The current company-first product remains the implemented baseline. The future
 > audience model for organization and individual deployments is defined in
-> [audience-modes.md](audience-modes.md).
+> [audience-modes.md](/en/docs/audience-modes).
 
 ---
 
@@ -47,7 +47,7 @@ The primary way to create content:
 
 - **From documents** — Upload a PDF, manual, or protocol. A team of AI agents extracts themes, designs a structure, generates modules and exercises, reviews quality, and produces a course + manual. The admin reviews at two checkpoints before anything reaches employees.
 
-The generation pipeline is a LangGraph state machine with 10 nodes, 7 specialized agents, and 2 mandatory human checkpoints. See [content-generation.md](content-generation.md).
+The generation pipeline is a LangGraph state machine with 10 nodes, 7 specialized agents, and 2 mandatory human checkpoints. See [content-generation.md](/en/docs/content-generation).
 
 Future generation methods (not in MVP):
 

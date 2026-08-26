@@ -8,9 +8,9 @@ section: "extensibility"
 
 **Estado:** en producción (podcast e infografía integrados en el episodio; slides y vídeo
 generables)
-**Relacionado:** [`personalization.md`](personalization.md),
-[`podcast-studio-plan.md`](podcast-studio-plan.md),
-[`llm-integration.md`](llm-integration.md), [`backend-api.md`](backend-api.md)
+**Relacionado:** [`personalization.md`](/docs/personalization),
+[`podcast-studio-plan.md`](/docs/podcast-studio-plan),
+[`llm-integration.md`](/docs/llm-integration), [`backend-api.md`](/docs/backend-api)
 
 > Un **artefacto multimedia** es una pieza de medios generada y *grounded* en el contenido de
 > un curso: un podcast (audio overview), una infografía, una baraja de diapositivas o un vídeo
@@ -87,7 +87,7 @@ a nivel de curso. No lleva enums de kind/status/scope.
 `src/agents/runtime/media_broker.py` decide si un artefacto se convierte en componente dentro
 del episodio. `MEDIA_COMPONENT_BY_KIND` mapea `PODCAST → "PodcastPlayer"` e
 `INFOGRAPHIC → "InfographicImage"` (los dos componentes *broker-scoped* del kit — ver
-[`didact-components.md`](didact-components.md)).
+[`didact-components.md`](/docs/didact-components)).
 
 La inyección exige **tres condiciones a la vez**:
 
@@ -95,7 +95,7 @@ La inyección exige **tres condiciones a la vez**:
    PODCAST/INFOGRAPHIC, org-scoped, la más reciente gana, y descarta filas sin `asset_path`.
 2. **La modalidad del aprendiz coincide** — `gate_offers` es un filtro puro: `podcast` solo si
    `_prefers_audio(prefs)`, `infographic` solo si `_prefers_visual(prefs)` (ver
-   [`personalization.md`](personalization.md) §2).
+   [`personalization.md`](/docs/personalization) §2).
 3. **Está grounded** en el contenido del nodo.
 
 Cuando pasa el filtro, `offers_prompt_addendum` inyecta una lista blanca *grounded* en el
@@ -141,5 +141,5 @@ Dos consecuencias prácticas de esta cadena, importantes para demos y para el UX
    silencio (`MascotaCompanion.tsx`), pero la superficie de admin/settings no lo indica.
 
 El plan para exponer estos estados degradados en la interfaz (banner de admin, `/health`
-ampliado, onboarding) está en [`degraded-mode-ux.md`](degraded-mode-ux.md).
+ampliado, onboarding) está en [`degraded-mode-ux.md`](/docs/degraded-mode-ux).
 </content>

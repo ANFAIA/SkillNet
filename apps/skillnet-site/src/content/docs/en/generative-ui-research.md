@@ -135,7 +135,7 @@ We built five prototypes at different levels and measured them head-to-head on t
 4. **A bidirectional loop works** (agent generates → user interacts → agent regenerates) but costs ~3,500 tokens per cycle
 5. **Level 3 visual quality is inconsistent.** Each page looks different. Level 2 uses a design system, so output is always consistent.
 
-Full data: [experiments/prototype-benchmarks.md](experiments/prototype-benchmarks.md)
+Full data: [experiments/prototype-benchmarks.md](/en/docs/generative-ui-benchmarks)
 
 ## Who is working on this
 

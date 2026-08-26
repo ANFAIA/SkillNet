@@ -160,7 +160,7 @@ The extension will be well done if:
 
 Audio in chat, live conversations, the mascot, and podcasts can be reused in both
 modes. This decision does not by itself add more features to the enterprise product.
-The direction note is in [conversational-modalities.md](conversational-modalities.md).
+The direction note is in [conversational-modalities.md](/en/docs/conversational-modalities).
 
 ## Implementation status
 
