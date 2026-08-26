@@ -6,6 +6,7 @@ const GITHUB_URL = "https://github.com/ANFAIA/SkillNet";
 const LINKEDIN_URL = "https://www.linkedin.com/in/jose-est%C3%A9vez-b9b761388";
 const EMAIL_URL = "mailto:jose@skillnet.es";
 const ANFAIA_URL = "https://anfaia.org";
+const GESTION_TICKETS_URL = "https://gestiontickets.online/";
 
 export default function ContactSection() {
   return <section id="contacto" data-nav-theme="light" className="w-full scroll-mt-24 bg-white px-6 py-20 sm:px-10 sm:py-28">
@@ -15,6 +16,7 @@ export default function ContactSection() {
           <motion.h2 initial={false} className="type-section-title">Contacto</motion.h2>
           <motion.p initial={false} className="type-lead mt-6 text-[var(--color-text-secondary)]">SkillNet sigue en desarrollo. Si la idea te interesa, puedes probarlo, contarme qué mejorarías o contribuir directamente al proyecto.</motion.p>
           <p className="contact-anfaia mt-10">Desarrollado bajo <a href={ANFAIA_URL} target="_blank" rel="noopener noreferrer">Anfaia<ArrowUpRight size={19} /></a></p>
+          <p className="contact-anfaia mt-2">Patrocinado por <a href={GESTION_TICKETS_URL} target="_blank" rel="noopener noreferrer">Gestión Tickets<ArrowUpRight size={19} /></a></p>
         </div>
         <div className="contact-actions">
           <a href={EMAIL_URL} className="contact-card contact-card--mail"><Mail size={22} /><span>Escríbenos</span><ArrowUpRight className="contact-card__arrow" size={18} /></a>
