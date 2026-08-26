@@ -1,5 +1,5 @@
 import { Children, type ReactElement, type ReactNode } from 'react'
-import { isAvailable, isReady, useCapability, type CapabilityName } from '../api/setup'
+import { isAvailable, useCapability, type CapabilityName } from '../api/setup'
 import { CapabilityExplain } from './CapabilityExplain'
 
 /**
@@ -57,7 +57,11 @@ export function Gated({
   const capability = useCapability(requires)
 
   if (mode === 'explain') {
-    if (isReady(capability)) return <>{children}</>
+    // Only a BLOCKED capability is explained away. `degraded` is the keyless TTS state,
+    // where the offline voice still produces audio — saying "no está disponible" over a
+    // control that works would be the lie this copy exists to avoid. A caller that wants
+    // to warn about a reduced result says so next to the action, not on it.
+    if (isAvailable(capability)) return <>{children}</>
     // `explain` needs one element to clone props onto — a fragment or a list has no
     // control to disable and nothing to describe.
     return (

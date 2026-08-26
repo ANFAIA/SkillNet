@@ -353,13 +353,13 @@ export const en: Record<string, string> = {
   'capability.tutor.admin.missing_api_key': 'LLM_API_KEY is missing from the deployment .env; restart the container after adding it.',
   'capability.tts.admin.missing_api_key': 'TTS_API_KEY is missing from the deployment .env; restart the container after adding it.',
   'capability.images.admin.missing_api_key': 'IMAGE_API_KEY (or OPENROUTER_API_KEY) is missing from the deployment .env; restart the container after adding it.',
+  'capability.google_login.admin.not_configured': 'GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are missing from the deployment .env; restart the container after adding them.',
   'capability.google_login.admin.missing_api_key': 'GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are missing from the deployment .env; restart the container after adding them.',
 
   // Reduced, not missing: the kind still runs, it just returns less. Said next to the
   // generate button rather than on the tile, because it describes the RESULT.
   'capability.degraded': 'This runs in reduced mode: the result will be more limited.',
   'capability.tts.degraded': 'Audio will use a basic offline voice, more robotic.',
-  'capability.images.degraded': 'It may come out without generated images.',
 
   // Compact tags for the deployment-level banner, which keeps its own sentences.
   'capability.statusLabel.degraded': 'Reduced mode',

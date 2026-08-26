@@ -160,11 +160,13 @@ describe('<Gated mode="explain">', () => {
     expect(await screen.findAllByText(LEARNER_TEXT)).toHaveLength(2)
   })
 
-  it('explains a degraded capability too — a maybe is not a yes', () => {
+  it('leaves a degraded capability alone — it still works, just with less', () => {
+    // `degraded` is the keyless TTS state, where the offline voice still produces audio.
+    // Rendering "no está disponible" over a control that works is the one thing this copy
+    // is not allowed to do; a reduced result is said next to the action, not on it.
     renderExplain(caps({ images: degraded('provider_quota') }))
-    expect(screen.getByRole('button', { name: 'Infografia' })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: 'Infografia' })).not.toHaveAttribute(
       'aria-disabled',
-      'true',
     )
   })
 

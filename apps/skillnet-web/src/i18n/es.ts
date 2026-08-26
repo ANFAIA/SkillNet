@@ -353,13 +353,13 @@ export const es: Record<string, string> = {
   'capability.tutor.admin.missing_api_key': 'Falta LLM_API_KEY en el .env del despliegue; reinicia el contenedor después de añadirla.',
   'capability.tts.admin.missing_api_key': 'Falta TTS_API_KEY en el .env del despliegue; reinicia el contenedor después de añadirla.',
   'capability.images.admin.missing_api_key': 'Falta IMAGE_API_KEY (o OPENROUTER_API_KEY) en el .env del despliegue; reinicia el contenedor después de añadirla.',
+  'capability.google_login.admin.not_configured': 'Faltan GOOGLE_CLIENT_ID y GOOGLE_CLIENT_SECRET en el .env del despliegue; reinicia el contenedor después de añadirlas.',
   'capability.google_login.admin.missing_api_key': 'Faltan GOOGLE_CLIENT_ID y GOOGLE_CLIENT_SECRET en el .env del despliegue; reinicia el contenedor después de añadirlas.',
 
   // Reduced, not missing: the kind still runs, it just returns less. Said next to the
   // generate button rather than on the tile, because it describes the RESULT.
   'capability.degraded': 'Esta función está en modo reducido: el resultado será más limitado.',
   'capability.tts.degraded': 'El audio usará una voz offline básica, más robótica.',
-  'capability.images.degraded': 'Puede salir sin imágenes generadas.',
 
   // Compact tags for the deployment-level banner, which keeps its own sentences.
   'capability.statusLabel.degraded': 'Modo reducido',
