@@ -81,7 +81,12 @@ RUN mkdir -p /data/uploads /data/media_assets /data/tts_cache \
 # That only seeds volumes Docker creates from now on. A volume that already exists keeps
 # its root:root ownership through any rebuild, so the entrypoint repairs it at start and
 # then drops to `skillnet` - the process still runs unprivileged, the repair does not.
+# `chmod` here rather than trusting the checkout: git records this repo's files as
+# 0644 (no file has the executable bit, and core.filemode is off on the machine it is
+# developed from), so on a Linux clone — which is every deployment — the exec-form
+# ENTRYPOINT below would die with `permission denied` before Python ever started.
 COPY docker/api-entrypoint.sh /usr/local/bin/api-entrypoint.sh
+RUN chmod 0755 /usr/local/bin/api-entrypoint.sh
 ENTRYPOINT ["/usr/local/bin/api-entrypoint.sh"]
 
 EXPOSE 8000

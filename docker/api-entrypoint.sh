@@ -17,9 +17,13 @@ set -e
 if [ "$(id -u)" = "0" ]; then
     for dir in /data/uploads /data/media_assets /data/tts_cache; do
         mkdir -p "$dir"
-        # Recurse only when the mount point itself has the wrong owner. A healthy volume
-        # then costs one stat instead of a full walk of every generated asset.
-        if [ "$(stat -c %U "$dir")" != "skillnet" ]; then
+        # Look INSIDE, not just at the mount point. `docker compose exec` runs as root
+        # here, so a seed can leave a root-owned subdirectory (podcast_cache is the one
+        # that bites) under a correctly-owned volume; a check that stopped at the top
+        # would declare that healthy and leave the app unable to write for good.
+        # `-print -quit` stops at the first offender, so a healthy volume costs a walk
+        # that ends on its first entry rather than a chown over every stored asset.
+        if [ -n "$(find "$dir" ! -user skillnet -print -quit 2>/dev/null)" ]; then
             echo "entrypoint: repairing ownership of $dir" >&2
             chown -R skillnet:skillnet "$dir" || true
         fi
