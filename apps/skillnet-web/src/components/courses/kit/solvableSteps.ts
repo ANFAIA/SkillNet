@@ -18,6 +18,8 @@
 
 import type { ElementNode } from '@openuidev/react-lang'
 
+import { usesSecureEvaluationAdapter } from '../blocks/secure-evaluation-components'
+
 /**
  * Los componentes del kit que cierran el paso hasta acertar.
  *
@@ -77,6 +79,49 @@ export function hasSolvableItem(value: unknown, seen: WeakSet<object> = new Weak
  * `Stack` de puro contenido se queda intacto, y un `Card` NUNCA se toca (agrupar con borde
  * es una decision de diseno del generador, no un contenedor accidental).
  */
+/**
+ * True si en el subarbol hay algo que COMPRUEBA lo aprendido.
+ *
+ * Es mas ancho que :func:`hasSolvableItem` a proposito, y la diferencia importa. La
+ * evaluacion que de verdad genera el pipeline no suele ser un `QuizItem`: es un
+ * `LearningExperience` con un `implementation_ref` de la familia didact
+ * (`didact.quiz.multi-select@1` y compania). Para PARTIR la pantalla eso cuenta como
+ * evaluacion; para CERRAR el paso no, porque el que cierra el paso es quien llama a
+ * `useStepperSolve()` y ese bloque no lo llama — meterlo en `SOLVABLE_COMPONENTS` dejaria
+ * al aprendiz encerrado en una pantalla que nadie va a abrir.
+ *
+ * Que componentes evaluan no se decide aqui: se pregunta a `usesSecureEvaluationAdapter`,
+ * que ya es la lista de los que se corrigen contra el servidor.
+ */
+function hasEvaluation(value: unknown, seen: WeakSet<object> = new WeakSet()): boolean {
+  if (hasSolvableItem(value)) return true
+  return hasEvaluativeExperience(value, seen)
+}
+
+function hasEvaluativeExperience(value: unknown, seen: WeakSet<object>): boolean {
+  if (Array.isArray(value)) {
+    return value.some((entry) => hasEvaluativeExperience(entry, seen))
+  }
+  if (typeof value !== 'object' || value === null) return false
+  if (seen.has(value)) return false
+  seen.add(value)
+
+  if (isElementNode(value)) {
+    if (value.typeName === 'LearningExperience') {
+      const ref = (value.props as { implementation_ref?: unknown } | undefined)
+        ?.implementation_ref
+      // El ref viaja versionado (`...@1`); la lista esta escrita sin version.
+      if (typeof ref === 'string' && usesSecureEvaluationAdapter(ref.split('@')[0])) {
+        return true
+      }
+    }
+    return hasEvaluativeExperience(value.props, seen)
+  }
+  return Object.values(value as Record<string, unknown>).some((entry) =>
+    hasEvaluativeExperience(entry, seen),
+  )
+}
+
 export function splitMixedScreens(children: unknown[]): unknown[] {
   const out: unknown[] = []
   for (const child of children) {
@@ -96,6 +141,6 @@ function mixedNestedStackChildren(value: unknown): unknown[] | null {
   const raw = (value.props as { children?: unknown } | undefined)?.children
   const kids = (Array.isArray(raw) ? raw : [raw]).flat().filter((kid) => kid != null)
   if (kids.length < 2) return null
-  const solvable = kids.filter((kid) => hasSolvableItem(kid)).length
-  return solvable > 0 && solvable < kids.length ? kids : null
+  const evalua = kids.filter((kid) => hasEvaluation(kid)).length
+  return evalua > 0 && evalua < kids.length ? kids : null
 }

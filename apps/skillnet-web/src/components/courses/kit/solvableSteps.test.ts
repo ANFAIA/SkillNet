@@ -114,3 +114,55 @@ describe('splitMixedScreens', () => {
     expect(splitMixedScreens([mezclado])).toHaveLength(3)
   })
 })
+
+/**
+ * La evaluacion que de verdad genera el pipeline.
+ *
+ * Medido sobre un curso recien generado (2026-08-26): la pantalla de comprobacion no era
+ * un `QuizItem`, era `LearningExperience("...", "didact.quiz.multi-select@1", "...")`. Si
+ * el partidor solo mira `QuizItem`/`DragOrder`, la evaluacion real vuelve a compartir
+ * pantalla con la explicacion sin que nadie se entere.
+ */
+describe('splitMixedScreens y la evaluacion de las experiencias didact', () => {
+  const texto = el('TextContent', { text: 'el concepto' })
+  const quizExperiencia = el('LearningExperience', {
+    experience_id: 'e1',
+    implementation_ref: 'didact.quiz.multi-select@1',
+    definition_ref: 'd1',
+  })
+  const apoyo = el('LearningExperience', {
+    experience_id: 'e2',
+    implementation_ref: 'didact.flashcard@1',
+    definition_ref: 'd2',
+  })
+
+  it('separa la experiencia que evalua de la explicacion', () => {
+    const mezclado = el('Stack', { children: [texto, quizExperiencia], gap: 'md' })
+    expect(splitMixedScreens([mezclado])).toEqual([texto, quizExperiencia])
+  })
+
+  it('no separa una experiencia de apoyo, que no comprueba nada', () => {
+    const juntos = el('Stack', { children: [texto, apoyo], gap: 'md' })
+    expect(splitMixedScreens([juntos])).toEqual([juntos])
+  })
+
+  it('reconoce el ref con y sin version', () => {
+    const sinVersion = el('LearningExperience', {
+      experience_id: 'e3',
+      implementation_ref: 'didact.matching',
+      definition_ref: 'd3',
+    })
+    const mezclado = el('Stack', { children: [texto, sinVersion], gap: 'md' })
+    expect(splitMixedScreens([mezclado])).toEqual([texto, sinVersion])
+  })
+
+  /**
+   * La linea que no se puede cruzar: partir la pantalla es seguro, cerrarla no. Quien
+   * cierra el paso es quien llama a `useStepperSolve()`, y `LearningExperience` no lo
+   * hace; si esto dejara de ser cierto, el aprendiz se quedaria encerrado.
+   */
+  it('no convierte la experiencia en un paso que cierra', () => {
+    expect(hasSolvableItem(quizExperiencia)).toBe(false)
+    expect(SOLVABLE_COMPONENTS).not.toContain('LearningExperience')
+  })
+})
