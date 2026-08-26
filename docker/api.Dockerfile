@@ -43,8 +43,9 @@ RUN groupadd -r skillnet && \
     useradd -r -g skillnet -d /app -s /sbin/nologin skillnet
 
 # ffmpeg for audio concatenation in the media (podcast/video) pipeline; espeak-ng is the
-# offline, no-key/no-quota TTS safety net beneath the cloud voice providers.
-RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg espeak-ng \
+# offline, no-key/no-quota TTS safety net beneath the cloud voice providers. gosu lets the
+# entrypoint repair the data volumes as root and then drop back to the unprivileged user.
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg espeak-ng gosu \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -77,7 +78,11 @@ ENV PATH="/app/.venv/bin:$PATH" \
 RUN mkdir -p /data/uploads /data/media_assets /data/tts_cache \
     && chown -R skillnet:skillnet /data /app
 
-USER skillnet
+# That only seeds volumes Docker creates from now on. A volume that already exists keeps
+# its root:root ownership through any rebuild, so the entrypoint repairs it at start and
+# then drops to `skillnet` - the process still runs unprivileged, the repair does not.
+COPY docker/api-entrypoint.sh /usr/local/bin/api-entrypoint.sh
+ENTRYPOINT ["/usr/local/bin/api-entrypoint.sh"]
 
 EXPOSE 8000
 

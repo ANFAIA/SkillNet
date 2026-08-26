@@ -3,3 +3,6 @@
 # line-ending conversion so a Windows checkout keeps LF and the pinned hashes still match.
 apps/skillnet-api/tests/_vendor/** -text
 apps/skillnet-web/vendor/** -text
+
+# Shell scripts run inside Linux containers: CRLF makes the shebang unusable.
+*.sh text eol=lf
