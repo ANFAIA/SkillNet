@@ -5,24 +5,38 @@ session, parses the stored file, and either stores the full text (small docs)
 or chunks + embeds + persists chunks (large docs). Never raises out: any failure
 marks the document ``error`` so the background task exits cleanly.
 
-Image descriptions (for PDFs with images) are best-effort: they require a
-vision-capable model configured via ``VISION_MODEL``. When absent, images are
-silently skipped and the document is processed text-only.
+Images embedded in a PDF are **kept**: decoded, filtered by cheap deterministic rules and
+written to the source-image store, whether or not a vision model is configured. Only the
+*description* needs ``VISION_MODEL``; without it the images are still stored, with a NULL
+description, and the document is processed text-only exactly as before. Keeping them is
+what lets a course later illustrate itself with the customer's own diagram instead of an
+invented one. Nothing is extracted from a ``GENERATED`` document — see
+:func:`_extract_pdf_images`.
 """
 
 from __future__ import annotations
 
+import io
 import uuid
+from dataclasses import dataclass
 from pathlib import Path
 
 from src.core.logging import get_logger
 from src.deps.db import async_session_factory
 from src.llm.embedding import resolve_embedding_config
 from src.llm.fixtures import maybe_fixture_embedder
-from src.models import Document, DocumentStatus, Organization
+from src.models import Document, DocumentOrigin, DocumentStatus, Organization
 from src.repositories.document_chunk_repo import DocumentChunkRepository
+from src.repositories.source_image_repo import SourceImageRepository
 from src.services.chunker import chunk_sections
 from src.services.document_parser import ParsedSection, parse_document
+from src.services.source_images import (
+    ImageCandidate,
+    SourceImageStore,
+    content_hash,
+    decorative_flags,
+    image_extension,
+)
 
 logger = get_logger(__name__)
 
@@ -99,13 +113,76 @@ def _decode_pdf_image(img: dict) -> bytes | None:
         return None
 
 
-async def _describe_pdf_images(
-    path: Path, sections: list[ParsedSection], org_settings: dict,
-) -> list[ParsedSection]:
-    """Enrich sections with image descriptions from a vision model.
+def _image_size(img: dict, data: bytes) -> tuple[int, int]:
+    """Pixel dimensions of one image: the PDF's own ``srcsize``, or PIL as a fallback.
 
-    Best-effort: returns sections unchanged if vision is unavailable or fails.
-    Only processes PDFs (other formats have no embedded images to extract).
+    ``srcsize`` is what the decoder already trusts to rebuild a FlateDecode stream, so
+    when it is present it is authoritative and free. A DCTDecode (JPEG) entry can arrive
+    without it, and there the encoded bytes are the only source.
+    """
+    size = img.get("srcsize")
+    if isinstance(size, (tuple, list)) and len(size) == 2 and all(size):
+        return int(size[0]), int(size[1])
+    try:
+        from PIL import Image
+
+        with Image.open(io.BytesIO(data)) as pil_image:
+            return int(pil_image.width), int(pil_image.height)
+    except Exception:  # noqa: BLE001 - an unmeasurable image is skipped, not fatal
+        return 0, 0
+
+
+def _covering_heading(sections: list[ParsedSection], page: int) -> str:
+    """Heading of the section that covers ``page``, or ``""``.
+
+    Same walk (and same ``reversed``) the description injection below uses, so an image's
+    stored ``heading`` and the section its ``[Imagen: ...]`` text lands in are always the
+    same section — a caption that named a different one would be worse than none.
+    """
+    for section in reversed(sections):
+        if section.page_start <= page <= section.page_end:
+            return section.heading or ""
+    return ""
+
+
+@dataclass
+class _ExtractedImage:
+    """One stored image, between extraction and the row that records it."""
+
+    page: int
+    heading: str
+    content_hash: str
+    asset_path: str
+    width: int
+    height: int
+    size_bytes: int
+
+
+async def _extract_pdf_images(
+    session,
+    doc: Document,
+    path: Path,
+    sections: list[ParsedSection],
+    org_settings: dict,
+) -> list[ParsedSection]:
+    """Keep the images embedded in a PDF, and describe the ones worth describing.
+
+    Runs whether or not vision is configured — that is the whole change. The bytes are
+    the valuable part and they used to be discarded; ``VISION_MODEL`` only decides whether
+    a row also gets a ``description``. Every image that clears the byte floor is stored
+    and recorded; the deterministic rules in :mod:`src.services.source_images` decide
+    which rows are furniture, and furniture is marked rather than dropped so a human can
+    override the guess without re-ingesting the document.
+
+    A ``GENERATED`` document is skipped outright. Its text was written by a model from a
+    one-line idea, so anything found in it is by definition not the organization's own
+    material, and letting it into this table would be exactly the laundering the
+    ``origin`` column exists to prevent. (Today those are always ``.md`` and the PDF guard
+    would catch them anyway; the check is explicit because that is a coincidence of the
+    current writer, not a rule.)
+
+    Best-effort throughout: sections come back unchanged on any failure, and the caller's
+    ingestion never fails because of an image.
     """
     from src.services.image_describer import (
         MIN_IMAGE_BYTES,
@@ -114,8 +191,7 @@ async def _describe_pdf_images(
         resolve_vision_config,
     )
 
-    config = resolve_vision_config(org_settings)
-    if config is None:
+    if doc.origin == DocumentOrigin.GENERATED:
         return sections
 
     if not str(path).lower().endswith(".pdf"):
@@ -127,30 +203,114 @@ async def _describe_pdf_images(
         logger.warning("pdfplumber not available for image extraction")
         return sections
 
-    descriptions: list[ImageDescription] = []
+    store = SourceImageStore()
+    repo = SourceImageRepository(session)
+
+    # Re-ingestion replaces: the previous run's rows and files must go before this run's
+    # are written, or a figure removed from the source lives on forever.
+    await repo.delete_for_document(doc.id)
+    store.clear_document(doc.org_id, doc.id)
+
+    extracted: list[_ExtractedImage] = []
+    page_count = 0
     try:
         with pdfplumber.open(str(path)) as pdf:
+            page_count = len(pdf.pages)
             for page_num, page in enumerate(pdf.pages, 1):
                 for img in page.images:
                     try:
                         image_bytes = _decode_pdf_image(img)
                         if image_bytes is None or len(image_bytes) < MIN_IMAGE_BYTES:
                             continue
-                        desc = await describe_image(image_bytes, config)
-                        if desc:
-                            descriptions.append(ImageDescription(page=page_num, description=desc))
+                        width, height = _image_size(img, image_bytes)
+                        if not width or not height:
+                            continue
+                        ext = image_extension(image_bytes)
+                        asset_path = store.store(
+                            doc.org_id, doc.id, image_bytes, ext
+                        )
+                        extracted.append(
+                            _ExtractedImage(
+                                page=page_num,
+                                heading=_covering_heading(sections, page_num),
+                                content_hash=content_hash(image_bytes),
+                                asset_path=str(asset_path),
+                                width=width,
+                                height=height,
+                                size_bytes=len(image_bytes),
+                            )
+                        )
                     except Exception as exc:  # noqa: BLE001
                         logger.debug("Image extraction failed on page %d: %s", page_num, exc)
     except Exception as exc:  # noqa: BLE001
         logger.warning("PDF image scan failed for %s: %s", path, exc)
         return sections
 
-    if not descriptions:
+    if not extracted:
         return sections
 
-    logger.info("Described %d images from %s", len(descriptions), path.name)
+    flags = decorative_flags(
+        [
+            ImageCandidate(
+                page=item.page,
+                content_hash=item.content_hash,
+                width=item.width,
+                height=item.height,
+            )
+            for item in extracted
+        ],
+        page_count,
+    )
 
-    # Insert descriptions into the section that covers each image's page.
+    config = resolve_vision_config(org_settings)
+    # One description per distinct image, not per occurrence: the store is content-
+    # addressed, so the same bytes on three pages are one file and deserve one vision call.
+    described: dict[str, str] = {}
+    descriptions: list[ImageDescription] = []
+
+    for item, decorative in zip(extracted, flags, strict=True):
+        description: str | None = None
+        if config is not None and not decorative:
+            if item.content_hash in described:
+                description = described[item.content_hash]
+            else:
+                try:
+                    description = await describe_image(
+                        store.read(item.asset_path), config
+                    )
+                except Exception as exc:  # noqa: BLE001
+                    logger.debug("Image description failed on page %d: %s", item.page, exc)
+                    description = None
+                if description:
+                    described[item.content_hash] = description
+            if description:
+                descriptions.append(
+                    ImageDescription(page=item.page, description=description)
+                )
+
+        await repo.create(
+            org_id=doc.org_id,
+            document_id=doc.id,
+            page=item.page,
+            heading=item.heading,
+            content_hash=item.content_hash,
+            asset_path=item.asset_path,
+            width=item.width,
+            height=item.height,
+            bytes=item.size_bytes,
+            description=description,
+            is_decorative=decorative,
+        )
+
+    reusable = sum(1 for flag in flags if not flag)
+    logger.info(
+        "Kept %d images from %s (%d reusable, %d described)",
+        len(extracted), path.name, reusable, len(descriptions),
+    )
+
+    # Insert descriptions into the section that covers each image's page. Unchanged: the
+    # `[Imagen: ...]` marker is what makes an image findable by RAG, and the chunker and
+    # retrieval bench both depend on its shape.
     for img_desc in descriptions:
         for section in reversed(sections):
             if section.page_start <= img_desc.page <= section.page_end:
@@ -177,12 +337,19 @@ async def ingest_document(document_id: uuid.UUID | str) -> None:
                 Path(doc.storage_path), doc.file_type
             )
 
-            # Best-effort: describe images in PDFs if a vision model is configured.
+            # Keep the images embedded in a PDF (always), and describe them if a vision
+            # model is configured. Never fatal: a failure here costs the images, not the
+            # document, so ingestion carries on with the text it already has.
             org = await session.get(Organization, doc.org_id)
             org_settings = dict(org.settings) if org and org.settings else {}
-            sections = await _describe_pdf_images(
-                Path(doc.storage_path), sections, org_settings,
-            )
+            try:
+                sections = await _extract_pdf_images(
+                    session, doc, Path(doc.storage_path), sections, org_settings,
+                )
+            except Exception as exc:  # noqa: BLE001
+                logger.warning(
+                    "Source image extraction failed for document %s: %s", doc_id, exc
+                )
 
             # Rebuild full_text preserving heading markers so focus_on_headings() works.
             if sections:

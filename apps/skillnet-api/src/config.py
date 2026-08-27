@@ -134,6 +134,13 @@ class Settings(BaseSettings):
     # keyed by content hash, mirroring TTS_CACHE_DIR: the same render is never written
     # twice and the asset route can be cached hard.
     MEDIA_ASSETS_DIR: str = "data/media_assets"
+    # Images extracted from uploaded documents (the customer's OWN diagrams and photos),
+    # kept so a course can reuse them instead of inventing an illustration. A separate
+    # store from MEDIA_ASSETS_DIR on purpose: these are source material and die with the
+    # document they came from, while generated assets outlive it. In Docker this points
+    # inside the `uploads` volume rather than at a fourth one — same lifetime as the
+    # original file, same ownership repair, no new mount to get wrong.
+    SOURCE_IMAGES_DIR: str = "data/source_images"
     # Image generation. Default is NotebookLM's actual engine family ("Nano Banana");
     # gpt-image-1 on the existing OpenAI key is the fallback selectable per call.
     IMAGE_MODEL: str = "openrouter/google/gemini-2.5-flash-image"

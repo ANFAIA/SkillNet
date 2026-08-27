@@ -146,6 +146,12 @@ services:
       # named volumes below actually hold them.
       MEDIA_ASSETS_DIR: ${MEDIA_ASSETS_DIR:-/data/media_assets}
       TTS_CACHE_DIR: ${TTS_CACHE_DIR:-/data/tts_cache}
+      # Images extracted from uploaded PDFs (the customer's OWN diagrams). Same relative
+      # default problem as the two above, so it is pinned here too — but INSIDE the
+      # `uploads` volume rather than at a fourth one: a source image has exactly the
+      # lifetime of the file it came out of, and the entrypoint already repairs ownership
+      # under /data/uploads recursively, so there is no new mount to get wrong.
+      SOURCE_IMAGES_DIR: ${SOURCE_IMAGES_DIR:-/data/uploads/source_images}
       # Runtime component selection for dynamic courses. Research dials, so they are NOT in
       # .env.example (docs/design/configuration.md, "Do not set"), but they stay wired here:
       # there is no env_file, and a setting that is documented but not wired changes nothing
@@ -222,6 +228,7 @@ services:
       # is image filesystem, so without them a rebuild silently discards generated media.
       MEDIA_ASSETS_DIR: ${MEDIA_ASSETS_DIR:-/data/media_assets}
       TTS_CACHE_DIR: ${TTS_CACHE_DIR:-/data/tts_cache}
+      SOURCE_IMAGES_DIR: ${SOURCE_IMAGES_DIR:-/data/uploads/source_images}
     volumes:
       - uploads:/data/uploads
       - media_assets:/data/media_assets

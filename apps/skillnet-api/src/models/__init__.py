@@ -76,6 +76,7 @@ from src.models.node_render_view import NodeRenderView
 from src.models.organization import Organization, WorkspaceMode
 from src.models.skill import Skill
 from src.models.skill_category import SkillCategory
+from src.models.source_image import SourceImage
 from src.models.term_explanation import (
     TERM_CACHEABLE_MAX_LENGTH,
     TERM_CACHEABLE_MAX_TOKENS,
@@ -172,4 +173,6 @@ __all__ = [
     "MediaArtifact",
     "MediaKind",
     "MediaArtifactStatus",
+    # --- images extracted from source documents ---
+    "SourceImage",
 ]
