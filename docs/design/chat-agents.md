@@ -1568,7 +1568,7 @@ ADMIN_TOOLS: list[AdminTool] = [
     ),
     AdminTool(
         name="archive_course",
-        description="Archive a published course. Active enrollments will be marked as completed.",
+        description="Archive a published course: it disappears for learners and every enrollment is left untouched. Reversible with unarchive_course.",
         parameters={
             "type": "object",
             "properties": {

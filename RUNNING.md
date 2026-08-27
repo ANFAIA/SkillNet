@@ -338,14 +338,25 @@ Dokploy's external network, and cookies marked `Secure` because Traefik terminat
 
     Project -> Compose -> Provider: Git -> Compose Path: ./docker-compose.dokploy.yml
     Environment tab: SECRET_KEY, POSTGRES_PASSWORD, LLM_API_KEY
-    Domains tab: ONE entry -> service `skillnet-web`, container port 80
+    Domains tab: TWO entries on the same hostname
+      host / path `/`     -> service `skillnet-web`, container port 3000
+      host / path `/api`  -> service `skillnet-api`, container port 8000
+      host / path `/ext`  -> service `skillnet-api`, container port 8000  (external API only)
 
-**One domain entry, not two.** `skillnet-web` already proxies `/api` and `/ext` to the API
-inside the container, so the router only needs to know about the front door. Deployments
-that drop that service have to add a second entry for `/api`, and forgetting it produces a
-failure that reads like a frontend bug: the app loads, then `GET /api/v1/setup/status`
-returns 200 with `index.html` and the SPA parses HTML as JSON — "invalid response" on
-login, and no setup wizard.
+**Two domain entries, not one.** This used to be one entry on port 80, because the web
+image carried an nginx that proxied `/api` and `/ext` to the API inside the container. The
+Dokploy image has no nginx any more — on a Dokploy host Traefik is already the reverse
+proxy, and a second one inside the container is a layer to keep in sync for nothing — so
+the SPA is served by `serve` on 3000 and routing `/api` is Traefik's job.
+
+Forgetting the second entry produces a failure that reads like a frontend bug: the app
+loads, then `GET /api/v1/setup/status` returns 200 with `index.html` and the SPA parses
+HTML as JSON — "invalid response" on login, and no setup wizard. Traefik ranks routers by
+rule length, so `/api` wins over `/` with no manual priority.
+
+**Leave "Strip Path" OFF on the `/api` entry.** `/api/v1` is where FastAPI actually mounts
+its routes, not a routing prefix to peel off: strip it and the API receives
+`/v1/setup/status` and answers 404 — the same broken login, a different cause.
 
 **Create your owner before you attach the domain**, for the reason in the box above.
 

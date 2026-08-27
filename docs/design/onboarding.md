@@ -156,6 +156,28 @@ interface OnboardingState { completed: boolean; dismissedAt?: string; lastStepId
 - MVP: `localStorage`. Fase posterior: campo por usuario (cross-device).
 - Reabrible desde un "?" persistente; `lastStepId` da el "recuerda dónde iba".
 
+**El tour del empleado es una capa de pistas, no un modal** (corregido el 2026-08-27, con el
+síntoma "le doy a empezar y me quedo en Inicio"). El overlay de joyride es un único `<div>` del
+tamaño del documento y su `pointer-events: auto` por defecto se comía **todos** los clics de la
+página que el tour estaba explicando, el agujero del spotlight incluido; con
+`disableOverlayClose`, ese clic además no hacía nada. Se arregla con dos ganchos de la propia
+librería —`spotlightClicks` y `styles.overlay.pointerEvents`—, que son propiedades de
+*hit-testing*, no de apilamiento: **no se añadió ni reordenó ningún `z-index`**. El primer paso
+lleva además `disableScrolling` propio, porque joyride desplazaba la página ~82 px medio segundo
+después de cargar y movía el botón de debajo del puntero; los pasos siguientes sí se desplazan
+al pulsar "Siguiente", que es una respuesta a una acción y no una sorpresa.
+
+Consecuencia inmediata: con la página viva debajo, "Saltar" ya no puede ser la única salida, así
+que **el tour se cierra en la primera interacción real** (un `pointerdown` fuera de sus propias
+superficies, en fase de captura y sin `preventDefault`, para oírlo sin robar el clic). Escribe
+exactamente el mismo estado que "Saltar", de modo que el "?" de la cabecera sigue reabriéndolo y
+no vuelve a arrancar solo. Sin eso, `run` vive en un store de módulo y el aprendiz que hubiese
+empezado una lección se habría encontrado el tour esperándole al volver, diciéndole que empezara
+una.
+
+**El tour de admin se deja como está, a propósito:** es una secuencia guiada de varias pantallas
+conducida por "Siguiente", y dejar pasar clics arbitrarios rompería su hilo.
+
 ### 2.5 Defaults inteligentes — un **resolver** desde el arquetipo de org
 El admin da una pista mínima (educación / empresa) → un resolver mapea arquetipo → defaults.
 

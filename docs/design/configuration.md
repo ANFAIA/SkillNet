@@ -189,6 +189,7 @@ generated when the seed ran, not a per-user render.
 | `IMAGE_MODEL` | `openrouter/google/gemini-2.5-flash-image` | Primary image model for posters, infographics and slide art. | Yes |
 | `IMAGE_FALLBACK_MODEL` | `gpt-image-1` | Per-call fallback, billed against `LLM_API_KEY`. | Yes |
 | `MEDIA_ASSETS_DIR` | `data/media_assets` | Where generated mp3/png/mp4 are stored, keyed by content hash. | Yes (compose points it at the `media_assets` volume) |
+| `SOURCE_IMAGES_DIR` | `data/source_images` | Where images extracted from an uploaded document are stored. | Yes (compose points it at `/data/uploads/source_images`, inside the existing `uploads` volume, so there is no fourth volume to get wrong) |
 | `PODCAST_SCRIPT_MODEL` | empty → `LLM_MODEL` | Model for the podcast script agent. | **No** |
 | `PODCAST_DIALOGUE_MODEL` | `eleven_v3` | ElevenLabs Text-to-Dialogue model for the two-host voice path. | **No** |
 | `PODCAST_VOICE_A` | ElevenLabs "Sarah" | First podcast host voice id. | **No** |
@@ -197,9 +198,14 @@ generated when the seed ran, not a per-user render.
 | `INFOGRAPHIC_MODEL` | empty → `LLM_MODEL` | Model for the infographic content agent. | **No** |
 | `VIDEO_NARRATION_MODEL` | `gpt-4o-mini` | Model that writes one narration line per slide for video overviews. | **No** |
 
-`MEDIA_ASSETS_DIR` and `TTS_CACHE_DIR` default to paths relative to the working directory,
-which is image filesystem. Compose overrides both to `/data/...` so the named volumes hold
-them; without that, every `--build` threw the generated media away.
+`MEDIA_ASSETS_DIR`, `TTS_CACHE_DIR` and `SOURCE_IMAGES_DIR` default to paths relative to the
+working directory, which inside a container is the image filesystem. Compose overrides all
+three to `/data/...` so the named volumes hold them; without that, every `--build` threw the
+generated media away. The same defect hit `SOURCE_IMAGES_DIR` on the Dokploy deploy for a
+while, because the key was missing from that file's `environment:` block: every picture
+extracted from an uploaded document was discarded on the next redeploy. Silently — which is
+what the rule at the top of this page is about, and what
+`apps/skillnet-api/tests/test_compose_env_parity.py` exists to catch.
 
 Without an image key the capability is refused up front with a reason, rather than accepted
 and failed later.

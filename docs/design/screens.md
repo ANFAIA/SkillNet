@@ -310,12 +310,17 @@ List and manage employees.
 
 ---
 
-### Content Management
+### Content Management ("Biblioteca")
 
 **Route:** `/admin/contenido`
 **Role:** admin
 
 Overview of all content (courses + manuals).
+
+**The user-facing name is "Biblioteca" / "Library" everywhere.** The route, `Content.tsx` and the
+`content.*` message namespace keep the old name deliberately: renaming them touches bookmarks,
+the onboarding tour and every screen that links here, and buys the user nothing. Only the visible
+strings were unified — they used to say six different things.
 
 **Sections:**
 - **Content list** — title, type (course/manual), status (draft/published/archived), creation date, source document
@@ -330,7 +335,9 @@ Overview of all content (courses + manuals).
 **Actions:**
 - Click content -> edit/view
 - Create new -> content creation flow
-- Archive / publish / unpublish
+- Publish / archive / **unarchive**. Archiving hides a published course from learners and leaves
+  every enrollment alone; unarchive puts it back to `published` with progress intact
+- Move a course between folders; assign a whole folder to people
 
 ---
 
@@ -451,7 +458,7 @@ rename of `App.tsx` and the `Link`s, with no effect on the API.
 | `/empleado/chat` | Chat Tutor | employee |
 | `/admin` | Admin Dashboard | admin |
 | `/admin/empleados` | Employees (invite lives inside) | admin |
-| `/admin/contenido` | Content Management | admin |
+| `/admin/contenido` | Content Management — "Biblioteca" in the UI | admin |
 | `/admin/crear-curso` | Content Creation (all 5 steps, one route) | admin |
 | `/admin/curso/:id` | Course Preview | admin |
 | `/admin/curso/:id/esquema` | Course Schema (v2) | admin |

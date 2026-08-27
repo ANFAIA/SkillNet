@@ -206,9 +206,9 @@ de este PR:
         │               │                 ║  validate_ui                      ║│
         │               │                 ║   adapter.parse() → UISpec        ║│
         │               │                 ║   ├ ok ──────────► persist_render ║│
-        │               │                 ║   ├ inválido & retry<1 ─► genera_ui║│
+        │               │                 ║   ├ inválido & retry≤2 ─► genera_ui║│
         │               │                 ║   └ falla ──────► fallback_seed   ║│
-        │               │                 ║                    (markdown v1)  ║│
+        │               │                 ║                    (texto humano) ║│
         │               │                 ╚═══════════════╤═══════════════════╝│
         │               │                                 │ node_renders       │
         │               │                                 ▼ (ui_spec+answer_key)│
@@ -247,7 +247,7 @@ de este PR:
                                             │
                                             ▼
                        enrollments.status='completed' cuando todos los
-                       nodos critical están en 'mastered'
+                       nodos están hechos: 'mastered' o completed_at (§7.5)
 ```
 
 ### 2.1 Qué se persiste vs qué se genera
@@ -640,6 +640,14 @@ CREATE INDEX idx_lns_state ON learner_node_states(user_id, state);
   `score_a == 0`; `advanced` si el probe salió `tiebreak` o `experience_level='experienced'`;
   `neutral` en el resto. Es estable durante todo el nodo por construcción, no por convención.
 - **`waived_by` / `waived_at`**: la vía de escape humana de §7.4 (`POST /nodes/{id}/waive`).
+- **`completed_at`** (migración **0029**, posterior a este DDL): el aprendiz llegó al final del
+  contenido del nodo. **No es una casilla más de la escalera de `state`**, y por eso es una
+  columna y no un valor nuevo del enum: se puede acabar un nodo sin demostrarlo y demostrarlo
+  sin llegar a su última pantalla, y una sola escala tendría que elegir una de las dos.
+  Tampoco es el gemelo de `first_seen_at`, que se estampa al **servir** el render y por tanto
+  dice "abierto", no "acabado". Lo escribe únicamente `POST /nodes/{id}/complete`, nunca se
+  mueve una vez puesto, y es la mitad de "hecho" que hace computable el progreso de un nodo
+  expositivo (§7.5).
 
 `mastery` es la **única** escala primaria de dominio. Las demás son vistas derivadas, calculadas
 en código, nunca persistidas por duplicado:
@@ -1109,7 +1117,7 @@ probe_gate ──(mastered)─────────────────�
     ▼
 decide_formato ──► genera_ui ──► validate_ui ──┬─(ok)─────► persist_render ──► END
                        ▲                       │
-                       └──(invalid, retry<1)───┤
+                       └──(invalid, retry≤2)───┤
                                                └─(fail)──► fallback_seed ──► END
 ```
 
@@ -1178,7 +1186,7 @@ Cada nodo abre su propia sesión con `async_session_factory`, igual que v1.
 | `genera_ui` | Pide al modelo el **dialecto del backend activo**, usando `src.render.prompt.render_prompt()` (el artefacto generado por `library.prompt()`) como parte del system prompt | Sí, tier del router |
 | `validate_ui` | `gate.canonicalize(raw_dsl)`: topes de tamaño y rechazo de reactividad → `backend.parse()` → `UISpec` (las 7 reglas) → `serialize()` → el `dialect` canónico. Separa `answer_key` | — |
 | `persist_render` | Escribe `node_renders` (`status='ready'`) con `dialect`, `catalog_version` y `library_version`, publica `ui_done` | — |
-| `fallback_seed` | Construye un `ui_spec` de un solo bloque `Markdown` con `lessons.content` del `seed_lesson_id` (o el `source_context` recortado). `status='fallback'` | — |
+| `fallback_seed` | Construye un `ui_spec` con un bloque de arranque más hasta cuatro `Markdown` a partir de **texto escrito por una persona**: `lessons.content` del `seed_lesson_id` y, si no hay, el `summary` del nodo. `status='fallback'`. Con ninguno de los dos no sirve nada y el render queda fallido. **Nunca `source_context`** — ver §9.3 nivel 4 | — |
 | `skip_node` | Marca el nodo como saltado y publica `node_skipped` | — |
 
 **La fuente en `load_context`, con camino de implementación real.** La versión anterior decía
@@ -1589,8 +1597,22 @@ TanStack Query al recuperar el foco de la ventana devuelve byte a byte lo mismo.
 nada):
 
 1. **"Actualizar esta lección"** — un botón en el pie del nodo que hace
-   `POST /nodes/{id}/render {"force": true}` y repinta `active_render_id`. Es la **única** vía por la
-   que el contenido de un nodo abierto cambia.
+   `POST /nodes/{id}/render {"force": true}` y repinta `active_render_id`. Es la única vía por la que
+   el aprendiz cambia el contenido de un nodo abierto.
+
+   **Excepción, y sólo para un pin `fallback`.** Un render `ready` no se re-resuelve nunca: eso es el
+   pin haciendo su trabajo. Pero un `fallback` es contenido degradado, y `NodeView` deja de pedir
+   render en cuanto le sirven uno, así que el primer fallo transitorio dejaba al aprendiz clavado en
+   él para siempre —medido: seguía viendo el fallback existiendo ya dos renders limpios del mismo
+   nodo—. Ahora `GET /nodes/{id}/render` sirve el fallback en **esa** respuesta (vaciar una pantalla
+   ya servida para irse a generar sería peor) y pide una regeneración en segundo plano que reescribe
+   la misma `cache_key`: si sale `ready` sustituye la pantalla degradada para todo el bucket, y si
+   vuelve a fallar no cambia nada. Acotado por `FALLBACK_RETRY_MAX_ATTEMPTS = 3` y
+   `FALLBACK_RETRY_COOLDOWN_SECONDS = 600` por `cache_key`
+   (`src/services/node_render_service.py`, ver [`tuning.md`](tuning.md) §5), para que un nodo que
+   falla de forma determinista no gaste una generación por visita. Un fallback de "preparándose"
+   —el pack de conocimiento aún se está generando— queda fuera: no es un fallo, y regenerar ahora
+   sólo puede dar otro fallback.
 2. **"Ver la versión anterior"** — al regenerar, se muestra una línea "esta lección se ha adaptado a
    tus últimas respuestas" con enlace al render previo. Las filas ya existen en `node_renders` y
    `node_render_views` (ordenadas por `first_seen_at DESC`), así que es una consulta, no una tabla
@@ -1855,8 +1877,8 @@ Dos ambigüedades que quedaban abiertas y que afectan a certificados, cerradas a
 un probe** se escribe sólo si el veredicto domina (`max(prior, estimate)`), y si el veredicto es
 `learning` se conserva el prior — de modo que `probe_score` y `mastery` no se pisan; y
 **`nodes_completed`** se incrementa sólo en la transición 6. Sin fijar ambas, `enrollments.score`
-(media de `mastery` sobre nodos `critical`) variaba según detalles de implementación, y eso sale
-impreso en un certificado.
+(media de `mastery` **medida** sobre los nodos no archivados, §7.5) variaba según detalles de
+implementación, y eso sale impreso en un certificado.
 
 **`mastered → needs_review` no existe en este PR**: requeriría el scheduler de repetición espaciada,
 que no está en el repo (§1.3). El único productor de `needs_review` es la transición 8.
@@ -1902,16 +1924,37 @@ Reglas duras en el prompt de `genera_ui` y en el servicio, no sugerencias:
 
 ### 7.5 Cierre del curso
 
-`enrollments.status = 'completed'` cuando **todos los nodos `critical` no archivados del curso están
-en `mastered`** (por dominio, por probe o por `waive`). Los `recommended` y `contextual` no bloquean.
-`enrollments.score` = media de `learner_node_states.mastery` sobre esos nodos `critical`.
-`_assign_course_skills` sigue otorgando `user_skills` con la traducción `mastery → skill_level` de
-§3.3 y sin degradar nunca.
+`enrollments.status = 'completed'` cuando **todos los nodos no archivados del curso están hechos**,
+donde "hecho" es una sola definición, `mastery_service.node_is_done`: `state = 'mastered'` (por
+dominio, por probe o por `waive`) **o** `completed_at` no nulo (el aprendiz llegó al final del
+contenido, `POST /nodes/{id}/complete`). El progreso de la barra sale del mismo predicado, así que
+`progress_percent == 100` y `can_complete` no pueden discrepar.
+
+Las dos correcciones que llevaron aquí, ambas medidas:
+
+- **La criticidad ya no cierra el curso.** Antes solo bloqueaban los `critical`; ahora hay que
+  recorrer el curso entero.
+- **`mastered` a secas era inalcanzable para media parte del producto.** La regla 6 de §7.3 exige
+  `consecutive_correct >= FADING_STREAK` sobre ítems **calificados**, y un nodo expositivo —un
+  ejemplo resuelto, un resumen, una lista de comprobación— no tiene ninguno: se quedaba en
+  `not_started` para siempre, contaba 0 de progreso y bloqueaba el cierre. Un curso acabado de
+  punta a punta informaba 0%.
+
+Se consideró y se descartó endurecer el cierre ("leer suma en la barra, pero un nodo `critical` hay
+que dominarlo"): pondría dos definiciones de "hecho" en el único módulo que existe para escribir
+esta regla una vez, y la rama estricta no es un estándar más alto sino inalcanzable — un curso con
+un nodo `critical` expositivo marcaría 100% y no cerraría nunca.
+
+**Dónde vive la distinción: en `score`, no en el cierre.** `enrollments.score` sigue siendo la media
+de `learner_node_states.mastery` **medida** sobre esos nodos, así que un curso cerrado leyéndolo
+cierra con nota baja y `_assign_course_skills` otorga `user_skills` en consecuencia, con la
+traducción `mastery → skill_level` de §3.3 y sin degradar nunca. Lo que significa un certificado no
+se mueve.
 
 **Recálculo obligatorio al cambiar el esquema.** `PUT /courses/{id}/schema` cambia el conjunto de
-nodos `critical`, que es precisamente lo que gobierna la condición de cierre. En la misma transacción
-del `PUT` (y del `validate`) se recalcula la condición para **todas** las matrículas activas del
-curso: un curso ya completado puede volver a `active` si el creador añade un nodo `critical` nuevo, y
+nodos no archivados, que es precisamente lo que gobierna la condición de cierre. En la misma
+transacción del `PUT` (y del `validate`) se recalcula la condición para **todas** las matrículas
+activas del curso: un curso ya completado puede volver a `active` si el creador añade un nodo nuevo, y
 uno bloqueado puede completarse si el nodo que faltaba se archiva. Se registra en `audit_log`. Sin
 esto, el estado de las matrículas quedaba en función de un esquema que ya no existe.
 
@@ -2101,14 +2144,26 @@ Cuatro niveles:
    `cache_key` **a secas**, nunca por `user_id`, o el hit rate sería 0.
 2. **`active_render_id` por `(user, node)`** (§5.5). Dentro de un nodo abierto y en una revisita no se
    consulta ni la caché: se sirve el render ya fijado. Es el nivel más barato de todos y además es el
-   que garantiza estabilidad espacial.
+   que garantiza estabilidad espacial. Un pin `fallback` es la única excepción: se sirve igual, pero
+   además dispara una regeneración acotada en segundo plano (§5.5).
 3. **`course_nodes.probe_items`** (§7.1). Los ítems del pre-assessment se generan **una vez por nodo**
    en la validación y sirven a toda la organización. Es la única pre-generación de este PR, y se
    justifica porque no depende del usuario: N empleados, una generación.
-4. **`term_explanations`** para clic-para-explicar (§8.4), y **seed v1** como red final:
-   `fallback_seed` sirve `lessons.content`. Esto también responde a la compatibilidad con el catálogo
-   offline: sin LLM disponible, el curso **sigue funcionando** en modo v1 degradado en lugar de
-   romperse.
+4. **`term_explanations`** para clic-para-explicar (§8.4), y **texto escrito por un humano** como red
+   final. `fallback_seed` recorre una cadena de dos peldaños: la lección semilla v1
+   (`lessons.content`) y, si no hay, el `summary` del nodo. Con ninguno de los dos no se sirve nada y
+   el render queda marcado como fallido. Esto también responde a la compatibilidad con el catálogo
+   offline: sin LLM disponible, un curso nacido en v1 **sigue funcionando** en modo degradado en
+   lugar de romperse.
+
+   **`source_context` estuvo en medio de esa cadena hasta el 2026-08-27 y no puede volver.** No es
+   contenido: es el prompt del servidor —el dossier que renderiza
+   `knowledge_pack.runtime_selection._render_context`, con sus títulos internos `## Invariantes` /
+   `## Material adaptable` y una referencia acuñada por el programa por punto (`must.atom:1`)— o, sin
+   pack, un trozo crudo del PDF del cliente. Un curso nacido en v2 **no tiene** `seed_lesson_id`, así
+   que no era la rama exótica sino la normal: un aprendiz leyó a mitad de curso las instrucciones del
+   servidor al modelo como si fuesen su lección. Lo que se añada a esta cadena tiene que ser prosa
+   escrita para una persona.
 
 ### 9.4 Ventana anticipada de renders
 
@@ -2166,8 +2221,8 @@ función.
 | `LLM_FIXTURE_DIR` | ruta | `src/llm/fixture_data` | Dónde busca/graba fixtures (§12) |
 | `LLM_FIXTURE_MODE` | `replay` \| `record` | `replay` | `record` graba pares (prompt, respuesta) con una clave real |
 
-**`RENDER_BACKEND_FALLBACK` no existe** — se retira junto con el segundo dialecto (§1.3, §5.4). El
-reintento único usa `UI_REPAIR_SYSTEM` con el mismo dialecto.
+**`RENDER_BACKEND_FALLBACK` no existe** — se retira junto con el segundo dialecto (§1.3, §5.4). Los
+reintentos (`MAX_UI_RETRIES = 2`) usan `UI_REPAIR_SYSTEM` con el mismo dialecto.
 
 **`LLM_FIXTURE_DIR` apunta dentro del paquete, no a `tests/`.** El default anterior
 (`./tests/fixtures/llm`) hacía **imposible** el perfil `fixtures` de `docker-compose.yml`: la imagen de
@@ -2326,6 +2381,7 @@ sentencia.
 | `POST` | `/nodes/{node_id}/render` | `{"force": false, "preview": false}` | `202 {"request_id", "cached": bool}` · `409 node_not_reviewed` |
 | `GET` | `/nodes/{node_id}/render` | — | `200 NodeRenderRead` (el render fijado, ver abajo) · `202 {"status":"generating","request_id"}` · `409 node_not_reviewed` |
 | `GET` | `/nodes/{node_id}/renders` | — | `200 {"renders": [{render_id, created_at, ui_format}]}` — historial para "ver la versión anterior" (§5.5) |
+| `POST` | `/nodes/{node_id}/complete` | — | `200 NodeCompletionRead` — el aprendiz llegó al final del contenido del nodo. Estampa `completed_at` y **no toca `state` ni `mastery`** (los devuelve tal cual): acabar de leer no es una demostración, y escribir aquí un número de maestría pondría una cifra inventada en la escala que promedia `score`. Idempotente en las dos mitades —el sello no se mueve y el recálculo de cierre no hace nada si ya coincide—, así que el cliente puede llamarlo en cada "siguiente" sin llevar la cuenta. Responde con el veredicto de §7.5 recalculado (`progress_percent`, `can_complete`) para que la barra no quede obsoleta al lado de un nodo que se acaba de acabar |
 | `POST` | `/nodes/{node_id}/waive` | `{"reason"?}` | `200 NodeStateRead` — sólo admin/responsable; §7.4 |
 | `GET` | `/nodes/{node_id}/render/stream?request_id=…` | — | `200 text/event-stream` |
 | `POST` | `/nodes/{node_id}/answer` | `{"render_id", "item_id", "answer", "hints_used", "latency_ms"}` | `200 NodeAttemptResult` — **`hints_used` del body es informativo y el servidor NO debe confiar en él** (B5): es el valor que decide si `NodeAttemptResult.correct_answer` se revela, y un campo que rellena el cliente no puede gobernar esa revelación (`hints_used: 3` sería una clave de respuestas gratis). El conteo válido se deriva en el servidor de `node_attempts.hints_used` para `(user_id, node_id, item_id)`, que sólo incrementa `POST /nodes/{id}/hint`. `QuizItemBlock` (B6) no concede pistas y siempre manda `0` |
@@ -2343,8 +2399,16 @@ sentencia.
               "state": "not_started", "mastery": 0.0,
               "locked": false, "locked_by": [],
               "needs_practice": false,          // state == 'needs_review' (§7.4)
-              "estimated_minutes": 6 }],
+              "estimated_minutes": 6,
+              "first_seen_at": null,            // servido a este aprendiz por primera vez
+              "completed_at": null }],          // llegó al final del contenido (§7.5)
   "can_complete": false, "blocked_by": ["…"], "progress_percent": 0 }
+// `first_seen_at` y `completed_at` son los dos campos con los que el cliente contesta "¿dónde
+// lo dejé?" y "¿qué he acabado?". `state` no puede, porque `learning` exige haber respondido un
+// ítem calificado: un nodo expositivo se queda en `not_started` por mucho que se lea.
+// `updated_at` NO se expone al lado a propósito: también se mueve cuando el prefetch fija un
+// render de los nodos de más adelante, así que como señal de "último visitado" apunta a nodos
+// que el aprendiz no ha abierto — peor que no tener campo.
 
 // ProbeRead — sin respuestas correctas
 { "probe_id": "…", "node_id": "…",
@@ -2382,8 +2446,22 @@ funcionando.
 **`GET /nodes/{node_id}/render` no recalcula nada.** Devuelve el `ui_spec` de
 `learner_node_states.active_render_id` mientras `render_pinned` sea `true` (§5.5), y escribe una fila
 en `node_render_views` la primera vez que ese usuario ve ese render (§2.1). Sólo
-`POST …/render {"force": true}` recalcula la `cache_key` y repinta. Sin esta separación, un simple
-refetch cambiaba la pantalla a mitad de nodo.
+`POST …/render {"force": true}` recalcula la `cache_key` y repinta —salvo la excepción del pin
+`fallback` de §5.5, que pide una regeneración en segundo plano sin cambiar esta respuesta. Sin esta
+separación, un simple refetch cambiaba la pantalla a mitad de nodo.
+
+**Lo que sí escribe, porque es el único momento honesto para escribirlo.** Un render entregado a un
+navegador es la prueba de que el aprendiz estuvo ahí, y `POST …/render` no lo es: lo dispara también
+el prefetch anticipado para los nodos de más adelante (§9.4). Así que aquí, y sólo aquí:
+
+- **`first_seen_at`** (`mark_opened`, idempotente y nunca movido). Es lo que hace contestable "¿dónde
+  lo dejé?": `state` no podía, porque `learning` exige responder un ítem calificado y la heurística
+  de reanudación acababa siempre en el nodo 0. **Límite conocido y escrito en el código:** el sello
+  más reciente significa "nodo más profundo alcanzado", no "último nodo tocado". La pantalla del
+  episodio se recuerda por dispositivo en `localStorage`.
+- **`assigned → in_progress`** de la matrícula dinámica (`mark_dynamic_started`, idempotente, no
+  reescribe `started_at`). En v2 no había nadie que hiciera esa transición, y por eso un curso al 57%
+  seguía leyéndose "Pendiente" con cero cursos activos. v1 conserva la suya en `routes/lessons.py`.
 
 `POST /nodes/{node_id}/render` con `"preview": true` sólo lo puede llamar un admin, genera con el
 perfil del admin, no escribe `learner_node_states` y persiste con **`is_preview = true`**, lo que lo
@@ -2698,7 +2776,7 @@ y luego B6-B10 se pueden solapar.
 
 | Riesgo | Probabilidad | Mitigación en este diseño |
 |---|---|---|
-| Un modelo pequeño (8B) genera dialecto malformado con frecuencia | Alta | Gramática EBNF congelada + 3 reglas de escape en el prompt (§5.4) · `parse_partial` tolerante · 1 reintento con `UI_REPAIR_SYSTEM` (el error exacto en el prompt) · `fallback_seed` a markdown v1. **El usuario nunca ve una pantalla roja** — y eso lo garantiza `fallback_seed`, no un segundo dialecto |
+| Un modelo pequeño (8B) genera dialecto malformado con frecuencia | Alta | Gramática EBNF congelada + 3 reglas de escape en el prompt (§5.4) · `parse_partial` tolerante · 2 reintentos con `UI_REPAIR_SYSTEM` (el error exacto en el prompt) · `fallback_seed` a texto humano. **El usuario nunca ve una pantalla roja** — y eso lo garantiza `fallback_seed`, no un segundo dialecto |
 | El contenido generado es pedagógicamente peor que el estático y nadie lo revisa | Alta | Modo `shadow` (previews con `is_preview`, fuera de la caché) · **`reviewed_at` obligatorio por nodo**: un nodo que nadie ha abierto no se sirve · diff propuesto→validado en `audit_log`, para *medir* si los creadores editan · `node_feedback` con disparador: 3+ usuarios marcan `hard` en el mismo nodo → aviso al creador. **El creador decide, el sistema no reescribe solo** |
 | Coste por LLM se dispara | Media | Caché compartida por bucket (no por usuario) · probes pre-generados por nodo, no por usuario · el pre-assessment evita generar lo ya sabido · `llm_usage_log` con `use_case`, **tabla creada en `0005`** (§3.5) · presupuestos de `max_tokens` explícitos |
 | El hit rate de la caché inter-usuario es mucho peor que el medido | **Alta** | El régimen inter-usuario **no está medido** (§3.4) y `role_bucket` lo empeora a propósito. Es lo primero que se mide (§14.2 #3), y la palanca de retirada es una línea: quitar `role_bucket` o `vector_bucket` de la clave y subir `PROMPT_VERSION` |

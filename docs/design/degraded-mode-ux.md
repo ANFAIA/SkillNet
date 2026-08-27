@@ -89,7 +89,31 @@ e inerte**:
 El banner de `CapabilityHealthBanner` sigue siendo el resumen a nivel de despliegue y
 complementa esto; no lo repite.
 
-## 6. Lo que ya no es cierto de la versión anterior de este documento
+## 6. La otra mitad: `hide`, y el asset que falta en ejecución
+
+`<Gated>` tiene **dos** modos y §5 describe uno. El otro, `hide` (el de por defecto), no pinta
+nada: es el correcto para un extra de IA que simplemente no forma parte de este despliegue —el
+lado pre-cocinado sigue completo y a nadie se le enseña un callejón sin salida. Las dos barras
+son distintas a propósito: `hide` pregunta "¿existe esta capacidad?", así que una `degraded`
+(la voz offline sigue hablando) conserva su interfaz y solo `blocked` la quita; `explain`
+pregunta "¿puede tener éxito este clic?", y cualquier cosa por debajo de `ready` puede fallar.
+
+**Desde el 2026-08-27 esa política se aplica también a un fallo de ejecución, no solo a una
+capacidad ausente.** Un artefacto multimedia cuyo fichero se ha perdido (volumen borrado,
+bytes generados en un contenedor que ya no existe) hacía que el aprendiz leyese "Audio no
+disponible" en rojo, con `role="alert"`, por un fallo de despliegue que ni causó ni puede
+arreglar. Ahora la regla es quién pidió la pieza:
+
+| Superficie | Qué hace | Por qué |
+|---|---|---|
+| Bloques que **inyecta el broker** dentro del episodio (`PodcastPlayerBlock`, `InfographicImageBlock`, `SourceImageBlock`) | **Se esconden** | El aprendiz no los pidió, no hay control que explicar y la lección de alrededor sigue completa. Es `hide` aplicado a un asset en vez de a una capacidad |
+| Visores que **son** la página (`PodcastPlayer`, `VideoOverview`) | Degradan a su contenido de spec: transcripción y citas, diapositivas y fuentes | No pueden esconderse sin dejar la pantalla vacía. La línea es apagada (`text-text-muted`), no `text-danger` con `role="alert"`: apunta a lo que **sí** está, y el transporte queda visiblemente inerte para que nada finja poder reproducir |
+
+La copia del fallo para quien opera el despliegue va al log de la API, que es su sitio: ahí
+`src/services/media/integrity.py` la registra y degrada la fila que mentía. Detalle completo en
+[`media-artifacts.md`](media-artifacts.md) §6.
+
+## 7. Lo que ya no es cierto de la versión anterior de este documento
 
 - El hueco de la voz del mascota (500 sin clave) **esta cerrado**: `src/routes/tts.py` cae a
   eSpeak y devuelve 204.

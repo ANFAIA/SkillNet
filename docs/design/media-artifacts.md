@@ -46,10 +46,10 @@ Router bajo `/media`.
 |---|---|---|---|
 | POST | `/media/artifacts` | `202 {artifact_id, status}` | Encola un job. Permiso vía `can_generate_artifacts`. La fila se hace commit antes de lanzar la tarea |
 | GET | `/media/artifacts` | `list[MediaArtifactRead]` | Query `course_id` (obligatorio), `node_id`, `include_nodes`. Tres formas: un nodo / todos los del curso / solo nivel-curso |
-| GET | `/media/artifacts/{id}` | `MediaArtifactRead` | Uno |
+| GET | `/media/artifacts/{id}` | `MediaArtifactRead` | Uno. Reconcilia antes de servir: una fila `done` cuyo fichero falta se degrada a `error`/`asset_missing` (§6) |
 | GET | `/media/artifacts/{id}/stream` | SSE | Canal `media:{id}`; eventos `media_step` y terminal `media_done`/`media_error` |
-| GET | `/media/artifacts/{id}/asset` | bytes | El asset renderizado o 404 |
-| GET | `/media/artifacts/{id}/asset/{ref}` | bytes | Un sub-asset por hash de contenido (`ref` debe ser un sha256 que el spec liste) |
+| GET | `/media/artifacts/{id}/asset` | bytes | El asset renderizado. **404** si nunca se generó; **410 `asset_missing`** si se generó y el fichero ya no está (§6) |
+| GET | `/media/artifacts/{id}/asset/{ref}` | bytes | Un sub-asset por hash de contenido (`ref` debe ser un sha256 que el spec liste). Si falta: 410 y degradación si es la narración de una slide, 404 y aviso en el log si es una ilustración (§6) |
 
 ### Ámbito (scope) y nota de personalización
 
@@ -68,6 +68,8 @@ Router bajo `/media`.
 - `MediaKind`: `PODCAST, SLIDES, INFOGRAPHIC, VIDEO, MINDMAP, REPORT, COVER_IMAGE`.
 - `MediaArtifactStatus`: `PENDING → RUNNING → DONE | ERROR` (el runner recorre
   `pending → running → done|error`; nótese que el estado de fallo es `error`, no "failed").
+  `DONE → ERROR` también existe fuera del runner: una fila `done` cuyo fichero ya no está en
+  disco se degrada al leerla, y vuelve a `done` sola si el fichero reaparece (§6).
 - Campos: `org_id`, `course_id`, `node_id` (nullable), `kind`, `status`, `spec_json` (JSONB),
   `asset_path` (nullable), `content_hash` (sha256, clave de dedup), `error`. **No hay columna
   `scope`**: el ámbito vive dentro de `spec_json`.
@@ -136,3 +138,45 @@ Dos consecuencias prácticas de esta cadena, importantes para demos y para el UX
 
 El plan para exponer estos estados degradados en la interfaz (banner de admin, `/health`
 ampliado, onboarding) está en [`degraded-mode-ux.md`](degraded-mode-ux.md).
+
+## 6. Cuando la fila dice `done` y el fichero no está
+
+`src/services/media/integrity.py`. La fila vive en Postgres y el fichero en un volumen de
+Docker: son dos vidas distintas. Perdido el volumen (`compose down -v`, un volumen renombrado,
+bytes generados dentro de un contenedor que ya no existe), las diecisiete filas seguían
+diciendo `done`, la ruta del asset contestaba un 404 pelado sin línea de log y el aprendiz leía
+"Audio no disponible" en rojo para algo que ningún reintento suyo podía arreglar.
+
+Cuatro decisiones:
+
+- **La comprobación va por el camino del fallo, no por el bueno.** Servir un asset ya abre el
+  fichero, así que el `FileNotFoundError` **es** la comprobación y una petición sana no paga
+  nada extra. Solo la lectura de una fila gasta un `stat`; ningún listado lo hace, porque un
+  curso con cincuenta artefactos no puede convertir una consulta en cincuenta llamadas.
+- **Degradar, no regenerar.** Una lectura nunca debe gastar dinero, y locutar un podcast o
+  dibujar un póster lo cuesta. Bajar la fila a `error`/`asset_missing` deja el artefacto en el
+  camino explícito de "generar otra vez" y la decisión en manos de una persona. Degradar es
+  además lo que hace que **cuatro lectores dejen de mentir a la vez**: el estudio muestra el
+  fallo con su reintento, `has_asset`/`asset_ref` dejan de anunciar bytes, el resolvedor de
+  actividades declina con `asset_not_ready` y el broker de medios deja de ofrecer el artefacto
+  al generador.
+- **Es reversible**, y eso importa más de lo que parece: el almacén está direccionado por
+  contenido —el nombre del fichero es el sha256—, así que un fichero de vuelta en esa ruta *es*
+  el original por construcción. Restaurar el volumen de una copia de seguridad cura las filas
+  solas, en vez de dejar congelado en un fallo que ya no es cierto todo artefacto que un
+  aprendiz hubiese abierto.
+- **404 y 410 son incidentes distintos.** "Nunca se generó" es 404; "se generó y el fichero no
+  está" es 410 con `code: asset_missing`, registrado a nivel `error`. Un 404 no puede decirle
+  eso ni a un cliente ni a un log de accesos.
+
+**Y el aprendiz no ve rojo.** Se siguen los dos modos documentados de `<Gated>`
+([`degraded-mode-ux.md`](degraded-mode-ux.md) §6): los bloques que **inyecta el broker**
+(`PodcastPlayerBlock`, `InfographicImageBlock`, `SourceImageBlock`) se **esconden** —el aprendiz
+no los pidió, no hay control que explicar y es un fallo de despliegue sobre el que no puede
+actuar—; los visores que **son** la página (`PodcastPlayer`, `VideoOverview`) no pueden
+esconderse, así que degradan a su contenido de spec —transcripción y citas, diapositivas y
+fuentes— con una línea apagada en vez de una alerta.
+
+Pendiente y de otro fichero: `GET /documents/{id}/images/{id}` se come el mismo
+`FileNotFoundError` en un 404 silencioso sobre el volumen de subidas, y `source_images` no tiene
+columna de estado, así que necesita su propia decisión.

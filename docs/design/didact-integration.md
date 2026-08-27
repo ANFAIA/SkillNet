@@ -146,6 +146,41 @@ estan conectados como puertos genericos. Un puerto solo se expone cuando el cont
 concreto es compatible. La mera existencia de `/evaluate` no desbloquea un quiz que se
 autocorrige en el navegador, ni `/progress` habilita `practice-set`.
 
+### Fallar una actividad evaluada (corregido el 2026-08-27)
+
+Tres arreglos en la misma superficie, `SecureEvaluatedActivity`, que es el adaptador de todo lo
+que se evalúa en el servidor:
+
+- **Una respuesta incorrecta lo dice y deja volver a intentarlo.** Antes se imprimía "La
+  respuesta necesita revisión", que se lee como "el sistema no ha podido corregir esto" y no
+  como "te has equivocado" — y encima congelaba los controles y quitaba el botón de enviar, así
+  que no había forma de reintentar. `unscored`, el resultado para el que esa frase se escribió,
+  **nunca lo produce el corrector**: el único camino real de un fallo era la frase engañosa.
+  Ahora **solo `correct` es final** (ofrecer reintento ahí falsificaría evidencia ya ganada);
+  `partial` y `unscored` ofrecen uno. Limpiar el resultado no basta: un radio marcado y
+  deshabilitado no se resetea de forma fiable, así que un *nonce* de intento indexa el subárbol
+  y se reconstruye — el mismo patrón que ya usaba `QuizItemBlock`.
+- **`didact.quiz.fill-in-the-blank` tiene render propio.** Estaba en la lista blanca sin rama
+  suya, caía en el campo genérico "Tu respuesta" y **la frase con el hueco no se enseñaba nunca**:
+  el aprendiz no veía qué estaba rellenando. Ahora el hueco se parte por el marcador que se le
+  pide al generador (`____`, `{{blank}}`, `[blank]`) y el campo se pinta en su sitio dentro de la
+  frase. Sin marcador escrito, la frase se queda como encabezado y el campo lleva la etiqueta.
+- **Los modos de texto plegan diacríticos** (`normalized_any`, `keyed_text`, en
+  `src/services/activity_definitions.py`): `cancion` acepta `canción` y `pinguino` acepta
+  `pingüino`, pero **`ano` NO acepta `año`** — la ñ es una letra del alfabeto y los pares que
+  separa son palabras distintas (año/ano, caña/cana, seña/sena). La diéresis se pliega porque
+  solo registra que la u se pronuncia y el español no tiene ningún par distinguido por ella; el
+  acento agudo se pliega por una razón más débil pero explícita: pares como esta/está existen,
+  pero la pregunta ya fija de qué palabra se habla, y suspender por una tilde que falta califica
+  el teclado. **Coste aceptado: estos modos ya no pueden evaluar acentuación**, y la vía de
+  escape es `case_sensitive: true`. Debajo había además un error duro: `hmac.compare_digest`
+  lanza `TypeError` con cadenas no ASCII, así que cualquier respuesta esperada con tilde no
+  puntuaba mal, **reventaba**; se comparan bytes UTF-8, que mantiene el tiempo constante.
+
+Los ejemplos del contrato mostraban al modelo una lista `expected` de un solo elemento, así que
+emitía una única respuesta aceptada aunque el corrector siempre haya aceptado cualquier miembro.
+Ahora muestran variantes reales: es el único sitio donde el modelo lo aprende.
+
 ## Siguiente ola propuesta
 
 1. scheduler real antes de emitir `retrieval-practice-session`;

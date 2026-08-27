@@ -69,6 +69,12 @@ export const upload = <T>(path: string, formData: FormData) =>
 
 The `upload` function intentionally omits `Content-Type` so the browser can set `multipart/form-data` with the correct boundary.
 
+The `'Unknown error'` fallback above is now genuinely last-resort: `src/main.py` registers an
+`Exception` handler so even an unhandled 500 arrives as the `{detail, code, field}` envelope.
+Before it, Starlette answered `text/plain: Internal Server Error`, `res.json()` threw, and every
+real server-side cause reached the operator as those two words. If you see them, the response
+was not JSON at all — look at the proxy, not at the API.
+
 #### Query key conventions
 
 All query keys follow a hierarchical array pattern. This makes invalidation predictable.

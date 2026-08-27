@@ -19,15 +19,34 @@ decidir si una persona es adecuada para un puesto.
 Los cursos pueden pertenecer a una carpeta administrativa opcional. Las carpetas son planas en la
 primera versión y no controlan permisos, generación, publicación ni matrícula.
 
-La pantalla de contenido ofrece:
+**La pantalla se llama «Biblioteca»** en todos los textos que lee un usuario. La ruta
+`/admin/contenido`, el fichero `Content.tsx` y el espacio de nombres de mensajes `content.*`
+conservan el nombre viejo **a propósito**: renombrarlos es una refactorización de rutas y
+namespace que toca marcadores, el tour de onboarding y todas las pantallas que enlazan aquí, y
+no le compra nada al usuario. Solo se unificaron las cadenas visibles, que antes llamaban a esto
+de seis maneras distintas.
+
+La Biblioteca ofrece:
 
 - búsqueda por título o descripción;
 - filtro por carpeta y estado;
 - vistas virtuales «Todos» y «Sin organizar»;
 - creación, renombrado y eliminación segura de carpetas;
-- traslado de un curso entre carpetas.
+- traslado de un curso entre carpetas;
+- publicar, **archivar y desarchivar** un curso;
+- asignar una carpeta completa a varias personas, y quitarla.
 
 Una carpeta que contiene cursos no se elimina implícitamente ni elimina sus cursos.
+
+**Archivar oculta un curso; no lo aprueba.** Solo se puede archivar un curso `published` (409 en
+cualquier otro caso) y las matrículas **no se tocan**: antes se cerraban todas las abiertas como
+`completed` con la fecha de ese momento, así que quien iba a medias acababa con un registro de
+curso terminado —y con el crédito— sin que nada guardase qué restaurar. `POST
+/courses/{id}/unarchive` devuelve el curso a `published` y a todos exactamente donde estaban;
+vuelve a pasar las validaciones de publicar, porque el esquema de un curso archivado sigue
+siendo editable y puede haber perdido su último nodo mientras tanto. La superficie del aprendiz
+excluye los cursos archivados de «Mis cursos»; **la ficha del admin los sigue mostrando**, que es
+justo el punto ahora que el progreso sobrevive.
 
 ## Habilidades del curso
 
@@ -54,8 +73,12 @@ niveles internos `low | medium | high` en una afirmación de medición precisa.
 El administrador puede consultar:
 
 - **Personas:** asignados, en curso, completados, progreso y habilidades.
-- **Detalle de persona:** cursos con estado/progreso y habilidades con su curso de procedencia cuando
-  el origen sea una finalización.
+- **Detalle de persona:** cursos con estado/progreso —los archivados incluidos— y habilidades con su
+  curso de procedencia cuando el origen sea una finalización. Desde aquí también se **asigna
+  formación**: un curso suelto o una carpeta entera (`POST /enrollments` con `course_id` o
+  `folder_id`, exactamente uno de los dos). Asignar es **idempotente**: a quien ya la tiene se le
+  salta, no se aborta el lote. Quitar solo puede retirar matrículas sin empezar, y el diálogo dice
+  con palabras lo que no se puede quitar en vez de fallar en silencio.
 - **Cursos:** participantes y estado agregado.
 - **Habilidades:** personas y cursos relacionados.
 

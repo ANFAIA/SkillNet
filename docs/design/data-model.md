@@ -876,3 +876,24 @@ Two org-scoped tables back the generated media (see [`media-artifacts.md`](media
   per-user.
 - **`course_artifact_generators`** (`src/models/course_artifact_generator.py`) — composite PK
   `(course_id, user_id)`. Records who, besides admins, may generate course-level media.
+
+### Finishing a node is not mastering it
+
+Migration **`0029_learner_node_state_completed_at`** (the current head) adds
+`learner_node_states.completed_at`, a nullable `timestamptz` written only by
+`POST /nodes/{id}/complete`. It exists because progress on a dynamic course was
+`mastered_nodes / nodes`, and `mastered` is reachable only through rule 6 of
+[`v2-dynamic-courses.md`](v2-dynamic-courses.md) §7.3 — a streak of correct answers on
+**graded** items. An expository node has no graded item, so it never left `not_started`
+however completely it was read, and a course made of them reported 0%.
+
+`mastery_service.node_is_done` now counts a node as done when it is `mastered` **or** has a
+`completed_at`. `CourseCompletion.score` still averages only *measured* `mastery`, so the
+number a certificate prints does not move: a course closed by reading it closes with a low
+score.
+
+Three deliberate choices: it is **not** a new value of the `node_state` enum (one scale
+cannot hold two independent facts — somebody can finish a node without demonstrating it, and
+master one without reaching its last screen); it is **not** `first_seen_at`, which is stamped
+when a render is *served* and therefore says "opened", not "finished"; and it is nullable with
+no back-fill, so every pre-existing row keeps meaning exactly what it meant.

@@ -248,10 +248,10 @@ Router `src/routes/media.py`, prefix `/media`. See [`media-artifacts.md`](media-
 |--------|------|------|-------------|
 | `POST` | `/media/artifacts` | generator | Enqueue one media job. Body `MediaArtifactCreate` incl. `kind`, `scope` (`node\|course\|standalone`) and a personalization `note`. Returns `202 {artifact_id, status}`. Permission via `can_generate_artifacts` |
 | `GET` | `/media/artifacts` | authenticated | List artefacts. Query `course_id` (required), `node_id`, `include_nodes`. Three shapes: one node / all course / course-level only |
-| `GET` | `/media/artifacts/{id}` | authenticated | Single artefact |
+| `GET` | `/media/artifacts/{id}` | authenticated | Single artefact. A `done` row whose file is gone is demoted to `error`/`asset_missing` here before it is served (one `stat`; the listing above deliberately does not, or one query would become one syscall per artefact) |
 | `GET` | `/media/artifacts/{id}/stream` | authenticated | SSE on channel `media:{id}`: `media_step` events then terminal `media_done`/`media_error` |
-| `GET` | `/media/artifacts/{id}/asset` | authenticated | Rendered asset bytes, or 404 |
-| `GET` | `/media/artifacts/{id}/asset/{ref}` | authenticated | One sub-asset by content-hash (`ref` must be a sha256 the spec lists) |
+| `GET` | `/media/artifacts/{id}/asset` | authenticated | Rendered asset bytes. **Two absences, two answers:** never generated (no row, or no `asset_path`) is `404`; generated and the file is gone is `410` with `code: asset_missing`, and the row is demoted so it stops claiming to be ready. A bare 404 could say neither to a client nor to an access log. The existence check is the read itself, so a healthy request pays no extra `stat` |
+| `GET` | `/media/artifacts/{id}/asset/{ref}` | authenticated | One sub-asset by content-hash (`ref` must be a sha256 the spec lists). A missing ref is graded by whether the artefact needs it: per-slide narration audio is fatal (`410 asset_missing`, row demoted), a slide illustration is not (logged at `warning`, `404`, and the viewer draws its own blocks for that slide) |
 
 #### Course schema (create flow)
 
@@ -288,7 +288,8 @@ and [`learning-experience-architecture.md`](learning-experience-architecture.md)
 | `DELETE` | `/courses/{id}` | admin | Delete course (only if status=`draft` and no enrollments) |
 | `POST` | `/courses/{id}/generate` | admin | Trigger AI generation from source document. Creates generation_job. Returns job_id for polling |
 | `POST` | `/courses/{id}/publish` | admin | Set status=`published`. Validates: title, outcome, at least 1 module with 1 lesson |
-| `POST` | `/courses/{id}/archive` | admin | Set status=`archived`. Active enrollments marked completed |
+| `POST` | `/courses/{id}/archive` | admin | Set status=`archived` — hides the course from learners and **leaves every enrollment untouched**. Requires status=`published` (409 otherwise). It used to close open enrollments as `completed` with `completed_at = now`, which gave a learner halfway through credit for finishing and recorded nothing to restore |
+| `POST` | `/courses/{id}/unarchive` | admin | Back to status=`published` — the way back from archive, so everyone resumes exactly where they were. 409 if the course is not archived; **re-runs the publish checks** (an archived course stays editable and can have lost its last node), so 422 is possible. `published` and not `draft` is answerable without storing the previous status precisely because only a published course can be archived |
 
 #### Modules
 
@@ -341,8 +342,8 @@ For `dialogue`: server runs multi-turn conversation via LLM with the system_prom
 
 | Method | Path | Role | Description |
 |--------|------|------|-------------|
-| `GET` | `/enrollments` | authenticated | Employee: own enrollments. Admin: all enrollments. Supports `?status=`, `?user_id=` (admin), `?course_id=` |
-| `POST` | `/enrollments` | admin | Assign course to user(s). Body: `{user_ids: [uuid], course_id, deadline?}` |
+| `GET` | `/enrollments` | authenticated | Employee: own enrollments. Admin: all enrollments. Supports `?status=`, `?user_id=` (admin), `?course_id=`. **One endpoint, two surfaces:** the learner branch drops enrollments whose course is archived — that is what archiving means — while the admin branch keeps them, because on the employee record an archived course is history worth seeing now that the progress survives |
+| `POST` | `/enrollments` | admin | Assign to user(s). Body `{user_ids: [uuid], deadline?}` plus **exactly one** of `course_id` or `folder_id` (both, or neither, is a 422 that says which mistake was made). `course_id` answers `list[EnrollmentRead]`, unchanged byte for byte. `folder_id` enrolls every **published** course of that folder — the same set as `POST /course-folders/{id}/assign`, via the same repository call — and answers `EnrollmentAssignmentResult` (`course_count`, `created_count`, `skipped_existing_count`, `enrollments`), because "created 3 of 8" cannot be read off a list of three rows. **Assignment is idempotent on both entry points:** an already-enrolled user is skipped, not a 409 that aborts the whole batch, and the insert is savepoint-guarded so a double click cannot 500 on the unique constraint |
 | `GET` | `/enrollments/{id}` | authenticated | Enrollment detail with progress: modules completed, current position, score |
 | `DELETE` | `/enrollments/{id}` | admin | Remove enrollment (only if status=`assigned`, not started) |
 | `POST` | `/enrollments/{id}/complete` | system | Mark enrollment completed. Auto-triggered when all modules done. Updates score, completed_at |
@@ -751,7 +752,26 @@ async def validation_error_handler(request: Request, exc: RequestValidationError
         status_code=422,
         content={"detail": "Validation failed", "code": "VALIDATION_ERROR", "errors": errors},
     )
+
+@app.exception_handler(Exception)
+async def unhandled_error_handler(request: Request, exc: Exception):
+    logger.exception("Unhandled error on %s %s", request.method, request.url.path, exc_info=exc)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error", "code": "INTERNAL_ERROR", "field": None},
+    )
 ```
+
+**Why the third handler exists.** Without it Starlette answers an unhandled exception with
+`text/plain: Internal Server Error`. `apps/skillnet-web/src/api/client.ts` parses the body as
+the `{detail, code}` envelope, fails, and falls back to the literal string "Unknown error" —
+so every real cause (a `MissingGreenlet`, a bad migration, a typo in a projector) reached the
+operator as the same four useless words. It does not shadow the two typed handlers: a handler
+for `Exception` is installed on `ServerErrorMiddleware`, the outermost layer, which only runs
+for what the inner `ExceptionMiddleware` did not already answer.
+
+`detail` is deliberately generic and stable: it crosses the trust boundary, and an exception
+string can carry a query, a path or a secret. The whole traceback goes to the log.
 
 #### HTTP Status Code Usage
 
@@ -763,11 +783,13 @@ async def validation_error_handler(request: Request, exc: RequestValidationError
 | `400` | Bad request (business rule violation: "Cannot delete published course") |
 | `401` | Not authenticated (no cookie or expired session) |
 | `403` | Authenticated but wrong role |
-| `404` | Resource not found |
-| `409` | Conflict (duplicate email, enrollment already exists) |
+| `404` | Resource not found — including "this media asset was never generated" |
+| `409` | Conflict (duplicate email, archiving a course that is not published, unarchiving one that is not archived) |
+| `410` | Gone: the resource existed and its bytes are not on this server any more (`asset_missing`). Reserved for that — a 404 cannot tell a client, or an access log, that the reference was valid |
 | `413` | File too large (document upload) |
 | `422` | Validation error (Pydantic) |
 | `429` | Rate limited (future, for LLM endpoints) |
+| `500` | Unhandled server error. Always JSON with `code: INTERNAL_ERROR`, never `text/plain` |
 | `502` | LLM provider error (upstream failure) |
 
 #### Validation Approach

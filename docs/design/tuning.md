@@ -87,7 +87,7 @@ noise.
 | `_ERROR_RULES` | 102 | `detail` / `procedural` / `conceptual` | How `last_error_kind` changes the next screen (§7.4). |
 | `_SIGNAL_RULES` | 119 | 5 actions | Closed vocabulary mapping `tutor_notes.signals` to instructions. Closed on purpose: a signal can never become free-form prose injected into a prompt (§3.3). Add an entry here *and* in the producer, never only here. |
 | `FORMAT_DECIDER_SYSTEM` | 133 | — | The whole format-selection prompt. The hard rules that matter: no `chart` without real figures in the source, no `exercise` unless the node's expected outcome is an action, never `chart` alone on a `critical` node, and `explanation` when in doubt. If the heavy tier exceeds ~25 % of traffic, this prompt is over-choosing `chart`. |
-| `_UI_REPAIR_HEADER` | 267 | — | The repair system prompt's header. The MAL/BIEN counterexample block is not decoration: measured against `qwen2.5:7b-instruct` (2026-07-26), the two syntax mistakes a small model makes are **named arguments** and **splitting one call over several lines**, both already forbidden in prose and made anyway. The last paragraph exists because the loop's real failure mode was *chasing the wrong bug* — the model rewriting correct quotes three attempts in a row. With one retry only, this header is where quality is bought. |
+| `_UI_REPAIR_HEADER` | 267 | — | The repair system prompt's header. The MAL/BIEN counterexample block is not decoration: measured against `qwen2.5:7b-instruct` (2026-07-26), the two syntax mistakes a small model makes are **named arguments** and **splitting one call over several lines**, both already forbidden in prose and made anyway. The last paragraph exists because the loop's real failure mode was *chasing the wrong bug* — the model rewriting correct quotes three attempts in a row. With a budget as small as two retries, this header is where quality is bought. |
 
 **The dialect fragment is never written by hand.** `ui_generator_system()` is
 `src.render.prompt.render_prompt()` — the artefact generated from the frontend kit — plus
@@ -124,7 +124,7 @@ them with the unit tests open.
 
 | Dial | Line | Current | Turning it |
 |---|---|---|---|
-| `THRESHOLDS` | 37 | `critical 0.90`, `recommended 0.80`, `contextual 0.70` | The mastery bar per criticality. Depends on the node, never on the person (§7.2 rule 4). `course_nodes.mastery_threshold` overrides per node. Raising `critical` makes courses harder to complete — completion requires *every* non-archived critical node mastered. |
+| `THRESHOLDS` | 37 | `critical 0.90`, `recommended 0.80`, `contextual 0.70` | The mastery bar per criticality. Depends on the node, never on the person (§7.2 rule 4). `course_nodes.mastery_threshold` overrides per node. Raising `critical` makes courses harder to complete, but it no longer *blocks* completion on its own: `node_is_done` counts a node as done when it is mastered **or** has a `completed_at` (migration 0029), and criticality does not gate closure. What the threshold still governs is `score`, the mean of *measured* mastery — the number a certificate prints. |
 | `DOUBT_BAND_FLOOR` | 38 | `0.55` | Estimates at or above this but below 1.0 go to the tie-break instead of straight to `learning`. Lower it and more learners get a third, constructed item. |
 | `W_APPLY` / `W_UNDERSTAND` | 39 | `0.6` / `0.4` | Weights of the two selected-response probe items. |
 | `W3_APPLY` / `W3_UNDERSTAND` / `W3_CONSTRUCTED` | 42 | `0.45` / `0.15` / `0.40` | Renormalized tie-break weights. They sum to 1.0 deliberately: in the previous version the tie-break topped out at 0.80 and was dead code on a `critical` node. |
@@ -150,6 +150,18 @@ them with the unit tests open.
 | `RETRIEVAL_TOP_K` | 104 | `8` | Chunks retrieved for the `chunked` branch of `load_context`. Only reached for documents over `FULL_TEXT_PAGE_THRESHOLD` (`5` pages, `src/agents/content/helpers.py:20`); anything smaller goes in whole and needs no embeddings at all. Raising it feeds more source into a prompt that `SOURCE_CONTEXT_MAX_CHARS` will then clip, so raise both or neither. |
 | `FALLBACK_BLOCK_CHARS` | 108 | `2800` | Size of each `Markdown` block in the seed fallback. Capped well below `MAX_LINE_BYTES` (4096) because the whole seed lesson lives on **one** line once serialized, escaped newlines and all. |
 | `FALLBACK_MAX_BLOCKS` | 110 | `4` | Root fan-out is capped at 5 and the lead block takes one of them. |
+
+`src/services/node_render_service.py` — how much a degraded screen is allowed to cost. A
+`fallback` pin used to be permanent: `NodeView` stops asking for a render once one is served,
+so the first transient failure kept a learner on the backup content for good, measurably while
+two clean renders of the same node already existed. `GET /nodes/{id}/render` now asks for one
+background regeneration on the same `cache_key`, and these two dials bound the bill. A `ready`
+pin is never re-resolved — that is the pin doing its job.
+
+| Dial | Line | Current | Turning it |
+|---|---|---|---|
+| `FALLBACK_RETRY_MAX_ATTEMPTS` | 472 | `3` | Regenerations a single `cache_key` ever gets. Three spread over the cooldown recover a provider outage of about half an hour; past that the failure is not transient, and the learner keeps the backup content for free rather than paying a generation per page view for a node that fails deterministically. Raising it spends real tokens on exactly the nodes least likely to succeed. |
+| `FALLBACK_RETRY_COOLDOWN_SECONDS` | 466 | `600.0` | Wait between attempts on one key. Lower it and a stampede of learners on the same node turns every view into a generation; raise it and a provider that recovers in two minutes still serves degraded screens for longer. In-memory, single-worker — the same assumption `_INFLIGHT` already makes — so a restart refunds the budget, which only ever costs retries. `reset_fallback_retries()` clears it by key or wholesale, for tests and for ops. |
 
 `src/services/learner_profile_service.py`
 
