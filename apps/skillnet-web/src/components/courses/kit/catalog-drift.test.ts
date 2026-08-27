@@ -107,7 +107,7 @@ function propOrder(component: string): string[] {
 describe('the kit is the catalogue of §5.3', () => {
   it('registers the frozen components plus the broker-scoped renderers under root Stack', () => {
     // The library paints the frozen §5.3 catalogue AND the broker-scoped components
-    // (PodcastPlayer/InfographicImage): those are injected per node by the media broker, so
+    // (PodcastPlayer/InfographicImage/SourceImage): those are injected per node by the broker, so
     // they are renderable but never part of the frozen prompt catalogue (see schemas.ts).
     expect(Object.keys(skillnetLibrary.components).sort()).toEqual(
       [...KIT_COMPONENT_NAMES, ...BROKER_COMPONENT_NAMES].sort(),
@@ -120,6 +120,18 @@ describe('the kit is the catalogue of §5.3', () => {
     for (const name of BROKER_COMPONENT_NAMES) {
       expect(KIT_COMPONENT_NAMES).not.toContain(name)
     }
+  })
+
+  /**
+   * The broker-scoped components are absent from `openui_catalog.json` by design, so the
+   * drift check above cannot see their prop order. Pinning it here is the only alarm
+   * there is: swapping two of these keys swaps two values with no error anywhere.
+   * `SourceImage` carries `document_id` LAST — see the note on `sourceImageProps`.
+   */
+  it('pins the positional order of the broker-scoped props', () => {
+    expect(propOrder('PodcastPlayer')).toEqual(['artifact_id', 'title'])
+    expect(propOrder('InfographicImage')).toEqual(['artifact_id', 'alt'])
+    expect(propOrder('SourceImage')).toEqual(['image_id', 'alt', 'caption', 'document_id'])
   })
 
   it('puts every prop in the dialect positional order', () => {

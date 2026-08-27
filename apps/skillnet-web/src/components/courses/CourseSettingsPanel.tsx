@@ -4,7 +4,8 @@ import { Button, Card, Select } from '../ui'
 import { useUsers } from '../../api/users'
 import { useUpdateCourse } from '../../api/courses'
 import { useAssignCourse, useDeleteEnrollment, useEnrollments } from '../../api/enrollments'
-import type { CourseRead } from '../../types'
+import { ChoiceList } from '../onboarding/ChoiceList'
+import type { CourseRead, ImageSourcePolicy } from '../../types'
 
 type Policy = 'admin' | 'everyone' | 'selected'
 
@@ -26,13 +27,22 @@ export function CourseSettingsPanel({ course }: { course: CourseRead }) {
   // the course and re-seed only when switching courses.
   const [policy, setPolicyState] = useState<Policy>((course.artifact_generate_policy ?? 'admin') as Policy)
   const [selected, setSelected] = useState<Set<string>>(new Set(course.artifact_generator_ids ?? []))
+  const [imagePolicy, setImagePolicyState] = useState<ImageSourcePolicy>(
+    course.image_source_policy ?? 'auto',
+  )
   const courseIdRef = useRef(course.id)
   useEffect(() => {
     if (courseIdRef.current === course.id) return
     courseIdRef.current = course.id
     setPolicyState((course.artifact_generate_policy ?? 'admin') as Policy)
     setSelected(new Set(course.artifact_generator_ids ?? []))
-  }, [course.id, course.artifact_generate_policy, course.artifact_generator_ids])
+    setImagePolicyState(course.image_source_policy ?? 'auto')
+  }, [
+    course.id,
+    course.artifact_generate_policy,
+    course.artifact_generator_ids,
+    course.image_source_policy,
+  ])
 
   function setPolicy(next: Policy) {
     setPolicyState(next)
@@ -54,6 +64,16 @@ export function CourseSettingsPanel({ course }: { course: CourseRead }) {
       id: course.id,
       payload: { artifact_generate_policy: 'selected', artifact_generator_ids: [...next] },
     })
+  }
+
+  /**
+   * The override over the diagram/screenshot rule. It lives here and NOT in the creation
+   * flow on purpose: at creation nobody has seen a lesson yet, so there is nothing to
+   * disagree with — the rule decides, and this is where you overrule it afterwards.
+   */
+  function setImagePolicy(next: ImageSourcePolicy) {
+    setImagePolicyState(next)
+    updateCourse.mutate({ id: course.id, payload: { image_source_policy: next } })
   }
 
   function addEnrollment(userId: string) {
@@ -94,6 +114,39 @@ export function CourseSettingsPanel({ course }: { course: CourseRead }) {
             ))}
           </ul>
         )}
+      </Card>
+
+      <Card>
+        <h3 className="text-sm font-medium text-text">{intl.formatMessage({ id: 'courseSettings.imagesTitle' })}</h3>
+        <p className="mt-1 mb-3 text-xs text-text-muted">{intl.formatMessage({ id: 'courseSettings.imagesHint' })}</p>
+        {/* A fieldset rather than a `disabled` prop on every radio: it is the native way
+            to freeze a whole group while the save is in flight, and it keeps the group
+            semantics the legend gives the options. */}
+        <fieldset disabled={saving} className={saving ? 'opacity-60' : undefined}>
+          <legend className="sr-only">{intl.formatMessage({ id: 'courseSettings.imagesLabel' })}</legend>
+          <ChoiceList
+            name={`image-source-policy-${course.id}`}
+            value={imagePolicy}
+            onSelect={(value) => setImagePolicy(value as ImageSourcePolicy)}
+            options={[
+              {
+                value: 'auto',
+                label: intl.formatMessage({ id: 'courseSettings.imagesAuto' }),
+                hint: intl.formatMessage({ id: 'courseSettings.imagesAutoHint' }),
+              },
+              {
+                value: 'keep_original',
+                label: intl.formatMessage({ id: 'courseSettings.imagesKeep' }),
+                hint: intl.formatMessage({ id: 'courseSettings.imagesKeepHint' }),
+              },
+              {
+                value: 'rebuild',
+                label: intl.formatMessage({ id: 'courseSettings.imagesRebuild' }),
+                hint: intl.formatMessage({ id: 'courseSettings.imagesRebuildHint' }),
+              },
+            ]}
+          />
+        </fieldset>
       </Card>
 
       <Card>

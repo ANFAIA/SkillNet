@@ -63,3 +63,6 @@ export type { PodcastPlayerBlockProps } from './PodcastPlayerBlock'
 
 export { InfographicImageBlock } from './InfographicImageBlock'
 export type { InfographicImageBlockProps } from './InfographicImageBlock'
+
+export { SourceImageBlock } from './SourceImageBlock'
+export type { SourceImageBlockProps } from './SourceImageBlock'

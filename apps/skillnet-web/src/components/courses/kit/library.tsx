@@ -61,6 +61,7 @@ import {
   LearningExperience,
   PodcastPlayerBlock,
   InfographicImageBlock,
+  SourceImageBlock,
   StackBlock,
   StackItem,
   StepSequenceBlock,
@@ -102,6 +103,7 @@ import {
   learningExperienceProps,
   podcastPlayerProps,
   infographicImageProps,
+  sourceImageProps,
   quizItemProps,
   stackProps,
   stepSequenceProps,
@@ -394,6 +396,26 @@ const InfographicImage = defineComponent({
   ),
 })
 
+const SourceImage = defineComponent({
+  name: 'SourceImage',
+  description:
+    'Imagen tal cual aparece en el documento de origen, referenciada por id, con su procedencia visible',
+  props: sourceImageProps,
+  component: ({ props }: ComponentRenderProps<{
+    image_id: string
+    alt: string
+    caption: string
+    document_id: string
+  }>) => (
+    <SourceImageBlock
+      imageId={readString(props.image_id)}
+      alt={readString(props.alt)}
+      caption={readString(props.caption)}
+      documentId={readString(props.document_id)}
+    />
+  ),
+})
+
 /**
  * The render library.
  *
@@ -433,6 +455,7 @@ export const skillnetLibrary = createLibrary({
     DidactActivity,
     PodcastPlayer,
     InfographicImage,
+    SourceImage,
   ],
 })
 

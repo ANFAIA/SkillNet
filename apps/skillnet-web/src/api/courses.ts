@@ -6,8 +6,10 @@ import type {
   CourseProgress,
   CourseRead,
   Exercise,
+  ImageSourcePolicy,
   Lesson,
   Paginated,
+  TutorStyle,
 } from '../types'
 
 export interface CourseFilters {
@@ -82,6 +84,12 @@ export function useUpdateCourse() {
         folder_id?: string | null
         artifact_generate_policy?: 'admin' | 'everyone' | 'selected'
         artifact_generator_ids?: string[]
+        tutor_style?: TutorStyle
+        /**
+         * The override over the diagram/screenshot rule. Sent alone, from the course
+         * settings panel — it is never part of creation.
+         */
+        image_source_policy?: ImageSourcePolicy
       }
     }) => put<CourseRead>(`/courses/${id}`, payload),
     onSuccess: (_data, { id }) => {
