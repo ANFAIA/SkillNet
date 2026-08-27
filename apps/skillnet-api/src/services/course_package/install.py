@@ -120,8 +120,51 @@ async def _folder_id(
     return folder.id
 
 
+async def _material_changed(
+    db: AsyncSession, package: CoursePackage
+) -> bool:
+    """Whether this install will change anything a learner could notice.
+
+    ``schema_version`` is part of ``node_renders.cache_key`` and exists to be bumped when
+    the nodes change. An installer that always wrote 1 left every already-generated screen
+    standing after a package was corrected: the material was fixed and the learner kept
+    reading the old wording. Measured — a re-installed package served a summary that had
+    been rewritten two hours earlier.
+
+    Compared against the database rather than against a stored fingerprint, so no column
+    and no migration: the pack rows already hold ``pack_hash``, which *is* the material,
+    and the node rows hold the wording. Re-installing an unchanged package therefore
+    changes nothing and does not throw away screens it just warmed.
+    """
+    for source in package.nodes:
+        node = await db.get(CourseNode, source.uuid)
+        if node is None or node.archived:
+            return True
+        if (
+            node.title != source.title
+            or node.summary != source.summary
+            or (node.outcome or "") != (source.outcome or "")
+        ):
+            return True
+        stored = (
+            await db.execute(
+                select(NodeKnowledgePackRecord.pack_hash).where(
+                    NodeKnowledgePackRecord.node_id == source.uuid,
+                    NodeKnowledgePackRecord.status == NodeKnowledgePackStatus.READY,
+                )
+            )
+        ).scalars().all()
+        if source.pack.canonical_hash not in stored:
+            return True
+    return False
+
+
 async def _course_row(
-    db: AsyncSession, package: CoursePackage, org_id: uuid.UUID, actor_id: uuid.UUID
+    db: AsyncSession,
+    package: CoursePackage,
+    org_id: uuid.UUID,
+    actor_id: uuid.UUID,
+    schema_version: int,
 ) -> tuple[Course, bool]:
     course = await db.get(Course, package.uuid)
     created = course is None
@@ -149,7 +192,7 @@ async def _course_row(
     course.schema_status = CourseSchemaStatus.VALIDATED
     course.schema_validated_by = actor_id
     course.schema_validated_at = datetime.now(timezone.utc)
-    course.schema_version = package.schema_version
+    course.schema_version = schema_version
     await db.flush()
     return course, created
 
@@ -347,7 +390,15 @@ async def install_package(
             f"package has {len(package.errors)} unresolved problem(s); run lint first"
         )
     org_id, actor_id = await resolve_identity(db, org_id, actor_id)
-    course, created = await _course_row(db, package, org_id, actor_id)
+    existing = await db.get(Course, package.uuid)
+    # Read before writing: once the rows are updated there is nothing left to compare to.
+    changed = existing is None or await _material_changed(db, package)
+    schema_version = (
+        package.schema_version
+        if existing is None
+        else int(existing.schema_version or 1) + (1 if changed else 0)
+    )
+    course, created = await _course_row(db, package, org_id, actor_id, schema_version)
     written, archived = await _write_nodes(db, package, course, actor_id)
     packs = await _write_packs(db, package, course)
     return InstallResult(
