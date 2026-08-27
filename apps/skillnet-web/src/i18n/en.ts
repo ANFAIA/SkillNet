@@ -319,11 +319,11 @@ export const en: Record<string, string> = {
   'settings.noModelHint': 'Configure it in the deployment .env: LLM_MODEL and LLM_API_KEY.',
 
   // Degraded-mode health banner (docs/design/degraded-mode-ux.md §1)
-  'capabilityBanner.title': 'Some features are running in reduced mode on this installation:',
+  'capabilityBanner.title': 'Some features are unavailable on this installation:',
   'capabilityBanner.ai': 'AI is not configured: add an LLM key to generate courses and use the tutor.',
   'capabilityBanner.tts': 'No voice key: the mascot and podcasts will use a basic offline voice. Add an ElevenLabs key for natural voice.',
-  'capabilityBanner.images': 'Image generation is off: infographics will render without a poster until you add an OpenRouter key.',
-  'capabilityBanner.envHint': 'Keys are configured in the deployment .env (LLM_API_KEY for AI, TTS_API_KEY for voice, OPENROUTER_API_KEY for images) and the container needs a restart after editing it.',
+  'capabilityBanner.images': 'No image model: infographics, slide decks and video overviews cannot be generated until you add a key.',
+  'capabilityBanner.envHint': 'Keys go in the deployment .env (LLM_API_KEY for AI, TTS_API_KEY for voice, IMAGE_API_KEY for images) and the container needs a restart after editing it.',
   'capabilityBanner.dismiss': 'Dismiss notice',
 
   // Capability explanations (docs/design/degraded-mode-ux.md) - the per-control half,

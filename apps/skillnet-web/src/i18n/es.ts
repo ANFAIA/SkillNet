@@ -319,11 +319,11 @@ export const es: Record<string, string> = {
   'settings.noModelHint': 'Se configura en el .env del despliegue: LLM_MODEL y LLM_API_KEY.',
 
   // Degraded-mode health banner (docs/design/degraded-mode-ux.md §1)
-  'capabilityBanner.title': 'Algunas funciones estan en modo reducido en esta instalacion:',
-  'capabilityBanner.ai': 'La IA no esta configurada: anade una clave de LLM para generar cursos y usar el tutor.',
-  'capabilityBanner.tts': 'Sin clave de voz: la mascota y los podcasts usaran una voz basica sin conexion. Anade una clave de ElevenLabs para voz natural.',
-  'capabilityBanner.images': 'Generacion de imagenes desactivada: las infografias saldran sin poster hasta anadir una clave de OpenRouter.',
-  'capabilityBanner.envHint': 'Las claves se configuran en el .env del despliegue (LLM_API_KEY para IA, TTS_API_KEY para voz, OPENROUTER_API_KEY para imagenes) y hace falta reiniciar el contenedor despues de editarlo.',
+  'capabilityBanner.title': 'Algunas funciones no están disponibles en esta instalación:',
+  'capabilityBanner.ai': 'La IA no está configurada: añade una clave de LLM para generar cursos y usar el tutor.',
+  'capabilityBanner.tts': 'Sin clave de voz: la mascota y los podcasts usarán una voz básica sin conexión. Añade una clave de ElevenLabs para voz natural.',
+  'capabilityBanner.images': 'Sin modelo de imagen: las infografías, las diapositivas y los vídeos no se pueden generar hasta añadir una clave.',
+  'capabilityBanner.envHint': 'Las claves van en el .env del despliegue (LLM_API_KEY para IA, TTS_API_KEY para voz, IMAGE_API_KEY para imágenes) y hay que reiniciar el contenedor después de editarlo.',
   'capabilityBanner.dismiss': 'Descartar aviso',
 
   // Capability explanations (docs/design/degraded-mode-ux.md) - the per-control half,
