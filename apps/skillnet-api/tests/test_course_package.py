@@ -286,3 +286,19 @@ def test_slugify_makes_a_filesystem_safe_node_id() -> None:
     assert slugify("Cómo aprende tu cerebro") == "como-aprende-tu-cerebro"
     assert slugify("¿Qué es el cashless?") == "que-es-el-cashless"
     assert slugify("!!!") == "node"
+
+
+def test_image_policy_travels_with_the_package(tmp_path: Path) -> None:
+    """An exported course must not lose how it treats the images from its own document.
+
+    ``image_source_policy`` is a per-course setting like ``tutor_style``: a package that
+    dropped it would install a course that silently treats its screenshots differently
+    from the course it was exported from.
+    """
+    course = json.loads(json.dumps(COURSE))
+    course["image_policy"] = "keep_original"
+    directory = _write(tmp_path, course, {"selling": SELLING_PACK, "refunds": REFUNDS_PACK})
+
+    assert read_package(directory).image_policy == "keep_original"
+    # Absent means "leave whatever the target already has", not "force the default".
+    assert read_package(_valid(tmp_path / "b")).image_policy is None

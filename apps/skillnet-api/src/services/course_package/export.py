@@ -256,6 +256,9 @@ async def export_course(
         "title": course.title,
         "intent_density": course.intent_density,
         "tutor_style": getattr(course.tutor_style, "value", course.tutor_style),
+        "image_policy": getattr(
+            course.image_source_policy, "value", course.image_source_policy
+        ),
         "nodes": [],
     }
     if folder is not None:

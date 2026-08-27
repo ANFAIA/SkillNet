@@ -61,6 +61,7 @@ class CoursePackage:
     folder: str | None = None
     intent_density: int = 3
     tutor_style: str | None = None
+    image_policy: str | None = None
     schema_version: int = 1
     nodes: list[PackageNode] = field(default_factory=list)
     errors: list[PackageError] = field(default_factory=list)
@@ -121,6 +122,10 @@ def read_package(directory: str | Path) -> CoursePackage:
     package.folder = course.get("folder")
     package.intent_density = int(course.get("intent_density", 3))
     package.tutor_style = course.get("tutor_style")
+    # Absent means "leave whatever the target already has". A package that carried no
+    # policy but forced one on install would silently change how an existing course
+    # treats the images that came in its own source document.
+    package.image_policy = course.get("image_policy")
     if not package.title:
         package.errors.append(PackageError(COURSE_FILE, "missing required field 'title'"))
 

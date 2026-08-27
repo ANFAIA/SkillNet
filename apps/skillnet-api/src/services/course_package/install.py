@@ -139,6 +139,8 @@ async def _course_row(
     course.intent_density = package.intent_density
     if package.tutor_style:
         course.tutor_style = package.tutor_style
+    if package.image_policy:
+        course.image_source_policy = package.image_policy
     course.status = ContentStatus.PUBLISHED
     # The two conditions ``course_delivery.resolve_delivery`` checks, and the only ones. A
     # package arrives reviewed and validated because a person wrote and signed off its
