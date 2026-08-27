@@ -51,7 +51,11 @@ def base_keys() -> set[str]:
 
 @pytest.fixture(scope="module")
 def dokploy_keys() -> set[str]:
-    return _env_keys(DOKPLOY, "skillnet-api", "# The front door")
+    # Anclado al encabezado de seccion, no a una frase suelta: el `# The front door`
+    # que habia aqui desaparecio cuando el servicio web dejo de llevar nginx, y el test
+    # se cayo con "no encontre el servicio skillnet-api" — que suena a fichero roto y
+    # era solo su ancla. `# ── Frontend` sobrevive a que cambie lo que va detras.
+    return _env_keys(DOKPLOY, "skillnet-api", "# ── Frontend")
 
 
 def test_both_files_were_found():

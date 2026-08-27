@@ -62,11 +62,12 @@
 # ## Service names
 #
 # Prefixed, because a Dokploy host lists every project's containers side by side and
-# `api` / `db` / `web` say nothing there. `skillnet-api` keeps an `api` network alias:
-# `docker/nginx.conf` is baked into the web image and proxies to `http://api:8000`, and
-# that file is shared with every other deployment in the repo — the rename stays cosmetic
-# instead of forcing an edit there. `DATABASE_URL` below is written out against the new
-# name, so the database needs no alias.
+# `api` / `db` / `web` say nothing there. No `api` network alias is needed here any more:
+# it existed so the nginx baked into the old web image could proxy to `http://api:8000`,
+# and this deployment has no nginx — Traefik routes `/api` straight to `skillnet-api:8000`
+# from the Domains tab. `DATABASE_URL` below is written out against the new name, so the
+# database needs no alias either. (`docker/nginx.conf` still serves the other deployments
+# in this repo, which is why that file keeps the short name.)
 #
 # ## Not included
 #
@@ -126,6 +127,12 @@ services:
       # whole stack, so session cookies can and should be HTTPS-only. Same change
       # docker-compose.caddy.yml makes, and for the same reason.
       COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      # Uvicorn only honours X-Forwarded-* from a proxy it trusts, and behind Traefik
+      # the client IP and the scheme both arrive that way. Without it the API sees the
+      # Traefik container as the client and http as the scheme. `*` is bounded here by the
+      # network, not by the value: nothing but Traefik can reach this container, since it
+      # publishes no host port. Narrow it if you put another hop in front.
+      FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS:-*}
       # Without this line the `.env` never arrives: no service declares `env_file`, and
       # `.dockerignore` keeps `.env` out of the image, so pydantic's `env_file=".env"`
       # finds nothing inside the container. Only the keys listed here get through — which
@@ -163,7 +170,7 @@ services:
       SEMANTIC_ROUTER: ${SEMANTIC_ROUTER:-false}
       UPLOAD_DIR: /data/uploads
       MAX_UPLOAD_SIZE_MB: ${MAX_UPLOAD_SIZE_MB:-50}
-      # The SPA is same-origin with the API (nginx proxies /api/), so this matters only
+      # The SPA is same-origin with the API (Traefik routes /api/), so this matters only
       # for external clients — but the base default `http://localhost:3000` is simply
       # wrong on a deployed host, and a wrong value here is a browser-side error with
       # no server-side log to find it by.
@@ -173,6 +180,17 @@ services:
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
       ORG_NAME: ${ORG_NAME:-SkillNet}
+      SETUP_WINDOW_MINUTES: ${SETUP_WINDOW_MINUTES:-30}
+      # Google login. Same rule as every key here: `.env` is dockerignored and no service
+      # declares `env_file`, so a key not listed never reaches the container — and the
+      # symptom is a Google button that returns to the login page with no server-side log.
+      # GOOGLE_REDIRECT_URI has to be the PUBLIC url, `https://<DOMAIN>/api/v1/auth/google/
+      # callback`, because that is what the browser is sent to and what Google validates.
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-}
+      GOOGLE_POST_LOGIN_PATH: ${GOOGLE_POST_LOGIN_PATH:-/}
+      GOOGLE_LOGIN_ERROR_PATH: ${GOOGLE_LOGIN_ERROR_PATH:-/login}
       A2A_INTERNAL_API_KEY: ${A2A_INTERNAL_API_KEY:-}
       # TTS + Vision follow the same rule as the models above: `.env` is dockerignored,
       # no service declares `env_file`, so a key only reaches the container if it is
@@ -192,6 +210,7 @@ services:
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
       IMAGE_MODEL: ${IMAGE_MODEL:-openrouter/google/gemini-2.5-flash-image}
       IMAGE_FALLBACK_MODEL: ${IMAGE_FALLBACK_MODEL:-gpt-image-1}
+      IMAGE_API_KEY: ${IMAGE_API_KEY:-}
       # Generated media (podcast mp3, infographic/cover png) and the TTS cache. Both
       # default to paths RELATIVE to WORKDIR (`/app/data/...`, see src/config.py), which is
       # image filesystem, not a volume: every `docker compose up --build` threw them away
@@ -199,6 +218,9 @@ services:
       # named volumes below actually hold them.
       MEDIA_ASSETS_DIR: ${MEDIA_ASSETS_DIR:-/data/media_assets}
       TTS_CACHE_DIR: ${TTS_CACHE_DIR:-/data/tts_cache}
+      # Images extracted from uploaded documents. Under /data/uploads on purpose, so the
+      # `uploads` volume below already persists them and no fourth volume is needed.
+      SOURCE_IMAGES_DIR: ${SOURCE_IMAGES_DIR:-/data/uploads/source_images}
       # Runtime component selection for dynamic courses. Documented in .env.example, so
       # they have to reach the container — there is no env_file, and a setting that is
       # documented but not wired changes nothing and says nothing when you set it.
@@ -218,7 +240,7 @@ services:
       retries: 5
       start_period: 30s
 
-  # ── Frontend (nginx + React SPA) ────────────────────────────
+  # ── Frontend (static React SPA, no nginx) ───────────────────
   # Static build served by `serve` on 3000 — no nginx, because Traefik already is the
   # reverse proxy on a Dokploy host (see docker/web.dokploy.Dockerfile). Point the `/`
   # domain entry at THIS service, container port 3000: that is the port inside the
