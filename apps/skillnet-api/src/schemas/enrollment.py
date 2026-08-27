@@ -4,7 +4,7 @@ import uuid
 from datetime import date, datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class EnrollmentRead(BaseModel):
@@ -45,7 +45,16 @@ class EnrollmentCreate(BaseModel):
     two mistakes was made, instead of the bare "field required" of the old signature.
     """
 
-    user_ids: list[uuid.UUID]
+    user_ids: list[uuid.UUID] = Field(default_factory=list, max_length=100)
+    #: Groups whose members are also part of this order.
+    #:
+    #: **Additive** with ``user_ids``, unlike the target, which stays exclusive: "the
+    #: onboarding group and these two contractors" has one obvious meaning, while a
+    #: course *and* a folder has none. The server resolves the membership
+    #: (``EnrollmentService.resolve_audience``) — the client never sends the people of a
+    #: group, because with the people list paginated it does not know them all and would
+    #: hit the 100-``user_ids`` cap long before a real group ran out.
+    group_ids: list[uuid.UUID] = Field(default_factory=list, max_length=50)
     course_id: uuid.UUID | None = None
     folder_id: uuid.UUID | None = None
     deadline: date | None = None
@@ -56,6 +65,8 @@ class EnrollmentCreate(BaseModel):
             raise ValueError("Provide either course_id or folder_id, not both")
         if self.course_id is None and self.folder_id is None:
             raise ValueError("Provide course_id or folder_id")
+        if not self.user_ids and not self.group_ids:
+            raise ValueError("Provide user_ids or group_ids")
         return self
 
 
@@ -79,4 +90,19 @@ class EnrollmentAssignmentResult(BaseModel):
     course_count: int
     created_count: int
     skipped_existing_count: int
+    #: Distinct people the order landed on, after resolving groups and deduplicating.
+    #: ``0`` with a non-empty request means every group was empty or fully deactivated,
+    #: which the screen has to say out loud — it looks exactly like success otherwise.
+    person_count: int = 0
+    #: Group members left out because their account is deactivated. A person named
+    #: explicitly in ``user_ids`` is never counted here: naming somebody is an
+    #: instruction, and it is honoured.
+    skipped_inactive_count: int = 0
+    #: The rows just created, capped at ``ENROLLMENT_ECHO_LIMIT``. A group assignment can
+    #: create thousands, and serialising them all would make the response the most
+    #: expensive part of the request for information the caller did not ask for.
     enrollments: list[EnrollmentRead]
+    #: True when ``enrollments`` is a prefix rather than the whole set. Present so the
+    #: caller can tell "these are all of them" from "these are the first hundred"
+    #: instead of inferring it from a length.
+    enrollments_truncated: bool = False

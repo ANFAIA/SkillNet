@@ -195,6 +195,39 @@ describe('CourseFolderPicker — creating a folder from the menu', () => {
   })
 })
 
+/**
+ * The open menu used to be painted through by the folder chips of the rows underneath it.
+ * Neither the rows nor the buttons are positioned, so the panel wins over those by being
+ * positioned at all — but every *other* picker carried `relative` unconditionally, and a
+ * positioned element later in the DOM paints above an earlier one. The rules below are
+ * what keeps that from coming back without reaching for a z-index.
+ */
+describe('CourseFolderPicker — the open panel stays on top', () => {
+  function details() {
+    return document.querySelector('details') as HTMLDetailsElement
+  }
+
+  it('is only a positioned element while it is open', () => {
+    renderPicker()
+    // `open:relative`, never a bare `relative`: a closed picker in a row below must not
+    // join the positioned layer, or its chip paints over the panel opened above it.
+    expect(details().className).toContain('open:relative')
+    expect(details().className.split(/\s+/)).not.toContain('relative')
+  })
+
+  it('never resorts to a z-index', () => {
+    renderPicker()
+    expect(details().outerHTML).not.toMatch(/\bz-(?:\d|\[)/)
+  })
+
+  it('shares one disclosure group so two menus cannot be open at once', () => {
+    // There is no click-outside handler: without the shared `name`, opening a second
+    // picker leaves the first one open, and the later one paints over it again.
+    renderPicker()
+    expect(details()).toHaveAttribute('name', 'course-folder-picker')
+  })
+})
+
 describe('CourseFolderPicker — the options that were already there', () => {
   it('still moves the course to an existing folder', async () => {
     installFetch(() => jsonResponse(201, { id: NEW_FOLDER, name: 'x' }))

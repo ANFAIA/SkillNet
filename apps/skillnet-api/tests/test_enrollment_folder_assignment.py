@@ -182,6 +182,22 @@ def _install(monkeypatch: pytest.MonkeyPatch, world: World) -> None:
                     return enrollment
             return None
 
+        async def existing_pairs(
+            self, course_ids: Any, user_ids: Any
+        ) -> set[tuple[uuid.UUID, uuid.UUID]]:
+            """The batch snapshot `assign_courses` takes before its loop."""
+            wanted_courses, wanted_users = set(course_ids), set(user_ids)
+            return {
+                pair
+                for pair in world.existing
+                if pair[0] in wanted_users and pair[1] in wanted_courses
+            }
+
+        async def list_with_courses(self, ids: Any) -> list[FakeEnrollment]:
+            """The batch reload the assignment answer echoes with."""
+            wanted = set(ids)
+            return [row for row in world.created if row.id in wanted]
+
     class FakeCourseRepo:
         def __init__(self, _db: Any) -> None:
             pass
@@ -212,6 +228,20 @@ def _install(monkeypatch: pytest.MonkeyPatch, world: World) -> None:
         def __init__(self, _db: Any) -> None:
             pass
 
+    class FakeUserGroupRepo:
+        """No groups exist in this file's world; every order names people directly."""
+
+        def __init__(self, _session: Any) -> None:
+            pass
+
+        async def scoped_ids(self, group_ids: Any, _org_id: uuid.UUID) -> set:
+            return set()
+
+        async def memberships(
+            self, group_ids: Any, _org_id: uuid.UUID
+        ) -> list[tuple[uuid.UUID, uuid.UUID, bool]]:
+            return []
+
     class FakeLessonProgressRepo:
         def __init__(self, _session: Any) -> None:
             pass
@@ -226,6 +256,9 @@ def _install(monkeypatch: pytest.MonkeyPatch, world: World) -> None:
     monkeypatch.setattr(
         "src.services.enrollment_service.LessonProgressRepository",
         FakeLessonProgressRepo,
+    )
+    monkeypatch.setattr(
+        "src.services.enrollment_service.UserGroupRepository", FakeUserGroupRepo
     )
 
 
@@ -308,7 +341,11 @@ def test_a_folder_with_nothing_published_is_an_honest_zero(
         "course_count": 0,
         "created_count": 0,
         "skipped_existing_count": 0,
+        # One person was named and resolved; there was simply nothing to give them.
+        "person_count": 1,
+        "skipped_inactive_count": 0,
         "enrollments": [],
+        "enrollments_truncated": False,
     }
     assert world.created == []
 

@@ -115,7 +115,10 @@ async def test_assign_courses_is_idempotent_across_a_folder() -> None:
     created = SimpleNamespace(id=uuid.uuid4())
     enrollment_repo = SimpleNamespace(
         session=_session_with_users([user_id]),
-        get_by_user_and_course=AsyncMock(side_effect=[existing, None]),
+        # `assign_courses` reads every (user, course) pair of the batch in one query and
+        # only fetches the rows that snapshot flagged — here, the first course.
+        existing_pairs=AsyncMock(return_value={(user_id, first_course_id)}),
+        get_by_user_and_course=AsyncMock(side_effect=[existing]),
         create=AsyncMock(return_value=created),
     )
     course_repo = SimpleNamespace(get_scoped=AsyncMock(return_value=object()))
@@ -226,7 +229,8 @@ async def test_assign_skips_the_already_enrolled_instead_of_aborting_the_batch()
     created = SimpleNamespace(id=uuid.uuid4(), user_id=fresh)
     enrollment_repo = SimpleNamespace(
         session=_session_with_users([already, fresh]),
-        get_by_user_and_course=AsyncMock(side_effect=[existing, None]),
+        existing_pairs=AsyncMock(return_value={(already, course_id)}),
+        get_by_user_and_course=AsyncMock(side_effect=[existing]),
         create=AsyncMock(return_value=created),
     )
 
@@ -250,6 +254,7 @@ async def test_assign_collapses_a_repeated_user_id() -> None:
     created = SimpleNamespace(id=uuid.uuid4())
     enrollment_repo = SimpleNamespace(
         session=_session_with_users([user_id]),
+        existing_pairs=AsyncMock(return_value=set()),
         get_by_user_and_course=AsyncMock(return_value=None),
         create=AsyncMock(return_value=created),
     )
@@ -270,15 +275,19 @@ async def test_assign_collapses_a_repeated_user_id() -> None:
 async def test_assign_survives_losing_the_insert_race() -> None:
     """A double click races two inserts; the loser must not become a 500.
 
-    Models the race exactly: the pre-check finds nothing, the INSERT then violates
-    `uq_enrollments_user_course`, and the row the winner wrote is read back.
+    Models the race exactly: the batch snapshot says the pair is free, the INSERT then
+    violates `uq_enrollments_user_course`, and the row the winner wrote is read back.
+    The snapshot is precisely what cannot prevent this — it is one query taken before the
+    loop, so it can be stale by the time the insert runs, which is why the SAVEPOINT is
+    still the thing that saves the batch.
     """
     user_id = uuid.uuid4()
     winner_row = SimpleNamespace(id=uuid.uuid4())
     enrollment_repo = SimpleNamespace(
         session=_session_with_users([user_id]),
-        # First call: nothing yet. Second call (after the IntegrityError): the winner's.
-        get_by_user_and_course=AsyncMock(side_effect=[None, winner_row]),
+        existing_pairs=AsyncMock(return_value=set()),
+        # The only read: the one in the `except IntegrityError` branch.
+        get_by_user_and_course=AsyncMock(side_effect=[winner_row]),
         create=AsyncMock(
             side_effect=IntegrityError("INSERT", {}, Exception("duplicate key"))
         ),
@@ -301,7 +310,8 @@ async def test_assign_still_raises_when_the_integrity_error_is_not_a_duplicate()
     user_id = uuid.uuid4()
     enrollment_repo = SimpleNamespace(
         session=_session_with_users([user_id]),
-        get_by_user_and_course=AsyncMock(side_effect=[None, None]),
+        existing_pairs=AsyncMock(return_value=set()),
+        get_by_user_and_course=AsyncMock(side_effect=[None]),
         create=AsyncMock(
             side_effect=IntegrityError("INSERT", {}, Exception("fk violation"))
         ),

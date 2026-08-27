@@ -85,6 +85,7 @@ from src.models.term_explanation import (
     TermExplanation,
 )
 from src.models.user import LearningProfile, User, UserRole
+from src.models.user_group import UserGroup, UserGroupMember
 from src.models.user_skill import SkillLevel, UserSkill
 
 __all__ = [
@@ -175,6 +176,9 @@ __all__ = [
     "MediaArtifact",
     "MediaKind",
     "MediaArtifactStatus",
+    # --- named lists of people, for assigning training in bulk ---
+    "UserGroup",
+    "UserGroupMember",
     # --- images extracted from source documents ---
     "SourceImage",
     "SourceImageKind",

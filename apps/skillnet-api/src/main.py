@@ -47,6 +47,7 @@ from src.routes import (
     stats,
     talent,
     tts,
+    user_groups,
     users,
 )
 from src.routes import (
@@ -208,6 +209,10 @@ def create_app() -> FastAPI:
     # (/courses/{id}/skills) are NOT — an individual owner still authors courses.
     app.include_router(skills.router, prefix=prefix)
     app.include_router(talent.router, prefix=prefix, dependencies=org_only)
+    # A group is a list of colleagues; there is nobody else in an individual
+    # workspace, so the whole router 404s there like the rest of the collective surfaces.
+    app.include_router(user_groups.router, prefix=prefix, dependencies=org_only)
+    app.include_router(user_groups.person_router, prefix=prefix, dependencies=org_only)
     app.include_router(exercises.router, prefix=prefix)
     app.include_router(lessons.router, prefix=prefix)
     app.include_router(enrollments.router, prefix=prefix)

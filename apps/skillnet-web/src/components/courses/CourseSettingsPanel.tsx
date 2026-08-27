@@ -14,7 +14,10 @@ export function CourseSettingsPanel({ course }: { course: CourseRead }) {
   const updateCourse = useUpdateCourse()
   const assign = useAssignCourse()
   const unassign = useDeleteEnrollment()
-  const usersQuery = useUsers({ is_active: true })
+  // Explicit `limit`: `useUsers` sends a page size on every call now (default 25) and
+  // this panel has no pager. `nameById` below is built from these rows, so a short page
+  // does not just hide people — it renders a raw UUID where a name should be.
+  const usersQuery = useUsers({ is_active: true, limit: 100 })
   const enrollmentsQuery = useEnrollments({ course_id: course.id })
   const users = usersQuery.data?.items ?? []
   const enrollments = enrollmentsQuery.data?.items ?? []

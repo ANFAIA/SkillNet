@@ -26,6 +26,9 @@ import { ApiError, get, post, put } from '../../api/client'
 import { useAuth, useWorkspaceMode } from '../../hooks/useAuth'
 import type { GenerationProgress as GenProgress, User, Lesson, Exercise, ExerciseContent } from '../../types'
 import type { ProposedNode, Phase, SourceType, DeliveryChoice } from './createCourseTypes'
+/** The endpoint's own ceiling. Past this the list needs a pager, not a bigger number. */
+const MAX_PICKABLE_EMPLOYEES = 100
+
 
 // ── Icons ────────────────────────────────────────────────────
 
@@ -411,8 +414,15 @@ function StepAssign({ selected, onToggle, deadline, onDeadline }: {
   onDeadline: (v: string) => void
 }) {
   const intl = useIntl()
-  const { data, isLoading } = useUsers({ role: 'employee' })
+  // Explicit `limit`, and the highest the endpoint allows. `useUsers` sends a page size
+  // on every call now (default 25); this list has no pager, so leaving it implicit
+  // silently cut the org from 50 rows to 25 and made the 26th employee unassignable at
+  // creation with nothing on screen to say so.
+  const { data, isLoading } = useUsers({ role: 'employee', limit: MAX_PICKABLE_EMPLOYEES })
   const employees: User[] = data?.items ?? []
+  // Still a page. Say when it is not the whole organization rather than let the admin
+  // conclude that whoever is missing does not exist.
+  const hiddenEmployees = Math.max(0, (data?.total ?? 0) - employees.length)
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       <div>
@@ -438,6 +448,11 @@ function StepAssign({ selected, onToggle, deadline, onDeadline }: {
           )}
         </div>
         <p className="text-xs text-text-muted mt-1.5">{intl.formatMessage({ id: 'create.selectedCount' }, { count: selected.size })}</p>
+        {hiddenEmployees > 0 && (
+          <p className="text-xs text-text-muted mt-1">
+            {intl.formatMessage({ id: 'create.employeesTruncated' }, { shown: employees.length, total: data?.total ?? 0 })}
+          </p>
+        )}
       </div>
       <div>
         <Input label={intl.formatMessage({ id: 'create.deadlineLabel' })} type="date" value={deadline} onChange={(e) => onDeadline(e.target.value)} />

@@ -95,16 +95,24 @@ async def assign_folder(
     enrollment_service = EnrollmentService(
         EnrollmentRepository(db), CourseRepository(db), ExerciseRepository(db)
     )
+    # Groups are resolved by the same call `POST /enrollments` uses, so the two doors
+    # into "assign this folder" cannot disagree about who is in a group either.
+    audience = await enrollment_service.resolve_audience(
+        org_id=admin.org_id, user_ids=body.user_ids, group_ids=body.group_ids
+    )
     created, skipped = await enrollment_service.assign_courses(
         org_id=admin.org_id,
         assigned_by=admin.id,
         course_ids=course_ids,
-        user_ids=body.user_ids,
+        user_ids=audience.user_ids,
         deadline=body.deadline,
+        source_group_by_user=audience.source_group_by_user,
     )
     await db.commit()
     return CourseFolderAssignmentResult(
         course_count=len(course_ids),
         created_count=len(created),
         skipped_existing_count=skipped,
+        person_count=len(audience.user_ids),
+        skipped_inactive_count=audience.skipped_inactive,
     )

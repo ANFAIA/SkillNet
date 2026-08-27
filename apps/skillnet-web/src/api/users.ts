@@ -7,18 +7,47 @@ export interface UserFilters {
   search?: string
   role?: string
   is_active?: boolean
+  /** Only the members of this group. Filtered server-side; see the note on `useUsers`. */
+  group_id?: string
+  /** Only the people who are *not* in this group — the "add members" list. */
+  exclude_group_id?: string
+  /** Only the people who are in **no** group at all. */
+  ungrouped?: boolean
+  offset?: number
+  limit?: number
 }
 
 function toQuery(filters?: UserFilters): string {
-  if (!filters) return ''
   const params = new URLSearchParams()
-  if (filters.search) params.set('search', filters.search)
-  if (filters.role) params.set('role', filters.role)
-  if (filters.is_active !== undefined) params.set('is_active', String(filters.is_active))
-  const qs = params.toString()
-  return qs ? `?${qs}` : ''
+  if (filters?.search) params.set('search', filters.search)
+  if (filters?.role) params.set('role', filters.role)
+  if (filters?.is_active !== undefined) params.set('is_active', String(filters.is_active))
+  if (filters?.group_id) params.set('group_id', filters.group_id)
+  if (filters?.exclude_group_id) params.set('exclude_group_id', filters.exclude_group_id)
+  if (filters?.ungrouped) params.set('ungrouped', 'true')
+  // Always sent, never left to the server's default. The default is 50 and the endpoint
+  // reports a `total`, so a caller that omitted both got the first fifty people and no
+  // hint that there were more — which is exactly how the folder-assignment dialog came
+  // to show fifty employees and call it the team.
+  params.set('offset', String(filters?.offset ?? 0))
+  params.set('limit', String(filters?.limit ?? USERS_PAGE_SIZE))
+  return `?${params.toString()}`
 }
 
+/** Rows per page. The server caps `limit` at 100; ask for less and paginate. */
+export const USERS_PAGE_SIZE = 25
+
+/**
+ * One page of the organization's people.
+ *
+ * Every filter is a query parameter rather than a `.filter()` on what came back: the
+ * response is one page, so narrowing it in the browser would only ever find the matches
+ * that happened to be on it. That is true of `search` and it is just as true of
+ * `group_id`, which is why the group filter is not "load the members and intersect".
+ *
+ * Read `data.total` for how many match, and `data.items.length` for how many arrived.
+ * When they differ, say so.
+ */
 export function useUsers(filters?: UserFilters) {
   return useQuery({
     queryKey: ['users', filters ?? {}],

@@ -18,6 +18,12 @@ type CourseFolderPickerProps = {
 /** The server trims the name and accepts 1..120 characters (`CourseFolderWrite`). */
 const NAME_MAX_LENGTH = 120
 
+/**
+ * Every picker on the page shares one exclusive-disclosure group, so opening one closes
+ * whichever was open. Load-bearing for the stacking of the panel — see the comment on it.
+ */
+const PICKER_GROUP = 'course-folder-picker'
+
 function FolderIcon() {
   return <svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" /></svg>
 }
@@ -133,7 +139,15 @@ export function CourseFolderPicker({ courseTitle, folderId, folderName, folders,
   return (
     <details
       ref={detailsRef}
-      className="group relative"
+      // One picker open at a time. `name` makes the browser close the previous one
+      // (exclusive-disclosure group), which is both the behaviour an admin expects from
+      // a row of menus with no click-outside handler and what keeps the stacking rule
+      // below true: at most one positioned picker exists at any moment.
+      name={PICKER_GROUP}
+      // `open:relative`, not `relative`. See the panel's comment: a picker that is
+      // closed must not be a positioned element, or the pickers in the rows *below*
+      // would paint over the open panel.
+      className="group open:relative"
       onToggle={(event) => {
         setOpen(event.currentTarget.open)
         // Reopening starts clean: a half-typed name or a stale 409 from last time is not
@@ -151,7 +165,21 @@ export function CourseFolderPicker({ courseTitle, folderId, folderName, folders,
         </span>
         <ChevronDown open={open} />
       </summary>
-      <div className="absolute right-0 z-30 mt-1 w-56 rounded-lg border border-border bg-surface p-1 shadow-md">
+      {/* No z-index. A positioned element paints above non-positioned content, so this
+          panel covers the `Card` rows below it (they are motion divs that settle on
+          `transform: none`, i.e. not positioned) and the buttons beside it.
+
+          What it does *not* automatically beat is another positioned element that comes
+          later in the DOM — those paint in tree order, last one wins. The rows below hold
+          more `CourseFolderPicker`s, and while every `<details>` carried `relative`
+          unconditionally, each of those closed pickers was a positioned element sitting
+          after this one: their folder chips painted straight through the open panel,
+          which is what looked like "the menu has no background". Hence `open:relative` on
+          the `<details>` above: a closed picker is `static` and drops out of the
+          positioned layer, and `name` keeps a second one from being open at the same
+          time. The open panel is then the only positioned box around, and DOM order
+          alone puts it on top. */}
+      <div className="absolute right-0 mt-1 w-56 rounded-lg border border-border bg-surface p-1 shadow-md">
         <p className="px-2 py-1.5 text-xs text-text-muted">{intl.formatMessage({ id: 'content.moveTo' })}</p>
         {/* Leaving a folder is `folder_id = null`. Named for what it does from here: an
             admin reading "no folder" while the course is in one has to guess. */}

@@ -28,7 +28,7 @@ means — which matters because that number is printed on a certificate.
 from __future__ import annotations
 
 import uuid
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from typing import Any
@@ -36,7 +36,12 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
-from src.core.exceptions import ConflictError, ForbiddenError, NotFoundError
+from src.core.exceptions import (
+    ConflictError,
+    ForbiddenError,
+    NotFoundError,
+    ValidationError,
+)
 from src.core.logging import get_logger
 from src.models import Enrollment, EnrollmentStatus, User
 from src.models.course_skill import CourseSkill
@@ -45,6 +50,7 @@ from src.repositories.course_node_repo import CourseNodeRepository
 from src.repositories.course_repo import CourseRepository
 from src.repositories.enrollment_repo import EnrollmentRepository
 from src.repositories.exercise_repo import ExerciseRepository
+from src.repositories.user_group_repo import UserGroupRepository
 from src.repositories.learner_node_state_repo import LearnerNodeStateRepository
 from src.repositories.lesson_progress_repo import LessonProgressRepository
 from src.services.course_delivery import resolve_delivery
@@ -60,6 +66,40 @@ logger = get_logger(__name__)
 #: the learner demonstrably started, and sending them back to "sin empezar" would
 #: lose that fact and re-trigger every "tienes formación nueva" surface.
 REOPENED_STATUS = EnrollmentStatus.IN_PROGRESS
+
+#: The largest (people x courses) an assignment order may be.
+#:
+#: Groups made this reachable. Assigning a folder of 30 courses to a group of 400 people
+#: is 12 000 enrollment rows in one request: the write alone outlives any reverse proxy's
+#: timeout, and the admin gets a 504 with no idea whether anything landed (nothing did —
+#: the route commits once — but the screen cannot say so). A 422 that names the number is
+#: worth more than a hang, and it is the honest answer until assignment is a background
+#: job. Read as a ceiling on *work*, not on people: 400 people and one course is fine.
+MAX_ASSIGNMENT_PAIRS = 5_000
+
+
+@dataclass(frozen=True)
+class ResolvedAudience:
+    """Who an assignment order actually lands on, and who it deliberately missed.
+
+    Groups are expanded **here and nowhere else**. The browser never sends the members
+    of a group: with the people list paginated it does not know them all, and it would
+    run into the 100-``user_ids`` cap of the request body long before a real group ran
+    out. One expansion point also means "who is in this group" is answered once, at the
+    moment of the write, instead of once in the client and once again on the server.
+    """
+
+    #: Every person to enrol, deduplicated, explicit ids first and then group members.
+    user_ids: list[uuid.UUID]
+    #: Group members left out because their account is deactivated.
+    skipped_inactive: int
+    #: Which group each person got here through, for the people who got here *only*
+    #: through a group. Absent for anyone the caller named directly — naming somebody is
+    #: not the group's doing, and recording it as such would make a future
+    #: "revoke what this group assigned" take back a row the group never created.
+    #: Absent too for anyone in two of the named groups: either answer would be a coin
+    #: toss written down as a fact.
+    source_group_by_user: dict[uuid.UUID, uuid.UUID]
 
 
 @dataclass(frozen=True)
@@ -128,11 +168,18 @@ class EnrollmentService:
         course_repo: CourseRepository,
         exercise_repo: ExerciseRepository,
         lesson_progress_repo: LessonProgressRepository | None = None,
+        user_group_repo: UserGroupRepository | None = None,
     ) -> None:
         self.enrollment_repo = enrollment_repo
         self.course_repo = course_repo
         self.exercise_repo = exercise_repo
         self.lesson_progress_repo = lesson_progress_repo or LessonProgressRepository(
+            enrollment_repo.session
+        )
+        # Defaulted from the session for the same reason as `lesson_progress_repo`: every
+        # caller already hands over three repositories built from one session, and a
+        # fourth positional argument at each of them buys nothing.
+        self.user_group_repo = user_group_repo or UserGroupRepository(
             enrollment_repo.session
         )
 
@@ -162,6 +209,86 @@ class EnrollmentService:
                 + ", ".join(str(uid) for uid in sorted(missing, key=str))
             )
 
+    async def resolve_audience(
+        self,
+        *,
+        org_id: uuid.UUID,
+        user_ids: Sequence[uuid.UUID],
+        group_ids: Sequence[uuid.UUID] = (),
+    ) -> ResolvedAudience:
+        """Turn "these people and these groups" into one deduplicated list of people.
+
+        The **only** place a group becomes a list of users. See :class:`ResolvedAudience`
+        for why that expansion must not happen in the browser.
+
+        Two rules that look inconsistent and are not:
+
+        * A **named** person is enrolled even if their account is deactivated. Naming
+          somebody is an instruction, and refusing it silently would be the surprise.
+        * A **group member** who is deactivated is not, and is counted in
+          ``skipped_inactive`` so the screen can say so. Resolving a group is a question
+          — "who should get this?" — and the answer does not include people who cannot
+          sign in. They stay members, so reactivating them puts them back in scope for
+          the next assignment.
+
+        An unknown or foreign group is a 404 before anything is written, so a typo in one
+        of several ids cannot half-assign the order.
+        """
+        unknown = set(group_ids) - await self.user_group_repo.scoped_ids(
+            list(group_ids), org_id
+        )
+        if unknown:
+            raise NotFoundError(
+                "user_groups", ", ".join(str(gid) for gid in sorted(unknown, key=str))
+            )
+        await self._assert_users_in_org(org_id=org_id, user_ids=user_ids)
+
+        named = set(user_ids)
+        rows = await self.user_group_repo.memberships(list(group_ids), org_id)
+        members: list[uuid.UUID] = []
+        provenance: dict[uuid.UUID, uuid.UUID] = {}
+        ambiguous: set[uuid.UUID] = set()
+        inactive: set[uuid.UUID] = set()
+        for group_id, member_id, is_active in rows:
+            if not is_active:
+                # Not enrolled, but still counted — and never given provenance, since no
+                # row will exist to carry it.
+                if member_id not in named:
+                    inactive.add(member_id)
+                continue
+            if member_id not in named and member_id not in members:
+                members.append(member_id)
+            if member_id in named:
+                continue
+            if member_id in provenance and provenance[member_id] != group_id:
+                ambiguous.add(member_id)
+            provenance.setdefault(member_id, group_id)
+        for member_id in ambiguous:
+            del provenance[member_id]
+
+        # Explicit ids first, then group members: `dict.fromkeys` keeps first occurrence,
+        # so someone named *and* in a group appears once, in the position the caller put
+        # them. The order is what `POST /enrollments` echoes back for the legacy shape.
+        resolved = list(dict.fromkeys([*user_ids, *members]))
+        return ResolvedAudience(
+            user_ids=resolved,
+            # A deactivated person who was *also* named explicitly is enrolled, so they
+            # are not "skipped" and must not be counted as such.
+            skipped_inactive=len(inactive),
+            source_group_by_user=provenance,
+        )
+
+    @staticmethod
+    def _assert_within_limit(*, people: int, courses: int) -> None:
+        pairs = people * courses
+        if pairs > MAX_ASSIGNMENT_PAIRS:
+            raise ValidationError(
+                f"This assignment is {pairs} enrollments "
+                f"({people} people x {courses} courses), over the limit of "
+                f"{MAX_ASSIGNMENT_PAIRS}. Split it into smaller orders.",
+                field="user_ids",
+            )
+
     async def _enrol_once(
         self,
         *,
@@ -169,6 +296,8 @@ class EnrollmentService:
         course_id: uuid.UUID,
         assigned_by: uuid.UUID,
         deadline: date | None,
+        source_group_id: uuid.UUID | None = None,
+        known_existing: set[tuple[uuid.UUID, uuid.UUID]] | None = None,
     ) -> tuple[Enrollment, bool]:
         """Enrol one learner in one course. Returns ``(row, created)``.
 
@@ -184,9 +313,16 @@ class EnrollmentService:
         this runs inside a loop over a whole batch — and the row the winner wrote is
         read back and treated as what it is, an enrollment that already exists.
         """
-        existing = await self.enrollment_repo.get_by_user_and_course(
-            user_id, course_id
-        )
+        # `known_existing` is the batch's one-query snapshot of what is already enrolled
+        # (`existing_pairs`). A pair it does not contain still goes through the insert
+        # below and can still lose the race, which the savepoint handles; a pair it does
+        # contain is fetched, not guessed, so the caller gets the same row it always did.
+        if known_existing is not None and (user_id, course_id) not in known_existing:
+            existing = None
+        else:
+            existing = await self.enrollment_repo.get_by_user_and_course(
+                user_id, course_id
+            )
         if existing is not None:
             return existing, False
 
@@ -199,6 +335,7 @@ class EnrollmentService:
                     assigned_by=assigned_by,
                     status=EnrollmentStatus.ASSIGNED,
                     deadline=deadline,
+                    source_group_id=source_group_id,
                 )
         except IntegrityError:
             existing = await self.enrollment_repo.get_by_user_and_course(
@@ -240,19 +377,28 @@ class EnrollmentService:
         they asked for, so dropping the already-enrolled users would turn "9 of 10
         already had it" into a response that looks like nine assignments failed.
         Duplicate ids in ``user_ids`` collapse to one row.
+
+        No ``source_group_id``: this branch is only reached when the caller named people
+        directly. An order that names a group goes through :meth:`assign_courses`, which
+        is also the one that can report created-versus-already-there — see
+        ``POST /enrollments``.
         """
         course = await self.course_repo.get_scoped(course_id, org_id)
         if course is None:
             raise NotFoundError("courses", str(course_id))
         await self._assert_users_in_org(org_id=org_id, user_ids=user_ids)
+        people = list(dict.fromkeys(user_ids))
+        self._assert_within_limit(people=len(people), courses=1)
 
+        known_existing = await self.enrollment_repo.existing_pairs([course_id], people)
         enrollments: list[Enrollment] = []
-        for user_id in dict.fromkeys(user_ids):
+        for user_id in people:
             enrollment, _created = await self._enrol_once(
                 user_id=user_id,
                 course_id=course_id,
                 assigned_by=assigned_by,
                 deadline=deadline,
+                known_existing=known_existing,
             )
             enrollments.append(enrollment)
         return enrollments
@@ -265,21 +411,39 @@ class EnrollmentService:
         course_ids: Sequence[uuid.UUID],
         user_ids: list[uuid.UUID],
         deadline: date | None,
+        source_group_by_user: Mapping[uuid.UUID, uuid.UUID] | None = None,
     ) -> tuple[list[Enrollment], int]:
-        """Assign a published collection while treating existing rows as idempotent."""
+        """Assign a published collection while treating existing rows as idempotent.
+
+        The size of this loop is (people x courses), which groups made large. The reads
+        are hoisted into two queries — one for the courses, one for every existing pair —
+        so what is left inside the loop is the insert itself and the savepoint that keeps
+        a lost race from taking the batch down. :meth:`_assert_within_limit` refuses an
+        order too big for one request before any of it runs.
+        """
         await self._assert_users_in_org(org_id=org_id, user_ids=user_ids)
+        people = list(dict.fromkeys(user_ids))
+        courses = list(dict.fromkeys(course_ids))
+        self._assert_within_limit(people=len(people), courses=len(courses))
+
+        for course_id in courses:
+            # Still one lookup per course, and still before the first write: a folder
+            # holding a course of another organization must assign nothing at all.
+            if await self.course_repo.get_scoped(course_id, org_id) is None:
+                raise NotFoundError("courses", str(course_id))
+
+        known_existing = await self.enrollment_repo.existing_pairs(courses, people)
         created: list[Enrollment] = []
         skipped = 0
-        for course_id in course_ids:
-            course = await self.course_repo.get_scoped(course_id, org_id)
-            if course is None:
-                raise NotFoundError("courses", str(course_id))
-            for user_id in dict.fromkeys(user_ids):
+        for course_id in courses:
+            for user_id in people:
                 enrollment, was_created = await self._enrol_once(
                     user_id=user_id,
                     course_id=course_id,
                     assigned_by=assigned_by,
                     deadline=deadline,
+                    source_group_id=(source_group_by_user or {}).get(user_id),
+                    known_existing=known_existing,
                 )
                 if was_created:
                     created.append(enrollment)
@@ -305,6 +469,10 @@ class EnrollmentService:
         offset: int,
         limit: int,
         include_archived_courses: bool = True,
+        #: Plural forms of the two filters above. ``None`` means "no filter"; an empty
+        #: list means "none of them" and answers nothing. See the repository.
+        user_ids: Sequence[uuid.UUID] | None = None,
+        course_ids: Sequence[uuid.UUID] | None = None,
     ) -> tuple[Sequence[Enrollment], int]:
         """List enrollments; see the repository for what ``include_archived_courses`` is.
 
@@ -315,7 +483,9 @@ class EnrollmentService:
         return await self.enrollment_repo.list_enrollments(
             org_id=org_id,
             user_id=user_id,
+            user_ids=user_ids,
             course_id=course_id,
+            course_ids=course_ids,
             status=status,
             include_archived_courses=include_archived_courses,
             offset=offset,

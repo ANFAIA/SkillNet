@@ -43,6 +43,20 @@ class Enrollment(UUIDMixin, Base):
     assigned_by: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
+    #: The group whose assignment created this row, when one did.
+    #:
+    #: Recorded now because it is the one thing about a group assignment that cannot be
+    #: reconstructed later: the enrollment is an ordinary row the moment it exists, and
+    #: nothing else remembers where it came from. It buys "why does this person have this
+    #: course?" today, and it is the prerequisite for ever making group membership drive
+    #: enrollments continuously (see docs/design/admin-library-and-talent.md).
+    #:
+    #: ``SET NULL``, never cascade: deleting a group must not delete training. And a row
+    #: that already existed keeps whatever provenance it had — an idempotent re-assignment
+    #: skips it, so the group did not create it and does not get to claim it.
+    source_group_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("user_groups.id", ondelete="SET NULL"), nullable=True
+    )
     status: Mapped[EnrollmentStatus] = mapped_column(
         SAEnum(
             EnrollmentStatus,

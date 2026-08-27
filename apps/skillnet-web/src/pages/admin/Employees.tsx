@@ -1,8 +1,13 @@
 import { useDeferredValue, useState } from 'react'
 import { useIntl } from 'react-intl'
 import { motion } from 'framer-motion'
-import { Badge, Button, Card, CardTitle, EmptyState, Input, Modal, PageHeader, SearchField, Select, SkeletonRow } from '../../components/ui'
-import { useUsers, useCreateUser, useResetPassword, useSetEmployeeActive, useSetUserRole } from '../../api/users'
+import { Badge, Button, Card, CardTitle, EmptyState, Input, Modal, PageHeader, Pager, SearchField, Select, SkeletonRow } from '../../components/ui'
+import { useUsers, USERS_PAGE_SIZE, useCreateUser, useResetPassword, useSetEmployeeActive, useSetUserRole } from '../../api/users'
+import type { UserGroup } from '../../api/user-groups'
+import { UserGroupSidebar, type GroupFilter } from '../../components/people/UserGroupSidebar'
+import { GroupMembersDialog } from '../../components/people/GroupMembersDialog'
+import { AssignToGroupDialog } from '../../components/people/AssignToGroupDialog'
+import { PersonGroupsSection } from '../../components/people/PersonGroupsSection'
 import { useCourses } from '../../api/courses'
 import { useCourseFolders } from '../../api/course-folders'
 import { useAssignCourse, useAssignFolder, useDeleteEnrollment, useEnrollments } from '../../api/enrollments'
@@ -567,6 +572,11 @@ function EmployeeDetail({ employee }: { employee: User }) {
       </div>
 
       <div className="mt-5 border-t border-border pt-5">
+        <CardTitle className="mb-3">{intl.formatMessage({ id: 'groups.personTitle' })}</CardTitle>
+        <PersonGroupsSection person={employee} />
+      </div>
+
+      <div className="mt-5 border-t border-border pt-5">
         <CardTitle>{intl.formatMessage({ id: 'employees.assignNewCourse' })}</CardTitle>
         <AssignTrainingForm user={employee} />
       </div>
@@ -586,6 +596,11 @@ export function Employees() {
   const [selected, setSelected] = useState<User | null>(null)
   const [creating, setCreating] = useState(false)
   const [roleFilter, setRoleFilter] = useState('')
+  const [activeFilter, setActiveFilter] = useState('')
+  const [group, setGroup] = useState<GroupFilter>('all')
+  const [offset, setOffset] = useState(0)
+  const [managingMembers, setManagingMembers] = useState<UserGroup | null>(null)
+  const [assigningGroup, setAssigningGroup] = useState<UserGroup | null>(null)
   const [createOrigin, setCreateOrigin] = useState<DOMRect | null>(null)
   const [detailOrigin, setDetailOrigin] = useState<DOMRect | null>(null)
   // The box stays instant; the query lags one keystroke behind instead of firing a
@@ -594,24 +609,44 @@ export function Employees() {
   // No hardcoded `role: 'employee'` any more: administrators are members of the
   // organization too, and a list that hides them makes it impossible to see who can
   // change roles — or to demote anyone.
+  //
+  // Every filter, including the group, is a query parameter. Narrowing the fetched page
+  // in the browser would only ever find the people who happened to be on it — and the
+  // page is now explicitly one page, which is the whole point of this screen's rewrite.
   const { data, isLoading, error } = useUsers({
     role: roleFilter || undefined,
     search: deferredSearch || undefined,
+    is_active: activeFilter === '' ? undefined : activeFilter === 'active',
+    group_id: group === 'all' || group === 'ungrouped' ? undefined : group,
+    ungrouped: group === 'ungrouped',
+    offset,
+    limit: USERS_PAGE_SIZE,
   })
+  // The rail's two counts, and nothing else: one row asked for, read for its `total`.
+  const orgTotal = useUsers({ limit: 1 })
+  const ungroupedTotal = useUsers({ ungrouped: true, limit: 1 })
 
   function openDetail(emp: User, e: { currentTarget: Element }) {
     setDetailOrigin(e.currentTarget.getBoundingClientRect())
     setSelected(emp)
   }
 
+  /** Any filter change invalidates the current page number, so it goes back to the first. */
+  function refilter(apply: () => void) {
+    apply()
+    setOffset(0)
+  }
+
   const employees = data?.items ?? []
+  const total = data?.total ?? 0
+  const hasFilters = !!roleFilter || !!activeFilter || group !== 'all' || search.trim().length > 0
   const roleLabel = (role: string) => role === 'admin' ? intl.formatMessage({ id: 'employees.roleAdmin' }) : intl.formatMessage({ id: 'employees.roleEmployee' })
 
   return (
     <div>
       <PageHeader
         title={intl.formatMessage({ id: 'employees.title' })}
-        description={intl.formatMessage({ id: 'employees.teamCount' }, { count: data?.total ?? employees.length })}
+        description={intl.formatMessage({ id: 'employees.teamCount' }, { count: orgTotal.data?.total ?? total })}
         actions={(
           <Button
             variant="primary"
@@ -626,28 +661,70 @@ export function Employees() {
         )}
       />
 
-      <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-end">
+      {/* Wider than the library's 220px folder rail on purpose: a group row carries four
+          actions to the folder's three, and at 220px the hovered name was clipped to
+          "Turno d" with its member count hidden behind the buttons. */}
+      <div className="mt-5 grid gap-5 xl:grid-cols-[264px_minmax(0,1fr)]">
+        <div>
+          {/* The rail owns its own query, search box and page number: they are its state,
+              and a screen holding them would only be a longer way of saying the same
+              thing. Its loading and error states live inside it too, so the two virtual
+              rows keep working while the paged part of the list is still arriving. */}
+          <UserGroupSidebar
+            selected={group}
+            totalCount={orgTotal.data?.total ?? 0}
+            ungroupedCount={ungroupedTotal.data?.total ?? 0}
+            onSelect={(value) => refilter(() => setGroup(value))}
+            onManageMembers={setManagingMembers}
+            onAssign={setAssigningGroup}
+          />
+        </div>
+
+        <section className="min-w-0" aria-label={intl.formatMessage({ id: 'employees.title' })}>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
         <SearchField
             label={intl.formatMessage({ id: 'employees.searchPlaceholder' })}
             placeholder={intl.formatMessage({ id: 'employees.searchPlaceholder' })}
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => refilter(() => setSearch(e.target.value))}
             className="flex-1"
         />
         <Select
           label={intl.formatMessage({ id: 'employees.filterRoleLabel' })}
           value={roleFilter}
-          onChange={(e) => setRoleFilter(e.target.value)}
-          className="sm:w-52"
+          onChange={(e) => refilter(() => setRoleFilter(e.target.value))}
+          className="sm:w-44"
         >
           <option value="">{intl.formatMessage({ id: 'employees.filterRoleAll' })}</option>
           <option value="admin">{intl.formatMessage({ id: 'employees.roleAdmin' })}</option>
           <option value="employee">{intl.formatMessage({ id: 'employees.roleEmployee' })}</option>
         </Select>
+        <Select
+          label={intl.formatMessage({ id: 'employees.filterStatusLabel' })}
+          value={activeFilter}
+          onChange={(e) => refilter(() => setActiveFilter(e.target.value))}
+          className="sm:w-44"
+        >
+          <option value="">{intl.formatMessage({ id: 'employees.filterStatusAll' })}</option>
+          <option value="active">{intl.formatMessage({ id: 'employees.filterStatusActive' })}</option>
+          <option value="inactive">{intl.formatMessage({ id: 'employees.statusInactive' })}</option>
+        </Select>
+      </div>
+
+      <div className="mt-3 flex items-center justify-end gap-3 min-h-6">
+        {hasFilters && (
+          <button
+            type="button"
+            onClick={() => refilter(() => { setSearch(''); setRoleFilter(''); setActiveFilter(''); setGroup('all') })}
+            className="text-xs font-medium text-primary hover:text-primary-hover"
+          >
+            {intl.formatMessage({ id: 'content.clearFilters' })}
+          </button>
+        )}
       </div>
 
       {/* Desktop table */}
-      <Card className="mt-4 hidden overflow-hidden p-0 md:block">
+      <Card className="mt-2 hidden overflow-hidden p-0 md:block">
         {isLoading ? (
           <div className="p-4 space-y-1">
             <SkeletonRow />
@@ -732,6 +809,20 @@ export function Employees() {
         </motion.div>
       )}
 
+      {/* The range also sits above the table, next to "clear filters", because that is
+          where the result count belongs; here it is the second half of the same line. */}
+      <Pager
+        className="mt-4"
+        offset={offset}
+        shown={employees.length}
+        total={total}
+        pageSize={USERS_PAGE_SIZE}
+        disabled={isLoading}
+        onChange={setOffset}
+      />
+        </section>
+      </div>
+
       {/* Create-employee modal */}
       <Modal open={creating} onClose={() => setCreating(false)} size="lg" origin={createOrigin}>
         <CreateEmployeeForm onDone={() => setCreating(false)} />
@@ -741,6 +832,13 @@ export function Employees() {
       <Modal open={!!selected} onClose={() => setSelected(null)} size="md" origin={detailOrigin}>
         {selected && <EmployeeDetail employee={selected} />}
       </Modal>
+
+      {managingMembers && (
+        <GroupMembersDialog group={managingMembers} onClose={() => setManagingMembers(null)} />
+      )}
+      {assigningGroup && (
+        <AssignToGroupDialog group={assigningGroup} onClose={() => setAssigningGroup(null)} />
+      )}
     </div>
   )
 }

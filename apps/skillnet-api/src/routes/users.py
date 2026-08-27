@@ -45,15 +45,37 @@ async def list_users(
     search: Annotated[str | None, Query()] = None,
     role: Annotated[str | None, Query()] = None,
     is_active: Annotated[bool | None, Query()] = None,
+    group_id: Annotated[uuid.UUID | None, Query()] = None,
+    exclude_group_id: Annotated[uuid.UUID | None, Query()] = None,
+    ungrouped: Annotated[bool, Query()] = False,
     offset: Annotated[int, Query(ge=0)] = 0,
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
 ) -> PaginatedResponse[UserRead]:
+    """The organization's people, filtered and paginated.
+
+    ``group_id`` filters server-side on purpose, like every other filter here: the page
+    the client holds is at most 100 rows, so narrowing it in the browser would only ever
+    find the members who happened to be on it. An unknown group id is not an error, it
+    is an empty page — the filter is a *view*, and a 404 would make a stale bookmark
+    look like a broken screen.
+
+    ``exclude_group_id`` is its complement, and it exists for the membership editor: the
+    "add people" list must be people who are *not* in the group. Passing both is
+    meaningless but not an error — it answers an empty page, which is the truth.
+
+    ``ungrouped`` is a different question again: people in **no** group at all. It is the
+    one an administrator actually asks — "who have I not covered?" — and without it a
+    person can only be found by knowing in advance which group they are missing from.
+    """
     service = _service(db)
     rows, total = await service.list_users(
         org_id=admin.org_id,
         search=search,
         role=role,
         is_active=is_active,
+        group_id=group_id,
+        exclude_group_id=exclude_group_id,
+        ungrouped=ungrouped,
         offset=offset,
         limit=limit,
     )

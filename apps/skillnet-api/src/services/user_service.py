@@ -45,6 +45,9 @@ class UserService:
         is_active: bool | None,
         offset: int,
         limit: int,
+        group_id: uuid.UUID | None = None,
+        exclude_group_id: uuid.UUID | None = None,
+        ungrouped: bool = False,
     ) -> tuple[Sequence[User], int]:
         role_enum = _to_enum(UserRole, role, "role") if role else None
         return await self.repo.list_users(
@@ -52,6 +55,9 @@ class UserService:
             search=search,
             role=role_enum,  # type: ignore[arg-type]
             is_active=is_active,
+            group_id=group_id,
+            exclude_group_id=exclude_group_id,
+            ungrouped=ungrouped,
             offset=offset,
             limit=limit,
         )

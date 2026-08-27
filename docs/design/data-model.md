@@ -897,3 +897,61 @@ cannot hold two independent facts — somebody can finish a node without demonst
 master one without reaching its last screen); it is **not** `first_seen_at`, which is stamped
 when a render is *served* and therefore says "opened", not "finished"; and it is nullable with
 no back-fill, so every pre-existing row keeps meaning exactly what it meant.
+
+---
+
+## Appendix: people groups (migration 0030)
+
+A **group** is a named list of people of one organization, used to assign training to
+several at once. Flat, org-scoped, and without powers of its own — it grants no
+permissions and organizes no content. The design rationale (why assignment to a group is
+a snapshot rather than a live subscription) is in
+[admin-library-and-talent.md](admin-library-and-talent.md).
+
+### `user_groups`
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | uuid PK | `gen_random_uuid()` |
+| `org_id` | uuid FK → `organizations.id` | `ON DELETE CASCADE` |
+| `name` | varchar(120) | unique per org, case-insensitively (`uq_user_groups_org_lower_name`) |
+| `created_at` / `updated_at` | timestamp | same mixin as `course_folders` |
+
+### `user_group_members`
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | uuid PK | |
+| `group_id` | uuid FK → `user_groups.id` | `ON DELETE CASCADE` |
+| `user_id` | uuid FK → `users.id` | `ON DELETE CASCADE` |
+| `created_at` | timestamptz | |
+
+`UNIQUE (group_id, user_id)` — the membership insert relies on it by name
+(`ON CONFLICT ON CONSTRAINT uq_user_group_members_pair DO NOTHING`), which is what makes
+two admins ticking the same person a no-op instead of a 500. Indexed on `user_id` for
+the `GET /users?group_id=` semijoin.
+
+Its own table rather than an array column on `users`: membership has to be counted,
+filtered and joined in SQL, and an array can do none of those without a scan.
+
+### `enrollments.source_group_id`
+
+Nullable FK → `user_groups.id`, `ON DELETE SET NULL`, indexed.
+
+The group whose assignment created this row. Recorded because it is the one fact about a
+group assignment that cannot be reconstructed later — an enrollment is an ordinary row
+the moment it exists, and nothing else remembers where it came from. It answers "why does
+this person have this course?" today and is the prerequisite for ever making membership
+drive enrollments continuously.
+
+Set **per person**, not per order: `NULL` for anybody the caller also named in
+`user_ids` (the group did not put them there) and for anybody who is in two of the
+groups named in the same order (either answer would be a guess recorded as a fact). A row
+that already existed keeps whatever provenance it had — an idempotent re-assignment skips
+it, so the group did not create it and does not get to claim it.
+
+`SET NULL` and never cascade: deleting a group must not delete training.
+
+Not part of `ERASURE_ORDER` (Art. 17), for the same reason `enrollments` is not: that
+erasure covers learning evidence, and both membership and enrollment are organizational
+administration. `user_group_members` is removed by the FK cascade when the user row goes.

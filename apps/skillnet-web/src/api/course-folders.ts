@@ -1,4 +1,4 @@
-import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { del, get, post, put } from './client'
 import type { EnrollmentRead, Paginated } from '../types'
 
@@ -14,6 +14,10 @@ export interface CourseFolderAssignmentResult {
   course_count: number
   created_count: number
   skipped_existing_count: number
+  /** Distinct people reached, after the server resolved every group. */
+  person_count: number
+  /** Group members left out because their account is deactivated. */
+  skipped_inactive_count: number
 }
 
 export function useCourseFolders() {
@@ -68,56 +72,89 @@ export interface FolderCourseEnrollments {
   enrollmentsByUser: Record<string, EnrollmentRead[]>
   isLoading: boolean
   isError: boolean
+  /**
+   * True when the answer did not fit in one page, so the ticks are incomplete.
+   *
+   * The caller sizes its pages to keep this false; it is here because "impossible by
+   * construction" and "silently wrong" look identical once the construction changes.
+   */
+  truncated: boolean
 }
 
 /**
- * Who is already enrolled in each of the given courses, keyed by user id.
+ * Who, of these specific people, already holds each published course of this folder.
  *
- * One request per course rather than one unfiltered `/enrollments` read: that endpoint
- * defaults to 50 rows and caps at 100, so "every enrollment in the org" is exactly the
- * query that silently truncates. A folder holds a handful of courses and the assignment
- * dialog needs the answer for all of the org's people, so the cheap axis is the course.
+ * **Bounded by construction.** One request, filtered on both axes at once:
+ * `?folder_id=` resolves server-side to the folder's published courses (the same set
+ * every assignment path uses) and `?user_ids=` narrows it to the page of people on
+ * screen. The answer can therefore hold at most `people x courses` rows, and the caller
+ * chooses a page size that keeps that under the endpoint's 100-row cap.
  *
- * The 100-row cap still applies per course. It can only ever *under*-report someone as
- * not enrolled, which costs the admin a redundant tick — the server skips the duplicate
- * either way. The key stays under `['enrollments']` so assigning invalidates it.
+ * That replaces one unfiltered read per course, which capped at 100 rows *each*: past a
+ * hundred enrollments in a course it reported people as unenrolled who were not, and the
+ * tick said "does not have this folder" about somebody who did. Under-reporting was
+ * documented as harmless because the server skips duplicates anyway — but it is not
+ * harmless for the *other* direction, where the tick is how the admin revokes.
+ *
+ * `truncated` is the honest escape hatch: if the response still did not fit, the caller
+ * must not present the ticks as complete.
  */
-export function useFolderCourseEnrollments(courseIds: string[]): FolderCourseEnrollments {
-  const queries = useQueries({
-    queries: courseIds.map((courseId) => ({
-      queryKey: ['enrollments', 'by-course', courseId],
-      queryFn: () =>
-        get<Paginated<EnrollmentRead>>(`/enrollments?course_id=${courseId}&limit=100`),
-      staleTime: 30_000,
-    })),
+export function useFolderCourseEnrollments(
+  folderId: string,
+  userIds: string[],
+): FolderCourseEnrollments {
+  // A stable key and a stable URL for the same page, whatever order the list arrived in.
+  const sorted = [...userIds].sort()
+  const query = useQuery({
+    queryKey: ['enrollments', 'by-folder', folderId, sorted],
+    queryFn: () => {
+      const params = new URLSearchParams({ folder_id: folderId, limit: '100' })
+      sorted.forEach((id) => params.append('user_ids', id))
+      return get<Paginated<EnrollmentRead>>(`/enrollments?${params.toString()}`)
+    },
+    // No people on screen yet: there is nothing to ask about, and an unfiltered read is
+    // exactly the query this hook exists to avoid.
+    enabled: sorted.length > 0,
+    staleTime: 30_000,
   })
 
   const enrolledCountByUser: Record<string, number> = {}
   const enrollmentsByUser: Record<string, EnrollmentRead[]> = {}
-  queries.forEach((query) => {
-    query.data?.items.forEach((enrollment) => {
-      enrolledCountByUser[enrollment.user_id] =
-        (enrolledCountByUser[enrollment.user_id] ?? 0) + 1
-      const rows = enrollmentsByUser[enrollment.user_id]
-      if (rows) rows.push(enrollment)
-      else enrollmentsByUser[enrollment.user_id] = [enrollment]
-    })
+  query.data?.items.forEach((enrollment) => {
+    enrolledCountByUser[enrollment.user_id] =
+      (enrolledCountByUser[enrollment.user_id] ?? 0) + 1
+    const rows = enrollmentsByUser[enrollment.user_id]
+    if (rows) rows.push(enrollment)
+    else enrollmentsByUser[enrollment.user_id] = [enrollment]
   })
 
   return {
     enrolledCountByUser,
     enrollmentsByUser,
-    isLoading: queries.some((query) => query.isLoading),
-    isError: queries.some((query) => query.isError),
+    isLoading: sorted.length > 0 && query.isLoading,
+    isError: query.isError,
+    truncated: (query.data?.total ?? 0) > (query.data?.items.length ?? 0),
   }
 }
 
 export function useAssignCourseFolder() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, userIds, deadline }: { id: string; userIds: string[]; deadline?: string }) =>
+    mutationFn: ({
+      id,
+      userIds,
+      groupIds,
+      deadline,
+    }: {
+      id: string
+      userIds?: string[]
+      /** Resolved to their members on the server, never in the browser. */
+      groupIds?: string[]
+      deadline?: string
+    }) =>
       post<CourseFolderAssignmentResult>(`/course-folders/${id}/assign`, {
-        user_ids: userIds,
+        user_ids: userIds ?? [],
+        group_ids: groupIds ?? [],
         deadline: deadline || undefined,
       }),
     onSuccess: () => {

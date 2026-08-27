@@ -78,7 +78,16 @@ type Call = { method: string; url: string; body: unknown }
  * race the dialog has to survive: the person started that course between the list being
  * read and the click.
  */
-function installFetch(options: { conflictOn?: string[] } = {}) {
+function installFetch(
+  options: {
+    conflictOn?: string[]
+    groups?: { id: string; name: string; member_count: number }[]
+    /** Override the folder's published-course count, which sets the people page size. */
+    publishedCourses?: number
+    /** Extra nameless employees, to push the roster past one page. */
+    extraPeople?: number
+  } = {},
+) {
   const calls: Call[] = []
   const conflicting = new Set(options.conflictOn ?? [])
   mockFetch.mockImplementation((input: string, init?: RequestInit) => {
@@ -94,17 +103,56 @@ function installFetch(options: { conflictOn?: string[] } = {}) {
         : noContent()
     }
     if (method === 'POST' && url.includes('/assign')) {
-      return jsonResponse({ course_count: 2, created_count: 2, skipped_existing_count: 0 })
+      return jsonResponse({
+        course_count: 2,
+        created_count: 2,
+        skipped_existing_count: 0,
+        person_count: 1,
+        skipped_inactive_count: 0,
+      })
+    }
+    if (url.includes('/user-groups')) {
+      // Paginated and searchable like the real endpoint: filtering here in the fake is
+      // what lets a test assert that the component is NOT filtering in the browser.
+      const query = new URLSearchParams(url.split('?')[1] ?? '')
+      const offset = Number(query.get('offset') ?? 0)
+      const limit = Number(query.get('limit') ?? 25)
+      const search = (query.get('search') ?? '').toLowerCase()
+      const all = (options.groups ?? []).filter(
+        (group) => !search || group.name.toLowerCase().includes(search),
+      )
+      return jsonResponse({
+        items: all.slice(offset, offset + limit),
+        total: all.length,
+        offset,
+        limit,
+      })
     }
     if (url.includes('/users')) {
+      // Paginated like the real endpoint, so a test can put a person on page two and
+      // assert that the dialog still knows where they went.
+      const query = new URLSearchParams(url.split('?')[1] ?? '')
+      const offset = Number(query.get('offset') ?? 0)
+      const limit = Number(query.get('limit') ?? 25)
+      const search = (query.get('search') ?? '').toLowerCase()
+      const extra = Array.from({ length: options.extraPeople ?? 0 }, (_, index) =>
+        user(`extra-${index}`, `Extra ${index}`),
+      )
+      const all = [user(ANA, 'Ana'), user(BRUNO, 'Bruno'), user(CARLA, 'Carla'), user(DIEGO, 'Diego'), ...extra]
+        .filter((person) => !search || person.full_name.toLowerCase().includes(search))
       return jsonResponse({
-        items: [user(ANA, 'Ana'), user(BRUNO, 'Bruno'), user(CARLA, 'Carla'), user(DIEGO, 'Diego')],
-        total: 4,
-        offset: 0,
-        limit: 50,
+        items: all.slice(offset, offset + limit),
+        total: all.length,
+        offset,
+        limit,
       })
     }
     if (url.includes('/courses')) {
+      if (options.publishedCourses) {
+        // Only the count matters for the page-size arithmetic; the titles are only used
+        // to name a course in a removal message.
+        return jsonResponse({ items: [], total: options.publishedCourses, offset: 0, limit: 100 })
+      }
       return jsonResponse({
         items: [
           { id: COURSE_A, title: 'Curso A', status: 'published', folder_id: FOLDER_ID, module_count: 1, delivery_mode: 'static', created_at: '2026-07-01T00:00:00Z', description: null, outcome: null, source_document_id: null },
@@ -116,17 +164,22 @@ function installFetch(options: { conflictOn?: string[] } = {}) {
       })
     }
     if (url.includes('/enrollments')) {
-      const courseId = url.includes(COURSE_A) ? COURSE_A : COURSE_B
-      const items = ENROLLMENTS.filter((row) => row.course_id === courseId).map((row) => ({
-        ...row,
-        course_title: courseId === COURSE_A ? 'Curso A' : 'Curso B',
-        deadline: null,
-        score: null,
-        progress: 0,
-        started_at: null,
-        completed_at: null,
-        delivery_mode: 'static',
-      }))
+      // One filtered read for the whole page: `?folder_id=` resolves to the folder's
+      // published courses server-side and `?user_ids=` narrows it to the rows on screen.
+      const query = new URLSearchParams(url.split('?')[1] ?? '')
+      const wanted = new Set(query.getAll('user_ids'))
+      const items = ENROLLMENTS.filter((row) => wanted.size === 0 || wanted.has(row.user_id)).map(
+        (row) => ({
+          ...row,
+          course_title: row.course_id === COURSE_A ? 'Curso A' : 'Curso B',
+          deadline: null,
+          score: null,
+          progress: 0,
+          started_at: null,
+          completed_at: null,
+          delivery_mode: 'static',
+        }),
+      )
       return jsonResponse({ items, total: items.length, offset: 0, limit: 100 })
     }
     return jsonResponse({ items: [], total: 0, offset: 0, limit: 50 })
@@ -374,4 +427,302 @@ describe('FolderAssignmentDialog', () => {
       )
     })
   })
+
+  describe('the list is a page, and says so', () => {
+    it('asks for a bounded page and never for "everyone"', async () => {
+      const calls = installFetch()
+      renderDialog()
+      await waitForTicks()
+
+      const peopleReads = calls.filter((call) => call.url.includes('/users?'))
+      expect(peopleReads.length).toBeGreaterThan(0)
+      // The defect this replaced: a `/users` read with no `limit` takes the server's
+      // default of 50 and says nothing about the 51st employee.
+      peopleReads.forEach((call) => {
+        expect(call.url).toMatch(/limit=\d+/)
+        expect(call.url).toMatch(/offset=\d+/)
+      })
+    })
+
+    it('shows how many people there are, not just how many fit', async () => {
+      installFetch()
+      renderDialog()
+      await waitForTicks()
+      expect(screen.getByText(/1-4 de 4/)).toBeInTheDocument()
+    })
+
+    it('reads the enrollments of the visible page in ONE filtered request', async () => {
+      const calls = installFetch()
+      renderDialog()
+      await waitForTicks()
+
+      const enrollmentReads = calls.filter(
+        (call) => call.method === 'GET' && call.url.includes('/enrollments?'),
+      )
+      // It used to be one unfiltered read per course, each capped at 100 rows — which
+      // reported people as unenrolled who were not, once a course passed a hundred.
+      expect(enrollmentReads).toHaveLength(1)
+      expect(enrollmentReads[0].url).toContain(`folder_id=${FOLDER_ID}`)
+      expect(enrollmentReads[0].url).toContain('user_ids=')
+    })
+
+    it('searching goes to the server and resets to the first page', async () => {
+      const calls = installFetch()
+      renderDialog()
+      await waitForTicks()
+
+      await userEvent.type(screen.getByPlaceholderText(/buscar persona/i), 'Carla')
+
+      await waitFor(() =>
+        expect(
+          calls.some((call) => call.url.includes('search=Carla') && call.url.includes('offset=0')),
+        ).toBe(true),
+      )
+      // And the list narrowed rather than being filtered in the browser.
+      await waitFor(() => expect(screen.queryByText('Ana')).not.toBeInTheDocument())
+      expect(screen.getByText('Carla')).toBeInTheDocument()
+    })
+  })
+
+  describe('groups', () => {
+    const TARDE = '99999999-9999-4999-8999-999999999999'
+
+    it('does not render a group block when there are no groups', async () => {
+      installFetch()
+      renderDialog()
+      await waitForTicks()
+      expect(screen.queryByRole('heading', { name: /grupos/i })).not.toBeInTheDocument()
+      expect(screen.queryByText('Turno de tarde')).not.toBeInTheDocument()
+    })
+
+    it('puts groups before people, which is the order the work is done in', async () => {
+      installFetch({ groups: [{ id: TARDE, name: 'Turno de tarde', member_count: 12 }] })
+      renderDialog()
+      await waitForTicks()
+
+      // Assigning to a whole group is the common case and used to be the last thing on
+      // screen, under a paginated people list.
+      const sections = await screen.findAllByRole('heading', { level: 3 })
+      expect(sections.map((heading) => heading.textContent)).toEqual([
+        'Grupos · a quién asignársela',
+        'Personas · quién la tiene',
+      ])
+    })
+
+    it('sends the group id, never the members', async () => {
+      const calls = installFetch({ groups: [{ id: TARDE, name: 'Turno de tarde', member_count: 12 }] })
+      renderDialog()
+      await waitForTicks()
+
+      await userEvent.click(boxFor('Turno de tarde'))
+      await userEvent.click(screen.getByRole('button', { name: /^asignar a 1 grupo$/i }))
+
+      await waitFor(() => expect(assignCalls(calls)).toHaveLength(1))
+      // The whole point: the browser holds one page of people and cannot know who is in
+      // the group, so it says which group and lets the server resolve it.
+      expect(assignCalls(calls)[0].body).toMatchObject({ user_ids: [], group_ids: [TARDE] })
+    })
+
+    it('sends people and groups in ONE request so nobody is counted twice', async () => {
+      const calls = installFetch({ groups: [{ id: TARDE, name: 'Turno de tarde', member_count: 12 }] })
+      renderDialog()
+      await waitForTicks()
+
+      await userEvent.click(boxFor('Carla'))
+      await userEvent.click(boxFor('Turno de tarde'))
+      await userEvent.click(screen.getByRole('button', { name: /asignar a 1 persona y 1 grupo/i }))
+
+      await waitFor(() => expect(assignCalls(calls)).toHaveLength(1))
+      expect(assignCalls(calls)[0].body).toMatchObject({
+        user_ids: [CARLA],
+        group_ids: [TARDE],
+      })
+    })
+
+    it('never lets the group box pass for a state, even sharing the row shape', async () => {
+      installFetch({ groups: [{ id: TARDE, name: 'Turno de tarde', member_count: 12 }] })
+      renderDialog()
+      await waitForTicks()
+
+      // Same control as a person's now, so the meaning cannot ride on the shape — and it
+      // is no longer explained by a paragraph either. It rides on the two things that
+      // cost nothing: what each box is CALLED, and what its section heading is about.
+      const box = boxFor('Turno de tarde')
+      expect(box.type).toBe('checkbox')
+      // Never pre-ticked from server state — there is none to read for a group.
+      expect(box.checked).toBe(false)
+      // The group box is named after the action it performs...
+      expect(box).toHaveAccessibleName(/asignar la carpeta a todo el grupo turno de tarde/i)
+      // ...and says nothing about what the group holds, which this dialog cannot know:
+      // one page of people is not enough to answer it for every member.
+      expect(box).not.toHaveAccessibleName(/tiene/i)
+      // The person's box is named after the state, a claim the tick is the truth of.
+      expect(boxFor('Ana')).toHaveAccessibleName(/ana tiene esta carpeta/i)
+      expect(boxFor('Ana')).not.toHaveAccessibleName(/asignar/i)
+      // Neither naming costs the row its own detail: that moved to the description.
+      expect(box).toHaveAccessibleDescription(/12 personas/i)
+      expect(boxFor('Ana')).toHaveAccessibleDescription(/ya tiene los 2 cursos/i)
+      // And for anyone reading rather than listening, the headings carry the same split.
+      expect(screen.getByRole('heading', { name: /grupos\s*· a quién asignársela/i })).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: /personas\s*· quién la tiene/i })).toBeInTheDocument()
+      // No paragraph is doing this work any more.
+      expect(screen.queryByText(/la casilla es una acción/i)).not.toBeInTheDocument()
+      expect(screen.queryByText(/la casilla es un estado/i)).not.toBeInTheDocument()
+
+      await userEvent.click(box)
+      expect(box.checked).toBe(true)
+      // Ticked says what will happen, not what is true: "up to 12 people", minus whoever
+      // the server dedupes or finds deactivated.
+      expect(screen.getByText(/hasta 12 personas/)).toBeInTheDocument()
+    })
+  })
+
+
+  describe('a decision survives paging away from it', () => {
+    /**
+     * The defect this covers: with the list paginated, the tick states were derived from
+     * the enrollment read of the *current* page, so a tick made on page 1 evaluated to
+     * "no change" once page 2 was showing and the button silently dropped it. A dialog
+     * that discards a decision the admin watched themselves make is worse than one that
+     * cannot page at all.
+     *
+     * Twenty published courses forces a five-per-page window (100 rows / 20 courses), so
+     * the four employees in the fixture span two pages.
+     */
+    it('keeps a tick made on the first page when submitting from the second', async () => {
+      const calls = installFetch({ publishedCourses: 20, extraPeople: 4 })
+      renderDialog()
+
+      // Eight people, five per page: Carla is on page one and page two exists.
+      expect(await screen.findByText('Carla')).toBeInTheDocument()
+      await waitFor(() => expect(screen.getByText('1-5 de 8')).toBeInTheDocument())
+      await userEvent.click(boxFor('Carla'))
+      expect(boxFor('Carla').checked).toBe(true)
+
+      // Nobody has all twenty courses in this world, so every row is a plain "assign".
+      await userEvent.click(screen.getByRole('button', { name: /Siguiente/i }))
+      await waitFor(() => expect(screen.queryByText('Carla')).not.toBeInTheDocument())
+
+      // The button still knows about her, and says so.
+      expect(screen.getByText(/1 cambio pendiente está en otra página/i)).toBeInTheDocument()
+      await userEvent.click(screen.getByRole('button', { name: /asignar a 1 persona/i }))
+
+      await waitFor(() => expect(assignCalls(calls)).toHaveLength(1))
+      expect(assignCalls(calls)[0].body).toMatchObject({ user_ids: [CARLA] })
+    })
+
+    it('a tick taken back before submitting leaves no trace', async () => {
+      const calls = installFetch({ publishedCourses: 20, extraPeople: 4 })
+      renderDialog()
+
+      expect(await screen.findByText('Carla')).toBeInTheDocument()
+      await waitFor(() => expect(screen.getByText('1-5 de 8')).toBeInTheDocument())
+      await userEvent.click(boxFor('Carla'))
+      await userEvent.click(boxFor('Carla'))
+
+      // Back to the server's own state, so there is nothing to apply and nothing to warn
+      // about — an entry saying "no change" would inflate every count on the button.
+      expect(screen.queryByText(/cambio pendiente/i)).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /asignar 20 cursos/i })).toBeDisabled()
+      expect(assignCalls(calls)).toHaveLength(0)
+    })
+
+    it('shrinks the page so the enrollment read can never truncate', async () => {
+      const calls = installFetch({ publishedCourses: 20, extraPeople: 4 })
+      renderDialog()
+      await screen.findByText('Carla')
+      // The first read fires before the folder's course count has landed, so it uses the
+      // default window; the size settles once the count is known.
+      await waitFor(() =>
+        expect(calls.some((call) => call.url.includes('/users?') && call.url.includes('limit=5'))).toBe(true),
+      )
+
+      // 100 rows / 20 courses = 5 people. The page size is arithmetic, not taste: it is
+      // what makes "the ticks are complete" true rather than merely likely.
+      expect(screen.queryByText(/casillas pueden estar incompletas/i)).not.toBeInTheDocument()
+    })
+  })
+
+
+  describe('when there are many groups', () => {
+    /** Twelve groups, so the eight-per-page window leaves four on a second page. */
+    const MANY = Array.from({ length: 12 }, (_, index) => ({
+      id: `g${index}`,
+      name: `Grupo ${index}`,
+      member_count: index + 1,
+    }))
+
+    it('asks for a bounded page instead of every group', async () => {
+      const calls = installFetch({ groups: MANY })
+      renderDialog()
+      await waitForTicks()
+
+      const reads = calls.filter((call) => call.url.includes('/user-groups'))
+      expect(reads.length).toBeGreaterThan(0)
+      reads.forEach((call) => expect(call.url).toMatch(/limit=\d+/))
+      // Eight rows on screen, not twelve.
+      expect(screen.getByText('Grupo 0')).toBeInTheDocument()
+      expect(screen.queryByText('Grupo 11')).not.toBeInTheDocument()
+    })
+
+    it('searches on the server, not in the page already fetched', async () => {
+      const calls = installFetch({ groups: MANY })
+      renderDialog()
+      await waitForTicks()
+
+      await userEvent.type(screen.getByPlaceholderText(/buscar grupo/i), 'Grupo 11')
+
+      // "Grupo 11" is on the second page, so a client-side filter could never find it.
+      await waitFor(() =>
+        expect(calls.some((call) => call.url.includes('/user-groups') && call.url.includes('search=Grupo+11'))).toBe(true),
+      )
+      expect(await screen.findByText('Grupo 11')).toBeInTheDocument()
+    })
+
+    it('keeps the people count of a group picked on another page', async () => {
+      /**
+       * The regression this exists for: the summary used to sum `member_count` out of the
+       * *current page*, so a group ticked on page 1 contributed zero once the admin moved
+       * to page 2 and "hasta N personas" silently shrank. The decision is frozen at the
+       * click, so the number has to survive the move.
+       */
+      installFetch({ groups: MANY })
+      renderDialog()
+      await waitForTicks()
+
+      // `Grupo 3` has four members.
+      await userEvent.click(boxFor('Grupo 3'))
+      expect(await screen.findByText(/hasta 4 personas/i)).toBeInTheDocument()
+
+      await userEvent.click(screen.getAllByRole('button', { name: /Siguiente/i })[0])
+      await waitFor(() => expect(screen.queryByText('Grupo 3')).not.toBeInTheDocument())
+
+      // Still four, and the dialog says where the tick went.
+      expect(screen.getByText(/hasta 4 personas/i)).toBeInTheDocument()
+      expect(screen.getByText(/está en otra página/i)).toBeInTheDocument()
+    })
+
+    it('still sends a group ticked on a page the admin has left', async () => {
+      const calls = installFetch({ groups: MANY })
+      renderDialog()
+      await waitForTicks()
+
+      await userEvent.click(boxFor('Grupo 3'))
+      await userEvent.click(screen.getAllByRole('button', { name: /Siguiente/i })[0])
+      await waitFor(() => expect(screen.queryByText('Grupo 3')).not.toBeInTheDocument())
+      await userEvent.click(screen.getByRole('button', { name: /^asignar a 1 grupo$/i }))
+
+      await waitFor(() => expect(assignCalls(calls)).toHaveLength(1))
+      expect(assignCalls(calls)[0].body).toMatchObject({ group_ids: ['g3'] })
+    })
+
+    it('offers no search box when every group already fits', async () => {
+      installFetch({ groups: MANY.slice(0, 3) })
+      renderDialog()
+      await waitForTicks()
+      // A control with nothing to do, in a section that sits above the people list.
+      expect(screen.queryByPlaceholderText(/buscar grupo/i)).not.toBeInTheDocument()
+    })
+  })
+
 })
