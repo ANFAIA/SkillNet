@@ -57,13 +57,16 @@ function titleFor(componentId: string, props: PublicProps): string {
 }
 
 function Result({ result }: { result: EvaluationResult }) {
+  // A graded miss is a wrong answer, not a broken grader. The previous copy ("la respuesta
+  // necesita revisión") read as "the system could not correct this", which is what made a
+  // plain failed attempt look like a bug to the learner.
   const copy = result.outcome === 'correct'
     ? 'Respuesta correcta.'
     : result.outcome === 'partial'
-      ? 'Respuesta parcialmente correcta.'
+      ? 'Respuesta parcialmente correcta. Puedes volver a intentarlo.'
       : result.outcome === 'unscored'
         ? 'Respuesta enviada para revisión.'
-        : 'La respuesta necesita revisión.'
+        : 'La respuesta no es correcta. Vuelve a intentarlo.'
   return (
     <div className="rounded-lg border border-border bg-bg-subtle p-3 text-sm" role="status" aria-live="polite">
       <p className="font-medium text-text">{copy}</p>
@@ -71,6 +74,67 @@ function Result({ result }: { result: EvaluationResult }) {
         <p className="mt-1 text-text-secondary">{result.feedback}</p>
       )}
     </div>
+  )
+}
+
+// A written gap inside a sentence: a run of two or more underscores, or an explicit
+// `{{blank}}` / `[blank]` marker. The authoring prompt asks for `____`
+// (`src/agents/runtime/assessment.py`), and shorter runs plus the bracket forms show up in
+// real generations, so all of them are accepted here.
+const BLANK_MARKER = /_{2,}|\{\{\s*blank\s*\}\}|\[\s*blank\s*\]/i
+
+function splitOnBlank(sentence: string): { before: string; after: string } | undefined {
+  const match = BLANK_MARKER.exec(sentence)
+  if (!match) return undefined
+  return {
+    before: sentence.slice(0, match.index).trimEnd(),
+    after: sentence.slice(match.index + match[0].length).trimStart(),
+  }
+}
+
+/**
+ * `didact.quiz.fill-in-the-blank` publishes only the sentence (`question`), never the
+ * accepted answers, so the sentence itself is the interaction: the gap is replaced by a real
+ * input in the position the author wrote it. Without this the component fell through to the
+ * generic "Tu respuesta" field and the gap was nowhere on screen.
+ */
+function FillInTheBlank({
+  sentence,
+  value,
+  disabled,
+  onChange,
+}: {
+  sentence: string
+  value: string
+  disabled: boolean
+  onChange: (value: string) => void
+}) {
+  const gap = splitOnBlank(sentence)
+  const input = (
+    <input
+      className="min-w-40 rounded-lg border border-border bg-bg px-3 py-1 text-text"
+      aria-label="Palabra que falta"
+      disabled={disabled}
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+    />
+  )
+  // No written gap: the sentence stays the heading above and the field carries the label,
+  // so the learner still knows a single missing word is what is being asked for.
+  if (!gap) {
+    return (
+      <label className="grid gap-1 text-sm">
+        <span className="font-medium text-text">Palabra que falta</span>
+        {input}
+      </label>
+    )
+  }
+  return (
+    <p className="flex flex-wrap items-baseline gap-x-2 gap-y-2 text-lg text-text">
+      {gap.before && <span>{gap.before}</span>}
+      {input}
+      {gap.after && <span>{gap.after}</span>}
+    </p>
   )
 }
 
@@ -221,6 +285,16 @@ function SecureInteraction({
       </div>
     )
   }
+  if (componentId === 'didact.quiz.fill-in-the-blank') {
+    return (
+      <FillInTheBlank
+        sentence={typeof props.question === 'string' ? props.question : ''}
+        value={String(answer)}
+        disabled={disabled}
+        onChange={onChange}
+      />
+    )
+  }
   const multiline = componentId === 'didact.quiz.short-answer'
   const unit = props.unit && typeof props.unit === 'object' && !Array.isArray(props.unit)
     ? props.unit as Record<string, unknown>
@@ -279,6 +353,12 @@ export function SecureEvaluatedActivity({
   const [result, setResult] = useState<EvaluationResult>()
   const [pending, setPending] = useState(false)
   const [error, setError] = useState(false)
+  // Bumped on every explicit learner retry. It keys the interaction so the controls are torn
+  // down and rebuilt from scratch: clearing `answer` and `result` already re-enables them,
+  // but in a real browser a graded attempt leaves a checked+disabled radio whose reset
+  // depends on a re-render landing in the same tick. Remounting makes "empty and enabled
+  // again" unconditional instead of derived. Same reasoning as `QuizItemBlock.attemptNonce`.
+  const [attemptNonce, setAttemptNonce] = useState(0)
 
   useEffect(() => {
     void ports.events?.emit({
@@ -309,15 +389,52 @@ export function SecureEvaluatedActivity({
     }
   }
 
+  // Every submission mints its own `attemptId` inside `evaluateDidactSubmission`, so a retry
+  // is already a separate attempt on the server (`attempted`/`answered`/`completed` carry the
+  // new id) and there is no idempotency key to rotate here. `started` stays emitted once per
+  // mount: it marks the activity being opened, not an attempt.
+  const retry = () => {
+    setResult(undefined)
+    setError(false)
+    setAnswer(initialAnswer(componentId, componentProps))
+    setAttemptNonce((nonce) => nonce + 1)
+  }
+
+  // A correct answer is final: re-answering it would only overwrite evidence the learner
+  // already earned. Everything else can be tried again — `partial` because the learner can
+  // still complete it, and `unscored` because nothing was graded, so a second attempt adds
+  // information instead of replacing a verdict.
+  const canRetry = Boolean(result) && result?.outcome !== 'correct'
+  // A written gap makes the sentence itself the interaction (see `FillInTheBlank`), so the
+  // heading keeps the accessible name and stops repeating the same sentence on screen.
+  const sentenceIsInteraction = componentId === 'didact.quiz.fill-in-the-blank' && BLANK_MARKER.test(title)
+
   return (
     <section className="w-full max-w-2xl rounded-lg border border-border bg-bg p-5" aria-labelledby={titleId} data-didact-secure-adapter={componentId}>
-      <h3 className="mb-1 text-lg font-semibold text-text" id={titleId}>{title}</h3>
+      <h3 className={sentenceIsInteraction ? 'sr-only' : 'mb-1 text-lg font-semibold text-text'} id={titleId}>{title}</h3>
       {typeof componentProps.instructions === 'string' && <p className="mb-4 text-sm text-text-secondary">{componentProps.instructions}</p>}
       <div className="mt-4">
-        <SecureInteraction componentId={componentId} props={componentProps} answer={answer} disabled={pending || Boolean(result)} onChange={setAnswer} groupName={groupName} />
+        <SecureInteraction
+          // Fresh subtree per attempt (see `attemptNonce`). The radio group name carries the
+          // nonce too so a discarded attempt cannot share a group with the new one.
+          key={attemptNonce}
+          componentId={componentId}
+          props={componentProps}
+          answer={answer}
+          disabled={pending || Boolean(result)}
+          onChange={setAnswer}
+          groupName={`${groupName}:${attemptNonce}`}
+        />
       </div>
       <div className="mt-4 space-y-3">
-        {result ? <Result result={result} /> : (
+        {result ? (
+          <>
+            <Result result={result} />
+            {canRetry && (
+              <Button type="button" variant="secondary" onClick={retry}>Reintentar</Button>
+            )}
+          </>
+        ) : (
           <Button type="button" disabled={pending || !canSubmit(componentId, componentProps, answer)} onClick={() => void submit()}>
             {pending ? 'Comprobando…' : 'Comprobar respuesta'}
           </Button>
