@@ -62,6 +62,28 @@ def aware_utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def as_utc(value: datetime | None) -> datetime | None:
+    """Stamp UTC on a naive timestamp on its way out of the API.
+
+    :func:`naive_utc_now` writes naive UTC because the mixin's column resolves to
+    ``DateTime()`` and asyncpg refuses an aware value for it. That is correct in the
+    database and wrong on the wire: an offset-less ISO string is parsed as **local** time
+    by ``new Date()``, so the "Actualizado" date on a row the admin had just saved shifted
+    by the browser's offset and showed the wrong day near midnight.
+
+    Stamping is safe rather than a guess: every naive value this codebase produces is UTC
+    (:func:`naive_utc_now`) or was written by the ``now()`` server default on a deployment
+    that runs ``Etc/UTC``. A value that already carries a tzinfo is returned untouched, so
+    this is a no-op for everything read back from a ``timestamptz`` column.
+
+    The real fix is the migration that unifies every timestamp to ``timestamptz`` plus
+    ``DateTime(timezone=True)`` on the mixin, after which this function has nothing to do.
+    """
+    if value is None or value.tzinfo is not None:
+        return value
+    return value.replace(tzinfo=timezone.utc)
+
+
 class TimestampMixin:
     created_at: Mapped[datetime] = mapped_column(server_default=text("now()"))
     #: ``onupdate`` **must** be a Python callable and must never go back to

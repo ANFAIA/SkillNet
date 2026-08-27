@@ -4,6 +4,7 @@ import uuid
 
 from fastapi import APIRouter, Response
 
+from src.models.base import as_utc
 from src.core.exceptions import NotFoundError
 from src.deps.auth import AdminUser, OrganizationWorkspace
 from src.deps.db import DBSession
@@ -33,7 +34,7 @@ def _read(folder, count: int = 0) -> CourseFolderRead:
         name=folder.name,
         course_count=count,
         created_at=folder.created_at,
-        updated_at=folder.updated_at,
+        updated_at=as_utc(folder.updated_at),
     )
 
 

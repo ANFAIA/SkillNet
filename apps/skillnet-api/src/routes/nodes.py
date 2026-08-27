@@ -42,6 +42,7 @@ from src.core.exceptions import (
     ValidationError,
 )
 from src.config import settings
+from src.core.logging import get_logger
 from src.core.sse import format_sse, subscribe
 from src.deps.auth import CurrentUser
 from src.deps.db import DBSession
@@ -129,6 +130,9 @@ from src.services.node_render_service import (
 from src.services.probe_service import ProbeService
 from src.services.runtime_modalities import RuntimeModality, request_runtime_modality
 from src.services.skill_service import SkillService
+
+logger = get_logger(__name__)
+
 
 router = APIRouter(
     prefix="/nodes",
@@ -676,12 +680,26 @@ async def get_render(
     # still generating, regenerating now could only produce another fallback, and the client
     # already re-arms a request when that pin drops. And the budget peek keeps a node that
     # fails deterministically from spending an LLM cycle per page view.
+    #
+    # Guarded, and that guard is load-bearing. Only the *graph* is fire-and-forget:
+    # everything `request_render` does before spawning it runs inline here — the profile
+    # read, `load_runtime_knowledge`, the longitudinal events, the media and source-image
+    # queries — and that path carries real assertions. An upgrade attempt that raises
+    # would leave `unhandled_error_handler` turning a screen we had ALREADY built and
+    # served into a 500, which is the exact opposite of what this block is for.
     if (
         not preparing
         and served.status == NodeRenderStatus.FALLBACK.value
         and fallback_retry_available(render.cache_key)
     ):
-        await service.request_render(user=user, node=node, course=course)
+        try:
+            await service.request_render(user=user, node=node, course=course)
+        except Exception:
+            logger.warning(
+                "Upgrading the fallback render failed; serving the backup content",
+                extra={"node_id": str(node.id), "cache_key": render.cache_key},
+                exc_info=True,
+            )
     await db.commit()
     return NodeRenderRead.of(served, preparing=preparing)
 

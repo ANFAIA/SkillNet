@@ -8,6 +8,7 @@ from fastapi import APIRouter, Query, Response
 from src.core.exceptions import ForbiddenError, NotFoundError, ValidationError
 from src.deps.auth import AdminUser, CurrentUser
 from src.deps.db import DBSession
+from src.models.base import as_utc
 from src.models import Course, ContentStatus, CourseGenerationState, UserRole
 from src.repositories.course_node_repo import CourseNodeRepository
 from src.repositories.course_repo import CourseRepository
@@ -143,7 +144,7 @@ def _summary(
         folder_id=course.folder_id,
         folder_name=(course.__dict__.get("folder").name if course.__dict__.get("folder") else None),
         created_at=course.created_at,
-        updated_at=course.updated_at,
+        updated_at=as_utc(course.updated_at),
         module_count=module_count,
         node_count=node_count,
         schema_status=course.schema_status.value if course.schema_status else None,
@@ -213,7 +214,7 @@ def _detail(
         folder_id=course.folder_id,
         folder_name=(course.__dict__.get("folder").name if course.__dict__.get("folder") else None),
         created_at=course.created_at,
-        updated_at=course.updated_at,
+        updated_at=as_utc(course.updated_at),
         module_count=len(course.modules),
         node_count=node_count,
         schema_status=course.schema_status.value if course.schema_status else None,

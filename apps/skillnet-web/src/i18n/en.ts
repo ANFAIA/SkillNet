@@ -604,7 +604,7 @@ export const en: Record<string, string> = {
   'employees.resetPasswordTitle': 'Reset password',
   'employees.newPasswordFor': 'New password for {name}',
   'employees.newPasswordLabel': 'New password',
-  'employees.newPasswordPlaceholder': 'Minimum 6 characters',
+  'employees.newPasswordPlaceholder': 'Minimum 8 characters',
   'employees.resetError': 'Could not reset password',
   'employees.saving': 'Saving...',
   'employees.resetBtn': 'Reset',

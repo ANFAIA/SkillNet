@@ -108,7 +108,12 @@ export function FolderAssignmentDialog({ folder, onClose }: FolderAssignmentDial
   )
 
   function toggle(userId: string) {
-    setOverrides((current) => ({ ...current, [userId]: !isTicked(userId) }))
+    // Read the previous tick out of `current`, never out of `isTicked`: that closure holds
+    // the `overrides` of the render that attached this handler. Two changes for the same
+    // person batched into one commit — a double click on the row, or a click right after a
+    // keyboard toggle — would both compute from the same pre-batch value, so the second
+    // would be a no-op and the tick would disagree with what the admin just did.
+    setOverrides((current) => ({ ...current, [userId]: !(current[userId] ?? hasAll(userId)) }))
   }
 
   /**
