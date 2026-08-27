@@ -167,7 +167,7 @@ export function ExplainPopover({
       // block-based view is "Ver mas" (ExplainModal).
       <p className="text-sm text-text leading-relaxed">{text}</p>
     ) : (
-      <p className="text-sm text-text-muted">Buscando una explicacion...</p>
+      <p className="text-sm text-text-muted">Buscando una explicación...</p>
     )
 
   return createPortal(
@@ -175,7 +175,7 @@ export function ExplainPopover({
       ref={ref}
       role="dialog"
       aria-modal="false"
-      aria-label={`Explicacion de ${selection.term}`}
+      aria-label={`Explicación de ${selection.term}`}
       tabIndex={-1}
       data-no-explain
       data-placement={position?.placement ?? 'bottom'}
@@ -198,7 +198,7 @@ export function ExplainPopover({
           onClick={() => { onClose(); onVerMas(selection) }}
           className="mt-2 text-xs font-medium text-primary hover:underline"
         >
-          Ver mas
+          Ver más
         </button>
       )}
     </div>,

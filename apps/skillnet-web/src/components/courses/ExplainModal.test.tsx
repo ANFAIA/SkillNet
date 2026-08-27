@@ -89,7 +89,7 @@ const PROGRAM = [
 
 const PANEL = 'La merma es el producto que se pierde antes de venderse.'
 const GLOSS = 'Producto no vendible.'
-const RETRY = 'No se pudo generar la explicacion. Prueba de nuevo.'
+const RETRY = 'No se pudo generar la explicación. Prueba de nuevo.'
 
 function explainCalls() {
   return mockFetch.mock.calls.filter((call) => String(call[0]).includes('/explain'))
@@ -164,7 +164,7 @@ function renderModal(onClose = vi.fn()) {
 
 /** The card, addressed by the name only it answers to. */
 function card() {
-  return screen.getByRole('dialog', { name: /Explicacion ampliada de/ })
+  return screen.getByRole('dialog', { name: /Explicación ampliada de/ })
 }
 
 /** The inline gloss bubble, which is the *other* dialog on screen. */
@@ -325,13 +325,13 @@ describe('ExplainModal', () => {
       renderModal()
       await waitFor(() => expect(chatCalls()).toHaveLength(1))
 
-      const waitingComposer = screen.getByPlaceholderText('Generando explicacion')
+      const waitingComposer = screen.getByPlaceholderText('Generando explicación')
       expect(waitingComposer).toBeDisabled()
       await userEvent.type(waitingComposer, 'Esto no debe enviarse{Enter}')
       expect(chatCalls()).toHaveLength(1)
 
       delayed.releaseDone()
-      const composer = await screen.findByPlaceholderText('Pregunta algo mas...')
+      const composer = await screen.findByPlaceholderText('Pregunta algo más...')
       await waitFor(() => expect(composer).not.toBeDisabled())
       await userEvent.type(composer, 'Ahora si{Enter}')
       await waitFor(() => expect(chatCalls()).toHaveLength(2))
@@ -352,7 +352,7 @@ describe('ExplainModal', () => {
       await screen.findByText('producto')
 
       await userEvent.type(
-        screen.getByPlaceholderText('Pregunta algo mas...'),
+        screen.getByPlaceholderText('Pregunta algo más...'),
         'Como se calcula?{Enter}',
       )
 
@@ -391,7 +391,7 @@ describe('ExplainModal', () => {
       await screen.findByText('producto')
 
       await userEvent.type(
-        screen.getByPlaceholderText('Pregunta algo mas...'),
+        screen.getByPlaceholderText('Pregunta algo más...'),
         'Puedes explicarlo por pasos?{Enter}',
       )
 
@@ -421,11 +421,11 @@ describe('ExplainModal', () => {
 
       await userEvent.click(screen.getAllByText('producto')[0])
       await screen.findByText(GLOSS)
-      await userEvent.click(screen.getByRole('button', { name: 'Ver mas' }))
+      await userEvent.click(screen.getByRole('button', { name: 'Ver más' }))
       await waitFor(() => expect(chatCalls()).toHaveLength(2))
 
       await userEvent.type(
-        screen.getByPlaceholderText('Pregunta algo mas...'),
+        screen.getByPlaceholderText('Pregunta algo más...'),
         'Y esto como encaja?{Enter}',
       )
       await waitFor(() => expect(chatCalls()).toHaveLength(3))
@@ -442,7 +442,7 @@ describe('ExplainModal', () => {
       await screen.findByText('producto')
 
       await userEvent.type(
-        screen.getByPlaceholderText('Pregunta algo mas...'),
+        screen.getByPlaceholderText('Pregunta algo más...'),
         'Como se calcula?{Enter}',
       )
       await screen.findByText('Como se calcula?')
@@ -450,7 +450,7 @@ describe('ExplainModal', () => {
       // The answer repeats the panel's prose, so pick the panel's own copy.
       await userEvent.click(screen.getAllByText('producto')[0])
       await screen.findByText(GLOSS)
-      await userEvent.click(screen.getByRole('button', { name: 'Ver mas' }))
+      await userEvent.click(screen.getByRole('button', { name: 'Ver más' }))
 
       // The panel is now about "producto"; the question about "merma" is gone.
       await waitFor(() =>
@@ -475,7 +475,7 @@ describe('ExplainModal', () => {
       await screen.findByText('producto')
 
       await userEvent.type(
-        screen.getByPlaceholderText('Pregunta algo mas...'),
+        screen.getByPlaceholderText('Pregunta algo más...'),
         'Y esto?{Enter}',
       )
       await waitFor(() => expect(chatCalls()).toHaveLength(2))
@@ -500,7 +500,7 @@ describe('ExplainModal', () => {
       renderModal()
       await screen.findByText('producto')
 
-      const composer = screen.getByPlaceholderText('Pregunta algo mas...')
+      const composer = screen.getByPlaceholderText('Pregunta algo más...')
       await userEvent.type(composer, 'Primera?{Enter}')
       await waitFor(() => expect(chatCalls()).toHaveLength(2))
 
@@ -522,13 +522,13 @@ describe('ExplainModal', () => {
 
       await userEvent.click(await screen.findByText('producto'))
       await screen.findByText(GLOSS)
-      await userEvent.click(screen.getByRole('button', { name: 'Ver mas' }))
+      await userEvent.click(screen.getByRole('button', { name: 'Ver más' }))
 
       // One card, now titled with the new term, plus a breadcrumb back to the old one.
       await waitFor(() =>
-        expect(screen.getAllByRole('dialog', { name: /Explicacion ampliada de/ })).toHaveLength(1),
+        expect(screen.getAllByRole('dialog', { name: /Explicación ampliada de/ })).toHaveLength(1),
       )
-      expect(card()).toHaveAccessibleName('Explicacion ampliada de producto')
+      expect(card()).toHaveAccessibleName('Explicación ampliada de producto')
       expect(screen.getByRole('button', { name: 'Volver' })).toBeInTheDocument()
     })
   })

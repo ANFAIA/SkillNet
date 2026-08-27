@@ -250,7 +250,7 @@ const BeforeAfter = defineComponent({
       title={readString(props.title)}
       beforeLabel={readString(props.beforeLabel, 'Antes')}
       beforeContent={readString(props.beforeContent)}
-      afterLabel={readString(props.afterLabel, 'Despues')}
+      afterLabel={readString(props.afterLabel, 'Después')}
       afterContent={readString(props.afterContent)}
     />
   ),

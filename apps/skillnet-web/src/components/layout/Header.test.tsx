@@ -128,7 +128,7 @@ describe('Header — the admin gate', () => {
 
     await openMenu('Admin Ejemplo')
     expect(screen.queryByRole('menuitem', { name: 'Preferencias de aprendizaje' })).toBeNull()
-    expect(screen.getByRole('menuitem', { name: 'Cerrar sesion' })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Cerrar sesión' })).toBeInTheDocument()
   })
 })
 
@@ -138,7 +138,7 @@ describe('Header — logout', () => {
     renderHeader()
 
     await openMenu('Empleada Ejemplo')
-    await userEvent.click(screen.getByRole('menuitem', { name: 'Cerrar sesion' }))
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Cerrar sesión' }))
 
     expect(mockFetch).toHaveBeenCalledWith(
       '/api/v1/auth/logout',

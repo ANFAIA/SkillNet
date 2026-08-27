@@ -50,7 +50,7 @@ export function FileUploadZone({
         continue
       }
       if (file.size > maxSizeMB * 1024 * 1024) {
-        newErrors.push(`${file.name}: supera el limite de ${maxSizeMB}MB`)
+        newErrors.push(`${file.name}: supera el límite de ${maxSizeMB}MB`)
         continue
       }
       valid.push(file)
@@ -94,7 +94,7 @@ export function FileUploadZone({
               <UploadIcon />
             </span>
             <p className="text-sm text-text-secondary">
-              Arrastra archivos aqui o <span className="text-primary font-medium">selecciona</span>
+              Arrastra archivos aquí o <span className="text-primary font-medium">selecciona</span>
             </p>
             <p className="text-xs text-text-muted">
               {accept.replace(/\./g, '').toUpperCase()} hasta {maxSizeMB}MB

@@ -161,7 +161,7 @@ describe('click-to-explain inside the kit blocks (§8.5)', () => {
   it('explains a Callout, but not its tone label', async () => {
     const { container } = renderLesson(validPrograms.explanation_callout_first)
 
-    const label = screen.getByText('Atencion')
+    const label = screen.getByText('Atención')
     expect(label.querySelector('.entity')).toBeNull()
 
     await userEvent.click(screen.getByText('garantia'))

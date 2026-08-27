@@ -34,8 +34,8 @@ export interface DraftNode {
  * renderer cannot produce.
  */
 export const SELECTABLE_UI_FORMATS: { value: UiFormat; label: string; hint: string }[] = [
-  { value: 'explanation', label: 'Explicacion', hint: 'Texto y ejemplos' },
-  { value: 'exercise', label: 'Ejercicio', hint: 'Practica con correccion' },
-  { value: 'chart', label: 'Grafico', hint: 'Datos o comparativa visual' },
-  { value: 'mixed', label: 'Mixto', hint: 'Explicacion y practica en el mismo nodo' },
+  { value: 'explanation', label: 'Explicación', hint: 'Texto y ejemplos' },
+  { value: 'exercise', label: 'Ejercicio', hint: 'Práctica con corrección' },
+  { value: 'chart', label: 'Gráfico', hint: 'Datos o comparativa visual' },
+  { value: 'mixed', label: 'Mixto', hint: 'Explicación y práctica en el mismo nodo' },
 ]

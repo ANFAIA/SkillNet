@@ -273,7 +273,7 @@ async function streamFollowUp(
             onSessionId(nextSessionId)
           }
         } else if (eventType === 'error') {
-          throw new Error(String(data.detail ?? 'Error en la conversacion'))
+          throw new Error(String(data.detail ?? 'Error en la conversación'))
         }
         eventType = ''
       }

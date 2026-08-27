@@ -137,7 +137,7 @@ describe('UiSpecRenderer — valid programs', () => {
     renderWithQuery(
       <UiSpecRenderer program={validPrograms.explanation_callout_first} nodeId="node-1" />,
     )
-    expect(screen.getByRole('note', { name: 'Atencion' })).toBeInTheDocument()
+    expect(screen.getByRole('note', { name: 'Atención' })).toBeInTheDocument()
 
     renderWithQuery(<UiSpecRenderer program={validPrograms.deep_stack} nodeId="node-1" />)
     expect(screen.getByRole('note', { name: 'Importante' })).toBeInTheDocument()

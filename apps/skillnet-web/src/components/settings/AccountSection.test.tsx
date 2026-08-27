@@ -12,7 +12,7 @@ import { AccountSection } from './AccountSection'
  * tests pin that the UI gate actually matches, since a mismatch would either
  * show a button that always 404s or hide one that should work.
  *
- * All three cards render a field labelled "Contrasena actual", so every query
+ * All three cards render a field labelled "Contraseña actual", so every query
  * here is scoped with `within(card)` rather than a page-wide `getByLabelText`
  * — otherwise "found multiple elements" is not a test bug, it is the fixture
  * not matching how the page is actually laid out.
@@ -124,13 +124,13 @@ describe('AccountSection — change password', () => {
   it('submits current and new password to the change-password endpoint', async () => {
     installFetch()
     renderSection()
-    const card = await findCard('Contrasena')
+    const card = await findCard('Contraseña')
 
-    await userEvent.type(within(card).getByLabelText('Contrasena actual'), 'old-password')
-    await userEvent.type(within(card).getByLabelText('Contrasena nueva'), 'new-password-123')
-    await userEvent.click(within(card).getByRole('button', { name: 'Cambiar contrasena' }))
+    await userEvent.type(within(card).getByLabelText('Contraseña actual'), 'old-password')
+    await userEvent.type(within(card).getByLabelText('Contraseña nueva'), 'new-password-123')
+    await userEvent.click(within(card).getByRole('button', { name: 'Cambiar contraseña' }))
 
-    expect(await within(card).findByText('Contrasena actualizada.')).toBeInTheDocument()
+    expect(await within(card).findByText('Contraseña actualizada.')).toBeInTheDocument()
     expect(mockFetch).toHaveBeenCalledWith(
       '/api/v1/users/me/change-password',
       expect.objectContaining({
@@ -143,9 +143,9 @@ describe('AccountSection — change password', () => {
   it('shows the field-level validation hint for a too-short new password', async () => {
     installFetch()
     renderSection()
-    const card = await findCard('Contrasena')
+    const card = await findCard('Contraseña')
 
-    await userEvent.type(within(card).getByLabelText('Contrasena nueva'), 'short')
+    await userEvent.type(within(card).getByLabelText('Contraseña nueva'), 'short')
     await userEvent.tab()
 
     expect(await within(card).findByText('Al menos 8 caracteres.')).toBeInTheDocument()
@@ -154,11 +154,11 @@ describe('AccountSection — change password', () => {
   it('surfaces the server error when the current password is wrong', async () => {
     installFetch({ changePasswordStatus: 422 })
     renderSection()
-    const card = await findCard('Contrasena')
+    const card = await findCard('Contraseña')
 
-    await userEvent.type(within(card).getByLabelText('Contrasena actual'), 'wrong')
-    await userEvent.type(within(card).getByLabelText('Contrasena nueva'), 'new-password-123')
-    await userEvent.click(within(card).getByRole('button', { name: 'Cambiar contrasena' }))
+    await userEvent.type(within(card).getByLabelText('Contraseña actual'), 'wrong')
+    await userEvent.type(within(card).getByLabelText('Contraseña nueva'), 'new-password-123')
+    await userEvent.click(within(card).getByRole('button', { name: 'Cambiar contraseña' }))
 
     expect(await within(card).findByText('Current password is incorrect')).toBeInTheDocument()
   })
@@ -168,12 +168,12 @@ describe('AccountSection — change email', () => {
   it('submits the new email and current password', async () => {
     installFetch()
     renderSection()
-    const card = await findCard('Correo electronico')
+    const card = await findCard('Correo electrónico')
 
     const emailInput = within(card).getByLabelText('Correo nuevo')
     await userEvent.clear(emailInput)
     await userEvent.type(emailInput, 'new@test.dev')
-    await userEvent.type(within(card).getByLabelText('Contrasena actual'), 'my-password')
+    await userEvent.type(within(card).getByLabelText('Contraseña actual'), 'my-password')
     await userEvent.click(within(card).getByRole('button', { name: 'Cambiar correo' }))
 
     expect(await within(card).findByText('Correo actualizado.')).toBeInTheDocument()
@@ -189,12 +189,12 @@ describe('AccountSection — change email', () => {
   it('surfaces the conflict when the email is already taken', async () => {
     installFetch({ changeEmailStatus: 409 })
     renderSection()
-    const card = await findCard('Correo electronico')
+    const card = await findCard('Correo electrónico')
 
     const emailInput = within(card).getByLabelText('Correo nuevo')
     await userEvent.clear(emailInput)
     await userEvent.type(emailInput, 'taken@test.dev')
-    await userEvent.type(within(card).getByLabelText('Contrasena actual'), 'my-password')
+    await userEvent.type(within(card).getByLabelText('Contraseña actual'), 'my-password')
     await userEvent.click(within(card).getByRole('button', { name: 'Cambiar correo' }))
 
     expect(await within(card).findByText('A user with this email already exists')).toBeInTheDocument()
@@ -207,7 +207,7 @@ describe('AccountSection — delete account (workspace gating)', () => {
     renderSection()
 
     // Wait for /auth/me to resolve before asserting absence.
-    await screen.findByRole('heading', { name: 'Contrasena' })
+    await screen.findByRole('heading', { name: 'Contraseña' })
     expect(screen.queryByRole('heading', { name: 'Borrar cuenta' })).toBeNull()
   })
 
@@ -217,7 +217,7 @@ describe('AccountSection — delete account (workspace gating)', () => {
     renderSection()
     const card = await findCard('Borrar cuenta')
 
-    await userEvent.type(within(card).getByLabelText('Contrasena actual'), 'my-password')
+    await userEvent.type(within(card).getByLabelText('Contraseña actual'), 'my-password')
     await userEvent.click(within(card).getByRole('button', { name: 'Borrar mi cuenta' }))
 
     expect(window.confirm).toHaveBeenCalled()
@@ -236,7 +236,7 @@ describe('AccountSection — delete account (workspace gating)', () => {
     renderSection()
     const card = await findCard('Borrar cuenta')
 
-    await userEvent.type(within(card).getByLabelText('Contrasena actual'), 'my-password')
+    await userEvent.type(within(card).getByLabelText('Contraseña actual'), 'my-password')
     await userEvent.click(within(card).getByRole('button', { name: 'Borrar mi cuenta' }))
 
     expect(window.confirm).toHaveBeenCalled()

@@ -116,7 +116,7 @@ export function NodeSkeleton({ format = null, message = null, blocksReady = 0 }:
       aria-busy="true"
       aria-live="polite"
     >
-      <p className="text-sm text-text-secondary">{message ?? 'Preparando esta leccion...'}</p>
+      <p className="text-sm text-text-secondary">{message ?? 'Preparando esta lección...'}</p>
       {blocksReady > 0 && (
         <p className="text-xs text-text-muted tabular-nums">
           {ready} {ready === 1 ? 'bloque' : 'bloques'} listo{ready === 1 ? '' : 's'}

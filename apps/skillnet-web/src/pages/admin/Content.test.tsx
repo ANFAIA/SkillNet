@@ -212,7 +212,7 @@ describe('Content — deleting a draft', () => {
       String(input).includes(`/courses/${COURSE_ID}`) &&
       (options as RequestInit | undefined)?.method === 'DELETE',
     )).toBe(true)
-    expect(await screen.findByText('Aun no hay cursos')).toBeInTheDocument()
+    expect(await screen.findByText('Aún no hay cursos')).toBeInTheDocument()
   })
 
   it('shows what the server said when the delete is refused', async () => {
