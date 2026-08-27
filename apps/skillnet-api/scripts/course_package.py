@@ -85,6 +85,25 @@ def _install(args: argparse.Namespace) -> int:
     return asyncio.run(run())
 
 
+def _export(args: argparse.Namespace) -> int:
+    async def run() -> int:
+        from src.deps.db import async_session_factory
+        from src.services.course_package.export import ExportError, export_course
+
+        async with async_session_factory() as db:
+            try:
+                result = await export_course(
+                    db, uuid.UUID(args.course_id), args.destination, slug=args.slug
+                )
+            except ExportError as exc:
+                print(f"export failed: {exc}", file=sys.stderr)
+                return 1
+        print(result.summary())
+        return 0
+
+    return asyncio.run(run())
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -92,6 +111,12 @@ def main() -> None:
     lint = sub.add_parser("lint", help="Validate a package without touching the database")
     lint.add_argument("directory", help="Package directory to read")
     lint.set_defaults(handler=_lint)
+
+    export = sub.add_parser("export", help="Write an existing course out as a package")
+    export.add_argument("course_id", help="Course to export (UUID)")
+    export.add_argument("destination", help="Directory to write the package into")
+    export.add_argument("--slug", default=None, help="Package name (default: from the title)")
+    export.set_defaults(handler=_export)
 
     install = sub.add_parser("install", help="Install a package into the database")
     install.add_argument("directory", help="Package directory to install")

@@ -45,7 +45,7 @@ from src.models.node_knowledge_pack import (
     NodeKnowledgePackRecord,
     NodeKnowledgePackStatus,
 )
-from src.services.course_package.format import HANDWRITTEN_GENERATOR, sha256_text
+from src.services.course_package.format import sha256_text
 from src.services.course_package.read import CoursePackage, PackageNode
 from src.services.course_schema_service import default_threshold_for
 
@@ -243,15 +243,21 @@ async def _write_packs(db: AsyncSession, package: CoursePackage, course: Course)
     while genuinely changed material lands as the new snapshot it is.
     """
     written = 0
+    installed: list[NodeKnowledgePackRecord] = []
     for source in package.nodes:
         pack = source.pack
         fingerprint = pack.provenance.source_bundle_hash
+        # The row is labelled with the generator the pack itself claims, never with a
+        # constant. A package that was exported carries material a model wrote, and calling
+        # that hand-written would destroy the one field that answers, months later, where
+        # the content came from. A pack a person really did write says so in its provenance.
+        generator = pack.provenance.generator
         record = (
             await db.execute(
                 select(NodeKnowledgePackRecord).where(
                     NodeKnowledgePackRecord.node_id == source.uuid,
                     NodeKnowledgePackRecord.source_fingerprint == fingerprint,
-                    NodeKnowledgePackRecord.generator_version == HANDWRITTEN_GENERATOR,
+                    NodeKnowledgePackRecord.generator_version == generator,
                 )
             )
         ).scalar_one_or_none()
@@ -261,9 +267,10 @@ async def _write_packs(db: AsyncSession, package: CoursePackage, course: Course)
                 course_id=course.id,
                 node_id=source.uuid,
                 source_fingerprint=fingerprint,
-                generator_version=HANDWRITTEN_GENERATOR,
+                generator_version=generator,
             )
             db.add(record)
+        installed.append(record)
 
         markdown = render_markdown(pack)
         # The same compact atom view a generated pack stores: an inspection index, never
@@ -288,24 +295,26 @@ async def _write_packs(db: AsyncSession, package: CoursePackage, course: Course)
         record.error_message = None
         written += 1
 
-    # Any older snapshot of these nodes is superseded by what was just written.
-    for source in package.nodes:
-        stale = (
-            (
-                await db.execute(
-                    select(NodeKnowledgePackRecord).where(
-                        NodeKnowledgePackRecord.node_id == source.uuid,
-                        NodeKnowledgePackRecord.source_fingerprint
-                        != source.pack.provenance.source_bundle_hash,
-                        NodeKnowledgePackRecord.status != NodeKnowledgePackStatus.STALE,
-                    )
+    # Every other snapshot of these nodes is superseded by what was just written, whatever
+    # its fingerprint or its generator. Leaving one behind would give a node two ready packs
+    # and no statement of which one it teaches from.
+    await db.flush()
+    keep = {record.id for record in installed}
+    superseded = (
+        (
+            await db.execute(
+                select(NodeKnowledgePackRecord).where(
+                    NodeKnowledgePackRecord.node_id.in_([node.uuid for node in package.nodes]),
+                    NodeKnowledgePackRecord.id.notin_(keep),
+                    NodeKnowledgePackRecord.status != NodeKnowledgePackStatus.STALE,
                 )
             )
-            .scalars()
-            .all()
         )
-        for record in stale:
-            record.status = NodeKnowledgePackStatus.STALE
+        .scalars()
+        .all()
+    )
+    for record in superseded:
+        record.status = NodeKnowledgePackStatus.STALE
 
     await db.flush()
     return written

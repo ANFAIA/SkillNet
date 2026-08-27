@@ -56,6 +56,14 @@ COPY --from=builder /app/alembic /app/alembic
 COPY --from=builder /app/alembic.ini /app/alembic.ini
 COPY --from=builder /app/pyproject.toml /app/pyproject.toml
 
+# The operator scripts, for the same reason `uv` is copied below: without them every
+# `docker compose exec api ... scripts/<name>.py` in the documentation works only where the
+# repository is bind-mounted over /app, which is the development overlay. On a plain
+# `docker compose up` the file is simply not there, so the two commands that install a
+# course into a fresh instance — `create_course.py` and `course_package.py install` — fail
+# on exactly the machines they exist for.
+COPY --from=builder /app/scripts /app/scripts
+
 # `uv` in runtime too, and it is not a 30 MB indulgence: without it `uv run ...` works
 # only in the development image and bare `python ...` only in the production one, because
 # the venv `PATH` is added just below. Every documented command was therefore valid in

@@ -12,6 +12,7 @@ from pathlib import Path
 from src.knowledge_pack.contracts import MustPreserveKind, PackStatus
 from src.knowledge_pack.markdown import render_markdown
 from src.services.course_package import PACKAGE_FORMAT, read_package
+from src.services.course_package.export import _pack_document, slugify
 from src.services.course_package.format import HANDWRITTEN_GENERATOR
 
 COURSE = {
@@ -223,3 +224,65 @@ def test_safety_rules_are_not_listed_as_facts(tmp_path: Path) -> None:
     assert "a.no-reprint" not in objective.required_fact_refs
     kinds = {atom.atom_id: atom.kind for atom in read_package(directory).nodes[0].pack.must_preserve}
     assert kinds["a.no-reprint"] is MustPreserveKind.SAFETY_RULE
+
+
+def test_export_then_read_is_lossless(tmp_path: Path) -> None:
+    """A pack that leaves the database and comes back must be the same pack.
+
+    ``pack_hash`` is the identity the runtime and the auditor match against, so a round trip
+    that changed it would silently install a course other than the one that was exported.
+    """
+    original = read_package(_valid(tmp_path)).nodes[0].pack
+    document = _pack_document(original.canonical_payload())
+
+    course = json.loads(json.dumps(COURSE))
+    course["uuid"] = "1d5f0f1e-9a3c-4e21-8f77-2b6c9d40aa11"
+    course["nodes"][0]["uuid"] = original.node_id
+    directory = _write(tmp_path / "round-trip", course, {"selling": document})
+    (directory / "packs" / "refunds.json").write_text(json.dumps(REFUNDS_PACK), encoding="utf-8")
+
+    package = read_package(directory)
+
+    assert package.ok, [error.args[0] for error in package.errors]
+    assert package.nodes[0].pack.canonical_hash == original.canonical_hash
+    # Provenance travels verbatim rather than being minted again on the way through.
+    assert package.nodes[0].pack.provenance == original.provenance
+
+
+def test_pinned_identifiers_win_over_derived_ones(tmp_path: Path) -> None:
+    """An exported course keeps the ids it already has, or a re-install is a new course."""
+    pinned = "9c1f7b2a-3d84-4c05-9e6b-70a1c2d3e4f5"
+    course = json.loads(json.dumps(COURSE))
+    course["uuid"] = "1d5f0f1e-9a3c-4e21-8f77-2b6c9d40aa11"
+    course["nodes"][0]["uuid"] = pinned
+    directory = _write(tmp_path, course, {"selling": SELLING_PACK, "refunds": REFUNDS_PACK})
+
+    package = read_package(directory)
+
+    assert str(package.uuid) == course["uuid"]
+    assert str(package.nodes[0].uuid) == pinned
+    assert package.nodes[0].pack.objective.objective_id == pinned
+    # The node that pins nothing still derives, so the two styles coexist in one package.
+    assert package.nodes[1].uuid == read_package(_valid(tmp_path / "b")).nodes[1].uuid
+
+
+def test_a_node_may_cite_its_own_sources(tmp_path: Path) -> None:
+    """Export writes per-node sources; flattening them would cross-cite the neighbours."""
+    pack = json.loads(json.dumps(SELLING_PACK))
+    pack["sources"] = [{"ref": "src.local", "document": "till-guide", "locator": "p. 3"}]
+    for atom in pack["must_preserve"]:
+        atom["sources"] = ["src.local"]
+    pack["selectable"][0]["sources"] = ["src.local"]
+    directory = _write(tmp_path, COURSE, {"selling": pack, "refunds": REFUNDS_PACK})
+
+    package = read_package(directory)
+
+    assert package.ok, [error.args[0] for error in package.errors]
+    assert [ref.ref_id for ref in package.nodes[0].pack.source_refs] == ["src.local"]
+    assert [ref.ref_id for ref in package.nodes[1].pack.source_refs] == ["src.manual"]
+
+
+def test_slugify_makes_a_filesystem_safe_node_id() -> None:
+    assert slugify("Cómo aprende tu cerebro") == "como-aprende-tu-cerebro"
+    assert slugify("¿Qué es el cashless?") == "que-es-el-cashless"
+    assert slugify("!!!") == "node"

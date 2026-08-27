@@ -70,6 +70,20 @@ class CoursePackage:
         return not self.errors
 
 
+def _pinned(
+    entry: dict, key: str, location: str, errors: list[PackageError]
+) -> UUID | None:
+    """An identifier the package fixes explicitly, or ``None`` to derive one."""
+    raw = entry.get(key)
+    if not raw:
+        return None
+    try:
+        return UUID(str(raw))
+    except ValueError:
+        errors.append(PackageError(f"{location}.{key}", f"{raw!r} is not a UUID"))
+        return None
+
+
 def _load_json(path: Path, location: str, errors: list[PackageError]) -> dict | None:
     try:
         return json.loads(path.read_text(encoding="utf-8"))
@@ -98,7 +112,11 @@ def read_package(directory: str | Path) -> CoursePackage:
         return package
 
     package.slug = course.get("package") or path.name
-    package.uuid = course_uuid(package.slug)
+    # An exported package pins the identity of the course it came from; a hand-written one
+    # omits it and has one derived, so nobody types a UUID into a JSON file.
+    package.uuid = _pinned(course, "uuid", COURSE_FILE, package.errors) or course_uuid(
+        package.slug
+    )
     package.title = course.get("title") or ""
     package.folder = course.get("folder")
     package.intent_density = int(course.get("intent_density", 3))
@@ -112,11 +130,6 @@ def read_package(directory: str | Path) -> CoursePackage:
             source_refs.append(build_source_ref(entry, index, COURSE_FILE))
         except PackageError as exc:
             package.errors.append(exc)
-    if not source_refs:
-        package.errors.append(
-            PackageError(f"{COURSE_FILE}.sources", "a pack must cite at least one source")
-        )
-
     raw_nodes = course.get("nodes") or ()
     if not raw_nodes:
         package.errors.append(PackageError(f"{COURSE_FILE}.nodes", "a course needs a node"))
@@ -147,13 +160,32 @@ def read_package(directory: str | Path) -> CoursePackage:
         pack_doc = _load_json(path / PACKS_DIR / f"{slug}.json", pack_location, package.errors)
         if pack_doc is None:
             continue
-        identifier = node_uuid(package.slug, slug)
+        identifier = _pinned(node, "uuid", where, package.errors) or node_uuid(
+            package.slug, slug
+        )
+        # A pack may cite its own sources instead of the course-wide list. An exported
+        # course does exactly that: each generated pack points at the passage it was built
+        # from, and flattening them into one shared list would hand every node citations
+        # belonging to its neighbours.
+        node_refs = source_refs
+        if pack_doc.get("sources"):
+            node_refs = []
+            for source_index, entry in enumerate(pack_doc["sources"]):
+                try:
+                    node_refs.append(build_source_ref(entry, source_index, pack_location))
+                except PackageError as exc:
+                    package.errors.append(exc)
+        if not node_refs:
+            package.errors.append(
+                PackageError(pack_location, "no sources: declare them here or in course.json")
+            )
+            continue
         try:
             pack = build_pack(
                 node=node,
                 node_id=str(identifier),
                 pack_doc=pack_doc,
-                source_refs=tuple(source_refs),
+                source_refs=tuple(node_refs),
                 schema_version=package.schema_version,
                 location=pack_location,
             )

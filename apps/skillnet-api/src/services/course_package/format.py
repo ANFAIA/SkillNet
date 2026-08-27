@@ -307,6 +307,37 @@ def _objective(
     )
 
 
+#: Keys of a pack document that are *about* the pack rather than part of the material it
+#: teaches, and so are outside its semantic digest.
+_DERIVED_KEYS = frozenset({"provenance", "sources"})
+
+
+def _provenance(
+    pack_doc: dict,
+    node_id: str,
+    schema_version: int,
+    bundle: str,
+    semantic: str,
+    location: str,
+) -> PackProvenance:
+    """The pack's provenance: carried over when exported, derived when hand-written."""
+    carried = pack_doc.get("provenance")
+    if carried:
+        try:
+            return PackProvenance(
+                **{**carried, "node_id": node_id, "schema_version": schema_version}
+            )
+        except ValueError as exc:
+            raise PackageError(f"{location}.provenance", contract_message(exc)) from exc
+    return PackProvenance(
+        node_id=node_id,
+        schema_version=schema_version,
+        source_bundle_hash=bundle,
+        semantic_hash=semantic,
+        generator=HANDWRITTEN_GENERATOR,
+    )
+
+
 def build_pack(
     *,
     node: dict,
@@ -346,10 +377,16 @@ def build_pack(
     )
     objective = _objective(node, node_id, schema_version, must_preserve, location)
 
+    # A package that was exported carries the provenance of the pack it came from, and it
+    # is kept verbatim: those digests are what the runtime and the auditor match against, so
+    # minting new ones on the way through would quietly turn an exported pack into a
+    # different pack. A hand-written package has none and gets one derived below.
+    authored = {key: value for key, value in pack_doc.items() if key not in _DERIVED_KEYS}
     # The semantic digest covers the authored material only. Provenance is excluded on
     # purpose: it carries this digest, and re-serialising a package must not move it.
-    semantic = canonical_digest(pack_doc)
+    semantic = canonical_digest(authored)
     bundle = canonical_digest(sorted(ref.excerpt_hash for ref in source_refs))
+    provenance = _provenance(pack_doc, node_id, schema_version, bundle, semantic, location)
 
     try:
         return NodeKnowledgePack(
@@ -363,13 +400,7 @@ def build_pack(
             selectable=selectable,
             generable_slots=slots,
             missing_data=missing,
-            provenance=PackProvenance(
-                node_id=node_id,
-                schema_version=schema_version,
-                source_bundle_hash=bundle,
-                semantic_hash=semantic,
-                generator=HANDWRITTEN_GENERATOR,
-            ),
+            provenance=provenance,
         )
     except ValueError as exc:
         raise PackageError(location, contract_message(exc)) from exc
