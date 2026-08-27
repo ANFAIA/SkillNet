@@ -3,6 +3,8 @@ import {
   cloneElement,
   useCallback,
   useId,
+  useLayoutEffect,
+  useRef,
   useState,
   type HTMLAttributes,
   type KeyboardEvent,
@@ -48,6 +50,34 @@ import { transition } from '../lib/motion'
  * `relative` while the bubble is open, and a positioned element paints above
  * non-positioned siblings by CSS paint order alone. DOM order, not a z-index war.
  */
+
+/** Width of the bubble, in px. Mirrors the `w-56` below; they must not drift apart. */
+const BUBBLE_WIDTH = 224
+/** Breathing room from the trigger, and from the edge of the window. */
+const GAP = 4
+const EDGE = 8
+
+/**
+ * Where to put the bubble, in viewport coordinates.
+ *
+ * It is positioned `fixed`, not `absolute`, and that is the fix for a real complaint:
+ * an absolutely positioned bubble still contributes to the scrollable area of the page,
+ * so hovering a tile near an edge grew the document and a scrollbar appeared under the
+ * pointer. A fixed element is out of that flow entirely - it cannot add a scrollbar, and
+ * it cannot be clipped by an ancestor's overflow either.
+ *
+ * Centred on the trigger, then clamped so it can never hang off the left or right of the
+ * window, and flipped above the trigger when there is no room below.
+ */
+function bubblePosition(trigger: DOMRect, bubbleHeight: number) {
+  const half = BUBBLE_WIDTH / 2
+  const centre = trigger.left + trigger.width / 2
+  const left = Math.min(Math.max(centre, EDGE + half), window.innerWidth - EDGE - half)
+  const below = trigger.bottom + GAP
+  const fitsBelow = below + bubbleHeight <= window.innerHeight - EDGE
+  return { left, top: fitsBelow ? below : trigger.top - GAP - bubbleHeight }
+}
+
 /**
  * The child's own classes, made to read as unavailable.
  *
@@ -80,6 +110,31 @@ export function CapabilityExplain({
   const animated = !useReducedMotion()
   const descriptionId = useId()
   const [open, setOpen] = useState(false)
+  const triggerRef = useRef<HTMLSpanElement>(null)
+  const bubbleRef = useRef<HTMLSpanElement>(null)
+  const [position, setPosition] = useState<{ left: number; top: number } | null>(null)
+
+  // Measured before paint, so the bubble never shows up in the wrong place first. The
+  // listeners keep it on its trigger if the page moves underneath an open bubble: with
+  // a pointer that is rare, but keyboard focus plus a scroll does it every time.
+  useLayoutEffect(() => {
+    if (!open) {
+      setPosition(null)
+      return
+    }
+    const place = () => {
+      const trigger = triggerRef.current?.getBoundingClientRect()
+      if (!trigger) return
+      setPosition(bubblePosition(trigger, bubbleRef.current?.offsetHeight ?? 0))
+    }
+    place()
+    window.addEventListener('scroll', place, true)
+    window.addEventListener('resize', place)
+    return () => {
+      window.removeEventListener('scroll', place, true)
+      window.removeEventListener('resize', place)
+    }
+  }, [open])
 
   const suppress = useCallback((event: MouseEvent | KeyboardEvent) => {
     event.preventDefault()
@@ -102,9 +157,10 @@ export function CapabilityExplain({
 
   return (
     <span
-      // `relative` only while the bubble is up, so the one open tooltip is the only
-      // positioned element in the row and nothing can paint over it.
-      className={`inline-flex ${open ? 'relative' : ''}`}
+      ref={triggerRef}
+      // No positioning context needed here: the bubble is `fixed` and placed from this
+      // element's measured rect, which is what stops it adding a scrollbar.
+      className="inline-flex"
       onPointerEnter={() => setOpen(true)}
       onPointerLeave={() => setOpen(false)}
       onFocus={() => setOpen(true)}
@@ -127,12 +183,20 @@ export function CapabilityExplain({
       <AnimatePresence initial={false}>
         {open && (
           <motion.span
+            ref={bubbleRef}
             aria-hidden="true"
             initial={animated ? { opacity: 0 } : false}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={animated ? transition.tooltip : { duration: 0 }}
-            className="pointer-events-none absolute left-1/2 top-full mt-1 w-56 -translate-x-1/2 rounded-md bg-text px-3 py-2 text-xs leading-relaxed text-bg shadow-md"
+            style={{
+              left: position?.left ?? 0,
+              top: position?.top ?? 0,
+              // Hidden until measured rather than parked somewhere visible: one frame
+              // in the wrong place is the flicker this is here to avoid.
+              visibility: position ? 'visible' : 'hidden',
+            }}
+            className="pointer-events-none fixed w-56 -translate-x-1/2 rounded-md bg-text px-3 py-2 text-xs leading-relaxed text-bg shadow-md"
           >
             {explanation}
           </motion.span>
