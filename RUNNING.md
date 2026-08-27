@@ -158,6 +158,48 @@ Three demo learners come with it. Their password is `aprender2026`:
 
 Sign in as your own owner account to author courses, or as one of these to take them.
 
+## Moving a course to another machine, without generating it again
+
+A **course package** is a directory that installs as a complete, validated course with no
+LLM call and no API key. Use it to put a course you already have onto another machine in
+seconds, instead of paying for the generation twice and getting a different course the second
+time. The design is in [`docs/design/course-packages.md`](docs/design/course-packages.md).
+
+```bash
+# Freeze a course you already have (the id is in the URL of its admin page).
+docker compose exec api uv run python scripts/course_package.py \
+    export <course-id> /app/course-packages
+
+# Check a package without touching a database. This one needs no container and no key,
+# so it also runs on the host while a package is being written by hand.
+cd apps/skillnet-api && uv run python scripts/course_package.py lint ../../course-packages/<slug>
+
+# Install it here. Defaults to the first organization and its admin;
+# override with --org-id / --admin-id.
+docker compose exec api python scripts/course_package.py install /app/course-packages/<slug>
+```
+
+`./course-packages` in the repository is mounted at `/app/course-packages`, so an export lands in a
+directory you can see and a package you drop there can be installed. To carry one between
+machines, copy the directory — there is nothing else to move and no registry to keep in step.
+
+Plain `python`, not `uv run python`, for the same reason as the seed above: inside the
+container `uv run` re-syncs the virtualenv and needs to reach PyPI.
+
+Installing is **safe to repeat**: a package always installs as the same course, so a second
+install updates it rather than creating a duplicate. Nodes are updated in place, so a
+re-install does not disturb the progress of anyone already taking the course.
+
+What a package carries is the course graph and its knowledge packs — the slow, expensive
+part. Screens are still generated live per learner on the target machine, so it needs a
+model for serving, just not for authoring. What it does not carry: enrolments, progress,
+chats, media files, or document chunks.
+
+You can also write a package by hand and install it, with no model involved at any point.
+That is the way to get a course whose material is exactly right rather than as good as
+whatever model was on the key that day; `lint` reports every fault in one pass, addressed by
+the field that has to change.
+
 ## Did it work?
 
 ```bash

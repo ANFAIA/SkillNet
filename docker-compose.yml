@@ -172,6 +172,15 @@ services:
       - uploads:/data/uploads
       - media_assets:/data/media_assets
       - tts_cache:/data/tts_cache
+      # Course packages, as a bind mount rather than a named volume on purpose: a package
+      # is a thing you copy between machines, so it has to be a directory you can see. It
+      # is writable because `course_package.py export` writes here; a named volume would
+      # leave the export somewhere only Docker can reach, which defeats the point.
+      #
+      # `course-packages`, not `packages`: the repository root already has a `packages/`
+      # holding the TypeScript workspaces, and an export landing in there would drop a
+      # course into a directory AGENTS.md marks as off limits.
+      - ./course-packages:/app/course-packages
     depends_on:
       db:
         condition: service_healthy
