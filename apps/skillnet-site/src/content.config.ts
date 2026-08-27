@@ -1,12 +1,15 @@
 // Content Collections for /docs.
 //
-// The files under src/content/docs/en/*.md are a synced literal copy of the
-// public subset of docs/design/*.md (plus RUNNING.md for the quickstart),
-// generated with scripts/copy-docs.mjs. The repo's docs/ is still the source
-// of truth: after editing a doc there, re-run `node scripts/copy-docs.mjs`
-// from this package, which refreshes en/ and prints which es/ files are now
-// stale so they can be translated by hand. There is no automatic sync step
-// in the build itself.
+// The files under src/content/docs/{en,es}/*.md are maintained BY HAND. They began
+// as copies of the public subset of docs/design/*.md (plus RUNNING.md for the
+// quickstart), but they have diverged on purpose: the markdown links here point at
+// site paths a relative-link source cannot express, and several sources are in
+// Spanish while their en/ counterpart is a translation. Regenerating either locale
+// destroys that work, so nothing does.
+//
+// docs/ is still where a change starts. `node scripts/check-docs-drift.mjs` from this
+// package reports which site copies are older than the doc they came from; updating
+// them is a manual edit. There is no sync step in the build.
 //
 // src/content/docs/es/*.md holds the hand-translated Spanish prose for the
 // same slugs (code blocks, filenames and commands stay untranslated). Both
