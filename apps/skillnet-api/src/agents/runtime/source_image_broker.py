@@ -101,17 +101,22 @@ class SourceImageCandidate:
         return max(self.width, 0) * max(self.height, 0)
 
     def caption(self) -> str:
-        """``Fuente: Title > Section, pag. N`` — the dialect a passage citation prints.
+        """``Fuente: Title > Section, pág. N`` — the provenance a learner reads.
 
         Reusing a customer's own picture is only defensible if the lesson can say where
-        it came from, and saying it in a second dialect would make two kinds of citation
-        on one screen. See ``GroundedPassage.marker``.
+        it came from, and it says it in the same shape a passage citation uses, so one
+        screen never carries two kinds of citation. See ``GroundedPassage.marker``.
+
+        One deliberate difference from that marker: **"pág.", with the accent.** The
+        marker is prompt text a model reads; this is the line printed under the image in
+        the lesson, and a learner reading a misspelled word in their own language notices
+        it. Do not "fix" this back into agreement with the marker.
         """
         parts = f"Fuente: {self.document_title}" if self.document_title else "Fuente"
         if self.heading:
             parts += f" > {self.heading}"
         if self.page:
-            parts += f", pag. {self.page}"
+            parts += f", pág. {self.page}"
         return parts
 
     def alt_text(self) -> str:

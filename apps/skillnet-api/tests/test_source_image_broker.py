@@ -365,7 +365,7 @@ def test_the_addendum_pins_both_ids_in_the_frontend_prop_order() -> None:
     addendum = decision_prompt_addendum(decision)
     assert (
         f'SourceImage("a", "El boton Guardar", '
-        f'"Fuente: Manual de incidencias > Abrir una incidencia, pag. 3", "{_DOC}")'
+        f'"Fuente: Manual de incidencias > Abrir una incidencia, pág. 3", "{_DOC}")'
     ) in addendum
     assert "image_id, alt, caption, document_id" in addendum
 
@@ -419,7 +419,7 @@ def test_a_program_carrying_a_source_image_validates() -> None:
                 "props": {
                     "image_id": "abc",
                     "alt": "El boton Guardar",
-                    "caption": "Fuente: Manual > Abrir, pag. 3",
+                    "caption": "Fuente: Manual > Abrir, pág. 3",
                     "document_id": "def",
                 },
             },
