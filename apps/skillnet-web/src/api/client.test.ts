@@ -38,6 +38,7 @@ describe('API client', () => {
       expect(mockFetch).toHaveBeenCalledWith('/api/v1/users/me', {
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
+        signal: expect.any(AbortSignal),
       })
       expect(result).toEqual({ id: 1 })
     })
@@ -54,6 +55,7 @@ describe('API client', () => {
         headers: { 'Content-Type': 'application/json' },
         method: 'POST',
         body: JSON.stringify({ title: 'Test' }),
+        signal: expect.any(AbortSignal),
       })
       expect(result).toEqual({ id: 2 })
     })
@@ -68,6 +70,7 @@ describe('API client', () => {
         headers: { 'Content-Type': 'application/json' },
         method: 'POST',
         body: undefined,
+        signal: expect.any(AbortSignal),
       })
     })
   })
@@ -83,6 +86,7 @@ describe('API client', () => {
         headers: { 'Content-Type': 'application/json' },
         method: 'PUT',
         body: JSON.stringify({ title: 'Updated' }),
+        signal: expect.any(AbortSignal),
       })
     })
   })
@@ -110,6 +114,7 @@ describe('API client', () => {
         headers: {},
         method: 'POST',
         body: formData,
+        signal: expect.any(AbortSignal),
       })
     })
   })
@@ -172,6 +177,41 @@ describe('API client', () => {
     })
   })
 
+  describe('timeouts', () => {
+    it('passes an abort signal so a stalled request cannot hang forever', async () => {
+      mockFetch.mockReturnValue(jsonResponse({ ok: true }))
+
+      await get('/anything')
+
+      const init = mockFetch.mock.calls[0][1] as RequestInit
+      expect(init.signal).toBeInstanceOf(AbortSignal)
+      expect(init.signal?.aborted).toBe(false)
+    })
+
+    it('turns a TimeoutError into a 408 ApiError', async () => {
+      mockFetch.mockRejectedValue(
+        new DOMException('The operation timed out.', 'TimeoutError'),
+      )
+
+      try {
+        await get('/slow')
+        expect.unreachable('should have thrown')
+      } catch (err) {
+        expect(err).toBeInstanceOf(ApiError)
+        expect((err as ApiError).status).toBe(408)
+        expect((err as ApiError).body.code).toBe('REQUEST_TIMEOUT')
+      }
+    })
+
+    it('lets a caller abort propagate as an abort, not a server error', async () => {
+      mockFetch.mockRejectedValue(new DOMException('Aborted.', 'AbortError'))
+
+      await expect(get('/cancelled')).rejects.toThrowError(
+        expect.objectContaining({ name: 'AbortError' }),
+      )
+    })
+  })
+
   describe('loginRequest()', () => {
     it('sends URL-encoded form data to /auth/login', async () => {
       mockFetch.mockReturnValue(
@@ -185,6 +225,7 @@ describe('API client', () => {
         credentials: 'include',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: 'username=user%40example.com&password=secret123',
+        signal: expect.any(AbortSignal),
       })
     })
 

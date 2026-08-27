@@ -1,12 +1,28 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { del, get, post, put } from './client'
-import type { CourseDetail, CourseProgress, CourseRead, Exercise, Lesson, Paginated } from '../types'
+import type {
+  CourseDetail,
+  CourseGenerationState,
+  CourseProgress,
+  CourseRead,
+  Exercise,
+  Lesson,
+  Paginated,
+} from '../types'
 
 export interface CourseFilters {
   status?: string
   search?: string
   folderId?: string | null
   unorganized?: boolean
+  /**
+   * Filter by the creation-run state (migration 0025), not by `status`.
+   *
+   * Server-side on purpose: a course whose creation died is still `status: 'draft'`, so
+   * finding the failures by filtering the fetched page client-side would only ever find
+   * the ones that happened to be on it.
+   */
+  generationState?: CourseGenerationState
   offset?: number
   limit?: number
 }
@@ -20,6 +36,7 @@ export function useCourses(filters?: CourseFilters) {
       if (filters?.search) params.set('search', filters.search)
       if (filters?.folderId) params.set('folder_id', filters.folderId)
       if (filters?.unorganized) params.set('unorganized', 'true')
+      if (filters?.generationState) params.set('generation_state', filters.generationState)
       params.set('offset', String(filters?.offset ?? 0))
       params.set('limit', String(filters?.limit ?? 100))
       return get<Paginated<CourseRead>>(`/courses?${params.toString()}`)

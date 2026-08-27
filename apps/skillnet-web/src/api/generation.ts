@@ -26,6 +26,9 @@ export function useGenerationProgress(jobId: string | null) {
     setIsActive(true)
     setConnectionFailed(false)
     const controller = new AbortController()
+    // Did a terminal event (`completed` / `error`) actually arrive? A stream that ends
+    // without one has not told us the outcome, however cleanly it ended.
+    let sawTerminal = false
 
     async function connect() {
       try {
@@ -74,12 +77,14 @@ export function useGenerationProgress(jobId: string | null) {
                   message: (data.message as string) ?? prev.message,
                 }))
               } else if (eventType === 'completed') {
+                sawTerminal = true
                 setProgress({
                   step: 'published',
                   courseId: (data.course_id as string) ?? (data.courseId as string),
                 })
                 setIsActive(false)
               } else if (eventType === 'error') {
+                sawTerminal = true
                 setProgress({
                   step: 'failed',
                   error:
@@ -95,6 +100,13 @@ export function useGenerationProgress(jobId: string | null) {
             }
           }
         }
+        // The reader is done. If no terminal event ever arrived, the stream was closed
+        // *for* us — an idle proxy timeout (`docker/nginx.conf` closes at 300s), a
+        // redeployed API, a dropped connection — and the job may well have finished
+        // meanwhile. This used to return normally with `connectionFailed` still false,
+        // so the polling fallback below (gated on it) never started and the screen froze
+        // on the last step it had seen even though the server was done.
+        if (!sawTerminal && !controller.signal.aborted) setConnectionFailed(true)
       } catch (err) {
         if ((err as Error).name !== 'AbortError') {
           // Let the UI fall back to polling instead of hard-failing.

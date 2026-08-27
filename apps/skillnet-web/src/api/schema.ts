@@ -27,6 +27,7 @@ import { useEffect } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ApiError, get, post, put } from './client'
 import type {
+  CourseFinalization,
   CourseKnowledgePacks,
   CourseSchema,
   CourseSchemaUpdate,
@@ -257,4 +258,51 @@ export function useSchemaProposeJob(
     error: query.data?.error_message ?? null,
     running: !!jobId && !settled,
   }
+}
+
+
+// --------------------------------------------------------------------------- //
+// Finishing a course (server-side)
+// --------------------------------------------------------------------------- //
+
+export const finalizationQueryKey = (courseId: string | undefined) =>
+  ['courses', courseId, 'finalize'] as const
+
+/** Terminal creation-run states: nothing more will happen without a new request. */
+const TERMINAL_GENERATION_STATES = new Set(['failed', 'complete'])
+
+/**
+ * `POST /courses/{id}/schema/finalize` — hand the rest of course creation to the server.
+ *
+ * Everything after "save the schema" used to run as three round trips from this tab:
+ * poll until every knowledge pack is ready, mark the graph reviewed, validate. Only the
+ * last of those publishes a v2 course, so a tab that stopped executing anywhere in that
+ * window left the course a permanent draft — the incident this replaces.
+ *
+ * The call returns `202` as soon as the course is claimed, and is idempotent: a second
+ * call adopts the run already in flight rather than starting a rival one. So retrying,
+ * or reloading onto a course that is already being finished, is safe.
+ */
+export function startCourseFinalization(courseId: string) {
+  return post<CourseFinalization>(`/courses/${courseId}/schema/finalize`)
+}
+
+/**
+ * Watch a creation run: its state plus how many knowledge packs are ready.
+ *
+ * Stops polling by itself once the run reaches a terminal state, so a finished course
+ * does not keep a timer alive behind the success screen.
+ */
+export function useCourseFinalization(courseId: string | undefined, enabled = true) {
+  return useQuery({
+    queryKey: finalizationQueryKey(courseId),
+    queryFn: () => get<CourseFinalization>(`/courses/${courseId}/schema/finalize`),
+    enabled: !!courseId && enabled,
+    retry: false,
+    refetchInterval: (query) =>
+      query.state.data
+      && TERMINAL_GENERATION_STATES.has(query.state.data.generation_state)
+        ? false
+        : 2000,
+  })
 }

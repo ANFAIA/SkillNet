@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence, LayoutGroup, useInstantLayoutTransition } from 'framer-motion'
 import { arrayMove } from '@dnd-kit/sortable'
 import { useIntl } from 'react-intl'
@@ -18,44 +18,14 @@ import {
 import { useCreateCourse, useGenerateContent, usePublishCourse, useCourse, useUpdateLesson, useUpdateExercise } from '../../api/courses'
 import { useGenerationProgress, useGenerationJobStatus, jobToProgress } from '../../api/generation'
 import { streamSchemaProposal } from '../../api/schemaStream'
+import { startCourseFinalization, useCourseFinalization, useCourseSchema } from '../../api/schema'
 import { useReplaceCourseSkills, useSkills } from '../../api/skills'
 import { useUsers } from '../../api/users'
 import { useAssignCourse } from '../../api/enrollments'
 import { ApiError, get, post, put } from '../../api/client'
 import { useAuth, useWorkspaceMode } from '../../hooks/useAuth'
-import type { GenerationProgress as GenProgress, User, Lesson, Exercise, ExerciseContent, CourseKnowledgePacks } from '../../types'
+import type { GenerationProgress as GenProgress, User, Lesson, Exercise, ExerciseContent } from '../../types'
 import type { ProposedNode, Phase, SourceType, DeliveryChoice } from './createCourseTypes'
-
-/**
- * Block until every node's knowledge pack has left `pending`.
- *
- * `PUT /schema` spawns pack generation in the background; a pack becomes an actual
- * lesson episode only once it is `ready`. Validating and pre-rendering before the packs
- * land pins the flat fallback screen forever, so course creation must wait here. Polls
- * `GET /schema/knowledge-packs` (the same endpoint the schema editor already polls) until
- * there is one terminal row per node or the ceiling is hit — a stuck pack must not trap the
- * creator on this screen indefinitely.
- */
-async function waitForKnowledgePacks(
-  courseId: string,
-  expectedNodeCount: number,
-  { intervalMs = 2000, maxWaitMs = 300000 }: { intervalMs?: number; maxWaitMs?: number } = {},
-): Promise<void> {
-  if (expectedNodeCount <= 0) return
-  const deadline = Date.now() + maxWaitMs
-  for (;;) {
-    let done = false
-    try {
-      const packs = await get<CourseKnowledgePacks>(`/courses/${courseId}/schema/knowledge-packs`)
-      const rows = packs.nodes ?? []
-      done = rows.length >= expectedNodeCount && !rows.some((row) => row.status === 'pending')
-    } catch {
-      // A transient read error should not abort creation; retry until the ceiling.
-    }
-    if (done || Date.now() >= deadline) return
-    await new Promise((resolve) => setTimeout(resolve, intervalMs))
-  }
-}
 
 // ── Icons ────────────────────────────────────────────────────
 
@@ -508,8 +478,20 @@ export function CreateCourse() {
   const navigate = useNavigate()
   const { user: currentUser } = useAuth()
 
-  // Phase state
-  const [phase, setPhase] = useState<Phase>('choose')
+  /**
+   * The course being created, carried in the URL.
+   *
+   * Once `POST /courses` has committed a row, that row is the run: it exists whether or
+   * not this tab is still alive. Putting its id in the address bar is what lets a
+   * reload — or a browser that restored the tab, or the creator pasting the link into
+   * another window — pick the same run back up instead of starting a second course.
+   */
+  const [params, setParams] = useSearchParams()
+  const urlCourseId = params.get('course')
+
+  // Phase state. A URL that already names a course re-enters the creating phase on
+  // mount; the run's real state then comes from the server, not from this component.
+  const [phase, setPhase] = useState<Phase>(urlCourseId ? 'creating' : 'choose')
   const [source, setSource] = useState<SourceType>(null)
   const [deliveryChoice, setDeliveryChoice] = useState<DeliveryChoice>('dynamic')
   // Official hook: state changes inside the callback skip layout animation
@@ -520,7 +502,7 @@ export function CreateCourse() {
   const [idea, setIdea] = useState('')
   const [documentId, setDocumentId] = useState<string | null>(null)
   const [writingSource, setWritingSource] = useState(false)
-  const [courseId, setCourseId] = useState<string | null>(null)
+  const [courseId, setCourseId] = useState<string | null>(urlCourseId)
   const [jobId, setJobId] = useState<string | null>(null)
   const [startError, setStartError] = useState<string | null>(null)
   const [published, setPublished] = useState(false)
@@ -565,6 +547,15 @@ export function CreateCourse() {
   // a course for themselves, so this flow skips the skills step and the assign
   // step there. See docs/design/audience-modes.md.
   const individual = useWorkspaceMode() === 'individual'
+  // Only fetched when the URL resumed a run: a tab that has just been reloaded holds
+  // none of the wizard's form state, so the course's own title is the only one left.
+  const resumedCourse = useCourse(urlCourseId ?? undefined)
+  const courseTitle = resumedCourse.data?.title ?? ''
+  const resumedSchema = useCourseSchema(urlCourseId ?? undefined)
+  const resumedMinutes = (resumedSchema.data?.nodes ?? []).reduce(
+    (sum, node) => sum + (node.estimated_minutes ?? 0),
+    0,
+  )
   const skillsQuery = useSkills('', { enabled: !individual })
   const replaceCourseSkills = useReplaceCourseSkills()
 
@@ -790,16 +781,77 @@ export function CreateCourse() {
     }
   }
 
-  // Creation progress steps
-  const [creatingStep, setCreatingStep] = useState(0)
-  const creatingSteps = [
-    intl.formatMessage({ id: 'create.creatingTitle' }, { title: title.trim() || intl.formatMessage({ id: 'create.title' }) }),
-    intl.formatMessage({ id: 'create.savingNodes' }, { count: proposedNodes.length }),
-    intl.formatMessage({ id: 'create.generatingLessons' }),
-    intl.formatMessage({ id: 'create.activating' }),
-    intl.formatMessage({ id: 'create.preparingFirst' }),
-  ]
+  /**
+   * How far the *local* half of creation has got, before the server takes over.
+   *
+   * Only two steps live here now (create the course row, save the schema); everything
+   * after that is one call to `POST /schema/finalize` and the progress reported back by
+   * `useCourseFinalization`. The five static checkmarks this replaced advanced on the
+   * browser's own timeline and kept advancing while the server was doing nothing.
+   */
+  const HANDOFF_STEP = 2
+  const [creatingStep, setCreatingStep] = useState(urlCourseId ? HANDOFF_STEP : 0)
 
+  /**
+   * Watch the server-side run. Enabled only while the wizard is on the creating screen,
+   * and it stops polling by itself once the run is terminal.
+   */
+  const finalization = useCourseFinalization(
+    courseId ?? undefined,
+    phase === 'creating' && creatingStep >= HANDOFF_STEP,
+  )
+  const runState = finalization.data?.generation_state ?? null
+  const runInFlight = phase === 'creating' && runState !== 'failed' && runState !== 'complete'
+
+  // Warn before leaving while a run is in flight. The run itself survives — that is the
+  // whole point of moving it server-side — but the creator loses this screen, so say so.
+  useEffect(() => {
+    if (!runInFlight) return
+    const warn = (event: BeforeUnloadEvent) => event.preventDefault()
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [runInFlight])
+
+  // The run finished on the server. Move to the success screen, filling the summary from
+  // the server's numbers so a resumed tab (which never held `proposedNodes`) shows the
+  // real course rather than zeroes.
+  useEffect(() => {
+    if (phase !== 'creating' || runState !== 'complete') return
+    setCreatedTitle((current) => current || courseTitle || title.trim())
+    setCreatedNodeCount((current) => current || finalization.data?.packs_total || 0)
+    setCreatedMinutes((current) => current || resumedMinutes)
+    setPhase('created')
+  }, [phase, runState, finalization.data?.packs_total, courseTitle, title, resumedMinutes])
+
+  /**
+   * Resume a run the server never actually started.
+   *
+   * A URL naming a course whose `generation_state` is still `idle` means the tab died
+   * between `POST /courses` and the handoff — the exact window the incident happened in.
+   * The course and its schema exist, so the only thing missing is the call that finishes
+   * them; make it once, rather than showing a progress bar for a run that is not running.
+   */
+  const resumeKicked = useRef(false)
+  useEffect(() => {
+    if (phase !== 'creating' || runState !== 'idle' || resumeKicked.current) return
+    if (!courseId) return
+    resumeKicked.current = true
+    startCourseFinalization(courseId)
+      .then(() => finalization.refetch())
+      .catch((err) => setStartError(failMsg(err, intl.formatMessage({ id: 'create.courseError' }))))
+  }, [phase, runState, courseId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  /**
+   * Save the course and its schema, then hand the rest to the server.
+   *
+   * Everything from "wait for the knowledge packs" onwards used to run here, as three
+   * more round trips from this tab, and `POST /schema/validate` is the only thing in the
+   * system that publishes a v2 course. A tab that stopped executing in that window left
+   * the course a permanent draft, and pressing the button again created a second one.
+   *
+   * Retry now reuses `courseId` when there is one, so the second attempt continues the
+   * same course instead of forking it.
+   */
   async function handleCreateFromSchema() {
     setStartError(null)
 
@@ -816,19 +868,31 @@ export function CreateCourse() {
 
     try {
       const sourceId = source === 'importar' ? documentId ?? undefined : undefined
-      const course = await createCourse.mutateAsync({
-        title: title.trim(),
-        description: idea.trim() || undefined,
-        source_document_id: sourceId,
-      })
-      setCourseId(course.id)
+      // Reuse the course a previous attempt already committed. Creating a second one is
+      // exactly the "two courses, one of them dead" outcome this screen has to stop.
+      let id = courseId
+      if (!id) {
+        const course = await createCourse.mutateAsync({
+          title: title.trim(),
+          description: idea.trim() || undefined,
+          source_document_id: sourceId,
+        })
+        id = course.id
+        setCourseId(id)
+      }
+      // The URL now names the run, so a reload from here resumes instead of restarting.
+      setParams((current) => {
+        const next = new URLSearchParams(current)
+        next.set('course', id as string)
+        return next
+      }, { replace: true })
 
       // Skills belong to the course, not to individual nodes. Persist the reviewed
       // proposal before activating the schema so completion can grant them reliably.
       // Skipped in an individual workspace, where skills do not exist.
       if (!individual) {
         await replaceCourseSkills.mutateAsync({
-          courseId: course.id,
+          courseId: id,
           skills: proposedSkills.reduce<Array<{ id?: string; name?: string }>>((items, skill) => {
             if (skill.id) {
               items.push({ id: skill.id })
@@ -861,7 +925,7 @@ export function CreateCourse() {
       })
 
       const created = await put<{ nodes: { id: string; position: number }[] }>(
-        `/courses/${course.id}/schema`,
+        `/courses/${id}/schema`,
         { intent_density: density, nodes: proposedNodes.map((n, i) => toNodePayload(n, i)) },
       )
 
@@ -871,49 +935,39 @@ export function CreateCourse() {
         const withPrereqs = proposedNodes.map((n, i) => {
           const prereqIds = n.prerequisites
             .map((idx) => idByPosition.get(idx + 1))
-            .filter((id): id is string => id !== undefined)
+            .filter((pid): pid is string => pid !== undefined)
           return { ...toNodePayload(n, i, prereqIds), id: idByPosition.get(i + 1) }
         })
-        await put(`/courses/${course.id}/schema`, {
+        await put(`/courses/${id}/schema`, {
           intent_density: density,
           nodes: withPrereqs,
         })
       }
 
-      const schema = await get<{ nodes: { id: string }[] }>(`/courses/${course.id}/schema`)
-
-      // Step 3: generate lessons. The last PUT above spawned pack generation; a node is a
-      // real episode only once its pack is ready. Blocking here — before validate and the
-      // first pre-render — is what stops the creator being dropped into a flat, half-baked
-      // course whose opening screens are pinned to the fallback shell.
-      setCreatingStep(2)
-      await waitForKnowledgePacks(course.id, schema.nodes.length)
-
-      // Step 4: activate. Mark every node reviewed in one atomic server call (the owner's
-      // single act of sign-off for the whole graph) and only then validate — a per-node
-      // loop that silently swallowed a failure used to leave `validate` returning
-      // `409 node_not_reviewed`.
-      setCreatingStep(3)
-      await post(`/courses/${course.id}/schema/review`, {})
-      await post(`/courses/${course.id}/schema/validate`, {})
-
-      // Step 5: pre-render first node (non-blocking — go to success after a few seconds).
-      // Safe to pin now: the packs are ready, so this warms an episode, not the fallback.
-      setCreatingStep(4)
-      const firstNode = schema.nodes[0]
-      if (firstNode) {
-        post(`/nodes/${firstNode.id}/render`, { force: false }).catch(() => {})
-        // Give it a short window, then move on regardless
-        await new Promise(r => setTimeout(r, 2000))
-      }
-
       setCreatedTitle(title.trim())
       setCreatedNodeCount(proposedNodes.length)
       setCreatedMinutes(totalMinutes)
-      setPhase('created')
+
+      // Hand over. From here the tab only watches: waiting for the packs, marking the
+      // graph reviewed and validating all happen in a server task that outlives it.
+      setCreatingStep(HANDOFF_STEP)
+      await startCourseFinalization(id)
     } catch (err) {
       setStartError(failMsg(err, intl.formatMessage({ id: 'create.courseError' })))
       setPhase('schema') // go back to schema on error
+    }
+  }
+
+  /** Re-run the server-side tail on the same course. Never creates a second one. */
+  async function retryFinalization() {
+    if (!courseId) return
+    setStartError(null)
+    setCreatingStep(HANDOFF_STEP)
+    try {
+      await startCourseFinalization(courseId)
+      await finalization.refetch()
+    } catch (err) {
+      setStartError(failMsg(err, intl.formatMessage({ id: 'create.courseError' })))
     }
   }
 
@@ -1012,6 +1066,35 @@ export function CreateCourse() {
 
   // Post-creation phases
   if (phase === 'creating') {
+    const run = finalization.data
+    const failed = run?.generation_state === 'failed'
+    const packsTotal = run?.packs_total ?? proposedNodes.length
+    const packsReady = run?.packs_ready ?? 0
+    const packsDone = packsTotal > 0 && packsReady >= packsTotal
+    const percent = packsTotal > 0 ? Math.round((packsReady / packsTotal) * 100) : 0
+    const heading = createdTitle || courseTitle || title.trim()
+
+    // Real progress, from the server. The three lines mirror what the run is actually
+    // doing: the schema is saved by this tab, the packs are counted one by one, and
+    // activation is the last step (review + validate) that publishes the course.
+    const steps: { label: string; done: boolean; active: boolean }[] = [
+      {
+        label: intl.formatMessage({ id: 'create.savingNodes' }, { count: packsTotal || proposedNodes.length }),
+        done: creatingStep >= HANDOFF_STEP,
+        active: creatingStep < HANDOFF_STEP,
+      },
+      {
+        label: intl.formatMessage({ id: 'create.packsProgress' }, { ready: packsReady, total: packsTotal }),
+        done: creatingStep >= HANDOFF_STEP && packsDone,
+        active: creatingStep >= HANDOFF_STEP && !packsDone,
+      },
+      {
+        label: intl.formatMessage({ id: 'create.activating' }),
+        done: false,
+        active: creatingStep >= HANDOFF_STEP && packsDone,
+      },
+    ]
+
     return (
       <div>
         {/* Breadcrumb */}
@@ -1026,43 +1109,78 @@ export function CreateCourse() {
         </div>
 
         <div className="flex flex-col items-center justify-center py-16">
-          <div className="w-full max-w-sm space-y-4">
-            {creatingSteps.map((label, i) => {
-              const done = i < creatingStep
-              const active = i === creatingStep
-              return (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: duration.normal, ease: [...ease.base], delay: i * 0.06 }}
-                  className="flex items-center gap-3"
-                >
-                  {done ? (
-                    <motion.div
-                      className="w-5 h-5 rounded-full bg-primary flex items-center justify-center"
-                      initial={{ scale: 0.5, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      transition={{ duration: duration.fast, ease: ease.bounce }}
-                    >
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="20 6 9 17 4 12" />
-                      </svg>
-                    </motion.div>
-                  ) : active ? (
-                    <div className="w-5 h-5 rounded-full border-2 border-primary flex items-center justify-center">
-                      <span className="w-2 h-2 rounded-full bg-primary" />
-                    </div>
-                  ) : (
-                    <div className="w-5 h-5 rounded-full border-2 border-border" />
+          <div className="w-full max-w-sm">
+            <p className="text-sm font-medium text-text">
+              {intl.formatMessage({ id: 'create.creatingTitle' }, { title: heading || intl.formatMessage({ id: 'create.title' }) })}
+            </p>
+
+            {failed ? (
+              <motion.div
+                className="mt-5 border border-danger/30 rounded-lg px-4 py-3"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: duration.normal, ease: [...ease.base] }}
+              >
+                <p role="alert" className="text-sm text-danger">
+                  {intl.formatMessage({ id: 'create.finalizeFailed' })}
+                </p>
+                {run?.generation_error && <p className="text-xs text-text-secondary mt-1.5">{run.generation_error}</p>}
+                <p className="text-xs text-text-muted mt-1.5">{intl.formatMessage({ id: 'create.finalizeFailedHint' })}</p>
+                <div className="flex flex-wrap items-center gap-2 mt-4">
+                  <Button variant="primary" size="sm" onClick={retryFinalization}>
+                    {intl.formatMessage({ id: 'create.retryGeneration' })}
+                  </Button>
+                  {proposedNodes.length > 0 && (
+                    <Button variant="secondary" size="sm" onClick={() => setPhase('schema')}>
+                      {intl.formatMessage({ id: 'create.backToSchema' })}
+                    </Button>
                   )}
-                  <span className={`text-sm ${active ? 'text-text font-medium' : done ? 'text-text-muted' : 'text-text-muted/50'}`}>
-                    {label}
-                  </span>
-                  {active && <span className="typing-dots text-primary" aria-hidden="true"><span /><span /><span /></span>}
-                </motion.div>
-              )
-            })}
+                  <Button variant="ghost" size="sm" onClick={() => navigate('/admin/contenido')}>
+                    {intl.formatMessage({ id: 'create.backToContent' })}
+                  </Button>
+                </div>
+              </motion.div>
+            ) : (
+              <>
+                <ProgressBar className="mt-4" value={percent} size="lg" />
+                <p className="text-xs text-text-muted mt-2">{intl.formatMessage({ id: 'create.safeToLeave' })}</p>
+
+                <div className="space-y-4 mt-6">
+                  {steps.map((step, i) => (
+                    <motion.div
+                      key={step.label}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: duration.normal, ease: [...ease.base], delay: i * 0.06 }}
+                      className="flex items-center gap-3"
+                    >
+                      {step.done ? (
+                        <motion.div
+                          className="w-5 h-5 rounded-full bg-primary flex items-center justify-center"
+                          initial={{ scale: 0.5, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          transition={{ duration: duration.fast, ease: ease.bounce }}
+                        >
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
+                        </motion.div>
+                      ) : step.active ? (
+                        <div className="w-5 h-5 rounded-full border-2 border-primary flex items-center justify-center">
+                          <span className="w-2 h-2 rounded-full bg-primary" />
+                        </div>
+                      ) : (
+                        <div className="w-5 h-5 rounded-full border-2 border-border" />
+                      )}
+                      <span className={`text-sm ${step.active ? 'text-text font-medium' : step.done ? 'text-text-muted' : 'text-text-muted/50'}`}>
+                        {step.label}
+                      </span>
+                      {step.active && <span className="typing-dots text-primary" aria-hidden="true"><span /><span /><span /></span>}
+                    </motion.div>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
