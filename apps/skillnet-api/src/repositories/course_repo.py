@@ -8,7 +8,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlalchemy.sql.elements import ColumnElement
 
-from src.models import ContentStatus, Course, CourseArtifactGenerator, CourseNode, Lesson, Module
+from src.models import (
+    ContentStatus,
+    Course,
+    CourseArtifactGenerator,
+    CourseGenerationState,
+    CourseNode,
+    Lesson,
+    Module,
+)
 from src.repositories.base import BaseRepository
 
 
@@ -30,6 +38,7 @@ class CourseRepository(BaseRepository[Course]):
         search: str | None = None,
         folder_id: uuid.UUID | None = None,
         unorganized: bool = False,
+        generation_state: CourseGenerationState | None = None,
         offset: int = 0,
         limit: int = 50,
     ) -> tuple[Sequence[tuple[Course, int, int]], int]:
@@ -37,6 +46,8 @@ class CourseRepository(BaseRepository[Course]):
         filters: list[ColumnElement[bool]] = [Course.org_id == org_id]
         if status is not None:
             filters.append(Course.status == status)
+        if generation_state is not None:
+            filters.append(Course.generation_state == generation_state)
         if search:
             pattern = f"%{search.strip()}%"
             filters.append(

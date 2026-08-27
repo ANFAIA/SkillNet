@@ -62,6 +62,13 @@ class CourseRead(BaseModel):
     #: How the learner tutor answers inside this course. Auto-detected at
     #: creation by the schema designer, editable via ``PUT /courses/{id}``.
     tutor_style: Literal["socratic", "direct"] = "socratic"
+    #: Whether a creation run owns this course and how the last one ended (migration
+    #: 0025). ``idle`` for anything nobody is creating, which is every course made
+    #: before the column existed — so the safe value is the one you get by default.
+    generation_state: Literal["idle", "in_progress", "failed", "complete"] = "idle"
+    #: Short, safe reason a creation run failed. Never a raw exception.
+    generation_error: str | None = None
+    generation_failed_at: datetime | None = None
 
 
 class CourseDetail(CourseRead):

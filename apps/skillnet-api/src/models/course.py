@@ -69,6 +69,25 @@ class CourseTutorStyle(str, enum.Enum):
     DIRECT = "direct"
 
 
+class CourseGenerationState(str, enum.Enum):
+    """Whether a creation run owns this course, and how the last one ended.
+
+    Orthogonal to ``status`` and ``schema_status``, which describe the course; this
+    describes the *run* that was supposed to finish it. Creating a v2 course means
+    "wait for the knowledge packs, review the graph, validate it", and that sequence
+    used to be driven from the browser tab — a tab that closed mid-way left a row that
+    looked exactly like a deliberate draft. ``IN_PROGRESS`` says a server task owns it,
+    ``FAILED`` says a run died (with a reason in ``generation_error``), ``COMPLETE``
+    says one finished. ``IDLE`` is the default and means nothing is claimed: every
+    course made before this column existed, and every course made by hand.
+    """
+
+    IDLE = "idle"
+    IN_PROGRESS = "in_progress"
+    FAILED = "failed"
+    COMPLETE = "complete"
+
+
 class Course(UUIDMixin, TimestampMixin, Base):
     __tablename__ = "courses"
     __table_args__ = (
@@ -161,6 +180,22 @@ class Course(UUIDMixin, TimestampMixin, Base):
         nullable=False,
         server_default=CourseTutorStyle.SOCRATIC.value,
         default=CourseTutorStyle.SOCRATIC,
+    )
+    # --- creation-run bookkeeping (migration 0025) ---
+    generation_state: Mapped[CourseGenerationState] = mapped_column(
+        SAEnum(
+            CourseGenerationState,
+            name="course_generation_state",
+            values_callable=lambda e: [m.value for m in e],
+        ),
+        nullable=False,
+        server_default=CourseGenerationState.IDLE.value,
+        default=CourseGenerationState.IDLE,
+    )
+    # A short, safe sentence — never a raw exception. See ``course_finalization``.
+    generation_error: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    generation_failed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
     )
 
     modules: Mapped[list["Module"]] = relationship(

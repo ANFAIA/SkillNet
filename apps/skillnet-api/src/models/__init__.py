@@ -12,6 +12,7 @@ from src.models.course import (
     ContentStatus,
     Course,
     CourseDeliveryMode,
+    CourseGenerationState,
     CourseSchemaStatus,
     CourseTutorStyle,
 )
@@ -124,6 +125,7 @@ __all__ = [
     "ChatMessage",
     # --- v2 dynamic courses ---
     "CourseDeliveryMode",
+    "CourseGenerationState",
     "CourseSchemaStatus",
     "CourseTutorStyle",
     "CourseNode",

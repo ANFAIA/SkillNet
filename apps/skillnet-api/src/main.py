@@ -55,6 +55,7 @@ from src.routes import (
 from src.routes.ext import courses as ext_courses
 from src.routes.ext import skills as ext_skills
 from src.services.embedding_check import check_embedding_dimensions
+from src.services.startup_reconcile import reconcile_interrupted_work
 from src.services.media import infographic as _infographic  # noqa: F401
 
 # Importing the media generator packages registers each MediaGenerator under its kind,
@@ -87,6 +88,12 @@ async def lifespan(app: FastAPI):
             # Solo avisa: sin embeddings el resto del producto sigue en pie, asi que
             # tumbar el arranque seria peor que el fallo que se quiere hacer visible.
             await check_embedding_dimensions(session)
+            # Nothing from a previous process survived it: every background job in this
+            # API is an asyncio task inside this one worker. Rows still marked running
+            # are therefore dead, and one of them — a `schema_proposing` job — blocks
+            # `POST /schema/propose` for its course permanently. Fail them, with a
+            # reason that says a restart happened.
+            await reconcile_interrupted_work(session)
             # Solo si el despliegue sigue sin propietario: es lo que hace publica la
             # ruta /setup, y por tanto lo que hay que acotar en el tiempo.
             if not await deployment_has_owner(session):
