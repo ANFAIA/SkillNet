@@ -33,7 +33,11 @@ interface Props {
 
 export default function SiteHeader({ variant = "landing", locale = "es", altHref }: Props) {
   const [scrolled, setScrolled] = useState(variant === "docs");
-  const [navTheme, setNavTheme] = useState<"dark" | "light">("dark");
+  // Which background the surface is sitting on, and therefore whether it paints
+  // the light or the dark glass. The initial value is the one the server-rendered
+  // markup needs to be right before any script runs: the landing opens on the
+  // dark hero, a docs page is a white document from its first pixel.
+  const [navTheme, setNavTheme] = useState<"dark" | "light">(variant === "docs" ? "light" : "dark");
   const [open, setOpen] = useState(false);
   // `open` is the intent; `expanded` is the surface. On opening they move together,
   // but on closing the surface has to hold its shape until the links have faded
@@ -61,9 +65,11 @@ export default function SiteHeader({ variant = "landing", locale = "es", altHref
   }, [open]);
 
   useEffect(() => {
-    if (variant === "docs") return;
     const updateHeader = () => {
-      setScrolled(window.scrollY > 40);
+      // Only the landing has a transparent state to leave: its header starts as
+      // bare text over the hero and condenses into the pill. On docs the pill is
+      // the only shape, so the shape is pinned and just the theme is tracked.
+      if (variant !== "docs") setScrolled(window.scrollY > 40);
       const section = Array.from(document.querySelectorAll<HTMLElement>("[data-nav-theme]"))
         .find((candidate) => {
           const bounds = candidate.getBoundingClientRect();
@@ -101,7 +107,10 @@ export default function SiteHeader({ variant = "landing", locale = "es", altHref
     };
   }, []);
 
-  const lightTheme = variant === "landing" && navTheme === "light";
+  // The theme follows the background that declares itself under the header
+  // (`data-nav-theme`), never the variant: a docs page is as white as the
+  // landing's white sections, so it gets the same light glass.
+  const lightTheme = navTheme === "light";
   const surfaceClass = lightTheme
     ? "border-[color-mix(in_srgb,var(--color-primary-deep)_12%,transparent)] bg-white/72 text-[var(--color-primary-deep)]"
     : "border-white/15 bg-[color-mix(in_srgb,var(--color-primary-deep)_58%,transparent)] text-white";

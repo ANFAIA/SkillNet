@@ -43,7 +43,10 @@ const navHere = isEn ? "On this page" : "Estás en";
       the marketing pages keep their plain full-page loads. */}
   <ClientRouter slot="head" />
   <SiteHeader client:load variant="docs" locale={locale} altHref={otherHref} />
-  <div class="docs-shell">
+  {/* The docs document declares its own background the same way every landing
+      section does, so the shared header reads what is behind it here too and
+      paints the light glass instead of the hero's dark pill. */}
+  <div class="docs-shell" data-nav-theme="light">
     <aside class="docs-shell__sidebar">
       <input class="docs-nav__toggle" type="checkbox" id="docs-nav-toggle" />
       <label class="docs-nav__control" for="docs-nav-toggle">
