@@ -28,6 +28,13 @@ export function TourTooltip({
   return (
     <div
       {...tooltipProps}
+      /*
+        Marks the card as a tour surface: the runner dismisses the tour on the learner's
+        first interaction with the page underneath, and needs to tell "clicked the page"
+        from "clicked the tour". A data attribute, not the library's `.__floater` class
+        alone, so our own markup is what identifies us.
+      */
+      data-tour-tooltip=""
       className="w-[19rem] max-w-[calc(100vw-2rem)] rounded-xl border border-border bg-surface p-4 text-left"
     >
       <div className="mb-3 flex items-start justify-between gap-3">

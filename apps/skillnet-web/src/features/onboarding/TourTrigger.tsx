@@ -37,6 +37,9 @@ export function TourTrigger({ role = 'employee' }: { role?: SidebarRole }) {
     <motion.button
       type="button"
       onClick={handleClick}
+      // A tour surface, not "the page": reopening the tour must not be read as the
+      // learner dismissing it (see `useDismissOnPageInteraction` in ProductTour).
+      data-tour-trigger=""
       aria-label={intl.formatMessage({ id: 'onboarding.tour.reopen' })}
       title={intl.formatMessage({ id: 'onboarding.tour.reopen' })}
       className="flex h-8 w-8 items-center justify-center rounded-full border border-border text-text-muted transition-colors hover:border-border-strong hover:text-text cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"

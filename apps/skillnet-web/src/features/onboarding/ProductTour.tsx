@@ -32,6 +32,44 @@ const JOYRIDE_STYLES = {
 } as const
 
 /**
+ * The employee tour is a hint layer, not a modal — and joyride's overlay is a single
+ * full-document `<div>` whose default `pointer-events: auto` swallows every click on the
+ * page the tour is teaching. That is why "Empezar" on the home hero did nothing while the
+ * tour was open: the click landed on the overlay, and `disableOverlayClose` made it a
+ * no-op, so the learner stayed on Inicio. Making the overlay click-through fixes it for
+ * the hero *and* for everything else under it (sidebar, course rows, "Ver todos") in one
+ * move, because there was only ever one blocker.
+ *
+ * Two of the library's own hooks do it, and **neither touches stacking** — no z-index is
+ * added or reordered here. The tooltip stays interactive because it is a separate portal
+ * (react-floater's `.__floater`) that still accepts pointer events; the overlay simply
+ * stops being a target, which is a hit-testing property, not a stacking one:
+ *
+ * - `spotlightClicks` (prop) zeroes pointer events on the spotlight hole itself.
+ * - `styles.overlay.pointerEvents` zeroes them on the dim backdrop. joyride spreads the
+ *   consumer's `styles.overlay` *after* its own computed `pointerEvents`, so this is the
+ *   documented style hook winning as intended, not an override fight.
+ *
+ * `overlayLegacy*` carries the same value on purpose: joyride falls back to those keys on
+ * any browser its UA sniffing does not recognise (jsdom included), and a fix that only
+ * held on Chrome/Firefox/Safari would be no fix at all.
+ */
+const CLICK_THROUGH = { pointerEvents: 'none' } as const
+const EMPLOYEE_JOYRIDE_STYLES = {
+  ...JOYRIDE_STYLES,
+  overlay: CLICK_THROUGH,
+  overlayLegacy: CLICK_THROUGH,
+  overlayLegacyCenter: CLICK_THROUGH,
+} as const
+
+/**
+ * The tour's own surfaces, the only clicks that must *not* count as "the learner is using
+ * the page": our tooltip card, react-floater's wrapper around it (its arrow and padding
+ * sit outside the card), and the header "?" that reopens the tour.
+ */
+const TOUR_SURFACES = '[data-tour-tooltip], .__floater, [data-tour-trigger]'
+
+/**
  * react-floater (the library behind the tooltip box, via react-joyride) reserves
  * room for its arrow with a default `margin: 8` on top of the arrow's own
  * `length: 16` — that extra margin is what read as a gap between the arrow tip
@@ -45,6 +83,38 @@ const FLOATER_PROPS = (reduce: boolean) => ({
   disableAnimation: reduce,
   styles: { arrow: { length: 12, spread: 20, margin: 0 } },
 })
+
+/**
+ * Close the tour on the learner's first real interaction with the page beneath it.
+ *
+ * This is the other half of making the overlay click-through: the page below is live now,
+ * so "Saltar" can no longer be the only way out. A spotlight left hovering over a screen
+ * the learner is already using is noise, and because `run` lives in a module store it
+ * would pop back up on the next visit to `/empleado` — the learner would have started a
+ * lesson and still be told to start one. Doing beats reading: a pointerdown anywhere
+ * outside the tour's own surfaces is treated as "understood", and it writes exactly the
+ * state Skip writes, so the tour stays reopenable from the header "?" and never auto-runs
+ * again.
+ *
+ * Capture phase, and deliberately no `preventDefault`/`stopPropagation`: we only need to
+ * hear the interaction first, the click itself must still reach whatever the learner
+ * aimed at. `pointerdown` covers mouse, touch and pen with one listener.
+ */
+function useDismissOnPageInteraction(active: boolean) {
+  const stop = useTourStore((s) => s.stop)
+
+  useEffect(() => {
+    if (!active) return
+    function handlePointerDown(event: Event) {
+      const target = event.target
+      if (target instanceof Element && target.closest(TOUR_SURFACES)) return
+      writeOnboardingState({ dismissedAt: new Date().toISOString() }, 'employee')
+      stop()
+    }
+    document.addEventListener('pointerdown', handlePointerDown, true)
+    return () => document.removeEventListener('pointerdown', handlePointerDown, true)
+  }, [active, stop])
+}
 
 /**
  * The employee product tour: a single-page walkthrough of `/empleado`. Every step
@@ -90,17 +160,36 @@ function EmployeeTourRunner() {
 
   const steps: Step[] = useMemo(
     () =>
-      visibleSteps.map((s) => ({
+      visibleSteps.map((s, i) => ({
         target: s.target,
         title: s.title,
         content: s.body,
         disableBeacon: true,
         placement: 'auto',
+        /*
+          No scroll on the way IN. The first step anchors the home hero, which is already
+          at the top of the scroller, so joyride's "bring the target into view" had nothing
+          to bring — it just slid the page (82px, measured on /empleado) about half a second
+          after load, moving "Continuar" out from under a pointer already aiming at it. That
+          is the second half of the reported bug: even with the overlay no longer eating the
+          click, an unprompted jump makes the learner miss the button.
+
+          Per-step rather than the global `disableScrolling`, because scrolling to the *next*
+          step is still wanted: the Skill Map card can sit below the fold, and that scroll is
+          a response to the learner pressing Next, not a surprise. `scrollToFirstStep` cannot
+          express this — joyride's own `shouldScroll` ignores it once the first step reaches
+          the TOOLTIP lifecycle, so `step.disableScrolling` is the only lever that holds.
+        */
+        disableScrolling: i === 0,
       })),
     [visibleSteps],
   )
 
   const stepIds = useMemo(() => visibleSteps.map((s) => s.id), [visibleSteps])
+
+  // Live only while the overlay is actually on screen — same condition as the render
+  // guard below, so the listener never outlives what it is dismissing.
+  useDismissOnPageInteraction(run && onHome && steps.length > 0)
 
   function handleCallback(data: CallBackProps) {
     const { status, index, type } = data
@@ -127,14 +216,24 @@ function EmployeeTourRunner() {
       run={run}
       continuous
       showSkipButton
+      /*
+        Later steps may need to scroll their anchor into view; the first one must not — see
+        the per-step `disableScrolling` above, which is what actually holds.
+      */
       disableScrolling={false}
-      scrollToFirstStep={!reduce}
+      scrollToFirstStep={false}
+      /*
+        Kept for intent, though it can no longer fire: the backdrop is not a click target
+        at all now (see EMPLOYEE_JOYRIDE_STYLES), and dismissal by interaction is handled
+        explicitly by `useDismissOnPageInteraction`, which lets the click through.
+      */
       disableOverlayClose
+      spotlightClicks
       spotlightPadding={6}
       tooltipComponent={TourTooltip}
       callback={handleCallback}
       floaterProps={FLOATER_PROPS(reduce)}
-      styles={JOYRIDE_STYLES}
+      styles={EMPLOYEE_JOYRIDE_STYLES}
     />
   )
 }
