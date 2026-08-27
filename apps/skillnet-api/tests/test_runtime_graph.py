@@ -1172,16 +1172,21 @@ async def test_a_node_with_a_seed_lesson_still_falls_back_to_it(
         assert marker not in text, marker
 
 
-async def test_with_no_seed_and_no_summary_the_render_fails_instead_of_dumping_the_prompt(
+async def test_with_no_seed_and_no_summary_the_honest_message_is_served_as_a_screen(
     harness: Harness, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The decision this test documents: with neither a seed lesson nor a summary there is
-    no human-written text to serve, so nothing is served.
+    """With neither a seed lesson nor a summary there is no human-written text to serve, so
+    the chain ends in the one sentence that says exactly that — **served**, as a one-block
+    ``fallback`` screen.
 
-    ``error {fallback: false}`` plus ``node_renders.status='failed'`` — the precedent
-    ``fallback_seed`` already set for its no-row branch. An honest "no hemos podido
-    preparar este nodo" beats both a dump of the server's prompt and an empty
-    "Sin contenido de respaldo." lesson cached as if it were the course.
+    Until 2026-08-27 this branch served *nothing*: ``status='failed'`` and no pin. An empty
+    pin is what ``GET /nodes/{id}/render`` reports as ``202 pending``, so the learner never
+    got past the spinner; the client kept re-arming ``POST /render`` precisely because
+    nothing was served; and with no *fallback* pin there was nothing for the retry budget to
+    charge, nor could ``find_cached`` (``ready`` only) see the ``failed`` row — so every
+    poll bought another LLM generation, without limit. One sentence on a real screen ends
+    both, and it is a ``fallback`` row like any other: not retained, swapped for a ``ready``
+    render as soon as one exists, and regenerated under the budget while trying.
     """
     no_llm(monkeypatch)
     harness.session.node.seed_lesson_id = None
@@ -1192,18 +1197,43 @@ async def test_with_no_seed_and_no_summary_the_render_fails_instead_of_dumping_t
     final = await run_graph(make_request_state())
     render = harness.render()
 
-    assert final["current_step"] == "failed"
-    assert render.status is NodeRenderStatus.FAILED
-    assert "nothing servable" in (render.error_message or "")
-    assert not render.ui_spec
-    # `decide_formato` announced its own failure with fallback:true; `fallback_seed` then
-    # found nothing to serve and said so with fallback:false, which is what stops the
-    # client re-requesting a render that cannot exist.
-    errors = harness.payloads("error")
-    assert [payload["fallback"] for payload in errors] == [True, False]
-    assert errors[-1]["message"] == runtime_nodes.NOTHING_SERVABLE_MESSAGE
-    # Nothing was served, so the client is never told a screen is ready.
-    assert "ui_done" not in harness.event_types()
+    assert final["current_step"] == "fallback_seed"
+    assert render.status is NodeRenderStatus.FALLBACK
+    text = served_text(render)
+    assert runtime_nodes.NOTHING_SERVABLE_MESSAGE in text
+    # Still never the server's own prompt, which is what this branch used to reach for.
+    for marker in FORBIDDEN_ON_SCREEN:
+        assert marker not in text, marker
+    # Something WAS served, which is what stops the client polling and re-requesting.
+    assert "ui_done" in harness.event_types()
+
+
+async def test_a_summary_that_cites_a_standard_is_still_served_as_the_fallback(
+    harness: Harness, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A citation is not scaffolding, and the cost of confusing the two lands here.
+
+    ``[ISO:9001]``, ``[cap:3]``, ``[art:5]`` are how a real manual cites a standard, a
+    chapter and an article. The leak check matched any ``[letters:digits]``, so a node whose
+    own summary quoted one had that summary blanked by the guard in ``_serve_fallback`` —
+    leaving no body at all for a node whose source was doing nothing wrong.
+    """
+    no_llm(monkeypatch)
+    harness.session.node.seed_lesson_id = None
+    harness.session.lesson = None
+    harness.session.node.summary = (
+        "La norma [ISO:9001] obliga a registrar cada devolucion; ver [cap:3] y [art:5], "
+        "y el formato de correo de [RFC:2606]."
+    )
+
+    final = await run_graph(make_request_state())
+    render = harness.render()
+
+    assert final["current_step"] == "fallback_seed"
+    assert render.status is NodeRenderStatus.FALLBACK
+    text = served_text(render)
+    assert "ISO:9001" in text
+    assert runtime_nodes.NOTHING_SERVABLE_MESSAGE not in text
 
 
 # --------------------------------------------------------------------------------------
@@ -1244,6 +1274,50 @@ async def test_a_leaked_atom_id_in_the_output_goes_back_to_the_repair_loop(
     assert result["retry_count"] == 1
     assert "must.atom:10" in result["validation_errors"][0]
     assert route_after_validate(result) == "retry"
+
+
+async def test_an_unpinnable_experience_gets_a_repair_the_gate_can_accept(
+    harness: Harness,
+) -> None:
+    """The self-contradicting message, and the deadlock behind it.
+
+    ``authored_activity`` is a populated dict here, but no ``implementation_ref`` can be
+    derived from it, so ``validate_ui`` refuses the ``LearningExperience`` the model wrote.
+    The closer policy used to ask the *dict* question instead of the *pinnable* one, so the
+    repair message read "NO uses LearningExperience ... cierra con un LearningExperience"
+    while the Didact prohibition one rule later forbade both real closers — no repair could
+    satisfy the gate, which is the same measured deadlock ``02c0573`` set out to remove.
+    """
+    raw = (
+        'root = Stack([intro, cierre], "md")\n'
+        'intro = TextContent("Como dependiente, esto te sirve para resolver una '
+        'devolucion en caja.", "lead")\n'
+        'cierre = LearningExperience("exp_inventado", "impl_ref", "def_ref")\n'
+    )
+    state = make_request_state(
+        raw_dsl=raw,
+        ui_format="explanation",
+        assessment_block="DidactActivity",
+        authored_activity={
+            "activity_id": str(uuid.UUID(int=7)),
+            "component_id": "",
+            "public_definition": {},
+        },
+    )
+
+    result = await runtime_nodes.validate_ui(state)  # type: ignore[arg-type]
+    message = result["validation_errors"][0]
+
+    assert result["ui_spec"] is None
+    assert "NO uses LearningExperience" in message
+    # ...and it must not then recommend one in the same sentence.
+    assert "un LearningExperience" not in message
+    assert "un QuizItem" in message
+    assert "un DragOrder" in message
+    # The invariant, on this state: what the repair proposes survives the next rule.
+    assert not set(runtime_nodes._offerable_closers(state)) & runtime_nodes._forbidden_closers(
+        state
+    )
 
 
 async def test_a_copied_dossier_heading_is_rejected_too(harness: Harness) -> None:
@@ -1289,6 +1363,13 @@ async def test_a_lesson_about_invariants_is_not_mistaken_for_the_dossier(
         "El corte esta en [1:30] y la cita en [Juan 3:16].",
         "You must. Then stop. It is a must.",
         "La ratio es 3:1 y el dossier del alumno esta en secretaria.",
+        # Citations, not scaffolding: a standard, a chapter, an article, an RFC. Matching
+        # any ``[letters:digits]`` flagged all four, which cost the screen both repair
+        # attempts and then, when the node's summary carried one, its fallback body too.
+        "La norma [ISO:9001] obliga a registrar la devolucion.",
+        "Lo explica el [cap:3] del manual y el [art:5] de la ley.",
+        "Usa un dominio de ejemplo de [RFC:2606] en las pruebas.",
+        "Vease (ref. 3) del manual y la nota (ref 12).",
     ],
 )
 def test_the_marker_check_does_not_fire_on_legitimate_prose(text: str) -> None:

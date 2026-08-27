@@ -459,6 +459,11 @@ def forget_in_flight(user_id: uuid.UUID, node_id: uuid.UUID) -> None:
 # worker). Unlike the pin, this is a *cost* guard and not a correctness guard: losing it on
 # a restart costs at most one extra generation per bucket, which is also the cheapest
 # possible "retry after a deploy" and is welcome.
+#
+# It covers two states, and it has to cover both: a served ``fallback`` (the learner has
+# backup content and a better screen is still wanted) and a ``failed`` row with nothing
+# pinned (the learner has *nothing*, so the client keeps asking — which is precisely the
+# case where an uncapped retry is most expensive).
 # --------------------------------------------------------------------------------------
 
 #: How long a served ``fallback`` is left alone before another generation may be spent on
@@ -833,7 +838,12 @@ class NodeRenderService:
            two generations of the same screen.
         3. **Cache hit on ``cache_key``, and not forced** -> pin it and answer
            ``cached=True``. Zero tokens.
-        4. Otherwise spawn the graph and answer ``202`` with a fresh ``request_id``.
+        4. **A ``failed`` row under the key and nothing pinned** -> the same retry budget,
+           because a run already spent a generation on this key and served nothing. Without
+           it the client, which has no screen and therefore keeps asking, paid for an LLM
+           cycle per poll: neither the cache (``ready`` only) nor the fallback pin (there is
+           none) could see that anything had been tried.
+        5. Otherwise spawn the graph and answer ``202`` with a fresh ``request_id``.
 
         A preview never pins and never hits the cache (§11.3).
 
@@ -903,6 +913,25 @@ class NodeRenderService:
                 key = await self.render_key_for(
                     user=user, node=node, course=course, refresh=True
                 )
+
+        if pinned_fallback is None and not preview and not force:
+            # Nothing is servable under this key, and the budget above cannot see it. A
+            # ``failed`` row is invisible to ``find_cached`` (which reads ``ready`` only) and
+            # nothing was pinned, so there is no ``pinned_fallback`` to charge either — yet a
+            # generation was already spent on this exact key and produced nothing. Until
+            # 2026-08-27 that meant a client with nothing on screen re-armed ``POST /render``
+            # and bought a fresh LLM cycle on every poll, without limit. Same budget, same
+            # key: a spent generation is a spent generation.
+            #
+            # Only ``failed``. ``generating`` is somebody else's run in flight (step 2 covers
+            # this learner's own), and a servable row has already been dealt with above.
+            spent = await self.renders.get_by_cache_key(key.cache_key)
+            if (
+                spent is not None
+                and _plain(spent.status) == NodeRenderStatus.FAILED.value
+                and not claim_fallback_retry(key.cache_key)
+            ):
+                return RenderRequest(request_id="", cached=False)
 
         if pinned_fallback is not None and not claim_fallback_retry(
             pinned_fallback.cache_key

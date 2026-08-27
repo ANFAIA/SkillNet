@@ -16,6 +16,7 @@ import uuid
 from src.agents.runtime.nodes import (
     _allowed_closers,
     _authored_experience_refs,
+    _forbidden_closers,
     _offerable_closers,
     _pin_authored_experience_refs,
     _source_with_authored_activity,
@@ -39,6 +40,17 @@ def legacy_authored() -> dict:
         component_id="didact.matching",
         public_definition={"prompt": "empareja"},
     ).model_dump(mode="json")
+
+
+def unpinnable_authored() -> dict:
+    """A dict from which **no** triple can be derived, which is not the same as no dict.
+
+    The legacy path stores a ``MaterializedActivity``; when its ``component_id`` never
+    arrived there is no ``implementation_ref`` to build, so the server has nothing to pin
+    even though ``authored_activity`` is populated. Asking "is it a dict?" instead of "can
+    it be pinned?" is what made the gate contradict itself.
+    """
+    return {"activity_id": str(ACTIVITY_ID), "component_id": "", "public_definition": {}}
 
 
 def prepared_authored() -> dict:
@@ -83,7 +95,9 @@ def test_no_component_id_and_no_refs_means_nothing_to_pin() -> None:
 # --------------------------------------------------------------------------- #
 def test_pinning_rewrites_invented_refs_on_the_legacy_path() -> None:
     """The regression: this used to be a no-op, so every such screen fell back."""
-    pinned = _pin_authored_experience_refs(PROGRAM, legacy_authored())
+    pinned = _pin_authored_experience_refs(
+        PROGRAM, {"authored_activity": legacy_authored()}
+    )
 
     assert pinned != PROGRAM
     assert '"didact.matching@1"' in pinned
@@ -92,7 +106,9 @@ def test_pinning_rewrites_invented_refs_on_the_legacy_path() -> None:
 
 
 def test_pinning_rewrites_invented_refs_on_the_prepared_path() -> None:
-    pinned = _pin_authored_experience_refs(PROGRAM, prepared_authored())
+    pinned = _pin_authored_experience_refs(
+        PROGRAM, {"authored_activity": prepared_authored()}
+    )
 
     assert 'LearningExperience("binding-1", "didact.matching@4", "def-1")' in pinned
 
@@ -124,7 +140,9 @@ def test_prompt_and_pinning_cannot_disagree_about_the_ref() -> None:
     )
 
     assert implementation_ref in prompt
-    assert implementation_ref in _pin_authored_experience_refs(PROGRAM, authored)
+    assert implementation_ref in _pin_authored_experience_refs(
+        PROGRAM, {"authored_activity": authored}
+    )
 
 
 def test_prompt_offers_no_experience_when_none_can_be_pinned() -> None:
@@ -182,18 +200,57 @@ def test_outside_didact_mode_both_real_closers_stay_available() -> None:
     assert _offerable_closers({}) == ("QuizItem", "DragOrder")
 
 
+def test_an_activity_payload_that_cannot_be_pinned_counts_as_no_experience() -> None:
+    """The second way into the "authoring declined" state, and the one that deadlocked.
+
+    ``validate_ui`` refuses a ``LearningExperience`` whenever no full triple can be derived,
+    so this state reaches the branch that tells the model to close some other way. The
+    closer policy asked a different question — "is ``authored_activity`` a dict?" — answered
+    ``{"LearningExperience"}``, and the repair message then read "NO uses LearningExperience
+    ... cierra con un LearningExperience" while the prohibition one rule later forbade both
+    real closers. Every closer forbidden, none offerable: the exact deadlock the fallback
+    measurements of 2026-08-27 were about, through a second door.
+    """
+    state = {
+        "assessment_block": "DidactActivity",
+        "authored_activity": unpinnable_authored(),
+    }
+
+    assert _allowed_closers(state) == {"QuizItem", "DragOrder"}
+    assert _forbidden_closers(state) == frozenset()
+    assert _offerable_closers(state) == ("QuizItem", "DragOrder")
+    assert "LearningExperience" not in _offerable_closers(state)
+
+
 def test_every_offered_closer_is_one_the_didact_prohibition_accepts() -> None:
     """The invariant behind both message fixes, stated directly: what a repair proposes must
-    survive the rule that runs right after it."""
+    survive the rule that runs right after it.
+
+    Read from ``_forbidden_closers``, which is the derivation the gate itself uses —
+    including its scope, so a screen the prohibition never runs on cannot look "forbidden"
+    to one function and "allowed" to the other.
+    """
     for state in (
         {"assessment_block": "DidactActivity"},
         {"assessment_block": "DidactActivity", "authored_activity": prepared_authored()},
+        {"assessment_block": "DidactActivity", "authored_activity": legacy_authored()},
+        {"assessment_block": "DidactActivity", "authored_activity": unpinnable_authored()},
+        {"assessment_block": "DidactActivity", "authored_activity": {}},
+        {"assessment_block": "DidactActivity", "authored_activity": None},
         {"assessment_block": "QuizItem"},
+        {"assessment_block": "DragOrder", "authored_activity": unpinnable_authored()},
         {},
     ):
-        forbidden = {"QuizItem", "DragOrder"} - _allowed_closers(state)
+        offered = set(_offerable_closers(state))
 
-        assert not set(_offerable_closers(state)) & forbidden, state
+        assert offered, state
+        assert not offered & _forbidden_closers(state), state
+        assert not offered & ({"QuizItem", "DragOrder"} - _allowed_closers(state)), state
+        # And the one closer the server has to prepare is never proposed unless it exists.
+        if "LearningExperience" in offered:
+            assert _authored_experience_refs(
+                state.get("authored_activity") or {}
+            ) is not None, state
 
 
 def _gate_errors(implementation_ref: str) -> list[str]:

@@ -52,7 +52,6 @@ from src.agents.runtime.assessment import (
 from src.agents.runtime.classify import classify_function
 from src.agents.runtime.screen_scheme import ScreenScheme, plan_screen_scheme
 from src.agents.runtime.errors import (
-    mark_render_failed,
     node_channel,
     publish_error,
     publish_step,
@@ -181,11 +180,15 @@ FALLBACK_MAX_BLOCKS = 2
 # line of defence for the other way the markers can escape: the model copying them back
 # out of its own prompt.
 #
-# The patterns are deliberately **structural**, never a bare word. "Invariantes" is
-# legitimate prose in a course on mathematics or programming, so a lone word never trips
-# the check: what trips it is the dossier's own shape — a namespaced reference, a bracketed
-# id ending in ``:N``, the exact multi-word server jargon, or a section heading in markdown
-# heading form.
+# The patterns are deliberately **structural**, never a bare word, and every one of them
+# is a shape only the *server* writes. "Invariantes" is legitimate prose in a course on
+# mathematics or programming, so a lone word never trips the check; and neither does a
+# citation, which is the mistake this check made until 2026-08-27: matching any
+# ``[letters:digits]`` flagged ``[ISO:9001]``, ``[cap:3]`` and ``[RFC:2606]`` — a lesson
+# quoting a standard, a chapter or an RFC — and cost that screen both repair attempts. What
+# trips it now is a namespaced reference (``must.``/``selectable.``), the dossier's own
+# ``(ref …)`` marker, a bracketed *namespaced* id ending in ``:N``, the exact multi-word
+# server jargon, or a section heading in markdown heading form.
 #
 # The literal wording is read from the module that EMITS it (see ``_scaffold_wording``), so
 # the detector cannot drift from the dossier the day someone renames a section.
@@ -196,12 +199,29 @@ FALLBACK_MAX_BLOCKS = 2
 #: requiring an alphanumeric immediately after the dot keeps "you must. Then..." out.
 _SCAFFOLD_REF_RE = re.compile(r"\b(?:must|selectable)\.[A-Za-z0-9][A-Za-z0-9._:/@-]*")
 
-#: A bracketed dossier reference for the ids that carry no ``must.``/``selectable.``
-#: namespace (evidence and generable slots): ``[algo:12]``. At least one letter is required
-#: inside the brackets so a timestamp or a verse reference (``[1:30]``) is not a false
-#: positive, and the alphabet excludes the space, so ``[Juan 3:16]`` is not one either.
+#: The marker ``runtime_selection._point`` actually writes today: the point's prose, then
+#: its reference in parentheses behind the ``ref`` keyword — ``(ref must.atom:1)``,
+#: ``(ref safety.allergen)``, ``(ref correo_reenviado)``. That keyword is the server's own
+#: jargon, which is what makes this form safe to match for the ids that carry **no**
+#: ``must.``/``selectable.`` namespace (evidence specs and generable slots): the bare id is
+#: indistinguishable from a lesson's own citation, ``(ref <id>)`` is not. A purely numeric
+#: reference is excluded, because "(ref 2)" is a citation a human might write.
+#: ``tests/test_knowledge_pack.py`` runs the real emitter through the detector, so this
+#: cannot silently drift away from the wording it mirrors.
+_SCAFFOLD_POINT_REF_RE = re.compile(
+    r"\(ref\s+(?![0-9]+\))[A-Za-z0-9][A-Za-z0-9._:/@-]*\)", re.IGNORECASE
+)
+
+#: A bracketed dossier reference, the shape the dossier used **before** 2026-08-27 (``-
+#: [must.atom:1] texto``) and the one a seed or summary generated back then can still
+#: carry. A **namespace** is required — a dot with a letter on either side — and not merely
+#: "letters, colon, digits": ``[ISO:9001]``, ``[RFC:2606]``, ``[cap:3]`` and ``[art:5]`` are
+#: a lesson citing a standard or an article, and rejecting those cost the screen its two
+#: repair attempts and then, if the node's own summary carried one, its fallback body too.
+#: ``[1:30]`` and ``[Juan 3:16]`` are excluded for the same reason as before: no dotted
+#: namespace, and the alphabet excludes the space.
 _SCAFFOLD_BRACKET_REF_RE = re.compile(
-    r"\[[A-Za-z0-9][A-Za-z0-9._:/@-]*[A-Za-z][A-Za-z0-9._:/@-]*:\d+\]"
+    r"\[[A-Za-z][A-Za-z0-9_-]*\.[A-Za-z][A-Za-z0-9._:/@-]*:\d+\]"
 )
 
 
@@ -276,10 +296,14 @@ def leaked_scaffolding_markers(text: str) -> list[str]:
         return []
     found: list[str] = []
     found.extend(_SCAFFOLD_REF_RE.findall(text))
-    # Brackets stripped so ``[must.atom:1]`` and ``must.atom:1`` collapse into one entry
-    # instead of reporting the same leak twice.
+    # Delimiters stripped so ``[must.atom:1]``, ``(ref must.atom:1)`` and ``must.atom:1``
+    # collapse into one entry instead of reporting the same leak two or three times.
     found.extend(
         match.strip("[]") for match in _SCAFFOLD_BRACKET_REF_RE.findall(text)
+    )
+    found.extend(
+        match[1:-1].split(None, 1)[1].strip()
+        for match in _SCAFFOLD_POINT_REF_RE.findall(text)
     )
     phrases, heading_res = _scaffold_wording()
     folded = _fold(text)
@@ -1583,6 +1607,33 @@ def _didact_activity_fallback_block(state: NodeRuntimeState) -> str:
     return "QuizItem"
 
 
+def _pinned_experience_refs(state: NodeRuntimeState) -> tuple[str, str, str] | None:
+    """The server-owned experience triple for THIS node, or ``None`` if there is none.
+
+    **The one predicate for "a prepared experience exists".** Everything that branches on
+    it — the prompt's required closer, the screen scheme, the assessment hint, the
+    assembler, the gate's pinning step and the closer policy below — reads this, because
+    ``authored_activity`` being a dict is *not* the same question. A ``MaterializedActivity``
+    with an empty ``component_id``, or a payload whose ``implementation_ref`` carries no
+    ``@version``, is a dict from which no full triple can be derived: the server has nothing
+    to pin, so a ``LearningExperience`` on that screen would reference ids the model
+    invented. Asking the dict-shaped question in one place and the derivable question in
+    another is what let the repair message recommend the very closer the next rule refused
+    (see :func:`_forbidden_closers`).
+    """
+
+    authored = state.get("authored_activity")
+    if not isinstance(authored, dict):
+        return None
+    return _authored_experience_refs(authored)
+
+
+def _has_prepared_experience(state: NodeRuntimeState) -> bool:
+    """Whether the server has a pinnable ``LearningExperience`` for this node."""
+
+    return _pinned_experience_refs(state) is not None
+
+
 def _prompt_assessment_required(state: NodeRuntimeState) -> tuple[str, ...]:
     """Components the scoped prompt must include so verification can close the screen.
 
@@ -1595,7 +1646,7 @@ def _prompt_assessment_required(state: NodeRuntimeState) -> tuple[str, ...]:
 
     block = str(state.get("assessment_block") or "")
     if block == "DidactActivity":
-        if isinstance(state.get("authored_activity"), dict):
+        if _has_prepared_experience(state):
             return ("LearningExperience",)
         return (_didact_activity_fallback_block(state),)
     if block in _DIRECT_DIDACT_CLOSERS:
@@ -1634,27 +1685,58 @@ def _allowed_closers(state: NodeRuntimeState) -> set[str]:
     """
 
     required = set(_prompt_assessment_required(state))
-    if isinstance(state.get("authored_activity"), dict):
+    if _has_prepared_experience(state):
         return required
     return required | set(_REAL_CLOSERS)
+
+
+def _forbidden_closers(state: NodeRuntimeState) -> frozenset[str]:
+    """Real closers the gate refuses on THIS screen. The prohibition's single derivation.
+
+    Two things are folded in here on purpose, because keeping them apart is what produced
+    contradictions:
+
+    * **The scope.** The Didact prohibition only applies to a Didact screen, so anywhere
+      else nothing is forbidden. Computed here rather than at the call site, so a reader of
+      ``_offerable_closers`` cannot get the scope wrong while the gate gets it right.
+    * **The complement.** ``_REAL_CLOSERS - _allowed_closers(state)`` is the exact set the
+      gate rejects, and :func:`_offerable_closers` builds its recommendation by *subtracting*
+      this set. The invariant "a repair never proposes what the next rule rejects" is then
+      structural instead of a fact two functions have to keep agreeing on.
+    """
+
+    block = str(state.get("assessment_block") or "")
+    if block != "DidactActivity" and block not in _DIRECT_DIDACT_CLOSERS:
+        return frozenset()
+    return frozenset(_REAL_CLOSERS) - _allowed_closers(state)
 
 
 def _offerable_closers(state: NodeRuntimeState) -> tuple[str, ...]:
     """Interactions a repair message may name as the closer for THIS screen.
 
-    A repair message must never propose a component the same gate refuses one rule later, so
-    this reads the same ``_allowed_closers`` the prohibition enforces. Naming "un QuizItem o
-    un DragOrder" unconditionally used to point the model straight at an option it was about
-    to be rejected for using.
+    Derived by subtracting :func:`_forbidden_closers`, so a repair message can never propose
+    a component the same gate refuses one rule later. Naming "un QuizItem o un DragOrder"
+    unconditionally used to point the model straight at an option it was about to be
+    rejected for using.
+
+    ``LearningExperience`` is offerable only when the server has a **pinnable** experience,
+    which is precisely when both real closers are forbidden. That is not a coincidence to be
+    maintained by hand: both facts come from :func:`_has_prepared_experience` through
+    :func:`_allowed_closers`. Until 2026-08-27 they did not, and the message on the
+    "no pinnable experience" branch of ``validate_ui`` contradicted itself in one sentence —
+    "NO uses LearningExperience ... cierra con un LearningExperience" — while the prohibition
+    below it forbade both real closers, leaving no repair the gate would accept.
     """
 
-    allowed = _allowed_closers(state)
-    offerable = tuple(name for name in ("QuizItem", "DragOrder") if name in allowed)
+    forbidden = _forbidden_closers(state)
+    offerable = tuple(
+        name for name in ("QuizItem", "DragOrder") if name not in forbidden
+    )
     if offerable:
         return offerable
-    # Everything in scope is a prepared experience or a direct Didact block: name those
-    # rather than a QuizItem the prohibition would refuse.
-    return tuple(sorted(allowed)) or ("QuizItem",)
+    # Every real closer is out, which happens only while a prepared experience exists: name
+    # it rather than a QuizItem the prohibition is about to refuse.
+    return tuple(sorted(_allowed_closers(state) - set(_REAL_CLOSERS))) or ("QuizItem",)
 
 
 def _effective_assessment_hint(state: NodeRuntimeState, required: tuple[str, ...]) -> str:
@@ -1664,7 +1746,7 @@ def _effective_assessment_hint(state: NodeRuntimeState, required: tuple[str, ...
     block = str(state.get("assessment_block") or "")
     if block != "DidactActivity" and block not in _DIRECT_DIDACT_CLOSERS:
         return hint
-    if isinstance(state.get("authored_activity"), dict):
+    if _has_prepared_experience(state):
         return (
             "VERIFICA con LearningExperience usando exactamente la referencia neutral "
             "preparada por el servidor; no inventes ids ni definiciones."
@@ -1691,7 +1773,7 @@ def _effective_screen_scheme(
     closer = stored_practice
     item_type = state.get("assessment_item_type")
     if stored_practice == "DidactActivity":
-        if isinstance(state.get("authored_activity"), dict):
+        if _has_prepared_experience(state):
             closer = "LearningExperience"
         else:
             closer = required[0] if required else "QuizItem"
@@ -2051,10 +2133,7 @@ def _source_with_authored_activity(state: NodeRuntimeState) -> str:
     """Add only the opaque id and public projection to the UI-generation context."""
 
     source = str(state.get("source_context") or "")
-    activity = state.get("authored_activity")
-    if not isinstance(activity, dict):
-        return source
-    refs = _authored_experience_refs(activity)
+    refs = _pinned_experience_refs(state)
     if refs is None:
         return source
     experience_id, implementation_ref, definition_ref = refs
@@ -2591,8 +2670,10 @@ async def genera_ui_multi(state: NodeRuntimeState) -> dict:
         ui_format=ui_format,
         # A server-authored Didact activity owns the closer: the assembler emits the neutral
         # LearningExperience deterministically so the rich interactive activities surface.
+        # Only when the triple is derivable: with a dict the server cannot pin, the
+        # assembler would emit a LearningExperience referencing ids nobody can resolve.
         authored_activity=state.get("authored_activity")
-        if isinstance(state.get("authored_activity"), dict)
+        if _has_prepared_experience(state)
         else None,
     )
 
@@ -2617,7 +2698,7 @@ _LEARNING_EXPERIENCE_CALL = re.compile(
 )
 
 
-def _pin_authored_experience_refs(program_text: str, authored: dict[str, Any]) -> str:
+def _pin_authored_experience_refs(program_text: str, state: NodeRuntimeState) -> str:
     """Rewrite ``LearningExperience`` refs with the server-authoritative ones.
 
     The three refs (``experience_id``, ``implementation_ref@version``, ``definition_ref``)
@@ -2629,11 +2710,12 @@ def _pin_authored_experience_refs(program_text: str, authored: dict[str, Any]) -
     that class of copy-fidelity failures impossible instead of asking an 8B model to copy an
     opaque versioned id perfectly. No-op unless authoring prepared a full, version-pinned ref.
 
-    The refs come from :func:`_authored_experience_refs`, the same derivation the prompt
-    builder uses. Reading ``authored`` directly here is what broke the net on the legacy
-    authoring path: see that function's docstring.
+    The refs come from :func:`_pinned_experience_refs`, the same derivation the prompt
+    builder, the assembler and the closer policy use. Reading ``authored_activity`` directly
+    here is what broke the net on the legacy authoring path: see
+    :func:`_authored_experience_refs`.
     """
-    refs = _authored_experience_refs(authored)
+    refs = _pinned_experience_refs(state)
     if refs is None:
         return program_text
     experience_id, implementation_ref, definition_ref = refs
@@ -2667,10 +2749,8 @@ async def validate_ui(state: NodeRuntimeState) -> dict:
     )
 
     program_text, answer_key = split_answer_key(raw)
-    authored = state.get("authored_activity")
-    refs = _authored_experience_refs(authored) if isinstance(authored, dict) else None
-    if refs is not None:
-        program_text = _pin_authored_experience_refs(program_text, authored)
+    if _has_prepared_experience(state):
+        program_text = _pin_authored_experience_refs(program_text, state)
     elif "LearningExperience(" in program_text:
         # No *pinnable* experience for this node — authoring declined, or it produced a
         # payload no full triple can be derived from — so a ``LearningExperience`` here
@@ -2737,7 +2817,7 @@ async def validate_ui(state: NodeRuntimeState) -> dict:
                 "El texto copia andamiaje interno del servidor: "
                 + ", ".join(leaked[:6])
                 + ". Los titulos del dossier y sus referencias (must.*, selectable.*, "
-                "[algo:3]) son instrucciones para ti, no contenido. Reescribe cada bloque "
+                "(ref ...)) son instrucciones para ti, no contenido. Reescribe cada bloque "
                 "con prosa que el aprendiz pueda leer, explicando el hecho con tus "
                 "palabras y sin ninguna referencia ni titulo del dossier."
             ],
@@ -2745,36 +2825,26 @@ async def validate_ui(state: NodeRuntimeState) -> dict:
             "current_step": "validate_ui",
         }
 
-    assessment_block = str(state.get("assessment_block") or "")
-    if (
-        assessment_block == "DidactActivity"
-        or assessment_block in _DIRECT_DIDACT_CLOSERS
-    ):
-        # The required closer can fall back from LearningExperience to a real interaction
-        # when authoring declines (see _allowed_closers) — genera_ui's prompt and
-        # screen_scheme follow that same fallback, so the prohibition must too, or a
-        # correctly obedient model gets rejected for writing exactly the closer it was told
-        # to. That mismatch was a measured deadlock, not a hypothetical; _allowed_closers
-        # carries the argument.
-        allowed_closers = _allowed_closers(state)
-        forbidden = sorted(
-            {
-                component.type
-                for component in spec.components
-                if component.type in set(_REAL_CLOSERS) - allowed_closers
-            }
-        )
-        if forbidden:
-            return {
-                "ui_spec": None,
-                "validation_errors": [
-                    "En modo Didact esta prohibido "
-                    + " y ".join(forbidden)
-                    + ": usa LearningExperience o un bloque Didact directo."
-                ],
-                "retry_count": int(state.get("retry_count") or 0) + 1,
-                "current_step": "validate_ui",
-            }
+    # The required closer can fall back from LearningExperience to a real interaction when
+    # no prepared experience can be pinned (see _allowed_closers) — genera_ui's prompt and
+    # screen_scheme follow that same fallback, so the prohibition must too, or a correctly
+    # obedient model gets rejected for writing exactly the closer it was told to. That
+    # mismatch was a measured deadlock, not a hypothetical. ``_forbidden_closers`` carries
+    # both the scope (Didact screens only) and the complement, and every repair message
+    # subtracts it, so nothing recommended here can be refused there.
+    refused = _forbidden_closers(state)
+    forbidden = sorted({c.type for c in spec.components if c.type in refused})
+    if forbidden:
+        return {
+            "ui_spec": None,
+            "validation_errors": [
+                "En modo Didact esta prohibido "
+                + " y ".join(forbidden)
+                + ": usa LearningExperience o un bloque Didact directo."
+            ],
+            "retry_count": int(state.get("retry_count") or 0) + 1,
+            "current_step": "validate_ui",
+        }
 
     # Hard guard: the screen must never CLOSE on a Flashcard. The shortlist only steers the
     # model, so on a support screen it sometimes ends with a Flashcard (a reveal) as the last
@@ -2933,9 +3003,8 @@ async def critic_episode(state: NodeRuntimeState) -> dict:
         # like the first pass. Re-apply the same server authority as validate_ui, or the
         # critic silently reintroduces the hallucinated refs it can't be trusted to copy —
         # and unlike validate_ui there is no repair loop here, so a bad ref would be served.
-        authored_activity = state.get("authored_activity")
-        if isinstance(authored_activity, dict):
-            program_text = _pin_authored_experience_refs(program_text, authored_activity)
+        if _has_prepared_experience(state):
+            program_text = _pin_authored_experience_refs(program_text, state)
         elif "LearningExperience(" in program_text:
             # No prepared activity: a LearningExperience here references nothing real and
             # would 404 at serve time ("no se pudo cargar la actividad"). Discard the
@@ -3214,6 +3283,17 @@ def _fallback_diagnostics(state: NodeRuntimeState | dict) -> dict[str, Any]:
     }
 
 
+#: The last link of the fallback content chain: what the learner is told when the node has
+#: no human-written text at all to fall back on. It is *served*, as a one-block ``fallback``
+#: screen, not merely announced on the SSE channel — a request that serves nothing leaves
+#: the pin empty, and an empty pin is a ``202 pending`` the client polls for ever and pays an
+#: LLM generation for each time (see :func:`_serve_fallback`). Dumping ``source_context``
+#: instead is what put the server's own prompt on a learner's screen.
+NOTHING_SERVABLE_MESSAGE = (
+    "No hemos podido preparar este nodo. Vuelve a intentarlo en un momento."
+)
+
+
 async def _serve_fallback(
     state: NodeRuntimeState | dict, *, step: str = "persist_render"
 ) -> dict:
@@ -3222,8 +3302,20 @@ async def _serve_fallback(
     Shared by ``fallback_seed`` (the graph's safety net) and ``persist_render`` (the
     serve-time phantom-experience guard, when dropping the bad activity leaves nothing
     servable). The body is the v1 seed lesson, or failing that the node's summary — the only
-    two texts reachable from this state that a human wrote **for a learner to read**. With
-    neither, nothing is served: see :func:`_nothing_servable`.
+    two texts reachable from this state that a human wrote **for a learner to read** — and
+    with neither, :data:`NOTHING_SERVABLE_MESSAGE`, which says so.
+
+    That last link is what makes the chain terminate. Until 2026-08-27 this branch served
+    **nothing**: the row was marked ``failed`` and no render was pinned, so
+    ``GET /nodes/{id}/render`` answered ``202 pending`` for ever — a spinner the learner
+    could never get past — and the client kept re-arming ``POST /render`` because nothing
+    was served. With no pin there was no *fallback* pin either, which is the only thing
+    ``request_render`` used to charge the retry budget for, and ``find_cached`` cannot see a
+    ``failed`` row: every single poll therefore bought a fresh LLM generation, without
+    limit. A one-sentence screen ends both. It is a ``fallback`` row like any other, which
+    is exactly the status that is **not** retained: ``pinned_render`` swaps the pin for a
+    ``ready`` render as soon as one exists, and the retry budget spends at most
+    ``FALLBACK_RETRY_MAX_ATTEMPTS`` generations on the key while trying to produce one.
 
     ``state["source_context"]`` sat between those two until 2026-08-27 and must never go
     back. It is the **server prompt**, not content: with a validated knowledge pack it is
@@ -3254,8 +3346,8 @@ async def _serve_fallback(
     leaked = leaked_scaffolding_markers(content)
     if leaked:
         # Belt and braces: a seed lesson or summary carrying dossier markers means the leak
-        # was already persisted upstream (a seed generated from a dossier, say). Serve
-        # nothing rather than re-serve it, and log loudly — this branch is a bug elsewhere.
+        # was already persisted upstream (a seed generated from a dossier, say). Drop it
+        # rather than re-serve it, and log loudly — this branch is a bug elsewhere.
         logger.error(
             "fallback body carries internal scaffolding; refusing to serve it "
             "node=%s render=%s body_source=%s markers=%s",
@@ -3266,13 +3358,33 @@ async def _serve_fallback(
         )
         content = ""
     if not content.strip():
-        return await _nothing_servable(state, step=step)
+        logger.error(
+            "nothing servable for node=%s render=%s step=%s: no seed lesson (%s) and no "
+            "usable summary; serving the honest message instead. source_context is NOT a "
+            "fallback body — it is the server prompt.",
+            state.get("node_id"),
+            state.get("render_id"),
+            step,
+            node.get("seed_lesson_id"),
+        )
+        content = NOTHING_SERVABLE_MESSAGE
+        body_source = "nothing_servable"
 
-    lead = str(node.get("summary") or node.get("title") or "")
-    if body_source == "node_summary":
-        # The body IS the summary; using it as the lead too would print the same sentence
-        # twice on the same screen.
-        lead = str(node.get("title") or "")
+    lead = str(node.get("title") or "")
+    if body_source == "seed_lesson":
+        # A full lesson as the body: the summary is the lead it was written for. When the
+        # body IS the summary, or the summary was just dropped for carrying scaffolding,
+        # only the title may lead — printing the same sentence twice, or re-serving the
+        # markers in the lead slot, is what this branch exists to avoid.
+        lead = str(node.get("summary") or node.get("title") or "")
+    if leaked_scaffolding_markers(lead):
+        # The lead is on screen too, so it faces the same bar as the body.
+        logger.error(
+            "fallback lead carries internal scaffolding; dropping it node=%s render=%s",
+            state.get("node_id"),
+            state.get("render_id"),
+        )
+        lead = ""
     spec = build_fallback_spec(summary=lead, content=content)
     backend = get_render_backend(str(state.get("backend") or "openui"))
     program = backend.serialize(spec)
@@ -3288,53 +3400,6 @@ async def _serve_fallback(
         status=NodeRenderStatus.FALLBACK,
         step=step,
     )
-
-
-#: What the learner is told when the node has no human-written text at all to fall back on.
-NOTHING_SERVABLE_MESSAGE = (
-    "No hemos podido preparar este nodo. Vuelve a intentarlo en un momento."
-)
-
-
-async def _nothing_servable(
-    state: NodeRuntimeState | dict, *, step: str
-) -> dict:
-    """No seed lesson and no summary: say so honestly and serve nothing.
-
-    This follows the precedent ``fallback_seed`` already set for "there is no row to write
-    and nothing to serve" — ``error {fallback: false}`` (§9.2), because telling the client
-    to re-request would loop it against a blank screen — rather than inventing a second
-    shape. The one addition is ``node_renders.status = 'failed'``: a row *was* claimed here,
-    and leaving it ``generating`` would both read like a crashed worker and hold the
-    ``cache_key``. Failed is not servable, so ``GET /nodes/{id}/render`` answers ``202
-    pending`` and the honest message on the SSE channel is what the learner sees.
-
-    The alternative was dumping ``source_context``, which is exactly how the server's own
-    prompt reached a learner's screen. An empty "Sin contenido de respaldo." lesson is not
-    better either: it reads like a broken *course* rather than a failed render, and it would
-    be cached as a servable row that nobody ever regenerates.
-
-    ``error`` is deliberately **not** set in the returned state: ``route_after_persist``
-    would send an error back to ``fallback_seed``, which would arrive here again and
-    publish the same message twice.
-    """
-    node = state.get("node") or {}
-    logger.error(
-        "nothing servable for node=%s render=%s step=%s: no seed lesson (%s) and no "
-        "summary. source_context is NOT a fallback body — it is the server prompt.",
-        state.get("node_id"),
-        state.get("render_id"),
-        step,
-        node.get("seed_lesson_id"),
-    )
-    await mark_render_failed(
-        str(state.get("render_id") or "") or None,
-        f"[{step}] nothing servable: the node has no seed lesson and no summary",
-    )
-    await publish_error(
-        str(state["request_id"]), step, NOTHING_SERVABLE_MESSAGE, fallback=False
-    )
-    return {"current_step": "failed"}
 
 
 def build_fallback_spec(*, summary: str, content: str) -> UISpec:

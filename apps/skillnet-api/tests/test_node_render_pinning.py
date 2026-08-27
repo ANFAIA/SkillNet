@@ -313,6 +313,128 @@ async def test_request_render_regenerates_over_a_pinned_fallback(monkeypatch) ->
     assert fallback_retry_available(fallback.cache_key) is False
 
 
+def _unpinned_service(*, spent_row, key: str):
+    """A request with **nothing** pinned and no cache hit: the state that had no budget.
+
+    ``find_cached`` reads ``ready`` only, so it cannot see the row a failed run left behind,
+    and there is no pin to carry the fallback budget either.
+    """
+    service = NodeRenderService(SimpleNamespace())
+    service.pinned_render = AsyncMock(return_value=None)  # type: ignore[method-assign]
+    service.render_key_for = AsyncMock(  # type: ignore[method-assign]
+        return_value=SimpleNamespace(
+            cache_key=key,
+            personalization_revision=0,
+            effective_density=3,
+            scaffold_band="neutral",
+            knowledge_pack_key="",
+            selection_strategy="off",
+            selection_execution="off",
+            generation_policy_key="screen-scheme/v1",
+            longitudinal_decision_digest="d",
+            longitudinal_history=project_longitudinal_history([], nodes_completed=0),
+        )
+    )
+    service.renders = SimpleNamespace(
+        find_cached=AsyncMock(return_value=None),
+        get_by_cache_key=AsyncMock(return_value=spent_row),
+    )
+    return service
+
+
+def _failed_row(key: str):
+    """What a run that could not produce a screen at all leaves behind."""
+    return SimpleNamespace(
+        id=uuid.uuid4(), status=NodeRenderStatus.FAILED, cache_key=key, ui_spec=None
+    )
+
+
+def _call(service, monkeypatch, *, spawned: list):
+    monkeypatch.setattr(
+        "src.agents.runtime.runner.spawn_node_render",
+        lambda state: spawned.append(state),
+    )
+    return service.request_render(
+        user=SimpleNamespace(id=uuid.uuid4()),
+        node=SimpleNamespace(
+            id=uuid.uuid4(),
+            reviewed_at=object(),
+            org_id=uuid.uuid4(),
+            course_id=uuid.uuid4(),
+        ),
+        course=SimpleNamespace(schema_version=1),
+    )
+
+
+@pytest.mark.asyncio
+async def test_a_failed_key_with_nothing_pinned_spends_the_same_budget(monkeypatch) -> None:
+    """A generation was already spent on this key and served nothing: charge for the retry.
+
+    The learner has no screen, so the client keeps asking — which is exactly why this is the
+    most expensive state to leave uncapped. It still regenerates while the budget lasts.
+    """
+    key = f"{current_render_safety_prefix()}nothing-servable"
+    spawned: list[dict] = []
+
+    result = await _call(
+        _unpinned_service(spent_row=_failed_row(key), key=key), monkeypatch,
+        spawned=spawned,
+    )
+
+    assert len(spawned) == 1
+    assert result.cached is False
+    assert fallback_retry_available(key) is False
+
+
+@pytest.mark.asyncio
+async def test_a_failed_key_stops_generating_once_the_budget_is_spent(monkeypatch) -> None:
+    """The loop that had no guard: ``GET /render`` answers ``202`` because nothing is
+    pinned, the client re-arms ``POST /render``, and every poll bought a full LLM cycle
+    because neither the cache nor the fallback pin could see that anything had been tried.
+    """
+    key = f"{current_render_safety_prefix()}nothing-servable-exhausted"
+    for attempt in range(FALLBACK_RETRY_MAX_ATTEMPTS):
+        assert claim_fallback_retry(key, now=attempt * 10_000.0) is True
+
+    monkeypatch.setattr(
+        "src.agents.runtime.runner.spawn_node_render",
+        lambda _state: pytest.fail("an exhausted budget must not spawn a render"),
+    )
+    result = await _unpinned_service(spent_row=_failed_row(key), key=key).request_render(
+        user=SimpleNamespace(id=uuid.uuid4()),
+        node=SimpleNamespace(
+            id=uuid.uuid4(),
+            reviewed_at=object(),
+            org_id=uuid.uuid4(),
+            course_id=uuid.uuid4(),
+        ),
+        course=SimpleNamespace(schema_version=1),
+    )
+
+    assert result.cached is False
+    assert result.request_id == ""
+    assert result.render_id is None
+
+
+@pytest.mark.asyncio
+async def test_a_first_visit_to_a_fresh_key_is_never_charged(monkeypatch) -> None:
+    """The guard reads ``failed`` only: a key nobody has tried generates for free, and a
+    ``generating`` row is somebody else's run in flight, not a spent attempt."""
+    key = f"{current_render_safety_prefix()}fresh-key"
+    spawned: list[dict] = []
+
+    await _call(_unpinned_service(spent_row=None, key=key), monkeypatch, spawned=spawned)
+    generating = SimpleNamespace(
+        id=uuid.uuid4(), status=NodeRenderStatus.GENERATING, cache_key=key, ui_spec=None
+    )
+    await _call(
+        _unpinned_service(spent_row=generating, key=key), monkeypatch, spawned=spawned
+    )
+
+    assert len(spawned) == 2
+    assert fallback_retry_available(key) is True
+
+
 @pytest.mark.asyncio
 async def test_request_render_holds_the_fallback_once_the_budget_is_spent(
     monkeypatch,
