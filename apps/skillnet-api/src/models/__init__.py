@@ -13,6 +13,7 @@ from src.models.course import (
     Course,
     CourseDeliveryMode,
     CourseGenerationState,
+    CourseImageSourcePolicy,
     CourseSchemaStatus,
     CourseTutorStyle,
 )
@@ -127,6 +128,7 @@ __all__ = [
     # --- v2 dynamic courses ---
     "CourseDeliveryMode",
     "CourseGenerationState",
+    "CourseImageSourcePolicy",
     "CourseSchemaStatus",
     "CourseTutorStyle",
     "CourseNode",

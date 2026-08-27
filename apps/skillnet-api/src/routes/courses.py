@@ -89,6 +89,19 @@ def _tutor_style(course: Course) -> str:
     return str(getattr(raw, "value", raw))
 
 
+def _image_source_policy(course: Course) -> str:
+    """What this course does with its source document's own images.
+
+    ``getattr`` with a fallback for the same reason as ``_tutor_style``: a course row
+    that predates migration 0028 (and the hand-built ``Course`` stand-ins the unit tests
+    project) must read ``auto`` — the rule — rather than crash the listing.
+    """
+    raw = getattr(course, "image_source_policy", None)
+    if raw is None:
+        return "auto"
+    return str(getattr(raw, "value", raw))
+
+
 def _generation_state(course: Course) -> str:
     """Whether a creation run owns this course, and how the last one ended.
 
@@ -140,6 +153,7 @@ def _summary(
         artifact_generator_ids=ids,
         can_generate_artifacts=_can_generate(course, user, ids),
         tutor_style=_tutor_style(course),
+        image_source_policy=_image_source_policy(course),
         generation_state=_generation_state(course),
         generation_error=getattr(course, "generation_error", None),
         generation_failed_at=getattr(course, "generation_failed_at", None),
@@ -209,6 +223,7 @@ def _detail(
         artifact_generator_ids=list(generator_ids or []),
         can_generate_artifacts=_can_generate(course, user, list(generator_ids or [])),
         tutor_style=_tutor_style(course),
+        image_source_policy=_image_source_policy(course),
         generation_state=_generation_state(course),
         generation_error=getattr(course, "generation_error", None),
         generation_failed_at=getattr(course, "generation_failed_at", None),

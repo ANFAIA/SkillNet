@@ -69,6 +69,35 @@ class CourseTutorStyle(str, enum.Enum):
     DIRECT = "direct"
 
 
+class CourseImageSourcePolicy(str, enum.Enum):
+    """What this course does with the images that were inside its source document.
+
+    The default rule (``AUTO``) is *diagrams get rebuilt, screenshots get kept*. A
+    screenshot's information is spatial — where a control sits on a screen — and prose
+    is strictly worse than the picture, so the original is placed. A conceptual diagram
+    is usually better as interactive SkillNet content than as a photograph of a diagram,
+    so its description is handed to the generator to re-express with the kit. An image
+    nothing classified (``source_images.kind == 'unknown'``, which is what you get with
+    no vision model) is **kept**: nothing can be rebuilt from a description that was
+    never made.
+
+    The two overrides exist because the rule is a heuristic and some answers are
+    policy, not judgement:
+
+    * ``KEEP_ORIGINAL`` — "do not invent anything, show my material". A compliance
+      requirement no heuristic can serve.
+    * ``REBUILD`` — everything in SkillNet's own visual language; the source image is
+      never placed, only described to the generator.
+
+    Not asked at course creation on purpose: the rule decides and nobody has to choose.
+    It lives in the course settings, editable afterwards like ``tutor_style``.
+    """
+
+    AUTO = "auto"
+    KEEP_ORIGINAL = "keep_original"
+    REBUILD = "rebuild"
+
+
 class CourseGenerationState(str, enum.Enum):
     """Whether a creation run owns this course, and how the last one ended.
 
@@ -180,6 +209,18 @@ class Course(UUIDMixin, TimestampMixin, Base):
         nullable=False,
         server_default=CourseTutorStyle.SOCRATIC.value,
         default=CourseTutorStyle.SOCRATIC,
+    )
+    # What this course does with the images embedded in its source document
+    # (migration 0028). ``auto`` is the rule; the two overrides are policy escapes.
+    image_source_policy: Mapped[CourseImageSourcePolicy] = mapped_column(
+        SAEnum(
+            CourseImageSourcePolicy,
+            name="course_image_source_policy",
+            values_callable=lambda e: [m.value for m in e],
+        ),
+        nullable=False,
+        server_default=CourseImageSourcePolicy.AUTO.value,
+        default=CourseImageSourcePolicy.AUTO,
     )
     # --- creation-run bookkeeping (migration 0025) ---
     generation_state: Mapped[CourseGenerationState] = mapped_column(

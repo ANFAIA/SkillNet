@@ -37,6 +37,9 @@ EXPECTED_CATALOGUE: tuple[tuple[str, tuple[str, ...]], ...] = (
     # broker, kept out of the frozen frontend catalogue/drift digest).
     ("PodcastPlayer", ("artifact_id", "title")),
     ("InfographicImage", ("artifact_id", "alt")),
+    # Broker-scoped too, but it is not a *generated* artefact: it references an image
+    # that was already inside the course's own source document (migration 0026).
+    ("SourceImage", ("image_id", "alt", "caption", "document_id")),
     ("PronunciationExercise", ("targetText", "language")),
     ("Flashcard", ("front", "back")),
     ("HintReveal", ("title", "hints", "solution")),
@@ -91,9 +94,16 @@ def test_positional_prop_order_matches_the_spec_table(name: str, props: tuple[st
 
 
 def test_fallback_and_legacy_alias_are_off_limits_to_the_model() -> None:
-    # ``Markdown``/``DidactActivity`` are not llm_emittable; PodcastPlayer/InfographicImage
-    # are broker-scoped, so they too are excluded from the general emittable catalogue.
-    excluded = {"Markdown", "DidactActivity", "PodcastPlayer", "InfographicImage"}
+    # ``Markdown``/``DidactActivity`` are not llm_emittable; PodcastPlayer,
+    # InfographicImage and SourceImage are broker-scoped, so they too are excluded from
+    # the general emittable catalogue.
+    excluded = {
+        "Markdown",
+        "DidactActivity",
+        "PodcastPlayer",
+        "InfographicImage",
+        "SourceImage",
+    }
     assert UI_KIT.llm_names == tuple(
         name for name, _ in EXPECTED_CATALOGUE if name not in excluded
     )

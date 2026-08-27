@@ -13,6 +13,7 @@ from src.models import (
     ArtifactGeneratePolicy,
     ContentStatus,
     Course,
+    CourseImageSourcePolicy,
     CourseTutorStyle,
     EnrollmentStatus,
     User,
@@ -91,6 +92,16 @@ class CourseService:
             except ValueError as exc:
                 raise ValidationError(
                     "Invalid tutor style", field="tutor_style"
+                ) from exc
+        raw_image_policy = changes.get("image_source_policy")
+        if raw_image_policy is not None:
+            try:
+                changes["image_source_policy"] = CourseImageSourcePolicy(
+                    raw_image_policy
+                )
+            except ValueError as exc:
+                raise ValidationError(
+                    "Invalid image source policy", field="image_source_policy"
                 ) from exc
         clean = {
             k: v

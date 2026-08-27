@@ -552,6 +552,30 @@ async def load_context(state: NodeRuntimeState) -> dict:
         media_offers = gate_offers(
             ready_media, getattr(profile, "learning_preferences", None)
         )
+
+        # The source-image broker: what this course does with the pictures that were
+        # already inside its source document. Diagrams get rebuilt (their description
+        # steers the prompt, no image is placed), screenshots get kept — unless the
+        # course's `image_source_policy` overrides the rule. Deliberately NOT routed
+        # through `gate_offers`: a source image is content, not a modality, and that gate
+        # only fires for a learner who declared audio or visual.
+        from src.agents.runtime.source_image_broker import (
+            SOURCE_IMAGE_COMPONENT,
+            decide_source_images,
+            decision_fingerprint,
+            source_images_for_node,
+            suppress_competing_media,
+        )
+
+        image_decision = decide_source_images(
+            await source_images_for_node(db, node=node, org_id=org_id),
+            policy=getattr(course, "image_source_policy", None),
+            preferences=getattr(profile, "learning_preferences", None),
+        )
+        # A real picture from the customer's own manual and one a model invented must not
+        # share a lesson; the real one wins. A podcast is untouched — different sense.
+        media_offers = suppress_competing_media(image_decision, media_offers)
+
         media_offers_payload = [
             {
                 "kind": offer.kind,
@@ -560,6 +584,25 @@ async def load_context(state: NodeRuntimeState) -> dict:
                 "title": offer.title,
             }
             for offer in media_offers
+        ]
+        source_image_offers_payload = [
+            {
+                "component": SOURCE_IMAGE_COMPONENT,
+                "image_id": offer.image_id,
+                "alt": offer.alt,
+                "caption": offer.caption,
+                # The asset route is document-scoped, so the client needs both ids.
+                "document_id": offer.document_id,
+            }
+            for offer in image_decision.kept
+        ]
+        source_image_rebuilds_payload = [
+            {
+                "image_id": item.image_id,
+                "description": item.description,
+                "caption": item.caption,
+            }
+            for item in image_decision.rebuilt
         ]
 
         key = build_render_key(
@@ -576,6 +619,9 @@ async def load_context(state: NodeRuntimeState) -> dict:
             knowledge_pack_key=expected_pack_key,
             longitudinal_history=history,
             media_offer_fingerprint=offers_fingerprint(media_offers),
+            # The course's image policy plus the chosen originals. Empty when the node
+            # matched no source image, so no pre-existing render key moves.
+            source_image_fingerprint=decision_fingerprint(image_decision),
             # The learner's free-text note partitions the render cache: two learners with
             # different notes get different renders, and changing your note re-renders.
             # Mirrors the pre-graph key in NodeRenderService.render_key_for exactly.
@@ -720,6 +766,9 @@ async def load_context(state: NodeRuntimeState) -> dict:
         "siblings": siblings,
         # Broker-offered media components for this node (already gated by preference).
         "media_offers": media_offers_payload,
+        # Originals from the source document this lesson places, and the ones it rebuilds.
+        "source_image_offers": source_image_offers_payload,
+        "source_image_rebuilds": source_image_rebuilds_payload,
         "backend": str(state.get("backend") or "openui"),
         "effective_density": key.effective_density,
         "scaffold_band": key.scaffold_band,
@@ -1805,29 +1854,82 @@ def _with_media_offers(scoped_prompt: str, state: NodeRuntimeState) -> str:
     return f"{scoped_prompt}\n{addendum}" if addendum else scoped_prompt
 
 
+def _with_source_images(scoped_prompt: str, state: NodeRuntimeState) -> str:
+    """Append the source-image broker's block: place these originals, re-express those.
+
+    Pure over ``state``: reads what ``load_context`` already decided (course policy x
+    image ``kind`` x the learner's ``images`` preference) and widens the scoped prompt
+    with the id-pinned ``SourceImage`` whitelist, the rebuild instructions, or both.
+    Neither -> the prompt is returned unchanged, so a node with no source images never
+    sees the block and can never emit the component.
+    """
+    kept = state.get("source_image_offers") or ()
+    rebuilds = state.get("source_image_rebuilds") or ()
+    if not kept and not rebuilds:
+        return scoped_prompt
+    from src.agents.runtime.source_image_broker import (
+        SourceImageDecision,
+        SourceImageOffer,
+        SourceImageRebuild,
+        decision_prompt_addendum,
+    )
+
+    decision = SourceImageDecision(
+        kept=tuple(
+            SourceImageOffer(
+                image_id=str(item.get("image_id")),
+                alt=str(item.get("alt") or ""),
+                caption=str(item.get("caption") or ""),
+                document_id=str(item.get("document_id") or ""),
+            )
+            for item in kept
+            if item.get("image_id")
+        ),
+        rebuilt=tuple(
+            SourceImageRebuild(
+                image_id=str(item.get("image_id")),
+                description=str(item.get("description") or ""),
+                caption=str(item.get("caption") or ""),
+            )
+            for item in rebuilds
+            if item.get("description")
+        ),
+        considered=len(kept) + len(rebuilds),
+    )
+    addendum = decision_prompt_addendum(decision)
+    if not addendum:
+        return scoped_prompt
+    return scoped_prompt + "\n" + addendum
+
+
 def _guarantee_media_offers(
     spec_dict: dict, program: str, state: NodeRuntimeState | dict
 ) -> tuple[dict, str]:
     """Deterministically place any preference-gated media offer the model did not emit.
 
     The broker widens the prompt so the model *may* embed a ready PodcastPlayer/
-    InfographicImage, but a plan-driven episode (or the critic) routinely drops the optional
-    reference, so a preference-matching learner would not reliably see the artefact. This is
-    the guarantee: after a program has already validated, if a gated offer for this node is
-    not already referenced, append the id-pinned broker component to the root and
-    re-serialize from the spec. Nothing here can crash a render — on any error the original
-    (already valid) spec and program are returned untouched, honouring the gate-valid-program
-    rule.
+    InfographicImage — or a ``SourceImage``, an original picture from the course's own
+    source document — but a plan-driven episode (or the critic) routinely drops the
+    optional reference, so a learner the offer was gated *for* would not reliably see it.
+    This is the guarantee: after a program has already validated, if a gated offer for
+    this node is not already referenced, append the id-pinned broker component to the root
+    and re-serialize from the spec. Nothing here can crash a render — on any error the
+    original (already valid) spec and program are returned untouched, honouring the
+    gate-valid-program rule.
+
+    Rebuilt source images are deliberately absent: they place no component at all, they
+    only steer the prompt, so there is nothing here to guarantee.
     """
-    offers = state.get("media_offers") or ()
+    offers = [*(state.get("media_offers") or ()), *(state.get("source_image_offers") or ())]
     if not offers:
         return spec_dict, program
     try:
         spec = UISpec.model_validate(spec_dict)
         present = {
-            str(component.props.get("artifact_id"))
+            str(component.props.get(key))
             for component in spec.components
-            if component.props.get("artifact_id")
+            for key in ("artifact_id", "image_id")
+            if component.props.get(key)
         }
         components = list(spec.components)
         root = next((c for c in components if c.id == spec.root), None)
@@ -1836,20 +1938,30 @@ def _guarantee_media_offers(
 
         added_ids: list[str] = []
         for index, offer in enumerate(offers):
-            artifact_id = str(offer.get("artifact_id") or "")
             component_type = str(offer.get("component") or "")
-            if not artifact_id or artifact_id in present:
+            # A source image is addressed by ``image_id``, a media artefact by
+            # ``artifact_id``; both are the real row id and neither is ever invented.
+            offered_id = str(offer.get("artifact_id") or offer.get("image_id") or "")
+            if not offered_id or offered_id in present:
                 continue
             if component_type == "PodcastPlayer":
-                props = {"artifact_id": artifact_id, "title": str(offer.get("title") or "Audio overview")}
+                props = {"artifact_id": offered_id, "title": str(offer.get("title") or "Audio overview")}
             elif component_type == "InfographicImage":
-                props = {"artifact_id": artifact_id, "alt": str(offer.get("title") or "Infografia")}
+                props = {"artifact_id": offered_id, "alt": str(offer.get("title") or "Infografia")}
+            elif component_type == "SourceImage":
+                # Prop order matters and `document_id` is last: see `SourceImageOffer`.
+                props = {
+                    "image_id": offered_id,
+                    "alt": str(offer.get("alt") or "Imagen del documento de origen"),
+                    "caption": str(offer.get("caption") or ""),
+                    "document_id": str(offer.get("document_id") or ""),
+                }
             else:
                 continue
             new_id = f"brokerMedia{index + 1}"
             components.append(Component(id=new_id, type=component_type, props=props))
             added_ids.append(new_id)
-            present.add(artifact_id)
+            present.add(offered_id)
 
         if not added_ids:
             return spec_dict, program
@@ -1916,6 +2028,7 @@ async def genera_ui(state: NodeRuntimeState) -> dict:
     # modality preference allows it, widen the closed scope with a grounded, id-pinned
     # PodcastPlayer/InfographicImage offer. A misused offer still fails the gate -> fallback.
     scoped_prompt = _with_media_offers(scoped_prompt, state)
+    scoped_prompt = _with_source_images(scoped_prompt, state)
     assessment_block = str(state.get("assessment_block") or "")
     didact_verification = (
         "LearningExperience" in assessment_required
@@ -1952,6 +2065,7 @@ async def genera_ui(state: NodeRuntimeState) -> dict:
         # unplanned) is reliably dropped. Repeat the id-pinned directive here so a
         # preference-matching learner actually gets the artefact placed into the episode.
         user_prompt = _with_media_offers(user_prompt, state)
+        user_prompt = _with_source_images(user_prompt, state)
     else:
         system = ui_generator_system(
             scoped_prompt, didact_verification=didact_verification
@@ -2506,6 +2620,7 @@ async def critic_episode(state: NodeRuntimeState) -> dict:
             enabled=True,
         )
         scoped_prompt = _with_media_offers(scoped_prompt, state)
+        scoped_prompt = _with_source_images(scoped_prompt, state)
         system = episode_ui_revise_system(scoped_prompt)
         user_prompt = build_episode_revise_prompt(
             episode=episode_payload,

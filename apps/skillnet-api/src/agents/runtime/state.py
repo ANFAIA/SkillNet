@@ -60,6 +60,15 @@ class NodeRuntimeState(TypedDict, total=False):
     # Broker-offered media components for this node, already gated by learner preference:
     # each is {kind, component, artifact_id, title} for a READY MediaArtifact.
     media_offers: list[dict]
+    # Originals from the course's own source document that this lesson PLACES: each is
+    # {component, image_id, alt, caption, document_id} for a real ``source_images`` row —
+    # the prop order the frontend component expects, document_id last. Already gated
+    # by the course's ``image_source_policy``, the image's ``kind`` and the learner's
+    # ``images`` preference.
+    source_image_offers: list[dict]
+    # Originals this lesson REBUILDS instead of showing: each is {image_id, description,
+    # caption}. No component is placed for these; the description steers the prompt.
+    source_image_rebuilds: list[dict]
 
     # --- Gate ---
     mastered: bool

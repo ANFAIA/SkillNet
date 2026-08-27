@@ -936,7 +936,12 @@ def test_the_parser_accepts_exactly_the_emittable_components() -> None:
                 continue
             accepted.add(name)  # rejected for arity/props, so the name itself is known
     # DidactActivity remains parseable for historical programs but is absent from
-    # the catalogue shown to new-course authoring. PodcastPlayer/InfographicImage are
-    # broker-scoped: parseable/validated by the kit (so a broker-injected program is
-    # accepted), but kept out of the general emittable catalogue and llm_names.
-    assert accepted == emittable | {"DidactActivity", "PodcastPlayer", "InfographicImage"}
+    # the catalogue shown to new-course authoring. PodcastPlayer/InfographicImage/
+    # SourceImage are broker-scoped: parseable/validated by the kit (so a broker-injected
+    # program is accepted), but kept out of the general emittable catalogue and llm_names.
+    assert accepted == emittable | {
+        "DidactActivity",
+        "PodcastPlayer",
+        "InfographicImage",
+        "SourceImage",
+    }

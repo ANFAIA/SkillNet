@@ -22,10 +22,11 @@ the model prompt, not for Python: it says nothing about which block is a *contai
 which function it competes for (``ContentFunction``/``FunctionFit``), or which components
 exist for the backend only and never reach the frontend prompt catalogue at all
 (``Markdown`` — server-authored fallback; ``DidactActivity`` — legacy, playback-only;
-``PodcastPlayer``/``InfographicImage`` — broker-scoped, injected per-node). That metadata
-is genuinely backend business, so it stays declared here, in :data:`_BACKEND_METADATA`
+``PodcastPlayer``/``InfographicImage``/``SourceImage`` — broker-scoped, injected
+per-node). That metadata is genuinely backend business, so it stays declared here, in
+:data:`_BACKEND_METADATA`
 (keyed by name, for the JSON-derived components) and in :data:`_BACKEND_ONLY_COMPONENTS`
-(full hand-written specs, for the four components the artefact does not describe at all).
+(full hand-written specs, for the five components the artefact does not describe at all).
 
 Two closed lists are imported instead of retyped, so they cannot drift either:
 ``ExerciseType`` (the six ``item_type`` values, §5.3) and ``BLOOM_LEVELS`` (the six
@@ -309,6 +310,32 @@ _BACKEND_ONLY_COMPONENTS: tuple[ComponentSpec, ...] = (
         ),
     ),
     ComponentSpec(
+        name="SourceImage",
+        broker_scoped=True,
+        purpose=(
+            "Imagen que ya venia DENTRO del documento de origen de este curso (una "
+            "captura de pantalla, un diagrama, una foto real). No es material generado: "
+            "es el material del cliente, y por eso se muestra con su procedencia. "
+            "Referencia una imagen real por id; nunca inventes el id. Solo esta "
+            "disponible cuando el broker la ofrece"
+        ),
+        props=(
+            PropSpec("image_id", PropKind.STRING, "Id de la fila source_images ofrecida por el broker"),
+            PropSpec("alt", PropKind.STRING, "Texto alternativo accesible que describe la imagen"),
+            PropSpec(
+                "caption",
+                PropKind.STRING,
+                "Procedencia que se imprime bajo la imagen (documento > seccion, pag. N)",
+            ),
+            # LAST on purpose, and the frontend depends on it being last: the asset route
+            # is document-scoped, so the client needs both ids to fetch the bytes — but if
+            # a program ever arrives with only the first three, positional mapping still
+            # lands image_id/alt/caption correctly and the missing document_id degrades
+            # into a handled "unavailable" state instead of painting the caption as alt.
+            PropSpec("document_id", PropKind.STRING, "Id del documento que contiene la imagen"),
+        ),
+    ),
+    ComponentSpec(
         name="DidactActivity",
         llm_emittable=False,
         legacy_parseable=True,
@@ -336,7 +363,7 @@ _BACKEND_ONLY_COMPONENTS: tuple[ComponentSpec, ...] = (
 _CATALOGUE_ORDER: tuple[str, ...] = (
     "Stack", "TextContent", "Card", "Callout", "StepSequence", "Table", "CodeBlock",
     "Chart", "QuizItem", "BeforeAfter", "Markdown", "DragOrder", "AudioExplanation",
-    "PodcastPlayer", "InfographicImage", "PronunciationExercise", "Flashcard",
+    "PodcastPlayer", "InfographicImage", "SourceImage", "PronunciationExercise", "Flashcard",
     "HintReveal", "DidactGlossary", "DidactTimeline", "DidactWorkedExample",
     "LearningExperience", "DidactActivity",
 )

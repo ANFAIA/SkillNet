@@ -9,7 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from src.core.exceptions import NotFoundError, ValidationError
 from src.core.tasks import task_registry
-from src.deps.auth import AdminUser
+from src.deps.auth import AdminUser, CurrentUser
 from src.deps.db import DBSession
 from src.deps.llm import LLMDep
 from src.models import DocumentStatus
@@ -159,9 +159,17 @@ async def list_document_images(
 
 @router.get("/{document_id}/images/{image_id}")
 async def get_document_image(
-    admin: AdminUser, db: DBSession, document_id: uuid.UUID, image_id: uuid.UUID
+    user: CurrentUser, db: DBSession, document_id: uuid.UUID, image_id: uuid.UUID
 ) -> Response:
     """The stored bytes of one extracted image, or ``404``.
+
+    Any member of the organization, not only an admin: a lesson may **place** one of
+    these images (the ``SourceImage`` component of the kit — see
+    ``src/agents/runtime/source_image_broker.py``), so the learner looking at that lesson
+    has to be able to fetch the bytes. Listing stays admin-only, so this widens nothing
+    that can be enumerated: both path parameters are unguessable UUIDs, the row is still
+    resolved with both the org *and* the owning document, and the only ids a learner ever
+    receives are the ones their own render already embedded.
 
     Same shape and the same discipline as ``GET /media/artifacts/{id}/asset``. Traversal
     is impossible by construction and then again by check: both path parameters are parsed
@@ -172,7 +180,7 @@ async def get_document_image(
     a row corrupted by any future writer still cannot address a file outside the store.
     """
     image = await SourceImageRepository(db).get_scoped(
-        image_id, admin.org_id, document_id
+        image_id, user.org_id, document_id
     )
     if image is None:
         raise NotFoundError("source_images", str(image_id))
