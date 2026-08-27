@@ -14,6 +14,7 @@ from src.knowledge_pack.markdown import render_markdown
 from src.services.course_package import PACKAGE_FORMAT, read_package
 from src.services.course_package.export import _pack_document, slugify
 from src.services.course_package.format import HANDWRITTEN_GENERATOR
+from src.services.course_package.read import review_notes
 
 COURSE = {
     "format": PACKAGE_FORMAT,
@@ -302,3 +303,39 @@ def test_image_policy_travels_with_the_package(tmp_path: Path) -> None:
     assert read_package(directory).image_policy == "keep_original"
     # Absent means "leave whatever the target already has", not "force the default".
     assert read_package(_valid(tmp_path / "b")).image_policy is None
+
+
+def test_review_notes_flag_claims_about_product_behaviour(tmp_path: Path) -> None:
+    """The one class of claim a package author cannot check by rereading their own file.
+
+    A claim about what the product does or does not do is about software, while the source
+    is a document — so it has to be pointed at a sentence, by a person. The first
+    hand-authored package rested a whole course thesis on one of these, and the rewrite
+    moved it out of the atoms and into an evidence gate, where it survived a review pass.
+    """
+    pack = json.loads(json.dumps(SELLING_PACK))
+    pack["selectable"][0]["text"] = "El sistema no avisa de nada cuando esto pasa."
+    pack["evidence"][0]["description"] = "Clasificar en lo que el sistema bloquea o pasa en silencio."
+    directory = _write(tmp_path, COURSE, {"selling": pack, "refunds": REFUNDS_PACK})
+
+    notes = review_notes(directory)
+    phrases = [phrase.lower() for _, phrase in notes]
+
+    assert any("no avisa" in p for p in phrases)
+    # The evidence gate is checked too: that is where the claim hid the second time.
+    assert any("pasa en silencio" in p for p in phrases)
+    assert all(":" in location for location, _ in notes)
+
+
+def test_review_notes_are_not_errors(tmp_path: Path) -> None:
+    """A package full of behaviour claims still lints clean: a reviewer decides, not lint."""
+    pack = json.loads(json.dumps(SELLING_PACK))
+    pack["selectable"][0]["text"] = "El sistema no comprueba el importe."
+    directory = _write(tmp_path, COURSE, {"selling": pack, "refunds": REFUNDS_PACK})
+
+    assert read_package(directory).ok
+    assert review_notes(directory)
+
+
+def test_review_notes_stay_quiet_on_ordinary_material(tmp_path: Path) -> None:
+    assert review_notes(_valid(tmp_path)) == []

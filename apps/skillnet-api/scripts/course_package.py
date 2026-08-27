@@ -26,6 +26,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from src.services.course_package import read_package  # noqa: E402
+from src.services.course_package.read import review_notes  # noqa: E402
 from src.services.course_package.install import InstallError, install_package  # noqa: E402
 
 
@@ -34,6 +35,14 @@ def _lint(args: argparse.Namespace) -> int:
     if not package.ok:
         _report_faults(package)
         return 1
+
+    if args.review:
+        notes = review_notes(args.directory)
+        if notes:
+            print(f"{len(notes)} claim(s) about product behaviour — confirm each against the source:")
+            for location, phrase in notes:
+                print(f"  {location}: {phrase!r}")
+            print()
 
     atoms = sum(len(node.pack.must_preserve) for node in package.nodes)
     options = sum(len(node.pack.selectable) for node in package.nodes)
@@ -110,6 +119,15 @@ def main() -> None:
 
     lint = sub.add_parser("lint", help="Validate a package without touching the database")
     lint.add_argument("directory", help="Package directory to read")
+    lint.add_argument(
+        "--review",
+        action="store_true",
+        help=(
+            "Also list claims about what the product does or does not do. Not errors: a "
+            "person confirms each one against the source, because a package author cannot "
+            "check them by rereading their own file."
+        ),
+    )
     lint.set_defaults(handler=_lint)
 
     export = sub.add_parser("export", help="Write an existing course out as a package")

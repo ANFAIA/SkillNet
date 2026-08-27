@@ -71,6 +71,46 @@ class CoursePackage:
         return not self.errors
 
 
+#: Phrasings that assert what the product does or does not do. They are not wrong by
+#: themselves — a source manual may well say them — but they are the one thing a package
+#: author cannot check by rereading their own file, because the claim is about software and
+#: the source is a document. Every one of them has to be traceable to a sentence someone can
+#: point at, so ``lint --review`` lists them and a person confirms them one by one.
+#:
+#: Measured on the first hand-authored package: a whole course thesis rested on "the system
+#: lets it through without saying anything", which the source manual never states. The
+#: rewrite pushed it out of the atoms and into the evidence gates and the course metadata,
+#: where the second review pass found it again. Hence: the whole package, every field.
+_BEHAVIOUR_CLAIMS = re.compile(
+    r"(?:el sistema|la plataforma|el panel|el campo)\s+(?:no\s+)?"
+    r"(?:avisa|comprueba|vigila|bloquea|impide|reclama|permite|acepta|deja|se[nñ]ala|valida|"
+    r"guarda|corrige)"
+    r"|pasa en silencio|sin decir nada|ning[uú]n aviso|no produce (?:ning[uú]n )?aviso"
+    r"|se ve igual|indistinguible",
+    re.IGNORECASE,
+)
+
+
+def review_notes(directory: str | Path) -> list[tuple[str, str]]:
+    """``(location, quoted phrase)`` for every claim about product behaviour in a package.
+
+    Not errors: a reviewer decides. Returned separately from :class:`PackageError` so a
+    package can be valid and still owe someone a read-through.
+    """
+    notes: list[tuple[str, str]] = []
+    root = Path(directory)
+    for path in sorted(root.rglob("*.json")):
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+        relative = path.relative_to(root).as_posix()
+        for line_number, line in enumerate(text.splitlines(), start=1):
+            for found in _BEHAVIOUR_CLAIMS.finditer(line):
+                notes.append((f"{relative}:{line_number}", found.group(0).strip()))
+    return notes
+
+
 def _pinned(
     entry: dict, key: str, location: str, errors: list[PackageError]
 ) -> UUID | None:
