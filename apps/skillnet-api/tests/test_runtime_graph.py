@@ -55,6 +55,10 @@ from src.agents.runtime.nodes import (
     split_answer_key,
 )
 from src.config import settings
+from src.knowledge_pack.runtime_selection import (
+    DOSSIER_SECTION_HEADINGS,
+    DOSSIER_TITLE,
+)
 from src.llm.client import LLMConfig, Usage
 from src.agents.runtime.assessment import plan_assessment
 from src.agents.runtime.screen_scheme import plan_screen_scheme
@@ -1070,6 +1074,245 @@ async def test_load_context_failing_says_so_once_and_promises_nothing(
     assert harness.session.renders == []
     flags = [payload["fallback"] for payload in harness.payloads("error")]
     assert flags == [True, False]
+
+
+# --------------------------------------------------------------------------------------
+# The fallback body is content, never the server's own prompt (the leak of 2026-08-27)
+# --------------------------------------------------------------------------------------
+#: A dossier exactly as ``knowledge_pack.runtime_selection._render_context`` writes one,
+#: assembled from that module's own heading constants so this literal cannot drift away
+#: from the emitter. The other end is pinned in ``tests/test_knowledge_pack.py``: the real
+#: emitter's output is recognized by ``leaked_scaffolding_markers``.
+LEAKED_DOSSIER = "\n".join(
+    [
+        f"# {DOSSIER_TITLE}",
+        "",
+        "Usa unicamente los hechos y posibilidades siguientes. Conserva todos los "
+        "invariantes y no inventes reglas fuera del dossier.",
+        "",
+        f"## {DOSSIER_SECTION_HEADINGS[0]}",
+        "",
+        "- Si el cliente dice que no le ha llegado la entrada, comprueba primero su "
+        "correo electronico. (ref must.atom:1)",
+        "- Reenvio de email: en el apartado 'Acciones' puedes reenviar el correo. "
+        "(ref must.atom:10)",
+        "",
+        f"## {DOSSIER_SECTION_HEADINGS[1]}",
+        "",
+        "- Caso de un cliente que escribio mal su correo al comprar. "
+        "(ref selectable.case:2)",
+        "",
+    ]
+)
+
+#: Markers a learner must never read, whatever path the render took.
+FORBIDDEN_ON_SCREEN = ("Invariantes", "must.atom", "selectable.case", "Dossier")
+
+
+def served_text(render: NodeRender) -> str:
+    """Everything of a persisted render that can reach a browser."""
+    return render.dialect + json.dumps(render.ui_spec, ensure_ascii=False)
+
+
+def no_llm(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The offline / no-API-key case: every tier explodes, so the graph must fall back."""
+
+    def exploding_llm(org_settings, tier):
+        raise RuntimeError("no LLM configured")
+
+    monkeypatch.setattr(runtime_nodes, "tier_llm", exploding_llm)
+
+
+async def test_the_fallback_never_serves_the_server_prompt_as_the_lesson(
+    harness: Harness, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The leak of 2026-08-27, end to end.
+
+    A course authored natively in v2 has **no** ``seed_lesson_id``, so the fallback body
+    fell through to ``state["source_context"]`` — the dossier the server sends *the model* —
+    and a learner read ``[must.atom:1] Si el cliente dice...`` on screen as their lesson.
+    The body now stops at the node summary, which is prose a human wrote for a learner.
+    """
+    no_llm(monkeypatch)
+    harness.session.node.seed_lesson_id = None
+    harness.session.lesson = None
+    harness.session.document.full_text = LEAKED_DOSSIER
+
+    final = await run_graph(make_request_state())
+    render = harness.render()
+
+    assert final["current_step"] == "fallback_seed"
+    assert render.status is NodeRenderStatus.FALLBACK
+    text = served_text(render)
+    for marker in FORBIDDEN_ON_SCREEN:
+        assert marker not in text, marker
+    assert runtime_nodes.leaked_scaffolding_markers(text) == []
+    # What it serves instead: the node summary, under the node title as the lead.
+    assert "30 dias naturales" in text
+    assert "Plazo de devolucion" in text
+
+
+async def test_a_node_with_a_seed_lesson_still_falls_back_to_it(
+    harness: Harness, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The good path is untouched: a v1 seed lesson is still the fallback body, and it still
+    wins over anything else in the state (here a dossier sitting in ``source_context``)."""
+    no_llm(monkeypatch)
+    harness.session.document.full_text = LEAKED_DOSSIER
+
+    final = await run_graph(make_request_state())
+    render = harness.render()
+
+    assert final["current_step"] == "fallback_seed"
+    assert render.status is NodeRenderStatus.FALLBACK
+    text = served_text(render)
+    # Straight out of ``SEED_LESSON_CONTENT``, and nothing out of the dossier.
+    assert "Hace falta el ticket" in text
+    for marker in FORBIDDEN_ON_SCREEN:
+        assert marker not in text, marker
+
+
+async def test_with_no_seed_and_no_summary_the_render_fails_instead_of_dumping_the_prompt(
+    harness: Harness, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The decision this test documents: with neither a seed lesson nor a summary there is
+    no human-written text to serve, so nothing is served.
+
+    ``error {fallback: false}`` plus ``node_renders.status='failed'`` — the precedent
+    ``fallback_seed`` already set for its no-row branch. An honest "no hemos podido
+    preparar este nodo" beats both a dump of the server's prompt and an empty
+    "Sin contenido de respaldo." lesson cached as if it were the course.
+    """
+    no_llm(monkeypatch)
+    harness.session.node.seed_lesson_id = None
+    harness.session.lesson = None
+    harness.session.node.summary = ""
+    harness.session.document.full_text = LEAKED_DOSSIER
+
+    final = await run_graph(make_request_state())
+    render = harness.render()
+
+    assert final["current_step"] == "failed"
+    assert render.status is NodeRenderStatus.FAILED
+    assert "nothing servable" in (render.error_message or "")
+    assert not render.ui_spec
+    # `decide_formato` announced its own failure with fallback:true; `fallback_seed` then
+    # found nothing to serve and said so with fallback:false, which is what stops the
+    # client re-requesting a render that cannot exist.
+    errors = harness.payloads("error")
+    assert [payload["fallback"] for payload in errors] == [True, False]
+    assert errors[-1]["message"] == runtime_nodes.NOTHING_SERVABLE_MESSAGE
+    # Nothing was served, so the client is never told a screen is ready.
+    assert "ui_done" not in harness.event_types()
+
+
+# --------------------------------------------------------------------------------------
+# Defence in depth: the model can copy the markers out of its own prompt
+# --------------------------------------------------------------------------------------
+def explanation_program(*blocks: str) -> str:
+    """A minimal valid ``explanation`` program: a lead plus the given body blocks."""
+    ids = ["intro"] + [f"b{index}" for index, _ in enumerate(blocks, start=1)]
+    lines = [
+        f'root = Stack([{", ".join(ids)}], "md")',
+        'intro = TextContent("Como dependiente, esto te sirve para resolver una '
+        'devolucion en caja.", "lead")',
+    ]
+    for index, block in enumerate(blocks, start=1):
+        lines.append(f'b{index} = TextContent("{block}", "body")')
+    return "\n".join(lines) + "\n"
+
+
+async def test_a_leaked_atom_id_in_the_output_goes_back_to_the_repair_loop(
+    harness: Harness,
+) -> None:
+    """Closing the fallback path is not enough: the prompt shows the model the dossier's
+    references next to the text of every point, so it can copy them into a prop.
+
+    Rejected rather than scrubbed — a copied marker is the visible symptom of a screen that
+    transcribed the scaffolding instead of teaching from it, so deleting the token would
+    leave a sentence that was written for the model either way.
+    """
+    raw = explanation_program(
+        "[must.atom:10] Reenvio de email: en Acciones puedes reenviar el correo."
+    )
+
+    result = await runtime_nodes.validate_ui(
+        make_request_state(raw_dsl=raw, ui_format="explanation")  # type: ignore[arg-type]
+    )
+
+    assert result["ui_spec"] is None
+    assert result["retry_count"] == 1
+    assert "must.atom:10" in result["validation_errors"][0]
+    assert route_after_validate(result) == "retry"
+
+
+async def test_a_copied_dossier_heading_is_rejected_too(harness: Harness) -> None:
+    """The other half of the shape: the section headings, in the dossier's own markdown
+    heading form."""
+    raw = explanation_program(f"## {DOSSIER_SECTION_HEADINGS[0]}")
+
+    result = await runtime_nodes.validate_ui(
+        make_request_state(raw_dsl=raw, ui_format="explanation")  # type: ignore[arg-type]
+    )
+
+    assert result["ui_spec"] is None
+    assert DOSSIER_SECTION_HEADINGS[0] in result["validation_errors"][0]
+
+
+async def test_a_lesson_about_invariants_is_not_mistaken_for_the_dossier(
+    harness: Harness,
+) -> None:
+    """The false positive that matters. "Invariantes" is ordinary prose in a course on
+    programming or mathematics, a timestamp is not an atom id, and "you must." is not a
+    namespace — none of them may cost the learner a repair round, let alone a fallback."""
+    raw = explanation_program(
+        "Los invariantes de un bucle son las condiciones que se mantienen en cada "
+        "iteracion. Invariantes y variantes no son lo mismo.",
+        "El video empieza en [1:30] y la cita esta en [Juan 3:16]. You must. Then stop.",
+    )
+
+    result = await runtime_nodes.validate_ui(
+        make_request_state(raw_dsl=raw, ui_format="explanation")  # type: ignore[arg-type]
+    )
+
+    assert result["validation_errors"] == []
+    assert result["ui_spec"] is not None
+    assert route_after_validate(result) == "ok"
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Los invariantes de un bucle se mantienen en cada iteracion.",
+        "Invariantes",
+        "El material adaptable de la asignatura esta en el aula virtual.",
+        "El corte esta en [1:30] y la cita en [Juan 3:16].",
+        "You must. Then stop. It is a must.",
+        "La ratio es 3:1 y el dossier del alumno esta en secretaria.",
+    ],
+)
+def test_the_marker_check_does_not_fire_on_legitimate_prose(text: str) -> None:
+    """Structural shapes only: a bare word, a timestamp or a verse reference is content."""
+    assert runtime_nodes.leaked_scaffolding_markers(text) == []
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "[must.atom:1] Si el cliente dice que no le ha llegado la entrada.",
+        "Reenvio de email (ref must.atom:10)",
+        "- Caso del correo mal escrito (ref selectable.case:2)",
+        "[evidencia.correo:3] El aprendiz comprueba el correo.",
+        f"# {DOSSIER_TITLE}",
+        f"## {DOSSIER_SECTION_HEADINGS[0]}",
+        f"## {DOSSIER_SECTION_HEADINGS[1]}",
+        f"Seccion: {DOSSIER_SECTION_HEADINGS[2]}",
+        f"Seccion: {DOSSIER_SECTION_HEADINGS[3]}",
+        LEAKED_DOSSIER,
+    ],
+)
+def test_the_marker_check_fires_on_every_shape_the_dossier_has(text: str) -> None:
+    assert runtime_nodes.leaked_scaffolding_markers(text)
 
 
 # --------------------------------------------------------------------------------------

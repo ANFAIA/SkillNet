@@ -259,8 +259,15 @@ def _didact_parallel_list_errors(component: Component) -> list[str]:
                 f"component {component.id!r}: LearningExperience needs a non-empty experience_id"
             ]
         if not isinstance(implementation_ref, str) or "@" not in implementation_ref:
+            # Say what "pin a version" means. The bare wording sent models hunting for a
+            # version-looking suffix without the separator the rule is really about
+            # ("impl_ref" -> "impl_ref_v1", both rejected), so the repair loop burned its
+            # attempts on a syntax it was never told. The server normally rewrites this ref
+            # itself (``_pin_authored_experience_refs``); this message is the last resort.
             return [
-                f"component {component.id!r}: LearningExperience implementation_ref must pin a version"
+                f"component {component.id!r}: LearningExperience implementation_ref must pin "
+                "a version as 'id@version' (e.g. 'didact.matching@1'); copy the exact "
+                "implementation_ref given in the context instead of inventing one"
             ]
         if not isinstance(definition_ref, str) or not definition_ref.strip():
             return [

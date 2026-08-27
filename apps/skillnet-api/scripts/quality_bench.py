@@ -1122,6 +1122,17 @@ class BenchSession:
             return _Result(rows)
         if "FROM document_chunks" in sql:
             return _Result([])
+        if "FROM media_artifacts" in sql:
+            # Ofertas de media del broker (nodes.py:load_context -> media_broker.
+            # ready_media_for_node). El banco no genera podcasts ni infografias, asi
+            # que no hay ningun artefacto READY: lista vacia, y el prompt no ve el
+            # bloque de ofertas. Sin esta rama los 10 encargos mueren en load_context
+            # con AssertionError y el banco deja de medir nada.
+            return _Result([])
+        if "FROM source_images" in sql:
+            # Igual que arriba: sin imagenes extraidas del documento, el prompt no
+            # ofrece SourceImage. El banco mide texto, no material grafico.
+            return _Result([])
         if "FROM course_nodes" in sql:
             # Nodos-hermanos (nodes.py:load_context, para no repetir ideas entre
             # pantallas). El banco monta UN solo nodo por encargo, asi que no hay

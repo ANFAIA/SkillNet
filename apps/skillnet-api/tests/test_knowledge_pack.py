@@ -259,6 +259,40 @@ def test_runtime_adapter_turns_a_ready_pack_into_bounded_openui_context() -> Non
     assert len(result.selection_hash) == 64
 
 
+def test_the_dossier_keeps_its_internal_refs_out_of_the_copyable_prefix() -> None:
+    """The other half of the leak of 2026-08-27.
+
+    Every point of the dossier used to READ ``- [must.atom:1] texto``, so a model copying a
+    point copied the marker with it and a learner saw the id on screen. The reference now
+    trails the prose, and it is still there — the pipeline needs it, and this test is what
+    keeps someone from "cleaning it up" in either direction.
+
+    It also pins the fingerprint the runtime render gate relies on: whatever this function
+    writes must be recognizable as server scaffolding by
+    ``agents.runtime.nodes.leaked_scaffolding_markers``, which is what keeps it off a
+    learner's screen when generation fails.
+    """
+    from src.agents.runtime.nodes import leaked_scaffolding_markers
+
+    result = select_runtime_knowledge(
+        _pack().canonical_payload(),
+        profile=None,
+        node_state=None,
+        accessibility={},
+        base_density=3,
+    )
+
+    assert result is not None
+    points = [
+        line for line in result.source_context.splitlines() if line.startswith("- ")
+    ]
+    assert points
+    for line in points:
+        assert not line.startswith("- ["), line
+    assert "(ref safety.allergen)" in result.source_context
+    assert leaked_scaffolding_markers(result.source_context)
+
+
 def test_runtime_adapter_declines_a_pack_that_still_requires_review() -> None:
     payload = _pack(status=PackStatus.REVIEW_REQUIRED).canonical_payload()
 
