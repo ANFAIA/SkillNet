@@ -115,6 +115,33 @@ async def app_error_handler(request: Request, exc: AppError) -> JSONResponse:
     return JSONResponse(status_code=exc.status_code, content=content)
 
 
+async def unhandled_error_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Last resort: an unexpected error still leaves as JSON, never as plain text.
+
+    Without this, Starlette answers an unhandled exception with
+    ``text/plain: Internal Server Error``. ``apps/skillnet-web/src/api/client.ts`` parses
+    the body as the ``{detail, code}`` envelope, fails, and shows "Unknown error" — so
+    every real cause (a ``MissingGreenlet``, a bad migration, a typo in a projector)
+    reached the operator as the same four useless words. The envelope is the one
+    ``app_error_handler`` produces so the SPA has a single shape to read.
+
+    ``detail`` is deliberately generic and stable: it crosses the trust boundary, and an
+    exception string can carry a query, a path or a secret. The whole traceback goes to
+    the log, which is where it belongs.
+    """
+    logger.exception(
+        "Unhandled error on %s %s", request.method, request.url.path, exc_info=exc
+    )
+    return JSONResponse(
+        status_code=500,
+        content={
+            "detail": "Internal server error",
+            "code": "INTERNAL_ERROR",
+            "field": None,
+        },
+    )
+
+
 async def validation_error_handler(
     request: Request, exc: RequestValidationError
 ) -> JSONResponse:
@@ -151,6 +178,12 @@ def create_app() -> FastAPI:
 
     app.add_exception_handler(AppError, app_error_handler)
     app.add_exception_handler(RequestValidationError, validation_error_handler)
+    # Registered last, and it does not shadow the two above: a handler for `Exception`
+    # is installed by Starlette on `ServerErrorMiddleware` (the outermost layer), which
+    # only runs for what the inner `ExceptionMiddleware` — where the typed handlers live
+    # — did not already answer. It also re-raises after sending the response, so the
+    # server log still gets the full stack from uvicorn.
+    app.add_exception_handler(Exception, unhandled_error_handler)
 
     prefix = "/api/v1"
     # Health at the app root for the Docker healthcheck, and under /api/v1.

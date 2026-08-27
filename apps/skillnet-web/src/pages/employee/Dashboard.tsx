@@ -62,16 +62,16 @@ export function Dashboard() {
 
   const enrollments = enrollmentData?.items ?? []
   const isDone = (e: EnrollmentRead) => e.status === 'completed' || (e.progress ?? 0) >= 1
-  const active = enrollments.filter((e) => !isDone(e) && (e.status === 'in_progress' || e.status === 'overdue'))
+  const active = enrollments.filter((e) => !isDone(e) && e.status === 'in_progress')
   const completed = enrollments.filter((e) => isDone(e))
-  const pending = enrollments.filter((e) => !isDone(e) && (e.status === 'not_started' || e.status === 'assigned'))
+  const pending = enrollments.filter((e) => !isDone(e) && e.status === 'assigned')
   // Everything the learner still has to work on, newest attention first: courses in
   // progress (highest progress first) then the not-yet-started ones. This is what makes
   // the home useful for a freshly-onboarded learner — every enrollment starts as
   // `assigned` with progress 0, so a "only show in_progress" list is empty on day one.
   const ongoing = [...active, ...pending].sort((a, b) => {
-    const aStarted = a.status === 'in_progress' || a.status === 'overdue'
-    const bStarted = b.status === 'in_progress' || b.status === 'overdue'
+    const aStarted = a.status === 'in_progress'
+    const bStarted = b.status === 'in_progress'
     if (aStarted !== bStarted) return aStarted ? -1 : 1
     return (b.progress ?? 0) - (a.progress ?? 0)
   })
@@ -106,7 +106,7 @@ export function Dashboard() {
     return label
   }
 
-  const started = resume ? resume.status === 'in_progress' || resume.status === 'overdue' : false
+  const started = resume ? resume.status === 'in_progress' : false
 
   return (
     <div>
@@ -136,9 +136,17 @@ export function Dashboard() {
                   {dynamicBadge(resume)}
                 </div>
                 <div className="mt-3 flex items-center gap-3">
+                  {/*
+                    `variant="auto"`, not a fixed `color`. A fixed colour wins over the
+                    variant inside `ProgressBar` (it becomes an inline `backgroundColor`),
+                    so this bar was primary blue at 3% and primary blue at 100% — a
+                    finished course could not look finished however right the number was.
+                    `auto` is the same reading the rest of the learner surface uses
+                    (`CourseOverview`, `NodeList`, `CourseView`): green from 80%.
+                  */}
                   <ProgressBar
                     value={Math.round((resume.progress ?? 0) * 100)}
-                    color="var(--color-primary)"
+                    variant="auto"
                     size="md"
                     className="max-w-xs flex-1"
                   />
@@ -151,7 +159,18 @@ export function Dashboard() {
                 size="lg"
                 className="shrink-0 gap-2"
                 data-tour="home-start"
-                onClick={() => navigate(`/empleado/curso/${resume.course_id}`)}
+                /*
+                  "Continuar" has to land on the node the learner left, not on the course
+                  page — the label promised something the click did not do. The node is
+                  chosen by `selectResumeNode`, but from the course page: picking it here
+                  would mean one `GET /courses/{id}/nodes` per enrollment on the home
+                  screen, for a list where at most one row is ever clicked. So the intent
+                  travels in the route state and `CourseOverview` forwards it with the
+                  node list it already has.
+                */
+                onClick={() =>
+                  navigate(`/empleado/curso/${resume.course_id}`, { state: { resume: true } })
+                }
               >
                 <PlayIcon />
                 {intl.formatMessage({ id: started ? 'home.resumeCta' : 'home.startCta' })}

@@ -1,7 +1,6 @@
 """Course lifecycle business logic: CRUD plus publish/archive/delete rules."""
 
 import uuid
-from datetime import datetime, timezone
 from pathlib import Path
 
 from sqlalchemy import func, select
@@ -15,7 +14,6 @@ from src.models import (
     Course,
     CourseImageSourcePolicy,
     CourseTutorStyle,
-    EnrollmentStatus,
     User,
 )
 from src.repositories.course_repo import CourseRepository
@@ -68,12 +66,14 @@ class CourseService:
         self, *, course_id: uuid.UUID, org_id: uuid.UUID, changes: dict
     ) -> Course:
         course = await self.get_scoped(course_id, org_id)
-        if "folder_id" in changes and changes["folder_id"] is not None:
+        moving_folder = "folder_id" in changes
+        new_folder = None
+        if moving_folder and changes["folder_id"] is not None:
             folder_id = changes["folder_id"]
-            folder = await CourseFolderRepository(self.repo.session).get_scoped(
+            new_folder = await CourseFolderRepository(self.repo.session).get_scoped(
                 folder_id, org_id
             )
-            if folder is None:
+            if new_folder is None:
                 raise NotFoundError("course_folders", str(folder_id))
         generator_ids = changes.pop("artifact_generator_ids", None)
         raw_policy = changes.get("artifact_generate_policy")
@@ -103,11 +103,18 @@ class CourseService:
                 raise ValidationError(
                     "Invalid image source policy", field="image_source_policy"
                 ) from exc
-        clean = {
-            k: v
-            for k, v in changes.items()
-            if v is not None or k == "folder_id"
-        }
+        clean = {k: v for k, v in changes.items() if v is not None}
+        if moving_folder:
+            # Write the *relationship*, not only the column. The route projects the
+            # course it gets back here, and `folder_name` comes from `course.folder`;
+            # assigning `folder_id` alone leaves an already-loaded `folder` pointing at
+            # the previous row, so the response carried the new id next to the old name
+            # (or `null`). Assigning the object — the very one already fetched to
+            # validate the move — keeps both in step: SQLAlchemy syncs the column from
+            # the relationship on flush. `None` is a legal value here (unfile the
+            # course), which is why it is set explicitly and not filtered out above.
+            clean.pop("folder_id", None)
+            clean["folder"] = new_folder
         if clean:
             course = await self.repo.update(course, **clean)
         policy = course.artifact_generate_policy
@@ -158,15 +165,56 @@ class CourseService:
         return await self.repo.update(course, status=ContentStatus.PUBLISHED)
 
     async def archive(self, *, course_id: uuid.UUID, org_id: uuid.UUID) -> Course:
-        course = await self.repo.get_with_enrollments(course_id, org_id)
-        if course is None:
-            raise NotFoundError("courses", str(course_id))
-        now = datetime.now(timezone.utc)
-        for enrollment in course.enrollments:
-            if enrollment.status != EnrollmentStatus.COMPLETED:
-                enrollment.status = EnrollmentStatus.COMPLETED
-                enrollment.completed_at = now
+        """Take a published course out of circulation. 409 for any other status.
+
+        Two things this deliberately does **not** do:
+
+        - It does not touch the enrollments. It used to close every open one as
+          ``COMPLETED`` with a ``completed_at`` of "now", which turned a learner who was
+          halfway through into a learner who finished — credit included — and could not
+          be undone, because nothing recorded what the row said before. Archiving hides
+          a course; it does not grade anyone. Leaving the rows alone is also what makes
+          :meth:`unarchive` lossless: the progress is still there, exactly as it was.
+        - It does not accept a ``draft``. Archiving a draft means nothing (a draft is
+          already invisible to learners) and it is what made the way back a guess: with
+          ``published`` as the only archivable status, ``published`` is also the status
+          to restore. The admin UI only ever offered the button for a published course;
+          this closes the same hole in the API.
+        """
+        course = await self.get_scoped(course_id, org_id)
+        if course.status != ContentStatus.PUBLISHED:
+            raise ConflictError(
+                "Only published courses can be archived", field="status"
+            )
         return await self.repo.update(course, status=ContentStatus.ARCHIVED)
+
+    async def unarchive(self, *, course_id: uuid.UUID, org_id: uuid.UUID) -> Course:
+        """Bring an archived course back to ``published``. 409 if it was not archived.
+
+        ``published`` and not ``draft``: :meth:`archive` only accepts a published course,
+        so ``published`` is the previous status with certainty — there is nothing to
+        record and nothing to guess. Returning it as a draft was the old answer to a
+        question that no longer exists, and it had a cost: the course stayed invisible to
+        the learners who were part-way through it until an admin noticed it needed a
+        second publish.
+
+        The publish checks are re-run rather than skipped. The course passed them once,
+        but that was before it was archived, and an archived course is not frozen — its
+        schema can still be edited (``course_schema_service`` keeps an archived course
+        archived precisely so that editing is possible), which means its last active node
+        or lesson can be gone by now. Since unarchiving publishes, it has to answer the
+        same question publishing answers: is there anything to deliver? The reuse also
+        keeps a single definition of "publishable" instead of a second, laxer one here.
+
+        Enrollments are untouched, and there is nothing to repair: archiving no longer
+        changes them, so every learner comes back exactly where they were.
+        """
+        course = await self.get_scoped(course_id, org_id)
+        if course.status != ContentStatus.ARCHIVED:
+            raise ConflictError(
+                "Only archived courses can be unarchived", field="status"
+            )
+        return await self.publish(course_id=course_id, org_id=org_id)
 
     async def delete(self, *, course_id: uuid.UUID, org_id: uuid.UUID) -> None:
         course = await self.repo.get_with_enrollments(course_id, org_id)

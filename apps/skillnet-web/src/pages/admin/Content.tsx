@@ -1,3 +1,12 @@
+/**
+ * The course library.
+ *
+ * Every name the user reads on this screen is "Biblioteca" / "Library". The route
+ * (`/admin/contenido`), this file name and the `content.*` message namespace keep the
+ * screen's old name on purpose: renaming them is a routing-and-namespace refactor that
+ * touches bookmarks, the onboarding tour and every screen that links back here, and it
+ * buys the user nothing. Only the visible strings were unified.
+ */
 import { useDeferredValue, useState } from 'react'
 import { useIntl } from 'react-intl'
 import { useNavigate, useSearchParams } from 'react-router-dom'
@@ -8,7 +17,7 @@ import { CourseFolderSidebar, type FolderFilter } from '../../components/courses
 import { CourseFolderPicker } from '../../components/courses/CourseFolderPicker'
 import { FolderAssignmentDialog } from '../../components/courses/FolderAssignmentDialog'
 import { useCourseFolders, type CourseFolder } from '../../api/course-folders'
-import { useArchiveCourse, useCourses, useDeleteCourse, usePublishCourse, useUpdateCourse } from '../../api/courses'
+import { useArchiveCourse, useCourses, useDeleteCourse, usePublishCourse, useUnarchiveCourse, useUpdateCourse } from '../../api/courses'
 import { ApiError, post } from '../../api/client'
 import { startCourseFinalization } from '../../api/schema'
 import { useAuth } from '../../hooks/useAuth'
@@ -30,16 +39,23 @@ type StatusFilter = (typeof STATUSES)[number]
 
 function useStatusConfig() {
   const intl = useIntl()
-  const config: Record<string, { label: string; variant: 'accent' | 'warning' | 'primary' }> = {
+  // `archived` used to share `primary` with the brand highlight, which made a course out
+  // of circulation read as loudly as a published one. `danger` is the only variant Badge
+  // offers that reads as a terminal state — there is no neutral/muted variant to use.
+  const config: Record<string, { label: string; variant: 'accent' | 'warning' | 'primary' | 'danger' }> = {
     published: { label: intl.formatMessage({ id: 'status.published' }), variant: 'accent' },
     draft: { label: intl.formatMessage({ id: 'status.draft' }), variant: 'warning' },
-    archived: { label: intl.formatMessage({ id: 'status.archived' }), variant: 'primary' },
+    archived: { label: intl.formatMessage({ id: 'status.archived' }), variant: 'danger' },
   }
   return (status: CourseStatus) => config[status] ?? { label: status, variant: 'primary' as const }
 }
 
 function BookIcon() {
   return <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" /></svg>
+}
+
+function FolderTagIcon() {
+  return <svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" /></svg>
 }
 
 function PlusIcon() {
@@ -66,7 +82,7 @@ function canPublish(course: CourseRead): boolean {
   return (course.module_count ?? 0) > 0
 }
 
-function CourseRow({ course, folders, onMove, moving, onOpen, onPublish, onArchive, onDelete, onRetry, publishing, archiving, deleting, retrying }: {
+function CourseRow({ course, folders, onMove, moving, onOpen, onPublish, onArchive, onUnarchive, onDelete, onRetry, publishing, archiving, unarchiving, deleting, retrying }: {
   course: CourseRead
   folders: { id: string; name: string }[]
   onMove: (course: CourseRead, folderId: string | null) => void
@@ -74,10 +90,12 @@ function CourseRow({ course, folders, onMove, moving, onOpen, onPublish, onArchi
   onOpen: (path: string) => void
   onPublish: (courseId: string) => void
   onArchive: (courseId: string) => void
+  onUnarchive: (course: CourseRead) => void
   onDelete: (course: CourseRead) => void
   onRetry: (course: CourseRead) => void
   publishing: boolean
   archiving: boolean
+  unarchiving: boolean
   deleting: boolean
   retrying: boolean
 }) {
@@ -105,7 +123,15 @@ function CourseRow({ course, folders, onMove, moving, onOpen, onPublish, onArchi
               {course.delivery_mode === 'dynamic' ? (
                 <><span className="text-primary font-medium">{intl.formatMessage({ id: 'content.dynamic' })}</span>{(course.node_count ?? 0) > 0 && <span>{intl.formatMessage({ id: 'content.nodesCount' }, { count: course.node_count })}</span>}</>
               ) : <span>{intl.formatMessage({ id: 'content.modulesCount' }, { count: course.module_count })}</span>}
-              {course.folder_name && <span>{course.folder_name}</span>}
+              {/* A course is in zero or one folder. Saying which one — and saying so when
+                  the answer is "none" — is the whole point: an empty gap here is what made
+                  the admin open the picker to find out where the course already was. */}
+              <span className={`inline-flex items-center gap-1 ${course.folder_name ? 'text-text-secondary' : 'italic'}`}>
+                <FolderTagIcon />
+                {course.folder_name
+                  ? intl.formatMessage({ id: 'content.folderLabel' }, { name: course.folder_name })
+                  : intl.formatMessage({ id: 'content.folderNone' })}
+              </span>
               {course.outcome && <span className="truncate max-w-xs">{course.outcome}</span>}
               <span>{intl.formatMessage({ id: 'content.updatedAt' }, { date: new Date(course.updated_at ?? course.created_at).toLocaleDateString() })}</span>
             </div>
@@ -126,6 +152,13 @@ function CourseRow({ course, folders, onMove, moving, onOpen, onPublish, onArchi
           {course.module_count > 0 && course.delivery_mode !== 'dynamic' && <Button variant="ghost" size="sm" onClick={() => onOpen(`/admin/curso/${course.id}`)}>{intl.formatMessage({ id: 'content.viewCourse' })}</Button>}
           {canPublish(course) && <Button variant="ghost" size="sm" onClick={() => onPublish(course.id)} disabled={publishing}>{publishing ? intl.formatMessage({ id: 'preview.publishing' }) : intl.formatMessage({ id: 'preview.publish' })}</Button>}
           {course.status === 'published' && <Button variant="ghost" size="sm" onClick={() => onArchive(course.id)} disabled={archiving}>{archiving ? intl.formatMessage({ id: 'preview.archiving' }) : intl.formatMessage({ id: 'preview.archive' })}</Button>}
+          {/* Archiving used to be a one-way door from the library: publish needs a draft,
+              delete needs a draft, and archive needs a published course, which left an
+              archived row with no action that does anything. This is the way back, and it
+              lands on `published` — the status the course had, since only a published
+              course can be archived — so the row comes back with its Archive button and
+              the learners get their course back without a second publish. */}
+          {course.status === 'archived' && <Button variant="ghost" size="sm" onClick={() => onUnarchive(course)} disabled={unarchiving}>{unarchiving ? intl.formatMessage({ id: 'content.unarchiving' }) : intl.formatMessage({ id: 'content.unarchive' })}</Button>}
           <Button variant="ghost" size="sm" onClick={() => onOpen(`/admin/curso/${course.id}/ajustes`)}>{intl.formatMessage({ id: 'content.schema' })}</Button>
           {canDeleteCourse(course) && <Button variant="ghost" size="sm" onClick={() => onDelete(course)} disabled={deleting}>{deleting ? intl.formatMessage({ id: 'content.courseDeleting' }) : intl.formatMessage({ id: 'content.courseDelete' })}</Button>}
         </div>
@@ -161,6 +194,7 @@ export function Content() {
   const updateCourse = useUpdateCourse()
   const publishCourse = usePublishCourse()
   const archiveCourse = useArchiveCourse()
+  const unarchiveCourse = useUnarchiveCourse()
   const deleteCourse = useDeleteCourse()
   const courses = coursesQuery.data?.items ?? []
   const folders = foldersQuery.data ?? []
@@ -199,6 +233,16 @@ export function Content() {
       setActionError(reason instanceof ApiError ? reason.body.detail : intl.formatMessage({ id: 'content.retryCreationError' }))
     } finally {
       setRetryingId(null)
+    }
+  }
+
+  /** 409 when the course was not archived after all; the server's reason is worth showing. */
+  async function unarchive(course: CourseRead) {
+    setActionError(null)
+    try {
+      await unarchiveCourse.mutateAsync(course.id)
+    } catch (reason) {
+      setActionError(reason instanceof ApiError ? reason.body.detail : intl.formatMessage({ id: 'content.unarchiveError' }))
     }
   }
 
@@ -255,7 +299,7 @@ export function Content() {
               <Card><EmptyState title={intl.formatMessage({ id: hasFilters ? 'content.noResultsTitle' : 'content.emptyTitle' })} description={intl.formatMessage({ id: hasFilters ? 'content.noResultsDesc' : 'content.emptyDesc' })} action={hasFilters ? { label: intl.formatMessage({ id: 'content.clearFilters' }), onClick: () => setParams({}, { replace: true }) } : { label: intl.formatMessage({ id: 'content.emptyAction' }), onClick: () => navigate('/admin/crear-curso') }} /></Card>
             ) : (
               <motion.div className="space-y-2" initial="hidden" animate="visible" variants={staggerContainer}>
-                {courses.map((course) => <CourseRow key={course.id} course={course} folders={folders} moving={updateCourse.isPending} onMove={moveCourse} onOpen={navigate} onPublish={(id) => publishCourse.mutate(id)} onArchive={(id) => archiveCourse.mutate(id)} onDelete={removeCourse} onRetry={retryCreation} publishing={publishCourse.isPending} archiving={archiveCourse.isPending} deleting={deleteCourse.isPending && deleteCourse.variables === course.id} retrying={retryingId === course.id} />)}
+                {courses.map((course) => <CourseRow key={course.id} course={course} folders={folders} moving={updateCourse.isPending} onMove={moveCourse} onOpen={navigate} onPublish={(id) => publishCourse.mutate(id)} onArchive={(id) => archiveCourse.mutate(id)} onUnarchive={unarchive} onDelete={removeCourse} onRetry={retryCreation} publishing={publishCourse.isPending} archiving={archiveCourse.isPending} unarchiving={unarchiveCourse.isPending && unarchiveCourse.variables === course.id} deleting={deleteCourse.isPending && deleteCourse.variables === course.id} retrying={retryingId === course.id} />)}
               </motion.div>
             )}
           </div>

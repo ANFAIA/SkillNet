@@ -64,7 +64,8 @@ export function CourseView() {
   const progress = enrollment?.progress ?? null
   const completeMutation = useCompleteEnrollment()
   const completeLessonMutation = useCompleteLesson()
-  const { data: courseProgress } = useCourseProgress(id)
+  const progressQuery = useCourseProgress(id)
+  const courseProgress = progressQuery.data
   const queryClient = useQueryClient()
 
   // --- v2 branch ---------------------------------------------------------------
@@ -120,14 +121,35 @@ export function CourseView() {
   // Initialize expansion / active lesson once when the course first loads.
   // Using a ref so that subsequent refetches of `course` do NOT reset the
   // active lesson (which would unmount exercise components and lose state).
+  //
+  // It opens the first lesson the learner has NOT completed, not `lessons[0]`. The v1
+  // lesson chain has no per-node timestamp, but it does not need one: `courseProgress`
+  // already carries `lessons[].completed`, it was already loaded a few lines above, and
+  // it was simply never read here — so a learner who had finished four lessons came back
+  // to lesson one every time. If every lesson is complete the last one opens: the course
+  // is a review then, and reopening lesson 1 would hide the "Finalizar curso" button
+  // behind a walk through the whole chain.
+  //
+  // It waits for the progress query to SETTLE, not to succeed: choosing on `course` alone
+  // would land on lesson 1 and then jump, and the ref makes that first choice final — but
+  // a progress endpoint that errors must still leave the learner with a lesson open, so
+  // the gate is `!isPending` and the completed set is simply empty in that case.
   const initializedRef = useRef(false)
   useEffect(() => {
-    if (!course || initializedRef.current) return
+    if (!course || progressQuery.isPending || initializedRef.current) return
     initializedRef.current = true
-    const firstModule = course.modules[0]
-    setExpandedModules(new Set(firstModule ? [firstModule.id] : []))
-    setActiveLessonId(firstModule?.lessons[0]?.id ?? '')
-  }, [course])
+    const lessons = (course.modules ?? []).flatMap((m) =>
+      (m.lessons ?? []).map((lesson) => ({ lesson, moduleId: m.id })),
+    )
+    const done = new Set(
+      (courseProgress?.lessons ?? []).filter((lp) => lp.completed).map((lp) => lp.lesson_id),
+    )
+    const resume =
+      lessons.find((entry) => !done.has(entry.lesson.id)) ?? lessons[lessons.length - 1]
+    const fallbackModule = course.modules[0]
+    setExpandedModules(new Set([resume?.moduleId ?? fallbackModule?.id].filter(Boolean) as string[]))
+    setActiveLessonId(resume?.lesson.id ?? '')
+  }, [course, courseProgress, progressQuery.isPending])
 
   if (isLoading || dynamicPending) {
     return (

@@ -5,6 +5,7 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { NodeView } from './NodeView'
 import { declaredReducedMotionContext } from '../../hooks/useReducedMotion'
+import { readNodePosition, writeNodePosition } from '../../features/resume/storage'
 import type {
   LearningNode,
   NodeList,
@@ -53,6 +54,8 @@ function learningNode(overrides: Partial<LearningNode> = {}): LearningNode {
     locked_by: [],
     needs_practice: false,
     estimated_minutes: 6,
+    first_seen_at: '2026-08-20T09:00:00Z',
+    completed_at: null,
     ...overrides,
   }
 }
@@ -96,6 +99,11 @@ interface Scenario {
   goal?: string | null
   /** Replace the two-node list — e.g. a single node so the current node is the last. */
   nodeListOverride?: NodeList
+  /**
+   * HTTP status for `POST /nodes/{id}/complete`. Defaults to `200`; a 5xx is how the
+   * "a failed stamp never blocks the learner" case is set up.
+   */
+  completeStatus?: number
 }
 
 function jsonResponse(status: number, body: unknown) {
@@ -170,6 +178,20 @@ function installFetch(scenario: Scenario) {
           modalities: ['audio', 'video'],
         },
       })
+    }
+    if (url.includes('/complete') && method === 'POST') {
+      const status = scenario.completeStatus ?? 200
+      return status < 400
+        ? jsonResponse(status, {
+            node_id: NODE_ID,
+            completed_at: '2026-08-27T10:00:00Z',
+            // Echoed, never written: the stamp and the mastery scale are two dimensions.
+            state: 'not_started',
+            mastery: 0,
+            progress_percent: 100,
+            can_complete: true,
+          })
+        : jsonResponse(status, { detail: 'boom', code: 'SERVER_ERROR' })
     }
     if (url.endsWith(`/nodes/${NODE_ID}/render`) && method === 'POST') {
       const next = acceptedQueue.length > 1 ? acceptedQueue.shift() : acceptedQueue[0]
@@ -249,6 +271,10 @@ beforeEach(() => {
   mockFetch.mockReset()
   vi.stubGlobal('fetch', mockFetch)
   warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+  // NodeView now remembers the screen the learner was on (`features/resume/storage`), and
+  // jsdom's `localStorage` outlives a test. Without this, one test clicking "Empezar"
+  // makes the next one start past the gate it is there to assert.
+  window.localStorage.clear()
 })
 
 afterEach(() => {
@@ -825,5 +851,201 @@ describe('NodeView — an unreviewed node', () => {
 
     expect(await screen.findByText('Esta lección está pendiente de revisión')).toBeInTheDocument()
     expect(callsTo(`/nodes/${NODE_ID}/render`, 'POST')).toHaveLength(0)
+  })
+})
+
+/**
+ * "Llego hasta un punto, salgo y vuelvo a entrar y no se ha guardado por donde iba."
+ *
+ * The server knows which NODE to reopen (`first_seen_at`, stamped when a render is
+ * served). Where inside the node the learner was is only knowable here, and it used to be
+ * thrown away twice per re-entry: `setEntered(false)` put the start gate back and
+ * `setEpisodeScreen(0)` put screen one back. Both are now seeded from
+ * `features/resume/storage`.
+ */
+describe('NodeView — coming back to a node', () => {
+  function footer(container: HTMLElement) {
+    return container.querySelector('[data-episode-footer]') as HTMLElement | null
+  }
+
+  it('reopens on the saved screen, past the start gate', async () => {
+    writeNodePosition(COURSE_ID, NODE_ID, { screen: 1, entered: true })
+    installFetch({
+      node: learningNode(),
+      renderResponses: [[200, servedRender(PROGRAM_WITH_QUIZ, RENDER_ID, 'episode')]],
+    })
+    const { container } = renderPage()
+
+    // No `enterLesson()`: the gate is a first-visit screen, and this is not a first visit.
+    await waitFor(() => expect(footer(container)).not.toBeNull())
+    expect(screen.queryByRole('button', { name: 'Empezar' })).toBeNull()
+    expect(footer(container)?.dataset.episodeScreen).toBe('1')
+    expect(container).toHaveTextContent('Un cliente vuelve el dia 32. Que haces?')
+  })
+
+  it('falls back to the last valid screen when the episode was regenerated shorter', async () => {
+    // Saved on screen 8 of a longer episode; this one only has two screens.
+    writeNodePosition(COURSE_ID, NODE_ID, { screen: 8, entered: true })
+    installFetch({
+      node: learningNode(),
+      renderResponses: [[200, servedRender(PROGRAM_WITH_QUIZ, RENDER_ID, 'episode')]],
+    })
+    const { container } = renderPage()
+
+    await waitFor(() => expect(footer(container)).not.toBeNull())
+    await waitFor(() => expect(footer(container)?.dataset.episodeTotal).toBe('2'))
+    expect(footer(container)?.dataset.episodeScreen).toBe('1')
+    // Clamped, not blank: there is content on screen and an advance control under it.
+    expect(container).toHaveTextContent('Un cliente vuelve el dia 32. Que haces?')
+  })
+
+  it('records the screen as the learner advances', async () => {
+    installFetch({
+      node: learningNode(),
+      renderResponses: [[200, servedRender(PROGRAM_WITH_QUIZ, RENDER_ID, 'episode')]],
+    })
+    const { container } = renderPage()
+
+    await enterLesson()
+    await waitFor(() => expect(footer(container)).not.toBeNull())
+    expect(readNodePosition(COURSE_ID, NODE_ID)).toEqual({ screen: 0, entered: true })
+
+    await userEvent.click(screen.getByRole('button', { name: 'Siguiente' }))
+    await waitFor(() =>
+      expect(readNodePosition(COURSE_ID, NODE_ID)).toEqual({ screen: 1, entered: true }),
+    )
+  })
+
+  it('forgets the node it leaves behind, so a finished node keeps no bookmark', async () => {
+    writeNodePosition(COURSE_ID, NODE_ID, { screen: 1, entered: true })
+    installFetch({
+      node: learningNode(),
+      renderResponses: [[200, servedRender(PROGRAM_WITH_QUIZ, RENDER_ID, 'episode')]],
+    })
+    const { container } = renderPage()
+
+    await waitFor(() => expect(footer(container)).not.toBeNull())
+    // On the last screen "Siguiente" is the next NODE, and that is the exit.
+    await userEvent.click(screen.getByRole('button', { name: /Excepciones/ }))
+    await waitFor(() => expect(readNodePosition(COURSE_ID, NODE_ID)).toBeNull())
+  })
+})
+
+/**
+ * "Acabo el curso y la barra marca 0%."
+ *
+ * The count behind that bar is `mastered` nodes, and mastery needs 0.90 plus three
+ * consecutive correct answers (rule 6 of §7.3) — unreachable for an episode that presents
+ * one item per node, and flatly impossible for an expository one. The server now counts a
+ * node with `completed_at` as done; finishing a node, though, is pure client-side
+ * navigation, so **the only way the server hears about it is these calls**.
+ *
+ * The endpoint is idempotent, so what these tests pin is not correctness of a guard but
+ * the two product rules around it: one call per node finished (a screen turn inside a node
+ * is not finishing it), and a failed call never costs the learner their advance.
+ */
+describe('NodeView — telling the server the node is finished', () => {
+  function footer(container: HTMLElement) {
+    return container.querySelector('[data-episode-footer]') as HTMLElement | null
+  }
+
+  const completeCalls = () => callsTo(`/nodes/${NODE_ID}/complete`, 'POST')
+
+  it('stamps the node once when the learner leaves it for the next one', async () => {
+    installFetch({
+      node: learningNode(),
+      renderResponses: [[200, servedRender(PROGRAM_WITH_QUIZ, RENDER_ID, 'episode')]],
+    })
+    const { container } = renderPage()
+
+    await enterLesson()
+    await waitFor(() => expect(footer(container)).not.toBeNull())
+
+    // Screen 0 of 2: nothing is finished yet.
+    expect(completeCalls()).toHaveLength(0)
+
+    // Onto the last screen, then out of the node.
+    await userEvent.click(screen.getByRole('button', { name: 'Siguiente' }))
+    await waitFor(() => expect(footer(container)?.dataset.episodeScreen).toBe('1'))
+    await userEvent.click(screen.getByRole('button', { name: /Siguiente: Excepciones/ }))
+
+    await waitFor(() => expect(completeCalls()).toHaveLength(1))
+    // And the advance happened, which is the point of leaving.
+    await waitFor(() => {
+      expect(screen.getByTestId('location').dataset.pathname).toBe(
+        `/empleado/curso/${COURSE_ID}/nodo/${NEXT_NODE_ID}`,
+      )
+    })
+  })
+
+  it('does not stamp anything for a screen turn inside the same node', async () => {
+    installFetch({
+      node: learningNode(),
+      renderResponses: [[200, servedRender(PROGRAM_WITH_QUIZ, RENDER_ID, 'episode')]],
+    })
+    const { container } = renderPage()
+
+    await enterLesson()
+    await waitFor(() => expect(footer(container)).not.toBeNull())
+
+    // Screen 0 -> 1 of the same episode. The node is not finished, so nothing is said.
+    await userEvent.click(screen.getByRole('button', { name: 'Siguiente' }))
+    await waitFor(() => {
+      expect(container).toHaveTextContent('Un cliente vuelve el dia 32. Que haces?')
+    })
+    expect(completeCalls()).toHaveLength(0)
+  })
+
+  it('stamps the last node when the course is finished', async () => {
+    // One node, so the footer's forward control is "Terminar el curso" — the branch that
+    // both the episode footer and the legacy stepper's CTA reach through `finishCourse`.
+    const soloNode = learningNode()
+    installFetch({
+      node: soloNode,
+      nodeListOverride: {
+        course_id: COURSE_ID,
+        delivery_mode: 'dynamic',
+        schema_version: 3,
+        nodes: [soloNode],
+        can_complete: true,
+        blocked_by: [],
+        progress_percent: 80,
+      },
+      renderResponses: [[200, servedRender(PROGRAM, RENDER_ID, 'episode')]],
+    })
+    const { container } = renderPage()
+
+    await enterLesson()
+    await waitFor(() => expect(footer(container)).not.toBeNull())
+    expect(completeCalls()).toHaveLength(0)
+
+    await userEvent.click(screen.getByRole('button', { name: 'Terminar el curso' }))
+
+    await waitFor(() => expect(completeCalls()).toHaveLength(1))
+    expect(await screen.findByText('¡Curso completado!')).toBeInTheDocument()
+  })
+
+  it('never blocks the advance when the stamp fails', async () => {
+    installFetch({
+      node: learningNode(),
+      renderResponses: [[200, servedRender(PROGRAM, RENDER_ID, 'episode')]],
+      completeStatus: 500,
+    })
+    const { container } = renderPage()
+
+    await enterLesson()
+    await waitFor(() => expect(footer(container)).not.toBeNull())
+
+    // PROGRAM is a single beat, so the only forward control is the next node.
+    await userEvent.click(screen.getByRole('button', { name: /Siguiente: Excepciones/ }))
+
+    await waitFor(() => expect(completeCalls()).toHaveLength(1))
+    // The learner moved on anyway, and nothing about the failure reached the screen.
+    await waitFor(() => {
+      expect(screen.getByTestId('location').dataset.pathname).toBe(
+        `/empleado/curso/${COURSE_ID}/nodo/${NEXT_NODE_ID}`,
+      )
+    })
+    expect(container).not.toHaveTextContent('boom')
   })
 })

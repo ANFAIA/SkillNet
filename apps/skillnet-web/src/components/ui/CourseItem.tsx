@@ -48,7 +48,14 @@ export function CourseItem({
         </div>
         <p className="text-xs text-text-muted mt-0.5 ml-4">{subtitle}</p>
         <div className="flex items-center gap-2 mt-2 ml-4">
-          <ProgressBar value={clamped} color={color} size="sm" className="flex-1" />
+          {/*
+            `color` identifies the course (that is the dot above); it must not also paint
+            the bar. Passing it here made the bar the same colour at every value — a
+            course at 100% in the "Completados" tab looked exactly like one at 5% — because
+            a `color` overrides the variant inside `ProgressBar`. The bar reads *progress*,
+            so it uses `auto` like every other learner-facing course bar: green from 80%.
+          */}
+          <ProgressBar value={clamped} variant="auto" size="sm" className="flex-1" />
           <span className="text-xs font-medium text-text-secondary shrink-0">{Math.round(clamped)}%</span>
         </div>
       </div>

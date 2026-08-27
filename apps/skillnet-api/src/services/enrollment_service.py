@@ -34,6 +34,7 @@ from datetime import date, datetime, timezone
 from typing import Any
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 from src.core.exceptions import ConflictError, ForbiddenError, NotFoundError
 from src.core.logging import get_logger
@@ -75,6 +76,10 @@ class NodeProgressRow:
     archived: bool
     state: str
     mastery: float
+    #: ``learner_node_states.completed_at``: the learner reached the end of the node
+    #: (migration 0029). Defaulted so the two call sites that predate it keep compiling
+    #: while reading as "never recorded a finish", which is what a missing row means.
+    completed_at: datetime | None = None
 
 
 def apply_dynamic_closure(
@@ -107,6 +112,11 @@ def apply_dynamic_closure(
     if not completion.can_complete and enrollment.status == EnrollmentStatus.COMPLETED:
         enrollment.status = REOPENED_STATUS
         enrollment.completed_at = None
+        # A reopened enrollment is `in_progress`, and an `in_progress` row with no
+        # `started_at` is what "Cursos activos" and the learner dashboard read as never
+        # begun. Backfilled only when it is missing, so a real start date is never moved.
+        if getattr(enrollment, "started_at", None) is None:
+            enrollment.started_at = moment
         return "reopened"
     return None
 
@@ -152,6 +162,61 @@ class EnrollmentService:
                 + ", ".join(str(uid) for uid in sorted(missing, key=str))
             )
 
+    async def _enrol_once(
+        self,
+        *,
+        user_id: uuid.UUID,
+        course_id: uuid.UUID,
+        assigned_by: uuid.UUID,
+        deadline: date | None,
+    ) -> tuple[Enrollment, bool]:
+        """Enrol one learner in one course. Returns ``(row, created)``.
+
+        The single write used by both assignment entry points, so they cannot disagree
+        about what "already enrolled" means.
+
+        Check-then-insert is not enough on its own: two concurrent requests (a
+        double-clicked "assign" button is the everyday case) both see no row and both
+        insert, and the loser violates ``uq_enrollments_user_course``. That
+        ``IntegrityError`` is not an ``AppError``, so it left the API as a 500. The
+        insert therefore runs inside a SAVEPOINT: when it fails, only the savepoint is
+        rolled back — the surrounding transaction stays usable, which matters because
+        this runs inside a loop over a whole batch — and the row the winner wrote is
+        read back and treated as what it is, an enrollment that already exists.
+        """
+        existing = await self.enrollment_repo.get_by_user_and_course(
+            user_id, course_id
+        )
+        if existing is not None:
+            return existing, False
+
+        session = self.enrollment_repo.session
+        try:
+            async with session.begin_nested():
+                enrollment = await self.enrollment_repo.create(
+                    user_id=user_id,
+                    course_id=course_id,
+                    assigned_by=assigned_by,
+                    status=EnrollmentStatus.ASSIGNED,
+                    deadline=deadline,
+                )
+        except IntegrityError:
+            existing = await self.enrollment_repo.get_by_user_and_course(
+                user_id, course_id
+            )
+            if existing is None:
+                # Some other constraint failed — a dangling user or course id, say.
+                # Nothing here can honestly recover from that.
+                raise
+            logger.info(
+                "Enrollment of user %s in course %s lost the insert race; "
+                "reusing the existing row",
+                user_id,
+                course_id,
+            )
+            return existing, False
+        return enrollment, True
+
     async def assign(
         self,
         *,
@@ -161,29 +226,36 @@ class EnrollmentService:
         user_ids: list[uuid.UUID],
         deadline: date | None,
     ) -> list[Enrollment]:
+        """Enrol a batch of learners in one course, idempotently.
+
+        **A learner who is already enrolled is not an error.** This used to raise
+        ``ConflictError`` on the first such learner and abort the whole batch, so
+        assigning a course to ten people failed entirely — writing nothing — because one
+        of them already had it. ``assign_courses`` had always skipped instead, and the
+        two disagreeing was the bug.
+
+        Returns one row **per requested user**, in the requested order: the enrollment
+        just created, or the one that already existed. ``POST /enrollments`` answers
+        ``list[EnrollmentRead]`` and its callers read that list as the result of what
+        they asked for, so dropping the already-enrolled users would turn "9 of 10
+        already had it" into a response that looks like nine assignments failed.
+        Duplicate ids in ``user_ids`` collapse to one row.
+        """
         course = await self.course_repo.get_scoped(course_id, org_id)
         if course is None:
             raise NotFoundError("courses", str(course_id))
         await self._assert_users_in_org(org_id=org_id, user_ids=user_ids)
 
-        created: list[Enrollment] = []
-        for user_id in user_ids:
-            existing = await self.enrollment_repo.get_by_user_and_course(
-                user_id, course_id
-            )
-            if existing is not None:
-                raise ConflictError(
-                    f"User {user_id} is already enrolled in this course"
-                )
-            enrollment = await self.enrollment_repo.create(
+        enrollments: list[Enrollment] = []
+        for user_id in dict.fromkeys(user_ids):
+            enrollment, _created = await self._enrol_once(
                 user_id=user_id,
                 course_id=course_id,
                 assigned_by=assigned_by,
-                status=EnrollmentStatus.ASSIGNED,
                 deadline=deadline,
             )
-            created.append(enrollment)
-        return created
+            enrollments.append(enrollment)
+        return enrollments
 
     async def assign_courses(
         self,
@@ -202,22 +274,17 @@ class EnrollmentService:
             course = await self.course_repo.get_scoped(course_id, org_id)
             if course is None:
                 raise NotFoundError("courses", str(course_id))
-            for user_id in user_ids:
-                existing = await self.enrollment_repo.get_by_user_and_course(
-                    user_id, course_id
+            for user_id in dict.fromkeys(user_ids):
+                enrollment, was_created = await self._enrol_once(
+                    user_id=user_id,
+                    course_id=course_id,
+                    assigned_by=assigned_by,
+                    deadline=deadline,
                 )
-                if existing is not None:
+                if was_created:
+                    created.append(enrollment)
+                else:
                     skipped += 1
-                    continue
-                created.append(
-                    await self.enrollment_repo.create(
-                        user_id=user_id,
-                        course_id=course_id,
-                        assigned_by=assigned_by,
-                        status=EnrollmentStatus.ASSIGNED,
-                        deadline=deadline,
-                    )
-                )
         return created, skipped
 
     async def get_scoped(
@@ -237,12 +304,20 @@ class EnrollmentService:
         status: EnrollmentStatus | None,
         offset: int,
         limit: int,
+        include_archived_courses: bool = True,
     ) -> tuple[Sequence[Enrollment], int]:
+        """List enrollments; see the repository for what ``include_archived_courses`` is.
+
+        Short version: pass ``False`` for a learner's own list — an archived course must
+        not appear there — and leave the default for the admin surfaces, which want the
+        history.
+        """
         return await self.enrollment_repo.list_enrollments(
             org_id=org_id,
             user_id=user_id,
             course_id=course_id,
             status=status,
+            include_archived_courses=include_archived_courses,
             offset=offset,
             limit=limit,
         )
@@ -454,6 +529,7 @@ class EnrollmentService:
                     if state is None
                     else str(getattr(state.state, "value", state.state)),
                     mastery=float(getattr(state, "mastery", 0.0) or 0.0),
+                    completed_at=getattr(state, "completed_at", None),
                 )
             )
         return rows
@@ -465,6 +541,59 @@ class EnrollmentService:
         return evaluate_course_completion(
             await self.node_progress(course_id=course_id, user_id=user_id)
         )
+
+    async def mark_dynamic_started(
+        self, *, course: Any, user_id: uuid.UUID, now: datetime | None = None
+    ) -> Enrollment | None:
+        """``assigned -> in_progress`` on the first real interaction with a v2 course.
+
+        The dynamic branch had no such transition at all: :func:`apply_dynamic_closure`
+        only ever writes ``completed`` or reopens a ``completed`` row, so a learner could
+        work through more than half a course and their enrollment would still say
+        ``assigned`` — printed as "Pendiente" on the learner dashboard, and counted as zero
+        by "Cursos activos". v1 has always stamped this on the first lesson visit
+        (``routes/lessons.py``); this is the same rule on the branch that lacked it.
+
+        **"First interaction" is a render being handed to the browser**, i.e. the same
+        moment ``LearnerNodeStateRepository.mark_opened`` stamps ``first_seen_at``, and the
+        call site is that one. The three candidates are not equivalent:
+
+        * *Answering an item* is too late and too narrow. An expository node has no graded
+          item at all, so a course made of them would stay "Pendiente" forever — and it is
+          the same hole that made ``completed_at`` necessary next to ``mastered_at``.
+        * *``POST /nodes/{id}/complete``* is later still: a learner in the middle of their
+          first node has demonstrably started, and until they press "next node" nothing
+          would say so.
+        * *Serving a render* is the honest "the learner was here" event, and it is
+          deliberately **not** ``POST /nodes/{id}/render``: that one is also fired by the
+          anticipatory prefetch for the nodes ahead, so it would mark a course started
+          because the warm-up looked at it. ``GET /render`` is the response a browser
+          actually displays.
+
+        Idempotent by construction: it only writes when the row is still ``assigned``, and
+        it never touches ``started_at`` once that column is set. Returns the enrollment when
+        it moved, ``None`` otherwise — including for a course that is not dynamic, for a
+        learner with no enrollment (an admin previewing, per ``_assert_enrolled``), and for
+        every visit after the first.
+        """
+        if resolve_delivery(course) != "dynamic":
+            return None
+        enrollment = await self.enrollment_repo.get_by_user_and_course(
+            user_id, course.id
+        )
+        if enrollment is None or enrollment.status != EnrollmentStatus.ASSIGNED:
+            return None
+        enrollment.status = EnrollmentStatus.IN_PROGRESS
+        if enrollment.started_at is None:
+            enrollment.started_at = now or datetime.now(timezone.utc)
+        await self.enrollment_repo.session.flush()
+        logger.info(
+            "Dynamic enrollment %s for user %s on course %s: started",
+            enrollment.id,
+            user_id,
+            course.id,
+        )
+        return enrollment
 
     async def close_dynamic_if_mastered(
         self, *, course: Any, user_id: uuid.UUID

@@ -122,6 +122,7 @@ class FakeNodeRepo:
         return {nid: self.attempts.get(nid, 0) for nid in node_ids}
 
     async def mastery_rows(self, node_ids):
+        """``(user_id, node_id, state, mastery, completed_at)`` — 5-wide since 0029."""
         return [row for row in self.mastery if row[1] in set(node_ids)]
 
     async def create(self, **kwargs) -> CourseNode:
@@ -749,7 +750,7 @@ async def test_a_new_critical_node_reopens_a_completed_enrollment() -> None:
         [mastered, fresh],
         enrollments=[FakeEnrollment(user_id, EnrollmentStatus.COMPLETED)],
     )
-    node_repo.mastery = [(user_id, mastered.id, "mastered", 0.95)]
+    node_repo.mastery = [(user_id, mastered.id, "mastered", 0.95, None)]
 
     await service.unvalidate(course_id=course.id, org_id=ORG_ID, actor_id=ACTOR_ID)
 
@@ -773,7 +774,7 @@ async def test_archiving_the_missing_node_completes_a_stuck_enrollment() -> None
         [mastered, blocking],
         enrollments=[FakeEnrollment(user_id, EnrollmentStatus.IN_PROGRESS)],
     )
-    node_repo.mastery = [(user_id, mastered.id, "mastered", 0.9)]
+    node_repo.mastery = [(user_id, mastered.id, "mastered", 0.9, None)]
     node_repo.attempts[blocking.id] = 2  # has progress -> archived, not deleted
 
     await service.update(
@@ -803,8 +804,8 @@ async def test_recompute_requires_every_node_mastered() -> None:
         enrollments=[FakeEnrollment(user_id, EnrollmentStatus.IN_PROGRESS)],
     )
     node_repo.mastery = [
-        (user_id, first.id, "mastered", 1.0),
-        (user_id, optional.id, "learning", 0.2),
+        (user_id, first.id, "mastered", 1.0, None),
+        (user_id, optional.id, "learning", 0.2, None),
     ]
 
     # The non-critical node now blocks closure: the enrollment stays in progress.

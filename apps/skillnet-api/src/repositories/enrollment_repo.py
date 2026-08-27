@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlalchemy.sql.elements import ColumnElement
 
-from src.models import Course, Enrollment, User
+from src.models import ContentStatus, Course, Enrollment, User
 from src.repositories.base import BaseRepository
 
 
@@ -39,6 +39,7 @@ class EnrollmentRepository(BaseRepository[Enrollment]):
         user_id: uuid.UUID | None = None,
         course_id: uuid.UUID | None = None,
         status: object | None = None,
+        include_archived_courses: bool = True,
         offset: int = 0,
         limit: int = 50,
     ) -> tuple[Sequence[Enrollment], int]:
@@ -59,6 +60,25 @@ class EnrollmentRepository(BaseRepository[Enrollment]):
             filters.append(Enrollment.course_id == course_id)
         if status is not None:
             filters.append(Enrollment.status == status)
+        # Archiving a course means "stop showing it to the learners", so an enrollment
+        # into an archived course must drop out of the learner's own list. It is a
+        # parameter and not an unconditional filter because this method has callers on
+        # both sides of that sentence:
+        #   - `GET /enrollments` (routes/enrollments.py) is *both* surfaces: a learner
+        #     asking for their own courses (excludes archived) and an admin opening
+        #     somebody's record (includes them — "you were enrolled in this, and it is
+        #     archived now" is history the admin needs, and hiding it would make the
+        #     drawer look emptier than the database is).
+        #   - the admin agent tools `enrollment_list` / `users_get_progress`
+        #     (services/agent_tools/) answer the same admin questions in words.
+        #   - the §7.5 closure recomputes (`course_schema_service.recompute…` and
+        #     `enrollment_service`) pass an explicit `course_id` and must see every row
+        #     of that course whatever its status: enrollment status is a function of the
+        #     current schema, and skipping archived courses would freeze it mid-way.
+        # Hence: default = show everything (what every admin/internal caller wants), and
+        # the learner surface opts out explicitly.
+        if not include_archived_courses:
+            filters.append(Course.status != ContentStatus.ARCHIVED)
 
         base = (
             select(Enrollment)

@@ -470,6 +470,9 @@ class NodeProgressLike(Protocol):
     archived: bool
     state: Any
     mastery: float
+    #: ``learner_node_states.completed_at`` (migration 0029), or ``None``. Half of what
+    #: :func:`node_is_done` reads — see the reasoning there.
+    completed_at: Any
 
 
 @dataclass(frozen=True)
@@ -479,20 +482,62 @@ class CourseCompletion:
     can_complete: bool
     blocked_by: tuple[str, ...]
     score: float | None
+    #: Nodes this learner is **done** with (:func:`node_is_done`), out of ``total_critical``.
+    #: The two names are §7.5's and predate both the drop of the criticality gate and
+    #: ``completed_at``; they are kept because they are the API contract of
+    #: ``NodeListRead``. Read them as "done nodes" and "nodes".
     mastered_critical: int
     total_critical: int
     progress_percent: int
 
 
+def node_is_done(node: NodeProgressLike) -> bool:
+    """Has this learner finished this node? Mastered **or** worked through to the end.
+
+    The one definition of "done", read by both halves of :func:`evaluate_course_completion`
+    — ``progress_percent`` and ``can_complete``. That they share it is the point: see the
+    note in that function.
+
+    ``mastered`` alone was the rule and it was unsatisfiable for a large part of the
+    product. Rule 6 of §7.3 requires ``consecutive_correct >= FADING_STREAK`` on graded
+    items, and an expository node — a worked example, a checklist, a summary — has no
+    graded item to answer. Such a node stays ``not_started`` for ever, contributes 0 to
+    progress, and blocks closure permanently. ``completed_at`` (migration 0029) is the
+    recorded fact that the learner reached the end of it.
+
+    The two are not merged and neither is derived from the other: ``mastered`` is
+    evidence of a demonstration, ``completed_at`` is evidence of work done. What
+    distinguishes a course finished by mastering it from one finished by reading it is
+    ``CourseCompletion.score`` — still the mean of *measured* ``mastery`` — not whether
+    it closed.
+    """
+    return _value(node.state) == MASTERED or node.completed_at is not None
+
+
 def evaluate_course_completion(
     nodes: Iterable[NodeProgressLike],
 ) -> CourseCompletion:
-    """Completion depends on EVERY non-archived node being ``mastered``.
+    """Completion depends on EVERY non-archived node being **done** (:func:`node_is_done`).
 
-    Criticality no longer gates closure: the learner must master the whole course.
+    Criticality does not gate closure: the learner must get through the whole course.
     ``score`` is the mean ``mastery`` over all non-archived nodes — the number a
     certificate prints. A course with no node at all cannot complete (only happens
     mid-edit on an empty schema).
+
+    **Progress and closure use the same predicate, and that is a decision.** They are two
+    outputs of the one ``blocked`` set below, so ``progress_percent == 100`` and
+    ``can_complete`` cannot disagree. Making closure stricter — "reading counts towards
+    the bar, but a ``critical`` node still has to be mastered to close the course" — was
+    considered and rejected for two reasons. First, it would put two definitions of
+    "done" in a module whose whole reason for existing is that this rule is written once
+    (the number ends up on a certificate). Second, the stricter branch is not a higher
+    standard but an unreachable one: mastery needs a streak of three correct graded
+    answers and an expository ``critical`` node has nothing to answer, so a course
+    containing one would show 100% and never close — the exact "the bar is full and
+    nothing happened" the split was meant to prevent. The honest place for the
+    distinction is ``score``, which stays a mean of measured mastery: a course closed by
+    reading it closes with a low score, and ``mastery_to_level`` grants the course's
+    skills accordingly.
 
     Called by ``EnrollmentService`` (B11), including the mandatory recalculation for
     every active enrollment when ``PUT /courses/{id}/schema`` changes the node set.
@@ -509,7 +554,7 @@ def evaluate_course_completion(
             progress_percent=0,
         )
 
-    blocked = tuple(str(n.node_id) for n in critical if _value(n.state) != MASTERED)
+    blocked = tuple(str(n.node_id) for n in critical if not node_is_done(n))
     mastered = total - len(blocked)
     score = sum(_clamp(n.mastery) for n in critical) / total
     return CourseCompletion(

@@ -52,8 +52,8 @@ export function MyCourses() {
     const done = e.status === 'completed' || (e.progress ?? 0) >= 1.0
     if (activeTab === 'completed') return done
     if (activeTab === 'in_progress')
-      return !done && (e.status === 'in_progress' || e.status === 'overdue')
-    return !done && (e.status === 'not_started' || e.status === 'assigned')
+      return !done && e.status === 'in_progress'
+    return !done && e.status === 'assigned'
   })
 
   return (
@@ -122,6 +122,15 @@ export function MyCourses() {
                     subtitle={subtitleFor(e)}
                     progress={Math.round((e.progress ?? 0) * 100)}
                     color="var(--color-primary)"
+                    /*
+                      Opens the course page, and deliberately does not forward straight to
+                      the node the learner left (which the home hero does, via
+                      `state: { resume: true }`). This list is the only route to a course
+                      page, so a row that jumped past it would make the index, the media
+                      library and the course chat unreachable for any course in progress.
+                      The page's own "Continuar" button is the resume affordance, and it
+                      now points at the right node.
+                    */
                     onClick={() => navigate(`/empleado/curso/${e.course_id}`)}
                   />
                 </motion.div>

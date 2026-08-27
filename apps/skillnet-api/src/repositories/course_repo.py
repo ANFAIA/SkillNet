@@ -25,10 +25,23 @@ class CourseRepository(BaseRepository[Course]):
         super().__init__(session, Course)
 
     async def get_scoped(self, id: uuid.UUID, org_id: uuid.UUID) -> Course | None:
-        course = await self.get_by_id(id)
-        if course is None or course.org_id != org_id:
-            return None
-        return course
+        """One course of this org, with ``folder`` already loaded.
+
+        The eager load is not decoration. This is the read behind every write route
+        (``PUT /courses/{id}``, archive, unarchive), and those routes project the course
+        with the same synchronous helpers as ``GET``, which read ``course.folder`` to
+        fill ``folder_name``. ``session.get`` leaves the relationship unloaded, so the
+        response came back with a correct ``folder_id`` and ``folder_name: null`` — and
+        a lazy load from a sync projector after ``await db.commit()`` would raise
+        ``MissingGreenlet`` instead. Loading it here, awaited, is what makes the two
+        projections agree.
+        """
+        query = (
+            select(Course)
+            .where(Course.id == id, Course.org_id == org_id)
+            .options(selectinload(Course.folder))
+        )
+        return (await self.session.execute(query)).scalar_one_or_none()
 
     async def list_courses(
         self,
@@ -131,6 +144,9 @@ class CourseRepository(BaseRepository[Course]):
         query = (
             select(Course)
             .where(Course.id == id, Course.org_id == org_id)
-            .options(selectinload(Course.enrollments))
+            # `folder` for the same reason as in `get_scoped`: `POST …/archive` projects
+            # the course it gets from here and would otherwise report `folder_name: null`
+            # for a course that is in a folder.
+            .options(selectinload(Course.enrollments), selectinload(Course.folder))
         )
         return (await self.session.execute(query)).scalar_one_or_none()

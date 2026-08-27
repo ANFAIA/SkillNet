@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { MemoryRouter, Route, Routes, useParams } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { CourseView } from './CourseView'
 
@@ -68,9 +68,11 @@ const V1_COURSE = {
 interface Options {
   /** `null` → the node route 404s (static course). */
   nodes: unknown | null
+  /** `GET /courses/{id}/progress` rows. Empty means "nothing completed yet". */
+  progressLessons?: unknown[]
 }
 
-function installFetch({ nodes }: Options) {
+function installFetch({ nodes, progressLessons = [] }: Options) {
   mockFetch.mockImplementation((input: string) => {
     const url = String(input)
 
@@ -89,7 +91,7 @@ function installFetch({ nodes }: Options) {
       return jsonResponse(200, {
         course_id: COURSE_ID,
         progress_percent: 0,
-        lessons: [],
+        lessons: progressLessons,
         can_complete: false,
       })
     }
@@ -121,6 +123,7 @@ function nodeList(deliveryMode: 'static' | 'dynamic') {
         locked_by: [],
         needs_practice: false,
         estimated_minutes: 6,
+        first_seen_at: null as string | null,
       },
     ],
     can_complete: false,
@@ -129,16 +132,22 @@ function nodeList(deliveryMode: 'static' | 'dynamic') {
   }
 }
 
-function renderPage() {
+/** Stands in for `NodeView`, and names the node it was handed. */
+function NodeViewStub() {
+  const { nodeId } = useParams<{ nodeId: string }>()
+  return <div data-testid="node-view">{nodeId}</div>
+}
+
+function renderPage(entry: string | { pathname: string; state: unknown } = `/empleado/curso/${COURSE_ID}`) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   })
   return render(
     <QueryClientProvider client={client}>
-      <MemoryRouter initialEntries={[`/empleado/curso/${COURSE_ID}`]}>
+      <MemoryRouter initialEntries={[entry]}>
         <Routes>
           <Route path="/empleado/curso/:id" element={<CourseView />} />
-          <Route path="/empleado/curso/:id/nodo/:nodeId" element={<div data-testid="node-view">NodeView</div>} />
+          <Route path="/empleado/curso/:id/nodo/:nodeId" element={<NodeViewStub />} />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>,
@@ -262,5 +271,93 @@ describe('CourseView — the dynamic branch', () => {
     expect(screen.queryByText('Modulo de devoluciones')).toBeNull()
     await waitFor(() => expect(screen.getByText('Plazo de devolucion')).toBeInTheDocument())
     expect(screen.queryByText('Modulo de devoluciones')).toBeNull()
+  })
+})
+
+/**
+ * "Salgo y vuelvo a entrar y no se ha guardado por donde iba."
+ *
+ * Both halves of the fix are observable from this screen: the v1 lesson chain, which had
+ * `courseProgress.lessons[].completed` loaded and never read it, and the v2 overview,
+ * whose "Continuar" button used to guess the target from `state`.
+ */
+describe('CourseView — coming back to a course', () => {
+  function lessonProgress(lessonId: string, completed: boolean) {
+    return {
+      lesson_id: lessonId,
+      completed,
+      locked: false,
+      exercises_pending: 0,
+      exercises_total: 0,
+      exercises_passed: 0,
+    }
+  }
+
+  it('v1: opens the first lesson the learner has NOT completed', async () => {
+    installFetch({
+      nodes: null,
+      progressLessons: [lessonProgress('lesson-1', true), lessonProgress('lesson-2', false)],
+    })
+    renderPage()
+
+    // The open lesson is the heading in the content column; the sidebar renders buttons.
+    expect(await screen.findByRole('heading', { name: 'Excepciones' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Plazo legal' })).toBeNull()
+  })
+
+  it('v1: opens the last lesson when every lesson is already completed', async () => {
+    installFetch({
+      nodes: null,
+      progressLessons: [lessonProgress('lesson-1', true), lessonProgress('lesson-2', true)],
+    })
+    renderPage()
+
+    expect(await screen.findByRole('heading', { name: 'Excepciones' })).toBeInTheDocument()
+  })
+
+  it('v1: still opens the first lesson when nothing is completed', async () => {
+    installFetch({ nodes: null, progressLessons: [] })
+    renderPage()
+
+    expect(await screen.findByRole('heading', { name: 'Plazo legal' })).toBeInTheDocument()
+  })
+
+  it('v2: the main action opens the deepest node seen, not the first one', async () => {
+    const dynamic = nodeList('dynamic')
+    dynamic.nodes = [
+      { ...dynamic.nodes[0], id: 'n1', title: 'Leccion 1', position: 1, first_seen_at: '2026-08-20T09:00:00Z' },
+      { ...dynamic.nodes[0], id: 'n2', title: 'Leccion 2', position: 2, first_seen_at: '2026-08-22T09:00:00Z' },
+      { ...dynamic.nodes[0], id: 'n3', title: 'Leccion 3', position: 3, first_seen_at: null },
+    ]
+    dynamic.progress_percent = 40
+    installFetch({ nodes: dynamic })
+    renderPage()
+
+    fireEvent.click(await screen.findByRole('button', { name: /Continuar/ }))
+    // `state` is `not_started` on all three — which is exactly why the old chain of
+    // `find`s always landed on the first node.
+    expect(await screen.findByTestId('node-view')).toHaveTextContent('n2')
+  })
+
+  it('v2: forwards straight to that node when asked to resume', async () => {
+    const dynamic = nodeList('dynamic')
+    dynamic.nodes = [
+      { ...dynamic.nodes[0], id: 'n1', title: 'Leccion 1', position: 1, first_seen_at: '2026-08-20T09:00:00Z' },
+      { ...dynamic.nodes[0], id: 'n2', title: 'Leccion 2', position: 2, first_seen_at: '2026-08-22T09:00:00Z' },
+    ]
+    installFetch({ nodes: dynamic })
+    renderPage({ pathname: `/empleado/curso/${COURSE_ID}`, state: { resume: true } })
+
+    // No click: the home hero's "Continuar" passes the intent in the route state, because
+    // it has no node list of its own and fetching one would cost a request per course.
+    expect(await screen.findByTestId('node-view')).toHaveTextContent('n2')
+  })
+
+  it('v2: does not forward when the course page is opened normally', async () => {
+    installFetch({ nodes: nodeList('dynamic') })
+    renderPage()
+
+    expect(await screen.findByRole('heading', { name: 'Devoluciones en tienda' })).toBeInTheDocument()
+    expect(screen.queryByTestId('node-view')).toBeNull()
   })
 })

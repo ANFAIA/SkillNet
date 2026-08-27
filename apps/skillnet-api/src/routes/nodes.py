@@ -54,6 +54,7 @@ from src.models import (
     LearnerNodeState,
     NodeFeedback,
     NodeRender,
+    NodeRenderStatus,
     Organization,
     UserRole,
 )
@@ -77,6 +78,7 @@ from src.schemas.node import (
     DEFAULT_ESTIMATED_MINUTES,
     NodeAnswerRequest,
     NodeAttemptResult,
+    NodeCompletionRead,
     NodeEventsRequest,
     NodeFeedbackRequest,
     NodeHintRequest,
@@ -120,6 +122,7 @@ from src.services.node_grading import (
 from src.services.node_render_service import (
     NodeRenderService,
     ServedRender,
+    fallback_retry_available,
     in_flight_for,
     owner_of_request,
 )
@@ -361,6 +364,13 @@ async def list_course_nodes(
                 estimated_minutes=int(
                     node.estimated_minutes or DEFAULT_ESTIMATED_MINUTES
                 ),
+                # "Where was I?" — see NodeSummaryRead. Null for a node never served to
+                # this learner, including the ones the prefetch already created a row for.
+                first_seen_at=getattr(row, "first_seen_at", None),
+                # The other half of "done". `state` cannot carry it: an expository node
+                # has no graded item, so it never leaves `not_started` however completely
+                # it was read. See `NodeSummaryRead.completed_at`.
+                completed_at=getattr(row, "completed_at", None),
             )
         )
 
@@ -372,6 +382,7 @@ async def list_course_nodes(
                 archived=bool(node.archived),
                 state=state_value(node.id),
                 mastery=float(getattr(states.get(node.id), "mastery", 0.0) or 0.0),
+                completed_at=getattr(states.get(node.id), "completed_at", None),
             )
             for node in nodes
         ]
@@ -391,7 +402,14 @@ class _CompletionRow:
     """Structural stand-in for ``NodeProgressLike`` (§7.5). Deliberately not the ORM row:
     the rule is over ``(node, learner state)`` and neither table holds both halves."""
 
-    __slots__ = ("archived", "criticality", "mastery", "node_id", "state")
+    __slots__ = (
+        "archived",
+        "completed_at",
+        "criticality",
+        "mastery",
+        "node_id",
+        "state",
+    )
 
     def __init__(
         self,
@@ -401,12 +419,14 @@ class _CompletionRow:
         archived: bool,
         state: str,
         mastery: float,
+        completed_at: Any = None,
     ) -> None:
         self.node_id = node_id
         self.criticality = criticality
         self.archived = archived
         self.state = state
         self.mastery = mastery
+        self.completed_at = completed_at
 
 
 # --------------------------------------------------------------------------------------
@@ -624,6 +644,17 @@ async def get_render(
         )
 
     served = await service.serve(user_id=user.id, render=render, cached=True)
+    # A lesson handed to a browser is the honest "the learner was here" moment, and the
+    # only one: `POST /render` is also fired by the anticipatory prefetch for the nodes
+    # ahead, so stamping there would mark nodes nobody opened. Idempotent — the stamp is
+    # never moved on a re-read.
+    await LearnerNodeStateRepository(db).mark_opened(user_id=user.id, node_id=node.id)
+    # Same moment, same reason: a lesson on the learner's screen is what "the learner
+    # started this course" means, and the dynamic branch had nobody stamping it — a course
+    # at 57% still read "Pendiente" and "Cursos activos" counted 0. Idempotent (it only
+    # moves an `assigned` row, and never rewrites `started_at`), and internally gated on
+    # `resolve_delivery`, so v1 keeps its own transition in `routes/lessons.py`.
+    await _enrollment_service(db).mark_dynamic_started(course=course, user_id=user.id)
     # "Preparándose…": a **legacy_stepper** shell (a hard ``fallback`` is one too) served
     # only because the node's knowledge pack is not ready yet — an adaptive episode is
     # still coming and will replace it once the pack lands. An honest legacy decline (pack
@@ -633,6 +664,24 @@ async def get_render(
         and served.shell_mode == "legacy_stepper"
         and not await service.node_pack_ready(node=node, course=course)
     )
+    # `ready` is retained, `fallback` is not. The learner keeps the backup content on *this*
+    # response — blanking a served screen to go and generate would be strictly worse — and
+    # one regeneration is asked for in the background. It rewrites the same `cache_key` in
+    # place, so a run that comes out `ready` replaces the degraded screen here and for the
+    # whole bucket, and a run that fails again changes nothing. This is the only place that
+    # can trigger it: the client stops asking `POST /render` the moment `GET /render` has
+    # something served, which is exactly how a transient failure became permanent.
+    #
+    # Two exclusions. A "preparing" fallback is not a failure at all — its knowledge pack is
+    # still generating, regenerating now could only produce another fallback, and the client
+    # already re-arms a request when that pin drops. And the budget peek keeps a node that
+    # fails deterministically from spending an LLM cycle per page view.
+    if (
+        not preparing
+        and served.status == NodeRenderStatus.FALLBACK.value
+        and fallback_retry_available(render.cache_key)
+    ):
+        await service.request_render(user=user, node=node, course=course)
     await db.commit()
     return NodeRenderRead.of(served, preparing=preparing)
 
@@ -998,6 +1047,54 @@ async def record_events(
     await _profile_service(db).record_events(user_id=user.id, events=events)
     await db.commit()
     return Response(status_code=204)
+
+
+@router.post("/{node_id}/complete", response_model=NodeCompletionRead)
+async def complete_node(
+    user: CurrentUser, db: DBSession, node_id: uuid.UUID
+) -> NodeCompletionRead:
+    """The learner reached the end of this node's content.
+
+    **``completed_at`` is a separate dimension from mastery, and this route writes only
+    it.** ``state`` and ``mastery`` are left exactly as they were: getting to the last
+    screen is not a demonstration of anything, and moving the mastery scale here would put
+    an invented number on the same axis as measured ones — the axis
+    ``CourseCompletion.score`` averages and a certificate prints. What the stamp *does*
+    change is progress, because ``mastery_service.node_is_done`` counts a node as done
+    when it is mastered **or** finished; before it existed, an expository node (no graded
+    item, so ``mastered`` unreachable by rule 6 of §7.3) counted as zero progress no
+    matter how completely it was read, and a course made of them reported 0%.
+
+    Idempotent in both halves. ``mark_completed`` never moves a stamp that is already
+    there, and ``close_dynamic_if_mastered`` is a recompute that no-ops when the
+    enrollment already agrees with the verdict — so a client may call this on every
+    "next node" press without tracking whether it already did.
+
+    The closure call is the same one ``POST /nodes/{id}/waive`` makes, and for the same
+    reason: finishing the last node of a course can be what completes it, and nothing else
+    on this path would notice. It is gated on ``resolve_delivery`` internally, so v1 keeps
+    its own rule.
+    """
+    node, course = await _load_dynamic_node(db, user, node_id)
+
+    state = await LearnerNodeStateRepository(db).mark_completed(
+        user_id=user.id, node_id=node.id
+    )
+    _enrollment, completion = await _enrollment_service(db).close_dynamic_if_mastered(
+        course=course, user_id=user.id
+    )
+    await db.commit()
+
+    return NodeCompletionRead(
+        node_id=node.id,
+        completed_at=state.completed_at,
+        # Echoed, not written. A client seeing `not_started` here next to a timestamp is
+        # reading the two columns doing their two different jobs.
+        state=str(getattr(state.state, "value", state.state)),
+        mastery=float(state.mastery or 0.0),
+        progress_percent=completion.progress_percent if completion else 0,
+        can_complete=bool(completion.can_complete) if completion else False,
+    )
 
 
 @router.post("/{node_id}/waive", response_model=NodeStateRead)

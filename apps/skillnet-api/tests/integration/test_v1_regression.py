@@ -674,9 +674,20 @@ async def test_the_v1_admin_surfaces_are_untouched(
     assert stats.json()["total_courses"] >= 1
     assert "recent_activity" in stats.json()
 
+    # Archive takes a published course and nothing else (a draft is already invisible to
+    # learners), so the sweep publishes this generated draft before archiving it.
+    published = await admin.post(f"/courses/{course_id}/publish")
+    assert published.status_code == 200, published.text
+
     archived = await admin.post(f"/courses/{course_id}/archive")
     assert archived.status_code == 200, archived.text
     assert archived.json()["status"] == ContentStatus.ARCHIVED.value
+
+    # And the way back is `published`, not a second draft: the learners who were part-way
+    # through get their course back without another publish.
+    restored = await admin.post(f"/courses/{course_id}/unarchive")
+    assert restored.status_code == 200, restored.text
+    assert restored.json()["status"] == ContentStatus.PUBLISHED.value
 
 
 __all__ = ["Actor", "World"]

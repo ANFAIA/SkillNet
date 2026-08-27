@@ -582,6 +582,9 @@ class FakeNodeProgress:
     state: str
     mastery: float
     archived: bool = False
+    #: Migration 0029. `node_is_done` counts a node as done when it is mastered OR
+    #: finished, so every fake needs the second column to answer for itself.
+    completed_at: datetime | None = None
 
 
 def test_course_completes_only_when_every_node_is_mastered():

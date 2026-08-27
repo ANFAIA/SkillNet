@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useIntl } from 'react-intl'
 import { Button, ProgressBar } from '../ui'
@@ -6,6 +6,7 @@ import { CourseIndex } from './CourseIndex'
 import { CourseMediaGenerator } from './CourseMediaGenerator'
 import { CourseMediaLibrary } from './CourseMediaLibrary'
 import { CourseChatPanel } from './CourseChatPanel'
+import { hasStartedCourse, selectResumeNode } from '../../features/resume/selectResumeNode'
 import type { CourseDetail, NodeList } from '../../types'
 
 interface CourseOverviewProps {
@@ -16,17 +17,44 @@ interface CourseOverviewProps {
 export function CourseOverview({ course, nodes }: CourseOverviewProps) {
   const intl = useIntl()
   const navigate = useNavigate()
-  const { pathname } = useLocation()
+  const { pathname, state: routeState } = useLocation()
   const [chatOpen, setChatOpen] = useState(false)
-  const orderedNodes = [...nodes.nodes].sort((a, b) => a.position - b.position)
-  const target =
-    orderedNodes.find((node) => node.state === 'learning' && !node.locked) ??
-    orderedNodes.find((node) => node.state === 'not_started' && !node.locked) ??
-    orderedNodes.find((node) => !node.locked)
+  const orderedNodes = useMemo(
+    () => [...nodes.nodes].sort((a, b) => a.position - b.position),
+    [nodes.nodes],
+  )
+  /**
+   * The node "Continuar" opens. The chain of `find`s this replaced looked for
+   * `state === 'learning'` first, which is only reachable by answering a graded item
+   * (rule 0 of §7.3) — so every expository node, and every node read without answering,
+   * stayed `not_started` and the button always reopened the first one. The decision now
+   * comes from `first_seen_at`; the reasoning is in `selectResumeNode`.
+   */
+  const target = useMemo(() => selectResumeNode(orderedNodes), [orderedNodes])
+  const nodeHref = target ? `${pathname.replace(/\/$/, '')}/nodo/${target.id}` : null
 
+  /**
+   * "Continuar donde lo dejaste" elsewhere in the app navigates here with
+   * `state.resume`, and this forwards it to the node. It is done here rather than in the
+   * caller because the caller (the home hero, a course row) has no node list and getting
+   * one would cost a request per course. `replace` so the browser Back goes where the
+   * learner came from, and once per mount so a Back into this page does not bounce.
+   */
+  const forwardedRef = useRef(false)
+  const resumeIntent = (routeState as { resume?: boolean } | null)?.resume === true
+  useEffect(() => {
+    if (!resumeIntent || forwardedRef.current || !nodeHref) return
+    forwardedRef.current = true
+    navigate(nodeHref, { replace: true })
+  }, [resumeIntent, nodeHref, navigate])
+
+  // Same three existing labels, but "Continuar" is no longer gated on mastery alone:
+  // `progress_percent` is computed from mastered nodes, so somebody who had read three
+  // lessons without answering anything was offered "Empezar" over a button that reopens
+  // lesson three. Having been served a node is enough to have started.
   const actionLabel = nodes.progress_percent >= 100
     ? intl.formatMessage({ id: 'courseview.review' })
-    : nodes.progress_percent > 0
+    : nodes.progress_percent > 0 || hasStartedCourse(orderedNodes)
       ? intl.formatMessage({ id: 'courseview.continue' })
       : intl.formatMessage({ id: 'courseview.start' })
 
@@ -67,8 +95,8 @@ export function CourseOverview({ course, nodes }: CourseOverviewProps) {
             <Button
               size="lg"
               className="min-w-0 flex-1 gap-2 sm:flex-none"
-              disabled={!target}
-              onClick={() => target && navigate(`${pathname.replace(/\/$/, '')}/nodo/${target.id}`)}
+              disabled={!nodeHref}
+              onClick={() => nodeHref && navigate(nodeHref)}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                 <path d="M8 5.5v13l10-6.5z" />

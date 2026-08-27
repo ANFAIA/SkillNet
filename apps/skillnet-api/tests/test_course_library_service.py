@@ -5,11 +5,27 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
+from sqlalchemy.exc import IntegrityError
 
 from src.core.exceptions import ConflictError, ForbiddenError, NotFoundError
 from src.services.course_folder_service import CourseFolderService
+from src.services.course_service import CourseService
 from src.services.enrollment_service import EnrollmentService
 from src.services.skill_service import SkillService
+
+
+class _FakeSavepoint:
+    """Stand-in for the SAVEPOINT `_enrol_once` wraps its insert in.
+
+    Swallows nothing: an `IntegrityError` raised inside the block still propagates to
+    the handler under test, which is the whole point of the savepoint.
+    """
+
+    async def __aenter__(self) -> "_FakeSavepoint":
+        return self
+
+    async def __aexit__(self, *exc_info) -> bool:  # noqa: ANN002
+        return False
 
 
 def _session_with_users(user_ids):
@@ -21,7 +37,10 @@ def _session_with_users(user_ids):
     "one belongs to another org" by choosing what it returns.
     """
     result = SimpleNamespace(all=lambda: [(uid,) for uid in user_ids])
-    return SimpleNamespace(execute=AsyncMock(return_value=result))
+    return SimpleNamespace(
+        execute=AsyncMock(return_value=result),
+        begin_nested=lambda: _FakeSavepoint(),
+    )
 
 
 @pytest.mark.asyncio
@@ -180,3 +199,178 @@ async def test_assign_courses_rejects_a_user_from_another_organisation() -> None
             deadline=None,
         )
     enrollment_repo.create.assert_not_awaited()
+
+
+def _enrollment_service(enrollment_repo, course_repo=None) -> EnrollmentService:
+    return EnrollmentService(
+        enrollment_repo,
+        course_repo or SimpleNamespace(get_scoped=AsyncMock(return_value=object())),
+        SimpleNamespace(),
+        lesson_progress_repo=SimpleNamespace(),
+    )
+
+
+@pytest.mark.asyncio
+async def test_assign_skips_the_already_enrolled_instead_of_aborting_the_batch() -> None:
+    """One learner who already has the course must not fail the other nine.
+
+    `assign` used to raise `ConflictError` on the first existing row, so the whole
+    request wrote nothing — while `assign_courses` skipped. The two agreeing is the
+    point of the fix; the existing row is returned in place of a new one so
+    `POST /enrollments` still answers one entry per requested user.
+    """
+    org_id = uuid.uuid4()
+    course_id = uuid.uuid4()
+    already, fresh = uuid.uuid4(), uuid.uuid4()
+    existing = SimpleNamespace(id=uuid.uuid4(), user_id=already)
+    created = SimpleNamespace(id=uuid.uuid4(), user_id=fresh)
+    enrollment_repo = SimpleNamespace(
+        session=_session_with_users([already, fresh]),
+        get_by_user_and_course=AsyncMock(side_effect=[existing, None]),
+        create=AsyncMock(return_value=created),
+    )
+
+    enrollments = await _enrollment_service(enrollment_repo).assign(
+        org_id=org_id,
+        assigned_by=uuid.uuid4(),
+        course_id=course_id,
+        user_ids=[already, fresh],
+        deadline=None,
+    )
+
+    # One row per requested user, in the requested order.
+    assert enrollments == [existing, created]
+    enrollment_repo.create.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_assign_collapses_a_repeated_user_id() -> None:
+    """The same id twice in one body is one enrollment, not a self-inflicted conflict."""
+    user_id = uuid.uuid4()
+    created = SimpleNamespace(id=uuid.uuid4())
+    enrollment_repo = SimpleNamespace(
+        session=_session_with_users([user_id]),
+        get_by_user_and_course=AsyncMock(return_value=None),
+        create=AsyncMock(return_value=created),
+    )
+
+    enrollments = await _enrollment_service(enrollment_repo).assign(
+        org_id=uuid.uuid4(),
+        assigned_by=uuid.uuid4(),
+        course_id=uuid.uuid4(),
+        user_ids=[user_id, user_id],
+        deadline=None,
+    )
+
+    assert enrollments == [created]
+    enrollment_repo.create.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_assign_survives_losing_the_insert_race() -> None:
+    """A double click races two inserts; the loser must not become a 500.
+
+    Models the race exactly: the pre-check finds nothing, the INSERT then violates
+    `uq_enrollments_user_course`, and the row the winner wrote is read back.
+    """
+    user_id = uuid.uuid4()
+    winner_row = SimpleNamespace(id=uuid.uuid4())
+    enrollment_repo = SimpleNamespace(
+        session=_session_with_users([user_id]),
+        # First call: nothing yet. Second call (after the IntegrityError): the winner's.
+        get_by_user_and_course=AsyncMock(side_effect=[None, winner_row]),
+        create=AsyncMock(
+            side_effect=IntegrityError("INSERT", {}, Exception("duplicate key"))
+        ),
+    )
+
+    enrollments = await _enrollment_service(enrollment_repo).assign(
+        org_id=uuid.uuid4(),
+        assigned_by=uuid.uuid4(),
+        course_id=uuid.uuid4(),
+        user_ids=[user_id],
+        deadline=None,
+    )
+
+    assert enrollments == [winner_row]
+
+
+@pytest.mark.asyncio
+async def test_assign_still_raises_when_the_integrity_error_is_not_a_duplicate() -> None:
+    """No row appears after the failure, so nothing can be reused: let it surface."""
+    user_id = uuid.uuid4()
+    enrollment_repo = SimpleNamespace(
+        session=_session_with_users([user_id]),
+        get_by_user_and_course=AsyncMock(side_effect=[None, None]),
+        create=AsyncMock(
+            side_effect=IntegrityError("INSERT", {}, Exception("fk violation"))
+        ),
+    )
+
+    with pytest.raises(IntegrityError):
+        await _enrollment_service(enrollment_repo).assign(
+            org_id=uuid.uuid4(),
+            assigned_by=uuid.uuid4(),
+            course_id=uuid.uuid4(),
+            user_ids=[user_id],
+            deadline=None,
+        )
+
+
+@pytest.mark.asyncio
+async def test_moving_a_course_writes_the_folder_relationship_not_only_the_id(
+    monkeypatch,
+) -> None:
+    """`folder_name` is projected from `course.folder`, so the move must set that too.
+
+    Writing `folder_id` alone left the relationship — already loaded by `get_scoped` —
+    pointing at the previous row, so `PUT /courses/{id}` answered with the new
+    `folder_id` next to the old `folder_name` (or `null`).
+    """
+    org_id = uuid.uuid4()
+    folder = SimpleNamespace(id=uuid.uuid4(), name="Soporte")
+    course = SimpleNamespace(
+        id=uuid.uuid4(),
+        folder_id=None,
+        folder=None,
+        artifact_generate_policy=None,
+    )
+    repo = SimpleNamespace(
+        session=object(),
+        get_scoped=AsyncMock(return_value=course),
+        update=AsyncMock(side_effect=lambda obj, **kwargs: obj),
+        replace_artifact_generators=AsyncMock(),
+    )
+    monkeypatch.setattr(
+        "src.services.course_service.CourseFolderRepository",
+        lambda session: SimpleNamespace(get_scoped=AsyncMock(return_value=folder)),
+    )
+
+    await CourseService(repo).update(
+        course_id=course.id, org_id=org_id, changes={"folder_id": folder.id}
+    )
+
+    repo.update.assert_awaited_once_with(course, folder=folder)
+
+
+@pytest.mark.asyncio
+async def test_unfiling_a_course_clears_the_relationship(monkeypatch) -> None:
+    """`folder_id: null` must reach the ORM as `folder = None`, not be filtered out."""
+    course = SimpleNamespace(
+        id=uuid.uuid4(),
+        folder_id=uuid.uuid4(),
+        folder=SimpleNamespace(name="Archivo"),
+        artifact_generate_policy=None,
+    )
+    repo = SimpleNamespace(
+        session=object(),
+        get_scoped=AsyncMock(return_value=course),
+        update=AsyncMock(side_effect=lambda obj, **kwargs: obj),
+        replace_artifact_generators=AsyncMock(),
+    )
+
+    await CourseService(repo).update(
+        course_id=course.id, org_id=uuid.uuid4(), changes={"folder_id": None}
+    )
+
+    repo.update.assert_awaited_once_with(course, folder=None)

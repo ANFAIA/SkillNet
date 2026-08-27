@@ -489,7 +489,33 @@ async def publish_course(
 async def archive_course(
     admin: AdminUser, db: DBSession, course_id: uuid.UUID
 ) -> CourseRead:
+    """Hide a published course from the learners. 409 for any other status.
+
+    Only ``published`` — archiving a draft hides nothing, and it is what used to make
+    the way back a guess. Enrollments are left untouched, so the progress of everyone
+    part-way through survives and ``POST …/unarchive`` restores the course as it was.
+    See ``CourseService.archive``.
+    """
     service = _service(db)
     course = await service.archive(course_id=course_id, org_id=admin.org_id)
+    await db.commit()
+    return _summary(course, None, user=admin)
+
+
+@router.post("/{course_id}/unarchive", response_model=CourseRead)
+async def unarchive_course(
+    admin: AdminUser, db: DBSession, course_id: uuid.UUID
+) -> CourseRead:
+    """Return an archived course to ``published`` — the way back from archive.
+
+    ``published`` and not ``draft``: only a published course can be archived, so that is
+    the status it had, and the learners who were part-way through get their course back
+    without waiting for a second publish. The publish checks still run (an archived
+    course can still be edited, so it can have lost its last node meanwhile) and answer
+    422 when there is nothing left to deliver; 409 when the course is not archived. See
+    ``CourseService.unarchive``.
+    """
+    service = _service(db)
+    course = await service.unarchive(course_id=course_id, org_id=admin.org_id)
     await db.commit()
     return _summary(course, None, user=admin)

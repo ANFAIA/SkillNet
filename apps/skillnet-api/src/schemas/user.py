@@ -62,7 +62,7 @@ class UserSelfUpdate(BaseModel):
 
 
 class ResetPasswordRequest(BaseModel):
-    new_password: str = Field(min_length=6)
+    new_password: str = Field(min_length=8)
 
 
 class ChangePasswordRequest(BaseModel):

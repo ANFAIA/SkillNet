@@ -65,6 +65,26 @@ class NodeSummaryRead(BaseModel):
     #: coverage it already has.
     needs_practice: bool = False
     estimated_minutes: int = DEFAULT_ESTIMATED_MINUTES
+    #: ``learner_node_states.first_seen_at`` — when this learner was first served this
+    #: node, ``null`` for a node they have never opened. It is the field a client needs to
+    #: reopen a course where the learner left it, and the reason it is here rather than
+    #: derived from ``state``: ``learning`` requires a graded answer (rule 0 of §7.3), so
+    #: an expository node stays ``not_started`` however long somebody read it, and "the
+    #: node in progress" was unanswerable from this payload.
+    #:
+    #: ``updated_at`` is **not** exposed next to it on purpose. It does move on every
+    #: read, but it also moves when the anticipatory prefetch pins a render for the nodes
+    #: ahead (``NodeRenderService.pin`` writes ``active_render_id``), so as a "last
+    #: visited" signal it points at nodes the learner never opened — worse than no field.
+    first_seen_at: datetime | None = None
+    #: ``learner_node_states.completed_at`` — when this learner reached the end of the
+    #: node's content, ``null`` if they never did. Exposed rather than kept server-side
+    #: because the client needs both halves of "done": ``state == 'mastered'`` is a
+    #: demonstration, and an expository node can never produce one (rule 6 of §7.3 needs
+    #: graded answers), so without this field a finished node is indistinguishable from an
+    #: untouched one in this payload. It is also what lets the client stop re-posting
+    #: ``POST /nodes/{id}/complete`` for a node already recorded as finished.
+    completed_at: datetime | None = None
 
 
 class NodeListRead(BaseModel):
@@ -76,8 +96,8 @@ class NodeListRead(BaseModel):
     delivery_mode: str
     schema_version: int
     nodes: list[NodeSummaryRead] = Field(default_factory=list)
-    #: §7.5: every non-archived ``critical`` node mastered. ``recommended`` and
-    #: ``contextual`` never block.
+    #: §7.5, as ``mastery_service.node_is_done`` now spells it: every non-archived node
+    #: mastered **or** finished. Criticality does not gate closure.
     can_complete: bool = False
     blocked_by: list[str] = Field(default_factory=list)
     progress_percent: int = 0
@@ -349,6 +369,34 @@ class NodeEventsRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     events: list[NodeEventInput] = Field(default_factory=list, max_length=100)
+
+
+# --- finishing a node ---------------------------------------------------------------
+
+
+class NodeCompletionRead(BaseModel):
+    """``POST /nodes/{node_id}/complete``: the learner reached the end of a node.
+
+    It answers with the *course* verdict and not just the node's, because the whole reason
+    the endpoint exists is the number on the course progress bar: one round trip stamps
+    the node and returns the recomputed bar, so the client has nothing to derive and
+    cannot show a stale percentage next to a node it has just finished.
+
+    ``state`` and ``mastery`` are echoed back untouched, on purpose — the route does not
+    write them, and a caller reading ``state: 'not_started'`` next to a
+    ``completed_at`` sees exactly the distinction the two columns exist to keep.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    node_id: uuid.UUID
+    completed_at: datetime
+    state: str
+    mastery: float
+    #: The §7.5 verdict recomputed after the stamp — the same two numbers
+    #: ``GET /courses/{id}/nodes`` reports, so a client may use them directly.
+    progress_percent: int = 0
+    can_complete: bool = False
 
 
 # --- state and waive ---------------------------------------------------------------

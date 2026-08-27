@@ -24,7 +24,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.models.base import Base, UUIDMixin
+from src.models.base import Base, UUIDMixin, aware_utc_now
 
 
 class NodeState(str, enum.Enum):
@@ -129,9 +129,32 @@ class LearnerNodeState(UUIDMixin, Base):
     mastered_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    #: When the learner reached the end of the node's content (migration 0029).
+    #:
+    #: **A separate dimension from mastery, on purpose.** ``mastered_at`` records a
+    #: demonstration (rule 6 of §7.3: a streak of correct graded answers); this records
+    #: that the material was worked through. An expository node has no graded item, so it
+    #: can never be ``mastered`` and without this column it counted as zero progress
+    #: forever. Neither implies the other: a node can be finished without being mastered,
+    #: and mastered without its last screen being reached.
+    #:
+    #: Not ``first_seen_at``'s twin either — that one is stamped when the render is
+    #: *served*, so it says "opened", not "finished". Written only by
+    #: ``POST /nodes/{id}/complete`` via ``LearnerNodeStateRepository.mark_completed``,
+    #: and, like ``first_seen_at``, never moved once set.
+    #:
+    #: No ``onupdate``: this is an event stamp, not a row-touch stamp.
+    completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    #: A Python callable, never ``text("now()")``: a SQL expression puts the column in
+    #: the UPDATE's ``postfetch`` set and expires the attribute, so the first read after
+    #: ``await db.commit()`` raises ``MissingGreenlet``. See ``base.aware_utc_now``.
+    #: Aware, unlike the ``TimestampMixin`` default, because this column declares
+    #: ``DateTime(timezone=True)``.
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
         server_default=text("now()"),
-        onupdate=text("now()"),
+        onupdate=aware_utc_now,
     )

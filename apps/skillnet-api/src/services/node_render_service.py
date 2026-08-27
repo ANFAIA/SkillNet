@@ -28,6 +28,16 @@ Two invariants worth stating because they are easy to break by accident:
   replace, and writing over the row would rewrite the screen of everybody else in the
   bucket. The salt is what makes the refresh a *new* row, leaving the shared one (and this
   learner's ``GET /renders`` history) intact.
+* **``ready`` is retained, ``fallback`` is not.** The pin exists so that coming back
+  tomorrow returns the same bytes instead of a different lesson — a promise that is only
+  worth keeping for a render that *is* the lesson. A ``fallback`` is by definition degraded
+  content, served because the generation failed, so pinning one to perpetuity turns a
+  transient failure into a permanent one (that is how a learner ended up fixed forever to a
+  fallback that had leaked a prompt dump). So a ``fallback`` pin is served — blanking the
+  screen would be worse — but it never *blocks* a regeneration: see
+  :func:`fallback_retry_available` for the budget that keeps a node which always fails from
+  costing one LLM cycle per visit, and :meth:`NodeRenderService.pinned_render` for the
+  upgrade to a ``ready`` render that already exists.
 """
 
 from __future__ import annotations
@@ -182,6 +192,16 @@ def generation_provenance_for_state(
     if reason:
         provenance["episode_decline_reason"] = str(reason)[:200]
     return provenance
+
+
+def is_fallback_render(render: Any) -> bool:
+    """``True`` when this render is the degraded backup, not the lesson.
+
+    The one predicate behind "``ready`` is retained, ``fallback`` is not". Reads the status
+    defensively so a render-shaped double without one is simply not a fallback.
+    """
+
+    return _plain(getattr(render, "status", "")) == NodeRenderStatus.FALLBACK.value
 
 
 def shell_mode_for_render(render: Any) -> ShellMode:
@@ -424,6 +444,76 @@ def forget_in_flight(user_id: uuid.UUID, node_id: uuid.UUID) -> None:
     _INFLIGHT.pop((user_id, node_id), None)
 
 
+# --------------------------------------------------------------------------------------
+# Fallback retry budget: what makes "a fallback is not retained" affordable
+#
+# A ``fallback`` pin must be replaceable, but "replaceable" cannot mean "regenerated on
+# every visit": a node that fails deterministically (a source document the model chokes on,
+# a provider that is down) would then bill a full LLM cycle per page view forever, and the
+# learner would still end up looking at the same backup content. So the retry is a budget,
+# and the budget is keyed by ``cache_key`` rather than by ``(user, node)`` on purpose: the
+# ``node_renders`` row is shared by the whole preference bucket and a retry rewrites it in
+# place, so one attempt serves everybody who is pinned to it.
+#
+# Process-local, exactly like ``_INFLIGHT`` above and for the same reason (§9.2, one
+# worker). Unlike the pin, this is a *cost* guard and not a correctness guard: losing it on
+# a restart costs at most one extra generation per bucket, which is also the cheapest
+# possible "retry after a deploy" and is welcome.
+# --------------------------------------------------------------------------------------
+
+#: How long a served ``fallback`` is left alone before another generation may be spent on
+#: its ``cache_key``.
+FALLBACK_RETRY_COOLDOWN_SECONDS = 600.0
+
+#: How many regenerations a single ``cache_key`` ever gets. Three attempts spread over
+#: ``FALLBACK_RETRY_COOLDOWN_SECONDS`` recover a provider outage of about half an hour; past
+#: that the failure is not transient and the learner keeps the backup content for free,
+#: with "Actualizar esta leccion" (``force``) still available as the manual escape hatch.
+FALLBACK_RETRY_MAX_ATTEMPTS = 3
+
+#: Bound on the registry so a long-lived process cannot accumulate one entry per fallback
+#: key ever seen. Dropping the whole table only refunds retries, it never wedges anything.
+_FALLBACK_RETRY_MAX_KEYS = 4096
+
+_FALLBACK_RETRIES: dict[str, tuple[int, float]] = {}
+
+
+def fallback_retry_available(cache_key: str, *, now: float | None = None) -> bool:
+    """Whether a regeneration may still be spent on this ``fallback`` key. Reads only.
+
+    Split from :func:`claim_fallback_retry` so a caller can ask the cheap question (a dict
+    lookup) before paying for the context a real request needs, and so a request that ends
+    up deduplicated onto a generation already in flight does not burn a slot.
+    """
+    attempts, next_at = _FALLBACK_RETRIES.get(cache_key, (0, 0.0))
+    if attempts >= FALLBACK_RETRY_MAX_ATTEMPTS:
+        return False
+    return (time.monotonic() if now is None else now) >= next_at
+
+
+def claim_fallback_retry(cache_key: str, *, now: float | None = None) -> bool:
+    """Spend one slot of the budget. ``False`` when there was nothing left to spend."""
+    moment = time.monotonic() if now is None else now
+    if not fallback_retry_available(cache_key, now=moment):
+        return False
+    if len(_FALLBACK_RETRIES) >= _FALLBACK_RETRY_MAX_KEYS:
+        _FALLBACK_RETRIES.clear()
+    attempts, _next_at = _FALLBACK_RETRIES.get(cache_key, (0, 0.0))
+    _FALLBACK_RETRIES[cache_key] = (
+        attempts + 1,
+        moment + FALLBACK_RETRY_COOLDOWN_SECONDS,
+    )
+    return True
+
+
+def reset_fallback_retries(cache_key: str | None = None) -> None:
+    """Forget the budget for one key, or all of it. For tests and for ops."""
+    if cache_key is None:
+        _FALLBACK_RETRIES.clear()
+    else:
+        _FALLBACK_RETRIES.pop(cache_key, None)
+
+
 def cancel_in_flight(user_id: uuid.UUID, node_id: uuid.UUID) -> bool:
     """Cancel the render in flight for this ``(user, node)``. ``True`` if there was one.
 
@@ -562,16 +652,24 @@ class NodeRenderService:
         This is what ``GET /nodes/{id}/render`` answers with. It is also what makes a
         revisit to an already-seen node serve the last render rather than a new one (§5.5).
 
-        One exception, and only one: a **flat** (``legacy_stepper``) pin that was fixed
-        *before* the node's knowledge pack was ready. The anticipatory prefetch can pin the
-        fallback shell for a node whose pack is still generating, and because the pin is
-        never recomputed that flat screen would shadow the episode forever even after the
-        pack lands. When ``node``/``course``/``user`` are supplied we detect exactly that
-        case — a legacy pin whose ``cache_key`` no longer matches the freshly computed key
-        (the fresh key now carries the ready pack's fragment) — and drop the pin so the next
-        render regenerates the episode. It is loop-safe: a render produced *with* the pack
-        that still came out legacy (an honest decline) already carries the pack fragment, so
-        its key matches and the pin stands.
+        Two exceptions, both requiring ``node``/``course``/``user`` so the fresh key can be
+        computed, and both no-ops without them:
+
+        * A **flat** (``legacy_stepper``) pin that was fixed *before* the node's knowledge
+          pack was ready. The anticipatory prefetch can pin the fallback shell for a node
+          whose pack is still generating, and because the pin is never recomputed that flat
+          screen would shadow the episode forever even after the pack lands. A legacy pin
+          whose ``cache_key`` no longer matches the freshly computed key (the fresh key now
+          carries the ready pack's fragment) is dropped so the next render regenerates the
+          episode. It is loop-safe: a render produced *with* the pack that still came out
+          legacy (an honest decline) already carries the pack fragment, so its key matches
+          and the pin stands.
+        * A **``fallback``** pin for which a ``ready`` render already exists under the fresh
+          key. ``ready`` is retained and ``fallback`` is not (see the module docstring), so
+          rather than hand back the degraded screen the pin is *moved* to the clean render
+          and that one is returned. Only ``ready`` can win here: ``find_cached`` never
+          returns a fallback, so this cannot swap one degraded screen for another, and a
+          ``ready`` pin is never re-resolved, so the stability promise is untouched.
         """
         state = await self.states.get_by_user_and_node(user_id, node_id)
         if state is None or not state.render_pinned or state.active_render_id is None:
@@ -584,9 +682,13 @@ class NodeRenderService:
             return None
         if not cache_key_uses_current_screen_contract(render.cache_key):
             return None
-        if (
+        is_fallback = is_fallback_render(render)
+        stale_flat_pin = (
             settings.ADAPTIVE_EPISODES
             and shell_mode_for_render(render) == "legacy_stepper"
+        )
+        if (
+            (is_fallback or stale_flat_pin)
             and node is not None
             and course is not None
             and user is not None
@@ -594,7 +696,19 @@ class NodeRenderService:
             fresh = await self.render_key_for(
                 user=user, node=node, course=course
             )
-            if fresh.cache_key != render.cache_key:
+            if is_fallback:
+                clean = await self.renders.find_cached(fresh.cache_key)
+                if clean is not None and clean.id != render.id:
+                    repinned = await self.pin(
+                        user_id=user_id,
+                        node_id=node_id,
+                        render=clean,
+                        personalization_revision=fresh.personalization_revision,
+                    )
+                    # A revision that moved under us means the profile changed: nothing
+                    # may be pinned, and the caller regenerates instead.
+                    return clean if repinned is not None else None
+            if stale_flat_pin and fresh.cache_key != render.cache_key:
                 return None
         return render
 
@@ -709,7 +823,12 @@ class NodeRenderService:
         Order of decisions, and why:
 
         1. **Already pinned and not forced** -> return it. Cheapest level, and the one that
-           guarantees spatial stability.
+           guarantees spatial stability. A ``fallback`` pin is the one exception: it is
+           returned the same way, but it does not stop the decisions below while its retry
+           budget lasts (:func:`fallback_retry_available`), because a degraded screen must
+           not become permanent. The regeneration rewrites the row under the same
+           ``cache_key``, so a run that finally comes out ``ready`` replaces it for this
+           learner and for the whole bucket at once.
         2. **Already generating** -> return the same ``request_id``. Two tabs must not start
            two generations of the same screen.
         3. **Cache hit on ``cache_key``, and not forced** -> pin it and answer
@@ -729,14 +848,22 @@ class NodeRenderService:
 
         self.assert_reviewed(node)
 
+        # A pinned ``fallback`` whose retry budget is not exhausted. Kept so the request can
+        # both answer with it (nothing else is servable yet) and go on to regenerate.
+        pinned_fallback: NodeRender | None = None
+
         if not preview and not force and not warm:
             pinned = await self.pinned_render(
                 user_id=user.id, node_id=node.id, node=node, course=course, user=user
             )
             if pinned is not None:
-                return RenderRequest(
-                    request_id="", cached=True, render_id=pinned.id
-                )
+                if not is_fallback_render(pinned) or not fallback_retry_available(
+                    pinned.cache_key
+                ):
+                    return RenderRequest(
+                        request_id="", cached=True, render_id=pinned.id
+                    )
+                pinned_fallback = pinned
 
         if not preview:
             running = in_flight_for(user.id, node.id)
@@ -776,6 +903,15 @@ class NodeRenderService:
                 key = await self.render_key_for(
                     user=user, node=node, course=course, refresh=True
                 )
+
+        if pinned_fallback is not None and not claim_fallback_retry(
+            pinned_fallback.cache_key
+        ):
+            # Somebody else took the last slot between the peek above and here. Keep serving
+            # the backup content rather than spend a generation the budget has ruled out.
+            return RenderRequest(
+                request_id="", cached=True, render_id=pinned_fallback.id
+            )
 
         request_id = uuid.uuid4().hex
         state: dict[str, Any] = {
@@ -1189,6 +1325,11 @@ def spawn_prewarm_first_nodes(
 __all__ = [
     "DEFAULT_PREWARM_NODES",
     "DEFAULT_SLIDING_WINDOW",
+    "FALLBACK_RETRY_COOLDOWN_SECONDS",
+    "FALLBACK_RETRY_MAX_ATTEMPTS",
+    "claim_fallback_retry",
+    "fallback_retry_available",
+    "reset_fallback_retries",
     "prewarm_sliding_window",
     "spawn_prewarm_sliding_window",
     "NODE_NOT_REVIEWED",
@@ -1206,6 +1347,7 @@ __all__ = [
     "forget_in_flight",
     "generation_provenance_for_state",
     "generation_policy_key",
+    "is_fallback_render",
     "in_flight_for",
     "owner_of_request",
     "shell_mode_for_render",

@@ -28,6 +28,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ApiError, get, post } from './client'
 import type {
   NodeAttemptOutcome,
+  NodeCompletion,
   NodeEventInput,
   NodeFeedbackBody,
   NodeList,
@@ -507,6 +508,54 @@ export function useSubmitNodeAnswer(nodeId: string | undefined) {
         // Informative only; the server derives the real count (§11.3).
         hints_used: 0,
       }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['nodes'] })
+      queryClient.invalidateQueries({ queryKey: ['enrollments'] })
+    },
+  })
+}
+
+/**
+ * `POST /nodes/{node_id}/complete` — the learner reached the end of this node.
+ *
+ * The client half of the 0% bug. A v2 course's progress counts nodes that are *done*, and
+ * until this endpoint existed "done" meant `mastered` only — reachable by rule 6 of §7.3
+ * with a 0.90 threshold **and** three consecutive correct answers, which an episode
+ * presenting one item per node cannot produce and an expository node can never produce at
+ * all. So a course read from end to end reported 0% and the bar never went green. The
+ * server now counts a node with `completed_at` as done; **saying so is this hook's job**,
+ * because advancing through an episode is pure client-side navigation and told the server
+ * nothing.
+ *
+ * Two properties make it safe to call from a navigation handler:
+ *
+ * - **It is idempotent on both halves.** The stamp is never moved once written and the
+ *   course recompute no-ops when the enrollment already agrees, so no caller has to track
+ *   whether it already fired.
+ * - **Its failure is not the learner's problem.** Callers use `mutate` (never
+ *   `mutateAsync`) and never await it: a node that could not be stamped is a percentage
+ *   that lags, not a lesson that refuses to advance.
+ *
+ * Invalidates `['nodes']` and `['enrollments']` — the same two families
+ * `useSubmitNodeAnswer` invalidates, and for the same reason: `useCourseNodes`
+ * (`courseNodesKey`) carries `progress_percent` and the node list's `completed_at`, and
+ * `useEnrollments`/`useEnrollment` carry the course-level `progress` every learner screen
+ * outside the course reads.
+ *
+ * **The node id travels as the mutation variable, not as a hook argument**, and that is
+ * the one place this hook departs from `useSubmitNodeAnswer(nodeId)` and
+ * `useNodeFeedback(nodeId)` next to it. `mutationFn` is resolved *lazily* by query-core
+ * (`mutation.js`: `this.options.mutationFn(variables)`), and `useMutation` refreshes those
+ * options on every render — so a `nodeId` closed over at hook level is whatever the last
+ * render saw, not what the caller meant. Every caller of this endpoint fires it *while
+ * navigating away from the node it is stamping*, so the re-render lands first and a
+ * hook-level id would stamp the node the learner just **arrived** at. Measured, not
+ * theoretical: it is what the two "leaves the node forward" tests caught.
+ */
+export function useCompleteNode() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (nodeId: string) => post<NodeCompletion>(`/nodes/${nodeId}/complete`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['nodes'] })
       queryClient.invalidateQueries({ queryKey: ['enrollments'] })

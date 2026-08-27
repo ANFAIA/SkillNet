@@ -22,6 +22,13 @@ import { transition, duration, ease } from '../../lib/motion'
 import { useLearnerProfile } from '../../api/onboarding'
 import { post } from '../../api/client'
 import { useNodeMorph } from '../../stores/nodeMorph'
+import { hasStartedCourse } from '../../features/resume/selectResumeNode'
+import {
+  clearCoursePositions,
+  clearNodePosition,
+  readNodePosition,
+  writeNodePosition,
+} from '../../features/resume/storage'
 import { usePreferences } from '../../stores/preferences'
 import type { Locale } from '../../stores/preferences'
 import {
@@ -30,6 +37,7 @@ import {
   isNodeSurfaceDisabled,
   isPendingRender,
   isServedRender,
+  useCompleteNode,
   useCourseNodes,
   useNodeEvents,
   useNodeRender,
@@ -294,26 +302,105 @@ export function NodeView() {
   useEffect(() => () => { if (fxTimer.current) window.clearTimeout(fxTimer.current) }, [])
   const lessonFeedback = useMemo(() => ({ report: reportResult }), [reportResult])
 
+  /**
+   * "He terminado este nodo", dicho al servidor.
+   *
+   * Terminar un nodo era, hasta aqui, navegacion 100% de cliente: el servidor no se
+   * enteraba de nada, y como el progreso de un curso v2 cuenta nodos HECHOS —y "hecho"
+   * solo podia significar `mastered`, que exige 0.90 de dominio mas tres aciertos
+   * seguidos y por tanto es inalcanzable en un nodo expositivo—, un curso leido de punta
+   * a punta marcaba 0%. `POST /nodes/{id}/complete` pone el sello que el recuento ya sabe
+   * leer; esto es lo unico que faltaba: decirlo.
+   *
+   * Dos reglas, y las dos vienen de fuera de esta funcion:
+   *
+   * - **Una llamada por nodo terminado.** El endpoint es idempotente en sus dos mitades,
+   *   asi que no hace falta guarda alguna por correccion; el `Set` esta para no gastar una
+   *   peticion por cada paso de un aprendiz que va y viene entre dos nodos. Un fallo
+   *   suelta la marca, de modo que un paso posterior por el mismo nodo lo reintenta.
+   * - **Avanzar nunca se bloquea** (la regla que ya estaba escrita en el pie del
+   *   episodio). Se usa `mutate`, nunca `mutateAsync`, y no se espera el resultado: un
+   *   nodo que no se pudo sellar es un porcentaje que llega tarde, jamas una leccion que
+   *   se niega a avanzar. El fallo no sale a pantalla.
+   *
+   * El id viaja como variable de la mutacion (ver `useCompleteNode`): estas llamadas
+   * salen mientras se navega FUERA del nodo que sellan, asi que un id capturado en el
+   * hook seria ya el del nodo al que se acaba de llegar.
+   */
+  const { mutate: completeNodeMutation } = useCompleteNode()
+  const completedRef = useRef<Set<string>>(new Set())
+  const markNodeFinished = useCallback(() => {
+    const target = nodeId
+    if (!target || completedRef.current.has(target)) return
+    completedRef.current.add(target)
+    completeNodeMutation(target, {
+      onError: () => completedRef.current.delete(target),
+    })
+  }, [nodeId, completeNodeMutation])
+
   // Pantalla de fin de curso: el CTA del ultimo nodo la dispara; se reinicia al
   // cambiar de nodo (por si se vuelve a entrar al curso).
+  //
+  // Es tambien el punto UNICO donde se detecta "he terminado el curso": lo llaman el pie
+  // del episodio en el ultimo nodo y `courseFinishContext` (el CTA del stepper legacy).
+  // Sellar el nodo aqui cubre los dos armazones sin repetir la deteccion en ninguno.
   const [finished, setFinished] = useState(false)
   useEffect(() => { setFinished(false) }, [nodeId])
-  const finishCourse = useCallback(() => setFinished(true), [])
+  const finishCourse = useCallback(() => {
+    markNodeFinished()
+    setFinished(true)
+  }, [markNodeFinished])
 
   // Paginación del episodio multipantalla. NodeView es el dueño del índice de pantalla;
-  // el StackBlock raíz solo informa del total y pinta la pantalla actual. Se reinicia por
-  // nodo (más abajo, junto al resto de estado por-nodo).
-  const [episodeScreen, setEpisodeScreen] = useState(0)
+  // el StackBlock raíz solo informa del total y pinta la pantalla actual. Al cambiar de
+  // nodo (o al volver a entrar) se SIEMBRA desde lo guardado, no se pone a cero: ese cero
+  // era la mitad del "no recuerda por donde iba" — el servidor sabe a que nodo volver,
+  // pero la pantalla dentro del nodo solo vive aqui.
+  const [episodeScreen, setEpisodeScreen] = useState(
+    () => readNodePosition(courseId, nodeId)?.screen ?? 0,
+  )
   const [episodeTotal, setEpisodeTotal] = useState(1)
+  /**
+   * El unico sitio donde se recorta la pantalla sembrada.
+   *
+   * Un episodio se puede haber regenerado con menos pantallas que la ultima vez, asi que
+   * la guardada puede caer fuera de rango. Recortar en un efecto sobre `episodeTotal` no
+   * vale: el total arranca en 1 y el StackBlock no lo informa hasta despues del primer
+   * pintado, asi que el efecto veria "total = 1" y tiraria la pantalla 3 a 0 antes de
+   * saber cuantas hay. Aqui solo se recorta cuando llega un total de verdad.
+   */
+  const reportEpisodeTotal = useCallback((total: number) => {
+    setEpisodeTotal(total)
+    setEpisodeScreen((screen) => Math.min(screen, Math.max(0, total - 1)))
+  }, [])
   const episodePager = useMemo(
-    () => ({ screen: episodeScreen, reportTotal: setEpisodeTotal }),
-    [episodeScreen],
+    () => ({ screen: episodeScreen, reportTotal: reportEpisodeTotal }),
+    [episodeScreen, reportEpisodeTotal],
   )
 
   // Compuerta de arranque: la pantalla de intro es del aprendiz hasta que pulsa
   // "Empezar". Sin esto, la leccion aparecia sola en cuanto el render estaba listo,
-  // sin poder quedarse ni avanzar a voluntad. Se reinicia por nodo (mas abajo).
-  const [entered, setEntered] = useState(false)
+  // sin poder quedarse ni avanzar a voluntad. Tambien se siembra de lo guardado: quien
+  // ya habia empezado el nodo no tiene que volver a pulsar "Empezar" cada vez.
+  const [entered, setEntered] = useState(
+    () => readNodePosition(courseId, nodeId)?.entered ?? false,
+  )
+
+  /**
+   * Donde estaba el aprendiz dentro de este nodo, recordado por dispositivo.
+   *
+   * Es un marcador, no progreso: la version con persistencia en servidor necesita una
+   * columna en `learner_node_states` y por tanto una migracion, que este cambio no trae.
+   * Todo pasa por `features/resume/storage`, asi que ese cambio sera de un fichero.
+   */
+  const rememberScreen = useCallback(
+    (screen: number) => writeNodePosition(courseId, nodeId, { screen, entered: true }),
+    [courseId, nodeId],
+  )
+  const forgetNode = useCallback(
+    () => clearNodePosition(courseId, nodeId),
+    [courseId, nodeId],
+  )
 
   const nodes = useCourseNodes(courseId)
   const courseQuery = useCourse(courseId)
@@ -325,6 +412,13 @@ export function NodeView() {
     [nodes.data, nodeId],
   )
 
+  // Un nodo dominado ya no tiene "por donde iba", asi que su marcador se borra en cuanto
+  // el servidor lo da por dominado. Es la otra mitad de la limpieza: `goNext` borra el
+  // del nodo que se abandona hacia adelante, esto borra el del que se termina en el sitio.
+  useEffect(() => {
+    if (node?.state === 'mastered') forgetNode()
+  }, [node?.state, forgetNode])
+
   const ordered = useMemo(
     () => [...(nodes.data?.nodes ?? [])].sort((a, b) => a.position - b.position),
     [nodes.data],
@@ -335,7 +429,15 @@ export function NodeView() {
 
   // Course intro — only on the first node when learner has zero progress
   const isFirstNode = index === 0
-  const hasNoProgress = ordered.every((n) => n.mastery === 0)
+  /**
+   * The course intro is a first-run screen, so the question is "has this learner started
+   * the course?" and `mastery === 0` was the wrong way to ask it: mastery only moves when
+   * a graded item is answered, so somebody who had read four nodes got the full course
+   * introduction again on every re-entry. `first_seen_at` is stamped when a node is
+   * actually served to them, which is the thing being asked (mastery is still consulted,
+   * for a learner whose progress predates the stamp).
+   */
+  const hasNoProgress = !hasStartedCourse(ordered)
   const totalMinutes = ordered.reduce((sum, n) => sum + (n.estimated_minutes ?? 0), 0)
   const courseIntro: CourseIntro | null = useMemo(() => {
     if (!isFirstNode || !hasNoProgress || !courseQuery.data) return null
@@ -393,8 +495,12 @@ export function NodeView() {
     setStreamFailure(null)
     setActivePanel(null)
     setStepProgress(null)
-    setEntered(false)
-    setEpisodeScreen(0)
+    // Sembrar, no borrar. Poner `entered` a false y la pantalla a 0 aqui era lo que hacia
+    // reaparecer la intro del nodo y la pantalla 1 en cada reentrada, incluso yendo y
+    // volviendo entre dos nodos del mismo curso.
+    const saved = readNodePosition(courseId, nodeId)
+    setEntered(saved?.entered ?? false)
+    setEpisodeScreen(saved?.screen ?? 0)
     setEpisodeTotal(1)
     requestedRef.current = false
     wasPreparingRef.current = false
@@ -403,7 +509,7 @@ export function NodeView() {
     dwellStartRef.current = null
     formatRef.current = null
     // prefetchedRef is defined later but initialized to null anyway
-  }, [nodeId])
+  }, [nodeId, courseId])
 
   // Admin demo preview: a control to switch the showcase lesson between the two pre-baked
   // personalization variants (audio ↔ visual). Only on the admin "probar-curso" screen,
@@ -880,7 +986,11 @@ export function NodeView() {
                             >
                               <stepperProgressContext.Provider value={reportStepProgress}>
                                 <courseIntroContext.Provider value={courseIntro}>
-                                  <nextNodeContext.Provider value={nextNode ? { navigate: () => navigate(`${backToCourse}/nodo/${nextNode.id}`), title: nextNode.title } : null}>
+                                  {/* El avance del armazon legacy sale por aqui, no por el
+                                      pie del episodio, asi que el sello tiene que estar en
+                                      los dos: es el mismo hecho ("he salido de este nodo
+                                      hacia delante") contado por dos armazones distintos. */}
+                                  <nextNodeContext.Provider value={nextNode ? { navigate: () => { markNodeFinished(); navigate(`${backToCourse}/nodo/${nextNode.id}`) }, title: nextNode.title } : null}>
                                     <coursePositionContext.Provider value={{ nodeCount: ordered.length, currentNodeIndex: headerIndex }}>
                                       <stepperContext.Provider value={shownShellMode === 'legacy_stepper'}>
                                         <lessonFeedbackContext.Provider value={lessonFeedback}>
@@ -925,14 +1035,34 @@ export function NodeView() {
                           // bloquea: el resultado ya se registró en el bloque interactivo.
                           const isLastScreen = episodeScreen >= episodeTotal - 1
                           const isFirstScreen = episodeScreen <= 0
+                          // Cada cambio de pantalla se anota (por dispositivo), y al salir
+                          // del nodo se borra su anotacion: un nodo terminado no deja
+                          // basura, y al terminar el curso se limpia el curso entero.
                           const goPrev = () => {
-                            if (!isFirstScreen) setEpisodeScreen((s) => Math.max(0, s - 1))
-                            else if (previousNode) navigate(`${backToCourse}/nodo/${previousNode.id}`)
+                            if (!isFirstScreen) {
+                              const target = Math.max(0, episodeScreen - 1)
+                              setEpisodeScreen(target)
+                              rememberScreen(target)
+                            } else if (previousNode) {
+                              navigate(`${backToCourse}/nodo/${previousNode.id}`)
+                            }
                           }
                           const goNext = () => {
-                            if (!isLastScreen) setEpisodeScreen((s) => Math.min(episodeTotal - 1, s + 1))
-                            else if (nextNode) navigate(`${backToCourse}/nodo/${nextNode.id}`)
-                            else finishCourse()
+                            if (!isLastScreen) {
+                              const target = Math.min(episodeTotal - 1, episodeScreen + 1)
+                              setEpisodeScreen(target)
+                              rememberScreen(target)
+                            } else if (nextNode) {
+                              // Salir del nodo hacia delante ES terminarlo: la deteccion
+                              // ya estaba aqui (es donde se borra su marcador), asi que
+                              // el sello va en el mismo sitio y no en uno nuevo.
+                              markNodeFinished()
+                              forgetNode()
+                              navigate(`${backToCourse}/nodo/${nextNode.id}`)
+                            } else {
+                              clearCoursePositions(courseId)
+                              finishCourse()
+                            }
                           }
                           const showPrev = !isFirstScreen || Boolean(previousNode)
                           const nextLabel = !isLastScreen
@@ -1027,7 +1157,10 @@ export function NodeView() {
                         */}
                         <button
                           type="button"
-                          onClick={() => setEntered(true)}
+                          onClick={() => {
+                            setEntered(true)
+                            rememberScreen(episodeScreen)
+                          }}
                           disabled={!shownProgram}
                           className="bg-primary hover:bg-primary-hover text-white text-sm font-medium px-5 py-3 rounded-md transition-colors disabled:opacity-50 disabled:pointer-events-none"
                         >

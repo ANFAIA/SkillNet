@@ -64,6 +64,7 @@ class FakeEnrollment:
     score: float | None = None
     id: uuid.UUID = uuid.uuid4()
     user_id: uuid.UUID = USER_ID
+    started_at: datetime | None = None
 
 
 def row(
@@ -446,3 +447,112 @@ class _Repo:
 
 def _repo(session: Any) -> Any:
     return _Repo(session)
+
+
+# --------------------------------------------------------------------------- #
+# assigned -> in_progress on the dynamic branch
+#
+# The transition the v2 path simply did not have. `apply_dynamic_closure` only ever writes
+# `completed` or reopens a `completed` row, so a learner could work through 57% of a course
+# and their enrollment still said `assigned`: "Pendiente" on the dashboard, and 0 under
+# "Cursos activos". v1 has always stamped it on the first lesson visit.
+# --------------------------------------------------------------------------- #
+@pytest.mark.asyncio
+async def test_the_first_interaction_starts_a_dynamic_enrollment() -> None:
+    course = make_course()
+    enrollment = FakeEnrollment(status=EnrollmentStatus.ASSIGNED)
+    service = make_service(FakeSession(), enrollment)
+
+    started = await service.mark_dynamic_started(course=course, user_id=USER_ID)
+
+    assert started is enrollment
+    assert enrollment.status == EnrollmentStatus.IN_PROGRESS
+    assert enrollment.started_at is not None
+
+
+@pytest.mark.asyncio
+async def test_a_second_visit_does_not_move_started_at() -> None:
+    """Idempotence: this runs on every served render, so it must be a no-op after the
+    first one. Rewriting ``started_at`` per visit would make "when did they begin" mean
+    "when were they last here"."""
+    course = make_course()
+    first = datetime(2026, 3, 1, tzinfo=timezone.utc)
+    enrollment = FakeEnrollment(
+        status=EnrollmentStatus.IN_PROGRESS, started_at=first
+    )
+    service = make_service(FakeSession(), enrollment)
+
+    assert await service.mark_dynamic_started(course=course, user_id=USER_ID) is None
+    assert enrollment.started_at == first
+    assert enrollment.status == EnrollmentStatus.IN_PROGRESS
+
+
+@pytest.mark.asyncio
+async def test_a_completed_enrollment_is_not_reopened_by_a_revisit() -> None:
+    """Re-reading a finished course is not starting it: only `assigned` moves."""
+    course = make_course()
+    enrollment = FakeEnrollment(
+        status=EnrollmentStatus.COMPLETED,
+        completed_at=datetime(2026, 4, 1, tzinfo=timezone.utc),
+        score=0.9,
+    )
+    service = make_service(FakeSession(), enrollment)
+
+    assert await service.mark_dynamic_started(course=course, user_id=USER_ID) is None
+    assert enrollment.status == EnrollmentStatus.COMPLETED
+    assert enrollment.completed_at == datetime(2026, 4, 1, tzinfo=timezone.utc)
+
+
+@pytest.mark.asyncio
+async def test_a_static_course_is_never_started_by_the_v2_path() -> None:
+    """v1 stamps this itself in ``routes/lessons.py``; two authorities would be the bug."""
+    course = make_course(mode=CourseDeliveryMode.STATIC)
+    enrollment = FakeEnrollment(status=EnrollmentStatus.ASSIGNED)
+    service = make_service(FakeSession(), enrollment)
+
+    assert await service.mark_dynamic_started(course=course, user_id=USER_ID) is None
+    assert enrollment.status == EnrollmentStatus.ASSIGNED
+    assert service.enrollment_repo.lookups == 0  # type: ignore[attr-defined]
+
+
+@pytest.mark.asyncio
+async def test_an_unenrolled_viewer_starts_nothing() -> None:
+    """An admin previewing a node is exempt from the enrollment check, so there may be
+    no row at all. That is not an error and it must not raise."""
+    course = make_course()
+    service = make_service(FakeSession(), None)
+
+    assert await service.mark_dynamic_started(course=course, user_id=USER_ID) is None
+
+
+def test_reopening_backfills_a_missing_started_at() -> None:
+    """A reopened enrollment is ``in_progress``, and an ``in_progress`` row with no
+    ``started_at`` is exactly the "Pendiente at 57%" shape this batch removes."""
+    enrollment = FakeEnrollment(
+        status=EnrollmentStatus.COMPLETED,
+        completed_at=datetime.now(timezone.utc),
+        score=1.0,
+    )
+    completion = evaluate_course_completion(
+        [row(mastery=1.0), row(state="not_started", mastery=0.0)]
+    )
+
+    assert apply_dynamic_closure(enrollment, completion) == "reopened"
+    assert enrollment.status == EnrollmentStatus.IN_PROGRESS
+    assert enrollment.started_at is not None
+
+
+def test_reopening_does_not_move_a_real_started_at() -> None:
+    kept = datetime(2026, 1, 15, tzinfo=timezone.utc)
+    enrollment = FakeEnrollment(
+        status=EnrollmentStatus.COMPLETED,
+        completed_at=datetime.now(timezone.utc),
+        score=1.0,
+        started_at=kept,
+    )
+    completion = evaluate_course_completion(
+        [row(mastery=1.0), row(state="not_started", mastery=0.0)]
+    )
+
+    assert apply_dynamic_closure(enrollment, completion) == "reopened"
+    assert enrollment.started_at == kept

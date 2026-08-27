@@ -34,6 +34,22 @@ export function useEnrollment(id: string | undefined) {
   })
 }
 
+/**
+ * What `POST /enrollments` answers when the order names a *folder*.
+ *
+ * The single-course branch still answers with a bare `EnrollmentRead[]`, so
+ * `useAssignCourse` below is byte-for-byte the call it always was. A folder cannot:
+ * it is a set of courses, assigning it is idempotent, and "3 of 8 created, 5 already
+ * there" is the outcome the screen has to say out loud.
+ */
+export interface EnrollmentAssignmentResult {
+  /** Published courses the folder held. `0` means the assignment enrolled nobody. */
+  course_count: number
+  created_count: number
+  skipped_existing_count: number
+  enrollments: EnrollmentRead[]
+}
+
 export function useAssignCourse() {
   const queryClient = useQueryClient()
   return useMutation({
@@ -41,6 +57,27 @@ export function useAssignCourse() {
       post<EnrollmentRead[]>('/enrollments', payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['enrollments'] })
+    },
+  })
+}
+
+/**
+ * Assign every published course of one folder to these people.
+ *
+ * Same endpoint and same permissions as `useAssignCourse` — one field of the body
+ * differs — so the employee record does not need a second contract to know about. The
+ * other direction of the same operation (folder -> many people, from the library) is
+ * `useAssignCourseFolder` in `api/course-folders.ts`.
+ */
+export function useAssignFolder() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (payload: { user_ids: string[]; folder_id: string; deadline?: string }) =>
+      post<EnrollmentAssignmentResult>('/enrollments', payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['enrollments'] })
+      // The talent screens count assigned training per person.
+      queryClient.invalidateQueries({ queryKey: ['talent'] })
     },
   })
 }

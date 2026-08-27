@@ -95,6 +95,10 @@ export function useUpdateCourse() {
     onSuccess: (_data, { id }) => {
       queryClient.invalidateQueries({ queryKey: ['courses', id] })
       queryClient.invalidateQueries({ queryKey: ['courses'] })
+      // `folder_id` travels through this same update, so a move leaves the folder
+      // sidebar's `course_count` — and the "Assign N courses" label built from it —
+      // one course out of date until something else happens to refetch it.
+      queryClient.invalidateQueries({ queryKey: ['course-folders'] })
     },
   })
 }
@@ -145,6 +149,28 @@ export function useArchiveCourse() {
     onSuccess: (_data, courseId) => {
       queryClient.invalidateQueries({ queryKey: ['courses', courseId] })
       queryClient.invalidateQueries({ queryKey: ['courses'] })
+    },
+  })
+}
+
+/**
+ * The way back from `archived`. Returns the course as `published` — only a published
+ * course can be archived, so that is the status it had and nothing has to remember it.
+ * 409 if it was not archived, 422 if the course lost its last node or lesson while
+ * archived (unarchiving re-runs the publish checks); the caller shows either as-is.
+ *
+ * Same invalidations as archive plus `course-folders`: the folder assignment dialog
+ * counts a folder's PUBLISHED courses, and un-archiving is one of the two moves that
+ * changes which courses a folder can actually assign.
+ */
+export function useUnarchiveCourse() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (courseId: string) => post<CourseRead>(`/courses/${courseId}/unarchive`),
+    onSuccess: (_data, courseId) => {
+      queryClient.invalidateQueries({ queryKey: ['courses', courseId] })
+      queryClient.invalidateQueries({ queryKey: ['courses'] })
+      queryClient.invalidateQueries({ queryKey: ['course-folders'] })
     },
   })
 }

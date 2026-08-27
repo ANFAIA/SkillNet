@@ -118,7 +118,7 @@ export function CourseFolderSidebar({ folders, selected, totalCount, unorganized
       </div>
       <nav className="space-y-1">
         {filterButton('all', intl.formatMessage({ id: 'content.folderAll' }), totalCount)}
-        {filterButton('unorganized', intl.formatMessage({ id: 'content.folderUnorganized' }), unorganizedCount)}
+        {filterButton('unorganized', intl.formatMessage({ id: 'content.folderNone' }), unorganizedCount)}
         {folders.map((folder) => (
           <div key={folder.id} className="group">
             {editingId === folder.id ? (

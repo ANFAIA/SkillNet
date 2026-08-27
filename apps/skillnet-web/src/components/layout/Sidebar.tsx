@@ -137,7 +137,7 @@ function EmployeeContinueCourse({ onNavigate }: { onNavigate: () => void }) {
   const activeEnrollment = enrollmentData?.items
     .filter(
       (enrollment) =>
-        (enrollment.status === 'in_progress' || enrollment.status === 'overdue') &&
+        enrollment.status === 'in_progress' &&
         (enrollment.progress ?? 0) < 1,
     )
     .sort((a, b) => (b.progress ?? 0) - (a.progress ?? 0))[0]

@@ -156,3 +156,55 @@ describe('MyCourses — node-based courses', () => {
     expect(await screen.findByText('CURSO')).toBeInTheDocument()
   })
 })
+
+/**
+ * "Acabo el curso y la barra no se pone verde."
+ *
+ * Half of that was the number (a v2 course counted only `mastered` nodes, so a course read
+ * end to end reported 0% — fixed server-side plus `POST /nodes/{id}/complete`). The other
+ * half was here, and it survived any fix to the number: `CourseItem` handed its `color`
+ * prop — the per-course identity colour of the dot — to the progress bar as well, and a
+ * `color` overrides the variant inside `ProgressBar`. So the bar was primary blue at 5%
+ * and primary blue at 100%: a finished course could not look finished.
+ */
+describe('MyCourses — a finished course looks finished', () => {
+  /**
+   * The filled part of the bar: the child of the track. Selected by the track and not by
+   * "the first element with an inline style" — the course-identity dot and framer's
+   * stagger wrappers both carry one, so a looser selector reads a different element on
+   * each tab depending on where the entry animation is.
+   */
+  function barOf(row: HTMLElement) {
+    return row.querySelector('.bg-bg-muted > [style]') as HTMLElement
+  }
+
+  it('paints a course at 100% in the accent colour, not in primary', async () => {
+    installFetch([
+      enrollment({
+        id: 'e3',
+        course_title: 'Como aprende tu cerebro',
+        status: 'completed',
+        progress: 1,
+        completed_at: '2026-08-26T10:00:00Z',
+      }),
+    ])
+    const { container } = renderPage()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Completados' }))
+    await screen.findByText('Como aprende tu cerebro')
+
+    expect(barOf(container).className).toContain('bg-accent')
+  })
+
+  it('still reads as in-progress below the threshold', async () => {
+    // The same bar has to keep saying "not done yet" — the fix is a scale, not a repaint.
+    installFetch([enrollment({ progress: 0.4 })])
+    const { container } = renderPage()
+
+    await openInProgress()
+    await screen.findByText('Devoluciones en tienda')
+
+    expect(barOf(container).className).toContain('bg-primary')
+    expect(barOf(container).className).not.toContain('bg-accent')
+  })
+})

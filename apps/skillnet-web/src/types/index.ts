@@ -264,12 +264,14 @@ export interface CourseProgress {
 
 // --- Enrollments ---
 
-export type EnrollmentStatus =
-  | 'not_started'
-  | 'in_progress'
-  | 'completed'
-  | 'overdue'
-  | string
+/**
+ * The three values `enrollment_status` actually holds server-side
+ * (`models/enrollment.py`). Two names that used to live here were fiction:
+ * `'not_started'` (the API sends `'assigned'`) and `'overdue'`, which is never stored —
+ * it is derived from `deadline` vs today (`services/org_snapshot.py:150`). A trailing
+ * `| string` used to widen this to `string`, so neither lie could ever fail to compile.
+ */
+export type EnrollmentStatus = 'assigned' | 'in_progress' | 'completed'
 
 export interface EnrollmentRead {
   id: string
@@ -476,6 +478,22 @@ export interface LearningNode {
   /** `state === 'needs_review'` (§7.4). */
   needs_practice: boolean
   estimated_minutes: number
+  /**
+   * ISO timestamp of the first time this learner was served this node, `null` when they
+   * have never opened it. The only server-side answer to "where was I?": `state` cannot
+   * give it, because `learning` needs a graded answer and a prefetch already creates the
+   * row as `not_started`. Consumed by `features/resume/selectResumeNode`.
+   */
+  first_seen_at: string | null
+  /**
+   * ISO timestamp of the moment this learner reached the end of the node's content,
+   * `null` while they have not. A **separate dimension from mastery**: getting to the last
+   * screen is not a demonstration, so the server writes this and leaves `state` and
+   * `mastery` alone — a node may legitimately read `state: 'not_started'` next to a
+   * `completed_at`. What it does move is progress, because the §7.5 count treats a node as
+   * done when it is mastered **or** finished. Written by `POST /nodes/{id}/complete`.
+   */
+  completed_at: string | null
 }
 
 /** `GET /nodes/{node_id}/render` (§11.3). `answer_key` is never serialized here. */
@@ -730,6 +748,29 @@ export interface NodeAttemptOutcome {
   consecutive_failed: number
   next: 'retry' | 'next_item' | 'next_node'
   show_worked_solution: boolean
+}
+
+/**
+ * `POST /nodes/{node_id}/complete` — `NodeCompletionRead`.
+ *
+ * It answers with the **course** verdict, not just the node's: the reason the endpoint
+ * exists is the number on the course progress bar, so one round trip stamps the node and
+ * hands back the recomputed percentage. The client derives nothing and cannot paint a
+ * stale figure next to a node it has just finished.
+ *
+ * `state` and `mastery` are echoes of columns the route does not write. Reading
+ * `state: 'not_started'` next to a `completed_at` is the two dimensions doing their two
+ * different jobs, not an inconsistency.
+ */
+export interface NodeCompletion {
+  node_id: string
+  /** Never `null` in a response: by the time it answers, the stamp is there. */
+  completed_at: string
+  state: NodeState
+  mastery: number
+  /** The §7.5 course verdict, already recomputed after the stamp. */
+  progress_percent: number
+  can_complete: boolean
 }
 
 export interface NodeHintResult {

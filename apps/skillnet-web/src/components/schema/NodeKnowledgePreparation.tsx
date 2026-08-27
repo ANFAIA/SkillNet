@@ -69,17 +69,6 @@ export function NodeKnowledgePreparation({
           {intl.formatMessage({ id: 'schema.packFailedDesc' })}
         </p>
       )}
-
-      {(pack?.status === 'ready' || pack?.status === 'review_required') && pack.markdown && (
-        <details className="mt-2">
-          <summary className="cursor-pointer text-xs text-text-secondary hover:text-text">
-            {intl.formatMessage({ id: 'schema.packSource' })}
-          </summary>
-          <pre className="mt-2 p-3 bg-bg-muted border border-border rounded-md whitespace-pre-wrap overflow-auto text-xs text-text">
-            {pack.markdown}
-          </pre>
-        </details>
-      )}
     </div>
   )
 }

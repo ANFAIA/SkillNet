@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -45,20 +45,41 @@ function course(overrides: Record<string, unknown> = {}) {
  * @param items       the courses the list returns; a second array, if given, is what the
  *                    list returns once a DELETE has gone through (the refetch).
  * @param onDelete    what `DELETE /courses/{id}` answers. Defaults to a 204.
+ * @param onUnarchive what `POST /courses/{id}/unarchive` answers. Defaults to the course
+ *                    back as `published`, which is what the endpoint returns: only a
+ *                    published course can be archived, so that is the status it had.
+ * @param afterUnarchive what the list returns once the unarchive has gone through (the
+ *                    refetch), for asserting which buttons the restored row offers.
  */
 function installFetch(
   items: unknown[] = [course()],
-  { onDelete, afterDelete }: { onDelete?: () => ReturnType<typeof jsonResponse>; afterDelete?: unknown[] } = {},
+  { onDelete, afterDelete, onUnarchive, afterUnarchive }: {
+    onDelete?: () => ReturnType<typeof jsonResponse>
+    afterDelete?: unknown[]
+    onUnarchive?: () => ReturnType<typeof jsonResponse>
+    afterUnarchive?: unknown[]
+  } = {},
 ) {
   let deleted = false
+  let unarchived = false
   mockFetch.mockImplementation((input: string, options?: RequestInit) => {
     const url = String(input)
+    if (url.includes('/unarchive') && options?.method === 'POST') {
+      unarchived = true
+      return onUnarchive
+        ? onUnarchive()
+        : jsonResponse(200, { ...(items[0] as Record<string, unknown>), status: 'published' })
+    }
     if (url.endsWith('/health')) {
       return jsonResponse(200, {
         status: 'ok',
         version: '1',
         database: 'ok',
       })
+    }
+    // A folder born from a course row: `POST /course-folders`, then the move.
+    if (url.includes('/course-folders') && options?.method === 'POST') {
+      return jsonResponse(201, { id: 'folder-2', name: 'Atención al cliente' })
     }
     if (url.includes('/course-folders')) {
       return jsonResponse(200, [{ id: 'folder-1', name: 'Operaciones', course_count: 1 }])
@@ -72,7 +93,9 @@ function installFetch(
       return jsonResponse(200, { ...(items[0] as Record<string, unknown>), folder_id: 'folder-1', folder_name: 'Operaciones' })
     }
     if (url.includes('/courses')) {
-      const current = deleted && afterDelete ? afterDelete : items
+      let current = items
+      if (deleted && afterDelete) current = afterDelete
+      else if (unarchived && afterUnarchive) current = afterUnarchive
       return jsonResponse(200, { items: current, total: current.length, page: 1, size: 20 })
     }
     return jsonResponse(404, { detail: 'Not Found', code: 'NOT_FOUND' })
@@ -126,6 +149,32 @@ describe('Content — library navigation', () => {
       options?.method === 'PUT' &&
       options.body === JSON.stringify({ folder_id: 'folder-1' }),
     )).toBe(true)
+  })
+
+  it('creates a folder from the row and files the course in it without leaving the menu', async () => {
+    installFetch()
+    renderPage()
+
+    // Scoped to the row's own menu: the folder sidebar offers a "new folder" button too,
+    // and the point of this one is that the admin never has to walk over there.
+    const summary = await screen.findByLabelText(/Mover Devoluciones en tienda/)
+    const menu = summary.closest('details')
+    if (!menu) throw new Error('el selector de carpeta del curso no es un <details>')
+    await userEvent.click(summary)
+    await userEvent.click(within(menu).getByRole('button', { name: /Nueva carpeta/ }))
+    await userEvent.type(within(menu).getByLabelText('Nombre de la carpeta'), 'Atención al cliente')
+    await userEvent.click(within(menu).getByRole('button', { name: /Crear/i }))
+
+    await waitFor(() => expect(mockFetch.mock.calls.some(([input, options]) =>
+      String(input).includes('/course-folders') &&
+      (options as RequestInit | undefined)?.method === 'POST' &&
+      (options as RequestInit).body === JSON.stringify({ name: 'Atención al cliente' }),
+    )).toBe(true))
+    await waitFor(() => expect(mockFetch.mock.calls.some(([input, options]) =>
+      String(input).includes(`/courses/${COURSE_ID}`) &&
+      (options as RequestInit | undefined)?.method === 'PUT' &&
+      (options as RequestInit).body === JSON.stringify({ folder_id: 'folder-2' }),
+    )).toBe(true))
   })
 })
 
@@ -226,6 +275,77 @@ describe('Content — deleting a draft', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Cannot delete a course that has enrollments')
     expect(screen.getByText('Devoluciones en tienda')).toBeInTheDocument()
+  })
+})
+
+/**
+ * A course sits in zero or one folder, and the row used to render nothing at all for the
+ * "zero" case — which is what sent the admin into the picker to find out where a course
+ * already was.
+ */
+describe('Content — the folder a course is in', () => {
+  it('names the folder on the row', async () => {
+    installFetch([course({ folder_id: 'folder-1', folder_name: 'Operaciones' })])
+    renderPage()
+
+    expect(await screen.findByText('Carpeta: Operaciones')).toBeInTheDocument()
+  })
+
+  it('says so explicitly when the course is in none', async () => {
+    installFetch()
+    renderPage()
+
+    await screen.findByText('Devoluciones en tienda')
+    expect(screen.getAllByText('Sin carpeta').length).toBeGreaterThan(0)
+  })
+})
+
+/** Archiving was a one-way door: an archived row had no action left that did anything. */
+describe('Content — unarchiving', () => {
+  it('offers the way back and calls the endpoint', async () => {
+    installFetch([course({ status: 'archived' })])
+    renderPage()
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Desarchivar' }))
+
+    expect(mockFetch.mock.calls.some(([input, options]) =>
+      String(input).includes(`/courses/${COURSE_ID}/unarchive`) &&
+      (options as RequestInit | undefined)?.method === 'POST',
+    )).toBe(true)
+  })
+
+  it('brings the row back as published, not as a draft', async () => {
+    // `published` is the status the course had — archive only accepts a published
+    // course — so the restored row offers Archive again, and never Publish.
+    installFetch([course({ status: 'archived' })], {
+      afterUnarchive: [course({ status: 'published' })],
+    })
+    renderPage()
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Desarchivar' }))
+
+    expect(await screen.findByRole('button', { name: 'Archivar' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Desarchivar' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Publicar' })).toBeNull()
+  })
+
+  it('does not offer it for a published course', async () => {
+    installFetch([course({ status: 'published' })])
+    renderPage()
+
+    await screen.findByText('Devoluciones en tienda')
+    expect(screen.queryByRole('button', { name: 'Desarchivar' })).toBeNull()
+  })
+
+  it('shows what the server said when the course was not archived after all', async () => {
+    installFetch([course({ status: 'archived' })], {
+      onUnarchive: () => jsonResponse(409, { detail: 'Course is not archived', code: 'CONFLICT' }),
+    })
+    renderPage()
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Desarchivar' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Course is not archived')
   })
 })
 

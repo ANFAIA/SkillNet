@@ -195,7 +195,7 @@ describe('CourseSchema', () => {
     installFetch({ schema: schema() })
     renderPage()
 
-    // The header shows "Contenido / Devoluciones en tienda" as a breadcrumb.
+    // The header shows "Biblioteca / Devoluciones en tienda" as a breadcrumb.
     expect(await screen.findByText(/Devoluciones en tienda/)).toBeInTheDocument()
   })
 
@@ -322,7 +322,7 @@ describe('CourseSchema', () => {
       renderPage()
 
       await screen.findByDisplayValue('Plazo de devolucion')
-      const back = screen.getByRole('button', { name: 'Contenido' })
+      const back = screen.getByRole('button', { name: 'Biblioteca' })
 
       await userEvent.click(back)
 

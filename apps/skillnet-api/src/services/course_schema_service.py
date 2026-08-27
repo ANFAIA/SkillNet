@@ -1085,9 +1085,10 @@ class CourseSchemaService:
             if nodes
             else []
         )
-        by_user: dict[uuid.UUID, dict[uuid.UUID, tuple[str, float]]] = {}
-        for user_id, node_id, state, mastery in rows:
-            by_user.setdefault(user_id, {})[node_id] = (state, mastery)
+        by_user: dict[uuid.UUID, dict[uuid.UUID, tuple[str, float, Any]]] = {}
+        for user_id, node_id, state, mastery, completed_at in rows:
+            by_user.setdefault(user_id, {})[node_id] = (state, mastery, completed_at)
+        missing = (NodeState.NOT_STARTED.value, 0.0, None)
 
         counts = {"completed": 0, "reopened": 0}
         now = datetime.now(timezone.utc)
@@ -1098,8 +1099,11 @@ class CourseSchemaService:
                     node_id=node.id,
                     criticality=node.criticality,
                     archived=False,
-                    state=states.get(node.id, (NodeState.NOT_STARTED.value, 0.0))[0],
-                    mastery=states.get(node.id, (NodeState.NOT_STARTED.value, 0.0))[1],
+                    state=states.get(node.id, missing)[0],
+                    mastery=states.get(node.id, missing)[1],
+                    # Without this the recompute would judge a node the learner finished
+                    # but never mastered as "not done" and reopen a closed enrollment.
+                    completed_at=states.get(node.id, missing)[2],
                 )
                 for node in nodes
             ]

@@ -7,7 +7,7 @@ from datetime import datetime
 from sqlalchemy import DateTime, Enum as SAEnum, ForeignKey, String, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.models.base import Base, UUIDMixin
+from src.models.base import Base, UUIDMixin, naive_utc_now
 from src.models.user import User
 from src.models.skill import Skill
 
@@ -44,8 +44,11 @@ class UserSkill(UUIDMixin, Base):
     last_assessed_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=text("now()")
     )
+    #: A Python callable, never ``text("now()")`` — see ``base.naive_utc_now`` for the
+    #: postfetch/``MissingGreenlet`` reason. Naive because this column shadows the mixin's
+    #: without an explicit type, so it resolves to ``DateTime()`` without timezone.
     updated_at: Mapped[datetime] = mapped_column(
-        server_default=text("now()"), onupdate=text("now()")
+        server_default=text("now()"), onupdate=naive_utc_now
     )
 
     user: Mapped["User"] = relationship()

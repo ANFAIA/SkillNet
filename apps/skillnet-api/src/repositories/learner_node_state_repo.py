@@ -96,6 +96,63 @@ class LearnerNodeStateRepository(BaseRepository[LearnerNodeState]):
             return existing
         return await self.create(user_id=user_id, node_id=node_id, mastery=mastery)
 
+    async def mark_opened(
+        self, *, user_id: uuid.UUID, node_id: uuid.UUID, now: datetime | None = None
+    ) -> LearnerNodeState:
+        """Stamp ``first_seen_at`` the first time the learner is actually served a node.
+
+        This exists because "where was I?" had no answer in the data. ``state`` cannot
+        answer it: ``learning`` is only reachable by answering a graded item (rule 0 of
+        §7.3), so an expository node — or a node whose five screens were read without
+        answering anything — stays ``not_started`` forever, and a client trying to reopen
+        "the node in progress" always landed back on the first one.
+
+        **Not folded into :meth:`get_or_create`, and that is the whole point.**
+        ``get_or_create`` is also reached from ``NodeRenderService.pin``, which the
+        anticipatory prefetch calls for the next nodes ahead — so stamping there would
+        mark as *seen* three nodes the learner has never looked at, and the resume target
+        would run away in front of them. The one caller of this method is
+        ``GET /nodes/{node_id}/render``, i.e. the render being handed to a browser.
+
+        Idempotent, and deliberately never moved once set: ``first_seen_at`` is part of
+        the evidence a certificate is justified with (see ``GET /nodes/{id}/renders/{id}``),
+        so re-reading a node must not rewrite it. The consequence for a client is that the
+        newest stamp is "the deepest node reached", not "the last one touched".
+        """
+        state = await self.get_or_create(user_id=user_id, node_id=node_id)
+        if state.first_seen_at is None:
+            state.first_seen_at = now or datetime.now(timezone.utc)
+            await self.session.flush()
+        return state
+
+    async def mark_completed(
+        self, *, user_id: uuid.UUID, node_id: uuid.UUID, now: datetime | None = None
+    ) -> LearnerNodeState:
+        """Stamp ``completed_at``: the learner reached the end of this node's content.
+
+        The counterpart to :meth:`mark_opened`, and the reason progress could read 0% on
+        a course somebody had just finished. Progress counts nodes that are *done*, and
+        "done" was only ``state = 'mastered'`` — reachable exclusively through rule 6 of
+        §7.3, which needs a streak of correct **graded** answers. An expository node has
+        none to give, so it stayed ``not_started`` however completely it was read.
+
+        **``state`` and ``mastery`` are deliberately untouched.** Finishing the reading
+        is not a demonstration, and writing a mastery number here would put an invented
+        figure on the same scale as measured ones — the scale a certificate prints. The
+        two facts stay in two columns.
+
+        Idempotent and never moved once set, for the same reason as ``first_seen_at``:
+        re-reading a node the learner already finished must not rewrite when they
+        finished it. The client can therefore call this on every "next node" press
+        without checking first, which is what makes the write path simple enough to be
+        correct.
+        """
+        state = await self.get_or_create(user_id=user_id, node_id=node_id)
+        if state.completed_at is None:
+            state.completed_at = now or datetime.now(timezone.utc)
+            await self.session.flush()
+        return state
+
     async def states_for_nodes(
         self, *, user_id: uuid.UUID, node_ids: Sequence[uuid.UUID]
     ) -> dict[uuid.UUID, LearnerNodeState]:
