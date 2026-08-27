@@ -175,6 +175,15 @@ def _apply_node(
 async def _write_nodes(
     db: AsyncSession, package: CoursePackage, course: Course, actor_id: uuid.UUID
 ) -> tuple[int, int]:
+    # ``UNIQUE (course_id, position)`` is violated mid-statement whenever a re-install
+    # renumbers nodes — which is exactly what adding a node to an existing package does.
+    # The constraint is DEFERRABLE for this reason and ``CourseSchemaService`` already
+    # defers it on every reorder; the installer has to do the same or a second install of
+    # a grown package fails with a duplicate-key error instead of updating.
+    from src.repositories.course_node_repo import CourseNodeRepository
+
+    await CourseNodeRepository(db).defer_position_constraint()
+
     existing = {
         row.id: row
         for row in (

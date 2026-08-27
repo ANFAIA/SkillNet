@@ -37,9 +37,39 @@ async def ensure_organization(session: AsyncSession) -> Organization:
     return org
 
 
+def _usable_admin_email(raw: str) -> str | None:
+    """``raw`` if the API will be able to read it back, else ``None`` with a reason logged.
+
+    ``users.email`` is a plain string column and this bootstrap writes straight to it, but
+    ``UserRead.email`` is an ``EmailStr``. Anything the reader rejects therefore produces an
+    owner who can sign in — ``POST /auth/login`` never serializes a user — and then gets a
+    500 from ``GET /users/me``, which the login screen shows as "Unknown error" while the
+    network tab shows 204. Measured on a fresh install with ``owner@clean.test``: ``.test``
+    is a reserved TLD (RFC 2606), which is exactly what someone bootstrapping a local
+    deployment reaches for.
+
+    Refusing here, loudly, beats creating an account nobody can use.
+    """
+    from pydantic import EmailStr, TypeAdapter, ValidationError
+
+    try:
+        return TypeAdapter(EmailStr).validate_python(raw)
+    except ValidationError as exc:
+        reason = exc.errors()[0].get("msg", "not a valid email address")
+        logger.error(
+            "ADMIN_EMAIL=%r was not used: %s. No owner was created — fix it in .env and "
+            "restart, or create the owner from the /setup screen instead.",
+            raw,
+            reason,
+        )
+        return None
+
+
 async def maybe_create_admin(session: AsyncSession) -> None:
     """Create an admin user from ADMIN_EMAIL/ADMIN_PASSWORD if not present."""
     if not settings.ADMIN_EMAIL or not settings.ADMIN_PASSWORD:
+        return
+    if _usable_admin_email(settings.ADMIN_EMAIL) is None:
         return
 
     existing = await session.execute(
