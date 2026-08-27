@@ -1,65 +1,81 @@
-# SkillNet on Dokploy (https://dokploy.com) — or any PaaS that fronts containers with its
-# own Traefik.
+# SkillNet — Docker Compose for Dokploy (https://dokploy.com)
 #
-#   Project -> Compose -> Provider: Git -> Compose Path: ./docker-compose.dokploy.yml
-#   Environment tab: SECRET_KEY, POSTGRES_PASSWORD, LLM_API_KEY
-#   Domains tab: ONE entry -> service `skillnet-web`, container port 80
-#   Deploy.
+# In Dokploy: create a project -> "Compose" -> Provider: Git (this repo) ->
+# Compose Path: `./docker-compose.dokploy.yml` -> put your settings in the
+# Environment tab -> Deploy. Then add the domain from the Domains tab (see below).
 #
-# ## Why this file exists at all, instead of the usual overlay
+# ## Domains: TWO entries on the same hostname, not one
 #
-# The rest of this repo composes `docker-compose.yml` with an overlay (`-f base -f caddy`).
-# That is not available here, and not by choice:
+# The SPA calls the API on relative paths (`/api/v1/...`) and has no configurable API
+# base URL, so something has to route `/api` to the API container. In the nginx image
+# that was nginx; here it is Traefik, which means the Domains tab needs both halves:
 #
-#   1. Dokploy loads exactly ONE compose file.
-#   2. Dokploy PARSES AND REWRITES the file before running it — that is how it injects its
-#      own labels. The rewrite drops YAML tags, so `!override`, `extends` and anchors that
-#      must survive a round-trip do not. Measured, not theorised: `depends_on: !override`
-#      came back as a plain `depends_on` that MERGED with the inherited one, and the deploy
-#      died on `service "skillnet-api" depends on undefined service "db"` — a failure that
-#      never appears locally, where the file reaches Compose untouched.
-#   3. The web-facing service must join the EXTERNAL `dokploy-network` or Traefik cannot see
-#      it and the domain 404s. An external network cannot be declared in a file that also
-#      has to run on a laptop, where it does not exist.
+#   host / path `/`     -> service skillnet-web, container port 3000
+#   host / path `/api`  -> service skillnet-api, container port 8000
+#   host / path `/ext`  -> service skillnet-api, container port 8000   (external API only)
 #
-# Point 3 is why one file cannot serve both cases. Plain keys only in here: no `extends`,
-# no `!override`, no shared anchors.
+# Traefik ranks routers by rule length, so `/api` wins over `/` with no manual priority.
+# Miss the second entry and the app loads, then every call falls through to index.html —
+# `GET /api/v1/setup/status` comes back 200 with `filename="index.html"` and the SPA is
+# parsing HTML as JSON. It reads like a frontend bug and is a missing route.
 #
-# ## One domain entry, not two
+# Leave "Strip Path" OFF on that entry. `/api/v1` is where FastAPI actually mounts its
+# routes (src/main.py), not a routing prefix to peel off: strip it and the API gets
+# `/v1/setup/status` and answers 404 — same broken login, different cause.
 #
-# `skillnet-web` is the same nginx image every other deployment uses, and it already
-# proxies `/api` and `/ext` to the API inside the container. So Traefik only has to know
-# about one thing: the front door.
+# The domain lives in that tab and NOT as Traefik labels in this file. Labels here used
+# to work, but Dokploy writes its own for whatever you add in the UI, and two routers
+# claiming the same `Host()` rule is a coin flip over which answers. One owner: the UI.
 #
-# The alternative — dropping nginx and letting Traefik split the paths — needs a SECOND
-# domain entry for `/api`, and forgetting it produces a failure that reads like a frontend
-# bug: the app loads, then `GET /api/v1/setup/status` returns 200 with `index.html` and the
-# SPA parses HTML as JSON ("invalid response" on login, and no setup wizard). One entry
-# cannot be half-configured.
+# ## What a Dokploy host needs that docker-compose.yml cannot give it
 #
-# ## The one duplication, and how it is policed
+# Dokploy loads exactly ONE compose file, so the `-f base -f overlay` pattern the rest of
+# this repo uses (see docker-compose.caddy.yml) is not available here. Three things have
+# to change, and none can be expressed from the Dokploy UI alone:
 #
-# `skillnet-api.environment` below is a copy of `api.environment` in docker-compose.yml. It
-# has to be: `extends` does not survive Dokploy (point 2). Most deployment bugs in this
-# repo's history are one env key failing to reach a container, so the drift is checked by a
-# test rather than by remembering:
+#   1. `skillnet-web` must NOT publish a host port. Dokploy's Traefik reaches it over the
+#      shared `dokploy-network`, and a published port would both bypass the host firewall
+#      (Docker publishes via DNAT) and collide with whatever already holds 3000 on a box
+#      that runs other projects too.
+#   2. `skillnet-web` must join the external `dokploy-network`, or the Traefik that
+#      Dokploy runs cannot see it and the domain 404s. This is the half of the routing
+#      the UI cannot do for you — the Domains tab adds labels, not networks.
+#   3. TLS terminates at Traefik, so `COOKIE_SECURE` has to flip to true — the same change
+#      docker-compose.caddy.yml makes.
 #
-#     apps/skillnet-api/tests/test_compose_env_parity.py
+# ## Why this file repeats `api`'s environment instead of using `extends`
 #
-# It fails the build if the two lists stop matching. Add a key to one, add it to both.
+# It did use `extends` at first, which kept docker-compose.yml as the single source of
+# truth for that ~60-key block. It does not survive Dokploy: Dokploy parses and rewrites
+# the compose file before running it (that is how it injects its own network and labels),
+# and the rewrite drops YAML tags. `depends_on: !override` came back as a plain
+# `depends_on` that MERGED with the one `extends` had copied from the base file, so the
+# deploy died on `service "skillnet-api" depends on undefined service "db"` — a failure
+# that never appears locally, because there the file reaches Compose untouched.
+#
+# So: plain keys only, no `extends`, no `!override`, no anchors that must survive a
+# round-trip. The cost is real and worth naming — THIS BLOCK MUST BE KEPT IN SYNC WITH
+# `api.environment` IN docker-compose.yml. Most deployment bugs in this repo's history
+# are one env key failing to reach the container, and the symptom of drift here is
+# "the setting I filled in on Dokploy does nothing".
 #
 # ## Service names
 #
-# Prefixed, because a Dokploy host lists every project's containers side by side and `api`
-# / `db` / `web` say nothing there. `skillnet-api` keeps an `api` network alias, because
-# `docker/nginx.conf` is baked into the web image and proxies to `http://api:8000` — that
-# file is shared with every other deployment, so the rename stays cosmetic.
+# Prefixed, because a Dokploy host lists every project's containers side by side and
+# `api` / `db` / `web` say nothing there. `skillnet-api` keeps an `api` network alias:
+# `docker/nginx.conf` is baked into the web image and proxies to `http://api:8000`, and
+# that file is shared with every other deployment in the repo — the rename stays cosmetic
+# instead of forcing an edit there. `DATABASE_URL` below is written out against the new
+# name, so the database needs no alias.
 #
 # ## Not included
 #
-# `a2a`, `mcp` and `api-fixtures` are profile-gated in the base file, and Dokploy has
-# nowhere to pass `--profile`. Add them here explicitly if a host needs them.
+# `a2a`, `mcp` and `api-fixtures` stay out: they are profile-gated in the base file and
+# Dokploy gives no place to pass `--profile`. Add them here explicitly if this host needs
+# them.
 
+# Log rotation, applied to every service below — same bound as docker-compose.yml: enough
+# history to debug yesterday, small enough that a months-long deploy cannot fill the disk.
 x-logging: &default-logging
   driver: json-file
   options:
@@ -67,8 +83,9 @@ x-logging: &default-logging
     max-file: "3"
 
 services:
-  # Internal only: no published port, and not on dokploy-network, so nothing outside this
-  # compose project can reach the database.
+  # ── Database ────────────────────────────────────────────────
+  # Internal only: no published port and not on dokploy-network, so nothing outside this
+  # compose project can reach PostgreSQL.
   skillnet-postgres:
     image: pgvector/pgvector:pg16
     restart: unless-stopped
@@ -85,33 +102,11 @@ services:
       timeout: 3s
       retries: 10
 
-  # Reachable only from `skillnet-web`, which proxies to it: no published port and NOT on
-  # dokploy-network, so it cannot be addressed from outside this project. That is also what
-  # makes FORWARDED_ALLOW_IPS below safe.
-  # ── Data-volume repair (runs once, then exits) ───────────────
-  # A named volume takes its ownership from the image the first time Docker creates it and
-  # never again, so a volume made before the image created these paths stays root-owned
-  # through every rebuild — and every podcast and every infographic dies on
-  # `PermissionError: [Errno 13] Permission denied: '/data/media_assets/...'`. Reported
-  # from a real deployment whose image already carried the fix.
-  #
-  # Same image, `user: root`, `true` as the command: the entrypoint's repair branch runs,
-  # drops privileges, execs `true`, and the container exits 0. Keeping it out of `skillnet-api`
-  # is what lets that service — and therefore every `docker compose exec` a person types —
-  # stay unprivileged, so a seed never leaves root-owned media behind.
-  skillnet-api-init:
-    build:
-      context: .
-      dockerfile: docker/api.Dockerfile
-    user: root
-    command: ["true"]
-    restart: "no"
-    logging: *default-logging
-    volumes:
-      - uploads:/data/uploads
-      - media_assets:/data/media_assets
-      - tts_cache:/data/tts_cache
-
+  # ── Backend API ─────────────────────────────────────────────
+  # On dokploy-network because Traefik routes `/api` straight to it now that no nginx
+  # proxies on its behalf. Still no published port: Traefik reaches it over that network,
+  # and the paths it serves publicly are the same ones nginx used to forward, so this is
+  # not new surface — just a shorter path to it.
   skillnet-api:
     build:
       context: .
@@ -119,24 +114,18 @@ services:
     restart: unless-stopped
     logging: *default-logging
     networks:
-      default:
-        aliases:
-          # `docker/nginx.conf` is baked into the web image and proxies to
-          # `http://api:8000`. The alias keeps the service rename cosmetic instead of
-          # forcing an edit in a file every other deployment shares.
-          - api
+      # `default` must be listed explicitly: naming any network opts the service out of
+      # the implicit one, and that is how it reaches PostgreSQL.
+      default: {}
+      dokploy-network: {}
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-skillnet}:${POSTGRES_PASSWORD}@skillnet-postgres:5432/${POSTGRES_DB:-skillnet}
       SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env (32 caracteres o mas)}
       SESSION_LIFETIME_SECONDS: ${SESSION_LIFETIME_SECONDS:-604800}
+      # Flipped from the base file's `false`: Traefik terminates TLS in front of the
+      # whole stack, so session cookies can and should be HTTPS-only. Same change
+      # docker-compose.caddy.yml makes, and for the same reason.
       COOKIE_SECURE: ${COOKIE_SECURE:-true}
-      # Sign in with Google (optional). Empty client id/secret keeps the feature off
-      # and the /auth/google/* routes answering 404.
-      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
-      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
-      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-}
-      GOOGLE_POST_LOGIN_PATH: ${GOOGLE_POST_LOGIN_PATH:-/}
-      GOOGLE_LOGIN_ERROR_PATH: ${GOOGLE_LOGIN_ERROR_PATH:-/login}
       # Without this line the `.env` never arrives: no service declares `env_file`, and
       # `.dockerignore` keeps `.env` out of the image, so pydantic's `env_file=".env"`
       # finds nothing inside the container. Only the keys listed here get through — which
@@ -174,10 +163,13 @@ services:
       SEMANTIC_ROUTER: ${SEMANTIC_ROUTER:-false}
       UPLOAD_DIR: /data/uploads
       MAX_UPLOAD_SIZE_MB: ${MAX_UPLOAD_SIZE_MB:-50}
-      CORS_ORIGINS: ${CORS_ORIGINS:-["http://localhost:3000"]}
+      # The SPA is same-origin with the API (nginx proxies /api/), so this matters only
+      # for external clients — but the base default `http://localhost:3000` is simply
+      # wrong on a deployed host, and a wrong value here is a browser-side error with
+      # no server-side log to find it by.
+      CORS_ORIGINS: ${CORS_ORIGINS:-["https://${DOMAIN:?Set DOMAIN in the Dokploy Environment tab to the hostname you added in the Domains tab, or set CORS_ORIGINS explicitly}"]}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       ENVIRONMENT: ${ENVIRONMENT:-production}
-      SETUP_WINDOW_MINUTES: ${SETUP_WINDOW_MINUTES:-30}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
       ORG_NAME: ${ORG_NAME:-SkillNet}
@@ -198,7 +190,6 @@ services:
       # the keys above: `.env` is dockerignored, so without this line the key never reaches
       # the container and every image call goes out with api_key=None -> 401 Unauthorized.
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
-      IMAGE_API_KEY: ${IMAGE_API_KEY:-}
       IMAGE_MODEL: ${IMAGE_MODEL:-openrouter/google/gemini-2.5-flash-image}
       IMAGE_FALLBACK_MODEL: ${IMAGE_FALLBACK_MODEL:-gpt-image-1}
       # Generated media (podcast mp3, infographic/cover png) and the TTS cache. Both
@@ -208,24 +199,11 @@ services:
       # named volumes below actually hold them.
       MEDIA_ASSETS_DIR: ${MEDIA_ASSETS_DIR:-/data/media_assets}
       TTS_CACHE_DIR: ${TTS_CACHE_DIR:-/data/tts_cache}
-      # Images extracted from uploaded PDFs (the customer's OWN diagrams). Same relative
-      # default problem as the two above, so it is pinned here too — but INSIDE the
-      # `uploads` volume rather than at a fourth one: a source image has exactly the
-      # lifetime of the file it came out of, and the entrypoint already repairs ownership
-      # under /data/uploads recursively, so there is no new mount to get wrong.
-      SOURCE_IMAGES_DIR: ${SOURCE_IMAGES_DIR:-/data/uploads/source_images}
-      # Runtime component selection for dynamic courses. Research dials, so they are NOT in
-      # .env.example (docs/design/configuration.md, "Do not set"), but they stay wired here:
-      # there is no env_file, and a setting that is documented but not wired changes nothing
-      # and says nothing when you set it.
+      # Runtime component selection for dynamic courses. Documented in .env.example, so
+      # they have to reach the container — there is no env_file, and a setting that is
+      # documented but not wired changes nothing and says nothing when you set it.
       RUNTIME_SELECTION_STRATEGY: ${RUNTIME_SELECTION_STRATEGY:-top5/v1}
       RUNTIME_SELECTION_EXECUTION: ${RUNTIME_SELECTION_EXECUTION:-live}
-      # nginx sets X-Forwarded-For and X-Forwarded-Proto, and uvicorn ignores both unless
-      # the sender is a trusted proxy — its default is 127.0.0.1, which nginx never is,
-      # being a different container. Trusting everything is only defensible because this
-      # service publishes no port and is not on dokploy-network: nginx is the only thing
-      # that can reach it.
-      FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS:-*}
     volumes:
       - uploads:/data/uploads
       - media_assets:/data/media_assets
@@ -233,8 +211,6 @@ services:
     depends_on:
       skillnet-postgres:
         condition: service_healthy
-      skillnet-api-init:
-        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8000/health').raise_for_status()"]
       interval: 10s
@@ -242,21 +218,15 @@ services:
       retries: 5
       start_period: 30s
 
-  # The front door, and the only service Traefik needs to know about. Deliberately no
-  # `ports:` — Traefik reaches it over dokploy-network, and a published port would both
-  # bypass the host firewall (Docker publishes with DNAT) and collide with whatever else
-  # holds 3000 on a box that runs other projects too.
-  #
-  # DO NOT DELETE THIS SERVICE. It is not "a second reverse proxy in front of Traefik": it
-  # serves the built SPA, does the history-API fallback React Router needs, merges `/api`
-  # into the same origin, carries the security headers, enforces the upload limit, and
-  # turns off proxy buffering so the streaming chat arrives token by token. Traefik does
-  # none of those — it routes to a backend, it cannot be one. Delete this and there is no
-  # interface: the app never loads and every API call falls through to nothing.
+  # ── Frontend (nginx + React SPA) ────────────────────────────
+  # Static build served by `serve` on 3000 — no nginx, because Traefik already is the
+  # reverse proxy on a Dokploy host (see docker/web.dokploy.Dockerfile). Point the `/`
+  # domain entry at THIS service, container port 3000: that is the port inside the
+  # container, not a host port — there is deliberately no `ports:` here.
   skillnet-web:
     build:
       context: .
-      dockerfile: docker/web.Dockerfile
+      dockerfile: docker/web.dokploy.Dockerfile
     restart: unless-stopped
     logging: *default-logging
     networks:
@@ -266,20 +236,24 @@ services:
       skillnet-api:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/health || exit 1"]
+      # `/` and not `/health`: that endpoint was nginx proxying to the API, and this
+      # image has no proxy. Serving index.html is the whole job here, so it is also the
+      # honest thing to check.
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:3000/ || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 10s
 
 networks:
-  # Created by Dokploy itself when it installs. `external: true` says attach to it rather
-  # than try to own it — if `docker network ls` shows no `dokploy-network`, this file is
-  # being run somewhere that is not a Dokploy host, and `docker-compose.yml` is the one you
-  # want instead.
+  # Created by Dokploy when it installs itself; declared external so this project attaches
+  # to it instead of trying to own it. If `docker network ls` shows no `dokploy-network`,
+  # this file is running somewhere Dokploy was never installed — use docker-compose.yml.
   dokploy-network:
     external: true
 
+# Same set and same reasons as docker-compose.yml: the database, uploaded documents, and
+# generated media that costs real model calls to rebuild.
 volumes:
   pgdata:
     driver: local
