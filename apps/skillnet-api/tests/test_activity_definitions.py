@@ -1,3 +1,4 @@
+import unicodedata
 import uuid
 from types import SimpleNamespace
 
@@ -135,6 +136,96 @@ async def test_builtin_family_evaluation_is_server_side(config, received, outcom
         secret in result
         for secret in ("expected", "correct_answer", "answer_key", "solution")
     )
+
+
+@pytest.mark.parametrize(
+    ("config", "received", "outcome"),
+    [
+        # Courses are written in Spanish: a missing accent is a keyboard fact, not a wrong
+        # answer, so it must score as correct.
+        ({"mode": "normalized_any", "expected": ["canción"]}, "cancion", "correct"),
+        ({"mode": "normalized_any", "expected": ["canción"]}, "canción", "correct"),
+        # Case and spacing keep working after the Unicode pass.
+        ({"mode": "normalized_any", "expected": ["Canción"]}, "  CANCION  ", "correct"),
+        (
+            {"mode": "normalized_any", "expected": ["memoria de trabajo"]},
+            "Memoria   De  Trabajo.",
+            "correct",
+        ),
+        # `ñ` is a letter, not an accent: `ano` is a different word from `año` and must NOT
+        # be accepted. This assert is the guard for that product decision.
+        ({"mode": "normalized_any", "expected": ["año"]}, "ano", "incorrect"),
+        ({"mode": "normalized_any", "expected": ["caña"]}, "cana", "incorrect"),
+        # ...while `ñ` typed correctly still scores, whichever way the client encoded it
+        # (and without `hmac.compare_digest` choking on the non-ASCII letter).
+        ({"mode": "normalized_any", "expected": ["año"]}, "AÑO.", "correct"),
+        ({"mode": "normalized_any", "expected": ["año"]}, "año", "correct"),
+        # The diaeresis is functional, not distinctive: no Spanish pair is told apart by it,
+        # so `pinguino` is a typo and scores.
+        ({"mode": "normalized_any", "expected": ["pingüino"]}, "pinguino", "correct"),
+        # Typographic quotes come from the keyboard, not from the learner.
+        ({"mode": "normalized_any", "expected": ['"caja negra"']}, "«caja negra»", "correct"),
+        # Several accepted variants: any member of the list scores.
+        (
+            {"mode": "normalized_any", "expected": ["ciclo", "el ciclo", "ciclos"]},
+            "El Ciclo",
+            "correct",
+        ),
+        (
+            {"mode": "normalized_any", "expected": ["ciclo", "el ciclo", "ciclos"]},
+            "ciclos",
+            "correct",
+        ),
+        # A genuinely different answer still fails: normalization is not fuzzy matching.
+        (
+            {"mode": "normalized_any", "expected": ["fotosíntesis"]},
+            "respiración celular",
+            "incorrect",
+        ),
+        ({"mode": "normalized_any", "expected": ["canción"]}, "canciones", "incorrect"),
+        # `case_sensitive` is the author's opt-out: it grades spelling, accents included.
+        (
+            {"mode": "normalized_any", "expected": ["Canción"], "case_sensitive": True},
+            "cancion",
+            "incorrect",
+        ),
+        (
+            {"mode": "normalized_any", "expected": ["Canción"], "case_sensitive": True},
+            "canción",
+            "incorrect",
+        ),
+        (
+            {"mode": "normalized_any", "expected": ["Canción"], "case_sensitive": True},
+            "Canción",
+            "correct",
+        ),
+        # Two encodings of the same accented character are the same spelling, so NFC still
+        # runs in the case-sensitive path.
+        (
+            {"mode": "normalized_any", "expected": ["Canción"], "case_sensitive": True},
+            unicodedata.normalize("NFD", "Canción"),
+            "correct",
+        ),
+        # The same normalization serves `keyed_text`, used by didact.completion-problem.
+        (
+            {"mode": "keyed_text", "expected": {"gap-1": ["canción", "la canción"]}},
+            {"gap-1": "Cancion"},
+            "correct",
+        ),
+    ],
+)
+@pytest.mark.asyncio
+async def test_normalized_answers_forgive_typing_but_not_a_different_word(
+    config, received, outcome
+):
+    service = ActivityDefinitionService(SimpleNamespace(), SimpleNamespace())
+    result = await service.evaluate(
+        activity(private_definition={"evaluation": config}),
+        {"answer": received},
+    )
+
+    assert result["outcome"] == outcome
+    assert result["passed"] is (outcome == "correct")
 
 
 @pytest.mark.asyncio

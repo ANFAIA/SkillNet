@@ -5,6 +5,7 @@ from __future__ import annotations
 import hmac
 import math
 import re
+import unicodedata
 import uuid
 from typing import Any
 
@@ -33,16 +34,92 @@ BUILTIN_EVALUATION_MODES = frozenset(
 )
 
 
+#: Glyphs a phone keyboard or an office autocorrect substitutes without asking, folded to the
+#: ASCII twin the learner meant to type. Only quotes and apostrophes: dashes are left alone
+#: because a hyphen inside a term ("coste-beneficio") is spelling, not typography.
+_ASCII_QUOTES = str.maketrans(
+    {
+        "‘": "'", "’": "'", "‚": "'", "‛": "'", "′": "'",
+        "“": '"', "”": '"', "„": '"', "‟": '"', "″": '"',
+        "«": '"', "»": '"',
+    }
+)
+#: Sentence framing, not answer content: a learner who closes with a period, or wraps the
+#: answer in Spanish question marks, wrote the same answer. Stripped only at the edges, so
+#: "3.14" and "etc." keep their insides.
+_OPENING_PUNCTUATION = "¿¡"
+_CLOSING_PUNCTUATION = ".,;:!?…"
+#: Written as an escape on purpose: a bare combining mark in source is invisible.
+_COMBINING_TILDE = "\u0303"
+
+
+def _fold_diacritics(text: str) -> str:
+    """Drop combining marks (Unicode category ``Mn``), keeping the tilde that spells ``ñ``."""
+
+    kept: list[str] = []
+    for char in unicodedata.normalize("NFKD", text):
+        if unicodedata.category(char) != "Mn":
+            kept.append(char)
+        elif char == _COMBINING_TILDE and kept and kept[-1] in "nN":
+            kept.append(char)
+    return unicodedata.normalize("NFC", "".join(kept))
+
+
 def _normalized_text(value: object, *, case_sensitive: bool = False) -> str:
-    normalized = " ".join(str(value).strip().split())
-    return normalized if case_sensitive else normalized.casefold()
+    """Normalize one answer so grading measures knowledge instead of typing.
+
+    Whitespace runs collapse, curly quotes and apostrophes fold to their ASCII twins, and
+    sentence-framing punctuation at the edges is dropped. Those three apply in both modes:
+    which glyph the keyboard produced, and whether the learner closed with a period, is
+    never what the activity is testing -- not even when the author asked for exact spelling.
+
+    With ``case_sensitive`` false (the default, and what ``didact.quiz.fill-in-the-blank``
+    and ``didact.quiz.short-answer`` use) the text is also case-folded and its diacritics
+    are removed. Two product decisions are baked into that, both of them Spanish-specific:
+
+    * **``ñ`` survives.** It is a letter of the Spanish alphabet, not an ``n`` wearing an
+      accent, and the pairs it separates are real different words: ``año``/``ano``,
+      ``caña``/``cana``, ``seña``/``sena``. Folding every combining mark blindly would make
+      ``ano`` a correct answer for ``año``, which is both wrong and embarrassing to show a
+      learner. So the combining tilde is kept when it sits on an ``n``, and the result is
+      recomposed with NFC so ``ñ`` written either way compares equal.
+    * **Every other mark goes, the diaeresis included.** ``ü`` only records that the ``u``
+      of ``pingüino`` is pronounced; Spanish has no pair of words told apart by a diaeresis,
+      so ``pinguino`` is a typo, never a different answer. The acute accent is folded for a
+      weaker but deliberate reason: pairs like ``esta``/``está`` do exist, yet the question
+      already fixes which word is meant, and failing an answer over a missing accent grades
+      the keyboard layout, not the learning. The cost we accept is that an activity cannot
+      use these modes to test accentuation itself; ``case_sensitive: true`` is that opt-out.
+
+    With ``case_sensitive`` true nothing is folded: only NFC runs, so a precomposed ``ó``
+    equals an ``o`` followed by a combining acute accent -- two encodings of one character,
+    which no author means to distinguish.
+    """
+
+    text = " ".join(str(value).translate(_ASCII_QUOTES).split())
+    text = text.lstrip(_OPENING_PUNCTUATION).rstrip(_CLOSING_PUNCTUATION).strip()
+    if case_sensitive:
+        return unicodedata.normalize("NFC", text)
+    return _fold_diacritics(text.casefold())
+
+
+def _texts_match(candidate: object, answer: object) -> bool:
+    """Constant-time equality for two already-normalized answers.
+
+    ``hmac.compare_digest`` refuses ``str`` arguments that hold non-ASCII characters, so a
+    normalized Spanish answer that still carries an ``ñ`` would raise ``TypeError`` instead
+    of scoring. Comparing the UTF-8 encoding keeps the constant-time guarantee and accepts
+    the whole alphabet.
+    """
+
+    return hmac.compare_digest(str(candidate).encode("utf-8"), str(answer).encode("utf-8"))
 
 
 def _score_assignments(received: object, expected: object) -> float | None:
     if not isinstance(received, dict) or not isinstance(expected, dict) or not expected:
         return None
     return sum(
-        hmac.compare_digest(str(received.get(key, "")), str(answer))
+        _texts_match(received.get(key, ""), answer)
         for key, answer in expected.items()
     ) / len(expected)
 
@@ -53,7 +130,7 @@ def _score_sequence(received: object, expected: object) -> float | None:
     if len(received) != len(expected):
         return 0.0
     return sum(
-        hmac.compare_digest(str(actual), str(answer))
+        _texts_match(actual, answer)
         for actual, answer in zip(received, expected, strict=True)
     ) / len(expected)
 
@@ -66,7 +143,7 @@ def _score_keyed_text(received: object, expected: object, *, case_sensitive: boo
         answers = accepted if isinstance(accepted, list) else [accepted]
         candidate = _normalized_text(received.get(key, ""), case_sensitive=case_sensitive)
         correct += any(
-            hmac.compare_digest(
+            _texts_match(
                 candidate,
                 _normalized_text(answer, case_sensitive=case_sensitive),
             )
@@ -134,11 +211,11 @@ def _builtin_evaluation_score(config: dict, received: object) -> float | None:
         return None
     expected = config.get("expected")
     if mode == "exact":
-        return 1.0 if hmac.compare_digest(str(received).strip(), str(expected).strip()) else 0.0
+        return 1.0 if _texts_match(str(received).strip(), str(expected).strip()) else 0.0
     if mode == "normalized_any" and isinstance(expected, list) and expected:
         candidate = _normalized_text(received, case_sensitive=bool(config.get("case_sensitive")))
         return 1.0 if any(
-            hmac.compare_digest(
+            _texts_match(
                 candidate,
                 _normalized_text(answer, case_sensitive=bool(config.get("case_sensitive"))),
             )

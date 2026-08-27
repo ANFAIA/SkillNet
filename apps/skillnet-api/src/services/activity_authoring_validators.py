@@ -507,13 +507,35 @@ AUTHORING_CONTRACTS: Mapping[str, AuthoringContract] = MappingProxyType(
             "didact.quiz.true-false",
             {"question": "La afirmación documentada es verdadera.", "evaluation": {"mode": "exact", "expected": True}},
         ),
+        # `normalized_any` accepts ANY member of `expected`, and the example is the only
+        # place the model learns that. A one-element list taught it to emit a single
+        # accepted string, which turns a typed answer into a lottery: the server already
+        # forgives case, spacing and accents, but not "el ciclo" for "ciclo". So the
+        # example ships several variants -- article in and out, singular and plural, a
+        # synonym -- and the model copies that shape with the source's own wording.
         "didact.quiz.fill-in-the-blank": _evaluated_contract(
             "didact.quiz.fill-in-the-blank",
-            {"question": "Completa la frase.", "evaluation": {"mode": "normalized_any", "expected": ["respuesta"]}},
+            {
+                "question": "Completa la frase.",
+                "evaluation": {
+                    "mode": "normalized_any",
+                    "expected": ["respuesta", "la respuesta", "respuestas"],
+                },
+            },
         ),
         "didact.quiz.short-answer": _evaluated_contract(
             "didact.quiz.short-answer",
-            {"question": "Responde brevemente.", "evaluation": {"mode": "normalized_any", "expected": ["respuesta fundamentada"]}},
+            {
+                "question": "Responde brevemente.",
+                "evaluation": {
+                    "mode": "normalized_any",
+                    "expected": [
+                        "respuesta fundamentada",
+                        "la respuesta fundamentada",
+                        "respuesta con fundamento",
+                    ],
+                },
+            },
         ),
         "didact.completion-problem": _evaluated_contract(
             "didact.completion-problem",
@@ -523,7 +545,12 @@ AUTHORING_CONTRACTS: Mapping[str, AuthoringContract] = MappingProxyType(
                     {"id": "worked-1", "kind": "worked", "content": "Paso resuelto"},
                     {"id": "gap-1", "kind": "completion", "prompt": "Siguiente paso"},
                 ],
-                "evaluation": {"mode": "keyed_text", "expected": {"gap-1": ["respuesta"]}},
+                # Same reason as the quiz contracts above: `keyed_text` accepts any variant
+                # listed for a gap, so the example lists more than one.
+                "evaluation": {
+                    "mode": "keyed_text",
+                    "expected": {"gap-1": ["respuesta", "la respuesta"]},
+                },
             },
         ),
         "didact.numeric-question": _evaluated_contract(
