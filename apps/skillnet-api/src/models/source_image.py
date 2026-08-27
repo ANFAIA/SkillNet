@@ -19,6 +19,18 @@ describing them needs a vision model (``VISION_MODEL``), which is unset by defau
 image is kept either way — a missing description is a caption the next pass can ask for
 later, whereas discarded bytes are gone with the upload.
 
+``kind`` is the *other* verdict, and unlike ``is_decorative`` no rule over metadata can
+reach it — it takes a model that has looked at the pixels. It exists because the
+rendering decision is made from it: a ``screenshot`` must be shown as it is, since its
+information is spatial ("the button in the top right corner") and every prose rewrite of
+that is worse than the picture; a ``diagram`` or a ``photo`` can usually be re-expressed
+as something the learner can touch. ``unknown`` is the honest answer whenever nobody
+looked — no ``VISION_MODEL`` (the default), a decorative image, or a model that ignored
+the requested format — and downstream it reads exactly like ``screenshot``: keep the
+original. That asymmetry is deliberate. Keeping an image that could have been rebuilt
+costs some screen space; rebuilding one that should have been kept silently deletes what
+the manual was saying.
+
 ``is_decorative`` is the deterministic junk filter's verdict, decided once at ingest by
 cheap rules (see :mod:`src.services.source_images`) and never at render time. Furniture —
 the logo in every page header, the rule under every title — is marked rather than dropped,
@@ -27,6 +39,7 @@ the document. The rows are cheap: the store is content-addressed, so a logo repe
 forty pages is one file.
 """
 
+import enum
 import uuid
 from datetime import datetime
 
@@ -43,6 +56,34 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.models.base import Base, UUIDMixin
+
+
+class SourceImageKind(str, enum.Enum):
+    """What the picture is, which is what decides how it may be used.
+
+    The only distinction that has to be reliable is ``SCREENSHOT`` against the rest.
+    Everything else is a refinement: a diagram and a photo are both "material a lesson
+    may rebuild", they just rebuild differently.
+
+    Stored as plain text (see migration ``0027``), not a PostgreSQL enum: the vocabulary
+    is expected to grow, and a value nobody here recognises must degrade to
+    :attr:`UNKNOWN` rather than raise on the way out of the database.
+    """
+
+    #: A user-interface capture. Its information is *where things are on screen*, so it
+    #: is shown as it is and never paraphrased.
+    SCREENSHOT = "screenshot"
+    #: Flowchart, schema, conceptual drawing. Re-expressible as interactive content.
+    DIAGRAM = "diagram"
+    #: A real thing photographed: a machine, a place, a paper document.
+    PHOTO = "photo"
+    #: Nobody looked, or the answer was unusable. Treated like :attr:`SCREENSHOT`
+    #: downstream — cannot be rebuilt, keep the original.
+    UNKNOWN = "unknown"
+
+    @classmethod
+    def values(cls) -> tuple[str, ...]:
+        return tuple(member.value for member in cls)
 
 
 class SourceImage(UUIDMixin, Base):
@@ -75,6 +116,14 @@ class SourceImage(UUIDMixin, Base):
     bytes: Mapped[int] = mapped_column(Integer, nullable=False)
     #: What a vision model saw. NULL whenever no vision model was configured.
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    #: One of :class:`SourceImageKind`. ``"unknown"`` whenever nothing classified it —
+    #: no vision model, a decorative image, or an answer that ignored the format.
+    kind: Mapped[str] = mapped_column(
+        String(32),
+        nullable=False,
+        server_default=SourceImageKind.UNKNOWN.value,
+        default=SourceImageKind.UNKNOWN.value,
+    )
     is_decorative: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default=text("false"), default=False
     )

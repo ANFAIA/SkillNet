@@ -18,6 +18,13 @@ from pathlib import Path
 import pytest
 from PIL import Image
 
+from src.models import SourceImageKind
+from src.services.image_describer import (
+    MAX_DESCRIPTION_CHARS,
+    VisionDescription,
+    normalize_kind,
+    parse_vision_response,
+)
 from src.services.ingestion import _decode_pdf_image
 from src.services.source_images import (
     MAX_ASPECT_RATIO,
@@ -352,6 +359,9 @@ async def test_images_are_kept_even_with_no_vision_model(monkeypatch, tmp_path) 
     assert len(session.added) == 1
     row = session.added[0]
     assert row.description is None, "no vision model configured -> no caption, but a row"
+    assert row.kind == SourceImageKind.UNKNOWN.value, (
+        "nobody looked, so the row says so -- downstream reads that as 'keep the original'"
+    )
     assert row.is_decorative is False
     assert row.page == 1
     assert row.heading == "Mantenimiento"
@@ -427,7 +437,7 @@ async def test_a_described_image_still_injects_the_imagen_marker(
 
     async def _fake_describe(image_bytes, config):  # noqa: ARG001
         calls.append(image_bytes)
-        return "Un esquema del circuito"
+        return VisionDescription(kind="diagram", text="Un esquema del circuito")
 
     monkeypatch.setattr(image_describer, "describe_image", _fake_describe)
     monkeypatch.setattr(
@@ -446,6 +456,80 @@ async def test_a_described_image_still_injects_the_imagen_marker(
     assert calls == [data]
     assert sections[0].content == "body\n\n[Imagen: Un esquema del circuito]"
     assert session.added[0].description == "Un esquema del circuito"
+    assert session.added[0].kind == "diagram"
+
+
+@pytest.mark.asyncio
+async def test_the_same_image_on_three_pages_costs_one_vision_call(
+    monkeypatch, tmp_path
+) -> None:
+    """One vision call per distinct image, not per occurrence -- every row still gets the verdict."""
+    monkeypatch.setattr("src.config.settings.SOURCE_IMAGES_DIR", str(tmp_path), raising=False)
+    figure = _png(900, 700, b"repeated-figure")
+    # Eight pages so three occurrences stay under the repeat threshold and remain content.
+    pages = [_FakePage([]) for _ in range(8)]
+    for index in (0, 3, 6):
+        pages[index].images.append(_pdf_image(figure, 900, 700))
+    _install_fake_pdfplumber(monkeypatch, pages)
+
+    from src.llm.client import LLMConfig
+    from src.services import image_describer
+
+    calls: list[bytes] = []
+
+    async def _fake_describe(image_bytes, config):  # noqa: ARG001
+        calls.append(image_bytes)
+        return VisionDescription(kind="screenshot", text="La pantalla de devoluciones")
+
+    monkeypatch.setattr(image_describer, "describe_image", _fake_describe)
+    monkeypatch.setattr(
+        image_describer,
+        "resolve_vision_config",
+        lambda _org_settings=None: LLMConfig(model="fake/vision", api_base=None, api_key="k"),
+    )
+
+    from src.services.ingestion import _extract_pdf_images
+
+    doc, session = _document(), _RecordingSession()
+
+    await _extract_pdf_images(session, doc, Path("manual.pdf"), [_section("", 1, 8)], {})
+
+    assert len(calls) == 1, "content-addressed: three occurrences, one distinct image"
+    assert len(session.added) == 3
+    assert all(row.kind == "screenshot" for row in session.added)
+
+
+@pytest.mark.asyncio
+async def test_a_decorative_image_is_never_described_and_stays_unknown(
+    monkeypatch, tmp_path
+) -> None:
+    """Furniture never reaches the model, so its kind is the one that keeps the original."""
+    monkeypatch.setattr("src.config.settings.SOURCE_IMAGES_DIR", str(tmp_path), raising=False)
+    rule = _png(1200, 40, b"divider")
+    _install_fake_pdfplumber(monkeypatch, [_FakePage([_pdf_image(rule, 1200, 40)])])
+
+    from src.llm.client import LLMConfig
+    from src.services import image_describer
+
+    async def _explode(image_bytes, config):  # noqa: ARG001
+        raise AssertionError("a decorative image must never reach the vision model")
+
+    monkeypatch.setattr(image_describer, "describe_image", _explode)
+    monkeypatch.setattr(
+        image_describer,
+        "resolve_vision_config",
+        lambda _org_settings=None: LLMConfig(model="fake/vision", api_base=None, api_key="k"),
+    )
+
+    from src.services.ingestion import _extract_pdf_images
+
+    doc, session = _document(), _RecordingSession()
+
+    await _extract_pdf_images(session, doc, Path("manual.pdf"), [_section("", 1, 1)], {})
+
+    assert session.added[0].is_decorative is True
+    assert session.added[0].kind == SourceImageKind.UNKNOWN.value
+    assert session.added[0].description is None
 
 
 # --------------------------------------------------------------------------------------
@@ -496,3 +580,127 @@ async def test_deleting_a_document_takes_its_source_images_off_the_disk(
     assert not store.document_dir(doc.org_id, doc.id).exists()
     assert not original.exists()
     assert kept_elsewhere.exists(), "another document's images must survive"
+
+
+# --------------------------------------------------------------------------------------
+# The classification, as a pure function. `describe_image` is a network call; everything
+# that decides how badly a misbehaving model can hurt lives in `parse_vision_response`,
+# which is why that is what is tested. The rule it enforces: an answer we cannot read
+# degrades to "unknown", never to an exception and never to a confident "diagram" --
+# because "unknown" means keep the original image, and rebuilding a screenshot from prose
+# is the one outcome that loses information without saying so.
+# --------------------------------------------------------------------------------------
+
+
+def test_a_well_formed_answer_gives_the_kind_and_the_prose_apart() -> None:
+    raw = (
+        '{"kind": "screenshot", "description": "La pantalla de ventas. El boton '
+        '\\"Devolver\\" esta arriba a la derecha, junto a la caja de busqueda."}'
+    )
+
+    parsed = parse_vision_response(raw)
+
+    assert parsed is not None
+    assert parsed.kind == "screenshot"
+    assert parsed.text.startswith("La pantalla de ventas.")
+    assert "arriba a la derecha" in parsed.text
+    assert "{" not in parsed.text, "the consumer gets prose, not the envelope"
+
+
+def test_the_three_content_kinds_survive_a_round_trip() -> None:
+    for kind in ("screenshot", "diagram", "photo"):
+        parsed = parse_vision_response('{"kind": "%s", "description": "algo"}' % kind)
+        assert parsed is not None
+        assert parsed.kind == kind
+
+
+def test_an_answer_that_ignores_the_format_is_kept_as_prose() -> None:
+    """A model that just describes the image still produced something worth indexing."""
+    raw = "Es un esquema del circuito de frenado, con la bomba a la izquierda."
+
+    parsed = parse_vision_response(raw)
+
+    assert parsed is not None
+    assert parsed.text == raw
+    assert parsed.kind == SourceImageKind.UNKNOWN.value
+
+
+def test_json_wrapped_in_prose_or_fences_is_still_recovered() -> None:
+    """The house parser handles this; the point is that this caller uses it."""
+    fenced = '```json\n{"kind": "diagram", "description": "Un diagrama de flujo."}\n```'
+    chatty = 'Claro, aqui tienes: {"kind": "photo", "description": "Una prensa."}'
+
+    assert parse_vision_response(fenced).kind == "diagram"
+    assert parse_vision_response(chatty).kind == "photo"
+    assert parse_vision_response(chatty).text == "Una prensa."
+
+
+@pytest.mark.parametrize("raw", ["", "   ", "\n\n", None])
+def test_an_empty_answer_is_no_description_at_all(raw) -> None:
+    assert parse_vision_response(raw) is None
+
+
+def test_a_kind_nobody_recognises_keeps_the_prose_and_loses_only_the_verdict() -> None:
+    raw = '{"kind": "infografia interactiva", "description": "Un cuadro de mandos."}'
+
+    parsed = parse_vision_response(raw)
+
+    assert parsed is not None
+    assert parsed.text == "Un cuadro de mandos."
+    assert parsed.kind == SourceImageKind.UNKNOWN.value
+
+
+def test_the_right_shape_with_nothing_in_it_is_no_description() -> None:
+    """Returning the raw JSON as prose would inject braces into the section text."""
+    assert parse_vision_response('{"kind": "photo"}') is None
+    assert parse_vision_response('{"kind": "photo", "description": "   "}') is None
+
+
+def test_a_spanish_answer_is_read_rather_than_thrown_away() -> None:
+    """The prompt is Spanish, so Spanish keys and Spanish values are the likely mistake."""
+    raw = '{"tipo": "captura de pantalla", "descripcion": "El menu de ajustes."}'
+
+    parsed = parse_vision_response(raw)
+
+    assert parsed is not None
+    assert parsed.kind == "screenshot"
+    assert parsed.text == "El menu de ajustes."
+
+
+def test_the_description_is_capped_because_it_ends_up_in_a_prompt() -> None:
+    long_prose = "palabra " * 400
+    raw = '{"kind": "diagram", "description": "%s"}' % long_prose
+
+    parsed = parse_vision_response(raw)
+
+    assert parsed is not None
+    assert len(parsed.text) <= MAX_DESCRIPTION_CHARS + 3  # the ellipsis
+    assert parsed.text.endswith("...")
+
+
+def test_an_uncapped_description_is_left_exactly_as_written() -> None:
+    parsed = parse_vision_response('{"kind": "photo", "description": "Una valvula."}')
+    assert parsed is not None
+    assert parsed.text == "Una valvula."
+
+
+@pytest.mark.parametrize(
+    ("given", "expected"),
+    [
+        ("screenshot", "screenshot"),
+        ("  SCREENSHOT  ", "screenshot"),
+        ('"diagram".', "diagram"),
+        ("captura", "screenshot"),
+        ("pantallazo", "screenshot"),
+        ("esquema", "diagram"),
+        ("fotografia", "photo"),
+        ("unknown", "unknown"),
+        ("collage", "unknown"),
+        ("", "unknown"),
+        (None, "unknown"),
+        (["screenshot"], "unknown"),
+        (7, "unknown"),
+    ],
+)
+def test_normalize_kind_never_guesses_upward(given, expected) -> None:
+    assert normalize_kind(given) == expected

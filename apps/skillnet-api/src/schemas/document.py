@@ -20,6 +20,11 @@ class SourceImageRead(BaseModel):
     bytes: int
     #: What a vision model saw, or ``None`` when no ``VISION_MODEL`` was configured.
     description: str | None = None
+    #: ``screenshot`` | ``diagram`` | ``photo`` | ``unknown``. What the picture *is*, which
+    #: is what decides whether a lesson may rebuild it or has to show it as it is. Always
+    #: ``"unknown"`` when nothing classified it — no vision model, or an unusable answer.
+    #: See :class:`~src.models.source_image.SourceImageKind`.
+    kind: str = "unknown"
 
 
 class DocumentRead(BaseModel):

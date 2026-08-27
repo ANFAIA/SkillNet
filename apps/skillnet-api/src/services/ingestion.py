@@ -25,7 +25,13 @@ from src.core.logging import get_logger
 from src.deps.db import async_session_factory
 from src.llm.embedding import resolve_embedding_config
 from src.llm.fixtures import maybe_fixture_embedder
-from src.models import Document, DocumentOrigin, DocumentStatus, Organization
+from src.models import (
+    Document,
+    DocumentOrigin,
+    DocumentStatus,
+    Organization,
+    SourceImageKind,
+)
 from src.repositories.document_chunk_repo import DocumentChunkRepository
 from src.repositories.source_image_repo import SourceImageRepository
 from src.services.chunker import chunk_sections
@@ -169,7 +175,8 @@ async def _extract_pdf_images(
 
     Runs whether or not vision is configured — that is the whole change. The bytes are
     the valuable part and they used to be discarded; ``VISION_MODEL`` only decides whether
-    a row also gets a ``description``. Every image that clears the byte floor is stored
+    a row also gets a ``description`` and a ``kind`` (without it every row is ``unknown``,
+    which downstream means "keep the original"). Every image that clears the byte floor is stored
     and recorded; the deterministic rules in :mod:`src.services.source_images` decide
     which rows are furniture, and furniture is marked rather than dropped so a human can
     override the guess without re-ingesting the document.
@@ -187,6 +194,7 @@ async def _extract_pdf_images(
     from src.services.image_describer import (
         MIN_IMAGE_BYTES,
         ImageDescription,
+        VisionDescription,
         describe_image,
         resolve_vision_config,
     )
@@ -265,27 +273,25 @@ async def _extract_pdf_images(
     config = resolve_vision_config(org_settings)
     # One description per distinct image, not per occurrence: the store is content-
     # addressed, so the same bytes on three pages are one file and deserve one vision call.
-    described: dict[str, str] = {}
+    described: dict[str, VisionDescription] = {}
     descriptions: list[ImageDescription] = []
 
     for item, decorative in zip(extracted, flags, strict=True):
-        description: str | None = None
+        seen: VisionDescription | None = None
         if config is not None and not decorative:
             if item.content_hash in described:
-                description = described[item.content_hash]
+                seen = described[item.content_hash]
             else:
                 try:
-                    description = await describe_image(
-                        store.read(item.asset_path), config
-                    )
+                    seen = await describe_image(store.read(item.asset_path), config)
                 except Exception as exc:  # noqa: BLE001
                     logger.debug("Image description failed on page %d: %s", item.page, exc)
-                    description = None
-                if description:
-                    described[item.content_hash] = description
-            if description:
+                    seen = None
+                if seen is not None:
+                    described[item.content_hash] = seen
+            if seen is not None:
                 descriptions.append(
-                    ImageDescription(page=item.page, description=description)
+                    ImageDescription(page=item.page, description=seen.text)
                 )
 
         await repo.create(
@@ -298,7 +304,11 @@ async def _extract_pdf_images(
             width=item.width,
             height=item.height,
             bytes=item.size_bytes,
-            description=description,
+            description=seen.text if seen is not None else None,
+            # No vision model, a decorative image, or an unusable answer all land on
+            # ``unknown``, which downstream reads as "cannot be rebuilt, keep the
+            # original" — the same treatment a screenshot gets, and the safe one.
+            kind=seen.kind if seen is not None else SourceImageKind.UNKNOWN.value,
             is_decorative=decorative,
         )
 
