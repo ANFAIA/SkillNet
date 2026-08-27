@@ -68,12 +68,21 @@ describe('PodcastPlayerBlock', () => {
     expect(screen.getByText(messages['podcast.title'])).toBeInTheDocument()
   })
 
-  it('shows an error state when the asset cannot be fetched', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('nope', { status: 404 }))
+  /**
+   * El caso del volumen de media perdido: la fila dice `done`, el fichero no esta, y el
+   * aprendiz veia "Audio no disponible" en rojo por algo que no ha causado ni puede
+   * arreglar. El bloque es un extra que el broker ofrecio, no algo que el pidiera, asi que
+   * desaparece — el modo `hide` de `<Gated>`. El rastro del fallo esta en el log de la API.
+   */
+  it('renders nothing at all when the asset cannot be fetched', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('gone', { status: 410 }))
 
     const { container } = wrap(<PodcastPlayerBlock artifactId="missing" title="X" />)
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(messages['podcast.unavailable'])
-    expect(container.querySelector('audio')).toBeNull()
+    await waitFor(() => expect(container.querySelector('audio')).toBeNull())
+    // Ni reproductor, ni cabecera, ni aviso rojo: nada.
+    await waitFor(() => expect(container).toBeEmptyDOMElement())
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(screen.queryByText(messages['podcast.unavailable'])).toBeNull()
   })
 })

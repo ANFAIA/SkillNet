@@ -11,8 +11,13 @@ import { useArtifactAsset } from './useArtifactAsset'
  * the episode program. Unlike the course-surface `Infographic` (fed the whole grounded
  * `spec_json` — the stat/section grid + citations), this one arrives with only an
  * `artifact_id` and an accessible `alt`, so it renders the essential thing: the generated
- * poster image, responsive, fetched through the credentialed asset route. Loading and error
- * states keep the lesson from ever showing a broken image or a blank panel.
+ * poster image, responsive, fetched through the credentialed asset route.
+ *
+ * **When the image cannot be fetched, the block renders nothing** — same rule, and same
+ * reasoning, as `PodcastPlayerBlock`: a broker-offered extra whose asset is gone is a
+ * deployment fault, not a learner's, so it degrades by disappearing rather than by shouting
+ * in red at someone who cannot act on it. The failure is logged (and the lying row demoted)
+ * on the API side in `services/media/integrity.py`.
  */
 export interface InfographicImageBlockProps {
   artifactId: string
@@ -23,6 +28,8 @@ export function InfographicImageBlock({ artifactId, alt }: InfographicImageBlock
   const intl = useIntl()
   const { url, loading, error } = useArtifactAsset(artifactId)
   const altText = alt?.trim() ? alt : intl.formatMessage({ id: 'infographic.title' })
+
+  if (error) return null
 
   return (
     <div data-no-explain="" className={`${INLINE_SURFACE} bg-bg-subtle`}>
@@ -47,12 +54,7 @@ export function InfographicImageBlock({ artifactId, alt }: InfographicImageBlock
           {intl.formatMessage({ id: 'infographic.loading' })}
         </p>
       )}
-      {error && (
-        <p className="text-sm text-danger" role="alert">
-          {intl.formatMessage({ id: 'infographic.unavailable' })}
-        </p>
-      )}
-      {url && !error && (
+      {url && (
         <figure className="flex justify-center rounded-xl border border-border bg-bg overflow-hidden p-2">
           <img
             src={url}

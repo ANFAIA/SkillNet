@@ -10,8 +10,17 @@ import { useArtifactAsset } from './useArtifactAsset'
  * episode program. Unlike the course-surface `PodcastPlayer` (which is fed the whole grounded
  * `spec_json` — transcript + citations), this one arrives with only an `artifact_id` and a
  * `title`, so it renders the essential thing: a working audio player over the artefact's mp3,
- * fetched through the credentialed asset route. Loading and error states keep the lesson from
- * ever showing a raw tag or a blank panel.
+ * fetched through the credentialed asset route.
+ *
+ * **When the audio cannot be played, the block renders nothing.** It used to print "Audio no
+ * disponible" in red, `role="alert"`, at a learner who had asked for none of this: the block
+ * is an extra the broker offered, not something they chose, and its absence is a deployment
+ * fault (a lost media volume, a provider that failed) they can neither cause nor fix. That
+ * is the `hide` half of `<Gated>` (`components/Gated.tsx`), applied to an asset instead of a
+ * capability — "the pre-cooked side stays complete and nobody is shown a dead end". The
+ * `explain` half is for a control the learner would look for and not find; there is no
+ * control here. The operator's copy of the failure is in the API log, where
+ * `services/media/integrity.py` records it and demotes the lying row.
  */
 export interface PodcastPlayerBlockProps {
   artifactId: string
@@ -21,6 +30,8 @@ export interface PodcastPlayerBlockProps {
 export function PodcastPlayerBlock({ artifactId, title }: PodcastPlayerBlockProps) {
   const intl = useIntl()
   const { url, loading, error } = useArtifactAsset(artifactId)
+
+  if (error) return null
 
   return (
     <div data-no-explain="" className={`${INLINE_SURFACE} bg-bg-subtle`}>
@@ -45,12 +56,7 @@ export function PodcastPlayerBlock({ artifactId, title }: PodcastPlayerBlockProp
           {intl.formatMessage({ id: 'podcast.loading' })}
         </p>
       )}
-      {error && (
-        <p className="text-sm text-danger" role="alert">
-          {intl.formatMessage({ id: 'podcast.unavailable' })}
-        </p>
-      )}
-      {url && !error && (
+      {url && (
         <audio className="w-full" controls src={url} data-testid="podcast-block-audio">
           <track kind="captions" />
         </audio>

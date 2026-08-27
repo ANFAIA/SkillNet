@@ -92,6 +92,10 @@ class MediaArtifactRead(BaseModel):
     kind: str
     status: str
     spec_json: dict
+    #: Whether there are bytes the asset route can serve. Not simply "``asset_path`` is
+    #: set": a row demoted by :mod:`src.services.media.integrity` (its file was lost)
+    #: keeps its path on purpose, for the operator, and would otherwise keep announcing an
+    #: asset that is not there — the exact lie that fix exists to remove.
     has_asset: bool
     asset_ref: str | None
     content_hash: str | None
@@ -112,7 +116,11 @@ class MediaArtifactRead(BaseModel):
             kind=str(getattr(artifact.kind, "value", artifact.kind)),
             status=str(getattr(artifact.status, "value", artifact.status)),
             spec_json=dict(artifact.spec_json or {}),
-            has_asset=artifact.asset_path is not None,
+            has_asset=(
+                artifact.asset_path is not None
+                and getattr(artifact.status, "value", artifact.status)
+                != MediaArtifactStatus.ERROR.value
+            ),
             asset_ref=(
                 make_activity_asset_ref(artifact)
                 if artifact.asset_path is not None

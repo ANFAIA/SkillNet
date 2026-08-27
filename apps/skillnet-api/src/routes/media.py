@@ -39,6 +39,12 @@ from src.services.artifact_access import can_generate_artifacts
 from src.services.capabilities import derive_capabilities
 from src.services.learner_memory import LearnerMemoryService
 from src.services.media.assets import AssetStore
+from src.services.media.integrity import (
+    AssetMissingError,
+    reconcile_asset,
+    record_missing_asset,
+    restore_recovered_asset,
+)
 from src.services.media.jobs import enqueue_artifact, media_channel, spawn_media_job
 from src.services.media.requirements import ensure_kind_is_available
 
@@ -103,6 +109,26 @@ def _sub_assets(spec_json: dict | None) -> dict[str, str]:
             ext = slide.get("image_ext")
             refs[image] = ext if isinstance(ext, str) and ext else "png"
     return refs
+
+
+def _required_sub_assets(spec_json: dict | None) -> set[str]:
+    """The sub-asset refs the artefact cannot be played without: the per-slide audio.
+
+    The split matters when one is missing. A Video Overview whose narration clip is gone
+    cannot be played at all, so the row is demoted and can be generated again; a deck whose
+    illustration is gone is still a deck — the viewers already fall back to the kit blocks
+    for it — so that loss is logged and left alone rather than failing a usable artefact.
+    """
+    slides = (spec_json or {}).get("slides")
+    if not isinstance(slides, list):
+        return set()
+    return {
+        slide["audio_ref"]
+        for slide in slides
+        if isinstance(slide, dict)
+        and isinstance(slide.get("audio_ref"), str)
+        and _REF_RE.match(slide["audio_ref"])
+    }
 
 
 async def _remember_media_steering(
@@ -252,10 +278,18 @@ async def list_artifacts(
 async def get_artifact(
     user: CurrentUser, db: DBSession, artifact_id: uuid.UUID
 ) -> MediaArtifactRead:
-    """The artifact row: status, grounded spec, whether an asset is ready."""
+    """The artifact row: status, grounded spec, whether an asset is ready.
+
+    A ``done`` row whose file is gone is demoted to ``error``/``asset_missing`` here before
+    it is served (:func:`~src.services.media.integrity.reconcile_asset`) — one ``stat`` on
+    a single-row read, so the status the client polls is the status the asset route will
+    honour a moment later. The listing above deliberately does **not** do this: it would
+    turn one query into one syscall per artefact.
+    """
     artifact = await MediaArtifactRepository(db).get_scoped(artifact_id, user.org_id)
     if artifact is None:
         raise NotFoundError("media_artifacts", str(artifact_id))
+    await reconcile_asset(db, artifact)
     return MediaArtifactRead.of(artifact)
 
 
@@ -291,7 +325,21 @@ async def stream_artifact(
 async def get_artifact_asset(
     user: CurrentUser, db: DBSession, artifact_id: uuid.UUID
 ) -> Response:
-    """The rendered bytes (mp3/png/mp4/...), or ``404`` if there is nothing to serve."""
+    """The rendered bytes (mp3/png/mp4/...).
+
+    Two different absences, two different answers, because they are two different
+    incidents:
+
+    * **Nothing was ever generated** — no row, or a spec-only/still-running artefact with
+      no ``asset_path`` — is a ``404``. Normal, and nobody's fault.
+    * **It was generated and the file is gone** is a ``410 asset_missing``: the row is
+      demoted to ``error`` so it stops claiming to be ready, the loss is logged at
+      ``error`` for whoever owns the deployment, and the client is told *why* rather than
+      being left to guess from a bare not-found. See
+      :mod:`src.services.media.integrity` for why it is not regenerated here.
+
+    The existence check is the read itself: a healthy request pays for no extra ``stat``.
+    """
     artifact = await MediaArtifactRepository(db).get_scoped(artifact_id, user.org_id)
     if artifact is None or not artifact.asset_path:
         raise NotFoundError("media_artifacts", str(artifact_id))
@@ -299,9 +347,13 @@ async def get_artifact_asset(
     try:
         data = AssetStore().read(artifact.asset_path)
     except FileNotFoundError as exc:
-        # The row points at an asset that is no longer on disk — a 404 the client can
-        # handle by re-requesting generation, not a 500.
-        raise NotFoundError("media_artifacts", str(artifact_id)) from exc
+        await record_missing_asset(db, artifact)
+        raise AssetMissingError(str(artifact_id)) from exc
+
+    # The successful read is proof the file is back, so a row demoted earlier heals here
+    # for free — no extra syscall, and no artefact left frozen in a failure that has
+    # stopped being true. A no-op for every row that was never demoted.
+    await restore_recovered_asset(db, artifact, verified=True)
 
     return Response(
         content=data,
@@ -321,6 +373,12 @@ async def get_artifact_sub_asset(
     ``audio_ref`` in ``spec_json`` is served here. ``ref`` must be a sha256 hex digest that
     the artifact's own spec lists — anything else is a ``404``, so the route can only ever
     serve clips this artifact produced. Additive and consistent with the single-asset route.
+
+    A ref the spec lists but the disk has lost is graded by whether the artefact needs it
+    (:func:`_required_sub_assets`): a narration clip is fatal, so the row is demoted and the
+    answer is ``410 asset_missing`` like the main asset; a slide illustration is not, so it
+    is logged at ``warning`` and answered ``404``, which the viewers already degrade past by
+    drawing the slide's kit blocks instead.
     """
     artifact = await MediaArtifactRepository(db).get_scoped(artifact_id, user.org_id)
     if artifact is None:
@@ -336,6 +394,16 @@ async def get_artifact_sub_asset(
     try:
         data = store.read(path)
     except FileNotFoundError as exc:
+        if ref in _required_sub_assets(artifact.spec_json):
+            await record_missing_asset(db, artifact, ref=ref)
+            raise AssetMissingError(str(artifact_id), ref=ref) from exc
+        logger.warning(
+            "Media artifact %s lists optional sub-asset %s but %s is not on disk; the "
+            "viewer will fall back to its own blocks for that slide.",
+            artifact.id,
+            ref,
+            path,
+        )
         raise NotFoundError("media_artifacts", str(artifact_id)) from exc
 
     return Response(

@@ -91,7 +91,14 @@ export function PodcastPlayer({
         urlRef.current = url
         setAudioUrl(url)
       } catch {
-        if (!cancelled) setError(intl.formatMessage({ id: 'podcast.unavailable' }))
+        if (!cancelled)
+          setError(
+            intl.formatMessage({
+              id: 'podcast.audioUnavailableHint',
+              defaultMessage:
+                'El audio no está disponible ahora. Puedes leer la transcripción aquí abajo.',
+            }),
+          )
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -162,11 +169,14 @@ export function PodcastPlayer({
             {intl.formatMessage({ id: 'podcast.loading' })}
           </p>
         )}
-        {error && (
-          <p className="text-sm text-danger" role="alert">
-            {error}
-          </p>
-        )}
+        {/*
+          The player degrades to its transcript instead of alarming the reader: the audio
+          being unreachable is a deployment fault (a lost media volume, a provider that
+          failed), and this surface still carries the whole grounded transcript and its
+          sources below. So it is a muted sentence pointing at what *is* there — not
+          `text-danger` with `role="alert"`, which is for something the reader can act on.
+        */}
+        {error && <p className="text-sm text-text-muted">{error}</p>}
         {audioUrl && !error && (
           // Native controls: robust seeking/scrubbing with no custom timeline to maintain.
           <audio className="w-full" controls src={audioUrl}>

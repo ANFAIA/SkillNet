@@ -146,7 +146,14 @@ export function VideoOverview({
         )
         if (!cancelled) setClipUrls(map)
       } catch {
-        if (!cancelled) setError(intl.formatMessage({ id: 'video.unavailable' }))
+        if (!cancelled)
+          setError(
+            intl.formatMessage({
+              id: 'video.narrationUnavailableHint',
+              defaultMessage:
+                'La narración no está disponible ahora. Puedes leer las diapositivas y sus fuentes.',
+            }),
+          )
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -377,11 +384,14 @@ export function VideoOverview({
               {intl.formatMessage({ id: 'video.loading' })}
             </p>
           )}
-          {error && (
-            <p className="mt-2 text-sm text-danger" role="alert">
-              {error}
-            </p>
-          )}
+          {/*
+            Muted, not `text-danger`/`role="alert"`: the narration being unreachable is a
+            deployment fault the viewer can neither cause nor fix, and the slides, their
+            text and their sources are all still readable here. The transport stays visibly
+            disabled below — a dead control that says why, the same shape as
+            `CapabilityExplain` — so nothing pretends it can still play.
+          */}
+          {error && <p className="mt-2 text-sm text-text-muted">{error}</p>}
 
           {/* Transport: play/pause, scrubber, prev/next */}
           <div className="mt-4 flex items-center gap-3">

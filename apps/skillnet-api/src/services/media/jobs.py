@@ -71,6 +71,9 @@ ERROR_PROVIDER_QUOTA = "provider_quota"
 ERROR_PROVIDER_DOWN = "provider_down"
 ERROR_CANCELLED = "cancelled"
 ERROR_INTERNAL = "internal_error"
+#: The one code no generation ever produces: it is recorded *afterwards*, when a row that
+#: says ``done`` turns out to have no file behind it (``services/media/integrity.py``).
+ERROR_ASSET_MISSING = "asset_missing"
 
 _ERROR_MESSAGES: dict[str, str] = {
     ERROR_LLM_FAILED: "The AI provider could not produce this content.",
@@ -78,7 +81,21 @@ _ERROR_MESSAGES: dict[str, str] = {
     ERROR_PROVIDER_DOWN: "The provider is unavailable right now. Try again later.",
     ERROR_CANCELLED: "The generation was cancelled.",
     ERROR_INTERNAL: "This generation failed. The details are in the server log.",
+    ERROR_ASSET_MISSING: (
+        "The generated file is no longer stored on this server. Generate it again."
+    ),
 }
+
+
+def error_message(code: str) -> str:
+    """The short, user-safe sentence for a failure code.
+
+    The map is private on purpose — nothing outside this module may put its own text on a
+    row — but the sentences have to be reachable by the one other writer of ``error``
+    (:mod:`src.services.media.integrity`), so it reads them through here rather than
+    keeping a second copy that can drift.
+    """
+    return _ERROR_MESSAGES.get(code, _ERROR_MESSAGES[ERROR_INTERNAL])
 
 
 def classify_failure(exc: BaseException) -> tuple[str, str]:
@@ -435,12 +452,14 @@ async def run_media_job(artifact_id: uuid.UUID) -> None:
 
 
 __all__ = [
+    "ERROR_ASSET_MISSING",
     "ERROR_CANCELLED",
     "ERROR_INTERNAL",
     "ERROR_LLM_FAILED",
     "ERROR_PROVIDER_DOWN",
     "ERROR_PROVIDER_QUOTA",
     "classify_failure",
+    "error_message",
     "media_channel",
     "ProgressFn",
     "MediaJobContext",

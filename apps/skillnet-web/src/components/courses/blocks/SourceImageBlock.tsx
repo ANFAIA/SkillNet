@@ -24,8 +24,13 @@ import { useSourceImageAsset } from './useArtifactAsset'
  * with a generic fallback when the broker sends no provenance string, because "this came
  * out of the document" is still worth saying.
  *
- * States mirror the sibling block exactly: an image that will not load shows an inline
- * notice and nothing else. The lesson around it is never broken by a missing file.
+ * States mirror the sibling blocks exactly: while the bytes are in flight there is a muted
+ * line, and **an image that will not load makes the whole block disappear**. It used to
+ * print "Imagen no disponible" in red, `role="alert"`, which framed a file missing from the
+ * server's upload store as something wrong with the learner's lesson. It is not: the block
+ * is an extra the broker placed, the reader asked for none of it, and they can do nothing
+ * about it — so the `hide` half of `<Gated>` applies here too, and the lesson around it
+ * stays complete.
  */
 export interface SourceImageBlockProps {
   /** `source_images.id`. */
@@ -48,6 +53,8 @@ export function SourceImageBlock({ imageId, alt, caption, documentId }: SourceIm
   const captionText = caption?.trim()
     ? caption
     : intl.formatMessage({ id: 'sourceImage.fromDocument' })
+
+  if (error) return null
 
   return (
     <div data-no-explain="" className={`${INLINE_SURFACE} bg-bg-subtle`}>
@@ -73,12 +80,7 @@ export function SourceImageBlock({ imageId, alt, caption, documentId }: SourceIm
           {intl.formatMessage({ id: 'sourceImage.loading' })}
         </p>
       )}
-      {error && (
-        <p className="text-sm text-danger" role="alert">
-          {intl.formatMessage({ id: 'sourceImage.unavailable' })}
-        </p>
-      )}
-      {url && !error && (
+      {url && (
         <figure className="rounded-xl border border-border bg-bg overflow-hidden p-2">
           <img
             src={url}

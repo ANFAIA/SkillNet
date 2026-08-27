@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import { IntlProvider } from 'react-intl'
 import type { ReactNode } from 'react'
 
@@ -59,12 +59,15 @@ describe('InfographicImageBlock', () => {
     expect(await screen.findByAltText(messages['infographic.title'])).toBeInTheDocument()
   })
 
-  it('shows an error state when the asset cannot be fetched', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('nope', { status: 500 }))
+  /** Igual que en `PodcastPlayerBlock`: un extra sin fichero desaparece, no grita en rojo. */
+  it('renders nothing at all when the asset cannot be fetched', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('gone', { status: 410 }))
 
     const { container } = wrap(<InfographicImageBlock artifactId="missing" alt="X" />)
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(messages['infographic.unavailable'])
+    await waitFor(() => expect(container).toBeEmptyDOMElement())
     expect(container.querySelector('img')).toBeNull()
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(screen.queryByText(messages['infographic.unavailable'])).toBeNull()
   })
 })

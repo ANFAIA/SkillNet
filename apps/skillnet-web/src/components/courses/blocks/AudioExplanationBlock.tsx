@@ -212,8 +212,13 @@ export function AudioExplanationBlock({ text, voice }: AudioExplanationBlockProp
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: duration.fast, ease: ease.base }}
-            className="mt-3 text-xs text-danger"
-            role="alert"
+            // Muted, not `text-danger`: the voice failing is the deployment's problem,
+            // not the reader's, and the explanation they came for is the text right
+            // above — which is still there. The block keeps `role="status"` because the
+            // sentence does answer a click the learner just made, so it is announced;
+            // `alert` would frame a missing extra as something gone wrong with *them*.
+            className="mt-3 text-xs text-text-muted"
+            role="status"
           >
             {error}
           </motion.div>

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import { IntlProvider } from 'react-intl'
 import type { ReactNode } from 'react'
 
@@ -85,33 +85,41 @@ describe('SourceImageBlock', () => {
     expect(screen.getByText(messages['sourceImage.fromDocument'])).toBeInTheDocument()
   })
 
-  it('degrades to an inline notice when the bytes cannot be fetched', async () => {
+  /**
+   * Un fichero que ya no esta en el almacen de subidas es un fallo del despliegue, no de
+   * quien lee la leccion. El bloque desaparece —el modo `hide` de `<Gated>`— en vez de
+   * pintar un aviso rojo sobre algo que el aprendiz no puede arreglar.
+   */
+  it('renders nothing when the bytes cannot be fetched', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('nope', { status: 404 }))
 
     const { container } = wrap(
       <SourceImageBlock imageId="missing" alt="X" caption="Fuente: manual.pdf" documentId="doc-3" />,
     )
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(messages['sourceImage.unavailable'])
-    expect(container.querySelector('img')).toBeNull()
-    // The block itself is still on screen: a missing file must not blank the lesson.
-    expect(screen.getByText(messages['sourceImage.title'])).toBeInTheDocument()
+    await waitFor(() => expect(container).toBeEmptyDOMElement())
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(screen.queryByText(messages['sourceImage.unavailable'])).toBeNull()
   })
 
   it('degrades the same way when the broker sends no document id', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch')
 
-    wrap(<SourceImageBlock imageId="img-9" alt="X" caption="" documentId="" />)
+    const { container } = wrap(
+      <SourceImageBlock imageId="img-9" alt="X" caption="" documentId="" />,
+    )
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(messages['sourceImage.unavailable'])
+    await waitFor(() => expect(container).toBeEmptyDOMElement())
     expect(fetchSpy).not.toHaveBeenCalled()
   })
 
   it('never throws at its caller when fetch itself rejects', async () => {
     vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('network down'))
 
-    wrap(<SourceImageBlock imageId="img-10" alt="X" caption="" documentId="doc-3" />)
+    const { container } = wrap(
+      <SourceImageBlock imageId="img-10" alt="X" caption="" documentId="doc-3" />,
+    )
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(messages['sourceImage.unavailable'])
+    await waitFor(() => expect(container).toBeEmptyDOMElement())
   })
 })
