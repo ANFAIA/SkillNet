@@ -1207,7 +1207,7 @@ Ramas, explícitas:
   aviso en el log estructurado.
 
 **Presupuestos:** `decide_formato` `max_tokens=256`, `temperature=0.0`, `json_mode=True`.
-`genera_ui` `max_tokens=1200` (tier fast) / `2400` (tier heavy), `temperature=0.4`. `MAX_UI_RETRIES = 1`.
+`genera_ui` `max_tokens=1200` (tier fast) / `2400` (tier heavy), `temperature=0.4`. `MAX_UI_RETRIES = 2`.
 Concurrencia global de generación runtime: `asyncio.Semaphore(6)` en el runner, para que un pico
 de empleados no tumbe el proceso.
 
@@ -1541,7 +1541,7 @@ concretas, todas aplicadas más abajo: `RENDER_BACKEND_FALLBACK` desaparece de �
 "reintento cruzado" desaparece de §14.1; y `tests/test_render_a2tl.py` no existe.
 
 **Qué ocupa su sitio como segundo intento** (que era el valor real del reintento cruzado): en el
-único reintento (`MAX_UI_RETRIES = 1`) el prompt no es el mismo. Se envía
+reintento (`MAX_UI_RETRIES = 2`) el prompt no es el mismo. Se envía
 `UI_REPAIR_SYSTEM`, que incluye el `raw_dsl` fallido, los `validation_errors` exactos del parser y la
 instrucción de devolver el programa corregido y nada más, con `temperature=0.0`. Reparar con el error
 en mano es más efectivo que reintentar a ciegas o cambiar de dialecto. Si también falla:

@@ -875,7 +875,7 @@ El sistema tiene un fallback para cada punto de fallo, de mayor a menor degradac
 
 ### 6.2 Retry: caer al monolitico
 
-El retry loop (`MAX_UI_RETRIES = 1`) usa el monolitico, no el multi-agent:
+El retry loop (`MAX_UI_RETRIES = 2`) usa el monolitico, no el multi-agent:
 
 ```python
 if retry:

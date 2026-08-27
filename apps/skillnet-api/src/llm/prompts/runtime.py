@@ -6,7 +6,7 @@ Three calls, three prompts:
   ``temperature=0.0``. Picks one of :data:`~src.agents.runtime.router.ALLOWED_UI_FORMATS`.
 * :data:`UI_GENERATOR_SYSTEM` — ``genera_ui``. ``max_tokens`` 1200 (fast) / 2400 (heavy),
   ``temperature=0.4``.
-* :data:`UI_REPAIR_SYSTEM` — the single retry of the repair loop (``MAX_UI_RETRIES = 1``).
+* :data:`UI_REPAIR_SYSTEM` — the repair loop's retries (``MAX_UI_RETRIES = 2``).
 
 **The dialect fragment is never written by hand here.** It is
 :func:`src.render.prompt.render_prompt`, the artefact ``library.prompt()`` generates from
@@ -1247,7 +1247,7 @@ def ui_generator_system(
 
 #: The repair header. The MAL/BIEN block is not decoration: a paired counterexample is the
 #: cheapest instruction that has ever fixed a syntax habit, and the repair turn is where it
-#: pays, because there is exactly one retry (``MAX_UI_RETRIES``).
+#: pays, because the retries are few (``MAX_UI_RETRIES``).
 #:
 #: **Which** examples are here is a measurement, not a taste, and the set changed on
 #: 2026-07-27. The one that left was "a call split over several lines": that is legal

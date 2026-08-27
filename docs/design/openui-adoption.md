@@ -193,7 +193,7 @@ no es técnico sino de **quién paga el mantenimiento**:
    `Stack([children], \"row\", \"l\")` NOT …"* — con tres argumentos y un `gap` de `"l"`, cuando el
    nuestro es `Stack(children, gap)` con `gap` en `sm|md|lg`. `Stack` es la raíz de **todos** los
    programas, así que es el patrón que un modelo pequeño copia primero, y copiarlo se rechaza de
-   entrada: gasta el único reintento (`MAX_UI_RETRIES = 1`) y cae en `fallback_seed`. También está
+   entrada: gasta los reintentos (`MAX_UI_RETRIES = 2`) y cae en `fallback_seed`. También está
    cableado (offset 9470) y tampoco es suprimible. Anulado con `SkillNet 12`, y con red debajo: los
    tests de `test_render_prompt_artifact.py` recorren **toda** llamada `Componente(...)` del prompt y
    comprueban aridad y valores de enum contra `UI_KIT`, con los dos ejemplos malos del proveedor
