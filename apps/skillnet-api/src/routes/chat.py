@@ -21,6 +21,7 @@ from src.deps.db import DBSession
 from src.deps.llm import EmbeddingDep, LLMDep, TutorLLMDep
 from src.models import Organization
 from src.schemas.chat import ChatMessageRead, ChatRequest, ChatSessionRead
+from src.services.admin_agent_service import AdminAgentService
 from src.services.chat_service import ChatService
 from src.services.org_features import chat_generative_ui_enabled
 
@@ -78,6 +79,25 @@ async def admin_chat(
     stream = service.stream_admin(
         user, request.message, request.session_id, request.context
     )
+    return StreamingResponse(
+        stream, media_type="text/event-stream", headers=_SSE_HEADERS
+    )
+
+
+@router.post("/admin/agent")
+async def admin_agent_chat(
+    request: ChatRequest,
+    user: AdminUser,
+    db: DBSession,
+    llm: LLMDep,
+) -> StreamingResponse:
+    """The tool-calling admin agent — a separate thread from ``/chat/admin``.
+
+    Uses the org's plain ``llm`` (not the tutor-purpose one): tool-calling
+    reliability depends on the model, not on the tutor persona tuning.
+    """
+    service = AdminAgentService(db, llm)
+    stream = service.stream(user, request.message, request.session_id, request.context)
     return StreamingResponse(
         stream, media_type="text/event-stream", headers=_SSE_HEADERS
     )

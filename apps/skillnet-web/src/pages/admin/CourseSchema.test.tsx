@@ -308,10 +308,10 @@ describe('CourseSchema', () => {
       await userEvent.click(screen.getByRole('button', { name: 'Probar curso' }))
 
       expect(await screen.findByText('Hay nodos sin resumen')).toBeInTheDocument()
-      expect(screen.getByText('Ningun nodo es critico')).toBeInTheDocument()
+      expect(screen.getByText('Ningún nodo es crítico')).toBeInTheDocument()
       expect(screen.getAllByText('2. Excepciones').length).toBeGreaterThan(0)
       expect(
-        screen.getByText('No se puede validar todavia: 2 problemas'),
+        screen.getByText('No se puede validar todavía: 2 problemas'),
       ).toBeInTheDocument()
     })
   })

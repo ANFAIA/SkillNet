@@ -6,7 +6,7 @@ section: "core"
 
 # LLM Integration Layer
 
-> **Status: v1.** Complete LLM integration architecture for SkillNet. Covers provider abstraction, LangGraph integration, prompt management, streaming, cost/token management, error handling, and local LLM support. Aligns with [architecture.md](architecture.md), [backend-api.md](backend-api.md), and [rag-retrieval.md](rag-retrieval.md).
+> **Status: v1.** Complete LLM integration architecture for SkillNet. Covers provider abstraction, LangGraph integration, prompt management, streaming, cost/token management, error handling, and local LLM support. Aligns with [architecture.md](/en/docs/architecture), [backend-api.md](/en/docs/backend-api), and [rag-retrieval.md](/en/docs/rag-retrieval).
 
 ---
 
@@ -110,7 +110,7 @@ class LLMSettings(BaseSettings):
 llm_settings = LLMSettings()
 ```
 
-**Why Pydantic Settings:** Consistent with the rest of SkillNet's config pattern (see `src/config.py` in [backend-api.md](backend-api.md)). Validates types at startup, reads `.env` files, and provides typed access without parsing strings manually.
+**Why Pydantic Settings:** Consistent with the rest of SkillNet's config pattern (see `src/config.py` in [backend-api.md](/en/docs/backend-api)). Validates types at startup, reads `.env` files, and provides typed access without parsing strings manually.
 
 ### 1.3 LLMClient
 
@@ -294,7 +294,7 @@ LangGraph manages agent state machines. Each agent type (tutor, content generato
 
 Each agent type has a typed state that flows through the graph. States are dataclasses (not dicts) for type safety and IDE support.
 
-State definitions are in their respective agent documents: see [content-generation.md](content-generation.md) (`GenerationState`) and [chat-agents.md](chat-agents.md) (`TutorState`).
+State definitions are in their respective agent documents: see [content-generation.md](/en/docs/content-generation) (`GenerationState`) and [chat-agents.md](/en/docs/chat-agents) (`TutorState`).
 
 ```python
 # src/agents/states.py
@@ -1463,7 +1463,7 @@ class WaitRespectRetryAfter(wait_exponential):
 
 ### 6.3 Error Translation
 
-LLM errors are translated into SkillNet's `AppError` hierarchy (see [backend-api.md](backend-api.md) section 4.4). The user never sees raw provider errors.
+LLM errors are translated into SkillNet's `AppError` hierarchy (see [backend-api.md](/en/docs/backend-api) section 4.4). The user never sees raw provider errors.
 
 ```python
 # src/llm/errors.py

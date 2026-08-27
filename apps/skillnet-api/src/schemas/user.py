@@ -1,5 +1,7 @@
 """User request bodies. Responses reuse ``src.auth.schemas.UserRead``."""
 
+from typing import Literal
+
 from pydantic import BaseModel, EmailStr, Field
 
 from src.auth.schemas import UserRead
@@ -24,6 +26,10 @@ class UserCreateRequest(BaseModel):
     # Optional: admin may set the employee's initial password. If omitted, the
     # server generates a temporary one and returns it once (see EmployeeCreated).
     password: str | None = Field(default=None, min_length=8)
+    #: `admin` is how an administrator invites another administrator. Only the two
+    #: roles exist, and the literal is what refuses a third: an unknown value is a
+    #: 422 at the edge rather than a `ValidationError` deeper in the service.
+    role: Literal["admin", "employee"] = "employee"
 
 
 class EmployeeCreated(UserRead):
@@ -34,7 +40,10 @@ class EmployeeCreated(UserRead):
 
 class UserAdminUpdate(BaseModel):
     full_name: str | None = None
-    role: str | None = None
+    #: Promote to admin or demote to employee. Constrained to the two roles that
+    #: exist; the service additionally refuses any change that would leave the
+    #: organization with no active administrator.
+    role: Literal["admin", "employee"] | None = None
     is_active: bool | None = None
 
 

@@ -8,6 +8,7 @@ Anthropic, DeepSeek, Ollama, etc. requires no code change.
 
 from __future__ import annotations
 
+import json
 import re
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
@@ -24,6 +25,7 @@ from src.config import settings
 from src.core.exceptions import LLMError
 from src.core.logging import get_logger
 from src.core.secrets import unseal
+from src.services import provider_health
 
 logger = get_logger(__name__)
 
@@ -429,6 +431,59 @@ class LLMService:
             budget *= BUDGET_RETRY_MULTIPLIER
         return "", spent
 
+    async def complete_with_tools(
+        self,
+        messages: list[dict[str, Any]],
+        *,
+        tools: list[dict[str, Any]],
+        model: str | None = None,
+        temperature: float = 0.2,
+        max_tokens: int = 1024,
+        tool_choice: str = "auto",
+    ) -> tuple[str, list[dict[str, Any]]]:
+        """One non-streamed turn with native function-calling.
+
+        Returns ``(text, tool_calls)``. ``tool_calls`` is ``[]`` when the provider
+        answered in prose; each entry is ``{"id", "name", "arguments"}`` with
+        ``arguments`` already parsed from the provider's JSON string — a malformed
+        JSON on the provider's end raises ``LLMError`` rather than handing the
+        agent loop a string it would fail to call ``.get`` on.
+
+        Separate from :meth:`complete`/:meth:`complete_with_usage`: those two have
+        no ``tools`` concept and eight call sites between them that must not change
+        shape for one new caller (the admin agent).
+        """
+        model_name = model or self._config.model
+        kwargs = self._base_kwargs(model)
+        kwargs["messages"] = messages
+        kwargs["temperature"] = temperature
+        kwargs["max_tokens"] = budget_for(model_name, max_tokens)
+        kwargs["tools"] = tools
+        kwargs["tool_choice"] = tool_choice
+        kwargs.update(reasoning_kwargs(model_name))
+
+        response = await self._completion_call(kwargs)
+        choices = getattr(response, "choices", None) or ()
+        message = getattr(choices[0], "message", None) if choices else None
+        raw_calls = getattr(message, "tool_calls", None) or []
+
+        tool_calls: list[dict[str, Any]] = []
+        for call in raw_calls:
+            function = getattr(call, "function", None)
+            name = getattr(function, "name", None) or ""
+            raw_arguments = getattr(function, "arguments", None) or "{}"
+            try:
+                arguments = json.loads(raw_arguments)
+            except (json.JSONDecodeError, TypeError) as exc:
+                raise LLMError(
+                    f"Provider requested tool '{name}' with malformed arguments"
+                ) from exc
+            tool_calls.append(
+                {"id": getattr(call, "id", None), "name": name, "arguments": arguments}
+            )
+
+        return (getattr(message, "content", None) or ""), tool_calls
+
     async def _completion_call(self, kwargs: dict[str, Any]) -> Any:
         """One provider call, with provider errors normalized to :class:`LLMError`.
 
@@ -442,6 +497,13 @@ class LLMService:
             return await self._acompletion(**kwargs)
         except LLMError:
             raise
+        except litellm.RateLimitError as exc:
+            # After `_acompletion`'s own retries. A key that is present but out of quota
+            # looks perfect to the config-only capability read; this is where it learns
+            # otherwise (src/services/provider_health.py).
+            provider_health.record_failure(provider_health.LLM, "quota")
+            logger.error("LLM completion failed: %s", exc, exc_info=True)
+            raise LLMError(_failure_message(exc)) from exc
         except litellm.BadRequestError as exc:
             if "reasoning_effort" not in kwargs:
                 logger.error("LLM completion failed: %s", exc, exc_info=True)
@@ -455,6 +517,16 @@ class LLMService:
             kwargs.pop("allowed_openai_params", None)
             return await self._completion_call(kwargs)
         except Exception as exc:  # noqa: BLE001 - normalize all provider errors
+            # Not `BadRequestError`, which is handled above: a request this app built
+            # wrongly is not evidence that the provider is unwell.
+            #
+            # Classified, not hardcoded: a 402 out-of-credit reaches here as a plain
+            # `APIError` rather than a `RateLimitError`, and calling that "the provider is
+            # down" sends the admin to check an endpoint's status page when the answer is
+            # to top the account up. The streaming path already asks the same question.
+            provider_health.record_failure(
+                provider_health.LLM, provider_health.failure_kind(exc)
+            )
             logger.error("LLM completion failed: %s", exc, exc_info=True)
             raise LLMError(_failure_message(exc)) from exc
 
@@ -594,5 +666,8 @@ class LLMService:
             kwargs.pop("allowed_openai_params", None)
             state["retreat"] = True
         except Exception as exc:  # noqa: BLE001 - normalize all provider errors
+            provider_health.record_failure(
+                provider_health.LLM, provider_health.failure_kind(exc)
+            )
             logger.error("LLM stream failed: %s", exc, exc_info=True)
             raise LLMError(f"LLM stream failed: {type(exc).__name__}") from exc

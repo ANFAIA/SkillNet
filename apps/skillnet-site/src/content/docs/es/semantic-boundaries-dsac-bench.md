@@ -2,6 +2,7 @@
 title: "Banco DSAC"
 order: 53
 section: "research"
+group: "semantic-boundaries"
 ---
 
 # DSAC-Bench: Benchmark de Clasificación de Sensibilidad y Acceso de Documentos

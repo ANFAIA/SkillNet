@@ -9,7 +9,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
-import { SOLVABLE_COMPONENTS, hasSolvableItem } from './solvableSteps'
+import { SOLVABLE_COMPONENTS, hasSolvableItem, splitMixedScreens } from './solvableSteps'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const BLOCKS_DIR = join(here, '..', 'blocks')
@@ -69,5 +69,100 @@ describe('SOLVABLE_COMPONENTS', () => {
 
     expect(conSolve).toEqual(['DragOrderBlock.tsx', 'QuizItemBlock.tsx'])
     expect([...SOLVABLE_COMPONENTS].sort()).toEqual(['DragOrder', 'QuizItem'])
+  })
+})
+
+/**
+ * La pantalla que explicaba y preguntaba a la vez.
+ *
+ * Reportado desde el producto: la prueba salia en la misma pagina que el concepto. El
+ * stepper ya separa por hijo de la raiz, asi que la unica forma de colarse era que el
+ * ejercicio viajase DENTRO del mismo hijo que su explicacion, en un `Stack` anidado.
+ */
+describe('splitMixedScreens', () => {
+  const texto = el('TextContent', { text: 'la merma es lo que se pierde' })
+  const tabla = el('Table', { headers: [], rows: [] })
+  const quiz = el('QuizItem', { item_id: 'q1' })
+
+  it('parte el hijo que mezcla explicacion y ejercicio', () => {
+    const mezclado = el('Stack', { children: [texto, quiz], gap: 'md' })
+    expect(splitMixedScreens([mezclado])).toEqual([texto, quiz])
+  })
+
+  it('deja intacto un hijo que solo explica', () => {
+    const soloContenido = el('Stack', { children: [texto, tabla], gap: 'md' })
+    expect(splitMixedScreens([soloContenido])).toEqual([soloContenido])
+  })
+
+  it('no toca un ejercicio que ya venia solo en su hijo', () => {
+    expect(splitMixedScreens([texto, quiz])).toEqual([texto, quiz])
+  })
+
+  it('nunca desarma un Card: agrupar con borde lo decidio el generador', () => {
+    const card = el('Card', { title: 'Practica', children: [texto, quiz] })
+    expect(splitMixedScreens([card])).toEqual([card])
+  })
+
+  it('baja tantos niveles como haga falta', () => {
+    const dentro = el('Stack', { children: [tabla, quiz], gap: 'sm' })
+    const fuera = el('Stack', { children: [texto, dentro], gap: 'md' })
+    expect(splitMixedScreens([fuera])).toEqual([texto, tabla, quiz])
+  })
+
+  it('conserva todo el contenido: partir no puede perder un bloque', () => {
+    const mezclado = el('Stack', { children: [texto, tabla, quiz], gap: 'md' })
+    expect(splitMixedScreens([mezclado])).toHaveLength(3)
+  })
+})
+
+/**
+ * La evaluacion que de verdad genera el pipeline.
+ *
+ * Medido sobre un curso recien generado (2026-08-26): la pantalla de comprobacion no era
+ * un `QuizItem`, era `LearningExperience("...", "didact.quiz.multi-select@1", "...")`. Si
+ * el partidor solo mira `QuizItem`/`DragOrder`, la evaluacion real vuelve a compartir
+ * pantalla con la explicacion sin que nadie se entere.
+ */
+describe('splitMixedScreens y la evaluacion de las experiencias didact', () => {
+  const texto = el('TextContent', { text: 'el concepto' })
+  const quizExperiencia = el('LearningExperience', {
+    experience_id: 'e1',
+    implementation_ref: 'didact.quiz.multi-select@1',
+    definition_ref: 'd1',
+  })
+  const apoyo = el('LearningExperience', {
+    experience_id: 'e2',
+    implementation_ref: 'didact.flashcard@1',
+    definition_ref: 'd2',
+  })
+
+  it('separa la experiencia que evalua de la explicacion', () => {
+    const mezclado = el('Stack', { children: [texto, quizExperiencia], gap: 'md' })
+    expect(splitMixedScreens([mezclado])).toEqual([texto, quizExperiencia])
+  })
+
+  it('no separa una experiencia de apoyo, que no comprueba nada', () => {
+    const juntos = el('Stack', { children: [texto, apoyo], gap: 'md' })
+    expect(splitMixedScreens([juntos])).toEqual([juntos])
+  })
+
+  it('reconoce el ref con y sin version', () => {
+    const sinVersion = el('LearningExperience', {
+      experience_id: 'e3',
+      implementation_ref: 'didact.matching',
+      definition_ref: 'd3',
+    })
+    const mezclado = el('Stack', { children: [texto, sinVersion], gap: 'md' })
+    expect(splitMixedScreens([mezclado])).toEqual([texto, sinVersion])
+  })
+
+  /**
+   * La linea que no se puede cruzar: partir la pantalla es seguro, cerrarla no. Quien
+   * cierra el paso es quien llama a `useStepperSolve()`, y `LearningExperience` no lo
+   * hace; si esto dejara de ser cierto, el aprendiz se quedaria encerrado.
+   */
+  it('no convierte la experiencia en un paso que cierra', () => {
+    expect(hasSolvableItem(quizExperiencia)).toBe(false)
+    expect(SOLVABLE_COMPONENTS).not.toContain('LearningExperience')
   })
 })

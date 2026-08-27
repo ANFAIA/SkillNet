@@ -8,13 +8,24 @@ import { CourseFolderSidebar, type FolderFilter } from '../../components/courses
 import { CourseFolderPicker } from '../../components/courses/CourseFolderPicker'
 import { FolderAssignmentDialog } from '../../components/courses/FolderAssignmentDialog'
 import { useCourseFolders, type CourseFolder } from '../../api/course-folders'
-import { useArchiveCourse, useCourses, usePublishCourse, useUpdateCourse } from '../../api/courses'
+import { useArchiveCourse, useCourses, useDeleteCourse, usePublishCourse, useUpdateCourse } from '../../api/courses'
 import { ApiError, post } from '../../api/client'
+import { startCourseFinalization } from '../../api/schema'
 import { useAuth } from '../../hooks/useAuth'
+import { canDeleteCourse } from '../../lib/canDeleteCourse'
 import { staggerContainer, staggerItem } from '../../lib/motion'
 import type { CourseRead, CourseStatus } from '../../types'
 
-const STATUSES = ['all', 'published', 'draft', 'archived'] as const
+/**
+ * The library's status filter.
+ *
+ * `failed` is not a `courses.status` value — a course whose creation died is still a
+ * draft. It is a `generation_state` (migration 0025), and it earns a slot here because
+ * "the wizard died half-way through making this" was, until that column existed,
+ * indistinguishable from a draft somebody saved on purpose. That is what left the
+ * tester with an unexplained dead row.
+ */
+const STATUSES = ['all', 'published', 'draft', 'archived', 'failed'] as const
 type StatusFilter = (typeof STATUSES)[number]
 
 function useStatusConfig() {
@@ -55,7 +66,7 @@ function canPublish(course: CourseRead): boolean {
   return (course.module_count ?? 0) > 0
 }
 
-function CourseRow({ course, folders, onMove, moving, onOpen, onPublish, onArchive, publishing, archiving }: {
+function CourseRow({ course, folders, onMove, moving, onOpen, onPublish, onArchive, onDelete, onRetry, publishing, archiving, deleting, retrying }: {
   course: CourseRead
   folders: { id: string; name: string }[]
   onMove: (course: CourseRead, folderId: string | null) => void
@@ -63,12 +74,20 @@ function CourseRow({ course, folders, onMove, moving, onOpen, onPublish, onArchi
   onOpen: (path: string) => void
   onPublish: (courseId: string) => void
   onArchive: (courseId: string) => void
+  onDelete: (course: CourseRead) => void
+  onRetry: (course: CourseRead) => void
   publishing: boolean
   archiving: boolean
+  deleting: boolean
+  retrying: boolean
 }) {
   const intl = useIntl()
   const status = useStatusConfig()(course.status)
   const { user: currentUser } = useAuth()
+  // A course whose creation run died is still `status: 'draft'`, so the plain status
+  // badge says "borrador" and tells the admin nothing about why it has no content.
+  const generationFailed = course.generation_state === 'failed'
+  const generating = course.generation_state === 'in_progress'
 
   return (
     <Card variants={staggerItem}>
@@ -79,6 +98,8 @@ function CourseRow({ course, folders, onMove, moving, onOpen, onPublish, onArchi
             <div className="flex items-center gap-2 min-w-0">
               <span className="text-sm font-medium text-text truncate min-w-0">{course.title}</span>
               <Badge variant={status.variant} badgeStyle="plain" className="shrink-0">{status.label}</Badge>
+              {generationFailed && <Badge variant="danger" badgeStyle="plain" className="shrink-0">{intl.formatMessage({ id: 'content.generationFailed' })}</Badge>}
+              {generating && <Badge variant="primary" badgeStyle="plain" className="shrink-0">{intl.formatMessage({ id: 'content.generationInProgress' })}</Badge>}
             </div>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-xs text-text-muted">
               {course.delivery_mode === 'dynamic' ? (
@@ -88,16 +109,25 @@ function CourseRow({ course, folders, onMove, moving, onOpen, onPublish, onArchi
               {course.outcome && <span className="truncate max-w-xs">{course.outcome}</span>}
               <span>{intl.formatMessage({ id: 'content.updatedAt' }, { date: new Date(course.updated_at ?? course.created_at).toLocaleDateString() })}</span>
             </div>
+            {generationFailed && (
+              <p className="mt-2 text-xs text-danger">
+                {intl.formatMessage({ id: 'content.generationFailedDesc' })}
+                {course.generation_error && <span className="text-text-secondary"> {course.generation_error}</span>}
+              </p>
+            )}
           </div>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-1 xl:justify-end">
           <CourseFolderPicker courseTitle={course.title} folderId={course.folder_id} folderName={course.folder_name} folders={folders} disabled={moving} onMove={(folderId) => onMove(course, folderId)} />
+          {generationFailed && <Button variant="primary" size="sm" onClick={() => onRetry(course)} disabled={retrying}>{retrying ? intl.formatMessage({ id: 'content.retryingCreation' }) : intl.formatMessage({ id: 'content.retryCreation' })}</Button>}
+          {generating && <Button variant="ghost" size="sm" onClick={() => onOpen(`/admin/crear-curso?course=${course.id}`)}>{intl.formatMessage({ id: 'content.resumeCreation' })}</Button>}
           {course.is_demo && <Button variant="primary" size="sm" data-tour="content-demo-open" onClick={() => onOpen('/admin/demo')}>{intl.formatMessage({ id: 'content.viewDemo' })}</Button>}
           {course.delivery_mode === 'dynamic' && !course.is_demo && <Button variant="ghost" size="sm" onClick={async () => { if (!currentUser) return; await post('/enrollments', { user_ids: [currentUser.id], course_id: course.id }).catch(() => {}); onOpen(`/admin/probar-curso/${course.id}`) }}>{intl.formatMessage({ id: 'content.test' })}</Button>}
           {course.module_count > 0 && course.delivery_mode !== 'dynamic' && <Button variant="ghost" size="sm" onClick={() => onOpen(`/admin/curso/${course.id}`)}>{intl.formatMessage({ id: 'content.viewCourse' })}</Button>}
           {canPublish(course) && <Button variant="ghost" size="sm" onClick={() => onPublish(course.id)} disabled={publishing}>{publishing ? intl.formatMessage({ id: 'preview.publishing' }) : intl.formatMessage({ id: 'preview.publish' })}</Button>}
           {course.status === 'published' && <Button variant="ghost" size="sm" onClick={() => onArchive(course.id)} disabled={archiving}>{archiving ? intl.formatMessage({ id: 'preview.archiving' }) : intl.formatMessage({ id: 'preview.archive' })}</Button>}
           <Button variant="ghost" size="sm" onClick={() => onOpen(`/admin/curso/${course.id}/ajustes`)}>{intl.formatMessage({ id: 'content.schema' })}</Button>
+          {canDeleteCourse(course) && <Button variant="ghost" size="sm" onClick={() => onDelete(course)} disabled={deleting}>{deleting ? intl.formatMessage({ id: 'content.courseDeleting' }) : intl.formatMessage({ id: 'content.courseDelete' })}</Button>}
         </div>
       </div>
     </Card>
@@ -113,11 +143,15 @@ export function Content() {
   const folder: FolderFilter = params.get('folder') || 'all'
   const search = params.get('q') ?? ''
   const deferredSearch = useDeferredValue(search.trim())
-  const [moveError, setMoveError] = useState<string | null>(null)
+  // One slot for whatever the last row action had to say: they share a place on screen.
+  const [actionError, setActionError] = useState<string | null>(null)
   const [assigningFolder, setAssigningFolder] = useState<CourseFolder | null>(null)
+  const [retryingId, setRetryingId] = useState<string | null>(null)
   const foldersQuery = useCourseFolders()
   const coursesQuery = useCourses({
-    status: status === 'all' ? undefined : status,
+    // `failed` filters on the creation run, not on the course's own status.
+    status: status === 'all' || status === 'failed' ? undefined : status,
+    generationState: status === 'failed' ? 'failed' : undefined,
     search: deferredSearch || undefined,
     folderId: folder !== 'all' && folder !== 'unorganized' ? folder : undefined,
     unorganized: folder === 'unorganized',
@@ -127,6 +161,7 @@ export function Content() {
   const updateCourse = useUpdateCourse()
   const publishCourse = usePublishCourse()
   const archiveCourse = useArchiveCourse()
+  const deleteCourse = useDeleteCourse()
   const courses = coursesQuery.data?.items ?? []
   const folders = foldersQuery.data ?? []
 
@@ -139,11 +174,43 @@ export function Content() {
   }
 
   async function moveCourse(course: CourseRead, folderId: string | null) {
-    setMoveError(null)
+    setActionError(null)
     try {
       await updateCourse.mutateAsync({ id: course.id, payload: { folder_id: folderId } })
     } catch (reason) {
-      setMoveError(reason instanceof ApiError ? reason.body.detail : intl.formatMessage({ id: 'content.moveError' }))
+      setActionError(reason instanceof ApiError ? reason.body.detail : intl.formatMessage({ id: 'content.moveError' }))
+    }
+  }
+
+  /**
+   * Re-run the server-side tail of creation on the course that already exists.
+   *
+   * Deliberately not "create it again": the row, its schema and its knowledge packs are
+   * all still there, and starting over is what left the tester with two courses. The
+   * endpoint is idempotent, so this is safe to press twice.
+   */
+  async function retryCreation(course: CourseRead) {
+    setActionError(null)
+    setRetryingId(course.id)
+    try {
+      await startCourseFinalization(course.id)
+      navigate(`/admin/crear-curso?course=${course.id}`)
+    } catch (reason) {
+      setActionError(reason instanceof ApiError ? reason.body.detail : intl.formatMessage({ id: 'content.retryCreationError' }))
+    } finally {
+      setRetryingId(null)
+    }
+  }
+
+  async function removeCourse(course: CourseRead) {
+    if (!window.confirm(intl.formatMessage({ id: 'content.courseDeleteConfirm' }, { title: course.title }))) return
+    setActionError(null)
+    try {
+      await deleteCourse.mutateAsync(course.id)
+    } catch (reason) {
+      // A 409 says why — enrollments, or a course that is no longer a draft. Show it:
+      // the admin can act on that, and a silent failure is what sent them to support.
+      setActionError(reason instanceof ApiError ? reason.body.detail : intl.formatMessage({ id: 'content.courseDeleteError' }))
     }
   }
 
@@ -172,13 +239,14 @@ export function Content() {
                 <option value="published">{intl.formatMessage({ id: 'content.published' })}</option>
                 <option value="draft">{intl.formatMessage({ id: 'content.drafts' })}</option>
                 <option value="archived">{intl.formatMessage({ id: 'content.archived' })}</option>
+                <option value="failed">{intl.formatMessage({ id: 'content.statusFailed' })}</option>
             </Select>
           </div>
           <div className="mt-3 flex items-center justify-between gap-3 min-h-6">
             <p className="text-xs text-text-muted">{coursesQuery.data && intl.formatMessage({ id: 'content.resultsCount' }, { count: coursesQuery.data.total })}</p>
             {hasFilters && <button type="button" onClick={() => setParams({}, { replace: true })} className="text-xs font-medium text-primary hover:text-primary-hover">{intl.formatMessage({ id: 'content.clearFilters' })}</button>}
           </div>
-          {moveError && <p role="alert" className="mt-2 border border-danger/30 rounded-lg px-3 py-2 text-sm text-danger">{moveError}</p>}
+          {actionError && <p role="alert" className="mt-2 border border-danger/30 rounded-lg px-3 py-2 text-sm text-danger">{actionError}</p>}
 
           <div className="mt-2">
             {coursesQuery.isLoading ? <LibrarySkeleton /> : coursesQuery.error ? (
@@ -187,7 +255,7 @@ export function Content() {
               <Card><EmptyState title={intl.formatMessage({ id: hasFilters ? 'content.noResultsTitle' : 'content.emptyTitle' })} description={intl.formatMessage({ id: hasFilters ? 'content.noResultsDesc' : 'content.emptyDesc' })} action={hasFilters ? { label: intl.formatMessage({ id: 'content.clearFilters' }), onClick: () => setParams({}, { replace: true }) } : { label: intl.formatMessage({ id: 'content.emptyAction' }), onClick: () => navigate('/admin/crear-curso') }} /></Card>
             ) : (
               <motion.div className="space-y-2" initial="hidden" animate="visible" variants={staggerContainer}>
-                {courses.map((course) => <CourseRow key={course.id} course={course} folders={folders} moving={updateCourse.isPending} onMove={moveCourse} onOpen={navigate} onPublish={(id) => publishCourse.mutate(id)} onArchive={(id) => archiveCourse.mutate(id)} publishing={publishCourse.isPending} archiving={archiveCourse.isPending} />)}
+                {courses.map((course) => <CourseRow key={course.id} course={course} folders={folders} moving={updateCourse.isPending} onMove={moveCourse} onOpen={navigate} onPublish={(id) => publishCourse.mutate(id)} onArchive={(id) => archiveCourse.mutate(id)} onDelete={removeCourse} onRetry={retryCreation} publishing={publishCourse.isPending} archiving={archiveCourse.isPending} deleting={deleteCourse.isPending && deleteCourse.variables === course.id} retrying={retryingId === course.id} />)}
               </motion.div>
             )}
           </div>

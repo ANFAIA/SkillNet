@@ -6,26 +6,29 @@ import WhatWeDoSection from "../components/WhatWeDoSection.tsx";
 import ProblemSection from "../components/ProblemSection.tsx";
 import HowItWorksSection from "../components/HowItWorksSection.tsx";
 import StableAdaptSection from "../components/StableAdaptSection.tsx";
+import BuiltWithSection from "../components/BuiltWithSection.tsx";
 import CollaborationSection from "../components/CollaborationSection.tsx";
 import ProfilesSection from "../components/ProfilesSection.tsx";
 import ContactSection from "../components/ContactSection.tsx";
 import SiteFooter from "../components/SiteFooter.tsx";
+import { t } from "../i18n/ui";
+
+const lang = "es";
+const copy = t(lang);
 ---
 
-<BaseLayout
-  title="SkillNet"
-  description="SkillNet convierte una idea o fuente en un curso que puede adaptar sus explicaciones, actividades e interfaz a cada persona."
->
-  <Hero client:load />
+<BaseLayout title={copy.meta.title} description={copy.meta.description} lang={lang} altHref="/en/">
+  <Hero client:load lang={lang} />
   <main class="relative z-10 bg-white">
-    <WhatWeDoSection client:load />
-    <HowItWorksSection client:load />
-    <ProblemSection client:load />
-    <ProfilesSection client:load />
-    <CollaborationSection client:load />
-    <StableAdaptSection client:load />
-    <ContactSection client:load />
-    <SiteFooter client:load />
+    <WhatWeDoSection client:load lang={lang} />
+    <HowItWorksSection client:load lang={lang} />
+    <ProblemSection client:load lang={lang} />
+    <ProfilesSection client:load lang={lang} />
+    <CollaborationSection client:load lang={lang} />
+    <StableAdaptSection client:load lang={lang} />
+    <BuiltWithSection client:load lang={lang} />
+    <ContactSection client:load lang={lang} />
+    <SiteFooter client:load lang={lang} />
   </main>
-  <SiteHeader client:load />
+  <SiteHeader client:load locale={lang} altHref="/en/" />
 </BaseLayout>

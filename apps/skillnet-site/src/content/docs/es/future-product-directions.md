@@ -20,7 +20,7 @@ Un único SkillNet descargable con dos modos futuros:
 
 `class` no es un tercer modo y `user` no se usa como nombre de modo. El producto actual de
 empresa y empleado se conserva. Diseño completo:
-[audience-modes.md](audience-modes.md).
+[audience-modes.md](/docs/audience-modes).
 
 ## 2. Sustituir y mejorar la mascota
 
@@ -33,7 +33,7 @@ antes de fijarla. El acompañante de Brilliant puede servir como referencia punt
 investigar ese comportamiento, no como dirección general para los cursos.
 
 Frontera acordada:
-[conversational-modalities.md](conversational-modalities.md).
+[conversational-modalities.md](/docs/conversational-modalities).
 
 ## 3. Podcast Studio con calidad tipo NotebookLM
 
@@ -45,7 +45,7 @@ El diseño predeterminado puede usar dos voces, pero funcionará con una o más 
 capacidades del proveedor. Grounding, planificación editorial, guion, revisión, voces y
 acabado serán etapas sustituibles.
 
-Plan completo: [podcast-studio-plan.md](podcast-studio-plan.md).
+Plan completo: [podcast-studio-plan.md](/docs/podcast-studio-plan).
 
 ## 4. Audio como entrada del chat
 
@@ -57,7 +57,7 @@ audio -> transcripción -> chat -> texto
 ```
 
 Frontera acordada:
-[conversational-modalities.md](conversational-modalities.md).
+[conversational-modalities.md](/docs/conversational-modalities).
 
 ## 5. Conversaciones de voz en directo
 
@@ -67,7 +67,7 @@ proveedores.
 
 Todavía no se han fijado su interfaz, casos de uso concretos ni prioridad de
 implementación. Frontera acordada:
-[conversational-modalities.md](conversational-modalities.md).
+[conversational-modalities.md](/docs/conversational-modalities).
 
 ## 6. Separación de modalidades
 
@@ -75,7 +75,7 @@ Web, audio y vídeo son modalidades acumulables y no variantes excluyentes de un
 La generación multimedia permanece bajo demanda y separada de la composición OpenUI.
 
 Diseño de arquitectura:
-[delivery-modalities.md](delivery-modalities.md).
+[delivery-modalities.md](/docs/delivery-modalities).
 
 ## Resumen de estado
 

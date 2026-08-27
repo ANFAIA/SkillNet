@@ -2,6 +2,7 @@
 title: "Prototype benchmarks"
 order: 56
 section: "research"
+group: "generative-ui"
 ---
 
 # Prototype Benchmarks: Five Generative UI Approaches Compared

@@ -2,20 +2,14 @@
 import { getCollection } from "astro:content";
 import DocsLayout from "../../../layouts/DocsLayout.astro";
 import { splitDocId } from "../../../content.config";
-import { SECTION_LABELS, SECTION_ORDER } from "../../../data/docsNav";
+import { buildDocsTree } from "../../../data/docsNav";
 
 const entries = (await getCollection("docs"))
-  .map((e) => ({ ...splitDocId(e.id), title: e.data.title, order: e.data.order, section: e.data.section }))
+  .map((e) => ({ ...splitDocId(e.id), title: e.data.title, order: e.data.order, section: e.data.section, group: e.data.group }))
   .filter((e) => e.locale === "en")
   .sort((a, b) => a.order - b.order);
 
-const labels = SECTION_LABELS.en;
-
-const groups = SECTION_ORDER.map((section) => ({
-  section,
-  label: labels[section],
-  items: entries.filter((e) => e.section === section),
-})).filter((g) => g.items.length > 0);
+const groups = buildDocsTree(entries, "en");
 ---
 
 <DocsLayout
@@ -35,9 +29,16 @@ const groups = SECTION_ORDER.map((section) => ({
     <section class="docs-index__group">
       <h2>{group.label}</h2>
       <ul class="docs-index__list">
-        {group.items.map((item) => (
+        {group.nodes.map((node) => (
           <li>
-            <a href={`/en/docs/${item.slug}`}>{item.title}</a>
+            <a href={`/en/docs/${node.entry.slug}`}>{node.entry.title}</a>
+            {node.children.length > 0 && (
+              <ul class="docs-index__list docs-index__list--nested">
+                {node.children.map((child) => (
+                  <li><a href={`/en/docs/${child.slug}`}>{child.title}</a></li>
+                ))}
+              </ul>
+            )}
           </li>
         ))}
       </ul>
@@ -63,5 +64,12 @@ const groups = SECTION_ORDER.map((section) => ({
     display: block;
     padding: 4px 0;
     font-size: 1.02rem;
+    overflow-wrap: anywhere;
+  }
+
+  .docs-index__list--nested {
+    margin-left: 14px;
+    border-left: 1px solid var(--color-border);
+    padding-left: 12px;
   }
 </style>

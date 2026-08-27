@@ -36,6 +36,12 @@ valores en tu `.env`, y sigue adelante.
 | **Un modelo local** | Nada — usa el overlay del paso 3 | Gratis, privado, sin conexión. Pero **lento**: medido ~185 s para generar una pantalla de lección en CPU. Necesita ~8 GB de RAM y ~5 GB de disco. Bien para probarlo sin cuenta; no es cómodo para uso real. |
 | **Nada en absoluto** | `LLM_MODEL=fixture/local` y `EMBEDDING_MODEL=fixture/local` | Gratis e instantáneo, pero solo se renderizan las pantallas con una respuesta grabada. Suficiente para navegar por la interfaz; no para autorar un curso. |
 
+`.env.example` tiene unas cincuenta líneas. Su primera sección, `# ── Required ──`, son los
+tres valores que tienes que rellenar: los dos secretos de abajo y tu clave de proveedor.
+Todo lo que va después ya funciona. Todas las variables que lee SkillNet —incluidas las que
+el ejemplo no lista— están en [`configuration.md`](/docs/configuration), con su valor por
+defecto y si Docker las pasa de verdad al contenedor.
+
 Elijas lo que elijas, siempre hacen falta dos valores:
 
 | Variable | Cómo rellenarla |
@@ -63,12 +69,12 @@ docker compose up -d --build
 O, si elegiste el modelo local en el paso 2:
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.ollama.yml up -d --build
+docker compose -f docker-compose.yml -f docker/compose/ollama.yml up -d --build
 ```
 
 Una construcción en frío tarda un par de minutos. El overlay de ollama también descarga los
 modelos (unos cuantos GB) antes de que la API arranque, así que dale tiempo al primer arranque.
-Ver [`docker-compose.ollama.yml`](docker-compose.ollama.yml) para saber qué hace y qué ids de
+Ver [`docker/compose/ollama.yml`](https://github.com/ANFAIA/SkillNet/blob/main/docker/compose/ollama.yml) para saber qué hace y qué ids de
 modelo son válidos.
 
 ## Paso 4 — Abrirlo y crear tu cuenta
@@ -138,7 +144,7 @@ anterior a los cursos dinámicos y existe para comparar con la ruta estática an
 Por defecto, un despliegue corre en modo `organization` (una empresa/equipo/clase, el flujo de
 arriba). El otro modo es `individual`: una persona que instala SkillNet para sí misma y a la vez
 administra y aprende — sin empleados, talento, asignaciones ni informes de organización. Ver
-[`docs/design/audience-modes.md`](docs/design/audience-modes.md).
+[`docs/design/audience-modes.md`](/docs/audience-modes).
 
 El modo es un ajuste estable por despliegue, elegido de una de estas dos formas:
 
@@ -210,7 +216,7 @@ y el frontend con **Vite en el host**, que recarga en caliente al guardar:
 
 ```bash
 # 1. API + BD en Docker (el overlay de dev publica la API en 127.0.0.1:8000)
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d db api
+docker compose -f docker-compose.yml -f docker/compose/dev.yml up -d db api
 
 # 2. Frontend en el host — lo único que necesita Node (≥22) + pnpm en local
 #    (22, no 20: pnpm 11 necesita el módulo nativo node:sqlite, que Node 20 no tiene)
@@ -263,14 +269,14 @@ tenga que seguir funcionando la cosa.
 | Quiero… | Usar | Necesita |
 |---|---|---|
 | que la gente lo pruebe **hoy** | el túnel rápido de abajo | nada en absoluto |
-| una dirección **estable** en mi propio dominio | el overlay `docker-compose.cloudflared.yml` | una cuenta gratuita de Cloudflare con un dominio dentro |
-| mi propio dominio **y** mi propio certificado | el overlay `docker-compose.caddy.yml` | un dominio, DNS apuntando a este host, puertos 80/443 abiertos |
+| una dirección **estable** en mi propio dominio | el overlay `docker/compose/cloudflared.yml` | una cuenta gratuita de Cloudflare con un dominio dentro |
+| mi propio dominio **y** mi propio certificado | el overlay `docker/compose/caddy.yml` | un dominio, DNS apuntando a este host, puertos 80/443 abiertos |
 
 ### Una URL pública en un solo comando, sin cuenta
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.quicktunnel.yml up -d --build
-docker compose -f docker-compose.yml -f docker-compose.quicktunnel.yml logs quicktunnel | grep trycloudflare
+docker compose -f docker-compose.yml -f docker/compose/quicktunnel.yml up -d --build
+docker compose -f docker-compose.yml -f docker/compose/quicktunnel.yml logs quicktunnel | grep trycloudflare
 ```
 
 Cada `-f` hay que repetirlo en todos los comandos posteriores, incluidos `logs` y `down`:
@@ -299,7 +305,7 @@ propósito para que los overlays puedan subirla.
 ## Publicar SkillNet en tu propio dominio
 
 La pila por defecto es amable con el loopback, no con internet: `web` habla HTTP plano, lo cual
-está bien en `localhost` pero no es algo que dar a un dominio real. `docker-compose.caddy.yml`
+está bien en `localhost` pero no es algo que dar a un dominio real. `docker/compose/caddy.yml`
 es un overlay opcional que pone [Caddy](https://caddyserver.com/) delante de `web` como proxy
 inverso, con TLS automático de Let's Encrypt.
 
@@ -318,7 +324,7 @@ inverso, con TLS automático de Let's Encrypt.
 DOMAIN=cursos.ejemplo.com
 CADDY_EMAIL=tu@ejemplo.com   # obligatorio — la directiva `email` de Caddy no puede estar vacía
 
-docker compose -f docker-compose.yml -f docker-compose.caddy.yml up -d --build
+docker compose -f docker-compose.yml -f docker/compose/caddy.yml up -d --build
 ```
 
 Este overlay además le quita a `web` su puerto público: Caddy pasa a ser el único punto de
@@ -355,15 +361,15 @@ Cloudflare.
 # .env
 CLOUDFLARE_TUNNEL_TOKEN=<el token del panel>
 
-docker compose -f docker-compose.yml -f docker-compose.cloudflared.yml up -d --build
+docker compose -f docker-compose.yml -f docker/compose/cloudflared.yml up -d --build
 ```
 
 Ningún cambio de router ni de cortafuegos de ningún tipo: al contrario que con Caddy, no hay
 nada que abrir en el 80/443. Una vez que el túnel conecta (compruébalo con
 `docker compose logs cloudflared`), el nombre de host que pusiste en el paso 1 sirve SkillNet
 por HTTPS, con el TLS enteramente en manos de Cloudflare. Pon `COOKIE_SECURE=true` cuando el
-tráfico llegue de verdad por HTTPS a través del túnel — ver la nota sobre `COOKIE_SECURE` junto
-a `DOMAIN` en `.env.example`.
+tráfico llegue de verdad por HTTPS a través del túnel — ver "`COOKIE_SECURE` y los overlays de
+exposición" en [`configuration.md`](/docs/configuration).
 
 ## Hacer copias de seguridad
 
@@ -415,8 +421,10 @@ cosas que conviene saber antes de hacer el pull:
 - **Haz una copia primero** si la instancia guarda algo que te importe. Ver más arriba. En la
   práctica una migración no es reversible: el camino de downgrade existe para los tests, y una
   de ellas cambia una dimensión de vector, lo que no puede conservar los vectores.
-- **Lee el diff de `.env.example`.** Ahí aparecen los ajustes nuevos, y un ajuste que solo
-  existe en tu `.env` pero no en `docker-compose.yml` nunca llega al contenedor.
+- **Lee el diff de `.env.example`.** Ahí aparecen los ajustes nuevos que tienes que rellenar.
+  Para todo lo demás, [`configuration.md`](/docs/configuration) es la lista completa — y ojo:
+  un ajuste que solo existe en tu `.env` pero no en `docker-compose.yml` nunca llega al
+  contenedor. Esa página dice cuáles son.
 
 ## Detenerlo
 
@@ -427,7 +435,7 @@ docker compose down -v    # detener, destruir la base de datos y las subidas
 
 ---
 
-**Siguiente:** [`README.md`](README.md) para saber qué es SkillNet y cómo funciona,
-[`AGENTS.md`](AGENTS.md) para las convenciones y fronteras al cambiar el código, y
-[`docs/design/docker-deployment.md`](docs/design/docker-deployment.md) para saber por qué el
+**Siguiente:** [`README.md`](https://github.com/ANFAIA/SkillNet/blob/main/README.md) para saber qué es SkillNet y cómo funciona,
+[`AGENTS.md`](https://github.com/ANFAIA/SkillNet/blob/main/AGENTS.md) para las convenciones y fronteras al cambiar el código, y
+[`docs/design/docker-deployment.md`](/docs/docker-deployment) para saber por qué el
 despliegue tiene esta forma.

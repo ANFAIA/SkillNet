@@ -2,6 +2,7 @@
 title: "Post-Markdown"
 order: 59
 section: "research"
+group: "post-markdown"
 ---
 
 # Post-Markdown: qué viene después de Markdown para los agentes de IA
@@ -28,7 +29,7 @@ Este camino no está cerrado. Probablemente llegue algo después de Markdown en 
 
 ### El problema de tokens con HTML
 
-En paralelo, surgió una tendencia: la gente empezó a usar HTML para visualizar sus ideas, porque es más expresivo que Markdown. Dashboards, gráficos, páginas interactivas. Pero generar HTML mediante un agente de IA es caro. Una sola página cuesta 2.000-8.000 tokens de salida y tarda 20-30 segundos en generarse. Este es el problema explorado en [generative-ui](../generative-ui/), donde construimos A2TL-Web como alternativa compacta.
+En paralelo, surgió una tendencia: la gente empezó a usar HTML para visualizar sus ideas, porque es más expresivo que Markdown. Dashboards, gráficos, páginas interactivas. Pero generar HTML mediante un agente de IA es caro. Una sola página cuesta 2.000-8.000 tokens de salida y tarda 20-30 segundos en generarse. Este es el problema explorado en [generative-ui](/docs/generative-ui-research), donde construimos A2TL-Web como alternativa compacta.
 
 ### Lectores más inteligentes
 
@@ -66,7 +67,7 @@ Un servidor MCP (`@anfaia/md-reader-mcp`, v1.4.1) que analiza los encabezados de
 
 **Flujo de trabajo:** primero `md_find` con lo que se busca → devuelve las secciones que coinciden ordenadas. Después `md_section` para leer la que se ha elegido. `md_tree` cuando se necesita la estructura completa de un fichero, `md_vault_index` para explorar enlaces entre notas.
 
-Fuente: [`packages/mcp-md-reader/`](../../../packages/mcp-md-reader/)
+Fuente: [`packages/mcp-md-reader/`](https://github.com/ANFAIA/SkillNet/tree/main/packages/mcp-md-reader)
 
 ## Cifras clave
 

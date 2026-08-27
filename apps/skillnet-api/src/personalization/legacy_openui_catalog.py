@@ -221,6 +221,9 @@ LEGACY_OPENUI_POLICIES: dict[str, LegacyComponentPolicy] = {
     "InfographicImage": LegacyComponentPolicy(
         exclusion_reason="broker-injected reference to a pre-generated infographic artefact, not a planned activity"
     ),
+    "SourceImage": LegacyComponentPolicy(
+        exclusion_reason="broker-injected reference to an image already inside the course's source document, not a planned activity"
+    ),
     "PronunciationExercise": _descriptor(
         "PronunciationExercise",
         missions=frozenset({CognitiveMission.PRODUCE}),

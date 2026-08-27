@@ -75,15 +75,20 @@ async def create_user(
         email=body.email,
         full_name=body.full_name,
         password=body.password,
+        role=body.role,
     )
     # Every employee is a learner. Create their learner-profile row now (onboarding
     # not yet completed) so the onboarding gate fires on their first login — without
     # it, a brand-new employee has no profile row, the profile endpoint 404s, and the
     # gate reads that as "do not redirect", silently skipping onboarding. See
     # docs/design/audience-modes.md.
-    await LearnerProfileRepository(db).get_or_create(
-        user_id=user.id, org_id=admin.org_id
-    )
+    #
+    # An administrator of an organization does not learn, so gets no profile row —
+    # the same split `POST /setup` makes for the owner account.
+    if body.role != "admin":
+        await LearnerProfileRepository(db).get_or_create(
+            user_id=user.id, org_id=admin.org_id
+        )
     await db.commit()
     return EmployeeCreated(
         **UserRead.model_validate(user).model_dump(),
@@ -180,6 +185,7 @@ async def update_user(
     user = await service.update_user(
         user_id=user_id,
         org_id=admin.org_id,
+        actor_id=admin.id,
         full_name=body.full_name,
         role=body.role,
         is_active=body.is_active,

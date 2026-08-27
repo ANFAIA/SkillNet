@@ -48,6 +48,7 @@ skillnet/
 │   │   ├── ai-course-design.md       # Stateless AI endpoints and multi-model routing for course design (Spanish)
 │   │   ├── openui-adoption.md        # Why OpenUI, and what its reactive layer would cost (Spanish)
 │   │   ├── tuning.md                 # The dials for generation quality, and what each does
+│   │   ├── course-packages.md        # A course as an installable directory (no LLM, no key)
 │   │   ├── architecture.md           # Architecture decisions (decided + deferred)
 │   │   ├── data-model.md             # PostgreSQL schema (v1 body + v2 appendix)
 │   │   ├── screens.md                # Screen specs
@@ -105,8 +106,8 @@ uv run python scripts/quality_bench.py --offline   # generation quality, no API 
 
 # Full stack (from root)
 docker compose up -d --build
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build      # hot reload
-docker compose -f docker-compose.yml -f docker-compose.ollama.yml up -d --build   # local model
+docker compose -f docker-compose.yml -f docker/compose/dev.yml up --build      # hot reload
+docker compose -f docker-compose.yml -f docker/compose/ollama.yml up -d --build   # local model
 docker compose exec api python -m src.seed_learning_demo                     # public demo dataset
 ```
 

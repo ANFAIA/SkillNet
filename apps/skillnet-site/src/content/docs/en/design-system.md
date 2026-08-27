@@ -312,7 +312,7 @@ Small colored dot. Not a full colored cell background.
 
 ## Motion & Animations
 
-See [`motion-system.md`](motion-system.md) for the complete animation specification — easing curves, timing, patterns (morph modals, blur transitions, staggered lists, micro-interactions).
+See [`motion-system.md`](/en/docs/motion-system) for the complete animation specification — easing curves, timing, patterns (morph modals, blur transitions, staggered lists, micro-interactions).
 
 ---
 

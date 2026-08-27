@@ -21,6 +21,27 @@ class Settings(BaseSettings):
     COOKIE_NAME: str = "skillnet_session"
     COOKIE_SECURE: bool = True
 
+    # Sign in with Google (OAuth 2.0 authorization code + PKCE).
+    #
+    # Empty CLIENT_ID or CLIENT_SECRET disables the whole feature: the routes answer
+    # 404 and the SPA never shows the button. What Google does with the resulting
+    # identity depends on the organization's `workspace_mode`, not on config — see
+    # src/services/google_oauth.py.
+    GOOGLE_CLIENT_ID: str = ""
+    GOOGLE_CLIENT_SECRET: str = ""
+    #: Absolute URL of this API's callback, registered verbatim as an authorized
+    #: redirect URI in the Google Cloud console. Google rejects the exchange on any
+    #: mismatch, down to the trailing slash. Empty means "derive it from the incoming
+    #: request", which is right behind a single known front door and wrong behind a
+    #: proxy that rewrites Host, so set it explicitly in any real deployment.
+    GOOGLE_REDIRECT_URI: str = ""
+    #: Where the browser lands after the callback has set the session cookie. A path
+    #: on the SPA, not a URL, so it cannot be turned into an open redirect.
+    GOOGLE_POST_LOGIN_PATH: str = "/"
+    #: Where the browser lands when the callback refuses the identity. The reason
+    #: travels as a `google_error` query parameter for the SPA to translate.
+    GOOGLE_LOGIN_ERROR_PATH: str = "/login"
+
     # LLM (defaults, overridable per org)
     LLM_BASE_URL: str = "https://api.openai.com/v1"
     LLM_API_KEY: str = ""
@@ -113,10 +134,22 @@ class Settings(BaseSettings):
     # keyed by content hash, mirroring TTS_CACHE_DIR: the same render is never written
     # twice and the asset route can be cached hard.
     MEDIA_ASSETS_DIR: str = "data/media_assets"
+    # Images extracted from uploaded documents (the customer's OWN diagrams and photos),
+    # kept so a course can reuse them instead of inventing an illustration. A separate
+    # store from MEDIA_ASSETS_DIR on purpose: these are source material and die with the
+    # document they came from, while generated assets outlive it. In Docker this points
+    # inside the `uploads` volume rather than at a fourth one — same lifetime as the
+    # original file, same ownership repair, no new mount to get wrong.
+    SOURCE_IMAGES_DIR: str = "data/source_images"
     # Image generation. Default is NotebookLM's actual engine family ("Nano Banana");
     # gpt-image-1 on the existing OpenAI key is the fallback selectable per call.
     IMAGE_MODEL: str = "openrouter/google/gemini-2.5-flash-image"
     IMAGE_FALLBACK_MODEL: str = "gpt-image-1"
+    # The image provider's own key. Set it when the image account is NOT the text account:
+    # without it the image call falls back to OPENROUTER_API_KEY (openrouter/* models) or
+    # LLM_API_KEY (everything else), which silently sends e.g. a Groq key to OpenAI for
+    # gpt-image-1. See src/services/media/images.api_key_for.
+    IMAGE_API_KEY: str = ""
     # Read by litellm for openrouter/* models. Lives in the repo-root .env.
     OPENROUTER_API_KEY: str = ""
 
@@ -163,6 +196,9 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
 
     # Bootstrap
+    #: Minutes that the public `POST /setup` stays open after a boot with no owner.
+    #: 0 disables the limit. See src/core/setup_window.py for why there is one at all.
+    SETUP_WINDOW_MINUTES: int = 30
     ADMIN_EMAIL: str | None = None
     ADMIN_PASSWORD: str | None = None
     ORG_NAME: str | None = None

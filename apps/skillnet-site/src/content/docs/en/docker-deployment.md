@@ -6,21 +6,23 @@ section: "core"
 
 ## 5. Docker & Deployment
 
-**How to run it is in [`README.md`](../../README.md).** This document records *why* the
+**How to run it is in [`README.md`](https://github.com/ANFAIA/SkillNet/blob/main/README.md).** This document records *why* the
 deployment looks the way it does, and the traps that are not obvious from reading the files.
 
 It used to inline full copies of `docker-compose.yml`, both Dockerfiles, `.env.example` and
-`docker-compose.dev.yml`. Those copies drifted: by 2026-08-04 the `db` healthcheck here
+`docker/compose/dev.yml`. Those copies drifted: by 2026-08-04 the `db` healthcheck here
 differed from the real one, the dev override described a Vite-based `web` service that does
 not exist, and two sections documented a file that never existed at all. A design document
 whose body is a stale duplicate of the source is worse than no document, because it is
 confidently wrong. So the files are linked, not pasted.
 
-- [`docker-compose.yml`](../../docker-compose.yml) — the stack
-- [`docker-compose.dev.yml`](../../docker-compose.dev.yml) — hot-reload overlay
-- [`docker-compose.ollama.yml`](../../docker-compose.ollama.yml) — local-model overlay
-- [`docker/api.Dockerfile`](../../docker/api.Dockerfile), [`docker/web.Dockerfile`](../../docker/web.Dockerfile), [`docker/nginx.conf`](../../docker/nginx.conf)
-- [`.env.example`](../../.env.example) — every variable, with the reasoning inline
+- [`docker-compose.yml`](https://github.com/ANFAIA/SkillNet/blob/main/docker-compose.yml) — the stack
+- [`docker/compose/dev.yml`](https://github.com/ANFAIA/SkillNet/blob/main/docker/compose/dev.yml) — hot-reload overlay
+- [`docker/compose/ollama.yml`](https://github.com/ANFAIA/SkillNet/blob/main/docker/compose/ollama.yml) — local-model overlay
+- [`docker/api.Dockerfile`](https://github.com/ANFAIA/SkillNet/blob/main/docker/api.Dockerfile), [`docker/web.Dockerfile`](https://github.com/ANFAIA/SkillNet/blob/main/docker/web.Dockerfile), [`docker/nginx.conf`](https://github.com/ANFAIA/SkillNet/blob/main/docker/nginx.conf)
+- [`.env.example`](https://github.com/ANFAIA/SkillNet/blob/main/.env.example) — the short list of what you have to fill in
+- [`configuration.md`](/en/docs/configuration) — every variable, its default, and whether Docker
+  actually passes it into the container
 
 ---
 
@@ -36,7 +38,7 @@ confidently wrong. So the files are linked, not pasted.
 | `ollama` | overlay file | local model server — see §5.8 |
 
 Background jobs run in-process through the JobCoordinator
-([`background-processing.md`](background-processing.md)), backed by PostgreSQL with LangGraph
+([`background-processing.md`](/en/docs/background-processing)), backed by PostgreSQL with LangGraph
 persistence. There is no worker container at this scale, and adding one later does not change
 anything described here.
 
@@ -50,7 +52,7 @@ A default `docker compose up -d` publishes **only 3000**. `api` and `db` are rea
 from inside the compose network.
 
 That is not minimalism for its own sake. The security headers and the 55 MB upload limit live
-in [`docker/nginx.conf`](../../docker/nginx.conf), so an exposed `api` port is a way around
+in [`docker/nginx.conf`](https://github.com/ANFAIA/SkillNet/blob/main/docker/nginx.conf), so an exposed `api` port is a way around
 both.
 
 Everything optional binds to `127.0.0.1`. **Docker publishes ports with DNAT rules that
@@ -66,7 +68,7 @@ Behind TLS, set it to `true`.
 
 ### 5.3 The two image stages, and the trap between them
 
-[`docker/api.Dockerfile`](../../docker/api.Dockerfile) builds `builder` (dependencies, `uv`,
+[`docker/api.Dockerfile`](https://github.com/ANFAIA/SkillNet/blob/main/docker/api.Dockerfile) builds `builder` (dependencies, `uv`,
 root) and `runtime` (venv on `PATH`, non-root `skillnet` user, minimal). The dev overlay
 builds `target: builder` on purpose: hot reload needs `uv` and the mounted source.
 
@@ -83,17 +85,17 @@ Two asymmetries bit repeatedly and are now fixed:
 
 One still open: `builder` runs as root, so the dev container writes to your source tree as
 root. On Linux and WSL that leaves root-owned `__pycache__` and alembic revisions in the repo,
-which then break `git clean` and the editor. `docker-compose.dev.yml` already solves the same
+which then break `git clean` and the editor. `docker/compose/dev.yml` already solves the same
 class of problem for `.venv` with an anonymous volume; the rest of the tree is not covered.
 
 ### 5.4 The `.env` only half arrives
 
-**No service declares `env_file`**, and [`.dockerignore`](../../.dockerignore) keeps `.env`
+**No service declares `env_file`**, and [`.dockerignore`](https://github.com/ANFAIA/SkillNet/blob/main/.dockerignore) keeps `.env`
 out of the image, so pydantic's `env_file=".env"` finds nothing inside the container. Only the
 variables listed explicitly in a service's `environment:` block reach the API.
 
 Adding a variable to `.env` and seeing no effect is therefore the expected outcome, not a bug.
-Most dials in [`tuning.md`](tuning.md) are unreachable in Docker for this reason — to use one,
+Most dials in [`tuning.md`](/en/docs/tuning) are unreachable in Docker for this reason — to use one,
 add it to the `environment:` block of `api` first.
 
 Related, and the same root cause: model defaults live in the compose file, not in
@@ -105,7 +107,7 @@ beats a Python default, so the code's default never applied inside Docker at all
 
 ```bash
 docker compose up -d --build                                                # production
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build   # hot reload
+docker compose -f docker-compose.yml -f docker/compose/dev.yml up --build   # hot reload
 ```
 
 The overlay switches `api` to `target: builder`, runs uvicorn with
@@ -157,7 +159,7 @@ and its extracted text. Files and their rows in `documents` are not transactiona
 other: a row can outlive its file, and the ingestion marks the document `error` rather than
 pretending otherwise.
 
-Backup and restore: [`scripts/backup.sh`](../../scripts/backup.sh) (`pg_dump` piped through
+Backup and restore: [`scripts/backup.sh`](https://github.com/ANFAIA/SkillNet/blob/main/scripts/backup.sh) (`pg_dump` piped through
 gzip, keeping the last seven days). Restore with
 `gunzip -c backups/skillnet_*.sql.gz | docker compose exec -T db psql -U skillnet skillnet`.
 For a consistent full backup, `docker compose stop api` first, then dump the database and tar
@@ -171,7 +173,7 @@ column. The schema comes back correct; the chunks do not. Re-run the seed.
 
 ### 5.7 First run
 
-The lifespan in [`src/main.py`](../../apps/skillnet-api/src/main.py) creates the upload
+The lifespan in [`src/main.py`](https://github.com/ANFAIA/SkillNet/blob/main/apps/skillnet-api/src/main.py) creates the upload
 directory, runs `alembic upgrade head` (which also creates the `pgcrypto` and `vector`
 extensions), then creates the organization and — only if `ADMIN_EMAIL` and `ADMIN_PASSWORD`
 are set — the admin user and the A2A API key.
@@ -185,7 +187,7 @@ There is no setup wizard. An earlier draft of this document described `/setup` a
 bootstrap replaced the idea and the section outlived it.
 
 Startup also verifies that `EMBEDDING_DIMENSIONS` matches the actual column
-([`embedding_check.py`](../../apps/skillnet-api/src/services/embedding_check.py)), because a
+([`embedding_check.py`](https://github.com/ANFAIA/SkillNet/blob/main/apps/skillnet-api/src/services/embedding_check.py)), because a
 mismatch is otherwise invisible: the insert fails inside the ingestion `except`, the document
 is marked `READY` with only `full_text`, and the tutor quietly answers from the lower rungs of
 the retrieval ladder. It logs and reports in `GET /health`; it does not abort, because
@@ -193,10 +195,10 @@ authentication, courses, lessons and progress all still work without embeddings.
 
 ### 5.8 Running on a local model
 
-Use [`docker-compose.ollama.yml`](../../docker-compose.ollama.yml):
+Use [`docker/compose/ollama.yml`](https://github.com/ANFAIA/SkillNet/blob/main/docker/compose/ollama.yml):
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.ollama.yml up -d --build
+docker compose -f docker-compose.yml -f docker/compose/ollama.yml up -d --build
 ```
 
 **Why an overlay file and not a `profiles:` entry.** It was a profile until 2026-08-04, and

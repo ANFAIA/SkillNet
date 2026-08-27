@@ -29,6 +29,19 @@ class TaskRegistry:
                 return task
         return self.spawn(coro, name)
 
+    def has_running(self, name: str) -> bool:
+        """Is a task with exactly this name still running?
+
+        The registry already reuses a named task inside :meth:`spawn_unique`, but a
+        caller sometimes has to know *before* it builds the coroutine — the course
+        finalization endpoint has to decide whether to re-claim the row and spawn, or
+        report the run already in flight, and it cannot answer that by constructing a
+        coroutine it may have to throw away.
+        """
+        return any(
+            not task.done() and task.get_name() == name for task in self._tasks
+        )
+
     def cancel_by_prefix(self, prefix: str) -> int:
         """Cancel every still-running task whose name starts with ``prefix``.
 

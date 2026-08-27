@@ -6,7 +6,7 @@ section: "core"
 
 # Agentes de Tutoria y Chat
 
-> **Estado: v1.** Arquitectura de agentes LangGraph tanto para el tutor de empleados como para el asistente de administracion. Se apoya en [architecture.md](architecture.md) (equipos de agentes, streaming SSE), [rag-retrieval.md](rag-retrieval.md) (estrategias de recuperacion, PageIndex, ensamblado de contexto), [backend-api.md](backend-api.md) (endpoints de chat, inyeccion de dependencias) y [screens.md](screens.md) (Chat Tutor, Admin Chat).
+> **Estado: v1.** Arquitectura de agentes LangGraph tanto para el tutor de empleados como para el asistente de administracion. Se apoya en [architecture.md](/docs/architecture) (equipos de agentes, streaming SSE), [rag-retrieval.md](/docs/rag-retrieval) (estrategias de recuperacion, PageIndex, ensamblado de contexto), [backend-api.md](/docs/backend-api) (endpoints de chat, inyeccion de dependencias) y [screens.md](/docs/screens) (Chat Tutor, Admin Chat).
 
 ---
 
@@ -2075,7 +2075,7 @@ rate_limiter = RateLimiter()
 
 ### 6.3 LLMClient compartido
 
-Ambos agentes usan el mismo cliente `AsyncOpenAI` (configurado desde los ajustes de la organizacion o variables de entorno, ver [backend-api.md](backend-api.md) seccion 4.3). La diferencia esta en el system prompt y las herramientas disponibles.
+Ambos agentes usan el mismo cliente `AsyncOpenAI` (configurado desde los ajustes de la organizacion o variables de entorno, ver [backend-api.md](/docs/backend-api) seccion 4.3). La diferencia esta en el system prompt y las herramientas disponibles.
 
 ```python
 # src/services/chat_service.py

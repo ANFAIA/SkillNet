@@ -151,7 +151,9 @@
    Defined here on bare :root as the LIGHT default so they always exist even
    with no `data-theme` set under a light OS; the dark blocks override them. */
 :root {
-  /* Branded shell gradient plus the cleaner flat sidebar surface. */
+  /* Branded shell gradient plus the cleaner flat sidebar surface. The gradient is
+     opt-in chrome for the `classic` preset only — it is never the document canvas,
+     which always tracks `--color-bg`. */
   --frame-gradient: linear-gradient(170deg, #4171B5 0%, #2D5490 40%, #1E3D6E 100%);
   --frame-clean-surface: #315f9b;
   --frame-classic-surface: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 100 100' fill='none' stroke='rgba(255,255,255,0.035)' stroke-width='0.5'%3E%3Cline x1='0' y1='0' x2='100' y2='100'/%3E%3Cline x1='50' y1='0' x2='100' y2='50'/%3E%3Cline x1='0' y1='50' x2='50' y2='100'/%3E%3Cpath d='M25 0 A25 25 0 0 1 0 25'/%3E%3Cpath d='M75 0 A75 75 0 0 1 0 75'/%3E%3C/svg%3E"), var(--frame-gradient);
@@ -234,7 +236,7 @@
 
   /* Chrome: deep desaturated navy rail, not the bright light-mode blue. Slightly
      lifted off the #0a0a0a content at the top and settling toward it, so the
-     rail reads as elevated and the rounded-corner reveal of `body` matches it. */
+     rail reads as elevated against the content surface. */
   --frame-gradient: linear-gradient(170deg, #16181f 0%, #111319 45%, #0d0e13 100%);
   --frame-clean-surface: #12151c;
   --frame-border: rgba(255, 255, 255, 0.06);
@@ -465,11 +467,17 @@ h1, h2, h3, .text-xl, .text-2xl, .text-3xl {
 }
 
 /* Stop the document itself from rubber-band overscrolling. The shell is a fixed
-   h-screen frame, so any bounce of the page just exposes the blue `body` gradient
-   underneath — most visible on pages whose main pane is shorter than the viewport
+   h-screen frame, so any bounce of the page would otherwise expose the document
+   canvas — most visible on pages whose main pane is shorter than the viewport
    (e.g. Talent), where the gesture never reaches the inner scroller to be contained. */
 html {
   overscroll-behavior: none;
+  /* The canvas behind everything: the page background of the active theme. The rail
+     used to be the deep blue `--frame-gradient`, so `body` carried it; the rail is now
+     `.connected-sidebar`, which paints its own tint, and nothing sits on the gradient
+     any more. Leaving it here only leaked blue wherever the document showed through:
+     overscroll bounce, the login / onboarding shells, and any rounded reveal. */
+  background: var(--color-bg);
 }
 
 body {
@@ -477,10 +485,7 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  /* The frame gradient shows through the content pane's rounded top-left corner
-     and behind the login / onboarding shells, so it must track the theme too. */
-  background: var(--frame-gradient);
-  background-attachment: fixed;
+  background: var(--color-bg);
   overscroll-behavior: none;
 }
 

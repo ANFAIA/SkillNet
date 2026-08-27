@@ -8,7 +8,7 @@ section: "core"
 
 > **Status: v1.** Complete architecture for the multi-agent content generation pipeline. Transforms uploaded documents into structured courses and reference manuals via LangGraph orchestration with human-in-the-loop checkpoints.
 
-Depends on: [architecture.md](architecture.md), [data-model.md](data-model.md), [rag-retrieval.md](rag-retrieval.md), [backend-api.md](backend-api.md).
+Depends on: [architecture.md](/en/docs/architecture), [data-model.md](/en/docs/data-model), [rag-retrieval.md](/en/docs/rag-retrieval), [backend-api.md](/en/docs/backend-api).
 
 ---
 
@@ -796,7 +796,7 @@ Output as JSON with sections:
 
 ### 3.6 Quality Reviewer
 
-**Role:** Independent verification of generated content against source material. The reviewer loads source documents separately — it never sees the generator's context window or prompt. This is structural independence (see [architecture.md](architecture.md), agent isolation).
+**Role:** Independent verification of generated content against source material. The reviewer loads source documents separately — it never sees the generator's context window or prompt. This is structural independence (see [architecture.md](/en/docs/architecture), agent isolation).
 
 **Node:** `review_quality`
 
@@ -968,7 +968,7 @@ Module content to fix:
 
 ### 4.1 Conditional RAG
 
-The pipeline uses the same conditional RAG strategy defined in [rag-retrieval.md](rag-retrieval.md):
+The pipeline uses the same conditional RAG strategy defined in [rag-retrieval.md](/en/docs/rag-retrieval):
 
 | Document size | RAG mode | What happens |
 |---------------|----------|--------------|
@@ -1026,7 +1026,7 @@ Every agent that generates content is instructed to include citations. The pipel
 2. **Review-level:** The quality reviewer flags any uncited factual claims as "major" issues.
 3. **Refinement-level:** The content refiner adds missing citations using source material.
 
-Citation format matches the convention from [rag-retrieval.md](rag-retrieval.md), section 3.4.5.
+Citation format matches the convention from [rag-retrieval.md](/en/docs/rag-retrieval), section 3.4.5.
 
 ---
 
@@ -1103,7 +1103,7 @@ event: progress
 data: {"job_id": "uuid", "step": "generating", "detail": {"completed": 2, "total": 5, "current": "Proceso Paso a Paso"}}
 ```
 
-SSE events are sent through the same `StreamingResponse` infrastructure used by the tutor chat (see [backend-api.md](backend-api.md), section 4.2, Chat endpoints).
+SSE events are sent through the same `StreamingResponse` infrastructure used by the tutor chat (see [backend-api.md](/en/docs/backend-api), section 4.2, Chat endpoints).
 
 ---
 
@@ -1346,7 +1346,7 @@ When LangGraph hits an `interrupt_before` node:
 
 ### 7.3 Review API Endpoints
 
-These endpoints are part of the generation jobs API (see [backend-api.md](backend-api.md), section 4.2):
+These endpoints are part of the generation jobs API (see [backend-api.md](/en/docs/backend-api), section 4.2):
 
 ```
 GET  /api/v1/generation-jobs/{id}/review
@@ -1751,7 +1751,7 @@ async def publish(state: GenerationState) -> dict:
 
 ## 9. Generation Job Lifecycle
 
-Integration with the `generation_jobs` table from [data-model.md](data-model.md):
+Integration with the `generation_jobs` table from [data-model.md](/en/docs/data-model):
 
 ```
 Admin triggers POST /courses/{id}/generate
@@ -1832,9 +1832,9 @@ class ContentGenerationConfig(BaseSettings):
 | **PostgreSQL checkpointing** | The same database for everything (data model, sessions, checkpoints). No Redis dependency. Survives server restarts. |
 | **2 human checkpoints, not 0 or 1** | Structure review prevents wasted generation on a bad outline. Final review catches quality issues the automated reviewer missed. Both are mandatory because the admin is accountable for what employees learn. |
 | **Semaphore-bounded parallelism** | 3 concurrent calls balances throughput against API rate limits. Configurable per deployment. |
-| **Independent quality reviewer** | Reviewer loads source docs independently, never sees the generator's context. Error rates multiply with independent verification (from [architecture.md](architecture.md) research). |
+| **Independent quality reviewer** | Reviewer loads source docs independently, never sees the generator's context. Error rates multiply with independent verification (from [architecture.md](/en/docs/architecture) research). |
 | **Max 2 refinement cycles** | Prevents infinite loops. After 2 failed cycles, the content goes to admin with the review report — a human must decide. |
-| **Chunk-based compartmentation** | Module generators see only their relevant chunks. Reduces noise, improves accuracy, enforces need-to-know principle from [architecture.md](architecture.md). |
+| **Chunk-based compartmentation** | Module generators see only their relevant chunks. Reduces noise, improves accuracy, enforces need-to-know principle from [architecture.md](/en/docs/architecture). |
 | **SSE for progress, not polling** | SSE infrastructure already exists for tutor chat. Polling would create unnecessary load on the API. |
 | **Publish creates draft, not published** | The `publish` node writes to DB with `status=draft`. The admin publishes the course separately via `POST /courses/{id}/publish` after their final review. This separates "generation complete" from "visible to employees". |
 | **Single-module regeneration** | The admin should not have to regenerate an entire course because one module is bad. Targeted regeneration saves time and LLM costs. |

@@ -95,7 +95,11 @@ class MediaArtifactRead(BaseModel):
     has_asset: bool
     asset_ref: str | None
     content_hash: str | None
+    #: Short, user-safe failure text. Never a provider's raw exception string.
     error: str | None
+    #: The stable failure code (``src.services.media.jobs``), for clients that want to
+    #: word the failure themselves. ``None`` on rows that failed before it existed.
+    error_code: str | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -117,10 +121,26 @@ class MediaArtifactRead(BaseModel):
                 else None
             ),
             content_hash=artifact.content_hash,
-            error=artifact.error,
+            error=_safe_error(artifact),
+            error_code=artifact.error_code,
             created_at=artifact.created_at,
             updated_at=artifact.updated_at,
         )
+
+
+def _safe_error(artifact: MediaArtifact) -> str | None:
+    """The failure text, with pre-existing raw exception strings held back.
+
+    Failures recorded from now on store a short English sentence and a stable code, so
+    ``error`` is safe to serve. Rows that failed *before* that still hold
+    ``f"{type(exc).__name__}: {exc}"`` — a provider's raw text, which can carry an
+    endpoint, a model name or an account identifier — and an upgrade in place keeps
+    serving them. A row with no ``error_code`` is exactly that row: it says the same
+    thing the new ones do, without the traceback.
+    """
+    if artifact.error and artifact.error_code is None:
+        return "Generation failed."
+    return artifact.error
 
 
 __all__ = [

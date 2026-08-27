@@ -100,23 +100,63 @@ function ResultPanel({
   )
 }
 
+/**
+ * Lo que una respuesta YA graduada dice de las opciones.
+ *
+ * `null` mientras no hay nota. El componente no juzga nada: `passed` y `correctIndex`
+ * salen del servidor (`correctIndex` solo cuando el servidor decide revelar la solucion),
+ * asi que la opcion correcta no se puede leer del DOM antes de fallar.
+ */
+interface ChoiceOutcome {
+  passed: boolean
+  correctIndex: number | null
+}
+
+/**
+ * El indice de la opcion correcta tal y como lo entiende esta lista de opciones, o `null`.
+ *
+ * Espeja `buildAnswer`: en `true_false` la primera opcion es "Verdadero", asi que
+ * `correct: true` es el indice 0. Si los dos lados dejan de coincidir, el aprendiz ve
+ * marcada en verde la opcion contraria a la que acerto, que es peor que no marcar nada.
+ */
+function revealedCorrectIndex(
+  itemType: ExerciseType,
+  correctAnswer: Record<string, unknown> | null,
+): number | null {
+  if (!correctAnswer) return null
+  if (itemType === 'true_false') {
+    return typeof correctAnswer.correct === 'boolean' ? (correctAnswer.correct ? 0 : 1) : null
+  }
+  if (itemType === 'test') {
+    return typeof correctAnswer.correct === 'number' ? correctAnswer.correct : null
+  }
+  return null
+}
+
 function SingleChoiceItem({
   name,
   options,
   selected,
   disabled,
+  outcome,
   onSelect,
 }: {
   name: string
   options: string[]
   selected: number | null
   disabled: boolean
+  /** `null` hasta que hay nota; entonces pinta el acierto y el fallo. */
+  outcome: ChoiceOutcome | null
   onSelect: (index: number) => void
 }) {
   return (
     <div className="space-y-3">
       {options.map((option, idx) => {
-        const active = selected === idx && !disabled
+        // Seleccionada es seleccionada, tambien con los controles congelados. El `&&
+        // !disabled` que habia aqui borraba el resaltado en el instante de responder: la
+        // opcion elegida se quedaba igual que las demas y la correccion no se veia por
+        // ninguna parte — ni verde ni roja, que es exactamente lo que se reporto.
+        const active = selected === idx
         return (
           <label
             key={idx}
@@ -125,12 +165,25 @@ function SingleChoiceItem({
             // (`bg-primary-subtle`) — never a left edge, never a heavier ring. The
             // border width stays 1px in every state so selecting one never nudges
             // the layout.
+            // Ya graduada: la elegida se pinta del color de su suerte (verde si acerto,
+            // rojo si no) y, cuando el servidor revela la solucion, la correcta se marca
+            // en verde aunque no se haya elegido. Sin nota, el estado seleccionado sigue
+            // siendo el de siempre. El borde mide 1px en todos los casos para que
+            // corregir no mueva la maquetacion.
             className={`flex w-full items-center gap-3 rounded-xl border p-4 transition-colors ${
               disabled ? 'cursor-default' : 'cursor-pointer'
             } ${
-              active
-                ? 'border-primary bg-primary-subtle'
-                : `border-border ${disabled ? '' : 'hover:border-border-strong'}`
+              outcome
+                ? active
+                  ? outcome.passed
+                    ? 'border-accent bg-accent-subtle'
+                    : 'border-danger bg-danger/5'
+                  : outcome.correctIndex === idx
+                    ? 'border-accent bg-accent-subtle'
+                    : 'border-border'
+                : active
+                  ? 'border-primary bg-primary-subtle'
+                  : `border-border ${disabled ? '' : 'hover:border-border-strong'}`
             }`}
           >
             <input
@@ -339,6 +392,14 @@ export function QuizItemBlock({
           options={choices}
           selected={selected}
           disabled={attemptFinished || readOnly || submit.isPending}
+          outcome={
+            result
+              ? {
+                  passed: result.passed,
+                  correctIndex: revealedCorrectIndex(item_type, result.correct_answer),
+                }
+              : null
+          }
           onSelect={setSelected}
         />
       ) : (

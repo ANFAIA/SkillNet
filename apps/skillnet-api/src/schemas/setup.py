@@ -10,34 +10,31 @@ from typing import Literal
 
 from pydantic import BaseModel, EmailStr, Field
 
-
-class Capabilities(BaseModel):
-    """Which AI capabilities are available, derived from config (no live calls).
-
-    The single source of truth for capability-driven onboarding and degraded-mode
-    UX (docs/design/onboarding.md §2.1). Computed by
-    ``services.capabilities.derive_capabilities``.
-    """
-
-    #: A usable LLM exists (API key or fixture model). Nothing AI works without it.
-    ai: bool
-    #: Generate courses/lessons (same LLM as ``ai``).
-    generation: bool
-    #: Chat tutor (same LLM as ``ai``).
-    tutor: bool
-    #: Voice (mascot / podcast); degrades to offline when absent — see degraded-mode.
-    tts: bool
-    #: Infographics / generated images.
-    images: bool
+# Re-exported so every existing ``from src.schemas.setup import Capabilities`` keeps
+# working. It moved to its own module when a capability stopped being a boolean and grew a
+# status, a reason and an admin-only hint — see src/schemas/capabilities.py.
+from src.schemas.capabilities import Capabilities
 
 
 class SetupStatus(BaseModel):
+    """The public, pre-authentication status payload.
+
+    It is answered before anyone has signed in, so it carries each capability's ``status``
+    and ``reason`` but never its ``hint``: a hint names environment variables, and telling
+    an anonymous caller which key this deployment is missing is configuration disclosure
+    (docs/design/security.md). The authenticated ``GET /settings/capabilities`` is where
+    hints live.
+    """
+
     #: True once at least one user exists — the setup wizard is then closed forever.
     initialized: bool
     #: When False, the SPA does not force the onboarding wizard (testing convenience).
     onboarding_enabled: bool = True
     #: The AI capabilities this deployment has, for capability-driven onboarding.
     capabilities: Capabilities
+    #: Media kind -> the capability names it requires, so the frontend disables a Studio
+    #: button from the backend's table instead of a hardcoded copy of it.
+    media_requirements: dict[str, list[str]]
 
 
 class SetupRequest(BaseModel):

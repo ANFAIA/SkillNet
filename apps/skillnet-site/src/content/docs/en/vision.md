@@ -59,7 +59,7 @@ This is not personalization as a feature. It's the default behavior of a system 
 | **PageIndex pattern for tutor retrieval** | Course content is already structured (modules > lessons). Use that structure instead of embedding everything. Two SQL queries + one short LLM call beats semantic search for in-course questions. |
 | **Provider-agnostic LLM layer** | The model will change. The architecture shouldn't depend on any specific provider. Any OpenAI-compatible API works. |
 | **Self-hosted, one instance per company** | Company training data is sensitive. Multi-tenancy adds complexity and risk. One instance per company is simpler and more trustworthy. |
-| **Exercise attempts and learning events tracked** | Not for vanity analytics. They support the future learning loop: separate preference, engagement and effectiveness. Spaced repetition is not on the current roadmap; see [adaptive-learning.md](adaptive-learning.md). |
+| **Exercise attempts and learning events tracked** | Not for vanity analytics. They support the future learning loop: separate preference, engagement and effectiveness. Spaced repetition is not on the current roadmap; see [adaptive-learning.md](/en/docs/adaptive-learning). |
 
 ## What This Means for the Roadmap
 

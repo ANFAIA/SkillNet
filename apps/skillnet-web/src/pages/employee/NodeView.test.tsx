@@ -284,7 +284,7 @@ describe('NodeView — the frozen frame', () => {
     // The opening line lives in the lesson content, past the start gate.
     await enterLesson()
     expect(await screen.findByTestId('opening-line')).toHaveTextContent(
-      'Va directo al problema que querias resolver.',
+      'Va directo al problema que querías resolver.',
     )
   })
 })
@@ -726,7 +726,7 @@ describe('NodeView — the pinned render is the lesson (§5.5)', () => {
     expect(callsTo(`/nodes/${NODE_ID}/render`, 'POST')).toHaveLength(0)
     // And no affordance offers to: the feedback row is optional and changes nothing.
     expect(screen.queryByRole('button', { name: 'Actualizar esta lección' })).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Ver la version anterior' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Ver la versión anterior' })).toBeNull()
   })
 })
 
@@ -823,7 +823,7 @@ describe('NodeView — an unreviewed node', () => {
     })
     renderPage()
 
-    expect(await screen.findByText('Esta lección esta pendiente de revision')).toBeInTheDocument()
+    expect(await screen.findByText('Esta lección está pendiente de revisión')).toBeInTheDocument()
     expect(callsTo(`/nodes/${NODE_ID}/render`, 'POST')).toHaveLength(0)
   })
 })

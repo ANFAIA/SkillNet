@@ -1,12 +1,30 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { del, get, post, put } from './client'
-import type { CourseDetail, CourseProgress, CourseRead, Exercise, Lesson, Paginated } from '../types'
+import type {
+  CourseDetail,
+  CourseGenerationState,
+  CourseProgress,
+  CourseRead,
+  Exercise,
+  ImageSourcePolicy,
+  Lesson,
+  Paginated,
+  TutorStyle,
+} from '../types'
 
 export interface CourseFilters {
   status?: string
   search?: string
   folderId?: string | null
   unorganized?: boolean
+  /**
+   * Filter by the creation-run state (migration 0025), not by `status`.
+   *
+   * Server-side on purpose: a course whose creation died is still `status: 'draft'`, so
+   * finding the failures by filtering the fetched page client-side would only ever find
+   * the ones that happened to be on it.
+   */
+  generationState?: CourseGenerationState
   offset?: number
   limit?: number
 }
@@ -20,6 +38,7 @@ export function useCourses(filters?: CourseFilters) {
       if (filters?.search) params.set('search', filters.search)
       if (filters?.folderId) params.set('folder_id', filters.folderId)
       if (filters?.unorganized) params.set('unorganized', 'true')
+      if (filters?.generationState) params.set('generation_state', filters.generationState)
       params.set('offset', String(filters?.offset ?? 0))
       params.set('limit', String(filters?.limit ?? 100))
       return get<Paginated<CourseRead>>(`/courses?${params.toString()}`)
@@ -65,6 +84,12 @@ export function useUpdateCourse() {
         folder_id?: string | null
         artifact_generate_policy?: 'admin' | 'everyone' | 'selected'
         artifact_generator_ids?: string[]
+        tutor_style?: TutorStyle
+        /**
+         * The override over the diagram/screenshot rule. Sent alone, from the course
+         * settings panel — it is never part of creation.
+         */
+        image_source_policy?: ImageSourcePolicy
       }
     }) => put<CourseRead>(`/courses/${id}`, payload),
     onSuccess: (_data, { id }) => {
@@ -78,8 +103,13 @@ export function useDeleteCourse() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => del(`/courses/${id}`),
-    onSuccess: () => {
+    onSuccess: (_data, id) => {
+      // Drop the detail rather than invalidate it: refetching a course that no longer
+      // exists only buys a 404 for whatever screen is still holding it.
+      queryClient.removeQueries({ queryKey: ['courses', id] })
       queryClient.invalidateQueries({ queryKey: ['courses'] })
+      // The folder sidebar counts the courses it holds; one of them just left.
+      queryClient.invalidateQueries({ queryKey: ['course-folders'] })
     },
   })
 }

@@ -8,9 +8,9 @@ section: "extensibility"
 
 **Status:** in production (podcast and infographic integrated into the episode; slides and video
 generatable)
-**Related:** [`personalization.md`](personalization.md),
-[`podcast-studio-plan.md`](podcast-studio-plan.md),
-[`llm-integration.md`](llm-integration.md), [`backend-api.md`](backend-api.md)
+**Related:** [`personalization.md`](/en/docs/personalization),
+[`podcast-studio-plan.md`](/en/docs/podcast-studio-plan),
+[`llm-integration.md`](/en/docs/llm-integration), [`backend-api.md`](/en/docs/backend-api)
 
 > A **media artifact** is a piece of media generated and *grounded* in a course's content: a
 > podcast (audio overview), an infographic, a slide deck, or a narrated video. They are
@@ -87,7 +87,7 @@ not carry kind/status/scope enums.
 `src/agents/runtime/media_broker.py` decides whether an artifact becomes a component inside the
 episode. `MEDIA_COMPONENT_BY_KIND` maps `PODCAST → "PodcastPlayer"` and
 `INFOGRAPHIC → "InfographicImage"` (the kit's two *broker-scoped* components — see
-[`didact-components.md`](didact-components.md)).
+[`didact-components.md`](/en/docs/didact-components)).
 
 Injection requires **three conditions at once**:
 
@@ -96,7 +96,7 @@ Injection requires **three conditions at once**:
    `asset_path`.
 2. **The learner's modality matches** — `gate_offers` is a pure filter: `podcast` only if
    `_prefers_audio(prefs)`, `infographic` only if `_prefers_visual(prefs)` (see
-   [`personalization.md`](personalization.md) §2).
+   [`personalization.md`](/en/docs/personalization) §2).
 3. **It is grounded** in the node's content.
 
 When it passes the filter, `offers_prompt_addendum` injects a *grounded* whitelist into the
@@ -143,4 +143,4 @@ Two practical consequences of this chain, important for demos and for UX:
    indicate it.
 
 The plan for surfacing these degraded states in the UI (admin banner, extended `/health`,
-onboarding) is in [`degraded-mode-ux.md`](degraded-mode-ux.md).
+onboarding) is in [`degraded-mode-ux.md`](/en/docs/degraded-mode-ux).

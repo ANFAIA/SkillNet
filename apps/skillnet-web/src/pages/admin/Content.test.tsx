@@ -41,7 +41,16 @@ function course(overrides: Record<string, unknown> = {}) {
   }
 }
 
-function installFetch(items: unknown[] = [course()]) {
+/**
+ * @param items       the courses the list returns; a second array, if given, is what the
+ *                    list returns once a DELETE has gone through (the refetch).
+ * @param onDelete    what `DELETE /courses/{id}` answers. Defaults to a 204.
+ */
+function installFetch(
+  items: unknown[] = [course()],
+  { onDelete, afterDelete }: { onDelete?: () => ReturnType<typeof jsonResponse>; afterDelete?: unknown[] } = {},
+) {
+  let deleted = false
   mockFetch.mockImplementation((input: string, options?: RequestInit) => {
     const url = String(input)
     if (url.endsWith('/health')) {
@@ -54,11 +63,17 @@ function installFetch(items: unknown[] = [course()]) {
     if (url.includes('/course-folders')) {
       return jsonResponse(200, [{ id: 'folder-1', name: 'Operaciones', course_count: 1 }])
     }
+    if (url.includes('/courses/') && options?.method === 'DELETE') {
+      const response = onDelete ? onDelete() : jsonResponse(204, null)
+      deleted = true
+      return response
+    }
     if (url.includes('/courses/') && options?.method === 'PUT') {
       return jsonResponse(200, { ...(items[0] as Record<string, unknown>), folder_id: 'folder-1', folder_name: 'Operaciones' })
     }
     if (url.includes('/courses')) {
-      return jsonResponse(200, { items, total: items.length, page: 1, size: 20 })
+      const current = deleted && afterDelete ? afterDelete : items
+      return jsonResponse(200, { items: current, total: current.length, page: 1, size: 20 })
     }
     return jsonResponse(404, { detail: 'Not Found', code: 'NOT_FOUND' })
   })
@@ -127,11 +142,12 @@ describe('Content — the settings entry point', () => {
     expect(await screen.findByText('AJUSTES', {}, { timeout: 5000 })).toBeInTheDocument()
   })
 
-  it('offers it for a course with no modules, which has no other action at all', async () => {
+  it('offers it for a course with no modules, whose only other action is to delete it', async () => {
     installFetch([course({ id: EMPTY_COURSE_ID, module_count: 0, status: 'draft' })])
     renderPage()
 
     expect(await screen.findByRole('button', { name: 'Ajustes' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Eliminar' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Ver curso' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Publicar' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Overviews' })).toBeNull()
@@ -147,6 +163,69 @@ describe('Content — the settings entry point', () => {
     expect(screen.getByRole('button', { name: 'Archivar' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Crear nuevo/ })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Overviews' })).toBeNull()
+  })
+})
+
+/**
+ * The reported incident: a generation run left a course in DRAFT, the retry published a
+ * second one, and there was no way to remove the first. The route existed; nothing called
+ * it. These cover the row that now does.
+ */
+describe('Content — deleting a draft', () => {
+  const draft = () => course({ status: 'draft', module_count: 0 })
+
+  it('offers the action only for a draft', async () => {
+    installFetch([course({ status: 'published' })])
+    renderPage()
+
+    await screen.findByText('Devoluciones en tienda')
+    expect(screen.queryByRole('button', { name: 'Eliminar' })).toBeNull()
+  })
+
+  it('does not offer it for the seeded demo course', async () => {
+    installFetch([course({ status: 'draft', module_count: 0, is_demo: true })])
+    renderPage()
+
+    await screen.findByText('Devoluciones en tienda')
+    expect(screen.queryByRole('button', { name: 'Eliminar' })).toBeNull()
+  })
+
+  it('asks first, and does nothing when the confirmation is dismissed', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(false)
+    installFetch([draft()])
+    renderPage()
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Eliminar' }))
+
+    expect(window.confirm).toHaveBeenCalledWith(expect.stringContaining('Devoluciones en tienda'))
+    expect(mockFetch.mock.calls.some(([, options]) => (options as RequestInit | undefined)?.method === 'DELETE')).toBe(false)
+  })
+
+  it('deletes the course and refreshes the list once confirmed', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    installFetch([draft()], { afterDelete: [] })
+    renderPage()
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Eliminar' }))
+
+    expect(mockFetch.mock.calls.some(([input, options]) =>
+      String(input).includes(`/courses/${COURSE_ID}`) &&
+      (options as RequestInit | undefined)?.method === 'DELETE',
+    )).toBe(true)
+    expect(await screen.findByText('Aún no hay cursos')).toBeInTheDocument()
+  })
+
+  it('shows what the server said when the delete is refused', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    installFetch([draft()], {
+      onDelete: () => jsonResponse(409, { detail: 'Cannot delete a course that has enrollments', code: 'CONFLICT' }),
+    })
+    renderPage()
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Eliminar' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Cannot delete a course that has enrollments')
+    expect(screen.getByText('Devoluciones en tienda')).toBeInTheDocument()
   })
 })
 

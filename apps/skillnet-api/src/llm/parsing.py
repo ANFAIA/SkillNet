@@ -200,6 +200,57 @@ def _parse_error(raw: str, context: str | None, detail: str) -> LLMError:
     )
 
 
+def _recover_json(response: str) -> tuple[Any, str | None]:
+    """Every recovery strategy, in order. ``(value, None)`` or ``(_NOTHING, why)``.
+
+    Split out of :func:`parse_json_response` so that a caller who can *live* without
+    JSON (:func:`try_parse_json_response`) runs the same ladder without inheriting the
+    raise and the ``logger.error``. Recovering the payload and deciding what a failure
+    costs are two different jobs.
+    """
+    raw = response.strip()
+
+    # A response that is already JSON is returned before anything is stripped from it.
+    # Order matters: a lesson is free to contain the *text* "<think>" (Markdown about
+    # prompting, say), and rewriting a valid payload to hunt for a wrapper it does not
+    # have would be a fix that breaks the working case.
+    try:
+        return json.loads(raw), None
+    except json.JSONDecodeError:
+        pass
+
+    text = strip_reasoning(raw)
+    if not text:
+        return _NOTHING, (
+            "the response was chain-of-thought only, with no answer after it "
+            "(cut off mid-thought)"
+        )
+
+    try:
+        return json.loads(text), None
+    except json.JSONDecodeError:
+        pass
+
+    fenced = [match.group(1).strip() for match in _CODE_BLOCK.finditer(text)]
+    parsed = _best_parse(fenced)
+    if parsed is not _NOTHING:
+        return parsed, None
+
+    parsed = _best_parse(_candidate_spans(text))
+    if parsed is not _NOTHING:
+        return parsed, None
+
+    # Last resort: the same scan over the text as it arrived. Stripping is a heuristic,
+    # and an unterminated ``<think>`` inside a string value would have truncated a
+    # payload that was there all along.
+    if text != raw:
+        parsed = _best_parse(_candidate_spans(raw))
+        if parsed is not _NOTHING:
+            return parsed, None
+
+    return _NOTHING, "no balanced JSON object or array parsed"
+
+
 def parse_json_response(response: str, *, context: str | None = None) -> Any:
     """Parse an LLM response into a Python object, with recovery strategies.
 
@@ -217,46 +268,33 @@ def parse_json_response(response: str, *, context: str | None = None) -> Any:
             "model spent its token budget thinking)."
         )
 
-    raw = response.strip()
-
-    # A response that is already JSON is returned before anything is stripped from it.
-    # Order matters: a lesson is free to contain the *text* "<think>" (Markdown about
-    # prompting, say), and rewriting a valid payload to hunt for a wrapper it does not
-    # have would be a fix that breaks the working case.
-    try:
-        return json.loads(raw)
-    except json.JSONDecodeError:
-        pass
-
-    text = strip_reasoning(raw)
-    if not text:
-        raise _parse_error(
-            response,
-            context,
-            "the response was chain-of-thought only, with no answer after it "
-            "(cut off mid-thought)",
-        )
-
-    try:
-        return json.loads(text)
-    except json.JSONDecodeError:
-        pass
-
-    fenced = [match.group(1).strip() for match in _CODE_BLOCK.finditer(text)]
-    parsed = _best_parse(fenced)
+    parsed, detail = _recover_json(response)
     if parsed is not _NOTHING:
         return parsed
+    raise _parse_error(response, context, detail or "no JSON found")
 
-    parsed = _best_parse(_candidate_spans(text))
+
+def try_parse_json_response(
+    response: str | None, *, context: str | None = None
+) -> Any | None:
+    """The same ladder, for a caller that has a usable answer without the JSON.
+
+    ``None`` instead of :class:`LLMError`, and ``logger.debug`` instead of
+    ``logger.error``: for a step whose whole output is optional — image description is
+    the case this was written for, and it is skipped entirely when no vision model is
+    configured — a model that ignores the requested shape is a downgrade, not an
+    incident, and it must not put a 2 KB raw dump at ERROR into the ingestion log.
+    """
+    if response is None or not response.strip():
+        return None
+
+    parsed, detail = _recover_json(response)
     if parsed is not _NOTHING:
         return parsed
-
-    # Last resort: the same scan over the text as it arrived. Stripping is a heuristic,
-    # and an unterminated ``<think>`` inside a string value would have truncated a
-    # payload that was there all along.
-    if text != raw:
-        parsed = _best_parse(_candidate_spans(raw))
-        if parsed is not _NOTHING:
-            return parsed
-
-    raise _parse_error(response, context, "no balanced JSON object or array parsed")
+    logger.debug(
+        "%s%s: %s (optional step, degrading)",
+        PARSE_FAILED,
+        f" [{context}]" if context else "",
+        detail,
+    )
+    return None

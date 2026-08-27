@@ -355,8 +355,8 @@ Durante la migración convivirán adaptadores antiguos y componentes de la libre
 debe superar specs doradas de estructura, accesibilidad y eventos antes de retirar el bloque local;
 el nombre del componente no debe aparecer cableado de nuevo en detectores centrales. El contrato
 completo y su relación con QTI, H5P y xAPI se describe en
-[`adaptive-learning.md`](adaptive-learning.md).
+[`adaptive-learning.md`](/docs/adaptive-learning).
 
 La continuación con el catálogo real de Didact —24 tipos educativos actuales, resolución por
 facetas, shortlist de candidatos, recipes y moléculas declarativas para GenUI de nivel 3— se define
-en [`didact-integration-strategy.md`](didact-integration-strategy.md).
+en [`didact-integration-strategy.md`](/docs/didact-integration-strategy).

@@ -119,7 +119,7 @@ ejemplos semánticos fueron copiados como contenido y las referencias de evidenc
 quedaron conectadas a átomos válidos. Antes de otra prueba de pantallas se comparará el contrato
 actual con JSON Schema sin valores de ejemplo y con una fase explícita de cobertura/atomización. El
 informe reproducible está en
-[`../evidencia-testing/2026-08-11/knowledge-pack-tuning/report.md`](../evidencia-testing/2026-08-11/knowledge-pack-tuning/report.md).
+[`../evidencia-testing/2026-08-11/knowledge-pack-tuning/report.md`](https://github.com/ANFAIA/SkillNet/blob/main/docs/evidencia-testing/2026-08-11/knowledge-pack-tuning/report.md).
 
 ## Gate trazable adoptado (`knowledge-pack/v3`)
 

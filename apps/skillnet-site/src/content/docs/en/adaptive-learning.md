@@ -86,7 +86,7 @@ function and then asks the library for a component capable of implementing it.
 | Presentation | text, table, image, audio, video, diagram |
 
 This extends `ContentFunction` from
-[`arquitectura-componentes-funcional.md`](arquitectura-componentes-funcional.md): that layer
+[`arquitectura-componentes-funcional.md`](/en/docs/arquitectura-componentes-funcional): that layer
 describes the shape of the source (`CONTRASTAR`, `PROCEDIMENTAR`); this one adds the learner's
 action and the observable outcome.
 
@@ -246,7 +246,7 @@ mentions in v1 documents are historical plans, not current roadmap.
 
 The executable separation between objective, cognitive mission, representation, component, and
 support, along with its cache invariants and migration plan, is defined in
-[`personalization-architecture.md`](personalization-architecture.md).
+[`personalization-architecture.md`](/en/docs/personalization-architecture).
 
 The results that justify these decisions, including reverted experiments, are kept in the
-[`personalization experiments notebook`](../personalization-experiments.md).
+``personalization experiments notebook``.

@@ -6,7 +6,10 @@ section: "extensibility"
 
 # Provider-agnostic Podcast Studio plan
 
-> **Status: future plan, not a commitment to immediate implementation.**
+> **Status: partly implemented.** Podcast generation exists (`src/routes/media.py`,
+> `src/routes/tts.py`, voices in `config.py`) and the public seed produces one podcast per
+> course. What remains a plan is the full studio this page describes: configurable
+> multi-voice scripting, mixing and a style catalogue.
 
 ## Goal
 
@@ -122,9 +125,9 @@ per-turn fallback. The evolution should keep that producer behind the new contra
 progressively split its responsibilities; it does not require discarding it.
 
 The modality continues to be generated on demand and in the background per
-[delivery-modalities.md](delivery-modalities.md). The podcast remains separate from chat,
+[delivery-modalities.md](/en/docs/delivery-modalities). The podcast remains separate from chat,
 Realtime, and the mascot per
-[conversational-modalities.md](conversational-modalities.md).
+[conversational-modalities.md](/en/docs/conversational-modalities).
 
 ## Phases
 

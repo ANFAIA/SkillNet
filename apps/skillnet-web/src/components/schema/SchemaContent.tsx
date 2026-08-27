@@ -202,8 +202,8 @@ export function SchemaContent({
         </p>
         <p className="text-xs text-text-muted mt-1">
           {hasEverHadNodes.current
-            ? 'Puedes reproponer el esquema o anadir nodos manualmente'
-            : 'Prueba a cambiar la densidad o el titulo del curso'}
+            ? 'Puedes reproponer el esquema o añadir nodos manualmente'
+            : 'Prueba a cambiar la densidad o el título del curso'}
         </p>
         <div className="flex items-center justify-center gap-3 mt-4">
           {hasEverHadNodes.current && (
@@ -212,7 +212,7 @@ export function SchemaContent({
             </Button>
           )}
           <button type="button" onClick={onNodeAdd} className="text-sm text-primary hover:underline">
-            Anadir nodo
+            Añadir nodo
           </button>
         </div>
       </div>
@@ -409,7 +409,7 @@ export function SchemaContent({
             className="w-full mt-2 px-2 py-1.5 rounded-md text-sm text-text-muted hover:text-primary hover:bg-bg-muted transition-colors flex items-center gap-2"
           >
             <PlusIcon size={14} />
-            Anadir nodo
+            Añadir nodo
           </button>
         )}
       </div>

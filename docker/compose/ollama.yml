@@ -1,0 +1,109 @@
+# SkillNet — run entirely on a local model, no API key, no account.
+#
+#   docker compose -f docker-compose.yml -f docker/compose/ollama.yml up -d --build
+#
+# ## Why this is a separate file and not a `profiles:` entry
+#
+# It used to be one, and that is exactly why it never worked. A `profiles:` service can be
+# switched on, but it cannot reach into *another* service and change its environment — so
+# nothing ever told `api` that an `ollama` host existed, and `api` kept calling OpenAI.
+# Overriding `api` is the whole point, and an override file is the only thing that can.
+#
+# ## What this fixes about the old service
+#
+# * It pulls the models. `command: serve` on its own starts an empty server, and the old
+#   healthcheck (`ollama list`) exits 0 with zero models, so the container reported itself
+#   healthy while every request failed with `model not found`.
+# * It waits for them. `api` starts only once both models are downloaded, so the first
+#   question does not race the pull.
+# * It points `api` at it, with the model ids in the form litellm expects (see below).
+# * It publishes on `127.0.0.1` only, so the model server is not offered to the network.
+#
+# ## Read this before choosing it
+#
+# **On CPU this is slow.** Measured on this project, 2026-07-27: ~185 s to render one
+# lesson screen with a 7B model, and the smaller `llama3.2:3b` returns invalid generative
+# UI (42 output tokens, then the prose fallback). It is genuinely useful for trying the
+# product offline and for development; it is not a pleasant way to sit and use it. With an
+# API key the same screen takes seconds — see the table at the top of README.md.
+#
+# ## The two model ids, and why their shapes differ
+#
+# litellm decides the request format from the model prefix, and the base URL has to match:
+#
+# * `ollama_chat/…` and `ollama/…` are litellm's *native* Ollama providers: it appends
+#   `/api/chat` or `/api/embeddings` itself, so the base URL carries **no** `/v1`.
+# * The OpenAI-compatible route would be `LLM_BASE_URL=http://ollama:11434/v1` with an
+#   unprefixed model id.
+#
+# Mixing them is the trap: a `/v1` base with an `ollama/` prefix produces
+# `http://ollama:11434/v1/api/chat`, which is a 404. The README used to suggest exactly
+# that pair.
+#
+# `nomic-embed-text` is not an arbitrary choice either — it outputs **768** dimensions,
+# which is what migration 0008 pins on `document_chunks.embedding`. No migration, no
+# re-ingestion. `GET /health` reports `embeddings.status` so you can confirm it.
+
+services:
+  ollama:
+    # Pinned: a floating tag can change the model runtime under a working install.
+    image: ollama/ollama:0.32.6
+    restart: unless-stopped
+    volumes:
+      - ollama:/root/.ollama
+    # Loopback only: this is an unauthenticated inference server.
+    ports:
+      - "127.0.0.1:11434:11434"
+    environment:
+      OLLAMA_LLM_MODEL: ${OLLAMA_LLM_MODEL:-qwen2.5:7b-instruct}
+      OLLAMA_EMBEDDING_MODEL: ${OLLAMA_EMBEDDING_MODEL:-nomic-embed-text}
+    # Serve in the background, pull both models, then hand the foreground back to the
+    # server. `ollama pull` needs a running server, which is why this is not two
+    # `RUN`-style steps. Pulls are idempotent and cached in the volume, so only the first
+    # start pays the download.
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        ollama serve &
+        server=$$!
+        until ollama list >/dev/null 2>&1; do sleep 1; done
+        ollama pull "$$OLLAMA_LLM_MODEL"
+        ollama pull "$$OLLAMA_EMBEDDING_MODEL"
+        echo "ollama ready: $$OLLAMA_LLM_MODEL + $$OLLAMA_EMBEDDING_MODEL"
+        wait $$server
+    # Checks that the *model* is there, not merely that the server answers — the
+    # distinction the old healthcheck missed.
+    healthcheck:
+      test: ["CMD-SHELL", 'ollama list | grep -q "$${OLLAMA_LLM_MODEL%%:*}"']
+      interval: 10s
+      timeout: 5s
+      retries: 60
+      start_period: 30s
+
+  api:
+    environment:
+      LLM_BASE_URL: http://ollama:11434
+      LLM_API_KEY: ""
+      LLM_MODEL: ollama_chat/${OLLAMA_LLM_MODEL:-qwen2.5:7b-instruct}
+      # The v2 two-tier router. Both tiers on the same local model: a second, smaller one
+      # would have to be pulled and kept warm, and on CPU the saving does not pay for it.
+      LLM_RUNTIME_FAST_MODEL: ollama_chat/${OLLAMA_LLM_MODEL:-qwen2.5:7b-instruct}
+      LLM_RUNTIME_HEAVY_MODEL: ollama_chat/${OLLAMA_LLM_MODEL:-qwen2.5:7b-instruct}
+      # Embeddings must be set explicitly. `EMBEDDING_BASE_URL` falls back to
+      # `LLM_BASE_URL` when empty, so pointing only the LLM at ollama would leave SkillNet
+      # asking *ollama* for `text-embedding-3-small` — a model it does not have. Every
+      # document ingestion would then fail quietly, leaving the document `READY` with no
+      # vectors.
+      EMBEDDING_BASE_URL: http://ollama:11434
+      EMBEDDING_API_KEY: ""
+      EMBEDDING_MODEL: ollama/${OLLAMA_EMBEDDING_MODEL:-nomic-embed-text}
+      EMBEDDING_DIMENSIONS: ${EMBEDDING_DIMENSIONS:-768}
+    depends_on:
+      db:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+
+volumes:
+  ollama:
+    driver: local

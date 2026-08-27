@@ -6,7 +6,10 @@ section: "extensibility"
 
 # Plan de Podcast Studio agnóstico
 
-> **Estado: plan futuro, no compromiso de implementación inmediata.**
+> **Estado: parcialmente implementado.** La generación de podcasts existe
+> (`src/routes/media.py`, `src/routes/tts.py`, voces en `config.py`) y el seed público
+> genera un podcast por curso. Lo que sigue siendo plan es el estudio completo que describe
+> esta página: guion multivoz configurable, mezcla y catálogo de estilos.
 
 ## Objetivo
 
@@ -123,9 +126,9 @@ fallback por intervenciones. La evolución debe conservar ese productor detrás 
 nuevo y separar progresivamente sus responsabilidades; no requiere descartarlo.
 
 La modalidad sigue generándose bajo demanda y en segundo plano según
-[delivery-modalities.md](delivery-modalities.md). El podcast continúa separado del chat,
+[delivery-modalities.md](/docs/delivery-modalities). El podcast continúa separado del chat,
 Realtime y la mascota según
-[conversational-modalities.md](conversational-modalities.md).
+[conversational-modalities.md](/docs/conversational-modalities).
 
 ## Fases
 

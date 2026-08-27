@@ -1,21 +1,24 @@
-"""Document routes: upload, list, fetch, delete, and processing trigger."""
+"""Document routes: upload, list, fetch, delete, processing trigger, and source images."""
 
 import uuid
+from pathlib import Path
 from typing import Annotated
 
 from fastapi import APIRouter, File, Query, Response, UploadFile
 from pydantic import BaseModel, ConfigDict, Field
 
-from src.core.exceptions import ValidationError
+from src.core.exceptions import NotFoundError, ValidationError
 from src.core.tasks import task_registry
-from src.deps.auth import AdminUser
+from src.deps.auth import AdminUser, CurrentUser
 from src.deps.db import DBSession
 from src.deps.llm import LLMDep
 from src.models import DocumentStatus
 from src.repositories.document_repo import DocumentRepository
+from src.repositories.source_image_repo import SourceImageRepository
 from src.schemas.common import PaginatedResponse
-from src.schemas.document import DocumentRead
+from src.schemas.document import DocumentRead, SourceImageRead
 from src.services.document_service import DocumentService, run_document_ingestion
+from src.services.source_images import IMAGE_EXTENSIONS, SourceImageStore
 
 router = APIRouter(prefix="/documents", tags=["Documents"])
 
@@ -48,8 +51,11 @@ async def list_documents(
         offset=offset,
         limit=limit,
     )
+    counts = await SourceImageRepository(db).count_reusable([d.id for d in rows])
     return PaginatedResponse[DocumentRead](
-        items=[DocumentRead.model_validate(d) for d in rows],
+        items=[
+            DocumentRead.of(d, reusable_image_count=counts.get(d.id, 0)) for d in rows
+        ],
         total=total,
         offset=offset,
         limit=limit,
@@ -114,7 +120,8 @@ async def get_document(
 ) -> DocumentRead:
     service = _service(db)
     doc = await service.get_document(document_id, admin.org_id)
-    return DocumentRead.model_validate(doc)
+    counts = await SourceImageRepository(db).count_reusable([doc.id])
+    return DocumentRead.of(doc, reusable_image_count=counts.get(doc.id, 0))
 
 
 @router.delete("/{document_id}", status_code=204)
@@ -125,6 +132,75 @@ async def delete_document(
     await service.delete_document(document_id, admin.org_id)
     await db.commit()
     return Response(status_code=204)
+
+
+@router.get("/{document_id}/images", response_model=list[SourceImageRead])
+async def list_document_images(
+    admin: AdminUser,
+    db: DBSession,
+    document_id: uuid.UUID,
+    include_decorative: Annotated[bool, Query()] = False,
+) -> list[SourceImageRead]:
+    """The images kept from inside this document, in reading order.
+
+    Furniture (the header logo, the rule under every title) is excluded by default:
+    ``include_decorative=true`` is there so a human can look at what the deterministic
+    filter rejected and disagree with it, which is the reason those rows are kept at all.
+
+    Org scope comes from resolving the document first — an image is only reachable
+    through the document that owns it.
+    """
+    await _service(db).get_document(document_id, admin.org_id)
+    images = await SourceImageRepository(db).list_for_document(
+        document_id, include_decorative=include_decorative
+    )
+    return [SourceImageRead.model_validate(image) for image in images]
+
+
+@router.get("/{document_id}/images/{image_id}")
+async def get_document_image(
+    user: CurrentUser, db: DBSession, document_id: uuid.UUID, image_id: uuid.UUID
+) -> Response:
+    """The stored bytes of one extracted image, or ``404``.
+
+    Any member of the organization, not only an admin: a lesson may **place** one of
+    these images (the ``SourceImage`` component of the kit — see
+    ``src/agents/runtime/source_image_broker.py``), so the learner looking at that lesson
+    has to be able to fetch the bytes. Listing stays admin-only, so this widens nothing
+    that can be enumerated: both path parameters are unguessable UUIDs, the row is still
+    resolved with both the org *and* the owning document, and the only ids a learner ever
+    receives are the ones their own render already embedded.
+
+    Same shape and the same discipline as ``GET /media/artifacts/{id}/asset``. Traversal
+    is impossible by construction and then again by check: both path parameters are parsed
+    as UUIDs by FastAPI, so no user-supplied text reaches the filesystem at all, and the
+    path is *rebuilt* from the row (``org_id``, ``document_id``, ``content_hash``,
+    extension) rather than taken from the stored ``asset_path`` string — with the hash
+    required to be an anchored 64-character hex digest and the extension allow-listed, so
+    a row corrupted by any future writer still cannot address a file outside the store.
+    """
+    image = await SourceImageRepository(db).get_scoped(
+        image_id, user.org_id, document_id
+    )
+    if image is None:
+        raise NotFoundError("source_images", str(image_id))
+
+    ext = Path(image.asset_path).suffix.lstrip(".").lower()
+    store = SourceImageStore()
+    try:
+        path = store.path_for(image.org_id, image.document_id, image.content_hash, ext)
+        data = store.read(path)
+    except (ValueError, FileNotFoundError) as exc:
+        # The row points at bytes that are gone (or at something this store would never
+        # have written). A 404 the client can handle, not a 500.
+        raise NotFoundError("source_images", str(image_id)) from exc
+
+    return Response(
+        content=data,
+        media_type=IMAGE_EXTENSIONS[ext],
+        # Content-addressed: these bytes never change under this id.
+        headers={"Cache-Control": "private, max-age=31536000, immutable"},
+    )
 
 
 @router.post("/{document_id}/process", status_code=202)

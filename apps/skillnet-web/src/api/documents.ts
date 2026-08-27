@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { get, post } from './client'
+import { get, post, SLOW_TIMEOUT_MS } from './client'
 import type { DocumentRead, Paginated } from '../types'
 
 export function useDocuments(filters?: { status?: string }) {
@@ -155,7 +155,9 @@ export function useCreateSourceFromIdea() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (body: { title: string; idea: string }) =>
-      post<DocumentRead>('/documents/from-idea', body),
+      // The server writes the document with the model inside this request, so it is
+      // legitimately slow — the default two-minute ceiling would cut an honest call.
+      post<DocumentRead>('/documents/from-idea', body, { timeoutMs: SLOW_TIMEOUT_MS }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['documents'] })
     },

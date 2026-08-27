@@ -6,7 +6,7 @@ section: "core"
 
 # Capa de integración con LLM
 
-> **Estado: v1.** Arquitectura completa de integración con LLM para SkillNet. Cubre la abstracción de proveedor, la integración con LangGraph, la gestión de prompts, el streaming, la gestión de coste/tokens, el manejo de errores y el soporte de LLM local. Alineado con [architecture.md](architecture.md), [backend-api.md](backend-api.md) y [rag-retrieval.md](rag-retrieval.md).
+> **Estado: v1.** Arquitectura completa de integración con LLM para SkillNet. Cubre la abstracción de proveedor, la integración con LangGraph, la gestión de prompts, el streaming, la gestión de coste/tokens, el manejo de errores y el soporte de LLM local. Alineado con [architecture.md](/docs/architecture), [backend-api.md](/docs/backend-api) y [rag-retrieval.md](/docs/rag-retrieval).
 
 ---
 
@@ -110,7 +110,7 @@ class LLMSettings(BaseSettings):
 llm_settings = LLMSettings()
 ```
 
-**Por qué Pydantic Settings:** Coherente con el resto del patrón de configuración de SkillNet (ver `src/config.py` en [backend-api.md](backend-api.md)). Valida tipos en el arranque, lee ficheros `.env` y ofrece acceso tipado sin parsear strings a mano.
+**Por qué Pydantic Settings:** Coherente con el resto del patrón de configuración de SkillNet (ver `src/config.py` en [backend-api.md](/docs/backend-api)). Valida tipos en el arranque, lee ficheros `.env` y ofrece acceso tipado sin parsear strings a mano.
 
 ### 1.3 LLMClient
 
@@ -294,7 +294,7 @@ LangGraph gestiona las máquinas de estados de los agentes. Cada tipo de agente 
 
 Cada tipo de agente tiene un estado tipado que fluye por el grafo. Los estados son dataclasses (no diccionarios) por seguridad de tipos y soporte del IDE.
 
-Las definiciones de estado están en sus documentos de agente respectivos: ver [content-generation.md](content-generation.md) (`GenerationState`) y [chat-agents.md](chat-agents.md) (`TutorState`).
+Las definiciones de estado están en sus documentos de agente respectivos: ver [content-generation.md](/docs/content-generation) (`GenerationState`) y [chat-agents.md](/docs/chat-agents) (`TutorState`).
 
 ```python
 # src/agents/states.py
@@ -1463,7 +1463,7 @@ class WaitRespectRetryAfter(wait_exponential):
 
 ### 6.3 Traducción de errores
 
-Los errores del LLM se traducen a la jerarquía `AppError` de SkillNet (ver [backend-api.md](backend-api.md) sección 4.4). El usuario nunca ve errores en bruto del proveedor.
+Los errores del LLM se traducen a la jerarquía `AppError` de SkillNet (ver [backend-api.md](/docs/backend-api) sección 4.4). El usuario nunca ve errores en bruto del proveedor.
 
 ```python
 # src/llm/errors.py

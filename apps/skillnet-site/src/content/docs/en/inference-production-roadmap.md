@@ -1,10 +1,13 @@
 ---
 title: "Production roadmap"
-order: 64
+order: 62
 section: "research"
+group: "inference"
 ---
 
 # Production Roadmap: Live Pages
+
+> **Status:** proposal, not a plan of record. The "live pages" feature (translate, simplify or expand a page on demand) is not implemented; phases 2 to 4 were never started.
 
 ## Philosophy
 
@@ -99,7 +102,7 @@ First make it work, then optimize. The concept is validated with free, slow mode
 ## Future Decisions
 
 - [ ] Base model for LoRA (Llama 3.1 8B, Qwen3 8B, Gemma 4)
-- [x] Hosting for fine-tuned model — see [LoRA Serving Options](./lora-serving-options.md)
+- [x] Hosting for fine-tuned model
 - [ ] Dataset size (500, 1,000, 2,000 pairs)
 - [ ] Priority languages (French, German, Portuguese, Chinese)
 - [ ] Cache: duration, invalidation strategy

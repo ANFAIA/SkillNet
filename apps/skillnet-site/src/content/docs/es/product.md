@@ -10,7 +10,7 @@ section: "start"
 >
 > El actual producto orientado a empresa sigue siendo la base implementada. El futuro
 > modelo de audiencia para despliegues de organización e individual se define en
-> [audience-modes.md](audience-modes.md).
+> [audience-modes.md](/docs/audience-modes).
 
 ---
 
@@ -47,7 +47,7 @@ La vía principal para crear contenido:
 
 - **A partir de documentos** — Sube un PDF, manual o protocolo. Un equipo de agentes de IA extrae temas, diseña una estructura, genera módulos y ejercicios, revisa la calidad y produce un curso + manual. El admin revisa en dos puntos de control antes de que nada llegue a los empleados.
 
-El pipeline de generación es una máquina de estados de LangGraph con 10 nodos, 7 agentes especializados y 2 puntos de control humanos obligatorios. Ver [content-generation.md](content-generation.md).
+El pipeline de generación es una máquina de estados de LangGraph con 10 nodos, 7 agentes especializados y 2 puntos de control humanos obligatorios. Ver [content-generation.md](/docs/content-generation).
 
 Futuros métodos de generación (no en el MVP):
 

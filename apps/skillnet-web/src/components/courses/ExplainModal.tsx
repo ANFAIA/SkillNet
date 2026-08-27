@@ -41,6 +41,18 @@ const FOCUSABLE =
 const PROGRAM_DSL = /^\s*root\s*=/
 
 /**
+ * The same probe the backend uses to decide an answer *attempted* a program
+ * (`_is_genui_candidate`). `PROGRAM_DSL` only catches a program that starts the answer;
+ * a model that writes one line of prose first, or fences the program in ``` ``` ``, slips
+ * past it and the raw `root = Stack(...)` reaches the reader as text. Anchoring to a line
+ * start keeps a sentence that merely mentions the words from being mistaken for code.
+ */
+const PROGRAM_ANYWHERE = /(?:^|\n)\s*root\s*=\s*Stack\s*\(/
+
+/** A fenced code block wrapper the model sometimes puts around its program. */
+const CODE_FENCE = /^\s*```[a-zA-Z]*\n?|```\s*$/g
+
+/**
  * Layout-only atoms of the OpenUI dialect: the `Stack` format, a `TextContent` variant,
  * a `Callout` tone. They are string literals in the program but carry no reader-facing
  * text, so they are dropped when we salvage prose from a program that never rendered.
@@ -86,8 +98,68 @@ function dslToProse(dsl: string): string {
  * genuinely nothing to show, which is the one case that still earns the error message.
  */
 function readableAnswer(content: string, program: string | null): string {
-  if (content && !PROGRAM_DSL.test(content)) return content
-  return dslToProse(content || program || '')
+  const text = content.replace(CODE_FENCE, '').trim()
+  if (text && !PROGRAM_DSL.test(text) && !PROGRAM_ANYWHERE.test(text)) return text
+  return dslToProse(text || program || '')
+}
+
+// ── The one way an answer becomes pixels ────────────────────────
+
+interface AnswerBodyProps {
+  /** Accumulated `token` text. May be raw OpenUI Lang; never rendered as such. */
+  content: string
+  /** The compiled program from the trailing `ui` event, when it landed. */
+  program: string | null
+  /** The stream is still open and nothing readable has arrived yet. */
+  isLoading: boolean
+  /** A message to show instead of an answer. */
+  error: string | null
+}
+
+/**
+ * The first explanation and every follow-up in the thread render through here.
+ *
+ * They used to each carry their own copy of the fallback chain, and the copies drifted:
+ * the follow-up's rendered `null` when nothing was readable, so an answer that arrived
+ * empty — a program that failed the backend's validation streams no prose to fall back
+ * on — left an empty bubble and read as "the reply never came". One chain now, with one
+ * outcome for every case: valid program → blocks; real prose → markdown; error → the
+ * error; nothing at all → the retry line. Never blank, never the raw `root = Stack(...)`.
+ */
+function AnswerBody({ content, program, isLoading, error }: AnswerBodyProps) {
+  const intl = useIntl()
+  const gate = gateProgram(program)
+  const showBlocks = Boolean(program) && !gate.blocked && !gate.empty
+  const prose = readableAnswer(content, program)
+
+  if (error) return <p className="text-sm text-danger">{error}</p>
+  if (showBlocks) {
+    return (
+      <UiSpecRenderer
+        program={program!}
+        nodeId=""
+        format="explanation"
+        arriving
+        className="openui-chat"
+      />
+    )
+  }
+  if (isLoading) {
+    return (
+      <span
+        className="typing-dots"
+        aria-label={intl.formatMessage({ id: 'explain.generating' })}
+      >
+        <span /><span /><span />
+      </span>
+    )
+  }
+  if (prose) return <ChatMarkdown content={prose} isStreaming={false} />
+  return (
+    <p className="text-sm text-text-muted">
+      {intl.formatMessage({ id: 'explain.errorRetry' })}
+    </p>
+  )
 }
 
 // ── Types ───────────────────────────────────────────────────────
@@ -102,7 +174,10 @@ interface FollowUpMessage {
   id: string
   role: 'user' | 'assistant'
   content: string
+  program?: string
   isStreaming?: boolean
+  /** Set when the stream failed with nothing readable to show in its place. */
+  error?: string
 }
 
 export interface ExplainModalProps {
@@ -139,14 +214,22 @@ function BackIcon() {
  */
 async function streamFollowUp(
   message: string,
+  context: Record<string, unknown>,
+  sessionId: string | null,
   signal: AbortSignal,
   onToken: (chunk: string) => void,
+  onProgram: (program: string) => void,
+  onSessionId: (sessionId: string) => void,
 ): Promise<void> {
   const res = await fetch('/api/v1/chat', {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message }),
+    body: JSON.stringify({
+      message,
+      context,
+      ...(sessionId ? { session_id: sessionId } : {}),
+    }),
     signal,
   })
 
@@ -182,8 +265,15 @@ async function streamFollowUp(
 
         if (eventType === 'token') {
           onToken(String(data.content ?? ''))
+        } else if (eventType === 'ui') {
+          onProgram(String(data.program ?? ''))
+        } else if (eventType === 'done') {
+          const nextSessionId = data.session_id
+          if (typeof nextSessionId === 'string' && nextSessionId) {
+            onSessionId(nextSessionId)
+          }
         } else if (eventType === 'error') {
-          throw new Error(String(data.detail ?? 'Error en la conversacion'))
+          throw new Error(String(data.detail ?? 'Error en la conversación'))
         }
         eventType = ''
       }
@@ -196,7 +286,30 @@ async function streamFollowUp(
 interface ExplanationPanelProps {
   term: string
   context: string
+  nodeId: string | null
   language?: string
+  onSessionId: (sessionId: string) => void
+}
+
+/**
+ * Mark only the expanded Curio flow for personalized tutor generation. The quick
+ * `/explain` glimpse stays shared; this context travels to `/chat`, whose backend loads
+ * the real node and the authenticated learner profile rather than trusting profile data
+ * from the browser.
+ */
+function curioChatContext(
+  term: string,
+  selectionContext: string,
+  nodeId: string | null,
+  language?: string,
+): Record<string, unknown> {
+  return {
+    surface: 'curio_explain',
+    selected_term: term,
+    selection_context: selectionContext,
+    ...(nodeId ? { node_id: nodeId } : {}),
+    ...(language ? { language } : {}),
+  }
 }
 
 /**
@@ -214,7 +327,9 @@ interface ExplanationPanelProps {
 function ExplanationPanel({
   term,
   context,
+  nodeId,
   language,
+  onSessionId,
 }: ExplanationPanelProps) {
   const intl = useIntl()
   const [content, setContent] = useState('')
@@ -233,7 +348,7 @@ function ExplanationPanel({
     setError(null)
 
     const prompt = `Explicame "${term}" en el contexto de: "${context}". ` +
-      `Hazlo visual y claro, con ejemplos si ayudan.` +
+      `Elige la redaccion, el orden y la forma que mejor ayuden a entenderlo.` +
       (language ? ` Responde en ${language}.` : '')
 
     // Stream from the shared tutor endpoint, which can also emit OpenUI Lang.
@@ -243,7 +358,10 @@ function ExplanationPanel({
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: prompt }),
+          body: JSON.stringify({
+            message: prompt,
+            context: curioChatContext(term, context, nodeId, language),
+          }),
           signal: controller.signal,
         })
         if (!res.ok || !res.body) throw new Error(`${res.status}`)
@@ -276,6 +394,15 @@ function ExplanationPanel({
               } else if (eventType === 'ui') {
                 setProgram(String(data.program ?? ''))
                 setContent('')  // clear raw tokens so DSL never leaks through the fallback
+              } else if (eventType === 'done') {
+                const sessionId = data.session_id
+                if (
+                  typeof sessionId === 'string' &&
+                  sessionId &&
+                  !controller.signal.aborted
+                ) {
+                  onSessionId(sessionId)
+                }
               }
               eventType = ''
             }
@@ -290,43 +417,41 @@ function ExplanationPanel({
     })()
 
     return () => controller.abort()
-  }, [term, context, language, intl])
+  }, [term, context, nodeId, language, intl, onSessionId])
 
-  // Check if we got a valid program
-  const gate = gateProgram(program)
-  const showBlocks = Boolean(program) && !gate.blocked && !gate.empty
-
-  // No valid program to render. Rather than error out, recover a readable answer: genuine
-  // prose is shown as-is, and DSL-shaped tokens (or an invalid program) are stripped down
-  // to the sentences their literals carry — never the raw `root = Stack(...)` scaffolding.
-  // The fallback chain is: valid program → blocks; else real prose → markdown; else error.
-  const prose = readableAnswer(content, program)
-
-  const body = error ? (
-    <p className="text-sm text-danger">{error}</p>
-  ) : showBlocks ? (
-    <UiSpecRenderer program={program!} nodeId="" format="explanation" arriving className="openui-chat" />
-  ) : isLoading ? (
-    <span className="typing-dots" aria-label={intl.formatMessage({ id: 'explain.generating' })}>
-      <span /><span /><span />
-    </span>
-  ) : prose ? (
-    <ChatMarkdown content={prose} isStreaming={false} />
-  ) : (
-    <p className="text-sm text-text-muted">{intl.formatMessage({ id: 'explain.errorRetry' })}</p>
+  // The fallback chain lives in `AnswerBody`, shared with the follow-up thread.
+  return (
+    <div aria-live="polite">
+      <AnswerBody
+        content={content}
+        program={program}
+        isLoading={isLoading}
+        error={error}
+      />
+    </div>
   )
-
-  return <div aria-live="polite">{body}</div>
 }
 
 // ── Follow-up state (shared between messages display and composer) ──
 
-function useFollowUp(termContext: string) {
+function useFollowUp(
+  term: string,
+  selectionContext: string,
+  nodeId: string | null,
+  initialSessionId: string | null,
+  onSessionId: (sessionId: string) => void,
+  language?: string,
+) {
+  const intl = useIntl()
   const [messages, setMessages] = useState<FollowUpMessage[]>([])
   const [isStreaming, setIsStreaming] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
+  const sessionIdRef = useRef<string | null>(initialSessionId)
 
   useEffect(() => () => abortRef.current?.abort(), [])
+  useEffect(() => {
+    sessionIdRef.current = initialSessionId
+  }, [initialSessionId, nodeId, selectionContext, term])
 
   /**
    * Drop the thread. The follow-up conversation is scoped to the term on screen — after
@@ -336,6 +461,7 @@ function useFollowUp(termContext: string) {
   const reset = useCallback(() => {
     abortRef.current?.abort()
     abortRef.current = null
+    sessionIdRef.current = null
     setMessages([])
     setIsStreaming(false)
   }, [])
@@ -354,17 +480,51 @@ function useFollowUp(termContext: string) {
       setIsStreaming(true)
 
       const seeded = messages.length === 0
-        ? `Contexto: estoy leyendo sobre "${termContext}". Mi pregunta: ${text}`
+        ? `Contexto: estoy leyendo sobre "${term}". Mi pregunta: ${text}`
         : text
 
       try {
-        await streamFollowUp(seeded, controller.signal, (chunk) => {
-          if (controller.signal.aborted) return
-          setMessages((prev) => prev.map((m) => m.id === assistantId ? { ...m, content: m.content + chunk } : m))
-        })
+        await streamFollowUp(
+          seeded,
+          curioChatContext(term, selectionContext, nodeId, language),
+          sessionIdRef.current,
+          controller.signal,
+          (chunk) => {
+            if (controller.signal.aborted) return
+            setMessages((prev) => prev.map((m) => m.id === assistantId ? { ...m, content: m.content + chunk } : m))
+          },
+          (program) => {
+            if (controller.signal.aborted || abortRef.current !== controller) return
+            setMessages((prev) => prev.map((m) => m.id === assistantId ? { ...m, program } : m))
+          },
+          (nextSessionId) => {
+            if (controller.signal.aborted || abortRef.current !== controller) return
+            sessionIdRef.current = nextSessionId
+            onSessionId(nextSessionId)
+          },
+        )
       } catch (err) {
-        if ((err as Error).name === 'AbortError') return
-        setMessages((prev) => prev.map((m) => m.id === assistantId ? { ...m, content: m.content || 'Error.', isStreaming: false } : m))
+        // An abort means a newer turn (or a stack move) took over. `reset` clears the
+        // thread outright, but `send` aborting the previous stream does not: that message
+        // stays on screen, so it must be settled here too. Leaving it `isStreaming` — what
+        // the old `return` did, since `finally` then skipped it as well — froze the bubble
+        // on the typing dots for the rest of the session.
+        const aborted = (err as Error).name === 'AbortError'
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === assistantId
+              ? {
+                  ...m,
+                  isStreaming: false,
+                  // Only a genuine failure earns the error line; an abort keeps whatever
+                  // partial answer it had, and `AnswerBody` decides what that renders as.
+                  ...(aborted || m.content
+                    ? {}
+                    : { error: intl.formatMessage({ id: 'explain.chatError' }) }),
+                }
+              : m,
+          ),
+        )
       } finally {
         if (abortRef.current === controller) {
           setIsStreaming(false)
@@ -372,7 +532,7 @@ function useFollowUp(termContext: string) {
         }
       }
     },
-    [messages.length, termContext],
+    [intl, language, messages.length, nodeId, onSessionId, selectionContext, term],
   )
 
   return { messages, isStreaming, send, reset }
@@ -391,10 +551,12 @@ function FollowUpMessages({ messages }: { messages: FollowUpMessage[] }) {
             </span>
           ) : (
             <div className="text-sm">
-              <ChatMarkdown content={msg.content} isStreaming={msg.isStreaming} />
-              {msg.isStreaming && !msg.content && (
-                <span className="typing-dots"><span /><span /><span /></span>
-              )}
+              <AnswerBody
+                content={msg.content}
+                program={msg.program ?? null}
+                isLoading={Boolean(msg.isStreaming)}
+                error={msg.error ?? null}
+              />
             </div>
           )}
         </div>
@@ -404,7 +566,15 @@ function FollowUpMessages({ messages }: { messages: FollowUpMessage[] }) {
 }
 
 // Composer input — outside the scroll, sticky at bottom of the card
-function FollowUpInput({ onSend, isStreaming }: { onSend: (text: string) => void; isStreaming?: boolean }) {
+function FollowUpInput({
+  onSend,
+  isStreaming,
+  ready,
+}: {
+  onSend: (text: string) => void
+  isStreaming?: boolean
+  ready: boolean
+}) {
   const intl = useIntl()
   const [input, setInput] = useState('')
 
@@ -422,7 +592,10 @@ function FollowUpInput({ onSend, isStreaming }: { onSend: (text: string) => void
         onChange={setInput}
         onSend={handleSend}
         isStreaming={isStreaming}
-        placeholder={intl.formatMessage({ id: 'explain.followUpPlaceholder' })}
+        disabled={!ready}
+        placeholder={intl.formatMessage({
+          id: ready ? 'explain.followUpPlaceholder' : 'explain.generating',
+        })}
         size="sm"
       />
     </form>
@@ -448,6 +621,10 @@ export function ExplainModal({
   const [stack, setStack] = useState<StackEntry[]>([
     { term, context, nodeId },
   ])
+  const [initialSession, setInitialSession] = useState<{
+    entryKey: string
+    sessionId: string
+  } | null>(null)
 
   // Reset the stack when the modal opens with a new term.
   useEffect(() => {
@@ -457,12 +634,43 @@ export function ExplainModal({
   }, [open, term, context, nodeId])
 
   const current = stack[stack.length - 1]
-  const followUpState = useFollowUp(current.term)
+  const currentEntryKey = JSON.stringify([
+    current.term,
+    current.context,
+    current.nodeId,
+    stack.length,
+  ])
+  const sessionId = initialSession?.entryKey === currentEntryKey
+    ? initialSession.sessionId
+    : null
+  const rememberSessionId = useCallback(
+    (nextSessionId: string) => {
+      setInitialSession({ entryKey: currentEntryKey, sessionId: nextSessionId })
+    },
+    [currentEntryKey],
+  )
+
+  const followUpState = useFollowUp(
+    current.term,
+    current.context,
+    current.nodeId,
+    sessionId,
+    rememberSessionId,
+    language,
+  )
   const { reset: resetFollowUp } = followUpState
+
+  // Closing or opening on a different root selection aborts any old stream and drops its
+  // session immediately. A late callback is keyed to the old entry and cannot be reused.
+  useEffect(() => {
+    resetFollowUp()
+    setInitialSession(null)
+  }, [open, term, context, nodeId, resetFollowUp])
 
   /** Every stack move drops the follow-up thread and returns to the top of the panel. */
   const rewind = useCallback(() => {
     resetFollowUp()
+    setInitialSession(null)
     if (scrollRef.current) scrollRef.current.scrollTop = 0
   }, [resetFollowUp])
 
@@ -627,7 +835,9 @@ export function ExplainModal({
                 key={`${current.term}-${stack.length}`}
                 term={current.term}
                 context={current.context}
+                nodeId={current.nodeId}
                 language={language}
+                onSessionId={rememberSessionId}
               />
 
               <FollowUpMessages messages={followUpState.messages} />
@@ -635,7 +845,11 @@ export function ExplainModal({
           </div>
 
           {/* Composer — outside scroll, sticky at bottom */}
-          <FollowUpInput onSend={followUpState.send} isStreaming={followUpState.isStreaming} />
+          <FollowUpInput
+            onSend={followUpState.send}
+            isStreaming={followUpState.isStreaming}
+            ready={Boolean(sessionId)}
+          />
         </div>
       </div>
     </ExplainLayer>,

@@ -68,6 +68,14 @@ export interface DocumentRead {
 
 export type CourseStatus = 'draft' | 'published' | 'archived' | string
 
+export type CourseGenerationState = 'idle' | 'in_progress' | 'failed' | 'complete'
+
+/** How the learner tutor answers inside a course (`courses.tutor_style`). */
+export type TutorStyle = 'socratic' | 'direct'
+
+/** `courses.image_source_policy` — the override over the diagram/screenshot rule. */
+export type ImageSourcePolicy = 'auto' | 'keep_original' | 'rebuild'
+
 export interface CourseRead {
   id: string
   title: string
@@ -97,6 +105,30 @@ export interface CourseRead {
   artifact_generate_policy?: 'admin' | 'everyone' | 'selected'
   artifact_generator_ids?: string[]
   can_generate_artifacts?: boolean
+  /** How the tutor answers inside this course. Auto-detected at creation, editable after. */
+  tutor_style?: TutorStyle
+  /**
+   * What this course does with the images embedded in its source document.
+   *
+   * `'auto'` is the rule and the default: a diagram is rebuilt as interactive SkillNet
+   * content, a screenshot is kept as the original picture (its information is spatial,
+   * so prose is strictly worse). The other two are the policy escapes — never asked at
+   * creation, only edited afterwards by someone who has seen a lesson.
+   */
+  image_source_policy?: ImageSourcePolicy
+  /**
+   * Whether a creation run owns this course, and how the last one ended (migration
+   * 0025). Optional and defaulted to `'idle'` server-side, so a course nobody is
+   * creating — which is every course made before the column existed — reads `'idle'`.
+   *
+   * This is what separates "the wizard died half-way through making this" from "somebody
+   * saved a draft on purpose". Both used to be `status: 'draft'` with nothing else to
+   * tell them apart.
+   */
+  generation_state?: CourseGenerationState
+  /** Short, safe reason the creation run failed. Never a raw exception. */
+  generation_error?: string | null
+  generation_failed_at?: string | null
 }
 
 export type ExerciseType =
@@ -601,6 +633,25 @@ export interface CourseKnowledgePacks {
   course_id: string
   schema_version: number
   nodes: NodeKnowledgePack[]
+}
+
+/**
+ * `POST` / `GET /courses/{id}/schema/finalize` — one poll's worth of "is this course
+ * finished being created yet".
+ *
+ * The run state and the knowledge-pack progress arrive together on purpose: the create
+ * wizard needs both on every tick, and asking two endpoints for halves of the same
+ * answer is how the two drift apart on screen.
+ */
+export interface CourseFinalization {
+  course_id: string
+  generation_state: CourseGenerationState
+  generation_error: string | null
+  generation_failed_at: string | null
+  schema_status: string
+  status: CourseStatus
+  packs_ready: number
+  packs_total: number
 }
 
 /** One blocking rule violation from `422 {"detail": {"code": "schema_invalid", ...}}`. */

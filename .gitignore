@@ -56,3 +56,7 @@ CLAUDE.md
 .DS_Store
 .idea/
 .vscode/
+
+# Course packages. The mechanism is in the repository; the courses are not: a package is
+# content, often a client's, and the bind mount in docker-compose.yml writes exports here.
+/course-packages/

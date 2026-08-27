@@ -2,6 +2,7 @@
 title: "Coordinación multiagente"
 order: 57
 section: "research"
+group: "multi-agent"
 ---
 
 # Coordinación Multiagente
@@ -220,7 +221,7 @@ Funciona para un usuario. No escala a equipos.
 
 [agentvcs](https://github.com/EvolvingAgentsLabs/agentvcs) (Apache-2.0) explora el versionado para agentes autónomos. Cubre el caso de un solo usuario con un solo agente; el problema de coordinación multiusuario descrito aquí es una capa distinta.
 
-[DBP (Data Boundary Protocol)](https://github.com/JoseEstevez520/DBP) (Apache-2.0) implementa el modelo de frontera determinista explorado en esta investigación. Proporciona compartimentos basados en etiquetas, verificaciones de frontera por inclusión de conjuntos, herencia, trazas de auditoría inmutables, y escalación para anulación humana. Ver el [documento de comunicación entre agentes](agent-communication.md) para el modelo conceptual y el repo de DBP para la implementación de referencia.
+[DBP (Data Boundary Protocol)](https://github.com/JoseEstevez520/DBP) (Apache-2.0) implementa el modelo de frontera determinista explorado en esta investigación. Proporciona compartimentos basados en etiquetas, verificaciones de frontera por inclusión de conjuntos, herencia, trazas de auditoría inmutables, y escalación para anulación humana. Ver el [documento de comunicación entre agentes](/docs/multi-agent-communication) para el modelo conceptual y el repo de DBP para la implementación de referencia.
 
 ## Preguntas Abiertas
 
@@ -238,4 +239,4 @@ Funciona para un usuario. No escala a equipos.
 
 ## Profundización
 
-- [Comunicación entre agentes](agent-communication.md) · cuando mi agente habla con el de mi vecino, qué puede cruzar · haciendo que la frontera sea determinista en lugar de una norma consultiva, a través del protocolo, la trazabilidad, y el espacio de trabajo.
+- [Comunicación entre agentes](/docs/multi-agent-communication) · cuando mi agente habla con el de mi vecino, qué puede cruzar · haciendo que la frontera sea determinista en lugar de una norma consultiva, a través del protocolo, la trazabilidad, y el espacio de trabajo.

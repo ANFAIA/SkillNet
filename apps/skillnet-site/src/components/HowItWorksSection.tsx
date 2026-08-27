@@ -1,34 +1,228 @@
-import { useState } from "react";
-import { AudioLines, FileText, Image as ImageIcon, Pause, Play, Video } from "lucide-react";
-import { motion } from "framer-motion";
+import { useEffect, useRef, useState } from "react";
+import { AudioLines, ChevronRight, FileText, Image as ImageIcon, Pause, Play, Video } from "lucide-react";
+import { motion, useReducedMotion } from "framer-motion";
+import type { Locale } from "../i18n/config";
+import { t, type Copy } from "../i18n/ui";
 
-const IDEA = "Todos aprendemos de forma distinta. Cambian lo que ya sabemos, el contexto, el ritmo y el apoyo que necesitamos. La misma idea puede necesitar otra explicación, otro ejemplo o una forma diferente de practicarla.";
-const MODES = [
-  { key: "texto", label: "Texto", Icon: FileText },
-  { key: "imagen", label: "Imagen", Icon: ImageIcon },
-  { key: "video", label: "Vídeo", Icon: Video },
-  { key: "audio", label: "Audio", Icon: AudioLines },
+const MODE_KEYS = ["texto", "imagen", "video", "audio"] as const;
+const MODE_ICONS = { texto: FileText, imagen: ImageIcon, video: Video, audio: AudioLines } as const;
+
+/** The four frames of the video sequence, in order. They are real files, not a mock-up. */
+const VIDEO_FRAMES = [
+  "/images/landing/multimodal/learning-differences-video-frame-v1.webp",
+  "/images/landing/multimodal/learning-differences-video-frame-2-v1.webp",
+  "/images/landing/multimodal/learning-differences-video-frame-3-v1.webp",
+  "/images/landing/multimodal/learning-differences-video-frame-4-v1.webp",
 ] as const;
 
-export default function HowItWorksSection() {
+/** Bars in the audio waveform. Low enough that they stay legible on a 215px pane. */
+const WAVEFORM_BARS = 28;
+
+/**
+ * Only one narration may sound at a time.
+ *
+ * Both cells hand their element to `playSolo`, which pauses whatever was
+ * sounding before starting the new one. A single shared reference, so no cell
+ * has to know the other exists and nothing sweeps the document for `<audio>`.
+ */
+let sounding: HTMLAudioElement | null = null;
+
+function playSolo(audio: HTMLAudioElement) {
+  if (sounding && sounding !== audio) sounding.pause();
+  sounding = audio;
+  return audio.play();
+}
+
+function releaseSolo(audio: HTMLAudioElement) {
+  if (sounding === audio) sounding = null;
+}
+
+/** Index of the caption being spoken at `time`, given the locale's cut points. */
+function frameAt(cuts: readonly number[], time: number): number {
+  let index = 0;
+  for (let i = 0; i < cuts.length && i < VIDEO_FRAMES.length; i += 1) {
+    if (time >= cuts[i]) index = i;
+  }
+  return index;
+}
+
+/**
+ * The video cell: four stills with their caption, driven by a narration track.
+ *
+ * It is deliberately not a `<video>` — the piece really is a short sequence of
+ * images, and four webp frames plus one mp3 weigh a fraction of any encoded
+ * clip. The frame and the caption both read the same `currentTime`, so what is on screen is always what is being said; a
+ * second clock would drift against the voice within a line or two.
+ *
+ * With `prefers-reduced-motion` the narration still works — reduced motion is
+ * about movement, not sound — but nothing starts on its own and the crossfade
+ * is off (CSS). A step control appears as well, which simply seeks the
+ * narration to the start of the next line, so stepping never puts a caption on
+ * screen that disagrees with the voice.
+ */
+function VideoCell({ copy, lang, reduced }: { copy: Copy["howItWorks"]; lang: Locale; reduced: boolean }) {
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [playing, setPlaying] = useState(false);
+  const [time, setTime] = useState(0);
+
+  // `timeupdate` only fires about four times a second, which is enough for a
+  // progress bar but visibly late for a caption change. While the narration
+  // sounds, read `currentTime` every frame instead -- still the audio's clock,
+  // just sampled often enough that the caption turns over on the word.
+  useEffect(() => {
+    if (!playing) return;
+    let raf = 0;
+    const tick = () => {
+      const audio = audioRef.current;
+      if (audio) setTime(audio.currentTime);
+      raf = window.requestAnimationFrame(tick);
+    };
+    raf = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(raf);
+  }, [playing]);
+
+  const cuts = copy.videoCuts;
+  const index = frameAt(cuts, time);
+
+  const toggle = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (audio.paused) void playSolo(audio).catch(() => setPlaying(false));
+    else audio.pause();
+  };
+
+  const stepForward = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    const next = (index + 1) % VIDEO_FRAMES.length;
+    audio.currentTime = cuts[next];
+    setTime(cuts[next]);
+  };
+
+  return <div className="media-video">
+    <div className="media-video__still">
+      <div className="media-video__frames">
+        {VIDEO_FRAMES.map((src, position) => <img
+          key={src}
+          className={`media-video__frame ${position === index ? "is-current" : ""}`}
+          src={src}
+          alt=""
+          width={1672}
+          height={941}
+          decoding="async"
+        />)}
+      </div>
+      <div className="media-video__overlay">
+        <button
+          type="button"
+          className="media-play"
+          onClick={toggle}
+          aria-label={playing ? copy.videoPause : copy.videoPlay}
+        >
+          {playing ? <Pause size={22} fill="currentColor" /> : <Play size={22} fill="currentColor" />}
+        </button>
+        {reduced && <button type="button" className="media-video__step" onClick={stepForward} aria-label={copy.videoNext}>
+          <ChevronRight size={18} />
+        </button>}
+        <span className="media-video__subtitle">{copy.videoCaptions[index]}</span>
+      </div>
+    </div>
+    <audio
+      ref={audioRef}
+      src={`/audio/landing/how-it-works-video-${lang}.mp3`}
+      preload="none"
+      onPlay={() => setPlaying(true)}
+      onPause={() => setPlaying(false)}
+      onTimeUpdate={(event) => setTime(event.currentTarget.currentTime)}
+      onEnded={(event) => {
+        releaseSolo(event.currentTarget);
+        event.currentTarget.currentTime = 0;
+        setTime(0);
+      }}
+    />
+  </div>;
+}
+
+/**
+ * The audio cell: the real audio overview for the page's language.
+ *
+ * `preload="none"` so the mp3 costs nothing until someone asks for it, and the
+ * waveform is drawn from `currentTime` rather than being decorative.
+ */
+function AudioCell({ copy, lang }: { copy: Copy["howItWorks"]; lang: Locale }) {
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [playing, setPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+
+  const toggle = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (audio.paused) void playSolo(audio).catch(() => setPlaying(false));
+    else audio.pause();
+  };
+
+  return <div className="media-audio">
+    <div className="media-audio__track">
+      <button
+        type="button"
+        className="media-audio__play"
+        onClick={toggle}
+        aria-label={playing ? copy.audioPause : copy.audioPlay}
+      >
+        {playing ? <Pause size={19} fill="currentColor" /> : <Play size={19} fill="currentColor" />}
+      </button>
+      <div className="waveform" aria-hidden="true">
+        {Array.from({ length: WAVEFORM_BARS }, (_, index) => <i
+          key={index}
+          className={index / WAVEFORM_BARS < progress ? "is-played" : ""}
+          style={{ height: `${16 + ((index * 23) % 44)}px` }}
+        />)}
+      </div>
+    </div>
+    <p>{copy.audioQuote}</p>
+    <audio
+      ref={audioRef}
+      src={`/audio/landing/how-it-works-audio-${lang}.mp3`}
+      preload="none"
+      onPlay={() => setPlaying(true)}
+      onPause={() => setPlaying(false)}
+      onTimeUpdate={(event) => {
+        const audio = event.currentTarget;
+        setProgress(audio.duration ? audio.currentTime / audio.duration : 0);
+      }}
+      onEnded={(event) => {
+        releaseSolo(event.currentTarget);
+        setProgress(0);
+      }}
+    />
+  </div>;
+}
+
+export default function HowItWorksSection({ lang = "es" }: { lang?: Locale }) {
+  const copy = t(lang).howItWorks;
+  const reduced = useReducedMotion() ?? false;
   const [active, setActive] = useState<string>("texto");
   return <section id="como-funciona" data-nav-theme="light" className="w-full scroll-mt-24 bg-white px-6 pb-20 pt-10 sm:px-10 sm:pb-28 sm:pt-12">
     <div className="mx-auto w-full max-w-[80%]">
-      <motion.h2 initial={false} className="type-section-title text-[var(--color-text)]">Cómo funciona</motion.h2>
-      <motion.p initial={false} className="type-lead mt-7 w-full text-[var(--color-text-secondary)]">El conocimiento y los objetivos pueden mantenerse mientras cambian la explicación, la actividad, el apoyo y la propia interfaz. SkillNet utiliza las preferencias declaradas, el rol, el nivel y el progreso de cada persona como señales para adaptar la experiencia, no como etiquetas fijas sobre cómo aprende.</motion.p>
+      <motion.h2 initial={false} className="type-section-title text-[var(--color-text)]">{copy.title}</motion.h2>
+      <motion.p initial={false} className="type-lead mt-7 w-full text-[var(--color-text-secondary)]">{copy.lead}</motion.p>
       <motion.div initial={false} className="multimodal-surface mt-12 sm:mt-16">
-        {MODES.map(({ key, label, Icon }) => {
+        {MODE_KEYS.map((key) => {
+          const Icon = MODE_ICONS[key];
           const selected = active === key;
-          return <motion.button key={key} type="button" aria-pressed={selected} onClick={() => setActive(key)} className={`media-cell media-cell--${key} ${selected ? "is-active" : ""}`} whileHover={{ y: -2 }} transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}>
-            <span className="media-cell__label"><Icon size={19} strokeWidth={1.7} />{label}</span>
-            {key === "texto" && <div className="media-text"><strong>Todos aprendemos de forma distinta.</strong><p>{IDEA}</p></div>}
-            {key === "imagen" && <div className="media-image" role="img" aria-label="Infografía visual sobre cómo se construye la comprensión" />}
-            {key === "video" && <div className="media-video"><div className="media-video__still"><span className="media-play"><Play size={22} fill="currentColor" /></span><span className="media-video__subtitle">The same idea may need another explanation, example or way to practise it.</span></div><div className="media-video__controls"><Play size={14} fill="currentColor" /><span>0:18</span><i /></div></div>}
-            {key === "audio" && <div className="media-audio"><div className="media-audio__track"><span className="media-audio__play">{selected ? <Pause size={19} fill="currentColor" /> : <Play size={19} fill="currentColor" />}</span><div className="waveform" aria-hidden="true">{Array.from({ length: 48 }, (_, index) => <i key={index} style={{ height: `${14 + ((index * 17) % 48)}px` }} />)}</div></div><p>“Todos aprendemos de forma distinta…”</p></div>}
-          </motion.button>;
+          // A cell is a plain container, not a button: two of them now hold real
+          // controls, and a button inside a button is invalid and unreachable by
+          // keyboard. Highlighting follows pointer and focus instead of a click.
+          return <motion.div key={key} onMouseEnter={() => setActive(key)} onFocus={() => setActive(key)} className={`media-cell media-cell--${key} ${selected ? "is-active" : ""}`}>
+            <span className="media-cell__label"><Icon size={19} strokeWidth={1.7} />{copy.modes[key]}</span>
+            {key === "texto" && <div className="media-text"><strong>{copy.mediaHeading}</strong><p>{copy.idea}</p></div>}
+            {key === "imagen" && <div className="media-image" role="img" aria-label={copy.imageAlt} />}
+            {key === "video" && <VideoCell copy={copy} lang={lang} reduced={reduced} />}
+            {key === "audio" && <AudioCell copy={copy} lang={lang} />}
+          </motion.div>;
         })}
       </motion.div>
-      <p className="type-caption mt-4 text-[var(--color-text-secondary)]">El formato es solo una parte. La explicación, la práctica y la interfaz también pueden cambiar.</p>
+      <p className="type-caption mt-4 text-[var(--color-text-secondary)]">{copy.caption}</p>
     </div>
   </section>;
 }

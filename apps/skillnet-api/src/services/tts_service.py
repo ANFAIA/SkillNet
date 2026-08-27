@@ -26,6 +26,7 @@ import httpx
 
 from src.config import settings
 from src.core.logging import get_logger
+from src.services import provider_health
 
 logger = get_logger(__name__)
 
@@ -207,7 +208,15 @@ class ElevenLabsProvider(TTSProvider):
             resp = await client.post(url, headers=headers, json=body)
             if resp.status_code != 200:
                 detail = resp.text[:300]
-                raise RuntimeError(f"ElevenLabs API error {resp.status_code}: {detail}")
+                # The status travels on the exception, not only inside its message.
+                # `provider_health.failure_kind` reads a `status_code` attribute and
+                # deliberately parses nothing out of prose, so without this an ElevenLabs
+                # 429 — the one provider here whose quota really does run out — could
+                # only ever be classified as an outage, and the admin would be sent to
+                # check a status page instead of the account's plan.
+                error = RuntimeError(f"ElevenLabs API error {resp.status_code}: {detail}")
+                error.status_code = resp.status_code  # type: ignore[attr-defined]
+                raise error
             return resp.content
 
     def available_voices(self) -> list[dict[str, str]]:
@@ -513,7 +522,20 @@ class TTSService:
         if cached is not None:
             return cached
 
-        audio = await self.provider.synthesize(text, voice, language)
+        try:
+            audio = await self.provider.synthesize(text, voice, language)
+        except Exception as exc:
+            # The offline eSpeak provider is local: it has no key, no quota and no
+            # endpoint, so its failures say nothing about the *provider* the capability
+            # read is about, and recording them would blame a cloud account for a missing
+            # binary. Every provider normalizes its HTTP failure into a RuntimeError with
+            # `raise ... from exc`, so the real status survives on `__cause__` — see
+            # `provider_health.failure_kind`.
+            if self.provider.name != EspeakOfflineProvider.name:
+                provider_health.record_failure(
+                    provider_health.TTS, provider_health.failure_kind(exc)
+                )
+            raise
         self.cache.put(text, voice, self.provider.name, language, audio)
         return audio
 

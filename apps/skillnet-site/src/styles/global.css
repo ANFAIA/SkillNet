@@ -111,7 +111,9 @@ a {
   position: relative;
   display: flex;
   min-width: 0;
-  min-height: 380px;
+  /* Fluid instead of a fixed step: the cell follows the viewport, so the media
+     inside it keeps its shape on every width. */
+  min-height: clamp(272px, 38vw, 380px);
   flex-direction: column;
   align-items: stretch;
   overflow: hidden;
@@ -121,14 +123,12 @@ a {
   padding: 24px;
   color: var(--color-text);
   text-align: left;
-  cursor: pointer;
-  transition: border-color .3s var(--ease-base), background .3s var(--ease-base), box-shadow .3s var(--ease-base);
+  transition: border-color .3s var(--ease-base), background .3s var(--ease-base);
 }
 
 .media-cell.is-active {
   background: #fbfcff;
   border-color: color-mix(in srgb, var(--color-primary) 62%, white);
-  box-shadow: 0 12px 30px rgba(30,61,110,.07);
 }
 
 .media-cell:focus-visible {
@@ -137,8 +137,6 @@ a {
 }
 
 .media-cell__label {
-  position: relative;
-  z-index: 2;
   display: flex;
   width: max-content;
   align-items: center;
@@ -155,7 +153,7 @@ a {
 }
 
 .media-text {
-  margin-top: 44px;
+  margin-top: 24px;
   color: var(--color-primary-deep);
 }
 
@@ -172,44 +170,86 @@ a {
   line-height: 1.65;
 }
 
-.media-image {
-  background-image:
-    url('/images/landing/multimodal/learning-differences-infographic-en-v1.webp');
-  background-color: #0755ab;
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: contain;
-}
+/* The media panes flow under the label instead of being pinned over it: that is
+   what lets them shrink with the card. */
 
+/* The infographic. The pane is exactly the file's own 1672x941 box, so `cover`
+   crops nothing and no letterbox band is painted: the frame and the graphic are
+   the same rectangle. What is left over in a taller cell is plain card. */
 .media-image {
-  position: absolute;
-  inset: 64px 20px 20px;
+  width: 100%;
+  flex: none;
+  margin: auto 0;
+  aspect-ratio: 1672 / 941;
   border: 1px solid color-mix(in srgb, var(--color-primary) 22%, white);
   border-radius: 8px;
+  background-image: url('/images/landing/multimodal/learning-differences-infographic-en-v1.webp');
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
 }
 
 .media-video {
-  position: absolute;
-  inset: 64px 20px 20px;
   display: flex;
+  flex: 1;
+  min-height: 0;
+  margin-top: 24px;
   flex-direction: column;
 }
 
 .media-video__still {
-  position: relative;
+  display: grid;
+  grid-template-areas: "stack";
   flex: 1;
+  min-height: 0;
   overflow: hidden;
   border-radius: 8px 8px 0 0;
-  background-image:
-    linear-gradient(rgba(30,61,110,.08), rgba(30,61,110,.22)),
-    url('/images/landing/multimodal/learning-differences-video-frame-v1.webp');
-  background-position: center;
-  background-size: cover;
+  background: var(--color-primary-deep);
+}
+
+/* Frames and controls share the one grid cell, so the controls paint over the
+   image because they come later in the DOM -- no stacking context, no z-index. */
+.media-video__still > * {
+  grid-area: stack;
+  min-width: 0;
+}
+
+.media-video__frames {
+  display: grid;
+  grid-template-areas: "frame";
+  overflow: hidden;
+}
+
+.media-video__frame {
+  grid-area: frame;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity .45s var(--ease-base);
+}
+
+.media-video__frame.is-current {
+  opacity: 1;
+}
+
+.media-video__overlay {
+  /* Positioned, so it paints over the replaced <img> elements sharing its grid
+     cell. In-flow images otherwise win against a non-positioned sibling's
+     content, and the play button stops being clickable. No z-index needed. */
+  position: relative;
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px;
+  background: linear-gradient(rgba(30,61,110,.08), rgba(30,61,110,.34));
 }
 
 .media-video__subtitle {
-  position: absolute;
-  inset: auto 14px 14px;
+  width: 100%;
   border-radius: 6px;
   background: rgba(8,20,38,.74);
   padding: 8px 10px;
@@ -222,44 +262,57 @@ a {
 }
 
 .media-play {
-  position: absolute;
-  left: 50%;
-  top: 50%;
   display: grid;
   width: 52px;
   height: 52px;
+  flex: none;
   place-items: center;
-  transform: translate(-50%, -50%);
+  margin: auto 0;
   border: 1px solid rgba(255,255,255,.8);
   border-radius: 50%;
   background: rgba(30,61,110,.64);
+  padding: 0;
   color: #fff;
+  cursor: pointer;
+  transition: background .25s var(--ease-base), transform .25s var(--ease-base);
 }
 
-.media-video__controls {
+.media-play:hover {
+  background: rgba(30,61,110,.82);
+  transform: scale(1.05);
+}
+
+.media-play:focus-visible,
+.media-audio__play:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+}
+
+/* Only rendered under `prefers-reduced-motion`, where it seeks the narration to
+   the next line. It sits beside the play button, so it carries the same weight. */
+.media-video__step {
   display: grid;
-  grid-template-columns: auto auto 1fr;
-  align-items: center;
-  gap: 9px;
-  min-height: 42px;
-  border: 1px solid var(--color-border);
-  border-top: 0;
-  border-radius: 0 0 8px 8px;
-  padding: 0 12px;
-  color: var(--color-text-secondary);
-  font-size: .7rem;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 999px;
+  background: #fff;
+  padding: 0;
+  color: var(--color-text);
+  cursor: pointer;
 }
 
-.media-video__controls i {
-  height: 3px;
-  border-radius: 999px;
-  background: linear-gradient(90deg, var(--color-primary) 38%, var(--color-border) 38%);
+.media-video__step:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
 
 .media-audio {
-  position: absolute;
-  inset: 64px 24px 24px;
   display: flex;
+  flex: 1;
+  min-height: 0;
+  margin-top: 24px;
   flex-direction: column;
   align-items: center;
   justify-content: center;
@@ -279,9 +332,18 @@ a {
   width: 54px;
   height: 54px;
   place-items: center;
+  border: 0;
   border-radius: 50%;
   background: var(--color-accent);
+  padding: 0;
   color: #fff;
+  cursor: pointer;
+  transition: transform .25s var(--ease-base), filter .25s var(--ease-base);
+}
+
+.media-audio__play:hover {
+  transform: scale(1.05);
+  filter: brightness(1.06);
 }
 
 .waveform {
@@ -300,7 +362,12 @@ a {
   max-width: 5px;
   border-radius: 4px;
   background: var(--color-accent);
-  opacity: .82;
+  opacity: .24;
+  transition: opacity .18s linear;
+}
+
+.waveform i.is-played {
+  opacity: .92;
 }
 
 .media-audio p {
@@ -516,23 +583,61 @@ a {
   color: #0a66c2;
 }
 
-.contact-anfaia {
+/* Attribution credits: a lead-in phrase followed by the partner's mark.
+   Both marks are transparent PNGs of dark, single-ink artwork, and every
+   surface they appear on is `bg-white`, so they sit directly on the page
+   rather than inside a plate. Sizing is by HEIGHT, never width: the two
+   logos have very different aspect ratios (2.8:1 and 4.3:1) and matching
+   their widths would make one of them tower over the other. */
+.credit-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
   margin-bottom: 0;
   color: var(--color-text-secondary);
   font-size: 1.25rem;
   line-height: 1.4;
 }
 
-.contact-anfaia a {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-weight: 700;
-  color: var(--color-primary);
+.credit-logo {
+  display: block;
+  width: auto;
+  transition: opacity .2s;
 }
 
-.contact-anfaia a:hover {
-  color: var(--color-accent);
+.credit-line a:hover .credit-logo {
+  opacity: .68;
+}
+
+/* The Anfaia mark carries a fine lighthouse drawing above the wordmark, so it
+   needs a couple more pixels of height than the tickets wordmark to stay
+   legible; the extra height is what makes the two read as the same weight. */
+.credit-logo--anfaia {
+  height: 34px;
+}
+
+.credit-logo--tickets {
+  height: 26px;
+}
+
+.credit-line--small {
+  gap: 4px 9px;
+  font-size: var(--type-caption);
+}
+
+.credit-line--small .credit-logo--anfaia {
+  height: 22px;
+}
+
+.credit-line--small .credit-logo--tickets {
+  height: 17px;
+}
+
+@media (max-width: 640px) {
+  .credit-line {
+    font-size: 1.05rem;
+  }
 }
 
 .footer-main {
@@ -607,18 +712,139 @@ a.social-link:hover {
   color: inherit;
 }
 
-.footer-anfaia {
-  font-weight: 600;
-  color: var(--color-primary);
+.footer-credits {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px 40px;
+  margin-top: 32px;
+  color: var(--color-text-secondary);
 }
 
-.footer-anfaia:hover {
-  color: var(--color-accent);
+.builtwith-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.builtwith-card {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 12px;
+  background: #fff;
+  padding: 24px 26px;
+  color: var(--color-text);
+  transition: border-color .3s var(--ease-base), transform .3s var(--ease-base);
+}
+
+.builtwith-card:hover {
+  border-color: color-mix(in srgb, var(--color-primary) 55%, white);
+  transform: translateY(-2px);
+}
+
+.builtwith-card:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+}
+
+.builtwith-card__mark {
+  display: flex;
+  width: 116px;
+  flex: 0 0 116px;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.builtwith-card__blob {
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+  animation: builtwith-float 5.5s var(--ease-base) infinite;
+}
+
+.builtwith-name,
+.builtwith-wordmark {
+  color: var(--color-primary-deep);
+  font-size: 1.15rem;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+
+/* Didact has no logo of its own, so its mark is the name itself: the letters
+   settle in, then a rule draws under them. */
+.builtwith-wordmark {
+  position: relative;
+  display: inline-flex;
+  padding-bottom: 8px;
+  font-size: 1.5rem;
+}
+
+.builtwith-wordmark__rule {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: var(--color-accent);
+  transform-origin: left center;
+}
+
+.builtwith-card__body {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.builtwith-card__body strong {
+  color: var(--color-primary-deep);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.builtwith-card__body small {
+  color: var(--color-text-secondary);
+  font-size: .88rem;
+  line-height: 1.6;
+}
+
+@keyframes builtwith-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .builtwith-card__blob {
+    animation: none;
+  }
+
+  .media-video__frame {
+    transition: none;
+  }
 }
 
 @media (max-width: 1000px) {
-  .media-cell {
-    min-height: 340px;
+  /* Narrow panes: from here down a media cell is only ~215px wide, whether the
+     grid still has two columns or has already collapsed to one. */
+
+  /* 48 bars with a 3px gap needed 189px of gutter alone, so the bars collapsed to
+     nothing and the row spilled out of the clipped card. 28 bars fit; keep the
+     gap tight here anyway. */
+  .waveform {
+    height: 68px;
+    gap: 1px;
+  }
+
+  .media-audio__track {
+    gap: 12px;
+  }
+
+  .media-video__subtitle {
+    padding: 6px 8px;
+    font-size: .66rem;
   }
 
   .profile-list {
@@ -627,12 +853,9 @@ a.social-link:hover {
 }
 
 @media (max-width: 700px) {
+
   .multimodal-surface {
     grid-template-columns: 1fr;
-  }
-
-  .media-cell {
-    min-height: 340px;
   }
 
   .media-audio p {
@@ -648,9 +871,26 @@ a.social-link:hover {
     gap: 36px;
   }
 
-  .open-source-row,
-  .education-copy {
+  .open-source-row {
     grid-template-columns: 1fr;
+  }
+
+  .builtwith-list {
+    grid-template-columns: 1fr;
+  }
+
+  .builtwith-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 18px;
+  }
+
+  /* Stacked, the mark's flex-basis would become a fixed height and leave a gap
+     under the shorter of the two marks. */
+  .builtwith-card__mark {
+    width: auto;
+    flex: none;
+    align-items: flex-start;
   }
 
   .open-source-copy,
@@ -671,5 +911,39 @@ a.social-link:hover {
   .footer-meta {
     flex-direction: column;
     gap: 8px;
+  }
+}
+
+/* Hero entrance.
+   framer-motion writes its `initial` styles into the HTML Astro renders on the
+   server, which shipped the main heading as `opacity: 0` -- invisible without
+   JavaScript, and to anything reading the page before it runs. A CSS animation
+   carries the same curve without touching the server-rendered markup. */
+@keyframes hero-rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.hero-rise {
+  animation: hero-rise 0.7s cubic-bezier(0.38, 0.49, 0, 1) both;
+}
+
+.hero-rise--delay-1 {
+  animation-delay: 0.12s;
+}
+
+.hero-rise--delay-2 {
+  animation-delay: 0.24s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-rise {
+    animation: none;
   }
 }

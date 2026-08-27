@@ -312,7 +312,7 @@ Un punto de color pequeño. No un fondo de celda completo coloreado.
 
 ## Motion & Animations
 
-Ver [`motion-system.md`](motion-system.md) para la especificación completa de animación — curvas de easing, tiempos, patrones (modales morph, transiciones con blur, listas escalonadas, micro-interacciones).
+Ver [`motion-system.md`](/docs/motion-system) para la especificación completa de animación — curvas de easing, tiempos, patrones (modales morph, transiciones con blur, listas escalonadas, micro-interacciones).
 
 ---
 

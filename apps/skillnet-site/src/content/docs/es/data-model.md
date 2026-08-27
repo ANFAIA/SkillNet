@@ -787,7 +787,7 @@ correcto y sigue siendo sobre lo que corre en producción un curso v1 (cualquier
 `dynamic`+`validated`).
 
 v2 (cursos dinámicos) añade una cantidad considerable de esquema encima, y su documento de diseño de referencia es
-**[`v2-dynamic-courses.md`](v2-dynamic-courses.md) §3**, no este fichero. Ve allí para el detalle a
+**[`v2-dynamic-courses.md`](/docs/dynamic-courses) §3**, no este fichero. Ve allí para el detalle a
 nivel de columna, la composición de `cache_key`, las reglas de retención y el razonamiento.
 
 La forma de la adición, para que sepas si necesitas mirarlo:
@@ -862,7 +862,7 @@ fuente no cubiertas se registran de forma no bloqueante; un pack que no es `usab
 
 La migración **`0018_learner_learning_note`** añade `learner_profiles.learning_note`, una columna
 `Text` anulable que guarda la nota de texto libre del aprendiz *"cómo me gusta aprender"*. Guía
-**la forma de una explicación, nunca los hechos** (ver [`personalization.md`](personalization.md)). Está
+**la forma de una explicación, nunca los hechos** (ver [`personalization.md`](/docs/personalization)). Está
 limitada en longitud en la capa Pydantic (`LEARNING_NOTE_MAX_CHARS = 500`,
 `src/personalization/learning_note.py`), normalizada al escribirse, y su huella sha1 de 12
 caracteres `learning_note_fingerprint` particiona la clave de la caché de render
@@ -872,7 +872,7 @@ eliminando los pins de render de ese aprendiz.
 
 ### Artefactos multimedia
 
-Dos tablas delimitadas por org respaldan los medios generados (ver [`media-artifacts.md`](media-artifacts.md)).
+Dos tablas delimitadas por org respaldan los medios generados (ver [`media-artifacts.md`](/docs/media-artifacts)).
 
 - **`media_artifacts`** (`src/models/media_artifact.py`) — un asset multimedia generado.
   Enum `kind`, `MediaKind`: `podcast, slides, infographic, video, mindmap, report, cover_image`.

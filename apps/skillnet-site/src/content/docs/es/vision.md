@@ -59,7 +59,7 @@ Esto no es personalización como característica. Es el comportamiento por defec
 | **Patrón PageIndex para la recuperación del tutor** | El contenido del curso ya está estructurado (módulos > lecciones). Usar esa estructura en lugar de vectorizarlo todo. Dos consultas SQL + una llamada corta al LLM supera a la búsqueda semántica para preguntas dentro del curso. |
 | **Capa de LLM agnóstica de proveedor** | El modelo cambiará. La arquitectura no debe depender de ningún proveedor concreto. Cualquier API compatible con OpenAI funciona. |
 | **Autoalojado, una instancia por empresa** | Los datos de formación de la empresa son sensibles. El multi-tenant añade complejidad y riesgo. Una instancia por empresa es más simple y más fiable. |
-| **Intentos de ejercicio y eventos de aprendizaje registrados** | No para analítica vanidosa. Sostienen el futuro bucle de aprendizaje: separar preferencia, compromiso y eficacia. La repetición espaciada no está en la hoja de ruta actual; ver [adaptive-learning.md](adaptive-learning.md). |
+| **Intentos de ejercicio y eventos de aprendizaje registrados** | No para analítica vanidosa. Sostienen el futuro bucle de aprendizaje: separar preferencia, compromiso y eficacia. La repetición espaciada no está en la hoja de ruta actual; ver [adaptive-learning.md](/docs/adaptive-learning). |
 
 ## Qué significa esto para la hoja de ruta
 

@@ -375,6 +375,11 @@ class FakeSession:
         if "FROM media_artifacts" in sql:
             # The media broker's node -> ready-artefacts lookup; no artefacts in this harness.
             return FakeResult([])
+        if "FROM source_images" in sql:
+            # The source-image broker's document -> kept-images lookup. This harness's
+            # document carries no embedded images, which is the common case and the one
+            # that must leave the cache key exactly where it was.
+            return FakeResult([])
         raise AssertionError(f"unexpected query: {sql}")
 
     async def get(self, model, pk):

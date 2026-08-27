@@ -65,3 +65,30 @@ class MediaArtifactRepository(BaseRepository[MediaArtifact]):
             .order_by(MediaArtifact.created_at.desc())
         )
         return (await self.session.execute(query)).scalars().all()
+
+    async def list_asset_paths_for_course(self, course_id: uuid.UUID) -> list[str]:
+        """Every on-disk asset path this course's artifacts point at.
+
+        Not org-scoped: the caller is deleting the course row itself and has already
+        proved it owns it. Used to know which files to remove once the rows have
+        cascaded away.
+        """
+        query = select(MediaArtifact.asset_path).where(
+            MediaArtifact.course_id == course_id,
+            MediaArtifact.asset_path.is_not(None),
+        )
+        return sorted({path for path in (await self.session.execute(query)).scalars()})
+
+    async def paths_still_referenced(self, paths: Sequence[str]) -> set[str]:
+        """Which of ``paths`` some artifact still points at.
+
+        The store is content-addressed (``services/media/assets.py``), so two artifacts
+        with identical bytes share one file. Deleting a course must not remove a file
+        another course's artifact is still serving.
+        """
+        if not paths:
+            return set()
+        query = select(MediaArtifact.asset_path).where(
+            MediaArtifact.asset_path.in_(list(paths))
+        )
+        return {path for path in (await self.session.execute(query)).scalars() if path}

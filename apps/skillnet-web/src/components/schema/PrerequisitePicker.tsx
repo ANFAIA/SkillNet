@@ -72,7 +72,7 @@ export function PrerequisitePicker({
                 {option.position}.
               </span>
               <span className="text-sm text-text-secondary truncate min-w-0">
-                {option.title || 'Sin titulo'}
+                {option.title || 'Sin título'}
               </span>
             </label>
           ))}

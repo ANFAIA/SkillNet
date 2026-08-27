@@ -787,7 +787,7 @@ accurate and still what a v1 course (any course not on the `dynamic`+`validated`
 in production.
 
 v2 (dynamic courses) adds a substantial amount of schema on top, and its design of record is
-**[`v2-dynamic-courses.md`](v2-dynamic-courses.md) §3**, not this file. Go there for column-level
+**[`v2-dynamic-courses.md`](/en/docs/dynamic-courses) §3**, not this file. Go there for column-level
 detail, the `cache_key` composition, the retention rules and the reasoning.
 
 The shape of the addition, so you know whether you need to look:
@@ -860,7 +860,7 @@ source units are recorded non-blocking; a pack that is not `usable` is stored as
 
 Migration **`0018_learner_learning_note`** adds `learner_profiles.learning_note`, a nullable
 `Text` column holding the learner's free-text *"how I like to learn"* note. It steers **the
-form of an explanation, never the facts** (see [`personalization.md`](personalization.md)). It
+form of an explanation, never the facts** (see [`personalization.md`](/en/docs/personalization)). It
 is length-capped at the Pydantic layer (`LEARNING_NOTE_MAX_CHARS = 500`,
 `src/personalization/learning_note.py`), normalized on write, and its 12-char sha1
 `learning_note_fingerprint` partitions the render cache key
@@ -870,7 +870,7 @@ dropping that learner's render pins.
 
 ### Media artifacts
 
-Two org-scoped tables back the generated media (see [`media-artifacts.md`](media-artifacts.md)).
+Two org-scoped tables back the generated media (see [`media-artifacts.md`](/en/docs/media-artifacts)).
 
 - **`media_artifacts`** (`src/models/media_artifact.py`) — one generated media asset.
   `kind` enum `MediaKind`: `podcast, slides, infographic, video, mindmap, report, cover_image`.

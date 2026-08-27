@@ -15,7 +15,7 @@ que dice sirve para algo.
 
 ```bash
 cp .env.example .env     # y rellenar SECRET_KEY, POSTGRES_PASSWORD, LLM_*
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+docker compose -f docker-compose.yml -f docker/compose/dev.yml up -d --build
 ```
 
 `--build` no es decoracion: el fichero de desarrollo cambia el `target` a `builder`, y sin
@@ -218,7 +218,7 @@ uv run pytest -m "not integration"    # sin base de datos ni claves
 uv run ruff check src tests
 
 # Las de integracion necesitan un Postgres vivo:
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d db
+docker compose -f docker-compose.yml -f docker/compose/dev.yml up -d db
 $env:DATABASE_URL="postgresql+asyncpg://skillnet:skillnet@localhost:5432/skillnet"
 uv run pytest -m integration
 ```

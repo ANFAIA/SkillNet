@@ -2,6 +2,7 @@
 title: "Clasificación basada en contenido"
 order: 52
 section: "research"
+group: "semantic-boundaries"
 ---
 
 # Sistema de Clasificación de 3 Ejes

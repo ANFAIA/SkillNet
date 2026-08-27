@@ -21,7 +21,7 @@ nginx build, and rebuilding it for a CSS tweak is minutes per change. Run the AP
 Vite on the host:
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d db api
+docker compose -f docker-compose.yml -f docker/compose/dev.yml up -d db api
 pnpm --dir apps/skillnet-web install    # first time only
 pnpm --dir apps/skillnet-web dev        # http://localhost:5173, hot reload
 ```

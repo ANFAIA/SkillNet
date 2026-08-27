@@ -30,6 +30,12 @@ values in your `.env`, and move on.
 | **A local model** | Nothing — use the overlay in step 3 | Free, private, offline. But **slow**: measured ~185 s to generate one lesson screen on CPU. Needs ~8 GB of RAM and ~5 GB of disk. Good for trying it without an account; not comfortable for real use. |
 | **Nothing at all** | `LLM_MODEL=fixture/local` and `EMBEDDING_MODEL=fixture/local` | Free and instant, but only screens with a recorded response render. Enough to click through the interface; not enough to author a course. |
 
+`.env.example` is about fifty lines. Its first section, `# ── Required ──`, is the three
+values you have to fill in: the two secrets below and your provider key. Everything after it
+already works. Every variable SkillNet reads — including the ones the example does not list —
+is in [`docs/design/configuration.md`](docs/design/configuration.md), with its default and
+whether Docker actually passes it into the container.
+
 Whichever row you picked, two values are always required:
 
 | Variable | How to fill it |
@@ -56,12 +62,12 @@ docker compose up -d --build
 Or, if you picked the local model in step 2:
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.ollama.yml up -d --build
+docker compose -f docker-compose.yml -f docker/compose/ollama.yml up -d --build
 ```
 
 A cold build takes a couple of minutes. The ollama overlay also downloads the models (a few
 GB) before the API comes up, so give the first start time. See
-[`docker-compose.ollama.yml`](docker-compose.ollama.yml) for what it does and which model ids
+[`docker/compose/ollama.yml`](docker/compose/ollama.yml) for what it does and which model ids
 are valid.
 
 ## Step 4 — Open it and create your account
@@ -152,6 +158,48 @@ Three demo learners come with it. Their password is `aprender2026`:
 
 Sign in as your own owner account to author courses, or as one of these to take them.
 
+## Moving a course to another machine, without generating it again
+
+A **course package** is a directory that installs as a complete, validated course with no
+LLM call and no API key. Use it to put a course you already have onto another machine in
+seconds, instead of paying for the generation twice and getting a different course the second
+time. The design is in [`docs/design/course-packages.md`](docs/design/course-packages.md).
+
+```bash
+# Freeze a course you already have (the id is in the URL of its admin page).
+docker compose exec api uv run python scripts/course_package.py \
+    export <course-id> /app/course-packages
+
+# Check a package without touching a database. This one needs no container and no key,
+# so it also runs on the host while a package is being written by hand.
+cd apps/skillnet-api && uv run python scripts/course_package.py lint ../../course-packages/<slug>
+
+# Install it here. Defaults to the first organization and its admin;
+# override with --org-id / --admin-id.
+docker compose exec api python scripts/course_package.py install /app/course-packages/<slug>
+```
+
+`./course-packages` in the repository is mounted at `/app/course-packages`, so an export lands in a
+directory you can see and a package you drop there can be installed. To carry one between
+machines, copy the directory — there is nothing else to move and no registry to keep in step.
+
+Plain `python`, not `uv run python`, for the same reason as the seed above: inside the
+container `uv run` re-syncs the virtualenv and needs to reach PyPI.
+
+Installing is **safe to repeat**: a package always installs as the same course, so a second
+install updates it rather than creating a duplicate. Nodes are updated in place, so a
+re-install does not disturb the progress of anyone already taking the course.
+
+What a package carries is the course graph and its knowledge packs — the slow, expensive
+part. Screens are still generated live per learner on the target machine, so it needs a
+model for serving, just not for authoring. What it does not carry: enrolments, progress,
+chats, media files, or document chunks.
+
+You can also write a package by hand and install it, with no model involved at any point.
+That is the way to get a course whose material is exactly right rather than as good as
+whatever model was on the key that day; `lint` reports every fault in one pass, addressed by
+the field that has to change.
+
 ## Did it work?
 
 ```bash
@@ -177,6 +225,24 @@ checking, because a wrong embedding dimension is the one misconfiguration that o
 fails silently: documents look ingested but nothing can retrieve them, and the tutor answers
 from weaker sources without saying so.
 
+## Keeping your documents off a third party
+
+There is a middle path between "everything through an API key" and "everything local", and
+it is the one worth knowing about when the material belongs to a client:
+
+```bash
+docker compose -f docker-compose.yml -f docker/compose/embed.yml up -d --build
+```
+
+That points **embeddings only** at a local Ollama and leaves course generation on whatever
+`LLM_MODEL` says. Embeddings are the cheap half to run locally — `nomic-embed-text` outputs
+exactly the 768 dimensions the database column expects — and they are the half that sees
+every page of every document you ingest. Generation still goes to your provider, because
+the quality gap there is large and it costs cents per course.
+
+The full-local path is [`docker/compose/ollama.yml`](docker/compose/ollama.yml) instead: no
+key at all, and measured at ~185 s per lesson screen on CPU.
+
 ## Optional services
 
 A default `docker compose up -d` runs three containers: `db`, `api` and `web`. Three more
@@ -199,7 +265,7 @@ with **Vite on the host**, which hot-reloads on save:
 
 ```bash
 # 1. API + DB in Docker (the dev overlay publishes the API on 127.0.0.1:8000)
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d db api
+docker compose -f docker-compose.yml -f docker/compose/dev.yml up -d db api
 
 # 2. Frontend on the host — the one thing that needs Node (≥22) + pnpm locally
 #    (22, not 20: pnpm 11 needs the node:sqlite builtin, which Node 20 does not have)
@@ -259,14 +325,35 @@ thing has to keep working.
 | I want… | Use | Needs |
 |---|---|---|
 | people to try it **today** | the quick tunnel below | nothing at all |
-| a **stable** address on my own domain | [`docker-compose.cloudflared.yml`](docker-compose.cloudflared.yml) | a free Cloudflare account with a domain in it |
-| my own domain **and** my own certificate | [`docker-compose.caddy.yml`](docker-compose.caddy.yml) | a domain, DNS pointed at this host, ports 80/443 open |
+| to deploy on a **PaaS** (Dokploy) | `docker-compose.dokploy.yml` | a Dokploy host |
+| a **stable** address on my own domain | [`docker/compose/cloudflared.yml`](docker/compose/cloudflared.yml) | a free Cloudflare account with a domain in it |
+| my own domain **and** my own certificate | [`docker/compose/caddy.yml`](docker/compose/caddy.yml) | a domain, DNS pointed at this host, ports 80/443 open |
+
+### On a PaaS that already has a reverse proxy
+
+If the host runs Dokploy — or anything else that fronts containers with its own Traefik —
+use **`docker-compose.dokploy.yml`** and none of the overlays. Dokploy loads exactly one
+compose file, and that one is written for it: no published ports, the web service on
+Dokploy's external network, and cookies marked `Secure` because Traefik terminates the TLS.
+
+    Project -> Compose -> Provider: Git -> Compose Path: ./docker-compose.dokploy.yml
+    Environment tab: SECRET_KEY, POSTGRES_PASSWORD, LLM_API_KEY
+    Domains tab: ONE entry -> service `skillnet-web`, container port 80
+
+**One domain entry, not two.** `skillnet-web` already proxies `/api` and `/ext` to the API
+inside the container, so the router only needs to know about the front door. Deployments
+that drop that service have to add a second entry for `/api`, and forgetting it produces a
+failure that reads like a frontend bug: the app loads, then `GET /api/v1/setup/status`
+returns 200 with `index.html` and the SPA parses HTML as JSON — "invalid response" on
+login, and no setup wizard.
+
+**Create your owner before you attach the domain**, for the reason in the box above.
 
 ### A public URL in one command, no account
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.quicktunnel.yml up -d --build
-docker compose -f docker-compose.yml -f docker-compose.quicktunnel.yml logs quicktunnel | grep trycloudflare
+docker compose -f docker-compose.yml -f docker/compose/quicktunnel.yml up -d --build
+docker compose -f docker-compose.yml -f docker/compose/quicktunnel.yml logs quicktunnel | grep trycloudflare
 ```
 
 Every `-f` has to be repeated on every later command, including `logs` and `down` — Compose
@@ -294,7 +381,7 @@ it commented out on purpose so the overlays can raise it.
 ## Exposing SkillNet on your own domain
 
 The default stack is loopback-friendly, not internet-friendly: `web` speaks plain HTTP, which
-is fine on `localhost` but not something to hand a real domain. `docker-compose.caddy.yml` is
+is fine on `localhost` but not something to hand a real domain. `docker/compose/caddy.yml` is
 an optional overlay that puts [Caddy](https://caddyserver.com/) in front of `web` as a
 reverse proxy with automatic Let's Encrypt TLS.
 
@@ -312,7 +399,7 @@ reverse proxy with automatic Let's Encrypt TLS.
 DOMAIN=courses.example.com
 CADDY_EMAIL=you@example.com   # required — Caddy's `email` directive can't be blank
 
-docker compose -f docker-compose.yml -f docker-compose.caddy.yml up -d --build
+docker compose -f docker-compose.yml -f docker/compose/caddy.yml up -d --build
 ```
 
 This overlay also takes `web` off its own public port — Caddy becomes the only public
@@ -348,14 +435,15 @@ random hostname that changes on every restart. A domain in Cloudflare is require
 # .env
 CLOUDFLARE_TUNNEL_TOKEN=<the token from the dashboard>
 
-docker compose -f docker-compose.yml -f docker-compose.cloudflared.yml up -d --build
+docker compose -f docker-compose.yml -f docker/compose/cloudflared.yml up -d --build
 ```
 
 No router or firewall changes of any kind — unlike the Caddy path, there is nothing to
 open on 80/443. Once the tunnel connects (check with `docker compose logs cloudflared`),
 the hostname you set in step 1 serves SkillNet over HTTPS, TLS handled entirely by
 Cloudflare. Set `COOKIE_SECURE=true` once traffic is genuinely arriving over HTTPS through
-the tunnel — see the `COOKIE_SECURE` note next to `DOMAIN` in `.env.example`.
+the tunnel — see "`COOKIE_SECURE` and the exposure overlays" in
+[`docs/design/configuration.md`](docs/design/configuration.md).
 
 ## Backing it up
 
@@ -405,8 +493,10 @@ worth knowing before you pull:
 - **Back up first** if the instance holds anything you care about. See above. A migration is
   not reversible in practice — the downgrade path exists for tests, and one of them changes a
   vector dimension, which cannot preserve the vectors.
-- **Read the diff of `.env.example`.** New settings appear there, and a setting that only
-  exists in your `.env` but not in `docker-compose.yml` never reaches the container.
+- **Read the diff of `.env.example`.** New settings you have to fill in appear there. For
+  anything else, [`docs/design/configuration.md`](docs/design/configuration.md) is the full
+  list — and note that a setting which exists in your `.env` but not in `docker-compose.yml`
+  never reaches the container. That page says which ones those are.
 
 ## Stopping it
 
@@ -420,4 +510,6 @@ docker compose down -v    # stop, destroy the database and uploads
 **Next:** [`README.md`](README.md) for what SkillNet is and how it works,
 [`AGENTS.md`](AGENTS.md) for conventions and boundaries when changing the code, and
 [`docs/design/docker-deployment.md`](docs/design/docker-deployment.md) for why the deployment
-is shaped this way.
+is shaped this way, and [`docs/design/compose-layout.md`](docs/design/compose-layout.md) for
+why the compose files are laid out the way they are — including the three designs that were
+tried and discarded.

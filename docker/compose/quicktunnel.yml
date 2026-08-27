@@ -1,0 +1,68 @@
+# SkillNet — a public HTTPS URL in one command, with no account and no domain.
+# Usage: docker compose -f docker-compose.yml -f docker/compose/quicktunnel.yml up -d --build
+#        docker compose -f docker-compose.yml -f docker/compose/quicktunnel.yml logs quicktunnel
+#
+# For letting a few people in from outside your network **today** — a demo, a class, a
+# colleague trying it from home. `cloudflared` dials out to Cloudflare's edge and Cloudflare
+# hands back a random `https://<words>.trycloudflare.com` hostname that works from anywhere.
+# No Cloudflare account, no domain, no DNS record, and nothing to open on the router.
+#
+# ## Complete /setup BEFORE you start this
+#
+# `POST /setup` is public until an owner exists — it has to be, since it is how the first one
+# is created, and it closes for good afterwards. Start the stack on localhost, create your
+# owner, and only then bring up this overlay. The other order leaves a window where whoever
+# reaches the URL first owns the deployment, and a tunnel hostname is guessable.
+#
+# ## What you are trading away, stated plainly
+#
+# The hostname is EPHEMERAL. It changes every time this container restarts, Cloudflare offers
+# it with no uptime guarantee, and anyone who has the URL can reach the site — there is no
+# access control in front of it. That makes this the wrong tool for anything that has to keep
+# working tomorrow. For that, use `docker/compose/cloudflared.yml` (a named tunnel with a
+# stable hostname on your own domain) or `docker/compose/caddy.yml` (your own domain and
+# certificate). This file is the third rung of that ladder, not a replacement for either.
+#
+# ## The URL is in the logs, not here
+#
+# Cloudflare assigns it at connect time, so nothing in this file can predict it:
+#
+#   docker compose -f docker-compose.yml -f docker/compose/quicktunnel.yml logs quicktunnel \
+#     | grep trycloudflare.com
+#
+# ## Why this file also touches `api` and `web`
+#
+# Because the point of an overlay is that one command leaves you in a correct state. Both of
+# the other exposure overlays flip `COOKIE_SECURE` and pull `web` off its public port, and a
+# quick tunnel is just as public as they are — measured: with the base file's
+# `COOKIE_SECURE=false`, logging in through the tunnel returned
+# `Set-Cookie: skillnet_session=...; HttpOnly; Max-Age=604800; Path=/; SameSite=lax`
+# with no `Secure` flag, over a real public HTTPS URL. Leaving that to a manual step the
+# operator has to remember, after the site is already reachable, is how it stays wrong.
+
+services:
+  quicktunnel:
+    # Pinned, not `latest`: everything else in this repo pins its image, and a
+    # `docker compose pull` should not be able to change how a deployment behaves.
+    image: cloudflare/cloudflared:2026.8.2
+    restart: unless-stopped
+    # No `ports:` — the connection to Cloudflare's edge is outbound only.
+    command: ["tunnel", "--no-autoupdate", "--url", "http://web:80"]
+    depends_on:
+      web:
+        condition: service_healthy
+
+  api:
+    environment:
+      # Cloudflare terminates TLS at its edge, so traffic really is arriving over HTTPS.
+      # Same default as the other two exposure overlays; a value in `.env` still wins.
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+
+  # `!override` rather than a second entry: Compose MERGES sequence fields like `ports:`
+  # across files instead of replacing them, so without the tag `web` ends up published on
+  # both the base file's `0.0.0.0:3000` and this file's loopback binding at once — which
+  # would leave the same service reachable through a second, unencrypted path.
+  # https://docs.docker.com/reference/compose-file/merge/#override
+  web:
+    ports: !override
+      - "127.0.0.1:${PORT:-3000}:80"

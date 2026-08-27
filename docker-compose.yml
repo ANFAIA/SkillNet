@@ -33,6 +33,30 @@ services:
       retries: 10
 
   # ── Backend API ─────────────────────────────────────────────
+  # ── Data-volume repair (runs once, then exits) ───────────────
+  # A named volume takes its ownership from the image the first time Docker creates it and
+  # never again, so a volume made before the image created these paths stays root-owned
+  # through every rebuild — and every podcast and every infographic dies on
+  # `PermissionError: [Errno 13] Permission denied: '/data/media_assets/...'`. Reported
+  # from a real deployment whose image already carried the fix.
+  #
+  # Same image, `user: root`, `true` as the command: the entrypoint's repair branch runs,
+  # drops privileges, execs `true`, and the container exits 0. Keeping it out of `api`
+  # is what lets that service — and therefore every `docker compose exec` a person types —
+  # stay unprivileged, so a seed never leaves root-owned media behind.
+  api-init:
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+    user: root
+    command: ["true"]
+    restart: "no"
+    logging: *default-logging
+    volumes:
+      - uploads:/data/uploads
+      - media_assets:/data/media_assets
+      - tts_cache:/data/tts_cache
+
   api:
     build:
       context: .
@@ -44,6 +68,13 @@ services:
       SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env (32 caracteres o mas)}
       SESSION_LIFETIME_SECONDS: ${SESSION_LIFETIME_SECONDS:-604800}
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      # Sign in with Google (optional). Empty client id/secret keeps the feature off
+      # and the /auth/google/* routes answering 404.
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-}
+      GOOGLE_POST_LOGIN_PATH: ${GOOGLE_POST_LOGIN_PATH:-/}
+      GOOGLE_LOGIN_ERROR_PATH: ${GOOGLE_LOGIN_ERROR_PATH:-/login}
       # Without this line the `.env` never arrives: no service declares `env_file`, and
       # `.dockerignore` keeps `.env` out of the image, so pydantic's `env_file=".env"`
       # finds nothing inside the container. Only the keys listed here get through — which
@@ -84,6 +115,7 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS:-["http://localhost:3000"]}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       ENVIRONMENT: ${ENVIRONMENT:-production}
+      SETUP_WINDOW_MINUTES: ${SETUP_WINDOW_MINUTES:-30}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
       ORG_NAME: ${ORG_NAME:-SkillNet}
@@ -104,6 +136,7 @@ services:
       # the keys above: `.env` is dockerignored, so without this line the key never reaches
       # the container and every image call goes out with api_key=None -> 401 Unauthorized.
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      IMAGE_API_KEY: ${IMAGE_API_KEY:-}
       IMAGE_MODEL: ${IMAGE_MODEL:-openrouter/google/gemini-2.5-flash-image}
       IMAGE_FALLBACK_MODEL: ${IMAGE_FALLBACK_MODEL:-gpt-image-1}
       # Generated media (podcast mp3, infographic/cover png) and the TTS cache. Both
@@ -113,18 +146,46 @@ services:
       # named volumes below actually hold them.
       MEDIA_ASSETS_DIR: ${MEDIA_ASSETS_DIR:-/data/media_assets}
       TTS_CACHE_DIR: ${TTS_CACHE_DIR:-/data/tts_cache}
-      # Runtime component selection for dynamic courses. Documented in .env.example, so
-      # they have to reach the container — there is no env_file, and a setting that is
-      # documented but not wired changes nothing and says nothing when you set it.
+      # Images extracted from uploaded PDFs (the customer's OWN diagrams). Same relative
+      # default problem as the two above, so it is pinned here too — but INSIDE the
+      # `uploads` volume rather than at a fourth one: a source image has exactly the
+      # lifetime of the file it came out of, and the entrypoint already repairs ownership
+      # under /data/uploads recursively, so there is no new mount to get wrong.
+      SOURCE_IMAGES_DIR: ${SOURCE_IMAGES_DIR:-/data/uploads/source_images}
+      # Runtime component selection for dynamic courses. Research dials, so they are NOT in
+      # .env.example (docs/design/configuration.md, "Do not set"), but they stay wired here:
+      # there is no env_file, and a setting that is documented but not wired changes nothing
+      # and says nothing when you set it.
       RUNTIME_SELECTION_STRATEGY: ${RUNTIME_SELECTION_STRATEGY:-top5/v1}
       RUNTIME_SELECTION_EXECUTION: ${RUNTIME_SELECTION_EXECUTION:-live}
+      # nginx sets X-Forwarded-For and X-Forwarded-Proto (docker/nginx.conf), and uvicorn
+      # ignores both unless the sender is a trusted proxy — its default is 127.0.0.1,
+      # which nginx never is, being a different container. So the API never knew a request
+      # arrived over HTTPS, and saw nginx's IP as the client. Measured with
+      # `uvicorn.config.Config`, not assumed.
+      #
+      # Trusting everything is defensible here for one reason only: `api` publishes no
+      # port, so nginx is the only thing that can reach it. If that ever changes, this has
+      # to become the proxy's CIDR.
+      FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS:-*}
     volumes:
       - uploads:/data/uploads
       - media_assets:/data/media_assets
       - tts_cache:/data/tts_cache
+      # Course packages, as a bind mount rather than a named volume on purpose: a package
+      # is a thing you copy between machines, so it has to be a directory you can see. It
+      # is writable because `course_package.py export` writes here; a named volume would
+      # leave the export somewhere only Docker can reach, which defeats the point.
+      #
+      # `course-packages`, not `packages`: the repository root already has a `packages/`
+      # holding the TypeScript workspaces, and an export landing in there would drop a
+      # course into a directory AGENTS.md marks as off limits.
+      - ./course-packages:/app/course-packages
     depends_on:
       db:
         condition: service_healthy
+      api-init:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8000/health').raise_for_status()"]
       interval: 10s
@@ -168,6 +229,7 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS:-["http://localhost:3000"]}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       ENVIRONMENT: ${ENVIRONMENT:-production}
+      SETUP_WINDOW_MINUTES: ${SETUP_WINDOW_MINUTES:-30}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
       ORG_NAME: ${ORG_NAME:-SkillNet}
@@ -175,6 +237,7 @@ services:
       # is image filesystem, so without them a rebuild silently discards generated media.
       MEDIA_ASSETS_DIR: ${MEDIA_ASSETS_DIR:-/data/media_assets}
       TTS_CACHE_DIR: ${TTS_CACHE_DIR:-/data/tts_cache}
+      SOURCE_IMAGES_DIR: ${SOURCE_IMAGES_DIR:-/data/uploads/source_images}
     volumes:
       - uploads:/data/uploads
       - media_assets:/data/media_assets
@@ -189,7 +252,7 @@ services:
       retries: 5
       start_period: 30s
 
-  # The `ollama` service used to live here and moved to `docker-compose.ollama.yml`,
+  # The `ollama` service used to live here and moved to `docker/compose/ollama.yml`,
   # because here it could not work: a `profiles:` entry cannot change the environment of
   # *another* service, so nothing ever told `api` it existed. It also published no port,
   # pulled no model, and its healthcheck (`ollama list`) exits 0 with zero models — it
@@ -248,6 +311,13 @@ services:
         condition: service_healthy
 
   # ── Frontend (nginx + React SPA) ───────────────────────────
+  # DO NOT DELETE THIS SERVICE, and do not mistake it for a redundant reverse proxy when
+  # there is already one in front. It serves the built SPA, does the history-API fallback
+  # React Router needs, merges `/api` into the same origin as the frontend, carries the
+  # security headers, enforces the upload limit, and turns off proxy buffering so the
+  # streaming chat arrives token by token. A router like Traefik does none of those: it
+  # routes to a backend, it cannot be one. Remove this and there is no interface at all —
+  # the app never loads and every API call falls through to nothing.
   web:
     build:
       context: .

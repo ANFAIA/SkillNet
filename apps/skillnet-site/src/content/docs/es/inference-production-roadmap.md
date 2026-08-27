@@ -1,10 +1,13 @@
 ---
 title: "Hoja de ruta a producción"
-order: 64
+order: 62
 section: "research"
+group: "inference"
 ---
 
 # Hoja de Ruta a Producción: Páginas Vivas
+
+> **Estado:** propuesta, no un plan en vigor. La función de "páginas vivas" (traducir, simplificar o ampliar una página a demanda) no está implementada; las fases 2 a 4 nunca se empezaron.
 
 ## Filosofía
 
@@ -99,7 +102,7 @@ Primero que funcione, luego optimizar. El concepto se valida con modelos gratuit
 ## Decisiones Futuras
 
 - [ ] Modelo base para la LoRA (Llama 3.1 8B, Qwen3 8B, Gemma 4)
-- [x] Hosting para el modelo fine-tuned — ver [Opciones de servicio de LoRA](./lora-serving-options.md)
+- [x] Hosting para el modelo fine-tuned
 - [ ] Tamaño del dataset (500, 1.000, 2.000 pares)
 - [ ] Idiomas prioritarios (francés, alemán, portugués, chino)
 - [ ] Caché: duración, estrategia de invalidación

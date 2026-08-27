@@ -2,14 +2,28 @@
 
 import uuid
 from datetime import datetime, timezone
+from pathlib import Path
 
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from src.core.exceptions import ConflictError, NotFoundError, ValidationError
-from src.models import ArtifactGeneratePolicy, ContentStatus, Course, EnrollmentStatus, User
+from src.core.logging import get_logger
+from src.models import (
+    ArtifactGeneratePolicy,
+    ContentStatus,
+    Course,
+    CourseImageSourcePolicy,
+    CourseTutorStyle,
+    EnrollmentStatus,
+    User,
+)
 from src.repositories.course_repo import CourseRepository
 from src.repositories.course_folder_repo import CourseFolderRepository
+from src.repositories.media_artifact_repo import MediaArtifactRepository
 from src.services.course_delivery import resolve_delivery
+
+logger = get_logger(__name__)
 
 
 class CourseService:
@@ -70,6 +84,24 @@ class CourseService:
                 raise ValidationError(
                     "Invalid artifact generate policy",
                     field="artifact_generate_policy",
+                ) from exc
+        raw_tutor_style = changes.get("tutor_style")
+        if raw_tutor_style is not None:
+            try:
+                changes["tutor_style"] = CourseTutorStyle(raw_tutor_style)
+            except ValueError as exc:
+                raise ValidationError(
+                    "Invalid tutor style", field="tutor_style"
+                ) from exc
+        raw_image_policy = changes.get("image_source_policy")
+        if raw_image_policy is not None:
+            try:
+                changes["image_source_policy"] = CourseImageSourcePolicy(
+                    raw_image_policy
+                )
+            except ValueError as exc:
+                raise ValidationError(
+                    "Invalid image source policy", field="image_source_policy"
                 ) from exc
         clean = {
             k: v
@@ -144,4 +176,52 @@ class CourseService:
             raise ConflictError("Only draft courses can be deleted")
         if course.enrollments:
             raise ConflictError("Cannot delete a course that has enrollments")
-        await self.repo.delete(course)
+
+        media = MediaArtifactRepository(self.repo.session)
+        # Read the paths first: the rows cascade away with the course, and afterwards
+        # there is nothing left to say which files were theirs.
+        asset_paths = await media.list_asset_paths_for_course(course.id)
+        try:
+            await self.repo.delete(course)
+        except IntegrityError as exc:
+            # Something still points at this course with a restrictive foreign key.
+            # A 500 here is what made a failed draft undeletable; a conflict at least
+            # tells the admin what to do about it.
+            raise ConflictError(
+                "This course is still referenced by other records and cannot be "
+                "deleted. Archive it instead."
+            ) from exc
+        await self._remove_orphan_assets(media, course_id, asset_paths)
+
+    @staticmethod
+    async def _remove_orphan_assets(
+        media: MediaArtifactRepository, course_id: uuid.UUID, paths: list[str]
+    ) -> None:
+        """Delete the media files of the artifacts that just cascaded away.
+
+        Best-effort and never fatal: the rows are already gone, so a file that cannot be
+        removed is a stray byte on disk, not a failed delete. Paths another artifact
+        still points at are left alone — the asset store dedups by content hash, so one
+        file can serve several artifacts.
+        """
+        if not paths:
+            return
+        try:
+            still_used = await media.paths_still_referenced(paths)
+        except SQLAlchemyError as exc:  # pragma: no cover - defensive
+            logger.warning(
+                "Could not check media assets of deleted course %s: %s", course_id, exc
+            )
+            return
+        for path in paths:
+            if path in still_used:
+                continue
+            try:
+                Path(path).unlink(missing_ok=True)
+            except OSError as exc:
+                logger.warning(
+                    "Could not remove media asset %s of deleted course %s: %s",
+                    path,
+                    course_id,
+                    exc,
+                )

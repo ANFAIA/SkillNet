@@ -13,13 +13,13 @@ section: "core"
 >
 > Para trabajo nuevo, la arquitectura objetivo traslada el trabajo caro a generación/publicación,
 > deja al runtime seleccionar variantes preparadas y usa una frontera neutral. Está definida en
-> [`learning-experience-architecture.md`](learning-experience-architecture.md) y gana sobre este
+> [`learning-experience-architecture.md`](/docs/learning-experience-architecture) y gana sobre este
 > documento en esa dirección. Hasta completar sus gates, esta página sigue describiendo el pipeline
 > implementado.
 
-Depende de: [v2-dynamic-courses.md](v2-dynamic-courses.md),
-[openui-adoption.md](openui-adoption.md), [tuning.md](tuning.md) y
-[learning-experience-architecture.md](learning-experience-architecture.md).
+Depende de: [v2-dynamic-courses.md](/docs/dynamic-courses),
+[openui-adoption.md](/docs/openui-adoption), [tuning.md](/docs/tuning) y
+[learning-experience-architecture.md](/docs/learning-experience-architecture).
 
 ---
 

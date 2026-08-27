@@ -1,99 +1,163 @@
 ---
-// Static (zero-JS) docs navigation. Active page is highlighted by comparing
-// Astro.url.pathname at build/request time — no client-side JS needed.
-import { SECTION_LABELS, SECTION_ORDER } from "../../data/docsNav";
-
-interface NavEntry {
-  slug: string;
-  title: string;
-  section: string;
-}
+// Docs navigation, rendered as a file tree (folders, files, chevrons).
+//
+// The hierarchy is still derived from the entries themselves by buildDocsTree —
+// section frontmatter for level one, slug prefixes for level two — so adding a
+// document updates the navigation with no edit here. buildDocsFileTree only
+// reshapes that into the recursive node/openIds pair the island renders.
+//
+// The island renders the tree fully open on the server and collapses it in a
+// layout effect, so the links are in the HTML at full opacity for a reader with
+// no JavaScript and for a crawler. See the comment in DocsTree.tsx.
+import { buildDocsFileTree, type DocEntry } from "../../data/docsNav";
+import DocsTree from "./DocsTree.tsx";
 
 interface Props {
-  entries: NavEntry[];
+  entries: DocEntry[];
   currentSlug?: string;
   locale: "es" | "en";
 }
 
 const { entries, currentSlug, locale } = Astro.props;
-const labels = SECTION_LABELS[locale];
 const basePath = locale === "en" ? "/en/docs" : "/docs";
-const navLabel = locale === "en" ? "Documentation navigation" : "Navegación de documentación";
-
-const bySection = SECTION_ORDER.map((section) => ({
-  section,
-  label: labels[section],
-  items: entries.filter((e) => e.section === section),
-})).filter((group) => group.items.length > 0);
+const { nodes, openIds } = buildDocsFileTree(entries, locale, currentSlug, basePath);
 ---
 
-<nav aria-label={navLabel} class="docs-sidebar">
-  {bySection.map((group) => (
-    <div class="docs-sidebar__group">
-      <p class="docs-sidebar__label type-ui">{group.label}</p>
-      <ul>
-        {group.items.map((item) => (
-          <li>
-            <a
-              href={`${basePath}/${item.slug}`}
-              aria-current={item.slug === currentSlug ? "page" : undefined}
-              class="docs-sidebar__link type-body"
-            >
-              {item.title}
-            </a>
-          </li>
-        ))}
-      </ul>
-    </div>
-  ))}
-</nav>
+<DocsTree client:load nodes={nodes} openIds={openIds} currentSlug={currentSlug} locale={locale} />
 
-<style>
-  .docs-sidebar {
+<!-- The tree lives in a React island, so Astro's scoped styles cannot reach it:
+     these are global rules, but every selector is namespaced under .docs-tree. -->
+<style is:global>
+  .docs-tree {
     display: flex;
     flex-direction: column;
-    gap: 24px;
   }
 
-  .docs-sidebar__group {
+  .docs-tree__list {
     display: flex;
     flex-direction: column;
-    gap: 6px;
-  }
-
-  .docs-sidebar__label {
-    margin: 0 0 4px;
-    color: var(--color-text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-  }
-
-  .docs-sidebar__group ul {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
     margin: 0;
     padding: 0;
     list-style: none;
   }
 
-  .docs-sidebar__link {
-    display: block;
-    border-radius: 8px;
-    padding: 7px 10px;
-    color: var(--color-text-secondary);
-    line-height: 1.4;
+  .docs-tree__children {
+    /* The height animation needs the overflow clipped to read as a reveal. */
+    overflow: hidden;
+  }
+
+  .docs-tree__row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    width: 100%;
+    border: none;
+    border-radius: 6px;
+    background: none;
+    padding: 4px 8px;
+    color: var(--color-text);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
     transition: background 0.15s var(--ease-base), color 0.15s var(--ease-base);
   }
 
-  .docs-sidebar__link:hover {
-    background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+  .docs-tree__row:hover {
+    background: color-mix(in srgb, var(--color-text) 6%, transparent);
+  }
+
+  .docs-tree__row:has(.docs-tree__link:hover) {
+    background: color-mix(in srgb, var(--color-text) 6%, transparent);
+  }
+
+  .docs-tree__row:focus-visible,
+  .docs-tree__toggle:focus-visible,
+  .docs-tree__link:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: -2px;
+    border-radius: 6px;
+  }
+
+  .docs-tree__toggle {
+    display: flex;
+    align-items: center;
+    border: none;
+    background: none;
+    padding: 0;
+    color: inherit;
+    cursor: pointer;
+  }
+
+  .docs-tree__chevron {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    /* The 12px icon sits in a 16px slot: a file row leaves that slot empty, so
+       every name in the tree starts at the same x. */
+    width: 16px;
+    height: 12px;
+    color: var(--color-text-secondary);
+  }
+
+  .docs-tree__icon {
+    flex-shrink: 0;
+    color: var(--color-text-secondary);
+  }
+
+  .docs-tree__label {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    color: var(--color-text-secondary);
+    text-decoration: none;
+  }
+
+  /* The anchor covers the whole height of its row, so nothing inside the row is
+     a dead tap target; the text keeps the ellipsis. */
+  .docs-tree__link {
+    display: flex;
+    align-items: center;
+    align-self: stretch;
+  }
+
+  .docs-tree__text,
+  .docs-tree__label--section {
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .docs-tree__label--section {
+    color: var(--color-text);
+    font-weight: 600;
+  }
+
+  .docs-tree__row:hover .docs-tree__label {
     color: var(--color-text);
   }
 
-  .docs-sidebar__link[aria-current="page"] {
-    background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+  .docs-tree__link[aria-current="page"] {
     color: var(--color-primary-deep);
     font-weight: 600;
+  }
+
+  .docs-tree__row:has(.docs-tree__link[aria-current="page"]) {
+    background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+  }
+
+  .docs-tree__row:has(.docs-tree__link[aria-current="page"]) .docs-tree__icon,
+  .docs-tree__row:has(.docs-tree__link[aria-current="page"]) .docs-tree__chevron {
+    color: var(--color-primary-deep);
+  }
+
+  @media (max-width: 999px) {
+    /* Comfortable tap targets on a phone. */
+    .docs-tree__row {
+      padding-top: 8px;
+      padding-bottom: 8px;
+    }
   }
 </style>

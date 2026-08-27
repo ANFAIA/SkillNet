@@ -11,6 +11,7 @@ from src.llm.client import LLMService
 from src.llm.prompts.source import SOURCE_WRITER_SYSTEM, build_source_prompt
 from src.models import Document, DocumentOrigin, DocumentStatus
 from src.repositories.document_repo import DocumentRepository
+from src.services.source_images import SourceImageStore
 
 logger = get_logger(__name__)
 
@@ -195,6 +196,11 @@ class DocumentService:
         doc = await self.get_document(doc_id, org_id)
         storage_path = doc.storage_path
         await self.repo.delete(doc)
+        # Images extracted from this document are copies of the customer's own material,
+        # so they cannot outlive the record that says where they came from. The rows go
+        # with the FK (``source_images.document_id ON DELETE CASCADE``, migration 0026);
+        # the files need this call, and the store is per-document so it is total.
+        SourceImageStore().clear_document(org_id, doc_id)
         # Best-effort file cleanup; DB rows (chunks) cascade at the model level.
         try:
             path = Path(storage_path)

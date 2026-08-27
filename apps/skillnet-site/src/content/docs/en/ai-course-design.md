@@ -14,8 +14,8 @@ section: "extensibility"
 > cycle) and `content-generation.md` (v1 pipeline). Where this document contradicts the
 > other, the most recent one wins for the design phase; runtime is not touched here.
 
-Depends on: [v2-dynamic-courses.md](v2-dynamic-courses.md),
-[architecture.md](architecture.md), [llm-integration.md](llm-integration.md).
+Depends on: [v2-dynamic-courses.md](/en/docs/dynamic-courses),
+[architecture.md](/en/docs/architecture), [llm-integration.md](/en/docs/llm-integration).
 
 ---
 

@@ -226,8 +226,27 @@ export const infographicImageProps = z.object({
   alt: z.string().describe('Texto alternativo accesible que describe la imagen'),
 })
 
+/**
+ * An image kept verbatim from the customer's own source document.
+ *
+ * The first three props are the contract as agreed (`image_id`, `alt`, `caption`).
+ * `document_id` is fourth and last because the asset route is document-scoped
+ * (`GET /documents/{document_id}/images/{image_id}`), so the browser cannot fetch
+ * anything without it. Appending it rather than interleaving it is deliberate: if the
+ * backend broker ever emits only the agreed three, positional mapping still lands
+ * `image_id`/`alt`/`caption` correctly and `document_id` arrives empty — which
+ * `SourceImageBlock` degrades into its "image unavailable" state. Interleaved, the same
+ * mismatch would paint the caption as the alt text with no error anywhere.
+ */
+export const sourceImageProps = z.object({
+  image_id: z.string().describe('Id de la imagen extraida del documento de origen'),
+  alt: z.string().describe('Texto alternativo accesible que describe la imagen'),
+  caption: z.string().describe('Procedencia visible, p.ej. "Fuente: manual.pdf, pag. 7"'),
+  document_id: z.string().describe('Id del documento que contiene la imagen'),
+})
+
 /** The broker-scoped names, mirroring the `broker_scoped=True` specs of `src/render/kit.py`. */
-export const BROKER_COMPONENT_NAMES = ['PodcastPlayer', 'InfographicImage'] as const
+export const BROKER_COMPONENT_NAMES = ['PodcastPlayer', 'InfographicImage', 'SourceImage'] as const
 export type BrokerComponentName = (typeof BROKER_COMPONENT_NAMES)[number]
 
 /** The frozen names, in the order of the §5.3 table. */

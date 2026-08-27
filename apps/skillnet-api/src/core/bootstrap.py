@@ -140,3 +140,11 @@ def run_migrations() -> None:
     thread = threading.Thread(target=_upgrade, name="alembic-upgrade")
     thread.start()
     thread.join()
+
+async def deployment_has_owner(db: AsyncSession) -> bool:
+    """True once ANY user exists, which is what closes the public `POST /setup`.
+
+    Deliberately "any user", not "any admin": the same predicate `POST /setup` uses, so
+    the window the API opens at startup and the window the route enforces cannot drift.
+    """
+    return (await db.execute(select(User).limit(1))).scalar_one_or_none() is not None

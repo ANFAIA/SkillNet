@@ -59,6 +59,20 @@ class CourseRead(BaseModel):
     artifact_generate_policy: Literal["admin", "everyone", "selected"] = "admin"
     artifact_generator_ids: list[uuid.UUID] = []
     can_generate_artifacts: bool = False
+    #: How the learner tutor answers inside this course. Auto-detected at
+    #: creation by the schema designer, editable via ``PUT /courses/{id}``.
+    tutor_style: Literal["socratic", "direct"] = "socratic"
+    #: What this course does with the images embedded in its source document.
+    #: ``auto`` is the rule (diagrams get rebuilt, screenshots get kept); the two
+    #: overrides are policy escapes. Never asked at creation, edited afterwards.
+    image_source_policy: Literal["auto", "keep_original", "rebuild"] = "auto"
+    #: Whether a creation run owns this course and how the last one ended (migration
+    #: 0025). ``idle`` for anything nobody is creating, which is every course made
+    #: before the column existed — so the safe value is the one you get by default.
+    generation_state: Literal["idle", "in_progress", "failed", "complete"] = "idle"
+    #: Short, safe reason a creation run failed. Never a raw exception.
+    generation_error: str | None = None
+    generation_failed_at: datetime | None = None
 
 
 class CourseDetail(CourseRead):
@@ -89,6 +103,8 @@ class CourseUpdate(BaseModel):
     folder_id: uuid.UUID | None = None
     artifact_generate_policy: Literal["admin", "everyone", "selected"] | None = None
     artifact_generator_ids: list[uuid.UUID] | None = None
+    tutor_style: Literal["socratic", "direct"] | None = None
+    image_source_policy: Literal["auto", "keep_original", "rebuild"] | None = None
 
     @field_validator("title")
     @classmethod

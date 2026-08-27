@@ -10,11 +10,13 @@ from fastapi.responses import JSONResponse
 
 from src.config import settings
 from src.core.bootstrap import (
+    deployment_has_owner,
     ensure_organization,
     maybe_create_a2a_api_key,
     maybe_create_admin,
     run_migrations,
 )
+from src.core.setup_window import window as setup_window
 from src.core.exceptions import AppError
 from src.core.logging import configure_logging, get_logger
 from src.deps.auth import require_organization_workspace
@@ -23,6 +25,7 @@ from src.routes import (
     activities,
     ai,
     auth,
+    auth_google,
     chat,
     course_folders,
     course_schema,
@@ -52,6 +55,7 @@ from src.routes import (
 from src.routes.ext import courses as ext_courses
 from src.routes.ext import skills as ext_skills
 from src.services.embedding_check import check_embedding_dimensions
+from src.services.startup_reconcile import reconcile_interrupted_work
 from src.services.media import infographic as _infographic  # noqa: F401
 
 # Importing the media generator packages registers each MediaGenerator under its kind,
@@ -84,6 +88,16 @@ async def lifespan(app: FastAPI):
             # Solo avisa: sin embeddings el resto del producto sigue en pie, asi que
             # tumbar el arranque seria peor que el fallo que se quiere hacer visible.
             await check_embedding_dimensions(session)
+            # Nothing from a previous process survived it: every background job in this
+            # API is an asyncio task inside this one worker. Rows still marked running
+            # are therefore dead, and one of them — a `schema_proposing` job — blocks
+            # `POST /schema/propose` for its course permanently. Fail them, with a
+            # reason that says a restart happened.
+            await reconcile_interrupted_work(session)
+            # Solo si el despliegue sigue sin propietario: es lo que hace publica la
+            # ruta /setup, y por tanto lo que hay que acotar en el tiempo.
+            if not await deployment_has_owner(session):
+                setup_window.open(settings.SETUP_WINDOW_MINUTES)
     except Exception as exc:  # noqa: BLE001
         logger.error("Bootstrap (org/admin) failed: %s", exc)
 
@@ -93,10 +107,12 @@ async def lifespan(app: FastAPI):
 
 
 async def app_error_handler(request: Request, exc: AppError) -> JSONResponse:
-    return JSONResponse(
-        status_code=exc.status_code,
-        content={"detail": exc.message, "code": exc.code, "field": exc.field},
-    )
+    content: dict = {"detail": exc.message, "code": exc.code, "field": exc.field}
+    # Only errors that carry structured detail grow the envelope; every other error keeps
+    # exactly the three keys the frontend's ApiErrorBody has always read.
+    if exc.details:
+        content["details"] = exc.details
+    return JSONResponse(status_code=exc.status_code, content=content)
 
 
 async def validation_error_handler(
@@ -143,6 +159,8 @@ def create_app() -> FastAPI:
     app.include_router(ai.router, prefix=prefix)
     app.include_router(activities.router, prefix=prefix)
     app.include_router(auth.router, prefix=prefix)
+    # Sign in with Google. Every path 404s unless the deployment has credentials.
+    app.include_router(auth_google.router, prefix=prefix)
     # Public, single-shot first-boot setup (closes once a user exists).
     app.include_router(setup.router, prefix=prefix)
     app.include_router(users.router, prefix=prefix)

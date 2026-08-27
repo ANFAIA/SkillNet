@@ -1,0 +1,26 @@
+# Temporary local-only override: same as docker-compose.dev.yml's api service
+# (hot reload + host port), but WITHOUT touching db's port mapping — this host
+# already has a native Postgres bound to 127.0.0.1:5432. Not meant to be committed.
+services:
+  api:
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+      target: builder
+    command: ["uv", "run", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-dir", "src"]
+    working_dir: /app
+    healthcheck:
+      test: ["CMD", "/app/.venv/bin/python", "-c", "import httpx; httpx.get('http://localhost:8000/health').raise_for_status()"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    environment:
+      LOG_LEVEL: debug
+      ENVIRONMENT: development
+      COOKIE_SECURE: "false"
+    volumes:
+      - ./apps/skillnet-api:/app
+      - /app/.venv
+    ports:
+      - "127.0.0.1:8000:8000"

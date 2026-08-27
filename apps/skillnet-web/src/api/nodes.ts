@@ -443,7 +443,7 @@ export function useNodeRenderStream(handlers: RenderStreamHandlers = {}) {
               const message =
                 typeof data.message === 'string' && data.message.trim()
                   ? data.message
-                  : 'No se pudo preparar esta leccion.'
+                  : 'No se pudo preparar esta lección.'
               setState((prev) => ({
                 ...prev,
                 status: 'error',

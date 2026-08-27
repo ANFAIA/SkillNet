@@ -40,8 +40,11 @@ function sse(events: string[]) {
 }
 
 /** A `/chat` tutor answer as prose: no `ui` event, so the panel falls back to markdown. */
-function chatProse(text: string) {
-  return sse([`event: token\ndata: ${JSON.stringify({ content: text })}\n\n`])
+function chatProse(text: string, sessionId = 'session-1') {
+  return sse([
+    `event: token\ndata: ${JSON.stringify({ content: text })}\n\n`,
+    `event: done\ndata: ${JSON.stringify({ session_id: sessionId })}\n\n`,
+  ])
 }
 
 function explainProse(text: string) {
@@ -55,9 +58,10 @@ function explainProse(text: string) {
  * A `/chat` tutor answer that lays out: the DSL streams as `token` events and the
  * compiled program lands in a trailing `ui` event — the shape the modal must render.
  */
-function chatProgram(program: string) {
+function chatProgram(program: string, sessionId = 'session-1') {
   return sse([
     `event: token\ndata: ${JSON.stringify({ content: program })}\n\n`,
+    `event: done\ndata: ${JSON.stringify({ session_id: sessionId })}\n\n`,
     `event: ui\ndata: ${JSON.stringify({ program })}\n\n`,
   ])
 }
@@ -85,10 +89,57 @@ const PROGRAM = [
 
 const PANEL = 'La merma es el producto que se pierde antes de venderse.'
 const GLOSS = 'Producto no vendible.'
-const RETRY = 'No se pudo generar la explicacion. Prueba de nuevo.'
+const RETRY = 'No se pudo generar la explicación. Prueba de nuevo.'
 
 function explainCalls() {
   return mockFetch.mock.calls.filter((call) => String(call[0]).includes('/explain'))
+}
+
+/** A prose answer whose `done` event is held back to exercise the session-ready gate. */
+function chatProseWithDelayedDone(text: string, sessionId: string) {
+  const encoder = new TextEncoder()
+  let readIndex = 0
+  let releaseDone!: () => void
+  const doneGate = new Promise<void>((resolve) => {
+    releaseDone = resolve
+  })
+  return {
+    response: Promise.resolve({
+      ok: true,
+      status: 200,
+      body: {
+        getReader: () => ({
+          read: async () => {
+            if (readIndex === 0) {
+              readIndex += 1
+              return {
+                done: false,
+                value: encoder.encode(
+                  `event: token\ndata: ${JSON.stringify({ content: text })}\n\n`,
+                ),
+              }
+            }
+            if (readIndex === 1) {
+              readIndex += 1
+              await doneGate
+              return {
+                done: false,
+                value: encoder.encode(
+                  `event: done\ndata: ${JSON.stringify({ session_id: sessionId })}\n\n`,
+                ),
+              }
+            }
+            return { done: true, value: undefined }
+          },
+        }),
+      },
+    }),
+    releaseDone,
+  }
+}
+
+function chatCalls() {
+  return mockFetch.mock.calls.filter((call) => String(call[0]) === '/api/v1/chat')
 }
 
 function lastExplainTerm(): string {
@@ -113,7 +164,7 @@ function renderModal(onClose = vi.fn()) {
 
 /** The card, addressed by the name only it answers to. */
 function card() {
-  return screen.getByRole('dialog', { name: /Explicacion ampliada de/ })
+  return screen.getByRole('dialog', { name: /Explicación ampliada de/ })
 }
 
 /** The inline gloss bubble, which is the *other* dialog on screen. */
@@ -141,6 +192,25 @@ describe('ExplainModal', () => {
     const urls = mockFetch.mock.calls.map(([url]) => String(url))
     expect(urls).toContain('/api/v1/chat')
     expect(urls).not.toContain('/api/v1/chat/admin')
+  })
+
+  it('marks the expanded Curio request and sends node plus selection context', async () => {
+    renderModal()
+    await screen.findByText('producto')
+
+    const init = chatCalls()[0][1] as RequestInit
+    const body = JSON.parse(String(init.body)) as {
+      message: string
+      context: Record<string, unknown>
+    }
+
+    expect(body.message).not.toContain('Hazlo visual')
+    expect(body.context).toEqual({
+      surface: 'curio_explain',
+      selected_term: 'merma',
+      selection_context: 'Controlar la merma es parte del cierre de caja.',
+      node_id: 'node-1',
+    })
   })
 
   /**
@@ -242,6 +312,36 @@ describe('ExplainModal', () => {
   })
 
   describe('the follow-up thread', () => {
+    it('blocks the composer until the initial done event provides a session', async () => {
+      const delayed = chatProseWithDelayedDone(PANEL, 'delayed-session')
+      let chatRequest = 0
+      mockFetch.mockImplementation((url: string) => {
+        if (String(url).includes('/explain')) return explainProse(GLOSS)
+        chatRequest += 1
+        return chatRequest === 1
+          ? delayed.response
+          : chatProse(PANEL, 'delayed-session')
+      })
+      renderModal()
+      await waitFor(() => expect(chatCalls()).toHaveLength(1))
+
+      const waitingComposer = screen.getByPlaceholderText('Generando explicación')
+      expect(waitingComposer).toBeDisabled()
+      await userEvent.type(waitingComposer, 'Esto no debe enviarse{Enter}')
+      expect(chatCalls()).toHaveLength(1)
+
+      delayed.releaseDone()
+      const composer = await screen.findByPlaceholderText('Pregunta algo más...')
+      await waitFor(() => expect(composer).not.toBeDisabled())
+      await userEvent.type(composer, 'Ahora si{Enter}')
+      await waitFor(() => expect(chatCalls()).toHaveLength(2))
+
+      const body = JSON.parse(String((chatCalls()[1][1] as RequestInit).body)) as {
+        session_id?: string
+      }
+      expect(body.session_id).toBe('delayed-session')
+    })
+
     /**
      * The second half of the bug: the surface used to live inside the explanation
      * panel, so a follow-up answer rendered *outside* it and every word in it was dead
@@ -252,7 +352,7 @@ describe('ExplainModal', () => {
       await screen.findByText('producto')
 
       await userEvent.type(
-        screen.getByPlaceholderText('Pregunta algo mas...'),
+        screen.getByPlaceholderText('Pregunta algo más...'),
         'Como se calcula?{Enter}',
       )
 
@@ -262,6 +362,79 @@ describe('ExplainModal', () => {
 
       await waitFor(() => expect(explainCalls()).toHaveLength(1))
       expect(lastExplainTerm()).toBe('pierde')
+
+      const lastChatCall = chatCalls().at(-1)
+      expect(lastChatCall).toBeDefined()
+      const followUp = JSON.parse(String((lastChatCall![1] as RequestInit).body)) as {
+        context: Record<string, unknown>
+      }
+      expect(followUp.context).toMatchObject({
+        surface: 'curio_explain',
+        selected_term: 'merma',
+        node_id: 'node-1',
+      })
+      expect(
+        JSON.parse(String((lastChatCall![1] as RequestInit).body)).session_id,
+      ).toBe('session-1')
+    })
+
+    it('renders follow-up GenUI and never exposes its streamed DSL', async () => {
+      let chatRequest = 0
+      mockFetch.mockImplementation((url: string) => {
+        if (String(url).includes('/explain')) return explainProse(GLOSS)
+        chatRequest += 1
+        return chatRequest === 1
+          ? chatProse(PANEL, 'curio-session')
+          : chatProgram(PROGRAM, 'curio-session')
+      })
+      renderModal()
+      await screen.findByText('producto')
+
+      await userEvent.type(
+        screen.getByPlaceholderText('Pregunta algo más...'),
+        'Puedes explicarlo por pasos?{Enter}',
+      )
+
+      await waitFor(() =>
+        expect(card().querySelectorAll('[data-ui-format="explanation"]')).toHaveLength(1),
+      )
+      expect(card().textContent).toContain('Atender una consulta de alergenos')
+      expect(card().textContent).not.toContain('root = Stack')
+      expect(card().textContent).not.toContain('StepSequence(')
+
+      const followUpCall = chatCalls()[1]
+      const body = JSON.parse(String((followUpCall[1] as RequestInit).body)) as {
+        session_id?: string
+      }
+      expect(body.session_id).toBe('curio-session')
+    })
+
+    it('drops the prior session when drilling into another term', async () => {
+      let chatRequest = 0
+      mockFetch.mockImplementation((url: string) => {
+        if (String(url).includes('/explain')) return explainProse(GLOSS)
+        chatRequest += 1
+        return chatProse(PANEL, chatRequest === 1 ? 'session-merma' : 'session-producto')
+      })
+      renderModal()
+      await screen.findByText('producto')
+
+      await userEvent.click(screen.getAllByText('producto')[0])
+      await screen.findByText(GLOSS)
+      await userEvent.click(screen.getByRole('button', { name: 'Ver más' }))
+      await waitFor(() => expect(chatCalls()).toHaveLength(2))
+
+      await userEvent.type(
+        screen.getByPlaceholderText('Pregunta algo más...'),
+        'Y esto como encaja?{Enter}',
+      )
+      await waitFor(() => expect(chatCalls()).toHaveLength(3))
+
+      const body = JSON.parse(String((chatCalls()[2][1] as RequestInit).body)) as {
+        session_id?: string
+      }
+      expect(body.session_id).toBe('session-producto')
+      expect(body.session_id).not.toBe('session-merma')
     })
 
     it('drops the thread when the reader drills into a new term', async () => {
@@ -269,7 +442,7 @@ describe('ExplainModal', () => {
       await screen.findByText('producto')
 
       await userEvent.type(
-        screen.getByPlaceholderText('Pregunta algo mas...'),
+        screen.getByPlaceholderText('Pregunta algo más...'),
         'Como se calcula?{Enter}',
       )
       await screen.findByText('Como se calcula?')
@@ -277,11 +450,68 @@ describe('ExplainModal', () => {
       // The answer repeats the panel's prose, so pick the panel's own copy.
       await userEvent.click(screen.getAllByText('producto')[0])
       await screen.findByText(GLOSS)
-      await userEvent.click(screen.getByRole('button', { name: 'Ver mas' }))
+      await userEvent.click(screen.getByRole('button', { name: 'Ver más' }))
 
       // The panel is now about "producto"; the question about "merma" is gone.
       await waitFor(() =>
         expect(screen.queryByText('Como se calcula?')).not.toBeInTheDocument(),
+      )
+    })
+
+    /**
+     * El bug reportado: "si intentas continuar la conversacion, la respuesta que te da la
+     * IA no se renderiza". Una respuesta que llega vacia —el modelo escribio un programa,
+     * el validador lo rechazo y entonces no hay ni programa ni prosa de la que tirar— no
+     * puede quedarse en una burbuja en blanco, que es indistinguible de "no ha llegado".
+     */
+    it('nunca deja la burbuja en blanco cuando la respuesta llega vacia', async () => {
+      let chatRequest = 0
+      mockFetch.mockImplementation((url: string) => {
+        if (String(url).includes('/explain')) return explainProse(GLOSS)
+        chatRequest += 1
+        return chatRequest === 1 ? chatProse(PANEL) : chatNothing()
+      })
+      renderModal()
+      await screen.findByText('producto')
+
+      await userEvent.type(
+        screen.getByPlaceholderText('Pregunta algo más...'),
+        'Y esto?{Enter}',
+      )
+      await waitFor(() => expect(chatCalls()).toHaveLength(2))
+
+      await waitFor(() => expect(screen.getByText(RETRY)).toBeInTheDocument())
+    })
+
+    /**
+     * La otra mitad: preguntar otra vez aborta el stream anterior, y ese mensaje sigue en
+     * pantalla. Si el abort no lo cierra, se queda con los tres puntos para siempre.
+     */
+    it('cierra la respuesta anterior cuando una pregunta nueva la aborta', async () => {
+      const delayed = chatProseWithDelayedDone(PANEL, 'session-1')
+      let chatRequest = 0
+      mockFetch.mockImplementation((url: string) => {
+        if (String(url).includes('/explain')) return explainProse(GLOSS)
+        chatRequest += 1
+        if (chatRequest === 1) return chatProse(PANEL)
+        if (chatRequest === 2) return delayed.response
+        return chatProse('la segunda respuesta')
+      })
+      renderModal()
+      await screen.findByText('producto')
+
+      const composer = screen.getByPlaceholderText('Pregunta algo más...')
+      await userEvent.type(composer, 'Primera?{Enter}')
+      await waitFor(() => expect(chatCalls()).toHaveLength(2))
+
+      // La segunda pregunta aborta el stream de la primera.
+      await userEvent.type(composer, 'Segunda?{Enter}')
+      await waitFor(() => expect(chatCalls()).toHaveLength(3))
+      delayed.releaseDone()
+
+      // Como maximo una respuesta puntea a la vez: la que de verdad esta en vuelo.
+      await waitFor(() =>
+        expect(card().querySelectorAll('.typing-dots').length).toBeLessThanOrEqual(1),
       )
     })
   })
@@ -292,13 +522,13 @@ describe('ExplainModal', () => {
 
       await userEvent.click(await screen.findByText('producto'))
       await screen.findByText(GLOSS)
-      await userEvent.click(screen.getByRole('button', { name: 'Ver mas' }))
+      await userEvent.click(screen.getByRole('button', { name: 'Ver más' }))
 
       // One card, now titled with the new term, plus a breadcrumb back to the old one.
       await waitFor(() =>
-        expect(screen.getAllByRole('dialog', { name: /Explicacion ampliada de/ })).toHaveLength(1),
+        expect(screen.getAllByRole('dialog', { name: /Explicación ampliada de/ })).toHaveLength(1),
       )
-      expect(card()).toHaveAccessibleName('Explicacion ampliada de producto')
+      expect(card()).toHaveAccessibleName('Explicación ampliada de producto')
       expect(screen.getByRole('button', { name: 'Volver' })).toBeInTheDocument()
     })
   })

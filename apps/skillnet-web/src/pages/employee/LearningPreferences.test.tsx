@@ -82,7 +82,7 @@ describe('LearningPreferencesPage', () => {
     expect(await screen.findByRole('radio', { name: /Visual/ })).toBeChecked()
     expect(screen.getByRole('radio', { name: /Detallado/ })).toBeChecked()
     expect(screen.getByRole('radio', { name: /Preferir/ })).toBeChecked()
-    expect(screen.getByRole('checkbox', { name: 'Bloques mas cortos' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Bloques más cortos' })).toBeChecked()
     expect(screen.getByLabelText('Vista previa')).toBeInTheDocument()
     expect(screen.queryByText('En directo')).not.toBeInTheDocument()
 
@@ -90,7 +90,7 @@ describe('LearningPreferencesPage', () => {
     await user.click(screen.getByRole('radio', { name: /Más práctica/ }))
     await user.click(screen.getByRole('radio', { name: /Conciso/ }))
     await user.click(screen.getByRole('radio', { name: /Evitar/ }))
-    await user.click(screen.getByRole('checkbox', { name: 'Bloques mas cortos' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Bloques más cortos' }))
 
     await waitFor(() => {
       expect(screen.getByRole('status')).toHaveTextContent('Preferencias guardadas')
@@ -129,7 +129,7 @@ describe('LearningPreferencesPage', () => {
     const user = userEvent.setup()
     renderPage()
 
-    const note = await screen.findByLabelText('Como te gusta aprender')
+    const note = await screen.findByLabelText('Cómo te gusta aprender')
     await user.type(note, 'me gustan las metaforas para aprender')
 
     await waitFor(() => {

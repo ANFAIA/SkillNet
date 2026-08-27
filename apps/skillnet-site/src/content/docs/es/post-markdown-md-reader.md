@@ -2,13 +2,14 @@
 title: "Cómo funciona md-reader"
 order: 60
 section: "research"
+group: "post-markdown"
 ---
 
 # Cómo funciona md-reader
 
 Referencia técnica de `@anfaia/md-reader-mcp` —el servidor MCP que da a los agentes de IA conciencia estructural de los ficheros Markdown.
 
-Fuente: [`packages/mcp-md-reader/`](../../../packages/mcp-md-reader/)
+Fuente: [`packages/mcp-md-reader/`](https://github.com/ANFAIA/SkillNet/tree/main/packages/mcp-md-reader)
 
 ## Visión general
 

@@ -125,4 +125,4 @@ recuperación activa, autoexplicación y escenario— siempre que no oculte ni s
 persona pidió. El sistema puede sugerir alternativas, pero el cambio requiere aceptación.
 
 La separación entre preferencia de presentación, accesibilidad, estrategia pedagógica y componente
-se define en [`adaptive-learning.md`](adaptive-learning.md).
+se define en [`adaptive-learning.md`](/docs/adaptive-learning).

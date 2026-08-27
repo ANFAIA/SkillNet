@@ -28,7 +28,10 @@ from fastapi import APIRouter
 
 from src.deps.auth import AdminUser
 from src.deps.db import DBSession
+from src.schemas.capabilities import CapabilitiesReport
 from src.schemas.settings import FeaturesUpdate, LLMTestResult, OrgSettingsRead
+from src.services.capabilities import derive_capabilities
+from src.services.media.requirements import requirements_payload
 from src.services.settings_service import SettingsService
 
 router = APIRouter(prefix="/settings", tags=["Settings"])
@@ -37,6 +40,24 @@ router = APIRouter(prefix="/settings", tags=["Settings"])
 @router.get("", response_model=OrgSettingsRead)
 async def get_settings(admin: AdminUser, db: DBSession) -> OrgSettingsRead:
     return await SettingsService(db).get_settings()
+
+
+@router.get("/capabilities", response_model=CapabilitiesReport)
+async def get_capabilities(admin: AdminUser) -> CapabilitiesReport:
+    """The same capabilities the public status endpoint reports, **with** the admin hints.
+
+    The hint is the whole reason this endpoint exists: it names the environment variable to
+    set, which is precisely what must not travel on the public ``GET /setup/status``. One
+    derivation feeds both, called with ``include_hints`` flipped, so the two payloads can
+    never disagree about what this deployment can do.
+
+    No ``DBSession``: capabilities are read from ``settings`` and from the in-process
+    provider-health registry, and asking the database would be a query for nothing.
+    """
+    return CapabilitiesReport(
+        capabilities=derive_capabilities(include_hints=True),
+        media_requirements=requirements_payload(),
+    )
 
 
 @router.put("/features", response_model=OrgSettingsRead)

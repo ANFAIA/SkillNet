@@ -10,8 +10,8 @@ Cómo un usuario nuevo llega a *entender y usar* SkillNet. Este documento fija e
 (principios + flujos), la **arquitectura** que lo sostiene, y un **plan por fases**. Es la vara
 de medir: cualquier pantalla futura del onboarding se contrasta contra esto.
 
-Relacionado: [degraded-mode-ux.md](degraded-mode-ux.md) (estados sin clave),
-[personalization.md](personalization.md) (perfil del aprendiz),
+Relacionado: [degraded-mode-ux.md](/docs/degraded-mode-ux) (estados sin clave),
+[personalization.md](/docs/personalization) (perfil del aprendiz),
 [audience-modes.md](audience-modes.md) (organización / individual).
 
 ---
@@ -49,8 +49,8 @@ con **una sola fuente de verdad** en vez de `if (hayClave)` esparcidos por todo 
 
 ```
                  ┌──────────────────────┐
-   settings/env  │  Capabilities        │  ai, generation, tutor, tts, images
-   claves        │  (¿qué IA hay?)      │  → GET /capabilities  (o /setup/status)
+   settings/env  │  Capabilities        │  ai, generation, tutor, tts, images,
+   claves        │  (¿qué IA hay?)      │  google_login → GET /setup/status
                  └──────────┬───────────┘
                             │  useCapabilities()
         ┌───────────────────┼────────────────────┐
@@ -60,20 +60,48 @@ con **una sola fuente de verdad** en vez de `if (hayClave)` esparcidos por todo 
 ```
 
 ### 2.1 `Capabilities` — la fuente de verdad
-Un objeto derivado de la presencia (y validez) de claves, expuesto por el backend:
+Un objeto derivado de la presencia (y validez) de claves, expuesto por el backend. Cada
+capacidad **dejó de ser un booleano**: un booleano sabe decir "no", pero no *por qué*, así
+que la UI solo podía apagar un botón sin explicar nada y la API solo podía aceptar un
+trabajo condenado.
 
 ```ts
+type CapabilityStatus = 'ready' | 'degraded' | 'blocked'
+type CapabilityReason =
+  | 'missing_api_key'   // no hay clave utilizable para el proveedor de esa capacidad
+  | 'not_configured'    // proveedor apagado a propósito en la configuración
+  | 'provider_quota'    // 429/402 reciente del proveedor
+  | 'provider_down'     // fallos duros o timeouts recientes
+
+interface Capability {
+  status: CapabilityStatus
+  reason?: CapabilityReason | null
+  hint?: string | null   // SOLO admin; siempre null en las respuestas públicas
+}
+
 interface Capabilities {
-  ai: boolean          // hay un LLM utilizable (nada funciona sin esto)
-  generation: boolean  // generar cursos/lecciones
-  tutor: boolean       // chat tutor
-  tts: boolean         // voz (mascota / podcast) — degrada a offline, ver degraded-mode
-  images: boolean      // infografías
+  ai: Capability           // hay un LLM utilizable (nada funciona sin esto)
+  generation: Capability   // generar cursos/lecciones
+  tutor: Capability        // chat tutor
+  tts: Capability          // voz (mascota / podcast) — degrada al motor offline, nunca bloquea
+  images: Capability       // infografías, ilustraciones de diapositivas — bloquea, no degrada
+  google_login: Capability // "Entrar con Google" configurado
 }
 ```
 
-- Backend: se calcula en un sitio (presencia de `LLM_API_KEY`, `TTS_API_KEY`, `OPENROUTER_API_KEY`).
-  Hoy `GET /setup/status` ya existe y es el sitio natural (ya le añadimos `onboarding_enabled`).
+- Backend: **una sola derivación** (`services/capabilities.derive_capabilities`), en dos
+  capas. La de configuración es una lectura pura de `settings` — sin red, no puede fallar,
+  y por eso se puede servir en el endpoint público. La de runtime
+  (`services/provider_health`) recuerda los fallos recientes del proveedor con un TTL y solo
+  puede **empeorar** una capacidad, nunca mejorarla.
+- `GET /setup/status` es **público y pre-autenticación**: lleva `status` y `reason`, y
+  `hint` siempre a `null`. Un `hint` nombra variables de entorno, y decirle a un anónimo qué
+  clave le falta al despliegue es divulgación de configuración (`docs/design/security.md`).
+  La versión con `hint` vive en `GET /settings/capabilities`, que pide admin.
+- Ambas respuestas llevan además `media_requirements`: qué capacidades necesita cada tipo de
+  artefacto (`{"infographic": ["ai", "images"], ...}`), para que el frontend no mantenga una
+  segunda copia de esa tabla. `POST /media/artifacts` la usa para rechazar en el acto, con
+  `409 capability_blocked`, lo que no puede terminar.
 - Frontend: **un hook `useCapabilities()`**. Cualquier pieza de IA lo consulta; nadie hardcodea
   "hay clave".
 
@@ -81,13 +109,20 @@ interface Capabilities {
 En lugar de esparcir condicionales, un componente/hook único:
 
 ```tsx
-<Gated requires="tutor">
-  <TutorPromptChip />        {/* solo se pinta si capabilities.tutor */}
+<Gated requires="tutor">                {/* modo `hide`, el de por defecto */}
+  <TutorPromptChip />                   {/* no se pinta si tutor está bloqueado */}
 </Gated>
 ```
 
-Regla: **el elemento de IA se enciende solo si su capacidad está.** Sin clave **no se muestra**
-(no un callejón/error). Ejemplos:
+Regla: **el elemento de IA se enciende solo si su capacidad está.** Ojo con la comprobación:
+una capacidad es un objeto y **todo objeto es truthy**, así que `capabilities[name]` a secas
+está siempre encendido — hay que preguntar por su `status` (`isReady` / `isAvailable` en
+`api/setup.ts`).
+
+`hide` es una de dos modalidades. La otra, `mode="explain"`, hace lo contrario a propósito:
+deja el control visible e inerte con el motivo a la vista. Se usa donde esconder confundiría
+más que explicar — la opción existe, simplemente no está disponible aquí. Ver
+[`degraded-mode-ux.md`](/docs/degraded-mode-ux) §5. Ejemplos del modo `hide`:
 
 | Siempre (estático / pre-cocinado) | `requires` (se enciende con clave) |
 |---|---|
@@ -114,8 +149,10 @@ interface OnboardingStep {
 }
 ```
 
-Filtro en runtime: `steps.filter(role).filter(cap => !s.requires || capabilities[s.requires])`.
-Un paso que habla del tutor **desaparece** sin clave, sin ramas ad-hoc.
+Filtro en runtime: `steps.filter(role).filter(s => !s.requires || flags[s.requires])`, donde
+`flags` viene de aplanar las capacidades a booleanos (`readyFlags`, en `ProductTour.tsx`).
+Preguntar directamente por `capabilities[s.requires]` **no filtra nada**: son objetos, y todos
+son truthy. Un paso que habla del tutor **desaparece** sin clave, sin ramas ad-hoc.
 
 ### 2.4 Estado del onboarding — por usuario, persistido, reabrible
 ```ts

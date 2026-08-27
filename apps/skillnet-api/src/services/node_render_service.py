@@ -251,6 +251,7 @@ def build_render_key(
     knowledge_pack_key: str = "",
     longitudinal_history: LongitudinalHistoryProjection | None = None,
     media_offer_fingerprint: str = "",
+    source_image_fingerprint: str = "",
     learning_note_fingerprint: str = "",
 ) -> RenderKey:
     """Compose the ``cache_key`` of §3.4 from a loaded context.
@@ -297,6 +298,15 @@ def build_render_key(
     # the shared render cache. Empty (the default) leaves every pre-existing key untouched.
     if media_offer_fingerprint:
         generation_key = f"{generation_key}+{media_offer_fingerprint}"
+    # The source-image broker decides what this course does with the pictures that were
+    # already inside its source document: place the original, or hand its description to
+    # the generator to re-express. Both the course's `image_source_policy` and the chosen
+    # images travel in this fingerprint, so flipping the setting re-renders instead of
+    # serving the stale lesson. Empty whenever the node matched no source image at all —
+    # which is every node of every course created from an idea rather than a file — so no
+    # pre-existing key moves.
+    if source_image_fingerprint:
+        generation_key = f"{generation_key}+{source_image_fingerprint}"
     # The learner's free-text "how I like to learn" note steers HOW the episode is explained,
     # so its render must be partitioned from the neutral render and from learners with a
     # different note. Empty (no note) leaves every pre-existing key untouched, so a learner
@@ -848,13 +858,28 @@ class NodeRenderService:
             offers_fingerprint,
             ready_media_for_node,
         )
+        from src.agents.runtime.source_image_broker import (
+            decide_source_images,
+            decision_fingerprint,
+            source_images_for_node,
+            suppress_competing_media,
+        )
 
         ready_media = await ready_media_for_node(
             self.db, node_id=node.id, org_id=node.org_id
         )
-        media_fingerprint = offers_fingerprint(
-            gate_offers(ready_media, getattr(profile, "learning_preferences", None))
+        media_offers = gate_offers(
+            ready_media, getattr(profile, "learning_preferences", None)
         )
+        image_decision = decide_source_images(
+            await source_images_for_node(self.db, node=node, org_id=node.org_id),
+            policy=getattr(course, "image_source_policy", None),
+            preferences=getattr(profile, "learning_preferences", None),
+        )
+        # A kept original evicts the generated infographic here exactly as it does inside
+        # the graph, or the pre-graph key would not be the key the graph then computes.
+        media_offers = suppress_competing_media(image_decision, media_offers)
+        media_fingerprint = offers_fingerprint(media_offers)
         from src.personalization.learning_note import learning_note_fingerprint
 
         note_fingerprint = learning_note_fingerprint(
@@ -872,6 +897,7 @@ class NodeRenderService:
             knowledge_pack_key=pack.cache_fragment if pack else "",
             longitudinal_history=history,
             media_offer_fingerprint=media_fingerprint,
+            source_image_fingerprint=decision_fingerprint(image_decision),
             learning_note_fingerprint=note_fingerprint,
         )
 

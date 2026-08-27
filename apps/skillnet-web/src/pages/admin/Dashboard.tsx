@@ -4,6 +4,7 @@ import { useIntl, type IntlShape } from 'react-intl'
 import { useStats } from '../../api/stats'
 import { useAuth, useWorkspaceMode } from '../../hooks/useAuth'
 import { Card, CardTitle, MetricCard, PageHeader, Skeleton } from '../../components/ui'
+import { CapabilityHealthBanner } from '../../components/settings/CapabilityHealthBanner'
 import { staggerContainer, staggerItem } from '../../lib/motion'
 import type { RecentActivityItem } from '../../types'
 
@@ -180,6 +181,7 @@ export function Dashboard() {
         title={intl.formatMessage({ id: 'admin.dashboard.title' })}
         description={intl.formatMessage({ id: 'admin.dashboard.description' })}
       />
+      <CapabilityHealthBanner />
 
       {/* Metric cards */}
       <motion.div

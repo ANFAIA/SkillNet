@@ -81,6 +81,12 @@ export const transition = {
   pushOut: { duration: duration.fast, ease: ease.snapOut },
   /** Micro-interaction (hover, tap) */
   micro: { type: 'spring' as const, stiffness: 500, damping: 30 },
+  /**
+   * A tooltip or popover appearing next to the control that summoned it. `fast`,
+   * because it is an answer to something the pointer is already doing — anything
+   * slower reads as lag rather than as motion.
+   */
+  tooltip: { duration: duration.fast, ease: ease.base },
 } as const
 
 // ── Reusable animation states ────────────────────────────────

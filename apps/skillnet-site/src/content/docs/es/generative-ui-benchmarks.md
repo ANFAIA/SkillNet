@@ -2,6 +2,7 @@
 title: "Bancos de pruebas de prototipos"
 order: 56
 section: "research"
+group: "generative-ui"
 ---
 
 # Bancos de Pruebas de Prototipos: Cinco Enfoques de UI Generativa Comparados

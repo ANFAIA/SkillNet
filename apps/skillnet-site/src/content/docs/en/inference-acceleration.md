@@ -2,9 +2,12 @@
 title: "Inference acceleration"
 order: 61
 section: "research"
+group: "inference"
 ---
 
 # Inference Acceleration
+
+> **Status:** the July 2026 measurements below still hold, and Groq is a supported `LLM_MODEL` value. The specialized hardware (LPU, wafer-scale) was surveyed, not adopted.
 
 Hardware and models specialized for fast LLM inference, enabling real-time content generation. Instead of waiting 10-30s for a page to translate or adapt, specialized hardware can do it in <1s.
 
@@ -110,6 +113,4 @@ This hardware exists today as a service — no on-premise deployment needed.
 
 ## Related Decisions
 
-- [Production Roadmap: Live Pages](./production-roadmap.md)
-- [Needle: Router for Specialized Models](./needle-router.md)
-- [LoRA Serving Options](./lora-serving-options.md) — where to host a custom LoRA for faster UI generation
+- [Production Roadmap: Live Pages](/en/docs/inference-production-roadmap)

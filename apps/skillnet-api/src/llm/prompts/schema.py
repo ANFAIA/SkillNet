@@ -97,11 +97,22 @@ Reglas, todas obligatorias:
    En un documento que es un procedimiento con pasos, crea un nodo por procedimiento
    y no anadas nodos de teoria que el documento no contiene.
 
+Ademas, elige el ESTILO del tutor de este curso ("tutor_style"), UNA sola vez para
+todo el curso:
+- "direct": el tutor responde de forma directa y concisa. Encaja con normativa,
+  cumplimiento, procedimientos con un paso correcto y una respuesta objetiva
+  ("¿que dice la politica sobre X?" -> decirlo).
+- "socratic": el tutor guia con una pregunta antes de dar la respuesta. Encaja con
+  cursos de pensamiento critico, habilidades o cuando hay varias formas validas de
+  razonar el resultado.
+Si el material mezcla ambos, elige el que domine el curso en conjunto.
+
 Responde en JSON valido, sin texto alrededor, con la forma:
 {{"nodes": [{{"title": str, "summary": str, "outcome": str,
             "criticality": str, "default_ui_format": str,
             "estimated_minutes": int, "source_headings": [str],
             "prerequisites": [int]}}],
+ "tutor_style": "direct" | "socratic",
  "notes": [str]}}
 """
 

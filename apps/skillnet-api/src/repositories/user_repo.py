@@ -21,6 +21,34 @@ class UserRepository(BaseRepository[User]):
         )
         return rows[0] if rows else None
 
+    async def get_by_google_sub(self, google_sub: str) -> User | None:
+        """Look up an account by its external Google identity.
+
+        Not scoped to an organization on purpose: `google_sub` is unique across the
+        whole table (migration 0022), and at sign-in time there is no organization
+        context yet — the account is what determines it.
+        """
+        rows, _ = await self.list(filters=[User.google_sub == google_sub], limit=1)
+        return rows[0] if rows else None
+
+    async def count_admins(
+        self, org_id: uuid.UUID, *, exclude_user_id: uuid.UUID | None = None
+    ) -> int:
+        """How many *active* admins the organization would still have.
+
+        Active only: a deactivated admin cannot sign in, so counting them would let
+        the last usable administrator be demoted and lock everyone out.
+        """
+        filters: list[ColumnElement[bool]] = [
+            User.org_id == org_id,
+            User.role == UserRole.ADMIN,
+            User.is_active.is_(True),
+        ]
+        if exclude_user_id is not None:
+            filters.append(User.id != exclude_user_id)
+        _, total = await self.list(filters=filters, limit=1)
+        return total
+
     async def list_users(
         self,
         *,

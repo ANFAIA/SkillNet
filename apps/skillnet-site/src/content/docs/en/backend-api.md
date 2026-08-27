@@ -6,7 +6,7 @@ section: "core"
 
 ## 4. Backend API Architecture
 
-> **Status: v1.** Complete backend structure for `apps/skillnet-api/`. Aligns with [data-model.md](data-model.md), [screens.md](screens.md), and [architecture.md](architecture.md).
+> **Status: v1.** Complete backend structure for `apps/skillnet-api/`. Aligns with [data-model.md](/en/docs/data-model), [screens.md](/en/docs/screens), and [architecture.md](/en/docs/architecture).
 
 ---
 
@@ -211,7 +211,7 @@ All endpoints prefixed with `/api/v1`. Authentication via session cookie on ever
 Login response redirects by role: employee -> `/dashboard`, admin -> `/admin`. The frontend reads the role from `/auth/me` on page load.
 
 **Workspace mode.** `/auth/me` (and `/settings`) also carry `workspace_mode`
-(`organization` \| `individual`; see [audience-modes.md](audience-modes.md)). In an
+(`organization` \| `individual`; see [audience-modes.md](/en/docs/audience-modes)). In an
 `individual` deployment the collective, organization-only endpoints — employees
 (list/create/reset), talent, `/stats`, course assignment (`POST`/`DELETE
 /enrollments`, folder assign) and the skills catalogue — return **404** via the
@@ -238,7 +238,7 @@ the sections as UX.
 #### Learner profile (personalization)
 
 Router `src/routes/learner_profile.py`, prefix `/users/me/learner-profile`. See
-[`personalization.md`](personalization.md).
+[`personalization.md`](/en/docs/personalization).
 
 | Method | Path | Role | Description |
 |--------|------|------|-------------|
@@ -248,7 +248,7 @@ Router `src/routes/learner_profile.py`, prefix `/users/me/learner-profile`. See
 
 #### Media artifacts
 
-Router `src/routes/media.py`, prefix `/media`. See [`media-artifacts.md`](media-artifacts.md).
+Router `src/routes/media.py`, prefix `/media`. See [`media-artifacts.md`](/en/docs/media-artifacts).
 
 | Method | Path | Role | Description |
 |--------|------|------|-------------|
@@ -262,8 +262,8 @@ Router `src/routes/media.py`, prefix `/media`. See [`media-artifacts.md`](media-
 #### Course schema (create flow)
 
 Router `src/routes/course_schema.py`. Admin course-schema lifecycle: propose -> PUT (spawn
-packs) -> review -> validate -> prewarm. See [`create-course-flow`](create-course-flow.html)
-and [`learning-experience-architecture.md`](learning-experience-architecture.md).
+packs) -> review -> validate -> prewarm. See ``create-course-flow``
+and [`learning-experience-architecture.md`](/en/docs/learning-experience-architecture).
 
 | Method | Path | Role | Description |
 |--------|------|------|-------------|

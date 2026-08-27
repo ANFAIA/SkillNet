@@ -23,6 +23,7 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Any
 
+from src.core.exceptions import CapabilityBlockedError
 from src.core.logging import get_logger
 from src.deps.db import async_session_factory
 from src.knowledge_pack.configured_generator import (
@@ -487,13 +488,20 @@ async def _spawn_artifacts(
                 if kind not in valid:
                     result.warnings.append(f"unknown artifact kind '{raw}'")
                     continue
-                artifact = await enqueue_artifact(
-                    db,
-                    course=course,
-                    node=node,
-                    kind=MediaKind(kind),
-                    spec={"scope": "node"},
-                )
+                try:
+                    artifact = await enqueue_artifact(
+                        db,
+                        course=course,
+                        node=node,
+                        kind=MediaKind(kind),
+                        spec={"scope": "node"},
+                    )
+                except CapabilityBlockedError as exc:
+                    # Best-effort by contract: a deployment that cannot make a podcast
+                    # still gets its course. Recorded as a warning so the caller can say
+                    # why the artefacts are missing instead of leaving it to be guessed.
+                    result.warnings.append(f"skipped {kind}: {exc.message}")
+                    continue
                 result.artifacts.append(
                     {
                         "artifact_id": str(artifact.id),

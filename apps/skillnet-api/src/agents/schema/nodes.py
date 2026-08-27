@@ -41,6 +41,7 @@ from src.models import (
     CourseNode,
     CourseNodePrerequisite,
     CourseSchemaStatus,
+    CourseTutorStyle,
     Document,
     DocumentChunk,
     GenerationStep,
@@ -228,6 +229,20 @@ def _nodes_from_response(parsed: Any) -> list[dict]:
     return [item for item in raw if isinstance(item, dict)]
 
 
+def _tutor_style_from_response(parsed: Any) -> str:
+    """The designer's ``tutor_style`` pick, or ``"socratic"`` on anything else.
+
+    A bare list response (no top-level dict) or a value outside
+    :class:`CourseTutorStyle` both fall back rather than reach the DB — the
+    node graph must never be blocked by a malformed style pick.
+    """
+    raw = parsed.get("tutor_style") if isinstance(parsed, dict) else None
+    try:
+        return CourseTutorStyle(raw).value
+    except ValueError:
+        return CourseTutorStyle.SOCRATIC.value
+
+
 # --------------------------------------------------------------------------- #
 # Node 1: load_source
 # --------------------------------------------------------------------------- #
@@ -371,7 +386,9 @@ async def design_schema(state: SchemaState) -> dict:
         max_tokens=SCHEMA_MAX_TOKENS,
         json_mode=True,
     )
-    proposed = _nodes_from_response(parse_json_response(response))
+    parsed_response = parse_json_response(response)
+    proposed = _nodes_from_response(parsed_response)
+    tutor_style = _tutor_style_from_response(parsed_response)
 
     warnings: list[str] = []
     if len(proposed) > MAX_PROPOSED_NODES:
@@ -386,6 +403,7 @@ async def design_schema(state: SchemaState) -> dict:
     )
     return {
         "proposed_nodes": proposed,
+        "tutor_style": tutor_style,
         "schema_warnings": list(state.get("schema_warnings") or []) + warnings,
         "current_step": "designing_schema",
     }
@@ -475,6 +493,12 @@ async def persist_schema(state: SchemaState) -> dict:
         course = await db.get(Course, course_id)
         if course is None:
             raise ValueError(f"Course {course_id} disappeared before persisting")
+        # Auto-detected once alongside the node graph (design_schema); a
+        # re-proposal on an existing course overwrites it same as the nodes —
+        # the admin can still flip it afterward via PUT /courses/{id}.
+        course.tutor_style = CourseTutorStyle(
+            state.get("tutor_style") or CourseTutorStyle.SOCRATIC.value
+        )
 
         await node_repo.defer_position_constraint()
 

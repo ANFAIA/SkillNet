@@ -10,7 +10,7 @@ section: "v2"
 > v1 matters.** The other docs were written for the complete product (v1 + v2 + future).
 >
 > **What it no longer does:** decide the scope of the entire project. v2 is implemented
-> (2026-07-27) and its design document — [`v2-dynamic-courses.md`](v2-dynamic-courses.md) — is
+> (2026-07-27) and its design document — [`v2-dynamic-courses.md`](/en/docs/dynamic-courses) — is
 > the one that governs everything related to v2. If this file and that one contradict each other
 > about v2, that one wins.
 

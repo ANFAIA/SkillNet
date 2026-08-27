@@ -6,7 +6,9 @@ section: "v2"
 
 # v2 — Dynamic courses
 
-> **Status: implementation spec. Branch `feat/dynamic-courses`.**
+> **Status: implemented.** The design on this page was merged into `main`; the working
+> branch `feat/dynamic-courses` was deleted on 2026-08-04. v2 is chosen per course
+> (`delivery_mode='dynamic'` with `schema_status='validated'`).
 >
 > Document priority: `v1-scope.md` remains the source of truth **for the v1 path**. This document
 > defines the v2 path and **only** applies when the feature flag is active. Where this document
@@ -21,7 +23,7 @@ section: "v2"
 > **Current episodic architecture:** the separation between the course's persisted constitution,
 > the on-the-fly generated `EpisodeBrief`, neutral capability selection, `LearningExperience`, and
 > server-owned evidence is specified in
-> [`learning-experience-architecture.md`](learning-experience-architecture.md). This document still
+> [`learning-experience-architecture.md`](/en/docs/learning-experience-architecture). This document still
 > describes v2 runtime persistence, delivery, and compatibility. Sections that prescribe
 > `ScreenScheme`, a fixed screen formula, or step grouping apply only to the `legacy_stepper`
 > fallback; they do not constrain the `episode` path. `shell_mode` is decided by the server. The
@@ -100,7 +102,7 @@ reopened within this PR:
 | Neurotypes in `screens.md` | `screens.md` §Employee Settings ("optional: TEA, TDAH, dyslexia flags", line 213) **is deprecated** by the decision not to store neurotype. Fixed in the same routes `chore` (§14.2 #8), along with `design-system.md` §Skeleton, which documents `animate-pulse` while `motion-system.md:437,636` prohibits it |
 | Primary mastery scale | **Real `mastery` 0..1** per `(user, node)`, plus a derived `node_state` enum. Shu-Ha-Ri and Bloom are derivations, not primary state |
 | Rating scale | The existing one: real `score` 0..1 (same as `exercise_attempts`). No 1-4 Rating |
-| Modality preference | The user can explicitly request image, audio, video, or text when the kit supports them. The declared preference wins; `format_vector` remains a secondary inferred signal. See [`adaptive-learning.md`](adaptive-learning.md) |
+| Modality preference | The user can explicitly request image, audio, video, or text when the kit supports them. The declared preference wins; `format_vector` remains a secondary inferred signal. See [`adaptive-learning.md`](/en/docs/adaptive-learning) |
 | Neurodivergence | **No neurotype label is stored** (health data, GDPR art. 9). Only neutral, opt-in reading adjustments in `users.accessibility` |
 | Nature of creator validation | **Blocking gate** via DB state (`schema_status`), not a LangGraph `interrupt()` — survives process restarts |
 | LLM provider | litellm, provider-agnostic. The router's two tiers are **purposes** (`runtime_fast`, `runtime_heavy`), not providers. Groq is a possible env var value, not a dependency |
@@ -259,7 +261,7 @@ reopened within this PR:
 ### 2.1 What is persisted vs. what is generated
 
 The asynchronous pedagogical preparation stage sitting between the index and OpenUI is specified in
-[`node-knowledge-packs.md`](node-knowledge-packs.md). After the index commit it generates a
+[`node-knowledge-packs.md`](/en/docs/node-knowledge-packs). After the index commit it generates a
 structured contract and a derived Markdown per node. Only `ready` packs feed runtime knowledge
 selection; their hash and the selection's hash are part of the cache key. The `review_required`,
 `failed`, `stale` states, and the absence of a pack keep the previous raw flow as fallback. Creating
@@ -1661,7 +1663,7 @@ redirects to /onboarding  ⇔  features.dynamic_courses === 'on'
   a "learning style" label. However, any later explicit choice is respected and overrides the
   `format_vector`. The requested modality can combine different pedagogical strategies — retrieval,
   self-explanation, contrast, or scenario — without replacing the user's choice. See
-  [`adaptive-learning.md`](adaptive-learning.md).
+  [`adaptive-learning.md`](/en/docs/adaptive-learning).
 - **Neurodivergence diagnoses.** A diagnosis is health data (special category, GDPR art. 9) and isn't
   needed: the concrete settings from question 5 produce the same functional result without the legal
   risk. Question 5 asks about **needs**, not conditions.
@@ -2139,7 +2141,7 @@ The anticipation follows the likely path and is bounded; it does not generate fu
 every possible component. So "pre-generated" here means **runtime render started ahead of time
 during the session**, not a pedagogical artifact persisted inside the course definition. Authority
 and implications for future branching episodes are in
-[`learning-experience-architecture.md`](learning-experience-architecture.md) §2.1.
+[`learning-experience-architecture.md`](/en/docs/learning-experience-architecture) §2.1.
 
 ---
 
@@ -2189,7 +2191,9 @@ fail — exactly the "the whole flow can be demoed locally with no key" promise.
 **`src/llm/fixture_data/`**, ship in the image with `src`, and there's no need to touch the
 Dockerfile. Tests point at the same directory.
 
-All of these are documented in `.env.example` and in `docker-compose.yml`.
+All of these are documented in [`configuration.md`](/en/docs/configuration), which also says
+which of them actually reach the container: `LLM_FIXTURE_DIR` and `LLM_FIXTURE_MODE` are no
+longer in `.env.example`, because there is no reason to touch them.
 
 ---
 
@@ -2499,7 +2503,7 @@ with the sha and a preview of the prompt, not an opaque `KeyError`.
 `docker-compose.yml` has a `fixtures` profile with `LLM_MODEL=fixture/local` and
 `EMBEDDING_MODEL=fixture/local`, so the whole flow can be demoed locally with no keys at all (the
 v2 path is enabled per course, not by env var — see §10). It works in the production compose file
-because fixtures travel inside `src/` (§10.2); `docker-compose.dev.yml`, which bind-mounts
+because fixtures travel inside `src/` (§10.2); `docker/compose/dev.yml`, which bind-mounts
 `./apps/skillnet-api:/app`, works the same way.
 
 ### 12.2 What is tested and how
@@ -2829,7 +2833,7 @@ had been there since before v2.
 
 **Environment.**
 
-7. `docker-compose.dev.yml` mounted the host repo over `/app`, so `uv run` inside the container saw
+7. `docker/compose/dev.yml` mounted the host repo over `/app`, so `uv run` inside the container saw
    a virtualenv with binaries from another OS, decided it was broken, and **deleted the host's
    `.venv`** to rebuild it. Fixed with an anonymous volume over `/app/.venv`.
 

@@ -8,7 +8,7 @@ section: "core"
 
 > **Estado: v1.** Arquitectura completa del pipeline multiagente de generación de contenido. Transforma documentos subidos en cursos estructurados y manuales de referencia mediante orquestación con LangGraph con puntos de control humanos.
 
-Depende de: [architecture.md](architecture.md), [data-model.md](data-model.md), [rag-retrieval.md](rag-retrieval.md), [backend-api.md](backend-api.md).
+Depende de: [architecture.md](/docs/architecture), [data-model.md](/docs/data-model), [rag-retrieval.md](/docs/rag-retrieval), [backend-api.md](/docs/backend-api).
 
 ---
 
@@ -796,7 +796,7 @@ Output as JSON with sections:
 
 ### 3.6 Revisor de calidad
 
-**Rol:** verificación independiente del contenido generado frente al material fuente. El revisor carga los documentos fuente por separado — nunca ve la ventana de contexto ni el prompt del generador. Se trata de independencia estructural (ver [architecture.md](architecture.md), aislamiento de agentes).
+**Rol:** verificación independiente del contenido generado frente al material fuente. El revisor carga los documentos fuente por separado — nunca ve la ventana de contexto ni el prompt del generador. Se trata de independencia estructural (ver [architecture.md](/docs/architecture), aislamiento de agentes).
 
 **Nodo:** `review_quality`
 
@@ -968,7 +968,7 @@ Module content to fix:
 
 ### 4.1 RAG condicional
 
-El pipeline usa la misma estrategia de RAG condicional definida en [rag-retrieval.md](rag-retrieval.md):
+El pipeline usa la misma estrategia de RAG condicional definida en [rag-retrieval.md](/docs/rag-retrieval):
 
 | Tamaño del documento | Modo RAG | Qué ocurre |
 |---------------|----------|--------------|
@@ -1026,7 +1026,7 @@ Todo agente que genera contenido tiene instrucciones de incluir citas. El pipeli
 2. **A nivel de revisión:** el revisor de calidad marca cualquier afirmación factual sin cita como problema "major".
 3. **A nivel de refinamiento:** el refinador de contenido añade las citas que faltan usando el material fuente.
 
-El formato de citas coincide con la convención de [rag-retrieval.md](rag-retrieval.md), sección 3.4.5.
+El formato de citas coincide con la convención de [rag-retrieval.md](/docs/rag-retrieval), sección 3.4.5.
 
 ---
 
@@ -1103,7 +1103,7 @@ event: progress
 data: {"job_id": "uuid", "step": "generating", "detail": {"completed": 2, "total": 5, "current": "Proceso Paso a Paso"}}
 ```
 
-Los eventos SSE se envían a través de la misma infraestructura `StreamingResponse` que usa el chat del tutor (ver [backend-api.md](backend-api.md), sección 4.2, endpoints de chat).
+Los eventos SSE se envían a través de la misma infraestructura `StreamingResponse` que usa el chat del tutor (ver [backend-api.md](/docs/backend-api), sección 4.2, endpoints de chat).
 
 ---
 
@@ -1346,7 +1346,7 @@ Cuando LangGraph llega a un nodo `interrupt_before`:
 
 ### 7.3 Endpoints de la API de revisión
 
-Estos endpoints forman parte de la API de trabajos de generación (ver [backend-api.md](backend-api.md), sección 4.2):
+Estos endpoints forman parte de la API de trabajos de generación (ver [backend-api.md](/docs/backend-api), sección 4.2):
 
 ```
 GET  /api/v1/generation-jobs/{id}/review
@@ -1751,7 +1751,7 @@ async def publish(state: GenerationState) -> dict:
 
 ## 9. Ciclo de vida del trabajo de generación
 
-Integración con la tabla `generation_jobs` de [data-model.md](data-model.md):
+Integración con la tabla `generation_jobs` de [data-model.md](/docs/data-model):
 
 ```
 Admin triggers POST /courses/{id}/generate
@@ -1832,9 +1832,9 @@ class ContentGenerationConfig(BaseSettings):
 | **Checkpointing en PostgreSQL** | La misma base de datos para todo (modelo de datos, sesiones, checkpoints). Sin dependencia de Redis. Sobrevive a los reinicios del servidor. |
 | **2 puntos de control humanos, no 0 ni 1** | La revisión de estructura evita malgastar generación en un esquema deficiente. La revisión final detecta problemas de calidad que el revisor automático pasó por alto. Ambos son obligatorios porque el administrador es responsable de lo que aprenden los empleados. |
 | **Paralelismo acotado por semáforo** | 3 llamadas concurrentes equilibran el rendimiento con los límites de tasa de la API. Configurable por despliegue. |
-| **Revisor de calidad independiente** | El revisor carga los documentos fuente de forma independiente, nunca ve el contexto del generador. Las tasas de error se multiplican con verificación independiente (según la investigación de [architecture.md](architecture.md)). |
+| **Revisor de calidad independiente** | El revisor carga los documentos fuente de forma independiente, nunca ve el contexto del generador. Las tasas de error se multiplican con verificación independiente (según la investigación de [architecture.md](/docs/architecture)). |
 | **Máximo 2 ciclos de refinamiento** | Evita bucles infinitos. Tras 2 ciclos fallidos, el contenido pasa al administrador junto con el informe de revisión — una persona debe decidir. |
-| **Compartimentación basada en fragmentos** | Los generadores de módulo solo ven sus fragmentos relevantes. Reduce el ruido, mejora la precisión, refuerza el principio de necesidad de conocer de [architecture.md](architecture.md). |
+| **Compartimentación basada en fragmentos** | Los generadores de módulo solo ven sus fragmentos relevantes. Reduce el ruido, mejora la precisión, refuerza el principio de necesidad de conocer de [architecture.md](/docs/architecture). |
 | **SSE para el progreso, no sondeo** | La infraestructura de SSE ya existe para el chat del tutor. El sondeo generaría una carga innecesaria en la API. |
 | **La publicación crea un borrador, no lo publica** | El nodo `publish` escribe en la BD con `status=draft`. El administrador publica el curso por separado mediante `POST /courses/{id}/publish` tras su revisión final. Esto separa "generación completada" de "visible para los empleados". |
 | **Regeneración de un solo módulo** | El administrador no debería tener que regenerar un curso entero porque un módulo sea deficiente. La regeneración selectiva ahorra tiempo y coste de LLM. |

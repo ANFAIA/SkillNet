@@ -6,7 +6,7 @@ section: "core"
 
 ## 4. Arquitectura de la API de backend
 
-> **Estado: v1.** Estructura de backend completa para `apps/skillnet-api/`. Alineado con [data-model.md](data-model.md), [screens.md](screens.md) y [architecture.md](architecture.md).
+> **Estado: v1.** Estructura de backend completa para `apps/skillnet-api/`. Alineado con [data-model.md](/docs/data-model), [screens.md](/docs/screens) y [architecture.md](/docs/architecture).
 
 ---
 
@@ -211,7 +211,7 @@ Todos los endpoints con el prefijo `/api/v1`. Autenticación vía cookie de sesi
 La respuesta del login redirige según el rol: empleado -> `/dashboard`, admin -> `/admin`. El frontend lee el rol desde `/auth/me` al cargar la página.
 
 **Modo de espacio de trabajo.** `/auth/me` (y `/settings`) también llevan `workspace_mode`
-(`organization` \| `individual`; ver [audience-modes.md](audience-modes.md)). En un
+(`organization` \| `individual`; ver [audience-modes.md](/docs/audience-modes)). En un
 despliegue `individual` los endpoints colectivos, exclusivos de organización — empleados
 (listar/crear/reiniciar), talento, `/stats`, asignación de cursos (`POST`/`DELETE
 /enrollments`, asignación por carpeta) y el catálogo de skills — devuelven **404** vía la
@@ -238,7 +238,7 @@ las secciones como UX.
 #### Perfil del aprendiz (personalización)
 
 Router `src/routes/learner_profile.py`, prefijo `/users/me/learner-profile`. Ver
-[`personalization.md`](personalization.md).
+[`personalization.md`](/docs/personalization).
 
 | Método | Ruta | Rol | Descripción |
 |--------|------|-----|-------------|
@@ -248,7 +248,7 @@ Router `src/routes/learner_profile.py`, prefijo `/users/me/learner-profile`. Ver
 
 #### Artefactos multimedia
 
-Router `src/routes/media.py`, prefijo `/media`. Ver [`media-artifacts.md`](media-artifacts.md).
+Router `src/routes/media.py`, prefijo `/media`. Ver [`media-artifacts.md`](/docs/media-artifacts).
 
 | Método | Ruta | Rol | Descripción |
 |--------|------|-----|-------------|
@@ -262,8 +262,8 @@ Router `src/routes/media.py`, prefijo `/media`. Ver [`media-artifacts.md`](media
 #### Esquema de curso (flujo de creación)
 
 Router `src/routes/course_schema.py`. Ciclo de vida del esquema de curso para el admin: proponer -> PUT (genera
-packs) -> revisar -> validar -> precalentar. Ver [`create-course-flow`](create-course-flow.html)
-y [`learning-experience-architecture.md`](learning-experience-architecture.md).
+packs) -> revisar -> validar -> precalentar. Ver ``create-course-flow``
+y [`learning-experience-architecture.md`](/docs/learning-experience-architecture).
 
 | Método | Ruta | Rol | Descripción |
 |--------|------|-----|-------------|

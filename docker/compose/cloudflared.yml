@@ -1,0 +1,66 @@
+# SkillNet — Public exposure via a Cloudflare Tunnel (no open ports, no public IP).
+# Usage: docker compose -f docker-compose.yml -f docker/compose/cloudflared.yml up -d --build
+#
+# `cloudflared` opens an outbound-only connection from this host to Cloudflare's edge and
+# Cloudflare forwards public traffic back down it to `web`. Unlike the Caddy overlay, there
+# is nothing to open on the router/firewall and no public IP is needed — the whole point of
+# this file. See RUNNING.md, "Exposing SkillNet without opening a port" for the one-time
+# setup in the Cloudflare Zero Trust dashboard that produces the token below.
+#
+# ## Named tunnel + token, not the "quick tunnel"
+#
+# `cloudflared tunnel --url ...` (no token) spins up an ephemeral `*.trycloudflare.com`
+# tunnel with no login — fine for a five-minute demo, useless for an actual deployment:
+# the hostname changes every restart and Cloudflare offers it with no uptime guarantee.
+# `cloudflared tunnel run --token <TOKEN>` is the durable form: the tunnel and its public
+# hostname are created once in the dashboard and survive restarts of this container.
+#
+# ## Why `web`'s ports are overridden here too
+#
+# Same reasoning as docker/compose/caddy.yml: Compose's default merge rule for a
+# sequence field like `ports:` is to APPEND across files, not replace — restating the
+# key below without `!override` left `web` published on BOTH the base file's
+# unrestricted `0.0.0.0:3000` AND this file's `127.0.0.1:3000` at once, confirmed
+# against `docker compose ... config` output. Once cloudflared is the public
+# entrypoint, publishing `web` on the host too is redundant public exposure of the
+# same service through a second, unauthenticated path — so `!override` forces it back
+# to loopback-only like every other internal service in this project.
+#
+# ## No ports published for `cloudflared` itself
+#
+# The connection to Cloudflare's edge is outbound-only (cloudflared dials out to
+# Cloudflare, Cloudflare does not dial in), so there is nothing to publish — the
+# service needs no `ports:` at all.
+
+services:
+  cloudflared:
+    # Pinned, not `latest`: everything else in this repo pins, and a `docker compose pull`
+    # should not be able to change how a live deployment behaves.
+    image: cloudflare/cloudflared:2026.8.2
+    restart: unless-stopped
+    command: ["tunnel", "--no-autoupdate", "run", "--token", "${CLOUDFLARE_TUNNEL_TOKEN:?Set CLOUDFLARE_TUNNEL_TOKEN in .env — create a tunnel in the Cloudflare Zero Trust dashboard first}"]
+    depends_on:
+      web:
+        condition: service_healthy
+
+  # Overrides the base file's `ports: ["${PORT:-3000}:80"]`: once cloudflared is the
+  # public entrypoint, `web` no longer needs (or should keep) a host port open — see the
+  # note above.
+  #
+  # `!override` is required, not decoration — without it Compose APPENDS this entry to
+  # the base file's instead of replacing it, so `web` ends up published on BOTH
+  # `0.0.0.0:3000` (unrestricted, from the base file) AND `127.0.0.1:3000` at once,
+  # completely defeating the point of this overlay. Verified directly against
+  # `docker compose ... config` output: without the tag, `web.ports` came back as a
+  # 2-entry list containing both bindings. https://docs.docker.com/reference/compose-file/merge/#override
+  # Cookies over HTTPS only. The base file defaults this to `false` so the stack works on
+  # plain-HTTP localhost; this overlay exists precisely because there IS TLS in front, so
+  # the default flips here instead of relying on the operator remembering a manual step.
+  # Still overridable from `.env` for anyone debugging over plain HTTP.
+  api:
+    environment:
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+
+  web:
+    ports: !override
+      - "127.0.0.1:${PORT:-3000}:80"

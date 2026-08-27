@@ -133,3 +133,22 @@ class CourseKnowledgePacksRead(BaseModel):
     course_id: uuid.UUID
     schema_version: int
     nodes: list[NodeKnowledgePackRead] = []
+
+
+class CourseFinalizationRead(BaseModel):
+    """One poll's worth of "is this course finished being created yet".
+
+    Deliberately one response and not two: the create wizard needs the run's state
+    *and* how far the knowledge packs have got, and asking two endpoints every two
+    seconds for halves of the same answer is how the two drift apart on screen.
+    """
+
+    course_id: uuid.UUID
+    generation_state: Literal["idle", "in_progress", "failed", "complete"]
+    generation_error: str | None = None
+    generation_failed_at: datetime | None = None
+    schema_status: str
+    status: str
+    #: Nodes whose knowledge pack has left ``pending``, out of the course's node count.
+    packs_ready: int = 0
+    packs_total: int = 0

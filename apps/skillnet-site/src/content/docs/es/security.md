@@ -906,7 +906,7 @@ volumes:
 **La documentacion de despliegue recomienda:**
 - Ejecutar detras de un proxy inverso (nginx, Caddy, Traefik) que gestione la terminacion TLS.
 - Usar Let's Encrypt para la gestion automatica de certificados HTTPS.
-- Fijar `POSTGRES_PASSWORD` a un valor aleatorio fuerte (el ejemplo en `.env.example` es deliberadamente invalido para forzar al admin a cambiarlo).
+- Fijar `POSTGRES_PASSWORD` a un valor aleatorio fuerte. `.env.example` distribuye la linea vacia, asi que `docker compose up` se niega a arrancar hasta rellenarla — y solo admite letras, digitos, `-` y `_`, porque va a la URL de conexion sin escapar. Ver [`configuration.md`](/docs/configuration).
 - Restringir el puerto de base de datos (5432) solo a localhost — sin acceso externo.
 - Copias de seguridad automaticas y regulares del volumen de datos de PostgreSQL.
 

@@ -2,6 +2,7 @@
 title: "Fronteras semánticas"
 order: 51
 section: "research"
+group: "semantic-boundaries"
 ---
 
 # Fronteras Semánticas
@@ -45,6 +46,6 @@ Los detalles completos de qué se probó y qué se descubrió están en los docu
 
 ## Profundizaciones
 
-- [Content-Based Classification](content-based-classification.md). El descubrimiento central: contenido + procedencia + combinación, todo lo que se probó, evidencia de convergencia de campos independientes
-- [experiments/dsac-bench.md](experiments/dsac-bench.md). Diseño del benchmark DSAC-Bench (1.280 docs, 8 dominios)
-- [experiments/experiment-log.md](experiments/experiment-log.md). Tabla completa de los 46 experimentos
+- [Content-Based Classification](/docs/semantic-boundaries-classification). El descubrimiento central: contenido + procedencia + combinación, todo lo que se probó, evidencia de convergencia de campos independientes
+- [experiments/dsac-bench.md](/docs/semantic-boundaries-dsac-bench). Diseño del benchmark DSAC-Bench (1.280 docs, 8 dominios)
+- [experiments/experiment-log.md](/docs/semantic-boundaries-experiment-log). Tabla completa de los 46 experimentos

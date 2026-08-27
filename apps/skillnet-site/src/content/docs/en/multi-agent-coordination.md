@@ -2,6 +2,7 @@
 title: "Multi-agent coordination"
 order: 57
 section: "research"
+group: "multi-agent"
 ---
 
 # Multi-Agent Coordination
@@ -220,7 +221,7 @@ It works for one user. It does not scale to teams.
 
 [agentvcs](https://github.com/EvolvingAgentsLabs/agentvcs) (Apache-2.0) explores versioning for autonomous agents. It covers the single-user single-agent case; the multi-user coordination problem described here is a different layer.
 
-[DBP (Data Boundary Protocol)](https://github.com/JoseEstevez520/DBP) (Apache-2.0) implements the deterministic boundary model explored in this research. It provides label-based compartments, set-inclusion boundary checks, heritage, immutable audit traces, and escalation for human override. See the [agent communication doc](agent-communication.md) for the conceptual model and the DBP repo for the reference implementation.
+[DBP (Data Boundary Protocol)](https://github.com/JoseEstevez520/DBP) (Apache-2.0) implements the deterministic boundary model explored in this research. It provides label-based compartments, set-inclusion boundary checks, heritage, immutable audit traces, and escalation for human override. See the [agent communication doc](/en/docs/multi-agent-communication) for the conceptual model and the DBP repo for the reference implementation.
 
 ## Open Questions
 
@@ -238,4 +239,4 @@ It works for one user. It does not scale to teams.
 
 ## Deep dive
 
-- [Communication between agents](agent-communication.md) · when my agent talks to my neighbor's, what may cross · making the boundary deterministic rather than an advisory norm, across the protocol, the traceability, and the workspace.
+- [Communication between agents](/en/docs/multi-agent-communication) · when my agent talks to my neighbor's, what may cross · making the boundary deterministic rather than an advisory norm, across the protocol, the traceability, and the workspace.

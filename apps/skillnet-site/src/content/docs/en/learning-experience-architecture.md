@@ -12,12 +12,12 @@ section: "core"
 **Applies to:** dynamic v2 courses, experience selection and future providers
 
 **Authority:** this document defines the boundary between persisted truth, episodic direction,
-capability selection and render. [`v2-dynamic-courses.md`](v2-dynamic-courses.md) keeps the
-specification of the v2 path and the historical fallback; [`didact-integration.md`](didact-integration.md)
+capability selection and render. [`v2-dynamic-courses.md`](/en/docs/dynamic-courses) keeps the
+specification of the v2 path and the historical fallback; [`didact-integration.md`](/en/docs/didact-integration)
 describes Didact's executable inventory.
 
 The relationship between modality and internal structure is expanded in
-[`delivery-modalities.md`](delivery-modalities.md). Audio and video are representations that can
+[`delivery-modalities.md`](/en/docs/delivery-modalities). Audio and video are representations that can
 live inside an experience; they are not navigation destinations or tabs the person has to choose.
 
 ## 1. Decision
@@ -421,15 +421,15 @@ The abstraction is sufficient when:
 
 ## 12. Relationship to other documents
 
-- [`v2-dynamic-courses.md`](v2-dynamic-courses.md) defines v2 delivery, persistence, cache and
+- [`v2-dynamic-courses.md`](/en/docs/dynamic-courses) defines v2 delivery, persistence, cache and
   mastery transition. Its screen recipes describe the `legacy_stepper` fallback.
-- [`node-knowledge-packs.md`](node-knowledge-packs.md) defines the preparation of source truth
+- [`node-knowledge-packs.md`](/en/docs/node-knowledge-packs) defines the preparation of source truth
   that feeds `SourceAffordanceMap`.
-- [`delivery-modalities.md`](delivery-modalities.md) defines modality as an affordance and
+- [`delivery-modalities.md`](/en/docs/delivery-modalities) defines modality as an affordance and
   selection signal, not as a tab.
-- [`didact-integration.md`](didact-integration.md) lists the Didact provider's real components,
+- [`didact-integration.md`](/en/docs/didact-integration) lists the Didact provider's real components,
   ports and blockers.
-- [`didact-integration-strategy.md`](didact-integration-strategy.md) develops level-3 recipes and
+- [`didact-integration-strategy.md`](/en/docs/didact-integration-strategy) develops level-3 recipes and
   GenUI.
-- [`openui-adoption.md`](openui-adoption.md) keeps the dialect, security and renderer
+- [`openui-adoption.md`](/en/docs/openui-adoption) keeps the dialect, security and renderer
   constraints.

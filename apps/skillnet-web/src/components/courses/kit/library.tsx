@@ -61,6 +61,7 @@ import {
   LearningExperience,
   PodcastPlayerBlock,
   InfographicImageBlock,
+  SourceImageBlock,
   StackBlock,
   StackItem,
   StepSequenceBlock,
@@ -76,7 +77,7 @@ import {
   readStringMatrix,
 } from './coerce'
 import { QuizItemRenderer } from './QuizItemRenderer'
-import { hasSolvableItem } from './solvableSteps'
+import { hasSolvableItem, splitMixedScreens } from './solvableSteps'
 import {
   CALLOUT_TONES,
   CHART_KINDS,
@@ -102,6 +103,7 @@ import {
   learningExperienceProps,
   podcastPlayerProps,
   infographicImageProps,
+  sourceImageProps,
   quizItemProps,
   stackProps,
   stepSequenceProps,
@@ -130,7 +132,7 @@ const Stack = defineComponent({
   props: stackProps,
   component: ({ props, renderNode }: ComponentRenderProps<{ children: unknown[]; gap: string }>) => (
     <StackBlock gap={readEnum(props.gap, STACK_GAPS, 'md')}>
-      {readChildren(props.children).map((child, i) => (
+      {splitMixedScreens(readChildren(props.children)).map((child, i) => (
         <StackItem key={i} solvable={hasSolvableItem(child)}>
           {renderNode(child)}
         </StackItem>
@@ -248,7 +250,7 @@ const BeforeAfter = defineComponent({
       title={readString(props.title)}
       beforeLabel={readString(props.beforeLabel, 'Antes')}
       beforeContent={readString(props.beforeContent)}
-      afterLabel={readString(props.afterLabel, 'Despues')}
+      afterLabel={readString(props.afterLabel, 'Después')}
       afterContent={readString(props.afterContent)}
     />
   ),
@@ -394,6 +396,26 @@ const InfographicImage = defineComponent({
   ),
 })
 
+const SourceImage = defineComponent({
+  name: 'SourceImage',
+  description:
+    'Imagen tal cual aparece en el documento de origen, referenciada por id, con su procedencia visible',
+  props: sourceImageProps,
+  component: ({ props }: ComponentRenderProps<{
+    image_id: string
+    alt: string
+    caption: string
+    document_id: string
+  }>) => (
+    <SourceImageBlock
+      imageId={readString(props.image_id)}
+      alt={readString(props.alt)}
+      caption={readString(props.caption)}
+      documentId={readString(props.document_id)}
+    />
+  ),
+})
+
 /**
  * The render library.
  *
@@ -433,6 +455,7 @@ export const skillnetLibrary = createLibrary({
     DidactActivity,
     PodcastPlayer,
     InfographicImage,
+    SourceImage,
   ],
 })
 

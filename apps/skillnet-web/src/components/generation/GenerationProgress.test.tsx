@@ -34,7 +34,7 @@ describe('GenerationProgress', () => {
     // step with no title at all.
     expect(screen.getByRole('heading', { name: 'Generando curso' })).toBeInTheDocument()
     expect(screen.getByText(/Paso 3 de 6/)).toBeInTheDocument()
-    expect(screen.getByText('Disenando estructura')).toBeInTheDocument()
+    expect(screen.getByText('Diseñando estructura')).toBeInTheDocument()
   })
 
   it('moves exactly one step: dots, halo and sweep all sit on the active one', () => {
@@ -74,10 +74,10 @@ describe('GenerationProgress', () => {
     const { container, rerender } = render(<GenerationProgress progress={{ step: 'reviewing' }} />)
     rerender(<GenerationProgress progress={{ step: 'failed', error: 'El modelo no respondio' }} />)
 
-    expect(screen.getByRole('heading', { name: 'La generacion fallo' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'La generación falló' })).toBeInTheDocument()
     expect(screen.getByText('El modelo no respondio')).toBeInTheDocument()
     // `failed` carries no step name, so the last one seen is the one marked.
-    expect(screen.getByText('fallo aqui')).toBeInTheDocument()
+    expect(screen.getByText('falló aquí')).toBeInTheDocument()
     expect(dots(container)).toHaveLength(0)
     expect(halos(container)).toHaveLength(0)
     expect(sweeps(container)).toHaveLength(0)
@@ -87,7 +87,7 @@ describe('GenerationProgress', () => {
     reduceMotion = false
     render(<GenerationProgress progress={{ step: 'failed' }} />)
 
-    expect(screen.getByText('No se pudo completar la generacion.')).toBeInTheDocument()
+    expect(screen.getByText('No se pudo completar la generación.')).toBeInTheDocument()
   })
 
   it('lands every check and stops all motion once published', () => {

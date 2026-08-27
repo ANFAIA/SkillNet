@@ -8,7 +8,7 @@ from fastapi import APIRouter, Query, Response
 from src.core.exceptions import ForbiddenError, NotFoundError, ValidationError
 from src.deps.auth import AdminUser, CurrentUser
 from src.deps.db import DBSession
-from src.models import Course, ContentStatus, UserRole
+from src.models import Course, ContentStatus, CourseGenerationState, UserRole
 from src.repositories.course_node_repo import CourseNodeRepository
 from src.repositories.course_repo import CourseRepository
 from src.repositories.enrollment_repo import EnrollmentRepository
@@ -58,10 +58,60 @@ def _parse_status(status: str | None) -> ContentStatus | None:
         raise ValidationError(f"Invalid status: {status}", field="status") from exc
 
 
+def _parse_generation_state(value: str | None) -> CourseGenerationState | None:
+    """Validate the ``generation_state`` list filter, the way ``_parse_status`` does.
+
+    The admin library needs "show me the courses whose creation died" as a first-class
+    filter, and doing it client-side would only ever find the failures inside the page
+    that happened to be fetched.
+    """
+    if value is None:
+        return None
+    try:
+        return CourseGenerationState(value)
+    except ValueError as exc:
+        raise ValidationError(
+            f"Invalid generation_state: {value}", field="generation_state"
+        ) from exc
+
+
 def _policy(course: Course) -> str:
     raw = getattr(course, "artifact_generate_policy", None)
     if raw is None:
         return "admin"
+    return str(getattr(raw, "value", raw))
+
+
+def _tutor_style(course: Course) -> str:
+    raw = getattr(course, "tutor_style", None)
+    if raw is None:
+        return "socratic"
+    return str(getattr(raw, "value", raw))
+
+
+def _image_source_policy(course: Course) -> str:
+    """What this course does with its source document's own images.
+
+    ``getattr`` with a fallback for the same reason as ``_tutor_style``: a course row
+    that predates migration 0028 (and the hand-built ``Course`` stand-ins the unit tests
+    project) must read ``auto`` — the rule — rather than crash the listing.
+    """
+    raw = getattr(course, "image_source_policy", None)
+    if raw is None:
+        return "auto"
+    return str(getattr(raw, "value", raw))
+
+
+def _generation_state(course: Course) -> str:
+    """Whether a creation run owns this course, and how the last one ended.
+
+    ``getattr`` with a fallback for the same reason as ``_tutor_style``: the
+    projectors are called with hand-built ``Course`` stand-ins in unit tests, and a
+    course that predates migration 0025 must read ``idle``, never crash the list.
+    """
+    raw = getattr(course, "generation_state", None)
+    if raw is None:
+        return "idle"
     return str(getattr(raw, "value", raw))
 
 
@@ -102,6 +152,11 @@ def _summary(
         artifact_generate_policy=_policy(course),
         artifact_generator_ids=ids,
         can_generate_artifacts=_can_generate(course, user, ids),
+        tutor_style=_tutor_style(course),
+        image_source_policy=_image_source_policy(course),
+        generation_state=_generation_state(course),
+        generation_error=getattr(course, "generation_error", None),
+        generation_failed_at=getattr(course, "generation_failed_at", None),
     )
 
 
@@ -167,6 +222,11 @@ def _detail(
         artifact_generate_policy=_policy(course),
         artifact_generator_ids=list(generator_ids or []),
         can_generate_artifacts=_can_generate(course, user, list(generator_ids or [])),
+        tutor_style=_tutor_style(course),
+        image_source_policy=_image_source_policy(course),
+        generation_state=_generation_state(course),
+        generation_error=getattr(course, "generation_error", None),
+        generation_failed_at=getattr(course, "generation_failed_at", None),
         modules=modules,
     )
 
@@ -179,6 +239,7 @@ async def list_courses(
     search: Annotated[str | None, Query()] = None,
     folder_id: Annotated[uuid.UUID | None, Query()] = None,
     unorganized: Annotated[bool, Query()] = False,
+    generation_state: Annotated[str | None, Query()] = None,
     offset: Annotated[int, Query(ge=0)] = 0,
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
 ) -> PaginatedResponse[CourseRead]:
@@ -189,6 +250,7 @@ async def list_courses(
         search=search,
         folder_id=folder_id,
         unorganized=unorganized,
+        generation_state=_parse_generation_state(generation_state),
         offset=offset,
         limit=limit,
     )

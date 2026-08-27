@@ -15,9 +15,9 @@ the current `main` branch receives security fixes; there are no maintained older
 ## Before you deploy this anywhere real
 
 The defaults in this repository are tuned so that `docker compose up` works immediately for
-someone exploring the project. Several of them are **not** safe for a real deployment. All of
-them are documented next to the setting in `.env.example`; collected here because they matter
-together.
+someone exploring the project. Several of them are **not** safe for a real deployment. Each one
+is documented in [`docs/design/configuration.md`](docs/design/configuration.md), which lists
+every variable with its default; collected here because they matter together.
 
 **Credentials.** Nothing in this repository ships a usable password. `ADMIN_EMAIL` and
 `ADMIN_PASSWORD` are blank in `.env.example` on purpose, so the first visit gives you the

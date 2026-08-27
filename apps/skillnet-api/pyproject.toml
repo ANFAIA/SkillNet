@@ -36,6 +36,11 @@ dependencies = [
     # Direct import in src/core/secrets.py (Fernet), which encrypts the provider API key
     # an organization stores. Already present transitively; declared because we use it.
     "cryptography",
+    # Direct import in src/services/ingestion.py (_decode_pdf_image): a FlateDecode PDF
+    # image comes back from pdfplumber as raw, headerless pixel bytes that must be
+    # reassembled with PIL before a vision model can read them. Already present
+    # transitively; declared because we use it.
+    "pillow",
 ]
 
 [dependency-groups]

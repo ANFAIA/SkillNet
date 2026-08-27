@@ -15,6 +15,8 @@ from collections.abc import Iterator
 
 from fastapi import APIRouter, HTTPException
 
+from src.core.exceptions import NotFoundError
+from src.core.tasks import task_registry
 from src.deps.auth import AdminUser
 from src.deps.db import DBSession
 from src.deps.llm import GenerationLLMDep
@@ -23,6 +25,7 @@ from src.knowledge_pack.runner import (
     KnowledgePackRunnerDependencies,
     spawn_packs_for_schema,
 )
+from src.models import CourseGenerationState
 from src.repositories.audit_log_repo import AuditLogRepository
 from src.repositories.course_node_repo import CourseNodeRepository
 from src.repositories.course_repo import CourseRepository
@@ -31,6 +34,7 @@ from src.repositories.enrollment_repo import EnrollmentRepository
 from src.repositories.generation_job_repo import GenerationJobRepository
 from src.repositories.node_knowledge_pack_repo import NodeKnowledgePackRepository
 from src.schemas.course_schema import (
+    CourseFinalizationRead,
     CourseNodeRead,
     CourseSchemaRead,
     CourseSchemaUpdate,
@@ -40,6 +44,7 @@ from src.schemas.course_schema import (
     SchemaProposeRequest,
     SchemaProposeResponse,
 )
+from src.services import course_finalization
 from src.services.course_schema_service import (
     CourseSchemaService,
     SchemaError,
@@ -225,6 +230,68 @@ async def validate_schema(
         admin.id,
     )
     return _read(snapshot)
+
+
+def _finalization(status: course_finalization.FinalizationStatus) -> CourseFinalizationRead:
+    return CourseFinalizationRead(
+        course_id=status.course_id,
+        generation_state=status.generation_state,
+        generation_error=status.generation_error,
+        generation_failed_at=status.generation_failed_at,
+        schema_status=status.schema_status,
+        status=status.status,
+        packs_ready=status.packs_ready,
+        packs_total=status.packs_total,
+    )
+
+
+@router.post(
+    "/{course_id}/schema/finalize",
+    response_model=CourseFinalizationRead,
+    status_code=202,
+)
+async def finalize_schema(
+    admin: AdminUser, db: DBSession, course_id: uuid.UUID
+) -> CourseFinalizationRead:
+    """Finish creating this course on the server: wait for packs, review, validate.
+
+    The three steps behind this 202 used to run as three round trips from the create
+    wizard's tab, and ``validate`` is the only thing in the system that publishes a v2
+    course — so a tab that stopped executing part-way through stranded the course as a
+    draft forever, with nothing recording that a run had died. Now the browser makes one
+    call and watches ``GET`` on this same path; closing the tab changes nothing.
+
+    Idempotent by design. The claim is committed here, and the task is spawned under a
+    per-course name, so a second call adopts the run already in flight instead of
+    pushing a rival one through review and validate.
+    """
+    repo = CourseRepository(db)
+    course = await repo.get_scoped(course_id, admin.org_id)
+    if course is None:
+        raise NotFoundError("courses", str(course_id))
+
+    already_running = (
+        course.generation_state is CourseGenerationState.IN_PROGRESS
+        and task_registry.has_running(f"{course_finalization.TASK_PREFIX}{course_id}")
+    )
+    if not already_running:
+        course_finalization.claim(course)
+        await db.commit()
+        await db.refresh(course)
+        course_finalization.spawn(course_id, admin.org_id, admin.id)
+
+    return _finalization(await course_finalization.read_status(db, course=course))
+
+
+@router.get("/{course_id}/schema/finalize", response_model=CourseFinalizationRead)
+async def get_finalization(
+    admin: AdminUser, db: DBSession, course_id: uuid.UUID
+) -> CourseFinalizationRead:
+    """The wizard's single watch call: run state plus knowledge-pack progress."""
+    course = await CourseRepository(db).get_scoped(course_id, admin.org_id)
+    if course is None:
+        raise NotFoundError("courses", str(course_id))
+    return _finalization(await course_finalization.read_status(db, course=course))
 
 
 @router.post("/{course_id}/schema/unvalidate", response_model=CourseSchemaRead)

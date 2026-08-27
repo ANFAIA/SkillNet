@@ -11,7 +11,9 @@ See docs/design/audience-modes.md.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Response
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, Header, Response
 from fastapi_users.authentication.strategy.db import DatabaseStrategy
 from fastapi_users.password import PasswordHelper
 from sqlalchemy import select
@@ -19,13 +21,15 @@ from sqlalchemy import select
 from src.auth.backend import get_database_strategy
 from src.config import settings
 from src.core.bootstrap import ensure_organization
-from src.core.exceptions import ConflictError
+from src.core.exceptions import ConflictError, ForbiddenError
 from src.deps.auth import auth_backend
+from src.core.setup_window import window as setup_window
 from src.deps.db import DBSession
 from src.models import User, UserRole, WorkspaceMode
 from src.repositories.learner_profile_repo import LearnerProfileRepository
 from src.schemas.setup import SetupRequest, SetupStatus
 from src.services.capabilities import derive_capabilities
+from src.services.media.requirements import requirements_payload
 
 router = APIRouter(prefix="/setup", tags=["Setup"])
 
@@ -36,10 +40,12 @@ async def _has_any_user(db: DBSession) -> bool:
 
 @router.get("/status", response_model=SetupStatus)
 async def setup_status(db: DBSession) -> SetupStatus:
+    """Public and pre-authentication. No ``hint`` travels here — see :class:`SetupStatus`."""
     return SetupStatus(
         initialized=await _has_any_user(db),
         onboarding_enabled=settings.ONBOARDING_ENABLED,
-        capabilities=derive_capabilities(),
+        capabilities=derive_capabilities(include_hints=False),
+        media_requirements=requirements_payload(),
     )
 
 
@@ -47,6 +53,7 @@ async def setup_status(db: DBSession) -> SetupStatus:
 async def setup(
     body: SetupRequest,
     db: DBSession,
+    x_setup_token: Annotated[str | None, Header()] = None,
     strategy: DatabaseStrategy = Depends(get_database_strategy),
 ) -> Response:
     """Create the owner and set the workspace mode, then sign them in.
@@ -54,9 +61,25 @@ async def setup(
     Guarded by "no user exists": the check and the insert share one transaction,
     so a second concurrent call fails on the unique email/atomic commit rather
     than creating a second owner.
+
+    Guarded *again* by a time window, because "no user exists" is a state an attacker
+    can reach before the operator does. This endpoint is unavoidably public — it is how
+    the first account is made — so while a deployment has no owner, whoever gets here
+    first becomes its owner. Harmless on localhost; not harmless the moment a tunnel or
+    a reverse proxy is in front, which is easy to start before creating the account.
+    See src/core/setup_window.py.
     """
     if await _has_any_user(db):
         raise ConflictError("This deployment is already set up.")
+
+    if not setup_window.is_open(settings.SETUP_WINDOW_MINUTES) and not (
+        setup_window.token_matches(x_setup_token)
+    ):
+        raise ForbiddenError(
+            "The setup window has closed. Restart the API container to open a new one, "
+            "or resend this request with the X-Setup-Token header whose value was "
+            "written to the API log at startup."
+        )
 
     mode = WorkspaceMode(body.workspace_mode)
     org = await ensure_organization(db)

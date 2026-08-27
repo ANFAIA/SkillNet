@@ -84,7 +84,7 @@ describe('ClickableSurface', () => {
 
     await userEvent.click(screen.getByText('procedimiento'))
 
-    const popover = await screen.findByRole('dialog', { name: 'Explicacion de procedimiento' })
+    const popover = await screen.findByRole('dialog', { name: 'Explicación de procedimiento' })
     expect(Number(popover.style.zIndex)).toBe(EXPLAIN_LAYER_COURSE_CHAT)
     expect(Number(popover.style.zIndex)).toBeGreaterThan(100)
   })
@@ -118,7 +118,7 @@ describe('ClickableSurface', () => {
       expect(await screen.findByText('Es el limite de dias.')).toBeInTheDocument()
       expect(screen.getByRole('dialog')).toHaveAttribute(
         'aria-label',
-        'Explicacion de devolucion',
+        'Explicación de devolucion',
       )
     })
 
@@ -325,10 +325,10 @@ describe('ClickableSurface', () => {
 
       await userEvent.click(screen.getByText('devolucion'))
       // The button only appears once there is an explanation to expand on.
-      await userEvent.click(await screen.findByRole('button', { name: 'Ver mas' }))
+      await userEvent.click(await screen.findByRole('button', { name: 'Ver más' }))
 
       const panel = await screen.findByRole('dialog', {
-        name: 'Explicacion ampliada de devolucion',
+        name: 'Explicación ampliada de devolucion',
       })
       expect(panel).toHaveAttribute('aria-modal', 'true')
       // The popover it was opened from is gone: one explanation of one word at a time.
@@ -349,7 +349,7 @@ describe('ClickableSurface', () => {
 
       await userEvent.click(screen.getByText('devolucion'))
       await screen.findByRole('dialog')
-      expect(screen.queryByRole('button', { name: 'Ver mas' })).toBeNull()
+      expect(screen.queryByRole('button', { name: 'Ver más' })).toBeNull()
     })
   })
 

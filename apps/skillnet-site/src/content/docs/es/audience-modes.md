@@ -168,7 +168,7 @@ La ampliación estará bien resuelta si:
 
 Audio en el chat, conversaciones en vivo, mascota y podcasts pueden reutilizarse en ambos
 modos. Esta decisión no añade por sí sola más funciones al producto empresarial. La nota
-de dirección está en [conversational-modalities.md](conversational-modalities.md).
+de dirección está en [conversational-modalities.md](/docs/conversational-modalities).
 
 ## Estado de implementación
 
