@@ -57,7 +57,15 @@ jobs:
       # `config` needs neither the external network nor a running daemon's networks.
       - name: The PaaS compose file is valid too
         run: |
-          docker compose -f docker-compose.dokploy.yml config >/dev/null
+          # DOMAIN is `${DOMAIN:?...}` in that file on purpose: a deployment that forgets it
+          # would otherwise get a CORS_ORIGINS pointing at the wrong host, silently. But
+          # interpolation runs before `config` can check any syntax, so a missing DOMAIN
+          # fails the whole validation with a message about DOMAIN and tells us nothing
+          # about the file -- which is what broke this step when the PaaS file was
+          # rewritten. A throwaway value on this one command keeps the requirement strict
+          # where it matters and still lets us parse the YAML. `.invalid` is reserved, so it
+          # can never resolve to a real host.
+          DOMAIN=example.invalid docker compose -f docker-compose.dokploy.yml config >/dev/null
           echo "docker-compose.dokploy.yml parses"
 
       - name: Build and start
