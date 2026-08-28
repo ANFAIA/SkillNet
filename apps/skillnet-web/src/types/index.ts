@@ -29,6 +29,16 @@ export interface User {
   accessibility?: Record<string, unknown> | null
   hired_at?: string | null
   is_active?: boolean
+  // Only on `GET /users?with_groups=true`. `undefined` means the caller did not ask;
+  // `[]` means this person is in no group. The people table needs to tell those apart —
+  // one is "no column", the other is a dash in the row.
+  groups?: UserGroupBrief[]
+}
+
+/** A group as it travels on a person's row: enough to name it and to filter by it. */
+export interface UserGroupBrief {
+  id: string
+  name: string
 }
 
 export interface Paginated<T> {

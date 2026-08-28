@@ -13,6 +13,14 @@ export interface UserFilters {
   exclude_group_id?: string
   /** Only the people who are in **no** group at all. */
   ungrouped?: boolean
+  /**
+   * Attach each person's groups to their row. Off by default, and deliberately.
+   *
+   * Only the screen that paints a group asks for it. Every other caller of this list —
+   * the people pickers, the course-assignment dialogs, the one-row count probes — would
+   * be paying for a membership read it never renders.
+   */
+  with_groups?: boolean
   offset?: number
   limit?: number
 }
@@ -25,6 +33,7 @@ function toQuery(filters?: UserFilters): string {
   if (filters?.group_id) params.set('group_id', filters.group_id)
   if (filters?.exclude_group_id) params.set('exclude_group_id', filters.exclude_group_id)
   if (filters?.ungrouped) params.set('ungrouped', 'true')
+  if (filters?.with_groups) params.set('with_groups', 'true')
   // Always sent, never left to the server's default. The default is 50 and the endpoint
   // reports a `total`, so a caller that omitted both got the first fifty people and no
   // hint that there were more — which is exactly how the folder-assignment dialog came

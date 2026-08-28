@@ -17,9 +17,11 @@ from src.schemas.user import (
     ChangePasswordRequest,
     DeleteAccountRequest,
     EmployeeCreated,
+    GroupBrief,
     ResetPasswordRequest,
     UserAdminUpdate,
     UserCreateRequest,
+    UserListRead,
     UserRead,
     UserSelfUpdate,
 )
@@ -37,7 +39,7 @@ def _skill_service(db: DBSession) -> SkillService:
     return SkillService(SkillRepository(db))
 
 
-@router.get("", response_model=PaginatedResponse[UserRead])
+@router.get("", response_model=PaginatedResponse[UserListRead])
 async def list_users(
     admin: AdminUser,
     db: DBSession,
@@ -48,9 +50,10 @@ async def list_users(
     group_id: Annotated[uuid.UUID | None, Query()] = None,
     exclude_group_id: Annotated[uuid.UUID | None, Query()] = None,
     ungrouped: Annotated[bool, Query()] = False,
+    with_groups: Annotated[bool, Query()] = False,
     offset: Annotated[int, Query(ge=0)] = 0,
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
-) -> PaginatedResponse[UserRead]:
+) -> PaginatedResponse[UserListRead]:
     """The organization's people, filtered and paginated.
 
     ``group_id`` filters server-side on purpose, like every other filter here: the page
@@ -66,6 +69,14 @@ async def list_users(
     ``ungrouped`` is a different question again: people in **no** group at all. It is the
     one an administrator actually asks — "who have I not covered?" — and without it a
     person can only be found by knowing in advance which group they are missing from.
+
+    ``with_groups`` attaches each row's groups, and is **off** by default. The membership
+    belongs to the row — the screen that paints it must not read it from a second
+    endpoint, or the two answers can disagree about the same person — but most callers
+    of this list never render a group (the people pickers, the assignment dialogs, the
+    one-row count probes), and they should not pay for the read. When it is on, the whole
+    page's memberships come back in one bounded query keyed on the ids of the page, never
+    one query per row.
     """
     service = _service(db)
     rows, total = await service.list_users(
@@ -79,8 +90,15 @@ async def list_users(
         offset=offset,
         limit=limit,
     )
-    return PaginatedResponse[UserRead](
-        items=[UserRead.model_validate(u) for u in rows],
+    items = [UserListRead.model_validate(u) for u in rows]
+    if with_groups:
+        by_user = await service.groups_of_users([u.id for u in rows], admin.org_id)
+        for item in items:
+            item.groups = [
+                GroupBrief.model_validate(g) for g in by_user.get(item.id, [])
+            ]
+    return PaginatedResponse[UserListRead](
+        items=items,
         total=total,
         offset=offset,
         limit=limit,

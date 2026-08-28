@@ -370,3 +370,36 @@ async def test_the_person_exclusion_is_the_exact_complement(
     # A filter, not a second row source: joining the memberships would multiply the
     # groups and inflate the very total the pagination is computed from.
     assert "JOIN user_group_members" not in sql_of(session, 1)
+
+
+@pytest.mark.asyncio
+async def test_a_page_of_people_gets_its_groups_in_one_query(
+    session: CapturingSession,
+) -> None:
+    """The people table's group column, and the only shape that keeps it cheap.
+
+    One statement for the whole page, keyed on the page's ids — the same trick as
+    `EnrollmentRepository.existing_pairs`. Asking per row would be twenty-five
+    round-trips to paint one column, and it is the regression this pins: a `for` loop
+    around `groups_of_user` would still render correctly and still be a defect.
+
+    Scoped to the organization on top of the ids, because a membership row pointing at
+    another tenant's group must not put that group's name on the screen.
+    """
+    await UserRepository(session).groups_of_users([ANA, BRUNO], ORG_ID)
+
+    assert len(session.statements) == 1
+    sql = sql_of(session)
+    assert "user_group_members.user_id IN" in sql
+    assert str(ANA) in sql and str(BRUNO) in sql
+    assert f"user_groups.org_id = '{ORG_ID}'" in sql
+    # Ordered by name: the column shows the first group and counts the rest, so which
+    # one is "first" cannot be left to the planner.
+    assert "ORDER BY lower(user_groups.name)" in sql
+
+
+@pytest.mark.asyncio
+async def test_no_page_means_no_query_at_all(session: CapturingSession) -> None:
+    """An empty `IN ()` is a scan that answers nothing; an empty page just has no groups."""
+    assert await UserRepository(session).groups_of_users([], ORG_ID) == {}
+    assert session.statements == []

@@ -3,7 +3,7 @@
 import uuid
 from collections.abc import Sequence
 
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.elements import ColumnElement
 
@@ -109,3 +109,38 @@ class UserRepository(BaseRepository[User]):
         return await self.list(
             filters=filters, order_by=User.full_name, offset=offset, limit=limit
         )
+
+    async def groups_of_users(
+        self, user_ids: Sequence[uuid.UUID], org_id: uuid.UUID
+    ) -> dict[uuid.UUID, list[UserGroup]]:
+        """The groups of everybody on one page, in **one** query.
+
+        Same shape as ``EnrollmentRepository.existing_pairs``: the page's ids go in, the
+        whole cross-product comes back, and the caller indexes it. The alternative the
+        people table would otherwise reach for is a read per row — twenty-five
+        round-trips to paint one column — and the other one, fetching every group and
+        intersecting in Python, is worse the moment an organization has more groups than
+        it has people on a page.
+
+        Scoped by ``UserGroup.org_id`` and not only by the ids it was handed: a
+        membership row pointing at another tenant's group must never surface a name here.
+
+        Ordered by name so the *first* group is the same one on every request. The table
+        shows one name and counts the rest, so an unordered read would make the visible
+        name change between two identical loads.
+        """
+        if not user_ids:
+            return {}
+        stmt = (
+            select(UserGroupMember.user_id, UserGroup)
+            .join(UserGroup, UserGroup.id == UserGroupMember.group_id)
+            .where(
+                UserGroupMember.user_id.in_(set(user_ids)),
+                UserGroup.org_id == org_id,
+            )
+            .order_by(func.lower(UserGroup.name))
+        )
+        by_user: dict[uuid.UUID, list[UserGroup]] = {}
+        for user_id, group in (await self.session.execute(stmt)).tuples().all():
+            by_user.setdefault(user_id, []).append(group)
+        return by_user

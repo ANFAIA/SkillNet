@@ -3,7 +3,7 @@ import { useIntl } from 'react-intl'
 import { motion } from 'framer-motion'
 import { Badge, Button, Card, CardTitle, EmptyState, Input, Modal, PageHeader, Pager, SearchField, Select, SkeletonRow } from '../../components/ui'
 import { useUsers, USERS_PAGE_SIZE, useCreateUser, useResetPassword, useSetEmployeeActive, useSetUserRole } from '../../api/users'
-import type { UserGroup } from '../../api/user-groups'
+import { useUserGroups, type UserGroup } from '../../api/user-groups'
 import { UserGroupSidebar, type GroupFilter } from '../../components/people/UserGroupSidebar'
 import { GroupMembersDialog } from '../../components/people/GroupMembersDialog'
 import { AssignToGroupDialog } from '../../components/people/AssignToGroupDialog'
@@ -13,7 +13,7 @@ import { useCourseFolders } from '../../api/course-folders'
 import { useAssignCourse, useAssignFolder, useDeleteEnrollment, useEnrollments } from '../../api/enrollments'
 import { ApiError } from '../../api/client'
 import { staggerContainer, staggerItem } from '../../lib/motion'
-import type { EnrollmentRead, User } from '../../types'
+import type { EnrollmentRead, User, UserGroupBrief } from '../../types'
 
 function CreateEmployeeForm({ onDone }: { onDone: () => void }) {
   const intl = useIntl()
@@ -590,6 +590,65 @@ function EmployeeDetail({ employee }: { employee: User }) {
   )
 }
 
+/**
+ * Which group a person belongs to, as one field of their row.
+ *
+ * One name, plainly: belonging to a single group is the normal case, and it reads as a
+ * fact about the person rather than as a collection. The `+N` is the valve for the rare
+ * second membership — orthogonal axes like a shift and a branch office are legitimate,
+ * so the model stays many-to-many — and it never becomes the shape of the cell. The
+ * whole list lives on the person's record (`PersonGroupsSection`), which is where
+ * somebody who cares about all of them is already looking.
+ *
+ * The name filters the table by that group: the same state the rail writes, so the
+ * screen has one notion of "showing this group" and not two. A column that only labelled
+ * would take a column's worth of width to answer nothing.
+ */
+function PersonGroupCell({ groups, onFilter }: { groups: UserGroupBrief[]; onFilter: (id: string) => void }) {
+  const intl = useIntl()
+  if (groups.length === 0) {
+    // A dash, not a sentence: the empty case is common and must not shout. The label
+    // beside it is for screen readers, which would otherwise announce "em dash".
+    return (
+      <>
+        <span aria-hidden="true" className="text-text-muted">—</span>
+        <span className="sr-only">{intl.formatMessage({ id: 'employees.groupNone' })}</span>
+      </>
+    )
+  }
+  const [first, ...rest] = groups
+  const alsoIn = intl.formatMessage(
+    { id: 'employees.groupAlsoIn' },
+    { names: rest.map((g) => g.name).join(', ') },
+  )
+  return (
+    // The cap lives here and not on the `<td>`: the table lays out `auto`, where a
+    // `max-width` on a cell is advisory, so a 90-character group name would widen the
+    // column instead of ellipsing.
+    <span className="inline-flex max-w-48 min-w-0 items-baseline gap-1.5">
+      <button
+        type="button"
+        title={intl.formatMessage({ id: 'employees.groupFilter' }, { name: first.name })}
+        // The row itself opens the person's record. Without this the filter would never
+        // run: the click would reach the row and open the modal instead.
+        onClick={(event) => {
+          event.stopPropagation()
+          onFilter(first.id)
+        }}
+        className="truncate text-primary hover:underline"
+      >
+        {first.name}
+      </button>
+      {rest.length > 0 && (
+        <span className="shrink-0 text-xs text-text-muted" title={alsoIn}>
+          {intl.formatMessage({ id: 'employees.groupOverflow' }, { count: rest.length })}
+          <span className="sr-only"> {alsoIn}</span>
+        </span>
+      )}
+    </span>
+  )
+}
+
 export function Employees() {
   const intl = useIntl()
   const [search, setSearch] = useState('')
@@ -619,12 +678,23 @@ export function Employees() {
     is_active: activeFilter === '' ? undefined : activeFilter === 'active',
     group_id: group === 'all' || group === 'ungrouped' ? undefined : group,
     ungrouped: group === 'ungrouped',
+    // Always asked for, never made to depend on `orgHasGroups` below. Flipping this
+    // flag once the group count lands would change the query key and fetch the same
+    // page twice — the column is meant to cost one read, not to look like it does.
+    // An organization with no groups answers the join with nothing.
+    with_groups: true,
     offset,
     limit: USERS_PAGE_SIZE,
   })
   // The rail's two counts, and nothing else: one row asked for, read for its `total`.
   const orgTotal = useUsers({ limit: 1 })
   const ungroupedTotal = useUsers({ ungrouped: true, limit: 1 })
+  // Does this organization have groups at all? Same one-row probe as the two counts
+  // above, read for its `total`. Without groups the column would be a header and a
+  // column of dashes, so it is not drawn — and this is the only read that can say so:
+  // a page where nobody is in a group looks identical either way.
+  const groupsTotal = useUserGroups({ limit: 1 })
+  const orgHasGroups = (groupsTotal.data?.total ?? 0) > 0
 
   function openDetail(emp: User, e: { currentTarget: Element }) {
     setDetailOrigin(e.currentTarget.getBoundingClientRect())
@@ -742,6 +812,11 @@ export function Employees() {
                 <tr className="border-b border-border bg-bg-subtle">
                   <th className="text-left py-3 px-5 font-medium text-text-secondary rounded-tl-xl">{intl.formatMessage({ id: 'employees.headerName' })}</th>
                   <th className="text-left py-3 px-4 font-medium text-text-secondary">{intl.formatMessage({ id: 'employees.headerEmail' })}</th>
+                  {/* Singular: one group is the normal case, and a plural header would
+                      promise a list the cell deliberately does not draw. */}
+                  {orgHasGroups && (
+                    <th className="text-left py-3 px-4 font-medium text-text-secondary">{intl.formatMessage({ id: 'employees.headerGroup' })}</th>
+                  )}
                   <th className="text-left py-3 px-4 font-medium text-text-secondary rounded-tr-xl">{intl.formatMessage({ id: 'employees.headerRole' })}</th>
                 </tr>
               </thead>
@@ -762,6 +837,14 @@ export function Employees() {
                       )}
                     </td>
                     <td className="py-3 px-4 text-text-secondary">{emp.email}</td>
+                    {orgHasGroups && (
+                      <td className="py-3 px-4">
+                        <PersonGroupCell
+                          groups={emp.groups ?? []}
+                          onFilter={(id) => refilter(() => setGroup(id))}
+                        />
+                      </td>
+                    )}
                     <td className="py-3 px-4">
                       <Badge variant="primary" badgeStyle="plain">{roleLabel(emp.role)}</Badge>
                     </td>
@@ -800,6 +883,16 @@ export function Employees() {
                       )}
                     </div>
                     <p className="text-sm text-text-secondary mt-0.5 truncate">{emp.email}</p>
+                    {/* Below `md` the table is `display: none`, so without this line the
+                        group simply does not exist on a phone. */}
+                    {orgHasGroups && (
+                      <p className="mt-1 text-sm">
+                        <PersonGroupCell
+                          groups={emp.groups ?? []}
+                          onFilter={(id) => refilter(() => setGroup(id))}
+                        />
+                      </p>
+                    )}
                   </div>
                   <Badge variant="primary" badgeStyle="plain">{roleLabel(emp.role)}</Badge>
                 </div>

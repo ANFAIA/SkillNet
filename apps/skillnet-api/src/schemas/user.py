@@ -1,14 +1,17 @@
 """User request bodies. Responses reuse ``src.auth.schemas.UserRead``."""
 
+import uuid
 from typing import Literal
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 from src.auth.schemas import UserRead
 from src.schemas.onboarding import AccessibilitySubmit
 
 __all__ = [
     "UserRead",
+    "GroupBrief",
+    "UserListRead",
     "UserCreateRequest",
     "EmployeeCreated",
     "UserAdminUpdate",
@@ -18,6 +21,33 @@ __all__ = [
     "ChangeEmailRequest",
     "DeleteAccountRequest",
 ]
+
+
+class GroupBrief(BaseModel):
+    """A group as it appears on somebody's row: enough to name it and to filter by it.
+
+    Deliberately not ``UserGroupRead``: that carries ``member_count``, which is a
+    correlated subquery per group and answers a question the row is not asking. A page
+    of twenty-five people would pay for it twenty-five times over to render a name.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    name: str
+
+
+class UserListRead(UserRead):
+    """One row of ``GET /users``.
+
+    ``groups`` is ``None`` unless ``with_groups=true`` was asked for, and that is not the
+    same as ``[]``. Most callers of this endpoint only need names and ids — the people
+    pickers, the course-assignment dialogs, the one-row count probes — and they must not
+    pay for a membership read they never render. A caller that *did* ask, meanwhile, has
+    to be able to tell "this person is in no group" from "nobody asked".
+    """
+
+    groups: list[GroupBrief] | None = None
 
 
 class UserCreateRequest(BaseModel):

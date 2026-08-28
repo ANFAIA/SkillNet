@@ -12,7 +12,7 @@ from src.core.exceptions import (
     NotFoundError,
     ValidationError,
 )
-from src.models import LearningProfile, User, UserRole
+from src.models import LearningProfile, User, UserGroup, UserRole
 from src.repositories.user_repo import UserRepository
 
 _password_helper = PasswordHelper()
@@ -61,6 +61,18 @@ class UserService:
             offset=offset,
             limit=limit,
         )
+
+    async def groups_of_users(
+        self, user_ids: Sequence[uuid.UUID], org_id: uuid.UUID
+    ) -> dict[uuid.UUID, list[UserGroup]]:
+        """The groups of the people on one page, keyed by person.
+
+        A separate call rather than an argument to ``list_users`` so that the page read
+        keeps its shape — ``(rows, total)``, the one every other caller destructures —
+        and the second, bounded read is visible at the call site instead of hidden
+        behind a flag.
+        """
+        return await self.repo.groups_of_users(user_ids, org_id)
 
     async def get_user(self, user_id: uuid.UUID, org_id: uuid.UUID) -> User:
         user = await self.repo.get_by_id(user_id)
