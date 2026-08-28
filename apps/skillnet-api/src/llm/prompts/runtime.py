@@ -155,7 +155,27 @@ from src.schemas.episode_contracts import EpisodeBrief
 #: El frontend ya partia las pantallas por la etiqueta ``solvable`` del hijo de la raiz
 #: (``kit/solvableSteps.ts``), asi que un ejercicio anidado con su explicacion era la unica
 #: forma de saltarse esa separacion.
-PROMPT_VERSION = "runtime/42"
+#: ``runtime/43`` (2026-08-28): **el texto del prompt no cambia. Esta version existe solo
+#: para invalidar la cache.** Se documenta asi de claro porque quien lea esta constante
+#: dentro de tres meses va a buscar un cambio de redaccion que no existe.
+#: Entre ``runtime/42`` (2026-08-25) y hoy, dos arreglos —"half the renders were falling
+#: back, and one of them showed the learner the prompt" (``02c0573``) y los tres defectos
+#: que encontro su revision (``8e0f420``)— reescribieron ``validate_ui``, ``fallback_seed``,
+#: ``_serve_fallback`` y el pinning de refs en ``agents/runtime/nodes.py``. Ninguno toco el
+#: prompt, asi que ninguno subio la version, y la convencion se respeto al pie de la letra.
+#: Pero lo que cambio fue **que programa acaba escrito en ``node_renders``**, y esa fila se
+#: sirve por ``cache_key`` — que no se movio. Resultado: todo lo generado antes de esos
+#: arreglos se sigue sirviendo tal cual, para siempre, fallbacks y prompt filtrado al
+#: aprendiz incluidos. Nada lo regenera solo.
+#: Subir la version es lo que los desaloja, en cualquier maquina que haga ``pull``, sin
+#: comandos ni SQL y sin disparar el ``ON DELETE CASCADE`` de ``node_render_views`` que un
+#: ``DELETE FROM node_renders`` se llevaria por delante. **Invalida, no borra**: las filas
+#: viejas siguen ocupando disco pero ya no las encuentra ninguna busqueda, y limpiarlas es
+#: una tarea que puede esperar a un momento tranquilo.
+#: Leccion para la proxima: la convencion de subir la version "cuando cambia la redaccion"
+#: se queda corta. Lo que obliga a subirla es que cambie **la salida**, y el generador puede
+#: cambiarla sin tocar una sola palabra del prompt.
+PROMPT_VERSION = "runtime/43"
 #: ``episode/3`` (2026-08-17): un episodio ya no es UNA pantalla. Cada hijo directo del
 #: Stack raiz es una PANTALLA que el aprendiz pasa una a una (paginacion en el frontend,
 #: sin scroll). El generador decide CUANTAS pantallas segun el material (1 si el nodo es
