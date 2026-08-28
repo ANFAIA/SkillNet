@@ -15,7 +15,6 @@ export interface DraftNode {
   outcome: string
   criticality: NodeCriticality
   masteryThreshold: number
-  estimatedMinutes: number | null
   defaultUiFormat: UiFormat
   skillId: string | null
   seedLessonId: string | null

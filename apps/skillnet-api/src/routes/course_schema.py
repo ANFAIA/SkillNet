@@ -89,7 +89,6 @@ def _read(snapshot: SchemaSnapshot) -> CourseSchemaRead:
             criticality=node.criticality.value,
             position=node.position,
             mastery_threshold=float(node.mastery_threshold),
-            estimated_minutes=node.estimated_minutes,
             default_ui_format=node.default_ui_format.value,
             skill_id=node.skill_id,
             seed_lesson_id=node.seed_lesson_id,

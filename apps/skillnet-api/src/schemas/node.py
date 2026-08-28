@@ -30,10 +30,6 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 #: where user text is persisted (§3.3), so it is bounded here.
 UNCLEAR_MAX_CHARS = 1000
 
-#: Fallback for ``estimated_minutes`` when the creator left it empty. The frontend types it
-#: as a number, not ``number | null``.
-DEFAULT_ESTIMATED_MINUTES = 6
-
 
 # --- node list ---------------------------------------------------------------------
 
@@ -64,7 +60,6 @@ class NodeSummaryRead(BaseModel):
     #: practice queue. The field ships as the contract the hint ladder will fill, not as
     #: coverage it already has.
     needs_practice: bool = False
-    estimated_minutes: int = DEFAULT_ESTIMATED_MINUTES
     #: ``learner_node_states.first_seen_at`` — when this learner was first served this
     #: node, ``null`` for a node they have never opened. It is the field a client needs to
     #: reopen a course where the learner left it, and the reason it is here rather than
@@ -458,7 +453,6 @@ class NodeStateRead(BaseModel):
 
 
 __all__ = [
-    "DEFAULT_ESTIMATED_MINUTES",
     "UNCLEAR_MAX_CHARS",
     "NodeAnswerRequest",
     "NodeAttemptResult",

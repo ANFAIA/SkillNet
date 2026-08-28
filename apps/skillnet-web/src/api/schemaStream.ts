@@ -23,7 +23,6 @@ export interface NodeDetail {
   detail: {
     summary?: string
     outcome?: string
-    estimated_minutes?: number
     default_ui_format?: string
   }
   error?: string

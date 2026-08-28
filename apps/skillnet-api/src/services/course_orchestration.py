@@ -153,7 +153,6 @@ def _node_to_payload(node: Any, prerequisites: list[uuid.UUID]) -> dict[str, Any
             if node.mastery_threshold is not None
             else None
         ),
-        "estimated_minutes": node.estimated_minutes,
         "default_ui_format": _enum_value(node.default_ui_format),
         "skill_id": node.skill_id,
         "seed_lesson_id": node.seed_lesson_id,

@@ -76,7 +76,6 @@ from src.repositories.node_render_view_repo import NodeRenderViewRepository
 from src.repositories.skill_repo import SkillRepository
 from src.schemas.media import MediaArtifactAccepted
 from src.schemas.node import (
-    DEFAULT_ESTIMATED_MINUTES,
     NodeAnswerRequest,
     NodeAttemptResult,
     NodeCompletionRead,
@@ -365,9 +364,6 @@ async def list_course_nodes(
                 locked=bool(unmet),
                 locked_by=unmet,
                 needs_practice=current == NEEDS_REVIEW,
-                estimated_minutes=int(
-                    node.estimated_minutes or DEFAULT_ESTIMATED_MINUTES
-                ),
                 # "Where was I?" — see NodeSummaryRead. Null for a node never served to
                 # this learner, including the ones the prefetch already created a row for.
                 first_seen_at=getattr(row, "first_seen_at", None),

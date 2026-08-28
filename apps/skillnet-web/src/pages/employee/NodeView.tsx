@@ -438,16 +438,15 @@ export function NodeView() {
    * for a learner whose progress predates the stamp).
    */
   const hasNoProgress = !hasStartedCourse(ordered)
-  const totalMinutes = ordered.reduce((sum, n) => sum + (n.estimated_minutes ?? 0), 0)
   const courseIntro: CourseIntro | null = useMemo(() => {
     if (!isFirstNode || !hasNoProgress || !courseQuery.data) return null
     return {
       title: courseQuery.data.title,
-      subtitle: intl.formatMessage({ id: 'node.introSubtitle' }, { count: ordered.length, minutes: totalMinutes }),
+      subtitle: intl.formatMessage({ id: 'node.introSubtitle' }, { count: ordered.length }),
       outcomes: ordered.slice(0, 4).map((n) => n.summary).filter((s): s is string => Boolean(s)),
       buddyMessage: intl.formatMessage({ id: 'node.buddyMessage' }),
     }
-  }, [isFirstNode, hasNoProgress, courseQuery.data, ordered, totalMinutes, intl])
+  }, [isFirstNode, hasNoProgress, courseQuery.data, ordered, intl])
 
   const initialPhase: Phase | null = node ? 'content' : null
 
@@ -1128,7 +1127,6 @@ export function NodeView() {
                           <div className="flex items-center justify-between text-sm">
                             <span className="text-text-muted">
                               {intl.formatMessage({ id: 'node.counter' }, { current: index + 1, total: ordered.length })}
-                              {node.estimated_minutes ? ` · ${node.estimated_minutes} min` : ''}
                             </span>
                             {node.mastery > 0 && (
                               <span className="text-text-secondary font-medium">

@@ -542,7 +542,6 @@ async def persist_schema(state: SchemaState) -> dict:
                 source_headings=headings,
                 mastery_threshold=default_threshold_for(criticality),
                 default_ui_format=coerce_ui_format(node.get("default_ui_format")),
-                estimated_minutes=_as_minutes(node.get("estimated_minutes")),
                 # No reviewed_at: a proposal is never pre-approved (§11.1 rule 2).
                 reviewed_at=None,
                 reviewed_by=None,
@@ -615,14 +614,6 @@ async def persist_schema(state: SchemaState) -> dict:
         "schema_warnings": warnings,
         "current_step": "schema_proposed",
     }
-
-
-def _as_minutes(value: object) -> int | None:
-    try:
-        minutes = int(value)  # type: ignore[arg-type]
-    except (TypeError, ValueError):
-        return None
-    return max(1, min(minutes, 240))
 
 
 # --------------------------------------------------------------------------- #

@@ -24,7 +24,6 @@ function node(overrides: Partial<LearningNode> = {}): LearningNode {
     locked: false,
     locked_by: [],
     needs_practice: false,
-    estimated_minutes: 6,
     first_seen_at: null,
     completed_at: null,
     ...overrides,

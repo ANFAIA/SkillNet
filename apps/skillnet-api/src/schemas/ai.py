@@ -17,7 +17,6 @@ class ProposedNode(BaseModel):
     outcome: str | None = None
     criticality: str = "recommended"
     default_ui_format: str = "explanation"
-    estimated_minutes: int = 10
     source_headings: list[str] = []
     prerequisites: list[int] = []
 

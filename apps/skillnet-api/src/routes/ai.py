@@ -156,7 +156,7 @@ You are an instructional designer. You are given one node from a course schema
 and the course title. Fill in the details for this single node.
 
 Return valid JSON only, no surrounding text:
-{"summary": str, "outcome": str, "estimated_minutes": int, "default_ui_format": str}
+{"summary": str, "outcome": str, "default_ui_format": str}
 
 Rules:
 - summary: 1-2 sentences with the ONE fact, case or procedure this screen
@@ -164,7 +164,6 @@ Rules:
   Example: "Si el aceite frio un rebozado con harina, la fritura no es apta
   para un celiaco."
 - outcome: what the employee will do on the job after this screen, one sentence.
-- estimated_minutes: integer between 2 and 20.
 - default_ui_format: one of [explanation, exercise, chart, mixed].
   Use chart when the teaching material is numbers; mixed when it is a procedure
   the employee will then practise; explanation when it is one rule or case.
@@ -209,7 +208,6 @@ async def _enrich_node(
             "detail": {
                 "summary": "",
                 "outcome": None,
-                "estimated_minutes": 10,
                 "default_ui_format": "explanation",
             },
             "error": str(exc),
@@ -360,7 +358,6 @@ async def schema_propose(
             outcome=node.get("outcome"),
             criticality=str(node.get("criticality", "recommended")),
             default_ui_format=str(node.get("default_ui_format", "explanation")),
-            estimated_minutes=_as_minutes(node.get("estimated_minutes")),
             source_headings=[],
             prerequisites=_safe_prerequisites(node.get("prerequisites"), idx),
         )
@@ -370,15 +367,6 @@ async def schema_propose(
     ]
 
     return SchemaProposalResponse(nodes=nodes)
-
-
-def _as_minutes(value: object) -> int:
-    """Clamp to a sensible range, defaulting to 10."""
-    try:
-        minutes = int(value)  # type: ignore[arg-type]
-    except (TypeError, ValueError):
-        return 10
-    return max(1, min(minutes, 240))
 
 
 def _safe_prerequisites(raw: object, own_index: int) -> list[int]:

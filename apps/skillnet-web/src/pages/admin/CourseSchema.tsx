@@ -77,7 +77,6 @@ function toDraft(node: CourseSchemaNode): DraftNode {
     outcome: node.outcome ?? '',
     criticality: node.criticality,
     masteryThreshold: node.mastery_threshold,
-    estimatedMinutes: node.estimated_minutes,
     defaultUiFormat: node.default_ui_format,
     skillId: node.skill_id,
     seedLessonId: node.seed_lesson_id,
@@ -110,7 +109,6 @@ function isNodeDirty(node: DraftNode, position: number, server: CourseSchemaNode
     node.outcome !== (server.outcome ?? '') ||
     node.criticality !== server.criticality ||
     node.defaultUiFormat !== server.default_ui_format ||
-    node.estimatedMinutes !== server.estimated_minutes ||
     node.archived !== server.archived ||
     position !== server.position ||
     Math.abs(node.masteryThreshold - server.mastery_threshold) > 1e-6 ||
@@ -195,8 +193,6 @@ export function CourseSchema() {
 
   const liveNodes = draft.filter((node) => !node.archived)
 
-  const totalMinutes = liveNodes.reduce((sum, node) => sum + (node.estimatedMinutes ?? 0), 0)
-
   const nodeLabels = useMemo(() => {
     const labels: Record<string, string> = {}
     draft.forEach((node, index) => {
@@ -236,7 +232,6 @@ export function CourseSchema() {
         outcome: '',
         criticality: 'recommended',
         masteryThreshold: 0.8,
-        estimatedMinutes: null,
         defaultUiFormat: 'explanation',
         skillId: null,
         seedLessonId: null,
@@ -280,7 +275,6 @@ export function CourseSchema() {
       criticality: node.criticality,
       position: index + 1,
       mastery_threshold: node.masteryThreshold,
-      estimated_minutes: node.estimatedMinutes,
       default_ui_format: node.defaultUiFormat,
       skill_id: node.skillId,
       seed_lesson_id: node.seedLessonId,
@@ -468,7 +462,6 @@ export function CourseSchema() {
         </div>
         <p className="text-sm text-text-secondary mt-1">
           {intl.formatMessage({ id: draft.length === 1 ? 'schema.nodesSingular' : 'schema.nodesPlural' }, { count: draft.length })}
-          {totalMinutes > 0 && ` · ${totalMinutes} min`}
         </p>
       </motion.div>
 
@@ -597,10 +590,6 @@ export function CourseSchema() {
                 <div className="flex justify-between">
                   <span className="text-text-muted">{intl.formatMessage({ id: 'schema.nodesLabel' })}</span>
                   <span className="text-text font-medium">{liveNodes.length}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-text-muted">{intl.formatMessage({ id: 'schema.estimatedTime' })}</span>
-                  <span className="text-text font-medium">{totalMinutes} min</span>
                 </div>
               </div>
             </Card>

@@ -98,7 +98,6 @@ function NodeRow({
         <p className="mt-1 text-sm text-text-secondary line-clamp-2">{node.summary}</p>
       )}
       <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-text-muted">
-        <span className="tabular-nums">{node.estimated_minutes} min</span>
         <span className="tabular-nums">{intl.formatMessage({ id: 'nodelist.mastery' }, { pct: Math.round(node.mastery * 100) })}</span>
       </div>
       {node.locked && (

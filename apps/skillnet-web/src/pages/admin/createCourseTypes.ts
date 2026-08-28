@@ -11,7 +11,6 @@ export interface ProposedNode {
   outcome: string | null
   criticality: string
   default_ui_format: string
-  estimated_minutes: number
   source_headings: string[]
   prerequisites: number[]
 }

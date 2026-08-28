@@ -1229,7 +1229,6 @@ def build_session(encargo: Encargo) -> BenchSession:
         seed_lesson_id=LESSON_ID,
         probe_items=[],
         probe_answer_key={},
-        estimated_minutes=6,
     )
     node.id = _node_id(encargo)
     node.archived = False

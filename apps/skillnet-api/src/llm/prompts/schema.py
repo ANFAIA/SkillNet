@@ -62,7 +62,6 @@ Para cada nodo devuelves:
 - outcome: que sabra hacer el empleado al terminarlo, en una frase
 - criticality: uno de [{_CRITICALITY_VALUES}]
 - default_ui_format: uno de [{_UI_FORMAT_VALUES}]
-- estimated_minutes: entero entre 2 y 20
 - source_headings: lista de headings del documento que respaldan este nodo
 - prerequisites: lista de INDICES (base 0) de otros nodos de esta misma lista
 
@@ -110,8 +109,7 @@ Si el material mezcla ambos, elige el que domine el curso en conjunto.
 Responde en JSON valido, sin texto alrededor, con la forma:
 {{"nodes": [{{"title": str, "summary": str, "outcome": str,
             "criticality": str, "default_ui_format": str,
-            "estimated_minutes": int, "source_headings": [str],
-            "prerequisites": [int]}}],
+            "source_headings": [str], "prerequisites": [int]}}],
  "tutor_style": "direct" | "socratic",
  "notes": [str]}}
 """

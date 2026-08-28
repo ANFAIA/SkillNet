@@ -472,7 +472,6 @@ def make_node(**overrides) -> CourseNode:
         seed_lesson_id=LESSON_ID,
         probe_items=[],
         probe_answer_key={},
-        estimated_minutes=5,
     )
     node.id = NODE_ID
     node.archived = False

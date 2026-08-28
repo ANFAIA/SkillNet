@@ -487,7 +487,6 @@ export interface LearningNode {
   locked_by: string[]
   /** `state === 'needs_review'` (§7.4). */
   needs_practice: boolean
-  estimated_minutes: number
   /**
    * ISO timestamp of the first time this learner was served this node, `null` when they
    * have never opened it. The only server-side answer to "where was I?": `state` cannot
@@ -573,7 +572,6 @@ export interface CourseSchemaNode {
   criticality: NodeCriticality
   position: number
   mastery_threshold: number
-  estimated_minutes: number | null
   default_ui_format: UiFormatType
   skill_id: string | null
   seed_lesson_id: string | null
@@ -617,7 +615,6 @@ export interface CourseSchemaNodeInput {
   criticality: NodeCriticality
   position: number
   mastery_threshold: number
-  estimated_minutes: number | null
   default_ui_format: UiFormatType
   skill_id: string | null
   seed_lesson_id: string | null

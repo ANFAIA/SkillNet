@@ -203,7 +203,6 @@ async def seed_org_demo(session: AsyncSession, org: Organization) -> Course | No
             criticality=NodeCriticality.RECOMMENDED,
             position=position,
             default_ui_format=UiFormat.EXPLANATION,
-            estimated_minutes=3,
             reviewed_at=_now(),
         )
         session.add(node)

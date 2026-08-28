@@ -162,9 +162,6 @@ export function SchemaTreeNode({
           {!expanded && node.archived && (
             <span className="text-xs text-text-muted">Arch.</span>
           )}
-          {node.estimatedMinutes != null && (
-            <span className="text-xs text-text-muted whitespace-nowrap">{node.estimatedMinutes} min</span>
-          )}
         </div>
       </div>
 

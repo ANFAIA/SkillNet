@@ -84,7 +84,6 @@ class FakeNode:
     criticality: str = "recommended"
     position: int = 1
     archived: bool = False
-    estimated_minutes: int | None = 6
     skill_id: uuid.UUID | None = None
     reviewed_at: Any = None
     mastery_threshold: float | None = None

@@ -792,7 +792,6 @@ class CourseSchemaService:
                 else default_threshold_for(criticality)
             ),
             default_ui_format=coerce_ui_format(payload.get("default_ui_format")),
-            estimated_minutes=payload.get("estimated_minutes"),
             # A brand-new node is never pre-reviewed: that is the whole point of
             # §11.1 rule 2.
             reviewed_at=None,
@@ -831,8 +830,6 @@ class CourseSchemaService:
             node.source_document_id = _as_uuid_or_none(payload.get("source_document_id"))
         if payload.get("mastery_threshold") is not None:
             node.mastery_threshold = float(payload["mastery_threshold"])
-        if "estimated_minutes" in payload:
-            node.estimated_minutes = payload["estimated_minutes"]
         node.position = position
         if payload.get("archived") is not None:
             node.archived = bool(payload["archived"])

@@ -84,7 +84,6 @@ DESIGN_RESPONSE = json.dumps(
                 "outcome": "El alumno adopta la postura correcta",
                 "criticality": "critical",
                 "default_ui_format": "explanation",
-                "estimated_minutes": 10,
                 "source_headings": [],
                 "prerequisites": [],
             },
@@ -94,7 +93,6 @@ DESIGN_RESPONSE = json.dumps(
                 "outcome": "Ejecutar los cuatro golpes basicos",
                 "criticality": "recommended",
                 "default_ui_format": "explanation",
-                "estimated_minutes": 12,
                 "source_headings": [],
                 "prerequisites": [0],
             },
@@ -189,7 +187,6 @@ def test_schema_propose_returns_nodes(client: TestClient) -> None:
     first = data["nodes"][0]
     assert first["title"] == "Fundamentos del boxeo"
     assert first["criticality"] == "critical"
-    assert first["estimated_minutes"] == 10
     assert first["source_headings"] == []
     assert first["prerequisites"] == []
 

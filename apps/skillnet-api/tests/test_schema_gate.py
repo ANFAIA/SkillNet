@@ -245,7 +245,6 @@ def node_payload(node: CourseNode, **overrides) -> dict:
         "criticality": node.criticality.value,
         "position": node.position,
         "mastery_threshold": float(node.mastery_threshold),
-        "estimated_minutes": node.estimated_minutes,
         "default_ui_format": node.default_ui_format.value,
         "skill_id": node.skill_id,
         "seed_lesson_id": node.seed_lesson_id,
@@ -516,10 +515,10 @@ async def test_editing_a_harmless_field_keeps_reviewed_at() -> None:
         course_id=course.id,
         org_id=ORG_ID,
         actor_id=ACTOR_ID,
-        nodes=[node_payload(node, estimated_minutes=12, outcome="otro resultado")],
+        nodes=[node_payload(node, outcome="otro resultado")],
     )
     assert node.reviewed_at == stamped
-    assert node.estimated_minutes == 12
+    assert node.outcome == "otro resultado"
 
 
 @pytest.mark.asyncio

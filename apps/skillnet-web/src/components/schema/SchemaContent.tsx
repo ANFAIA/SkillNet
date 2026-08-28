@@ -41,7 +41,6 @@ export interface SchemaContentProps {
   nodes: ProposedNode[]
   density: number
   onDensityChange: (v: number) => void
-  totalMinutes: number
   criticalCount: number
   onNodeChange: (i: number, patch: Partial<ProposedNode>) => void
   onNodeDelete: (i: number) => void
@@ -70,7 +69,6 @@ export function SchemaContent({
   nodes,
   density,
   onDensityChange,
-  totalMinutes,
   criticalCount,
   onNodeChange,
   onNodeDelete,
@@ -280,10 +278,6 @@ export function SchemaContent({
             <div className="flex justify-between">
               <span className="text-text-muted">Imprescindibles</span>
               <span className="text-text font-medium">{criticalCount}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-text-muted">Tiempo est.</span>
-              <span className="text-text font-medium">{totalMinutes} min</span>
             </div>
           </div>
 

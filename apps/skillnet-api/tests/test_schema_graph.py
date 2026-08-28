@@ -94,7 +94,6 @@ DESIGN_RESPONSE = json.dumps(
                 "outcome": "Reconocer una excepcion",
                 "criticality": "recommended",
                 "default_ui_format": "explanation",
-                "estimated_minutes": 5,
                 "source_headings": ["Plazo"],
                 "prerequisites": [1],
             },
@@ -104,7 +103,6 @@ DESIGN_RESPONSE = json.dumps(
                 "outcome": "Aplicar el plazo",
                 "criticality": "critical",
                 "default_ui_format": "explanation",
-                "estimated_minutes": 4,
                 "source_headings": ["Devoluciones", "Politica inventada"],
                 # Closes a cycle with node 0: must be pruned, not fatal.
                 "prerequisites": [0],

@@ -158,7 +158,6 @@ export function SortableTreeNode({
               {critLabel}
             </span>
           )}
-          <span className="text-xs text-text-muted whitespace-nowrap">{node.estimated_minutes} min</span>
           <button
             type="button"
             onClick={onDelete}
@@ -252,19 +251,6 @@ export function SortableTreeNode({
                 </button>
               ))}
             </div>
-          </div>
-
-          {/* Minutes */}
-          <div className="flex items-center gap-0 px-2 py-1 rounded hover:bg-bg-muted">
-            <span className="w-24 shrink-0 text-xs text-text-muted">{intl.formatMessage({ id: 'schemaNode.minutes' })}</span>
-            <input
-              type="number"
-              min={1}
-              max={120}
-              className="w-16 text-sm text-text bg-transparent border-none focus:outline-none p-0 focus:bg-bg focus:shadow-[0_0_0_1px_var(--color-primary)] focus:rounded focus:px-1.5 focus:-mx-1.5"
-              value={node.estimated_minutes}
-              onChange={(e) => onChange({ estimated_minutes: Math.max(1, Math.min(120, Number(e.target.value) || 1)) })}
-            />
           </div>
 
           {/* Prerequisites */}

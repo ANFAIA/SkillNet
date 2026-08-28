@@ -27,7 +27,6 @@ function node(overrides: Partial<CourseSchemaNode> & { id: string }): CourseSche
     criticality: 'critical',
     position: 1,
     mastery_threshold: 0.9,
-    estimated_minutes: 6,
     default_ui_format: 'explanation',
     skill_id: null,
     seed_lesson_id: null,

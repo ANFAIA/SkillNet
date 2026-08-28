@@ -18,7 +18,7 @@ import {
 import { useCreateCourse, useGenerateContent, usePublishCourse, useCourse, useUpdateLesson, useUpdateExercise } from '../../api/courses'
 import { useGenerationProgress, useGenerationJobStatus, jobToProgress } from '../../api/generation'
 import { streamSchemaProposal } from '../../api/schemaStream'
-import { startCourseFinalization, useCourseFinalization, useCourseSchema } from '../../api/schema'
+import { startCourseFinalization, useCourseFinalization } from '../../api/schema'
 import { useReplaceCourseSkills, useSkills } from '../../api/skills'
 import { useUsers } from '../../api/users'
 import { useAssignCourse } from '../../api/enrollments'
@@ -527,7 +527,6 @@ export function CreateCourse() {
   // Created course summary (for the success screen)
   const [createdTitle, setCreatedTitle] = useState('')
   const [createdNodeCount, setCreatedNodeCount] = useState(0)
-  const [createdMinutes, setCreatedMinutes] = useState(0)
   const [testingCourse, setTestingCourse] = useState(false)
 
   // Schema proposal state (streaming)
@@ -566,11 +565,6 @@ export function CreateCourse() {
   // none of the wizard's form state, so the course's own title is the only one left.
   const resumedCourse = useCourse(urlCourseId ?? undefined)
   const courseTitle = resumedCourse.data?.title ?? ''
-  const resumedSchema = useCourseSchema(urlCourseId ?? undefined)
-  const resumedMinutes = (resumedSchema.data?.nodes ?? []).reduce(
-    (sum, node) => sum + (node.estimated_minutes ?? 0),
-    0,
-  )
   const skillsQuery = useSkills('', { enabled: !individual })
   const replaceCourseSkills = useReplaceCourseSkills()
 
@@ -635,7 +629,6 @@ export function CreateCourse() {
               outcome: null,
               criticality: n.criticality || 'recommended',
               default_ui_format: 'explanation',
-              estimated_minutes: 10,
               source_headings: [],
               prerequisites: n.prerequisites || [],
             })),
@@ -654,7 +647,6 @@ export function CreateCourse() {
                 ...updated[index],
                 summary: detail.summary || updated[index].summary,
                 outcome: detail.outcome || updated[index].outcome,
-                estimated_minutes: detail.estimated_minutes ?? updated[index].estimated_minutes,
                 default_ui_format: detail.default_ui_format || updated[index].default_ui_format,
               }
             }
@@ -834,9 +826,8 @@ export function CreateCourse() {
     if (phase !== 'creating' || runState !== 'complete') return
     setCreatedTitle((current) => current || courseTitle || title.trim())
     setCreatedNodeCount((current) => current || finalization.data?.packs_total || 0)
-    setCreatedMinutes((current) => current || resumedMinutes)
     setPhase('created')
-  }, [phase, runState, finalization.data?.packs_total, courseTitle, title, resumedMinutes])
+  }, [phase, runState, finalization.data?.packs_total, courseTitle, title])
 
   /**
    * Resume a run the server never actually started.
@@ -929,7 +920,6 @@ export function CreateCourse() {
         criticality: n.criticality,
         position: i + 1,
         mastery_threshold: n.criticality === 'critical' ? 0.9 : n.criticality === 'recommended' ? 0.8 : 0.7,
-        estimated_minutes: n.estimated_minutes,
         default_ui_format: n.default_ui_format,
         skill_id: null,
         seed_lesson_id: null,
@@ -961,7 +951,6 @@ export function CreateCourse() {
 
       setCreatedTitle(title.trim())
       setCreatedNodeCount(proposedNodes.length)
-      setCreatedMinutes(totalMinutes)
 
       // Hand over. From here the tab only watches: waiting for the packs, marking the
       // graph reviewed and validating all happen in a server task that outlives it.
@@ -1056,7 +1045,6 @@ export function CreateCourse() {
         outcome: null,
         criticality: 'recommended',
         default_ui_format: 'explanation',
-        estimated_minutes: 5,
         source_headings: [],
         prerequisites: [],
       },
@@ -1074,7 +1062,6 @@ export function CreateCourse() {
       : intl.formatMessage({ id: 'create.confirm' })
 
   // Stats for schema sidebar
-  const totalMinutes = proposedNodes.reduce((s, n) => s + n.estimated_minutes, 0)
   const criticalCount = proposedNodes.filter((n) => n.criticality === 'critical').length
 
   // ── Render ────────────────────────────────────────────────
@@ -1266,7 +1253,7 @@ export function CreateCourse() {
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0, transition: { duration: duration.normal, ease: ease.base, delay: 0.35 } }}
             >
-              {intl.formatMessage({ id: 'create.nodesMinutes' }, { count: createdNodeCount, minutes: createdMinutes })}
+              {intl.formatMessage({ id: 'create.nodesCount' }, { count: createdNodeCount })}
             </motion.p>
 
             <motion.div
@@ -1529,7 +1516,6 @@ export function CreateCourse() {
                         nodes={proposedNodes}
                         density={density}
                         onDensityChange={handleDensityChange}
-                        totalMinutes={totalMinutes}
                         criticalCount={criticalCount}
                         onNodeChange={handleNodeChange}
                         onNodeDelete={handleNodeDelete}
@@ -1635,7 +1621,6 @@ export function CreateCourse() {
                         nodes={proposedNodes}
                         density={density}
                         onDensityChange={handleDensityChange}
-                        totalMinutes={totalMinutes}
                         criticalCount={criticalCount}
                         onNodeChange={handleNodeChange}
                         onNodeDelete={handleNodeDelete}

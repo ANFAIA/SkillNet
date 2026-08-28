@@ -38,7 +38,6 @@ class CourseNodeRead(BaseModel):
     criticality: Criticality
     position: int
     mastery_threshold: float
-    estimated_minutes: int | None = None
     default_ui_format: UiFormatName
     skill_id: uuid.UUID | None = None
     seed_lesson_id: uuid.UUID | None = None
@@ -77,7 +76,6 @@ class CourseNodeInput(BaseModel):
     criticality: Criticality = NodeCriticality.RECOMMENDED.value
     position: int | None = Field(default=None, ge=1)
     mastery_threshold: float | None = Field(default=None, gt=0, le=1)
-    estimated_minutes: int | None = Field(default=None, ge=1, le=240)
     default_ui_format: UiFormatName = UiFormat.EXPLANATION.value
     skill_id: uuid.UUID | None = None
     seed_lesson_id: uuid.UUID | None = None

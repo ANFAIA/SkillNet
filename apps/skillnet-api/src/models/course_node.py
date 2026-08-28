@@ -115,6 +115,13 @@ class CourseNode(UUIDMixin, TimestampMixin, Base):
     probe_answer_key: Mapped[dict] = mapped_column(
         JSONB, nullable=False, server_default=text("'{}'::jsonb")
     )
+    #: **Legacy, read-only.** Nothing writes this any more: the value was a number the
+    #: schema designer invented before it had seen a single line of the lesson, it was
+    #: never calibrated against a real render, and summing it over a course produced the
+    #: hours-long estimates that put learners off. It survives so that a course installed
+    #: from an older package keeps whatever the package declared (``course_package``
+    #: reads and writes it), and so that no migration has to throw away existing rows.
+    #: Not exposed by any API and not shown anywhere.
     estimated_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     # A node without reviewed_at cannot be served (409 node_not_reviewed).
     reviewed_at: Mapped[datetime | None] = mapped_column(

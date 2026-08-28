@@ -6,7 +6,6 @@
       "outcome": "Decidir si una devolucion esta dentro de plazo a partir de la fecha de entrega.",
       "criticality": "critical",
       "default_ui_format": "exercise",
-      "estimated_minutes": 6,
       "source_headings": ["Devoluciones", "Plazo"],
       "prerequisites": []
     },
@@ -16,7 +15,6 @@
       "outcome": "Identificar cuando una devolucion queda fuera del regimen general.",
       "criticality": "recommended",
       "default_ui_format": "explanation",
-      "estimated_minutes": 8,
       "source_headings": ["Excepciones"],
       "prerequisites": [0, 2]
     },
@@ -26,7 +24,6 @@
       "outcome": "Registrar una devolucion completa sin dejar campos pendientes.",
       "criticality": "critical",
       "default_ui_format": "mixed",
-      "estimated_minutes": 10,
       "source_headings": ["Devoluciones"],
       "prerequisites": [1]
     },
@@ -36,7 +33,6 @@
       "outcome": "Comunicar una negativa sin escalar el conflicto.",
       "criticality": "contextual",
       "default_ui_format": "explanation",
-      "estimated_minutes": 4,
       "source_headings": ["Atencion al cliente", "Manual interno de tono"],
       "prerequisites": []
     }

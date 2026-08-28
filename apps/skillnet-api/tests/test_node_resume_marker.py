@@ -116,7 +116,6 @@ class FakeNode:
     summary: str | None = None
     criticality: str = "recommended"
     archived: bool = False
-    estimated_minutes: int | None = 6
     reviewed_at: Any = None
 
 
