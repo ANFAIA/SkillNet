@@ -75,6 +75,7 @@ class NodeRenderRepository(BaseRepository[NodeRender]):
         ui_format: object,
         generated_by: uuid.UUID | None = None,
         is_preview: bool = False,
+        prompt_version: str | None = None,
     ) -> NodeRender:
         """Reserve the row this request will write into, as ``status='generating'``.
 
@@ -83,6 +84,13 @@ class NodeRenderRepository(BaseRepository[NodeRender]):
         otherwise permanently poison its own key. A row that is already ``ready`` is
         returned untouched — the caller checked the cache first, and overwriting a served
         render would rewrite what other learners are looking at.
+
+        ``prompt_version`` is the instruction identity the ``cache_key`` was built from
+        (``node_render_service.current_prompt_version()``). It is stamped here rather than
+        in :meth:`mark_ready` because it belongs to the key, not to the outcome: a row
+        that was claimed and then failed is still a row of *this* version, and
+        ``src/services/render_retention.py`` must not mistake it for one an old prompt
+        left behind.
         """
         existing = await self.get_by_cache_key(cache_key)
         if existing is not None:
@@ -95,6 +103,8 @@ class NodeRenderRepository(BaseRepository[NodeRender]):
             existing.tier = tier
             existing.ui_format = _ui_format(ui_format)
             existing.is_preview = is_preview
+            if prompt_version is not None:
+                existing.prompt_version = prompt_version
             if generated_by is not None:
                 existing.generated_by = generated_by
             await self.session.flush()
@@ -111,6 +121,7 @@ class NodeRenderRepository(BaseRepository[NodeRender]):
                 ui_format=_ui_format(ui_format),
                 generated_by=generated_by,
                 is_preview=is_preview,
+                prompt_version=prompt_version,
                 status=NodeRenderStatus.GENERATING,
             )
         except IntegrityError:

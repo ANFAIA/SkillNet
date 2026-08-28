@@ -236,6 +236,14 @@ runtime reads as an invalid program.
 | `SEMANTIC_ROUTER` | `false` | Adds a short classification call in front of the deterministic content-function rules. | Yes |
 | `RENDER_ALLOW_REACTIVE` | `false` | Allows OpenUI's reactive layer. Cost of switching it on: `docs/design/openui-adoption.md` §3. | **No** |
 | `RUNTIME_COMPONENT_SHORTLIST` | `true` | Exposes only the 3-5 renderer-safe candidates to the generation prompt. | **No** |
+| `RENDER_CACHE_SWEEP` | `true` | Deletes, at startup, a bounded batch of cached screens that a prompt-version bump made unreachable. | Yes |
+
+Bumping `PROMPT_VERSION` invalidates every cached render, but invalidating is not
+deleting: the rows stay in `node_renders` and nothing will ever compute their key again.
+`RENDER_CACHE_SWEEP` reclaims them 500 rows per boot, and only rows that **nothing**
+references — no view, no attempt, no pinned learner state, no extracted activity. What is
+left after that filter is a screen that was generated and that nobody ever opened. Set it
+to `false` to keep every row; see `apps/skillnet-api/src/services/render_retention.py`.
 
 A course is served by v2 when it has `delivery_mode='dynamic'` **and**
 `schema_status='validated'`. There is no global flag;

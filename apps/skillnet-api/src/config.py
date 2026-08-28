@@ -239,6 +239,12 @@ class Settings(BaseSettings):
     # partitioned so adaptive episodes never reuse or overwrite ScreenScheme renders.
     ADAPTIVE_EPISODES: bool = False
 
+    #: At startup, delete a bounded batch of cached renders that a PROMPT_VERSION bump
+    #: made unreachable and that nothing references. Off leaves them on disk forever;
+    #: the reclamation is optional by design, because it is a deletion. See
+    #: src/services/render_retention.py for exactly what it will and will not remove.
+    RENDER_CACHE_SWEEP: bool = True
+
     #: Force the onboarding wizard for learners without a completed profile. Off is a
     #: testing convenience: learners enter straight to their home on the default profile
     #: bucket (they can still onboard later). The frontend reads this via /setup/status.

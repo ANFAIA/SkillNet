@@ -149,7 +149,11 @@ from src.services.activity_authoring import (
 from src.services.activity_definitions import ActivityDefinitionService
 from src.services.learner_profile_service import is_calibrating
 from src.services.mastery_service import target_bloom, threshold_for
-from src.services.node_render_service import NodeRenderService, build_render_key
+from src.services.node_render_service import (
+    NodeRenderService,
+    build_render_key,
+    current_prompt_version,
+)
 
 logger = get_logger(__name__)
 
@@ -826,6 +830,10 @@ async def load_context(state: NodeRuntimeState) -> dict:
             ui_format=default_format,
             generated_by=user_id,
             is_preview=bool(state.get("is_preview")),
+            # Same string that went into `cache_key`, kept readable in a column so a
+            # later PROMPT_VERSION bump can be told from a row it evicted
+            # (src/services/render_retention.py).
+            prompt_version=current_prompt_version(),
         )
         render_id = str(render.id)
         already_served = render.status in (

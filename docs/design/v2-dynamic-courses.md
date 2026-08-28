@@ -752,6 +752,7 @@ CREATE TABLE node_renders (
     dialect        text,                          -- el programa canónico que pintó el navegador
     catalog_version text,                         -- "skillnet-ui/1+<digest12>"
     library_version text,                         -- "@openuidev/lang-core@0.2.10; ..."
+    prompt_version text,                          -- current_prompt_version() del cache_key (0031)
     backend        text NOT NULL,
     model          text NOT NULL,
     tier           text NOT NULL CHECK (tier IN ('fast', 'heavy')),
@@ -797,6 +798,15 @@ CREATE INDEX idx_node_render_views_user ON node_render_views(user_id, node_id, f
   `node_render_views` para la auditoría de lectura (§2.1).
 - **La búsqueda de caché es estrictamente `WHERE cache_key = :key AND status='ready' AND NOT
   is_preview`.** Nada de `user_id` en el `WHERE`, nunca.
+- **`prompt_version` (migración 0031) es lo que hace recuperable el disco.** Subir
+  `PROMPT_VERSION` invalida toda la caché, pero **invalidar no es borrar**: las filas se quedan
+  y nadie volverá a calcular su clave jamás. El `cache_key` es un `sha256`, así que la versión
+  entra y no se puede leer de vuelta; esta columna la guarda al lado.
+  `src/services/render_retention.py` barre al arrancar un lote acotado de filas cuya
+  `prompt_version` ya no es la vigente **y a las que no apunta nada** — ninguna vista, ningún
+  intento, ningún `active_render_id`, ninguna actividad extraída. Esa segunda condición es todo
+  el diseño: el `CASCADE` de `node_render_views` y los tres `SET NULL` harían el destrozo sin
+  decir una palabra. `RENDER_CACHE_SWEEP=false` lo apaga.
 - **`is_preview`**: los renders de `?preview=1` del modo `shadow` se persisten para poder revisarlos,
   pero **quedan fuera de la caché**. Sin esto, un preview generado por un admin **antes** de validar
   el esquema podía servirse literalmente a un empleado del mismo bucket — contenido no aprobado

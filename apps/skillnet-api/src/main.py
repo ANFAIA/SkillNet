@@ -56,6 +56,7 @@ from src.routes import (
 from src.routes.ext import courses as ext_courses
 from src.routes.ext import skills as ext_skills
 from src.services.embedding_check import check_embedding_dimensions
+from src.services.render_retention import sweep_evicted_renders
 from src.services.startup_reconcile import reconcile_interrupted_work
 from src.services.media import infographic as _infographic  # noqa: F401
 
@@ -95,6 +96,11 @@ async def lifespan(app: FastAPI):
             # `POST /schema/propose` for its course permanently. Fail them, with a
             # reason that says a restart happened.
             await reconcile_interrupted_work(session)
+            # Subir PROMPT_VERSION invalida toda la cache de pantallas, pero no borra
+            # nada: las filas se quedan ocupando disco y ya nadie puede alcanzarlas.
+            # Esta pasada recoge un lote acotado de esas, y solo las que no referencia
+            # nadie. No lanza nunca: una limpieza opcional no puede dejar sin arrancar.
+            await sweep_evicted_renders(session)
             # Solo si el despliegue sigue sin propietario: es lo que hace publica la
             # ruta /setup, y por tanto lo que hay que acotar en el tiempo.
             if not await deployment_has_owner(session):

@@ -165,6 +165,9 @@ services:
       LLM_FIXTURE_MODE: ${LLM_FIXTURE_MODE:-replay}
       MULTI_AGENT_RENDER: ${MULTI_AGENT_RENDER:-false}
       ADAPTIVE_EPISODES: ${ADAPTIVE_EPISODES:-false}
+      # Startup reclamation of cached screens that a PROMPT_VERSION bump made
+      # unreachable. Only deletes rows nothing references; `false` keeps every one.
+      RENDER_CACHE_SWEEP: ${RENDER_CACHE_SWEEP:-true}
       ONBOARDING_ENABLED: ${ONBOARDING_ENABLED:-true}
       WORKSPACE_MODE: ${WORKSPACE_MODE:-organization}
       SEMANTIC_ROUTER: ${SEMANTIC_ROUTER:-false}
