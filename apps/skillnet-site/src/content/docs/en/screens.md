@@ -47,7 +47,7 @@ The main screen. Not a course catalog. A daily plan: what to do today, how thing
 
 **Sections:**
 - **Greeting** — "Hola, Laura" + "Lo que toca hoy"
-- **Today's actions** (max 3) — urgent review (spaced repetition), assigned course to continue, recommendation. Each with estimated time and one-click start
+- **Today's actions** (max 3) — urgent review (spaced repetition), assigned course to continue, recommendation. Each with one-click start
 - **Courses in progress** — progress bar, current module, last activity with result
 - **Skill map** — 3 columns: mastered / in progress / pending. Auto-updated from exercise results
 - **Recent activity** — chronological list of last actions (exercise results, lessons completed)

@@ -41,6 +41,31 @@ La consecuencia era un callejón sin salida permanente: se lee un nodo expositiv
 graba `completed_at`, el progreso sube, y el nodo siguiente se queda con el candado puesto
 para siempre porque su prerequisito nunca será `mastered`.
 
+### Reproducido contra la API, no deducido
+
+Curso de tres nodos encadenados por prerequisitos, ninguno con ítem calificado, y un
+aprendiz matriculado. Salida real de `GET /courses/{id}/nodes`:
+
+```
+ANTES     1. Que es una devolucion       state=not_started  locked=False
+          2. Como se registra            state=not_started  locked=True
+          3. Resumen del procedimiento   state=not_started  locked=True
+          progreso: 0 %
+
+POST /nodes/{n1}/complete  ->  200 {"completed_at": "...", "state": "not_started",
+                                    "progress_percent": 33, "can_complete": false}
+
+DESPUES   1. Que es una devolucion       state=not_started  locked=False  completed_at=si
+          2. Como se registra            state=not_started  locked=True
+          3. Resumen del procedimiento   state=not_started  locked=True
+          progreso: 33 % | can_complete: False
+```
+
+El aprendiz termina el primer nodo entero, el servidor lo registra, el progreso sube — y el
+segundo sigue cerrado. El curso se queda en 33 % para siempre, y no hay ninguna acción que
+lo desbloquee: el nodo 1 no tiene nada que responder, así que su `state` no se moverá de
+`not_started` nunca.
+
 ## 2. Por qué hoy esto no es un curso por dominio
 
 El beneficio de una formación por maestría es que la formación se mueve: te salta lo que ya

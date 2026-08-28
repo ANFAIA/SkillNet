@@ -497,6 +497,7 @@
 <div class="container">
 
 <h1>CreateCourse.tsx <span>flujo paso a paso</span></h1>
+<p style="border-left:4px solid #d97706;background:#fffbeb;color:#78350f;padding:12px 16px;margin:0 0 24px;border-radius:4px;font-size:14px;line-height:1.6"><strong>Desfasado en un punto (2026-08-28).</strong> Las maquetas de abajo muestran un badge de minutos por nodo y un total en la barra lateral que ya no existen. El campo <code>estimated_minutes</code> se retiro de los prompts, de los contratos de API y de toda la interfaz: lo generaba un modelo que aun no habia visto la leccion, no se contrastaba con nada, y sumado producia estimaciones de horas en cursos de veinte minutos. La columna sobrevive como legacy de solo lectura para los paquetes de curso. Lo demas de esta pagina sigue vigente. Ver <code>docs/design/future-progression-modes.md</code>.</p>
 <p class="subtitle">
   Como funciona el wizard de creacion de cursos: fases, animaciones, datos y decisiones.
   <br>Archivo: <code>apps/skillnet-web/src/pages/admin/CreateCourse.tsx</code>

@@ -47,7 +47,7 @@ La pantalla principal. No es un catálogo de cursos. Es un plan diario: qué hac
 
 **Secciones:**
 - **Saludo** — "Hola, Laura" + "Lo que toca hoy"
-- **Acciones de hoy** (máximo 3) — repaso urgente (repetición espaciada), curso asignado a continuar, recomendación. Cada una con tiempo estimado y arranque en un clic
+- **Acciones de hoy** (máximo 3) — repaso urgente (repetición espaciada), curso asignado a continuar, recomendación. Cada una con arranque en un clic
 - **Cursos en progreso** — barra de progreso, módulo actual, última actividad con resultado
 - **Mapa de skills** — 3 columnas: dominadas / en progreso / pendientes. Se actualiza automáticamente con los resultados de los ejercicios
 - **Actividad reciente** — lista cronológica de las últimas acciones (resultados de ejercicios, lecciones completadas)

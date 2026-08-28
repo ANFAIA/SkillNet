@@ -448,6 +448,9 @@ CREATE TABLE course_nodes (
     default_ui_format   ui_format NOT NULL DEFAULT 'explanation',
     probe_items         jsonb NOT NULL DEFAULT '[]',
     probe_answer_key    jsonb NOT NULL DEFAULT '{}',
+    -- Legacy desde 2026-08-28: nada lo escribe ya. Se conserva para que un curso
+    -- instalado desde un paquete antiguo mantenga lo que el paquete declaraba.
+    -- Ninguna API lo expone. Ver docs/design/future-progression-modes.md
     estimated_minutes   int,
     reviewed_at         timestamptz,
     reviewed_by         uuid REFERENCES users(id) ON DELETE SET NULL,
@@ -2273,7 +2276,7 @@ implementan como dependencias: `require_dynamic_courses(mode_min="shadow")`.
   "nodes": [{
     "id": "…", "title": "Plazo de devolución", "summary": "…", "outcome": "…",
     "criticality": "critical", "position": 1,
-    "mastery_threshold": 0.90, "estimated_minutes": 6,
+    "mastery_threshold": 0.90,
     "skill_id": "…", "seed_lesson_id": null,
     "source_document_id": "…", "source_headings": ["Devoluciones", "Plazo"],
     "prerequisite_node_ids": []
@@ -2409,7 +2412,6 @@ sentencia.
               "state": "not_started", "mastery": 0.0,
               "locked": false, "locked_by": [],
               "needs_practice": false,          // state == 'needs_review' (§7.4)
-              "estimated_minutes": 6,
               "first_seen_at": null,            // servido a este aprendiz por primera vez
               "completed_at": null }],          // llegó al final del contenido (§7.5)
   "can_complete": false, "blocked_by": ["…"], "progress_percent": 0 }

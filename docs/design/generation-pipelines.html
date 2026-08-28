@@ -355,6 +355,7 @@
 <div class="container">
 
 <h1>Pipelines de generacion <span>— como se crean los cursos</span></h1>
+<p style="border-left:4px solid #d97706;background:#fffbeb;color:#78350f;padding:12px 16px;margin:0 0 24px;border-radius:4px;font-size:14px;line-height:1.6"><strong>Desfasado en un punto (2026-08-28).</strong> El contrato del disenador de esquema y la tabla de correspondencias de abajo todavia listan un campo que el pipeline ya no produce. El campo <code>estimated_minutes</code> se retiro de los prompts, de los contratos de API y de toda la interfaz: lo generaba un modelo que aun no habia visto la leccion, no se contrastaba con nada, y sumado producia estimaciones de horas en cursos de veinte minutos. La columna sobrevive como legacy de solo lectura para los paquetes de curso. Lo demas de esta pagina sigue vigente. Ver <code>docs/design/future-progression-modes.md</code>.</p>
 <p class="subtitle">
   Dos caminos completos, desde el click del admin hasta el contenido que ve el alumno.
   Sin UI — solo backend, modelos, LLM, base de datos.
