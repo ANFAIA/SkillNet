@@ -3,6 +3,7 @@ import { AudioLines, ChevronRight, FileText, Image as ImageIcon, Pause, Play, Vi
 import { motion, useReducedMotion } from "framer-motion";
 import type { Locale } from "../i18n/config";
 import { t, type Copy } from "../i18n/ui";
+import { revealGroup, revealItem, useEntrance } from "./useEntrance";
 
 const MODE_KEYS = ["texto", "imagen", "video", "audio"] as const;
 const MODE_ICONS = { texto: FileText, imagen: ImageIcon, video: Video, audio: AudioLines } as const;
@@ -202,11 +203,12 @@ export default function HowItWorksSection({ lang = "es" }: { lang?: Locale }) {
   const copy = t(lang).howItWorks;
   const reduced = useReducedMotion() ?? false;
   const [active, setActive] = useState<string>("texto");
+  const { ref, state } = useEntrance<HTMLDivElement>(0.16);
   return <section id="como-funciona" data-nav-theme="light" className="w-full scroll-mt-24 bg-white px-6 pb-20 pt-10 sm:px-10 sm:pb-28 sm:pt-12">
-    <div className="mx-auto w-full max-w-[80%]">
-      <motion.h2 initial={false} className="type-section-title text-[var(--color-text)]">{copy.title}</motion.h2>
-      <motion.p initial={false} className="type-lead mt-7 w-full text-[var(--color-text-secondary)]">{copy.lead}</motion.p>
-      <motion.div initial={false} className="multimodal-surface mt-12 sm:mt-16">
+    <motion.div ref={ref} initial={false} animate={state} variants={revealGroup} className="mx-auto w-full max-w-[80%]">
+      <motion.h2 variants={revealItem} className="type-section-title text-[var(--color-text)]">{copy.title}</motion.h2>
+      <motion.p variants={revealItem} className="type-lead mt-7 w-full text-[var(--color-text-secondary)]">{copy.lead}</motion.p>
+      <motion.div variants={revealItem} className="multimodal-surface mt-12 sm:mt-16">
         {MODE_KEYS.map((key) => {
           const Icon = MODE_ICONS[key];
           const selected = active === key;
@@ -222,7 +224,7 @@ export default function HowItWorksSection({ lang = "es" }: { lang?: Locale }) {
           </motion.div>;
         })}
       </motion.div>
-      <p className="type-caption mt-4 text-[var(--color-text-secondary)]">{copy.caption}</p>
-    </div>
+      <motion.p variants={revealItem} className="type-caption mt-4 text-[var(--color-text-secondary)]">{copy.caption}</motion.p>
+    </motion.div>
   </section>;
 }

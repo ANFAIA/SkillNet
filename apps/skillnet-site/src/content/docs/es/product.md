@@ -6,7 +6,7 @@ section: "start"
 
 # Producto
 
-> **Estado: Borrador.** Este documento define qué es SkillNet, para quién es y qué hace.
+> **Estado: Borrador.** Define qué es SkillNet, para quién es y qué hace.
 >
 > El actual producto orientado a empresa sigue siendo la base implementada. El futuro
 > modelo de audiencia para despliegues de organización e individual se define en
@@ -18,13 +18,13 @@ section: "start"
 
 SkillNet es un sistema de aprendizaje que construye la experiencia de formación adecuada para cada persona, a partir del conocimiento que ya existe en su empresa.
 
-No es un catálogo de cursos. No es un LMS estático con IA pegada encima. Es un sistema que lee lo que una empresa sabe — manuales, procedimientos, protocolos — y lo convierte en formación que se adapta a quién está aprendiendo, no solo a qué se está enseñando.
+SkillNet lee el conocimiento de una empresa, incluidos sus manuales, procedimientos y protocolos, y lo convierte en formación adaptada a quien aprende. No es un catálogo de cursos ni un LMS estático con una capa de IA.
 
 Código abierto, autoalojado, una instancia por empresa. No es multi-tenant — por diseño.
 
 No compite con las ofertas de nivel empresarial. Existe para las empresas a las que esas ofertas no atienden.
 
-**La idea central:** el mismo conocimiento de empresa debería producir experiencias de formación distintas para personas distintas. No porque un admin lo configurara así — porque el sistema entiende el rol, el nivel y el progreso de cada persona, y construye en consecuencia.
+**La idea central:** el mismo conocimiento de empresa debería producir experiencias de formación distintas según el rol, el nivel y el progreso de cada persona, sin que un admin tenga que configurar cada variante.
 
 ## Roles
 
@@ -123,7 +123,7 @@ El admin ve patrones: lagunas de habilidad, empleados con dificultades, módulos
 (Futuro) El sistema marca contenido para regeneración según datos reales
 ```
 
-Esto no es una característica del MVP. Es la dirección hacia la que se mueve el producto. Cada tabla del modelo de datos ya lo soporta — el bucle de aprendizaje es una restricción de diseño, no una ocurrencia tardía.
+El bucle de aprendizaje no forma parte del MVP, pero orienta el desarrollo del producto. Todas las tablas del modelo de datos ya lo soportan: es una restricción de diseño, no una incorporación tardía.
 
 ## Contenido vivo
 
@@ -134,4 +134,4 @@ La documentación de la empresa cambia. Las políticas se actualizan, los proced
 - El admin decide si regenerar o mantener la versión actual
 - Los empleados ven un indicador de versión para saber si su formación está al día
 
-Esto convierte a SkillNet de una herramienta de "generar una vez" en un sistema que se mantiene sincronizado con el conocimiento real de la empresa.
+Así, la formación puede mantenerse sincronizada con el conocimiento de la empresa en lugar de generarse una sola vez.

@@ -16,7 +16,7 @@ Most training platforms are built the same way: an admin creates courses, employ
 
 AI has been added to these platforms as a layer on top — a chatbot that answers questions, a generator that creates quizzes. But the underlying structure hasn't changed. The course is still the same for everyone. The dashboard looks identical. The path is predetermined.
 
-**Adding AI to a static system doesn't make it intelligent. It makes it a static system with a chatbot.**
+Adding a chatbot or quiz generator does not change the static structure of the underlying system.
 
 ## What SkillNet Believes
 
@@ -24,18 +24,18 @@ AI has been added to these platforms as a layer on top — a chatbot that answer
 
 Current platforms require employees to adapt to the system: learn the interface, follow the path, complete the modules. SkillNet should adapt to the employee: their level, their pace, their gaps, their questions.
 
-This is not about customization settings. It's about the system observing how each person works and adjusting accordingly — without being told to.
+The system should observe how each person works and adjust without requiring them to configure those changes.
 
 ### 2. Intelligence lives in the architecture, not the model
 
-A powerful LLM is one component. The real intelligence comes from how the system is structured:
+A powerful LLM is one component. The system's behavior also depends on its structure:
 
 - **Memory** — what the system remembers about each person and each company
 - **Context** — what information is available at each moment
 - **Tools** — what the system can do, not just say
 - **Feedback loops** — how the system learns from its own mistakes
 
-The model is replaceable. The architecture is the product.
+The model is replaceable. The architecture, rather than any particular model, defines the product.
 
 ### 3. Training should be built from living knowledge, not static courses
 
@@ -47,7 +47,7 @@ SkillNet treats source documents as the single source of truth. Courses and manu
 
 Two employees reading the same manual should not take the same course. One is new and needs foundations. The other has five years of experience and needs edge cases. The manual is the same — the training should not be.
 
-This is not personalization as a feature. It's the default behavior of a system that understands who is learning.
+This kind of personalization is the default behavior of a system that understands who is learning.
 
 ## How This Shapes Technical Decisions
 
@@ -71,7 +71,7 @@ This is not personalization as a feature. It's the default behavior of a system 
 
 **Phase 4:** Multi-agent coordination within a company. Different agents for different roles, sharing knowledge through structured compartments.
 
-Each phase builds on the architecture decisions made in the previous one. Nothing is bolted on. Everything grows from the same foundation.
+Each phase builds on the architecture decisions made in the previous one and follows the same foundation.
 
 ## The Thesis in One Sentence
 

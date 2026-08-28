@@ -16,15 +16,15 @@ section: "start"
 
 ## What is SkillNet
 
-SkillNet is a learning system that builds the right training experience for each person, from the knowledge that already exists in their company.
+SkillNet is a learning system that builds training for each person from knowledge that already exists in their company.
 
-Not a course catalog. Not a static LMS with AI bolted on. A system that reads what a company knows — manuals, procedures, protocols — and turns it into training that adapts to who is learning, not just what is being taught.
+It is neither a course catalog nor a static LMS with an added AI layer. It reads company manuals, procedures, and protocols, then turns them into training adapted to the learner as well as the subject.
 
-Open source, self-hosted, one instance per company. Not multi-tenant — by design.
+SkillNet is open source and self-hosted, with one instance per company. It is deliberately not multi-tenant.
 
-It doesn't compete with enterprise offerings. It exists for the companies that those offerings don't serve.
+SkillNet does not compete with enterprise offerings. It is intended for companies that those offerings do not serve.
 
-**The core idea:** the same company knowledge should produce different training experiences for different people. Not because an admin configured it that way — because the system understands each person's role, level, and progress, and builds accordingly.
+The same company knowledge should produce different training experiences for different people. The system uses each person's role, level, and progress to build those differences instead of relying on an admin to configure them manually.
 
 ## Roles
 
@@ -123,7 +123,7 @@ Admin sees patterns: skill gaps, struggling employees, weak modules
 (Future) System flags content for regeneration based on real data
 ```
 
-This is not a feature of the MVP. It is the direction the product moves in. Every table in the data model already supports it — the learning loop is a design constraint, not an afterthought.
+The learning loop is not part of the MVP, but it guides the product direction. Every table in the data model already supports it, and the loop remains a design constraint rather than an afterthought.
 
 ## Living Content
 
@@ -134,4 +134,4 @@ Company documentation changes. Policies are updated, procedures are revised, new
 - The admin decides whether to regenerate or keep the current version
 - Employees see a version indicator so they know if their training is current
 
-This turns SkillNet from a "generate once" tool into a system that stays in sync with the company's actual knowledge.
+This lets SkillNet stay in sync with the company's knowledge instead of generating content only once.

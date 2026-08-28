@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { useEntrance } from "./useEntrance";
+import { revealGroup, revealItem, useEntrance } from "./useEntrance";
 import type { Locale } from "../i18n/config";
 import { t } from "../i18n/ui";
 import { CURIO_URL, DIDACT_URL } from "../data/links";
@@ -57,18 +57,18 @@ function DidactWordmark({ state }: { state: "hidden" | "show" }) {
 
 export default function BuiltWithSection({ lang = "es" }: { lang?: Locale }) {
   const copy = t(lang).builtWith;
-  const { ref, state } = useEntrance<HTMLDivElement>(0.4);
+  const { ref, state } = useEntrance<HTMLDivElement>(0.18);
 
   return (
     <section id="hecho-con" data-nav-theme="light" className="w-full scroll-mt-24 bg-white px-6 py-16 sm:px-10 sm:py-20">
-      <div className="mx-auto w-full max-w-[80%]">
-        <motion.h2 initial={false} className="type-section-title">{copy.title}</motion.h2>
-        <motion.p initial={false} className="type-lead mt-4 w-full text-[var(--color-text-secondary)]">
+      <motion.div ref={ref} initial={false} animate={state} variants={revealGroup} className="mx-auto w-full max-w-none sm:max-w-[80%]">
+        <motion.h2 variants={revealItem} className="type-section-title">{copy.title}</motion.h2>
+        <motion.p variants={revealItem} className="type-lead mt-4 w-full text-[var(--color-text-secondary)]">
           {copy.lead}
         </motion.p>
 
-        <div className="builtwith-list mt-8" ref={ref}>
-          <a className="builtwith-card" href={DIDACT_URL} target="_blank" rel="noopener noreferrer">
+        <motion.div variants={revealGroup} className="builtwith-list mt-8">
+          <motion.a variants={revealItem} className="builtwith-card" href={DIDACT_URL} target="_blank" rel="noopener noreferrer">
             <span className="builtwith-card__mark">
               <DidactWordmark state={state} />
             </span>
@@ -76,9 +76,9 @@ export default function BuiltWithSection({ lang = "es" }: { lang?: Locale }) {
               <strong>{copy.didactTitle}</strong>
               <small>{copy.didactDetail}</small>
             </span>
-          </a>
+          </motion.a>
 
-          <a className="builtwith-card" href={CURIO_URL} target="_blank" rel="noopener noreferrer">
+          <motion.a variants={revealItem} className="builtwith-card" href={CURIO_URL} target="_blank" rel="noopener noreferrer">
             <span className="builtwith-card__mark">
               <motion.img
                 src="/images/brand/curio-mark.png"
@@ -96,9 +96,9 @@ export default function BuiltWithSection({ lang = "es" }: { lang?: Locale }) {
               <strong>{copy.curioTitle}</strong>
               <small>{copy.curioDetail}</small>
             </span>
-          </a>
-        </div>
-      </div>
+          </motion.a>
+        </motion.div>
+      </motion.div>
     </section>
   );
 }

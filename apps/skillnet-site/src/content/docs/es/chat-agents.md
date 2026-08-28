@@ -1334,7 +1334,7 @@ El frontend recibe el evento `citations` y transforma los marcadores en linea `[
 
 ### 5.1 Arquitectura
 
-El agente de chat de administracion es un **agente de llamada a herramientas** — fundamentalmente distinto del tutor. En lugar de recuperacion RAG, tiene acceso a herramientas que consultan y modifican la plataforma. El LLM decide que herramientas llamar segun la peticion en lenguaje natural del administrador.
+El agente de chat de administracion es un **agente de llamada a herramientas**, distinto del tutor. En lugar de recuperacion RAG, tiene acceso a herramientas que consultan y modifican la plataforma. El LLM decide que herramientas llamar segun la peticion en lenguaje natural del administrador.
 
 ```
 Admin message ──→ plan ──→ execute_tools ──→ need confirmation?

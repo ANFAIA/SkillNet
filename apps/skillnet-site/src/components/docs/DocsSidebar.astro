@@ -1,5 +1,5 @@
 ---
-// Docs navigation, rendered as a file tree (folders, files, chevrons).
+// Docs navigation, rendered as a collapsible hierarchy of sections and pages.
 //
 // The hierarchy is still derived from the entries themselves by buildDocsTree —
 // section frontmatter for level one, slug prefixes for level two — so adding a
@@ -23,7 +23,7 @@ const basePath = locale === "en" ? "/en/docs" : "/docs";
 const { nodes, openIds } = buildDocsFileTree(entries, locale, currentSlug, basePath);
 ---
 
-<DocsTree client:load nodes={nodes} openIds={openIds} currentSlug={currentSlug} locale={locale} />
+<DocsTree client:load nodes={nodes} openIds={openIds} currentSlug={currentSlug} locale={locale} idPrefix="sidebar" />
 
 <!-- The tree lives in a React island, so Astro's scoped styles cannot reach it:
      these are global rules, but every selector is namespaced under .docs-tree. -->

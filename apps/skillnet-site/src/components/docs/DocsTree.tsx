@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
-import { ChevronRight, FileText, Folder, FolderOpen } from "lucide-react";
+import { ChevronRight, FileText } from "lucide-react";
 import type { DocsFileTreeNode } from "../../data/docsNav";
 
 interface Props {
@@ -8,6 +8,8 @@ interface Props {
   openIds: string[];
   currentSlug?: string;
   locale: "es" | "en";
+  idPrefix?: string;
+  initiallyCollapsed?: boolean;
 }
 
 /** Root indent, plus one step per level of depth. */
@@ -37,17 +39,25 @@ const COPY = {
   en: { nav: "Documentation navigation", expand: "Expand", collapse: "Collapse" },
 } as const;
 
-export default function DocsTree({ nodes, openIds, currentSlug, locale }: Props) {
+export default function DocsTree({
+  nodes,
+  openIds,
+  currentSlug,
+  locale,
+  idPrefix = "docs",
+  initiallyCollapsed = false,
+}: Props) {
   const reduced = useReducedMotion() ?? false;
   const copy = COPY[locale];
 
-  // The whole tree renders open on the server and is collapsed on the client
-  // inside a layout effect, before the first paint. framer-motion serializes the
-  // styles it would animate from into the server HTML, so a tree that started
-  // closed would ship its links at `opacity: 0` / `height: 0` — invisible without
-  // JavaScript and to a crawler. This is the useEntrance pattern, applied to a
-  // collapsed state instead of an entrance.
-  const [armed, setArmed] = useState(false);
+  // The persistent desktop tree renders open on the server and is collapsed on
+  // the client inside a layout effect, before the first paint. framer-motion
+  // serializes the styles it would animate from into the server HTML, so a tree
+  // that started closed would ship its links at `opacity: 0` / `height: 0` —
+  // invisible without JavaScript and to a crawler. The header copy is mounted
+  // only after a client-side click, so it can start collapsed immediately and
+  // avoid changing height halfway through the header's opening transition.
+  const [armed, setArmed] = useState(initiallyCollapsed);
   const [open, setOpen] = useState<Set<string>>(() => new Set(openIds));
   const [currentId, setCurrentId] = useState<string | undefined>(
     currentSlug === undefined ? undefined : `doc:${currentSlug}`,
@@ -56,8 +66,8 @@ export default function DocsTree({ nodes, openIds, currentSlug, locale }: Props)
   const settled = useRef(false);
 
   useLayoutEffect(() => {
-    setArmed(true);
-  }, []);
+    if (!initiallyCollapsed) setArmed(true);
+  }, [initiallyCollapsed]);
 
   useEffect(() => {
     if (armed) settled.current = true;
@@ -107,6 +117,7 @@ export default function DocsTree({ nodes, openIds, currentSlug, locale }: Props)
         toggle={toggle}
         currentId={currentId}
         copy={copy}
+        idPrefix={idPrefix}
       />
     </nav>
   );
@@ -122,9 +133,10 @@ interface BranchProps {
   toggle: (id: string) => void;
   currentId?: string;
   copy: (typeof COPY)[keyof typeof COPY];
+  idPrefix: string;
 }
 
-function Branch({ nodes, depth, parentOpen, open, armed, animate, toggle, currentId, copy }: BranchProps) {
+function Branch({ nodes, depth, parentOpen, open, armed, animate, toggle, currentId, copy, idPrefix }: BranchProps) {
   return (
     <ul className="docs-tree__list">
       {nodes.map((node, index) => {
@@ -133,7 +145,6 @@ function Branch({ nodes, depth, parentOpen, open, armed, animate, toggle, curren
         const isFolder = node.children.length > 0;
         const isCurrent = node.id === currentId;
         const padding = INDENT_BASE + depth * INDENT_STEP;
-        const Icon = isFolder ? (isOpen ? FolderOpen : Folder) : FileText;
 
         const chevron = (
           <motion.span
@@ -147,7 +158,12 @@ function Branch({ nodes, depth, parentOpen, open, armed, animate, toggle, curren
           </motion.span>
         );
 
-        const icon = <Icon className="docs-tree__icon" size={16} strokeWidth={1.75} aria-hidden="true" />;
+        // Sections already communicate hierarchy through indentation and their
+        // chevron. A folder glyph makes the docs feel like a file browser, so
+        // reserve the document icon for leaf pages only.
+        const icon = isFolder ? null : (
+          <FileText className="docs-tree__icon" size={16} strokeWidth={1.75} aria-hidden="true" />
+        );
 
         return (
           <motion.li
@@ -170,7 +186,7 @@ function Branch({ nodes, depth, parentOpen, open, armed, animate, toggle, curren
                 className="docs-tree__row docs-tree__row--folder"
                 style={{ paddingLeft: `${padding}px` }}
                 aria-expanded={isOpen}
-                aria-controls={`${node.id}-children`}
+                aria-controls={`${idPrefix}-${node.id}-children`}
                 onClick={() => toggle(node.id)}
               >
                 {chevron}
@@ -184,7 +200,7 @@ function Branch({ nodes, depth, parentOpen, open, armed, animate, toggle, curren
                     type="button"
                     className="docs-tree__toggle"
                     aria-expanded={isOpen}
-                    aria-controls={`${node.id}-children`}
+                    aria-controls={`${idPrefix}-${node.id}-children`}
                     aria-label={`${isOpen ? copy.collapse : copy.expand}: ${node.label}`}
                     onClick={() => toggle(node.id)}
                   >
@@ -211,7 +227,7 @@ function Branch({ nodes, depth, parentOpen, open, armed, animate, toggle, curren
 
             {isFolder && (
               <motion.div
-                id={`${node.id}-children`}
+                id={`${idPrefix}-${node.id}-children`}
                 className="docs-tree__children"
                 initial={false}
                 animate={{ height: isOpen ? "auto" : 0 }}
@@ -230,6 +246,7 @@ function Branch({ nodes, depth, parentOpen, open, armed, animate, toggle, curren
                   toggle={toggle}
                   currentId={currentId}
                   copy={copy}
+                  idPrefix={idPrefix}
                 />
               </motion.div>
             )}

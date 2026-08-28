@@ -6,7 +6,7 @@ section: "start"
 
 # Visión
 
-> **Estado: Borrador.** El fundamento filosófico de SkillNet. Este documento explica por qué SkillNet está construido así — no qué hace, sino qué cree.
+> **Estado: Borrador.** El fundamento filosófico de SkillNet. Explica por qué está construido así y en qué cree, no qué hace.
 
 ---
 
@@ -14,7 +14,7 @@ section: "start"
 
 La mayoría de las plataformas de formación están construidas de la misma manera: un admin crea cursos, los empleados los hacen, todo el mundo ve lo mismo. La plataforma no cambia entre el primer empleado y el centésimo. El contenido es estático. La experiencia es fija.
 
-Se ha añadido IA a estas plataformas como una capa encima — un chatbot que responde preguntas, un generador que crea cuestionarios. Pero la estructura subyacente no ha cambiado. El curso sigue siendo el mismo para todos. El panel se ve idéntico. El camino está predeterminado.
+Estas plataformas han añadido una capa de IA, como un chatbot que responde preguntas o un generador de cuestionarios, sin cambiar su estructura. El curso sigue siendo el mismo para todos, el panel se ve idéntico y el camino está predeterminado.
 
 **Añadir IA a un sistema estático no lo hace inteligente. Lo convierte en un sistema estático con un chatbot.**
 
@@ -24,11 +24,11 @@ Se ha añadido IA a estas plataformas como una capa encima — un chatbot que re
 
 Las plataformas actuales exigen que los empleados se adapten al sistema: aprender la interfaz, seguir el camino, completar los módulos. SkillNet debe adaptarse al empleado: su nivel, su ritmo, sus lagunas, sus preguntas.
 
-Esto no va de opciones de personalización. Va de que el sistema observe cómo trabaja cada persona y se ajuste en consecuencia — sin que se le tenga que indicar.
+Las opciones de personalización no bastan. El sistema debe observar cómo trabaja cada persona y ajustarse sin que haya que indicárselo en cada paso.
 
 ### 2. La inteligencia vive en la arquitectura, no en el modelo
 
-Un LLM potente es un componente más. La inteligencia real viene de cómo está estructurado el sistema:
+Un LLM potente es un componente más. La inteligencia del sistema depende de cómo se combinan estas piezas:
 
 - **Memoria** — qué recuerda el sistema de cada persona y de cada empresa
 - **Contexto** — qué información está disponible en cada momento
@@ -47,7 +47,7 @@ SkillNet trata los documentos fuente como la única fuente de verdad. Los cursos
 
 Dos empleados que leen el mismo manual no deberían hacer el mismo curso. Uno es nuevo y necesita fundamentos. El otro tiene cinco años de experiencia y necesita casos límite. El manual es el mismo — la formación no debería serlo.
 
-Esto no es personalización como característica. Es el comportamiento por defecto de un sistema que entiende quién está aprendiendo.
+La adaptación debe ser el comportamiento por defecto de un sistema que entiende quién está aprendiendo, no una característica opcional.
 
 ## Cómo esto moldea las decisiones técnicas
 
@@ -71,7 +71,7 @@ Esto no es personalización como característica. Es el comportamiento por defec
 
 **Fase 4:** Coordinación multiagente dentro de una empresa. Distintos agentes para distintos roles, compartiendo conocimiento a través de compartimentos estructurados.
 
-Cada fase se construye sobre las decisiones de arquitectura tomadas en la anterior. Nada se añade a martillazos. Todo crece desde el mismo fundamento.
+Cada fase se apoya en las decisiones de arquitectura de la anterior y mantiene el mismo fundamento.
 
 ## La tesis en una frase
 

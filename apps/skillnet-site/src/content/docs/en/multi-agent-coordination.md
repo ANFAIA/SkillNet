@@ -9,11 +9,11 @@ group: "multi-agent"
 
 ## A new problem
 
-There's a paradigm shift happening. AI coding agents generate enormous amounts of code. Projects that used to take weeks appear in hours. Repositories grow faster than any team can review. Hosting platforms hit rate limits because agents make too many requests. Repos break under the volume of automated changes.
+AI coding agents can complete in hours projects that used to take weeks. Repositories can then grow faster than teams can review them, while the volume of automated changes strains hosting platforms and can leave repositories in a broken state.
 
-This is the reality of working with agents today, and it works reasonably well for **one person with one agent**. But the moment you scale to a team (multiple people, each with their own agents, working on the same codebase or knowledge base), everything breaks down. Whose agent has priority? What happens when two agents modify the same file? How do you prevent one person's agent from accessing another person's private context?
+The current approach works reasonably well for **one person with one agent**. A team introduces unresolved questions: Whose agent has priority? What happens when two agents modify the same file? How do you prevent one person's agent from accessing another person's private context?
 
-There is no system for this. Git tracks code changes but knows nothing about agent intent. RBAC controls access to resources but not to knowledge context. MCP connects agents to tools but says nothing about coordination between agents. The gap is **governance for teams of agents**.
+Existing tools do not cover this combination. Git tracks code changes but knows nothing about agent intent. RBAC controls access to resources but not to knowledge context. MCP connects agents to tools but says nothing about coordination between agents. What is missing is **governance for teams of agents**.
 
 This research explores that gap, from the specific problem of authority ("whose agent is this?") to the broader question of how multiple humans and multiple agents coexist on shared projects.
 
@@ -33,7 +33,7 @@ But holons break the moment a sub-agent serves two users. A tree with a node han
 
 ## The discovery: mandates over ownership
 
-The exploration led to a key realization. The foundational error in all these structures was modeling authority as **belonging** (the agent is someone's property) when it should be modeled as a **relationship** (the agent acts on someone's behalf, for a specific purpose).
+These structures model authority as **belonging** (the agent is someone's property). A better fit is a **relationship**: the agent acts on someone's behalf, for a specific purpose.
 
 - "Whose is it?" forces a single owner.
 - "On whose behalf does it act, and for what purpose?" admits multiple principals without contradiction.

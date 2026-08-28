@@ -3,12 +3,15 @@ import BaseLayout from "./BaseLayout.astro";
 import SiteHeader from "../components/SiteHeader.tsx";
 import SiteFooter from "../components/SiteFooter.tsx";
 import DocsSidebar from "../components/docs/DocsSidebar.astro";
+import { buildDocsFileTree } from "../data/docsNav";
 import { ClientRouter } from "astro:transitions";
 
 interface NavEntry {
   slug: string;
   title: string;
   section: string;
+  order: number;
+  group?: string;
 }
 
 interface Props {
@@ -29,37 +32,41 @@ const otherLocale = isEn ? "es" : "en";
 const otherBasePath = isEn ? "/docs" : "/en/docs";
 const otherHref = altSlug ? `${otherBasePath}/${altSlug}` : otherBasePath;
 
-const navSummary = isEn ? "Browse the documentation" : "Explorar la documentación";
-const navHere = isEn ? "On this page" : "Estás en";
+const docsBasePath = isEn ? "/en/docs" : "/docs";
+const { nodes: docsNodes, openIds: docsOpenIds } = buildDocsFileTree(
+  navEntries,
+  locale,
+  currentSlug,
+  docsBasePath,
+);
 ---
 
 <BaseLayout title={`${title} · ${siteTitle}`} description={description} lang={locale} altHref={otherHref}>
   {/* Docs pages navigate with view transitions so the sidebar below can survive
       the swap (transition:persist). Without it every click is a full document
       load: the island remounts, the tree re-collapses to whatever section the
-      new page sits in, and any folder the reader had opened is gone. Measured:
+      new page sits in, and any section the reader had opened is gone. Measured:
       the tree jumped from 841px to 232px on a single click. The router lives
       here and not in BaseLayout on purpose — only the docs section needs it, and
       the marketing pages keep their plain full-page loads. */}
   <ClientRouter slot="head" />
-  <SiteHeader client:load variant="docs" locale={locale} altHref={otherHref} />
+  <SiteHeader
+    client:load
+    variant="docs"
+    locale={locale}
+    altHref={otherHref}
+    docsNodes={docsNodes}
+    docsOpenIds={docsOpenIds}
+    currentDocSlug={currentSlug}
+  />
   {/* The docs document declares its own background the same way every landing
       section does, so the shared header reads what is behind it here too and
       paints the light glass instead of the hero's dark pill. */}
   <div class="docs-shell" data-nav-theme="light">
     <aside class="docs-shell__sidebar">
-      <input class="docs-nav__toggle" type="checkbox" id="docs-nav-toggle" />
-      <label class="docs-nav__control" for="docs-nav-toggle">
-        <svg class="docs-nav__caret" width="11" height="11" viewBox="0 0 10 10" aria-hidden="true">
-          <path d="M3 1.5 L7 5 L3 8.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
-        </svg>
-        <span class="docs-nav__text type-ui">{navSummary}</span>
-        {currentSlug && <span class="docs-nav__here type-ui">{navHere}: {title}</span>}
-      </label>
-      {/* Only the panel persists across the swap, not the whole sidebar: the
-          checkbox and its label are rebuilt from the new page, so the "you are
-          on" line stays truthful and the phone menu returns to closed by
-          itself — no script racing the paint. */}
+      {/* The desktop panel persists across page swaps so its expanded sections
+          and scroll position survive navigation. Mobile renders the same tree
+          inside SiteHeader instead. */}
       <div class="docs-nav__panel" transition:persist="docs-nav-panel">
         <DocsSidebar entries={navEntries} currentSlug={currentSlug} locale={locale} />
       </div>
@@ -92,11 +99,7 @@ const navHere = isEn ? "On this page" : "Estás en";
   }
 
   .docs-shell__sidebar {
-    position: sticky;
-    top: 112px;
     align-self: start;
-    max-height: calc(100vh - 140px);
-    overflow-y: auto;
   }
 
   .docs-shell__content {
@@ -258,17 +261,6 @@ const navHere = isEn ? "On this page" : "Estás en";
     margin: 32px 0;
   }
 
-  /* The sidebar collapses with a checkbox rather than <details> on purpose. A
-     closed <details> lays its content out without contributing height, which
-     collapsed the desktop sidebar column to 0px, and making it open on desktop
-     needed JavaScript that could race the first paint. A checkbox lets CSS alone
-     decide: above the breakpoint the control is hidden and the panel always
-     shows, below it the panel follows :checked. No script, nothing to race. */
-  .docs-nav__toggle,
-  .docs-nav__control {
-    display: none;
-  }
-
   @media (max-width: 999px) {
     .docs-shell {
       grid-template-columns: minmax(0, 1fr);
@@ -277,87 +269,12 @@ const navHere = isEn ? "On this page" : "Estás en";
     }
 
     .docs-shell__sidebar {
-      position: static;
-      max-height: none;
-      border-bottom: 1px solid var(--color-border);
-      padding-bottom: 24px;
-      margin-bottom: 8px;
+      display: none;
     }
 
     .prose-docs {
       max-width: none;
     }
 
-    /* The 64-link list used to sit above the article and push it to y=2841 on a
-       375px screen. Collapsed by default, the article now starts right below a
-       single row. */
-    .docs-nav__control {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex-wrap: wrap;
-      border: 1px solid var(--color-border);
-      border-radius: 12px;
-      background: color-mix(in srgb, var(--color-text) 3%, var(--color-bg));
-      padding: 11px 14px;
-      min-height: 44px;
-      color: var(--color-text);
-      cursor: pointer;
-      list-style: none;
-    }
-
-    .docs-nav__text {
-      font-weight: 600;
-    }
-
-    .docs-nav__here {
-      flex-basis: 100%;
-      min-width: 0;
-      color: var(--color-text-secondary);
-      overflow-wrap: anywhere;
-    }
-
-    .docs-nav__caret {
-      flex-shrink: 0;
-      color: var(--color-text-secondary);
-      transition: transform 0.18s var(--ease-base);
-    }
-
-    .docs-nav__toggle:checked ~ .docs-nav__control .docs-nav__caret {
-      transform: rotate(90deg);
-    }
-
-    /* Collapsed, the sidebar contributes only its control row. */
-    .docs-nav__panel {
-      display: none;
-      padding-top: 8px;
-    }
-
-    .docs-nav__toggle:checked ~ .docs-nav__panel {
-      display: block;
-    }
-
-    /* The checkbox stays in the accessibility tree and keyboard-focusable; it is
-       only visually removed, so the label keeps working as the control. */
-    .docs-nav__toggle {
-      display: block;
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      opacity: 0;
-      margin: 0;
-      pointer-events: none;
-    }
-
-    .docs-nav__toggle:focus-visible ~ .docs-nav__control {
-      outline: 2px solid var(--color-primary);
-      outline-offset: 2px;
-    }
-  }
-
-  @media (max-width: 999px) and (prefers-reduced-motion: reduce) {
-    .docs-nav__caret {
-      transition: none;
-    }
   }
 </style>

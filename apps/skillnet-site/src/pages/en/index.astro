@@ -19,7 +19,8 @@ const copy = t(lang);
 
 <BaseLayout title={copy.meta.title} description={copy.meta.description} lang={lang} altHref="/">
   <Hero client:load lang={lang} />
-  <main class="relative z-10 bg-white">
+  {/* No z-index — see the note in `src/pages/index.astro`; the two pages must not drift. */}
+  <main class="relative bg-white">
     <WhatWeDoSection client:load lang={lang} />
     <HowItWorksSection client:load lang={lang} />
     <ProblemSection client:load lang={lang} />

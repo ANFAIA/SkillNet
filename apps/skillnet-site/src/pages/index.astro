@@ -19,7 +19,12 @@ const copy = t(lang);
 
 <BaseLayout title={copy.meta.title} description={copy.meta.description} lang={lang} altHref="/en/">
   <Hero client:load lang={lang} />
-  <main class="relative z-10 bg-white">
+  {/* No z-index: `relative` is what makes this cover the hero's `fixed inset-0`
+      background planes as the page scrolls, because a positioned element paints above
+      every positioned element before it in the DOM and `<main>` comes after `<Hero>`.
+      `bg-white` is the other half — without it the planes would show through. The header
+      stays on top by being last in the DOM, not by outbidding a number. */}
+  <main class="relative bg-white">
     <WhatWeDoSection client:load lang={lang} />
     <HowItWorksSection client:load lang={lang} />
     <ProblemSection client:load lang={lang} />

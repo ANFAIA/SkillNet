@@ -9,11 +9,11 @@ group: "post-markdown"
 
 ## El contexto
 
-Hoy, Markdown está en todas partes en el ecosistema de agentes de IA. AGENTS.md, CLAUDE.md, SKILL.md, llms.txt. Todos los agentes, todos los frameworks, todas las herramientas usan ficheros `.md` como la forma por defecto de dar contexto a la IA. Toda la industria convergió en ello.
+Markdown es el formato habitual para dar contexto a los agentes de IA. AGENTS.md, CLAUDE.md, SKILL.md y llms.txt son algunos ejemplos. Todos los agentes, frameworks y herramientas usan ficheros `.md` con este fin; la industria ha convergido en este formato.
 
 Eso plantea una pregunta: **¿qué viene después de Markdown?**
 
-Porque a veces parece que nos estamos adaptando a lo que ya existe en lugar de crear cosas nuevas para nuestras necesidades actuales. Markdown se diseñó para que humanos escribieran contenido web en 2004. Nunca se diseñó para agentes de IA que necesitan navegar, consultar y cargar conocimiento de forma selectiva.
+A veces parece que nos adaptamos a lo que ya existe en lugar de crear herramientas para las necesidades actuales. Markdown se diseñó en 2004 para que las personas escribieran contenido web, no para que los agentes navegaran, consultaran y cargaran conocimiento de forma selectiva. La pregunta es si conviene sustituirlo o adaptar su consumo.
 
 ## La exploración
 
@@ -33,9 +33,9 @@ En paralelo, surgió una tendencia: la gente empezó a usar HTML para visualizar
 
 ### Lectores más inteligentes
 
-La conclusión por ahora: **no cambiar el formato, cambiar cómo se consume.** Los encabezados de Markdown SON el árbol de navegación. El problema no es el fichero; es que los agentes lo leen como texto plano. Lo que hace falta es un estándar de consumo, no un formato nuevo.
+La conclusión provisional es mantener el formato y cambiar cómo se consume. Los encabezados de Markdown ya forman un árbol de navegación. El problema no está en el fichero, sino en que los agentes lo leen como texto plano. Hace falta un estándar de consumo que aproveche esa estructura, no otro formato.
 
-Esto sigue un patrón universal en computación: **el formato se mantiene simple, el lector se vuelve inteligente.** HTML no cambió para que existiera el DOM. PDF no cambió para que el OCR de IA extrajera tablas. JPEG no cambió para la detección facial. Markdown no necesita cambiar para que los agentes lo naveguen por sección.
+Esto sigue un patrón general en computación: mantener sencillo el formato y mejorar el lector. HTML no tuvo que cambiar para que existiera el DOM, ni PDF para que el OCR extrajera tablas, ni JPEG para admitir detección facial. Del mismo modo, un lector puede navegar Markdown por secciones sin cambiar Markdown.
 
 De 6 agentes de IA principales probados (Claude Code, Cursor, Copilot, Codex, Aider, Windsurf), **ninguno** expone los encabezados de Markdown como un árbol navegable. Ese fue el hueco que decidimos llenar.
 
@@ -43,9 +43,9 @@ De 6 agentes de IA principales probados (Claude Code, Cursor, Copilot, Codex, Ai
 
 Hay un ecosistema creciente de proyectos que intentan dar a los agentes memoria persistente: [Mem0](https://github.com/mem0ai/mem0), [Letta](https://github.com/letta-ai/letta) (antes MemGPT), [Cognee](https://github.com/topoteretes/cognee), [Zep](https://github.com/getzep/zep), entre otros. Cada uno construye un sistema complejo (grafos de conocimiento, almacenes vectoriales, cadenas de resumen, pipelines de recuperación) sobre datos fundamentalmente simples.
 
-La observación: **la complejidad de estos sistemas es en sí misma un problema.** Cada capa añadida es una capa que puede fallar, que necesita mantenimiento, que acopla los datos a una herramienta concreta. La tendencia histórica en computación va en la dirección contraria, hacia la simplicidad. Los ficheros reemplazaron a las bases de datos para configuración. Markdown reemplazó al texto enriquecido para documentación. JSON reemplazó a XML para intercambio de datos. La evolución tiende hacia formatos más simples con lectores más inteligentes, no hacia infraestructuras cada vez más complejas.
+La complejidad de estos sistemas tiene un coste. Cada capa puede fallar, requiere mantenimiento y acopla los datos a una herramienta concreta. La historia de la computación ofrece varios movimientos hacia formatos más simples: los ficheros reemplazaron a las bases de datos para configuración, Markdown reemplazó al texto enriquecido para documentación y JSON reemplazó a XML para intercambio de datos. La evolución apunta a formatos más simples con lectores más capaces, no a infraestructuras cada vez mayores.
 
-Esto no significa que Mem0 o Cognee estén equivocados. Resuelven problemas reales. Pero la apuesta aquí es que la dirección a largo plazo consiste en hacer inteligente la capa de consumo en lugar de construir sistemas cada vez más grandes alrededor de lectores tontos.
+Mem0 y Cognee resuelven problemas reales con una estrategia distinta. La apuesta a largo plazo aquí es mejorar la capa de consumo y mantener más sencilla la infraestructura que la rodea.
 
 ## El panorama: grafos de código apuntando a documentación
 
@@ -53,7 +53,7 @@ Una ola paralela promete "convertir tu repo —o cualquier carpeta— en un graf
 
 Pero mírese sobre qué están construidos: tree-sitter, ASTs, grafos de llamadas, resolución de imports. Son **motores de análisis de código.** Su poder viene de una estructura que solo el código tiene —una función *llama* a otra, un fichero *importa* otro: relaciones explícitas, inequívocas, extraíbles mecánicamente. La prosa no tiene nada de eso. Así que cuando estas herramientas ingieren documentación no pueden analizar relaciones, las **infieren** con un LLM. Mismo nombre, herramienta distinta: en código es determinista, local y gratis; en documentación es inferencia por LLM —de pago por fichero, no determinista entre ejecuciones, y tiende a aplanar todo un documento en un único nodo, perdiendo sus secciones.
 
-La observación: **una herramienta de código apuntada a documentación deja de ser determinista sin hacer ruido.** El discurso de "cualquier carpeta" oculta que el camino de la documentación es un añadido. Y refuerza la misma conclusión de antes —la documentación ya lleva su propia estructura (encabezados, enlaces, frontmatter). La victoria está en navegar esa estructura de forma nativa y determinista, no en tomar prestada una herramienta de grafos de código y pagar a un LLM para simular la estructura que le falta a la prosa.
+Cuando una herramienta de análisis de código se aplica a documentación, parte del proceso deja de ser determinista. La promesa de procesar "cualquier carpeta" oculta que el tratamiento de la documentación es un añadido. La documentación ya contiene estructura en sus encabezados, enlaces y frontmatter. Navegarla directamente evita usar un LLM para inferir relaciones que el formato no expresa.
 
 ## Qué se construyó
 

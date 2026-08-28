@@ -69,7 +69,7 @@ Medido en el banco de calidad (`scripts/quality_bench.py`, 2026-08-06):
 
 El modelo produce siempre los mismos tres bloques (Stack + TextContent + QuizItem) porque
 el prompt le pide que decida la estructura Y escriba el contenido Y formule preguntas
-en una sola salida. Un modelo de 8B no tiene la capacidad de atender las tres tareas en
+en una sola salida. Un modelo de 8B no puede atender las tres tareas en
 paralelo con calidad.
 
 ### 1.2 La solucion

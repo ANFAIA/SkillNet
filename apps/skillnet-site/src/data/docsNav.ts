@@ -146,8 +146,9 @@ export function buildDocsFileTree(
 
   const nodes = groups.map((group) => {
     const sectionId = `section:${group.section}`;
-    // With no page selected (the index) the first section is the useful one.
-    if (group.containsCurrent || (!currentSlug && group === groups[0])) openIds.push(sectionId);
+    // Open only the route to an actual document. On the docs index there is no
+    // active section, so the navigation starts neutral with every group closed.
+    if (group.containsCurrent) openIds.push(sectionId);
 
     return {
       id: sectionId,
