@@ -118,6 +118,13 @@ class NodeRender(UUIDMixin, Base):
     # packages drew it. NULL only while the row is pending/generating/failed.
     catalog_version: Mapped[str | None] = mapped_column(Text, nullable=True)
     library_version: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # The third half of the same provenance question: which *instructions*. It is the
+    # exact string `node_render_service.current_prompt_version()` fed into the cache key,
+    # and it is here because the key is a sha256 — the version goes in and cannot come
+    # back out. `src/services/render_retention.py` reads it to tell a row that is still
+    # reachable from one that a PROMPT_VERSION bump evicted. NULL means "written before
+    # migration 0031", i.e. by an older build.
+    prompt_version: Mapped[str | None] = mapped_column(Text, nullable=True)
     backend: Mapped[str] = mapped_column(Text, nullable=False)
     model: Mapped[str] = mapped_column(Text, nullable=False)
     tier: Mapped[str] = mapped_column(Text, nullable=False)
