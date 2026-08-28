@@ -155,8 +155,8 @@ const es = {
     today: "Hoy",
   },
   builtWith: {
-    title: "Hecho con",
-    lead: "Dos proyectos propios y abiertos que SkillNet usa por dentro.",
+    title: "Proyectos hermanos",
+    lead: "SkillNet comparte ecosistema con otros dos proyectos abiertos que forman parte de su experiencia de aprendizaje.",
     didactTitle: "Componentes para aprender",
     didactDetail:
       "La biblioteca de componentes React con la que SkillNet compone lo que aparece dentro de una lección.",
@@ -328,8 +328,8 @@ const en: typeof es = {
     today: "Today",
   },
   builtWith: {
-    title: "Built with",
-    lead: "Two open projects of our own that SkillNet uses under the hood.",
+    title: "Sibling projects",
+    lead: "SkillNet shares an ecosystem with two other open projects that form part of its learning experience.",
     didactTitle: "Components for learning",
     didactDetail:
       "The React component library SkillNet uses to compose what appears inside a lesson.",
