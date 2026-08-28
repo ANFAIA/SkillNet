@@ -9,12 +9,22 @@
     "prompt_preview": "Eres el generador de pantallas de SkillNet, formacion de cumplimiento normativo para empleados. Responde UNICAMENTE con un programa en el dialecto descrito abaj",
     "use_case": "genera_ui"
   },
+  "228b1bd28289161d": {
+    "file": "genera_ui/openui_explanation.txt",
+    "prompt_preview": "Eres el generador de pantallas de SkillNet, formacion de cumplimiento normativo para empleados. Responde UNICAMENTE con un programa en el dialecto descrito abaj",
+    "use_case": "genera_ui"
+  },
   "2c6edbfd214744d9": {
     "file": "genera_ui/openui_explanation.txt",
     "prompt_preview": "Eres el generador de pantallas de SkillNet, formacion de cumplimiento normativo para empleados. Responde UNICAMENTE con un programa en el dialecto descrito abaj",
     "use_case": "genera_ui"
   },
   "375dea806d244a44": {
+    "file": "genera_ui/openui_explanation.txt",
+    "prompt_preview": "Eres el generador de pantallas de SkillNet, formacion de cumplimiento normativo para empleados. Responde UNICAMENTE con un programa en el dialecto descrito abaj",
+    "use_case": "genera_ui"
+  },
+  "432be78363c38dc6": {
     "file": "genera_ui/openui_explanation.txt",
     "prompt_preview": "Eres el generador de pantallas de SkillNet, formacion de cumplimiento normativo para empleados. Responde UNICAMENTE con un programa en el dialecto descrito abaj",
     "use_case": "genera_ui"
@@ -48,6 +58,11 @@
     "file": "decide_formato/explanation.json",
     "prompt_preview": "Eres el selector de formato de SkillNet, una plataforma de formacion en el puesto de trabajo. Recibes la ficha de un nodo de aprendizaje y el perfil del aprendi",
     "use_case": "decide_formato"
+  },
+  "8772ffefc324bae2": {
+    "file": "genera_ui/openui_explanation.txt",
+    "prompt_preview": "Eres el generador de pantallas de SkillNet, formacion de cumplimiento normativo para empleados. Responde UNICAMENTE con un programa en el dialecto descrito abaj",
+    "use_case": "genera_ui"
   },
   "88c4a133f40a87a0": {
     "file": "decide_formato/explanation.json",

@@ -33,6 +33,7 @@ import re
 import time
 import unicodedata
 import uuid
+from collections.abc import Mapping
 from typing import Any
 
 from sqlalchemy import select
@@ -66,11 +67,15 @@ from src.agents.runtime.router import (
     tier_llm,
 )
 from src.agents.runtime.shape import (
+    SCOPE_HEADINGS_MISSING,
+    SCOPE_HEADINGS_UNMATCHED,
+    SCOPE_OK,
+    SCOPE_SLICE_TOO_SHORT,
     ShapePlan,
     ShapeSignal,
     analyze_shape,
-    focus_on_headings,
     refine_format,
+    scope_to_headings,
 )
 from src.agents.runtime.state import NodeRuntimeState
 from src.core import sse
@@ -429,7 +434,13 @@ async def _make_llm(org_id: uuid.UUID, tier: str) -> Any:
     return tier_llm(org_settings, tier)
 
 
-async def load_source_context(db: Any, node: CourseNode, org_id: uuid.UUID) -> str:
+async def load_source_context(
+    db: Any,
+    node: CourseNode,
+    org_id: uuid.UUID,
+    *,
+    scope_out: dict[str, Any] | None = None,
+) -> str:
     """The two explicit branches of §4.2.
 
     * A document of **<= 5 pages** goes in whole (``full_text``). No embeddings needed, and
@@ -438,7 +449,28 @@ async def load_source_context(db: Any, node: CourseNode, org_id: uuid.UUID) -> s
       Headings survive re-ingestion, chunk ids do not. If the heading filter returns nothing
       the search is retried **without** it and a warning is logged — an empty source would
       otherwise hand the learner plausible content with no documentary basis, silently.
+
+    ``scope_out`` is an optional diagnostic sink, the same shape of out-parameter
+    ``LLMService.stream`` uses for ``usage_out``: it is filled with ``{"widened": bool,
+    "reason": str}`` saying whether the text handed back is really this node's or the whole
+    document. The return type is deliberately untouched — ``knowledge_pack.runner`` types
+    this function as its ``SourceLoader`` and ``routes.nodes`` calls it directly, so
+    widening the signature by return value would be a breaking change for a diagnostic.
+
+    Four fallbacks widen the scope, all deliberate and all previously silent: no headings on
+    the node, headings that match nothing, a scoped slice under
+    :data:`MIN_SCOPED_SOURCE_CHARS`, and the chunk search retried with the heading filter
+    dropped. Each keeps the node from starving, and each also hands it material that belongs
+    to a sibling node — which is what a learner reports as being asked about something never
+    explained. See :func:`_with_source_scope` for what the caller does with this.
     """
+
+    def _record(reason: str) -> None:
+        if scope_out is not None:
+            scope_out.clear()
+            scope_out.update({"widened": reason != SCOPE_OK, "reason": reason})
+
+    _record(SCOPE_OK)
     if node.source_document_id is None:
         return ""
     document = await db.get(Document, node.source_document_id)
@@ -464,7 +496,9 @@ async def load_source_context(db: Any, node: CourseNode, org_id: uuid.UUID) -> s
         # fourteen allergens as well. It also costs tokens where they are scarcest —
         # ``genera_ui`` averages ~5 250 input tokens against a 6 000/min free-tier
         # ceiling, and the whole document is most of that.
-        return clip_source(_scoped_full_text(document.full_text, node.source_headings))
+        scoped, reason = _scoped_full_text(document.full_text, node.source_headings)
+        _record(reason)
+        return clip_source(scoped)
 
     repo = DocumentChunkRepository(db)
     try:
@@ -476,9 +510,13 @@ async def load_source_context(db: Any, node: CourseNode, org_id: uuid.UUID) -> s
             "Embedding failed for node %s; falling back to full_text", node.id
         )
         if document.full_text:
-            return clip_source(_scoped_full_text(document.full_text, node.source_headings))
+            scoped, reason = _scoped_full_text(document.full_text, node.source_headings)
+            _record(reason)
+            return clip_source(scoped)
         return ""
     headings = list(node.source_headings or [])
+    if not headings:
+        _record(SCOPE_HEADINGS_MISSING)
     rows = await repo.similarity_search_by_headings(
         org_id=org_id,
         query_embedding=embedding,
@@ -492,6 +530,7 @@ async def load_source_context(db: Any, node: CourseNode, org_id: uuid.UUID) -> s
             headings,
             node.id,
         )
+        _record(SCOPE_CHUNKS_UNFILTERED)
         rows = await repo.similarity_search_by_headings(
             org_id=org_id,
             query_embedding=embedding,
@@ -500,6 +539,14 @@ async def load_source_context(db: Any, node: CourseNode, org_id: uuid.UUID) -> s
             headings=None,
         )
     if not rows and document.full_text:
+        # The widest fallback of the four: no chunk matched at all, so the node is handed
+        # the entire document with no scoping of any kind. Logged like its sibling above —
+        # until 2026-08-28 this branch was the only silent one.
+        logger.warning(
+            "No chunk matched at all for node %s; falling back to the whole document",
+            node.id,
+        )
+        _record(SCOPE_CHUNKS_EMPTY)
         return clip_source(document.full_text)
 
     class _Chunk:
@@ -515,13 +562,48 @@ async def load_source_context(db: Any, node: CourseNode, org_id: uuid.UUID) -> s
 #: carrying a few hundred tokens too many.
 MIN_SCOPED_SOURCE_CHARS = 200
 
+#: The two scope-widening reasons that belong to the chunked branch; the other two come
+#: from :mod:`src.agents.runtime.shape` so the names cannot drift from the code that
+#: decides them.
+SCOPE_CHUNKS_UNFILTERED = "chunks_unfiltered"
+SCOPE_CHUNKS_EMPTY = "chunks_empty"
 
-def _scoped_full_text(full_text: str, headings: Any) -> str:
-    """The node's own sections of a short document, or all of it when that is not safe."""
-    scoped = focus_on_headings(full_text, list(headings or ()))
+#: What each widening reason means for the generator, in its own language. Closed
+#: vocabulary, like ``_SIGNAL_RULES`` in the prompt module: a reason can never turn into
+#: free-form prose injected into a prompt.
+_SCOPE_WIDENED_REASONS: dict[str, str] = {
+    SCOPE_HEADINGS_MISSING: (
+        "este nodo no declara que parte del documento le toca, asi que abajo tienes el "
+        "documento entero"
+    ),
+    SCOPE_HEADINGS_UNMATCHED: (
+        "las secciones que este nodo declara no aparecen en el documento, asi que abajo "
+        "tienes el documento entero"
+    ),
+    SCOPE_SLICE_TOO_SHORT: (
+        "la seccion propia de este nodo era demasiado corta para ensenar con ella, asi "
+        "que abajo tienes el documento entero"
+    ),
+    SCOPE_CHUNKS_UNFILTERED: (
+        "no se encontro ningun pasaje bajo las secciones de este nodo, asi que abajo "
+        "tienes pasajes de todo el documento"
+    ),
+    SCOPE_CHUNKS_EMPTY: (
+        "no se encontro ningun pasaje relevante, asi que abajo tienes el documento entero"
+    ),
+}
+
+
+def _scoped_full_text(full_text: str, headings: Any) -> tuple[str, str]:
+    """The node's own sections of a short document, or all of it when that is not safe.
+
+    Returns the text **and** why, so the caller can tell the generator it is holding more
+    than its own material. See :func:`load_source_context`.
+    """
+    scoped, reason = scope_to_headings(full_text, list(headings or ()))
     if len(scoped.strip()) < MIN_SCOPED_SOURCE_CHARS:
-        return full_text
-    return scoped
+        return full_text, SCOPE_SLICE_TOO_SHORT if reason == SCOPE_OK else reason
+    return scoped, reason
 
 
 def split_answer_key(raw: str) -> tuple[str, dict]:
@@ -597,22 +679,193 @@ def _has_solution(entry: dict) -> bool:
     )
 
 
+def unusable_answer_keys(spec: UISpec, answer_key: dict) -> list[str]:
+    """Entries that are PRESENT but cannot grade the item they belong to.
+
+    :func:`missing_answer_keys` asks "did the model send a solution at all". This asks the
+    next question, which nothing asked until 2026-08-28: "is the solution the right SHAPE
+    for this ``item_type``". ``src.services.probe_service.validate_probe_items`` has always
+    asked it for the pre-test — ``correct`` must be an ``int`` in range — and the render
+    path never did, an asymmetry no comment ever justified.
+
+    What the gap serves, read off ``src.services.exercise_service``:
+
+    * ``"correct": "1"`` on a ``test`` — ``_grade_test`` compares ``selected == correct``,
+      so ``1 == "1"`` is ``False`` and **no answer can ever score**.
+    * ``"correct": 4`` with four options — same outcome by a different route.
+    * ``"correct": "false"`` on a ``true_false`` — ``_grade_true_false`` compares
+      ``bool(given) == bool(correct)``, and ``bool("false")`` is ``True``, so the grading is
+      **inverted**: the learner picks Falso, which is right, and is told it was Verdadero.
+
+    The last one is the shape the testers reported on 2026-08-28 ("la respuesta no es esa"),
+    and the frontend hides its cause: ``revealedCorrectIndex``
+    (``apps/skillnet-web/src/components/courses/blocks/QuizItemBlock.tsx``) only reveals a
+    ``boolean``/``number``, so a string key marks nothing green and the screen just says
+    wrong. A key like this is not a degraded screen, it is an unpassable one, so it is worth
+    the single repair attempt exactly like an absent key.
+
+    Returns one message per broken item, each naming the offending value **and** the shape
+    to write instead: the repair loop replays these verbatim and a vague one burns the
+    only retry.
+    """
+    problems: list[str] = []
+    for component in spec.components:
+        if component.type != "QuizItem":
+            continue
+        item_id = str(component.props.get("item_id") or component.id)
+        entry = answer_key.get(item_id)
+        if not isinstance(entry, dict):
+            continue  # absent: missing_answer_keys owns that message
+        item_type = str(component.props.get("item_type") or "")
+        options = component.props.get("options")
+        option_count = len(options) if isinstance(options, list) else 0
+        problem = _answer_key_problem(item_type, entry, item_id, option_count)
+        if problem:
+            problems.append(problem)
+    return problems
+
+
+def _true_false_int(correct: object) -> bool:
+    """Whether ``correct`` is the 0/1 spelling of a ``true_false`` answer.
+
+    ``isinstance(True, int)`` is True in Python, so the ``bool`` exclusion is what keeps
+    this from claiming every real boolean as an int.
+    """
+    return isinstance(correct, int) and not isinstance(correct, bool) and correct in (0, 1)
+
+
+def _answer_key_problem(
+    item_type: str, entry: dict, item_id: str, option_count: int
+) -> str | None:
+    """The one thing wrong with this entry, phrased as an order the model can execute."""
+    correct = entry.get("correct")
+
+    if item_type == "test":
+        # bool is a subclass of int, and `True` would grade as option 1 — the same silent
+        # off-by-one the whole check exists to stop. Excluded explicitly, as the probe does.
+        if not isinstance(correct, int) or isinstance(correct, bool):
+            return (
+                f"QuizItem {item_id!r} es de tipo \"test\" y su clave trae "
+                f"correct={correct!r}, que no es un numero. En \"test\" correct es el "
+                f"INDICE de la opcion correcta, un entero sin comillas, contando desde 0: "
+                f'{{"{item_id}": {{"correct": 0, "explanation": "..."}}}}. Con comillas la '
+                "comparacion nunca acierta y el aprendiz no puede aprobar."
+            )
+        if option_count and not 0 <= correct < option_count:
+            return (
+                f"QuizItem {item_id!r} tiene {option_count} opciones, asi que correct solo "
+                f"puede ir de 0 a {option_count - 1}, y has escrito {correct}. Cuenta desde "
+                "0: la primera opcion es 0 y la ultima es "
+                f"{option_count - 1}. Corrige el indice para que apunte a la opcion que de "
+                "verdad responde al enunciado."
+            )
+        return None
+
+    if item_type == "true_false":
+        # 0 and 1 are ACCEPTED, not rejected, and the difference is not pedantry: the
+        # front sends `{answer: selected === 0}` and `_grade_true_false` compares
+        # `bool(given) == bool(correct)`, so an int already grades right. Refusing it
+        # would spend the single repair attempt — and possibly drop the node to a flat
+        # seed lesson — over a key that works. `prune_answer_key` normalizes it to a real
+        # bool on the way to storage so `revealedCorrectIndex` can still paint the correct
+        # option green. A string is a different animal and stays refused: `bool("false")`
+        # is True, which inverts the grade silently.
+        if not isinstance(correct, bool) and not _true_false_int(correct):
+            return (
+                f"QuizItem {item_id!r} es de tipo \"true_false\" y su clave trae "
+                f"correct={correct!r}. Ahi correct es true o false en JSON, sin comillas y "
+                f'sin indices: {{"{item_id}": {{"correct": true, "explanation": "..."}}}}. '
+                'Escrito como texto, "false" se lee como verdadero y la correccion sale al '
+                "reves: se le dice que fallo a quien acerto."
+            )
+        return None
+
+    if item_type == "fill_blank":
+        blanks = entry.get("blanks")
+        if not isinstance(blanks, list) or not blanks:
+            return (
+                f"QuizItem {item_id!r} es de tipo \"fill_blank\" y su clave no trae la "
+                f'lista "blanks". Escribe {{"{item_id}": {{"blanks": ["<texto exacto del '
+                'hueco>"], "explanation": "..."}}}}: sin ella no hay con que comparar la '
+                "respuesta y el hueco es incorregible."
+            )
+        if any(not isinstance(blank, str) or not blank.strip() for blank in blanks):
+            return (
+                f"QuizItem {item_id!r} tiene un hueco vacio o no textual en \"blanks\" "
+                f"({blanks!r}). Cada entrada es el texto EXACTO que se espera en ese hueco, "
+                "tal y como aparece en la fuente."
+            )
+        return None
+
+    if item_type == "order_steps":
+        # A QuizItem of this type is unanswerable, and that is a frontend fact, not a
+        # preference: `QuizItemBlock.buildAnswer` only builds a choice payload for `test`
+        # and `true_false`, so an `order_steps` item renders as a free-text box and posts
+        # `{response: "..."}`. `_grade_order_steps` then compares that string against a
+        # list of indices and scores 0.0 forever. Ordering has a working block — DragOrder,
+        # which carries its own solution as its third argument — so the repair is a swap,
+        # not a better key. (v1 exercises are unaffected: they have their own renderer,
+        # `apps/skillnet-web/src/components/exercises/OrderStepsExercise.tsx`.)
+        return (
+            f"QuizItem {item_id!r} usa item_type \"order_steps\", que esta pantalla no sabe "
+            "responder: se dibuja como una caja de texto y ninguna respuesta puede acertar. "
+            "Para ordenar usa DragOrder(\"instruccion\", [\"item1\", \"item2\", \"item3\"], "
+            "[\"orden\", \"correcto\", \"aqui\"]), que lleva su solucion dentro y no necesita "
+            "entrada en la clave."
+        )
+
+    # `practical_case` and `dialogue` are open types graded by an eval LLM (or waved
+    # through at 0.5); their keys are rubrics, not solutions, and nothing here can check a
+    # rubric. Leaving them alone is deliberate, not an oversight.
+    return None
+
+
+def answer_key_problems(spec: UISpec, answer_key: dict) -> list[str]:
+    """Every reason this key cannot grade this spec, absent entries first.
+
+    Absent beats malformed: telling the model its ``correct`` is out of range for an entry
+    it never wrote would send the one repair attempt after the wrong mistake.
+    """
+    missing = missing_answer_keys(spec, answer_key)
+    return missing or unusable_answer_keys(spec, answer_key)
+
+
 def prune_answer_key(spec: UISpec, answer_key: dict) -> dict:
-    """Keep only entries for ``QuizItem`` ids that really exist in the spec.
+    """Keep only entries for ``QuizItem`` ids that really exist in the spec, normalized.
 
     The model is capable of inventing an entry for an item it did not emit; storing it would
     put un-referenced answers in a column whose whole purpose is to be minimal.
+
+    It also settles the one spelling ``_answer_key_problem`` deliberately lets through: a
+    ``true_false`` whose ``correct`` is 0 or 1 instead of a JSON boolean. It already grades
+    right, so refusing it would burn the single repair attempt over a working key — but
+    stored as an int it reaches ``revealedCorrectIndex``, which requires ``typeof
+    'boolean'`` and therefore highlights nothing, leaving the learner told they failed
+    without being shown the right answer. Normalizing here, at the one seam that builds the
+    stored key, keeps both ends honest.
     """
     wanted = {
         str(component.props.get("item_id") or component.id)
         for component in spec.components
         if component.type == "QuizItem"
     }
-    return {
-        item_id: entry
-        for item_id, entry in answer_key.items()
-        if item_id in wanted and isinstance(entry, dict)
+    item_types = {
+        str(component.props.get("item_id") or component.id): str(
+            component.props.get("item_type") or ""
+        )
+        for component in spec.components
+        if component.type == "QuizItem"
     }
+    pruned: dict = {}
+    for item_id, entry in answer_key.items():
+        if item_id not in wanted or not isinstance(entry, dict):
+            continue
+        if item_types.get(item_id) == "true_false" and _true_false_int(
+            entry.get("correct")
+        ):
+            entry = {**entry, "correct": bool(entry["correct"])}
+        pruned[item_id] = entry
+    return pruned
 
 
 def _source_has_numbers(text: str) -> bool:
@@ -680,7 +933,20 @@ async def load_context(state: NodeRuntimeState) -> dict:
             user_id, node_id
         )
         org_settings = await _org_settings(db, org_id)
-        source_context = await load_source_context(db, node, org_id)
+        # Diagnostic sink: says whether the text below is really this node's slice or a
+        # widened fallback. Carried into the prompt by `_with_source_scope` so the screen
+        # can teach from borrowed material without evaluating on it.
+        source_scope: dict[str, Any] = {}
+        source_context = await load_source_context(
+            db, node, org_id, scope_out=source_scope
+        )
+        if source_scope.get("widened"):
+            logger.warning(
+                "source_scope_widened node=%s course=%s reason=%s",
+                node.id,
+                node.course_id,
+                source_scope.get("reason"),
+            )
         accessibility_payload = dict(getattr(user, "accessibility", None) or {})
         history_payload = state.get("longitudinal_history")
         history = (
@@ -953,6 +1219,7 @@ async def load_context(state: NodeRuntimeState) -> dict:
             else []
         ),
         "siblings": siblings,
+        "source_scope": dict(source_scope),
         # Broker-offered media components for this node (already gated by preference).
         "media_offers": media_offers_payload,
         # Originals from the source document this lesson places, and the ones it rebuilds.
@@ -1882,6 +2149,13 @@ async def author_activity(state: NodeRuntimeState) -> dict:
             "authored_activity": {
                 "activity_id": str(activity.id),
                 "component_id": activity.component_id,
+                # Carried so the prepared path reaches `genera_ui` as informative as the
+                # legacy `MaterializedActivity` one: `_source_with_authored_activity` shows
+                # the generator what its closer will ask so it teaches that first. Without
+                # it this branch would keep writing screens blind to their own evaluation.
+                "public_definition": dict(
+                    getattr(activity, "public_definition", None) or {}
+                ),
                 "binding_id": str(binding.id),
                 "experience_id": str(binding.id),
                 "implementation_ref": (
@@ -2137,8 +2411,113 @@ def _authored_experience_refs(authored: dict[str, Any]) -> tuple[str, str, str] 
     return experience_id, implementation_ref, definition_ref
 
 
+def _episode_node_context(state: NodeRuntimeState) -> dict[str, Any]:
+    """The node's own identity and what the REST of the course covers, for the episode path.
+
+    ``load_context`` has computed ``siblings`` since 2026-08-09, when six screens built from
+    one short manual opened with the same sentence four times and asked practically the same
+    question in all six. The fix never reached the path that runs today: ``siblings`` was
+    read only by ``genera_ui_multi``, and ``build_node_graph`` swaps that generator out
+    whenever ``ADAPTIVE_EPISODES`` is on. The episode brief carries the mission but not the
+    node's title, its summary or its neighbours, so every adaptive render re-ran the exact
+    failure the sibling list was written to stop — including asking about material that
+    belongs to a different node, which reads to the learner as "nobody explained this".
+
+    Returned as kwargs rather than three positional reads so the three episode builders
+    (generate, repair, revise) cannot drift apart on which half of the context they pass.
+    """
+
+    node = state.get("node") or {}
+    return {
+        "node_title": str(node.get("title") or ""),
+        "node_summary": str(node.get("summary") or ""),
+        "siblings": list(state.get("siblings") or ()),
+    }
+
+
+#: How much of the activity's visible task travels with the generation prompt.
+#:
+#: ``genera_ui`` averages ~5 250 input tokens against a 6 000/min free-tier ceiling (see
+#: ``load_source_context``), so the preview has to be a reminder, not a second source. The
+#: publics it summarizes are small by contract — a title plus four to six short items — and
+#: this cap only bites on a pathological one.
+ACTIVITY_PREVIEW_MAX_CHARS = 700
+
+#: Keys of a public activity definition that carry the learner-visible *task*.
+_ACTIVITY_TASK_KEYS = ("title", "question", "prompt", "instruction")
+
+#: Keys that carry one visible *piece* of the activity inside its item lists.
+_ACTIVITY_PIECE_KEYS = ("content", "text", "label", "prompt", "before", "after")
+
+
+def _activity_visible_pieces(value: Any, into: list[str]) -> None:
+    """Collect the learner-visible strings of a public definition, ids excluded.
+
+    Ids (``source-1``, ``gap-2``) are how the server correlates an answer, and they mean
+    nothing to whoever writes the explanation. Dropping them keeps the preview short and,
+    more importantly, keeps a machine token out of a prompt whose output is grepped for
+    exactly that kind of copied server scaffolding (:func:`spec_scaffolding_markers`).
+    """
+    if isinstance(value, Mapping):
+        for key in _ACTIVITY_PIECE_KEYS:
+            piece = value.get(key)
+            if isinstance(piece, str) and piece.strip():
+                into.append(piece.strip())
+        for child in value.values():
+            if isinstance(child, (Mapping, list)):
+                _activity_visible_pieces(child, into)
+    elif isinstance(value, list):
+        for child in value:
+            if isinstance(child, str) and child.strip():
+                into.append(child.strip())
+            else:
+                _activity_visible_pieces(child, into)
+
+
+def _activity_task_preview(public_definition: Mapping[str, Any]) -> str:
+    """One line of task plus the material it will ask about, or ``""`` if there is none."""
+
+    task = ""
+    for key in _ACTIVITY_TASK_KEYS:
+        candidate = public_definition.get(key)
+        if isinstance(candidate, str) and candidate.strip():
+            task = candidate.strip()
+            break
+
+    pieces: list[str] = []
+    for key, child in public_definition.items():
+        if key in _ACTIVITY_TASK_KEYS or not isinstance(child, (Mapping, list)):
+            continue
+        _activity_visible_pieces(child, pieces)
+
+    # Order-preserving dedup: matching repeats a term across sources and targets often
+    # enough that the raw list reads like padding.
+    unique = list(dict.fromkeys(pieces))
+    lines = [line for line in (task, "; ".join(unique)) if line]
+    preview = "\n".join(lines)
+    if len(preview) > ACTIVITY_PREVIEW_MAX_CHARS:
+        preview = preview[:ACTIVITY_PREVIEW_MAX_CHARS].rstrip() + "..."
+    return preview
+
+
 def _source_with_authored_activity(state: NodeRuntimeState) -> str:
-    """Add only the opaque id and public projection to the UI-generation context."""
+    """Add the opaque id **and** the public projection to the UI-generation context.
+
+    The docstring promised both since the seam was written; the code passed only the three
+    ids, and that omission is the structural half of the mismatch the testers reported on
+    2026-08-28 ("las preguntas no van con lo explicado"). ``author_activity`` runs *before*
+    ``genera_ui`` — see ``build_node_graph`` — so the evaluation exists first and the
+    explanation is written second, blind: with nothing but an opaque id in hand, the model
+    writing the screen could not know what its own closer was about to ask. Whether the two
+    lined up was luck.
+
+    ``MaterializedActivity.public_definition`` is the answer-free half of the split
+    (:func:`~src.services.activity_authoring.split_public_private` moves ``evaluation``,
+    ``correct*``, ``answer*``, ``solution*`` and ``expected*`` to the private side, and
+    ``validate_evaluation_definition`` re-asserts that the solution lives there). It is the
+    same payload the learner's browser already receives, so showing it to the generator
+    reveals nothing new — it only stops the generator from teaching around it.
+    """
 
     source = str(state.get("source_context") or "")
     refs = _pinned_experience_refs(state)
@@ -2150,13 +2529,73 @@ def _source_with_authored_activity(state: NodeRuntimeState) -> str:
         "implementation_ref": implementation_ref,
         "definition_ref": definition_ref,
     }
-    return (
-        source.rstrip()
-        + "\n\n## Experiencia preparada por el servidor\n"
+    block = (
+        "\n\n## Experiencia preparada por el servidor\n"
         + "Incluye exactamente LearningExperience(experience_id, implementation_ref, "
         + "definition_ref) usando estos valores; no inventes otro id: "
         + json.dumps(instruction, ensure_ascii=False, sort_keys=True)
         + "\n"
+    )
+
+    authored = state.get("authored_activity")
+    public_definition = (
+        authored.get("public_definition") if isinstance(authored, dict) else None
+    )
+    preview = (
+        _activity_task_preview(public_definition)
+        if isinstance(public_definition, Mapping)
+        else ""
+    )
+    if preview:
+        block += (
+            "\nESTA es la comprobacion que cerrara la pantalla, y el aprendiz la resolvera "
+            "DESPUES de leerte:\n"
+            + preview
+            + "\nAsegurate de haber ENSENADO antes, en las pantallas de contenido, lo que "
+            "hace falta para resolverla: si aparece un termino, una relacion o un dato en "
+            "esa comprobacion, explicalo antes. No la copies ni la resumas en pantalla, y "
+            "no reveles cual es la respuesta: solo prepara al aprendiz para ella.\n"
+        )
+    return source.rstrip() + block
+
+
+def _with_source_scope(scoped_prompt: str, state: NodeRuntimeState) -> str:
+    """Warn the generator when the source below is wider than this node's own material.
+
+    Pure over ``state``: reads what ``load_context`` recorded and, when the scope widened,
+    appends one bounded paragraph. No widening -> the prompt is returned unchanged, so a
+    correctly scoped node never sees the block.
+
+    The instruction it adds is deliberately asymmetric — **explain broadly, evaluate
+    narrowly**. The four fallbacks in ``load_source_context`` exist so a node is never left
+    with nothing to teach from, and that is still the right trade; what was wrong is that
+    the generator could not tell borrowed material from its own, so it would happily close
+    a screen by testing a fact that belongs three nodes further on. To the learner that is
+    indistinguishable from never having been taught it, which is exactly what the testers
+    reported on 2026-08-28.
+
+    The reason is rendered from a closed vocabulary (:data:`_SCOPE_WIDENED_REASONS`), the
+    same discipline ``_SIGNAL_RULES`` follows in the prompt module: a diagnostic string can
+    never become free-form prose injected into a prompt.
+    """
+    scope = state.get("source_scope") or {}
+    if not isinstance(scope, Mapping) or not scope.get("widened"):
+        return scoped_prompt
+    explanation = _SCOPE_WIDENED_REASONS.get(str(scope.get("reason") or ""))
+    if not explanation:
+        return scoped_prompt
+
+    node = state.get("node") or {}
+    title = str(node.get("title") or "").strip()
+    focus = f'"{title}"' if title else "el titulo y el resumen de este nodo"
+    return (
+        scoped_prompt
+        + "\n\n## Alcance de la fuente\n"
+        + f"Aviso: {explanation}. Parte de ese material pertenece a OTROS nodos del curso.\n"
+        + f"Ensena solo lo que corresponde a {focus}. Puedes apoyarte en el resto para dar "
+        + "contexto, pero la comprobacion final SOLO puede preguntar por lo que hayas "
+        + "explicado en esta pantalla: no evalues un dato que este en la fuente y no en tu "
+        + "explicacion, porque el aprendiz no lo habra visto nunca.\n"
     )
 
 
@@ -2376,6 +2815,7 @@ async def genera_ui(state: NodeRuntimeState) -> dict:
             previous=str(state.get("raw_dsl") or ""),
             errors=list(state.get("validation_errors") or []),
             learning_note=str(profile.get("learning_note") or ""),
+            **_episode_node_context(state),
         )
     elif retry:
         system = ui_repair_system(scoped_prompt, didact_verification=didact_verification)
@@ -2392,6 +2832,7 @@ async def genera_ui(state: NodeRuntimeState) -> dict:
             episode=episode_payload,
             source_context=_source_with_authored_activity(state),
             learning_note=str(profile.get("learning_note") or ""),
+            **_episode_node_context(state),
         )
         # The episode brief in the user turn is what the model treats as authoritative, so a
         # media offer folded only into the system grammar (which makes the component valid but
@@ -2431,6 +2872,12 @@ async def genera_ui(state: NodeRuntimeState) -> dict:
             longitudinal_support_level=_history_support_level(state),
             learning_note=str(profile.get("learning_note") or ""),
         )
+
+    # After every branch, repairs included: the user turn is what the model treats as
+    # authoritative, and a node reading a widened source must be told so on all four paths
+    # or the one that misses it keeps evaluating on a sibling's material. No-op unless
+    # `load_context` recorded a widening.
+    user_prompt = _with_source_scope(user_prompt, state)
 
     await publish_step(request_id, "genera_ui", STEP_MESSAGES["genera_ui"])
     started = time.monotonic()
@@ -2630,12 +3077,23 @@ async def genera_ui_multi(state: NodeRuntimeState) -> dict:
 
     await publish_step(request_id, "genera_ui", "Escribiendo el contenido...")
 
+    # The scope warning travels on the source itself here, because the source is the only
+    # channel these two agents share with the caller — they build their own prompts. Kept in
+    # sync with `genera_ui` deliberately: this generator is unreachable while
+    # ADAPTIVE_EPISODES is on, so the day someone turns that flag off is exactly the day the
+    # widening fix would go missing with no error to notice it by.
+    #
+    # `_source_with_authored_activity` is NOT applied: on this path the assembler emits the
+    # `LearningExperience` deterministically from `authored_activity`, so telling the writers
+    # to emit one too would produce it twice.
+    multi_source = _with_source_scope(str(state.get("source_context") or ""), state)
+
     # --- Agents 2+3: Content Writer + Interaction Designer (PARALLEL) ---
     content_coro = run_content_writer(
         blueprint=blueprint,
         title=str(node.get("title") or ""),
         summary=str(node.get("summary") or ""),
-        source_context=str(state.get("source_context") or ""),
+        source_context=multi_source,
         role_title=profile.get("role_title"),
         sector=profile.get("sector"),
         scaffold_band=_effective_scaffold_band(state),
@@ -2652,7 +3110,7 @@ async def genera_ui_multi(state: NodeRuntimeState) -> dict:
             content_declarations="",  # parallel: content not ready yet
             title=str(node.get("title") or ""),
             summary=str(node.get("summary") or ""),
-            source_context=str(state.get("source_context") or ""),
+            source_context=multi_source,
             role_title=profile.get("role_title"),
             sector=profile.get("sector"),
             target_bloom=target_bloom(mastery, threshold),
@@ -2883,7 +3341,7 @@ async def validate_ui(state: NodeRuntimeState) -> dict:
             "current_step": "validate_ui",
         }
 
-    key_problems = missing_answer_keys(spec, answer_key)
+    key_problems = answer_key_problems(spec, answer_key)
     if key_problems:
         return {
             "ui_spec": None,
@@ -2998,7 +3456,15 @@ async def critic_episode(state: NodeRuntimeState) -> dict:
             previous=program,
             notes=verdict.notes,
             learning_note=str((state.get("profile") or {}).get("learning_note") or ""),
+            **_episode_node_context(state),
         )
+        # The revision is a FULL regeneration, not a patch, so it needs the same warning
+        # `genera_ui` gets on all four of its paths — and needs it more: the critic's own
+        # grounding note makes "you evaluated what you never taught" the likeliest reason
+        # to be here, and this path cannot retry. Without it the rewrite loses "explain
+        # broadly, evaluate narrowly" and can re-introduce the very question that
+        # triggered the revision. No-op unless `load_context` recorded a widening.
+        user_prompt = _with_source_scope(user_prompt, state)
         raw, usage = await llm.complete_with_usage(
             system,
             user_prompt,
@@ -3023,8 +3489,15 @@ async def critic_episode(state: NodeRuntimeState) -> dict:
             ui_format=ui_format,
             backend=get_render_backend(backend_name),
         )
-        if missing_answer_keys(spec, answer_key):
-            raise ValueError("revised episode missing answer key")
+        if answer_key_problems(spec, answer_key):
+            # The full check, not just presence: this path has NO repair loop, so a
+            # malformed key here is served. A revision that comes back with
+            # `{"correct": "false"}` on a true_false would grade every answer backwards —
+            # `bool("false")` is True — and `missing_answer_keys` waves it through because
+            # the entry exists. Same for an out-of-range index and for `order_steps`.
+            # Discarding keeps the episode `validate_ui` already cleared, which is the
+            # rule every other refusal in this block follows.
+            raise ValueError("revised episode has an unusable answer key")
         leaked = spec_scaffolding_markers(spec)
         if leaked:
             # The revision is a fresh generation from the same prompt, so it can copy the
@@ -3591,6 +4064,7 @@ __all__ = [
     "NOTHING_SERVABLE_MESSAGE",
     "RETRIEVAL_TOP_K",
     "STEP_MESSAGES",
+    "answer_key_problems",
     "author_activity",
     "build_fallback_spec",
     "critic_episode",
@@ -3609,5 +4083,6 @@ __all__ = [
     "skip_node",
     "spec_scaffolding_markers",
     "split_answer_key",
+    "unusable_answer_keys",
     "validate_ui",
 ]

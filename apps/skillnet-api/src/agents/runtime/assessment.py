@@ -30,7 +30,9 @@ Qué NO hace
 from __future__ import annotations
 
 import hashlib
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
+from typing import Any
 
 from src.agents.runtime.shape import ShapePlan
 
@@ -157,6 +159,81 @@ def _has_procedure(plan: ShapePlan | None) -> bool:
     return any(signal.kind == "procedure" for signal in plan.signals)
 
 
+#: Qué forma del material necesita cada cierre para poder construirse SIN inventar nada.
+#:
+#: Generaliza el precedente que este módulo ya tenía: ``DragOrder`` nunca se propone salvo
+#: que la fuente traiga un procedimiento con pasos (``_has_procedure``), justo para no pedir
+#: que se invente una ordenación. Los demás cierres tenían la misma necesidad y ninguna
+#: comprobación: la rueda los imponía por hash antes de mirar el material, y el prompt le
+#: decía al modelo, en la misma pantalla, que "el componente lo elige la naturaleza del
+#: material". Cuando a un nodo le tocaba ``didact.matching`` y la fuente no tenía pares, el
+#: modelo los fabricaba — y un par fabricado es una pregunta que no se corresponde con lo
+#: explicado, que es el reporte de los testers del 2026-08-28.
+#:
+#: Cada requisito sale del contrato público de la actividad, no de una intuición
+#: (``src.services.activity_authoring_validators.AUTHORING_CONTRACTS``):
+#: ``didact.matching`` necesita ``sources`` + ``targets``, o sea una relación de dos
+#: columnas; ``didact.categorize`` necesita ``items`` + ``categories``; ``word-bank``
+#: necesita ``options`` con términos exactos; ``fill-in-the-blank`` necesita un término o
+#: cifra literal. Todo eso es lo que ``shape`` ya sabe detectar.
+#:
+#: ``didact.sort`` es el gemelo Didact de ``DragOrder``, y este módulo lleva desde el
+#: principio negándose a proponer ``DragOrder`` sin un procedimiento detectado. La rueda
+#: Didact se saltaba esa misma regla: el atajo de ``_has_procedure`` de más arriba solo
+#: actúa cuando el procedimiento EXISTE, así que en un nodo sin forma detectable el
+#: conjunto admisible se quedaba en opción única y ``didact.sort``, y la mitad de esos
+#: nodos pedían ordenar unos pasos que nadie había detectado. Inventar el orden es
+#: exactamente el fallo que esta tabla existe para cortar.
+#:
+#: Un cierre ausente de esta tabla no exige nada y siempre es admisible: es el caso de la
+#: opción única, que se puede plantear sobre cualquier material.
+_CLOSER_REQUIRES: dict[str, frozenset[str]] = {
+    "didact.matching": frozenset({"labelled_list"}),
+    "didact.sort": frozenset({"procedure"}),
+    "didact.categorize": frozenset({"labelled_list", "enumeration"}),
+    "didact.word-bank": frozenset({"labelled_list", "enumeration"}),
+    "didact.quiz.fill-in-the-blank": frozenset(
+        {"labelled_list", "enumeration", "numeric_series"}
+    ),
+    "fill_blank": frozenset({"labelled_list", "enumeration", "numeric_series"}),
+}
+
+
+def _admits(closer: str, kinds: frozenset[str]) -> bool:
+    """Whether the material's shapes can build this closer without inventing material."""
+    required = _CLOSER_REQUIRES.get(closer)
+    return required is None or bool(required & kinds)
+
+
+def _shape_kinds(plan: ShapePlan | None) -> frozenset[str]:
+    if plan is None:
+        return frozenset()
+    return frozenset(signal.kind for signal in plan.signals)
+
+
+def _rotate_admissible(
+    rotation: Sequence[Any],
+    *,
+    key: Callable[[Any], str],
+    kinds: frozenset[str],
+    index_kwargs: dict[str, Any],
+) -> Any:
+    """Pick from the entries the material admits, falling back to the whole wheel.
+
+    Filtrar y DESPUÉS indexar conserva las dos propiedades que hacen útil a la rueda: sigue
+    siendo estable por nodo (el mismo aprendiz ve el mismo cierre en cada visita, §6.4) y
+    sigue repartiendo entre hermanos por ``position``. Lo único que cambia es que la rueda
+    ya no ofrece un cierre que este material no puede sostener.
+
+    Si nada encaja se recorre la rueda completa: un nodo sin cierre no es una opción — la
+    pantalla tiene que terminar en una interacción real — y una opción única mal elegida es
+    mejor que ninguna comprobación.
+    """
+    admissible = [entry for entry in rotation if _admits(key(entry), kinds)]
+    wheel = admissible or list(rotation)
+    return wheel[_closer_index(**index_kwargs, size=len(wheel))]
+
+
 def plan_assessment(
     plan: ShapePlan | None,
     *,
@@ -179,18 +256,25 @@ def plan_assessment(
         "course_id": course_id,
         "position": position,
     }
+    kinds = _shape_kinds(plan)
     if didact:
         if _has_procedure(plan) and ui_format != "chart":
             return AssessmentPlan(block="DidactActivity", item_type=DIDACT_PROCEDURE)
-        component_id, block = DIDACT_CLOSER_ROTATION[
-            _closer_index(**index_kwargs, size=len(DIDACT_CLOSER_ROTATION))
-        ]
+        component_id, block = _rotate_admissible(
+            DIDACT_CLOSER_ROTATION,
+            key=lambda entry: entry[0] or "",
+            kinds=kinds,
+            index_kwargs=index_kwargs,
+        )
         return AssessmentPlan(block=block, item_type=component_id)
     if _has_procedure(plan) and ui_format != "chart":
         return AssessmentPlan(block="DragOrder", item_type=None)
-    item_type = QUIZ_ROTATION[
-        _closer_index(**index_kwargs, size=len(QUIZ_ROTATION))
-    ]
+    item_type = _rotate_admissible(
+        QUIZ_ROTATION,
+        key=lambda entry: entry,
+        kinds=kinds,
+        index_kwargs=index_kwargs,
+    )
     return AssessmentPlan(block="QuizItem", item_type=item_type)
 
 

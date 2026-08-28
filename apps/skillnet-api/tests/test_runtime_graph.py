@@ -49,6 +49,8 @@ from src.agents.runtime.graph import (
     route_after_validate,
 )
 from src.agents.runtime.nodes import (
+    _scoped_full_text,
+    _with_source_scope,
     build_fallback_spec,
     missing_answer_keys,
     prune_answer_key,
@@ -62,7 +64,7 @@ from src.knowledge_pack.runtime_selection import (
 from src.llm.client import LLMConfig, Usage
 from src.agents.runtime.assessment import plan_assessment
 from src.agents.runtime.screen_scheme import plan_screen_scheme
-from src.agents.runtime.shape import analyze_shape
+from src.agents.runtime.shape import SCOPE_OK, analyze_shape
 from src.llm.fixtures import FixtureLLMService, write_fixture
 from src.llm.prompts.runtime import (
     ANSWER_KEY_SENTINEL,
@@ -200,7 +202,27 @@ def canonical_screen_scheme(ui_format: str = "explanation") -> str:
     ).instruction()
 
 
+def canonical_source_scope() -> dict:
+    """The scope ``load_source_context`` records for the canonical node.
+
+    Derived, never hardcoded: the canonical document opens with a plain paragraph rather
+    than a heading, so ``source_headings=["Devoluciones"]`` matches nothing and the node is
+    handed the whole document. That is a real widening and the generator is told about it,
+    so the fixture key has to include the warning — same reason
+    ``canonical_assessment_hint`` rebuilds the hint instead of assuming it.
+    """
+    _text, reason = _scoped_full_text(CANON_FULL_TEXT, ["Devoluciones"])
+    return {"widened": reason != SCOPE_OK, "reason": reason}
+
+
 def canonical_ui_prompt(ui_format: str = "explanation") -> str:
+    return _with_source_scope(
+        _canonical_ui_prompt_body(ui_format),
+        {"source_scope": canonical_source_scope(), "node": {"title": CANON_TITLE}},
+    )
+
+
+def _canonical_ui_prompt_body(ui_format: str = "explanation") -> str:
     return build_ui_prompt(
         title=CANON_TITLE,
         summary=CANON_SUMMARY,
@@ -223,6 +245,26 @@ def canonical_ui_prompt(ui_format: str = "explanation") -> str:
         shape_hints=canonical_shape_plan().hints(ui_format),
         assessment_hint=canonical_assessment_hint(ui_format),
         screen_scheme=canonical_screen_scheme(ui_format),
+    )
+
+
+def canonical_repair_prompt(
+    previous: str, errors: list[str], ui_format: str = "explanation"
+) -> str:
+    """The repair prompt ``genera_ui`` really sends, scope warning included.
+
+    ``_with_source_scope`` is applied after every branch of the prompt chain, repairs among
+    them, so a fixture keyed on the bare builder would miss. Rebuilt here for the same
+    reason as ``canonical_ui_prompt``: the key has to match the real prompt.
+    """
+    return _with_source_scope(
+        build_repair_prompt(
+            previous=previous,
+            errors=errors,
+            ui_format=ui_format,
+            screen_scheme=canonical_screen_scheme(ui_format),
+        ),
+        {"source_scope": canonical_source_scope(), "node": {"title": CANON_TITLE}},
     )
 
 
@@ -932,12 +974,7 @@ async def test_malformed_output_is_repaired_with_the_validator_messages(
     )
     write_fixture(
         system_prompt=ui_repair_system(),
-        user_prompt=build_repair_prompt(
-            previous=malformed,
-            errors=errors,
-            ui_format="explanation",
-            screen_scheme=canonical_screen_scheme("explanation"),
-        ),
+        user_prompt=canonical_repair_prompt(malformed, errors),
         response=packaged("genera_ui/repaired_after_retry.txt"),
         relative_path="genera_ui/repaired_after_retry.txt",
         directory=tmp_path,
@@ -977,12 +1014,7 @@ async def test_a_missing_answer_key_is_itself_a_repairable_error(
     )
     write_fixture(
         system_prompt=ui_repair_system(),
-        user_prompt=build_repair_prompt(
-            previous=program,
-            errors=errors,
-            ui_format="explanation",
-            screen_scheme=canonical_screen_scheme("explanation"),
-        ),
+        user_prompt=canonical_repair_prompt(program, errors),
         response=packaged("genera_ui/openui_mixed.txt"),
         relative_path="genera_ui/openui_mixed.txt",
         directory=tmp_path,
@@ -1012,12 +1044,7 @@ async def test_two_invalid_attempts_fall_back_to_the_seed_lesson(
     )
     write_fixture(
         system_prompt=ui_repair_system(),
-        user_prompt=build_repair_prompt(
-            previous=invalid,
-            errors=errors,
-            ui_format="explanation",
-            screen_scheme=canonical_screen_scheme("explanation"),
-        ),
+        user_prompt=canonical_repair_prompt(invalid, errors),
         response=invalid,
         relative_path="genera_ui/invalid_again.txt",
         directory=tmp_path,

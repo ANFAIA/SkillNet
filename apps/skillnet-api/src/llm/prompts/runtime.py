@@ -175,7 +175,14 @@ from src.schemas.episode_contracts import EpisodeBrief
 #: Leccion para la proxima: la convencion de subir la version "cuando cambia la redaccion"
 #: se queda corta. Lo que obliga a subirla es que cambie **la salida**, y el generador puede
 #: cambiarla sin tocar una sola palabra del prompt.
-PROMPT_VERSION = "runtime/43"
+#: ``runtime/44``: the answer-key protocol grew the rules that stop the key from
+#: contradicting its own question — count the option's position from 0 instead of writing the
+#: habitual ``1``, make ``explanation`` describe *that* option, and move the correct one
+#: around between items. The worked examples moved with it: every ``---ANSWER-KEY---`` in
+#: this module used to put the right option at index 1 or 2, never 0 and never 3, which is
+#: exactly the habit the rule now forbids. Wording and examples both change the produced
+#: program, so the bump evicts renders cached under ``runtime/43``.
+PROMPT_VERSION = "runtime/44"
 #: ``episode/3`` (2026-08-17): un episodio ya no es UNA pantalla. Cada hijo directo del
 #: Stack raiz es una PANTALLA que el aprendiz pasa una a una (paginacion en el frontend,
 #: sin scroll). El generador decide CUANTAS pantallas segun el material (1 si el nodo es
@@ -207,7 +214,15 @@ PROMPT_VERSION = "runtime/43"
 # or fake mastery. Its fingerprint also partitions the render cache (build_render_key), so
 # two learners with different notes get different renders. The prompt wording changes, so the
 # bump invalidates episode renders cached under episode/9.
-EPISODE_PROMPT_VERSION = "episode/10"
+# episode/11: the assessment must be answerable from what THIS episode taught. Quality rule 2
+# ("solo se evalua lo ensenado") restores the anchor that _BLOCK_CHOICE always carried and
+# _episode_dialect_rules() had been cutting out of this path; the critic gained a grounding
+# check and a stem/options sanity check (it cannot see the key, so it never judges which
+# option is correct); build_episode_ui_prompt now places the node in its course via
+# node_title / node_summary / siblings, which until now only reached the multi-agent path.
+# All of it changes the produced program, so the bump invalidates renders cached under
+# episode/10.
+EPISODE_PROMPT_VERSION = "episode/11"
 
 _PRESENTATION_PREFERENCES = {
     "balanced": "Combina representaciones segun el objetivo y la fuente.",
@@ -615,7 +630,8 @@ Si el esquema pide QuizItem, tiene estas formas:
 - "test": 4 opciones sobre un caso concreto.
 - "true_false": una afirmacion sobre un caso. options = [].
 - "fill_blank": una frase con UN hueco ____.
-- order_steps / DragOrder: ordenar los pasos.
+- Para ORDENAR pasos: DragOrder, nunca un QuizItem. DragOrder lleva su orden correcto
+  como tercer argumento y no necesita entrada en la clave.
 
 De 3 a 5 bloques segun lo pida el material: lead, uno o dos bloques de concepto (puede ser
 Table, StepSequence, Chart, BeforeAfter, DidactTimeline o
@@ -657,17 +673,17 @@ Ejemplo B — Comparacion con BeforeAfter + QuizItem:
 root = Stack([intro, comparacion, q1], "md")
 intro = TextContent("Un companyero guarda la carne y el pescado juntos. Que esta mal?", "lead")
 comparacion = BeforeAfter("Almacenamiento en camara", "MAL", "Todo junto: carne y pescado en la misma balda, sin tapar.", "BIEN", "Separados por baldas, cada uno en recipiente tapado y etiquetado.")
-q1 = QuizItem("q1", "test", "apply", "Recibes una entrega de pollo y de merluza. Donde los colocas?", ["Juntos en la balda de abajo", "Pollo arriba, merluza abajo", "En baldas separadas, tapados y etiquetados", "Da igual si estan bien envueltos"])
+q1 = QuizItem("q1", "test", "apply", "Recibes una entrega de pollo y de merluza. Donde los colocas?", ["En baldas separadas, tapados y etiquetados", "Juntos en la balda de abajo", "Pollo arriba, merluza abajo", "Da igual si estan bien envueltos"])
 ---ANSWER-KEY---
-{"q1": {"correct": 2, "explanation": "Carne y pescado van en baldas separadas, tapados y con fecha, para evitar contaminacion cruzada."}}
+{"q1": {"correct": 0, "explanation": "Carne y pescado van en baldas separadas, tapados y con fecha, para evitar contaminacion cruzada."}}
 
 Ejemplo C — Lista como Table + QuizItem:
 root = Stack([intro, tabla, q1], "md")
 intro = TextContent("Cuando un cliente pregunta 'lleva gluten?', tienes que saberlo sin mirar la carpeta.", "lead")
 tabla = Table(["Alergeno", "Donde aparece"], [["Cereales con gluten", "Masa de pizza, empanado"], ["Crustaceos", "Paella"], ["Huevos", "Tortilla, rebozados"], ["Leche", "Bechamel, postres"]])
-q1 = QuizItem("q1", "test", "apply", "Un cliente celiaco pide una fritura. El aceite se uso antes para rebozados con harina. Que le dices?", ["Que si, el aceite no retiene gluten", "Que no es apto: el aceite tiene trazas de gluten", "Que pregunte al cocinero", "Que solo es peligroso si es alergico"])
+q1 = QuizItem("q1", "test", "apply", "Un cliente celiaco pide una fritura. El aceite se uso antes para rebozados con harina. Que le dices?", ["Que si, el aceite no retiene gluten", "Que pregunte al cocinero", "Que solo es peligroso si es alergico", "Que no es apto: el aceite tiene trazas de gluten"])
 ---ANSWER-KEY---
-{"q1": {"correct": 1, "explanation": "El aceite que frio un rebozado con harina contiene trazas de gluten por contaminacion cruzada."}}
+{"q1": {"correct": 3, "explanation": "El aceite que frio un rebozado con harina contiene trazas de gluten por contaminacion cruzada."}}
 
 ## SkillNet: como hacer buenas preguntas
 
@@ -775,15 +791,27 @@ exactamente {ANSWER_KEY_SENTINEL} y a continuacion un unico objeto JSON con la s
 cada QuizItem, indexado por su item_id:
 
 {ANSWER_KEY_SENTINEL}
-{{"q1": {{"correct": 2, "explanation": "Por que esa y no otra, 1-2 frases."}}}}
+{{"q1": {{"correct": 3, "explanation": "Por que esa y no otra, 1-2 frases."}}}}
 
 Forma de cada entrada, segun item_type:
 - "test": {{"correct": <indice 0-based de la opcion correcta>, "explanation": "..."}}
 - "true_false": {{"correct": true|false, "explanation": "..."}}
 - "fill_blank": {{"blanks": ["<texto exacto de cada hueco, en orden>"], "explanation": "..."}}
-- "order_steps": {{"correct_order": [<indices en el orden correcto>], "explanation": "..."}}
+
+No existe una entrada de clave para ordenar: un QuizItem de tipo "order_steps" se dibuja
+como una caja de texto y ninguna respuesta puede acertar, asi que se rechaza. Para ordenar,
+DragOrder, que lleva su solucion como tercer argumento.
 
 Reglas duras de la clave:
+- CUENTA LA POSICION, no la adivines. Antes de escribir "correct", recorre las opciones que
+  acabas de escribir empezando por 0 y quedate con el numero de la que de verdad resuelve el
+  enunciado. La posicion la decide DONDE esta escrita esa opcion, jamas la costumbre: escribir
+  "correct": 1 porque suele ir ahi manda al aprendiz una respuesta que contradice lo que le
+  acabas de explicar, y es el peor fallo que puede tener una pantalla.
+- La "explanation" tiene que describir ESA opcion, la de la posicion que has escrito. Si al
+  redactarla estas explicando otra, el numero esta mal: corrigelo antes de seguir.
+- La opcion correcta CAMBIA de sitio entre preguntas. No la pongas siempre en la misma
+  posicion; repartela entre la primera, las de en medio y la ultima.
 - Va SIEMPRE despues del programa, nunca antes, y nunca dentro de una llamada.
 - Todo QuizItem del programa tiene su entrada. Un QuizItem sin entrada invalida la respuesta.
 - El JSON de la clave es la unica parte de tu respuesta donde puede aparecer {{ o }}.
@@ -893,6 +921,19 @@ def _episode_component_grammar(component_prompt: str) -> str:
 #: rubrica de calidad expresada como reglas que el modelo no puede copiar como contenido.
 #: Domain-abstract: hablan de la NATURALEZA del material (procedimiento, concepto, dato,
 #: comparacion, termino), nunca de un tema concreto.
+#:
+#: La regla 2 ("solo se evalua lo ensenado") repara un agujero de la ruta episodica, no una
+#: idea nueva. El anclaje existia: :data:`_BLOCK_CHOICE` ya decia "no pidas enumerar lo que la
+#: pantalla acaba de mostrar... plantea un segundo caso **pero que demuestre el mismo
+#: resultado esperado**". Lo que pasa es que ese bloque NO llega aqui:
+#: :func:`_episode_dialect_rules` parte ``_UI_GENERATOR_TAIL`` por el marcador "reglas que el
+#: catalogo de arriba no dice", asi que ``_BLOCK_CHOICE`` entero se queda fuera del prompt de
+#: episodio. Con ADAPTIVE_EPISODES el generador nunca leyo ni la mitad anti-copia ni la mitad
+#: que ata la pregunta al hecho ensenado, y la unica regla cercana que si le llegaba —"FIEL A
+#: LA FUENTE"— ancla a la FUENTE, que siempre trae mas material del que cabe en cinco
+#: pantallas. De ahi el fallo que reportaron los testers: preguntas sobre lo que no se
+#: explico. Partir un prompt en dos rutas se lleva por delante reglas que nadie echa en falta
+#: hasta que se miden sus efectos.
 _EPISODE_QUALITY_RULES = """
 ## SkillNet: reglas de calidad (obligatorias)
 
@@ -908,18 +949,27 @@ _EPISODE_QUALITY_RULES = """
    Una leccion = pantallas de CONTENIDO + (cuando procede) UNA evaluacion real. La flashcard es
    contenido de apoyo, JAMAS la evaluacion. Un bloque de contenido usado como test es un error
    aunque el programa valide.
-2. LA EVALUACION ES VARIADA, nunca siempre la misma. Rota la forma del test segun el material:
+2. SOLO SE EVALUA LO QUE ESTE EPISODIO HA ENSENADO. La comprobacion se resuelve con lo que el
+   aprendiz acaba de leer en ESTAS pantallas, no con un hecho de la fuente que se quedo fuera
+   por presupuesto. Antes de escribir la evaluacion, relee lo que has ensenado: si para
+   resolverla hace falta un dato, una fila o un paso que no aparece en ninguna pantalla, tienes
+   dos salidas y solo dos — ensenarlo antes en una pantalla, o preguntar otra cosa. Dejar el
+   hueco no es una salida: preguntar lo que no se explico no mide aprendizaje, mide suerte.
+   Y al reves: tampoco repitas LITERALMENTE la frase, la fila o el paso que la pantalla acaba
+   de mostrar, porque eso no se resuelve, se copia. Plantea un caso distinto que se resuelva
+   con el MISMO hecho ensenado.
+3. LA EVALUACION ES VARIADA, nunca siempre la misma. Rota la forma del test segun el material:
    emparejar, clasificar, ordenar, rellenar hueco, opcion unica/multiple, banco de palabras.
    PROHIBIDO cerrar siempre con el mismo tipo de test, y PROHIBIDO usar una flashcard o
    cualquier bloque que solo se "revela" como si fuera la comprobacion. Si hay algo comprobable,
    comprebalo de verdad con una de esas formas.
-3. INTERACCION = EL APRENDIZ APORTA. Una interaccion es genuina SOLO si el aprendiz piensa,
+4. INTERACCION = EL APRENDIZ APORTA. Una interaccion es genuina SOLO si el aprendiz piensa,
    produce o actua: ordena, responde, empareja, clasifica, completa, o recuerda antes de
    comprobar (Flashcard, como apoyo de contenido). Un componente que solo REVELA informacion al
    pulsar NO es interaccion y esta PROHIBIDO: nada de "mostrar pasos", nada de pistas que solo
    destapan datos, nada de ejemplos que van revelando su solucion por clics. Si algo hay que
    leerlo, muestralo ENTERO (TextContent, StepSequence con pasos visibles, DidactTimeline).
-4. EL COMPONENTE LO ELIGE LA NATURALEZA DEL MATERIAL, no una plantilla:
+5. EL COMPONENTE LO ELIGE LA NATURALEZA DEL MATERIAL, no una plantilla:
    - Informacion secuencial que solo hay que leer -> mostrarla entera (StepSequence visible).
    - Ordenar pasos o prioridades -> DragOrder (el aprendiz arrastra).
    - Emparejar, clasificar o rellenar con banco -> experiencia preparada por el servidor,
@@ -929,14 +979,15 @@ _EPISODE_QUALITY_RULES = """
    - Cifras reales presentes en la fuente que comparar -> Chart o Table.
    - Cronologia o procedimiento con matiz -> DidactTimeline.
    Un contenido en el bloque equivocado es una pantalla mal hecha aunque el programa valide.
-5. HONESTO CON LA MAESTRIA. Un nodo de CONOCIMIENTO/RECUERDO (hechos, conceptos, clasificar,
+6. HONESTO CON LA MAESTRIA. Un nodo de CONOCIMIENTO/RECUERDO (hechos, conceptos, clasificar,
    reconocer) SI se puede evaluar: cierra con una evaluacion real y variada. Solo cuando NO
    existe una comprobacion fiable (una destreza fisica o de seguridad sin oraculo) la pantalla
    se queda en practica no evaluativa y NO certifica dominio: nunca finjas un test ahi ni
    inventes una clave, y nunca uses una flashcard como si fuera la evaluacion.
-6. FIEL A LA FUENTE. Todos los hechos salen de la fuente publica. No inventes datos,
-   interfaces ni escenarios que la fuente no contenga.
-7. SIN RUIDO. Nada de relleno, nada de otro dominio, ningun artefacto ("[Fuente: ...]"). El
+7. FIEL A LA FUENTE. Todos los hechos salen de la fuente publica. No inventes datos,
+   interfaces ni escenarios que la fuente no contenga. La fuente es el TECHO de lo que puedes
+   afirmar; la regla 2 pone el SUELO de lo que puedes preguntar, y es mas estrecho.
+8. SIN RUIDO. Nada de relleno, nada de otro dominio, ningun artefacto ("[Fuente: ...]"). El
    texto normal se lee como texto normal: solo el primer bloque de la pantalla es "lead".
 """
 
@@ -1002,9 +1053,9 @@ Ejemplo (material que hay que APLICAR) — tres pantallas: gancho, procedimiento
 root = Stack([pantallaGancho, pantallaProcedimiento, pantallaChequeo], "md")
 pantallaGancho = TextContent("Frase de entrada que situa el problema del punto en un caso concreto del puesto.", "lead")
 pantallaProcedimiento = StepSequence("Nombre del procedimiento", ["Primer paso, con lo que hay que hacer.", "Segundo paso que se apoya en el anterior.", "Tercer paso que cierra la decision."])
-pantallaChequeo = QuizItem("q1", "test", "apply", "Ante un caso nuevo del mismo tipo, que decision tomas?", ["Un error plausible que comete la gente", "La opcion correcta", "Otro error tipico distinto", "Un cuarto distractor real"])
+pantallaChequeo = QuizItem("q1", "test", "apply", "Ante un caso nuevo del mismo tipo, que decision tomas?", ["Un error plausible que comete la gente", "Otro error tipico distinto", "La opcion correcta", "Un cuarto distractor real"])
 ---ANSWER-KEY---
-{"q1": {"correct": 1, "explanation": "Por que esa opcion y no las otras, en una o dos frases."}}
+{"q1": {"correct": 2, "explanation": "Por que esa opcion y no las otras, en una o dos frases."}}
 
 Ejemplo (punto SIMPLE, un termino que memorizar) — dos pantallas: gancho + una practica:
 
@@ -1138,9 +1189,16 @@ def episode_ui_repair_system(component_prompt: str | None = None) -> str:
 # --------------------------------------------------------------------------- #
 #: The critic is a SECOND perspective, not a rulebook. It never demands a fixed number of
 #: screens, a fixed component or a mandatory quiz; it nudges fit-for-material and flags when
-#: the shape of the episode does not match THIS content or domain (a ticketing procedure
+#: the shape of the episode does not match THIS content or domain (a stock-control procedure
 #: does not look like a boxing concept). Keeping it advisory is the whole point: rigid rules
 #: work for one case and fail for a thousand.
+#:
+#: It reviews GROUNDING too, and that is the check worth its cost: an episode whose assessment
+#: asks for a fact no screen taught is the failure the testers actually reported. What it can
+#: check is bounded by what it receives — :func:`build_episode_critic_prompt` hands it the
+#: canonical ``program``, and ``validate_ui`` split the answer key off before that string ever
+#: existed. So the critic judges the stem and its options and never which option the key calls
+#: correct: that half cannot be seen from here, and asking for it would only invite invention.
 EPISODE_CRITIC_SYSTEM = """\
 Eres un CRITICO didactico de SkillNet, una segunda mirada distinta de quien genero la
 pantalla. Revisas la PEDAGOGIA de un episodio ya valido (no su sintaxis, que ya paso el
@@ -1164,6 +1222,18 @@ Preguntate, sin imponer reglas rigidas:
 - El componente encaja con la NATURALEZA del material? Un procedimiento se ordena; un concepto
   se comprueba con un caso; una comparacion, con antes/despues; hechos/clasificacion, con
   emparejar o clasificar. Materiales de distinta naturaleza no se parecen entre si.
+- SE EVALUA LO ENSENADO? Recorre las pantallas y despues lee la evaluacion: lo que pide para
+  resolverse (el dato, la fila, el paso, el termino) tiene que aparecer en alguna pantalla de
+  ESTE episodio. Si la respuesta solo se sabe por conocimiento general del tema o por una
+  parte de la fuente que no se llego a explicar, es el fallo mas grave que puedes encontrar:
+  pide que se ensene antes ese hecho, o que se pregunte otra cosa. Al reves tambien cuenta,
+  aunque es menos grave: si el enunciado repite palabra por palabra la frase que la pantalla
+  anterior acaba de mostrar, no se resuelve, se copia.
+- EL ENUNCIADO Y SUS OPCIONES SE SOSTIENEN? No ves la clave de respuestas (el servidor la
+  separa antes de llegar a ti), asi que no juzgues cual es la correcta. Lo que si puedes ver:
+  que el enunciado pregunte una sola cosa y sin ambiguedad, que exactamente una opcion la
+  responda, que no haya dos opciones equivalentes, y que ninguna se descarte sola por absurda.
+  Un enunciado que pide una cosa y ofrece opciones sobre otra es un error: dilo.
 - VARIEDAD de la evaluacion. Si el test es "siempre el mismo tipo" (p. ej. siempre opcion
   unica) o es una flashcard/reveal, pide cambiarlo a una forma real y variada (emparejar,
   clasificar, ordenar, rellenar hueco, opcion unica/multiple, banco de palabras).
@@ -1176,7 +1246,9 @@ Responde UNICAMENTE con JSON, sin texto alrededor:
 - "revise": true SOLO si un cambio mejoraria de verdad la pantalla. Si ya esta bien, false
   y notes vacio. No reescribas por costumbre.
 - "notes": ordenes concretas y cortas para quien regenere (que cambiar y por que), nunca
-  reglas fijas del tipo "debe tener exactamente N". Maximo 4 notas.
+  reglas fijas del tipo "debe tener exactamente N". Maximo 4 notas. Si encuentras mas de
+  cuatro cosas, quedate con las mas graves: una evaluacion que pregunta lo que no se enseno
+  va SIEMPRE la primera, por delante de cualquier nota de forma, reparto o variedad.
 - No cambies la mision, la fuente, la evidencia ni el idioma. No inventes hechos.
 """
 
@@ -1230,12 +1302,26 @@ def build_episode_revise_prompt(
     previous: str,
     notes: Sequence[str],
     learning_note: str = "",
+    node_title: str = "",
+    node_summary: str = "",
+    siblings: Sequence[str] = (),
 ) -> str:
-    """Restate the episode contract and hand the critic's notes to the generator."""
+    """Restate the episode contract and hand the critic's notes to the generator.
+
+    Forwards the node context for the same reason as the repair builder: the revision must
+    rewrite against the whole contract, not a narrower one.  It matters more here — a critic
+    note is usually "this asks something no screen taught", and the rewrite cannot honour it
+    while blind to which screens belong to this node and which to its siblings.
+    """
 
     listed = "\n".join(f"- {note}" for note in notes) or "- mejora la pantalla"
     context = build_episode_ui_prompt(
-        episode=episode, source_context=source_context, learning_note=learning_note
+        episode=episode,
+        source_context=source_context,
+        learning_note=learning_note,
+        node_title=node_title,
+        node_summary=node_summary,
+        siblings=siblings,
     )
     return (
         "CONTRATO AUTORITATIVO DEL EPISODIO\n"
@@ -1307,7 +1393,7 @@ MAL  (la clave como declaracion del programa):  clave = {{"q1": {{"correct": 1}}
 BIEN (la clave despues del programa, tras la linea {ANSWER_KEY_SENTINEL}):
 q1 = QuizItem("q1", "test", "understand", "Enunciado?", ["A", "B"])
 {ANSWER_KEY_SENTINEL}
-{{"q1": {{"correct": 1, "explanation": "Por que esa y no otra."}}}}
+{{"q1": {{"correct": 0, "explanation": "Por que esa y no otra."}}}}
 
 Dos construcciones que SI son validas, por si el error te hace dudar de ellas:
 - Anidar un bloque dentro de otro en la misma linea, aunque se prefieren las referencias
@@ -1537,6 +1623,9 @@ def build_episode_ui_prompt(
     episode: EpisodeBrief | Mapping[str, Any],
     source_context: str,
     learning_note: str = "",
+    node_title: str = "",
+    node_summary: str = "",
+    siblings: Sequence[str] = (),
 ) -> str:
     """Build a formula-free runtime prompt from a public episode contract.
 
@@ -1544,6 +1633,16 @@ def build_episode_ui_prompt(
     references, hidden tests, answer keys and private solutions therefore cannot leak by
     serializing the input wholesale.  ``source_context`` must be the already-authorized
     public source slice for this learner and episode.
+
+    ``node_title`` / ``node_summary`` / ``siblings`` place the episode inside its course.
+    They are optional and default to empty so every existing call site keeps working, but a
+    caller that can supply them should: without them this prompt describes a mission and a
+    source and nothing else, so nothing tells one node that the other five exist.  That is a
+    measured failure, not a hypothesis — the comment on ``load_context``'s sibling query in
+    ``src/agents/runtime/nodes.py`` records the same opening sentence in four of six screens
+    and near-identical questions in all six, and the fix it describes only ever reached the
+    multi-agent path.  ``siblings`` is title-and-summary prose, the same public projection
+    that path already used; nothing private crosses here.
     """
 
     payload = _episode_payload(episode)
@@ -1552,7 +1651,16 @@ def build_episode_ui_prompt(
     budget = _mapping(payload.get("budget"))
     assessment_mode = str(payload.get("assessment_mode", "none"))
 
-    parts = [
+    parts: list[str] = []
+    if node_title.strip() or node_summary.strip():
+        parts.append("NODO QUE SE ENSENA")
+        if node_title.strip():
+            parts.append(f"- Titulo: {node_title.strip()}")
+        if node_summary.strip():
+            parts.append(f"- Resumen: {node_summary.strip()}")
+        parts.append("")
+
+    parts += [
         "MISION DEL EPISODIO",
         f"- Encargo: {_text(action.get('instructions'), 'Completa la accion indicada.')}",
         f"- Accion dominante: {_text(action.get('verb'), 'actuar')}",
@@ -1637,6 +1745,17 @@ def build_episode_ui_prompt(
     # its fingerprint so this per-learner prose does not leak into a shared row.
     parts.extend(_learning_note_lines(learning_note))
 
+    listed_siblings = [str(item).strip() for item in siblings if str(item).strip()]
+    if listed_siblings:
+        parts.extend(["", "OTRAS PANTALLAS DE ESTE CURSO"])
+        parts.extend(f"- {sibling}" for sibling in listed_siblings)
+        parts.append(
+            "Eso lo cubren otros nodos, no este. No lo expliques otra vez ni abras con su "
+            "misma idea, y tampoco lo des por sabido: si necesitas algo de ahi para tu "
+            "mision, recuerdalo en una linea y sigue. Tu evaluacion mide lo de ESTE nodo, "
+            "asi que si valdria igual en cualquiera de los de arriba, esta mal planteada."
+        )
+
     parts.extend(
         [
             "",
@@ -1661,12 +1780,26 @@ def build_episode_repair_prompt(
     previous: str,
     errors: Sequence[str],
     learning_note: str = "",
+    node_title: str = "",
+    node_summary: str = "",
+    siblings: Sequence[str] = (),
 ) -> str:
-    """Restate the episode contract while repairing grammar or validation failures."""
+    """Restate the episode contract while repairing grammar or validation failures.
+
+    The node context and siblings are forwarded for the same reason the header calls the
+    restated contract *authoritative*: a repair that silently drops half the contract is a
+    second, narrower prompt, and the retry would answer a question the first pass was never
+    asked.
+    """
 
     listed = "\n".join(f"- {error}" for error in errors) or "- programa invalido"
     context = build_episode_ui_prompt(
-        episode=episode, source_context=source_context, learning_note=learning_note
+        episode=episode,
+        source_context=source_context,
+        learning_note=learning_note,
+        node_title=node_title,
+        node_summary=node_summary,
+        siblings=siblings,
     )
     return (
         "CONTRATO AUTORITATIVO DEL EPISODIO\n"

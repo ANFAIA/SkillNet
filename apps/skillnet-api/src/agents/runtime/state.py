@@ -57,6 +57,11 @@ class NodeRuntimeState(TypedDict, total=False):
     #: evita que seis nodos generados por separado abran con la misma frase y hagan la
     #: misma pregunta. Propiedad del esquema, identica para todos los aprendices.
     siblings: list[str]
+    #: ``{"widened": bool, "reason": str}`` from ``load_source_context``: whether the source
+    #: below is this node's own slice or one of the four documented fallbacks that hand it
+    #: the whole document (or a sibling's passages). Explains the "nadie me explico esto"
+    #: reports of 2026-08-28 — the material WAS taught, in another node.
+    source_scope: dict
     # Broker-offered media components for this node, already gated by learner preference:
     # each is {kind, component, artifact_id, title} for a READY MediaArtifact.
     media_offers: list[dict]

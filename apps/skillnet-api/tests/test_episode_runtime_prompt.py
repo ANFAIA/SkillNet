@@ -102,7 +102,11 @@ def test_episode_system_keeps_dialect_and_security_without_legacy_formula() -> N
     assert ANSWER_KEY_SENTINEL in system
     assert '"true_false": {"correct": true|false' in system
     assert '"fill_blank": {"blanks":' in system
-    assert '"order_steps": {"correct_order":' in system
+    # `order_steps` ya NO se ensena: un QuizItem de ese tipo se dibuja como caja de texto y
+    # ninguna respuesta puede acertar, asi que `_answer_key_problem` lo rechaza. Ensenar su
+    # clave era invitar al modelo a gastar el unico reintento obedeciendo al prompt.
+    assert '"order_steps": {"correct_order":' not in system
+    assert "No existe una entrada de clave para ordenar" in system
     assert "## Examples" not in system
     assert 'variant: "body" | "lead"' not in system
     assert "SkillNet 8" not in system

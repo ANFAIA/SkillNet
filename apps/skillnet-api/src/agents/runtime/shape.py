@@ -432,8 +432,19 @@ def _looks_like_heading(paragraph: str) -> bool:
     )
 
 
-def focus_on_headings(source: str, headings: Sequence[str]) -> str:
-    """The sections of ``source`` that belong to this node, or all of it when unsure.
+#: Why :func:`scope_to_headings` returned what it returned. Only ``"scoped"`` means the
+#: text is the node's own; the other two mean the caller is holding the whole document.
+SCOPE_OK = "scoped"
+SCOPE_HEADINGS_MISSING = "headings_missing"
+SCOPE_HEADINGS_UNMATCHED = "headings_unmatched"
+
+#: Decided by the caller's length threshold rather than by the matching above, but named
+#: here so every widening reason lives in one vocabulary.
+SCOPE_SLICE_TOO_SHORT = "scope_too_short"
+
+
+def scope_to_headings(source: str, headings: Sequence[str]) -> tuple[str, str]:
+    """The sections of ``source`` that belong to this node, **and why**.
 
     A document of five pages or fewer travels **whole** into every node's prompt
     (``load_source_context`` takes the ``full_text`` branch), so all three nodes of the
@@ -445,10 +456,16 @@ def focus_on_headings(source: str, headings: Sequence[str]) -> str:
     the same key retrieval uses for the chunked branch, so it is the honest scope. When
     nothing matches, the whole source is returned: a hint drawn from too much text is a
     smaller error than no hint at all, and the thresholds still have to clear.
+
+    The second element exists because that widening used to be **silent**. A node holding
+    the whole document teaches its own slice and then evaluates on somebody else's, which
+    is what a learner reports as "nobody explained this" — the material was explained, three
+    nodes further on. The fallback stays; the caller is now told it happened so the
+    generator can be told to teach broadly and *assess narrowly*.
     """
     wanted = [fold(h).strip() for h in headings if h and h.strip()]
     if not wanted or not source.strip():
-        return source
+        return source, SCOPE_HEADINGS_MISSING if source.strip() else SCOPE_OK
 
     paragraphs = _PARAGRAPH_RE.split(source)
     kept: list[str] = []
@@ -464,7 +481,14 @@ def focus_on_headings(source: str, headings: Sequence[str]) -> str:
             continue
         if collecting:
             kept.append(paragraph)
-    return "\n\n".join(kept) if kept else source
+    if not kept:
+        return source, SCOPE_HEADINGS_UNMATCHED
+    return "\n\n".join(kept), SCOPE_OK
+
+
+def focus_on_headings(source: str, headings: Sequence[str]) -> str:
+    """The scoped text alone. See :func:`scope_to_headings` for what the scoping means."""
+    return scope_to_headings(source, headings)[0]
 
 
 def analyze_shape(
@@ -571,10 +595,15 @@ __all__ = [
     "MIN_LABELLED_ROWS",
     "MIN_PROCEDURE_STEPS",
     "MIN_SERIES_POINTS",
+    "SCOPE_HEADINGS_MISSING",
+    "SCOPE_HEADINGS_UNMATCHED",
+    "SCOPE_OK",
+    "SCOPE_SLICE_TOO_SHORT",
     "ShapePlan",
     "ShapeSignal",
     "analyze_shape",
     "focus_on_headings",
     "fold",
     "refine_format",
+    "scope_to_headings",
 ]

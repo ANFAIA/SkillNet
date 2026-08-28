@@ -31,6 +31,22 @@ def _enumeration_plan() -> ShapePlan:
     )
 
 
+def _rich_plan() -> ShapePlan:
+    """Material que admite CUALQUIER cierre: una relación de dos columnas y una lista.
+
+    Sin ``procedure``, que cortocircuita la rueda hacia ``didact.sort`` antes de llegar a
+    ella. Hace falta para medir el reparto entre hermanos: desde que la rueda solo ofrece
+    cierres que el material sostiene, medir la variedad sobre una enumeración pelada mide
+    el filtro, no el reparto.
+    """
+    return ShapePlan(
+        signals=(
+            ShapeSignal(kind="labelled_list", count=4, function=ContentFunction.ENUMERAR),
+            ShapeSignal(kind="enumeration", count=6, function=ContentFunction.ENUMERAR),
+        )
+    )
+
+
 def test_a_procedure_is_verified_by_dragorder() -> None:
     plan = plan_assessment(_procedure_plan(), ui_format="exercise", node_id="n1")
     assert plan.block == "DragOrder"
@@ -101,9 +117,20 @@ def test_didact_live_closer_is_stable_for_the_same_node() -> None:
 
 
 def test_course_position_spreads_didact_closers_across_siblings() -> None:
+    """Hermanos con el mismo material reparten los CINCO cierres que la rueda ofrece.
+
+    Cinco y no seis, y no es una aserción debilitada: ``didact.sort`` no se alcanza nunca
+    por la rueda. Tiene su propio atajo —``_has_procedure`` devuelve antes de llegar aquí—
+    así que el material que lo sostiene sale por arriba y el que no lo sostiene no debe
+    recibirlo. Pedirle a la rueda que ofrezca los seis sobre un material sin pasos era
+    justamente el agujero: la mitad de los nodos sin forma detectable terminaban ordenando
+    unos pasos que el modelo tenía que inventarse.
+
+    El sexto cierre se cubre en ``test_material_con_pasos_recibe_el_cierre_de_ordenar``.
+    """
     plans = [
         plan_assessment(
-            _enumeration_plan(),
+            _rich_plan(),
             ui_format="explanation",
             node_id=f"node-{position}",
             didact=True,
@@ -113,12 +140,91 @@ def test_course_position_spreads_didact_closers_across_siblings() -> None:
         for position in range(1, 7)
     ]
     blocks = [plan.block for plan in plans]
-    # Siblings spread across every rotation slot: six DISTINCT real assessments.
-    assert len(set((plan.block, plan.item_type) for plan in plans)) == 6
+    proposed = {(plan.block, plan.item_type) for plan in plans}
+    assert len(proposed) == 5
+    assert DIDACT_PROCEDURE not in {item_type for _block, item_type in proposed}
     assert "QuizItem" not in blocks and "DragOrder" not in blocks
     # Every closer is a real server-scored activity — never a Flashcard/reveal (owner rule).
     assert all(block == "DidactActivity" for block in blocks)
     assert not DIRECT_DIDACT_BLOCKS
+
+
+def test_material_con_pasos_recibe_el_cierre_de_ordenar() -> None:
+    """El sexto cierre existe, y llega exactamente cuando hay pasos que ordenar."""
+    plan = plan_assessment(
+        _procedure_plan(),
+        ui_format="explanation",
+        node_id="node-1",
+        didact=True,
+        course_id="course-a",
+        position=1,
+    )
+    assert plan.item_type == DIDACT_PROCEDURE
+
+
+def test_un_nodo_sin_forma_detectable_nunca_ordena_pasos_inventados() -> None:
+    """Sin señales, ``didact.sort`` deja de ser admisible en todas las posiciones.
+
+    Era el peor caso del agujero: con el conjunto admisible reducido a dos entradas, la
+    mitad de los nodos sin forma pedían ordenar unos pasos que nadie había detectado.
+    """
+    proposed = {
+        plan_assessment(
+            None,
+            ui_format="explanation",
+            node_id=f"node-{position}",
+            didact=True,
+            course_id="course-a",
+            position=position,
+        ).item_type
+        for position in range(1, 13)
+    }
+    assert DIDACT_PROCEDURE not in proposed
+
+
+def test_a_flat_list_is_never_asked_to_be_matched_in_pairs() -> None:
+    """Una enumeración no tiene pares, así que ``didact.matching`` no se propone.
+
+    Generaliza el precedente de ``DragOrder``, que nunca se propone sin un procedimiento:
+    un cierre que el material no sostiene obliga al modelo a inventarse los pares, y un par
+    inventado es justo la pregunta que no se corresponde con lo explicado.
+    """
+    proposed = {
+        plan_assessment(
+            _enumeration_plan(),
+            ui_format="explanation",
+            node_id=f"node-{position}",
+            didact=True,
+            course_id="course-a",
+            position=position,
+        ).item_type
+        for position in range(1, 13)
+    }
+    assert "didact.matching" not in proposed
+    # Y sigue habiendo variedad real entre lo que sí sostiene el material.
+    assert len(proposed) >= 4
+
+
+def test_material_with_pairs_does_admit_matching() -> None:
+    proposed = {
+        plan_assessment(
+            _rich_plan(),
+            ui_format="explanation",
+            node_id=f"node-{position}",
+            didact=True,
+            course_id="course-a",
+            position=position,
+        ).item_type
+        for position in range(1, 13)
+    }
+    assert "didact.matching" in proposed
+
+
+def test_a_node_with_no_shape_at_all_still_gets_a_closer() -> None:
+    """Si nada encaja se recorre la rueda entera: una pantalla sin cierre no es una opción."""
+    plan = plan_assessment(None, ui_format="explanation", node_id="xyz", didact=True)
+    assert plan.block == "DidactActivity"
+    assert plan.item_type in {item[0] for item in DIDACT_CLOSER_ROTATION}
 
 
 def test_legacy_position_rotation_does_not_collapse_to_true_false() -> None:

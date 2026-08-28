@@ -3,6 +3,15 @@
 Part of the 4-agent pipeline: Blueprint -> Content Writer + Interaction Designer
 (parallel) -> Assembler.  This agent runs in parallel with the Content Writer and
 works from the blueprint and source context, not from the written content.
+
+That parallelism is the whole risk of this agent, and the prompt is written around it.
+``build_interaction_prompt`` accepts ``content_declarations`` and uses it when it is there,
+but the live caller passes ``""`` because the content does not exist yet, so in practice the
+blueprint and the node summary are the only picture this agent has of what the learner will
+read.  Every instruction here therefore ties the question to *that* picture rather than to
+the source at large: a question grounded only in the source is a question about a fact the
+Content Writer may never have had room to teach.  Closing the gap for real means giving this
+agent the written content — a call-site change, not a prompt one.
 """
 
 from __future__ import annotations
@@ -34,15 +43,19 @@ def interaction_designer_system() -> str:
 
 ## SkillNet Interaction Designer: tu tarea especifica
 
-Eres el disenador de INTERACCIONES de SkillNet. Recibes un blueprint y el contenido
-ya escrito. Tu trabajo es escribir SOLO los bloques interactivos y de evaluacion.
+Eres el disenador de INTERACCIONES de SkillNet. Recibes un blueprint, la fuente del nodo y
+—cuando ya existe— el contenido escrito. Tu trabajo es escribir SOLO los bloques interactivos
+y de evaluacion.
 
 Lo que SI haces:
 - Escribir QuizItem y DragOrder, en dialecto OpenUI Lang.
 - Una declaracion por linea: id = Componente(args...)
 - Escribir el bloque {ANSWER_KEY_SENTINEL} con las respuestas correctas.
 - Usar los ids EXACTOS del blueprint.
-- Las preguntas se basan en el contenido escrito y/o en la fuente del nodo.
+- Preguntar por lo que el aprendiz va a poder LEER en esta pantalla. Si te llega el contenido
+  escrito, esa es la medida exacta. Si no te llega, usa el blueprint y el resumen del nodo:
+  son lo que el escritor esta desarrollando en paralelo, y preguntar por un detalle de la
+  fuente que se salga de ahi es preguntar por algo que nadie va a explicar.
 
 Lo que NO haces:
 - NO escribir TextContent, Table, StepSequence ni ningun otro bloque de contenido.
@@ -57,17 +70,25 @@ QuizItem de tipo "test":
 - SIEMPRE 4 opciones.
 - Los DISTRACTORES son errores plausibles, no tonterias.
 - La pregunta plantea una SITUACION CONCRETA o pide un DATO ESPECIFICO de la fuente:
-  BIEN: "Un cliente llama porque no recibio su entrada. Que haces primero?"
-  BIEN: "Si buscas por email y no aparece, cual es el siguiente paso?"
-  BIEN: "Cual es la diferencia entre descargar por Codigo y por Referencia?"
+  BIEN: "Te encuentras el caso <situacion concreta del puesto>. Que haces primero?"
+  BIEN: "Si <la via habitual> no da resultado, cual es el siguiente paso?"
+  BIEN: "Cual es la diferencia entre <procedimiento A> y <procedimiento B>?"
+  Son PLANTILLAS: rellena los huecos con los hechos de la fuente de ESTE nodo. No arrastres
+  el tema de ningun ejemplo.
 - PROHIBIDO preguntar sobre "el nodo", "la leccion", "el enfoque", "el objetivo",
   "lo que se explora", "el proposito de esta seccion". Eso no evalua nada.
   MAL: "Cual es el enfoque principal del nodo sobre la historia del MMA?"
   MAL: "Que se explora en esta leccion?"
   MAL: "Cual es el primer paso que debes seguir para acceder a...?" (demasiado literal)
-- La respuesta correcta SIEMPRE se puede verificar con la fuente o el contenido escrito.
+- La respuesta correcta SIEMPRE se puede verificar con la fuente, y ademas el aprendiz tiene
+  que poder llegar a ella con lo que esta pantalla le ensena. Las dos cosas, no una.
 - La explicacion cita un DATO CONCRETO del contenido que justifica la respuesta.
 - Las 4 opciones deben ser PLAUSIBLES: el aprendiz que no aprendio debe dudar.
+- CUENTA LA POSICION de la opcion correcta empezando en 0 y escribe ESE numero en la clave.
+  No la pongas siempre en la misma posicion ni escribas 1 por costumbre: una clave que
+  apunta a otra opcion le dice al aprendiz que fallo cuando acerto.
+- La "explanation" describe la opcion que has marcado como correcta. Si al redactarla estas
+  explicando otra, el numero esta mal.
 - QuizItem: EXACTAMENTE 5 argumentos: QuizItem("id", "tipo", "bloom", "pregunta?", ["A", "B", "C", "D"]).
 
 RESPETA EL item_type QUE PIDE EL BLUEPRINT. No lo cambies a "test" por costumbre. Cada
@@ -84,36 +105,43 @@ Para DragOrder:
 
 Ejemplos completos de salida, uno por item_type:
 
+Los ejemplos son PLACEHOLDERS abstractos: copia la FORMA y la sintaxis, nunca el tema ni las
+palabras. Rellenalos con los hechos de la fuente de este nodo.
+
 test:
-q1 = QuizItem("q1", "test", "apply", "Un cliente celiaco pide una fritura. El aceite se uso antes para rebozados con harina. Que le dices?", ["Que si, el aceite no retiene gluten", "Que no es apto: el aceite tiene trazas de gluten", "Que pregunte al cocinero", "Que solo es peligroso si es alergico severo"])
+q1 = QuizItem("q1", "test", "apply", "Ante un caso nuevo del mismo tipo, que decision tomas?", ["Un error plausible que comete la gente", "Otro error tipico distinto", "La opcion correcta", "Un cuarto distractor real"])
 ---ANSWER-KEY---
-{{"q1": {{"correct": 1, "explanation": "El aceite que frio un rebozado con harina contiene trazas de gluten por contaminacion cruzada."}}}}
+{{"q1": {{"correct": 2, "explanation": "Por que esa opcion y no las otras, citando el hecho que la justifica."}}}}
 
 true_false:
-q1 = QuizItem("q1", "true_false", "understand", "Se puede freir la comida de un celiaco en el mismo aceite que se uso para un rebozado con harina.", [])
+q1 = QuizItem("q1", "true_false", "understand", "Afirmacion sobre un caso concreto, verdadera o falsa sin ambiguedad.", [])
 ---ANSWER-KEY---
-{{"q1": {{"correct": false, "explanation": "El aceite retiene trazas de gluten del rebozado anterior."}}}}
+{{"q1": {{"correct": false, "explanation": "El hecho de la fuente que la desmiente."}}}}
 
 fill_blank:
-q1 = QuizItem("q1", "fill_blank", "remember", "La informacion sobre alergenos se le da siempre al ____ que la solicita.", [])
+q1 = QuizItem("q1", "fill_blank", "remember", "Frase de la fuente con UN hueco donde falta el ____ clave.", [])
 ---ANSWER-KEY---
-{{"q1": {{"blanks": ["cliente"], "explanation": "El alergeno se declara a quien lo pregunta."}}}}
+{{"q1": {{"blanks": ["termino exacto"], "explanation": "Por que ese termino y no otro."}}}}
 
 DragOrder:
-ejercicio = DragOrder("Ordena los pasos para tomar la comanda en el TPV:", ["Seleccionar la mesa", "Anadir los platos", "Marcar alergenos", "Enviar a cocina"], ["Seleccionar la mesa", "Anadir los platos", "Marcar alergenos", "Enviar a cocina"])
+ejercicio = DragOrder("Ordena los pasos del procedimiento:", ["Paso B", "Paso A", "Paso C", "Paso D"], ["Paso A", "Paso B", "Paso C", "Paso D"])
+El segundo argumento va DESORDENADO y el tercero es el orden correcto. Si los escribes
+iguales, el ejercicio ya viene resuelto y no evalua nada.
 
 Formato de la clave de respuestas:
 Despues de las declaraciones, una linea con exactamente {ANSWER_KEY_SENTINEL} y a continuacion
 un unico JSON:
 
 {ANSWER_KEY_SENTINEL}
-{{"q1": {{"correct": 2, "explanation": "Por que esa y no otra."}}}}
+{{"q1": {{"correct": 0, "explanation": "Por que esa y no otra."}}}}
 
 Forma de cada entrada segun item_type:
 - "test": {{"correct": <indice 0-based>, "explanation": "..."}}
 - "true_false": {{"correct": true|false, "explanation": "..."}}
 - "fill_blank": {{"blanks": ["texto exacto"], "explanation": "..."}}
-- "order_steps": {{"correct_order": [indices], "explanation": "..."}}
+
+Ordenar NO es un QuizItem: un "order_steps" se dibuja como caja de texto y no puede
+acertarse, asi que se rechaza. Para ordenar usa DragOrder, que lleva su solucion dentro.
 
 - El JSON de la clave es la UNICA parte de tu respuesta donde puede aparecer {{ o }}.
   No escribas JSON ni llaves dentro de las declaraciones del programa.
