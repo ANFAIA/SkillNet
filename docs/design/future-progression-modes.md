@@ -176,17 +176,27 @@ refactor sin tocar un solo sitio de llamada.
 
 ## 5. El futuro: el modo por dominio
 
-Cuando llegue, **no se forkea el pipeline**. La forma que aguanta es asimétrica:
+**Su forma está abierta, no decidida.** Lo aplazado no es lo descartado: la separación más
+profunda —hasta un pipeline propio— sigue sobre la mesa, y el motivo para dejarla ahí es que
+los cursos que vengan pueden no parecerse a estos. Un curso realmente no lineal, donde el
+recorrido lo elige el sistema y no hay una secuencia que respetar, puede ser lo bastante
+distinto como para que compartir un solo camino sea la economía equivocada. Esa evaluación se
+hace cuando exista ese curso, no antes.
 
-> Dominio no es una alternativa a lineal. Es lineal **más** exigencias de evidencia.
+Lo que sigue es **el argumento a favor de no separar**, anotado para que se pueda rebatir con
+algo delante, no la conclusión.
 
-Todo curso sigue siendo una secuencia de nodos por la que se pasa. Un curso de dominio
-además exige que cada nodo traiga con qué medir, activa el sondeo, y su conjunto de nodos
-disponibles se puede dirigir. Así el camino lineal está *dentro* del de dominio, se ejercita
-siempre y no puede pudrirse — que es lo que le pasó a `feat/dynamic-courses`, una rama que
-sobrevivió en la documentación mucho después de estar muerta.
+> Dominio no sería una alternativa a lineal, sino lineal **más** exigencias de evidencia.
 
-**La generación no cambia entre un modo y otro.** El patrón correcto ya existe en el repo:
+Todo curso seguiría siendo una secuencia de nodos por la que se pasa. Uno de dominio además
+exigiría que cada nodo traiga con qué medir, activaría el sondeo, y su conjunto de nodos
+disponibles se podría dirigir. Con esa forma el camino lineal queda *dentro* del de dominio,
+se ejercita siempre y no puede pudrirse — que es lo que le pasó a `feat/dynamic-courses`, una
+rama que sobrevivió en la documentación mucho después de estar muerta. El riesgo de pudrición
+es real y es el argumento fuerte; lo que no está establecido es que valga más que la claridad
+de separar dos cosas que quizá no se parezcan.
+
+**La generación no cambiaría entre un modo y otro.** El patrón ya existe en el repo:
 un curso es dinámico cuando tiene `delivery_mode='dynamic'` **y** `schema_status='validated'`;
 los demás caen a v1. Es decir: **se declara un modo, una puerta decide si se honra, y hay un
 plan B.**
@@ -227,11 +237,13 @@ Lo único que hay que ensanchar cuando toque: hoy la evidencia entra con forma d
 naturaleza —continuo, incierto, sobre el nodo entero— así que la evidencia tendrá que llevar
 **tipo y confianza**.
 
-## 7. Lo que no hay que construir
+## 7. Lo que no hay que construir *hoy*
+
+Ninguno de estos está cerrado para siempre. Están fuera del alcance actual, y el que tenga
+un motivo para meterlo debería poder rebatir la línea que lo acompaña.
 
 - **Un enum `traversal` paralelo a `state`.** Los dos hechos ya están guardados; lo que
   faltaba era un nombre para su unión, no una columna más.
-- **Un pipeline de dominio forkeado.** Se pudre. Ver §5.
 - **Un `progression_mode` con un solo valor.** Ver §3.
 - **Una interfaz antes de conocer la forma de la segunda implementación.** Ver §4.
 - **Reglas de validación distintas para el DAG.** Los prerequisitos dejan de cerrar puertas,
