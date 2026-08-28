@@ -8,7 +8,9 @@ The gate is three independent locks, all enforced here:
 
 1. ``POST /schema/validate`` is the only door from ``proposed`` to ``validated``,
    and it refuses to open on a malformed graph (cycles, orphans, missing summary,
-   missing source, no ``critical`` node, non-contiguous positions, unreviewed node).
+   non-contiguous positions, unreviewed node). It does **not** require a ``critical``
+   node: that rule is gone from ``_validate_graph`` and only its label survives, in the
+   frontend's ``schemaRule.no_critical_node``.
 2. ``PUT /schema`` on a ``validated`` course is ``422 schema_locked``. Editing a
    live course means calling ``unvalidate`` first, which drops the course back to
    ``delivery_mode='static'`` in the same transaction. Editing a live course
@@ -423,7 +425,8 @@ def ensure_deletable(node: _NodeLike, attempts_count: int) -> None:
 
     Deleting cascades to ``learner_node_states`` and ``node_renders``, so it would
     silently destroy mastery and the audit trail of people who already worked, and
-    change the set of ``critical`` nodes that governs enrollment closure.
+    change the set of nodes that governs enrollment closure — *every* non-archived one,
+    not only the ``critical`` ones (``evaluate_course_completion``).
     """
     if attempts_count > 0:
         raise NodeHasProgress([node.id])
