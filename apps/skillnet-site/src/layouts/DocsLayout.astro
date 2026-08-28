@@ -3,6 +3,7 @@ import BaseLayout from "./BaseLayout.astro";
 import SiteHeader from "../components/SiteHeader.tsx";
 import SiteFooter from "../components/SiteFooter.tsx";
 import DocsSidebar from "../components/docs/DocsSidebar.astro";
+import DocsPageToc, { type DocsPageHeading } from "../components/docs/DocsPageToc.tsx";
 import { buildDocsFileTree } from "../data/docsNav";
 import { ClientRouter } from "astro:transitions";
 
@@ -22,9 +23,10 @@ interface Props {
   locale: "es" | "en";
   /** Slug of the equivalent page in the other locale, if it exists. */
   altSlug?: string;
+  headings?: DocsPageHeading[];
 }
 
-const { title, description, navEntries, currentSlug, locale, altSlug } = Astro.props;
+const { title, description, navEntries, currentSlug, locale, altSlug, headings = [] } = Astro.props;
 
 const isEn = locale === "en";
 const siteTitle = isEn ? "SkillNet Documentation" : "Documentación SkillNet";
@@ -71,6 +73,11 @@ const { nodes: docsNodes, openIds: docsOpenIds } = buildDocsFileTree(
         <DocsSidebar entries={navEntries} currentSlug={currentSlug} locale={locale} />
       </div>
     </aside>
+    {headings.length > 0 && (
+      <div class="docs-shell__toc">
+        <DocsPageToc client:load headings={headings} locale={locale} />
+      </div>
+    )}
     <main class="docs-shell__content">
       <article class="prose-docs">
         <slot />
@@ -91,23 +98,43 @@ const { nodes: docsNodes, openIds: docsOpenIds } = buildDocsFileTree(
     --type-ui: 0.75rem;
 
     display: grid;
-    grid-template-columns: 260px minmax(0, 1fr);
-    gap: 48px;
-    max-width: 1120px;
+    grid-template-columns: 220px minmax(0, 1fr) 190px;
+    gap: clamp(24px, 2vw, 32px);
+    width: 80%;
+    max-width: none;
     margin: 0 auto;
-    padding: 128px 32px 96px;
+    padding: 128px 0 96px;
   }
 
   .docs-shell__sidebar {
+    position: sticky;
+    grid-column: 1;
+    grid-row: 1;
+    top: 96px;
     align-self: start;
+    max-height: calc(100dvh - 120px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
   }
 
   .docs-shell__content {
+    display: flex;
+    grid-column: 2;
+    grid-row: 1;
+    justify-content: center;
+    min-width: 0;
+  }
+
+  .docs-shell__toc {
+    grid-column: 3;
+    grid-row: 1;
     min-width: 0;
   }
 
   .prose-docs {
-    max-width: 720px;
+    width: 100%;
+    max-width: 760px;
     color: var(--color-text);
     font-size: var(--type-body);
     line-height: 1.7;
@@ -117,6 +144,7 @@ const { nodes: docsNodes, openIds: docsOpenIds } = buildDocsFileTree(
   .prose-docs :global(h2),
   .prose-docs :global(h3) {
     overflow-wrap: break-word;
+    scroll-margin-top: 112px;
   }
 
   .prose-docs :global(h1) {
@@ -261,10 +289,76 @@ const { nodes: docsNodes, openIds: docsOpenIds } = buildDocsFileTree(
     margin: 32px 0;
   }
 
+  :global(.docs-page-toc--desktop) {
+    position: sticky;
+    top: 96px;
+    max-height: calc(100dvh - 120px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+  }
+
+  :global(.docs-page-toc__title) {
+    margin: 0 0 12px;
+    color: var(--color-text);
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1.4;
+  }
+
+  :global(.docs-page-toc__list) {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+  }
+
+  :global(.docs-page-toc__link) {
+    display: block;
+    padding: 5px 0;
+    color: var(--color-text-secondary);
+    font-size: 0.75rem;
+    line-height: 1.45;
+    text-decoration: none;
+    overflow-wrap: anywhere;
+    transition: color 0.15s var(--ease-base);
+  }
+
+  :global(.docs-page-toc__link:hover) {
+    color: var(--color-text);
+  }
+
+  :global(.docs-page-toc__link[aria-current="location"]) {
+    color: var(--color-primary-deep);
+    font-weight: 600;
+  }
+
+  :global(.docs-page-toc__link:focus-visible),
+  :global(.docs-page-toc__summary:focus-visible) {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+
+  :global(.docs-page-toc--mobile) {
+    display: none;
+  }
+
+  @media (max-width: 1199px) {
+    .docs-shell {
+      grid-template-columns: 240px minmax(0, 1fr);
+      gap: 40px;
+    }
+
+    .docs-shell__toc {
+      display: none;
+    }
+  }
+
   @media (max-width: 999px) {
     .docs-shell {
       grid-template-columns: minmax(0, 1fr);
       gap: 20px;
+      width: auto;
       padding: 104px 16px 56px;
     }
 
@@ -276,5 +370,79 @@ const { nodes: docsNodes, openIds: docsOpenIds } = buildDocsFileTree(
       max-width: none;
     }
 
+    .docs-shell__toc {
+      display: block;
+      grid-column: 1;
+      grid-row: 1;
+    }
+
+    .docs-shell__content {
+      grid-column: 1;
+      grid-row: 2;
+    }
+
+    :global(.docs-page-toc--desktop) {
+      display: none;
+    }
+
+    :global(.docs-page-toc--mobile) {
+      display: block;
+      border-bottom: 1px solid var(--color-border);
+      padding-bottom: 20px;
+    }
+
+    :global(.docs-page-toc__summary) {
+      display: flex;
+      min-height: 44px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      color: var(--color-text);
+      font-size: 0.8125rem;
+      font-weight: 600;
+      cursor: pointer;
+      list-style: none;
+    }
+
+    :global(.docs-page-toc__summary::-webkit-details-marker) {
+      display: none;
+    }
+
+    :global(.docs-page-toc__summary small) {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      color: var(--color-text-secondary);
+      font-size: 0.6875rem;
+      font-weight: 400;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    :global(.docs-page-toc__chevron) {
+      flex: none;
+      color: var(--color-text-secondary);
+      transition: transform 0.18s var(--ease-base);
+    }
+
+    :global(.docs-page-toc--mobile[open] .docs-page-toc__chevron) {
+      transform: rotate(180deg);
+    }
+
+    :global(.docs-page-toc__list--mobile) {
+      max-height: 44dvh;
+      overflow-y: auto;
+      margin-top: 10px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    :global(.docs-page-toc__link),
+    :global(.docs-page-toc__chevron) {
+      transition: none;
+    }
   }
 </style>

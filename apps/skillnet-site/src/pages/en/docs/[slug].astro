@@ -15,8 +15,11 @@ export async function getStaticPaths() {
 }
 
 const { entry } = Astro.props;
-const { Content } = await render(entry);
+const { Content, headings } = await render(entry);
 const { slug } = splitDocId(entry.id);
+const pageHeadings = headings
+  .filter((heading) => heading.depth === 2)
+  .map(({ slug: headingSlug, text }) => ({ slug: headingSlug, text }));
 
 const allEntries = (await getCollection("docs"))
   .map((e) => ({ ...splitDocId(e.id), title: e.data.title, order: e.data.order, section: e.data.section, group: e.data.group }))
@@ -36,6 +39,7 @@ const hasEsVersion = (await getCollection("docs")).some(
   currentSlug={slug}
   locale="en"
   altSlug={hasEsVersion ? slug : undefined}
+  headings={pageHeadings}
 >
   <Content />
 </DocsLayout>
