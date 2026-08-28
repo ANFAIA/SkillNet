@@ -154,10 +154,11 @@ el modo adaptativo exige rehacer el frontend.
 
 Fue una decisión discutida, no un descuido:
 
-- La diferencia entre lineal y dominio es **una pregunta**, no una familia de
-  comportamientos. `progress()` es idéntico en los dos modos y `next()`/`available()` son la
-  misma decisión vista por dos lados. Una interfaz con un método útil y sin estado es una
-  función con ceremonia.
+- Hoy, para lo que el modo dominio hace, la diferencia es **una pregunta**, no una familia de
+  comportamientos. `progress()` sería idéntico en los dos modos y `next()`/`available()` son
+  la misma decisión vista por dos lados. Una interfaz con un método útil y sin estado es una
+  función con ceremonia. (Esto deja de valer en cuanto llegue lo de §5.1, y entonces la
+  bifurcación no es una interfaz: es otro camino.)
 - **El repo ya contestó a esto.** `course_delivery.resolve_delivery` decide entre v1 y v2
   —dos pipelines de verdad— y es una función que devuelve un string. Meter polimorfismo para
   algo más pequeño introduce un estilo que el resto del código no usa.
@@ -176,27 +177,68 @@ refactor sin tocar un solo sitio de llamada.
 
 ## 5. El futuro: el modo por dominio
 
-**Su forma está abierta, no decidida.** Lo aplazado no es lo descartado: la separación más
-profunda —hasta un pipeline propio— sigue sobre la mesa, y el motivo para dejarla ahí es que
-los cursos que vengan pueden no parecerse a estos. Un curso realmente no lineal, donde el
-recorrido lo elige el sistema y no hay una secuencia que respetar, puede ser lo bastante
-distinto como para que compartir un solo camino sea la economía equivocada. Esa evaluación se
-hace cuando exista ese curso, no antes.
+**Va bifurcado, y no se construye ahora.** Hoy todo es lineal; el trabajo de hoy solo tiene
+que dejar la costura preparada y no cerrar la puerta.
 
-Lo que sigue es **el argumento a favor de no separar**, anotado para que se pueda rebatir con
-algo delante, no la conclusión.
+### 5.1 Por qué bifurcado, y no un modo del mismo camino
 
-> Dominio no sería una alternativa a lineal, sino lineal **más** exigencias de evidencia.
+El criterio, que vale más que la opinión de quien lo escribe:
 
-Todo curso seguiría siendo una secuencia de nodos por la que se pasa. Uno de dominio además
-exigiría que cada nodo traiga con qué medir, activaría el sondeo, y su conjunto de nodos
-disponibles se podría dirigir. Con esa forma el camino lineal queda *dentro* del de dominio,
-se ejercita siempre y no puede pudrirse — que es lo que le pasó a `feat/dynamic-courses`, una
-rama que sobrevivió en la documentación mucho después de estar muerta. El riesgo de pudrición
-es real y es el argumento fuerte; lo que no está establecido es que valga más que la claridad
-de separar dos cosas que quizá no se parezcan.
+> Bifurcar sale a cuenta cuando cambia **de qué está hecho** el curso. No cuando cambia **qué
+> hace el sistema con lo que ya hay.**
 
-**La generación no cambiaría entre un modo y otro.** El patrón ya existe en el repo:
+Aplicado a lo que el repo ya hizo: un curso v1 son módulos y lecciones, markdown escrito una
+vez e igual para todos; uno v2 son nodos y renders generados por persona. No comparten ni las
+tablas. Ahí nadie decidió bifurcar — ya eran dos cosas distintas y el código lo reconoció. Y
+el impuesto se ve: `tests/integration/test_v1_regression.py` existe porque hay que trabajar
+activamente para que el camino menos transitado siga vivo.
+
+Con ese criterio, "lineal contra dominio" **no** justificaba separar: mismos nodos, mismos
+renders, mismas filas de evidencia, mismo tutor, mismo certificado, y una sola regla distinta.
+
+Lo que sí lo justifica es lo que el modo dominio va a traer con él: **el observador crea
+pantallas nuevas sobre la marcha cuando alguien se atasca.** Eso ya no es una regla aplicada
+sobre el mismo material — es material que no existía. Cambia de qué está hecho el curso, y
+por tanto pide camino propio con el mismo derecho con que lo pidió v2.
+
+### 5.2 Con qué choca, y la línea que lo resuelve
+
+Con la promesa central de v2, que sostiene `course_schema_service` y está escrita en su
+cabecera: *ningún aprendiz recibe nunca contenido generado para un nodo que un humano no ha
+firmado*. Una pantalla improvisada porque alguien va mal es, por definición, contenido que
+nadie firmó.
+
+La salida no es romper la promesa, es reconocer **dos tipos de material**:
+
+| | qué es | quién lo aprueba | cuenta para el certificado |
+|---|---|---|---|
+| **Curriculum** | lo que alguien decidió que hay que aprender | humano, en el gate de §11.1 | sí |
+| **Andamio** | lo que el sistema improvisa para sacarte del atasco: otro ejemplo, la misma idea contada de otra forma, práctica extra | nadie, se genera al vuelo | no |
+
+El andamio **no necesita firma precisamente porque no certifica nada**. Es la misma línea de
+§6 entre certificar y entender, aplicada al contenido: el observador puede permitirse
+improvisar y equivocarse porque lo que produce no acaba en el certificado. Mezclarlas cuesta
+las dos cosas — o le pides al andamio una fiabilidad que le quita la gracia, o le das al
+certificado contenido que nadie miró.
+
+### 5.3 El argumento contrario, anotado
+
+Se deja escrito porque el día que se construya conviene tenerlo delante:
+
+> Dominio podría no ser una alternativa a lineal, sino lineal **más** exigencias de
+> evidencia — el camino lineal *dentro* del de dominio, ejercitado siempre y por tanto
+> incapaz de pudrirse, como se pudrió `feat/dynamic-courses`.
+
+El riesgo de pudrición es real. Lo que lo tumbó es §5.1: esa forma solo aguanta mientras el
+modo dominio no traiga material propio, y va a traerlo.
+
+### 5.4 Lo que no cambia entre los dos
+
+**La generación del curso no cambia**, aunque los caminos se separen: el esquema se propone y
+se valida igual, y quien crea el curso elige el modo como ya elige `delivery_mode` y
+`tutor_style`. Lo que diverge es lo que pasa **después**, en tiempo de ejecución.
+
+El patrón para elegirlo ya existe en el repo:
 un curso es dinámico cuando tiene `delivery_mode='dynamic'` **y** `schema_status='validated'`;
 los demás caen a v1. Es decir: **se declara un modo, una puerta decide si se honra, y hay un
 plan B.**
