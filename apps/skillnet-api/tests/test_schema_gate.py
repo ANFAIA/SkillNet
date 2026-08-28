@@ -9,7 +9,6 @@ that was signed off earlier.
 
 from __future__ import annotations
 
-import asyncio
 import uuid
 from datetime import datetime, timezone
 
@@ -670,69 +669,24 @@ async def test_validate_refuses_a_cyclic_graph() -> None:
 
 
 @pytest.mark.asyncio
-async def test_validate_pregenerates_probes_through_the_seam() -> None:
+async def test_validate_does_not_pregenerate_probes() -> None:
+    """Validating a course must not spend an LLM call per node on the probe.
+
+    Origin 1 of §7.1 used to run here, warming ``course_nodes.probe_items`` for every
+    node of every course. Nothing consumed it: no client calls ``POST /nodes/{id}/probe``,
+    so the questions were generated and never asked, inside the critical path of course
+    creation. §7.1's other two origins still cover the probe if it is ever wired up, so it
+    generates on first use instead. See ``docs/design/future-progression-modes.md``.
+    """
     course = make_course()
     node = make_node(course, position=1)
-    calls: list[CourseNode] = []
+    assert not node.probe_items  # a fresh node starts without them
 
-    async def pregenerator(target: CourseNode):
-        calls.append(target)
-        return [{"bloom_level": "apply", "type": "test"}], {"0": {"correct": 1}}
-
-    service, _, audit_repo, _ = make_service(
-        course, [node], probe_pregenerator=pregenerator
-    )
+    service, _, audit_repo, _ = make_service(course, [node])
     await service.validate(course_id=course.id, org_id=ORG_ID, actor_id=ACTOR_ID)
 
-    assert calls == [node]
-    assert node.probe_items and node.probe_answer_key == {"0": {"correct": 1}}
-    assert audit_repo.rows[0]["detail"]["probes_pregenerated"] == 1
-
-
-@pytest.mark.asyncio
-async def test_validate_runs_independent_probe_producers_in_parallel() -> None:
-    course = make_course()
-    nodes = [
-        make_node(course, position=1, title="A"),
-        make_node(course, position=2, title="B"),
-    ]
-    both_started = asyncio.Event()
-    started = 0
-
-    async def pregenerator(_target: CourseNode):
-        nonlocal started
-        started += 1
-        if started == 2:
-            both_started.set()
-        await asyncio.wait_for(both_started.wait(), timeout=1)
-        return [{"bloom_level": "apply", "type": "test"}], {"0": {"correct": 1}}
-
-    service, _, _, _ = make_service(
-        course, nodes, probe_pregenerator=pregenerator
-    )
-    await service.validate(course_id=course.id, org_id=ORG_ID, actor_id=ACTOR_ID)
-
-    assert started == 2
-    assert all(node.probe_items for node in nodes)
-
-
-@pytest.mark.asyncio
-async def test_validate_survives_a_missing_probe_service() -> None:
-    """§7.1 has two other origins for the items, so this must degrade, not fail."""
-    course = make_course()
-    node = make_node(course, position=1)
-
-    async def unavailable(target: CourseNode):
-        return None
-
-    service, _, audit_repo, _ = make_service(
-        course, [node], probe_pregenerator=unavailable
-    )
-    snapshot = await service.validate(
-        course_id=course.id, org_id=ORG_ID, actor_id=ACTOR_ID
-    )
-    assert snapshot.course.schema_status == CourseSchemaStatus.VALIDATED
-    assert audit_repo.rows[0]["detail"]["probes_pregenerated"] == 0
+    assert not node.probe_items
+    assert "probes_pregenerated" not in audit_repo.rows[0]["detail"]
 
 
 # --------------------------------------------------------------------------- #

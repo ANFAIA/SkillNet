@@ -25,9 +25,8 @@ without a database (there is none in CI — §12.2).
 
 from __future__ import annotations
 
-import asyncio
 import uuid
-from collections.abc import Awaitable, Callable, Iterable, Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Protocol
@@ -450,25 +449,19 @@ class SchemaSnapshot:
     warnings: list[str] = field(default_factory=list)
 
 
-async def _lazy_probe_pregenerator(node: CourseNode) -> tuple[list, dict] | None:
-    """Pre-generate a node's probe items, if the probe service is available.
-
-    SEAM, same pattern as ``generation_service.run_generation_job``: the generator
-    lives in ``src/services/probe_service.py`` (B4). When it is absent the schema
-    still validates and the probe simply falls back to §7.1's other two origins
-    (sampling the seed lesson, or one runtime LLM call whose result is written back
-    into ``course_nodes.probe_items``). Degrading here is safe; failing would make
-    the gate unusable.
-    """
-    try:
-        from src.services.probe_service import pregenerate_probe_items
-    except ImportError:
-        return None
-    try:
-        return await pregenerate_probe_items(node)
-    except Exception as exc:  # noqa: BLE001 - pre-generation is best effort
-        logger.warning("Probe pre-generation failed for node %s: %s", node.id, exc)
-        return None
+# Probes are no longer pre-generated when a schema validates. The generator itself
+# (``probe_service.pregenerate_probe_items``) and the runtime endpoints are untouched and
+# still tested — what went away is the call that ran them for every node of every course.
+#
+# It was paying one LLM call per node, inside the critical path of course creation, for
+# questions nobody was ever asked: no client calls ``POST /nodes/{id}/probe``, so the whole
+# probe surface is unreachable from the product. Origin 1 of §7.1 was buying a warm cache
+# for a feature with no consumer.
+#
+# Nothing is lost by waiting. §7.1 has two further origins — sampling the seed lesson, and
+# one runtime call written back into ``course_nodes.probe_items`` — so the day the probe is
+# wired up again it generates on first use. Paid when used, not when created. The decision
+# and what would bring it back are in ``docs/design/future-progression-modes.md``.
 
 
 # --------------------------------------------------------------------------- #
@@ -486,10 +479,6 @@ class CourseSchemaService:
         job_repo: GenerationJobRepository | None = None,
         document_repo: DocumentRepository | None = None,
         *,
-        probe_pregenerator: Callable[
-            [CourseNode], Awaitable[tuple[list, dict] | None]
-        ]
-        | None = None,
         experience_planner: Any | None = None,
         experience_materializer: Any | None = None,
     ) -> None:
@@ -499,7 +488,6 @@ class CourseSchemaService:
         self.enrollment_repo = enrollment_repo
         self.job_repo = job_repo
         self.document_repo = document_repo
-        self.probe_pregenerator = probe_pregenerator or _lazy_probe_pregenerator
         self.experience_planner = experience_planner or NeutralExperiencePlanner(
             self.session
         )
@@ -883,7 +871,6 @@ class CourseSchemaService:
             schema_version=int(course.schema_version or 1),
             nodes=nodes,
         )
-        pregenerated = await self._pregenerate_probes(nodes)
         materialization = await self.experience_materializer.materialize_course(
             org_id=org_id,
             course_id=course_id,
@@ -920,7 +907,6 @@ class CourseSchemaService:
                     if _criticality_value(node.criticality)
                     == NodeCriticality.CRITICAL.value
                 ),
-                "probes_pregenerated": pregenerated,
                 "experience_plan": {
                     "planner_version": experience_plan.planner_version,
                     "plan_digest": experience_plan.plan_digest,
@@ -950,26 +936,6 @@ class CourseSchemaService:
         )
         warnings = await self.schema_warnings(course_id)
         return await self._snapshot(course, warnings=warnings)
-
-    async def _pregenerate_probes(self, nodes: Sequence[CourseNode]) -> int:
-        """Pre-generate the probe of every node that has none yet (§7.1 origin 1)."""
-        generated = 0
-        pending = [node for node in nodes if not node.probe_items]
-        results = await asyncio.gather(
-            *(self.probe_pregenerator(node) for node in pending)
-        )
-        for node, result in zip(pending, results, strict=True):
-            if not result:
-                continue
-            items, answer_key = result
-            if not items:
-                continue
-            node.probe_items = items
-            node.probe_answer_key = answer_key or {}
-            generated += 1
-        if generated:
-            await self.session.flush()
-        return generated
 
     async def _proposal_diff(
         self, course_id: uuid.UUID, nodes: Sequence[CourseNode]
