@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Literal
 
 from pydantic import Field, field_validator
@@ -6,6 +7,25 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from src.personalization.selection_policy import SelectionExecution, SelectionStrategy
 
 _DEV_SECRET_KEY = "dev-insecure-secret-key-change-me-in-production"
+
+#: Where `.env` is looked up, anchored to this file instead of to the working directory.
+#:
+#: A bare ``env_file=".env"`` resolves against the CWD, so the same command behaved
+#: differently depending on where it was launched from — and did so silently, because a
+#: missing file is not an error: every flag just falls back to its default. Measured on
+#: 2026-08-28: `scripts/quality_bench.py`, which is documented to be run from
+#: `apps/skillnet-api`, had `ADAPTIVE_EPISODES`, `MULTI_AGENT_RENDER` and `SEMANTIC_ROUTER`
+#: all read as False against a `.env` that sets the three to true. It was therefore building
+#: a DIFFERENT graph from the one the product serves — no `direct_episode` node at all — and
+#: had been for 91 renders across seven runs going back to 2026-08-22.
+#:
+#: Both locations are read, the package-local one last so it wins: pydantic-settings gives
+#: later files precedence. This is a **development** convenience only and cannot change a
+#: deployment: `.env` is in `.dockerignore` and no compose service declares `env_file`, so a
+#: container is configured exclusively through its `environment:` block.
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+_PACKAGE_ROOT = Path(__file__).resolve().parents[1]
+_ENV_FILES = (_REPO_ROOT / ".env", _PACKAGE_ROOT / ".env")
 
 
 class Settings(BaseSettings):
@@ -258,7 +278,7 @@ class Settings(BaseSettings):
     # Set SEMANTIC_ROUTER=true en .env para activarlo.
     SEMANTIC_ROUTER: bool = False
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=_ENV_FILES, extra="ignore")
 
     @field_validator("SECRET_KEY")
     @classmethod

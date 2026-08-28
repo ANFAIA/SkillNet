@@ -1741,13 +1741,23 @@ _CURRENT: contextvars.ContextVar[Recorder | None] = contextvars.ContextVar(
 
 _RECORDERS: dict[str, Recorder] = {}
 
+#: Los nodos que el instrumentador envuelve, y por tanto los UNICOS que aparecen en `steps`.
+#:
+#: `direct_episode` y `critic_episode` faltaban, asi que un episodio podia ejecutarse entero
+#: sin dejar rastro y la traza de un render adaptativo era indistinguible de uno legacy. Es
+#: un punto ciego del banco, no del producto: `graph.py` los importa a su espacio de nombres
+#: incondicionalmente, de modo que envolverlos es seguro aunque los flags dejen el nodo fuera
+#: del grafo — simplemente no se llamara. Medido el 2026-08-28 persiguiendo por que una
+#: ejecucion con `ADAPTIVE_EPISODES=True` no mostraba `direct_episode` en ningun paso.
 _GRAPH_NODE_NAMES = (
     "load_context",
     "probe_gate",
+    "direct_episode",
     "decide_formato",
     "author_activity",
     "genera_ui",
     "validate_ui",
+    "critic_episode",
     "persist_render",
     "fallback_seed",
     "skip_node",
@@ -1795,6 +1805,11 @@ class Recorder:
     format_rationale: str = ""
     activity_authoring_status: str = "not_observed"
     authored_activity: dict[str, Any] | None = None
+    #: Por que el camino adaptativo no se uso. Se captura en el propio nodo porque
+    #: `decide_formato` reconstruye `plan_trace` aguas abajo y borra la clave `episode`:
+    #: sin esto, un declive del 100% es invisible y su causa irrecuperable.
+    episode_status: str = "not_observed"
+    episode_decline_reason: str = ""
     activity_system_prompt: str = ""
     activity_user_prompt: str = ""
     activity_model: str = ""
@@ -1905,6 +1920,10 @@ def _record(
         recorder.decide_tokens_out = result.get("tokens_out")
         if recorder.decide_called and recorder.pending_prompts:
             recorder.pending_prompts.pop(0)
+
+    elif name == "direct_episode":
+        recorder.episode_status = str(result.get("episode_status") or "ready")
+        recorder.episode_decline_reason = str(result.get("episode_decline_reason") or "")
 
     elif name == "author_activity":
         recorder.activity_authoring_status = str(
@@ -2047,6 +2066,8 @@ class RunResult:
     #: the node.  The full draft remains in the exact captured prompt/response attempt.
     activity_authoring_status: str = "not_observed"
     authored_activity: dict[str, Any] | None = None
+    episode_status: str = "not_observed"
+    episode_decline_reason: str = ""
 
 
 async def run_one(
@@ -2203,6 +2224,8 @@ def _classify(
         ),
         activity_authoring_status=recorder.activity_authoring_status,
         authored_activity=recorder.authored_activity,
+        episode_status=recorder.episode_status,
+        episode_decline_reason=recorder.episode_decline_reason,
     )
 
 
@@ -2527,6 +2550,19 @@ def print_comparison(current: dict, previous: dict | None) -> None:
         f"\nComparado con {previous.get('run_id', '?')} "
         f"(fast={previous.get('model_fast', '?')}, heavy={previous.get('model_heavy', '?')}):"
     )
+    # Dos ejecuciones por caminos distintos no son dos medidas del mismo sistema, asi que la
+    # tabla de abajo compara cosas que no se pueden comparar. Se avisa en vez de callarse: la
+    # alternativa es leer un "+15% MEJOR" que en realidad significa "otro grafo". Las
+    # ejecuciones anteriores al 2026-08-28 no llevan el campo y se anuncian como desconocidas
+    # en vez de darse por iguales.
+    before_path = previous.get("graph_path")
+    after_path = current.get("graph_path")
+    if before_path != after_path:
+        print(
+            f"  !! CAMINOS DISTINTOS: antes={before_path or 'sin registrar'} -> "
+            f"ahora={after_path or 'sin registrar'}. Las cifras de abajo NO son comparables; "
+            "miden pipelines distintos, no una mejora."
+        )
     rows = (
         ("acierto a la primera", "first_pass_pct", "%", 1, True),
         ("rescatados por reparacion", "repaired_pct", "%", 1, False),
@@ -2761,6 +2797,16 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--path",
+        choices=("auto", "episode", "legacy"),
+        default="auto",
+        help=(
+            "Que GRAFO se mide. auto respeta el .env (lo que sirve el producto); episode "
+            "fuerza el camino adaptativo y legacy el clasico. El camino se imprime siempre "
+            "al arrancar y se guarda en el JSON, asi que 'auto' nunca es un misterio."
+        ),
+    )
+    parser.add_argument(
         "--pack-source",
         choices=PACK_SOURCES,
         default="structural",
@@ -2873,6 +2919,12 @@ async def run_bench(args: argparse.Namespace) -> int:
     if args.seed is not None:
         random.seed(args.seed)
 
+    # El camino es una DIMENSION del experimento, no un accidente del entorno. Se fija antes
+    # de que nada construya el grafo, porque `build_node_graph()` decide que nodos existen
+    # leyendo esto: elegirlo despues no cambiaria el grafo, solo mentiria en la cabecera.
+    if args.path != "auto":
+        settings.ADAPTIVE_EPISODES = args.path == "episode"
+
     # --- configuracion de modelo ------------------------------------------------
     if args.offline:
         settings.LLM_MODEL = OFFLINE_MODEL
@@ -2952,6 +3004,13 @@ async def run_bench(args: argparse.Namespace) -> int:
     print(f"  modelo fast: {model_fast}")
     print(f"  modelo heavy: {model_heavy}")
     print(f"  brazo(s)   : {', '.join(arms)}")
+    # Antes de gastar una sola llamada: que camino se va a medir. Es la linea que habria
+    # ahorrado seis semanas de mediciones sobre un grafo que el producto no sirve.
+    print(f"  camino     : {_graph_path()}")
+    print(
+        "  flags      : "
+        + ", ".join(f"{k}={v}" for k, v in _runtime_flags().items())
+    )
     if "pack" in arms:
         print(f"  pack source: {args.pack_source}")
     print(
@@ -3044,6 +3103,8 @@ async def run_bench(args: argparse.Namespace) -> int:
         "corpus": [e.name for e in corpus],
         "prompt_version": _prompt_version(),
         "catalog_version": _catalog_version(),
+        "graph_path": _graph_path(),
+        "runtime_flags": _runtime_flags(),
         "provider": asdict(stats),
         "pack_source": args.pack_source,
         "pack_policy": asdict(pack_policy),
@@ -3092,6 +3153,49 @@ def _prompt_version() -> str:
     from src.llm.prompts.runtime import PROMPT_VERSION
 
     return PROMPT_VERSION
+
+
+#: Los flags que deciden QUE GRAFO se mide, no solo como se comporta.
+#:
+#: `build_node_graph()` anade o quita nodos segun estos valores, asi que dos ejecuciones
+#: con distinto valor aqui no son dos medidas del mismo sistema: son medidas de sistemas
+#: distintos. Sin ellos en el JSON el resultado no es falsable — no hay forma de mirar una
+#: ejecucion guardada y decidir si midio lo que se sirve.
+#:
+#: Existe por una medicion, no por prolijidad. El 2026-08-28 se descubrio que 91 renders de
+#: siete ejecuciones, desde el 22 de agosto, habian corrido con `ADAPTIVE_EPISODES` en False
+#: contra un `.env` que lo pone en true: el banco jamas construyo el nodo `direct_episode` y
+#: por tanto nunca midio el camino que ve un aprendiz. Se descubrio leyendo `steps` render a
+#: render, que es justo lo que este campo evita tener que hacer. Es el mismo argumento por el
+#: que ya se guardan `prompt_version` y `catalog_version`.
+_MEASURED_FLAGS: tuple[str, ...] = (
+    "ADAPTIVE_EPISODES",
+    "MULTI_AGENT_RENDER",
+    "RUNTIME_COMPONENT_SHORTLIST",
+    "SEMANTIC_ROUTER",
+    "RENDER_BACKEND",
+)
+
+
+def _runtime_flags() -> dict[str, Any]:
+    """Los flags efectivos, tal y como `build_node_graph()` los va a leer."""
+
+    return {name: getattr(settings, name, None) for name in _MEASURED_FLAGS}
+
+
+def _graph_path() -> str:
+    """El camino que estos flags producen, nombrado como se habla de el.
+
+    Se deriva de la misma condicion de `graph.py` en vez de repetir la regla de memoria:
+    `probe_gate` enruta a `direct_episode` cuando `ADAPTIVE_EPISODES`, y a `decide_formato`
+    cuando no. Es una etiqueta legible; los flags de arriba siguen siendo la verdad.
+    """
+
+    if settings.ADAPTIVE_EPISODES:
+        return "episode"
+    if settings.MULTI_AGENT_RENDER and not settings.RUNTIME_COMPONENT_SHORTLIST:
+        return "legacy+multi-agent"
+    return "legacy"
 
 
 def _catalog_version() -> str:
