@@ -1,6 +1,11 @@
 # Future: prerequisite handling for learners
 
 > Status: idea, not planned. Documenting for when the runtime learner experience is revisited.
+>
+> **Superseded in part (2026-08-28) by `future-progression-modes.md`.** The decision there is
+> that prerequisites stop blocking altogether, so the question this document opens — what to
+> offer a learner who hits a locked node — stops being asked. What survives here is the
+> mini-course idea, which is worth keeping for the day a learner asks for one on their own.
 
 ## Current behavior
 
