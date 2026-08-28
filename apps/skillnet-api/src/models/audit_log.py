@@ -1,4 +1,4 @@
-"""Administrative audit trail for schema validation and waivers.
+"""Administrative audit trail for schema validation, waivers and deletions.
 
 ``detail`` on ``course_schema_validated`` stores the proposed -> validated diff
 (nodes added, deleted, fields edited), so it is measurable whether creators really
@@ -18,6 +18,11 @@ AUDIT_ACTIONS: tuple[str, ...] = (
     "course_schema_validated",
     "course_schema_unvalidated",
     "node_waived",
+    # The only action whose subject no longer exists once it is recorded. Deleting a
+    # course is now allowed in any status and with people enrolled in it, so the row
+    # here is the only thing left saying who removed what, and how much training went
+    # with it: `detail` carries the title, the status it had, and the enrollment counts.
+    "course_deleted",
 )
 
 

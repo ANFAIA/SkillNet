@@ -244,7 +244,19 @@ class Course(UUIDMixin, TimestampMixin, Base):
         cascade="all, delete-orphan",
         order_by="Module.position",
     )
-    enrollments: Mapped[list["Enrollment"]] = relationship(back_populates="course")
+    #: Deleting a course deletes them, and the database is what does it.
+    #:
+    #: passive_deletes=True is the half that is easy to miss: without it SQLAlchemy
+    #: insists on emptying the children itself before the parent goes, which for a plain
+    #: relationship means UPDATE enrollments SET course_id = NULL — a not-null column,
+    #: so the delete died on a NotNullViolationError and the ON DELETE CASCADE of
+    #: migration 0032 never got the chance to run. With it, the ORM steps aside and lets
+    #: the constraint do the work in one statement.
+    enrollments: Mapped[list["Enrollment"]] = relationship(
+        back_populates="course",
+        cascade="all, delete",
+        passive_deletes=True,
+    )
     folder: Mapped["CourseFolder | None"] = relationship(back_populates="courses")
     artifact_generators: Mapped[list["CourseArtifactGenerator"]] = relationship(
         back_populates="course",

@@ -25,6 +25,13 @@ export interface CourseFilters {
    * the ones that happened to be on it.
    */
   generationState?: CourseGenerationState
+  /**
+   * Leave the archived courses out. Server-side, and an opt-out: `GET /courses` still
+   * returns the whole catalogue by default, because the demo lookup and the counts on
+   * other screens mean all of it. Only the library hides them, and it offers them behind
+   * their own entry instead.
+   */
+  includeArchived?: boolean
   offset?: number
   limit?: number
 }
@@ -39,6 +46,7 @@ export function useCourses(filters?: CourseFilters) {
       if (filters?.folderId) params.set('folder_id', filters.folderId)
       if (filters?.unorganized) params.set('unorganized', 'true')
       if (filters?.generationState) params.set('generation_state', filters.generationState)
+      if (filters?.includeArchived === false) params.set('include_archived', 'false')
       params.set('offset', String(filters?.offset ?? 0))
       params.set('limit', String(filters?.limit ?? 100))
       return get<Paginated<CourseRead>>(`/courses?${params.toString()}`)
@@ -156,8 +164,11 @@ export function useArchiveCourse() {
 /**
  * The way back from `archived`. Returns the course as `published` — only a published
  * course can be archived, so that is the status it had and nothing has to remember it.
- * 409 if it was not archived, 422 if the course lost its last node or lesson while
- * archived (unarchiving re-runs the publish checks); the caller shows either as-is.
+ * 409 if it was not archived, 422 if it can no longer be published — no outcome, no
+ * title, nothing left to deliver — because unarchiving re-runs the publish checks. Those
+ * messages are English and speak of publishing, an action the admin did not press, so
+ * `pages/admin/Content.tsx` translates them from the button that was pressed instead of
+ * showing them raw.
  *
  * Same invalidations as archive plus `course-folders`: the folder assignment dialog
  * counts a folder's PUBLISHED courses, and un-archiving is one of the two moves that

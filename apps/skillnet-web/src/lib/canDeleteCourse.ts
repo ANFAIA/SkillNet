@@ -3,12 +3,16 @@ import type { CourseRead } from '../types'
 /**
  * Whether to offer the delete action for a course.
  *
- * The server is the authority — `DELETE /courses/{id}` refuses anything that is not a
- * draft, and any draft somebody is enrolled in, both with a 409 the screen shows. This is
- * only about not offering a button that is certain to be refused, which is why it stops at
- * what a course listing already knows. The demo course is excluded because it is seeded,
- * not authored: deleting it leaves the org with an empty tour and no way back.
+ * It used to also require a draft, because the server refused anything else. That rule is
+ * gone: an admin may delete their own content in any status, enrollments included, and
+ * the safeguard is the warning in front of it — the exact numbers, and the course title
+ * typed back when somebody has already completed it — plus the `course_deleted` row in
+ * `audit_log` that outlives the course.
+ *
+ * The demo course is still excluded, and for a reason that has nothing to do with status:
+ * it is seeded, not authored. Deleting it leaves the organization with an empty tour and
+ * no way back.
  */
 export function canDeleteCourse(course: CourseRead): boolean {
-  return course.status === 'draft' && !course.is_demo
+  return !course.is_demo
 }

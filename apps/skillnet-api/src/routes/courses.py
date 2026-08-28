@@ -241,6 +241,11 @@ async def list_courses(
     folder_id: Annotated[uuid.UUID | None, Query()] = None,
     unorganized: Annotated[bool, Query()] = False,
     generation_state: Annotated[str | None, Query()] = None,
+    #: Opt-out, not a new default. Archived courses have always been part of an
+    #: unfiltered listing and other callers (the demo lookup, the folder counts on
+    #: other screens) still expect the whole catalogue; only the library asks to hide
+    #: them, so the library is what passes ``include_archived=false``.
+    include_archived: Annotated[bool, Query()] = True,
     offset: Annotated[int, Query(ge=0)] = 0,
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
 ) -> PaginatedResponse[CourseRead]:
@@ -252,6 +257,7 @@ async def list_courses(
         folder_id=folder_id,
         unorganized=unorganized,
         generation_state=_parse_generation_state(generation_state),
+        include_archived=include_archived,
         offset=offset,
         limit=limit,
     )
@@ -426,7 +432,9 @@ async def delete_course(
     admin: AdminUser, db: DBSession, course_id: uuid.UUID
 ) -> Response:
     service = _service(db)
-    await service.delete(course_id=course_id, org_id=admin.org_id)
+    await service.delete(
+        course_id=course_id, org_id=admin.org_id, actor_id=admin.id
+    )
     await db.commit()
     return Response(status_code=204)
 

@@ -6,6 +6,8 @@ export interface EnrollmentFilters {
   status?: string
   user_id?: string
   course_id?: string
+  /** Rows to bring back. A caller that only wants `total` asks for one. */
+  limit?: number
 }
 
 function toQuery(filters?: EnrollmentFilters): string {
@@ -14,8 +16,38 @@ function toQuery(filters?: EnrollmentFilters): string {
   if (filters.status) params.set('status', filters.status)
   if (filters.user_id) params.set('user_id', filters.user_id)
   if (filters.course_id) params.set('course_id', filters.course_id)
+  if (filters.limit !== undefined) params.set('limit', String(filters.limit))
   const qs = params.toString()
   return qs ? `?${qs}` : ''
+}
+
+/** How much training a course delete is about to destroy. */
+export interface CourseDeletionImpact {
+  /** Everyone the course was ever assigned to. */
+  total: number
+  /** How many of them finished it. These are the records nobody can rebuild. */
+  completed: number
+}
+
+/**
+ * Read the size of what deleting a course would take with it.
+ *
+ * Imperative rather than a query hook because it answers a question asked at the moment
+ * of a click, once: the warning cannot be written until the numbers are known, and a
+ * hook would have to be mounted and enabled a render earlier — with the click handler
+ * then waiting on a cache to fill. `startCourseFinalization` in `api/schema.ts` is the
+ * same shape for the same reason.
+ *
+ * Two reads of a single row, not the list: `limit=1` and only `total` is used. The
+ * completed count needs its own read because the endpoint filters by one status at a
+ * time, and it is the number the warning turns on.
+ */
+export async function fetchCourseDeletionImpact(courseId: string): Promise<CourseDeletionImpact> {
+  const [all, completed] = await Promise.all([
+    get<Paginated<EnrollmentRead>>(`/enrollments?course_id=${courseId}&limit=1`),
+    get<Paginated<EnrollmentRead>>(`/enrollments?course_id=${courseId}&status=completed&limit=1`),
+  ])
+  return { total: all.total, completed: completed.total }
 }
 
 export function useEnrollments(filters?: EnrollmentFilters) {

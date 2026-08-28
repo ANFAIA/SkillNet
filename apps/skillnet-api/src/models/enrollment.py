@@ -37,8 +37,13 @@ class Enrollment(UUIDMixin, Base):
     user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
+    #: ``CASCADE`` since migration 0032. An admin may delete a course in any status,
+    #: enrollments included; an enrollment whose course is gone is not history worth
+    #: keeping but a broken row, because its progress, score and deadline all describe
+    #: content that no longer exists. What survives the delete is the ``course_deleted``
+    #: entry in ``audit_log``, which records the counts this cascade removed.
     course_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("courses.id"), nullable=False
+        ForeignKey("courses.id", ondelete="CASCADE"), nullable=False
     )
     assigned_by: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"), nullable=True

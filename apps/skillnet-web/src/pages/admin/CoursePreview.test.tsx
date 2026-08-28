@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -52,9 +52,19 @@ const COURSE = {
   ],
 }
 
-function installFetch(onDelete?: () => ReturnType<typeof jsonResponse>) {
+function installFetch(
+  onDelete?: () => ReturnType<typeof jsonResponse>,
+  enrollments: { total: number; completed: number } = { total: 0, completed: 0 },
+) {
   mockFetch.mockImplementation((input: string, options?: RequestInit) => {
     const url = String(input)
+    // The two one-row reads that size the delete warning. Same flow as the library's:
+    // both screens go through `useCourseDeletion`.
+    if (url.includes('/enrollments?')) {
+      const asked = new URL(url, 'http://test.local')
+      const total = asked.searchParams.get('status') === 'completed' ? enrollments.completed : enrollments.total
+      return jsonResponse(200, { items: [], total, offset: 0, limit: 1 })
+    }
     if (url.endsWith('/health')) {
       return jsonResponse(200, {
         status: 'ok',
@@ -126,7 +136,7 @@ describe('CoursePreview — deleting the draft on screen', () => {
 
     await userEvent.click(await screen.findByRole('button', { name: 'Eliminar' }))
 
-    expect(window.confirm).toHaveBeenCalledWith(expect.stringContaining('Devoluciones en tienda'))
+    await waitFor(() => expect(window.confirm).toHaveBeenCalledWith(expect.stringContaining('Devoluciones en tienda')))
     expect(mockFetch.mock.calls.some(([input, options]) =>
       String(input).endsWith(`/courses/${COURSE_ID}`) &&
       (options as RequestInit | undefined)?.method === 'DELETE',
@@ -134,14 +144,28 @@ describe('CoursePreview — deleting the draft on screen', () => {
     expect(await screen.findByText('CONTENIDO')).toBeInTheDocument()
   })
 
-  it('stays put and shows what the server said when the delete is refused', async () => {
+  it('stays put and explains a refused delete in the admin\'s language', async () => {
     vi.spyOn(window, 'confirm').mockReturnValue(true)
-    installFetch(() => jsonResponse(409, { detail: 'Cannot delete a course that has enrollments', code: 'CONFLICT' }))
+    installFetch(() => jsonResponse(409, { detail: 'This course is still referenced by other records and cannot be deleted. Archive it instead.', code: 'CONFLICT' }))
     renderPage()
 
     await userEvent.click(await screen.findByRole('button', { name: 'Eliminar' }))
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Cannot delete a course that has enrollments')
+    expect(await screen.findByRole('alert')).toHaveTextContent(/algo m\u00e1s sigue apuntando a este curso/)
     expect(screen.queryByText('CONTENIDO')).toBeNull()
+  })
+
+  it('demands the title here too when somebody already completed the course', async () => {
+    // The warning belongs to the action, not to the screen: reaching the delete from the
+    // preview instead of from the library must not buy a weaker safeguard.
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    installFetch(undefined, { total: 34, completed: 12 })
+    renderPage()
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Eliminar' }))
+
+    const dialog = await screen.findByRole('dialog')
+    expect(confirmSpy).not.toHaveBeenCalled()
+    expect(within(dialog).getByRole('button', { name: 'Eliminar el curso' })).toBeDisabled()
   })
 })

@@ -14,6 +14,8 @@ from src.models import (
     CourseArtifactGenerator,
     CourseGenerationState,
     CourseNode,
+    Enrollment,
+    EnrollmentStatus,
     Lesson,
     Module,
 )
@@ -52,13 +54,22 @@ class CourseRepository(BaseRepository[Course]):
         folder_id: uuid.UUID | None = None,
         unorganized: bool = False,
         generation_state: CourseGenerationState | None = None,
+        include_archived: bool = True,
         offset: int = 0,
         limit: int = 50,
     ) -> tuple[Sequence[tuple[Course, int, int]], int]:
-        """Return ``(course, module_count, node_count)`` triples plus the total."""
+        """Return ``(course, module_count, node_count)`` triples plus the total.
+
+        ``include_archived=False`` drops the archived courses, and only when no explicit
+        ``status`` was asked for: a caller that asked for one status already said which
+        rows it wants, and letting the flag also apply there would make
+        ``status=archived, include_archived=False`` an unanswerable question.
+        """
         filters: list[ColumnElement[bool]] = [Course.org_id == org_id]
         if status is not None:
             filters.append(Course.status == status)
+        elif not include_archived:
+            filters.append(Course.status != ContentStatus.ARCHIVED)
         if generation_state is not None:
             filters.append(Course.generation_state == generation_state)
         if search:
@@ -95,6 +106,20 @@ class CourseRepository(BaseRepository[Course]):
         total = (await self.session.execute(count_query)).scalar_one()
         result = await self.session.execute(query.offset(offset).limit(limit))
         return [(row[0], row[1], row[2]) for row in result.all()], total
+
+    async def count_enrollments(self, course_id: uuid.UUID) -> tuple[int, int]:
+        """``(total, completed)`` enrollments of one course, in a single round trip.
+
+        Counted rather than loaded: the caller is :meth:`CourseService.delete`, which
+        needs the size of what it is about to destroy for the audit row, not the rows
+        themselves. A course assigned to a whole company has thousands of them.
+        """
+        query = select(
+            func.count(),
+            func.count().filter(Enrollment.status == EnrollmentStatus.COMPLETED),
+        ).where(Enrollment.course_id == course_id)
+        total, completed = (await self.session.execute(query)).one()
+        return int(total), int(completed)
 
     async def get_detail(self, id: uuid.UUID, org_id: uuid.UUID) -> Course | None:
         """Eager-load modules -> lessons -> exercises, ordered by position."""
@@ -137,16 +162,3 @@ class CourseRepository(BaseRepository[Course]):
                 CourseArtifactGenerator(course_id=course_id, user_id=user_id)
             )
         await self.session.flush()
-
-    async def get_with_enrollments(
-        self, id: uuid.UUID, org_id: uuid.UUID
-    ) -> Course | None:
-        query = (
-            select(Course)
-            .where(Course.id == id, Course.org_id == org_id)
-            # `folder` for the same reason as in `get_scoped`: `POST …/archive` projects
-            # the course it gets from here and would otherwise report `folder_name: null`
-            # for a course that is in a folder.
-            .options(selectinload(Course.enrollments), selectinload(Course.folder))
-        )
-        return (await self.session.execute(query)).scalar_one_or_none()

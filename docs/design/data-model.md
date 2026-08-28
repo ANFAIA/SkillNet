@@ -351,7 +351,10 @@ CREATE TYPE enrollment_status AS ENUM ('assigned', 'in_progress', 'completed');
 CREATE TABLE enrollments (
     id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id       uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    course_id     uuid NOT NULL REFERENCES courses(id),
+    -- ON DELETE CASCADE since migration 0032: an admin may delete a course in any
+    -- status, enrollments included. What survives is the `course_deleted` row in
+    -- `audit_log`, which records who removed what and how many enrollments went.
+    course_id     uuid NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
     assigned_by   uuid REFERENCES users(id) ON DELETE SET NULL,
     status        enrollment_status NOT NULL DEFAULT 'assigned',
     deadline      date,

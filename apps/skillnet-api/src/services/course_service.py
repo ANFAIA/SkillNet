@@ -16,6 +16,7 @@ from src.models import (
     CourseTutorStyle,
     User,
 )
+from src.repositories.audit_log_repo import AuditLogRepository, course_subject
 from src.repositories.course_repo import CourseRepository
 from src.repositories.course_folder_repo import CourseFolderRepository
 from src.repositories.media_artifact_repo import MediaArtifactRepository
@@ -216,14 +217,37 @@ class CourseService:
             )
         return await self.publish(course_id=course_id, org_id=org_id)
 
-    async def delete(self, *, course_id: uuid.UUID, org_id: uuid.UUID) -> None:
-        course = await self.repo.get_with_enrollments(course_id, org_id)
-        if course is None:
-            raise NotFoundError("courses", str(course_id))
-        if course.status != ContentStatus.DRAFT:
-            raise ConflictError("Only draft courses can be deleted")
-        if course.enrollments:
-            raise ConflictError("Cannot delete a course that has enrollments")
+    async def delete(
+        self,
+        *,
+        course_id: uuid.UUID,
+        org_id: uuid.UUID,
+        actor_id: uuid.UUID | None = None,
+    ) -> None:
+        """Remove a course, whatever its status and whoever is enrolled in it.
+
+        This used to refuse anything that was not an empty draft. The refusal was not a
+        safety property, only an obstacle: an admin who wants a published course gone
+        archives it, finds it still there, and ends up asking somebody with database
+        access. Every other tool in this category lets you delete your own content.
+
+        The safeguard is no longer a prohibition, it is a record. What disappears here
+        is other people's training history — ``enrollments.course_id`` cascades since
+        migration 0032 — so before the row goes, an ``audit_log`` entry says who removed
+        what, when, in which status, and how many enrollments (and how many completed
+        ones) went with it. That row is all that is left of the accountability once the
+        data is gone, which is why it is written in the same transaction as the delete.
+
+        The caller is expected to have warned in proportion: the library shows the exact
+        numbers and asks for the title to be typed back when completed enrollments are
+        involved.
+        """
+        course = await self.get_scoped(course_id, org_id)
+        deleted_title = course.title
+        deleted_status = course.status.value
+        # Counted before the delete, for the same reason the asset paths are read
+        # before it: afterwards nothing can say how much there was.
+        enrollment_count, completed_count = await self.repo.count_enrollments(course_id)
 
         media = MediaArtifactRepository(self.repo.session)
         # Read the paths first: the rows cascade away with the course, and afterwards
@@ -239,6 +263,18 @@ class CourseService:
                 "This course is still referenced by other records and cannot be "
                 "deleted. Archive it instead."
             ) from exc
+        await AuditLogRepository(self.repo.session).record(
+            org_id=org_id,
+            actor_id=actor_id,
+            action="course_deleted",
+            subject=course_subject(course_id),
+            detail={
+                "title": deleted_title,
+                "status": deleted_status,
+                "enrollment_count": enrollment_count,
+                "completed_enrollment_count": completed_count,
+            },
+        )
         await self._remove_orphan_assets(media, course_id, asset_paths)
 
     @staticmethod
