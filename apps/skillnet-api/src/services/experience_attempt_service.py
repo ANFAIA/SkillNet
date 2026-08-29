@@ -26,7 +26,7 @@ from src.schemas.learning_experience import (
     ExperienceAttemptSubmission,
     NormalizedEvidenceRead,
 )
-from src.services.activity_definitions import ActivityDefinitionService
+from src.services.activity_definitions import ActivityDefinitionService, sanitized_error_kind
 from src.services.activity_ports import PortDeclined
 from src.services.activity_solution import revealed_solution
 from src.services.course_delivery import resolve_delivery
@@ -270,8 +270,9 @@ class ExperienceAttemptService:
         if raw_error is not None and not isinstance(raw_error, str):
             raise ValidationError("evaluation returned an invalid error_kind")
         # A provider adapter may supply a richer, server-owned classification. The
-        # neutral bridge must not infer pedagogy from a concrete component ID.
-        error_kind = raw_error or (None if passed_value else f"{outcome}_response")
+        # neutral bridge must not infer pedagogy from a concrete component ID — and must
+        # not invent a label the column cannot store either.
+        error_kind = sanitized_error_kind(raw_error)
         return outcome, score, passed_value, hints_value, error_kind
 
     async def _read(

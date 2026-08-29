@@ -5,6 +5,7 @@ import {
   activityHintPath,
   useActivitySolution,
   useActivitySolutionRevealed,
+  useActivityFailures,
 } from '../../../api/activities'
 import { ActivityNotEvaluableError } from '../../../lib/didact'
 import type { DidactHostPorts, EvaluationResult, EvaluationSolution } from '../../../lib/didact'
@@ -429,6 +430,12 @@ export function SecureEvaluatedActivity({
   // somebody who had already been given the answer. The written solution is not re-sent
   // — knowing it was shown is enough to keep the activity closed.
   const revealedBefore = useActivitySolutionRevealed(activityId)
+  // Failures the server has recorded, plus the one this component just saw. The local half
+  // matters because the server count arrives on the next fetch, and the help has to appear
+  // the instant the verdict lands — not one refetch later.
+  const failuresOnServer = useActivityFailures(activityId)
+  const [failedHere, setFailedHere] = useState(false)
+  const hasFailed = failedHere || failuresOnServer > 0
 
   useEffect(() => {
     void ports.events?.emit({
@@ -462,6 +469,7 @@ export function SecureEvaluatedActivity({
     try {
       const evaluated = await evaluateDidactSubmission(activityId, componentId, ports, answer)
       setResult(evaluated)
+      if (evaluated.outcome !== 'correct') setFailedHere(true)
       // Same three reports as `QuizItemBlock`, so the glow and the mascot behave
       // identically in both families: a win, a definitive miss (the solution is out and
       // there is no retry), and a miss with an attempt still left. `unscored` is nobody's
@@ -501,6 +509,9 @@ export function SecureEvaluatedActivity({
   const retry = () => {
     setResult(undefined)
     setError(false)
+    // A failed reveal left its red line on screen across the whole next attempt, so a
+    // learner who then answered correctly was told the solution could not be shown.
+    solutionRequest.reset()
     setAnswer(initialAnswer(componentId, componentProps))
     setAttemptNonce((nonce) => nonce + 1)
   }
@@ -600,12 +611,18 @@ export function SecureEvaluatedActivity({
                 )}
                 {/* The way out the owner asked for, next to the automatic one: four
                     failures still hand the solution over on their own, and this is the
-                    same exit taken on purpose instead of by exhaustion. */}
+                    same exit taken on purpose instead of by exhaustion.
+                    Held back until the learner has got it wrong once. Offering the answer
+                    to somebody who has not tried is not an escape hatch, it is a shortcut
+                    past the exercise — and the exercise is the lesson. The automatic
+                    hand-over at the fourth failure is unaffected: it never needed a button. */}
+                {hasFailed && (
                 <Button type="button" variant="ghost" disabled={solutionRequest.isPending} onClick={reveal}>
                   {solutionRequest.isPending
                     ? intl.formatMessage({ id: 'hints.revealing' })
                     : intl.formatMessage({ id: 'hints.reveal' })}
                 </Button>
+                )}
               </div>
             )}
             {solutionRequest.isError && (
@@ -625,7 +642,7 @@ export function SecureEvaluatedActivity({
           (`api/activities.activityHintPath`). It stays mounted once the activity closes so
           the hints already earned sit next to the solution; only the "ask for another"
           affordance goes away. */}
-      {unevaluable ? null : (
+      {unevaluable || !hasFailed ? null : (
         <HintLadder endpoint={activityHintPath(activityId)} disabled={closed} />
       )}
       {solutionShown ? <WorkedSolution solution={solution} /> : null}

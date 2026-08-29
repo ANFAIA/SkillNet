@@ -13,6 +13,7 @@ from typing import Any
 
 from src.core.exceptions import ConflictError, NotFoundError, ValidationError
 from src.models.activity_definition import ActivityDefinition
+from src.models.learner_node_state import ErrorKind
 from src.repositories.activity_definition_repo import (
     ActivityDefinitionRepository,
     ActivityStateRepository,
@@ -402,6 +403,28 @@ def public_feedback(public_definition: Mapping[str, Any] | None, outcome: str) -
     return value if isinstance(value, str) else None
 
 
+#: The only classifications ``learner_node_states.last_error_kind`` accepts. The column is
+#: a Postgres enum, so anything else is not a weaker value — it is a failed INSERT.
+_ERROR_KINDS: frozenset[str] = frozenset(k.value for k in ErrorKind)
+
+
+def sanitized_error_kind(raw_error: str | None) -> str | None:
+    """Let through a real classification and drop anything else.
+
+    Until 2026-08-30 both scoring bridges fabricated ``f"{outcome}_response"`` when the
+    adapter classified nothing, on the reasoning that a failure deserved *some* label.
+    ``"incorrect_response"`` is not a member of the ``error_kind`` enum, so **every wrong
+    answer through ``POST /activities/{id}/evaluate`` returned 500** — the learner saw the
+    activity break precisely when they needed it to help. Nothing read the invented value
+    either: the only consumer is the ``revisar_prerrequisito`` signal, which compares
+    against ``'conceptual'``.
+
+    Not classifying is a legitimate answer. ``None`` says "this adapter does not know what
+    kind of mistake this was", which is true, and the column is nullable for that reason.
+    """
+    return raw_error if raw_error in _ERROR_KINDS else None
+
+
 def validated_score(evaluated: Mapping[str, Any]) -> tuple[str, float, bool, str | None]:
     """Refuse to move a learner's mastery on an evaluation that is not scored evidence.
 
@@ -430,8 +453,9 @@ def validated_score(evaluated: Mapping[str, Any]) -> tuple[str, float, bool, str
     if raw_error is not None and not isinstance(raw_error, str):
         raise ValidationError("evaluation returned an invalid error_kind")
     # An adapter may supply a richer, server-owned classification. The neutral bridge must
-    # not infer pedagogy from a concrete component id.
-    error_kind = raw_error or (None if passed_value else f"{outcome}_response")
+    # not infer pedagogy from a concrete component id — and must not invent a label the
+    # column cannot store either (see ``sanitized_error_kind``).
+    error_kind = sanitized_error_kind(raw_error)
     return str(outcome), score, passed_value, error_kind
 
 

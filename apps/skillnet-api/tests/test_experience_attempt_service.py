@@ -14,6 +14,8 @@ from src.services.experience_attempt_service import (
     attempt_request_digest,
 )
 from src.services.mastery_service import WORKED_SOLUTION_FAILURES, transition_on_answer
+from src.models.learner_node_state import ErrorKind
+from src.services.activity_definitions import validated_score
 
 
 class Session:
@@ -361,8 +363,38 @@ def test_error_classification_is_adapter_owned_not_component_owned():
         }
     )
 
-    assert generic[-1] == "incorrect_response"
+    # An adapter that does not classify gets `None`, not an invented label. Until
+    # 2026-08-30 this asserted `"incorrect_response"` — a value the `error_kind` enum
+    # cannot store, so it locked in a 500 on every wrong answer.
+    assert generic[-1] is None
     assert adapted[-1] == "procedural"
+
+
+@pytest.mark.parametrize(
+    "evaluated",
+    [
+        {"outcome": "incorrect", "score": 0.0, "passed": False},
+        {"outcome": "partial", "score": 0.5, "passed": False},
+        {"outcome": "correct", "score": 1.0, "passed": True},
+        {"outcome": "incorrect", "score": 0.0, "passed": False, "error_kind": "conceptual"},
+        {"outcome": "incorrect", "score": 0.0, "passed": False, "error_kind": "incorrect_response"},
+        {"outcome": "incorrect", "score": 0.0, "passed": False, "error_kind": "vaguely_wrong"},
+    ],
+)
+def test_error_kind_always_fits_the_column(evaluated):
+    """Whatever comes out has to be storable, or the request 500s in the learner's face.
+
+    `last_error_kind` is a Postgres enum. Both scoring bridges are checked, because they
+    are copies of each other and the bug was in both.
+    """
+    valid = {k.value for k in ErrorKind}
+
+    from_attempts = ExperienceAttemptService._validated_score(evaluated)[-1]
+    from_evaluate = validated_score(evaluated)[-1]
+
+    assert from_attempts is None or from_attempts in valid
+    assert from_evaluate is None or from_evaluate in valid
+    assert from_attempts == from_evaluate
 
 
 class CountingSession:

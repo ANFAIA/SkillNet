@@ -46,18 +46,33 @@ export const activityHintPath = (activityId: string) =>
 export const activityRevealKey = (activityId: string) =>
   ['activities', activityId, 'solution-revealed'] as const
 
-export function useActivitySolutionRevealed(activityId: string) {
-  const query = useQuery({
+function useActivityServerState(activityId: string) {
+  return useQuery({
     queryKey: activityRevealKey(activityId),
     queryFn: () =>
-      get<{ solution_revealed?: boolean }>(
+      get<{ solution_revealed?: boolean; failures?: number }>(
         `/activities/${encodeURIComponent(activityId)}/state`,
       ),
     staleTime: 5 * 60 * 1000,
     retry: false,
     refetchOnWindowFocus: false,
   })
-  return query.data?.solution_revealed === true
+}
+
+export function useActivitySolutionRevealed(activityId: string) {
+  return useActivityServerState(activityId).data?.solution_revealed === true
+}
+
+/**
+ * How many graded attempts this learner has already failed on this activity.
+ *
+ * Read by the block that decides whether the help is on screen yet. Defaults to `0` while
+ * loading and on error, which errs towards *not* offering the answer to somebody who has
+ * not tried — the opposite bias to `useActivitySolutionRevealed`, and for the same reason:
+ * each default is the recoverable one for what it guards.
+ */
+export function useActivityFailures(activityId: string) {
+  return useActivityServerState(activityId).data?.failures ?? 0
 }
 /**
  * The learner asking to see the solution, instead of waiting for the fourth failure to

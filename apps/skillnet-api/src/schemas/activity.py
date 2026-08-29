@@ -119,6 +119,14 @@ class ActivityStateRead(BaseModel):
     #: Without it the closure lived only in component memory: a reload showed the activity
     #: open again, ready to be answered by somebody who had already read the answer.
     solution_revealed: bool = False
+    #: How many graded attempts this learner has failed on this activity. Server-owned, from
+    #: the same row as ``solution_revealed``.
+    #:
+    #: It exists so the help — the hint ladder and "show me the solution" — can stay off
+    #: screen until the learner has actually got it wrong once. Component memory was not
+    #: enough for that: a reload would have put the help back in front of somebody who had
+    #: not tried yet, and taken it away from somebody who had.
+    failures: int = 0
 
     @classmethod
     def of(
@@ -127,11 +135,13 @@ class ActivityStateRead(BaseModel):
         row: ActivityState | None,
         *,
         solution_revealed: bool = False,
+        failures: int = 0,
     ) -> "ActivityStateRead":
         return cls(
             activity_id=activity_id,
             state=dict(row.state or {}) if row else {},
             solution_revealed=solution_revealed,
+            failures=failures,
         )
 
 

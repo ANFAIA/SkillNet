@@ -211,6 +211,7 @@ async def get_activity_state(user: CurrentUser, db: DBSession, activity_id: uuid
         activity.id,
         row,
         solution_revealed=bool(getattr(learner, "solution_revealed_at", None)),
+        failures=int(getattr(learner, "failures_count", 0) or 0),
     )
 
 

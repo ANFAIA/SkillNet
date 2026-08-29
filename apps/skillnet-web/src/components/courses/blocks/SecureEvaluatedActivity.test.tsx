@@ -423,10 +423,38 @@ describe('SecureEvaluatedActivity — asking for help', () => {
   const hintButton = () => screen.getByRole('button', { name: es['hints.request'] })
   const revealButton = () => screen.getByRole('button', { name: es['hints.reveal'] })
 
+  /**
+   * Get it wrong once, which is what puts the help on screen at all.
+   *
+   * Neither affordance exists before that (see the test below). Every test in this block
+   * is about what the help does once it is available, so they all start here rather than
+   * each re-deriving the rule.
+   */
+  async function failOnce(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByLabelText('Cada semana'))
+    await user.click(screen.getByRole('button', { name: es['activity.check'] }))
+    await screen.findByRole('button', { name: es['quiz.retry'] })
+  }
+
+  it('offers no help until the learner has got it wrong once', async () => {
+    const user = userEvent.setup()
+    renderActivity()
+
+    // Handing the answer to somebody who has not tried is not an escape hatch.
+    expect(screen.queryByRole('button', { name: es['hints.request'] })).toBeNull()
+    expect(screen.queryByRole('button', { name: es['hints.reveal'] })).toBeNull()
+
+    await failOnce(user)
+
+    expect(hintButton()).toBeInTheDocument()
+    expect(revealButton()).toBeInTheDocument()
+  })
+
   it('asks the activity endpoint for a hint and prints what the server sent', async () => {
     const user = userEvent.setup()
     mockedPost.mockResolvedValue({ hint: 'Mira la fecha del último cierre', hints_used: 1, hints_remaining: 2 })
     renderActivity()
+    await failOnce(user)
 
     await user.click(hintButton())
 
@@ -440,6 +468,7 @@ describe('SecureEvaluatedActivity — asking for help', () => {
     const user = userEvent.setup()
     mockedPost.mockRejectedValue(new ApiError(409, { detail: 'Inténtalo una vez antes de pedir una pista.' }))
     renderActivity()
+    await failOnce(user)
 
     await user.click(hintButton())
 
@@ -450,6 +479,7 @@ describe('SecureEvaluatedActivity — asking for help', () => {
     const user = userEvent.setup()
     mockedPost.mockResolvedValue({ solution: 'El primer lunes de cada mes', explanation: 'El ciclo es mensual.' })
     const { solve, report } = renderActivity()
+    await failOnce(user)
 
     await user.click(revealButton())
 
@@ -462,8 +492,9 @@ describe('SecureEvaluatedActivity — asking for help', () => {
     expect(screen.queryByRole('button', { name: es['hints.request'] })).not.toBeInTheDocument()
     // And the step opens, or the learner reads the answer and stays shut in.
     expect(solve).toHaveBeenCalled()
-    // Asking for help is not a verdict: no red, no mascot.
-    expect(report).not.toHaveBeenCalled()
+    // Asking for help is not a verdict: no red, no mascot. The one call on the books is
+    // the failed attempt that put the button on screen — the reveal adds none.
+    expect(report).toHaveBeenCalledTimes(1)
   })
 
   it('is honest when the server has no solution written for the activity', async () => {
@@ -472,10 +503,13 @@ describe('SecureEvaluatedActivity — asking for help', () => {
     // words. It still closes the activity, so the learner still has to be let out.
     mockedPost.mockResolvedValue(null)
     const { solve } = renderActivity()
+    await failOnce(user)
 
     await user.click(revealButton())
 
-    expect(await screen.findByText(es['activity.solutionUnavailable'])).toBeInTheDocument()
+    // The wording comes from `Result`, not from the standalone line: once there is a
+    // verdict on screen the two would say the same thing twice, so only one of them does.
+    expect(await screen.findByText(es['activity.result.incorrectNoSolution'])).toBeInTheDocument()
     expect(screen.queryByText('Solución paso a paso')).not.toBeInTheDocument()
     expect(solve).toHaveBeenCalled()
   })
@@ -484,14 +518,32 @@ describe('SecureEvaluatedActivity — asking for help', () => {
     const user = userEvent.setup()
     mockedPost.mockRejectedValue(new Error('network'))
     const { solve } = renderActivity()
+    await failOnce(user)
 
     await user.click(revealButton())
 
     expect(await screen.findByText(es['hints.revealError'])).toBeInTheDocument()
-    // A failed request is not a solution: nothing closed, nothing opened.
-    expect(screen.getByRole('button', { name: 'Comprobar respuesta' })).toBeInTheDocument()
+    // A failed request is not a solution: nothing closed, nothing opened. The attempt is
+    // still there to be made again — which is what "not closed" looks like after a miss.
+    expect(screen.getByRole('button', { name: es['quiz.retry'] })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: es['hints.reveal'] })).toBeInTheDocument()
     expect(solve).not.toHaveBeenCalled()
+  })
+
+  it('drops the failed-reveal warning when the learner tries again', async () => {
+    const user = userEvent.setup()
+    mockedPost.mockRejectedValue(new Error('network'))
+    renderActivity()
+    await failOnce(user)
+
+    await user.click(revealButton())
+    expect(await screen.findByText(es['hints.revealError'])).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: es['quiz.retry'] }))
+
+    // It used to survive the retry, so a learner who then answered correctly was told, in
+    // red, under the word "correct", that the solution could not be shown.
+    expect(screen.queryByText(es['hints.revealError'])).toBeNull()
   })
 
   it('keeps the hints already earned on screen once the activity closes', async () => {
@@ -499,6 +551,7 @@ describe('SecureEvaluatedActivity — asking for help', () => {
     mockedPost.mockResolvedValueOnce({ hint: 'Mira la fecha del último cierre', hints_used: 1, hints_remaining: 2 })
     mockedPost.mockResolvedValueOnce({ solution: 'El primer lunes de cada mes' })
     renderActivity()
+    await failOnce(user)
 
     await user.click(hintButton())
     expect(await screen.findByText('Mira la fecha del último cierre')).toBeInTheDocument()
