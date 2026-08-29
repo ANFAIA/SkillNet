@@ -28,6 +28,23 @@ section: "v2"
 > `ScreenScheme`, una fórmula fija de pantalla o agrupación por pasos aplican sólo al fallback
 > `legacy_stepper`; no restringen el camino `episode`. `shell_mode` lo decide el servidor. La
 > migración conserva `src.services.course_delivery.resolve_delivery` como único selector v1/v2.
+>
+> **Progresión y salida del ítem, revisadas el 2026-08-28.** Dos decisiones de §7 se sustituyeron,
+> y este documento ya describe las nuevas; lo que sigue es qué cambió, para quien venga con la
+> versión antigua en la cabeza:
+>
+> 1. **`needs_review` ya no existe** (migración `0033`). Ni el estado, ni la cola "para practicar",
+>    ni `needs_practice` en el contrato, ni `may_reprobe`, ni `REPROBE_COOLDOWN_DAYS`. La regla 8 de
+>    §7.3 **sí sigue existiendo** y es lo importante: ahora va a `learning` conservando
+>    `show_worked_solution`, así que se enseña la solución, el ítem se cierra y el aprendiz sigue.
+>    El dial pasó a llamarse `WORKED_SOLUTION_FAILURES` y **ya no exige haber pedido pistas**:
+>    cuatro fallos del mismo ítem bastan.
+> 2. **La progresión es lineal**: los prerrequisitos ordenan el árbol y alimentan
+>    `revisar_prerrequisito`, pero no cierran puertas. `available` es siempre cierto y
+>    `services/node_progression.py` es el único dueño del predicado "hecho".
+>
+> El porqué de las dos, con la medición que las provocó, en
+> `docs/design/future-progression-modes.md`.
 
 ---
 
@@ -76,7 +93,7 @@ Entre los dos tiempos hay un **gate humano bloqueante**: el creador valida el es
 |-------|--------|
 | `SandboxHTML` / HTML libre generado por el LLM | Vector XSS directo y 12-65 % del código generado con vulnerabilidades. El patrón es `prompt → IR tipada → render nativo`. Se reevalúa cuando exista sandbox de iframe auditado |
 | Componente `Simulation` (parámetros ajustables) | Requiere data-binding y ciclo de vida que la IR no tiene. El valor `simulation` existe en el enum `ui_format` reservado, pero `decide_formato` no lo emite (constante `ALLOWED_UI_FORMATS`) |
-| Repetición espaciada (HLR o FSRS) | **Corrección de premisa:** no existe hoy. `spaced_repetition`/HLR aparece en `data-model.md`, `product.md` y `background-processing.md`, pero **no hay tabla ni módulo en el repo** (verificado: 20 tablas, ningún `half_life`/`next_review` en `src/`). Este PR no lo introduce. Consecuencia directa: el estado `needs_review` **no** lo produce ningún scheduler — su único productor en este PR es el tope de pistas (§7.4) |
+| Repetición espaciada (HLR o FSRS) | **Corrección de premisa:** no existe hoy. `spaced_repetition`/HLR aparece en `data-model.md`, `product.md` y `background-processing.md`, pero **no hay tabla ni módulo en el repo** (verificado: 20 tablas, ningún `half_life`/`next_review` en `src/`). Este PR no lo introduce. Consecuencia directa: no hay ninguna vuelta programada a un nodo ya cerrado. El estado `needs_review`, que existió para prometerla, se retiró el 2026-08-28 sin sustituto (migración `0033`, §7.4) |
 | Segundo backend de dialecto (`a2tl`) | El formato `UIDL/1` de `packages/a2tl-web` es una **lista plana de secciones sin ids ni `children`** (`parser.ts:11-21`) y no tiene primitiva para `QuizItem`, `Stack`, `Card` ni `Callout`. No puede representar la `UISpec` de §5.2, así que el round-trip y el reintento cruzado son imposibles para cualquier spec con ejercicio o contenedores anidados. Entra el `Protocol` + el registro (el seam), no el segundo dialecto. Backlog: si hace falta, será un dialecto **propio de SkillNet**, no el de ese paquete |
 | Tabla `background_jobs` / worker de purga | No existe (verificado). La purga de `learning_events` y `term_explanations` es un **script CLI** (`python -m src.scripts.purge_learning_data`), documentado y ejecutable a mano o por cron del host. Backlog: convertirlo en job real |
 | Fine-tuning QLoRA del DSL | Backlog |
@@ -161,7 +178,7 @@ de este PR:
                                                     │
                                                     ▼
      primer login ──►  ┌────────────────────────────────────────────┐
-                       │  ONBOARDING  (5 pantallas, ≤90 s)          │
+                       │  ONBOARDING  (6 pantallas, ≤90 s)          │
                        │  GET /onboarding · POST /onboarding        │
                        │  rol · objetivo · experiencia · preset ·   │
                        │  ajustes de lectura (opcional)             │
@@ -172,10 +189,10 @@ de este PR:
                        experience_level, preset, format_vector=0)
                                             │
                                             ▼
-                       GET /courses/{id}/nodes   (lista + estado + bloqueo por prereqs)
+                       GET /courses/{id}/nodes   (lista + estado + done/available + next_node_id)
                                             │
                                             ▼
-        ┌──────────────────── por cada nodo desbloqueado ─────────────────────┐
+        ┌───────────────────── por cada nodo, en orden ───────────────────────┐
         │                                                                      │
         │   POST /nodes/{node_id}/probe        ┌─────────────────────────┐     │
         │   ──────────────────────────────────►│  PRE-ASSESSMENT         │     │
@@ -214,9 +231,9 @@ de este PR:
         │               │                 ║  validate_ui                      ║│
         │               │                 ║   adapter.parse() → UISpec        ║│
         │               │                 ║   ├ ok ──────────► persist_render ║│
-        │               │                 ║   ├ inválido & retry<1 ─► genera_ui║│
+        │               │                 ║   ├ inválido & retry≤2 ─► genera_ui║│
         │               │                 ║   └ falla ──────► fallback_seed   ║│
-        │               │                 ║                    (markdown v1)  ║│
+        │               │                 ║                    (texto humano) ║│
         │               │                 ╚═══════════════╤═══════════════════╝│
         │               │                                 │ node_renders       │
         │               │                                 ▼ (ui_spec+answer_key)│
@@ -250,12 +267,12 @@ de este PR:
         │               │                                 │                     │
         │               └─────────────────────────────────┤                     │
         │                                                 ▼                     │
-        │                                  siguiente nodo desbloqueado          │
+        │                                  siguiente nodo, en orden             │
         └──────────────────────────────────────────────────────────────────────┘
                                             │
                                             ▼
                        enrollments.status='completed' cuando todos los
-                       nodos critical están en 'mastered'
+                       nodos están hechos: 'mastered' o completed_at (§7.5)
 ```
 
 ### 2.1 Qué se persiste vs qué se genera
@@ -607,8 +624,12 @@ audio/dwell: como §1.3 quita el chat dentro del nodo y no hay audio, esas fuent
 el vocabulario cerrado es lo único alimentable.
 
 ```sql
+-- Cuatro valores, y no hay un quinto. La migración 0033 (2026-08-28) retiró
+-- 'needs_review' tras un backfill a 'learning': el estado era una etiqueta, y la
+-- salida de emergencia que lo producía —la regla 8 de §7.3— sigue viva en la
+-- bandera `show_worked_solution` de la respuesta. Ver docs/design/future-progression-modes.md
 CREATE TYPE node_state AS ENUM
-    ('not_started', 'probing', 'learning', 'mastered', 'needs_review');
+    ('not_started', 'probing', 'learning', 'mastered');
 CREATE TYPE error_kind AS ENUM ('detail', 'procedural', 'conceptual');
 
 CREATE TABLE learner_node_states (
@@ -651,6 +672,14 @@ CREATE INDEX idx_lns_state ON learner_node_states(user_id, state);
   `score_a == 0`; `advanced` si el probe salió `tiebreak` o `experience_level='experienced'`;
   `neutral` en el resto. Es estable durante todo el nodo por construcción, no por convención.
 - **`waived_by` / `waived_at`**: la vía de escape humana de §7.4 (`POST /nodes/{id}/waive`).
+- **`completed_at`** (migración **0029**, posterior a este DDL): el aprendiz llegó al final del
+  contenido del nodo. **No es una casilla más de la escalera de `state`**, y por eso es una
+  columna y no un valor nuevo del enum: se puede acabar un nodo sin demostrarlo y demostrarlo
+  sin llegar a su última pantalla, y una sola escala tendría que elegir una de las dos.
+  Tampoco es el gemelo de `first_seen_at`, que se estampa al **servir** el render y por tanto
+  dice "abierto", no "acabado". Lo escribe únicamente `POST /nodes/{id}/complete`, nunca se
+  mueve una vez puesto, y es la mitad de "hecho" que hace computable el progreso de un nodo
+  expositivo (§7.5).
 
 `mastery` es la **única** escala primaria de dominio. Las demás son vistas derivadas, calculadas
 en código, nunca persistidas por duplicado:
@@ -755,6 +784,7 @@ CREATE TABLE node_renders (
     dialect        text,                          -- el programa canónico que pintó el navegador
     catalog_version text,                         -- "skillnet-ui/1+<digest12>"
     library_version text,                         -- "@openuidev/lang-core@0.2.10; ..."
+    prompt_version text,                          -- current_prompt_version() del cache_key (0031)
     backend        text NOT NULL,
     model          text NOT NULL,
     tier           text NOT NULL CHECK (tier IN ('fast', 'heavy')),
@@ -800,6 +830,15 @@ CREATE INDEX idx_node_render_views_user ON node_render_views(user_id, node_id, f
   `node_render_views` para la auditoría de lectura (§2.1).
 - **La búsqueda de caché es estrictamente `WHERE cache_key = :key AND status='ready' AND NOT
   is_preview`.** Nada de `user_id` en el `WHERE`, nunca.
+- **`prompt_version` (migración 0031) es lo que hace recuperable el disco.** Subir
+  `PROMPT_VERSION` invalida toda la caché, pero **invalidar no es borrar**: las filas se quedan
+  y nadie volverá a calcular su clave jamás. El `cache_key` es un `sha256`, así que la versión
+  entra y no se puede leer de vuelta; esta columna la guarda al lado.
+  `src/services/render_retention.py` barre al arrancar un lote acotado de filas cuya
+  `prompt_version` ya no es la vigente **y a las que no apunta nada** — ninguna vista, ningún
+  intento, ningún `active_render_id`, ninguna actividad extraída. Esa segunda condición es todo
+  el diseño: el `CASCADE` de `node_render_views` y los tres `SET NULL` harían el destrozo sin
+  decir una palabra. `RENDER_CACHE_SWEEP=false` lo apaga.
 - **`is_preview`**: los renders de `?preview=1` del modo `shadow` se persisten para poder revisarlos,
   pero **quedan fuera de la caché**. Sin esto, un preview generado por un admin **antes** de validar
   el esquema podía servirse literalmente a un empleado del mismo bucket — contenido no aprobado
@@ -891,8 +930,16 @@ maestría fuera *gameable*: un probe perfecto (2/2) devuelve `mastered`, salta e
 
 - **Un probe puntuado por `(user_id, node_id, schema_version)`.** Al reentrar en el nodo se sirve el
   veredicto almacenado; no se genera otro.
-- **Re-probe sólo desde `needs_review`** y con al menos **7 días** desde `completed_at`. Se inserta
-  con `attempt_no + 1` (la fila anterior pasa a `scored = false`, así el índice parcial lo permite).
+- **No hay re-probe.** La regla original decía "sólo desde `needs_review`, y con al menos **7 días**
+  desde `completed_at`"; la migración `0033` (2026-08-28) retiró ese estado, así que su primera
+  mitad no puede volver a cumplirse y el plazo por sí solo no decide nada. Quedarse con el plazo no
+  habría sido un cambio menor sino una puerta más ancha: permitiría re-sondear un nodo ya dominado
+  una semana después y comprar una segunda mano de ítems para un veredicto ya ganado. Por eso
+  `probe_service._authorize_reprobe` niega **siempre**, y no es un cambio de comportamiento
+  observable: ningún estado alcanzable autorizaba un re-probe. La ruta `?reprobe=true` y
+  `probe_repo.supersede` siguen en su sitio (con `attempt_no + 1` y la fila anterior a
+  `scored = false`) para el día que se decida qué condición sustituye al estado — que es decisión
+  de producto, no un hueco que rellenar de paso.
 - **En un nodo `critical` el veredicto `mastered` nunca puede salir de ítems de respuesta
   seleccionada**: el desempate de respuesta construida es **obligatorio** (§7.2).
 - **`scored = false`** también se usa para el probe diagnóstico del novato (§7.1): se muestra, no
@@ -1015,9 +1062,10 @@ propone el LLM, que es el riesgo "Alta" de §14.1 que ninguna validación estruc
 `learner_experience`, `node_state`, `error_kind`, `ui_format`, `node_render_status`.
 **1 tabla alterada:** `courses` (+6 columnas). **1 enum extendido:** `generation_step` (+2 valores).
 
-> `node_state` conserva el miembro `needs_review`, pero su **único productor en este PR** es el tope
-> de pistas de §7.4. No hay scheduler de repetición espaciada (§1.3), así que la transición
-> `mastered → needs_review` **no ocurre** y no aparece en la tabla de §7.3.
+> `node_state` tiene **cuatro** miembros. El quinto, `needs_review`, entró aquí con un único
+> productor —el tope de pistas de §7.4— y salió el 2026-08-28 con la migración `0033`: sin scheduler
+> de repetición espaciada (§1.3) no había ninguna vuelta que la etiqueta pudiera prometer. La regla
+> que lo producía no se borró, se redirigió (§7.3, regla 8).
 
 ---
 
@@ -1120,7 +1168,7 @@ probe_gate ──(mastered)─────────────────�
     ▼
 decide_formato ──► genera_ui ──► validate_ui ──┬─(ok)─────► persist_render ──► END
                        ▲                       │
-                       └──(invalid, retry<1)───┤
+                       └──(invalid, retry≤2)───┤
                                                └─(fail)──► fallback_seed ──► END
 ```
 
@@ -1189,7 +1237,7 @@ Cada nodo abre su propia sesión con `async_session_factory`, igual que v1.
 | `genera_ui` | Pide al modelo el **dialecto del backend activo**, usando `src.render.prompt.render_prompt()` (el artefacto generado por `library.prompt()`) como parte del system prompt | Sí, tier del router |
 | `validate_ui` | `gate.canonicalize(raw_dsl)`: topes de tamaño y rechazo de reactividad → `backend.parse()` → `UISpec` (las 7 reglas) → `serialize()` → el `dialect` canónico. Separa `answer_key` | — |
 | `persist_render` | Escribe `node_renders` (`status='ready'`) con `dialect`, `catalog_version` y `library_version`, publica `ui_done` | — |
-| `fallback_seed` | Construye un `ui_spec` de un solo bloque `Markdown` con `lessons.content` del `seed_lesson_id` (o el `source_context` recortado). `status='fallback'` | — |
+| `fallback_seed` | Construye un `ui_spec` con un bloque de arranque más hasta cuatro `Markdown` a partir de **texto escrito por una persona**: `lessons.content` del `seed_lesson_id` y, si no hay, el `summary` del nodo. `status='fallback'`. Con ninguno de los dos no sirve nada y el render queda fallido. **Nunca `source_context`** — ver §9.3 nivel 4 | — |
 | `skip_node` | Marca el nodo como saltado y publica `node_skipped` | — |
 
 **La fuente en `load_context`, con camino de implementación real.** La versión anterior decía
@@ -1218,7 +1266,7 @@ Ramas, explícitas:
   aviso en el log estructurado.
 
 **Presupuestos:** `decide_formato` `max_tokens=256`, `temperature=0.0`, `json_mode=True`.
-`genera_ui` `max_tokens=1200` (tier fast) / `2400` (tier heavy), `temperature=0.4`. `MAX_UI_RETRIES = 1`.
+`genera_ui` `max_tokens=1200` (tier fast) / `2400` (tier heavy), `temperature=0.4`. `MAX_UI_RETRIES = 2`.
 Concurrencia global de generación runtime: `asyncio.Semaphore(6)` en el runner, para que un pico
 de empleados no tumbe el proceso.
 
@@ -1552,7 +1600,7 @@ concretas, todas aplicadas más abajo: `RENDER_BACKEND_FALLBACK` desaparece de �
 "reintento cruzado" desaparece de §14.1; y `tests/test_render_a2tl.py` no existe.
 
 **Qué ocupa su sitio como segundo intento** (que era el valor real del reintento cruzado): en el
-único reintento (`MAX_UI_RETRIES = 1`) el prompt no es el mismo. Se envía
+reintento (`MAX_UI_RETRIES = 2`) el prompt no es el mismo. Se envía
 `UI_REPAIR_SYSTEM`, que incluye el `raw_dsl` fallido, los `validation_errors` exactos del parser y la
 instrucción de devolver el programa corregido y nada más, con `temperature=0.0`. Reparar con el error
 en mano es más efectivo que reintentar a ciegas o cambiar de dialecto. Si también falla:
@@ -1600,8 +1648,22 @@ TanStack Query al recuperar el foco de la ventana devuelve byte a byte lo mismo.
 nada):
 
 1. **"Actualizar esta lección"** — un botón en el pie del nodo que hace
-   `POST /nodes/{id}/render {"force": true}` y repinta `active_render_id`. Es la **única** vía por la
-   que el contenido de un nodo abierto cambia.
+   `POST /nodes/{id}/render {"force": true}` y repinta `active_render_id`. Es la única vía por la que
+   el aprendiz cambia el contenido de un nodo abierto.
+
+   **Excepción, y sólo para un pin `fallback`.** Un render `ready` no se re-resuelve nunca: eso es el
+   pin haciendo su trabajo. Pero un `fallback` es contenido degradado, y `NodeView` deja de pedir
+   render en cuanto le sirven uno, así que el primer fallo transitorio dejaba al aprendiz clavado en
+   él para siempre —medido: seguía viendo el fallback existiendo ya dos renders limpios del mismo
+   nodo—. Ahora `GET /nodes/{id}/render` sirve el fallback en **esa** respuesta (vaciar una pantalla
+   ya servida para irse a generar sería peor) y pide una regeneración en segundo plano que reescribe
+   la misma `cache_key`: si sale `ready` sustituye la pantalla degradada para todo el bucket, y si
+   vuelve a fallar no cambia nada. Acotado por `FALLBACK_RETRY_MAX_ATTEMPTS = 3` y
+   `FALLBACK_RETRY_COOLDOWN_SECONDS = 600` por `cache_key`
+   (`src/services/node_render_service.py`, ver [`tuning.md`](/docs/tuning) §5), para que un nodo que
+   falla de forma determinista no gaste una generación por visita. Un fallback de "preparándose"
+   —el pack de conocimiento aún se está generando— queda fuera: no es un fallo, y regenerar ahora
+   sólo puede dar otro fallback.
 2. **"Ver la versión anterior"** — al regenerar, se muestra una línea "esta lección se ha adaptado a
    tus últimas respuestas" con enlace al render previo. Las filas ya existen en `node_renders` y
    `node_render_views` (ordenadas por `first_seen_at DESC`), así que es una consulta, no una tabla
@@ -1616,11 +1678,16 @@ aunque el perfil haya cambiado. Regenerar requiere el botón.
 
 ### 6.1 Forma
 
-5 pantallas, **una pregunta por pantalla**, máximo 3 elementos visibles por pantalla, objetivo
-**≤90 segundos**. Saltable en cualquier momento con "Lo hago luego". Se pregunta **una vez**: al
-saltar se escribe `onboarding_completed_at` y `onboarding_skipped = true`, y no se vuelve a
-preguntar (se puede rehacer desde ajustes). El límite de 5 pantallas y de 3 elementos viene de las
-adaptaciones de atención documentadas (tests de 5 preguntas máximo, 3 bullets por pantalla).
+**6 pantallas, de las cuales 4 obligatorias**, una pregunta por pantalla, máximo 3 elementos
+visibles por pantalla, objetivo **≤90 segundos**. Saltable en cualquier momento con "Lo hago
+luego". Se pregunta **una vez**: al saltar se escribe `onboarding_completed_at` y
+`onboarding_skipped = true`, y no se vuelve a preguntar (se puede rehacer desde ajustes).
+
+El límite de 3 elementos por pantalla viene de las adaptaciones de atención documentadas. El de
+pantallas era 5 y hoy son 6: `learning_preferences` se añadió después (§6.2, pantalla 5), y el
+límite se mantiene **contando solo las obligatorias**, porque las dos últimas son `optional: true`
+y quien las salta responde cuatro. Si alguna vez se hace obligatoria una séptima, esta es la línea
+que hay que discutir antes de escribirla.
 
 **Saltar escribe `experience_level = 'unknown'`, no `'none'`** (§3.3): `'none'` significa "declara ser
 novato" y fuerza andamiaje de novato, que es el caso que perjudica al experto. Quien salta no ha
@@ -1651,7 +1718,8 @@ redirige a /onboarding  ⇔  features.dynamic_courses === 'on'
 | 2 | "¿Para qué quieres usar SkillNet ahora mismo?" | 3 opciones + "otro" | `goal` | Principio de andragogía: el adulto necesita saber el POR QUÉ antes de invertir tiempo. **No viaja al LLM.** Se renderiza como línea de apertura determinista en el bloque `lead` que la regla 7 de §5.2 obliga a que exista (plantilla por valor de `goal`, en el cliente). Así la promesa se cumple siempre, no cuando el modelo se acuerda |
 | 3 | "¿Cuánta experiencia tienes en tu puesto actual?" | Ninguna / Algo / Bastante | `experience_level` | El conocimiento previo es la **única** dimensión con efecto grande: invierte el diseño instruccional (los ejemplos resueltos ayudan al novato y **perjudican** al experto). **La pregunta no nombra ningún curso**: el campo es uno por persona (`UNIQUE (user_id)`) y entra en la `cache_key` de *todos* sus cursos, así que preguntar por "Atención al cliente" y luego aplicarlo a "Prevención de incendios" era incoherente. La granularidad por competencia la aporta `user_skills` vía `course_nodes.skill_id` (§7.1), no la declaración |
 | 4 | "¿Cómo prefieres estudiar?" | Estándar / Concentración / Ritmo rápido, con una línea de descripción cada uno | `preset` (+ espejo en `users.learning_profile`) | Es **presentación**, no modalidad. Da autonomía real y es reversible sin restricciones |
-| 5 | "¿Quieres activar algún ajuste de lectura? (opcional)" | checkboxes: bloques cortos · menos animaciones · más contraste · sin límite de tiempo | `users.accessibility` | Sin diagnóstico, sin etiqueta. **"Leer en voz alta" se elimina**: no hay TTS en este PR ni componente de audio en el kit, y ofrecer una acomodación inexistente es peor que no ofrecerla. "Bloques más cortos" sí es real: se traduce a `effective_density ≤ 2` en el servidor (§3.1) |
+| 5 | "¿Cómo te gustaría aprender normalmente? (opcional)" | Equilibrado / Más visual / Más texto / Audio, con una línea de descripción cada uno | `learner_profiles.learning_preferences` | Se añadió después de las cinco originales. Es **modalidad declarada**, y va aquí y no en `accessibility` a propósito: una preferencia de formato no es una necesidad funcional, y mezclarlas convertiría un dato de accesibilidad en una elección de gusto. La opción de audio solo se ofrece cuando el despliegue tiene TTS (`audio_available`), por la misma razón que se quitó "leer en voz alta" de la pantalla 6: ofrecer una acomodación inexistente es peor que no ofrecerla |
+| 6 | "¿Quieres activar algún ajuste de lectura? (opcional)" | checkboxes: bloques cortos · menos animaciones · más contraste · sin límite de tiempo | `users.accessibility` | Sin diagnóstico, sin etiqueta. **"Leer en voz alta" se elimina**: no hay TTS en este PR ni componente de audio en el kit, y ofrecer una acomodación inexistente es peor que no ofrecerla. "Bloques más cortos" sí es real: se traduce a `effective_density ≤ 2` en el servidor (§3.1) |
 
 ### 6.3 Lo que no se fuerza durante este onboarding
 
@@ -1860,17 +1928,18 @@ Transiciones de `node_state`, deterministas y **completas** (las 8 que cubre
 | 5 | `probing` | `probe_verdict`/`tiebreak_verdict == "learning"` | `learning` | `probe_score` escrito; **`mastery` NO se toca** (queda el prior); `scaffold_band` congelado |
 | 6 | `learning` | `mastery >= threshold` **y** `consecutive_correct >= 3` | `mastered` | `mastered_at`; `nodes_completed += 1` |
 | 7 | `learning` | `consecutive_failed >= 2` | `learning` | baja dificultad, no cambia de estado; señal `reforzar_con_ejemplo` |
-| 8 | `learning` | 4.º fallo del mismo ítem tras 3 pistas (§7.4) | `needs_review` | solución trabajada mostrada; el nodo entra en la cola de práctica |
+| 8 | `learning` | 4.º fallo del mismo ítem (`WORKED_SOLUTION_FAILURES`, §7.4) | `learning` | `show_worked_solution = true`: se entrega la solución trabajada, el ítem se cierra y el aprendiz sigue. `learning` y **no** `mastered`: fallar cuatro veces y ver la respuesta no demuestra nada, y `mastered` sella `mastered_at` y alimenta un certificado |
 
 Dos ambigüedades que quedaban abiertas y que afectan a certificados, cerradas arriba: **`mastery` tras
 un probe** se escribe sólo si el veredicto domina (`max(prior, estimate)`), y si el veredicto es
 `learning` se conserva el prior — de modo que `probe_score` y `mastery` no se pisan; y
 **`nodes_completed`** se incrementa sólo en la transición 6. Sin fijar ambas, `enrollments.score`
-(media de `mastery` sobre nodos `critical`) variaba según detalles de implementación, y eso sale
-impreso en un certificado.
+(media de `mastery` **medida** sobre los nodos no archivados, §7.5) variaba según detalles de
+implementación, y eso sale impreso en un certificado.
 
-**`mastered → needs_review` no existe en este PR**: requeriría el scheduler de repetición espaciada,
-que no está en el repo (§1.3). El único productor de `needs_review` es la transición 8.
+**Ninguna transición saca a nadie de `mastered`**: haría falta el scheduler de repetición espaciada,
+que no está en el repo (§1.3). La transición 8 producía `needs_review` hasta el 2026-08-28; desde la
+migración `0033` deja el nodo en `learning` y entrega la solución. Ver §7.4.
 
 **`FADING_STREAK = 3` y `REGRESS_STREAK = 2`**, fijos, iguales para toda criticidad. Se elige el
 valor que ya aparece en la investigación (3 aciertos suben, 2 fallos bajan) y no se parametriza por
@@ -1889,20 +1958,32 @@ Reglas duras en el prompt de `genera_ui` y en el servicio, no sugerencias:
   `node_attempts` para ese `item_id`. **Un clic-para-explicar dentro de un `QuizItem` sin responder
   cuenta como pista** y consume cupo — ver §8.5, donde antes era una vía de escape que no tocaba
   `hints_used`.
-- **Tope de pistas: 3, y con salida definida.** Al cuarto fallo se muestra la solución trabajada
-  completa y el nodo pasa a **`state = 'needs_review'`** (no `'learning'`), lo que le da tres cosas que
-  antes no tenía — la versión anterior decía "se pasa de nodo" sin definir **ningún** camino de vuelta:
-  1. **Visibilidad**: `NodeListRead` expone `needs_practice: true` y el nodo aparece en una sección
-     "para practicar", en lugar de desaparecer.
-  2. **Reentrada**: se puede reintentar en cualquier momento (`POST /nodes/{id}/render {force:true}`
-     regenera con `last_error_kind` en el prompt) y **re-probar** pasados 7 días (§3.4).
-  3. **Vía humana**: `POST /nodes/{node_id}/waive` (rol admin o responsable) pone `mastered` con
+- **Tope de pistas: 3 (`HINT_LIMIT`), y salida al cuarto fallo (`WORKED_SOLUTION_FAILURES`).** Son
+  dos diales **independientes**, y esa independencia es la corrección del 2026-08-28: `HINT_LIMIT`
+  acota cuánto se le puede contar a alguien, y cuatro fallos del mismo ítem son evidencia de que ese
+  ítem no le está funcionando, haya pedido ayuda o no. La regla exigía además `hints_used >=
+  HINT_LIMIT`, y eso decía "sólo te rescato si gastaste tu presupuesto de rescate": dejaba fuera
+  justo a quien nunca pide, y en la familia Didact —que no tiene escalera de pistas— era inalcanzable
+  por construcción, así que el cierre por defecto de un nodo no tenía **ninguna** salida.
+  Al cuarto fallo se entrega la solución trabajada, **el ítem se cierra y el aprendiz sigue**:
+  la respuesta viaja en `show_worked_solution` y el nodo se queda en `learning`.
+  Dos cosas más siguen abiertas después de eso:
+  1. **Reentrada**: se puede reintentar en cualquier momento (`POST /nodes/{id}/render {force:true}`
+     regenera con `last_error_kind` en el prompt). Re-probar, no: §3.4.
+  2. **Vía humana**: `POST /nodes/{node_id}/waive` (rol admin o responsable) pone `mastered` con
      `waived_by`/`waived_at` y una fila en `audit_log` (`action='node_waived'`). Es coherente con el
      principio "si sabes, sabes" del producto: un humano que ha visto trabajar a la persona puede
      acreditarla, y queda registrado quién lo hizo.
-  Mientras un nodo `critical` esté en `needs_review`, `enrollments.status` **se queda en `active`** y
-  `NodeListRead.can_complete` es `false` con el nodo listado en `blocked_by`. El curso no se completa
-  en silencio ni se bloquea en silencio: se ve por qué.
+
+  > **Qué había aquí antes, y por qué se fue (2026-08-28, migración `0033`).** El cuarto fallo
+  > pasaba el nodo a **`state = 'needs_review'`**, `NodeListRead` lo exponía como
+  > `needs_practice: true`, aparecía en una sección "para practicar" y la promesa era volver
+  > pasados 7 días a repetir el diagnóstico. Esa promesa no se cumplió nunca: el re-sondeo lo
+  > autorizaba `may_reprobe` y ningún cliente llamaba al endpoint. Era un limbo con un cartel — y
+  > además, mientras un nodo `critical` estuviera ahí, `enrollments.status` se quedaba en `active`
+  > y el nodo salía en `blocked_by`, así que el cartel *también* retenía el curso. Se retiraron el
+  > estado, la cola, `needs_practice`, `may_reprobe` y `REPROBE_COOLDOWN_DAYS`; la regla que los
+  > producía es lo único que importaba y sigue viva, redirigida a `learning`.
 - **Clasificación del error** → `last_error_kind`, que entra en el siguiente `genera_ui`:
   `detail` (typo/formato) → corregir y seguir; `procedural` → señalar el paso exacto y repetir;
   `conceptual` → una sola pregunta socrática sobre la parte errónea.
@@ -1913,16 +1994,37 @@ Reglas duras en el prompt de `genera_ui` y en el servicio, no sugerencias:
 
 ### 7.5 Cierre del curso
 
-`enrollments.status = 'completed'` cuando **todos los nodos `critical` no archivados del curso están
-en `mastered`** (por dominio, por probe o por `waive`). Los `recommended` y `contextual` no bloquean.
-`enrollments.score` = media de `learner_node_states.mastery` sobre esos nodos `critical`.
-`_assign_course_skills` sigue otorgando `user_skills` con la traducción `mastery → skill_level` de
-§3.3 y sin degradar nunca.
+`enrollments.status = 'completed'` cuando **todos los nodos no archivados del curso están hechos**,
+donde "hecho" es una sola definición, `mastery_service.node_is_done`: `state = 'mastered'` (por
+dominio, por probe o por `waive`) **o** `completed_at` no nulo (el aprendiz llegó al final del
+contenido, `POST /nodes/{id}/complete`). El progreso de la barra sale del mismo predicado, así que
+`progress_percent == 100` y `can_complete` no pueden discrepar.
+
+Las dos correcciones que llevaron aquí, ambas medidas:
+
+- **La criticidad ya no cierra el curso.** Antes solo bloqueaban los `critical`; ahora hay que
+  recorrer el curso entero.
+- **`mastered` a secas era inalcanzable para media parte del producto.** La regla 6 de §7.3 exige
+  `consecutive_correct >= FADING_STREAK` sobre ítems **calificados**, y un nodo expositivo —un
+  ejemplo resuelto, un resumen, una lista de comprobación— no tiene ninguno: se quedaba en
+  `not_started` para siempre, contaba 0 de progreso y bloqueaba el cierre. Un curso acabado de
+  punta a punta informaba 0%.
+
+Se consideró y se descartó endurecer el cierre ("leer suma en la barra, pero un nodo `critical` hay
+que dominarlo"): pondría dos definiciones de "hecho" en el único módulo que existe para escribir
+esta regla una vez, y la rama estricta no es un estándar más alto sino inalcanzable — un curso con
+un nodo `critical` expositivo marcaría 100% y no cerraría nunca.
+
+**Dónde vive la distinción: en `score`, no en el cierre.** `enrollments.score` sigue siendo la media
+de `learner_node_states.mastery` **medida** sobre esos nodos, así que un curso cerrado leyéndolo
+cierra con nota baja y `_assign_course_skills` otorga `user_skills` en consecuencia, con la
+traducción `mastery → skill_level` de §3.3 y sin degradar nunca. Lo que significa un certificado no
+se mueve.
 
 **Recálculo obligatorio al cambiar el esquema.** `PUT /courses/{id}/schema` cambia el conjunto de
-nodos `critical`, que es precisamente lo que gobierna la condición de cierre. En la misma transacción
-del `PUT` (y del `validate`) se recalcula la condición para **todas** las matrículas activas del
-curso: un curso ya completado puede volver a `active` si el creador añade un nodo `critical` nuevo, y
+nodos no archivados, que es precisamente lo que gobierna la condición de cierre. En la misma
+transacción del `PUT` (y del `validate`) se recalcula la condición para **todas** las matrículas
+activas del curso: un curso ya completado puede volver a `active` si el creador añade un nodo nuevo, y
 uno bloqueado puede completarse si el nodo que faltaba se archiva. Se registra en `audit_log`. Sin
 esto, el estado de las matrículas quedaba en función de un esquema que ya no existe.
 
@@ -2112,14 +2214,26 @@ Cuatro niveles:
    `cache_key` **a secas**, nunca por `user_id`, o el hit rate sería 0.
 2. **`active_render_id` por `(user, node)`** (§5.5). Dentro de un nodo abierto y en una revisita no se
    consulta ni la caché: se sirve el render ya fijado. Es el nivel más barato de todos y además es el
-   que garantiza estabilidad espacial.
+   que garantiza estabilidad espacial. Un pin `fallback` es la única excepción: se sirve igual, pero
+   además dispara una regeneración acotada en segundo plano (§5.5).
 3. **`course_nodes.probe_items`** (§7.1). Los ítems del pre-assessment se generan **una vez por nodo**
    en la validación y sirven a toda la organización. Es la única pre-generación de este PR, y se
    justifica porque no depende del usuario: N empleados, una generación.
-4. **`term_explanations`** para clic-para-explicar (§8.4), y **seed v1** como red final:
-   `fallback_seed` sirve `lessons.content`. Esto también responde a la compatibilidad con el catálogo
-   offline: sin LLM disponible, el curso **sigue funcionando** en modo v1 degradado en lugar de
-   romperse.
+4. **`term_explanations`** para clic-para-explicar (§8.4), y **texto escrito por un humano** como red
+   final. `fallback_seed` recorre una cadena de dos peldaños: la lección semilla v1
+   (`lessons.content`) y, si no hay, el `summary` del nodo. Con ninguno de los dos no se sirve nada y
+   el render queda marcado como fallido. Esto también responde a la compatibilidad con el catálogo
+   offline: sin LLM disponible, un curso nacido en v1 **sigue funcionando** en modo degradado en
+   lugar de romperse.
+
+   **`source_context` estuvo en medio de esa cadena hasta el 2026-08-27 y no puede volver.** No es
+   contenido: es el prompt del servidor —el dossier que renderiza
+   `knowledge_pack.runtime_selection._render_context`, con sus títulos internos `## Invariantes` /
+   `## Material adaptable` y una referencia acuñada por el programa por punto (`must.atom:1`)— o, sin
+   pack, un trozo crudo del PDF del cliente. Un curso nacido en v2 **no tiene** `seed_lesson_id`, así
+   que no era la rama exótica sino la normal: un aprendiz leyó a mitad de curso las instrucciones del
+   servidor al modelo como si fuesen su lección. Lo que se añada a esta cadena tiene que ser prosa
+   escrita para una persona.
 
 ### 9.4 Ventana anticipada de renders
 
@@ -2177,8 +2291,8 @@ función.
 | `LLM_FIXTURE_DIR` | ruta | `src/llm/fixture_data` | Dónde busca/graba fixtures (§12) |
 | `LLM_FIXTURE_MODE` | `replay` \| `record` | `replay` | `record` graba pares (prompt, respuesta) con una clave real |
 
-**`RENDER_BACKEND_FALLBACK` no existe** — se retira junto con el segundo dialecto (§1.3, §5.4). El
-reintento único usa `UI_REPAIR_SYSTEM` con el mismo dialecto.
+**`RENDER_BACKEND_FALLBACK` no existe** — se retira junto con el segundo dialecto (§1.3, §5.4). Los
+reintentos (`MAX_UI_RETRIES = 2`) usan `UI_REPAIR_SYSTEM` con el mismo dialecto.
 
 **`LLM_FIXTURE_DIR` apunta dentro del paquete, no a `tests/`.** El default anterior
 (`./tests/fixtures/llm`) hacía **imposible** el perfil `fixtures` de `docker-compose.yml`: la imagen de
@@ -2337,6 +2451,7 @@ sentencia.
 | `POST` | `/nodes/{node_id}/render` | `{"force": false, "preview": false}` | `202 {"request_id", "cached": bool}` · `409 node_not_reviewed` |
 | `GET` | `/nodes/{node_id}/render` | — | `200 NodeRenderRead` (el render fijado, ver abajo) · `202 {"status":"generating","request_id"}` · `409 node_not_reviewed` |
 | `GET` | `/nodes/{node_id}/renders` | — | `200 {"renders": [{render_id, created_at, ui_format}]}` — historial para "ver la versión anterior" (§5.5) |
+| `POST` | `/nodes/{node_id}/complete` | — | `200 NodeCompletionRead` · `409 node_not_seen` — el aprendiz llegó al final del contenido del nodo. Estampa `completed_at` y **no toca `state` ni `mastery`** (los devuelve tal cual): acabar de leer no es una demostración, y escribir aquí un número de maestría pondría una cifra inventada en la escala que promedia `score`. Idempotente en las dos mitades —el sello no se mueve y el recálculo de cierre no hace nada si ya coincide—, así que el cliente puede llamarlo en cada "siguiente" sin llevar la cuenta. Responde con el veredicto de §7.5 recalculado (`progress_percent`, `can_complete`) para que la barra no quede obsoleta al lado de un nodo que se acaba de acabar. **`409 node_not_seen` desde el 2026-08-28**: no se puede terminar un nodo que el servidor nunca sirvió a este aprendiz. Antes bastaba un POST por id —y los ids los da `GET /courses/{course_id}/nodes`— para cerrar el curso entero, con la matrícula en `completed` y las habilidades acreditadas, sin renderizar una sola lección. La guarda pregunta por `first_seen_at`, que ya existía y ya es ese hecho: lo sella `GET /nodes/{node_id}/render` y sólo él, nunca el prefetch anticipado —pedir la *fila* y no el *sello* habría autorizado a terminar lecciones que nadie ha mirado. `409` y no `403` porque el nodo no está prohibido, es que **todavía** no está abierto, y renderizarlo hace que la misma llamada funcione |
 | `POST` | `/nodes/{node_id}/waive` | `{"reason"?}` | `200 NodeStateRead` — sólo admin/responsable; §7.4 |
 | `GET` | `/nodes/{node_id}/render/stream?request_id=…` | — | `200 text/event-stream` |
 | `POST` | `/nodes/{node_id}/answer` | `{"render_id", "item_id", "answer", "hints_used", "latency_ms"}` | `200 NodeAttemptResult` — **`hints_used` del body es informativo y el servidor NO debe confiar en él** (B5): es el valor que decide si `NodeAttemptResult.correct_answer` se revela, y un campo que rellena el cliente no puede gobernar esa revelación (`hints_used: 3` sería una clave de respuestas gratis). El conteo válido se deriva en el servidor de `node_attempts.hints_used` para `(user_id, node_id, item_id)`, que sólo incrementa `POST /nodes/{id}/hint`. `QuizItemBlock` (B6) no concede pistas y siempre manda `0` |
@@ -2352,11 +2467,24 @@ sentencia.
   "nodes": [{ "id": "…", "title": "Plazo de devolución", "summary": "…",
               "criticality": "critical", "position": 1,
               "state": "not_started", "mastery": 0.0,
-              "locked": false, "locked_by": [],
-              "needs_practice": false,          // state == 'needs_review' (§7.4)
+              "done": false,                    // `mastered` O `completed_at` (§7.5), calculado
+                                                // una vez en services/node_progression.py
+              "available": true,                // siempre cierto mientras la progresión sea lineal
               "first_seen_at": null,            // servido a este aprendiz por primera vez
               "completed_at": null }],          // llegó al final del contenido (§7.5)
+  "next_node_id": "…",                          // el primero no hecho, en orden; null si no queda
   "can_complete": false, "blocked_by": ["…"], "progress_percent": 0 }
+// `locked`/`locked_by` y `needs_practice` estuvieron aquí y se retiraron el 2026-08-28. El cambio
+// de palabra es el punto: un candado es una prohibición, `available` es una respuesta. Y el
+// servidor CONTESTA cuál es el siguiente (`next_node_id`) en vez de mandar una lista para que el
+// cliente la filtre — hoy no se nota, pero es lo que decide si algún día esa respuesta puede venir
+// de un sitio que no cabe en un navegador. Ver docs/design/future-progression-modes.md
+// `first_seen_at` y `completed_at` son los dos campos con los que el cliente contesta "¿dónde
+// lo dejé?" y "¿qué he acabado?". `state` no puede, porque `learning` exige haber respondido un
+// ítem calificado: un nodo expositivo se queda en `not_started` por mucho que se lea.
+// `updated_at` NO se expone al lado a propósito: también se mueve cuando el prefetch fija un
+// render de los nodos de más adelante, así que como señal de "último visitado" apunta a nodos
+// que el aprendiz no ha abierto — peor que no tener campo.
 
 // ProbeRead — sin respuestas correctas
 { "probe_id": "…", "node_id": "…",
@@ -2394,8 +2522,22 @@ funcionando.
 **`GET /nodes/{node_id}/render` no recalcula nada.** Devuelve el `ui_spec` de
 `learner_node_states.active_render_id` mientras `render_pinned` sea `true` (§5.5), y escribe una fila
 en `node_render_views` la primera vez que ese usuario ve ese render (§2.1). Sólo
-`POST …/render {"force": true}` recalcula la `cache_key` y repinta. Sin esta separación, un simple
-refetch cambiaba la pantalla a mitad de nodo.
+`POST …/render {"force": true}` recalcula la `cache_key` y repinta —salvo la excepción del pin
+`fallback` de §5.5, que pide una regeneración en segundo plano sin cambiar esta respuesta. Sin esta
+separación, un simple refetch cambiaba la pantalla a mitad de nodo.
+
+**Lo que sí escribe, porque es el único momento honesto para escribirlo.** Un render entregado a un
+navegador es la prueba de que el aprendiz estuvo ahí, y `POST …/render` no lo es: lo dispara también
+el prefetch anticipado para los nodos de más adelante (§9.4). Así que aquí, y sólo aquí:
+
+- **`first_seen_at`** (`mark_opened`, idempotente y nunca movido). Es lo que hace contestable "¿dónde
+  lo dejé?": `state` no podía, porque `learning` exige responder un ítem calificado y la heurística
+  de reanudación acababa siempre en el nodo 0. **Límite conocido y escrito en el código:** el sello
+  más reciente significa "nodo más profundo alcanzado", no "último nodo tocado". La pantalla del
+  episodio se recuerda por dispositivo en `localStorage`.
+- **`assigned → in_progress`** de la matrícula dinámica (`mark_dynamic_started`, idempotente, no
+  reescribe `started_at`). En v2 no había nadie que hiciera esa transición, y por eso un curso al 57%
+  seguía leyéndose "Pendiente" con cero cursos activos. v1 conserva la suya en `routes/lessons.py`.
 
 `POST /nodes/{node_id}/render` con `"preview": true` sólo lo puede llamar un admin, genera con el
 perfil del admin, no escribe `learner_node_states` y persiste con **`is_preview = true`**, lo que lo
@@ -2514,7 +2656,7 @@ funciona igual.
 | Unit | `tests/test_render_prompt_artifact.py` | **La alarma de deriva** entre `src/render/kit.py` y el artefacto que genera `library.prompt()`: digest normalizado del catálogo, `prompt_sha256`, que el prompt anuncie las 9 firmas y ninguna más, que **no** enseñe sintaxis reactiva, y que las versiones de `@openuidev` sean las auditadas | nada |
 | Unit | `tests/test_render_gate.py` | 15 payloads reactivos (`Mutation` suelta, `Query` autodisparada, `refreshInterval`, `@OpenUrl` con `javascript:`, `@ToAssistant`, `$estado`, ternario, builtins…) rechazados, y 6 contenidos legítimos aceptados — incluida la prosa que menciona `Query()` y `$300`, que es el falso positivo medido de un grep de palabras clave; topes de tamaño; `canonicalize()` devuelve la re-serialización y no la entrada | nada |
 | Unit | `tests/test_mastery.py` | Tabla de verdad de `probe_verdict` (25 casos), incluido "B perfecto y A a cero" → **no** maestría; que `critical` con 2/2 seleccionadas da `tiebreak`, no `mastered`; que `tiebreak_mastery` **alcanza cada uno de los 3 umbrales** (la tabla de §7.2 caso por caso); el techo de maestría (0.85 sostenido **sí** llega a `mastered` en un nodo `critical`); EWMA; las **8** transiciones de `node_state` de §7.3 | nada |
-| Unit | `tests/test_probe_reuse.py` | El segundo `POST /probe` del mismo `(user, node, schema_version)` devuelve el veredicto almacenado y **no** genera ítems; re-probe rechazado si `state != 'needs_review'` o han pasado <7 días; probe diagnóstico (`scored=false`) no consume el intento | nada |
+| Unit | `tests/test_probe_reuse.py` | El segundo `POST /probe` del mismo `(user, node, schema_version)` devuelve el veredicto almacenado y **no** genera ítems; re-probe rechazado **siempre** (§3.4: el estado que lo autorizaba se retiró el 2026-08-28); probe diagnóstico (`scored=false`) no consume el intento | nada |
 | Unit | `tests/test_node_grading.py` | `content_for()` para los 4 tipos deterministas: recombina `answer_key` + props y `grade()` puntúa igual que en v1 con la misma entrada | nada |
 | Unit | `tests/test_schema_validation.py` | Detección de ciclos (auto-arista, 2-ciclo, 5-ciclo, DAG grande válido), huérfanos, `no_critical_node`, poda de ciclos en `persist_schema` | nada |
 | Unit | `tests/test_runtime_router.py` | `select_tier` para los 5 formatos; `purpose_for`; precedencia de `resolve_llm_config` con `runtime_fast`/`runtime_heavy` y caída a `LLM_MODEL` | nada |
@@ -2710,7 +2852,7 @@ y luego B6-B10 se pueden solapar.
 
 | Riesgo | Probabilidad | Mitigación en este diseño |
 |---|---|---|
-| Un modelo pequeño (8B) genera dialecto malformado con frecuencia | Alta | Gramática EBNF congelada + 3 reglas de escape en el prompt (§5.4) · `parse_partial` tolerante · 1 reintento con `UI_REPAIR_SYSTEM` (el error exacto en el prompt) · `fallback_seed` a markdown v1. **El usuario nunca ve una pantalla roja** — y eso lo garantiza `fallback_seed`, no un segundo dialecto |
+| Un modelo pequeño (8B) genera dialecto malformado con frecuencia | Alta | Gramática EBNF congelada + 3 reglas de escape en el prompt (§5.4) · `parse_partial` tolerante · 2 reintentos con `UI_REPAIR_SYSTEM` (el error exacto en el prompt) · `fallback_seed` a texto humano. **El usuario nunca ve una pantalla roja** — y eso lo garantiza `fallback_seed`, no un segundo dialecto |
 | El contenido generado es pedagógicamente peor que el estático y nadie lo revisa | Alta | Modo `shadow` (previews con `is_preview`, fuera de la caché) · **`reviewed_at` obligatorio por nodo**: un nodo que nadie ha abierto no se sirve · diff propuesto→validado en `audit_log`, para *medir* si los creadores editan · `node_feedback` con disparador: 3+ usuarios marcan `hard` en el mismo nodo → aviso al creador. **El creador decide, el sistema no reescribe solo** |
 | Coste por LLM se dispara | Media | Caché compartida por bucket (no por usuario) · probes pre-generados por nodo, no por usuario · el pre-assessment evita generar lo ya sabido · `llm_usage_log` con `use_case`, **tabla creada en `0005`** (§3.5) · presupuestos de `max_tokens` explícitos |
 | El hit rate de la caché inter-usuario es mucho peor que el medido | **Alta** | El régimen inter-usuario **no está medido** (§3.4) y `role_bucket` lo empeora a propósito. Es lo primero que se mide (§14.2 #3), y la palanca de retirada es una línea: quitar `role_bucket` o `vector_bucket` de la clave y subir `PROMPT_VERSION` |
@@ -2718,7 +2860,7 @@ y luego B6-B10 se pueden solapar.
 | Fuga de la respuesta correcta al cliente | Media | `answer_key` en columna separada que ningún schema Pydantic de respuesta incluye · `ProbeSession.probe` tipado como `ProbeRow` (protocolo **sin** `answer_key`) y proyectado por `ProbeSessionRead.from_session` (`extra="forbid"`, campos enumerados a mano) — el servicio ya no devuelve la fila ORM entera a su llamante · test que vuelca el modelo de respuesta y afirma que ni la clave ni sus valores aparecen (`tests/test_probe_answer_key_privacy.py`) · `NodeRenderRead` ya existe (`src/schemas/node.py:115`, llegó con B5) con `extra="forbid"` y la lista de campos enumerada a mano en `NodeRenderRead.of`, que es el contrato entero; **queda pendiente** el test equivalente que vuelque *ese* modelo y afirme la ausencia de la clave, como el de `ProbeSessionRead` · `hints_used` del cliente es informativo y no puede gobernar la revelación (§11.3) |
 | Inyección de prompt desde el texto que manda el cliente | Media | `POST /explain` interpola dos valores del cliente (`term`, `context`, y el contexto no se contrasta con el texto real del nodo). **Ninguno va entre comillas**: se sanean (controles, `<`/`>`, rachas de comillas, tope de longitud 140/600) y se vallan en marcas `<<<nombre:token>>>` cuyo token ningún payload saneado puede contener — cerrar la valla exigiría los caracteres que ya se han quitado. El `system` declara que lo que va entre marcas es dato, nunca instrucción. Token derivado del contenido (no aleatorio) para que las fixtures sigan siendo reproducibles. Tests de secuestro en `tests/test_explain_service.py` |
 | La regla de maestría deja pasar a quien no sabe | Media | Cláusula `score_a >= 0.5` · desempate con respuesta construida **obligatorio en todo nodo `critical`** · **un solo probe puntuado por versión de esquema** (índice único), que es lo que impide reentrar hasta acertar por azar · racha de 3 además del umbral |
-| La regla de maestría deja fuera a quien sí sabe | Media | Techo de maestría: 3 aciertos consecutivos elevan `mastery` al umbral (§7.3), porque el EWMA converge a la media y dejaba el 0.85 sostenido a 0.05 del 0.90 para siempre · salida humana `POST /nodes/{id}/waive` con registro en `audit_log` · nodo en `needs_review` visible y reintentable, no desaparecido |
+| La regla de maestría deja fuera a quien sí sabe | Media | Techo de maestría: 3 aciertos consecutivos elevan `mastery` al umbral (§7.3), porque el EWMA converge a la media y dejaba el 0.85 sostenido a 0.05 del 0.90 para siempre · salida humana `POST /nodes/{id}/waive` con registro en `audit_log` · la regla 8 entrega la solución trabajada al cuarto fallo y **abre el paso** sin exigir que se hayan pedido pistas (§7.4), así que ningún ítem puede retener a nadie |
 | El contenido cambia bajo los pies del usuario | Media | `active_render_id` fija el render mientras el nodo está abierto · `scaffold_band` (estable) sustituye a `mastery_band` (cambiaba con cada respuesta) en la clave · regeneración sólo por botón explícito, con "ver la versión anterior" |
 | Regresión silenciosa en v1 | Media | `test_v1_regression.py` con el flag en `off` · `resolve_delivery` como único punto de decisión · default `off` |
 | Deriva del contrato entre backend y frontend | Media | Golden specs compartidos, copiados por script en `pretest`. Rompen los dos lados a la vez |

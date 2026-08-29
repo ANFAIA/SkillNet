@@ -30,11 +30,11 @@ from src.models.base import Base, UUIDMixin, aware_utc_now
 class NodeState(str, enum.Enum):
     """Where one learner stands on one node. Four values, and there is no fifth.
 
-    ``needs_review`` was removed by migration 0033. It had exactly one producer — the
-    hint ceiling of §7.4, rule 8 of ``mastery_service.transition_on_answer`` — and that
-    rule still exists and still fires: the fourth failure of an item after the three
-    hints hands over the worked solution. What it no longer does is move the learner to
-    a state of their own. The escape hatch is the ``show_worked_solution`` flag on the
+    ``needs_review`` was removed by migration 0033. It had exactly one producer — rule 8
+    of ``mastery_service.transition_on_answer`` — and that rule still exists and still
+    fires: the fourth failure of an item hands over the worked solution. It no longer
+    requires the three hints to have been asked for first, and it no longer moves the
+    learner to a state of their own. The escape hatch is the ``show_worked_solution`` flag on the
     answer, not a label on the row, and a label that took the node out of the normal
     flow bought nothing the flag did not already say.
     """

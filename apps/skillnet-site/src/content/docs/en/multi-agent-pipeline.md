@@ -753,17 +753,23 @@ is already in flight for that `cache_key`, the work isn't duplicated. Every visi
 to a node slides the window forward.
 
 Additionally, when the learner opens the course (`CourseView.tsx`), the first
-unlocked nodes that are `not_started` or `learning` get pre-rendered:
+two nodes that are `not_started` or `learning` get pre-rendered:
 
 ```tsx
-// Pre-render the next unlocked node the learner is likely to open.
-// Only 1 ahead -- remaining nodes generate on-the-fly adapted to the
-// learner's profile. Future: auto-adjust lookahead based on model speed.
+// Give the learner an immediate start and one immediate continuation. The
+// remaining lessons are still generated at learning time; NodeView maintains
+// the rolling three-ahead window once the learner enters the course.
 return [...dynamicNodes.nodes]
   .sort((a, b) => a.position - b.position)
-  .filter((n) => !n.locked && (n.state === 'not_started' || n.state === 'learning'))
-  .slice(0, 1)
+  .filter((n) => n.state === 'not_started' || n.state === 'learning')
+  .slice(0, 2)
 ```
+
+There is no lock filter: progression has been linear since 2026-08-28 and
+`GET /courses/{id}/nodes` no longer sends `locked`/`locked_by`
+(`docs/design/future-progression-modes.md`). The `slice(0, 2)` is not new either — this
+document said "only 1 ahead" before that, while the code has pre-rendered two since
+2026-08-17.
 
 ### 4.3 Adapting to the learner from node 2 onward
 
@@ -913,7 +919,7 @@ Six mechanisms, each covering a scenario:
 |-----------|-------------|-----------|
 | Pre-generated first node | When the course is activated | Every learner finds node 1 ready. |
 | Sliding window of 3 | While the learner is on node N | N+1, N+2, N+3 are generated fire-and-forget. |
-| Prefetch on course open | When `CourseView` loads | The first unlocked node is pre-generated. |
+| Prefetch on course open | When `CourseView` loads | The first two nodes not started or in progress are pre-generated. |
 | Backend idempotency | Always | If a render or generation is already in flight, no duplicate work happens. |
 | Invisible streaming | If pre-generation didn't complete | Blocks appear with fade-in. The learner doesn't see "loading". |
 | Adaptive `format_vector` | From node 2 onward | Content adapts to the learner's profile with every interaction. |

@@ -28,6 +28,23 @@ section: "v2"
 > `ScreenScheme`, a fixed screen formula, or step grouping apply only to the `legacy_stepper`
 > fallback; they do not constrain the `episode` path. `shell_mode` is decided by the server. The
 > migration keeps `src.services.course_delivery.resolve_delivery` as the single v1/v2 selector.
+>
+> **Progression and the item's exit, revised on 2026-08-28.** Two decisions in §7 were replaced,
+> and this document already describes the new ones; what follows is what changed, for anyone
+> arriving with the old version in their head:
+>
+> 1. **`needs_review` no longer exists** (migration `0033`). Not the state, not the "to practice"
+>    queue, not `needs_practice` in the contract, not `may_reprobe`, not `REPROBE_COOLDOWN_DAYS`.
+>    Rule 8 of §7.3 **does still exist**, and that is the half that matters: it now goes to
+>    `learning` keeping `show_worked_solution`, so the solution is handed over, the item closes and
+>    the learner carries on. The dial was renamed `WORKED_SOLUTION_FAILURES` and **no longer
+>    requires that hints were asked for**: four failures of the same item are enough.
+> 2. **Progression is linear**: prerequisites still order the tree and still feed
+>    `revisar_prerrequisito`, but they do not close doors. `available` is always true, and
+>    `services/node_progression.py` is the single owner of the "done" predicate.
+>
+> The reasoning behind both, with the measurement that prompted them, is in
+> `docs/design/future-progression-modes.md`.
 
 ---
 
@@ -76,7 +93,7 @@ Without `schema_status = 'validated'`, nothing is generated for any employee.
 |-------|--------|
 | `SandboxHTML` / free-form LLM-generated HTML | A direct XSS vector, and 12-65% of generated code has vulnerabilities. The pattern is `prompt → typed IR → native render`. To be reevaluated once an audited iframe sandbox exists |
 | `Simulation` component (adjustable parameters) | Requires data-binding and a lifecycle the IR doesn't have. The `simulation` value exists in the reserved `ui_format` enum, but `decide_formato` does not emit it (the `ALLOWED_UI_FORMATS` constant) |
-| Spaced repetition (HLR or FSRS) | **Premise correction:** it does not exist today. `spaced_repetition`/HLR appears in `data-model.md`, `product.md`, and `background-processing.md`, but **there is no table or module in the repo** (verified: 20 tables, no `half_life`/`next_review` in `src/`). This PR does not introduce it. Direct consequence: the `needs_review` state is **not** produced by any scheduler — its only producer in this PR is the hint cap (§7.4) |
+| Spaced repetition (HLR or FSRS) | **Premise correction:** it does not exist today. `spaced_repetition`/HLR appears in `data-model.md`, `product.md`, and `background-processing.md`, but **there is no table or module in the repo** (verified: 20 tables, no `half_life`/`next_review` in `src/`). This PR does not introduce it. Direct consequence: there is no scheduled return to a node already closed. The `needs_review` state, which existed to promise one, was withdrawn on 2026-08-28 with no replacement (migration `0033`, §7.4) |
 | Second dialect backend (`a2tl`) | The `UIDL/1` format of `packages/a2tl-web` is a **flat list of sections with no ids or `children`** (`parser.ts:11-21`) and has no primitive for `QuizItem`, `Stack`, `Card`, or `Callout`. It cannot represent the `UISpec` from §5.2, so round-tripping and cross-retry are impossible for any spec with an exercise or nested containers. The `Protocol` + registry (the seam) goes in, not the second dialect. Backlog: if needed, it will be a dialect **native to SkillNet**, not that package's |
 | `background_jobs` table / purge worker | Does not exist (verified). Purging `learning_events` and `term_explanations` is a **CLI script** (`python -m src.scripts.purge_learning_data`), documented and runnable by hand or via a host cron job. Backlog: turn it into a real job |
 | QLoRA fine-tuning of the DSL | Backlog |
@@ -172,10 +189,10 @@ reopened within this PR:
                        experience_level, preset, format_vector=0)
                                             │
                                             ▼
-                       GET /courses/{id}/nodes   (list + state + prereq lock)
+                       GET /courses/{id}/nodes   (list + state + done/available + next_node_id)
                                             │
                                             ▼
-        ┌──────────────────── for each unlocked node ─────────────────────────┐
+        ┌───────────────────── for each node, in order ───────────────────────┐
         │                                                                      │
         │   POST /nodes/{node_id}/probe        ┌─────────────────────────┐     │
         │   ──────────────────────────────────►│  PRE-ASSESSMENT         │     │
@@ -250,7 +267,7 @@ reopened within this PR:
         │               │                                 │                     │
         │               └─────────────────────────────────┤                     │
         │                                                 ▼                     │
-        │                                  next unlocked node                  │
+        │                                  next node, in order                 │
         └──────────────────────────────────────────────────────────────────────┘
                                             │
                                             ▼
@@ -611,8 +628,12 @@ node and there is no audio, those sources don't exist here, and the closed vocab
 thing that can be fed.
 
 ```sql
+-- Four values, and there is no fifth. Migration 0033 (2026-08-28) removed
+-- 'needs_review' after backfilling it to 'learning': the state was only a label, and
+-- the emergency exit that produced it -- rule 8 of section 7.3 -- lives on in the
+-- `show_worked_solution` flag on the answer. See docs/design/future-progression-modes.md
 CREATE TYPE node_state AS ENUM
-    ('not_started', 'probing', 'learning', 'mastered', 'needs_review');
+    ('not_started', 'probing', 'learning', 'mastered');
 CREATE TYPE error_kind AS ENUM ('detail', 'procedural', 'conceptual');
 
 CREATE TABLE learner_node_states (
@@ -896,9 +917,16 @@ safety-`critical` one — without having seen a single line of content. Concrete
 
 - **One probe scored per `(user_id, node_id, schema_version)`.** Re-entering the node serves the
   stored verdict; no new one is generated.
-- **Re-probe only from `needs_review`**, and at least **7 days** after `completed_at`. It's
-  inserted with `attempt_no + 1` (the previous row becomes `scored = false`, which is what the
-  partial index allows).
+- **There is no re-probe.** The original rule read "only from `needs_review`, and at least
+  **7 days** after `completed_at`"; migration `0033` (2026-08-28) removed that state, so its first
+  half can never hold again and the cooldown on its own decides nothing. Keeping just the cooldown
+  would not have been the smaller change but a *wider* door: it would let anyone re-probe a node
+  they had already mastered a week later, buying a second hand of items for a verdict already
+  earned. So `probe_service._authorize_reprobe` refuses **unconditionally**, and that is not an
+  observable behaviour change: no reachable state authorized a re-probe. The `?reprobe=true` route
+  and `probe_repo.supersede` stay in place (with `attempt_no + 1` and the previous row becoming
+  `scored = false`) for the day the replacement condition is decided — which is a product
+  decision, not a gap to fill in passing.
 - **In a `critical` node the `mastered` verdict can never come purely from selected-response
   items**: the constructed-response tiebreak is **mandatory** (§7.2).
 - **`scored = false`** is also used for the declared novice's diagnostic probe (§7.1): it's shown,
@@ -1022,9 +1050,10 @@ measure whether creators actually edit what the LLM proposes, which is the "High
 `learner_experience`, `node_state`, `error_kind`, `ui_format`, `node_render_status`.
 **1 tabla alterada:** `courses` (+6 columnas). **1 enum extendido:** `generation_step` (+2 valores).
 
-> `node_state` keeps the `needs_review` member, but its **only producer in this PR** is the
-> hint cap in §7.4. There is no spaced-repetition scheduler (§1.3), so the
-> `mastered → needs_review` transition **does not occur** and does not appear in the §7.3 table.
+> `node_state` has **four** members. The fifth, `needs_review`, arrived here with a single
+> producer — the hint cap of §7.4 — and left on 2026-08-28 with migration `0033`: with no
+> spaced-repetition scheduler (§1.3) there was no return for the label to promise. The rule that
+> produced it was not deleted, it was redirected (§7.3, rule 8).
 
 ---
 
@@ -1866,7 +1895,7 @@ also applied to the magnitude and not just the counter.
 | 5 | `probing` | `probe_verdict`/`tiebreak_verdict == "learning"` | `learning` | `probe_score` written; **`mastery` is NOT touched** (prior remains); `scaffold_band` frozen |
 | 6 | `learning` | `mastery >= threshold` **and** `consecutive_correct >= 3` | `mastered` | `mastered_at`; `nodes_completed += 1` |
 | 7 | `learning` | `consecutive_failed >= 2` | `learning` | lowers difficulty, no state change; `reforzar_con_ejemplo` signal |
-| 8 | `learning` | 4th failure on the same item after 3 hints (§7.4) | `needs_review` | worked solution shown; the node enters the practice queue |
+| 8 | `learning` | 4th failure on the same item (`WORKED_SOLUTION_FAILURES`, §7.4) | `learning` | `show_worked_solution = true`: the worked solution is handed over, the item closes and the learner carries on. `learning` and **not** `mastered`: failing four times and being shown the answer demonstrates nothing, and `mastered` stamps `mastered_at` and feeds a certificate |
 
 Two ambiguities that used to be open and affect certificates, closed above: **`mastery` after a
 probe** is written only if the verdict masters (`max(prior, estimate)`), and if the verdict is
@@ -1875,8 +1904,9 @@ probe** is written only if the verdict masters (`max(prior, estimate)`), and if 
 `enrollments.score` (average of `mastery` over `critical` nodes) varied by implementation detail,
 and that ends up printed on a certificate.
 
-**`mastered → needs_review` does not exist in this PR**: it would require the spaced-repetition
-scheduler, which isn't in the repo (§1.3). The only producer of `needs_review` is transition 8.
+**No transition takes anyone back out of `mastered`**: it would require the spaced-repetition
+scheduler, which isn't in the repo (§1.3). Transition 8 produced `needs_review` until 2026-08-28;
+since migration `0033` it leaves the node in `learning` and hands over the solution. See §7.4.
 
 **`FADING_STREAK = 3` and `REGRESS_STREAK = 2`**, fixed, the same for every criticality. The value
 that already appears in the research is chosen (3 correct answers raise, 2 failures lower) and it
@@ -1895,21 +1925,32 @@ Hard rules in `genera_ui`'s prompt and in the service, not suggestions:
   `node_attempts` for that `item_id`. **A click-to-explain inside an unanswered `QuizItem` counts as
   a hint** and consumes the quota — see §8.5, where it used to be an escape hatch that didn't touch
   `hints_used`.
-- **Hint cap: 3, with a defined exit.** On the fourth failure the full worked solution is shown and
-  the node moves to **`state = 'needs_review'`** (not `'learning'`), which gives it three things it
-  didn't have before — the earlier version said "the node is passed over" without defining **any**
-  way back:
-  1. **Visibility**: `NodeListRead` exposes `needs_practice: true` and the node appears in a
-     "to practice" section, instead of disappearing.
-  2. **Re-entry**: it can be retried at any time (`POST /nodes/{id}/render {force:true}` regenerates
-     with `last_error_kind` in the prompt) and **re-probed** after 7 days (§3.4).
-  3. **Human path**: `POST /nodes/{node_id}/waive` (admin or manager role) sets `mastered` with
+- **Hint cap: 3 (`HINT_LIMIT`), and an exit on the fourth failure (`WORKED_SOLUTION_FAILURES`).**
+  They are two **independent** dials, and that independence is the correction of 2026-08-28:
+  `HINT_LIMIT` bounds how much a learner may be told, and four failures of the same item are
+  evidence that the item is not working for them, whether or not they asked for help. The rule also
+  demanded `hints_used >= HINT_LIMIT`, which said "you only get rescued once you have spent your
+  rescue budget": it left out exactly the learners who never ask, and in the Didact family — which
+  has no hint ladder — it was unreachable by construction, so a node's default closer had **no**
+  exit at all. On the fourth failure the worked solution is handed over, **the item closes and the
+  learner carries on**: the answer travels in `show_worked_solution` and the node stays in
+  `learning`. Two things stay open afterwards:
+  1. **Re-entry**: it can be retried at any time (`POST /nodes/{id}/render {force:true}` regenerates
+     with `last_error_kind` in the prompt). Re-probing, no: §3.4.
+  2. **Human path**: `POST /nodes/{node_id}/waive` (admin or manager role) sets `mastered` with
      `waived_by`/`waived_at` and a row in `audit_log` (`action='node_waived'`). It's consistent with
      the product's "if you know it, you know it" principle: a human who has seen the person work can
      certify them, and who did it is recorded.
-  While a `critical` node is in `needs_review`, `enrollments.status` **stays at `active`** and
-  `NodeListRead.can_complete` is `false` with the node listed in `blocked_by`. The course neither
-  completes silently nor blocks silently: you can see why.
+
+  > **What used to be here, and why it left (2026-08-28, migration `0033`).** The fourth failure
+  > moved the node to **`state = 'needs_review'`**, `NodeListRead` exposed it as
+  > `needs_practice: true`, it appeared in a "to practice" section, and the promise was to come
+  > back after 7 days and repeat the diagnostic. That promise was never kept: the re-probe was
+  > authorized by `may_reprobe` and no client ever called the endpoint. It was a limbo with a sign
+  > on it — and while a `critical` node sat there, `enrollments.status` stayed `active` and the
+  > node showed up in `blocked_by`, so the sign *also* held the course back. The state, the queue,
+  > `needs_practice`, `may_reprobe` and `REPROBE_COOLDOWN_DAYS` were all withdrawn; the rule that
+  > produced them is the only part that mattered, and it lives on, redirected to `learning`.
 - **Error classification** → `last_error_kind`, which enters the next `genera_ui` call:
   `detail` (typo/format) → correct and continue; `procedural` → point at the exact step and repeat;
   `conceptual` → a single Socratic question about the mistaken part.
@@ -2345,6 +2386,7 @@ mid-statement.
 | `POST` | `/nodes/{node_id}/render` | `{"force": false, "preview": false}` | `202 {"request_id", "cached": bool}` · `409 node_not_reviewed` |
 | `GET` | `/nodes/{node_id}/render` | — | `200 NodeRenderRead` (the pinned render, see below) · `202 {"status":"generating","request_id"}` · `409 node_not_reviewed` |
 | `GET` | `/nodes/{node_id}/renders` | — | `200 {"renders": [{render_id, created_at, ui_format}]}` — history for "view the previous version" (§5.5) |
+| `POST` | `/nodes/{node_id}/complete` | — | `200 NodeCompletionRead` · `409 node_not_seen` — the learner reached the end of the node's content. It stamps `completed_at` and **touches neither `state` nor `mastery`** (it returns them as they are): finishing a read is not a demonstration, and writing a mastery number here would put an invented figure on the scale `score` averages. Idempotent in both halves — the stamp does not move and the closure recomputation does nothing if it already agrees — so the client may call it on every "next" without keeping count. It answers with the §7.5 verdict recomputed (`progress_percent`, `can_complete`) so the bar is not stale next to a node just finished. **`409 node_not_seen` since 2026-08-28**: a node the server never served to this learner cannot be finished. Before it, one POST per id — and the ids come from `GET /courses/{course_id}/nodes` — closed the whole course, enrollment `completed` and course skills credited, without a single lesson being rendered. The guard asks for `first_seen_at`, which already existed and already is that fact: it is stamped by `GET /nodes/{node_id}/render` and only by it, never by the anticipatory prefetch — asking for the *row* and not the *stamp* would have authorized finishing lessons nobody has looked at. `409` and not `403` because the node is not forbidden, it is **not yet** open, and rendering it makes the same call work |
 | `POST` | `/nodes/{node_id}/waive` | `{"reason"?}` | `200 NodeStateRead` — admin/manager only; §7.4 |
 | `GET` | `/nodes/{node_id}/render/stream?request_id=…` | — | `200 text/event-stream` |
 | `POST` | `/nodes/{node_id}/answer` | `{"render_id", "item_id", "answer", "hints_used", "latency_ms"}` | `200 NodeAttemptResult` — **the body's `hints_used` is informational and the server must NOT trust it** (B5): it's the value that decides whether `NodeAttemptResult.correct_answer` is revealed, and a field the client fills in can't govern that reveal (`hints_used: 3` would be a free answer key). The valid count is derived server-side from `node_attempts.hints_used` for `(user_id, node_id, item_id)`, which only `POST /nodes/{id}/hint` increments. `QuizItemBlock` (B6) grants no hints and always sends `0` |
@@ -2360,11 +2402,18 @@ mid-statement.
   "nodes": [{ "id": "…", "title": "Return deadline", "summary": "…",
               "criticality": "critical", "position": 1,
               "state": "not_started", "mastery": 0.0,
-              "locked": false, "locked_by": [],
-              "needs_practice": false,          // state == 'needs_review' (§7.4)
+              "done": false,                    // `mastered` OR `completed_at` (§7.5), computed
+                                                // once in services/node_progression.py
+              "available": true,                // always true while progression is linear
               "first_seen_at": null,            // first time this learner was served it
               "completed_at": null }],          // reached the end of the content (§7.5)
+  "next_node_id": "…",                          // first node not done, in order; null if none left
   "can_complete": false, "blocked_by": ["…"], "progress_percent": 0 }
+// `locked`/`locked_by` and `needs_practice` were here and were withdrawn on 2026-08-28. The change
+// of word is the point: a lock is a prohibition, `available` is an answer. And the server ANSWERS
+// which node comes next (`next_node_id`) instead of shipping a list for the client to filter —
+// invisible today, but it is what decides whether that answer can one day come from somewhere that
+// does not fit in a browser. See docs/design/future-progression-modes.md
 
 // ProbeRead — no correct answers
 { "probe_id": "…", "node_id": "…",
@@ -2520,7 +2569,7 @@ because fixtures travel inside `src/` (§10.2); `docker/compose/dev.yml`, which 
 | Unit | `tests/test_render_prompt_artifact.py` | **The drift alarm** between `src/render/kit.py` and the artifact `library.prompt()` generates: normalized catalog digest, `prompt_sha256`, that the prompt announces the 9 signatures and no more, that it **does not** teach reactive syntax, and that the `@openuidev` versions are the audited ones | nothing |
 | Unit | `tests/test_render_gate.py` | 15 reactive payloads (loose `Mutation`, self-triggering `Query`, `refreshInterval`, `@OpenUrl` with `javascript:`, `@ToAssistant`, `$state`, ternary, builtins…) rejected, and 6 legitimate contents accepted — including prose that mentions `Query()` and `$300`, which is the measured false positive of a keyword grep; size caps; `canonicalize()` returns the re-serialization, not the input | nothing |
 | Unit | `tests/test_mastery.py` | Truth table of `probe_verdict` (25 cases), including "B perfect and A at zero" → **no** mastery; `critical` with 2/2 selected gives `tiebreak`, not `mastered`; `tiebreak_mastery` **reaches each of the 3 thresholds** (the §7.2 table case by case); the mastery ceiling (a sustained 0.85 **does** reach `mastered` on a `critical` node); EWMA; the **8** `node_state` transitions of §7.3 | nothing |
-| Unit | `tests/test_probe_reuse.py` | The second `POST /probe` for the same `(user, node, schema_version)` returns the stored verdict and **does not** generate items; re-probe rejected if `state != 'needs_review'` or fewer than 7 days have passed; diagnostic probe (`scored=false`) does not consume the attempt | nothing |
+| Unit | `tests/test_probe_reuse.py` | The second `POST /probe` for the same `(user, node, schema_version)` returns the stored verdict and **does not** generate items; re-probe rejected **always** (§3.4: the state it was gated on was withdrawn on 2026-08-28); diagnostic probe (`scored=false`) does not consume the attempt | nothing |
 | Unit | `tests/test_node_grading.py` | `content_for()` for the 4 deterministic types: recombines `answer_key` + props and `grade()` scores the same as v1 given the same input | nothing |
 | Unit | `tests/test_schema_validation.py` | Cycle detection (self-edge, 2-cycle, 5-cycle, large valid DAG), orphans, `no_critical_node`, cycle pruning in `persist_schema` | nothing |
 | Unit | `tests/test_runtime_router.py` | `select_tier` for the 5 formats; `purpose_for`; `resolve_llm_config` precedence with `runtime_fast`/`runtime_heavy` and fallback to `LLM_MODEL` | nothing |
@@ -2724,7 +2773,7 @@ mastery), and then B6-B10 can overlap.
 | The correct answer leaks to the client | Medium | `answer_key` in a separate column that no response Pydantic schema includes · `ProbeSession.probe` typed as `ProbeRow` (a protocol **without** `answer_key`) and projected by `ProbeSessionRead.from_session` (`extra="forbid"`, fields enumerated by hand) — the service no longer returns the whole ORM row to its caller · a test that dumps the response model and asserts that neither the key nor its values appear (`tests/test_probe_answer_key_privacy.py`) · `NodeRenderRead` already exists (`src/schemas/node.py:115`, arrived with B5) with `extra="forbid"` and the field list enumerated by hand in `NodeRenderRead.of`, which is the whole contract; **still pending** is the equivalent test that dumps *that* model and asserts the absence of the key, like the one for `ProbeSessionRead` · the client's `hints_used` is informational and cannot govern the reveal (§11.3) |
 | Prompt injection from client-supplied text | Medium | `POST /explain` interpolates two client values (`term`, `context`, and the context is not checked against the node's real text). **Neither goes between quotes**: they're sanitized (control characters, `<`/`>`, quote runs, length caps of 140/600) and fenced in `<<<name:token>>>` markers whose token no sanitized payload can contain — closing the fence would require characters already stripped. The `system` prompt declares that whatever sits between markers is data, never instruction. Token derived from content (not random) so fixtures stay reproducible. Hijack tests in `tests/test_explain_service.py` |
 | The mastery rule lets someone who doesn't know through | Medium | `score_a >= 0.5` clause · a constructed-response tiebreak **mandatory on every `critical` node** · **a single scored probe per schema version** (unique index), which is what prevents re-entering until getting it right by chance · a streak of 3 in addition to the threshold |
-| The mastery rule locks out someone who does know | Medium | Mastery ceiling: 3 consecutive hits raise `mastery` to the threshold (§7.3), because the EWMA converges to the mean and left a sustained 0.85 at 0.05 short of 0.90 forever · human override `POST /nodes/{id}/waive` logged to `audit_log` · a node in `needs_review` stays visible and retriable, never disappeared |
+| The mastery rule locks out someone who does know | Medium | Mastery ceiling: 3 consecutive hits raise `mastery` to the threshold (§7.3), because the EWMA converges to the mean and left a sustained 0.85 at 0.05 short of 0.90 forever · human override `POST /nodes/{id}/waive` logged to `audit_log` · rule 8 hands over the worked solution on the fourth failure and **opens the way through** without requiring that hints were asked for (§7.4), so no item can hold anyone |
 | Content shifts under the user's feet | Medium | `active_render_id` pins the render while the node is open · `scaffold_band` (stable) replaces `mastery_band` (changed with every answer) in the key · regeneration only via an explicit button, with "view previous version" |
 | Silent regression in v1 | Medium | `test_v1_regression.py` with the flag at `off` · `resolve_delivery` as the single decision point · default `off` |
 | Contract drift between backend and frontend | Medium | Shared golden specs, copied by a script in `pretest`. Both sides break at once |

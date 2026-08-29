@@ -177,6 +177,79 @@ endpoints are wired as generic ports. A port is only exposed when the concrete
 contract is compatible. The mere existence of `/evaluate` doesn't unlock a quiz
 that self-corrects in the browser, nor does `/progress` enable `practice-set`.
 
+### Failing an evaluated activity (corrected on 2026-08-27)
+
+Three fixes on the same surface, `SecureEvaluatedActivity`, which is the adapter for everything
+evaluated on the server:
+
+- **A wrong answer says so and lets you try again.** It used to print "the answer needs review",
+  which reads as "the system could not grade this" rather than "you got it wrong" — and on top of
+  that it froze the controls and removed the submit button, so there was no way to retry.
+  `unscored`, the result that sentence was written for, is **never** produced by the grader: the
+  only real path through a failure was the misleading sentence. Now **only `correct` is final**
+  (offering a retry there would falsify evidence already earned); `partial` and `unscored` offer
+  one. Clearing the result is not enough: a checked, disabled radio does not reset reliably, so an
+  attempt *nonce* indexes the subtree and it is rebuilt — the same pattern `QuizItemBlock` already
+  used.
+- **`didact.quiz.fill-in-the-blank` has its own renderer.** It was on the allow-list without a
+  branch of its own, fell through to the generic "Your answer" field, and **the sentence with the
+  blank was never shown**: the learner could not see what they were filling in. Now the blank is
+  split on the marker the generator is asked for (`____`, `{{blank}}`, `[blank]`) and the field is
+  painted in its place inside the sentence. With no marker written, the sentence stays as a
+  heading and the field carries the label.
+- **The plain-text modes fold diacritics** (`normalized_any`, `keyed_text`, in
+  `src/services/activity_definitions.py`): `cancion` accepts `canción` and `pinguino` accepts
+  `pingüino`, but **`ano` does NOT accept `año`** — ñ is a letter of the alphabet and the pairs it
+  separates are different words (año/ano, caña/cana, seña/sena). The diaeresis folds because it
+  only records that the u is pronounced and Spanish has no pair distinguished by it; the acute
+  accent folds for a weaker but explicit reason: pairs like esta/está exist, but the question
+  already fixes which word is being talked about, and failing someone over a missing accent grades
+  the keyboard. **Accepted cost: these modes can no longer evaluate accentuation**, and the escape
+  hatch is `case_sensitive: true`. Underneath there was also a hard error:
+  `hmac.compare_digest` raises `TypeError` on non-ASCII strings, so any expected answer with an
+  accent did not score badly, it **blew up**; UTF-8 bytes are compared instead, which keeps the
+  time constant.
+
+The contract examples showed the model an `expected` list with a single element, so it emitted a
+single accepted answer even though the grader has always accepted any member. They now show real
+variants: it is the only place the model learns this.
+
+### `/activities/{id}/evaluate` records evidence, and the activity has an exit (corrected on 2026-08-28)
+
+Two holes that were the same hole: a node's default closer left no trace and had no way out.
+
+- **It was graded and thrown away.** The default closer is the Didact family
+  (`DIDACT_CLOSER_ROTATION`); those activities are authored at runtime **without** an
+  `ImplementationBinding`, so the client does not post to `/activities/{id}/attempts` but to
+  `POST /activities/{id}/evaluate` — which persisted nothing: no attempt row, no mastery, no
+  `commit`. The main check of the lesson was graded and discarded, so it counted no failures, fed
+  no personalization, and **no exit rule could ever fire because there was no counter**. It now
+  goes through `MasteryEvidenceService`, **scoped to the `assessment` family** so that an
+  artifact, simulation or media activity still never touches mastery — putting a number on a
+  certificate nobody earned is exactly what that boundary prevents. Everything else keeps the old,
+  stateless behaviour byte for byte. `attempt_id` is optional and additive: when it travels, a
+  double click replays the verdict instead of grading twice, and reusing it with different content
+  is a `409`, exactly as on `/attempts`.
+- **And there was no way out.** The hint ladder exists only for `QuizItem`, which is the
+  *fallback*; `SecureEvaluatedActivity` — the component that paints the normal path — only knew how
+  to retry. Anyone who could not find the order of a five-element `sort` was stuck there. Now the
+  solution closes the activity and opens the way through, just as in the quiz. This is rule 8 of
+  §7.3 of [`v2-dynamic-courses.md`](/docs/dynamic-courses), which is why it stopped requiring
+  `hints_used >= HINT_LIMIT`: in the Didact family there is no ladder to exhaust, so the condition
+  was unreachable by construction.
+- **The server writes the solution.** `evaluation.expected` on a `didact.matching` is
+  `{"source-1": "target-1"}`: machine ids that mean nothing on screen. Crossing them with the
+  public labels to write "Concept A → Definition A" can only be done by whoever holds both halves,
+  and sending `expected` to the browser would leak the key. The response carries `state`,
+  `mastery`, `show_worked_solution` and an already-written `solution`
+  (`src/services/activity_solution.py`), revealed under `passed or show_worked_solution` — the same
+  gate `POST /nodes/{id}/answer` puts in front of `correct_answer`, and deliberately **without**
+  looking at `hints_used`, which on this path is a whole-node counter and would open the answer to
+  every remaining activity in the node the moment three hints were spent anywhere in it.
+- **A third dead end:** an activity that cannot be evaluated never gets an attempt to count, so the
+  learner saw "the answer could not be evaluated, try again" for ever. Now the way through opens on
+  the first submission, and a warning is left in the log.
+
 ## Proposed next wave
 
 1. real scheduler before emitting `retrieval-practice-session`;

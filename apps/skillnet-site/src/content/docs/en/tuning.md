@@ -29,8 +29,11 @@ Useful flags: `--repeat`, `--only`, `--offline`, `--out`, `--compare`, `--pause`
 `--model` / `--model-fast` / `--model-heavy`, `--price-in` / `--price-out`,
 `--dump-prompts`, `--list`, `--seed`.
 
-**Every value below was read out of the file cited.** Line numbers drift; the constant
-names do not, so grep for the name if the line is off.
+**Every value below was read out of the module named above it.** There are deliberately no
+line numbers: the column existed until 2026-08-27, when it was checked against the code and
+**28 of 45 citations were wrong** — and a stale line number does not land nowhere, it lands
+somewhere real and plausible-looking. The module path stays, because a path is stable and a
+constant name is a stable, unique, greppable address inside it.
 
 ---
 
@@ -59,19 +62,19 @@ noise.
 
 `src/config.py`
 
-| Dial | Line | Current | Turning it |
-|---|---|---|---|
-| `LLM_RUNTIME_FAST_MODEL` | 30 | `None` | The cheap tier. Empty means it falls back through `org_settings["llm_model"]` → `settings.LLM_MODEL`, so the whole feature works with one model configured. Raise it to a better model and *every* `explanation`/`exercise` render gets better and more expensive — that is ~90 % of renders by design. |
-| `LLM_RUNTIME_HEAVY_MODEL` | 31 | `None` | The expensive tier, used only for `chart` / `mixed`. Same fallback chain. This is the cheapest place to buy quality, because so few renders route here. |
-| `LLM_REASONING_EFFORT` | 41 | `"low"` | Only sent to reasoning models (o-series, gpt-oss, deepseek-reasoner). `none` never sends the parameter. Turning it up buys better structure on `chart`/`mixed` and costs thinking tokens billed against the same budget as the answer. |
-| `LLM_REASONING_TOKEN_HEADROOM` | 45 | `2048` | Extra completion budget handed to a reasoning model *on top of* what the call site asked for, because the call site budgets the answer and cannot see the thinking. Measured failure this exists to fix: on `groq/openai/gpt-oss-120b` at `max_tokens=1200` the model sometimes spent the whole budget thinking and returned empty `content`, which the runtime read as an invalid program and sent through the repair loop for nothing. Lower it and that comes back; `0` disables the headroom entirely. |
+| Dial | Current | Turning it |
+|---|---|---|
+| `LLM_RUNTIME_FAST_MODEL` | `None` | The cheap tier. Empty means it falls back through `org_settings["llm_model"]` → `settings.LLM_MODEL`, so the whole feature works with one model configured. Raise it to a better model and *every* `explanation`/`exercise` render gets better and more expensive — that is ~90 % of renders by design. |
+| `LLM_RUNTIME_HEAVY_MODEL` | `None` | The expensive tier, used only for `chart` / `mixed`. Same fallback chain. This is the cheapest place to buy quality, because so few renders route here. |
+| `LLM_REASONING_EFFORT` | `"low"` | Only sent to reasoning models (o-series, gpt-oss, deepseek-reasoner). `none` never sends the parameter. Turning it up buys better structure on `chart`/`mixed` and costs thinking tokens billed against the same budget as the answer. |
+| `LLM_REASONING_TOKEN_HEADROOM` | `2048` | Extra completion budget handed to a reasoning model *on top of* what the call site asked for, because the call site budgets the answer and cannot see the thinking. Measured failure this exists to fix: on `groq/openai/gpt-oss-120b` at `max_tokens=1200` the model sometimes spent the whole budget thinking and returned empty `content`, which the runtime read as an invalid program and sent through the repair loop for nothing. Lower it and that comes back; `0` disables the headroom entirely. |
 
 `src/agents/runtime/router.py`
 
-| Dial | Line | Current | Turning it |
-|---|---|---|---|
-| `HEAVY_FORMATS` | 36 | `{"chart", "mixed", "simulation"}` | Which formats route to the expensive tier. Adding `exercise` here is the blunt way to raise quality across the board; it also moves most of your traffic onto the expensive model, so check the fast/heavy ratio in `llm_usage_log` afterwards. |
-| `ALLOWED_UI_FORMATS` | 40 | `{"explanation", "exercise", "chart", "mixed"}` | What `decide_formato` is allowed to return. Anything else is clamped by `coerce_ui_format`. `simulation` is deliberately absent: nothing in the frozen kit can render one. |
+| Dial | Current | Turning it |
+|---|---|---|
+| `HEAVY_FORMATS` | `{"chart", "mixed", "simulation"}` | Which formats route to the expensive tier. Adding `exercise` here is the blunt way to raise quality across the board; it also moves most of your traffic onto the expensive model, so check the fast/heavy ratio in `llm_usage_log` afterwards. |
+| `ALLOWED_UI_FORMATS` | `{"explanation", "exercise", "chart", "mixed"}` | What `decide_formato` is allowed to return. Anything else is clamped by `coerce_ui_format`. `simulation` is deliberately absent: nothing in the frozen kit can render one. |
 
 ---
 
@@ -79,21 +82,21 @@ noise.
 
 `src/llm/prompts/runtime.py`
 
-| Dial | Line | Current | Turning it |
-|---|---|---|---|
-| `PROMPT_VERSION` | 44 | `"runtime/2"` | Part of the `cache_key`. **Bump it whenever you change any prompt in this module in a way that changes output**, or you will be measuring stale cached renders and concluding your change did nothing. This is the cheapest cache invalidation there is — no DB writes. |
-| `DECIDE_MAX_TOKENS` | 48 | `256` | Budget for `decide_formato`, which answers a one-line JSON object. There is no reason to raise it; if the decider is truncating, the prompt is wrong, not the budget. |
-| `DECIDE_TEMPERATURE` | 49 | `0.0` | Format choice is a classification. Raising this makes the same node render differently for the same learner on different days, which also fragments the cache. |
-| `UI_TEMPERATURE` | 52 | `0.4` | The content generation temperature. Down toward `0.0` for more syntactically reliable dialect and flatter prose; up for more varied examples and more repair-loop entries. This is the first dial to try when first-try validity is low. |
-| `UI_MAX_TOKENS` | 57 | `{"fast": 1200, "heavy": 2400}` | Per-tier completion budget. A `chart`/`mixed` screen needs the room; a plain explanation does not, and paying for it on 90 % of renders is the whole reason the two tiers exist. If failures look like truncated programs, raise the tier that is truncating — but check `LLM_REASONING_TOKEN_HEADROOM` first if the model reasons. |
-| `MAX_UI_RETRIES` | 61 | `1` | One repair attempt, then `fallback_seed`. Raising it to 2 costs another full generation for a model that has already failed twice on the same instructions; the measured better lever is the repair header below. |
-| `SOURCE_CONTEXT_MAX_CHARS` | 65 | `6000` | How much source text travels with `genera_ui` (`clip_source` trims at a whitespace boundary, never mid-word). Above this the prompt stops being about the node and starts being about the document. Lower it if the model is generating content from the wrong part of a long manual. |
-| `_DENSITY_BUDGET` | 77 | 5 entries, 1–5 | The length budget in words, per `effective_density`. `1` = "2-3 bloques y frases muy cortas", `5` = "5-7 bloques". This is the text the model actually reads — edit the wording, not just the number of blocks. |
-| `_SCAFFOLD_RULES` | 86 | `novice` / `neutral` / `advanced` | What each scaffolding band changes, stated as behaviour rather than as a label. `novice` demands a worked example before asking anything; `advanced` goes straight to edge cases. If advanced learners complain about being over-explained, this is the string to sharpen. |
-| `_ERROR_RULES` | 102 | `detail` / `procedural` / `conceptual` | How `last_error_kind` changes the next screen (§7.4). |
-| `_SIGNAL_RULES` | 119 | 5 actions | Closed vocabulary mapping `tutor_notes.signals` to instructions. Closed on purpose: a signal can never become free-form prose injected into a prompt (§3.3). Add an entry here *and* in the producer, never only here. |
-| `FORMAT_DECIDER_SYSTEM` | 133 | — | The whole format-selection prompt. The hard rules that matter: no `chart` without real figures in the source, no `exercise` unless the node's expected outcome is an action, never `chart` alone on a `critical` node, and `explanation` when in doubt. If the heavy tier exceeds ~25 % of traffic, this prompt is over-choosing `chart`. |
-| `_UI_REPAIR_HEADER` | 267 | — | The repair system prompt's header. The MAL/BIEN counterexample block is not decoration: measured against `qwen2.5:7b-instruct` (2026-07-26), the two syntax mistakes a small model makes are **named arguments** and **splitting one call over several lines**, both already forbidden in prose and made anyway. The last paragraph exists because the loop's real failure mode was *chasing the wrong bug* — the model rewriting correct quotes three attempts in a row. With one retry only, this header is where quality is bought. |
+| Dial | Current | Turning it |
+|---|---|---|
+| `PROMPT_VERSION` | `"runtime/42"` | Part of the `cache_key`. **Bump it whenever you change any prompt in this module in a way that changes output**, or you will be measuring stale cached renders and concluding your change did nothing. This is the cheapest cache invalidation there is — no DB writes. |
+| `DECIDE_MAX_TOKENS` | `512` | Budget for `decide_formato`, which answers a one-line JSON object. It was `256` and was doubled in `0e31361` along with the prompt expansion, with no measurement recorded for the budget itself — so treat 512 as headroom nobody has needed to defend, not as a tuned value. If the decider truncates, suspect the prompt before the budget. |
+| `DECIDE_TEMPERATURE` | `0.0` | Format choice is a classification. Raising this makes the same node render differently for the same learner on different days, which also fragments the cache. |
+| `UI_TEMPERATURE` | `0.4` | The content generation temperature. Down toward `0.0` for more syntactically reliable dialect and flatter prose; up for more varied examples and more repair-loop entries. This is the first dial to try when first-try validity is low. |
+| `UI_MAX_TOKENS` | `{"fast": 1400, "heavy": 2800}` | Per-tier completion budget, raised from `1200`/`2400` in `0e31361` when the prompts grew worked examples. A `chart`/`mixed` screen needs the room; a plain explanation does not, and paying for it on 90 % of renders is the whole reason the two tiers exist. If failures look like truncated programs, raise the tier that is truncating — but check `LLM_REASONING_TOKEN_HEADROOM` first if the model reasons. |
+| `MAX_UI_RETRIES` | `2` | Two repair attempts, then `fallback_seed`. It was `1` until the adaptive-episode measurement showed a second attempt cutting the fallback rate for the cost of one extra generation on the hard cases only. Beyond this, a model that keeps failing the same instructions is better served by the seed than by more budget. |
+| `SOURCE_CONTEXT_MAX_CHARS` | `6000` | How much source text travels with `genera_ui` (`clip_source` trims at a whitespace boundary, never mid-word). Above this the prompt stops being about the node and starts being about the document. Lower it if the model is generating content from the wrong part of a long manual. |
+| `_DENSITY_BUDGET` | 5 entries, 1–5 | The length budget in words, per `effective_density`. `1` = "2-3 bloques y frases muy cortas", `5` = "5-7 bloques". This is the text the model actually reads — edit the wording, not just the number of blocks. |
+| `_SCAFFOLD_RULES` | `novice` / `neutral` / `advanced` | What each scaffolding band changes, stated as behaviour rather than as a label. `novice` demands a worked example before asking anything; `advanced` goes straight to edge cases. If advanced learners complain about being over-explained, this is the string to sharpen. |
+| `_ERROR_RULES` | `detail` / `procedural` / `conceptual` | How `last_error_kind` changes the next screen (§7.4). |
+| `_SIGNAL_RULES` | 5 actions | Closed vocabulary mapping `tutor_notes.signals` to instructions. Closed on purpose: a signal can never become free-form prose injected into a prompt (§3.3). Add an entry here *and* in the producer, never only here. |
+| `FORMAT_DECIDER_SYSTEM` | — | The whole format-selection prompt. The hard rules that matter: no `chart` without real figures in the source, no `exercise` unless the node's expected outcome is an action, never `chart` alone on a `critical` node, and `explanation` when in doubt. If the heavy tier exceeds ~25 % of traffic, this prompt is over-choosing `chart`. |
+| `_UI_REPAIR_HEADER` | — | The repair system prompt's header. The MAL/BIEN counterexample block is not decoration: measured against `qwen2.5:7b-instruct` (2026-07-26), the two syntax mistakes a small model makes are **named arguments** and **splitting one call over several lines**, both already forbidden in prose and made anyway. The last paragraph exists because the loop's real failure mode was *chasing the wrong bug* — the model rewriting correct quotes three attempts in a row. With one retry only, this header is where quality is bought. |
 
 **The dialect fragment is never written by hand.** `ui_generator_system()` is
 `src.render.prompt.render_prompt()` — the artefact generated from the frontend kit — plus
@@ -107,12 +110,12 @@ drift `tests/test_render_prompt_artifact.py` exists to catch.
 `src/render/gate.py`. These are safety limits, not quality dials — but a program rejected
 here shows up in the bench as a repair or a fallback, so they read like quality problems.
 
-| Dial | Line | Current | Turning it |
-|---|---|---|---|
-| `MAX_PROGRAM_BYTES` | 47 | `16_384` | Total program size cap, enforced before anything expensive happens. A 12-component spec with long prose is ~4 kB, so this is generous. Bounds the work a poisoned document can ask of the parser and the browser. |
-| `MAX_PROGRAM_LINES` | 50 | `MAX_COMPONENTS + 8` (= 20) | Counted in **logical** lines — declarations, joined across newlines that fall inside an open bracket (`src/render/lines.py::logical_lines`), which is where lang-core also splits statements. It used to count physical lines, so a correctly sized program with a blank line between declarations measured 23 and the model was told to shorten a lesson that was the right length. `MAX_COMPONENTS` is `12` (`src/render/spec.py:51`); the `+ 8` is slack for a fenced block and a repair attempt. |
-| `MAX_LINE_BYTES` | 53 | `4_096` | One line is one component's worth of text. Note `FALLBACK_BLOCK_CHARS` below is set well under this on purpose. |
-| `RENDER_ALLOW_REACTIVE` (`src/config.py:85`) | 85 | `False` | **Leave it off.** The price of switching it on is stated in `openui-adoption.md` §3: the model has to be taught the whole reactive syntax at once (the prompt flags do not split), and a structural property — "the grammar cannot express it" — degrades into a contract to re-verify on every `@openuidev` release. |
+| Dial | Current | Turning it |
+|---|---|---|
+| `MAX_PROGRAM_BYTES` | `16_384` | Total program size cap, enforced before anything expensive happens. A 12-component spec with long prose is ~4 kB, so this is generous. Bounds the work a poisoned document can ask of the parser and the browser. |
+| `MAX_PROGRAM_LINES` | `MAX_COMPONENTS + 8` (= 20) | Counted in **logical** lines — declarations, joined across newlines that fall inside an open bracket (`src/render/lines.py::logical_lines`), which is where lang-core also splits statements. It used to count physical lines, so a correctly sized program with a blank line between declarations measured 23 and the model was told to shorten a lesson that was the right length. `MAX_COMPONENTS` is `12` (`src/render/spec.py:51`); the `+ 8` is slack for a fenced block and a repair attempt. |
+| `MAX_LINE_BYTES` | `4_096` | One line is one component's worth of text. Note `FALLBACK_BLOCK_CHARS` below is set well under this on purpose. |
+| `RENDER_ALLOW_REACTIVE` (`src/config.py:85`) | `False` | **Leave it off.** The price of switching it on is stated in `openui-adoption.md` §3: the model has to be taught the whole reactive syntax at once (the prompt flags do not split), and a structural property — "the grammar cannot express it" — degrades into a contract to re-verify on every `@openuidev` release. |
 
 The reactivity check is deliberately light and textual: it blanks every string literal
 first, then checks the remaining skeleton against the alphabet the frozen grammar can
@@ -128,22 +131,23 @@ clock you did not pass in — because the rule that decides what a certificate s
 testable case by case. **Changing any of these changes what "mastered" means**, so change
 them with the unit tests open.
 
-| Dial | Line | Current | Turning it |
-|---|---|---|---|
-| `THRESHOLDS` | 37 | `critical 0.90`, `recommended 0.80`, `contextual 0.70` | The mastery bar per criticality. Depends on the node, never on the person (§7.2 rule 4). `course_nodes.mastery_threshold` overrides per node. Raising `critical` makes courses harder to complete — completion requires *every* non-archived critical node mastered. |
-| `DOUBT_BAND_FLOOR` | 38 | `0.55` | Estimates at or above this but below 1.0 go to the tie-break instead of straight to `learning`. Lower it and more learners get a third, constructed item. |
-| `W_APPLY` / `W_UNDERSTAND` | 39 | `0.6` / `0.4` | Weights of the two selected-response probe items. |
-| `W3_APPLY` / `W3_UNDERSTAND` / `W3_CONSTRUCTED` | 42 | `0.45` / `0.15` / `0.40` | Renormalized tie-break weights. They sum to 1.0 deliberately: in the previous version the tie-break topped out at 0.80 and was dead code on a `critical` node. |
-| `APPLY_FLOOR` | 44 | `0.5` | Failing the "apply" item can never yield mastery, whatever the other items say. This is the anti-guessing clause; do not lower it to make numbers look better. |
-| `ALPHA` | 48 | `0.4` | Weight of new evidence in the EWMA. Higher = mastery reacts faster to the last answer and is noisier. |
-| `FADING_STREAK` | 49 | `3` | N consecutive correct answers → mastery ceiling applied *and* eligible for `mastered`. The ceiling fixes a real arithmetic bug: `0.6*old + 0.4*score` has its fixed point at `score`, so a sustained 0.85 sat 0.05 below a critical node's threshold forever and the course was permanently unfinishable. Lowering this to 1 removes the "streak, not a lucky spike" defence against cognitive offloading. |
-| `REGRESS_STREAK` | 50 | `2` | Consecutive failures before difficulty drops and `reforzar_con_ejemplo` is emitted. |
-| `HINT_LIMIT` | 54 | `3` | Hints per item. A click-to-explain inside an unanswered `QuizItem` counts and consumes quota (§8.5). |
-| `NEEDS_REVIEW_FAILURES` | 55 | `4` | Failures of the same item, after the hints are spent, before the node exits to `needs_review`. |
-| `REPROBE_COOLDOWN_DAYS` | 59 | `7` | Re-probe only from `needs_review`, and only after this long. This is the anti-retry rule (§3.4). |
-| `MASTERY_PRIOR` | 63 | `high 0.85`, `medium 0.55`, `low 0.25` | Seed for `learner_node_states.mastery` from `user_skills.level` (§7.1). A starting point for the EWMA and the scaffold band only — it never skips a node on its own. |
-| `SKILL_LEVEL_MEDIUM_FLOOR` / `SKILL_LEVEL_HIGH_FLOOR` | 67 / 68 | `0.5` / `0.85` | `mastery` → `user_skills.level` on the way back out. |
-| `TARGET_BLOOM` | 69 | `shu→understand`, `ha→apply`, `ri→analyze` | The cognitive level asked of the exercise, derived from where mastery sits relative to the threshold. Travels into `build_ui_prompt`. |
+| Dial | Current | Turning it |
+|---|---|---|
+| `THRESHOLDS` | `critical 0.90`, `recommended 0.80`, `contextual 0.70` | The mastery bar per criticality. Depends on the node, never on the person (§7.2 rule 4). `course_nodes.mastery_threshold` overrides per node. Raising `critical` makes courses harder to complete, but it no longer *blocks* completion on its own: `node_is_done` counts a node as done when it is mastered **or** has a `completed_at` (migration 0029), and criticality does not gate closure. What the threshold still governs is `score`, the mean of *measured* mastery — the number a certificate prints. |
+| `DOUBT_BAND_FLOOR` | `0.55` | Estimates at or above this but below 1.0 go to the tie-break instead of straight to `learning`. Lower it and more learners get a third, constructed item. |
+| `W_APPLY` / `W_UNDERSTAND` | `0.6` / `0.4` | Weights of the two selected-response probe items. |
+| `W3_APPLY` / `W3_UNDERSTAND` / `W3_CONSTRUCTED` | `0.45` / `0.15` / `0.40` | Renormalized tie-break weights. They sum to 1.0 deliberately: in the previous version the tie-break topped out at 0.80 and was dead code on a `critical` node. |
+| `APPLY_FLOOR` | `0.5` | Failing the "apply" item can never yield mastery, whatever the other items say. This is the anti-guessing clause; do not lower it to make numbers look better. |
+| `ALPHA` | `0.4` | Weight of new evidence in the EWMA. Higher = mastery reacts faster to the last answer and is noisier. |
+| `FADING_STREAK` | `3` | N consecutive correct answers → mastery ceiling applied *and* eligible for `mastered`. The ceiling fixes a real arithmetic bug: `0.6*old + 0.4*score` has its fixed point at `score`, so a sustained 0.85 sat 0.05 below a critical node's threshold forever and the course was permanently unfinishable. Lowering this to 1 removes the "streak, not a lucky spike" defence against cognitive offloading. |
+| `REGRESS_STREAK` | `2` | Consecutive failures before difficulty drops and `reforzar_con_ejemplo` is emitted. |
+| `HINT_LIMIT` | `3` | Hints per item. A click-to-explain inside an unanswered `QuizItem` counts and consumes quota (§8.5). |
+| `WORKED_SOLUTION_FAILURES` | `4` | Failures of the same item before the worked solution is handed over and the learner moves on (rule 8 of §7.3). Independent of `HINT_LIMIT` on purpose: hints are a disclosure budget, these failures are evidence the item is not working. Was `NEEDS_REVIEW_FAILURES`, and did require the hints to be spent first — both changed on 2026-08-28, see `docs/design/future-progression-modes.md`. |
+| `MASTERY_PRIOR` | `high 0.85`, `medium 0.55`, `low 0.25` | Seed for `learner_node_states.mastery` from `user_skills.level` (§7.1). A starting point for the EWMA and the scaffold band only — it never skips a node on its own. |
+| `SKILL_LEVEL_MEDIUM_FLOOR` / `SKILL_LEVEL_HIGH_FLOOR` | `0.5` / `0.85` | `mastery` → `user_skills.level` on the way back out. |
+| `TARGET_BLOOM` | `shu→understand`, `ha→apply`, `ri→analyze` | The cognitive level asked of the exercise, derived from where mastery sits relative to the threshold. Travels into `build_ui_prompt`. |
+
+**One dial was removed rather than retuned (2026-08-28).** `REPROBE_COOLDOWN_DAYS` (`7`) gated the re-probe on "only from `needs_review`, and only after this long". Migration `0033` removed the `needs_review` state, so the first half of that gate can never hold again and a cooldown on its own decides nothing — keeping it would have widened the rule into "anyone may re-probe a node they already mastered, one week later". `probe_service._authorize_reprobe` now refuses unconditionally, and which condition should replace the state is a product decision, not a dial.
 
 ---
 
@@ -151,17 +155,17 @@ them with the unit tests open.
 
 `src/agents/runtime/nodes.py`
 
-| Dial | Line | Current | Turning it |
-|---|---|---|---|
-| `RETRIEVAL_TOP_K` | 104 | `8` | Chunks retrieved for the `chunked` branch of `load_context`. Only reached for documents over `FULL_TEXT_PAGE_THRESHOLD` (`5` pages, `src/agents/content/helpers.py:20`); anything smaller goes in whole and needs no embeddings at all. Raising it feeds more source into a prompt that `SOURCE_CONTEXT_MAX_CHARS` will then clip, so raise both or neither. |
-| `FALLBACK_BLOCK_CHARS` | 108 | `2800` | Size of each `Markdown` block in the seed fallback. Capped well below `MAX_LINE_BYTES` (4096) because the whole seed lesson lives on **one** line once serialized, escaped newlines and all. |
-| `FALLBACK_MAX_BLOCKS` | 110 | `4` | Root fan-out is capped at 5 and the lead block takes one of them. |
+| Dial | Current | Turning it |
+|---|---|---|
+| `RETRIEVAL_TOP_K` | `8` | Chunks retrieved for the `chunked` branch of `load_context`. Only reached for documents over `FULL_TEXT_PAGE_THRESHOLD` (`5` pages, `src/agents/content/helpers.py:20`); anything smaller goes in whole and needs no embeddings at all. Raising it feeds more source into a prompt that `SOURCE_CONTEXT_MAX_CHARS` will then clip, so raise both or neither. |
+| `FALLBACK_BLOCK_CHARS` | `300` | Size of each `Markdown` block in the seed fallback. **The binding constraint is the viewport, not `MAX_LINE_BYTES`.** It was `2800` — sized only to stay under the 4096-byte line cap — and that produced a wall of text where a degraded screen should be. The fallback is a safety net, not a document viewer. |
+| `FALLBACK_MAX_BLOCKS` | `2` | Was `4`, on the reasoning that the root fan-out is capped at 5 and the lead block takes one. That reasoning answered "how many blocks are *allowed*", which is the wrong question for a fallback; `2` answers "how much fits on one screen without scrolling". |
 
 `src/services/learner_profile_service.py`
 
-| Dial | Line | Current | Turning it |
-|---|---|---|---|
-| `CALIBRATION_NODES` | 66 | `3` | Below this many completed nodes, `decide_formato` **makes no LLM call at all** and the format is `node.default_ui_format`. Not "asked and ignored" — asked and ignored would still cost a call. The reason is pedagogical, not economic: the learner has to build a mental map before the interface starts moving (the lesson of Office 2000's adaptive menus). Lowering it to 0 turns personalisation on from the first node and makes the bench's calibration cases stop exercising that branch. |
+| Dial | Current | Turning it |
+|---|---|---|
+| `CALIBRATION_NODES` | `3` | Below this many completed nodes, `decide_formato` **makes no LLM call at all** and the format is `node.default_ui_format`. Not "asked and ignored" — asked and ignored would still cost a call. The reason is pedagogical, not economic: the learner has to build a mental map before the interface starts moving (the lesson of Office 2000's adaptive menus). Lowering it to 0 turns personalisation on from the first node and makes the bench's calibration cases stop exercising that branch. |
 
 The bench corpus deliberately includes learners with `nodes_completed < 3`
 (`extintor`, `prevencion-riesgos`) precisely so this branch is measured.
@@ -172,10 +176,10 @@ The bench corpus deliberately includes learners with `nodes_completed < 3`
 
 `src/config.py`
 
-| Dial | Line | Current | Turning it |
-|---|---|---|---|
-| `LLM_FIXTURE_DIR` | 49 | `"src/llm/fixture_data"` | Inside the package, so recorded fixtures ship in the Docker image. |
-| `LLM_FIXTURE_MODE` | 50 | `"replay"` | `replay` serves recorded pairs; `record` calls the real provider and writes every `(prompt, response)` pair into the directory. Fixtures are activated by setting `LLM_MODEL=fixture/local` (and `EMBEDDING_MODEL=fixture/local`), not by this flag. |
+| Dial | Current | Turning it |
+|---|---|---|
+| `LLM_FIXTURE_DIR` | `"src/llm/fixture_data"` | Inside the package, so recorded fixtures ship in the Docker image. |
+| `LLM_FIXTURE_MODE` | `"replay"` | `replay` serves recorded pairs; `record` calls the real provider and writes every `(prompt, response)` pair into the directory. Fixtures are activated by setting `LLM_MODEL=fixture/local` (and `EMBEDDING_MODEL=fixture/local`), not by this flag. |
 
 `FixtureLLMService` resolves by exact hash of `(system, user)`, so a new corpus has no
 recordings and would fail on the first call. Note the consequence for tuning: **changing a

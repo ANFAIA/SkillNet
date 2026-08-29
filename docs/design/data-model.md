@@ -882,18 +882,24 @@ Two org-scoped tables back the generated media (see [`media-artifacts.md`](media
 
 ### Finishing a node is not mastering it
 
-Migration **`0029_learner_node_state_completed_at`** (the current head) adds
+Migration **`0029_learner_node_state_completed_at`** adds
 `learner_node_states.completed_at`, a nullable `timestamptz` written only by
-`POST /nodes/{id}/complete`. It exists because progress on a dynamic course was
+`POST /nodes/{id}/complete` — which, since 2026-08-28, refuses with `409 node_not_seen`
+unless the server actually served that node to that learner (`first_seen_at`, stamped by
+`GET /nodes/{id}/render` alone). It exists because progress on a dynamic course was
 `mastered_nodes / nodes`, and `mastered` is reachable only through rule 6 of
 [`v2-dynamic-courses.md`](v2-dynamic-courses.md) §7.3 — a streak of correct answers on
 **graded** items. An expository node has no graded item, so it never left `not_started`
 however completely it was read, and a course made of them reported 0%.
 
 `mastery_service.node_is_done` now counts a node as done when it is `mastered` **or** has a
-`completed_at`. `CourseCompletion.score` still averages only *measured* `mastery`, so the
-number a certificate prints does not move: a course closed by reading it closes with a low
-score.
+`completed_at`. Since 2026-08-29 a closed course carries **no score at all** — completion is
+the whole of what it asserts — so the second half of this paragraph no longer applies and is
+not restated: `enrollments.score` is written by the v1 path alone. The evidence a course
+produced survives as `CourseCompletion.measured_mastery`, the mean over the nodes that
+actually asked something (`attempts_count > 0` or `probe_score`), and its only job is
+choosing the level the course's skills are accredited at. See
+[`v2-dynamic-courses.md`](v2-dynamic-courses.md) §7.5.
 
 Three deliberate choices: it is **not** a new value of the `node_state` enum (one scale
 cannot hold two independent facts — somebody can finish a node without demonstrating it, and

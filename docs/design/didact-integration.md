@@ -181,6 +181,42 @@ Los ejemplos del contrato mostraban al modelo una lista `expected` de un solo el
 emitía una única respuesta aceptada aunque el corrector siempre haya aceptado cualquier miembro.
 Ahora muestran variantes reales: es el único sitio donde el modelo lo aprende.
 
+### `/activities/{id}/evaluate` guarda evidencia, y la actividad tiene salida (corregido el 2026-08-28)
+
+Dos agujeros que eran el mismo: el cierre por defecto de un nodo no dejaba rastro y no tenía salida.
+
+- **Se corregía y se tiraba.** El cierre por defecto es la familia Didact
+  (`DIDACT_CLOSER_ROTATION`); esas actividades se autoran en runtime **sin**
+  `ImplementationBinding`, así que el cliente no postea a `/activities/{id}/attempts` sino a
+  `POST /activities/{id}/evaluate` — que no persistía nada: ni fila de intento, ni maestría, ni
+  `commit`. La prueba principal de la lección se calificaba y se descartaba, así que no contaba
+  fallos, no alimentaba la personalización y **ninguna regla de salida podía dispararse porque no
+  había contador**. Ahora pasa por `MasteryEvidenceService`, **acotado a la familia `assessment`**
+  para que una actividad de artefacto, simulación o medios siga sin tocar maestría — poner un número
+  en un certificado que nadie se ganó es exactamente lo que ese límite impide. Todo lo demás
+  conserva el comportamiento sin estado byte a byte. `attempt_id` es opcional y aditivo: cuando
+  viaja, un doble clic replica el veredicto en vez de calificar dos veces, y reusarlo con un
+  contenido distinto es `409`, igual que en `/attempts`.
+- **Y no había salida.** La escalera de pistas existe sólo para `QuizItem`, que es el *fallback*;
+  `SecureEvaluatedActivity` —el componente que pinta el camino normal— sólo sabía reintentar. Quien
+  no daba con el orden de un `sort` de cinco elementos se quedaba ahí. Ahora la solución cierra la
+  actividad y abre el paso, igual que en el quiz. Es la regla 8 de §7.3 de
+  [`v2-dynamic-courses.md`](v2-dynamic-courses.md), que por eso dejó de exigir `hints_used >=
+  HINT_LIMIT`: en la familia Didact no hay escalera que agotar, así que la condición era
+  inalcanzable por construcción.
+- **La solución la redacta el servidor.** `evaluation.expected` de un `didact.matching` es
+  `{"source-1": "target-1"}`: ids de máquina que no significan nada en pantalla. Cruzarlos con las
+  etiquetas públicas para escribir "Concepto A → Definición A" sólo puede hacerlo quien tiene las
+  dos mitades, y mandar `expected` al navegador sería filtrar la clave. La respuesta trae
+  `state`, `mastery`, `show_worked_solution` y una `solution` ya redactada
+  (`src/services/activity_solution.py`), revelada bajo `passed or show_worked_solution` — la misma
+  puerta que `POST /nodes/{id}/answer` pone delante de `correct_answer`, y deliberadamente **sin**
+  mirar `hints_used`, que en esta ruta es un contador de nodo entero y abriría la respuesta de todas
+  las actividades restantes en cuanto se gastaran tres pistas en cualquier sitio.
+- **Tercer callejón:** una actividad que no se puede evaluar nunca llega a tener un intento que
+  contar, así que el aprendiz veía "No se pudo evaluar la respuesta, inténtalo de nuevo" para
+  siempre. Ahora el paso se abre al primer envío y queda un warning en el log.
+
 ## Siguiente ola propuesta
 
 1. scheduler real antes de emitir `retrieval-practice-session`;
