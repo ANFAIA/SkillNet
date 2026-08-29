@@ -253,6 +253,31 @@ describe('SecureEvaluatedActivity when the attempts run out', () => {
     expect(report).toHaveBeenCalledWith('fallo', { definitivo: true })
   })
 
+  it('is honest when the item closes with no solution to show', async () => {
+    // `show_worked_solution: true` with `solution: null` is a real server answer:
+    // `render_solution` returns `None` for an evaluation mode it cannot write out. The
+    // panel then prints nothing, so "aquí tienes la solución" promised something that
+    // never arrived — and with the item closed there was no retry either, leaving the
+    // learner in front of a blank promise.
+    const user = userEvent.setup()
+    const { solve } = renderWithStepper([
+      { outcome: 'incorrect', score: 0, showWorkedSolution: true, solution: null },
+    ])
+
+    await answer(user)
+
+    expect(
+      await screen.findByText(/No podemos mostrarte la solución de esta actividad/),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('La respuesta no es correcta. Aquí tienes la solución.')).not.toBeInTheDocument()
+    // No empty panel under the sentence either.
+    expect(screen.queryByText('Solución paso a paso')).not.toBeInTheDocument()
+    // The item is still closed, and the step still opens: the way out does not depend on
+    // the solution being printable.
+    expect(screen.queryByRole('button', { name: 'Reintentar' })).not.toBeInTheDocument()
+    expect(solve).toHaveBeenCalled()
+  })
+
   it('keeps offering a retry until the server closes the item', async () => {
     const user = userEvent.setup()
     const { solve, report } = renderWithStepper([{ outcome: 'incorrect', score: 0 }])

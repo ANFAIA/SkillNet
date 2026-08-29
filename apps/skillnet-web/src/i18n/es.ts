@@ -1028,12 +1028,13 @@ export const es: Record<string, string> = {
   'nodelist.stateNotStarted': 'Sin empezar',
   'nodelist.stateLearning': 'En curso',
   'nodelist.stateMastered': 'Dominado',
+  'nodelist.stateCompleted': 'Completado',
   'nodelist.criticalityCritical': 'Imprescindible',
   'nodelist.criticalityRecommended': 'Recomendado',
   'nodelist.criticalityContextual': 'Contexto',
   'nodelist.mastery': 'Dominio {pct}%',
   'nodelist.empty': 'Este curso todavía no tiene lecciones publicadas.',
-  'nodelist.canComplete': 'Has dominado todas las lecciones de este curso.',
+  'nodelist.canComplete': 'Has terminado todas las lecciones de este curso.',
   'nodelist.blockedBy': 'Para completar el curso te falta: {titles}.',
   'nodelist.completeRequired': 'Completa todas las lecciones para cerrar el curso.',
 
@@ -1074,7 +1075,7 @@ export const es: Record<string, string> = {
 
   // QuizItemHints component
   'hints.hintOf': 'Pista {used} de {total}',
-  'hints.exhausted': 'Has usado las {limit} pistas de este ítem. Si vuelves a fallar te enseñamos la solución paso a paso.',
+  'hints.exhausted': 'Has usado las {limit} pistas de este ítem. Si sigues sin dar con ello, te enseñaremos la solución.',
   'hints.requesting': 'Pidiendo pista...',
   'hints.request': 'Pedir una pista',
   'hints.remaining': 'Te quedan {count}',

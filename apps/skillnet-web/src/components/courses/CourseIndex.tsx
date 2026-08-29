@@ -3,13 +3,8 @@ import { useIntl } from 'react-intl'
 import { Card, SkeletonText } from '../ui'
 import { useCourseNodes } from '../../api/nodes'
 import { staggerContainer, staggerItem } from '../../lib/motion'
-import type { LearningNode, NodeState } from '../../types'
-
-const STATE_CLASS: Record<NodeState, string> = {
-  not_started: 'text-text-muted',
-  learning: 'text-primary',
-  mastered: 'text-accent',
-}
+import { NODE_STATUS_CLASS, NODE_STATUS_LABEL_ID, nodeStatus } from './nodeStatus'
+import type { LearningNode } from '../../types'
 
 function StateIcon({ node }: { node: LearningNode }) {
   const common = {
@@ -24,7 +19,9 @@ function StateIcon({ node }: { node: LearningNode }) {
     'aria-hidden': true,
   }
 
-  if (node.state === 'mastered') {
+  // The tick is `done`, not `mastered` — see `nodeStatus`. Asking `state` here drew the
+  // empty "not started" circle next to a finished expository node.
+  if (node.done) {
     return (
       <svg {...common} className="shrink-0 text-accent">
         <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
@@ -34,7 +31,7 @@ function StateIcon({ node }: { node: LearningNode }) {
   }
 
   return (
-    <svg {...common} className={`shrink-0 ${STATE_CLASS[node.state]}`}>
+    <svg {...common} className={`shrink-0 ${NODE_STATUS_CLASS[nodeStatus(node)]}`}>
       <circle cx="12" cy="12" r="9" />
       {node.state === 'learning' && (
         <circle cx="12" cy="12" r="4" fill="currentColor" stroke="none" />
@@ -47,11 +44,6 @@ export function CourseIndex({ courseId }: { courseId: string }) {
   const intl = useIntl()
   const nodesQuery = useCourseNodes(courseId)
   const nodes = nodesQuery.data?.nodes
-  const stateLabel: Record<NodeState, string> = {
-    not_started: intl.formatMessage({ id: 'nodelist.stateNotStarted' }),
-    learning: intl.formatMessage({ id: 'nodelist.stateLearning' }),
-    mastered: intl.formatMessage({ id: 'nodelist.stateMastered' }),
-  }
 
   return (
     <div>
@@ -69,20 +61,23 @@ export function CourseIndex({ courseId }: { courseId: string }) {
           <motion.ul initial="hidden" animate="visible" variants={staggerContainer}>
             {[...nodes]
               .sort((a, b) => a.position - b.position)
-              .map((node, index) => (
-                <motion.li
-                  key={node.id}
-                  variants={staggerItem}
-                  className="flex items-start gap-3 border-b border-border px-4 py-3 last:border-b-0"
-                >
-                  <StateIcon node={node} />
-                  <span className="w-4 shrink-0 text-xs tabular-nums text-text-muted">{index + 1}</span>
-                  <span className="min-w-0 flex-1 text-sm leading-5 text-text">{node.title}</span>
-                  <span className={`mt-0.5 shrink-0 text-xs ${STATE_CLASS[node.state]}`}>
-                    {stateLabel[node.state]}
-                  </span>
-                </motion.li>
-              ))}
+              .map((node, index) => {
+                const status = nodeStatus(node)
+                return (
+                  <motion.li
+                    key={node.id}
+                    variants={staggerItem}
+                    className="flex items-start gap-3 border-b border-border px-4 py-3 last:border-b-0"
+                  >
+                    <StateIcon node={node} />
+                    <span className="w-4 shrink-0 text-xs tabular-nums text-text-muted">{index + 1}</span>
+                    <span className="min-w-0 flex-1 text-sm leading-5 text-text">{node.title}</span>
+                    <span className={`mt-0.5 shrink-0 text-xs ${NODE_STATUS_CLASS[status]}`}>
+                      {intl.formatMessage({ id: NODE_STATUS_LABEL_ID[status] })}
+                    </span>
+                  </motion.li>
+                )
+              })}
           </motion.ul>
         )}
       </Card>

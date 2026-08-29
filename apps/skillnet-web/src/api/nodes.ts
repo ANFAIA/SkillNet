@@ -570,10 +570,11 @@ export function useCompleteNode() {
 // by OpenUI's runtime, which passes props and nothing else, so a hook lifted to this file
 // would have no component able to call it with the item it belongs to.
 //
-// What changed by wiring it up is worth stating once: `node_attempts.hints_used` only
-// moves through that endpoint, and rule 8 of §7.3 needs it at 3. Until something spent a
-// hint the worked solution was unreachable, so an item the learner could not answer had
-// no exit. It has one now.
+// What wiring it up buys is worth stating once: `node_attempts.hints_used` only moves
+// through that endpoint, and it is what opens `correct_answer` early (`hints_used >=
+// HINT_LIMIT`, in `routes/nodes.py`). It is no longer the price of the worked solution —
+// rule 8 of §7.3 closes an item on four failures alone, so the learner who never asks for
+// a hint still gets the way out.
 
 /** `POST /nodes/{node_id}/feedback` — `204`, and it fires the difficulty signals (§3.3). */
 export function useNodeFeedback(nodeId: string | undefined) {

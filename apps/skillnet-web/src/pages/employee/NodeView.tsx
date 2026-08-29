@@ -412,12 +412,15 @@ export function NodeView() {
     [nodes.data, nodeId],
   )
 
-  // Un nodo dominado ya no tiene "por donde iba", asi que su marcador se borra en cuanto
-  // el servidor lo da por dominado. Es la otra mitad de la limpieza: `goNext` borra el
-  // del nodo que se abandona hacia adelante, esto borra el del que se termina en el sitio.
+  // A finished node has no "where was I" left, so its marker is dropped as soon as the
+  // server calls it done. The other half of the cleanup: `goNext` drops the marker of the
+  // node being left forwards, this drops the one of a node finished in place.
+  //
+  // `done`, not `state === 'mastered'`: mastery needs graded answers, so an expository
+  // node read to the end kept a stale marker for ever.
   useEffect(() => {
-    if (node?.state === 'mastered') forgetNode()
-  }, [node?.state, forgetNode])
+    if (node?.done) forgetNode()
+  }, [node?.done, forgetNode])
 
   const ordered = useMemo(
     () => [...(nodes.data?.nodes ?? [])].sort((a, b) => a.position - b.position),
@@ -731,18 +734,21 @@ export function NodeView() {
 
   // --- prefetch next node (fire-and-forget) ------------------------------------
   //
-  // When the current node's render is served, pre-render the next unlocked node
-  // so the learner does not wait when they navigate forward. The backend is
-  // idempotent: if the render already exists or is in-flight, it returns
-  // immediately. One fire per node visit, tracked by ref.
-  // Sliding window: pre-render the next 4 nodes ahead of the current position.
-  // As the learner advances, the window slides forward.
+  // When the current node's render is served, pre-render the nodes ahead so the learner
+  // does not wait when they navigate forward. The backend is idempotent: if the render
+  // already exists or is in-flight, it returns immediately. One fire per node visit,
+  // tracked by ref. Sliding window: pre-render the next 4 nodes ahead of the current
+  // position. As the learner advances, the window slides forward.
+  //
+  // Nodes the learner has already finished are skipped on `done`, not on
+  // `state !== 'mastered'`: a node worked through to the end never reaches `mastered`, so
+  // the old test re-requested renders for lessons that were finished and already pinned.
   const prefetchedRef = useRef<string | null>(null)
 
   useEffect(() => {
     if (!served || !node) return
     const ahead = ordered
-      .filter((n) => n.position > node.position && n.state !== 'mastered')
+      .filter((n) => n.position > node.position && !n.done)
       .slice(0, 4)
     if (ahead.length === 0) return
     const key = ahead.map(n => n.id).join(',')

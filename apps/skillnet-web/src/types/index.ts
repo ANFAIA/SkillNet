@@ -757,15 +757,22 @@ export interface NodeRenderHistory {
  * `POST /nodes/{node_id}/answer` — `NodeAttemptResult`.
  *
  * A superset of `NodeAttemptResult` in `types/node-render.ts` (B6, consumed by
- * `QuizItemBlock`): it adds `show_worked_solution`, the flag that says the fourth
- * failure after three hints has arrived, so the item closes with the solution on screen
- * and the learner moves on.
+ * `QuizItemBlock`): it adds `show_worked_solution`, the flag that says the fourth failure
+ * of the same item has arrived, so the item closes with the solution on screen and the
+ * learner moves on. Four failures and nothing else: rule 8 of §7.3 used to demand the
+ * hint quota be spent as well, which made the way out depend on the learner asking for
+ * help, and the families with no hint ladder at all could never reach it.
  */
 export interface NodeAttemptOutcome {
   score: number
   passed: boolean
   feedback: string | null
-  /** Only once the item is passed or the **server-side** hint quota is spent. */
+  /**
+   * Only once the item is passed, the **server-side** hint quota is spent, or the item
+   * closed with `show_worked_solution` — three doors, all of them the server's
+   * (`routes/nodes.py`). The third one is why an item that never had a hint asked of it
+   * still hands the key over on the fourth failure.
+   */
   correct_answer: Record<string, unknown> | null
   mastery: number
   state: NodeState

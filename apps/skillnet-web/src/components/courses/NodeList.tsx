@@ -6,7 +6,8 @@ import { Card, ProgressBar } from '../ui'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
 import { staggerContainer, staggerItem } from '../../lib/motion'
 import { useNodeMorph } from '../../stores/nodeMorph'
-import type { LearningNode, NodeList as NodeListRead, NodeState } from '../../types'
+import { NODE_STATUS_CLASS, NODE_STATUS_LABEL_ID, nodeStatus } from './nodeStatus'
+import type { LearningNode, NodeList as NodeListRead } from '../../types'
 
 /**
  * The node map of a dynamic course — the employee's entry point to §11.3.
@@ -19,16 +20,14 @@ import type { LearningNode, NodeList as NodeListRead, NodeState } from '../../ty
  * - **A node mastered by the probe reads as mastered.** It never went through a lesson —
  *   and it deliberately did not count towards `nodes_completed` (§3.3) — but for the
  *   learner it is done, and the list says so.
+ * - **A finished node reads as finished, however it was finished.** The badge comes from
+ *   `done`, and `state` only chooses the word — "mastered" or "completed". See
+ *   `nodeStatus`: the same progress the bar above is drawing has to be the progress the
+ *   rows show, or the screen contradicts itself.
  */
 
 export interface NodeListProps {
   data: NodeListRead
-}
-
-const STATE_CLASS: Record<NodeState, string> = {
-  not_started: 'text-text-muted',
-  learning: 'text-primary',
-  mastered: 'text-accent',
 }
 
 
@@ -44,12 +43,7 @@ function NodeRow({
   courseBasePath: string
 }) {
   const intl = useIntl()
-
-  const STATE_LABEL: Record<NodeState, string> = {
-    not_started: intl.formatMessage({ id: 'nodelist.stateNotStarted' }),
-    learning: intl.formatMessage({ id: 'nodelist.stateLearning' }),
-    mastered: intl.formatMessage({ id: 'nodelist.stateMastered' }),
-  }
+  const status = nodeStatus(node)
 
   const body = (
     <>
@@ -57,8 +51,8 @@ function NodeRow({
         <span className="text-sm font-medium text-text truncate min-w-0">
           {node.title}
         </span>
-        <span className={`text-xs shrink-0 ${STATE_CLASS[node.state]}`}>
-          {STATE_LABEL[node.state]}
+        <span className={`text-xs shrink-0 ${NODE_STATUS_CLASS[status]}`}>
+          {intl.formatMessage({ id: NODE_STATUS_LABEL_ID[status] })}
         </span>
       </div>
       {node.summary && (

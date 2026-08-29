@@ -28,9 +28,13 @@ export function CourseOverview({ course, nodes }: CourseOverviewProps) {
    * `state === 'learning'` first, which is only reachable by answering a graded item
    * (rule 0 of §7.3) — so every expository node, and every node read without answering,
    * stayed `not_started` and the button always reopened the first one. The decision now
-   * comes from `first_seen_at`; the reasoning is in `selectResumeNode`.
+   * comes from `first_seen_at`, and from the server's own `next_node_id` when nothing
+   * unfinished has been opened yet; the reasoning is in `selectResumeNode`.
    */
-  const target = useMemo(() => selectResumeNode(orderedNodes), [orderedNodes])
+  const target = useMemo(
+    () => selectResumeNode(orderedNodes, nodes.next_node_id),
+    [orderedNodes, nodes.next_node_id],
+  )
   const nodeHref = target ? `${pathname.replace(/\/$/, '')}/nodo/${target.id}` : null
 
   /**
@@ -48,10 +52,10 @@ export function CourseOverview({ course, nodes }: CourseOverviewProps) {
     navigate(nodeHref, { replace: true })
   }, [resumeIntent, nodeHref, navigate])
 
-  // Same three existing labels, but "Continuar" is no longer gated on mastery alone:
-  // `progress_percent` is computed from mastered nodes, so somebody who had read three
-  // lessons without answering anything was offered "Empezar" over a button that reopens
-  // lesson three. Having been served a node is enough to have started.
+  // Same three existing labels, but "Continuar" is no longer gated on progress alone:
+  // `progress_percent` counts nodes the server calls done, and a node is not done until
+  // it is stamped, so somebody part-way through their first lesson was offered "Empezar"
+  // over a button that reopens it. Having been served a node is enough to have started.
   const actionLabel = nodes.progress_percent >= 100
     ? intl.formatMessage({ id: 'courseview.review' })
     : nodes.progress_percent > 0 || hasStartedCourse(orderedNodes)

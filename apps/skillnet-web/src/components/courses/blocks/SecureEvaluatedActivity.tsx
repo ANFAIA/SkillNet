@@ -60,20 +60,37 @@ function titleFor(componentId: string, props: PublicProps): string {
   return typeof value === 'string' ? value : ''
 }
 
-function Result({ result, closed }: { result: EvaluationResult; closed: boolean }) {
+function Result({
+  result,
+  closed,
+  solutionShown,
+}: {
+  result: EvaluationResult
+  closed: boolean
+  solutionShown: boolean
+}) {
   // A graded miss is a wrong answer, not a broken grader. The previous copy ("la respuesta
   // necesita revisión") read as "the system could not correct this", which is what made a
   // plain failed attempt look like a bug to the learner.
   //
-  // `closed` changes what a miss is allowed to promise. Once the server has handed over
-  // the solution there is no retry left, so "vuelve a intentarlo" would be a lie printed
-  // directly above the answer.
+  // `closed` changes what a miss is allowed to promise: once the server has closed the
+  // item there is no retry left, so "vuelve a intentarlo" would be a lie printed directly
+  // above the answer.
+  //
+  // `solutionShown` decides which of the two closing sentences it gets, and it is a
+  // separate question. `show_worked_solution: true` can arrive with `solution: null` —
+  // `render_solution` returns `None` for an evaluation mode it does not know how to write
+  // out — and announcing "aquí tienes la solución" above a panel that then renders nothing
+  // promises something that never comes. The honest line says so and still lets the
+  // learner out; the step opens either way, from `submit`.
   const copy = result.outcome === 'correct'
     ? 'Respuesta correcta.'
     : result.outcome === 'unscored'
       ? 'Respuesta enviada para revisión.'
       : closed
-        ? 'La respuesta no es correcta. Aquí tienes la solución.'
+        ? solutionShown
+          ? 'La respuesta no es correcta. Aquí tienes la solución.'
+          : 'La respuesta no es correcta. No podemos mostrarte la solución de esta actividad, pero puedes seguir con la lección.'
         : result.outcome === 'partial'
           ? 'Respuesta parcialmente correcta. Puedes volver a intentarlo.'
           : 'La respuesta no es correcta. Vuelve a intentarlo.'
@@ -468,6 +485,11 @@ export function SecureEvaluatedActivity({
   // that decided when the solution appears could decide to see it on the first attempt.
   const closed = result?.outcome === 'correct' || result?.showWorkedSolution === true
   const canRetry = Boolean(result) && !closed
+  // Whether there is anything to *show*, which is not the same as whether the item closed.
+  // `WorkedSolution` prints nothing without a written solution (this call site passes no
+  // `correctAnswer`), so gating the panel on `showWorkedSolution` alone rendered an empty
+  // element under a sentence promising the answer.
+  const solutionShown = result?.showWorkedSolution === true && Boolean(result.solution)
   // A written gap makes the sentence itself the interaction (see `FillInTheBlank`), so the
   // heading keeps the accessible name and stops repeating the same sentence on screen.
   const sentenceIsInteraction = componentId === 'didact.quiz.fill-in-the-blank' && BLANK_MARKER.test(title)
@@ -496,7 +518,7 @@ export function SecureEvaluatedActivity({
           </p>
         ) : result ? (
           <>
-            <Result result={result} closed={closed} />
+            <Result result={result} closed={closed} solutionShown={solutionShown} />
             {canRetry && (
               <Button type="button" variant="secondary" onClick={retry}>Reintentar</Button>
             )}
@@ -508,9 +530,7 @@ export function SecureEvaluatedActivity({
         )}
         {error && <p className="text-sm text-danger" role="alert">No se pudo evaluar la respuesta. Inténtalo de nuevo.</p>}
       </div>
-      {result?.showWorkedSolution === true ? (
-        <WorkedSolution solution={result.solution ?? null} />
-      ) : null}
+      {solutionShown ? <WorkedSolution solution={result?.solution ?? null} /> : null}
     </section>
   )
 }

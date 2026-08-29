@@ -10,12 +10,16 @@ import type { ExerciseType, NodeHintResult } from '../../../types'
  *
  * ## Why this exists
  *
- * `POST /nodes/{id}/hint` is the **only** writer of `node_attempts.hints_used`. Rule 8 of
- * §7.3 — fourth failure of an item after three hints -> worked solution, and the learner
- * carries on — reads that column, so with nothing calling the endpoint the rule could
- * never fire: the solution was unreachable and the only thing left to do with an item
- * you cannot answer was to retry it forever. The server half was built and dead. This is
- * the client half.
+ * `POST /nodes/{id}/hint` is the **only** writer of `node_attempts.hints_used`, so with
+ * nothing calling the endpoint the ladder existed on the server and was dead. This is the
+ * client half.
+ *
+ * It is no longer the *only* way out of an item, and that matters for what this component
+ * promises: rule 8 of §7.3 — fourth failure of the same item -> worked solution, and the
+ * learner carries on — used to demand the hint quota be spent too, which made the exit
+ * depend on the learner asking for help. It reads the failure count alone now. What
+ * `hints_used` still governs is `correct_answer` being revealed *early*, before those four
+ * failures.
  *
  * ## The one rule that is not negotiable
  *

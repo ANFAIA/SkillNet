@@ -14,7 +14,7 @@ import type { LearningNode } from '../../types'
  * and it failed in the ordinary case. `state === 'learning'` is only reachable by
  * answering a **graded** item (rule 0 of §7.3), so an expository node, or a node whose
  * screens were read without answering anything, stays `not_started` — and the second
- * clause then always matched the first unlocked node. Worse, the row exists either way:
+ * clause then always matched the first node. Worse, the row exists either way:
  * opening *or* prefetching a node creates `learner_node_states` with `state
  * 'not_started'`, so the state column cannot tell "never seen" from "read to the end".
  *
@@ -25,23 +25,34 @@ import type { LearningNode } from '../../types'
  *
  * Order of preference:
  *
- * 1. the most recently seen unlocked node that is not yet mastered (ties broken by the
- *    earlier position, so a course seeded in one batch is still deterministic);
- * 2. failing that, the first node with nothing mastered in it — a learner whose every
- *    visited node is done should move forward, not reopen the last one;
- * 3. failing that, the last node: everything is mastered, so this is a review;
+ * 1. the most recently seen node that is not yet **done** (ties broken by the earlier
+ *    position, so a course seeded in one batch is still deterministic);
+ * 2. failing that, `nextNodeId` — a learner whose every visited node is finished should
+ *    move forward, not reopen the last one;
+ * 3. failing that, the last node: everything is done, so this is a review;
  * 4. `undefined` only for an empty course.
  *
- * This is NOT `NodeListRead.next_node_id`, and the difference is deliberate: that one is
- * the first node not yet done — what is left to do — while this is the deepest node
- * actually reached. "Where did I leave off" and "what is missing" are different
- * questions and they disagree whenever somebody skipped ahead.
+ * "Done" is `node.done` and never `state !== 'mastered'`. `mastered` needs 0.90 mastery
+ * plus three consecutive correct answers, which an expository node can never produce, so
+ * asking `state` kept offering to resume a node the learner had finished.
+ *
+ * Rung 2 is the server's answer, not a local one: `nextNodeId` is
+ * `NodeListRead.next_node_id`, "the first node not yet done, in order". Computing it here
+ * as `unfinished[0]` was the same arithmetic over the same list, and the point of the
+ * server publishing it is that the day "what is left" stops meaning "the next one in
+ * position order" — a non-linear progression — nothing on this side has to be found and
+ * rewritten. Note this whole function is still **not** `next_node_id`: rung 1 wins
+ * whenever it can, because "where did I leave off" and "what is missing" are different
+ * questions and they disagree the moment somebody skips ahead.
  */
-export function selectResumeNode(nodes: LearningNode[]): LearningNode | undefined {
+export function selectResumeNode(
+  nodes: LearningNode[],
+  nextNodeId: string | null,
+): LearningNode | undefined {
   const open = [...nodes].sort((a, b) => a.position - b.position)
   if (open.length === 0) return undefined
 
-  const unfinished = open.filter((node) => node.state !== 'mastered')
+  const unfinished = open.filter((node) => !node.done)
 
   let deepestSeen: LearningNode | undefined
   let deepestSeenAt = -Infinity
@@ -55,7 +66,11 @@ export function selectResumeNode(nodes: LearningNode[]): LearningNode | undefine
   }
   if (deepestSeen) return deepestSeen
 
-  return unfinished[0] ?? open[open.length - 1]
+  // A `nextNodeId` naming a node this list does not carry is treated as no answer at all,
+  // the same as the `null` the server sends for a finished course: the fallback is a
+  // review of the last node, never a dead link.
+  const next = nextNodeId ? open.find((node) => node.id === nextNodeId) : undefined
+  return next ?? open[open.length - 1]
 }
 
 /**
