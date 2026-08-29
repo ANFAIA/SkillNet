@@ -24,12 +24,7 @@ import uuid
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
-
-#: Free text the learner writes in ``POST /nodes/{id}/feedback``. One of only two places
-#: where user text is persisted (§3.3), so it is bounded here.
-UNCLEAR_MAX_CHARS = 1000
-
+from pydantic import BaseModel, ConfigDict, Field
 
 # --- node list ---------------------------------------------------------------------
 
@@ -337,23 +332,6 @@ class NodeHintResult(BaseModel):
     hints_remaining: int
 
 
-class NodeFeedbackRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    difficulty: Literal["easy", "ok", "hard"]
-    unclear: str | None = None
-
-    @field_validator("unclear")
-    @classmethod
-    def _bound_unclear(cls, value: str | None) -> str | None:
-        if value is None:
-            return None
-        trimmed = value.strip()
-        if not trimmed:
-            return None
-        return trimmed[:UNCLEAR_MAX_CHARS]
-
-
 class NodeEventInput(BaseModel):
     """One instrumentation event (§3.3).
 
@@ -469,12 +447,10 @@ class NodeStateRead(BaseModel):
 
 
 __all__ = [
-    "UNCLEAR_MAX_CHARS",
     "NodeAnswerRequest",
     "NodeAttemptResult",
     "NodeEventInput",
     "NodeEventsRequest",
-    "NodeFeedbackRequest",
     "NodeHintRequest",
     "NodeHintResult",
     "NodeListRead",

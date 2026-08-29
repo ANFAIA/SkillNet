@@ -275,9 +275,9 @@ def test_merge_signals_writes_the_documented_entry_shape():
 def test_repeated_node_action_pair_is_not_duplicated_but_refreshed():
     node_id = uuid.uuid4()
     later = NOW + timedelta(hours=1)
-    notes = merge_signals({}, node_id=node_id, actions=["bajar_dificultad"], at=NOW)
+    notes = merge_signals({}, node_id=node_id, actions=["reducir_longitud_modulo"], at=NOW)
     notes = merge_signals(
-        notes, node_id=node_id, actions=["bajar_dificultad"], at=later
+        notes, node_id=node_id, actions=["reducir_longitud_modulo"], at=later
     )
     assert len(notes["signals"]) == 1
     assert notes["signals"][0]["at"] == later.isoformat()
@@ -285,10 +285,10 @@ def test_repeated_node_action_pair_is_not_duplicated_but_refreshed():
 
 def test_same_action_on_a_different_node_is_a_separate_entry():
     notes = merge_signals(
-        {}, node_id=uuid.uuid4(), actions=["bajar_dificultad"], at=NOW
+        {}, node_id=uuid.uuid4(), actions=["reducir_longitud_modulo"], at=NOW
     )
     notes = merge_signals(
-        notes, node_id=uuid.uuid4(), actions=["bajar_dificultad"], at=NOW
+        notes, node_id=uuid.uuid4(), actions=["reducir_longitud_modulo"], at=NOW
     )
     assert len(notes["signals"]) == 2
 
@@ -316,18 +316,21 @@ def test_merge_signals_rejects_an_action_outside_the_vocabulary():
         merge_signals({}, node_id=uuid.uuid4(), actions=["sugerir_formato_audio"])
 
 
-def test_vocabulary_is_exactly_the_five_actions_of_the_table():
+def test_vocabulary_is_exactly_the_three_surviving_actions_of_the_table():
+    """§3.3 listed five; the two difficulty actions left with the feedback form.
+
+    Self-reported difficulty was their only trigger and no client ever sent it, so this
+    tuple is the guard that nothing writes them into ``tutor_notes`` again.
+    """
     assert TUTOR_ACTIONS == (
         "reforzar_con_ejemplo",
-        "bajar_dificultad",
-        "subir_dificultad",
         "reducir_longitud_modulo",
         "revisar_prerrequisito",
     )
 
 
 # ---------------------------------------------------------------------------
-# The five trigger rules — one test each (§3.3)
+# The three surviving trigger rules — one test each (§3.3)
 # ---------------------------------------------------------------------------
 
 
@@ -339,30 +342,6 @@ def test_signal_reinforce():
     ) == ["reforzar_con_ejemplo"]
     assert evaluate_signals(
         NodeSignalContext(node_id=node_id, consecutive_failed=1)
-    ) == []
-
-
-def test_signal_lower():
-    """``node_feedback.difficulty == 'hard'`` → ``bajar_dificultad``."""
-    node_id = uuid.uuid4()
-    assert evaluate_signals(NodeSignalContext(node_id=node_id, difficulty="hard")) == [
-        "bajar_dificultad"
-    ]
-    assert evaluate_signals(NodeSignalContext(node_id=node_id, difficulty="ok")) == []
-
-
-def test_signal_raise():
-    """``difficulty == 'easy'`` **and** ``consecutive_correct >= 3``."""
-    node_id = uuid.uuid4()
-    assert evaluate_signals(
-        NodeSignalContext(node_id=node_id, difficulty="easy", consecutive_correct=3)
-    ) == ["subir_dificultad"]
-    # Either half alone is not enough.
-    assert evaluate_signals(
-        NodeSignalContext(node_id=node_id, difficulty="easy", consecutive_correct=2)
-    ) == []
-    assert evaluate_signals(
-        NodeSignalContext(node_id=node_id, consecutive_correct=9)
     ) == []
 
 
@@ -430,22 +409,11 @@ def test_error_kind_enum_member_behaves_like_its_value():
     ) == ["revisar_prerrequisito"]
 
 
-def test_lower_and_raise_are_mutually_exclusive():
-    for difficulty in ("easy", "hard", "ok"):
-        actions = evaluate_signals(
-            NodeSignalContext(
-                node_id=uuid.uuid4(), difficulty=difficulty, consecutive_correct=5
-            )
-        )
-        assert not {"bajar_dificultad", "subir_dificultad"} <= set(actions)
-
-
 def test_several_rules_can_fire_at_once_in_table_order():
     actions = evaluate_signals(
         NodeSignalContext(
             node_id=uuid.uuid4(),
             consecutive_failed=4,
-            difficulty="hard",
             recent_event_types=("scroll_fast",) * 3,
             last_error_kind="conceptual",
             unmastered_prerequisites=2,
@@ -453,7 +421,6 @@ def test_several_rules_can_fire_at_once_in_table_order():
     )
     assert actions == [
         "reforzar_con_ejemplo",
-        "bajar_dificultad",
         "reducir_longitud_modulo",
         "revisar_prerrequisito",
     ]
@@ -490,7 +457,6 @@ class FakeProfileRepo:
         return {
             "node_renders_anonymized": 1,
             "node_render_views": 2,
-            "node_feedback": 1,
             "learner_node_states": 3,
             "learning_events": 42,
             "learner_profiles": 1,

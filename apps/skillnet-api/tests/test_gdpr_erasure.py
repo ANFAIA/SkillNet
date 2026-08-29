@@ -1,4 +1,4 @@
-"""Art. 17 erasure really erases: the nine tables, in an order the FKs allow (§3.3, §11.2).
+"""Art. 17 erasure really erases: the eight tables, in an order the FKs allow (§3.3, §11.2).
 
 No database (there is none in CI, §12.2): the fake session records the SQL the
 repository emits, and the assertions read the compiled statements. That is enough to
@@ -29,7 +29,6 @@ from src.repositories.learner_profile_repo import (
 # test that reads the same tuple as the code cannot notice a missing table.
 PERSONAL_TABLES = (
     "node_render_views",
-    "node_feedback",
     "experience_attempts",
     "node_attempts",
     # Per-(user, activity) failure and disclosure counts (migration 0035). As personal as

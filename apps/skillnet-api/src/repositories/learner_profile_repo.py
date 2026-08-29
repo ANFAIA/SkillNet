@@ -1,8 +1,8 @@
 """``learner_profiles`` data access, plus the art. 17 erasure unit.
 
-``erase_user_data`` deliberately spans **nine** tables. It lives here, next to the
+``erase_user_data`` deliberately spans **eight** tables. It lives here, next to the
 profile, because "erase everything this learner generated" is one atomic
-requirement of §3.3/§11.2 and splitting it across nine repositories would make it
+requirement of §3.3/§11.2 and splitting it across eight repositories would make it
 possible to forget a table and still look correct.
 
 That is not hypothetical: an early version of this function skipped two of them and
@@ -25,7 +25,6 @@ from src.models.learner_profile import LearnerProfile
 from src.models.learning_event import LearningEvent
 from src.models.learning_experience import ExperienceAttempt
 from src.models.node_attempt import NodeAttempt
-from src.models.node_feedback import NodeFeedback
 from src.models.node_probe import NodeProbe
 from src.models.node_render import NodeRender
 from src.models.node_render_view import NodeRenderView
@@ -43,7 +42,6 @@ from src.repositories.base import BaseRepository
 # an attempt row and is deleted with the rest.
 ERASURE_ORDER: tuple[tuple[str, type, object], ...] = (
     ("node_render_views", NodeRenderView, NodeRenderView.user_id),
-    ("node_feedback", NodeFeedback, NodeFeedback.user_id),
     ("experience_attempts", ExperienceAttempt, ExperienceAttempt.user_id),
     ("node_attempts", NodeAttempt, NodeAttempt.user_id),
     ("learner_activity_states", LearnerActivityState, LearnerActivityState.user_id),

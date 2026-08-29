@@ -5,7 +5,7 @@ With a valid session, *which* courses does an employee get to touch?
 The answer must be "the ones assigned to them", the same answer v1 gives in
 ``src/routes/courses.py``. Org scoping is not an access rule -- every colleague shares an
 ``org_id`` -- so ``get_scoped`` alone let any authenticated employee enumerate the node
-graph, probe, render, answer and give feedback on a course nobody assigned them, and make
+graph, probe, render and answer a course nobody assigned them, and make
 ``POST /nodes/{id}/render`` spend real tokens doing it.
 
 Since the archive was made a rule rather than a suggestion, the same list of routes
@@ -284,7 +284,6 @@ GATED: tuple[tuple[str, str, dict | None], ...] = (
         {"render_id": str(RENDER_ID), "item_id": "q1", "answer": {"selected": 0}},
     ),
     ("POST", f"/nodes/{NODE_ID}/hint", {"render_id": str(RENDER_ID), "item_id": "q1"}),
-    ("POST", f"/nodes/{NODE_ID}/feedback", {"difficulty": "ok"}),
     ("POST", f"/nodes/{NODE_ID}/events", {"events": []}),
 )
 

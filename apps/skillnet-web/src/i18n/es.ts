@@ -1012,17 +1012,6 @@ export const es: Record<string, string> = {
   'nodelist.completeRequired': 'Completa todas las lecciones para cerrar el curso.',
   'nodelist.unavailable': 'Termina la lección anterior para abrir esta.',
 
-  // NodeFeedback component
-  'feedback.question': '¿Cómo te ha resultado esta lección?',
-  'feedback.easy': 'Fácil',
-  'feedback.ok': 'Bien',
-  'feedback.hard': 'Difícil',
-  'feedback.thanks': 'Gracias, lo tendremos en cuenta en la siguiente lección.',
-  'feedback.unclear': 'Algo no ha quedado claro',
-  'feedback.unclearLabel': '¿Qué parte no ha quedado clara? (opcional)',
-  'feedback.send': 'Enviar',
-  'feedback.error': 'No se pudo enviar tu valoración.',
-
   // ExplainModal component
   'explain.error': 'No se pudo generar la explicación.',
   'explain.rateLimit': 'Demasiadas consultas seguidas',

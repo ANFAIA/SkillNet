@@ -520,7 +520,6 @@ async def _cleanup(world: World) -> None:
             )
             for table in (
                 "node_attempts",
-                "node_feedback",
                 "node_probes",
                 "learner_node_states",
                 "node_renders",
@@ -1247,11 +1246,7 @@ async def test_the_full_learner_journey_closes_the_course(
         assert len(rows) == 1
         assert rows[0].level is SkillLevel.HIGH
 
-    # --- end-of-node feedback and instrumentation ---------------------------------
-    feedback = await learner.post(
-        f"/nodes/{plazo}/feedback", json={"difficulty": "hard", "unclear": "el plazo"}
-    )
-    assert feedback.status_code == 204
+    # --- instrumentation -----------------------------------------------------------
     events = await learner.post(
         f"/nodes/{plazo}/events",
         json={"events": [

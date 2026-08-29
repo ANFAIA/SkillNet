@@ -598,16 +598,25 @@ Acciones permitidas (validadas por Pydantic, `Literal`) y **la condición exacta
 Sin esta tabla `tutor_notes` era una entrada libre y no especificada a un prompt, es decir no
 implementable ni testeable; y `sugerir_formato_audio` se elimina porque ni existe componente de
 audio (§5.3) ni hay señal que pueda producirla. Todas las escrituras ocurren en
-`LearnerProfileService.apply_signals()`, llamado tras cada `answer`/`feedback`, **nunca** desde un
-LLM:
+`LearnerProfileService.apply_signals()`, llamado tras cada `answer` (y hasta el 2026-08-29
+también tras `feedback`), **nunca** desde un LLM:
 
 | Acción | Condición exacta que la emite | Test |
 |---|---|---|
 | `reforzar_con_ejemplo` | `consecutive_failed >= 2` en el nodo | `test_profile_service.py::test_signal_reinforce` |
-| `bajar_dificultad` | `node_feedback.difficulty == 'hard'` en el nodo | `…::test_signal_lower` |
-| `subir_dificultad` | `node_feedback.difficulty == 'easy'` **y** `consecutive_correct >= 3` | `…::test_signal_raise` |
+| ~~`bajar_dificultad`~~ | ~~`node_feedback.difficulty == 'hard'` en el nodo~~ | retirada el 2026-08-29 |
+| ~~`subir_dificultad`~~ | ~~`node_feedback.difficulty == 'easy'` **y** `consecutive_correct >= 3`~~ | retirada el 2026-08-29 |
 | `reducir_longitud_modulo` | 3 eventos `scroll_fast` consecutivos en el mismo nodo | `…::test_signal_shorten` |
 | `revisar_prerrequisito` | `last_error_kind == 'conceptual'` **y** el nodo tiene ≥1 prerrequisito con `state != 'mastered'` | `…::test_signal_prereq` |
+
+> El vocabulario tiene **tres** acciones desde el 2026-08-29. Las dos de dificultad se
+> escribían sólo desde `POST /nodes/{id}/feedback`, un endpoint que ningún cliente llamó
+> nunca —el componente `NodeFeedback.tsx` existía pero no lo montaba ninguna pantalla—, así
+> que `node_feedback` estuvo vacía por construcción y las dos señales nunca se emitieron.
+> Se van con la tabla (migración `0036`). Aunque se hubieran emitido no habrían cambiado
+> nada: `_SIGNAL_RULES` sólo se lee en `build_ui_prompt`, el camino de render antiguo, y no
+> en `build_episode_ui_prompt`, que es el que sirve producción. El porqué completo y qué
+> haría falta para traerlo de vuelta, en `future-lesson-feedback.md`.
 
 `signals` está capado a las 20 más recientes (poda en el servicio) y una misma `(node_id, action)`
 no se duplica: se actualiza el `at`. Esto es una **simplificación deliberada** de la exploración de
@@ -719,7 +728,9 @@ ni el contenido copiado. Sólo `{"element_id": "...", "ms": 1234}`. El texto der
 aterriza en **dos** sitios, no en uno — la versión anterior de este documento decía "un único sitio"
 y se contradecía con §3.4:
 
-1. `node_feedback.unclear` — texto libre que el usuario escribe.
+1. ~~`node_feedback.unclear` — texto libre que el usuario escribe.~~ Retirado el 2026-08-29
+   junto con el formulario que lo recogía: desde entonces el texto derivado del usuario
+   aterriza en **un** sitio, no en dos (ver `future-lesson-feedback.md`).
 2. `term_explanations.term` / `term_normalized` — la selección que el usuario clicó. Es texto
    *elegido* por el usuario, y por eso §8.4 limita lo cacheable a **≤60 caracteres y ≤4 tokens**;
    por encima de eso la explicación se sirve pero **no se persiste**.
@@ -727,9 +738,13 @@ y se contradecía con §3.4:
 Retención y borrado, todo por el mismo script (`python -m src.scripts.purge_learning_data`, ver §1.3
 — no existe tabla `background_jobs`): `learning_events` a **90 días**; `term_explanations` a **180
 días desde `last_used_at`**. Borrado a petición del interesado:
-`DELETE /users/me/learner-profile` (§11.2) borra las **siete** tablas personales del usuario —
-`node_render_views`, `node_feedback`, `node_attempts`, `node_probes`, `learner_node_states`,
-`learning_events` y `learner_profiles` — y anonimiza `node_renders.generated_by` a `NULL`.
+`DELETE /users/me/learner-profile` (§11.2) borra las tablas personales del usuario —
+`node_render_views`, ~~`node_feedback`~~ (fuera el 2026-08-29 con la tabla), `node_attempts`,
+`node_probes`, `learner_node_states`, `learning_events` y `learner_profiles`, más
+`experience_attempts` y `learner_activity_states`, que llegaron después — y anonimiza
+`node_renders.generated_by` a `NULL`. La lista viva es `ERASURE_ORDER`
+(`repositories/learner_profile_repo.py`), comprobada tabla a tabla por
+`tests/test_gdpr_erasure.py`.
 `node_attempts` y `node_probes` guardan las respuestas que el empleado escribió, así que un borrado
 que las dejara atrás devolvería `204` por una promesa que no ha cumplido; el orden es el que imponen
 las FKs de `0005` (`node_attempts` antes de `node_probes`, porque `node_attempts.probe_id` es
@@ -959,6 +974,10 @@ pero con un nombre y una forma exactos que la versión anterior de este document
   `get_optional_llm_service`. Ese factory **también** tiene que pasar por `_maybe_fixture` (§12.1) o
   el flujo con fixtures intenta una llamada de red real.
 
+> **`node_feedback` ya no existe.** La creó `0005` y la borró `0036` el 2026-08-29, vacía:
+> su único escritor era `POST /nodes/{id}/feedback` y ningún cliente llegó a llamarlo. El DDL
+> se queda aquí como historia de lo que hubo. Ver `future-lesson-feedback.md`.
+
 ```sql
 CREATE TABLE node_feedback (
     id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -1049,7 +1068,8 @@ propone el LLM, que es el riesgo "Alta" de §14.1 que ninguna validación estruc
 
 **13 tablas nuevas:** `course_nodes`, `course_node_prerequisites`, `learner_profiles`,
 `learner_node_states`, `learning_events`, `node_renders`, `node_render_views`, `node_probes`,
-`node_attempts`, `node_feedback`, `term_explanations`, `llm_usage_log`, `audit_log`.
+`node_attempts`, ~~`node_feedback`~~ (borrada el 2026-08-29 por `0036`), `term_explanations`,
+`llm_usage_log`, `audit_log`.
 **8 enums nuevos:** `course_delivery_mode`, `course_schema_status`, `node_criticality`,
 `learner_experience`, `node_state`, `error_kind`, `ui_format`, `node_render_status`.
 **1 tabla alterada:** `courses` (+6 columnas). **1 enum extendido:** `generation_step` (+2 valores).
@@ -2424,7 +2444,7 @@ sentencia.
 | `POST` | `/onboarding/skip` | — | `200 LearnerProfileRead` |
 | `GET` | `/users/me/learner-profile` | — | `200 LearnerProfileRead` · `404` si no existe |
 | `PATCH` | `/users/me/learner-profile` | `{"preset"?, "role_title"?, "sector"?, "goal"?}` | `200 LearnerProfileRead` |
-| `DELETE` | `/users/me/learner-profile` | — | `204` — borra las **siete** tablas personales del usuario en este orden: `node_render_views`, `node_feedback`, `node_attempts`, `node_probes`, `learner_node_states`, `learning_events`, `learner_profiles`; y pone `node_renders.generated_by = NULL`. `node_attempts` antes de `node_probes` porque `node_attempts.probe_id` es `ON DELETE SET NULL` (§3.3). Es la vía de supresión del art. 17 RGPD que §3.3 prometía y no tenía endpoint |
+| `DELETE` | `/users/me/learner-profile` | — | `204` — borra las tablas personales del usuario en el orden de `ERASURE_ORDER`: `node_render_views`, ~~`node_feedback`~~ (fuera el 2026-08-29 con la tabla), `experience_attempts`, `node_attempts`, `learner_activity_states`, `node_probes`, `learner_node_states`, `learning_events`, `learner_profiles`; y pone `node_renders.generated_by = NULL`. `node_attempts` antes de `node_probes` porque `node_attempts.probe_id` es `ON DELETE SET NULL` (§3.3). Es la vía de supresión del art. 17 RGPD que §3.3 prometía y no tenía endpoint |
 
 ```jsonc
 // OnboardingRead — el servidor manda las preguntas para que el copy viva en un sitio
@@ -3061,7 +3081,7 @@ convención de `data-model.md`: `course_nodes`, `learner_profiles`, `node_render
 `term_explanations`, `llm_usage_log`, `audit_log`. **No** lo llevan las tablas hijas cuyo scoping se
 deriva sin ambigüedad de su padre y que sólo se consultan por `user_id` o por `node_id`:
 `course_node_prerequisites`, `learner_node_states`, `learning_events`, `node_probes`, `node_attempts`,
-`node_feedback`, `node_render_views`. Añadir `org_id` ahí sería una columna denormalizada más que
+~~`node_feedback`~~ (borrada el 2026-08-29), `node_render_views`. Añadir `org_id` ahí sería una columna denormalizada más que
 mantener coherente en cada escritura sin ninguna consulta que la use. La incoherencia que señalaba la
 objeción —presumir de multi-tenancy con una sola tabla org-scoped— queda resuelta con las seis de
 arriba.

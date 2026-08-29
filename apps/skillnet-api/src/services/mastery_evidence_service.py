@@ -14,10 +14,10 @@ import uuid
 from dataclasses import dataclass
 from hashlib import blake2b
 
-from sqlalchemy import select, text
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.models import Course, CourseNode, LearnerNodeState, NodeFeedback
+from src.models import Course, CourseNode, LearnerNodeState
 from src.repositories.course_repo import CourseRepository
 from src.repositories.enrollment_repo import EnrollmentRepository
 from src.repositories.exercise_repo import ExerciseRepository
@@ -175,20 +175,11 @@ class MasteryEvidenceService:
             node_id=node.id,
             limit=3,
         )
-        difficulty = (
-            await self.session.execute(
-                select(NodeFeedback.difficulty).where(
-                    NodeFeedback.user_id == user_id,
-                    NodeFeedback.node_id == node.id,
-                )
-            )
-        ).scalars().first()
         return NodeSignalContext(
             node_id=node.id,
             consecutive_failed=int(state.consecutive_failed or 0),
             consecutive_correct=int(state.consecutive_correct or 0),
             last_error_kind=state.last_error_kind,
-            difficulty=difficulty,
             recent_event_types=tuple(recent),
             unmastered_prerequisites=len(unmastered),
         )

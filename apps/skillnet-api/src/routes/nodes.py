@@ -1,4 +1,4 @@
-"""The runtime employee surface (§11.3): node list, probe, render, answer, hint, feedback.
+"""The runtime employee surface (§11.3): node list, probe, render, answer, hint.
 
 A course that is not dynamic 404s: it has no nodes, and saying so with a 403 would leak
 the existence of a surface that does not apply.
@@ -6,10 +6,11 @@ the existence of a surface that does not apply.
 Where the wiring left dangling by other batches gets connected:
 
 * ``LearnerProfileService.record_events`` -> ``POST /nodes/{id}/events``.
-* ``LearnerProfileService.apply_signals`` -> ``/answer`` and ``/feedback``, with
-  ``NodeSignalContext.unmastered_prerequisites`` filled from
-  ``LearnerNodeStateRepository.unmastered_prerequisites`` (the LEFT-join query B4 shipped
-  without a caller).
+* ``LearnerProfileService.apply_signals`` -> ``/answer``, through
+  ``MasteryEvidenceService``, which fills ``NodeSignalContext`` from the learner's own
+  measured evidence. ``POST /nodes/{id}/feedback`` used to be the second caller; it was
+  removed on 2026-08-29 with the rest of the declared-difficulty path (see
+  ``docs/design/future-lesson-feedback.md``).
 * ``LearnerProfileService.increment_nodes_completed`` -> only on the ``learning -> mastered``
   transition (rule 6 of §7.3), never on a probe skip.
 * ``LearnerProfileService.refresh_format_vector`` -> **only when a node closes**, not per
@@ -52,8 +53,6 @@ from src.llm.fixtures import maybe_fixture_llm
 from src.models import (
     Course,
     CourseNode,
-    LearnerNodeState,
-    NodeFeedback,
     NodeRender,
     NodeRenderStatus,
     Organization,
@@ -79,7 +78,6 @@ from src.schemas.node import (
     NodeAttemptResult,
     NodeCompletionRead,
     NodeEventsRequest,
-    NodeFeedbackRequest,
     NodeHintRequest,
     NodeHintResult,
     NodeListRead,
@@ -101,10 +99,7 @@ from src.schemas.probe import ProbeSessionRead
 from src.services.course_access import assert_learner_can_open, is_admin
 from src.services.course_delivery import resolve_delivery
 from src.services.enrollment_service import EnrollmentService
-from src.services.learner_profile_service import (
-    LearnerProfileService,
-    NodeSignalContext,
-)
+from src.services.learner_profile_service import LearnerProfileService
 from src.services.mastery_service import (
     HINT_LIMIT,
     WORKED_SOLUTION_FAILURES,
@@ -178,11 +173,6 @@ def _node_answer_digest(body: NodeAnswerRequest) -> str:
 
 # --------------------------------------------------------------------------------------
 # Small shared reads.
-#
-# Two of these touch ``node_feedback`` and ``user_skills`` with a plain ``select``. Neither
-# table was allocated a repository in this batch's file list (§13 B5) and inventing one
-# outside the plan is a bigger deviation than two three-line queries next to their only
-# caller; both are pure reads with no business logic.
 # --------------------------------------------------------------------------------------
 
 
@@ -226,16 +216,6 @@ async def _user_skill_level(
     return await SkillService(SkillRepository(db)).level_for_skill(
         user_id=user_id, skill_id=skill_id
     )
-
-
-async def _feedback_difficulty(
-    db: DBSession, user_id: uuid.UUID, node_id: uuid.UUID
-) -> str | None:
-    """The difficulty this learner reported for this node, if any (§3.3 signals)."""
-    query = select(NodeFeedback.difficulty).where(
-        NodeFeedback.user_id == user_id, NodeFeedback.node_id == node_id
-    )
-    return (await db.execute(query)).scalars().first()
 
 
 async def _assert_course_open(db: DBSession, user: Any, course: Course) -> None:
@@ -990,55 +970,8 @@ async def get_hint(
 
 
 # --------------------------------------------------------------------------------------
-# Feedback, events, waive
+# Events, waive
 # --------------------------------------------------------------------------------------
-@router.post("/{node_id}/feedback", status_code=204)
-async def submit_feedback(
-    user: CurrentUser, db: DBSession, node_id: uuid.UUID, body: NodeFeedbackRequest
-) -> Response:
-    """End-of-node feedback. Upsert on ``UNIQUE (user_id, node_id)``.
-
-    ``difficulty`` is what fires ``bajar_dificultad`` / ``subir_dificultad`` (§3.3), so the
-    signals are applied in the same transaction as the row.
-    """
-    node, _course = await _load_dynamic_node(db, user, node_id)
-
-    existing = (
-        await db.execute(
-            select(NodeFeedback).where(
-                NodeFeedback.user_id == user.id, NodeFeedback.node_id == node.id
-            )
-        )
-    ).scalar_one_or_none()
-    if existing is None:
-        db.add(
-            NodeFeedback(
-                user_id=user.id,
-                node_id=node.id,
-                difficulty=body.difficulty,
-                unclear=body.unclear,
-            )
-        )
-    else:
-        existing.difficulty = body.difficulty
-        existing.unclear = body.unclear
-    await db.flush()
-
-    profile = await LearnerProfileRepository(db).get_by_user(user.id)
-    if profile is not None:
-        state = await LearnerNodeStateRepository(db).get_by_user_and_node(
-            user.id, node.id
-        )
-        await _profile_service(db).apply_signals(
-            profile=profile,
-            context=await _signal_context(
-                db, user, node, state, difficulty=body.difficulty
-            ),
-        )
-    await db.commit()
-    return Response(status_code=204)
-
-
 @router.post("/{node_id}/events", status_code=204)
 async def record_events(
     user: CurrentUser, db: DBSession, node_id: uuid.UUID, body: NodeEventsRequest
@@ -1367,37 +1300,4 @@ def _hint_for(
     return (
         "Es la opcion que se sigue directamente de la regla del nodo; comparala con el "
         "resumen y decide."
-    )
-
-
-async def _signal_context(
-    db: DBSession,
-    user: Any,
-    node: CourseNode,
-    state: LearnerNodeState | None,
-    *,
-    difficulty: str | None = None,
-) -> NodeSignalContext:
-    """Assemble the five trigger inputs of §3.3 from Postgres.
-
-    ``unmastered_prerequisites`` is the LEFT-join query ``LearnerNodeStateRepository`` shipped
-    without a caller: a prerequisite the learner never opened has **no** state row at all, so
-    an inner join would return nothing for exactly the learner ``revisar_prerrequisito``
-    exists for.
-    """
-    unmastered = await LearnerNodeStateRepository(db).unmastered_prerequisites(
-        user_id=user.id, node_id=node.id
-    )
-    recent = await LearningEventRepository(db).recent_types_for_node(
-        user_id=user.id, node_id=node.id, limit=3
-    )
-    resolved_difficulty = difficulty or await _feedback_difficulty(db, user.id, node.id)
-    return NodeSignalContext(
-        node_id=node.id,
-        consecutive_failed=int(getattr(state, "consecutive_failed", 0) or 0),
-        consecutive_correct=int(getattr(state, "consecutive_correct", 0) or 0),
-        last_error_kind=getattr(state, "last_error_kind", None),
-        difficulty=resolved_difficulty,
-        recent_event_types=tuple(recent),
-        unmastered_prerequisites=len(unmastered),
     )

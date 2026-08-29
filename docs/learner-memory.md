@@ -90,10 +90,12 @@ Wired, live, and best-effort (a failure never breaks the request that triggered 
 Designed, not yet wired (safe follow-ups):
 
 3. **Node-state hook** — `LearnerProfileService.apply_signals` already maps grading signals to
-   the controlled `tutor_notes` vocabulary (`reforzar_con_ejemplo`, `bajar_dificultad`, …) on
-   every `/answer` and `/feedback`. Translating those actions to a prose line under **Notas
-   del tutor** is a clean next writer; it was left out of this pass to avoid touching the
-   grading transaction's careful semantics.
+   the controlled `tutor_notes` vocabulary (`reforzar_con_ejemplo`, `reducir_longitud_modulo`,
+   `revisar_prerrequisito`) on every `/answer`. Translating those actions to a prose line under
+   **Notas del tutor** is a clean next writer; it was left out of this pass to avoid touching
+   the grading transaction's careful semantics.
+   (`/feedback` and the two `*_dificultad` actions were removed on 2026-08-29 —
+   `docs/design/future-lesson-feedback.md`.)
 4. **Perfil declarado** — could be seeded/synced from onboarding (role, sector, experience).
 
 ## Read path (who reads it back)

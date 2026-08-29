@@ -609,16 +609,24 @@ Allowed actions (validated via Pydantic, `Literal`) and **the exact condition th
 Without this table `tutor_notes` was a free, unspecified entry into a prompt, i.e. neither
 implementable nor testable; and `sugerir_formato_audio` is removed because there is neither an
 audio component (§5.3) nor a signal that could produce it. All writes happen in
-`LearnerProfileService.apply_signals()`, called after every `answer`/`feedback`, **never** from an
-LLM:
+`LearnerProfileService.apply_signals()`, called after every `answer` (and, until 2026-08-29, after
+`feedback` too), **never** from an LLM:
 
 | Action | Exact condition that emits it | Test |
 |---|---|---|
 | `reforzar_con_ejemplo` (reinforce with example) | `consecutive_failed >= 2` on the node | `test_profile_service.py::test_signal_reinforce` |
-| `bajar_dificultad` (lower difficulty) | `node_feedback.difficulty == 'hard'` on the node | `…::test_signal_lower` |
-| `subir_dificultad` (raise difficulty) | `node_feedback.difficulty == 'easy'` **and** `consecutive_correct >= 3` | `…::test_signal_raise` |
+| ~~`bajar_dificultad` (lower difficulty)~~ | ~~`node_feedback.difficulty == 'hard'` on the node~~ | retired 2026-08-29 |
+| ~~`subir_dificultad` (raise difficulty)~~ | ~~`node_feedback.difficulty == 'easy'` **and** `consecutive_correct >= 3`~~ | retired 2026-08-29 |
 | `reducir_longitud_modulo` (shorten module) | 3 consecutive `scroll_fast` events on the same node | `…::test_signal_shorten` |
 | `revisar_prerrequisito` (review prerequisite) | `last_error_kind == 'conceptual'` **and** the node has ≥1 prerequisite with `state != 'mastered'` | `…::test_signal_prereq` |
+
+> The vocabulary has **three** actions since 2026-08-29. The two difficulty ones were written
+> only by `POST /nodes/{id}/feedback`, an endpoint no client ever called — the `NodeFeedback.tsx`
+> component existed but no screen mounted it — so `node_feedback` was empty by construction and
+> neither signal was ever emitted. They go with the table (migration `0036`). Even if they had
+> been emitted they would have changed nothing: `_SIGNAL_RULES` is read only by `build_ui_prompt`,
+> the old render path, and never by `build_episode_ui_prompt`, which is what serves production.
+> The full reasoning, and what bringing it back would take, in `future-lesson-feedback.md`.
 
 `signals` is capped at the 20 most recent (pruned in the service), and the same `(node_id,
 action)` is never duplicated: the `at` is updated instead. This is a **deliberate
@@ -723,7 +731,9 @@ copied content. Only `{"element_id": "...", "ms": 1234}`. Text derived from the 
 **two** places, not one — an earlier version of this document said "a single place" and
 contradicted §3.4:
 
-1. `node_feedback.unclear` — free text the user writes.
+1. ~~`node_feedback.unclear` — free text the user writes.~~ Retired 2026-08-29 along with the
+   form that collected it: since then user-derived text lands in **one** place, not two (see
+   `future-lesson-feedback.md`).
 2. `term_explanations.term` / `term_normalized` — the selection the user clicked. It's text
    *chosen* by the user, and that's why §8.4 caps what's cacheable at **≤60 characters and ≤4
    tokens**; above that the explanation is served but **not persisted**.
@@ -731,9 +741,12 @@ contradicted §3.4:
 Retention and deletion, all via the same script (`python -m src.scripts.purge_learning_data`, see
 §1.3 — there is no `background_jobs` table): `learning_events` at **90 days**; `term_explanations`
 at **180 days from `last_used_at`**. Deletion on data-subject request:
-`DELETE /users/me/learner-profile` (§11.2) deletes the user's **seven** personal tables —
-`node_render_views`, `node_feedback`, `node_attempts`, `node_probes`, `learner_node_states`,
-`learning_events`, and `learner_profiles` — and anonymizes `node_renders.generated_by` to `NULL`.
+`DELETE /users/me/learner-profile` (§11.2) deletes the user's personal tables —
+`node_render_views`, ~~`node_feedback`~~ (gone 2026-08-29 with the table), `node_attempts`,
+`node_probes`, `learner_node_states`, `learning_events`, and `learner_profiles`, plus
+`experience_attempts` and `learner_activity_states`, which arrived later — and anonymizes
+`node_renders.generated_by` to `NULL`. The live list is `ERASURE_ORDER`
+(`repositories/learner_profile_repo.py`), checked table by table by `tests/test_gdpr_erasure.py`.
 `node_attempts` and `node_probes` hold the answers the employee wrote, so a deletion that left them
 behind would return `204` for a promise it hadn't kept; the order follows the FKs from `0005`
 (`node_attempts` before `node_probes`, because `node_attempts.probe_id` is `ON DELETE SET NULL`).
@@ -954,6 +967,10 @@ grading, but with an exact name and shape that the previous version of this docu
   `get_optional_llm_service`. That factory **also** has to go through `_maybe_fixture` (§12.1) or
   the fixtures flow attempts a real network call.
 
+> **`node_feedback` no longer exists.** `0005` created it and `0036` dropped it on 2026-08-29,
+> empty: its only writer was `POST /nodes/{id}/feedback` and no client ever called it. The DDL
+> stays here as a record of what there was. See `future-lesson-feedback.md`.
+
 ```sql
 CREATE TABLE node_feedback (
     id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -1045,7 +1062,8 @@ measure whether creators actually edit what the LLM proposes, which is the "High
 
 **13 tablas nuevas:** `course_nodes`, `course_node_prerequisites`, `learner_profiles`,
 `learner_node_states`, `learning_events`, `node_renders`, `node_render_views`, `node_probes`,
-`node_attempts`, `node_feedback`, `term_explanations`, `llm_usage_log`, `audit_log`.
+`node_attempts`, ~~`node_feedback`~~ (dropped 2026-08-29 by `0036`), `term_explanations`,
+`llm_usage_log`, `audit_log`.
 **8 enums nuevos:** `course_delivery_mode`, `course_schema_status`, `node_criticality`,
 `learner_experience`, `node_state`, `error_kind`, `ui_format`, `node_render_status`.
 **1 tabla alterada:** `courses` (+6 columnas). **1 enum extendido:** `generation_step` (+2 valores).
@@ -2331,7 +2349,7 @@ mid-statement.
 | `POST` | `/onboarding/skip` | — | `200 LearnerProfileRead` |
 | `GET` | `/users/me/learner-profile` | — | `200 LearnerProfileRead` · `404` if it doesn't exist |
 | `PATCH` | `/users/me/learner-profile` | `{"preset"?, "role_title"?, "sector"?, "goal"?}` | `200 LearnerProfileRead` |
-| `DELETE` | `/users/me/learner-profile` | — | `204` — deletes the user's **seven** personal tables in this order: `node_render_views`, `node_feedback`, `node_attempts`, `node_probes`, `learner_node_states`, `learning_events`, `learner_profiles`; and sets `node_renders.generated_by = NULL`. `node_attempts` before `node_probes` because `node_attempts.probe_id` is `ON DELETE SET NULL` (§3.3). It's the GDPR art. 17 erasure path that §3.3 promised and had no endpoint for |
+| `DELETE` | `/users/me/learner-profile` | — | `204` — deletes the user's personal tables in `ERASURE_ORDER`: `node_render_views`, ~~`node_feedback`~~ (gone 2026-08-29 with the table), `experience_attempts`, `node_attempts`, `learner_activity_states`, `node_probes`, `learner_node_states`, `learning_events`, `learner_profiles`; and sets `node_renders.generated_by = NULL`. `node_attempts` before `node_probes` because `node_attempts.probe_id` is `ON DELETE SET NULL` (§3.3). It's the GDPR art. 17 erasure path that §3.3 promised and had no endpoint for |
 
 ```jsonc
 // OnboardingRead — the server sends the questions so the copy lives in one place
@@ -2945,7 +2963,7 @@ outside the built-in `answer_key`. The "this helps you with X" line does get imp
 `term_explanations`, `llm_usage_log`, `audit_log`. The child tables whose scoping derives
 unambiguously from their parent and which are only queried by `user_id` or `node_id` do **not**
 carry it: `course_node_prerequisites`, `learner_node_states`, `learning_events`, `node_probes`,
-`node_attempts`, `node_feedback`, `node_render_views`. Adding `org_id` there would be one more
+`node_attempts`, ~~`node_feedback`~~ (dropped 2026-08-29), `node_render_views`. Adding `org_id` there would be one more
 denormalized column to keep consistent on every write with no query that ever uses it. The
 inconsistency the objection flagged — claiming multi-tenancy with a single org-scoped table — is
 resolved by the six above.

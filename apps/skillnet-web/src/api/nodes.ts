@@ -30,7 +30,6 @@ import type {
   NodeAttemptOutcome,
   NodeCompletion,
   NodeEventInput,
-  NodeFeedbackBody,
   NodeList,
   NodeRender,
   NodeRenderAccepted,
@@ -575,7 +574,7 @@ export function useSubmitNodeAnswer(nodeId: string | undefined) {
  *
  * **The node id travels as the mutation variable, not as a hook argument**, and that is
  * the one place this hook departs from `useSubmitNodeAnswer(nodeId)` and
- * `useNodeFeedback(nodeId)` next to it. `mutationFn` is resolved *lazily* by query-core
+ * next to it. `mutationFn` is resolved *lazily* by query-core
  * (`mutation.js`: `this.options.mutationFn(variables)`), and `useMutation` refreshes those
  * options on every render — so a `nodeId` closed over at hook level is whatever the last
  * render saw, not what the caller meant. Every caller of this endpoint fires it *while
@@ -606,17 +605,6 @@ export function useCompleteNode() {
 // HINT_LIMIT`, in `routes/nodes.py`). It is no longer the price of the worked solution —
 // rule 8 of §7.3 closes an item on four failures alone, so the learner who never asks for
 // a hint still gets the way out.
-
-/** `POST /nodes/{node_id}/feedback` — `204`, and it fires the difficulty signals (§3.3). */
-export function useNodeFeedback(nodeId: string | undefined) {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (body: NodeFeedbackBody) => post<void>(`/nodes/${nodeId}/feedback`, body),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['nodes'] })
-    },
-  })
-}
 
 /** Max events in one `POST /events` body — `NodeEventsRequest.events` is capped at 100. */
 export const EVENT_BATCH_LIMIT = 100

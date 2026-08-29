@@ -1012,17 +1012,6 @@ export const en: Record<string, string> = {
   'nodelist.completeRequired': 'Complete every lesson to finish the course.',
   'nodelist.unavailable': 'Finish the previous lesson to open this one.',
 
-  // NodeFeedback component
-  'feedback.question': 'How did this lesson go?',
-  'feedback.easy': 'Easy',
-  'feedback.ok': 'Good',
-  'feedback.hard': 'Hard',
-  'feedback.thanks': 'Thanks, we\'ll take that into account for the next lesson.',
-  'feedback.unclear': 'Something wasn\'t clear',
-  'feedback.unclearLabel': 'What part wasn\'t clear? (optional)',
-  'feedback.send': 'Send',
-  'feedback.error': 'Could not send your feedback.',
-
   // ExplainModal component
   'explain.error': 'Could not generate the explanation.',
   'explain.rateLimit': 'Too many lookups in a row. Give it a moment.',

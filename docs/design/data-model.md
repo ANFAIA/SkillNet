@@ -798,6 +798,9 @@ The shape of the addition, so you know whether you need to look:
   (`learner_profiles`, `learner_node_states`, `node_probes`, `node_attempts`), feedback and
   telemetry (`node_feedback`, `learning_events`, `llm_usage_log`, `term_explanations`) and
   `audit_log`.
+  **`node_feedback` was dropped on 2026-08-29 by migration `0036`**, empty: its only writer
+  was `POST /nodes/{id}/feedback` and no client ever called it. See
+  `docs/design/future-lesson-feedback.md`.
 - **Nothing in v1 changes shape.** The v2 columns on `courses` all have defaults that reproduce
   v1 behaviour, which is what lets the flag default to `off`.
 - Two properties worth knowing before you query any of it: `node_renders` has **no `user_id`**

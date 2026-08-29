@@ -210,7 +210,7 @@ function installFetch(scenario: Scenario) {
     if (url.endsWith(`/nodes/${NODE_ID}/renders`)) {
       return jsonResponse(200, { renders: scenario.renders ?? [] })
     }
-    if (url.endsWith(`/nodes/${NODE_ID}/events`) || url.endsWith(`/nodes/${NODE_ID}/feedback`)) {
+    if (url.endsWith(`/nodes/${NODE_ID}/events`)) {
       return jsonResponse(204, null)
     }
     if (url.includes('/explain')) {

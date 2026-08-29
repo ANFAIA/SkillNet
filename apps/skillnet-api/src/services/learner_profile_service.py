@@ -81,10 +81,13 @@ ONBOARDING_VERSION = 2
 #: ``reducir_longitud_modulo``.
 SCROLL_FAST_STREAK = 3
 
+#: ``bajar_dificultad`` / ``subir_dificultad`` were removed on 2026-08-29 together with
+#: the end-of-node feedback form: self-reported difficulty was their only trigger, and no
+#: client ever sent it. Reading them back is still harmless — the render prompt filters
+#: unknown actions — but nothing may write them again. See
+#: ``docs/design/future-lesson-feedback.md`` for what bringing them back would take.
 TutorAction = Literal[
     "reforzar_con_ejemplo",
-    "bajar_dificultad",
-    "subir_dificultad",
     "reducir_longitud_modulo",
     "revisar_prerrequisito",
 ]
@@ -92,8 +95,6 @@ TutorAction = Literal[
 #: The whole permitted vocabulary, in the emission order of the table in §3.3.
 TUTOR_ACTIONS: tuple[TutorAction, ...] = (
     "reforzar_con_ejemplo",
-    "bajar_dificultad",
-    "subir_dificultad",
     "reducir_longitud_modulo",
     "revisar_prerrequisito",
 )
@@ -229,47 +230,45 @@ class NodeSignalContext:
     """Everything the five trigger rules of §3.3 need, and nothing else.
 
     A plain frozen dataclass on purpose: the rules are evaluated in tests without
-    a database, and the caller (the ``answer``/``feedback`` routes of B5) is the
-    only place that knows how to read these values out of Postgres.
+    a database, and the caller (``MasteryEvidenceService``, reached from the ``answer``
+    route) is the only place that knows how to read these values out of Postgres.
 
     ``recent_event_types`` is ordered **most recent first** and scoped to
     ``node_id``.
+
+    There is no ``difficulty`` field any more: it could only ever be filled from the
+    learner's own answer to the end-of-node feedback form, which no client rendered, so
+    it was ``None`` on every code path. Difficulty *inferred* from graded answers reaches
+    the profile through ``consecutive_failed`` / ``consecutive_correct`` instead.
     """
 
     node_id: uuid.UUID
     consecutive_failed: int = 0
     consecutive_correct: int = 0
     last_error_kind: str | None = None
-    difficulty: str | None = None
     recent_event_types: tuple[str, ...] = ()
     unmastered_prerequisites: int = 0
 
 
 def evaluate_signals(context: NodeSignalContext) -> list[TutorAction]:
-    """The five rules of §3.3, verbatim, in table order.
+    """The three surviving rules of §3.3, verbatim, in table order.
 
     ============================  ==========================================
     Action                        Condition
     ============================  ==========================================
     ``reforzar_con_ejemplo``      ``consecutive_failed >= 2``
-    ``bajar_dificultad``          ``difficulty == 'hard'``
-    ``subir_dificultad``          ``difficulty == 'easy'`` and
-                                  ``consecutive_correct >= 3``
     ``reducir_longitud_modulo``   3 consecutive ``scroll_fast`` on the node
     ``revisar_prerrequisito``     ``last_error_kind == 'conceptual'`` and >=1
                                   prerequisite not ``mastered``
     ============================  ==========================================
+
+    §3.3 listed five. ``bajar_dificultad`` and ``subir_dificultad`` were both keyed on
+    self-reported difficulty and were retired with it on 2026-08-29.
     """
     actions: list[TutorAction] = []
 
     if context.consecutive_failed >= 2:
         actions.append("reforzar_con_ejemplo")
-
-    difficulty = _plain(context.difficulty)
-    if difficulty == "hard":
-        actions.append("bajar_dificultad")
-    elif difficulty == "easy" and context.consecutive_correct >= 3:
-        actions.append("subir_dificultad")
 
     streak = context.recent_event_types[:SCROLL_FAST_STREAK]
     if len(streak) == SCROLL_FAST_STREAK and all(t == "scroll_fast" for t in streak):

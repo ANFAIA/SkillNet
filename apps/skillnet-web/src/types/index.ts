@@ -837,12 +837,6 @@ export interface NodeHintResult {
   hints_remaining: number
 }
 
-export interface NodeFeedbackBody {
-  difficulty: 'easy' | 'ok' | 'hard'
-  /** Free text, bounded server-side at 1000 chars. One of only two places user text lands. */
-  unclear?: string | null
-}
-
 /**
  * One instrumentation event (§3.3).
  *

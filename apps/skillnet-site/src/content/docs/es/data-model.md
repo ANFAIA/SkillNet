@@ -801,6 +801,9 @@ La forma de la adición, para que sepas si necesitas mirarlo:
   (`learner_profiles`, `learner_node_states`, `node_probes`, `node_attempts`), feedback y
   telemetría (`node_feedback`, `learning_events`, `llm_usage_log`, `term_explanations`) y
   `audit_log`.
+  **`node_feedback` se borró el 2026-08-29 con la migración `0036`**, vacía: su único escritor
+  era `POST /nodes/{id}/feedback` y ningún cliente llegó a llamarlo. Ver
+  `docs/design/future-lesson-feedback.md`.
 - **Nada en v1 cambia de forma.** Las columnas v2 en `courses` tienen todas valores por defecto
   que reproducen el comportamiento v1, que es lo que permite que el flag esté desactivado por
   defecto.

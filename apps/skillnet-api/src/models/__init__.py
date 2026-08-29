@@ -67,7 +67,6 @@ from src.models.media_artifact import (
 from src.models.llm_usage_log import USE_CASES, LlmUsageLog
 from src.models.module import Module
 from src.models.node_attempt import BLOOM_LEVELS, NodeAttempt
-from src.models.node_feedback import DIFFICULTY_VALUES, NodeFeedback
 from src.models.node_knowledge_pack import (
     NodeKnowledgePackRecord,
     NodeKnowledgePackStatus,
@@ -161,8 +160,6 @@ __all__ = [
     "NodeProbe",
     "NodeAttempt",
     "BLOOM_LEVELS",
-    "NodeFeedback",
-    "DIFFICULTY_VALUES",
     "NodeKnowledgePackRecord",
     "NodeKnowledgePackStatus",
     "TermExplanation",

@@ -403,10 +403,12 @@ _ERROR_RULES: dict[str, str] = {
 
 #: ``tutor_notes.signals`` action -> the instruction it becomes. Closed vocabulary, so a
 #: signal can never turn into free-form prose injected into a prompt (§3.3).
+#:
+#: Doubles as the read filter for stored notes (``signal_actions_for_node``), so dropping
+#: the two difficulty actions on 2026-08-29 also makes any of them left in an old
+#: ``tutor_notes`` row inert instead of raising.
 _SIGNAL_RULES: dict[str, str] = {
     "reforzar_con_ejemplo": "Anade un ejemplo concreto del ambito de esta persona.",
-    "bajar_dificultad": "Baja la dificultad: un paso menos por bloque.",
-    "subir_dificultad": "Sube la dificultad: plantea un caso menos evidente.",
     "reducir_longitud_modulo": "Acorta: menos bloques y frases mas breves.",
     "revisar_prerrequisito": (
         "Recuerda en una linea el concepto previo del que depende este nodo, sin "
