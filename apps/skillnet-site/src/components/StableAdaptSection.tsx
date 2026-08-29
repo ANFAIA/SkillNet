@@ -40,15 +40,19 @@ type Pose = {
 };
 type PoseHandle = keyof Pose;
 
+const SIMULATOR_FPS = 6;
+
 const INITIAL_FRAME_POSES: Pose[] = [
-  { hip: { x: 210, y: 94 }, leftHand: { x: 238, y: 77 }, rightHand: { x: 184, y: 109 }, leftFoot: { x: 181, y: 148 }, rightFoot: { x: 244, y: 147 } },
-  { hip: { x: 210, y: 89 }, leftHand: { x: 232, y: 91 }, rightHand: { x: 189, y: 91 }, leftFoot: { x: 196, y: 148 }, rightFoot: { x: 236, y: 137 } },
-  { hip: { x: 210, y: 84 }, leftHand: { x: 219, y: 106 }, rightHand: { x: 198, y: 69 }, leftFoot: { x: 215, y: 143 }, rightFoot: { x: 235, y: 132 } },
-  { hip: { x: 210, y: 89 }, leftHand: { x: 188, y: 111 }, rightHand: { x: 233, y: 75 }, leftFoot: { x: 244, y: 147 }, rightFoot: { x: 182, y: 148 } },
-  { hip: { x: 210, y: 94 }, leftHand: { x: 183, y: 78 }, rightHand: { x: 237, y: 108 }, leftFoot: { x: 245, y: 148 }, rightFoot: { x: 180, y: 147 } },
-  { hip: { x: 210, y: 89 }, leftHand: { x: 190, y: 91 }, rightHand: { x: 231, y: 91 }, leftFoot: { x: 235, y: 137 }, rightFoot: { x: 195, y: 148 } },
-  { hip: { x: 210, y: 84 }, leftHand: { x: 198, y: 69 }, rightHand: { x: 219, y: 106 }, leftFoot: { x: 235, y: 132 }, rightFoot: { x: 214, y: 143 } },
-  { hip: { x: 210, y: 89 }, leftHand: { x: 233, y: 75 }, rightHand: { x: 188, y: 111 }, leftFoot: { x: 182, y: 148 }, rightFoot: { x: 244, y: 147 } },
+  // A calm wave: the planted body remains identical in every frame while the
+  // right hand draws a small loop beside the head.
+  { hip: { x: 210, y: 94 }, leftHand: { x: 194, y: 112 }, rightHand: { x: 232, y: 44 }, leftFoot: { x: 198, y: 148 }, rightFoot: { x: 222, y: 148 } },
+  { hip: { x: 210, y: 94 }, leftHand: { x: 194, y: 112 }, rightHand: { x: 240, y: 39 }, leftFoot: { x: 198, y: 148 }, rightFoot: { x: 222, y: 148 } },
+  { hip: { x: 210, y: 94 }, leftHand: { x: 194, y: 112 }, rightHand: { x: 247, y: 45 }, leftFoot: { x: 198, y: 148 }, rightFoot: { x: 222, y: 148 } },
+  { hip: { x: 210, y: 94 }, leftHand: { x: 194, y: 112 }, rightHand: { x: 241, y: 54 }, leftFoot: { x: 198, y: 148 }, rightFoot: { x: 222, y: 148 } },
+  { hip: { x: 210, y: 94 }, leftHand: { x: 194, y: 112 }, rightHand: { x: 232, y: 46 }, leftFoot: { x: 198, y: 148 }, rightFoot: { x: 222, y: 148 } },
+  { hip: { x: 210, y: 94 }, leftHand: { x: 194, y: 112 }, rightHand: { x: 224, y: 39 }, leftFoot: { x: 198, y: 148 }, rightFoot: { x: 222, y: 148 } },
+  { hip: { x: 210, y: 94 }, leftHand: { x: 194, y: 112 }, rightHand: { x: 217, y: 46 }, leftFoot: { x: 198, y: 148 }, rightFoot: { x: 222, y: 148 } },
+  { hip: { x: 210, y: 94 }, leftHand: { x: 194, y: 112 }, rightHand: { x: 224, y: 54 }, leftFoot: { x: 198, y: 148 }, rightFoot: { x: 222, y: 148 } },
 ];
 
 const HANDLE_LABELS: Record<PoseHandle, keyof VisionCopy> = {
@@ -163,9 +167,10 @@ function ModelTrends({ copy }: { copy: VisionCopy }) {
 }
 
 function FrameSimulator({ copy }: { copy: VisionCopy }) {
-  const [frame, setFrame] = useState(4);
+  const stageRef = useRef<SVGSVGElement>(null);
+  const [frame, setFrame] = useState(0);
   const [playing, setPlaying] = useState(false);
-  const [onionSkin, setOnionSkin] = useState(true);
+  const [onionSkin, setOnionSkin] = useState(false);
   const [poses, setPoses] = useState<Pose[]>(() => INITIAL_FRAME_POSES.map((pose) => ({
     hip: { ...pose.hip },
     leftHand: { ...pose.leftHand },
@@ -173,14 +178,13 @@ function FrameSimulator({ copy }: { copy: VisionCopy }) {
     leftFoot: { ...pose.leftFoot },
     rightFoot: { ...pose.rightFoot },
   })));
-  const stageRef = useRef<SVGSVGElement>(null);
   const draggingRef = useRef<PoseHandle | null>(null);
 
   useEffect(() => {
     if (!playing) return;
     const timer = window.setInterval(
       () => setFrame((current) => (current + 1) % INITIAL_FRAME_POSES.length),
-      1000 / 8,
+      1000 / SIMULATOR_FPS,
     );
     return () => window.clearInterval(timer);
   }, [playing]);
@@ -245,7 +249,7 @@ function FrameSimulator({ copy }: { copy: VisionCopy }) {
     <div className="vision-simulator" role="group" aria-label={copy.simulatorLabel}>
       <div className="vision-simulator__head">
         <div><strong>{copy.simulatorTitle}</strong><span>{copy.simulatorInstruction}</span></div>
-        <span className="vision-simulator__fps">8 fps</span>
+        <span className="vision-simulator__fps">{SIMULATOR_FPS} fps</span>
       </div>
       <span className="vision-simulator__status" aria-live={playing ? "off" : "polite"} aria-atomic="true">
         {copy.simulatorTitle}: {frame + 1} / {poses.length}
