@@ -63,7 +63,14 @@ class ActivityDefinition(UUIDMixin, TimestampMixin, Base):
 
 
 class ActivityState(UUIDMixin, TimestampMixin, Base):
-    """Opaque learner-owned draft/state, separate from the immutable definition."""
+    """Opaque learner-owned draft/state, separate from the immutable definition.
+
+    ``state`` is written by the client through ``PUT /activities/{id}/state`` and is never
+    interpreted by the server. Anything the server has to *decide* with — how many times
+    this learner missed, how much has been disclosed to them — belongs in
+    ``learner_activity_states``, which has the same ``(activity, user)`` key and no
+    client-writable column at all.
+    """
 
     __tablename__ = "activity_states"
     __table_args__ = (

@@ -408,8 +408,9 @@ def validated_score(evaluated: Mapping[str, Any]) -> tuple[str, float, bool, str
     An ``evaluation`` port adapter is free to return whatever it likes, so every value
     that reaches ``MasteryEvidenceService`` is checked first. ``hints_used`` is
     deliberately **not** read from here: on the ``/evaluate`` path the record of what was
-    actually disclosed to this learner is ``learner_node_states.hints_used``, and a number
-    an adapter reports about itself is not that record.
+    actually disclosed to this learner is ``learner_activity_states.hints_used``, written
+    only by ``POST /activities/{id}/hint``, and a number an adapter reports about itself
+    is not that record.
 
     Twin of ``ExperienceAttemptService._validated_score``, which does the same job for the
     ``/attempts`` path and additionally carries the adapter's hint count. The two should

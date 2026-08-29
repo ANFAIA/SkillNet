@@ -35,7 +35,7 @@ if TYPE_CHECKING:  # pragma: no cover - annotation only, keeps this module sessi
 #: component. Left is the key's *keys*, right is its *values* — the direction differs
 #: between components (``didact.label-diagram`` maps target -> label, the others map
 #: prompt -> answer), which is exactly why this cannot be inferred.
-_ASSIGNMENT_COLUMNS: Mapping[str, tuple[str, str]] = {
+ASSIGNMENT_COLUMNS: Mapping[str, tuple[str, str]] = {
     "didact.matching": ("sources", "targets"),
     "didact.categorize": ("items", "categories"),
     "didact.word-bank": ("gaps", "options"),
@@ -43,7 +43,7 @@ _ASSIGNMENT_COLUMNS: Mapping[str, tuple[str, str]] = {
 }
 
 #: Where the labels of a single-collection mode live.
-_SINGLE_COLLECTION: Mapping[str, str] = {
+SINGLE_COLLECTION: Mapping[str, str] = {
     "didact.sort": "items",
     "didact.quiz.single-choice": "options",
     "didact.quiz.multi-select": "options",
@@ -108,7 +108,7 @@ def _label(entry: Mapping[str, Any]) -> str | None:
     return f"{around[0]} {_GAP_PLACEHOLDER} {around[1]}"
 
 
-def _labels(value: Any) -> dict[str, str]:
+def entry_labels(value: Any) -> dict[str, str]:
     """``id -> visible text`` for one authored collection. Unlabelled entries are dropped."""
     projected: dict[str, str] = {}
     for entry in _entries(value):
@@ -119,7 +119,7 @@ def _labels(value: Any) -> dict[str, str]:
     return projected
 
 
-def _order(value: Any) -> list[str]:
+def entry_order(value: Any) -> list[str]:
     """The authored order of a collection's ids, so the projection reads like the screen."""
     return [
         identifier
@@ -159,14 +159,14 @@ def _lines(values: Iterable[str]) -> str | None:
 def _assignments_text(
     component_id: str, public: Mapping[str, Any], expected: Any
 ) -> str | None:
-    columns = _ASSIGNMENT_COLUMNS.get(component_id)
+    columns = ASSIGNMENT_COLUMNS.get(component_id)
     if columns is None or not isinstance(expected, Mapping) or not expected:
         return None
     source_key, target_key = columns
-    sources = _labels(public.get(source_key))
-    targets = _labels(public.get(target_key)) if target_key else {}
+    sources = entry_labels(public.get(source_key))
+    targets = entry_labels(public.get(target_key)) if target_key else {}
     rendered: list[str] = []
-    for source_id in _order(public.get(source_key)):
+    for source_id in entry_order(public.get(source_key)):
         if source_id not in expected:
             continue
         left = sources.get(source_id)
@@ -185,9 +185,9 @@ def _keyed_text_text(public: Mapping[str, Any], expected: Any) -> str | None:
     """``didact.completion-problem``: each missing step paired with its accepted answer."""
     if not isinstance(expected, Mapping) or not expected:
         return None
-    prompts = _labels(public.get("steps"))
+    prompts = entry_labels(public.get("steps"))
     rendered: list[str] = []
-    for step_id in _order(public.get("steps")):
+    for step_id in entry_order(public.get("steps")):
         if step_id not in expected:
             continue
         prompt = prompts.get(step_id)
@@ -204,7 +204,7 @@ def _sequence_text(public: Mapping[str, Any], expected: Any) -> str | None:
     """``didact.sort``: the ordered steps, numbered, because the order *is* the answer."""
     if not isinstance(expected, list) or not expected:
         return None
-    labels = _labels(public.get("items"))
+    labels = entry_labels(public.get("items"))
     rendered: list[str] = []
     for position, item_id in enumerate(expected, start=1):
         label = labels.get(str(item_id))
@@ -216,10 +216,10 @@ def _sequence_text(public: Mapping[str, Any], expected: Any) -> str | None:
 
 def _choice_text(component_id: str, public: Mapping[str, Any], expected: Any) -> str | None:
     """One or more selected options, rendered by their authored labels."""
-    collection = _SINGLE_COLLECTION.get(component_id)
+    collection = SINGLE_COLLECTION.get(component_id)
     if collection is None:
         return None
-    labels = _labels(public.get(collection))
+    labels = entry_labels(public.get(collection))
     selected = expected if isinstance(expected, list) else [expected]
     if not selected:
         return None
@@ -232,7 +232,7 @@ def _choice_text(component_id: str, public: Mapping[str, Any], expected: Any) ->
 def _exact_text(component_id: str, public: Mapping[str, Any], expected: Any) -> str | None:
     if isinstance(expected, bool):
         return _BOOLEAN_TEXT[expected]
-    if component_id in _SINGLE_COLLECTION:
+    if component_id in SINGLE_COLLECTION:
         return _choice_text(component_id, public, expected)
     if isinstance(expected, str) and expected.strip():
         return expected.strip()
@@ -347,4 +347,11 @@ def revealed_solution(
     )
 
 
-__all__ = ["render_solution", "revealed_solution"]
+__all__ = [
+    "ASSIGNMENT_COLUMNS",
+    "SINGLE_COLLECTION",
+    "entry_labels",
+    "entry_order",
+    "render_solution",
+    "revealed_solution",
+]

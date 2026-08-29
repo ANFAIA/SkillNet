@@ -1,7 +1,11 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { useIntl } from 'react-intl'
 
-import { activityHintPath, useActivitySolution } from '../../../api/activities'
+import {
+  activityHintPath,
+  useActivitySolution,
+  useActivitySolutionRevealed,
+} from '../../../api/activities'
 import { ActivityNotEvaluableError } from '../../../lib/didact'
 import type { DidactHostPorts, EvaluationResult, EvaluationSolution } from '../../../lib/didact'
 import { Button } from '../../ui/Button'
@@ -409,6 +413,11 @@ export function SecureEvaluatedActivity({
    */
   const [revealed, setRevealed] = useState<{ solution: EvaluationSolution | null } | null>(null)
   const solutionRequest = useActivitySolution(activityId)
+  // The reveal, as the server remembers it. Without this the closure lived only in the
+  // state above: a reload put the activity back as if it were still open, in front of
+  // somebody who had already been given the answer. The written solution is not re-sent
+  // — knowing it was shown is enough to keep the activity closed.
+  const revealedBefore = useActivitySolutionRevealed(activityId)
 
   useEffect(() => {
     void ports.events?.emit({
@@ -520,7 +529,10 @@ export function SecureEvaluatedActivity({
   // client is allowed to decide: it did not decide the answer was earned, it only knows
   // the answer is now on screen.
   const closed =
-    result?.outcome === 'correct' || result?.showWorkedSolution === true || revealed !== null
+    result?.outcome === 'correct'
+    || result?.showWorkedSolution === true
+    || revealed !== null
+    || revealedBefore
   const canRetry = Boolean(result) && !closed
   // Whether there is anything to *show*, which is not the same as whether the item closed.
   // `WorkedSolution` prints nothing without a written solution (this call site passes no

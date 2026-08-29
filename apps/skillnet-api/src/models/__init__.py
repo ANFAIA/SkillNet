@@ -36,6 +36,7 @@ from src.models.generation_job import (
     GenerationOutput,
     GenerationStep,
 )
+from src.models.learner_activity_state import LearnerActivityState
 from src.models.learner_node_state import (
     SCAFFOLD_BANDS,
     ErrorKind,
@@ -142,6 +143,7 @@ __all__ = [
     "LearnerExperience",
     "FORMAT_VECTOR_DIMENSIONS",
     "EMPTY_FORMAT_VECTOR",
+    "LearnerActivityState",
     "LearnerNodeState",
     "NodeState",
     "ErrorKind",

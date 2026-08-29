@@ -1,12 +1,12 @@
 """``learner_profiles`` data access, plus the art. 17 erasure unit.
 
-``erase_user_data`` deliberately spans **seven** tables. It lives here, next to the
+``erase_user_data`` deliberately spans **nine** tables. It lives here, next to the
 profile, because "erase everything this learner generated" is one atomic
-requirement of §3.3/§11.2 and splitting it across seven repositories would make it
+requirement of §3.3/§11.2 and splitting it across nine repositories would make it
 possible to forget a table and still look correct.
 
-That is not hypothetical: the first version of this function deleted five of the
-seven and still answered ``204``, leaving behind exactly the two tables that store
+That is not hypothetical: an early version of this function skipped two of them and
+still answered ``204``, leaving behind exactly the two tables that store
 what the employee *wrote* (``node_attempts.answer``, ``node_probes.answers``). The
 list below is the whole contract; ``tests/test_gdpr_erasure.py`` asserts it table
 by table so a new personal table cannot be added without failing a test.
@@ -19,6 +19,7 @@ import uuid
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.models.learner_activity_state import LearnerActivityState
 from src.models.learner_node_state import LearnerNodeState
 from src.models.learner_profile import LearnerProfile
 from src.models.learning_event import LearningEvent
@@ -37,12 +38,15 @@ from src.repositories.base import BaseRepository
 # that are about to disappear, and on a big erasure that is the difference between
 # one statement and two). Nothing else in the list references anything else in it:
 # ``learner_node_states.active_render_id`` and ``node_attempts.render_id`` point at
-# ``node_renders``, which is anonymized rather than deleted.
+# ``node_renders``, which is anonymized rather than deleted. ``learner_activity_states``
+# holds one learner's failure and disclosure counts per activity, so it is as personal as
+# an attempt row and is deleted with the rest.
 ERASURE_ORDER: tuple[tuple[str, type, object], ...] = (
     ("node_render_views", NodeRenderView, NodeRenderView.user_id),
     ("node_feedback", NodeFeedback, NodeFeedback.user_id),
     ("experience_attempts", ExperienceAttempt, ExperienceAttempt.user_id),
     ("node_attempts", NodeAttempt, NodeAttempt.user_id),
+    ("learner_activity_states", LearnerActivityState, LearnerActivityState.user_id),
     ("node_probes", NodeProbe, NodeProbe.user_id),
     ("learner_node_states", LearnerNodeState, LearnerNodeState.user_id),
     ("learning_events", LearningEvent, LearningEvent.user_id),

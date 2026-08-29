@@ -26,6 +26,7 @@ from src.schemas.activity import (
     DidactEventEnvelope,
     ActivityOperationRead,
     ActivityStateRead,
+    ActivitySolutionRead,
     ActivityStateWrite,
     ActivitySubmission,
 )
@@ -33,6 +34,7 @@ from src.schemas.learning_experience import (
     ExperienceAttemptRead,
     ExperienceAttemptSubmission,
 )
+from src.schemas.node import NodeHintResult
 from src.models.activity_definition import ActivityDefinition, ActivityFamily
 from src.models.learning_event import LearningEvent
 from src.services.activity_definitions import (
@@ -42,12 +44,15 @@ from src.services.activity_definitions import (
     public_feedback,
     validated_score,
 )
+from src.services.activity_hints import activity_hint
 from src.services.activity_ports import PortDeclined
-from src.services.activity_solution import revealed_solution
+from src.services.activity_solution import render_solution, revealed_solution
 from src.services.media.activity_assets import ActivityAssetResolver
 from src.services.activity_progress import project_activity_progress
 from src.services.experience_attempt_service import ExperienceAttemptService
 from src.services.mastery_evidence_service import MasteryEvidenceService
+from src.services.mastery_service import HINT_LIMIT, may_offer_hint
+from src.repositories.learner_activity_state_repo import LearnerActivityStateRepository
 from src.repositories.learner_node_state_repo import LearnerNodeStateRepository
 from src.repositories.learner_profile_repo import LearnerProfileRepository
 from src.repositories.media_artifact_repo import MediaArtifactRepository
@@ -199,7 +204,14 @@ async def get_activity_state(user: CurrentUser, db: DBSession, activity_id: uuid
     service = _service(db)
     activity = await service.get(activity_id, user.org_id)
     row = await service.states.get_for_learner(activity.id, user.id)
-    return ActivityStateRead.of(activity.id, row)
+    learner = await LearnerActivityStateRepository(db).get_for_learner(
+        activity.id, user.id
+    )
+    return ActivityStateRead.of(
+        activity.id,
+        row,
+        solution_revealed=bool(getattr(learner, "solution_revealed_at", None)),
+    )
 
 
 @router.get("/{activity_id}/assets/{asset_ref}", response_model=ActivityAssetRead)
@@ -281,6 +293,7 @@ async def _evaluate_assessment(
         return ActivityOperationRead(**operation_payload(await service.evaluate(activity, body.submission)))
 
     states = LearnerNodeStateRepository(db)
+    counters = LearnerActivityStateRepository(db)
     mastery = MasteryEvidenceService(
         db, states=states, profile_repository=LearnerProfileRepository(db)
     )
@@ -301,8 +314,14 @@ async def _evaluate_assessment(
     state_row = await states.get_by_user_and_node(user.id, node.id)
     evaluated = await service.evaluate(activity, body.submission)
     if isinstance(evaluated, PortDeclined):
+        # Nothing was scored, so nothing is counted. A defective activity must not spend
+        # the learner's failures on a question it was never able to ask them.
         return _declined_verdict(evaluated, state_row)
 
+    # Read before the verdict is applied and before anything is incremented: both numbers
+    # are contracted as the state *standing* when this submission arrived. Counting first
+    # would fire rule 8 one failure early.
+    counter_row = await counters.get_for_learner(activity.id, user.id)
     outcome, score, passed, error_kind = validated_score(evaluated)
     result = await mastery.apply(
         user_id=user.id,
@@ -311,28 +330,18 @@ async def _evaluate_assessment(
         score=score,
         passed=passed,
         error_kind=error_kind,
-        # Both counters come from ``learner_node_states``, which already holds them: the
-        # node's own record of how much has been disclosed and how many failures are
-        # standing. No new column, and no client-supplied number in the rule.
-        hints_used=int(getattr(state_row, "hints_used", 0) or 0),
-        # KNOWN DEVIATION, stated rather than hidden. ``item_failures`` is contracted as
-        # "failures of *this* activity", and this path cannot produce that number: nothing
-        # durable on it is keyed by ``activity_id``. Activities reached here are
-        # materialized without an ``ImplementationBinding``, so there is no
-        # ``experience_attempts`` row to count, and the one row this path does write —
-        # ``learning_events`` of type ``didact.graded``, whose metadata does carry
-        # ``activity_id`` — is written only when the client sends an ``attempt_id``, which
-        # the SPA does not do on ``/evaluate``. Counting it would therefore count nothing
-        # and shut rule 8 for everyone.
-        #
-        # ``consecutive_failed`` is the least-wrong stand-in and its cost is real: it is
-        # node-wide, so three failures on one activity plus one on the next opens the second
-        # one's answer. It is bounded and self-clearing at least — any pass resets it —
-        # unlike a lifetime count. Closing this properly needs a per-activity failure
-        # counter that does not exist yet (a column, or an unconditional graded event); that
-        # is a decision, not a patch, so it is not made here.
-        item_failures=int(getattr(state_row, "consecutive_failed", 0) or 0),
+        # Both numbers are this activity's own, from ``learner_activity_states``. They
+        # used to come from ``learner_node_states`` — node-wide, and wrong here in the way
+        # that matters: ``item_failures`` is contracted as "failures of *this* question",
+        # so passing the node's ``consecutive_failed`` meant three failures on one
+        # activity plus one on the next opened the second one's answer. The disclosure
+        # count has the same defect in the other direction: ``learner_node_states.hints_used``
+        # is only written by ``POST /nodes/{id}/hint``, which no Didact activity goes
+        # through, so it read zero for ever.
+        hints_used=int(getattr(counter_row, "hints_used", 0) or 0),
+        item_failures=int(getattr(counter_row, "failures_count", 0) or 0),
     )
+    await counters.record_attempt(activity=activity, user_id=user.id, passed=passed)
 
     state_value = str(getattr(result.state.state, "value", result.state.state))
     show_worked_solution = bool(result.transition.show_worked_solution)
@@ -475,6 +484,104 @@ def _replayed_verdict(
             ),
         },
     )
+
+
+# --------------------------------------------------------------------------------------
+# Asking for help: the hint ladder and the way out
+# --------------------------------------------------------------------------------------
+@router.post("/{activity_id}/hint", response_model=NodeHintResult)
+async def get_activity_hint(
+    user: CurrentUser, db: DBSession, activity_id: uuid.UUID
+) -> NodeHintResult:
+    """One hint for one activity, escalating, with ``attempt-before-hint`` and a cap of 3.
+
+    The same rules ``POST /nodes/{id}/hint`` applies to a ``QuizItem``, and deliberately
+    the same response shape (``NodeHintResult``) so one client ladder serves both: ``409``
+    while the learner has not tried yet, because a hint follows an honest attempt, and
+    ``409`` once the quota is spent.
+
+    **The count is the server's.** It comes from ``learner_activity_states.hints_used``,
+    which only this route writes; there is no request body to read, and anything sent is
+    ignored. Before this route existed the number on screen came from the node's own
+    counter, which no Didact activity ever increments — so "te quedan 3 pistas" was true
+    of something else and stayed true no matter how many were spent.
+
+    The hints themselves are deterministic (:func:`activity_hint`): a disclosure decision
+    has to be reviewable, not sampled.
+    """
+    service = _service(db)
+    activity = await service.get(activity_id, user.org_id)
+    counters = LearnerActivityStateRepository(db)
+    row = await counters.get_for_learner(activity.id, user.id)
+    attempts = int(getattr(row, "attempts_count", 0) or 0)
+    hints_used = int(getattr(row, "hints_used", 0) or 0)
+    if not may_offer_hint(item_attempts=attempts, hints_used=hints_used):
+        if attempts < 1:
+            raise ConflictError(
+                "Inténtalo una vez antes de pedir una pista.", field="activity_id"
+            )
+        raise ConflictError(
+            "Ya has usado las tres pistas de esta actividad.", field="hints_used"
+        )
+
+    # The node is read for the first rung only, and its absence is not an error: an
+    # archived node still has activities, and a learner in front of one still gets a hint.
+    node = await CourseNodeRepository(db).get_scoped(activity.node_id, user.org_id)
+    level = hints_used + 1
+    hint = activity_hint(
+        level,
+        component_id=activity.component_id,
+        public_definition=activity.public_definition,
+        evaluation=(activity.private_definition or {}).get("evaluation"),
+        node_summary=getattr(node, "summary", None),
+    )
+    await counters.record_hint(activity=activity, user_id=user.id, level=level)
+    await db.commit()
+    return NodeHintResult(
+        hint=hint, hints_used=level, hints_remaining=max(0, HINT_LIMIT - level)
+    )
+
+
+@router.post("/{activity_id}/solution", response_model=ActivitySolutionRead | None)
+async def reveal_activity_solution(
+    user: CurrentUser, db: DBSession, activity_id: uuid.UUID
+) -> ActivitySolutionRead | None:
+    """The learner asks to be shown the answer, and is shown it — on the record.
+
+    The exit rule 8 opens by exhaustion, taken on purpose instead. One attempt is required
+    (``409`` otherwise) for the same reason a hint requires one: the answer follows a try.
+
+    **Nothing about mastery is written here.** Asking for the answer demonstrates nothing,
+    so this route stamps ``solution_revealed_at`` and touches no other column — the shape
+    ``POST /nodes/{id}/complete`` already uses to record that a node was worked through
+    without putting an invented number on the scale a certificate is read from. Rule 8 is
+    not fired either: the learner left the activity by their own decision, and dropping
+    ``show_worked_solution`` on the node's state would make that look like a fourth
+    failure.
+
+    ``null`` is a valid answer, and the reason it is not a ``404``: ``render_solution``
+    refuses the modes it cannot put into words, and "asked, nothing to print" still closes
+    the activity and still has to let the learner move on. The stamp is written either
+    way, so the two are indistinguishable to a later reader — which is correct, because
+    what was recorded is that the learner asked and was answered.
+    """
+    service = _service(db)
+    activity = await service.get(activity_id, user.org_id)
+    counters = LearnerActivityStateRepository(db)
+    row = await counters.get_for_learner(activity.id, user.id)
+    if int(getattr(row, "attempts_count", 0) or 0) < 1:
+        raise ConflictError(
+            "Inténtalo una vez antes de ver la solución.", field="activity_id"
+        )
+
+    await counters.mark_solution_revealed(activity=activity, user_id=user.id)
+    await db.commit()
+    written = render_solution(
+        component_id=activity.component_id,
+        public_definition=activity.public_definition,
+        evaluation=(activity.private_definition or {}).get("evaluation"),
+    )
+    return ActivitySolutionRead(**written) if written else None
 
 
 @router.post("/{activity_id}/attempts", response_model=ExperienceAttemptRead)

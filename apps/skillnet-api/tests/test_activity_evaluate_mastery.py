@@ -16,6 +16,9 @@ Three things are pinned here, and the first is the reason the work was done:
    stateless answer, because it measures nobody.
 3. **A repeated ``attempt_id`` replays instead of re-grading**, and a *different*
    submission under the same id is a ``409``.
+4. **Failures are counted per activity**, from ``learner_activity_states``. They used to
+   be counted per *node* — a deviation the route stated out loud in a comment — so three
+   failures on one activity plus one on the next handed the second one's answer over.
 
 No database and no network: the session dependency is a stub and the repositories the route
 names are replaced with in-memory doubles, the technique of ``tests/test_hint_ladder.py``.
@@ -48,6 +51,9 @@ USER_ID = uuid.UUID("22222222-2222-2222-2222-222222222222")
 COURSE_ID = uuid.UUID("33333333-3333-3333-3333-333333333333")
 NODE_ID = uuid.UUID("44444444-4444-4444-4444-444444444444")
 ACTIVITY_ID = uuid.UUID("55555555-5555-5555-5555-555555555555")
+#: A second activity of the **same node**, which is the whole point of it: rule 8 is per
+#: question, so what happens in front of one must not open the other.
+ACTIVITY_B_ID = uuid.UUID("66666666-6666-6666-6666-666666666666")
 
 RIGHT = "a"
 WRONG = "b"
@@ -134,6 +140,16 @@ class FakeState:
 
 
 @dataclass
+class FakeCounters:
+    """One ``learner_activity_states`` row: what this learner spent on one activity."""
+
+    attempts_count: int = 0
+    failures_count: int = 0
+    hints_used: int = 0
+    solution_revealed_at: Any = None
+
+
+@dataclass
 class FakeEvent:
     """One ``learning_events`` row, reduced to what the replay path reads."""
 
@@ -185,7 +201,11 @@ class World:
     node: FakeNode = field(default_factory=FakeNode)
     course: FakeCourse = field(default_factory=FakeCourse)
     activity: FakeActivity = field(default_factory=FakeActivity)
+    other_activity: FakeActivity = field(
+        default_factory=lambda: FakeActivity(id=ACTIVITY_B_ID)
+    )
     state: FakeState = field(default_factory=FakeState)
+    counters: dict[uuid.UUID, FakeCounters] = field(default_factory=dict)
     events: dict[uuid.UUID, FakeEvent] = field(default_factory=dict)
     transitions: list[int] = field(default_factory=list)
 
@@ -196,14 +216,33 @@ def _install(monkeypatch: pytest.MonkeyPatch, world: World) -> None:
             pass
 
         async def get_scoped(self, activity_id: uuid.UUID, org_id: uuid.UUID):
-            activity = world.activity
-            if activity.id != activity_id or activity.org_id != org_id:
-                return None
-            return activity
+            for activity in (world.activity, world.other_activity):
+                if activity.id == activity_id and activity.org_id == org_id:
+                    return activity
+            return None
 
     class FakeActivityStateRepo:
         def __init__(self, _db: Any) -> None:
             pass
+
+    class FakeCounterRepo:
+        """``learner_activity_states``, keyed by activity exactly as the real one is."""
+
+        def __init__(self, _db: Any) -> None:
+            pass
+
+        async def get_for_learner(self, activity_id: uuid.UUID, _user_id: uuid.UUID):
+            return world.counters.get(activity_id)
+
+        async def get_or_create(self, *, activity: FakeActivity, user_id: uuid.UUID):
+            return world.counters.setdefault(activity.id, FakeCounters())
+
+        async def record_attempt(self, *, activity: FakeActivity, user_id, passed: bool):
+            row = await self.get_or_create(activity=activity, user_id=user_id)
+            row.attempts_count += 1
+            if not passed:
+                row.failures_count += 1
+            return row
 
     class FakeCourseRepo:
         def __init__(self, _db: Any) -> None:
@@ -281,6 +320,9 @@ def _install(monkeypatch: pytest.MonkeyPatch, world: World) -> None:
     monkeypatch.setattr(activity_routes, "CourseRepository", FakeCourseRepo)
     monkeypatch.setattr(activity_routes, "CourseNodeRepository", FakeNodeRepo)
     monkeypatch.setattr(activity_routes, "LearnerNodeStateRepository", FakeStateRepo)
+    monkeypatch.setattr(
+        activity_routes, "LearnerActivityStateRepository", FakeCounterRepo
+    )
     monkeypatch.setattr(activity_routes, "LearnerProfileRepository", NoProfileRepo)
     monkeypatch.setattr(activity_routes, "LearningEventRepository", FakeEventRepo)
 
@@ -299,11 +341,17 @@ def client(monkeypatch: pytest.MonkeyPatch, world: World) -> TestClient:
     return TestClient(app, raise_server_exceptions=False)
 
 
-def evaluate(client: TestClient, *, answer: str = WRONG, attempt_id: uuid.UUID | None = None):
+def evaluate(
+    client: TestClient,
+    *,
+    answer: str = WRONG,
+    attempt_id: uuid.UUID | None = None,
+    activity_id: uuid.UUID = ACTIVITY_ID,
+):
     body: dict[str, Any] = {"submission": {"answer": answer}}
     if attempt_id is not None:
         body["attempt_id"] = str(attempt_id)
-    return client.post(f"{PREFIX}/activities/{ACTIVITY_ID}/evaluate", json=body)
+    return client.post(f"{PREFIX}/activities/{activity_id}/evaluate", json=body)
 
 
 # --------------------------------------------------------------------------------------
@@ -350,6 +398,30 @@ def test_four_failures_without_a_single_hint_open_the_exit(
     }
     # `learning`, never `mastered`: being shown the answer demonstrates nothing.
     assert body["result"]["state"] == "learning"
+
+
+def test_failing_one_activity_does_not_open_another_in_the_same_node(
+    client: TestClient, world: World
+) -> None:
+    """The deviation, as a test: rule 8 is per question and this is what that means.
+
+    Three failures on activity A, then a *first* failure on activity B of the same node.
+    While ``item_failures`` came from ``learner_node_states.consecutive_failed`` the node's
+    streak was 4 by then, so B — which the learner had missed exactly once — handed over
+    its own answer. The counter is B's own now, and B is still a question.
+    """
+    for _ in range(WORKED_SOLUTION_FAILURES - 1):
+        evaluate(client)
+
+    body = evaluate(client, activity_id=ACTIVITY_B_ID).json()
+
+    assert body["result"]["show_worked_solution"] is False
+    assert body["result"]["solution"] is None
+    assert world.transitions[-1] != 8
+    assert world.counters[ACTIVITY_ID].failures_count == 3
+    assert world.counters[ACTIVITY_B_ID].failures_count == 1
+    # And nothing was taken away from A: its own fourth failure still opens it.
+    assert evaluate(client).json()["result"]["show_worked_solution"] is True
 
 
 def test_a_correct_answer_raises_mastery(client: TestClient, world: World) -> None:

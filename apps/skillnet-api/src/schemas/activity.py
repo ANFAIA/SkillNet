@@ -111,10 +111,28 @@ class ActivityStateRead(BaseModel):
     model_config = ConfigDict(extra="forbid")
     activity_id: uuid.UUID
     state: dict
+    #: ``true`` once this learner has been shown the worked solution — asked for, or handed
+    #: over at the fourth failure. Server-owned, from ``learner_activity_states``, next to
+    #: the client-owned ``state`` blob rather than inside it, because the client must not be
+    #: able to un-reveal a solution by writing its own state back.
+    #:
+    #: Without it the closure lived only in component memory: a reload showed the activity
+    #: open again, ready to be answered by somebody who had already read the answer.
+    solution_revealed: bool = False
 
     @classmethod
-    def of(cls, activity_id: uuid.UUID, row: ActivityState | None) -> "ActivityStateRead":
-        return cls(activity_id=activity_id, state=dict(row.state or {}) if row else {})
+    def of(
+        cls,
+        activity_id: uuid.UUID,
+        row: ActivityState | None,
+        *,
+        solution_revealed: bool = False,
+    ) -> "ActivityStateRead":
+        return cls(
+            activity_id=activity_id,
+            state=dict(row.state or {}) if row else {},
+            solution_revealed=solution_revealed,
+        )
 
 
 class ActivitySubmission(BaseModel):
@@ -142,6 +160,25 @@ class ActivityOperationRead(BaseModel):
     status: Literal["completed", "declined"]
     result: dict | None = None
     decline_reason: str | None = None
+
+
+class ActivitySolutionRead(BaseModel):
+    """The worked solution of one activity, written out for a learner who asked for it.
+
+    Deliberately the same two fields ``activity_solution.render_solution`` already puts
+    inside ``result.solution`` on ``POST /activities/{id}/evaluate``, and not a shape of
+    its own: the answer arrives by two roads — handed over by rule 8, or requested — and a
+    client that had to tell them apart would be reading the same fact in two vocabularies.
+
+    ``POST /activities/{id}/solution`` answers ``null`` instead of this model when the
+    evaluation mode cannot be rendered honestly. That is an answer, not an error: the
+    learner asked, there is nothing to print, and they still have to be let through.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    solution: str
+    explanation: str | None = None
 
 
 class ActivityProgressRead(BaseModel):

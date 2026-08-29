@@ -31,6 +31,35 @@ export const activityHintPath = (activityId: string) =>
   `/activities/${encodeURIComponent(activityId)}/hint`
 
 /**
+ * Whether this learner has already been shown the worked solution of this activity.
+ *
+ * Server-owned, and that is the point. The reveal used to live only in component state,
+ * so a reload put the activity back on the screen as if it were still open — ready to be
+ * answered by somebody who had already read the answer. The flag rides next to the
+ * client-owned state blob rather than inside it, so writing state back cannot un-reveal
+ * it.
+ *
+ * Defaults to `false` while loading and on error: showing a closed activity as open is
+ * recoverable (the learner answers, the server decides), showing an open one as closed is
+ * not.
+ */
+export const activityRevealKey = (activityId: string) =>
+  ['activities', activityId, 'solution-revealed'] as const
+
+export function useActivitySolutionRevealed(activityId: string) {
+  const query = useQuery({
+    queryKey: activityRevealKey(activityId),
+    queryFn: () =>
+      get<{ solution_revealed?: boolean }>(
+        `/activities/${encodeURIComponent(activityId)}/state`,
+      ),
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+    refetchOnWindowFocus: false,
+  })
+  return query.data?.solution_revealed === true
+}
+/**
  * The learner asking to see the solution, instead of waiting for the fourth failure to
  * hand it over.
  *

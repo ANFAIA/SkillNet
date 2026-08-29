@@ -359,7 +359,8 @@ def transition_on_answer(
     ``item_failures`` is how many failures **the one item being answered** already has
     *before* this answer, so rule 8 fires on the 4th failure of that item (§7.4). "Item"
     means whatever the caller's path uses to identify a single question: ``item_id`` on
-    ``POST /nodes/{id}/answer``, ``binding_id`` on ``POST /activities/{id}/attempts``. It is
+    ``POST /nodes/{id}/answer``, ``binding_id`` on ``POST /activities/{id}/attempts``, and
+    ``activity_id`` on ``POST /activities/{id}/evaluate``. It is
     **not** a node-wide counter, and the difference is not cosmetic — a node-wide count lets
     failures on one activity open the answer to the next one, and every one after it, which
     empties the node's evidence of meaning while looking like it works. A caller that cannot
