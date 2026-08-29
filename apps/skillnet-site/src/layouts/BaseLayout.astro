@@ -73,7 +73,7 @@ if(!alt)return;
 var stored=null;try{stored=localStorage.getItem(${JSON.stringify(LANG_STORAGE_KEY)});}catch(e){}
 if(stored!=="es"&&stored!=="en")stored=null;
 var want=stored?stored:(cur==="es"&&/^en\\b/i.test(navigator.language||"")?"en":cur);
-if(want!==cur)location.replace(alt+location.hash);
+if(want!==cur)location.replace(alt+location.search+location.hash);
 }catch(e){}})();`;
 ---
 
