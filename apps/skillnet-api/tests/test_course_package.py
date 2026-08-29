@@ -289,6 +289,23 @@ def test_slugify_makes_a_filesystem_safe_node_id() -> None:
     assert slugify("!!!") == "node"
 
 
+def test_navigation_mode_travels_with_the_package(tmp_path: Path) -> None:
+    """A course exported as sequential must not come back as free.
+
+    Same class of setting as ``tutor_style`` and ``image_policy``: a decision a person
+    made about this course, not state the system derived. Dropping it installs a course
+    that silently stops asking to be walked in order — and the loss is invisible, because
+    ``free`` is a perfectly valid mode and nothing looks broken.
+    """
+    course = json.loads(json.dumps(COURSE))
+    course["navigation_mode"] = "sequential"
+    directory = _write(tmp_path, course, {"selling": SELLING_PACK, "refunds": REFUNDS_PACK})
+
+    assert read_package(directory).navigation_mode == "sequential"
+    # Absent — every package exported before migration 0034 — means the column default,
+    # which is what those courses had. Not a reason to force anything.
+    assert read_package(_valid(tmp_path / "b")).navigation_mode is None
+
 def test_image_policy_travels_with_the_package(tmp_path: Path) -> None:
     """An exported course must not lose how it treats the images from its own document.
 

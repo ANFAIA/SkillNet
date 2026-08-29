@@ -182,6 +182,10 @@ async def _course_row(
     course.intent_density = package.intent_density
     if package.tutor_style:
         course.tutor_style = package.tutor_style
+    # Absent in a package exported before migration 0034, and absent means the column
+    # default: ``free``, which is what those courses had.
+    if package.navigation_mode:
+        course.navigation_mode = package.navigation_mode
     if package.image_policy:
         course.image_source_policy = package.image_policy
     course.status = ContentStatus.PUBLISHED

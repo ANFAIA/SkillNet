@@ -256,6 +256,12 @@ async def export_course(
         "title": course.title,
         "intent_density": course.intent_density,
         "tutor_style": getattr(course.tutor_style, "value", course.tutor_style),
+        # Travels for the same reason ``tutor_style`` does: it is a decision a person
+        # made about this course, not derived state. Without it an exported course comes
+        # back as ``free`` and silently stops asking to be walked in order.
+        "navigation_mode": getattr(
+            course.navigation_mode, "value", course.navigation_mode
+        ),
         "image_policy": getattr(
             course.image_source_policy, "value", course.image_source_policy
         ),
