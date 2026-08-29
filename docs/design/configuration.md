@@ -196,7 +196,7 @@ generated when the seed ran, not a per-user render.
 | `PODCAST_VOICE_B` | ElevenLabs "Antoni" | Second podcast host voice id. | **No** |
 | `SLIDES_MODEL` | empty → `LLM_MODEL` | Model for the slide-deck content agent. | **No** |
 | `INFOGRAPHIC_MODEL` | empty → `LLM_MODEL` | Model for the infographic content agent. | **No** |
-| `VIDEO_NARRATION_MODEL` | `gpt-4o-mini` | Model that writes one narration line per slide for video overviews. | **No** |
+| `VIDEO_NARRATION_MODEL` | empty → `LLM_MODEL` | Model that writes one narration line per slide for video overviews. | **No** |
 
 `MEDIA_ASSETS_DIR`, `TTS_CACHE_DIR` and `SOURCE_IMAGES_DIR` default to paths relative to the
 working directory, which inside a container is the image filesystem. Compose overrides all
