@@ -47,7 +47,8 @@ async def _org_sector(db: DBSession, org_id) -> str | None:
 
 @router.get("", response_model=OnboardingRead, response_model_exclude_none=True)
 async def get_onboarding(user: CurrentUser, db: DBSession) -> OnboardingRead:
-    """The five questions, plus whether this learner has already been asked."""
+    """The questions of ``build_questions``, plus whether this learner has
+    already been asked."""
     service = _service(db)
     profile = await service.get(user.id)
     sector = await _org_sector(db, user.org_id)

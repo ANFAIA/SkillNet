@@ -1,12 +1,17 @@
 """Onboarding schemas — and the onboarding **copy**, which lives here on purpose.
 
-The server ships the five questions (§11.2) so the wording exists in exactly one
+The server ships the questions (§11.2) so the wording exists in exactly one
 place: a wizard that hardcodes its own labels drifts from the fields it writes,
 and the RGPD art. 13 notice in particular must not be optional client copy.
 That is why :data:`PRIVACY_NOTICE` is a field of ``OnboardingRead`` and not a
 string in a React component (§3.3).
 
-Five screens, one question per screen, ≤3 visible elements, target ≤90 s (§6.1).
+One question per screen, ≤3 visible elements, target ≤90 s (§6.1). §6.2 tables
+five screens; the declared-modality screen (``learning_preferences``) was added
+on top of them, so there are **six**, and the last two are both optional — a
+learner who skips them costs four screens, which is what the ≤90 s budget of
+§6.1 actually needs. Count them from :func:`build_questions`, never from the
+prose: the client mirrors this list and the flow test pins it.
 """
 
 from typing import Literal
@@ -173,13 +178,19 @@ def role_suggestions(sector: str | None) -> list[str]:
 def build_questions(
     *, sector: str | None = None, audio_available: bool = False
 ) -> list[OnboardingQuestion]:
-    """The five questions of §6.2, in order.
+    """The six questions, in order: the five of §6.2 plus declared modality.
+
+    The order is part of the contract — the wizard renders the list as it
+    arrives and dispatches on ``id`` — and ``learning_preferences`` goes
+    **before** ``accessibility`` on purpose: one asks how the learner wants to
+    be taught, the other what they need in order to read at all, and the
+    functional-needs screen is the last one of §6.2.
 
     What is **not** asked is as deliberate as what is (§6.3): no initial level
     test (the per-node pre-assessment does it better, per competence), no
     fixed learning-style label (declared modality is only a reversible priority)
-    and no neurodivergence diagnosis (art. 9 special-category data —
-    question 5 asks about needs, not conditions).
+    and no neurodivergence diagnosis (art. 9 special-category data — the
+    ``accessibility`` question asks about needs, not conditions).
     """
     return [
         OnboardingQuestion(
