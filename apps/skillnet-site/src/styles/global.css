@@ -173,20 +173,24 @@ a {
 /* The media panes flow under the label instead of being pinned over it: that is
    what lets them shrink with the card. */
 
-/* The infographic. The pane is exactly the file's own 1672x941 box, so `cover`
-   crops nothing and no letterbox band is painted: the frame and the graphic are
-   the same rectangle. What is left over in a taller cell is plain card. */
+/* The infographic is one complete image; no UI is composed over it. */
 .media-image {
+  display: flex;
   width: 100%;
-  flex: none;
-  margin: auto 0;
-  aspect-ratio: 1672 / 941;
+  min-height: 0;
+  flex: 1;
+  margin: 24px 0 0;
+  overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--color-primary) 22%, white);
   border-radius: 8px;
-  background-image: url('/images/landing/multimodal/learning-differences-infographic-en-v1.webp');
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: cover;
+  background: #f7f3eb;
+}
+
+.media-image > img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
 }
 
 .media-video {
@@ -204,11 +208,11 @@ a {
   min-height: 0;
   overflow: hidden;
   border-radius: 8px 8px 0 0;
-  background: var(--color-primary-deep);
+  border: 1px solid var(--color-border-strong);
+  background: #f8fafc;
 }
 
-/* Frames and controls share the one grid cell, so the controls paint over the
-   image because they come later in the DOM -- no stacking context, no z-index. */
+/* Frames and controls share one grid cell; the controls paint over the scene. */
 .media-video__still > * {
   grid-area: stack;
   min-width: 0;
@@ -221,10 +225,11 @@ a {
 }
 
 .media-video__frame {
+  display: grid;
   grid-area: frame;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  background: #fff;
   opacity: 0;
   transition: opacity .45s var(--ease-base);
 }
@@ -233,10 +238,21 @@ a {
   opacity: 1;
 }
 
+.media-video__scene {
+  width: 100%;
+  height: 100%;
+  background-image: url("/images/landing/multimodal/learning-differences-video-storyboard-v4.webp");
+  background-repeat: no-repeat;
+  background-size: 200% 200%;
+}
+
+.media-video__scene--0 { background-position: 0 0; }
+.media-video__scene--1 { background-position: 100% 0; }
+.media-video__scene--2 { background-position: 0 100%; }
+.media-video__scene--3 { background-position: 100% 100%; }
+
 .media-video__overlay {
-  /* Positioned, so it paints over the replaced <img> elements sharing its grid
-     cell. In-flow images otherwise win against a non-positioned sibling's
-     content, and the play button stops being clickable. No z-index needed. */
+  /* Positioned above the illustration so the playback controls stay active. */
   position: relative;
   display: flex;
   min-height: 0;
@@ -245,7 +261,7 @@ a {
   justify-content: space-between;
   gap: 10px;
   padding: 14px;
-  background: linear-gradient(rgba(30,61,110,.08), rgba(30,61,110,.34));
+  background: transparent;
 }
 
 .media-video__subtitle {
@@ -351,6 +367,7 @@ a {
   width: 100%;
   height: 82px;
   align-items: center;
+  justify-content: center;
   gap: 3px;
   margin: 0;
 }

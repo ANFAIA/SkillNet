@@ -1,5 +1,13 @@
 import { useEffect, useRef, useState } from "react";
-import { AudioLines, ChevronRight, FileText, Image as ImageIcon, Pause, Play, Video } from "lucide-react";
+import {
+  AudioLines,
+  ChevronRight,
+  FileText,
+  Image as ImageIcon,
+  Pause,
+  Play,
+  Video,
+} from "lucide-react";
 import { motion, useReducedMotion } from "framer-motion";
 import type { Locale } from "../i18n/config";
 import { t, type Copy } from "../i18n/ui";
@@ -8,13 +16,11 @@ import { revealGroup, revealItem, useEntrance } from "./useEntrance";
 const MODE_KEYS = ["texto", "imagen", "video", "audio"] as const;
 const MODE_ICONS = { texto: FileText, imagen: ImageIcon, video: Video, audio: AudioLines } as const;
 
-/** The four frames of the video sequence, in order. They are real files, not a mock-up. */
-const VIDEO_FRAMES = [
-  "/images/landing/multimodal/learning-differences-video-frame-v1.webp",
-  "/images/landing/multimodal/learning-differences-video-frame-2-v1.webp",
-  "/images/landing/multimodal/learning-differences-video-frame-3-v1.webp",
-  "/images/landing/multimodal/learning-differences-video-frame-4-v1.webp",
-] as const;
+const VIDEO_FRAME_COUNT = 4;
+const INFOGRAPHIC_IMAGES = {
+  es: "/images/landing/multimodal/learning-differences-infographic-es-v4.webp",
+  en: "/images/landing/multimodal/learning-differences-infographic-en-v4.webp",
+} as const;
 
 /** Bars in the audio waveform. Low enough that they stay legible on a 215px pane. */
 const WAVEFORM_BARS = 28;
@@ -41,16 +47,30 @@ function releaseSolo(audio: HTMLAudioElement) {
 /** Index of the caption being spoken at `time`, given the locale's cut points. */
 function frameAt(cuts: readonly number[], time: number): number {
   let index = 0;
-  for (let i = 0; i < cuts.length && i < VIDEO_FRAMES.length; i += 1) {
+  for (let i = 0; i < cuts.length && i < VIDEO_FRAME_COUNT; i += 1) {
     if (time >= cuts[i]) index = i;
   }
   return index;
 }
 
+function InfographicCell({ copy, lang }: { copy: Copy["howItWorks"]; lang: Locale }) {
+  return <div className="media-image">
+    <img src={INFOGRAPHIC_IMAGES[lang]} alt={copy.imageAlt} loading="lazy" decoding="async" />
+  </div>;
+}
+
+function VideoFrame({ position }: { position: number }) {
+  return <div
+    className={`media-video__scene media-video__scene--${position}`}
+    role="img"
+    aria-label=""
+  />;
+}
+
 /**
- * The video cell: four stills with their caption, driven by a narration track.
+ * The video cell: four photographic scenes with their caption, driven by a narration track.
  *
- * It is deliberately not a `<video>` — the piece really is a short sequence of
+ * It is deliberately not a `<video>` — the piece is a short sequence of
  * images, and four webp frames plus one mp3 weigh a fraction of any encoded
  * clip. The frame and the caption both read the same `currentTime`, so what is on screen is always what is being said; a
  * second clock would drift against the voice within a line or two.
@@ -95,7 +115,7 @@ function VideoCell({ copy, lang, reduced }: { copy: Copy["howItWorks"]; lang: Lo
   const stepForward = () => {
     const audio = audioRef.current;
     if (!audio) return;
-    const next = (index + 1) % VIDEO_FRAMES.length;
+    const next = (index + 1) % VIDEO_FRAME_COUNT;
     audio.currentTime = cuts[next];
     setTime(cuts[next]);
   };
@@ -103,15 +123,10 @@ function VideoCell({ copy, lang, reduced }: { copy: Copy["howItWorks"]; lang: Lo
   return <div className="media-video">
     <div className="media-video__still">
       <div className="media-video__frames">
-        {VIDEO_FRAMES.map((src, position) => <img
-          key={src}
+        {Array.from({ length: VIDEO_FRAME_COUNT }, (_, position) => <div
+          key={position}
           className={`media-video__frame ${position === index ? "is-current" : ""}`}
-          src={src}
-          alt=""
-          width={1672}
-          height={941}
-          decoding="async"
-        />)}
+        ><VideoFrame position={position} /></div>)}
       </div>
       <div className="media-video__overlay">
         <button
@@ -218,7 +233,7 @@ export default function HowItWorksSection({ lang = "es" }: { lang?: Locale }) {
           return <motion.div key={key} onMouseEnter={() => setActive(key)} onFocus={() => setActive(key)} className={`media-cell media-cell--${key} ${selected ? "is-active" : ""}`}>
             <span className="media-cell__label"><Icon size={19} strokeWidth={1.7} />{copy.modes[key]}</span>
             {key === "texto" && <div className="media-text"><strong>{copy.mediaHeading}</strong><p>{copy.idea}</p></div>}
-            {key === "imagen" && <div className="media-image" role="img" aria-label={copy.imageAlt} />}
+            {key === "imagen" && <InfographicCell copy={copy} lang={lang} />}
             {key === "video" && <VideoCell copy={copy} lang={lang} reduced={reduced} />}
             {key === "audio" && <AudioCell copy={copy} lang={lang} />}
           </motion.div>;
