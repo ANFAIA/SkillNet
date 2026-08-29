@@ -71,33 +71,6 @@ async def get_stats(admin: AdminUser, db: DBSession) -> StatsResponse:
     completed_enrollments: int = enroll_row.completed
     in_progress_enrollments: int = enroll_row.in_progress
 
-    # --- Average score (only enrollments with a score) ---
-    #
-    # **This average is over two different quantities and cannot be made honest here.**
-    # `enrollments.score` holds the completed-lessons fraction on the v1 path
-    # (`routes/lessons.py`, `exercise_service`, `EnrollmentService.complete`), and until
-    # 2026-08-29 the v2 path also wrote mean node mastery into it — a different thing on
-    # a coincidentally identical 0..1 scale. A dynamic course no longer writes anything:
-    # finishing it says it was finished and carries no mark (see
-    # `mastery_service.evaluate_course_completion`). So the mixture stops growing, but the
-    # rows already written keep it, and no query can tell them apart after the fact.
-    #
-    # Left as it is on purpose. Deciding what an admin dashboard should show now that
-    # half of the catalogue reports no mark at all is a product question, not a cleanup:
-    # the candidates are dropping the tile, restricting it to static courses, or
-    # replacing it with a completion rate. Narrowing the filter here would quietly change
-    # what the number means for a third time, which is how it got into this state.
-    avg_q = (
-        select(func.avg(Enrollment.score))
-        .join(Course, Enrollment.course_id == Course.id)
-        .where(
-            Course.org_id == org_id,
-            Course.is_demo.is_(False),
-            Enrollment.score.isnot(None),
-        )
-    )
-    avg_score: float | None = (await db.execute(avg_q)).scalar()
-
     # --- Overdue assignments: a fact about the assignment (past its deadline, not
     # yet completed), not a label on the person — mirrors EnrollmentFact.is_overdue
     # in org_snapshot.py. ---
@@ -180,7 +153,6 @@ async def get_stats(admin: AdminUser, db: DBSession) -> StatsResponse:
         total_enrollments=total_enrollments,
         completed_enrollments=completed_enrollments,
         in_progress_enrollments=in_progress_enrollments,
-        avg_score=round(avg_score, 2) if avg_score is not None else None,
         overdue_assignments=overdue_assignments,
         recent_activity=recent_activity,
     )

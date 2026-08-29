@@ -1075,13 +1075,10 @@ async def complete_node(
     """The learner reached the end of this node's content.
 
     **``completed_at`` is a separate dimension from mastery, and this route writes only
-    it.** ``state`` and ``mastery`` are left exactly as they were: getting to the last
-    screen is not a demonstration of anything, and moving the mastery scale here would put
-    an invented number on the same axis as measured ones — the axis
-    ``CourseCompletion.measured_mastery`` averages and the course's skills are accredited
-    from. Nor does it touch ``attempts_count``: reaching the end of a node is not being
-    asked something, so ``mastery_service.node_was_measured`` still says no, and a course
-    finished this way accredits nothing. What the stamp *does*
+    it.** ``state``, ``mastery`` and ``attempts_count`` are left exactly as they were:
+    getting to the last screen is not a demonstration of anything, and writing a mastery
+    number here would put an invented figure on the same axis as measured ones — the axis
+    ``SkillService.record_mastery`` derives a skill level from. What the stamp *does*
     change is progress, because ``mastery_service.node_is_done`` counts a node as done
     when it is mastered **or** finished; before it existed, an expository node (no graded
     item, so ``mastered`` unreachable by rule 6 of §7.3) counted as zero progress no
@@ -1103,7 +1100,8 @@ async def complete_node(
     once per node and close the course — stamped, ``COMPLETED``, skills granted — without
     a single lesson ever being rendered to them. That mattered less when the certificate
     carried a score and a fabricated pass showed up as a low one; it is the whole claim
-    now that closure is what a certificate asserts.
+    now that closure is what a certificate asserts **and** what accredits the course's
+    skills.
 
     ``first_seen_at`` is the right fact to ask for and it already exists: it is stamped by
     ``GET /nodes/{node_id}/render`` alone — never by the anticipatory prefetch, which is

@@ -1234,10 +1234,10 @@ async def test_the_full_learner_journey_closes_the_course(
     assert listing["blocked_by"] == []
     assert listing["progress_percent"] == 100
 
-    # The course's own skills were granted at the translated level, never downgraded.
-    # Both nodes measured — one by a graded streak, one by a closed probe — so there is a
-    # mean to translate: `(mastered.mastery + skipped.mastery) / 2`, both at 0.90 or
-    # above, which is `high`.
+    # Closing the course accredits the skills it covers, at one level and with no level
+    # derived from anything (2026-08-29: there are no exams). Here that grant is a
+    # `medium` the never-downgrade rule discards, because the per-node bridge above
+    # already recorded `high` on this same skill from a measurement that does exist.
     async with async_session_factory() as db:
         rows = (
             await db.execute(
@@ -1295,14 +1295,12 @@ async def test_adding_a_critical_node_reopens_a_completed_enrollment(
 
     completed = await enrollment_of(world.employee.id, world.course_id)
     assert completed.status is EnrollmentStatus.COMPLETED
-    # A waiver is an accreditation, not a measurement: `mastery`, `attempts_count` and
-    # `probe_score` are all left alone, so the course closed having measured nothing.
+    # A waiver is an accreditation, not a measurement: `mastery` is left alone, and the
+    # closed course carries no mark either way.
     assert completed.score is None
-    # And therefore accredits nothing either: turning a waiver into a `user_skills` row
-    # would launder a human's judgement into a number the system claims to have measured.
-    # That gate is asserted where it can be seen to fire — `tests/test_course_closure.py`,
-    # `test_a_course_that_measured_nothing_accredits_nothing` — because this course has no
-    # `course_skills` link, so the grant would be a no-op here whatever the rule said.
+    # What it *does* accredit is the course's skills, for having been finished — a no-op
+    # here because this course has no `course_skills` link. The grant is asserted where it
+    # can be seen to fire, in `tests/test_course_closure.py`.
 
     # Now the creator changes the critical set.
     unvalidated = await admin.post(f"/courses/{world.course_id}/schema/unvalidate")

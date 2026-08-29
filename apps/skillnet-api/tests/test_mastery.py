@@ -32,7 +32,6 @@ from src.services.mastery_service import (
     mastery_prior,
     may_offer_hint,
     next_mastery,
-    node_was_measured,
     probe_estimate,
     probe_item_count,
     probe_verdict,
@@ -649,11 +648,6 @@ class FakeNodeProgress:
     #: Migration 0029. `node_is_done` counts a node as done when it is mastered OR
     #: finished, so every fake needs the second column to answer for itself.
     completed_at: datetime | None = None
-    #: What `node_was_measured` reads. Defaulted to "nothing was ever asked here",
-    #: because that is the shape of the node the whole distinction exists for: an
-    #: expository one, which closes the course and measures nobody.
-    attempts_count: int = 0
-    probe_score: float | None = None
 
 
 def test_course_completes_only_when_every_node_is_mastered():
@@ -670,9 +664,6 @@ def test_course_completes_only_when_every_node_is_mastered():
     assert result.total_critical == 4
     assert result.mastered_critical == 1
     assert result.progress_percent == 25
-    # Nothing was asked on any of these four, so there is no measurement to average.
-    assert result.measured_mastery is None
-    assert result.measured_nodes == 0
 
 
 def test_recommended_and_contextual_now_block():
@@ -684,7 +675,6 @@ def test_recommended_and_contextual_now_block():
     result = evaluate_course_completion(nodes)
     assert result.can_complete is False
     assert result.blocked_by == ("n2", "n3")
-    assert result.measured_mastery is None
 
 
 def test_archiving_the_missing_node_unblocks_the_course():
@@ -714,7 +704,6 @@ def test_a_course_of_only_recommended_nodes_completes_when_mastered():
 def test_an_empty_course_cannot_complete():
     result = evaluate_course_completion([])
     assert result.can_complete is False
-    assert result.measured_mastery is None
     assert result.total_critical == 0
 
 
@@ -724,68 +713,43 @@ def test_a_waived_node_counts_as_mastered():
     nodes = [FakeNodeProgress("n1", "critical", "mastered", 0.0)]
     result = evaluate_course_completion(nodes)
     assert result.can_complete is True
-    # Closing sees no difference; accreditation does. `waive` leaves `mastery`,
-    # `attempts_count` and `probe_score` alone on purpose, so the course closes with
-    # nothing measured and grants no skill level a human did not sign for.
-    assert result.measured_mastery is None
-    assert result.measured_nodes == 0
-
-
-# --- what "measured" means, and why it is not `mastery` ----------------------
-
-
-def test_only_a_graded_answer_or_a_closed_probe_counts_as_a_measurement():
-    """`node_was_measured` reads the two columns an evidence event writes, and no others.
-
-    Not `mastery`: a node is seeded with `mastery_prior` from the learner's existing
-    `user_skills` level, so a high number there can be a prior nobody earned on this node
-    and a zero can be a node nobody asked anything. The columns are the footprint of an
-    event; the number is an estimate that exists either way.
-    """
-    read_only = FakeNodeProgress("n1", "critical", "not_started", 0.55)
-    answered = FakeNodeProgress("n2", "critical", "learning", 0.4, attempts_count=1)
-    probed = FakeNodeProgress("n3", "critical", "mastered", 0.9, probe_score=0.9)
-
-    assert node_was_measured(read_only) is False
-    assert node_was_measured(answered) is True
-    assert node_was_measured(probed) is True
-
-
-def test_measured_mastery_averages_the_nodes_that_asked_and_ignores_the_rest():
-    """The whole reason the old `score` was dropped, in one assertion.
-
-    Two expository nodes read to the end and one node answered well. The old mean over
-    *every* node reported 0.30 and it was printed as the mark of the course — a figure
-    that said "mostly wrong" about a learner who was wrong about nothing. The mean over
-    the nodes that measured says 0.90, which is the only claim the evidence supports, and
-    it is used for accreditation rather than shown as a grade.
-    """
-    nodes = [
-        FakeNodeProgress("n1", "critical", "mastered", 0.9, attempts_count=3),
-        FakeNodeProgress("n2", "critical", "not_started", 0.0, completed_at=NOW),
-        FakeNodeProgress("n3", "critical", "not_started", 0.0, completed_at=NOW),
-    ]
-    result = evaluate_course_completion(nodes)
-
-    assert result.can_complete is True
+    # `mastery` is 0.0 because `waive` leaves it alone, and closure does not read it.
     assert result.progress_percent == 100
-    assert result.measured_nodes == 1
-    assert result.measured_mastery == pytest.approx(0.9)
 
 
-def test_a_course_that_measured_nothing_reports_no_measurement_at_all():
-    """`None`, never `0.0` — the distinction the enrollment's skill grant hangs on.
+# --- closure reads `node_is_done` and nothing else ---------------------------
 
-    A course of expository nodes read from end to end asked this learner nothing. Zero
-    would be a claim about them; `None` is the absence of one, and it is what makes
-    "accredit nothing" expressible instead of "accredit at the bottom level".
+
+def test_a_course_finished_by_reading_it_closes_exactly_like_a_mastered_one():
+    """Two ways to finish, one verdict — and no third number distinguishing them.
+
+    Until 2026-08-29 this function also returned `measured_mastery`, the mean `mastery`
+    over the nodes that had asked something, and the enrollment used it to accredit the
+    course's skills at `low`/`medium`/`high`. That was a second criterion for one event:
+    the certificate said "completed" while the skill row said "at level X", derived from
+    whatever fraction of the course happened to carry graded items. There are no exams
+    here, so there is no level to derive; finishing is the whole verdict.
+
+    The assertion that bites is the equality of the two: a course read end to end and a
+    course answered perfectly produce the *same* `CourseCompletion`. Reintroduce any
+    measured field and it has to differ somewhere, which is what this pins shut.
     """
-    nodes = [
-        FakeNodeProgress("n1", "critical", "not_started", 0.0, completed_at=NOW),
-        FakeNodeProgress("n2", "critical", "not_started", 0.0, completed_at=NOW),
-    ]
-    result = evaluate_course_completion(nodes)
+    read_through = evaluate_course_completion(
+        [
+            FakeNodeProgress("n1", "critical", "not_started", 0.0, completed_at=NOW),
+            FakeNodeProgress("n2", "critical", "not_started", 0.0, completed_at=NOW),
+        ]
+    )
+    answered = evaluate_course_completion(
+        [
+            FakeNodeProgress("n1", "critical", "mastered", 0.95),
+            FakeNodeProgress("n2", "critical", "mastered", 0.90),
+        ]
+    )
 
-    assert result.can_complete is True
-    assert result.measured_mastery is None
-    assert result.measured_nodes == 0
+    assert read_through.can_complete is True
+    assert read_through == answered
+    # And the verdict carries no measurement of any kind to accredit a level from.
+    assert not [
+        name for name in vars(read_through) if "measur" in name or name == "score"
+    ]

@@ -1925,9 +1925,9 @@ Transiciones de `node_state`, deterministas y **completas** (las 8 que cubre
 Dos ambigüedades que quedaban abiertas y que afectan a certificados, cerradas arriba: **`mastery` tras
 un probe** se escribe sólo si el veredicto domina (`max(prior, estimate)`), y si el veredicto es
 `learning` se conserva el prior — de modo que `probe_score` y `mastery` no se pisan; y
-**`nodes_completed`** se incrementa sólo en la transición 6. Sin fijar ambas,
-`CourseCompletion.measured_mastery` (media de `mastery` sobre los nodos que midieron algo, §7.5)
-variaba según detalles de implementación, y de ahí salen las habilidades acreditadas.
+**`nodes_completed`** se incrementa sólo en la transición 6. Sin fijar ambas, el nivel que
+`SkillService.record_mastery` acredita **por nodo** (§3.3) variaba según detalles de
+implementación.
 
 **Ninguna transición saca a nadie de `mastered`**: haría falta el scheduler de repetición espaciada,
 que no está en el repo (§1.3). La transición 8 producía `needs_review` hasta el 2026-08-28; desde la
@@ -2019,21 +2019,35 @@ hecho quedaba registrado en 0.0, la misma cifra que quien lo contestó todo mal.
 señal buena: se quita una que mentía. `apply_dynamic_closure` ya no escribe `enrollments.score`.
 
 **La columna no se borra.** Guarda la historia de las matrículas ya cerradas, y el camino v1 sigue
-escribiendo en ella lo que siempre escribió: la fracción de lecciones completadas. O sea que el
-`AVG` de `routes/stats.py` promedia dos magnitudes distintas sobre la misma escala 0..1 y no hay
-consulta que las separe a posteriori. La mezcla deja de crecer; qué debe enseñar ese panel ahora
-que media parte del catálogo no informa nota alguna está sin decidir.
+escribiendo en ella lo que siempre escribió: la fracción de lecciones completadas. Esa columna
+guarda por tanto dos magnitudes distintas sobre la misma escala 0..1 y no hay consulta que las
+separe a posteriori. La mezcla deja de crecer, y la tarjeta del panel de admin que promediaba las
+dos (`AVG(enrollments.score)` en `routes/stats.py`) **se quitó entera el 2026-08-29**, no se
+restringió: aquí no hay exámenes, así que una nota media no tenía nada que promediar. Lo que ese
+panel dice de resultados es la tasa de finalización, que es lo único que todos los cursos afirman.
 
-**Lo que sí se conserva es la acreditación de habilidades, y con qué se hace es la cola que importa.**
-`CourseCompletion.measured_mastery` es la media de `mastery` **solo sobre los nodos que midieron
-algo** (`mastery_service.node_was_measured`: `attempts_count > 0` o `probe_score` no nulo), y es
-`None` cuando ninguno midió. `_assign_course_skills` se llama con la traducción
-`mastery → skill_level` de §3.3 aplicada a ese número, y **no se llama en absoluto** cuando es
-`None`: un curso que no midió nada no acredita nada. Antes acreditaba `low` a todo el mundo que lo
-terminara, supiera o no — y `user_skills` es lo que contesta "quién sabe X" y alimenta el análisis
-de brechas y el prior del probe, así que una fila `low` ahí es una afirmación sobre una persona, no
-la ausencia de una. Un `waive` sigue sin acreditar por la misma razón que ya tenía: deja `mastery`
-intacta a propósito, luego no midió.
+**Terminar un curso acredita las habilidades que ese curso cubre. Sin nivel derivado.**
+`apply_dynamic_closure` devuelve `"completed"` y `close_dynamic_if_mastered` llama a
+`_assign_course_skills(user_id, course_id)` — dos argumentos, ningún nivel. Durante un día hubo un
+tercero: `mastery_to_level(CourseCompletion.measured_mastery)`, la media de `mastery` sobre los
+nodos que habían medido algo. Era el mismo error una capa más abajo. Con él, el certificado decía
+"lo completó" y la fila de `user_skills` decía "a nivel X", dos criterios para un solo hecho, y el
+segundo salía de la fracción del curso que por casualidad llevaba ítems calificados: un curso de
+ejemplos resueltos no acreditaba nada y un curso con un único test dejaba que ese test decidiera el
+nivel de todas sus habilidades. La regla de "sólo hacia arriba" se queda intacta, y es lo que hace
+seguro conceder un `medium` a todo el que termina.
+
+**La forma buena es acreditar por nodo, y hoy no se puede.** Cada nodo ya declara la habilidad que
+cubre (`course_nodes.skill_id`) y `MasteryEvidenceService` ya la acredita en la transición 6 vía
+`SkillService.record_mastery` — el único sitio donde derivar un nivel es legítimo, porque ahí el
+número viene de evidencia sobre *esa* habilidad. Terminar un nodo acreditaría lo suyo y un curso
+acreditaría exactamente lo que su aprendiz recorrió, en vez de la lista entera de `course_skills` de
+golpe. Es un no-op hoy: **el diseñador de esquema no rellena `skill_id`** — `src/agents/schema/nodes.py`
+construye cada `CourseNode` sin él, y `_auto_create_skills` cuelga las habilidades que inventa de
+`course_skills`, a nivel de curso—, así que `node.skill_id` es NULL en todo curso generado y
+`record_mastery` sale por la puerta de arriba. El requisito previo es que el diseñador mapee nodos a
+habilidades, no otra regla en el cierre. Un `waive` acredita como cualquier otro cierre: es una
+acreditación humana, y ya no hay nivel que inventarle.
 
 **Recálculo obligatorio al cambiar el esquema.** `PUT /courses/{id}/schema` cambia el conjunto de
 nodos no archivados, que es precisamente lo que gobierna la condición de cierre. En la misma
@@ -2465,8 +2479,7 @@ sentencia.
 | `POST` | `/nodes/{node_id}/render` | `{"force": false, "preview": false}` | `202 {"request_id", "cached": bool}` · `409 node_not_reviewed` |
 | `GET` | `/nodes/{node_id}/render` | — | `200 NodeRenderRead` (el render fijado, ver abajo) · `202 {"status":"generating","request_id"}` · `409 node_not_reviewed` |
 | `GET` | `/nodes/{node_id}/renders` | — | `200 {"renders": [{render_id, created_at, ui_format}]}` — historial para "ver la versión anterior" (§5.5) |
-| `POST` | `/nodes/{node_id}/complete` | — | `200 NodeCompletionRead` · `409 node_not_seen` — el aprendiz llegó al final del contenido del nodo. Estampa `completed_at` y **no toca `state` ni `mastery`** (los devuelve tal cual): acabar de leer no es una demostración, y escribir aquí un número de maestría pondría una cifra inventada en la escala que promedia
-`measured_mastery` y de la que salen las habilidades acreditadas. Idempotente en las dos mitades —el sello no se mueve y el recálculo de cierre no hace nada si ya coincide—, así que el cliente puede llamarlo en cada "siguiente" sin llevar la cuenta. Responde con el veredicto de §7.5 recalculado (`progress_percent`, `can_complete`) para que la barra no quede obsoleta al lado de un nodo que se acaba de acabar. **`409 node_not_seen` desde el 2026-08-28**: no se puede terminar un nodo que el servidor nunca sirvió a este aprendiz. Antes bastaba un POST por id —y los ids los da `GET /courses/{course_id}/nodes`— para cerrar el curso entero, con la matrícula en `completed` y las habilidades acreditadas, sin renderizar una sola lección. La guarda pregunta por `first_seen_at`, que ya existía y ya es ese hecho: lo sella `GET /nodes/{node_id}/render` y sólo él, nunca el prefetch anticipado —pedir la *fila* y no el *sello* habría autorizado a terminar lecciones que nadie ha mirado. `409` y no `403` porque el nodo no está prohibido, es que **todavía** no está abierto, y renderizarlo hace que la misma llamada funcione |
+| `POST` | `/nodes/{node_id}/complete` | — | `200 NodeCompletionRead` · `409 node_not_seen` — el aprendiz llegó al final del contenido del nodo. Estampa `completed_at` y **no toca `state` ni `mastery`** (los devuelve tal cual): acabar de leer no es una demostración, y escribir aquí un número de maestría pondría una cifra inventada en la escala de la que `SkillService.record_mastery` deriva un nivel. Idempotente en las dos mitades —el sello no se mueve y el recálculo de cierre no hace nada si ya coincide—, así que el cliente puede llamarlo en cada "siguiente" sin llevar la cuenta. Responde con el veredicto de §7.5 recalculado (`progress_percent`, `can_complete`) para que la barra no quede obsoleta al lado de un nodo que se acaba de acabar. **`409 node_not_seen` desde el 2026-08-28**: no se puede terminar un nodo que el servidor nunca sirvió a este aprendiz. Antes bastaba un POST por id —y los ids los da `GET /courses/{course_id}/nodes`— para cerrar el curso entero, con la matrícula en `completed` y las habilidades acreditadas, sin renderizar una sola lección. La guarda pregunta por `first_seen_at`, que ya existía y ya es ese hecho: lo sella `GET /nodes/{node_id}/render` y sólo él, nunca el prefetch anticipado —pedir la *fila* y no el *sello* habría autorizado a terminar lecciones que nadie ha mirado. `409` y no `403` porque el nodo no está prohibido, es que **todavía** no está abierto, y renderizarlo hace que la misma llamada funcione |
 | `POST` | `/nodes/{node_id}/waive` | `{"reason"?}` | `200 NodeStateRead` — sólo admin/responsable; §7.4 |
 | `GET` | `/nodes/{node_id}/render/stream?request_id=…` | — | `200 text/event-stream` |
 | `POST` | `/nodes/{node_id}/answer` | `{"render_id", "item_id", "answer", "hints_used", "latency_ms"}` | `200 NodeAttemptResult` — **`hints_used` del body es informativo y el servidor NO debe confiar en él** (B5): es el valor que decide si `NodeAttemptResult.correct_answer` se revela, y un campo que rellena el cliente no puede gobernar esa revelación (`hints_used: 3` sería una clave de respuestas gratis). El conteo válido se deriva en el servidor de `node_attempts.hints_used` para `(user_id, node_id, item_id)`, que sólo incrementa `POST /nodes/{id}/hint`. `QuizItemBlock` (B6) no concede pistas y siempre manda `0` |

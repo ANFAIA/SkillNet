@@ -4,7 +4,9 @@ Two closing rules live here, and they must never mix:
 
 * **v1 (static).** ``complete()``: every lesson visited and every exercise passed.
   Byte-for-byte the rule it has always been. Driven by the learner pressing "he
-  terminado" on ``POST /enrollments/{id}/complete``.
+  terminado" on ``POST /enrollments/{id}/complete``, and since 2026-08-29 that route
+  answers 409 on a dynamic course instead of applying this rule to one — see
+  ``complete()`` for why refusing beats delegating.
 * **v2 (dynamic).** §7.5: every non-archived ``critical`` node of the course is
   ``mastered`` — by demonstration, by probe or by ``waive``. ``recommended`` and
   ``contextual`` never block. Nobody presses anything: the enrollment closes the moment
@@ -14,9 +16,11 @@ Two closing rules live here, and they must never mix:
 
 Which means ``enrollments.score`` is now written by the v1 rule alone, where it has
 always held the completed-lessons fraction. That is the one meaning it has going
-forward; the rows the v2 rule wrote before this change hold mean mastery instead, and
-the ``AVG`` in ``routes/stats.py`` still averages both together. Nothing here can fix
-that — it is history in a column — but nothing here adds to it either.
+forward; the rows the v2 rule wrote before this change hold mean mastery instead. The
+column keeps them — it is the history of enrollments already closed — but nothing reads
+across the two any more: the admin dashboard's ``AVG(score)`` tile, which did, was
+removed on 2026-08-29 rather than narrowed, because there are no exams here and a
+number that averaged two magnitudes was not worth a filter.
 
 Which of the two applies is decided by ``resolve_delivery`` — the single decision point
 of §10.1 — everywhere except one place, ``CourseSchemaService.recompute_enrollment_closure``,
@@ -68,7 +72,6 @@ from src.services.mastery_service import (
     CourseCompletion,
     evaluate_course_completion,
 )
-from src.services.skill_service import mastery_to_level
 
 logger = get_logger(__name__)
 
@@ -130,11 +133,6 @@ class NodeProgressRow:
     #: (migration 0029). Defaulted so the two call sites that predate it keep compiling
     #: while reading as "never recorded a finish", which is what a missing row means.
     completed_at: datetime | None = None
-    #: The two halves of ``mastery_service.node_was_measured``. Defaulted for the same
-    #: reason as above, and to the same effect: a learner with no row on a node was asked
-    #: nothing there, so "no attempts, no probe" is the truth and not a placeholder.
-    attempts_count: int = 0
-    probe_score: float | None = None
 
 
 def apply_dynamic_closure(
@@ -586,12 +584,40 @@ class EnrollmentService:
         """Mark an enrollment as completed, compute and store the final score.
 
         Returns the updated enrollment and its progress value.
+
+        **This is the v1 rule and it now says so out loud (409 on a dynamic course).**
+        It had no ``resolve_delivery`` check at all, and every line below it is v1
+        semantics: progress as a fraction of lessons, that fraction written to
+        ``enrollments.score``, skills granted on the way out. Pointed at a dynamic course
+        it read a lesson tree the learner never sees, and — before the schema edit that
+        made ``progress`` fall through to §7.5 — it could close a course by a rule v2
+        does not recognise. The learner UI never offers it (the finish button only exists
+        on courses with lessons), but the route is open to anybody with a session.
+
+        **Why a 409 and not a delegation to ``close_dynamic_if_mastered``.** A dynamic
+        course has no "he terminado" button *by design*: closure there is computed from
+        the node states and fires by itself on the events that can change the verdict
+        (``POST /nodes/{id}/answer``, ``/waive``, ``/complete``, and the schema
+        recompute). Wiring this route into that path would build the button the design
+        refuses — an endpoint whose whole job is to let a learner assert they are done —
+        and it would add a fifth trigger for a closure that is already recomputed on
+        every event that could move it. Refusing is also the truthful answer: there is
+        nothing for the caller to do here, because if their nodes are done the enrollment
+        is already closed.
         """
         enrollment = await self.get_scoped(
             enrollment_id=enrollment_id, org_id=org_id
         )
         if enrollment.user_id != user_id:
             raise ForbiddenError("You can only complete your own enrollments")
+
+        # Before the idempotent branch below on purpose: the door is shut for this
+        # course, not merely for the rows this route would otherwise have written.
+        if resolve_delivery(enrollment.course) == "dynamic":
+            raise ConflictError(
+                "This course closes itself: a dynamic course is completed when every "
+                "node is done, and nothing is asserted by hand"
+            )
 
         if enrollment.status == EnrollmentStatus.COMPLETED:
             progress = await self.compute_progress(
@@ -631,28 +657,26 @@ class EnrollmentService:
         self,
         user_id: uuid.UUID,
         course_id: uuid.UUID,
-        level: SkillLevel | None = None,
     ) -> None:
         """Assign skills linked to the completed course to the user.
 
-        When a user completes a course, they earn all skills associated
-        with that course at 'medium' level (first completion) or keep
-        their existing level if already higher.
+        **Finishing a course accredits the skills that course covers. There is no level
+        to derive, because there is no exam.** Both branches grant at ``MEDIUM``, and
+        that single level is the point: for a day the dynamic branch took a ``level``
+        argument and passed ``mastery_to_level(measured_mastery)``, so a certificate
+        saying "completed" sat next to a skill row saying "at ``low``" — two verdicts on
+        one event, the second of them derived from whatever fraction of the course
+        happened to carry graded items. A course of worked examples measures nothing and
+        would have accredited nothing; a course with one quiz in it decided the level for
+        all of its skills. Neither is a statement the evidence supports.
 
-        ``level`` is the v2 addition and defaults to ``MEDIUM``, so the v1 call site is
-        unchanged. A dynamic course passes the ``mastery -> skill_level`` translation of
-        §3.3 applied to ``CourseCompletion.measured_mastery``: finishing a course whose
-        nodes were mastered at 0.95 is more evidence than finishing one at 0.72, and v1
-        had no number to tell them apart. The never-downgrade rule below is untouched
-        and is what makes passing a lower level harmless.
-
-        **Deciding not to call this at all is the caller's job**, and
-        ``close_dynamic_if_mastered`` does exactly that when the course measured nothing.
-        There is deliberately no "grant nothing" level here: an absent measurement is not
-        a low one, and the only way to say so is not to write a row.
+        The never-downgrade rule below is untouched: a competence a human verified at
+        ``high`` is not retracted by finishing a course, and the per-node path
+        (``SkillService.record_mastery``, which does have measurements) can still raise
+        one.
         """
         db = self.enrollment_repo.session
-        granted = level or SkillLevel.MEDIUM
+        granted = SkillLevel.MEDIUM
 
         # Find skills linked to this course.
         result = await db.execute(
@@ -728,8 +752,6 @@ class EnrollmentService:
                     else str(getattr(state.state, "value", state.state)),
                     mastery=float(getattr(state, "mastery", 0.0) or 0.0),
                     completed_at=getattr(state, "completed_at", None),
-                    attempts_count=int(getattr(state, "attempts_count", 0) or 0),
-                    probe_score=getattr(state, "probe_score", None),
                 )
             )
         return rows
@@ -829,37 +851,35 @@ class EnrollmentService:
             return enrollment, completion
 
         await self.enrollment_repo.session.flush()
-        if outcome == "completed" and completion.measured_mastery is not None:
-            # §7.5 / §3.3: the course's skills, at the level its **measured** nodes
-            # support, still only upwards.
+        if outcome == "completed":
+            # Finished the course -> holds the skills the course covers. One criterion,
+            # the same one the certificate asserts, and no level derived from anything.
             #
-            # The level used to come from `completion.score`, the mean mastery over every
-            # node — so a course whose nodes ask nothing accredited its skills at `low`
-            # to everyone who finished it, whether or not they knew any of it. That is
-            # not a cautious grant, it is a false one: `user_skills` answers "who knows
-            # X" and feeds the gap analysis and the probe prior, and a `low` row there is
-            # a claim about a person, not the absence of one.
+            # **The right shape for this is per node, and it is not reachable yet.** Each
+            # node already declares the skill it covers (``course_nodes.skill_id``) and
+            # ``MasteryEvidenceService`` already accredits it on the ``-> mastered``
+            # transition via ``SkillService.record_mastery`` — the one place a level is
+            # legitimately derived, because there it comes from evidence about that one
+            # skill. Finishing a node would accredit its own skill and a course would
+            # accredit exactly what its learner actually worked through, instead of the
+            # whole ``course_skills`` list in one lump.
             #
-            # So the grant is now gated on there being something to translate. A course
-            # that measured nothing accredits nothing and leaves `user_skills` exactly as
-            # it found it — the honest record of "they went through it", which is what
-            # the completed enrollment itself already says. When a course does measure,
-            # nothing changes except that the mean no longer counts the silences.
-            await self._assign_course_skills(
-                user_id,
-                course.id,
-                mastery_to_level(completion.measured_mastery),
-            )
+            # It is a no-op today: **the schema designer never fills ``skill_id``**
+            # (``src/agents/schema/nodes.py`` builds every ``CourseNode`` without it, and
+            # ``_auto_create_skills`` attaches the skills it invents to ``course_skills``,
+            # at course level). So ``node.skill_id`` is NULL on every generated course,
+            # ``record_mastery`` returns early, and routing accreditation through that
+            # path today would accredit nothing at all. The prerequisite is the designer
+            # mapping nodes to skills, not another rule here.
+            await self._assign_course_skills(user_id, course.id)
         logger.info(
-            "Dynamic enrollment %s for user %s on course %s: %s (%d/%d nodes done, "
-            "%d measured)",
+            "Dynamic enrollment %s for user %s on course %s: %s (%d/%d nodes done)",
             enrollment.id,
             user_id,
             course.id,
             outcome,
             completion.mastered_critical,
             completion.total_critical,
-            completion.measured_nodes,
         )
         return enrollment, completion
 

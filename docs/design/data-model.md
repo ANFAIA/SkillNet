@@ -895,11 +895,11 @@ however completely it was read, and a course made of them reported 0%.
 `mastery_service.node_is_done` now counts a node as done when it is `mastered` **or** has a
 `completed_at`. Since 2026-08-29 a closed course carries **no score at all** — completion is
 the whole of what it asserts — so the second half of this paragraph no longer applies and is
-not restated: `enrollments.score` is written by the v1 path alone. The evidence a course
-produced survives as `CourseCompletion.measured_mastery`, the mean over the nodes that
-actually asked something (`attempts_count > 0` or `probe_score`), and its only job is
-choosing the level the course's skills are accredited at. See
-[`v2-dynamic-courses.md`](v2-dynamic-courses.md) §7.5.
+not restated: `enrollments.score` is written by the v1 path alone, and nothing reads across
+its two historical meanings any more (the admin dashboard's `AVG(score)` tile was removed the
+same day). A completion also derives **no skill level**: finishing a course accredits the
+skills that course covers, full stop. There are no exams here, so there is nothing to grade
+and nothing to translate. See [`v2-dynamic-courses.md`](v2-dynamic-courses.md) §7.5.
 
 Three deliberate choices: it is **not** a new value of the `node_state` enum (one scale
 cannot hold two independent facts — somebody can finish a node without demonstrating it, and

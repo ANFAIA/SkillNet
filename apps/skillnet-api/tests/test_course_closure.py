@@ -5,16 +5,23 @@ and each is here for a reason a reader can check against the spec:
 
 * :func:`apply_dynamic_closure` is the **only** mutation of ``enrollments`` on the
   dynamic branch, shared by the runtime and by the schema editor so the two cannot
-  disagree about what "completed" means — the number a certificate prints.
+  disagree about what "completed" means — which is the whole of what a certificate
+  asserts, since a course carries no mark.
 * Its ``total_critical == 0`` case is the guard that keeps an admin editing a v2
   schema from reopening the completed **v1** enrollments of a course that has no
   ``course_nodes`` at all. Before B11 that path reopened them, silently.
 * ``EnrollmentService.close_dynamic_if_mastered`` is gated on ``resolve_delivery``,
   the single decision point of §10.1. A static course must come out of it untouched
   even when it happens to have nodes and mastered states.
+* **Finishing a course accredits the skills that course covers, at one level.** No
+  level is derived from mastery any more (2026-08-29: there are no exams), so the
+  tests below assert the *absence* of a third argument as much as the grant itself.
 * ``mastery_to_level`` / ``SkillService.record_mastery`` are the §3.3 translation and
-  the never-downgrade rule. A weak answer on one node may not retract a competence a
+  the never-downgrade rule, and they stay: the **per-node** path does have a
+  measurement to translate. A weak answer on one node may not retract a competence a
   human verified: ``user_skills`` is what "who knows X" answers.
+* ``EnrollmentService.complete`` — ``POST /enrollments/{id}/complete`` — is v1's rule
+  and answers 409 on a dynamic course rather than applying itself to one.
 
 The DB-touching halves (``node_progress`` and the recompute over many enrollments) are
 exercised end to end in ``tests/integration/test_dynamic_flow.py``; they are pure
@@ -32,6 +39,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
+from src.core.exceptions import ConflictError
 from src.models import (
     Course,
     CourseDeliveryMode,
@@ -53,6 +61,9 @@ ORG_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
 USER_ID = uuid.UUID("22222222-2222-2222-2222-222222222222")
 SKILL_ID = uuid.UUID("33333333-3333-3333-3333-333333333333")
 
+#: Any moment at all: ``node_is_done`` reads ``completed_at`` for presence, not value.
+FINISHED_AT = datetime(2026, 8, 29, 12, 0, tzinfo=timezone.utc)
+
 
 # --------------------------------------------------------------------------- #
 # Builders and fakes
@@ -73,23 +84,16 @@ def row(
     state: str = "mastered",
     mastery: float = 0.9,
     archived: bool = False,
-    attempts_count: int = 0,
-    probe_score: float | None = None,
+    completed_at: datetime | None = None,
 ) -> NodeProgressRow:
-    """A ``(node, learner state)`` row. Unmeasured unless a test says otherwise.
-
-    The default is deliberately the awkward case rather than the convenient one: a node
-    that closed without asking anything is what these tests are mostly about, and a
-    builder that quietly supplied evidence would hide it.
-    """
+    """A ``(node, learner state)`` row, mastered unless a test says otherwise."""
     return NodeProgressRow(
         node_id=uuid.uuid4(),
         criticality=criticality,
         archived=archived,
         state=state,
         mastery=mastery,
-        attempts_count=attempts_count,
-        probe_score=probe_score,
+        completed_at=completed_at,
     )
 
 
@@ -122,6 +126,13 @@ class FakeResult:
 
     def scalar_one_or_none(self) -> Any:
         return self._value
+
+
+class FakeSkillIds:
+    """``select(CourseSkill.skill_id)``: one skill on the course, as row tuples."""
+
+    def all(self) -> list[tuple[uuid.UUID]]:
+        return [(SKILL_ID,)]
 
 
 class FakeSession:
@@ -205,16 +216,13 @@ def test_every_node_must_be_mastered_regardless_of_criticality() -> None:
     done = FakeEnrollment(status=EnrollmentStatus.IN_PROGRESS)
     all_mastered = evaluate_course_completion(
         [
-            row(mastery=0.9, attempts_count=3),
-            row(criticality=NodeCriticality.RECOMMENDED, mastery=0.8, attempts_count=3),
-            row(criticality=NodeCriticality.CONTEXTUAL, mastery=0.7, attempts_count=3),
+            row(mastery=0.9),
+            row(criticality=NodeCriticality.RECOMMENDED, mastery=0.8),
+            row(criticality=NodeCriticality.CONTEXTUAL, mastery=0.7),
         ]
     )
     assert apply_dynamic_closure(done, all_mastered) == "completed"
     assert done.score is None
-    # The evidence is still computed, it just never becomes a mark on the enrollment:
-    # its one job is choosing the level the course's skills are accredited at.
-    assert all_mastered.measured_mastery == pytest.approx((0.9 + 0.8 + 0.7) / 3)
 
 
 def test_an_archived_critical_node_does_not_block_completion() -> None:
@@ -573,70 +581,102 @@ def test_reopening_does_not_move_a_real_started_at() -> None:
 
 
 # --------------------------------------------------------------------------- #
-# What a completion accredits, now that it carries no mark
+# What a completion accredits: the course's skills, at one level, for finishing
 # --------------------------------------------------------------------------- #
-def completion(measured: float | None, measured_nodes: int = 2) -> CourseCompletion:
-    """A closable verdict, varying only in whether the course measured anything."""
+def completion(*, can_complete: bool = True, done: int = 2) -> CourseCompletion:
+    """A §7.5 verdict. It carries no measurement, because nothing here is measured."""
     return CourseCompletion(
-        can_complete=True,
-        blocked_by=(),
-        measured_mastery=measured,
-        measured_nodes=0 if measured is None else measured_nodes,
-        mastered_critical=2,
+        can_complete=can_complete,
+        blocked_by=() if can_complete else ("n2",),
+        mastered_critical=done,
         total_critical=2,
-        progress_percent=100,
+        progress_percent=round(100 * done / 2),
     )
 
 
 @pytest.mark.asyncio
-async def test_a_course_that_measured_nothing_accredits_nothing() -> None:
-    """The tail of dropping the score, and the reason it is not just a deletion.
+async def test_finishing_a_course_accredits_its_skills_with_no_level_derived() -> None:
+    """The owner's rule of 2026-08-29: finish the course, hold the skills it covers.
 
-    The level used to come from the mean mastery over every node, so a course whose nodes
-    ask nothing averaged to 0.0 and handed `low` to everyone who finished it — a claim
-    about a person, in the table that answers "who knows X", from evidence that does not
-    exist. `None` is not a low measurement, so nothing is written at all: the completed
-    enrollment already records the true fact, which is that they went through it.
+    For one day this call was gated on the course having measured something and passed
+    ``mastery_to_level(measured_mastery)``, so a course of worked examples accredited
+    nothing at all and a course with a single quiz in it let that quiz decide the level
+    of every skill on the course. Both are claims in ``user_skills`` — the table that
+    answers "who knows X" — that the evidence did not support. There are no exams here:
+    completing is the criterion, and it is the only one.
     """
     course = make_course()
     enrollment = FakeEnrollment(status=EnrollmentStatus.IN_PROGRESS)
     service = make_service(FakeSession(), enrollment)
-    service.evaluate_dynamic = AsyncMock(return_value=completion(None))
-    service._assign_course_skills = AsyncMock()
-
-    _row, verdict = await service.close_dynamic_if_mastered(
-        course=course, user_id=USER_ID
-    )
-
-    assert enrollment.status == EnrollmentStatus.COMPLETED
-    assert enrollment.score is None
-    assert verdict is not None and verdict.measured_mastery is None
-    service._assign_course_skills.assert_not_awaited()
-
-
-@pytest.mark.asyncio
-async def test_a_course_that_measured_accredits_at_the_measured_level() -> None:
-    """And the other half: real evidence still grants, at the level it supports.
-
-    Nothing about this path changed except which nodes the mean is over — the silences
-    are no longer averaged in, so a learner who answered well is no longer dragged down
-    to `medium` by the expository nodes sitting next to the graded ones.
-    """
-    course = make_course()
-    enrollment = FakeEnrollment(status=EnrollmentStatus.IN_PROGRESS)
-    service = make_service(FakeSession(), enrollment)
-    service.evaluate_dynamic = AsyncMock(return_value=completion(0.92))
+    service.evaluate_dynamic = AsyncMock(return_value=completion())
     service._assign_course_skills = AsyncMock()
 
     await service.close_dynamic_if_mastered(course=course, user_id=USER_ID)
 
-    service._assign_course_skills.assert_awaited_once_with(
-        USER_ID, course.id, SkillLevel.HIGH
-    )
+    assert enrollment.status == EnrollmentStatus.COMPLETED
+    assert enrollment.score is None
+    # Two positional arguments and no third: no level is derived from anything.
+    service._assign_course_skills.assert_awaited_once_with(USER_ID, course.id)
 
 
 @pytest.mark.asyncio
-async def test_reopening_accredits_nothing_even_when_the_course_measured() -> None:
+async def test_a_course_that_measured_nothing_accredits_exactly_the_same() -> None:
+    """The case the level rule got wrong, kept as its own test because it is the reason.
+
+    Three expository nodes read end to end measure nobody. That used to mean "accredit
+    nothing", so a learner finished a course and the org learned nothing from it: the
+    completed enrollment said they went through it and ``user_skills`` stayed empty.
+    """
+    course = make_course()
+    enrollment = FakeEnrollment(status=EnrollmentStatus.IN_PROGRESS)
+    service = make_service(FakeSession(), enrollment)
+    service.evaluate_dynamic = AsyncMock(
+        return_value=evaluate_course_completion(
+            [
+                row(state="not_started", mastery=0.0, completed_at=FINISHED_AT)
+                for _ in range(3)
+            ]
+        )
+    )
+    service._assign_course_skills = AsyncMock()
+
+    await service.close_dynamic_if_mastered(course=course, user_id=USER_ID)
+
+    service._assign_course_skills.assert_awaited_once_with(USER_ID, course.id)
+
+
+@pytest.mark.asyncio
+async def test_the_granted_level_is_medium_and_never_downgrades() -> None:
+    """``_assign_course_skills`` for real, with no level argument left to pass.
+
+    ``MEDIUM`` on a first grant, and a ``HIGH`` a human already verified survives it —
+    the never-downgrade rule is what makes "one level for finishing" safe to apply to
+    everybody who finishes, and it is the only rule left guarding ``user_skills`` here.
+    """
+    course_id = uuid.uuid4()
+    session = FakeSession()
+    service = make_service(session)
+
+    # `_assign_course_skills` reads twice per skill: the course's skill ids, then the
+    # learner's existing row for each. Scripted in that order.
+    session.execute = AsyncMock(  # type: ignore[method-assign]
+        side_effect=[FakeSkillIds(), FakeResult(None)]
+    )
+    await service._assign_course_skills(USER_ID, course_id)
+
+    assert [obj.level for obj in session.added] == [SkillLevel.MEDIUM]
+
+    verified = UserSkill(user_id=USER_ID, skill_id=SKILL_ID, level=SkillLevel.HIGH)
+    session.execute = AsyncMock(  # type: ignore[method-assign]
+        side_effect=[FakeSkillIds(), FakeResult(verified)]
+    )
+    await service._assign_course_skills(USER_ID, course_id)
+
+    assert verified.level is SkillLevel.HIGH
+
+
+@pytest.mark.asyncio
+async def test_reopening_accredits_nothing() -> None:
     """A skill is granted by closing, and reopening is the opposite of closing.
 
     Worth pinning because the never-downgrade rule would make a stray grant here
@@ -649,15 +689,7 @@ async def test_reopening_accredits_nothing_even_when_the_course_measured() -> No
     )
     service = make_service(FakeSession(), enrollment)
     service.evaluate_dynamic = AsyncMock(
-        return_value=CourseCompletion(
-            can_complete=False,
-            blocked_by=("n2",),
-            measured_mastery=0.95,
-            measured_nodes=1,
-            mastered_critical=1,
-            total_critical=2,
-            progress_percent=50,
-        )
+        return_value=completion(can_complete=False, done=1)
     )
     service._assign_course_skills = AsyncMock()
 
@@ -665,3 +697,125 @@ async def test_reopening_accredits_nothing_even_when_the_course_measured() -> No
 
     assert enrollment.status == REOPENED_STATUS
     service._assign_course_skills.assert_not_awaited()
+
+
+# --------------------------------------------------------------------------- #
+# POST /enrollments/{id}/complete is the v1 rule, and now says so
+# --------------------------------------------------------------------------- #
+def enrollment_with_course(course: Course) -> Any:
+    """What ``get_scoped`` returns: an enrollment with its course already loaded."""
+    return SimpleNamespace(
+        id=uuid.uuid4(),
+        user_id=USER_ID,
+        course_id=course.id,
+        course=course,
+        status=EnrollmentStatus.IN_PROGRESS,
+        completed_at=None,
+        score=None,
+    )
+
+
+def v1_service(enrollment: Any) -> EnrollmentService:
+    """A service whose ``get_scoped`` finds this enrollment, and nothing else real.
+
+    ``compute_progress`` answers "every lesson done" unless a test says otherwise, so
+    that removing the ``resolve_delivery`` guard makes the tests below fail by *not
+    raising* — the thing they are about — instead of by tripping over an unstubbed
+    lesson tree three lines later.
+    """
+    service = make_service(FakeSession(), enrollment)
+    service.enrollment_repo.get_with_course = AsyncMock(  # type: ignore[attr-defined]
+        return_value=enrollment
+    )
+    service.compute_progress = AsyncMock(return_value=1.0)  # type: ignore[method-assign]
+    service._assign_course_skills = AsyncMock()
+    return service
+
+
+@pytest.mark.asyncio
+async def test_completing_a_dynamic_enrollment_by_hand_is_refused() -> None:
+    """The back door: this route is v1's rule and had no ``resolve_delivery`` check.
+
+    Pointed at a dynamic course it wrote ``enrollments.score`` — v1's completed-lessons
+    fraction, over a lesson tree the learner never sees — and granted the course's skills
+    without §7.5 ever agreeing the course was finished. The UI never offers it (the
+    finish button only appears on courses with lessons), but the API was open to anybody
+    with a session. A dynamic course closes itself; there is nothing to assert by hand.
+    """
+    course = make_course()
+    enrollment = enrollment_with_course(course)
+    service = v1_service(enrollment)
+
+    with pytest.raises(ConflictError):
+        await service.complete(
+            enrollment_id=enrollment.id, org_id=ORG_ID, user_id=USER_ID
+        )
+
+    assert enrollment.status == EnrollmentStatus.IN_PROGRESS
+    assert enrollment.score is None
+    service._assign_course_skills.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_an_already_closed_dynamic_enrollment_is_refused_too() -> None:
+    """The guard sits ahead of the idempotent branch, and that placement is the point.
+
+    Behind it, ``/complete`` re-grants the course's skills on an enrollment that is
+    already ``COMPLETED``. On a dynamic course that is v1 reaching into records v2 owns
+    to repeat a write v2 already made; the door is shut for the course, not merely for
+    the rows this call would otherwise have changed.
+    """
+    course = make_course()
+    enrollment = enrollment_with_course(course)
+    enrollment.status = EnrollmentStatus.COMPLETED
+    enrollment.completed_at = datetime.now(timezone.utc)
+    service = v1_service(enrollment)
+
+    with pytest.raises(ConflictError):
+        await service.complete(
+            enrollment_id=enrollment.id, org_id=ORG_ID, user_id=USER_ID
+        )
+
+    service._assign_course_skills.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_a_static_course_still_reaches_the_v1_rule_untouched() -> None:
+    """The other half of the guard: v1 may not change behaviour at all.
+
+    A static course walks straight past ``resolve_delivery`` into the lesson-fraction
+    rule, which refuses a course at 50% exactly as it always has — same exception, same
+    message. ``tests/integration/test_v1_regression.py`` walks the same route end to end.
+    """
+    course = make_course(mode=CourseDeliveryMode.STATIC, status=CourseSchemaStatus.DRAFT)
+    enrollment = enrollment_with_course(course)
+    service = v1_service(enrollment)
+    service.compute_progress = AsyncMock(return_value=0.5)  # type: ignore[method-assign]
+
+    with pytest.raises(ConflictError, match="not all lessons are finished"):
+        await service.complete(
+            enrollment_id=enrollment.id, org_id=ORG_ID, user_id=USER_ID
+        )
+
+
+@pytest.mark.asyncio
+async def test_a_static_course_at_100_percent_closes_and_accredits_as_before() -> None:
+    """And the happy path of v1, byte for byte: closed, scored, skills granted.
+
+    ``enrollments.score`` is still written **here** — this is the one rule that writes
+    it, and the completed-lessons fraction is the one meaning it has going forward.
+    """
+    course = make_course(mode=CourseDeliveryMode.STATIC, status=CourseSchemaStatus.DRAFT)
+    enrollment = enrollment_with_course(course)
+    service = v1_service(enrollment)
+    service.compute_progress = AsyncMock(return_value=1.0)  # type: ignore[method-assign]
+
+    closed, progress = await service.complete(
+        enrollment_id=enrollment.id, org_id=ORG_ID, user_id=USER_ID
+    )
+
+    assert closed.status == EnrollmentStatus.COMPLETED
+    assert closed.completed_at is not None
+    assert closed.score == pytest.approx(1.0)
+    assert progress == pytest.approx(1.0)
+    service._assign_course_skills.assert_awaited_once_with(USER_ID, course.id)

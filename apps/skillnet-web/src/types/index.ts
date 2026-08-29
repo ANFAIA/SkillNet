@@ -467,6 +467,13 @@ export interface RecentActivityItem {
   at: string
 }
 
+/**
+ * The admin dashboard payload. It has no average mark and will not get one back:
+ * nothing in the product grades a course, and the `avg_score` this used to carry
+ * averaged two different quantities (v1's completed-lessons fraction and, in older v2
+ * rows, mean node mastery) on one 0..1 scale. Removed server-side on 2026-08-29; the
+ * dashboard reports the completion rate instead.
+ */
 export interface StatsResponse {
   total_employees: number
   active_employees: number
@@ -476,7 +483,6 @@ export interface StatsResponse {
   total_enrollments: number
   completed_enrollments: number
   in_progress_enrollments: number
-  avg_score: number | null
   overdue_assignments: number
   recent_activity: RecentActivityItem[]
 }

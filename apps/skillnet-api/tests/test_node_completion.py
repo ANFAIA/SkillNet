@@ -22,8 +22,7 @@ regress into that same hole:
 3. **``state`` and ``mastery`` are not touched.** ``completed_at`` and the evidence
    machine are orthogonal axes on purpose: reaching the last screen is not a
    demonstration, and writing a mastery number here would put an invented figure on the
-   scale ``CourseCompletion.measured_mastery`` averages and the course's skills are
-   accredited from.
+   scale ``SkillService.record_mastery`` derives a skill level from.
 4. **What the body returns.** ``progress_percent`` and ``can_complete`` come back with the
    stamp so one round trip both records the node and refreshes the course bar; a client
    that had to derive them would show a stale percentage next to a node it just finished.
@@ -147,11 +146,6 @@ class FakeState:
     state: str = "not_started"
     mastery: float = 0.0
     completed_at: datetime | None = None
-    #: What ``mastery_service.node_was_measured`` reads. Zero and ``None`` for all three
-    #: nodes here and never written by this route: an expository node asks nothing, so a
-    #: course made of them closes having measured nobody.
-    attempts_count: int = 0
-    probe_score: float | None = None
     #: Stamped by ``GET /nodes/{id}/render`` and by nothing else — never by the
     #: prefetch. Defaulted to a real moment because every test here but one is about
     #: a learner who HAS been served the lesson; the route refuses to finish a node
@@ -554,10 +548,9 @@ def test_completing_a_node_leaves_state_and_mastery_alone(
 
     Moving ``state`` here would let reading a node claim the mastery a graded streak is
     supposed to prove, and moving ``mastery`` would put an invented number on the same
-    scale as measured ones — the scale ``CourseCompletion.measured_mastery`` averages and
-    the course's skills are accredited from. The response echoes both untouched, which is
-    what makes a client seeing ``not_started`` beside a timestamp read the two columns
-    doing their two jobs.
+    scale as measured ones — the scale ``SkillService.record_mastery`` derives a skill
+    level from. The response echoes both untouched, which is what makes a client seeing
+    ``not_started`` beside a timestamp read the two columns doing their two jobs.
     """
     body = complete(client, NODE_IDS[0])
 
@@ -601,14 +594,16 @@ def test_a_mastered_and_a_read_node_are_both_done_and_the_enrollment_says_only_t
     node that was mastered, 0.0 on the two that were only read — and that this was the
     tiebreak telling the two ways of finishing apart. It was not. The two 0.0s meant "no
     graded item here", the same figure a wrong answer produces, and averaging them
-    against real evidence dragged a demonstrated 0.9 down to a third of itself. What
-    survives the closure is where the evidence lives now: `mastery` on the node that
-    measured, untouched on the two that did not.
+    against real evidence dragged a demonstrated 0.9 down to a third of itself.
+
+    Nothing replaced it. A course closed by demonstrating it and one closed by reading it
+    produce the same record — completed, no mark — and accredit the same skills, because
+    there is no exam here to grade either of them. ``mastery`` stays where it was written,
+    on the node that measured, and the enrollment does not average it into anything.
     """
     demonstrated = world.state_for(NODE_IDS[0])
     demonstrated.state = "mastered"
     demonstrated.mastery = 0.9
-    demonstrated.attempts_count = 3
 
     for node_id in NODE_IDS[1:]:
         body = complete(client, node_id)
@@ -619,7 +614,7 @@ def test_a_mastered_and_a_read_node_are_both_done_and_the_enrollment_says_only_t
     assert world.enrollment.status is EnrollmentStatus.COMPLETED
     assert world.enrollment.score is None
     assert world.states[NODE_IDS[0]].mastery == pytest.approx(0.9)
-    assert all(world.states[n].attempts_count == 0 for n in NODE_IDS[1:])
+    assert all(world.states[n].mastery == pytest.approx(0.0) for n in NODE_IDS[1:])
 
 
 # --------------------------------------------------------------------------------------
