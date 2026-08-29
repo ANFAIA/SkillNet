@@ -4,6 +4,7 @@ import "@fontsource/poppins/500.css";
 import "@fontsource/poppins/600.css";
 import "@fontsource/poppins/700.css";
 import "../styles/global.css";
+import CookieConsent from "../components/CookieConsent.astro";
 import { LANG_STORAGE_KEY, type Locale } from "../i18n/config";
 
 interface Props {
@@ -26,6 +27,23 @@ const altUrl = altHref ? new URL(altHref, site).toString() : null;
 const esUrl = lang === "es" ? canonicalUrl : altUrl;
 const enUrl = lang === "en" ? canonicalUrl : altUrl;
 const googleTagManagerId = "GTM-MSFGKTR4";
+const analyticsConsentStorageKey = "skillnet:analytics-consent";
+
+const googleConsentScript = `(function(w){
+w.dataLayer=w.dataLayer||[];
+w.gtag=w.gtag||function(){w.dataLayer.push(arguments);};
+var saved=null;try{saved=localStorage.getItem(${JSON.stringify(analyticsConsentStorageKey)});}catch(e){}
+var analytics=saved==="granted"?"granted":"denied";
+var defaults={
+ad_storage:"denied",
+ad_user_data:"denied",
+ad_personalization:"denied",
+analytics_storage:analytics
+};
+if(saved!=="granted"&&saved!=="denied")defaults.wait_for_update=500;
+w.gtag("consent","default",defaults);
+w.gtag("set","ads_data_redaction",true);
+})(window);`;
 
 const googleTagManagerScript = `(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
 new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
@@ -63,6 +81,8 @@ if(want!==cur)location.replace(alt+location.hash);
 <html lang={lang}>
   <head>
     <meta charset="UTF-8" />
+    <!-- Consent Mode defaults must run before Google Tag Manager. -->
+    <script is:inline set:html={googleConsentScript} />
     <!-- Google Tag Manager -->
     <script is:inline set:html={googleTagManagerScript} />
     <!-- End Google Tag Manager -->
@@ -104,5 +124,6 @@ if(want!==cur)location.replace(alt+location.hash);
     </noscript>
     <!-- End Google Tag Manager (noscript) -->
     <slot />
+    <CookieConsent lang={lang} />
   </body>
 </html>

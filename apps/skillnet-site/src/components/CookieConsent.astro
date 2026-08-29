@@ -1,0 +1,124 @@
+---
+import type { Locale } from "../i18n/config";
+
+interface Props {
+  lang: Locale;
+}
+
+const { lang } = Astro.props;
+const copy =
+  lang === "en"
+    ? {
+        title: "Your privacy",
+        body: "We use Google Analytics only if you accept analytics cookies. They help us understand how the site is used and improve it.",
+        reject: "Reject",
+        accept: "Accept",
+        settings: "Cookie settings",
+      }
+    : {
+        title: "Tu privacidad",
+        body: "Solo usamos Google Analytics si aceptas las cookies analíticas. Nos ayudan a entender cómo se usa la web y a mejorarla.",
+        reject: "Rechazar",
+        accept: "Aceptar",
+        settings: "Configurar cookies",
+      };
+---
+
+<aside
+  data-cookie-consent
+  class="fixed inset-x-4 bottom-4 z-[100] mx-auto hidden max-w-3xl border border-border-strong bg-bg p-5 shadow-[0_18px_50px_rgba(24,24,27,0.16)] sm:p-6"
+  role="dialog"
+  aria-labelledby="cookie-consent-title"
+  aria-describedby="cookie-consent-description"
+>
+  <div class="sm:flex sm:items-end sm:justify-between sm:gap-8">
+    <div class="max-w-xl">
+      <h2 id="cookie-consent-title" class="text-base font-semibold text-text">{copy.title}</h2>
+      <p id="cookie-consent-description" class="mt-2 text-sm leading-6 text-text-secondary">
+        {copy.body}
+      </p>
+    </div>
+    <div class="mt-5 grid grid-cols-2 gap-3 sm:mt-0 sm:min-w-64">
+      <button
+        type="button"
+        data-cookie-choice="denied"
+        class="min-h-11 border border-border-strong bg-bg px-4 text-sm font-medium text-text transition-colors hover:border-primary hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+      >
+        {copy.reject}
+      </button>
+      <button
+        type="button"
+        data-cookie-choice="granted"
+        class="min-h-11 border border-primary bg-primary px-4 text-sm font-medium text-white transition-colors hover:bg-primary-deep focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+      >
+        {copy.accept}
+      </button>
+    </div>
+  </div>
+</aside>
+
+<button
+  type="button"
+  data-cookie-settings
+  class="fixed bottom-4 left-4 z-[90] hidden border border-border-strong bg-bg px-3 py-2 text-xs font-medium text-text-secondary shadow-sm transition-colors hover:border-primary hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+>
+  {copy.settings}
+</button>
+
+<script is:inline>
+  (function () {
+    var storageKey = "skillnet:analytics-consent";
+    var banner = document.querySelector("[data-cookie-consent]");
+    var settings = document.querySelector("[data-cookie-settings]");
+    var choices = document.querySelectorAll("[data-cookie-choice]");
+
+    if (!banner || !settings) return;
+
+    function readChoice() {
+      try {
+        var value = localStorage.getItem(storageKey);
+        return value === "granted" || value === "denied" ? value : null;
+      } catch (error) {
+        return null;
+      }
+    }
+
+    function showBanner() {
+      banner.classList.remove("hidden");
+      settings.classList.add("hidden");
+    }
+
+    function showSettings() {
+      banner.classList.add("hidden");
+      settings.classList.remove("hidden");
+    }
+
+    function saveChoice(choice) {
+      if (typeof window.gtag === "function") {
+        window.gtag("consent", "update", {
+          ad_storage: "denied",
+          ad_user_data: "denied",
+          ad_personalization: "denied",
+          analytics_storage: choice,
+        });
+      }
+
+      try {
+        localStorage.setItem(storageKey, choice);
+      } catch (error) {}
+
+      showSettings();
+    }
+
+    choices.forEach(function (button) {
+      button.addEventListener("click", function () {
+        saveChoice(button.getAttribute("data-cookie-choice"));
+      });
+    });
+
+    settings.addEventListener("click", showBanner);
+
+    if (readChoice()) showSettings();
+    else showBanner();
+  })();
+</script>
