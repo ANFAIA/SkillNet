@@ -4,7 +4,8 @@ The episode generator normally emits only the frozen OpenUI catalogue. This brok
 one seam that lets it place a *grounded reference* to an already-generated media artefact
 (a podcast, an infographic) inside a lesson — but only when three things are true at once:
 
-1. a ``MediaArtifact`` of that kind exists for the node and is READY (``status == done``),
+1. a ``MediaArtifact`` of that kind exists for the node, is READY (``status == done``) and
+   **its file is still on disk**,
 2. the learner's declared preference asks for that modality (audio → podcast,
    visual → infographic), and
 3. (implicitly) the artefact is grounded in the node's own content — it was generated from
@@ -30,6 +31,7 @@ from dataclasses import dataclass
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.logging import get_logger
 from src.models import MediaArtifact, MediaArtifactStatus, MediaKind
 from src.personalization.preferences import (
     CompanionModality,
@@ -39,6 +41,9 @@ from src.personalization.preferences import (
     WebPresentationPreference,
     normalize_learning_preferences,
 )
+from src.services.media.integrity import asset_is_on_disk
+
+logger = get_logger(__name__)
 
 #: Which broker-scoped kit component references each media kind.
 MEDIA_COMPONENT_BY_KIND: dict[str, str] = {
@@ -65,9 +70,26 @@ async def ready_media_for_node(
 ) -> dict[str, MediaOffer]:
     """The newest READY podcast/infographic artefact for a node, keyed by kind.
 
-    Org-scoped like every media read. Only ``done`` rows with an asset are returned, so an
-    offer always points at bytes the asset route can serve. Newest wins when a node has
-    been regenerated.
+    Org-scoped like every media read. Only ``done`` rows whose asset file is **actually on
+    disk** are returned, so an offer always points at bytes the asset route can serve.
+    Newest wins when a node has been regenerated — and a newest row that lost its file
+    steps aside for an older one that still has its own, exactly as a row with no
+    ``asset_path`` already did.
+
+    The ``stat`` per row is the point and its cost is bounded: at most one artefact of each
+    of the two kinds is ever offered, and the loop stops as soon as both are resolved.
+    Without it, ``status == done`` alone was enough to put a ``PodcastPlayer`` on a lesson
+    whose mp3 the deployment had lost — a player the learner cannot play, in a lesson that
+    was then cached under a key naming it. Checking here is what keeps the loss out of the
+    lesson instead of into it; the alternative (offer it and let the asset route answer
+    ``410``) puts the failure in front of the learner rather than in the log.
+
+    Deliberately **read-only**: it does not demote the lying row the way the read paths do
+    (:func:`~src.services.media.integrity.record_missing_asset`). This runs inside a
+    render's own session, and committing — or, on failure, rolling back — that session to
+    do bookkeeping would touch a unit of work that is not the broker's. Withholding the
+    offer already stops the harm; the demotion happens the next time anything reads the
+    artefact, which is the request that owns its own transaction.
     """
     rows = (
         await db.execute(
@@ -92,6 +114,18 @@ async def ready_media_for_node(
             continue
         if not row.asset_path:
             continue
+        if not asset_is_on_disk(row):
+            logger.warning(
+                "Media artifact %s (%s) for node %s is 'done' but its asset is not on "
+                "disk (%s); it is not offered to the generator, so the lesson is built "
+                "without it. The row is demoted the next time it is read "
+                "(src/services/media/integrity.py).",
+                row.id,
+                kind,
+                node_id,
+                row.asset_path,
+            )
+            continue
         spec = row.spec_json or {}
         title = str(spec.get("title") or "") or (
             "Audio overview" if kind == MediaKind.PODCAST.value else "Infografía"
@@ -102,6 +136,8 @@ async def ready_media_for_node(
             artifact_id=str(row.id),
             title=title,
         )
+        if len(offers) == len(MEDIA_COMPONENT_BY_KIND):
+            break
     return offers
 
 

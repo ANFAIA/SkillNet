@@ -7,12 +7,13 @@ from typing import Annotated
 from fastapi import APIRouter, File, Query, Response, UploadFile
 from pydantic import BaseModel, ConfigDict, Field
 
-from src.core.exceptions import NotFoundError, ValidationError
+from src.core.exceptions import AppError, NotFoundError, ValidationError
+from src.core.logging import get_logger
 from src.core.tasks import task_registry
 from src.deps.auth import AdminUser, CurrentUser
 from src.deps.db import DBSession
 from src.deps.llm import LLMDep
-from src.models import DocumentStatus
+from src.models import DocumentStatus, SourceImage
 from src.repositories.document_repo import DocumentRepository
 from src.repositories.source_image_repo import SourceImageRepository
 from src.schemas.common import PaginatedResponse
@@ -20,7 +21,83 @@ from src.schemas.document import DocumentRead, SourceImageRead
 from src.services.document_service import DocumentService, run_document_ingestion
 from src.services.source_images import IMAGE_EXTENSIONS, SourceImageStore
 
+logger = get_logger(__name__)
+
 router = APIRouter(prefix="/documents", tags=["Documents"])
+
+#: The wire code a client keys its "these bytes are gone" message off. Deliberately the
+#: same string as media's ``asset_missing`` (``src/services/media/jobs.py``): to a client
+#: the incident is identical whether the lost file was a generated artefact or an image
+#: extracted from a document, so it must not need two messages for it. Spelled out rather
+#: than imported so this route does not pull the whole media job machinery in for one
+#: string; it is a wire contract, so it cannot drift without breaking clients anyway.
+ASSET_MISSING_CODE = "asset_missing"
+
+#: Image ids whose loss this process has already logged, so a learner reloading a lesson
+#: with a lost figure does not print the same error line fifty times. The media fix records
+#: "already reported" durably by demoting the row; ``source_images`` has no status column
+#: (see :class:`SourceImageMissingError`), so the memory is per process and bounded: a
+#: restart re-reporting once is the right trade for a set that can never grow without end.
+_reported_missing: set[uuid.UUID] = set()
+
+#: Distinct lost images remembered before the memory is dropped and starts again. Far more
+#: than any real incident needs — a document has tens of images, not thousands — and the
+#: point of the cap is only that a hostile or pathological caller cannot grow the set.
+_REPORTED_MISSING_CAP = 512
+
+
+class SourceImageMissingError(AppError):
+    """The image was extracted and stored, and its file is no longer on this server.
+
+    ``410 Gone`` rather than ``404``, for the reason
+    :class:`~src.services.media.integrity.AssetMissingError` gives: the resource existed,
+    the reference is valid, and a client that reads ``404`` cannot tell "this document
+    never had that image" from "this deployment lost its source-image volume". Neither can
+    an operator reading an access log.
+
+    Unlike a media artefact, the row cannot be demoted to a failure state to stop it
+    claiming bytes it no longer has: ``source_images`` has no status column. So the status
+    code and the ``error`` log line **are** the whole report here, which is what makes the
+    distinction load-bearing rather than a nicety. Recovery is the same shape in both
+    stores, and both directions still work: the store is content-addressed, so restoring
+    the volume brings the same bytes back at the same path and this route starts answering
+    ``200`` again with nothing to undo, and re-processing the document re-extracts them.
+    """
+
+    def __init__(self, *, document_id: uuid.UUID, image_id: uuid.UUID) -> None:
+        super().__init__(
+            message=(
+                "The image extracted from this document is no longer stored on this "
+                "server. Process the document again."
+            ),
+            code=ASSET_MISSING_CODE,
+            status_code=410,
+            details={"document_id": str(document_id), "image_id": str(image_id)},
+        )
+
+
+def _report_missing_source_image(image: SourceImage, path: Path) -> None:
+    """Log a lost source image once per process, at ``error``, with what locates it.
+
+    ``error`` because that is what it is — the deployment lost customer material it still
+    has a record of — and the path is in the line because it is the only thing that tells
+    the operator which volume went missing.
+    """
+    if image.id in _reported_missing:
+        logger.debug("Source image %s is already recorded as missing", image.id)
+        return
+    if len(_reported_missing) >= _REPORTED_MISSING_CAP:
+        _reported_missing.clear()
+    _reported_missing.add(image.id)
+    logger.error(
+        "Source image %s of document %s is recorded in source_images but %s is not on "
+        "disk. Re-process the document to extract it again, or restore the source-image "
+        "volume — the store is content-addressed, so a file back at that path is the same "
+        "image. If this is every image at once, the volume was lost, not one file.",
+        image.id,
+        image.document_id,
+        path,
+    )
 
 
 def _service(db: DBSession) -> DocumentService:
@@ -161,7 +238,7 @@ async def list_document_images(
 async def get_document_image(
     user: CurrentUser, db: DBSession, document_id: uuid.UUID, image_id: uuid.UUID
 ) -> Response:
-    """The stored bytes of one extracted image, or ``404``.
+    """The stored bytes of one extracted image, or ``404`` / ``410``.
 
     Any member of the organization, not only an admin: a lesson may **place** one of
     these images (the ``SourceImage`` component of the kit — see
@@ -178,6 +255,24 @@ async def get_document_image(
     extension) rather than taken from the stored ``asset_path`` string — with the hash
     required to be an anchored 64-character hex digest and the extension allow-listed, so
     a row corrupted by any future writer still cannot address a file outside the store.
+
+    Three absences, and they are three different incidents, so they do not answer alike —
+    the same criterion as ``GET /media/artifacts/{id}/asset`` (see
+    :mod:`src.services.media.integrity`):
+
+    * **No such row** for this org and this document is a ``404``. Normal, and nobody's
+      fault: nothing was ever extracted under that id.
+    * **A row this store could never have written** — a hash or an extension that fails
+      :meth:`~src.services.source_images.SourceImageStore.path_for` — is also a ``404``,
+      because there is no file to go looking for, but it is logged at ``error``: no writer
+      in this codebase can produce such a row, so one existing is a bug, not a lost file.
+    * **A row whose file is gone** is a ``410 asset_missing``, logged at ``error`` once per
+      image (:func:`_report_missing_source_image`). This is the case that used to be a mute
+      ``404``: the volume holding the customer's own material had been lost, every request
+      answered not-found for ever, and nothing anywhere recorded that the rows and the disk
+      disagreed. See :class:`SourceImageMissingError` for why the row is not demoted.
+
+    The existence check is the read itself, so a healthy request pays for no extra syscall.
     """
     image = await SourceImageRepository(db).get_scoped(
         image_id, user.org_id, document_id
@@ -189,11 +284,23 @@ async def get_document_image(
     store = SourceImageStore()
     try:
         path = store.path_for(image.org_id, image.document_id, image.content_hash, ext)
-        data = store.read(path)
-    except (ValueError, FileNotFoundError) as exc:
-        # The row points at bytes that are gone (or at something this store would never
-        # have written). A 404 the client can handle, not a 500.
+    except ValueError as exc:
+        logger.error(
+            "Source image %s of document %s cannot address a file in the store (%s); its "
+            "content_hash or its asset_path extension is not one this store writes.",
+            image.id,
+            image.document_id,
+            exc,
+        )
         raise NotFoundError("source_images", str(image_id)) from exc
+
+    try:
+        data = store.read(path)
+    except FileNotFoundError as exc:
+        _report_missing_source_image(image, path)
+        raise SourceImageMissingError(
+            document_id=document_id, image_id=image_id
+        ) from exc
 
     return Response(
         content=data,
