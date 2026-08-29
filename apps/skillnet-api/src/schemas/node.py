@@ -52,12 +52,20 @@ class NodeSummaryRead(BaseModel):
     #: deriving it in two places is what put the padlocks and the progress bar in
     #: disagreement for months.
     done: bool = False
-    #: May this learner open it. Always ``true`` while progression is linear — a course is
-    #: a sequence you walk through, and mastery is measured without governing navigation.
+    #: May this learner open it. Always ``true`` in a ``free`` course, which is every
+    #: course by default; in a ``sequential`` one it is true for the first lesson, for one
+    #: whose predecessor is ``done``, and for one this learner already finished. Mastery
+    #: still governs nothing — ``done`` is what opens the next lesson, and ``done`` is
+    #: reachable on every node, including the expository ones the old padlocks trapped
+    #: people behind.
     #:
     #: Replaces ``locked``/``locked_by``, and the change of word is the point: a lock is a
-    #: prohibition, this is an answer. When a mode that steers the route arrives, the field
-    #: keeps its meaning and only its value starts moving.
+    #: prohibition, this is an answer. The mode that steers arrived without the field
+    #: changing meaning — only its value started moving, exactly as intended.
+    #:
+    #: Render it, do not recompute it: the same snapshot backs the refusal in
+    #: ``POST /nodes/{id}/complete``, so a client that derives its own answer is a client
+    #: that will eventually offer a lesson the server declines to finish.
     available: bool = True
     #: ``learner_node_states.first_seen_at`` — when this learner was first served this
     #: node, ``null`` for a node they have never opened. It is the field a client needs to

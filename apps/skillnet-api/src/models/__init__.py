@@ -14,6 +14,7 @@ from src.models.course import (
     CourseDeliveryMode,
     CourseGenerationState,
     CourseImageSourcePolicy,
+    CourseNavigationMode,
     CourseSchemaStatus,
     CourseTutorStyle,
 )
@@ -130,6 +131,7 @@ __all__ = [
     "CourseDeliveryMode",
     "CourseGenerationState",
     "CourseImageSourcePolicy",
+    "CourseNavigationMode",
     "CourseSchemaStatus",
     "CourseTutorStyle",
     "CourseNode",

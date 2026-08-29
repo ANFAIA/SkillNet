@@ -46,22 +46,33 @@ import type { ExerciseType, NodeHintResult } from '../../../types'
 export const HINT_LIMIT = 3
 
 export interface HintLadderProps {
-  nodeId: string
-  /** `node_renders.id`. The hint endpoint resolves the item inside this render. */
-  renderId: string
-  itemId: string
+  /**
+   * Where to ask for the next hint. A `POST` here answers with a `NodeHintResult`, or
+   * refuses with a `409` carrying the sentence to print.
+   *
+   * It is a prop and not a `nodeId` because the ladder itself is not about nodes: the
+   * quiz item asks `/nodes/{id}/hint` and a Didact activity asks
+   * `/activities/{id}/hint`, and everything else on screen — the escalation, the
+   * server-owned count, the two refusals — is the same rule for both. The URL was the
+   * only thing tying this component to `QuizItem`, so the URL is what moved out.
+   */
+  endpoint: string
+  /**
+   * What that endpoint needs to find the item. The node ladder addresses one item inside
+   * one render; the activity ladder addresses the activity in the path and sends nothing.
+   */
+  body?: Record<string, unknown>
   /** True once the item is closed (passed, or the worked solution is out). */
   disabled?: boolean
 }
 
-export function HintLadder({ nodeId, renderId, itemId, disabled = false }: HintLadderProps) {
+export function HintLadder({ endpoint, body, disabled = false }: HintLadderProps) {
   const intl = useIntl()
   const [hints, setHints] = useState<NodeHintResult[]>([])
   const [refusal, setRefusal] = useState<string | null>(null)
 
   const ask = useMutation({
-    mutationFn: () =>
-      post<NodeHintResult>(`/nodes/${nodeId}/hint`, { render_id: renderId, item_id: itemId }),
+    mutationFn: () => post<NodeHintResult>(endpoint, body ?? {}),
     onSuccess: (result) => {
       setRefusal(null)
       setHints((prev) => [...prev, result])

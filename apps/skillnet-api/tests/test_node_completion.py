@@ -99,6 +99,10 @@ class FakeCourse:
     schema_status: str = "validated"
     #: Read by the learner gate in ``services/course_access.py``.
     status: str = "published"
+    #: Migration 0034. Defaulted to ``free`` here as it is in the column, so every test
+    #: above this line describes a course that behaves exactly as it did before the dial
+    #: existed — which is the property the default is *for*.
+    navigation_mode: str = "free"
 
 
 @dataclass
@@ -616,3 +620,127 @@ def test_a_mastered_and_a_read_node_are_both_done_and_the_enrollment_says_only_t
     assert world.enrollment.score is None
     assert world.states[NODE_IDS[0]].mastery == pytest.approx(0.9)
     assert all(world.states[n].attempts_count == 0 for n in NODE_IDS[1:])
+
+
+# --------------------------------------------------------------------------------------
+# 4. navigation_mode: where the course's order stops being a suggestion
+# --------------------------------------------------------------------------------------
+def test_a_free_course_lets_the_learner_finish_the_last_lesson_first(
+    client: TestClient, world: World
+) -> None:
+    """The default, unchanged. ``free`` is what every course did before migration 0034.
+
+    Pinned as its own test rather than left implicit in the suite above: the dial's whole
+    claim is that it arrives changing nothing, and a claim nothing asserts is a claim
+    nobody will notice breaking.
+    """
+    body = complete(client, NODE_IDS[2])
+
+    assert body["completed_at"] is not None
+    assert body["progress_percent"] == 33
+
+
+def test_a_sequential_course_refuses_a_lesson_whose_predecessor_is_unfinished(
+    client: TestClient, world: World
+) -> None:
+    """The lock that makes the mode real.
+
+    A client that only hides the next lesson has made the order a suggestion; the one
+    place order has teeth is the write that moves progress. 409, not 403, for the same
+    reason as ``node_not_seen``: the lesson is not forbidden, it is *not yet* open, and
+    finishing the previous one makes this exact call succeed.
+    """
+    world.course.navigation_mode = "sequential"
+
+    response = client.post(f"{PREFIX}/nodes/{NODE_IDS[2]}/complete")
+
+    assert response.status_code == 409, response.text
+    assert response.json()["field"] == "node_locked"
+    assert world.states[NODE_IDS[2]].completed_at is None
+
+
+def test_a_sequential_course_opens_the_next_lesson_when_an_expository_one_is_finished(
+    client: TestClient, world: World
+) -> None:
+    """**The regression of yesterday, at the route.** It cannot come back.
+
+    Not one of these three nodes has a graded item, so not one can ever be ``mastered``.
+    The padlocks that were removed compared against exactly that, so finishing node 1 left
+    node 2 shut for ever and the course pinned at 33 %. Here the same three nodes are
+    walked end to end under ``sequential``: each ``complete`` opens the next lesson,
+    because the rule reads ``done`` — ``mastered`` **or** finished — and finishing is
+    always within reach.
+    """
+    world.course.navigation_mode = "sequential"
+    assert world.enrollment is not None
+
+    # Node 2 is shut right now; nothing but node 1 is walkable.
+    assert client.post(f"{PREFIX}/nodes/{NODE_IDS[1]}/complete").status_code == 409
+
+    seen = [complete(client, node_id)["progress_percent"] for node_id in NODE_IDS]
+
+    assert seen == [33, 67, 100]
+    assert world.enrollment.status is EnrollmentStatus.COMPLETED
+
+
+def test_switching_a_half_walked_course_to_sequential_shuts_nothing_behind_anybody(
+    client: TestClient, world: World
+) -> None:
+    """**The half-walked course, at the route.**
+
+    The learner finished the *last* lesson first, which ``free`` allowed and which is the
+    whole point of ``free``. An admin then turns the dial. That lesson is already done, so
+    it stays open — the same call that succeeded a moment ago still succeeds, and the
+    stamp on work already finished does not move.
+
+    Deliberately node 3 and not node 1: the first lesson is open in ``sequential`` anyway,
+    so a test written on it would pass with the "already done stays open" rule deleted and
+    would be pinning nothing.
+    """
+    stamped = complete(client, NODE_IDS[2])["completed_at"]
+
+    world.course.navigation_mode = "sequential"
+    again = complete(client, NODE_IDS[2])["completed_at"]
+
+    assert again == stamped
+    # And the lesson the learner has not reached is still the one being paced.
+    assert client.post(f"{PREFIX}/nodes/{NODE_IDS[1]}/complete").status_code == 409
+
+
+def test_an_admin_previewing_a_sequential_course_is_not_paced(
+    client: TestClient, world: World
+) -> None:
+    """The preview cannot stop at lesson two.
+
+    By role and never by enrollment, the rule ``services/course_access`` already applies
+    to this surface: the admin reviewing a course is exactly the person the library
+    self-enrolled, so an enrollment row cannot tell the reviewer from the learner.
+    """
+    world.course.navigation_mode = "sequential"
+    client.app.dependency_overrides[current_user] = lambda: FakeUser(
+        role=UserRole.ADMIN
+    )
+
+    body = complete(client, NODE_IDS[2])
+
+    assert body["completed_at"] is not None
+    assert body["progress_percent"] == 33
+
+
+def test_a_never_served_lesson_is_refused_as_unseen_even_in_a_sequential_course(
+    client: TestClient, world: World
+) -> None:
+    """Check order, asserted rather than assumed.
+
+    ``node_not_seen`` holds in every mode and is about this lesson alone; ``node_locked``
+    is a statement about a *different* one. Reporting the mode-specific reason for a
+    lesson the server never handed over would send a client off to finish a predecessor
+    when what it actually has to do is render this node.
+    """
+    world.course.navigation_mode = "sequential"
+    world.states.pop(NODE_IDS[0])
+
+    response = client.post(f"{PREFIX}/nodes/{NODE_IDS[0]}/complete")
+
+    assert response.status_code == 409, response.text
+    assert response.json()["field"] == "node_not_seen"

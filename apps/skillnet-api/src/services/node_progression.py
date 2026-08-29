@@ -33,11 +33,29 @@ anybody having decided anything.
 So the fix is not to correct the comparison in the route. It is to make sure there is only
 one comparison, here, and to have the route ask instead of derive.
 
-**Progression is linear, and that is a decision.** Every course is a sequence you walk
-through. Mastery is still measured, still stored, still shown — a certificate means exactly
-what it meant — but it does not govern navigation: ``available`` is always ``True``.
-Prerequisites survive in the schema, where they order the tree and feed the tutor's
-``revisar_prerrequisito`` signal; what they no longer do is close doors.
+**Mastery does not govern navigation, and that is still the decision.** Mastery is
+measured, stored and shown — a certificate means exactly what it meant — but it opens
+nothing. Prerequisites survive in the schema, where they order the tree and feed the
+tutor's ``revisar_prerrequisito`` signal; what they no longer do is close doors.
+
+**What does govern it is ``courses.navigation_mode``**, chosen by whoever creates the
+course (migration 0034). ``free`` is the default and is exactly the behaviour above: the
+whole list is open. ``sequential`` opens a lesson when the one before it is *done*.
+
+The distinction between *done* and *mastered* is the whole reason a lock can exist here
+again without recreating the dead end this module was written to end. ``done`` is
+reachable on every node — a learner can always finish one — whereas ``mastered`` is
+unreachable on any node with no graded item, which is how the old padlocks pinned courses
+at 33 % for ever. A rule built on ``done`` cannot produce a door nobody can open.
+
+Two properties of the sequential rule are load-bearing rather than incidental:
+
+* **A node the learner has already finished stays open.** Otherwise switching a
+  half-walked course to ``sequential`` would shut lessons behind somebody who had already
+  passed through them — retroactive punishment for a setting an admin changed.
+* **Admins are exempt** (``resolve_navigation``), by role and never by enrollment, for
+  the same reason ``services/course_access`` exempts them: previewing a course you are
+  reviewing must not stop at lesson two.
 
 **Where this forks later.** When the mastery mode arrives it will bring material of its own
 — an observer that writes new screens mid-lesson — and that is a different kind of course,
@@ -63,10 +81,50 @@ from src.services.mastery_service import (
 
 NOT_STARTED = "not_started"
 
+#: The two values of ``courses.navigation_mode``. Spelled here as plain strings, not
+#: imported from ``src.models``, so this module keeps taking values rather than rows and
+#: stays testable with nothing but literals. ``CourseNavigationMode`` remains the source
+#: of truth for what may be stored.
+FREE = "free"
+SEQUENTIAL = "sequential"
+
 
 def _enum_value(raw: object) -> str:
     """Enum member or raw string -> its string value, as ``resolve_delivery`` does."""
     return str(getattr(raw, "value", raw))
+
+
+def navigation_mode(course: Any) -> str:
+    """The order rule this course *declares*, read defensively.
+
+    ``getattr`` with a fallback for the same reason the projectors in
+    ``routes/courses.py`` use one: a course row that predates migration 0034 — and every
+    hand-built ``Course`` stand-in in the unit tests — must read ``free``, the behaviour
+    everything had before the column existed, rather than crash a listing.
+    """
+    raw = getattr(course, "navigation_mode", None)
+    if raw is None:
+        return FREE
+    value = _enum_value(raw)
+    return value if value in (FREE, SEQUENTIAL) else FREE
+
+
+def resolve_navigation(course: Any, *, is_admin: bool = False) -> str:
+    """The order rule that applies to *this* request. One decision point, like
+    ``course_delivery.resolve_delivery``.
+
+    Same shape as that function on purpose: a declared column, a gate that says whether
+    it is honoured, and a fall-back that is the permissive value. Here the gate is the
+    caller's role — an admin walking a course they are reviewing is not a learner being
+    paced, and stopping their preview at lesson two would make the setting unusable by
+    the only person who can set it.
+
+    Takes a bool rather than the user, so this module never learns what a user is; the
+    routes already have ``course_access.is_admin`` as the one definition of that read.
+    """
+    if is_admin:
+        return FREE
+    return navigation_mode(course)
 
 
 @dataclass(frozen=True, slots=True)
@@ -81,9 +139,11 @@ class NodeProgression:
     #: The union of the two axes — ``mastered`` **or** worked through to the end. The one
     #: predicate, computed once. Nothing outside this module recomputes it.
     done: bool
-    #: May the learner open it? Always ``True`` while progression is linear. It is a
-    #: *answer*, not a permission: the field survives the arrival of a mode that steers,
-    #: and the name says what the client should do with it.
+    #: May the learner open it? Always ``True`` in ``free`` navigation; in ``sequential``,
+    #: true for the first node, for one whose predecessor is ``done``, and for one this
+    #: learner has already finished. It is an *answer*, not a permission: the field
+    #: survives the arrival of a mode that steers, and the name says what the client
+    #: should do with it.
     available: bool
     first_seen_at: Any = None
     completed_at: Any = None
@@ -179,14 +239,47 @@ def is_done(state_row: Any) -> bool:
     )
 
 
+def _availability(done: Sequence[bool], navigation: str) -> tuple[bool, ...]:
+    """``available`` for each node, in order. The one place the rule is written.
+
+    In ``sequential`` a node opens when the one before it is done — plus two exits that
+    are not softenings but corrections:
+
+    * the **first** node has no predecessor, so it is always open (otherwise the course
+      could never be started);
+    * a node **already done** stays open, so switching a half-walked course to
+      ``sequential`` never closes a lesson behind the learner who walked it. Without this
+      a learner who had taken nodes out of order under ``free`` would find finished work
+      locked, which is the retroactive punishment the mode is not for.
+
+    Deliberately *not* keyed on ``first_seen_at``: having been shown a lesson is not the
+    same as having got through it, and the anticipatory prefetch touches nodes ahead.
+    """
+    if navigation != SEQUENTIAL:
+        return tuple(True for _ in done)
+    return tuple(
+        index == 0 or done[index - 1] or done[index] for index in range(len(done))
+    )
+
+
 def course_progression(
     nodes: Sequence[Any],
     states: Mapping[uuid.UUID, Any],
+    *,
+    navigation: str = FREE,
 ) -> CourseProgression:
     """Snapshot of one learner in one course.
 
     ``nodes`` are the course's non-archived nodes in position order; ``states`` maps node
     id to that learner's ``learner_node_states`` row, absent for a node never touched.
+
+    ``navigation`` is the course's order rule as ``resolve_navigation`` resolved it for
+    this request. It arrives as a **value and not as the course row** on purpose: the
+    contract of this function is nodes-and-states in, snapshot out, and handing it a
+    ``Course`` would give it a second source of truth to read from and a reason to grow
+    opinions about rows. A string keeps it a pure mapping, keeps every test a literal,
+    and — because it defaults to ``FREE`` — leaves every existing call site meaning
+    exactly what it meant before the mode existed.
     """
     rows = [
         _Row(
@@ -204,7 +297,8 @@ def course_progression(
         )
         for node in nodes
     ]
-    done_by_id = {row.node_id: node_is_done(row) for row in rows}
+    done = [node_is_done(row) for row in rows]
+    available = _availability(done, navigation)
 
     progressions = tuple(
         NodeProgression(
@@ -212,13 +306,14 @@ def course_progression(
             position=int(node.position),
             state=row.state,
             mastery=row.mastery,
-            done=done_by_id[node.id],
-            # Linear: nothing is ever closed. See the module docstring.
-            available=True,
+            done=is_it_done,
+            available=is_it_available,
             first_seen_at=getattr(states.get(node.id), "first_seen_at", None),
             completed_at=row.completed_at,
         )
-        for node, row in zip(nodes, rows, strict=True)
+        for node, row, is_it_done, is_it_available in zip(
+            nodes, rows, done, available, strict=True
+        )
     )
 
     next_node_id = next(
@@ -233,8 +328,12 @@ def course_progression(
 
 
 __all__ = [
+    "FREE",
+    "SEQUENTIAL",
     "CourseProgression",
     "NodeProgression",
     "course_progression",
     "is_done",
+    "navigation_mode",
+    "resolve_navigation",
 ]

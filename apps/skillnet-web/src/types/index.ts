@@ -83,6 +83,20 @@ export type CourseGenerationState = 'idle' | 'in_progress' | 'failed' | 'complet
 /** How the learner tutor answers inside a course (`courses.tutor_style`). */
 export type TutorStyle = 'socratic' | 'direct'
 
+/**
+ * How a course is walked (`courses.navigation_mode`).
+ *
+ * `'free'` is the default and today's behaviour: every lesson is open, in any order.
+ * `'sequential'` makes the order binding — a lesson opens when the one before it is
+ * finished.
+ *
+ * The values are the server's, and they are the words the column stores; the client
+ * never invents a third one. What the mode actually *does* is not decided here either:
+ * it is `LearningNode.available` that says whether a given node may be opened, so this
+ * type is the setting and `available` is its consequence.
+ */
+export type NavigationMode = 'free' | 'sequential'
+
 /** `courses.image_source_policy` — the override over the diagram/screenshot rule. */
 export type ImageSourcePolicy = 'auto' | 'keep_original' | 'rebuild'
 
@@ -117,6 +131,12 @@ export interface CourseRead {
   can_generate_artifacts?: boolean
   /** How the tutor answers inside this course. Auto-detected at creation, editable after. */
   tutor_style?: TutorStyle
+  /**
+   * Whether the lessons of this course may be taken in any order. Optional and defaulted
+   * to `'free'` server-side, so a course made before the column existed reads as free
+   * navigation — which is what it was.
+   */
+  navigation_mode?: NavigationMode
   /**
    * What this course does with the images embedded in its source document.
    *

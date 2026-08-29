@@ -6,7 +6,13 @@ import { Card, ProgressBar } from '../ui'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
 import { staggerContainer, staggerItem } from '../../lib/motion'
 import { useNodeMorph } from '../../stores/nodeMorph'
-import { NODE_STATUS_CLASS, NODE_STATUS_LABEL_ID, nodeStatus } from './nodeStatus'
+import {
+  NODE_STATUS_CLASS,
+  NODE_STATUS_LABEL_ID,
+  NODE_UNAVAILABLE_LABEL_ID,
+  nodeIsAvailable,
+  nodeStatus,
+} from './nodeStatus'
 import type { LearningNode, NodeList as NodeListRead } from '../../types'
 
 /**
@@ -24,6 +30,11 @@ import type { LearningNode, NodeList as NodeListRead } from '../../types'
  *   `done`, and `state` only chooses the word — "mastered" or "completed". See
  *   `nodeStatus`: the same progress the bar above is drawing has to be the progress the
  *   rows show, or the screen contradicts itself.
+ * - **A node the server has not opened yet is not a link, and says why.** In a
+ *   `sequential` course `available` comes back `false` for everything past the lesson in
+ *   hand. The row still lists the node — hiding it would make the course look shorter
+ *   than it is — but it cannot be clicked, and it carries the sentence that names the
+ *   one thing that opens it. Nothing here computes that: see `nodeIsAvailable`.
  */
 
 export interface NodeListProps {
@@ -44,6 +55,7 @@ function NodeRow({
 }) {
   const intl = useIntl()
   const status = nodeStatus(node)
+  const available = nodeIsAvailable(node)
 
   const body = (
     <>
@@ -71,6 +83,26 @@ function NodeRow({
   function captureOrigin(e: MouseEvent<HTMLAnchorElement>) {
     const rect = e.currentTarget.getBoundingClientRect()
     setMorphOrigin({ top: rect.top, left: rect.left, width: rect.width, height: rect.height })
+  }
+
+  // Not a `<Link>` with a click handler that swallows the navigation: an anchor that goes
+  // nowhere is still announced as a link and still reachable by keyboard, so the promise
+  // would be made and then broken. A plain element makes the row honest to every reader.
+  if (!available) {
+    return (
+      <motion.li variants={variants}>
+        <div
+          aria-disabled="true"
+          data-testid="node-row-unavailable"
+          className="block px-4 py-3 border-b border-border last:border-b-0 opacity-60 cursor-not-allowed"
+        >
+          {body}
+          <p className="mt-1 text-xs text-text-muted">
+            {intl.formatMessage({ id: NODE_UNAVAILABLE_LABEL_ID })}
+          </p>
+        </div>
+      </motion.li>
+    )
   }
 
   return (

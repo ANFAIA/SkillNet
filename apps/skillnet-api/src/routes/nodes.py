@@ -111,7 +111,11 @@ from src.services.mastery_service import (
     MASTERED,
     may_offer_hint,
 )
-from src.services.node_progression import course_progression
+from src.services.node_progression import (
+    CourseProgression,
+    course_progression,
+    resolve_navigation,
+)
 from src.services.mastery_evidence_service import MasteryEvidenceService
 from src.services.node_grading import (
     classify_error,
@@ -317,6 +321,29 @@ def _is_admin(user: Any) -> bool:
     return is_admin(user)
 
 
+async def _progression(
+    db: DBSession, user: Any, course: Course
+) -> tuple[list[CourseNode], CourseProgression]:
+    """This learner's standing in this course, read once and shared by both callers.
+
+    ``GET /courses/{id}/nodes`` renders it and ``POST /nodes/{id}/complete`` enforces it.
+    They go through the same function so a client can never be told a lesson is open and
+    then refused when it finishes it — the disagreement that a lock spelled out inside one
+    endpoint always ends in, because the endpoint is not reusable so the rule gets copied.
+    """
+    nodes = list(
+        await CourseNodeRepository(db).list_for_course(course.id, include_archived=False)
+    )
+    states = await LearnerNodeStateRepository(db).states_for_nodes(
+        user_id=user.id, node_ids=[node.id for node in nodes]
+    )
+    return nodes, course_progression(
+        nodes,
+        states,
+        navigation=resolve_navigation(course, is_admin=_is_admin(user)),
+    )
+
+
 # --------------------------------------------------------------------------------------
 # GET /courses/{course_id}/nodes
 # --------------------------------------------------------------------------------------
@@ -337,12 +364,7 @@ async def list_course_nodes(
         raise NotFoundError("courses", str(course_id))
     await _assert_course_open(db, user, course)
 
-    node_repo = CourseNodeRepository(db)
-    nodes = list(await node_repo.list_for_course(course_id, include_archived=False))
-    states = await LearnerNodeStateRepository(db).states_for_nodes(
-        user_id=user.id, node_ids=[node.id for node in nodes]
-    )
-    progression = course_progression(nodes, states)
+    nodes, progression = await _progression(db, user, course)
     by_id = {node.id: node for node in nodes}
 
     rows = [
@@ -1090,6 +1112,20 @@ async def complete_node(
     So this is one more reader of a fact the system was already recording, not a new
     mechanism. 409 rather than 403: the node is not forbidden, it is *not yet* open, and
     rendering it makes the same call succeed.
+
+    **And in a sequential course, a lesson whose predecessor is unfinished is refused too**
+    (``node_locked``). Same argument, one step further: a client that only hides the next
+    lesson has made the course's order a suggestion, and the one place order has teeth is
+    the write that moves progress. The rule is not spelled out here — the route asks
+    ``node_progression`` for the same snapshot ``GET /courses/{id}/nodes`` renders, so the
+    list and the refusal cannot drift apart. Admins are exempt through
+    ``resolve_navigation``, by role and not by enrollment: a preview must not stop at
+    lesson two. 409 for the same reason as above — finishing the previous lesson makes
+    this call succeed.
+
+    The order of the two checks is not arbitrary. ``node_not_seen`` comes first because it
+    holds in every mode and is about this node alone; ``node_locked`` is a statement about
+    a *different* node, and only a course that opted in has one to make.
     """
     node, course = await _load_dynamic_node(db, user, node_id)
 
@@ -1099,6 +1135,16 @@ async def complete_node(
         raise ConflictError(
             "This lesson has not been opened yet, so it cannot be marked as finished.",
             field="node_not_seen",
+        )
+
+    _nodes, standing = await _progression(db, user, course)
+    entry = next(
+        (item for item in standing.nodes if item.node_id == node.id), None
+    )
+    if entry is not None and not entry.available:
+        raise ConflictError(
+            "This course is taken in order, and the previous lesson is not finished yet.",
+            field="node_locked",
         )
 
     state = await state_repo.mark_completed(user_id=user.id, node_id=node.id)

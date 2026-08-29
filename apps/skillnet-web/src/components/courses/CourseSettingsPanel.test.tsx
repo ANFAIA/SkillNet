@@ -12,7 +12,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { CourseSettingsPanel } from './CourseSettingsPanel'
 import { es } from '../../i18n/es'
-import type { CourseRead, ImageSourcePolicy } from '../../types'
+import type { CourseRead, ImageSourcePolicy, NavigationMode } from '../../types'
 
 const mutate = vi.fn()
 
@@ -72,7 +72,8 @@ describe('<CourseSettingsPanel> — image source policy', () => {
       expect(screen.getByText(es[label])).toBeInTheDocument()
       expect(screen.getByText(es[hint])).toBeInTheDocument()
     }
-    expect(screen.getAllByRole('radio')).toHaveLength(3)
+    // Scoped to this control: the panel holds more than one radio group now.
+    expect(document.querySelectorAll('input[name="image-source-policy-c1"]')).toHaveLength(3)
   })
 
   it('defaults to auto when the course carries no policy yet', () => {
@@ -111,5 +112,60 @@ describe('<CourseSettingsPanel> — image source policy', () => {
     await user.click(option(es['courseSettings.imagesAuto']))
 
     expect(mutate).toHaveBeenCalledWith({ id: 'c1', payload: { image_source_policy: 'auto' } })
+  })
+})
+
+/**
+ * The navigation mode, edited the way `tutor_style` is: one field on the course, one PUT
+ * from this panel, no new endpoint.
+ *
+ * What it does NOT do is decide anything about a lesson. The setting travels to the
+ * server and comes back as `LearningNode.available` per node; the panel never computes
+ * availability, which is the mistake the padlocks made.
+ */
+describe('<CourseSettingsPanel> — navigation mode', () => {
+  beforeEach(() => mutate.mockClear())
+
+  const mode = (label: string) => screen.getByRole('radio', { name: new RegExp(label) })
+
+  it('offers both modes, each with the line that says what it means', () => {
+    render(<CourseSettingsPanel course={course()} />)
+
+    expect(screen.getByText(es['courseSettings.navigationTitle'])).toBeInTheDocument()
+    for (const [label, hint] of [
+      ['courseSettings.navigationFree', 'courseSettings.navigationFreeHint'],
+      ['courseSettings.navigationSequential', 'courseSettings.navigationSequentialHint'],
+    ] as const) {
+      expect(screen.getByText(es[label])).toBeInTheDocument()
+      expect(screen.getByText(es[hint])).toBeInTheDocument()
+    }
+    expect(document.querySelectorAll('input[name="navigation-mode-c1"]')).toHaveLength(2)
+  })
+
+  it('defaults to free for a course made before the column existed', () => {
+    render(<CourseSettingsPanel course={course({ navigation_mode: undefined })} />)
+    expect(mode(es['courseSettings.navigationFree'])).toBeChecked()
+  })
+
+  it('reflects the stored mode', () => {
+    render(<CourseSettingsPanel course={course({ navigation_mode: 'sequential' })} />)
+    expect(mode(es['courseSettings.navigationSequential'])).toBeChecked()
+    expect(mode(es['courseSettings.navigationFree'])).not.toBeChecked()
+  })
+
+  it.each([
+    ['courseSettings.navigationSequential', 'sequential'],
+    ['courseSettings.navigationFree', 'free'],
+  ] as const)('sends %s on its own', async (label, expected: NavigationMode) => {
+    const user = userEvent.setup()
+    const stored: NavigationMode = expected === 'free' ? 'sequential' : 'free'
+    render(<CourseSettingsPanel course={course({ navigation_mode: stored })} />)
+
+    await user.click(mode(es[label]))
+
+    expect(mutate).toHaveBeenCalledWith({ id: 'c1', payload: { navigation_mode: expected } })
+    // One field per PUT: it must not drag the image policy or the permission with it.
+    expect(mutate).toHaveBeenCalledTimes(1)
+    expect(mode(es[label])).toBeChecked()
   })
 })

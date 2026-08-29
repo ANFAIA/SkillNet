@@ -5,7 +5,7 @@ import { useUsers } from '../../api/users'
 import { useUpdateCourse } from '../../api/courses'
 import { useAssignCourse, useDeleteEnrollment, useEnrollments } from '../../api/enrollments'
 import { ChoiceList } from '../onboarding/ChoiceList'
-import type { CourseRead, ImageSourcePolicy } from '../../types'
+import type { CourseRead, ImageSourcePolicy, NavigationMode } from '../../types'
 
 type Policy = 'admin' | 'everyone' | 'selected'
 
@@ -33,6 +33,9 @@ export function CourseSettingsPanel({ course }: { course: CourseRead }) {
   const [imagePolicy, setImagePolicyState] = useState<ImageSourcePolicy>(
     course.image_source_policy ?? 'auto',
   )
+  const [navigation, setNavigationState] = useState<NavigationMode>(
+    course.navigation_mode ?? 'free',
+  )
   const courseIdRef = useRef(course.id)
   useEffect(() => {
     if (courseIdRef.current === course.id) return
@@ -40,11 +43,13 @@ export function CourseSettingsPanel({ course }: { course: CourseRead }) {
     setPolicyState((course.artifact_generate_policy ?? 'admin') as Policy)
     setSelected(new Set(course.artifact_generator_ids ?? []))
     setImagePolicyState(course.image_source_policy ?? 'auto')
+    setNavigationState(course.navigation_mode ?? 'free')
   }, [
     course.id,
     course.artifact_generate_policy,
     course.artifact_generator_ids,
     course.image_source_policy,
+    course.navigation_mode,
   ])
 
   function setPolicy(next: Policy) {
@@ -77,6 +82,20 @@ export function CourseSettingsPanel({ course }: { course: CourseRead }) {
   function setImagePolicy(next: ImageSourcePolicy) {
     setImagePolicyState(next)
     updateCourse.mutate({ id: course.id, payload: { image_source_policy: next } })
+  }
+
+  /**
+   * Free or sequential navigation, edited the way `tutor_style` is: one field, one PUT,
+   * no creation-time question.
+   *
+   * The control only declares the mode. Whether a given lesson may be opened is
+   * `LearningNode.available`, which the server answers per node — the client never
+   * derives one from the other, so turning this on cannot let a stale course detail
+   * decide what a learner can reach.
+   */
+  function setNavigation(next: NavigationMode) {
+    setNavigationState(next)
+    updateCourse.mutate({ id: course.id, payload: { navigation_mode: next } })
   }
 
   function addEnrollment(userId: string) {
@@ -146,6 +165,31 @@ export function CourseSettingsPanel({ course }: { course: CourseRead }) {
                 value: 'rebuild',
                 label: intl.formatMessage({ id: 'courseSettings.imagesRebuild' }),
                 hint: intl.formatMessage({ id: 'courseSettings.imagesRebuildHint' }),
+              },
+            ]}
+          />
+        </fieldset>
+      </Card>
+
+      <Card>
+        <h3 className="text-sm font-medium text-text">{intl.formatMessage({ id: 'courseSettings.navigationTitle' })}</h3>
+        <p className="mt-1 mb-3 text-xs text-text-muted">{intl.formatMessage({ id: 'courseSettings.navigationHint' })}</p>
+        <fieldset disabled={saving} className={saving ? 'opacity-60' : undefined}>
+          <legend className="sr-only">{intl.formatMessage({ id: 'courseSettings.navigationLabel' })}</legend>
+          <ChoiceList
+            name={`navigation-mode-${course.id}`}
+            value={navigation}
+            onSelect={(value) => setNavigation(value as NavigationMode)}
+            options={[
+              {
+                value: 'free',
+                label: intl.formatMessage({ id: 'courseSettings.navigationFree' }),
+                hint: intl.formatMessage({ id: 'courseSettings.navigationFreeHint' }),
+              },
+              {
+                value: 'sequential',
+                label: intl.formatMessage({ id: 'courseSettings.navigationSequential' }),
+                hint: intl.formatMessage({ id: 'courseSettings.navigationSequentialHint' }),
               },
             ]}
           />

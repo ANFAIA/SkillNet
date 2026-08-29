@@ -448,9 +448,8 @@ export function QuizItemBlock({
 
       {renderId ? (
         <HintLadder
-          nodeId={nodeId}
-          renderId={renderId}
-          itemId={item_id}
+          endpoint={`/nodes/${nodeId}/hint`}
+          body={{ render_id: renderId, item_id }}
           // Kept mounted once the item closes so the hints already earned stay on
           // screen next to the solution; only the "pedir otra" affordance goes away.
           disabled={locked}

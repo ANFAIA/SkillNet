@@ -8,6 +8,7 @@ import type {
   Exercise,
   ImageSourcePolicy,
   Lesson,
+  NavigationMode,
   Paginated,
   TutorStyle,
 } from '../types'
@@ -93,6 +94,12 @@ export function useUpdateCourse() {
         artifact_generate_policy?: 'admin' | 'everyone' | 'selected'
         artifact_generator_ids?: string[]
         tutor_style?: TutorStyle
+        /**
+         * Free or sequential navigation. Sent alone, from the course settings panel, the
+         * same way `tutor_style` is: it is chosen at creation and corrected afterwards by
+         * whoever has watched somebody take the course.
+         */
+        navigation_mode?: NavigationMode
         /**
          * The override over the diagram/screenshot rule. Sent alone, from the course
          * settings panel — it is never part of creation.

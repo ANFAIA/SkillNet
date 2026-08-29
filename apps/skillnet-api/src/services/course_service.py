@@ -13,6 +13,7 @@ from src.models import (
     ContentStatus,
     Course,
     CourseImageSourcePolicy,
+    CourseNavigationMode,
     CourseTutorStyle,
     User,
 )
@@ -93,6 +94,14 @@ class CourseService:
             except ValueError as exc:
                 raise ValidationError(
                     "Invalid tutor style", field="tutor_style"
+                ) from exc
+        raw_navigation = changes.get("navigation_mode")
+        if raw_navigation is not None:
+            try:
+                changes["navigation_mode"] = CourseNavigationMode(raw_navigation)
+            except ValueError as exc:
+                raise ValidationError(
+                    "Invalid navigation mode", field="navigation_mode"
                 ) from exc
         raw_image_policy = changes.get("image_source_policy")
         if raw_image_policy is not None:

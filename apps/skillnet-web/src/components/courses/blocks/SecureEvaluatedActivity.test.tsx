@@ -1,11 +1,38 @@
-import { render, screen } from '@testing-library/react'
+import { render as rtlRender, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { ReactElement } from 'react'
 
 import { ActivityNotEvaluableError } from '../../../lib/didact'
 import type { DidactHostPorts, EvaluationResult } from '../../../lib/didact'
+import { es } from '../../../i18n/es'
 import { SecureEvaluatedActivity } from './SecureEvaluatedActivity'
 import { lessonFeedbackContext, stepperSolveContext } from './StepperContext'
+
+// The hint ladder and the "see the solution" button are the two things here that talk to
+// the server directly (everything else goes through the injected ports), so the transport
+// is replaced and `ApiError` is kept real — `HintLadder` prints a 409 by instance check.
+vi.mock('../../../api/client', async () => {
+  const actual = await vi.importActual<typeof import('../../../api/client')>('../../../api/client')
+  return { ...actual, get: vi.fn(), post: vi.fn(), put: vi.fn() }
+})
+
+import { ApiError, post } from '../../../api/client'
+
+const mockedPost = vi.mocked(post)
+
+beforeEach(() => {
+  mockedPost.mockReset()
+})
+
+/** Everything under test needs a query client: `HintLadder` and the solution both mutate. */
+function render(ui: ReactElement) {
+  const client = new QueryClient({
+    defaultOptions: { mutations: { retry: false }, queries: { retry: false } },
+  })
+  return rtlRender(<QueryClientProvider client={client}>{ui}</QueryClientProvider>)
+}
 
 /** Ports whose grader returns a scripted outcome per attempt, and records what it saw. */
 function scriptedPorts(outcomes: EvaluationResult[]) {
@@ -353,5 +380,134 @@ describe('SecureEvaluatedActivity without a valid public definition', () => {
 
     expect(screen.getByText('La actividad no tiene una definición pública válida.')).toBeInTheDocument()
     expect(solve).toHaveBeenCalled()
+  })
+})
+
+/**
+ * The two exits the learner can take on purpose.
+ *
+ * Until now the only way out of a Didact activity was to fail it four times and be handed
+ * the solution — help you get by running out, not by asking. The owner asked for both
+ * buttons, and both talk to endpoints that do not exist yet, so the doubles below are the
+ * contract: `POST /activities/{id}/hint` answers in the shape `/nodes/{id}/hint` already
+ * answers in (which is why one `HintLadder` serves both), and
+ * `POST /activities/{id}/solution` answers in the shape `result.solution` already arrives
+ * in — including the shape where there is nothing to say.
+ */
+describe('SecureEvaluatedActivity — asking for help', () => {
+  function renderActivity() {
+    const solve = vi.fn()
+    const report = vi.fn()
+    const scripted = scriptedPorts([{ outcome: 'incorrect', score: 0 }])
+    render(
+      <stepperSolveContext.Provider value={solve}>
+        <lessonFeedbackContext.Provider value={{ report }}>
+          <SecureEvaluatedActivity
+            activityId="activity-6"
+            componentId="didact.quiz.single-choice"
+            componentProps={{
+              question: '¿Cuándo se revisa el registro?',
+              options: [
+                { value: 'a', label: 'Cada semana' },
+                { value: 'b', label: 'Cada mes' },
+              ],
+            }}
+            ports={scripted.ports}
+          />
+        </lessonFeedbackContext.Provider>
+      </stepperSolveContext.Provider>,
+    )
+    return { solve, report }
+  }
+
+  const hintButton = () => screen.getByRole('button', { name: es['hints.request'] })
+  const revealButton = () => screen.getByRole('button', { name: es['hints.reveal'] })
+
+  it('asks the activity endpoint for a hint and prints what the server sent', async () => {
+    const user = userEvent.setup()
+    mockedPost.mockResolvedValue({ hint: 'Mira la fecha del último cierre', hints_used: 1, hints_remaining: 2 })
+    renderActivity()
+
+    await user.click(hintButton())
+
+    expect(await screen.findByText('Mira la fecha del último cierre')).toBeInTheDocument()
+    expect(mockedPost).toHaveBeenCalledWith('/activities/activity-6/hint', {})
+    // The count on screen is the server's, never a tally of clicks.
+    expect(screen.getByText('Pista 1 de 3')).toBeInTheDocument()
+  })
+
+  it('prints the server refusal verbatim instead of a rule of its own', async () => {
+    const user = userEvent.setup()
+    mockedPost.mockRejectedValue(new ApiError(409, { detail: 'Inténtalo una vez antes de pedir una pista.' }))
+    renderActivity()
+
+    await user.click(hintButton())
+
+    expect(await screen.findByText('Inténtalo una vez antes de pedir una pista.')).toBeInTheDocument()
+  })
+
+  it('shows the solution when the learner asks for it, and opens the step', async () => {
+    const user = userEvent.setup()
+    mockedPost.mockResolvedValue({ solution: 'El primer lunes de cada mes', explanation: 'El ciclo es mensual.' })
+    const { solve, report } = renderActivity()
+
+    await user.click(revealButton())
+
+    expect(await screen.findByText('El primer lunes de cada mes')).toBeInTheDocument()
+    expect(screen.getByText('El ciclo es mensual.')).toBeInTheDocument()
+    expect(mockedPost).toHaveBeenCalledWith('/activities/activity-6/solution', {})
+    // Closed: nothing left to answer, nothing left to ask for.
+    expect(screen.queryByRole('button', { name: 'Comprobar respuesta' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: es['hints.reveal'] })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: es['hints.request'] })).not.toBeInTheDocument()
+    // And the step opens, or the learner reads the answer and stays shut in.
+    expect(solve).toHaveBeenCalled()
+    // Asking for help is not a verdict: no red, no mascot.
+    expect(report).not.toHaveBeenCalled()
+  })
+
+  it('is honest when the server has no solution written for the activity', async () => {
+    const user = userEvent.setup()
+    // The same answer `render_solution` gives for an evaluation mode it cannot put into
+    // words. It still closes the activity, so the learner still has to be let out.
+    mockedPost.mockResolvedValue(null)
+    const { solve } = renderActivity()
+
+    await user.click(revealButton())
+
+    expect(await screen.findByText(es['activity.solutionUnavailable'])).toBeInTheDocument()
+    expect(screen.queryByText('Solución paso a paso')).not.toBeInTheDocument()
+    expect(solve).toHaveBeenCalled()
+  })
+
+  it('leaves the activity open when the solution request fails', async () => {
+    const user = userEvent.setup()
+    mockedPost.mockRejectedValue(new Error('network'))
+    const { solve } = renderActivity()
+
+    await user.click(revealButton())
+
+    expect(await screen.findByText(es['hints.revealError'])).toBeInTheDocument()
+    // A failed request is not a solution: nothing closed, nothing opened.
+    expect(screen.getByRole('button', { name: 'Comprobar respuesta' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: es['hints.reveal'] })).toBeInTheDocument()
+    expect(solve).not.toHaveBeenCalled()
+  })
+
+  it('keeps the hints already earned on screen once the activity closes', async () => {
+    const user = userEvent.setup()
+    mockedPost.mockResolvedValueOnce({ hint: 'Mira la fecha del último cierre', hints_used: 1, hints_remaining: 2 })
+    mockedPost.mockResolvedValueOnce({ solution: 'El primer lunes de cada mes' })
+    renderActivity()
+
+    await user.click(hintButton())
+    expect(await screen.findByText('Mira la fecha del último cierre')).toBeInTheDocument()
+
+    await user.click(revealButton())
+
+    expect(await screen.findByText('El primer lunes de cada mes')).toBeInTheDocument()
+    // The hint stays next to the solution; only the way to ask for another goes away.
+    expect(screen.getByText('Mira la fecha del último cierre')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: es['hints.request'] })).not.toBeInTheDocument()
   })
 })

@@ -69,6 +69,29 @@ class CourseTutorStyle(str, enum.Enum):
     DIRECT = "direct"
 
 
+class CourseNavigationMode(str, enum.Enum):
+    """In what order this course's lessons may be opened.
+
+    ``FREE`` is exactly what every course did before this column existed — the whole node
+    list is open and the learner walks it in whatever order suits them — which is why it
+    is the default: adding the dial changes nobody's course.
+
+    ``SEQUENTIAL`` opens a lesson when the one before it is **finished**. *Finished*, not
+    *mastered*, and the distinction is the entire reason this can be reintroduced at all:
+    the prerequisite padlocks that were removed compared against ``mastered``, which an
+    expository node can never reach (no graded item, so rule 6 of §7.3 never fires), so
+    the lesson after one stayed shut for ever with no action able to open it. ``done`` —
+    ``mastered`` **or** ``completed_at`` — is always reachable, on every node.
+
+    The rule itself lives in ``services/node_progression`` and nowhere else; this enum
+    only names the choice. Picked by whoever creates the course and editable afterwards
+    through ``PUT /courses/{id}``, like ``tutor_style``.
+    """
+
+    FREE = "free"
+    SEQUENTIAL = "sequential"
+
+
 class CourseImageSourcePolicy(str, enum.Enum):
     """What this course does with the images that were inside its source document.
 
@@ -209,6 +232,18 @@ class Course(UUIDMixin, TimestampMixin, Base):
         nullable=False,
         server_default=CourseTutorStyle.SOCRATIC.value,
         default=CourseTutorStyle.SOCRATIC,
+    )
+    # In what order this course's lessons may be opened (migration 0034). ``free`` is
+    # today's behaviour for every existing course, so the dial arrives changing nothing.
+    navigation_mode: Mapped[CourseNavigationMode] = mapped_column(
+        SAEnum(
+            CourseNavigationMode,
+            name="course_navigation_mode",
+            values_callable=lambda e: [m.value for m in e],
+        ),
+        nullable=False,
+        server_default=CourseNavigationMode.FREE.value,
+        default=CourseNavigationMode.FREE,
     )
     # What this course does with the images embedded in its source document
     # (migration 0028). ``auto`` is the rule; the two overrides are policy escapes.

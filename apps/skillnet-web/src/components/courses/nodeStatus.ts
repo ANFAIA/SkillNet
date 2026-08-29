@@ -35,3 +35,29 @@ export const NODE_STATUS_LABEL_ID: Record<NodeStatus, string> = {
   completed: 'nodelist.stateCompleted',
   mastered: 'nodelist.stateMastered',
 }
+
+/**
+ * May this learner open the node — the other half of a row, and a different question
+ * from `nodeStatus`.
+ *
+ * `available` is the server's answer, never a rule reproduced here: with
+ * `navigation_mode: 'free'` every node comes back available, and with `'sequential'`
+ * the server closes the ones whose predecessor is not `done`. A client that decided this
+ * for itself would be the second source of truth that the padlocks removed on 2026-08-28
+ * were — they asked `state !== 'mastered'`, which an expository node can never satisfy,
+ * so they never opened again.
+ *
+ * A payload without the field reads as available. That is the legacy answer and the safe
+ * one: an old response can hide a lesson by omission, never by mistake.
+ */
+export function nodeIsAvailable(node: LearningNode): boolean {
+  return node.available !== false
+}
+
+/**
+ * The one sentence every list prints for a node that cannot be opened yet.
+ *
+ * Shared so the node map and the course index say the same thing: two screens explaining
+ * the same rule in two different words is how a learner concludes they are two rules.
+ */
+export const NODE_UNAVAILABLE_LABEL_ID = 'nodelist.unavailable'

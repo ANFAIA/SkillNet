@@ -64,7 +64,16 @@ function record(value: DidactValue | undefined): Record<string, DidactValue> | u
   return value && typeof value === 'object' && !Array.isArray(value) ? value : undefined
 }
 
-function writtenSolution(value: DidactValue | undefined): EvaluationSolution | undefined {
+/**
+ * A solution the server wrote out, or `undefined` when it did not write one.
+ *
+ * Exported because the shape arrives by two roads — folded into an evaluation result, and
+ * on its own from `POST /activities/{id}/solution` when the learner asks for it — and
+ * both of them can legitimately carry nothing. `render_solution` returns `None` for an
+ * evaluation mode it cannot put into words, so "no solution" is an answer, not a bug, and
+ * one function deciding what counts as one keeps the two roads from disagreeing.
+ */
+export function writtenSolution(value: DidactValue | undefined): EvaluationSolution | undefined {
   const fields = record(value)
   if (!fields || typeof fields.solution !== 'string' || !fields.solution) return undefined
   return {

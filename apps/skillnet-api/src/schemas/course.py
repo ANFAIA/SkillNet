@@ -62,6 +62,12 @@ class CourseRead(BaseModel):
     #: How the learner tutor answers inside this course. Auto-detected at
     #: creation by the schema designer, editable via ``PUT /courses/{id}``.
     tutor_style: Literal["socratic", "direct"] = "socratic"
+    #: In what order this course's lessons may be opened. ``free`` is what every course
+    #: did before the column existed — the whole list open, walked in any order — so it
+    #: is both the default and the value you get by forgetting to pass it. ``sequential``
+    #: opens a lesson once the previous one is finished; the per-node answer is
+    #: ``NodeSummaryRead.available``, which is what a client should actually render.
+    navigation_mode: Literal["free", "sequential"] = "free"
     #: What this course does with the images embedded in its source document.
     #: ``auto`` is the rule (diagrams get rebuilt, screenshots get kept); the two
     #: overrides are policy escapes. Never asked at creation, edited afterwards.
@@ -104,6 +110,7 @@ class CourseUpdate(BaseModel):
     artifact_generate_policy: Literal["admin", "everyone", "selected"] | None = None
     artifact_generator_ids: list[uuid.UUID] | None = None
     tutor_style: Literal["socratic", "direct"] | None = None
+    navigation_mode: Literal["free", "sequential"] | None = None
     image_source_policy: Literal["auto", "keep_original", "rebuild"] | None = None
 
     @field_validator("title")

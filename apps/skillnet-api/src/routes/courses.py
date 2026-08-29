@@ -31,6 +31,7 @@ from src.services.course_access import assert_learner_can_open
 from src.services.course_delivery import resolve_delivery
 from src.services.course_service import CourseService
 from src.services.generation_service import GenerationService
+from src.services.node_progression import navigation_mode
 
 router = APIRouter(prefix="/courses", tags=["Courses"])
 
@@ -89,6 +90,17 @@ def _tutor_style(course: Course) -> str:
     if raw is None:
         return "socratic"
     return str(getattr(raw, "value", raw))
+
+
+def _navigation_mode(course: Course) -> str:
+    """The order rule this course declares, for the admin screen that edits it.
+
+    The *declared* setting, not the one resolved for the caller: an admin editing a
+    course must see the value they set, and ``resolve_navigation`` deliberately reports
+    ``free`` to admins so their own preview is never paced. ``navigation_mode`` is the
+    reader that answers the first question; the learner surface uses the other one.
+    """
+    return navigation_mode(course)
 
 
 def _image_source_policy(course: Course) -> str:
@@ -155,6 +167,7 @@ def _summary(
         artifact_generator_ids=ids,
         can_generate_artifacts=_can_generate(course, user, ids),
         tutor_style=_tutor_style(course),
+        navigation_mode=_navigation_mode(course),
         image_source_policy=_image_source_policy(course),
         generation_state=_generation_state(course),
         generation_error=getattr(course, "generation_error", None),
@@ -225,6 +238,7 @@ def _detail(
         artifact_generator_ids=list(generator_ids or []),
         can_generate_artifacts=_can_generate(course, user, list(generator_ids or [])),
         tutor_style=_tutor_style(course),
+        navigation_mode=_navigation_mode(course),
         image_source_policy=_image_source_policy(course),
         generation_state=_generation_state(course),
         generation_error=getattr(course, "generation_error", None),

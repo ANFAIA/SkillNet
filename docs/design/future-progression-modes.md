@@ -115,6 +115,42 @@ gobernar la navegación**.
 No se añade un `progression_mode` todavía. Un dial con un solo valor es especulación; lo que
 hay que preservar no es la columna, es la costura.
 
+### Enmienda del 2026-08-29: el dial ya tiene dos valores
+
+Lo de arriba se sostiene entero salvo por su último párrafo, y por el motivo que ese mismo
+párrafo daba: **el dial dejó de tener un solo valor.** `courses.navigation_mode` (migración
+0034, y no `progression_mode`: el nombre dice lo que gobierna) toma dos:
+
+| valor | qué hace | quién lo tiene |
+|---|---|---|
+| `free` | todo abierto, se navega a gusto | **el defecto** — o sea, todos los cursos que ya existían |
+| `sequential` | una lección se abre cuando la anterior está *hecha* | quien lo elija al crear el curso o después |
+
+Lo elige quien crea el curso y se edita con `PUT /courses/{id}`, como `tutor_style`. La
+migración es aditiva y con `server_default`: no reescribe ninguna fila y ningún curso
+cambia de comportamiento.
+
+**Y no reintroduce el callejón de §1**, que es la única pregunta que importa aquí. Aquel
+candado comparaba contra `mastered`, inalcanzable en un nodo sin ítem calificado; este
+compara contra `done` —`mastered` **o** `completed_at`—, y terminar un nodo siempre está al
+alcance. Una regla escrita sobre `done` no puede fabricar una puerta que nadie pueda abrir.
+
+Dos detalles del diseño que no son cosméticos:
+
+- **Un nodo ya hecho sigue abierto**, aunque el anterior no lo esté. Sin esto, cambiar a
+  `sequential` un curso a medias cerraría lecciones por detrás de quien ya pasó por ellas.
+- **El admin va suelto siempre** (`resolve_navigation`), por rol y no por matrícula, igual
+  que en `services/course_access.py`: una previsualización no se puede parar en la lección
+  dos.
+
+La regla vive en un solo sitio, `services/node_progression`, y el candado de verdad está en
+`POST /nodes/{id}/complete` — que le pide a ese módulo la misma foto que pinta
+`GET /courses/{id}/nodes`, así que la lista y la negativa no pueden discrepar.
+
+Lo que **no** cambia: `available` sigue siendo una respuesta y no una prohibición (§4), el
+productor de `CourseProgression` sigue siendo el punto de extensión, y la maestría sigue sin
+gobernar nada. El modo por dominio de §5 sigue fuera de alcance y sigue yendo bifurcado.
+
 ## 4. La arquitectura de hoy
 
 ### `services/node_progression.py`
@@ -129,7 +165,7 @@ class NodeProgression:
     state: str        # la máquina de evidencia, intacta
     mastery: float
     done: bool        # el predicado, que ahora existe UNA vez
-    available: bool   # en lineal, siempre True
+    available: bool   # en `free`, siempre True; en `sequential`, la regla de la enmienda de §3
 
 @dataclass(frozen=True, slots=True)
 class CourseProgression:
@@ -302,7 +338,9 @@ un motivo para meterlo debería poder rebatir la línea que lo acompaña.
 
 - **Un enum `traversal` paralelo a `state`.** Los dos hechos ya están guardados; lo que
   faltaba era un nombre para su unión, no una columna más.
-- **Un `progression_mode` con un solo valor.** Ver §3.
+- ~~**Un `progression_mode` con un solo valor.**~~ Sigue valiendo el argumento y sigue sin
+  construirse ese: lo que existe desde el 2026-08-29 es `navigation_mode`, con dos valores
+  y una regla escrita sobre `done`. Ver la enmienda de §3.
 - **Una interfaz antes de conocer la forma de la segunda implementación.** Ver §4.
 - **Reglas de validación distintas para el DAG.** Los prerequisitos dejan de cerrar puertas,
   pero siguen ordenando el esquema y alimentando la señal `revisar_prerrequisito` del tutor.

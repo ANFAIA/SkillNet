@@ -448,6 +448,13 @@ export const es: Record<string, string> = {
   'courseSettings.imagesKeepHint': 'Muestra siempre las imágenes del documento.',
   'courseSettings.imagesRebuild': 'Reconstruir siempre',
   'courseSettings.imagesRebuildHint': 'Reconstruye siempre las imágenes con los componentes propios de SkillNet.',
+  'courseSettings.navigationTitle': 'Cómo se navega el curso',
+  'courseSettings.navigationHint': 'Si las lecciones se pueden hacer en cualquier orden.',
+  'courseSettings.navigationLabel': 'Navegación',
+  'courseSettings.navigationFree': 'Libre',
+  'courseSettings.navigationFreeHint': 'Se puede ir a cualquier lección, en el orden que se quiera.',
+  'courseSettings.navigationSequential': 'Secuencial',
+  'courseSettings.navigationSequentialHint': 'Hay que terminar cada lección para abrir la siguiente.',
   'courseSettings.assignTitle': 'Asignado a',
   'courseSettings.assignHint': 'Quién tiene este curso asignado.',
   'courseSettings.assignEmpty': 'Nadie está asignado todavía.',
@@ -1037,6 +1044,7 @@ export const es: Record<string, string> = {
   'nodelist.canComplete': 'Has terminado todas las lecciones de este curso.',
   'nodelist.blockedBy': 'Para completar el curso te falta: {titles}.',
   'nodelist.completeRequired': 'Completa todas las lecciones para cerrar el curso.',
+  'nodelist.unavailable': 'Termina la lección anterior para abrir esta.',
 
   // NodeFeedback component
   'feedback.question': '¿Cómo te ha resultado esta lección?',
@@ -1084,10 +1092,14 @@ export const es: Record<string, string> = {
   'hints.solutionTitle': 'Solución paso a paso',
   'hints.correctAnswer': 'Respuesta correcta: ',
   'hints.closedNote': 'Esta actividad queda cerrada. Ya puedes seguir con la lección.',
+  'hints.reveal': 'Ver la solución',
+  'hints.revealing': 'Buscando la solución...',
+  'hints.revealError': 'No se pudo mostrar la solución. Inténtalo de nuevo.',
   'hints.true': 'Verdadero',
   'hints.false': 'Falso',
 
   // SecureEvaluatedActivity component
+  'activity.solutionUnavailable': 'No podemos mostrarte la solución de esta actividad, pero puedes seguir con la lección.',
   'activity.notEvaluable': 'Esta actividad no se puede corregir, así que no hay nada que reintentar. No es cosa tuya: sigue con la lección.',
 
   // AudioExplanationBlock component

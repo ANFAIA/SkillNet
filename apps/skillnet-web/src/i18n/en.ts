@@ -448,6 +448,13 @@ export const en: Record<string, string> = {
   'courseSettings.imagesKeepHint': 'Always show the images from the document.',
   'courseSettings.imagesRebuild': 'Always rebuild',
   'courseSettings.imagesRebuildHint': "Always rebuild them in SkillNet's own components.",
+  'courseSettings.navigationTitle': 'How the course is navigated',
+  'courseSettings.navigationHint': 'Whether the lessons can be taken in any order.',
+  'courseSettings.navigationLabel': 'Navigation',
+  'courseSettings.navigationFree': 'Free',
+  'courseSettings.navigationFreeHint': 'Any lesson can be opened, in any order.',
+  'courseSettings.navigationSequential': 'Sequential',
+  'courseSettings.navigationSequentialHint': 'Each lesson has to be finished before the next one opens.',
   'courseSettings.assignTitle': 'Assigned to',
   'courseSettings.assignHint': 'Who has this course assigned.',
   'courseSettings.assignEmpty': 'Nobody is assigned yet.',
@@ -1037,6 +1044,7 @@ export const en: Record<string, string> = {
   'nodelist.canComplete': 'You have finished every lesson in this course.',
   'nodelist.blockedBy': 'To complete the course you still need: {titles}.',
   'nodelist.completeRequired': 'Complete every lesson to finish the course.',
+  'nodelist.unavailable': 'Finish the previous lesson to open this one.',
 
   // NodeFeedback component
   'feedback.question': 'How did this lesson go?',
@@ -1084,10 +1092,14 @@ export const en: Record<string, string> = {
   'hints.solutionTitle': 'Step-by-step solution',
   'hints.correctAnswer': 'Correct answer: ',
   'hints.closedNote': 'This activity is closed. You can carry on with the lesson.',
+  'hints.reveal': 'See the solution',
+  'hints.revealing': 'Getting the solution...',
+  'hints.revealError': 'Could not show the solution. Try again.',
   'hints.true': 'True',
   'hints.false': 'False',
 
   // SecureEvaluatedActivity component
+  'activity.solutionUnavailable': 'We cannot show you the solution to this activity, but you can carry on with the lesson.',
   'activity.notEvaluable': 'This activity cannot be graded, so there is nothing to retry. It is not you: carry on with the lesson.',
 
   // AudioExplanationBlock component

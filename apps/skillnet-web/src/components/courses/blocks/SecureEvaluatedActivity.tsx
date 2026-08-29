@@ -1,11 +1,12 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { useIntl } from 'react-intl'
 
+import { activityHintPath, useActivitySolution } from '../../../api/activities'
 import { ActivityNotEvaluableError } from '../../../lib/didact'
-import type { DidactHostPorts, EvaluationResult } from '../../../lib/didact'
+import type { DidactHostPorts, EvaluationResult, EvaluationSolution } from '../../../lib/didact'
 import { Button } from '../../ui/Button'
 import { evaluateDidactSubmission } from './didact-evaluation-adapter'
-import { WorkedSolution } from './QuizItemHints'
+import { HintLadder, WorkedSolution } from './QuizItemHints'
 import { useLessonFeedback, useStepperSolve } from './StepperContext'
 import { usesSecureEvaluationAdapter } from './secure-evaluation-components'
 
@@ -397,6 +398,17 @@ export function SecureEvaluatedActivity({
   // depends on a re-render landing in the same tick. Remounting makes "empty and enabled
   // again" unconditional instead of derived. Same reasoning as `QuizItemBlock.attemptNonce`.
   const [attemptNonce, setAttemptNonce] = useState(0)
+  /**
+   * The learner asking to see the solution rather than waiting for the fourth failure.
+   *
+   * `null` is "never asked". A value is "asked and answered", and the answer inside it
+   * may still be `null`: the server does not know how to write every evaluation mode out
+   * and says so by sending nothing. The two are kept apart because the second one closes
+   * the activity and the first does not — the same distinction `show_worked_solution`
+   * arriving with `solution: null` already forced on this component.
+   */
+  const [revealed, setRevealed] = useState<{ solution: EvaluationSolution | null } | null>(null)
+  const solutionRequest = useActivitySolution(activityId)
 
   useEffect(() => {
     void ports.events?.emit({
@@ -473,6 +485,26 @@ export function SecureEvaluatedActivity({
     setAttemptNonce((nonce) => nonce + 1)
   }
 
+  /**
+   * Show me the answer.
+   *
+   * It closes the activity — there is nothing left to demonstrate once the answer is on
+   * screen — so it calls `solveStep`, for exactly the reason the fourth failure does: the
+   * step this block sits in is born closed, and if nothing opens it the learner is shut
+   * in with the solution they just asked for.
+   *
+   * No `feedback.report`: the mascot's red is for a verdict the learner received, and
+   * asking for help is not one. The evidence is untouched too — nothing is graded here.
+   */
+  const reveal = () => {
+    solutionRequest.mutate(undefined, {
+      onSuccess: (solution) => {
+        setRevealed({ solution })
+        solveStep?.()
+      },
+    })
+  }
+
   // The same rule as `QuizItemBlock`. A correct answer is final: re-answering it would
   // only overwrite evidence the learner already earned. So is an item the server just
   // closed with the worked solution (§7.4 rule 8) — re-answering it with the answer on
@@ -483,13 +515,24 @@ export function SecureEvaluatedActivity({
   //
   // `showWorkedSolution` is read from the server's flag and never inferred here. A client
   // that decided when the solution appears could decide to see it on the first attempt.
-  const closed = result?.outcome === 'correct' || result?.showWorkedSolution === true
+  //
+  // A solution the learner asked for closes it too, and that is the one closing the
+  // client is allowed to decide: it did not decide the answer was earned, it only knows
+  // the answer is now on screen.
+  const closed =
+    result?.outcome === 'correct' || result?.showWorkedSolution === true || revealed !== null
   const canRetry = Boolean(result) && !closed
   // Whether there is anything to *show*, which is not the same as whether the item closed.
   // `WorkedSolution` prints nothing without a written solution (this call site passes no
   // `correctAnswer`), so gating the panel on `showWorkedSolution` alone rendered an empty
   // element under a sentence promising the answer.
-  const solutionShown = result?.showWorkedSolution === true && Boolean(result.solution)
+  //
+  // Either road can end in nothing to print, so the panel is gated on there being a
+  // solution and never on the activity being closed.
+  const solution =
+    revealed?.solution
+    ?? (result?.showWorkedSolution === true ? result.solution ?? null : null)
+  const solutionShown = Boolean(solution)
   // A written gap makes the sentence itself the interaction (see `FillInTheBlank`), so the
   // heading keeps the accessible name and stops repeating the same sentence on screen.
   const sentenceIsInteraction = componentId === 'didact.quiz.fill-in-the-blank' && BLANK_MARKER.test(title)
@@ -506,7 +549,7 @@ export function SecureEvaluatedActivity({
           componentId={componentId}
           props={componentProps}
           answer={answer}
-          disabled={pending || Boolean(result) || unevaluable}
+          disabled={pending || closed || Boolean(result) || unevaluable}
           onChange={setAnswer}
           groupName={`${groupName}:${attemptNonce}`}
         />
@@ -516,21 +559,61 @@ export function SecureEvaluatedActivity({
           <p className="text-sm text-text-secondary" role="status">
             {intl.formatMessage({ id: 'activity.notEvaluable' })}
           </p>
-        ) : result ? (
+        ) : (
           <>
-            <Result result={result} closed={closed} solutionShown={solutionShown} />
-            {canRetry && (
-              <Button type="button" variant="secondary" onClick={retry}>Reintentar</Button>
+            {result ? <Result result={result} closed={closed} solutionShown={solutionShown} /> : null}
+            {/* One row for every action still on the table. A closed activity has none:
+                no answer to send, no attempt to repeat, and the solution already out. */}
+            {!closed && (
+              <div className="flex flex-wrap items-center gap-2">
+                {result ? (
+                  canRetry && (
+                    <Button type="button" variant="secondary" onClick={retry}>Reintentar</Button>
+                  )
+                ) : (
+                  <Button type="button" disabled={pending || !canSubmit(componentId, componentProps, answer)} onClick={() => void submit()}>
+                    {pending ? 'Comprobando…' : 'Comprobar respuesta'}
+                  </Button>
+                )}
+                {/* The way out the owner asked for, next to the automatic one: four
+                    failures still hand the solution over on their own, and this is the
+                    same exit taken on purpose instead of by exhaustion. */}
+                <Button type="button" variant="ghost" disabled={solutionRequest.isPending} onClick={reveal}>
+                  {solutionRequest.isPending
+                    ? intl.formatMessage({ id: 'hints.revealing' })
+                    : intl.formatMessage({ id: 'hints.reveal' })}
+                </Button>
+              </div>
+            )}
+            {solutionRequest.isError && (
+              <p className="text-sm text-danger" role="alert">
+                {intl.formatMessage({ id: 'hints.revealError' })}
+              </p>
             )}
           </>
-        ) : (
-          <Button type="button" disabled={pending || !canSubmit(componentId, componentProps, answer)} onClick={() => void submit()}>
-            {pending ? 'Comprobando…' : 'Comprobar respuesta'}
-          </Button>
         )}
         {error && <p className="text-sm text-danger" role="alert">No se pudo evaluar la respuesta. Inténtalo de nuevo.</p>}
       </div>
-      {solutionShown ? <WorkedSolution solution={result?.solution ?? null} /> : null}
+      {/* The ladder itself is the quiz item's, endpoint and all — only the URL differs
+          (`api/activities.activityHintPath`). It stays mounted once the activity closes so
+          the hints already earned sit next to the solution; only the "ask for another"
+          affordance goes away. */}
+      {unevaluable ? null : (
+        <HintLadder endpoint={activityHintPath(activityId)} disabled={closed} />
+      )}
+      {solutionShown ? <WorkedSolution solution={solution} /> : null}
+      {/* Asked, and there was nothing to write out. Said plainly rather than left as an
+          empty panel under a button that promised an answer — and the step is already
+          open, so the learner is not held here by it. */}
+      {revealed && !solutionShown && !result ? (
+        <p className="mt-4 text-sm text-text-secondary" role="status">
+          {/* Deliberately the tail of the sentence `Result` prints when the item closes
+              with nothing to show: one situation, one wording. It is a key and that one
+              is a literal because the rest of this component's copy is still hardcoded
+              Spanish — translating it is its own job, not this one's. */}
+          {intl.formatMessage({ id: 'activity.solutionUnavailable' })}
+        </p>
+      ) : null}
     </section>
   )
 }
