@@ -57,7 +57,6 @@ from src.models import (
     NodeRender,
     NodeRenderStatus,
     Organization,
-    UserRole,
 )
 from src.render.prompt import load_artifact
 from src.render.spec import UI_SPEC_VERSION
@@ -99,6 +98,7 @@ from src.schemas.node import (
     UIKitRead,
 )
 from src.schemas.probe import ProbeSessionRead
+from src.services.course_access import assert_learner_can_open, is_admin
 from src.services.course_delivery import resolve_delivery
 from src.services.enrollment_service import EnrollmentService
 from src.services.learner_profile_service import (
@@ -234,25 +234,29 @@ async def _feedback_difficulty(
     return (await db.execute(query)).scalars().first()
 
 
-async def _assert_enrolled(db: DBSession, user: Any, course_id: uuid.UUID) -> None:
+async def _assert_course_open(db: DBSession, user: Any, course: Course) -> None:
     """The v1 rule of ``GET /courses/{id}`` (``routes/courses.py``), applied to v2.
 
-    Org scoping is **not** an access rule. ``CourseNodeRepository.get_scoped`` and
-    ``CourseRepository.get_scoped`` only prove the row belongs to the caller's
-    organisation, which every colleague shares; without this check any authenticated
-    employee could enumerate the node graph of a course nobody assigned them, open its
-    probes, and make ``POST /nodes/{id}/render`` spend real tokens on a node they were
-    never meant to see. v1 forbids exactly that over the same data.
+    Both halves now live in ``services/course_access.py`` — enrolled, and the course not
+    archived — because v1 and v2 were spelling the enrollment half out separately and the
+    archive half was spelled out nowhere. This wrapper stays for the two callers below and
+    to keep ``EnrollmentRepository`` named in *this* module, which is the seam the route
+    tests replace with a double.
+
+    Why the rule at all: org scoping is **not** an access rule.
+    ``CourseNodeRepository.get_scoped`` and ``CourseRepository.get_scoped`` only prove the
+    row belongs to the caller's organisation, which every colleague shares; without this
+    check any authenticated employee could enumerate the node graph of a course nobody
+    assigned them, open its probes, and make ``POST /nodes/{id}/render`` spend real tokens
+    on a node they were never meant to see. v1 forbids exactly that over the same data.
 
     Admins are exempt for the same reason they are in v1: the preview of §11.3 and the
     waiver of §7.4 are creator tools, and nobody enrolls a creator in the course they are
     reviewing.
     """
-    if _is_admin(user):
-        return
-    enrollment = await EnrollmentRepository(db).get_by_user_and_course(user.id, course_id)
-    if enrollment is None:
-        raise ForbiddenError("You are not enrolled in this course")
+    await assert_learner_can_open(
+        user=user, course=course, enrollments=EnrollmentRepository(db)
+    )
 
 
 async def _load_dynamic_node(
@@ -273,7 +277,7 @@ async def _load_dynamic_node(
     course = await CourseRepository(db).get_by_id(node.course_id)
     if course is None or resolve_delivery(course) != "dynamic":
         raise NotFoundError("course_nodes", str(node_id))
-    await _assert_enrolled(db, user, course.id)
+    await _assert_course_open(db, user, course)
     return node, course
 
 
@@ -309,8 +313,8 @@ def _enrollment_service(db: DBSession) -> EnrollmentService:
 
 
 def _is_admin(user: Any) -> bool:
-    role = getattr(user.role, "value", user.role)
-    return str(role) == UserRole.ADMIN.value
+    """One definition of the role read, shared with ``services/course_access.py``."""
+    return is_admin(user)
 
 
 # --------------------------------------------------------------------------------------
@@ -324,7 +328,7 @@ async def list_course_nodes(
     course = await CourseRepository(db).get_scoped(course_id, user.org_id)
     if course is None or resolve_delivery(course) != "dynamic":
         raise NotFoundError("courses", str(course_id))
-    await _assert_enrolled(db, user, course.id)
+    await _assert_course_open(db, user, course)
 
     node_repo = CourseNodeRepository(db)
     nodes = list(await node_repo.list_for_course(course_id, include_archived=False))

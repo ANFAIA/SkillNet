@@ -5,7 +5,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Query, Response
 
-from src.core.exceptions import ForbiddenError, NotFoundError, ValidationError
+from src.core.exceptions import NotFoundError, ValidationError
 from src.deps.auth import AdminUser, CurrentUser
 from src.deps.db import DBSession
 from src.models.base import as_utc
@@ -27,6 +27,7 @@ from src.schemas.course import (
 )
 from src.schemas.exercise import ExerciseRead, strip_answers
 from src.services.artifact_access import can_generate_artifacts
+from src.services.course_access import assert_learner_can_open
 from src.services.course_delivery import resolve_delivery
 from src.services.course_service import CourseService
 from src.services.generation_service import GenerationService
@@ -293,12 +294,13 @@ async def get_course(
     if course is None:
         raise NotFoundError("courses", str(course_id))
 
+    # The gate knows who is a learner (and that an admin is not), so it runs
+    # unconditionally; `strip` stays what it always was — a decision about the answer,
+    # not about access.
+    await assert_learner_can_open(
+        user=user, course=course, enrollments=EnrollmentRepository(db)
+    )
     strip = user.role == UserRole.EMPLOYEE
-    if strip:
-        enrollment_repo = EnrollmentRepository(db)
-        enrollment = await enrollment_repo.get_by_user_and_course(user.id, course_id)
-        if enrollment is None:
-            raise ForbiddenError("You are not enrolled in this course")
     node_count = len(await CourseNodeRepository(db).list_for_course(course_id))
     generator_ids = await repo.list_artifact_generator_ids(course.id)
     return _detail(
@@ -325,12 +327,10 @@ async def get_course_progress(
     if course is None:
         raise NotFoundError("courses", str(course_id))
 
-    # Employees must be enrolled.
-    if user.role == UserRole.EMPLOYEE:
-        enrollment_repo = EnrollmentRepository(db)
-        enrollment = await enrollment_repo.get_by_user_and_course(user.id, course_id)
-        if enrollment is None:
-            raise ForbiddenError("You are not enrolled in this course")
+    # Learners must be enrolled, and the course must still be open to them.
+    await assert_learner_can_open(
+        user=user, course=course, enrollments=EnrollmentRepository(db)
+    )
 
     # Build ordered list of lessons across all modules.
     ordered_lessons = sorted(

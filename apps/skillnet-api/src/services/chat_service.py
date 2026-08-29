@@ -120,6 +120,7 @@ from src.render.prompt import catalog_version
 from src.repositories.chat_repo import ChatRepository
 from src.services.chat_retrieval_policy import course_retrieval_required
 from src.services.org_snapshot import build_org_snapshot, render_snapshot
+from src.services.course_access import is_admin, is_archived
 from src.services.retrieval import GroundedContext, ground_question
 from src.services.small_talk import small_talk_reply
 
@@ -704,6 +705,16 @@ class ChatService:
             # Stale or cross-org id: degrade to the client strings rather than lie.
             return _node_context_prefix(context)
 
+        course = await CourseRepository(self.db).get_scoped(node.course_id, user.org_id)
+        if course is not None and is_archived(course) and not is_admin(user):
+            # The course was withdrawn from the learners (`services/course_access.py`).
+            # They cannot open the node any more, so the tutor must not read the node's
+            # served lesson out of the database on their behalf either. Degrading to no
+            # context at all rather than to the client's own strings: an archived course
+            # has no lesson on screen, and this file's other degradations exist for a
+            # *stale* id, which this is not. An admin previewing keeps the context.
+            return ""
+
         siblings = await node_repo.list_for_course(
             node.course_id, include_archived=False
         )
@@ -712,7 +723,6 @@ class ChatService:
             (i + 1 for i, n in enumerate(siblings) if n.id == node.id), node.position
         )
 
-        course = await CourseRepository(self.db).get_scoped(node.course_id, user.org_id)
         course_title = course.title if course else "?"
 
         lines = [

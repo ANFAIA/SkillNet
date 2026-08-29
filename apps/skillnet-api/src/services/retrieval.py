@@ -49,7 +49,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.logging import get_logger
 from src.llm.embedding import EmbeddingService
-from src.models import Course, CourseNode, Document, Enrollment
+from src.models import ContentStatus, Course, CourseNode, Document, Enrollment
 from src.repositories.document_chunk_repo import DocumentChunkRepository
 
 logger = get_logger(__name__)
@@ -333,9 +333,21 @@ async def enrolled_documents(
     each point somewhere else). ``org_id`` is in the ``WHERE`` as well as the enrolment
     join — the join already implies it, and defence in depth on a query that decides what
     text goes into a prompt is worth one redundant predicate.
+
+    **Archived courses drop out.** The enrolment row survives archiving (progress is not
+    destroyed, so unarchiving restores the course as it was), which is why this needs its
+    own predicate: without it the learner could no longer open the course, and the tutor
+    would go on answering out of its material — the same leak the route gate closes, one
+    layer down. The admin assistant is unaffected: it uses :func:`org_documents`.
     """
     course_ids = (
-        select(Enrollment.course_id).where(Enrollment.user_id == user_id).scalar_subquery()
+        select(Enrollment.course_id)
+        .join(Course, Course.id == Enrollment.course_id)
+        .where(
+            Enrollment.user_id == user_id,
+            Course.status != ContentStatus.ARCHIVED,
+        )
+        .scalar_subquery()
     )
     document_ids = select(Course.source_document_id).where(
         Course.id.in_(course_ids), Course.source_document_id.is_not(None)

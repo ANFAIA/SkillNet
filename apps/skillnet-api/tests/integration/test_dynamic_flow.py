@@ -722,17 +722,30 @@ async def onboard(learner: Actor) -> dict:
     questions = await learner.get("/onboarding")
     assert questions.status_code == 200, questions.text
     body = questions.json()
+    # The wizard renders whatever the server sends, in the order it sends it, and
+    # dispatches on `id` — so this is the list the client's `KNOWN_STEP_IDS` mirrors.
+    # `learning_preferences` sits before `accessibility` on purpose: it asks how the
+    # learner *wants* to be taught (a reversible priority), while `accessibility` asks
+    # what they *need* to read at all, which is the last screen of §6.2.
     assert [q["id"] for q in body["questions"]] == [
         "role_title",
         "goal",
         "experience_level",
         "preset",
+        "learning_preferences",
         "accessibility",
     ]
+    # Both preference screens are skippable; the first four are not.
+    assert {q["id"] for q in body["questions"] if q.get("optional")} == {
+        "learning_preferences",
+        "accessibility",
+    }
     # The art. 13 notice ships from the server, not from the wizard (§3.3).
     assert "proveedor de IA" in body["notice"]
-    # Suggestions follow the org's sector.
-    assert ROLE_TITLE in body["questions"][0]["suggestions"]
+    # Suggestions follow the org's sector. Looked up by `id`, not by position: nothing
+    # in the product depends on a question's index, so neither should this.
+    role_question = next(q for q in body["questions"] if q["id"] == "role_title")
+    assert ROLE_TITLE in role_question["suggestions"]
 
     submitted = await learner.post(
         "/onboarding",

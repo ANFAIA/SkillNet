@@ -8,6 +8,13 @@ The answer must be "the ones assigned to them", the same answer v1 gives in
 graph, probe, render, answer and give feedback on a course nobody assigned them, and make
 ``POST /nodes/{id}/render`` spend real tokens doing it.
 
+Since the archive was made a rule rather than a suggestion, the same list of routes
+answers a second question: an **enrolled** learner whose course was archived is refused
+too. Archiving leaves every enrollment untouched (progress survives, so unarchiving
+restores the course as it was), which is precisely why the enrollment row cannot be the
+whole rule. Both halves now live in one place, ``src/services/course_access.py``; the v1
+side and the rest of the story are in ``tests/test_archived_course_access.py``.
+
 Three more properties live here because they are route-shaped and need no database:
 
 * ``GET /nodes/{id}/renders/{render_id}`` is authorized by ``node_render_views``, not by
@@ -63,6 +70,9 @@ class FakeCourse:
     org_id: uuid.UUID = ORG_ID
     schema_version: int = 1
     delivery_mode: str = "dynamic"
+    #: Read by the shared gate in ``src/services/course_access.py``: an archived course
+    #: is closed to the learners even though their enrollment survives archiving.
+    status: str = "published"
 
 
 @dataclass
@@ -291,6 +301,48 @@ def test_an_unenrolled_employee_is_forbidden_everywhere(
     body_json = response.json()
     assert body_json["code"] == "FORBIDDEN"
     assert "not enrolled" in body_json["detail"].lower()
+
+
+@pytest.mark.parametrize(("method", "path", "body"), GATED)
+def test_an_archived_course_is_closed_to_its_own_learner(
+    client: TestClient, world: World, method: str, path: str, body: dict | None
+) -> None:
+    """Enrolled, and still refused — the other half of the same gate.
+
+    Archiving a course means the learners stop seeing it, and it deliberately leaves
+    every enrollment untouched so that progress survives and ``POST …/unarchive``
+    restores the course as it was. That is exactly why the enrollment row cannot be the
+    whole rule: it is still there, so a learner with the URL saved kept opening the node
+    graph of a course that had been withdrawn. Same list of routes, for the same reason:
+    the check lives in one place and no route may be able to forget it.
+
+    403 and not 404 for the reason ``services/course_access.py`` sets out: this learner
+    was assigned the course and their progress is still on the row, so there is nothing
+    to conceal — unlike a course of another organisation, which stays a 404 below.
+    """
+    assert world.course is not None
+    world.course.status = "archived"
+
+    response = client.request(
+        method, f"{PREFIX}{path}", **({"json": body} if body is not None else {})
+    )
+
+    assert response.status_code == 403, response.text
+    body_json = response.json()
+    assert body_json["code"] == "FORBIDDEN"
+    assert "archived" in body_json["detail"].lower()
+
+
+def test_an_admin_may_still_review_an_archived_course(
+    client: TestClient, world: World
+) -> None:
+    """"Probar curso" self-enrols the admin, so only the role tells the reviewer of an
+    archived course apart from a learner who kept the link."""
+    assert world.course is not None
+    world.course.status = "archived"
+    as_admin(client)
+
+    assert client.get(f"{PREFIX}/courses/{COURSE_ID}/nodes").status_code == 200
 
 
 def test_an_enrolled_employee_gets_the_node_list(client: TestClient) -> None:

@@ -17,6 +17,10 @@ from src.repositories.lesson_progress_repo import LessonProgressRepository
 from src.repositories.lesson_repo import LessonRepository
 from src.schemas.course import LessonRead, LessonUpdate
 from src.schemas.exercise import ExerciseRead
+from src.services.course_access import (
+    NOT_ENROLLED_MESSAGE,
+    assert_learner_can_open,
+)
 from src.services.enrollment_service import EnrollmentService
 
 router = APIRouter(prefix="/lessons", tags=["Lessons"])
@@ -91,9 +95,17 @@ async def complete_lesson(
     course = lesson.module.course
     enrollment_repo = EnrollmentRepository(db)
     exercise_repo = ExerciseRepository(db)
-    enrollment = await enrollment_repo.get_by_user_and_course(user.id, course.id)
+    # The shared learner gate (`services/course_access.py`): enrolled, and the course
+    # not archived. It returns the enrollment because this route writes to it.
+    enrollment = await assert_learner_can_open(
+        user=user, course=course, enrollments=enrollment_repo
+    )
     if enrollment is None:
-        raise ForbiddenError("You are not enrolled in this course")
+        # Only an admin reaches this: the gate raises for a learner without a row. They
+        # are exempt from the gate, not from needing an enrollment — the status
+        # transitions below have nothing to write without one, and "Probar curso"
+        # self-enrols them. Same 403 as before this route used the gate.
+        raise ForbiddenError(NOT_ENROLLED_MESSAGE)
 
     # Enforce sequential progression: the previous lesson (by module
     # position, then lesson position) must be completed before this one.
