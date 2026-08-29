@@ -482,9 +482,19 @@ export interface LearningNode {
   position: number
   state: NodeState
   mastery: number
-  locked: boolean
-  /** Ids of the unmet prerequisites that keep this node locked. */
-  locked_by: string[]
+  /**
+   * Done with it — `mastered` **or** worked through to the end. Sent by the server
+   * (`services/node_progression`) rather than derived here from `state` and
+   * `completed_at`: deriving it in two places is what kept the padlocks and the progress
+   * bar disagreeing.
+   */
+  done: boolean
+  /**
+   * May this learner open it. Always `true` while progression is linear — a course is a
+   * sequence you walk through and mastery does not govern navigation. Replaces
+   * `locked`/`locked_by`; see `docs/design/future-progression-modes.md`.
+   */
+  available: boolean
   /** `state === 'needs_review'` (§7.4). */
   needs_practice: boolean
   /**
@@ -698,7 +708,17 @@ export interface NodeList {
   delivery_mode: CourseDeliveryMode
   schema_version: number
   nodes: LearningNode[]
-  /** §7.5: every non-archived `critical` node mastered. */
+  /**
+   * Where this learner should go now: the first node not yet done, in order. `null` when
+   * the course is finished or empty. The server answers it so that the day the answer
+   * stops being "the next one" no client has to change.
+   *
+   * Not the same question as "where did I leave off", which is `selectResumeNode` over
+   * `first_seen_at` — the deepest node actually opened. Both are legitimate and they
+   * disagree on purpose.
+   */
+  next_node_id: string | null
+  /** §7.5: every non-archived node done (`mastered` or finished). */
   can_complete: boolean
   blocked_by: string[]
   progress_percent: number

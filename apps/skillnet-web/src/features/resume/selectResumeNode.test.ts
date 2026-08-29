@@ -21,8 +21,8 @@ function node(overrides: Partial<LearningNode> = {}): LearningNode {
     position: 1,
     state: 'not_started',
     mastery: 0,
-    locked: false,
-    locked_by: [],
+    done: false,
+    available: true,
     needs_practice: false,
     first_seen_at: null,
     completed_at: null,
@@ -56,12 +56,15 @@ describe('selectResumeNode', () => {
     expect(selectResumeNode(nodes)?.id).toBe('n1')
   })
 
-  it('never returns a locked node', () => {
+  it('returns the deepest node seen, with no lock left to skip it', () => {
+    // Antes este caso comprobaba que un nodo bloqueado no se devolvia nunca. Ya no hay
+    // bloqueo: la progresion es lineal y todo esta abierto. Lo que sigue mandando es
+    // `first_seen_at`, asi que el nodo visto es el que se reanuda aunque sea el primero.
     const nodes = [
-      node({ id: 'n1', position: 1, locked: true, first_seen_at: '2026-08-24T18:00:00Z' }),
+      node({ id: 'n1', position: 1, first_seen_at: '2026-08-24T18:00:00Z' }),
       node({ id: 'n2', position: 2 }),
     ]
-    expect(selectResumeNode(nodes)?.id).toBe('n2')
+    expect(selectResumeNode(nodes)?.id).toBe('n1')
   })
 
   it('moves forward past a node that was seen and then mastered', () => {
@@ -80,8 +83,7 @@ describe('selectResumeNode', () => {
     expect(selectResumeNode(nodes)?.id).toBe('n2')
   })
 
-  it('is undefined when nothing is unlocked, which is what disables the button', () => {
-    expect(selectResumeNode([node({ locked: true })])).toBeUndefined()
+  it('is undefined only for an empty course', () => {
     expect(selectResumeNode([])).toBeUndefined()
   })
 

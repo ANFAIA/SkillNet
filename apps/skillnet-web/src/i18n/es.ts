@@ -1032,8 +1032,6 @@ export const es: Record<string, string> = {
   'nodelist.criticalityRecommended': 'Recomendado',
   'nodelist.criticalityContextual': 'Contexto',
   'nodelist.mastery': 'Dominio {pct}%',
-  'nodelist.lockedBy': 'Necesitas antes: {titles}',
-  'nodelist.lockedGeneric': 'Necesitas completar antes otra lección de este curso.',
   'nodelist.empty': 'Este curso todavía no tiene lecciones publicadas.',
   'nodelist.canComplete': 'Has dominado todas las lecciones de este curso.',
   'nodelist.blockedBy': 'Para completar el curso te falta: {titles}.',

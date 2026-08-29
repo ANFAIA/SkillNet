@@ -110,6 +110,7 @@ function nodeList(deliveryMode: 'static' | 'dynamic') {
     course_id: COURSE_ID,
     delivery_mode: deliveryMode,
     schema_version: 3,
+    next_node_id: null,
     nodes: [
       {
         id: NODE_ID,
@@ -119,8 +120,6 @@ function nodeList(deliveryMode: 'static' | 'dynamic') {
         position: 1,
         state: 'not_started',
         mastery: 0,
-        locked: false,
-        locked_by: [],
         needs_practice: false,
         first_seen_at: null as string | null,
       },
@@ -285,7 +284,6 @@ describe('CourseView — coming back to a course', () => {
     return {
       lesson_id: lessonId,
       completed,
-      locked: false,
       exercises_pending: 0,
       exercises_total: 0,
       exercises_passed: 0,

@@ -13,9 +13,6 @@ import type { LearningNode, NodeList as NodeListRead, NodeState } from '../../ty
  *
  * What it has to make visible, because each one is a promise made elsewhere:
  *
- * - **Why a node is locked**, not just that it is. `locked_by` names the unmet
- *   prerequisites, so the list can say "necesitas antes: X" instead of showing a padlock
- *   with no way out.
  * - **The practice queue** (§7.4). A node in `needs_review` gets its own section instead
  *   of disappearing: that is one of the three things the state was introduced to give
  *   (visibility, re-entry, the human waiver).
@@ -38,43 +35,19 @@ const STATE_CLASS: Record<NodeState, string> = {
   needs_review: 'text-warning',
 }
 
-function LockIcon() {
-  return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="text-text-muted shrink-0"
-      aria-hidden="true"
-    >
-      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-    </svg>
-  )
-}
 
 function NodeRow({
   node,
-  titleById,
   animated,
   courseBasePath,
 }: {
   node: LearningNode
-  titleById: Map<string, string>
   /** Off under reduced motion, and off for the parent that is not staggering. */
   animated: boolean
   /** Base path to the course view, derived from current location. */
   courseBasePath: string
 }) {
   const intl = useIntl()
-  const blockers = node.locked_by
-    .map((id) => titleById.get(id))
-    .filter((title): title is string => !!title)
 
   const STATE_LABEL: Record<NodeState, string> = {
     not_started: intl.formatMessage({ id: 'nodelist.stateNotStarted' }),
@@ -86,7 +59,6 @@ function NodeRow({
   const body = (
     <>
       <div className="flex items-center gap-2 min-w-0">
-        {node.locked && <LockIcon />}
         <span className="text-sm font-medium text-text truncate min-w-0">
           {node.title}
         </span>
@@ -100,13 +72,6 @@ function NodeRow({
       <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-text-muted">
         <span className="tabular-nums">{intl.formatMessage({ id: 'nodelist.mastery' }, { pct: Math.round(node.mastery * 100) })}</span>
       </div>
-      {node.locked && (
-        <p className="mt-2 text-xs text-text-muted">
-          {blockers.length > 0
-            ? intl.formatMessage({ id: 'nodelist.lockedBy' }, { titles: blockers.join(', ') })
-            : intl.formatMessage({ id: 'nodelist.lockedGeneric' })}
-        </p>
-      )}
     </>
   )
 
@@ -117,14 +82,6 @@ function NodeRow({
   function captureOrigin(e: MouseEvent<HTMLAnchorElement>) {
     const rect = e.currentTarget.getBoundingClientRect()
     setMorphOrigin({ top: rect.top, left: rect.left, width: rect.width, height: rect.height })
-  }
-
-  if (node.locked) {
-    return (
-      <motion.li variants={variants}>
-        <div className="px-4 py-3 border-b border-border last:border-b-0 opacity-60">{body}</div>
-      </motion.li>
-    )
   }
 
   return (
@@ -194,7 +151,6 @@ export function NodeList({ data }: NodeListProps) {
             <NodeRow
               key={node.id}
               node={node}
-              titleById={titleById}
               animated={!reduceMotion}
               courseBasePath={courseBasePath}
             />
@@ -214,7 +170,6 @@ export function NodeList({ data }: NodeListProps) {
                 <NodeRow
                   key={node.id}
                   node={node}
-                  titleById={titleById}
                   animated={!reduceMotion}
                   courseBasePath={courseBasePath}
                 />

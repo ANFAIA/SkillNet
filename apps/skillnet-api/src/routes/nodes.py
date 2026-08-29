@@ -109,9 +109,9 @@ from src.services.mastery_service import (
     HINT_LIMIT,
     MASTERED,
     NEEDS_REVIEW,
-    evaluate_course_completion,
     may_offer_hint,
 )
+from src.services.node_progression import course_progression
 from src.services.mastery_evidence_service import MasteryEvidenceService
 from src.services.node_grading import (
     classify_error,
@@ -324,7 +324,14 @@ def _is_admin(user: Any) -> bool:
 async def list_course_nodes(
     user: CurrentUser, db: DBSession, course_id: uuid.UUID
 ) -> NodeListRead:
-    """The node list with per-learner state, locks and the completion rule of §7.5."""
+    """The node list with per-learner state and the completion rule of §7.5.
+
+    This route **serialises**; it does not decide. Where a learner stands is one question
+    and ``services/node_progression`` is the one place that answers it — including what
+    "done" means, which this route used to spell out for itself and got wrong: it compared
+    prerequisites against ``mastered`` while the rest of the system had moved to
+    ``node_is_done``, so a finished expository node locked its successor for ever.
+    """
     course = await CourseRepository(db).get_scoped(course_id, user.org_id)
     if course is None or resolve_delivery(course) != "dynamic":
         raise NotFoundError("courses", str(course_id))
@@ -332,105 +339,50 @@ async def list_course_nodes(
 
     node_repo = CourseNodeRepository(db)
     nodes = list(await node_repo.list_for_course(course_id, include_archived=False))
-    node_ids = [node.id for node in nodes]
-    prerequisites = await node_repo.prerequisites_for(node_ids)
     states = await LearnerNodeStateRepository(db).states_for_nodes(
-        user_id=user.id, node_ids=node_ids
+        user_id=user.id, node_ids=[node.id for node in nodes]
     )
+    progression = course_progression(nodes, states)
+    by_id = {node.id: node for node in nodes}
 
-    def state_value(node_id: uuid.UUID) -> str:
-        row = states.get(node_id)
-        if row is None:
-            return "not_started"
-        return str(getattr(row.state, "value", row.state))
-
-    rows: list[NodeSummaryRead] = []
-    for node in nodes:
-        row = states.get(node.id)
-        unmet = [
-            prerequisite_id
-            for prerequisite_id in prerequisites.get(node.id) or []
-            # A prerequisite that is not in this course's active set (archived, or moved)
-            # cannot keep anybody locked: there would be no way to ever clear it.
-            if prerequisite_id in states or prerequisite_id in node_ids
-            if state_value(prerequisite_id) != MASTERED
-        ]
-        current = state_value(node.id)
-        rows.append(
-            NodeSummaryRead(
-                id=node.id,
-                title=node.title,
-                summary=node.summary,
-                criticality=str(getattr(node.criticality, "value", node.criticality)),
-                position=node.position,
-                state=current,
-                mastery=float(getattr(row, "mastery", 0.0) or 0.0),
-                locked=bool(unmet),
-                locked_by=unmet,
-                needs_practice=current == NEEDS_REVIEW,
-                # "Where was I?" — see NodeSummaryRead. Null for a node never served to
-                # this learner, including the ones the prefetch already created a row for.
-                first_seen_at=getattr(row, "first_seen_at", None),
-                # The other half of "done". `state` cannot carry it: an expository node
-                # has no graded item, so it never leaves `not_started` however completely
-                # it was read. See `NodeSummaryRead.completed_at`.
-                completed_at=getattr(row, "completed_at", None),
-            )
+    rows = [
+        NodeSummaryRead(
+            id=item.node_id,
+            title=by_id[item.node_id].title,
+            summary=by_id[item.node_id].summary,
+            criticality=str(
+                getattr(
+                    by_id[item.node_id].criticality,
+                    "value",
+                    by_id[item.node_id].criticality,
+                )
+            ),
+            position=item.position,
+            state=item.state,
+            mastery=item.mastery,
+            done=item.done,
+            available=item.available,
+            needs_practice=item.state == NEEDS_REVIEW,
+            # "Where was I?" — see NodeSummaryRead. Null for a node never served to
+            # this learner, including the ones the prefetch already created a row for.
+            first_seen_at=item.first_seen_at,
+            # The other half of "done". `state` cannot carry it: an expository node
+            # has no graded item, so it never leaves `not_started` however completely
+            # it was read. See `NodeSummaryRead.completed_at`.
+            completed_at=item.completed_at,
         )
-
-    completion = evaluate_course_completion(
-        [
-            _CompletionRow(
-                node_id=node.id,
-                criticality=node.criticality,
-                archived=bool(node.archived),
-                state=state_value(node.id),
-                mastery=float(getattr(states.get(node.id), "mastery", 0.0) or 0.0),
-                completed_at=getattr(states.get(node.id), "completed_at", None),
-            )
-            for node in nodes
-        ]
-    )
+        for item in progression.nodes
+    ]
     return NodeListRead(
         course_id=course.id,
         delivery_mode=str(getattr(course.delivery_mode, "value", course.delivery_mode)),
         schema_version=int(course.schema_version or 1),
         nodes=rows,
-        can_complete=completion.can_complete,
-        blocked_by=list(completion.blocked_by),
-        progress_percent=completion.progress_percent,
+        next_node_id=progression.next_node_id,
+        can_complete=progression.can_complete,
+        blocked_by=list(progression.blocked_by),
+        progress_percent=progression.progress_percent,
     )
-
-
-class _CompletionRow:
-    """Structural stand-in for ``NodeProgressLike`` (§7.5). Deliberately not the ORM row:
-    the rule is over ``(node, learner state)`` and neither table holds both halves."""
-
-    __slots__ = (
-        "archived",
-        "completed_at",
-        "criticality",
-        "mastery",
-        "node_id",
-        "state",
-    )
-
-    def __init__(
-        self,
-        *,
-        node_id: uuid.UUID,
-        criticality: Any,
-        archived: bool,
-        state: str,
-        mastery: float,
-        completed_at: Any = None,
-    ) -> None:
-        self.node_id = node_id
-        self.criticality = criticality
-        self.archived = archived
-        self.state = state
-        self.mastery = mastery
-        self.completed_at = completed_at
 
 
 # --------------------------------------------------------------------------------------

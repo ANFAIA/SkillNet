@@ -27,13 +27,18 @@ import type { LearningNode } from '../../types'
  *
  * 1. the most recently seen unlocked node that is not yet mastered (ties broken by the
  *    earlier position, so a course seeded in one batch is still deterministic);
- * 2. failing that, the first unlocked node with nothing mastered in it — a learner whose
- *    every visited node is done should move forward, not reopen the last one;
- * 3. failing that, the last unlocked node: everything is mastered, so this is a review;
- * 4. `undefined` when nothing is unlocked at all, which is what disables the button.
+ * 2. failing that, the first node with nothing mastered in it — a learner whose every
+ *    visited node is done should move forward, not reopen the last one;
+ * 3. failing that, the last node: everything is mastered, so this is a review;
+ * 4. `undefined` only for an empty course.
+ *
+ * This is NOT `NodeListRead.next_node_id`, and the difference is deliberate: that one is
+ * the first node not yet done — what is left to do — while this is the deepest node
+ * actually reached. "Where did I leave off" and "what is missing" are different
+ * questions and they disagree whenever somebody skipped ahead.
  */
 export function selectResumeNode(nodes: LearningNode[]): LearningNode | undefined {
-  const open = [...nodes].filter((node) => !node.locked).sort((a, b) => a.position - b.position)
+  const open = [...nodes].sort((a, b) => a.position - b.position)
   if (open.length === 0) return undefined
 
   const unfinished = open.filter((node) => node.state !== 'mastered')

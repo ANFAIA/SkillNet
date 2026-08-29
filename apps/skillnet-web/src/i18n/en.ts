@@ -1032,8 +1032,6 @@ export const en: Record<string, string> = {
   'nodelist.criticalityRecommended': 'Recommended',
   'nodelist.criticalityContextual': 'Context',
   'nodelist.mastery': 'Mastery {pct}%',
-  'nodelist.lockedBy': 'Requires first: {titles}',
-  'nodelist.lockedGeneric': 'You need to complete another lesson in this course first.',
   'nodelist.empty': 'This course has no published lessons yet.',
   'nodelist.canComplete': 'You have mastered every lesson in this course.',
   'nodelist.blockedBy': 'To complete the course you still need: {titles}.',

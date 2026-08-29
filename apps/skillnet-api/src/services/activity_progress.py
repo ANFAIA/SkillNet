@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 from src.models.learner_node_state import LearnerNodeState, NodeState
+from src.services.node_progression import is_done
 
 
 ProgressStatus = Literal["not_started", "in_progress", "completed"]
@@ -32,18 +33,25 @@ class ActivityProgress:
         }
 
 
-def _status(state: NodeState | None) -> ProgressStatus:
-    if state is None or state is NodeState.NOT_STARTED:
-        return "not_started"
-    if state is NodeState.MASTERED:
+def _status(row: LearnerNodeState | None) -> ProgressStatus:
+    """"Completed" is ``node_progression.is_done``, not ``state is MASTERED``.
+
+    This used to ask the evidence machine alone, which meant an expository node reported
+    ``not_started`` for ever no matter how completely somebody worked through it — it has
+    no graded item, so it never leaves that state. It was one of the two places that wrote
+    the "done" predicate by hand outside the module that owns it.
+    """
+    if is_done(row):
         return "completed"
+    if row is None or row.state is NodeState.NOT_STARTED:
+        return "not_started"
     return "in_progress"
 
 
 def _percent(row: LearnerNodeState | None) -> int:
     if row is None:
         return 0
-    if row.state is NodeState.MASTERED:
+    if is_done(row):
         return 100
     return max(0, min(100, round(float(row.mastery) * 100)))
 
@@ -59,7 +67,7 @@ def _level(status: ProgressStatus, percent: int) -> MasteryLevel:
 def project_activity_progress(
     component_id: str, row: LearnerNodeState | None
 ) -> ActivityProgress:
-    status = _status(None if row is None else row.state)
+    status = _status(row)
     progress = _percent(row)
     return ActivityProgress(
         component_id=component_id,

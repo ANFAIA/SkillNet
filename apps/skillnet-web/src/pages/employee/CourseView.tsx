@@ -96,7 +96,7 @@ export function CourseView() {
     // the rolling three-ahead window once the learner enters the course.
     return [...dynamicNodes.nodes]
       .sort((a, b) => a.position - b.position)
-      .filter((n) => !n.locked && (n.state === 'not_started' || n.state === 'learning'))
+      .filter((n) => n.state === 'not_started' || n.state === 'learning')
       .slice(0, 2)
   }, [dynamicNodes])
 

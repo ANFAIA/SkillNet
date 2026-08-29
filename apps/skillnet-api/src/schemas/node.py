@@ -46,10 +46,19 @@ class NodeSummaryRead(BaseModel):
     position: int
     state: str
     mastery: float
-    locked: bool
-    #: Ids of the unmet prerequisites. Naming *why* it is locked is what makes the lock
-    #: actionable instead of a dead end.
-    locked_by: list[uuid.UUID] = Field(default_factory=list)
+    #: Done with it — ``mastered`` **or** worked through to the end
+    #: (``mastery_service.node_is_done``, computed once in ``services/node_progression``).
+    #: Sent rather than left for the client to derive from ``state`` and ``completed_at``:
+    #: deriving it in two places is what put the padlocks and the progress bar in
+    #: disagreement for months.
+    done: bool = False
+    #: May this learner open it. Always ``true`` while progression is linear — a course is
+    #: a sequence you walk through, and mastery is measured without governing navigation.
+    #:
+    #: Replaces ``locked``/``locked_by``, and the change of word is the point: a lock is a
+    #: prohibition, this is an answer. When a mode that steers the route arrives, the field
+    #: keeps its meaning and only its value starts moving.
+    available: bool = True
     #: ``state == 'needs_review'`` (§7.4). The node stays visible in a "para practicar"
     #: section instead of disappearing.
     #:
@@ -91,6 +100,14 @@ class NodeListRead(BaseModel):
     delivery_mode: str
     schema_version: int
     nodes: list[NodeSummaryRead] = Field(default_factory=list)
+    #: Where this learner should go now: the first node not yet done, in order. ``null``
+    #: when the course is finished or empty.
+    #:
+    #: **The server answers instead of shipping a list for the client to filter.** That is
+    #: the whole point of the field: today it is trivially "the next one", but the client
+    #: that stops computing it is the client that does not need rewriting when the answer
+    #: starts coming from somewhere that cannot live in a browser.
+    next_node_id: uuid.UUID | None = None
     #: §7.5, as ``mastery_service.node_is_done`` now spells it: every non-archived node
     #: mastered **or** finished. Criticality does not gate closure.
     can_complete: bool = False
