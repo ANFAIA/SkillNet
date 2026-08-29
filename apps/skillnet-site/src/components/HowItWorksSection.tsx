@@ -54,8 +54,10 @@ function frameAt(cuts: readonly number[], time: number): number {
 }
 
 function InfographicCell({ copy, lang }: { copy: Copy["howItWorks"]; lang: Locale }) {
-  return <div className="media-image">
-    <img src={INFOGRAPHIC_IMAGES[lang]} alt={copy.imageAlt} loading="lazy" decoding="async" />
+  return <div className="media-image-wrap">
+    <div className="media-image">
+      <img src={INFOGRAPHIC_IMAGES[lang]} alt={copy.imageAlt} loading="lazy" decoding="async" />
+    </div>
   </div>;
 }
 

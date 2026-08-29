@@ -174,19 +174,27 @@ a {
    what lets them shrink with the card. */
 
 /* The infographic is one complete image; no UI is composed over it. */
+.media-image-wrap {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  margin-top: 24px;
+  align-items: center;
+}
+
 .media-image {
   display: flex;
   width: 100%;
-  min-height: 0;
-  flex: 1;
-  margin: 24px 0 0;
+  flex: none;
+  aspect-ratio: 1672 / 941;
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--color-primary) 22%, white);
   border-radius: 8px;
-  background: #f7f3eb;
+  background: #fff;
 }
 
 .media-image > img {
+  display: block;
   width: 100%;
   height: 100%;
   object-fit: contain;
@@ -199,17 +207,19 @@ a {
   min-height: 0;
   margin-top: 24px;
   flex-direction: column;
+  justify-content: center;
 }
 
 .media-video__still {
   display: grid;
   grid-template-areas: "stack";
-  flex: 1;
-  min-height: 0;
+  width: 100%;
+  flex: none;
+  aspect-ratio: 1672 / 941;
   overflow: hidden;
   border-radius: 8px 8px 0 0;
   border: 1px solid var(--color-border-strong);
-  background: #f8fafc;
+  background: #fff;
 }
 
 /* Frames and controls share one grid cell; the controls paint over the scene. */
@@ -222,6 +232,7 @@ a {
   display: grid;
   grid-template-areas: "frame";
   overflow: hidden;
+  background: #fff;
 }
 
 .media-video__frame {
@@ -1280,8 +1291,12 @@ a.social-link:hover {
 }
 
 @media (max-width: 1000px) {
-  /* Narrow panes: from here down a media cell is only ~215px wide, whether the
-     grid still has two columns or has already collapsed to one. */
+  /* Do not keep squeezing the four media examples into two columns on tablets.
+     A single column gives the image, video and waveform enough room to retain
+     their intended proportions before they begin to look compressed. */
+  .multimodal-surface {
+    grid-template-columns: 1fr;
+  }
 
   /* 48 bars with a 3px gap needed 189px of gutter alone, so the bars collapsed to
      nothing and the row spilled out of the clipped card. 28 bars fit; keep the
@@ -1316,11 +1331,6 @@ a.social-link:hover {
 }
 
 @media (max-width: 700px) {
-
-  .multimodal-surface {
-    grid-template-columns: 1fr;
-  }
-
   .media-audio p {
     margin-left: 0;
   }
