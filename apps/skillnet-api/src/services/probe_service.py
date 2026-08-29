@@ -50,14 +50,12 @@ from src.services.mastery_service import (
     APPLY_FLOOR,
     LEARNING,
     MASTERED,
-    NEEDS_REVIEW,
     NOT_STARTED,
     PROBING,
     ProbeVerdict,
     RenderHint,
     Transition,
     mastery_prior,
-    may_reprobe,
     probe_verdict,
     requires_tiebreak,
     scaffold_band_for,
@@ -459,7 +457,7 @@ class ProbeService:
                 # ``runtime_fast`` call each time in any course whose probe pre-generation
                 # had degraded.
                 return self._session_for(latest, node=node)  # type: ignore[arg-type]
-            if _value(state.state) in (LEARNING, MASTERED, NEEDS_REVIEW):
+            if _value(state.state) in (LEARNING, MASTERED):
                 # Past the probe with no scored row: the diagnostic probe of §7.1, already
                 # answered. The probe is over for this node until a re-probe is authorized.
                 closed: ProbeVerdict = (
@@ -516,21 +514,26 @@ class ProbeService:
         return int(getattr(probe, "schema_version", schema_version)) == schema_version
 
     async def _authorize_reprobe(self, *, state: Any, existing: Any, now: datetime) -> None:
-        """Re-probe only from ``needs_review`` and only 7 days after the last one (§3.4)."""
-        latest = existing
-        if latest is None:
-            latest = await self.probe_repo.latest(
-                user_id=state.user_id, node_id=state.node_id
-            )
-        completed_at = getattr(latest, "completed_at", None) if latest is not None else None
-        if not may_reprobe(state=state.state, completed_at=completed_at, now=now):
-            raise ConflictError(
-                "A node can only be re-probed from 'needs_review' and at least "
-                "7 days after the previous probe was completed.",
-                field="state",
-            )
-        if latest is not None and latest.scored:
-            await self.probe_repo.supersede(latest)
+        """Nothing authorizes a re-probe any more — and that is not a new policy.
+
+        §3.4 read "re-probe only from ``needs_review``, and only 7 days after the previous
+        probe was completed". Migration 0033 removed ``needs_review``, so the first half of
+        that gate can never hold again and the cooldown by itself decides nothing. The
+        refusal is unconditional here, rather than kept in ``mastery_service.may_reprobe``
+        (deleted along with the state), because the apparently smaller change — drop the
+        state check, keep the cooldown — is not smaller but *wider*: it would let anyone
+        re-probe a node they had already mastered, one week later, and buy a second hand of
+        items for a verdict they already earned.
+
+        No reachable state authorized a re-probe before this commit either, so the observable
+        behaviour is unchanged. Which condition replaces ``needs_review`` is a product
+        decision and belongs to the change that makes it; ``?reprobe=true`` on the route and
+        ``probe_repo.supersede`` are left in place for it.
+        """
+        raise ConflictError(
+            "Re-probing is not available: the node state it was gated on no longer exists.",
+            field="state",
+        )
 
     def _session_for(self, probe: ProbeRow, *, node: Any) -> ProbeSession:
         verdict: ProbeVerdict | None = None

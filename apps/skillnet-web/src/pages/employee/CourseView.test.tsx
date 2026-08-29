@@ -120,7 +120,6 @@ function nodeList(deliveryMode: 'static' | 'dynamic') {
         position: 1,
         state: 'not_started',
         mastery: 0,
-        needs_practice: false,
         first_seen_at: null as string | null,
       },
     ],

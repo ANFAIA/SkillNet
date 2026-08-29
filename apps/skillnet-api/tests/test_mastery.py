@@ -7,7 +7,7 @@ and a competent-but-imperfect learner must actually be able to finish the course
 """
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 
 import pytest
 
@@ -19,19 +19,18 @@ from src.services.mastery_service import (
     HINT_LIMIT,
     MASTERY_PRIOR,
     REGRESS_STREAK,
-    REPROBE_COOLDOWN_DAYS,
     SIGNAL_REINFORCE,
     THRESHOLDS,
     W3_APPLY,
     W3_CONSTRUCTED,
     W3_UNDERSTAND,
+    WORKED_SOLUTION_FAILURES,
     W_APPLY,
     W_UNDERSTAND,
     evaluate_course_completion,
     ewma,
     mastery_prior,
     may_offer_hint,
-    may_reprobe,
     next_mastery,
     probe_estimate,
     probe_item_count,
@@ -67,7 +66,7 @@ def test_constants_match_the_spec():
     assert (FADING_STREAK, REGRESS_STREAK) == (3, 2)
     assert ALPHA == 0.4
     assert HINT_LIMIT == 3
-    assert REPROBE_COOLDOWN_DAYS == 7
+    assert WORKED_SOLUTION_FAILURES == 4
     # The weights must add up, or the estimate is not on a 0..1 scale.
     assert W_APPLY + W_UNDERSTAND == pytest.approx(1.0)
     assert W3_APPLY + W3_UNDERSTAND + W3_CONSTRUCTED == pytest.approx(1.0)
@@ -458,7 +457,7 @@ def test_transition_7_two_failures_lower_the_difficulty_without_changing_state()
     assert t.lower_difficulty is True
 
 
-def test_transition_8_fourth_failure_after_three_hints_goes_to_needs_review():
+def test_transition_8_fourth_failure_after_three_hints_hands_over_the_solution():
     t = transition_on_answer(
         state="learning",
         mastery=0.3,
@@ -470,12 +469,21 @@ def test_transition_8_fourth_failure_after_three_hints_goes_to_needs_review():
         hints_used=HINT_LIMIT,
         item_failures=3,
     )
-    assert (t.rule, t.to_state) == (8, "needs_review")
+    # `learning`, not `mastered`: seeing the answer after four failures demonstrates
+    # nothing, and it is a state the learner can carry on from.
+    assert (t.rule, t.to_state) == (8, "learning")
     assert t.show_worked_solution is True
     assert t.attempts_delta == 1
 
 
 def test_transition_8_requires_both_the_hints_and_the_fourth_failure():
+    """The negative branches assert ``show_worked_solution``, **not** the state.
+
+    Every branch of ``transition_on_answer`` now returns ``learning`` for a failure, so
+    asserting ``to_state == "learning"`` here would pass whether or not rule 8 fired and
+    would test nothing. The flag is what separates them: it is the escape hatch, and both
+    halves of §7.4 have to be spent to earn it.
+    """
     without_hints = transition_on_answer(
         state="learning",
         mastery=0.3,
@@ -487,7 +495,8 @@ def test_transition_8_requires_both_the_hints_and_the_fourth_failure():
         hints_used=0,
         item_failures=3,
     )
-    assert without_hints.to_state == "learning"
+    assert without_hints.rule != 8
+    assert without_hints.show_worked_solution is False
 
     too_early = transition_on_answer(
         state="learning",
@@ -500,12 +509,13 @@ def test_transition_8_requires_both_the_hints_and_the_fourth_failure():
         hints_used=HINT_LIMIT,
         item_failures=2,
     )
-    assert too_early.to_state == "learning"
+    assert too_early.rule != 8
+    assert too_early.show_worked_solution is False
 
 
 def test_the_eight_transitions_are_all_covered():
-    """One assertion that the numbering is complete and unique — rule 8 is the only
-    producer of `needs_review`, and `mastered -> needs_review` does not exist here."""
+    """One assertion that the numbering is complete and unique: all 8 rows of the §7.3
+    table are still reachable, rule 8 included."""
     seen = {
         transition_open_node(prior=0.0).rule,
         transition_close_probe(verdict="mastered", score=1.0, prior=0.0).rule,
@@ -547,7 +557,7 @@ def test_the_eight_transitions_are_all_covered():
     assert seen == {1, 2, 3, 4, 5, 6, 7, 8}
 
 
-# --- §7.4 hints, §3.4 re-probe ----------------------------------------------
+# --- §7.4 hints and the escape hatch -----------------------------------------
 
 
 def test_attempt_before_hint():
@@ -557,19 +567,45 @@ def test_attempt_before_hint():
     assert may_offer_hint(item_attempts=1, hints_used=HINT_LIMIT) is False
 
 
-def test_may_reprobe_only_from_needs_review_after_seven_days():
-    now = datetime(2026, 7, 25, tzinfo=timezone.utc)
-    long_ago = now - timedelta(days=REPROBE_COOLDOWN_DAYS)
-    recent = now - timedelta(days=REPROBE_COOLDOWN_DAYS - 1)
+def test_the_hint_ladder_always_ends_in_an_escape():
+    """The reason the ``needs_review`` state could be removed: the exit is the flag.
 
-    assert may_reprobe(state="needs_review", completed_at=long_ago, now=now) is True
-    assert may_reprobe(state="needs_review", completed_at=recent, now=now) is False
-    assert may_reprobe(state="learning", completed_at=long_ago, now=now) is False
-    assert may_reprobe(state="mastered", completed_at=long_ago, now=now) is False
-    assert may_reprobe(state="needs_review", completed_at=None, now=now) is False
-    # A naive timestamp (as a DB driver may hand it back) is read as UTC, not crashed on.
-    naive = long_ago.replace(tzinfo=None)
-    assert may_reprobe(state="needs_review", completed_at=naive, now=now) is True
+    Three hints spent and a fourth failure of the same item, from the state the learner is
+    actually in. What has to hold is that the item stops being asked (``show_worked_solution``)
+    and that the state left behind is one the learner can carry on from — ``learning``, whose
+    every rule is still available to them, and never ``mastered``, which would stamp
+    ``mastered_at`` and print an unearned number on a certificate.
+    """
+    t = transition_on_answer(
+        state="learning",
+        mastery=0.25,
+        consecutive_correct=0,
+        consecutive_failed=3,
+        score=0.0,
+        passed=False,
+        threshold=0.90,
+        hints_used=HINT_LIMIT,
+        item_failures=HINT_LIMIT,
+    )
+    assert t.show_worked_solution is True
+    assert t.to_state == "learning"
+    assert t.stamp_mastered_at is False
+    # The attempt is counted, and the mastery it earned (none) is still written.
+    assert t.attempts_delta == 1
+    assert t.changes["mastery"] <= 0.25
+
+    # And from there the learner is not stuck: the ordinary rules still apply to the
+    # next item, up to and including mastering the node.
+    recovered = transition_on_answer(
+        state=t.to_state,
+        mastery=0.85,
+        consecutive_correct=2,
+        consecutive_failed=0,
+        score=1.0,
+        passed=True,
+        threshold=0.90,
+    )
+    assert (recovered.rule, recovered.to_state) == (6, "mastered")
 
 
 # --- §7.5 course closing -----------------------------------------------------
@@ -592,7 +628,7 @@ def test_course_completes_only_when_every_node_is_mastered():
         FakeNodeProgress("n1", "critical", "mastered", 0.95),
         FakeNodeProgress("n2", "critical", "learning", 0.40),
         FakeNodeProgress("n3", "recommended", "not_started", 0.0),
-        FakeNodeProgress("n4", "contextual", "needs_review", 0.0),
+        FakeNodeProgress("n4", "contextual", "learning", 0.0),
     ]
     result = evaluate_course_completion(nodes)
     assert result.can_complete is False
@@ -620,7 +656,7 @@ def test_recommended_and_contextual_now_block():
 def test_archiving_the_missing_node_unblocks_the_course():
     """The §7.5 recalculation: archiving the node that was missing must complete the
     course, and adding a critical node must un-complete it."""
-    blocking = FakeNodeProgress("n2", "critical", "needs_review", 0.30)
+    blocking = FakeNodeProgress("n2", "critical", "learning", 0.30)
     nodes = [FakeNodeProgress("n1", "critical", "mastered", 0.90), blocking]
     assert evaluate_course_completion(nodes).can_complete is False
 

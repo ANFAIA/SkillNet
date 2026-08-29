@@ -231,11 +231,11 @@ def test_a_new_critical_node_reopens_a_completed_enrollment() -> None:
     assert enrollment.completed_at is None
 
 
-def test_a_needs_review_critical_node_keeps_the_enrollment_active() -> None:
-    """§7.4: while a critical node is in ``needs_review`` the course stays ``active``."""
+def test_an_unfinished_critical_node_keeps_the_enrollment_active() -> None:
+    """§7.4: while a critical node is still being learnt the course stays ``active``."""
     enrollment = FakeEnrollment(status=EnrollmentStatus.IN_PROGRESS)
     completion = evaluate_course_completion(
-        [row(mastery=0.9), row(state="needs_review", mastery=0.4)]
+        [row(mastery=0.9), row(state="learning", mastery=0.4)]
     )
 
     assert apply_dynamic_closure(enrollment, completion) is None

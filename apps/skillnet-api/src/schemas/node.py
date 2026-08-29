@@ -59,16 +59,6 @@ class NodeSummaryRead(BaseModel):
     #: prohibition, this is an answer. When a mode that steers the route arrives, the field
     #: keeps its meaning and only its value starts moving.
     available: bool = True
-    #: ``state == 'needs_review'`` (§7.4). The node stays visible in a "para practicar"
-    #: section instead of disappearing.
-    #:
-    #: **Reserved in this PR: always ``false``.** ``needs_review`` has exactly one producer
-    #: — rule 8 of §7.3 — and rule 8 requires ``hints_used >= HINT_LIMIT``. ``hints_used``
-    #: only moves through ``POST /nodes/{id}/hint``, and no client calls it (see the note in
-    #: ``apps/skillnet-web/src/api/nodes.ts``), so the state is unreachable and so is the
-    #: practice queue. The field ships as the contract the hint ladder will fill, not as
-    #: coverage it already has.
-    needs_practice: bool = False
     #: ``learner_node_states.first_seen_at`` — when this learner was first served this
     #: node, ``null`` for a node they have never opened. It is the field a client needs to
     #: reopen a course where the learner left it, and the reason it is here rather than
@@ -314,10 +304,13 @@ class NodeAttemptResult(BaseModel):
     consecutive_correct: int = 0
     consecutive_failed: int = 0
     next: Literal["retry", "next_item", "next_node"] = "next_item"
-    #: §7.4: at the 4th failure after 3 hints the worked solution is shown and the node
-    #: enters the practice queue. **Reserved in this PR: always ``false``**, for the same
-    #: reason as ``NodeSummaryRead.needs_practice`` — the second half of the condition is
-    #: the server-side hint count, and nothing in the product spends a hint yet.
+    #: §7.4: at the 4th failure of this item after the 3 hints, the worked solution is
+    #: handed over and the item is closed — ``next`` is ``next_item``, not ``retry``.
+    #:
+    #: This is the whole escape hatch, and it is a flag rather than a state. The client
+    #: must act on it: it is the only signal that says "stop asking this learner for this
+    #: answer". Reachable in the product — ``hints_used`` moves through
+    #: ``POST /nodes/{id}/hint``, which ``QuizItemHints`` calls.
     show_worked_solution: bool = False
 
 
@@ -444,7 +437,6 @@ class NodeStateRead(BaseModel):
     hints_used: int = 0
     attempts_count: int = 0
     scaffold_band: str = "neutral"
-    needs_practice: bool = False
     waived_by: uuid.UUID | None = None
     waived_at: datetime | None = None
     active_render_id: uuid.UUID | None = None
@@ -462,7 +454,6 @@ class NodeStateRead(BaseModel):
             hints_used=int(state.hints_used or 0),
             attempts_count=int(state.attempts_count or 0),
             scaffold_band=str(state.scaffold_band or "neutral"),
-            needs_practice=str(value) == "needs_review",
             waived_by=state.waived_by,
             waived_at=state.waived_at,
             active_render_id=state.active_render_id,

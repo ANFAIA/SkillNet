@@ -572,8 +572,8 @@ export function useCompleteNode() {
 //
 // What changed by wiring it up is worth stating once: `node_attempts.hints_used` only
 // moves through that endpoint, and rule 8 of §7.3 needs it at 3. Until something spent a
-// hint, `needs_review` was unreachable, `NodeSummaryRead.needs_practice` was permanently
-// `false` and the "Para practicar" queue could not fill. It can now.
+// hint the worked solution was unreachable, so an item the learner could not answer had
+// no exit. It has one now.
 
 /** `POST /nodes/{node_id}/feedback` — `204`, and it fires the difficulty signals (§3.3). */
 export function useNodeFeedback(nodeId: string | undefined) {

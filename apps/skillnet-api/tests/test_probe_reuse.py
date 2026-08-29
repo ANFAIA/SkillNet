@@ -4,7 +4,9 @@ The three claims worth defending here are the ones that make mastery non-gameabl
 
 1. A second ``POST /probe`` for the same ``(user, node, schema_version)`` serves the
    stored verdict and generates nothing.
-2. A re-probe is refused unless the node is in ``needs_review`` *and* 7 days have passed.
+2. A re-probe is refused. §3.4 gated it on ``needs_review`` plus a 7-day cooldown, and
+   migration 0033 removed that state, so nothing satisfies the gate any more — see
+   ``ProbeService._authorize_reprobe`` for why the cooldown was not kept on its own.
 3. The novice's diagnostic probe (``scored = false``) neither persists failures nor
    consumes the single scored attempt.
 
@@ -26,7 +28,6 @@ from src.core.exceptions import ConflictError, LLMError, ValidationError
 from src.llm.client import LLMConfig
 from src.llm.fixtures import FixtureLLMService
 from src.llm.prompts.probe import PROBE_GENERATOR_SYSTEM, build_probe_prompt
-from src.services.mastery_service import REPROBE_COOLDOWN_DAYS
 from src.services.probe_service import (
     ITEM_A,
     ITEM_B,
@@ -437,10 +438,17 @@ async def test_reprobe_is_refused_from_learning():
         )
 
 
-async def test_reprobe_is_refused_before_seven_days():
+async def test_reprobe_is_refused_from_mastered_however_old_the_probe_is():
+    """The half of §3.4 that has to keep holding now that the gate refuses everything.
+
+    Whatever replaces ``needs_review`` as the entry condition, *this* case must stay a
+    ``409``: a learner who already mastered the node cannot buy a second hand of items,
+    and "just the 7-day cooldown" — the tempting one-line rewrite of the gate when the
+    state disappeared — would have handed it to them.
+    """
     items, key = make_items()
     node = canonical_node(probe_items=items, probe_answer_key=key)
-    state = FakeState(user_id=uuid.uuid4(), node_id=node.id, state="needs_review")
+    state = FakeState(user_id=uuid.uuid4(), node_id=node.id, state="mastered", mastery=0.95)
     service, probe_repo, _a, _s = build_service(node=node, state=state)
     probe_repo.rows.append(
         FakeProbe(
@@ -449,42 +457,15 @@ async def test_reprobe_is_refused_before_seven_days():
             schema_version=1,
             items=items,
             answer_key=key,
-            completed_at=NOW - timedelta(days=REPROBE_COOLDOWN_DAYS - 1),
+            completed_at=NOW - timedelta(days=365),
+            score=0.95,
+            mastered=True,
         )
     )
     with pytest.raises(ConflictError):
         await service.start_probe(
             user_id=state.user_id, node=node, schema_version=1, reprobe=True, now=NOW
         )
-
-
-async def test_reprobe_from_needs_review_after_seven_days_supersedes_the_old_row():
-    items, key = make_items()
-    node = canonical_node(probe_items=items, probe_answer_key=key)
-    state = FakeState(user_id=uuid.uuid4(), node_id=node.id, state="needs_review", mastery=0.4)
-    service, probe_repo, _a, state_repo = build_service(node=node, state=state)
-    old = FakeProbe(
-        user_id=state.user_id,
-        node_id=node.id,
-        schema_version=1,
-        items=items,
-        answer_key=key,
-        completed_at=NOW - timedelta(days=REPROBE_COOLDOWN_DAYS),
-        score=0.4,
-        mastered=False,
-    )
-    probe_repo.rows.append(old)
-
-    session = await service.start_probe(
-        user_id=state.user_id, node=node, schema_version=1, reprobe=True, now=NOW
-    )
-    assert session.reused is False
-    assert old.scored is False  # the evidence is kept, the index is freed
-    assert session.probe.scored is True
-    assert session.probe.attempt_no == 2
-    assert state.state == "probing"
-    # The mastery already earned is not thrown away by re-opening the probe.
-    assert state.mastery == pytest.approx(0.4)
 
 
 # --- the diagnostic probe (§7.1) ---------------------------------------------

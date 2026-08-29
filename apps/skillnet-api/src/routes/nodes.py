@@ -108,7 +108,6 @@ from src.services.learner_profile_service import (
 from src.services.mastery_service import (
     HINT_LIMIT,
     MASTERED,
-    NEEDS_REVIEW,
     may_offer_hint,
 )
 from src.services.node_progression import course_progression
@@ -362,7 +361,6 @@ async def list_course_nodes(
             mastery=item.mastery,
             done=item.done,
             available=item.available,
-            needs_practice=item.state == NEEDS_REVIEW,
             # "Where was I?" — see NodeSummaryRead. Null for a node never served to
             # this learner, including the ones the prefetch already created a row for.
             first_seen_at=item.first_seen_at,
@@ -882,7 +880,11 @@ async def answer_node_item(
         state=state_value,
         consecutive_correct=int(state.consecutive_correct or 0),
         consecutive_failed=int(state.consecutive_failed or 0),
-        next=_next_action(passed=result.passed, state=state_value),
+        next=_next_action(
+            passed=result.passed,
+            state=state_value,
+            show_worked_solution=transition.show_worked_solution,
+        ),
         show_worked_solution=transition.show_worked_solution,
     )
 
@@ -894,8 +896,8 @@ async def get_hint(
     """One hint, escalating, with ``attempt-before-hint`` and a hard cap of 3 (§7.4).
 
     ``409`` when there is no attempt yet — the whole point of the rule is that a hint follows
-    an honest try — and ``409`` once the quota is spent, at which point the next failure shows
-    the worked solution and the node moves to ``needs_review``.
+    an honest try — and ``409`` once the quota is spent, at which point the next failure of
+    that item hands over the worked solution and closes it (rule 8 of §7.3).
 
     The hints are **deterministic**, derived from the item and its key. No LLM call: a hint is
     a disclosure decision, and the amount disclosed at each step has to be reviewable rather
@@ -1225,7 +1227,16 @@ def _correct_answer(key_entry: dict | None) -> dict | None:
     return revealed or None
 
 
-def _next_action(*, passed: bool, state: str) -> str:
+def _next_action(*, passed: bool, state: str, show_worked_solution: bool = False) -> str:
+    """What the client should do next with this item.
+
+    ``show_worked_solution`` wins over the failure, and that ordering is the whole point
+    of rule 8 (§7.4): once the worked solution has been handed over there is nothing left
+    to retry, and answering ``retry`` would send the learner back to the item they just
+    failed for the fourth time — the loop the rule exists to break.
+    """
+    if show_worked_solution:
+        return "next_item"
     if not passed:
         return "retry"
     if state == MASTERED:

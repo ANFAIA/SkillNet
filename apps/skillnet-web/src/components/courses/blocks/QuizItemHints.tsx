@@ -5,16 +5,16 @@ import { ApiError, post } from '../../../api/client'
 import type { ExerciseType, NodeHintResult } from '../../../types'
 
 /**
- * The scaffolding ladder of §7.4, and the piece that made a whole system state reachable.
+ * The scaffolding ladder of §7.4, and the learner's way out of an item they cannot solve.
  *
  * ## Why this exists
  *
  * `POST /nodes/{id}/hint` is the **only** writer of `node_attempts.hints_used`. Rule 8 of
- * §7.3 — fourth failure of an item after three hints -> worked solution + `needs_review` —
- * reads that column, so with nothing calling the endpoint the rule could never fire: the
- * `needs_review` state was unreachable, `NodeSummaryRead.needs_practice` was permanently
- * `false`, and the "Para practicar" queue `NodeList` already renders could never fill.
- * The server half was built and dead. This is the client half.
+ * §7.3 — fourth failure of an item after three hints -> worked solution, and the learner
+ * carries on — reads that column, so with nothing calling the endpoint the rule could
+ * never fire: the solution was unreachable and the only thing left to do with an item
+ * you cannot answer was to retry it forever. The server half was built and dead. This is
+ * the client half.
  *
  * ## The one rule that is not negotiable
  *

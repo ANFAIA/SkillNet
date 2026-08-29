@@ -1027,7 +1027,6 @@ export const es: Record<string, string> = {
   'nodelist.stateNotStarted': 'Sin empezar',
   'nodelist.stateLearning': 'En curso',
   'nodelist.stateMastered': 'Dominado',
-  'nodelist.stateNeedsReview': 'Para practicar',
   'nodelist.criticalityCritical': 'Imprescindible',
   'nodelist.criticalityRecommended': 'Recomendado',
   'nodelist.criticalityContextual': 'Contexto',
@@ -1036,8 +1035,6 @@ export const es: Record<string, string> = {
   'nodelist.canComplete': 'Has dominado todas las lecciones de este curso.',
   'nodelist.blockedBy': 'Para completar el curso te falta: {titles}.',
   'nodelist.completeRequired': 'Completa todas las lecciones para cerrar el curso.',
-  'nodelist.practiceTitle': 'Para practicar',
-  'nodelist.practiceDesc': 'Estas lecciones siguen abiertas: puedes volver cuando quieras y, pasados 7 días, repetir el diagnóstico.',
 
   // NodeFeedback component
   'feedback.question': '¿Cómo te ha resultado esta lección?',
@@ -1084,7 +1081,7 @@ export const es: Record<string, string> = {
   'hints.requestError': 'No se pudo pedir la pista. Inténtalo de nuevo.',
   'hints.solutionTitle': 'Solución paso a paso',
   'hints.correctAnswer': 'Respuesta correcta: ',
-  'hints.closedNote': 'Esta actividad queda cerrada. La lección pasa a "Para practicar": puedes volver cuando quieras y, pasados 7 días, repetir el diagnóstico.',
+  'hints.closedNote': 'Esta actividad queda cerrada. Ya puedes seguir con la lección.',
   'hints.true': 'Verdadero',
   'hints.false': 'Falso',
 

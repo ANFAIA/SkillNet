@@ -28,13 +28,21 @@ from src.models.base import Base, UUIDMixin, aware_utc_now
 
 
 class NodeState(str, enum.Enum):
-    """``NEEDS_REVIEW``'s only producer in this PR is the hint ceiling of §7.4."""
+    """Where one learner stands on one node. Four values, and there is no fifth.
+
+    ``needs_review`` was removed by migration 0033. It had exactly one producer — the
+    hint ceiling of §7.4, rule 8 of ``mastery_service.transition_on_answer`` — and that
+    rule still exists and still fires: the fourth failure of an item after the three
+    hints hands over the worked solution. What it no longer does is move the learner to
+    a state of their own. The escape hatch is the ``show_worked_solution`` flag on the
+    answer, not a label on the row, and a label that took the node out of the normal
+    flow bought nothing the flag did not already say.
+    """
 
     NOT_STARTED = "not_started"
     PROBING = "probing"
     LEARNING = "learning"
     MASTERED = "mastered"
-    NEEDS_REVIEW = "needs_review"
 
 
 class ErrorKind(str, enum.Enum):

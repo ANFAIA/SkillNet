@@ -9,7 +9,6 @@ const STATE_CLASS: Record<NodeState, string> = {
   not_started: 'text-text-muted',
   learning: 'text-primary',
   mastered: 'text-accent',
-  needs_review: 'text-warning',
 }
 
 function StateIcon({ node }: { node: LearningNode }) {
@@ -37,7 +36,7 @@ function StateIcon({ node }: { node: LearningNode }) {
   return (
     <svg {...common} className={`shrink-0 ${STATE_CLASS[node.state]}`}>
       <circle cx="12" cy="12" r="9" />
-      {(node.state === 'learning' || node.state === 'needs_review') && (
+      {node.state === 'learning' && (
         <circle cx="12" cy="12" r="4" fill="currentColor" stroke="none" />
       )}
     </svg>
@@ -52,7 +51,6 @@ export function CourseIndex({ courseId }: { courseId: string }) {
     not_started: intl.formatMessage({ id: 'nodelist.stateNotStarted' }),
     learning: intl.formatMessage({ id: 'nodelist.stateLearning' }),
     mastered: intl.formatMessage({ id: 'nodelist.stateMastered' }),
-    needs_review: intl.formatMessage({ id: 'nodelist.stateNeedsReview' }),
   }
 
   return (

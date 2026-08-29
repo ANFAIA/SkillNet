@@ -13,9 +13,6 @@ import type { LearningNode, NodeList as NodeListRead, NodeState } from '../../ty
  *
  * What it has to make visible, because each one is a promise made elsewhere:
  *
- * - **The practice queue** (§7.4). A node in `needs_review` gets its own section instead
- *   of disappearing: that is one of the three things the state was introduced to give
- *   (visibility, re-entry, the human waiver).
  * - **Why the course cannot be completed yet.** `can_complete` plus `blocked_by` are
  *   rendered as a sentence, because "the course does not close in silence and does not
  *   block in silence" is the §7.4 rule.
@@ -32,7 +29,6 @@ const STATE_CLASS: Record<NodeState, string> = {
   not_started: 'text-text-muted',
   learning: 'text-primary',
   mastered: 'text-accent',
-  needs_review: 'text-warning',
 }
 
 
@@ -53,7 +49,6 @@ function NodeRow({
     not_started: intl.formatMessage({ id: 'nodelist.stateNotStarted' }),
     learning: intl.formatMessage({ id: 'nodelist.stateLearning' }),
     mastered: intl.formatMessage({ id: 'nodelist.stateMastered' }),
-    needs_review: intl.formatMessage({ id: 'nodelist.stateNeedsReview' }),
   }
 
   const body = (
@@ -115,8 +110,6 @@ export function NodeList({ data }: NodeListProps) {
 
   const titleById = new Map(data.nodes.map((node) => [node.id, node.title]))
   const ordered = [...data.nodes].sort((a, b) => a.position - b.position)
-  const practice = ordered.filter((node) => node.needs_practice)
-  const main = ordered.filter((node) => !node.needs_practice)
 
   const blockedTitles = data.blocked_by
     .map((id) => titleById.get(id))
@@ -147,7 +140,7 @@ export function NodeList({ data }: NodeListProps) {
 
       <Card className="p-0 overflow-hidden">
         <motion.ul {...listMotion}>
-          {main.map((node) => (
+          {ordered.map((node) => (
             <NodeRow
               key={node.id}
               node={node}
@@ -157,27 +150,6 @@ export function NodeList({ data }: NodeListProps) {
           ))}
         </motion.ul>
       </Card>
-
-      {practice.length > 0 && (
-        <div>
-          <h3 className="text-sm font-medium text-text mb-2">{intl.formatMessage({ id: 'nodelist.practiceTitle' })}</h3>
-          <p className="text-sm text-text-secondary mb-2">
-            {intl.formatMessage({ id: 'nodelist.practiceDesc' })}
-          </p>
-          <Card className="p-0 overflow-hidden">
-            <motion.ul {...listMotion}>
-              {practice.map((node) => (
-                <NodeRow
-                  key={node.id}
-                  node={node}
-                  animated={!reduceMotion}
-                  courseBasePath={courseBasePath}
-                />
-              ))}
-            </motion.ul>
-          </Card>
-        </div>
-      )}
     </div>
   )
 }

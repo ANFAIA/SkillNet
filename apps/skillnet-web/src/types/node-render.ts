@@ -59,8 +59,8 @@ export interface NodeAttemptResult {
   next: 'retry' | 'next_item' | 'next_node'
   /**
    * §7.4 rule 8: the fourth failure of this item, after the three hints were spent,
-   * has arrived. The worked solution is shown and the node leaves the normal flow for
-   * the practice queue (`state === 'needs_review'`).
+   * has arrived. The worked solution is shown, the item closes, and the learner carries
+   * on with the node.
    *
    * Like `correct_answer`, this is decided from `node_attempts.hints_used` — never from
    * the `hints_used` this client sent. `QuizItemBlock` renders it; it does not compute

@@ -1027,7 +1027,6 @@ export const en: Record<string, string> = {
   'nodelist.stateNotStarted': 'Not started',
   'nodelist.stateLearning': 'In progress',
   'nodelist.stateMastered': 'Mastered',
-  'nodelist.stateNeedsReview': 'Needs practice',
   'nodelist.criticalityCritical': 'Critical',
   'nodelist.criticalityRecommended': 'Recommended',
   'nodelist.criticalityContextual': 'Context',
@@ -1036,8 +1035,6 @@ export const en: Record<string, string> = {
   'nodelist.canComplete': 'You have mastered every lesson in this course.',
   'nodelist.blockedBy': 'To complete the course you still need: {titles}.',
   'nodelist.completeRequired': 'Complete every lesson to finish the course.',
-  'nodelist.practiceTitle': 'For practice',
-  'nodelist.practiceDesc': 'These lessons remain open: you can return any time and, after 7 days, retake the assessment.',
 
   // NodeFeedback component
   'feedback.question': 'How did this lesson go?',
@@ -1084,7 +1081,7 @@ export const en: Record<string, string> = {
   'hints.requestError': 'Could not request the hint. Try again.',
   'hints.solutionTitle': 'Step-by-step solution',
   'hints.correctAnswer': 'Correct answer: ',
-  'hints.closedNote': 'This activity is closed. The lesson moves to "For practice": you can return any time and, after 7 days, retake the assessment.',
+  'hints.closedNote': 'This activity is closed. You can carry on with the lesson.',
   'hints.true': 'True',
   'hints.false': 'False',
 

@@ -322,9 +322,9 @@ export function QuizItemBlock({
       : (options ?? [])
 
   // A passed item is final. So is one the server just closed with the worked solution
-  // (§7.4 rule 8): the node has moved to `needs_review` and re-answering the same item
-  // with the solution on screen would record an attempt that measures nothing. Everything
-  // else can be retried, which is what `next === 'retry'` asks for.
+  // (§7.4 rule 8): the item is done with — the learner has the solution and moves on, and
+  // re-answering it with the answer on screen would record an attempt that measures
+  // nothing. Everything else can be retried, which is what `next === 'retry'` asks for.
   //
   // `workedSolution` is read from the server's flag and never inferred here. See
   // `QuizItemHints`: a client that decided when the solution appears could decide to see

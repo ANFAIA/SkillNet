@@ -23,7 +23,6 @@ function node(overrides: Partial<LearningNode> = {}): LearningNode {
     mastery: 0,
     done: false,
     available: true,
-    needs_practice: false,
     first_seen_at: null,
     completed_at: null,
     ...overrides,

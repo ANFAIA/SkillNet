@@ -1,7 +1,7 @@
 """The mastery rule (§7): computable, deterministic and not gameable.
 
-Everything in this module is **pure**. No DB session, no LLM, no clock except the
-one you pass in. That is deliberate: the rule that decides whether a safety-critical
+Everything in this module is **pure**. No DB session, no LLM, no clock at all.
+That is deliberate: the rule that decides whether a safety-critical
 node counts as mastered — and therefore what a certificate says — has to be
 readable, testable case by case, and impossible to bend by re-entering a screen.
 
@@ -29,7 +29,6 @@ from __future__ import annotations
 import enum
 from collections.abc import Iterable
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
 from typing import Any, Literal, Protocol
 
 # --- §7.2 the probe rule -----------------------------------------------------
@@ -51,12 +50,11 @@ REGRESS_STREAK = 2  # consecutive failures -> lower difficulty + `reforzar_con_e
 
 # --- §7.4 scaffolding escalation --------------------------------------------
 
-HINT_LIMIT = 3  # hints per item; the 4th failure after them exits to needs_review
-NEEDS_REVIEW_FAILURES = 4
-
-# --- §3.4 anti-retry ---------------------------------------------------------
-
-REPROBE_COOLDOWN_DAYS = 7
+HINT_LIMIT = 3  # hints per item; the 4th failure after them hands over the solution
+# How many failures of the SAME item, once the hints are spent, buy the worked solution.
+# Named after what it produces and not after a state: it used to be `NEEDS_REVIEW_FAILURES`,
+# and the state it named outlived its own removal in this comment for exactly that reason.
+WORKED_SOLUTION_FAILURES = 4
 
 # --- §7.1 prior from user_skills --------------------------------------------
 
@@ -77,7 +75,6 @@ NOT_STARTED = "not_started"
 PROBING = "probing"
 LEARNING = "learning"
 MASTERED = "mastered"
-NEEDS_REVIEW = "needs_review"
 
 CRITICAL = "critical"
 
@@ -259,23 +256,6 @@ def may_offer_hint(*, item_attempts: int, hints_used: int) -> bool:
     return item_attempts >= 1 and hints_used < HINT_LIMIT
 
 
-def may_reprobe(
-    *,
-    state: object,
-    completed_at: datetime | None,
-    now: datetime | None = None,
-) -> bool:
-    """Re-probe only from ``needs_review`` and only after 7 days (§3.4)."""
-    if _value(state) != NEEDS_REVIEW:
-        return False
-    if completed_at is None:
-        return False
-    moment = now or datetime.now(timezone.utc)
-    if completed_at.tzinfo is None:
-        completed_at = completed_at.replace(tzinfo=timezone.utc)
-    return moment - completed_at >= timedelta(days=REPROBE_COOLDOWN_DAYS)
-
-
 # --- the 8 transitions of §7.3 ----------------------------------------------
 
 
@@ -403,22 +383,24 @@ def transition_on_answer(
 
     if (
         not passed
-        and item_failures + 1 >= NEEDS_REVIEW_FAILURES
+        and item_failures + 1 >= WORKED_SOLUTION_FAILURES
         and hints_used >= HINT_LIMIT
     ):
-        # 8. The only producer of `needs_review` in this PR. Worked solution shown,
-        # the node joins the practice queue and stays visible and re-enterable.
+        # 8. **The emergency exit**, and the only thing that closes an item the learner
+        # is not going to get right. Four failures of the same item with the three hints
+        # already spent: the worked solution is handed over and the learner carries on.
         #
-        # **Unreachable in the shipped product, on purpose and not by accident.**
-        # `hints_used` comes from `node_attempts.hints_used`, which only
-        # `POST /nodes/{id}/hint` increments, and no client calls that endpoint yet. So
-        # `needs_review` is never entered, the practice queue never fills and
-        # `may_reprobe` can never authorize a re-probe. The rule is implemented and unit
-        # tested here because it is the pure half; §7.4's hint ladder — the client half —
-        # is out of scope for this PR and is what makes the whole branch live.
+        # This branch must never be deleted "because the state it produced is gone". The
+        # state was only a label; without the branch the answer falls through to rule 0,
+        # `show_worked_solution` stays `False`, and the learner re-attempts the same item
+        # for ever with no way out — which is the failure mode §7.4 exists to prevent.
+        #
+        # `LEARNING` and not `MASTERED`: failing four times and being shown the answer
+        # demonstrates nothing, and `mastered` stamps `mastered_at` and feeds a
+        # certificate. The learner stays where they were, one item lighter.
         return Transition(
             rule=8,
-            to_state=NEEDS_REVIEW,
+            to_state=LEARNING,
             changes=changes,
             attempts_delta=1,
             show_worked_solution=True,

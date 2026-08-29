@@ -1,23 +1,20 @@
-"""The §7.4 hint ladder, end to end over the HTTP surface — and the state it unlocks.
+"""The §7.4 hint ladder, end to end over the HTTP surface — and the exit it unlocks.
 
-Until this file existed, one whole state of the system was **unreachable**. Rule 8 of
-§7.3 (fourth failure of an item after three hints -> ``needs_review`` + worked solution)
-requires ``hints_used >= HINT_LIMIT``, ``hints_used`` moves only through
-``POST /nodes/{id}/hint``, and nothing called it. So ``needs_review`` was never entered,
-``NodeSummaryRead.needs_practice`` was always ``false``, the "Para practicar" queue
-``NodeList`` renders could never fill, and ``may_reprobe`` could never authorize anything.
-``tests/test_mastery.py`` covered the pure rule; nothing covered the path that reaches it.
+Rule 8 of §7.3 is the only thing that closes an item the learner is not going to get
+right: the fourth failure of that item, once the three hints are spent, hands over the
+worked solution. It is reachable only through ``POST /nodes/{id}/hint``, which is what
+moves ``node_attempts.hints_used``, so ``tests/test_mastery.py`` covers the pure rule and
+this file covers the path that reaches it — over HTTP, where a client actually walks it.
 
-The three things asserted here are exactly the three the ladder promises:
+The two things asserted here are the two the ladder promises:
 
 1. **The third hint exhausts the quota.** Hints 1..3 escalate and are served; the fourth
    request is a ``409``, and the count of record is ``node_attempts.hints_used`` — never
    the number the client sends.
-2. **The fourth failure after them lands in ``needs_review``**, with
-   ``show_worked_solution: true`` and the answer revealed.
-3. **That node then shows up in the practice queue** — ``GET /courses/{id}/nodes`` marks
-   it ``needs_practice``, which is what puts it in the "Para practicar" section instead of
-   letting it disappear.
+2. **The fourth failure after them opens the exit**: ``show_worked_solution: true``, the
+   answer revealed, ``next: "next_item"`` rather than another ``retry``, and a state the
+   learner carries on from. There is no ``needs_review`` any more (migration 0033) and
+   there was never any need for one: the flag is the escape hatch, the state was a label.
 
 No database and no network, same technique as ``tests/test_node_routes_authorization.py``:
 the session dependency is a stub and the repositories the routes name are replaced with
@@ -484,15 +481,19 @@ def test_transport_retry_reuses_attempt_without_reapplying_mastery(
 # --------------------------------------------------------------------------------------
 # 2. The fourth failure
 # --------------------------------------------------------------------------------------
-def test_the_fourth_failure_after_three_hints_reaches_needs_review(
+def test_the_fourth_failure_after_three_hints_opens_the_exit(
     client: TestClient, world: World
 ) -> None:
-    """Rule 8 of §7.3, reached through the product for the first time.
+    """Rule 8 of §7.3 over HTTP: the item closes instead of looping.
 
-    Three failures, three hints, and the fourth failure closes the item: the worked
-    solution is shown, the key is revealed (withholding it now would be cruelty, not
-    security — the third hint already gave the reasoning) and the node moves to
-    ``needs_review`` instead of looping.
+    Three failures, three hints, and the fourth failure ends it: the worked solution is
+    shown, the key is revealed (withholding it now would be cruelty, not security — the
+    third hint already gave the reasoning) and ``next`` sends the learner on instead of
+    back to the item they have failed four times.
+
+    ``state`` stays ``learning``, and that is the whole answer to "where did
+    ``needs_review`` go": the learner has demonstrated nothing, so nothing about their
+    mastery changes, and the way out is the flag the client acts on.
     """
     for _ in range(3):
         assert fail(client).status_code == 200
@@ -504,42 +505,26 @@ def test_the_fourth_failure_after_three_hints_reaches_needs_review(
     body = final.json()
 
     assert body["show_worked_solution"] is True
-    assert body["state"] == "needs_review"
+    assert body["next"] == "next_item"
+    assert body["state"] == "learning"
     assert body["correct_answer"] == {
         "correct": CORRECT_OPTION,
         "explanation": world.render.answer_key[ITEM_ID]["explanation"],
     }
-    assert world.state.state == "needs_review"
+    assert world.state.state == "learning"
 
 
-def test_a_fourth_failure_without_hints_stays_in_learning(client: TestClient) -> None:
+def test_a_fourth_failure_without_hints_keeps_retrying(client: TestClient) -> None:
     """Both halves of the condition are required. Failing four times without ever asking
-    for a hint is a hard item, not an exit: §7.4 wants the scaffolding *spent* before the
-    node leaves the normal flow."""
+    for a hint is a hard item, not an exit: §7.4 wants the scaffolding *spent* first.
+
+    Asserted on ``show_worked_solution`` and ``next``, never on ``state``: every failure
+    leaves the learner in ``learning`` now, so a state assertion here would hold whether
+    or not rule 8 had fired and would be checking nothing.
+    """
     for _ in range(3):
         assert fail(client).status_code == 200
     body = fail(client).json()
-    assert body["state"] == "learning"
     assert body["show_worked_solution"] is False
-
-
-# --------------------------------------------------------------------------------------
-# 3. The practice queue
-# --------------------------------------------------------------------------------------
-def test_the_node_then_appears_in_the_practice_queue(
-    client: TestClient, world: World
-) -> None:
-    """The other end of the wire: ``NodeList`` renders a "Para practicar" section from
-    ``needs_practice``, and until the ladder existed that flag could never be ``true``."""
-    for _ in range(3):
-        assert fail(client).status_code == 200
-    for _ in range(HINT_LIMIT):
-        assert ask_hint(client).status_code == 200
-    assert fail(client).json()["state"] == "needs_review"
-
-    listing = client.get(f"{PREFIX}/courses/{COURSE_ID}/nodes")
-    assert listing.status_code == 200, listing.text
-    rows = listing.json()["nodes"]
-    assert [row["id"] for row in rows] == [str(NODE_ID)]
-    assert rows[0]["state"] == "needs_review"
-    assert rows[0]["needs_practice"] is True
+    assert body["next"] == "retry"
+    assert body["correct_answer"] is None

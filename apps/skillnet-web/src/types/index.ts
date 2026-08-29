@@ -471,7 +471,6 @@ export type NodeState =
   | 'not_started'
   | 'learning'
   | 'mastered'
-  | 'needs_review'
 
 /** One node of a dynamic course schema, as served by `GET /courses/{id}/nodes` (§11.3). */
 export interface LearningNode {
@@ -495,8 +494,6 @@ export interface LearningNode {
    * `locked`/`locked_by`; see `docs/design/future-progression-modes.md`.
    */
   available: boolean
-  /** `state === 'needs_review'` (§7.4). */
-  needs_practice: boolean
   /**
    * ISO timestamp of the first time this learner was served this node, `null` when they
    * have never opened it. The only server-side answer to "where was I?": `state` cannot
@@ -760,8 +757,9 @@ export interface NodeRenderHistory {
  * `POST /nodes/{node_id}/answer` — `NodeAttemptResult`.
  *
  * A superset of `NodeAttemptResult` in `types/node-render.ts` (B6, consumed by
- * `QuizItemBlock`): it adds `show_worked_solution`, the §7.4 flag that says the fourth
- * failure after three hints has arrived and the node is moving to `needs_review`.
+ * `QuizItemBlock`): it adds `show_worked_solution`, the flag that says the fourth
+ * failure after three hints has arrived, so the item closes with the solution on screen
+ * and the learner moves on.
  */
 export interface NodeAttemptOutcome {
   score: number
@@ -843,7 +841,6 @@ export interface NodeStateRead {
   hints_used: number
   attempts_count: number
   scaffold_band: 'novice' | 'neutral' | 'advanced'
-  needs_practice: boolean
   waived_by: string | null
   waived_at: string | null
   active_render_id: string | null
