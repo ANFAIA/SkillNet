@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import { ActivityNotEvaluableError } from '../lib/didact'
 import type { DidactEvent } from '../lib/didact'
 import { createActivityHostPorts } from './activity-ports'
 
@@ -108,6 +109,119 @@ describe('createActivityHostPorts evaluation', () => {
     expect(JSON.parse(String(fetch.mock.calls[0][1]?.body))).toEqual({
       submission: request.response,
     })
+  })
+
+  /**
+   * The signal that reached the browser and got thrown away.
+   *
+   * `result` carries more than `feedback`: the server's decision to close the item
+   * (`show_worked_solution`), the solution it wrote for it, and the mastery it recorded.
+   * The port used to pick `feedback` out and drop the rest, so a worked solution the
+   * server had already produced could never be painted — the bug looked like a missing
+   * backend feature and was a missing four lines here.
+   */
+  it('keeps the whole envelope, not just the feedback, on the attempt endpoint', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({
+      outcome: 'incorrect',
+      score: 0,
+      result: {
+        feedback: 'Revisa el orden',
+        show_worked_solution: true,
+        state: 'learning',
+        mastery: 0.25,
+        consecutive_failed: 4,
+        solution: { solution: 'Primero, después, por último', explanation: 'Va por criticidad.' },
+      },
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } }))
+
+    const result = await createActivityHostPorts('definition-id', {
+      bindingId: 'binding-id',
+    }).evaluation?.evaluate(request)
+
+    expect(result).toEqual({
+      outcome: 'incorrect',
+      score: 0,
+      feedback: 'Revisa el orden',
+      showWorkedSolution: true,
+      state: 'learning',
+      mastery: 0.25,
+      solution: { solution: 'Primero, después, por último', explanation: 'Va por criticidad.' },
+    })
+  })
+
+  it('also reads the envelope off the legacy evaluate endpoint', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({
+      status: 'completed',
+      result: {
+        outcome: 'incorrect',
+        score: 0,
+        show_worked_solution: true,
+        solution: { solution: 'Cada mes', explanation: null },
+      },
+      decline_reason: null,
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } }))
+
+    const result = await createActivityHostPorts('activity-id').evaluation?.evaluate(request)
+
+    expect(result).toMatchObject({
+      outcome: 'incorrect',
+      showWorkedSolution: true,
+      solution: { solution: 'Cada mes', explanation: null },
+    })
+  })
+
+  it('ignores a solution that is not written out: the client never assembles one', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({
+      outcome: 'incorrect',
+      score: 0,
+      result: { show_worked_solution: true, solution: { correct_order: [1, 0] } },
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } }))
+
+    const result = await createActivityHostPorts('definition-id', {
+      bindingId: 'binding-id',
+    }).evaluation?.evaluate(request)
+
+    expect(result).toEqual({ outcome: 'incorrect', score: 0, showWorkedSolution: true })
+  })
+
+  /**
+   * "This cannot be graded" is not "this failed": one is worth another attempt and the
+   * other never will be. Both evaluation paths word it differently, and both have to end
+   * up as the same error, or the learner is offered a retry that leads nowhere.
+   */
+  it('turns a declined evaluation into ActivityNotEvaluableError', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({
+      status: 'declined',
+      result: null,
+      decline_reason: 'activity has no answer key',
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } }))
+
+    await expect(
+      createActivityHostPorts('activity-id').evaluation?.evaluate(request),
+    ).rejects.toBeInstanceOf(ActivityNotEvaluableError)
+  })
+
+  it('turns the attempt endpoint 422 into the same error', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({
+      detail: 'activity cannot be evaluated: unsupported component',
+      field: 'submission',
+    }), { status: 422, headers: { 'Content-Type': 'application/json' } }))
+
+    await expect(
+      createActivityHostPorts('definition-id', { bindingId: 'binding-id' }).evaluation?.evaluate(request),
+    ).rejects.toBeInstanceOf(ActivityNotEvaluableError)
+  })
+
+  it('leaves any other failure alone, so it stays retryable', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({
+      detail: 'Internal Server Error',
+    }), { status: 500, headers: { 'Content-Type': 'application/json' } }))
+
+    const failure = await createActivityHostPorts('definition-id', { bindingId: 'binding-id' })
+      .evaluation?.evaluate(request)
+      .catch((error: unknown) => error)
+
+    expect(failure).not.toBeInstanceOf(ActivityNotEvaluableError)
   })
 })
 

@@ -1417,4 +1417,6 @@ export const es: Record<string, string> = {
   'groups.assignSkippedInactive': '{count, plural, one {# persona del grupo tiene la cuenta desactivada y no se ha matriculado} other {# personas del grupo tienen la cuenta desactivada y no se han matriculado}}.',
   'groups.assignEmptyGroup': 'Este grupo no tiene a nadie todavía.',
 
+  // SecureEvaluatedActivity component
+  'activity.notEvaluable': 'Esta actividad no se puede corregir, así que no hay nada que reintentar. No es cosa tuya: sigue con la lección.',
 }

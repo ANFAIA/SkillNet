@@ -1,9 +1,11 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
+import { ActivityNotEvaluableError } from '../../../lib/didact'
 import type { DidactHostPorts, EvaluationResult } from '../../../lib/didact'
 import { SecureEvaluatedActivity } from './SecureEvaluatedActivity'
+import { lessonFeedbackContext, stepperSolveContext } from './StepperContext'
 
 /** Ports whose grader returns a scripted outcome per attempt, and records what it saw. */
 function scriptedPorts(outcomes: EvaluationResult[]) {
@@ -166,5 +168,165 @@ describe('SecureEvaluatedActivity fill-in-the-blank', () => {
 
     expect(screen.getByText('Completa la frase con el término de la fuente.')).toBeInTheDocument()
     expect(screen.getByLabelText('Palabra que falta')).toBeInTheDocument()
+  })
+})
+
+/**
+ * The way out of the dead end.
+ *
+ * Until 2026-08-28 this component knew one sentence, "try again": whoever could not sort
+ * five items stayed there forever — and now that the step holding it is born closed
+ * (`kit/solvableSteps.ts`), "forever" would be literal. These exits are what prevents it.
+ *
+ * Every signal comes from the server; the client decides none of them. The doubles below
+ * write down the contract: `show_worked_solution` plus a `solution` already written out.
+ */
+describe('SecureEvaluatedActivity when the attempts run out', () => {
+  function renderWithStepper(outcomes: EvaluationResult[] | Error) {
+    const solve = vi.fn()
+    const report = vi.fn()
+    const scripted = outcomes instanceof Error
+      ? {
+          ports: {
+            events: { async emit() {} },
+            evaluation: {
+              async evaluate() {
+                throw outcomes
+              },
+            },
+          } satisfies DidactHostPorts,
+        }
+      : scriptedPorts(outcomes)
+    render(
+      <stepperSolveContext.Provider value={solve}>
+        <lessonFeedbackContext.Provider value={{ report }}>
+          <SecureEvaluatedActivity
+            activityId="activity-4"
+            componentId="didact.quiz.single-choice"
+            componentProps={{
+              question: '¿Cuándo se revisa el registro?',
+              options: [
+                { value: 'a', label: 'Cada semana' },
+                { value: 'b', label: 'Cada mes' },
+              ],
+            }}
+            ports={scripted.ports}
+          />
+        </lessonFeedbackContext.Provider>
+      </stepperSolveContext.Provider>,
+    )
+    return { solve, report }
+  }
+
+  async function answer(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByLabelText('Cada semana'))
+    await user.click(screen.getByRole('button', { name: 'Comprobar respuesta' }))
+  }
+
+  it('prints the solution the server wrote and closes the item', async () => {
+    const user = userEvent.setup()
+    const { solve, report } = renderWithStepper([
+      {
+        outcome: 'incorrect',
+        score: 0,
+        showWorkedSolution: true,
+        solution: {
+          solution: 'El primer lunes de cada mes',
+          explanation: 'El ciclo de revisión es mensual.',
+        },
+      },
+    ])
+
+    await answer(user)
+
+    expect(await screen.findByText('Solución paso a paso')).toBeInTheDocument()
+    expect(screen.getByText('El primer lunes de cada mes')).toBeInTheDocument()
+    expect(screen.getByText('El ciclo de revisión es mensual.')).toBeInTheDocument()
+    expect(screen.getByText('Esta actividad queda cerrada. Ya puedes seguir con la lección.')).toBeInTheDocument()
+    // Closed: no retry, and no promise of one in the result copy either.
+    expect(screen.queryByRole('button', { name: 'Reintentar' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Comprobar respuesta' })).not.toBeInTheDocument()
+    expect(screen.getByText('La respuesta no es correcta. Aquí tienes la solución.')).toBeInTheDocument()
+    // And above all: the step opens. Without this the learner has the solution in front
+    // of them and still cannot move on.
+    expect(solve).toHaveBeenCalled()
+    expect(report).toHaveBeenCalledWith('fallo', { definitivo: true })
+  })
+
+  it('keeps offering a retry until the server closes the item', async () => {
+    const user = userEvent.setup()
+    const { solve, report } = renderWithStepper([{ outcome: 'incorrect', score: 0 }])
+
+    await answer(user)
+
+    expect(await screen.findByRole('button', { name: 'Reintentar' })).toBeInTheDocument()
+    expect(screen.queryByText('Solución paso a paso')).not.toBeInTheDocument()
+    expect(solve).not.toHaveBeenCalled()
+    expect(report).toHaveBeenCalledWith('fallo')
+  })
+
+  it('opens the step on a correct answer, just like the quiz', async () => {
+    const user = userEvent.setup()
+    const { solve, report } = renderWithStepper([{ outcome: 'correct', score: 1 }])
+
+    await answer(user)
+
+    expect(await screen.findByText('Respuesta correcta.')).toBeInTheDocument()
+    expect(solve).toHaveBeenCalled()
+    expect(report).toHaveBeenCalledWith('acierto')
+  })
+
+  it('does not ask for a retry on an activity that cannot be graded: it says so and lets the learner out', async () => {
+    const user = userEvent.setup()
+    const { solve } = renderWithStepper(new ActivityNotEvaluableError('activity cannot be evaluated: no key'))
+
+    await answer(user)
+
+    expect(
+      await screen.findByText(/Esta actividad no se puede corregir/),
+    ).toBeInTheDocument()
+    // The "try again" line is for a transient failure, not for this.
+    expect(screen.queryByText(/No se pudo evaluar la respuesta/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Reintentar' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Comprobar respuesta' })).not.toBeInTheDocument()
+    // Immediately, not after four attempts.
+    expect(solve).toHaveBeenCalled()
+  })
+
+  it('leaves a network failure retryable, and does not open the step', async () => {
+    const user = userEvent.setup()
+    const { solve } = renderWithStepper(new Error('network'))
+
+    await answer(user)
+
+    expect(await screen.findByText(/No se pudo evaluar la respuesta/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Comprobar respuesta' })).toBeInTheDocument()
+    expect(solve).not.toHaveBeenCalled()
+  })
+})
+
+/**
+ * The activity that cannot even be painted.
+ *
+ * The step was closed by reading the program, before anyone knew the definition was
+ * unusable. Without this exit the learner would be locked in by an error box.
+ */
+describe('SecureEvaluatedActivity without a valid public definition', () => {
+  it('opens the step as soon as it mounts', () => {
+    const solve = vi.fn()
+    const scripted = scriptedPorts([{ outcome: 'correct', score: 1 }])
+    render(
+      <stepperSolveContext.Provider value={solve}>
+        <SecureEvaluatedActivity
+          activityId="activity-5"
+          componentId="didact.quiz.single-choice"
+          componentProps={{}}
+          ports={scripted.ports}
+        />
+      </stepperSolveContext.Provider>,
+    )
+
+    expect(screen.getByText('La actividad no tiene una definición pública válida.')).toBeInTheDocument()
+    expect(solve).toHaveBeenCalled()
   })
 })
