@@ -767,6 +767,44 @@ async def test_recompute_requires_every_node_mastered() -> None:
     assert enrollment_repo.enrollments[0].status == EnrollmentStatus.IN_PROGRESS
 
 
+@pytest.mark.asyncio
+async def test_a_course_finished_by_reading_it_is_not_reopened() -> None:
+    """A closed enrollment survives a schema edit when its nodes were never mastered.
+
+    The regression this guards lives in a projection, not in a rule: ``mastery_rows``
+    returns ``completed_at`` as the fifth column and ``recompute_enrollment_closure``
+    feeds it into ``NodeProgressRow``. Drop it — hand ``None`` where the timestamp
+    belongs — and every node the learner worked through reads as ``not_started`` with
+    nothing finished, so ``node_is_done`` says "not done" and the next schema edit
+    reopens every enrollment that had closed that way. Mastery cannot rescue those
+    nodes: an expository node carries no graded item to master, which is why
+    ``completed_at`` exists (migration 0029).
+    """
+    course = make_course()
+    user_id = uuid.uuid4()
+    read = make_node(course, position=1, title="Ejemplo resuelto")
+    checklist = make_node(course, position=2, title="Checklist")
+    service, node_repo, _, enrollment_repo = make_service(
+        course,
+        [read, checklist],
+        enrollments=[FakeEnrollment(user_id, EnrollmentStatus.COMPLETED)],
+    )
+    closed_at = enrollment_repo.enrollments[0].completed_at
+    finished_at = datetime.now(timezone.utc)
+    # Worked through to the end, never mastered: no graded item to answer.
+    node_repo.mastery = [
+        (user_id, read.id, "not_started", 0.0, finished_at),
+        (user_id, checklist.id, "not_started", 0.0, finished_at),
+    ]
+
+    result = await service.recompute_enrollment_closure(course, org_id=ORG_ID)
+
+    assert result == {"completed": 0, "reopened": 0}
+    enrollment = enrollment_repo.enrollments[0]
+    assert enrollment.status == EnrollmentStatus.COMPLETED
+    assert enrollment.completed_at == closed_at
+
+
 # --------------------------------------------------------------------------- #
 # Position handling and payload hygiene
 # --------------------------------------------------------------------------- #
