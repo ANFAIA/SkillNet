@@ -19,13 +19,28 @@ _DEV_SECRET_KEY = "dev-insecure-secret-key-change-me-in-production"
 #: a DIFFERENT graph from the one the product serves — no `direct_episode` node at all — and
 #: had been for 91 renders across seven runs going back to 2026-08-22.
 #:
-#: Both locations are read, the package-local one last so it wins: pydantic-settings gives
-#: later files precedence. This is a **development** convenience only and cannot change a
+#: Every ancestor is read, the closest one LAST so it wins: pydantic-settings gives later
+#: files precedence. This is a **development** convenience only and cannot change a
 #: deployment: `.env` is in `.dockerignore` and no compose service declares `env_file`, so a
 #: container is configured exclusively through its `environment:` block.
-_REPO_ROOT = Path(__file__).resolve().parents[3]
-_PACKAGE_ROOT = Path(__file__).resolve().parents[1]
-_ENV_FILES = (_REPO_ROOT / ".env", _PACKAGE_ROOT / ".env")
+#:
+#: The depth is derived, never assumed. The first version of this indexed ``parents[3]`` for
+#: the repo root, which is right for the checkout (``apps/skillnet-api/src/config.py``) and
+#: an ``IndexError`` in the image, where the package is copied to ``/app`` and there are only
+#: three ancestors. That crashed uvicorn on boot — caught by the container restart-looping,
+#: which is a good place to catch it and a terrible one to ship it from. Slicing cannot raise
+#: at any depth, so the same expression is correct in both layouts.
+def _env_file_candidates(module_path: Path) -> tuple[Path, ...]:
+    """`.env` lookup order for this module's location: farthest ancestor first.
+
+    Pure and separate from the module constant so the shallow layout — the one that broke
+    the image — is reachable from a test without a container.
+    """
+    ancestors = module_path.resolve().parents[1:4]
+    return tuple(parent / ".env" for parent in reversed(ancestors))
+
+
+_ENV_FILES = _env_file_candidates(Path(__file__))
 
 
 class Settings(BaseSettings):
