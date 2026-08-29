@@ -138,8 +138,9 @@ class LearnerNodeStateRepository(BaseRepository[LearnerNodeState]):
 
         **``state`` and ``mastery`` are deliberately untouched.** Finishing the reading
         is not a demonstration, and writing a mastery number here would put an invented
-        figure on the same scale as measured ones — the scale a certificate prints. The
-        two facts stay in two columns.
+        figure on the same scale as measured ones — the scale the course's skills are
+        accredited from (``mastery_service.node_was_measured``). The two facts stay in
+        two columns.
 
         Idempotent and never moved once set, for the same reason as ``first_seen_at``:
         re-reading a node the learner already finished must not rewrite when they
@@ -223,8 +224,10 @@ class LearnerNodeStateRepository(BaseRepository[LearnerNodeState]):
         Sets ``mastered`` with ``waived_by``/``waived_at``. The ``audit_log`` row
         (``action='node_waived'``) is written by the route, which knows the actor.
         Mastery is left untouched: a waiver is an accreditation by a human who has
-        seen the person work, not a measured score, and inventing a number here would
-        end up printed on a certificate as if it had been measured.
+        seen the person work, not a measured score, and inventing a number here would be
+        averaged into ``CourseCompletion.measured_mastery`` as if it had been measured.
+        Leaving it alone is also what keeps ``node_was_measured`` saying ``False`` here,
+        so a waived node closes the course without accrediting a level nobody measured.
         """
         moment = now or datetime.now(timezone.utc)
         state.state = NodeState.MASTERED

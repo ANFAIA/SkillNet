@@ -46,7 +46,7 @@ from src.services.enrollment_service import (
     NodeProgressRow,
     apply_dynamic_closure,
 )
-from src.services.mastery_service import evaluate_course_completion
+from src.services.mastery_service import CourseCompletion, evaluate_course_completion
 from src.services.skill_service import SkillService, mastery_to_level
 
 ORG_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
@@ -73,13 +73,23 @@ def row(
     state: str = "mastered",
     mastery: float = 0.9,
     archived: bool = False,
+    attempts_count: int = 0,
+    probe_score: float | None = None,
 ) -> NodeProgressRow:
+    """A ``(node, learner state)`` row. Unmeasured unless a test says otherwise.
+
+    The default is deliberately the awkward case rather than the convenient one: a node
+    that closed without asking anything is what these tests are mostly about, and a
+    builder that quietly supplied evidence would hide it.
+    """
     return NodeProgressRow(
         node_id=uuid.uuid4(),
         criticality=criticality,
         archived=archived,
         state=state,
         mastery=mastery,
+        attempts_count=attempts_count,
+        probe_score=probe_score,
     )
 
 
@@ -169,8 +179,10 @@ def test_every_critical_node_mastered_completes_the_enrollment() -> None:
     assert outcome == "completed"
     assert enrollment.status == EnrollmentStatus.COMPLETED
     assert enrollment.completed_at is not None
-    # The score is the mean mastery over the critical nodes and nothing else.
-    assert enrollment.score == pytest.approx(0.95)
+    # And no mark. Closing a dynamic course records that it was closed; the mean mastery
+    # it used to write here could not tell a node nobody was asked about from one
+    # answered wrong, so it is gone rather than improved.
+    assert enrollment.score is None
 
 
 def test_every_node_must_be_mastered_regardless_of_criticality() -> None:
@@ -189,18 +201,20 @@ def test_every_node_must_be_mastered_regardless_of_criticality() -> None:
     assert completion.can_complete is False
     assert len(completion.blocked_by) == 2
 
-    # Once every node is mastered the course completes, and the score is the mean
-    # mastery over all nodes.
+    # Once every node is mastered the course completes — and still writes no score.
     done = FakeEnrollment(status=EnrollmentStatus.IN_PROGRESS)
     all_mastered = evaluate_course_completion(
         [
-            row(mastery=0.9),
-            row(criticality=NodeCriticality.RECOMMENDED, mastery=0.8),
-            row(criticality=NodeCriticality.CONTEXTUAL, mastery=0.7),
+            row(mastery=0.9, attempts_count=3),
+            row(criticality=NodeCriticality.RECOMMENDED, mastery=0.8, attempts_count=3),
+            row(criticality=NodeCriticality.CONTEXTUAL, mastery=0.7, attempts_count=3),
         ]
     )
     assert apply_dynamic_closure(done, all_mastered) == "completed"
-    assert done.score == pytest.approx((0.9 + 0.8 + 0.7) / 3)
+    assert done.score is None
+    # The evidence is still computed, it just never becomes a mark on the enrollment:
+    # its one job is choosing the level the course's skills are accredited at.
+    assert all_mastered.measured_mastery == pytest.approx((0.9 + 0.8 + 0.7) / 3)
 
 
 def test_an_archived_critical_node_does_not_block_completion() -> None:
@@ -556,3 +570,98 @@ def test_reopening_does_not_move_a_real_started_at() -> None:
 
     assert apply_dynamic_closure(enrollment, completion) == "reopened"
     assert enrollment.started_at == kept
+
+
+# --------------------------------------------------------------------------- #
+# What a completion accredits, now that it carries no mark
+# --------------------------------------------------------------------------- #
+def completion(measured: float | None, measured_nodes: int = 2) -> CourseCompletion:
+    """A closable verdict, varying only in whether the course measured anything."""
+    return CourseCompletion(
+        can_complete=True,
+        blocked_by=(),
+        measured_mastery=measured,
+        measured_nodes=0 if measured is None else measured_nodes,
+        mastered_critical=2,
+        total_critical=2,
+        progress_percent=100,
+    )
+
+
+@pytest.mark.asyncio
+async def test_a_course_that_measured_nothing_accredits_nothing() -> None:
+    """The tail of dropping the score, and the reason it is not just a deletion.
+
+    The level used to come from the mean mastery over every node, so a course whose nodes
+    ask nothing averaged to 0.0 and handed `low` to everyone who finished it — a claim
+    about a person, in the table that answers "who knows X", from evidence that does not
+    exist. `None` is not a low measurement, so nothing is written at all: the completed
+    enrollment already records the true fact, which is that they went through it.
+    """
+    course = make_course()
+    enrollment = FakeEnrollment(status=EnrollmentStatus.IN_PROGRESS)
+    service = make_service(FakeSession(), enrollment)
+    service.evaluate_dynamic = AsyncMock(return_value=completion(None))
+    service._assign_course_skills = AsyncMock()
+
+    _row, verdict = await service.close_dynamic_if_mastered(
+        course=course, user_id=USER_ID
+    )
+
+    assert enrollment.status == EnrollmentStatus.COMPLETED
+    assert enrollment.score is None
+    assert verdict is not None and verdict.measured_mastery is None
+    service._assign_course_skills.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_a_course_that_measured_accredits_at_the_measured_level() -> None:
+    """And the other half: real evidence still grants, at the level it supports.
+
+    Nothing about this path changed except which nodes the mean is over — the silences
+    are no longer averaged in, so a learner who answered well is no longer dragged down
+    to `medium` by the expository nodes sitting next to the graded ones.
+    """
+    course = make_course()
+    enrollment = FakeEnrollment(status=EnrollmentStatus.IN_PROGRESS)
+    service = make_service(FakeSession(), enrollment)
+    service.evaluate_dynamic = AsyncMock(return_value=completion(0.92))
+    service._assign_course_skills = AsyncMock()
+
+    await service.close_dynamic_if_mastered(course=course, user_id=USER_ID)
+
+    service._assign_course_skills.assert_awaited_once_with(
+        USER_ID, course.id, SkillLevel.HIGH
+    )
+
+
+@pytest.mark.asyncio
+async def test_reopening_accredits_nothing_even_when_the_course_measured() -> None:
+    """A skill is granted by closing, and reopening is the opposite of closing.
+
+    Worth pinning because the never-downgrade rule would make a stray grant here
+    invisible until somebody wondered why an unfinished course had already accredited.
+    """
+    course = make_course()
+    enrollment = FakeEnrollment(
+        status=EnrollmentStatus.COMPLETED,
+        completed_at=datetime.now(timezone.utc),
+    )
+    service = make_service(FakeSession(), enrollment)
+    service.evaluate_dynamic = AsyncMock(
+        return_value=CourseCompletion(
+            can_complete=False,
+            blocked_by=("n2",),
+            measured_mastery=0.95,
+            measured_nodes=1,
+            mastered_critical=1,
+            total_critical=2,
+            progress_percent=50,
+        )
+    )
+    service._assign_course_skills = AsyncMock()
+
+    await service.close_dynamic_if_mastered(course=course, user_id=USER_ID)
+
+    assert enrollment.status == REOPENED_STATUS
+    service._assign_course_skills.assert_not_awaited()

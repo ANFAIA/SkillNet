@@ -121,13 +121,19 @@ class CourseNodeRepository(BaseRepository[CourseNode]):
 
     async def mastery_rows(
         self, node_ids: Sequence[uuid.UUID]
-    ) -> list[tuple[uuid.UUID, uuid.UUID, str, float, datetime | None]]:
-        """``(user_id, node_id, state, mastery, completed_at)`` for closure recompute.
+    ) -> list[tuple[uuid.UUID, uuid.UUID, str, float, datetime | None, int, float | None]]:
+        """``(user_id, node_id, state, mastery, completed_at, attempts_count, probe_score)``.
 
-        ``completed_at`` is here because ``mastery_service.node_is_done`` reads it: a node
-        finished but not mastered counts as done, so omitting it from this projection
-        would make ``recompute_enrollment_closure`` **reopen** every enrollment that had
-        closed that way, on the next schema edit.
+        The projection ``recompute_enrollment_closure`` evaluates §7.5 over, and it is
+        exactly the columns the two predicates in ``mastery_service`` read — no more, and
+        never fewer. Dropping one has bitten once already: ``completed_at`` is here
+        because ``node_is_done`` reads it, and without it the recompute judged a node the
+        learner had finished but not mastered as "not done" and **reopened** every
+        enrollment that had closed that way, on the next schema edit.
+
+        ``attempts_count`` and ``probe_score`` are the same story one predicate along:
+        ``node_was_measured`` reads them, so a projection without them would report every
+        node as unmeasured and the recompute's verdict would differ from the runtime's.
         """
         if not node_ids:
             return []
@@ -137,6 +143,8 @@ class CourseNodeRepository(BaseRepository[CourseNode]):
             LearnerNodeState.state,
             LearnerNodeState.mastery,
             LearnerNodeState.completed_at,
+            LearnerNodeState.attempts_count,
+            LearnerNodeState.probe_score,
         ).where(LearnerNodeState.node_id.in_(node_ids))
         rows = (await self.session.execute(query)).all()
         return [
@@ -146,6 +154,8 @@ class CourseNodeRepository(BaseRepository[CourseNode]):
                 row[2].value if hasattr(row[2], "value") else str(row[2]),
                 float(row[3] or 0.0),
                 row[4],
+                int(row[5] or 0),
+                None if row[6] is None else float(row[6]),
             )
             for row in rows
         ]

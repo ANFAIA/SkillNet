@@ -121,7 +121,11 @@ class FakeNodeRepo:
         return {nid: self.attempts.get(nid, 0) for nid in node_ids}
 
     async def mastery_rows(self, node_ids):
-        """``(user_id, node_id, state, mastery, completed_at)`` — 5-wide since 0029."""
+        """``(user_id, node_id, state, mastery, completed_at, attempts_count, probe_score)``.
+
+        7-wide: the two predicates in ``mastery_service`` read seven columns between
+        them, and the recompute is only as correct as this projection is complete.
+        """
         return [row for row in self.mastery if row[1] in set(node_ids)]
 
     async def create(self, **kwargs) -> CourseNode:
@@ -703,7 +707,7 @@ async def test_a_new_critical_node_reopens_a_completed_enrollment() -> None:
         [mastered, fresh],
         enrollments=[FakeEnrollment(user_id, EnrollmentStatus.COMPLETED)],
     )
-    node_repo.mastery = [(user_id, mastered.id, "mastered", 0.95, None)]
+    node_repo.mastery = [(user_id, mastered.id, "mastered", 0.95, None, 3, None)]
 
     await service.unvalidate(course_id=course.id, org_id=ORG_ID, actor_id=ACTOR_ID)
 
@@ -727,7 +731,7 @@ async def test_archiving_the_missing_node_completes_a_stuck_enrollment() -> None
         [mastered, blocking],
         enrollments=[FakeEnrollment(user_id, EnrollmentStatus.IN_PROGRESS)],
     )
-    node_repo.mastery = [(user_id, mastered.id, "mastered", 0.9, None)]
+    node_repo.mastery = [(user_id, mastered.id, "mastered", 0.9, None, 3, None)]
     node_repo.attempts[blocking.id] = 2  # has progress -> archived, not deleted
 
     await service.update(
@@ -740,7 +744,9 @@ async def test_archiving_the_missing_node_completes_a_stuck_enrollment() -> None
     enrollment = enrollment_repo.enrollments[0]
     assert blocking.archived is True
     assert enrollment.status == EnrollmentStatus.COMPLETED
-    assert enrollment.score == pytest.approx(0.9)
+    # Closed by a schema edit, and closing writes no mark: the recompute and the runtime
+    # share `apply_dynamic_closure`, so neither can invent a number the other would not.
+    assert enrollment.score is None
 
 
 @pytest.mark.asyncio
@@ -757,8 +763,8 @@ async def test_recompute_requires_every_node_mastered() -> None:
         enrollments=[FakeEnrollment(user_id, EnrollmentStatus.IN_PROGRESS)],
     )
     node_repo.mastery = [
-        (user_id, first.id, "mastered", 1.0, None),
-        (user_id, optional.id, "learning", 0.2, None),
+        (user_id, first.id, "mastered", 1.0, None, 3, None),
+        (user_id, optional.id, "learning", 0.2, None, 1, None),
     ]
 
     # The non-critical node now blocks closure: the enrollment stays in progress.
@@ -793,8 +799,9 @@ async def test_a_course_finished_by_reading_it_is_not_reopened() -> None:
     finished_at = datetime.now(timezone.utc)
     # Worked through to the end, never mastered: no graded item to answer.
     node_repo.mastery = [
-        (user_id, read.id, "not_started", 0.0, finished_at),
-        (user_id, checklist.id, "not_started", 0.0, finished_at),
+        # Read to the end and never asked anything: no attempts, no probe.
+        (user_id, read.id, "not_started", 0.0, finished_at, 0, None),
+        (user_id, checklist.id, "not_started", 0.0, finished_at, 0, None),
     ]
 
     result = await service.recompute_enrollment_closure(course, org_id=ORG_ID)

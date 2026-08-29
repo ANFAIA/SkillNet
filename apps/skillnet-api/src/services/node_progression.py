@@ -126,7 +126,16 @@ class _Row:
     halves. Structural, like ``NodeProgressLike``, so tests can pass anything.
     """
 
-    __slots__ = ("archived", "completed_at", "criticality", "mastery", "node_id", "state")
+    __slots__ = (
+        "archived",
+        "attempts_count",
+        "completed_at",
+        "criticality",
+        "mastery",
+        "node_id",
+        "probe_score",
+        "state",
+    )
 
     def __init__(
         self,
@@ -137,6 +146,8 @@ class _Row:
         state: str,
         mastery: float,
         completed_at: Any,
+        attempts_count: int = 0,
+        probe_score: float | None = None,
     ) -> None:
         self.node_id = node_id
         self.criticality = criticality
@@ -144,6 +155,8 @@ class _Row:
         self.state = state
         self.mastery = mastery
         self.completed_at = completed_at
+        self.attempts_count = attempts_count
+        self.probe_score = probe_score
 
 
 def is_done(state_row: Any) -> bool:
@@ -183,6 +196,11 @@ def course_progression(
             state=_enum_value(getattr(states.get(node.id), "state", NOT_STARTED)),
             mastery=float(getattr(states.get(node.id), "mastery", 0.0) or 0.0),
             completed_at=getattr(states.get(node.id), "completed_at", None),
+            # Read here too, not just in `EnrollmentService`: this snapshot carries a
+            # whole `CourseCompletion`, and one built from rows that claim nothing was
+            # ever measured would be a second, quieter answer to the same question.
+            attempts_count=int(getattr(states.get(node.id), "attempts_count", 0) or 0),
+            probe_score=getattr(states.get(node.id), "probe_score", None),
         )
         for node in nodes
     ]

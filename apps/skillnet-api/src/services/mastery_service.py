@@ -468,15 +468,36 @@ class NodeProgressLike(Protocol):
     #: ``learner_node_states.completed_at`` (migration 0029), or ``None``. Half of what
     #: :func:`node_is_done` reads — see the reasoning there.
     completed_at: Any
+    #: ``learner_node_states.attempts_count``: graded answers this learner gave on this
+    #: node. Half of what :func:`node_was_measured` reads.
+    attempts_count: Any
+    #: ``learner_node_states.probe_score``: the closed probe's estimate, or ``None`` when
+    #: no probe ever closed here. The other half of :func:`node_was_measured`.
+    probe_score: Any
 
 
 @dataclass(frozen=True)
 class CourseCompletion:
-    """The computable form of ``enrollments.status`` / ``score`` (§7.5)."""
+    """The computable form of ``enrollments.status`` (§7.5).
+
+    It used to carry ``enrollments.score`` too. It no longer does: finishing a course
+    says that it was finished, and nothing else. See :func:`evaluate_course_completion`
+    for why that number was removed rather than improved.
+    """
 
     can_complete: bool
     blocked_by: tuple[str, ...]
-    score: float | None
+    #: Mean ``mastery`` over the nodes that actually **measured** this learner
+    #: (:func:`node_was_measured`), or ``None`` when not one of them did.
+    #:
+    #: **This is evidence, not a grade.** Nothing writes it to ``enrollments``; its one
+    #: consumer is ``EnrollmentService`` deciding at which level to accredit the
+    #: course's skills, and ``None`` there means "accredit nothing", not "accredit low".
+    measured_mastery: float | None
+    #: How many nodes ``measured_mastery`` averages over. ``0`` exactly when
+    #: ``measured_mastery is None``; kept so a skill grant can be logged with the size of
+    #: the evidence behind it instead of just its verdict.
+    measured_nodes: int
     #: Nodes this learner is **done** with (:func:`node_is_done`), out of ``total_critical``.
     #: The two names are §7.5's and predate both the drop of the criticality gate and
     #: ``completed_at``; they are kept because they are the API contract of
@@ -501,12 +522,43 @@ def node_is_done(node: NodeProgressLike) -> bool:
     recorded fact that the learner reached the end of it.
 
     The two are not merged and neither is derived from the other: ``mastered`` is
-    evidence of a demonstration, ``completed_at`` is evidence of work done. What
-    distinguishes a course finished by mastering it from one finished by reading it is
-    ``CourseCompletion.score`` — still the mean of *measured* ``mastery`` — not whether
-    it closed.
+    evidence of a demonstration, ``completed_at`` is evidence of work done. Both close
+    a node; neither is a grade. What tells a course finished by mastering it from one
+    finished by reading it is :func:`node_was_measured` over the same rows, and that
+    answer no longer reaches ``enrollments`` at all — only the skills a completion
+    accredits.
     """
     return _value(node.state) == MASTERED or node.completed_at is not None
+
+
+def node_was_measured(node: NodeProgressLike) -> bool:
+    """Did this node ever put a number on this learner? Graded answer **or** closed probe.
+
+    The one definition of "measured", written here for the same reason
+    :func:`node_is_done` is: the moment a predicate over these rows is spelled out by a
+    consumer instead of by this module, the copies drift, and the two that drifted last
+    time were the two written outside it.
+
+    Every graded answer carries ``attempts_delta=1`` (:func:`transition_on_answer`, all
+    branches), and every probe that closes writes ``probe_score``
+    (:func:`transition_close_probe`, rules 2, 4 and 5). So these two columns are exactly
+    the footprint of an evidence-producing event, and the three things that are *not*
+    such an event are excluded by construction:
+
+    * **An expository node.** Nothing graded to answer, so ``attempts_count`` stays 0.
+      Its ``mastery`` is not a bad result, it is an absent one.
+    * **A waived node.** ``POST /nodes/{id}/waive`` deliberately leaves ``mastery``
+      untouched — "a waiver is an accreditation by somebody who has watched the person
+      work, not a measurement" — so there is no measured number to average and this
+      returns ``False``, which is the same statement in a second place.
+    * **A node never opened.** No row at all; the caller reads it as zeros.
+
+    ``mastery`` on its own cannot answer this question, which is why the columns are
+    read instead: a node is seeded with ``mastery_prior`` from the learner's existing
+    ``user_skills`` level, so a non-zero ``mastery`` may be a prior nobody earned here,
+    and a zero one may be a node nobody asked anything.
+    """
+    return int(node.attempts_count or 0) > 0 or node.probe_score is not None
 
 
 def evaluate_course_completion(
@@ -515,24 +567,46 @@ def evaluate_course_completion(
     """Completion depends on EVERY non-archived node being **done** (:func:`node_is_done`).
 
     Criticality does not gate closure: the learner must get through the whole course.
-    ``score`` is the mean ``mastery`` over all non-archived nodes — the number a
-    certificate prints. A course with no node at all cannot complete (only happens
-    mid-edit on an empty schema).
+    A course with no node at all cannot complete (only happens mid-edit on an empty
+    schema).
+
+    **A finished course says that it was finished. It carries no grade.** This function
+    used to also return ``score``, the mean ``mastery`` over *every* non-archived node,
+    and ``apply_dynamic_closure`` wrote it to ``enrollments.score`` as the mark of the
+    course. The paragraph that used to stand here said a course closed by reading it
+    "closes with a low score, and ``mastery_to_level`` grants the course's skills
+    accordingly", and offered that as the honest place to keep the distinction between
+    understanding a course and getting through it.
+
+    It was not honest, because that mean could not tell two zeros apart. An expository
+    node has no graded item, so it contributes 0 meaning *nobody asked*; a node failed
+    outright contributes 0 meaning *they got it wrong*. Averaged together and printed as
+    a mark, the two are indistinguishable — a learner who read a well-made expository
+    course from end to end was recorded at 0.0, the same figure as one who answered
+    everything wrong. Removing it does not lose a signal: it removes one that lied. The
+    decision is the owner's, on 2026-08-29: complete the course and that is all.
+
+    What survives is ``measured_mastery``, and the difference is not cosmetic. It
+    averages **only** the nodes that measured something (:func:`node_was_measured`) and
+    is ``None`` when none did, so it never has to represent a silence with a number. It
+    is not written to ``enrollments`` and is not shown to anybody: its only reader is
+    the skill accreditation in ``EnrollmentService.close_dynamic_if_mastered``, where
+    ``None`` means *this course measured nothing, so it accredits nothing* — see the
+    reasoning there for why "accredit everyone at the bottom level" was the same lie one
+    layer down.
 
     **Progress and closure use the same predicate, and that is a decision.** They are two
     outputs of the one ``blocked`` set below, so ``progress_percent == 100`` and
     ``can_complete`` cannot disagree. Making closure stricter — "reading counts towards
     the bar, but a ``critical`` node still has to be mastered to close the course" — was
     considered and rejected for two reasons. First, it would put two definitions of
-    "done" in a module whose whole reason for existing is that this rule is written once
-    (the number ends up on a certificate). Second, the stricter branch is not a higher
-    standard but an unreachable one: mastery needs a streak of three correct graded
-    answers and an expository ``critical`` node has nothing to answer, so a course
-    containing one would show 100% and never close — the exact "the bar is full and
-    nothing happened" the split was meant to prevent. The honest place for the
-    distinction is ``score``, which stays a mean of measured mastery: a course closed by
-    reading it closes with a low score, and ``mastery_to_level`` grants the course's
-    skills accordingly.
+    "done" in a module whose whole reason for existing is that this rule is written once.
+    Second, the stricter branch is not a higher standard but an unreachable one: mastery
+    needs a streak of three correct graded answers and an expository ``critical`` node
+    has nothing to answer, so a course containing one would show 100% and never close —
+    the exact "the bar is full and nothing happened" the split was meant to prevent. The
+    honest place for the distinction was never closure and is not a mark either: it is
+    ``measured_mastery``, which speaks only about the nodes that asked something.
 
     Called by ``EnrollmentService`` (B11), including the mandatory recalculation for
     every active enrollment when ``PUT /courses/{id}/schema`` changes the node set.
@@ -543,7 +617,8 @@ def evaluate_course_completion(
         return CourseCompletion(
             can_complete=False,
             blocked_by=(),
-            score=None,
+            measured_mastery=None,
+            measured_nodes=0,
             mastered_critical=0,
             total_critical=0,
             progress_percent=0,
@@ -551,11 +626,14 @@ def evaluate_course_completion(
 
     blocked = tuple(str(n.node_id) for n in critical if not node_is_done(n))
     mastered = total - len(blocked)
-    score = sum(_clamp(n.mastery) for n in critical) / total
+    measured = [n for n in critical if node_was_measured(n)]
     return CourseCompletion(
         can_complete=not blocked,
         blocked_by=blocked,
-        score=score,
+        measured_mastery=(
+            sum(_clamp(n.mastery) for n in measured) / len(measured) if measured else None
+        ),
+        measured_nodes=len(measured),
         mastered_critical=mastered,
         total_critical=total,
         progress_percent=round(100 * mastered / total),

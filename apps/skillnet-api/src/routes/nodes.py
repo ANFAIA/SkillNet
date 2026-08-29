@@ -1056,7 +1056,10 @@ async def complete_node(
     it.** ``state`` and ``mastery`` are left exactly as they were: getting to the last
     screen is not a demonstration of anything, and moving the mastery scale here would put
     an invented number on the same axis as measured ones — the axis
-    ``CourseCompletion.score`` averages and a certificate prints. What the stamp *does*
+    ``CourseCompletion.measured_mastery`` averages and the course's skills are accredited
+    from. Nor does it touch ``attempts_count``: reaching the end of a node is not being
+    asked something, so ``mastery_service.node_was_measured`` still says no, and a course
+    finished this way accredits nothing. What the stamp *does*
     change is progress, because ``mastery_service.node_is_done`` counts a node as done
     when it is mastered **or** finished; before it existed, an expository node (no graded
     item, so ``mastered`` unreachable by rule 6 of §7.3) counted as zero progress no

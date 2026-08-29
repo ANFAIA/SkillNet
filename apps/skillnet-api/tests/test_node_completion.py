@@ -22,7 +22,8 @@ regress into that same hole:
 3. **``state`` and ``mastery`` are not touched.** ``completed_at`` and the evidence
    machine are orthogonal axes on purpose: reaching the last screen is not a
    demonstration, and writing a mastery number here would put an invented figure on the
-   scale ``CourseCompletion.score`` averages and a certificate prints.
+   scale ``CourseCompletion.measured_mastery`` averages and the course's skills are
+   accredited from.
 4. **What the body returns.** ``progress_percent`` and ``can_complete`` come back with the
    stamp so one round trip both records the node and refreshes the course bar; a client
    that had to derive them would show a stale percentage next to a node it just finished.
@@ -142,6 +143,11 @@ class FakeState:
     state: str = "not_started"
     mastery: float = 0.0
     completed_at: datetime | None = None
+    #: What ``mastery_service.node_was_measured`` reads. Zero and ``None`` for all three
+    #: nodes here and never written by this route: an expository node asks nothing, so a
+    #: course made of them closes having measured nobody.
+    attempts_count: int = 0
+    probe_score: float | None = None
     #: Stamped by ``GET /nodes/{id}/render`` and by nothing else — never by the
     #: prefetch. Defaulted to a real moment because every test here but one is about
     #: a learner who HAS been served the lesson; the route refuses to finish a node
@@ -417,10 +423,12 @@ def test_finishing_every_expository_node_completes_the_course(
     assert body["can_complete"] is True
     assert world.enrollment.status is EnrollmentStatus.COMPLETED
     assert world.enrollment.completed_at is not None
-    # And it closes with a *low* score, which is the distinction the design keeps: `score`
-    # averages measured mastery only, so a course finished by reading it is on the record
-    # as exactly that. Closing and being good at it are two different facts.
-    assert world.enrollment.score == pytest.approx(0.0)
+    # And it closes with no score at all. This assertion used to read 0.0 and call it
+    # "the distinction the design keeps" — the course was finished by reading, so it went
+    # on the record low. But 0.0 was also what answering everything wrong produced, and a
+    # number that cannot tell those two apart is not a distinction. Closing is the fact;
+    # there is nothing else to say about a course that asked nothing.
+    assert world.enrollment.score is None
 
 
 def test_the_bar_moves_one_node_at_a_time_and_only_the_last_one_closes(
@@ -542,9 +550,10 @@ def test_completing_a_node_leaves_state_and_mastery_alone(
 
     Moving ``state`` here would let reading a node claim the mastery a graded streak is
     supposed to prove, and moving ``mastery`` would put an invented number on the same
-    scale as measured ones — the scale ``CourseCompletion.score`` averages onto a
-    certificate. The response echoes both untouched, which is what makes a client seeing
-    ``not_started`` beside a timestamp read the two columns doing their two jobs.
+    scale as measured ones — the scale ``CourseCompletion.measured_mastery`` averages and
+    the course's skills are accredited from. The response echoes both untouched, which is
+    what makes a client seeing ``not_started`` beside a timestamp read the two columns
+    doing their two jobs.
     """
     body = complete(client, NODE_IDS[0])
 
@@ -559,12 +568,12 @@ def test_completing_a_node_leaves_state_and_mastery_alone(
 def test_completing_a_mastered_node_does_not_demote_it(
     client: TestClient, world: World
 ) -> None:
-    """Orthogonality in the other direction, and the reason ``score`` still means something.
+    """Orthogonality in the other direction, and the reason ``mastery`` still means something.
 
     A learner who mastered a node and then pressed "next" must keep the mastery they
     demonstrated: ``node_is_done`` already counted the node, so the stamp adds nothing to
     progress here — but a route that wrote ``state`` would erase real evidence, and the
-    course would close at a score it did not earn.
+    course would accredit its skills below what the learner actually showed.
     """
     mastered = world.state_for(NODE_IDS[0])
     mastered.state = "mastered"
@@ -579,18 +588,23 @@ def test_completing_a_mastered_node_does_not_demote_it(
     assert body["progress_percent"] == 33
 
 
-def test_a_mastered_and_a_read_node_are_both_done_but_score_tells_them_apart(
+def test_a_mastered_and_a_read_node_are_both_done_and_the_enrollment_says_only_that(
     client: TestClient, world: World
 ) -> None:
-    """``node_is_done`` is "mastered **or** finished", and ``score`` is the tiebreak.
+    """``node_is_done`` is "mastered **or** finished", and the enrollment records neither.
 
-    This is the one design decision the whole feature rests on, so it is asserted as a
-    pair: closure treats the two ways of finishing a node identically, and the number a
-    certificate prints does not.
+    This test used to assert the opposite half: that ``score`` came back 0.3 — 0.9 on the
+    node that was mastered, 0.0 on the two that were only read — and that this was the
+    tiebreak telling the two ways of finishing apart. It was not. The two 0.0s meant "no
+    graded item here", the same figure a wrong answer produces, and averaging them
+    against real evidence dragged a demonstrated 0.9 down to a third of itself. What
+    survives the closure is where the evidence lives now: `mastery` on the node that
+    measured, untouched on the two that did not.
     """
     demonstrated = world.state_for(NODE_IDS[0])
     demonstrated.state = "mastered"
     demonstrated.mastery = 0.9
+    demonstrated.attempts_count = 3
 
     for node_id in NODE_IDS[1:]:
         body = complete(client, node_id)
@@ -599,5 +613,6 @@ def test_a_mastered_and_a_read_node_are_both_done_but_score_tells_them_apart(
     assert body["progress_percent"] == 100
     assert world.enrollment is not None
     assert world.enrollment.status is EnrollmentStatus.COMPLETED
-    # 0.9 on one node, 0.0 on the two that were only read.
-    assert world.enrollment.score == pytest.approx(0.3)
+    assert world.enrollment.score is None
+    assert world.states[NODE_IDS[0]].mastery == pytest.approx(0.9)
+    assert all(world.states[n].attempts_count == 0 for n in NODE_IDS[1:])

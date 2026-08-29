@@ -1223,8 +1223,10 @@ async def test_the_full_learner_journey_closes_the_course(
     closed_enrollment = await enrollment_of(world.employee.id, world.course_id)
     assert closed_enrollment.status is EnrollmentStatus.COMPLETED
     assert closed_enrollment.completed_at is not None
-    expected_score = (float(mastered.mastery) + float(skipped.mastery)) / 2
-    assert float(closed_enrollment.score) == pytest.approx(expected_score)
+    # No mark: closing says the course was finished and nothing more. The mean mastery
+    # that used to be written here could not tell a node nobody was asked about from one
+    # answered wrong (`mastery_service.evaluate_course_completion`).
+    assert closed_enrollment.score is None
     assert closed_enrollment.id == enrollment_id
 
     listing = (await learner.get(f"/courses/{world.course_id}/nodes")).json()
@@ -1233,6 +1235,9 @@ async def test_the_full_learner_journey_closes_the_course(
     assert listing["progress_percent"] == 100
 
     # The course's own skills were granted at the translated level, never downgraded.
+    # Both nodes measured — one by a graded streak, one by a closed probe — so there is a
+    # mean to translate: `(mastered.mastery + skipped.mastery) / 2`, both at 0.90 or
+    # above, which is `high`.
     async with async_session_factory() as db:
         rows = (
             await db.execute(
@@ -1290,9 +1295,14 @@ async def test_adding_a_critical_node_reopens_a_completed_enrollment(
 
     completed = await enrollment_of(world.employee.id, world.course_id)
     assert completed.status is EnrollmentStatus.COMPLETED
-    # A waiver is an accreditation, not a measurement: `mastery` is left alone, so the
-    # score is honest about having no number behind it.
-    assert float(completed.score or 0.0) == pytest.approx(0.0)
+    # A waiver is an accreditation, not a measurement: `mastery`, `attempts_count` and
+    # `probe_score` are all left alone, so the course closed having measured nothing.
+    assert completed.score is None
+    # And therefore accredits nothing either: turning a waiver into a `user_skills` row
+    # would launder a human's judgement into a number the system claims to have measured.
+    # That gate is asserted where it can be seen to fire — `tests/test_course_closure.py`,
+    # `test_a_course_that_measured_nothing_accredits_nothing` — because this course has no
+    # `course_skills` link, so the grant would be a no-op here whatever the rule said.
 
     # Now the creator changes the critical set.
     unvalidated = await admin.post(f"/courses/{world.course_id}/schema/unvalidate")

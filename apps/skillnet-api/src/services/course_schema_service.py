@@ -1032,8 +1032,8 @@ class CourseSchemaService:
         The *rule* is not implemented here (B11): ``evaluate_course_completion`` is the
         pure predicate and ``apply_dynamic_closure`` is the one mutation, both shared
         with ``EnrollmentService``, so the schema editor and the runtime cannot end up
-        with two definitions of "completed" — a number that gets printed on a
-        certificate. What stays here is the *batch read*: one ``mastery_rows`` query for
+        with two definitions of "completed" — the fact a certificate asserts. What stays
+        here is the *batch read*: one ``mastery_rows`` query for
         every learner at once instead of a per-learner join, because a shift-wide course
         can have hundreds of enrollments and this runs inside a request.
         """
@@ -1051,10 +1051,16 @@ class CourseSchemaService:
             if nodes
             else []
         )
-        by_user: dict[uuid.UUID, dict[uuid.UUID, tuple[str, float, Any]]] = {}
-        for user_id, node_id, state, mastery, completed_at in rows:
-            by_user.setdefault(user_id, {})[node_id] = (state, mastery, completed_at)
-        missing = (NodeState.NOT_STARTED.value, 0.0, None)
+        by_user: dict[uuid.UUID, dict[uuid.UUID, tuple[str, float, Any, int, Any]]] = {}
+        for user_id, node_id, state, mastery, completed_at, attempts, probe in rows:
+            by_user.setdefault(user_id, {})[node_id] = (
+                state,
+                mastery,
+                completed_at,
+                attempts,
+                probe,
+            )
+        missing = (NodeState.NOT_STARTED.value, 0.0, None, 0, None)
 
         counts = {"completed": 0, "reopened": 0}
         now = datetime.now(timezone.utc)
@@ -1070,6 +1076,10 @@ class CourseSchemaService:
                     # Without this the recompute would judge a node the learner finished
                     # but never mastered as "not done" and reopen a closed enrollment.
                     completed_at=states.get(node.id, missing)[2],
+                    # And without these two it would judge every node unmeasured, so a
+                    # schema edit and the runtime would disagree about `measured_mastery`.
+                    attempts_count=states.get(node.id, missing)[3],
+                    probe_score=states.get(node.id, missing)[4],
                 )
                 for node in nodes
             ]
