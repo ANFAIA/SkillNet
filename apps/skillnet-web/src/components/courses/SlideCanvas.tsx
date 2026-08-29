@@ -96,7 +96,7 @@ function Illustration({ src }: { src: string }) {
       <img
         src={src}
         alt=""
-        className="h-full w-full object-contain p-8 grayscale contrast-125 sm:p-10"
+        className="h-full w-full object-contain p-8 grayscale contrast-125 @lg:p-10"
       />
     </div>
   )
@@ -104,7 +104,10 @@ function Illustration({ src }: { src: string }) {
 
 function Blocks({ blocks, columns = false }: { blocks: SlideBlockSpec[]; columns?: boolean }) {
   return (
-    <div className={columns ? 'grid min-w-0 gap-4 sm:grid-cols-2' : 'min-w-0 space-y-4'}>
+    // Two-up only once the slide itself is wide enough to give each column a real measure.
+    // At the width the deck actually gets inside a modal (~560 px) a second column left a
+    // table with ~260 px for three columns, which is how "Tecnica" became "Tec / nic / a".
+    <div className={columns ? 'grid min-w-0 gap-4 @2xl:grid-cols-2' : 'min-w-0 space-y-4'}>
       {blocks.map((block, index) => (
         <div key={index} className="min-w-0">
           <SlideBlock block={block} />
@@ -115,43 +118,69 @@ function Blocks({ blocks, columns = false }: { blocks: SlideBlockSpec[]; columns
 }
 
 /**
- * Fixed-format slide renderer: the model chooses a semantic composition, while SkillNet
- * owns every pixel of typography, spacing and data rendering inside a consistent 16:9 frame.
- * Generated imagery is always a supporting ingredient and never replaces the structured slide.
+ * Slide renderer: the model chooses a semantic composition, while SkillNet owns every pixel
+ * of typography, spacing and data rendering. Generated imagery is always a supporting
+ * ingredient and never replaces the structured slide.
+ *
+ * ## Why the frame is not 16:9 any more
+ *
+ * The canvas used to be `sm:aspect-video` over `overflow-hidden`, so its height was a
+ * function of its width and anything taller was cut without a trace. Measured on the boxing
+ * deck in the media modal (canvas 561 px wide, so 315 px tall): **eight of its nine slides
+ * overflowed**, the worst by 908 px — the learner saw 315 px of a 1223 px slide and nothing
+ * said so. A projected deck can afford a fixed ratio because the author checks every slide
+ * on the same screen; a generated deck read in a modal, in the library and on a phone cannot.
+ *
+ * So the ratio is a *preference*, not a cage: the frame keeps a width-independent minimum
+ * height (`min-h-80`) so a one-line cover still reads as a slide, and grows from there with
+ * its content. `overflow-hidden` stays, but now it only rounds the corners — with the height
+ * free, there is nothing left for it to clip.
+ *
+ * ## Why container queries and not `sm:`
+ *
+ * The deck is always inside something narrower than the window (a `max-w-2xl` modal, a
+ * library panel), so viewport breakpoints made the *same* 561 px box lay out differently
+ * depending on the window around it — literally "it deforms depending on the view you look
+ * at it in". The canvas declares `@container` and every breakpoint below it is a container
+ * query, so a slide's layout is decided by the slide's own width and nowhere else.
  */
 export function SlideCanvas({ slide, imageUrl }: SlideCanvasProps) {
   const composition = inferComposition(slide)
   const canvasClass =
-    'slide-canvas min-h-[24rem] overflow-hidden rounded-lg border border-border bg-bg sm:aspect-video sm:min-h-0'
+    'slide-canvas @container flex min-h-80 flex-col overflow-hidden rounded-lg border border-border bg-bg'
 
   if (composition === 'cover') {
     return (
       <article
         data-slide-composition={composition}
-        className={`${canvasClass} ${imageUrl ? 'grid sm:grid-cols-5' : 'flex'}`}
+        className={canvasClass}
         aria-label={slide.title}
       >
-        <div className={`flex min-w-0 flex-col justify-center p-7 sm:p-10 ${imageUrl ? 'sm:col-span-3' : 'flex-1'}`}>
-          <h4 className="max-w-2xl text-2xl font-semibold leading-tight text-text">
-            {slide.title}
-          </h4>
-          {slide.subtitle && (
-            <p className="mt-4 max-w-xl text-base leading-relaxed text-text-secondary">
-              {slide.subtitle}
-            </p>
+        {/* The frame itself is the query container, and a container cannot query itself —
+            so the composition's own grid lives one level in. */}
+        <div className={`flex-1 ${imageUrl ? 'grid @2xl:grid-cols-5' : 'flex'}`}>
+          <div className={`flex min-w-0 flex-col justify-center p-7 @lg:p-10 ${imageUrl ? '@2xl:col-span-3' : 'flex-1'}`}>
+            <h4 className="max-w-2xl text-2xl font-semibold leading-tight text-text">
+              {slide.title}
+            </h4>
+            {slide.subtitle && (
+              <p className="mt-4 max-w-xl text-base leading-relaxed text-text-secondary">
+                {slide.subtitle}
+              </p>
+            )}
+          </div>
+          {imageUrl && (
+            <div className="min-h-48 border-t border-border @2xl:col-span-2 @2xl:border-l @2xl:border-t-0">
+              <Illustration src={imageUrl} />
+            </div>
           )}
         </div>
-        {imageUrl && (
-          <div className="min-h-48 border-t border-border sm:col-span-2 sm:border-l sm:border-t-0">
-            <Illustration src={imageUrl} />
-          </div>
-        )}
       </article>
     )
   }
 
   const header = (
-    <header className="border-b border-border px-6 py-5 sm:px-8">
+    <header className="border-b border-border px-6 py-5 @lg:px-8">
       <h4 className="text-xl font-semibold leading-tight text-text">{slide.title}</h4>
       {slide.subtitle && (
         <p className="mt-1.5 text-sm leading-relaxed text-text-secondary">{slide.subtitle}</p>
@@ -163,18 +192,18 @@ export function SlideCanvas({ slide, imageUrl }: SlideCanvasProps) {
     return (
       <article
         data-slide-composition={composition}
-        className={`${canvasClass} flex flex-col`}
+        className={canvasClass}
         aria-label={slide.title}
       >
         {header}
-        <div className={`grid min-h-0 flex-1 ${imageUrl ? 'sm:grid-cols-5' : ''}`}>
+        <div className={`grid flex-1 ${imageUrl ? '@2xl:grid-cols-5' : ''}`}>
           <div
-            className={`flex min-w-0 items-center px-6 py-8 sm:px-8 ${imageUrl ? 'sm:col-span-3' : ''}`}
+            className={`flex min-w-0 items-center px-6 py-8 @lg:px-8 ${imageUrl ? '@2xl:col-span-3' : ''}`}
           >
             <Blocks blocks={slide.blocks} />
           </div>
           {imageUrl && (
-            <div className="border-t border-border sm:col-span-2 sm:border-l sm:border-t-0">
+            <div className="border-t border-border @2xl:col-span-2 @2xl:border-l @2xl:border-t-0">
               <Illustration src={imageUrl} />
             </div>
           )}
@@ -189,16 +218,12 @@ export function SlideCanvas({ slide, imageUrl }: SlideCanvasProps) {
   return (
     <article
       data-slide-composition={composition}
-      className={`${canvasClass} flex flex-col`}
+      className={canvasClass}
       aria-label={slide.title}
     >
       {header}
-      <div
-        className={
-          supportsSideImage ? 'grid min-h-0 flex-1 sm:grid-cols-5' : 'min-h-0 flex-1'
-        }
-      >
-        <div className={`min-w-0 p-6 sm:p-8 ${supportsSideImage ? 'sm:col-span-3' : ''}`}>
+      <div className={supportsSideImage ? 'grid flex-1 @2xl:grid-cols-5' : 'flex-1'}>
+        <div className={`min-w-0 p-6 @lg:p-8 ${supportsSideImage ? '@2xl:col-span-3' : ''}`}>
           <Blocks
             blocks={slide.blocks}
             columns={
@@ -209,7 +234,7 @@ export function SlideCanvas({ slide, imageUrl }: SlideCanvasProps) {
           />
         </div>
         {supportsSideImage && (
-          <div className="border-t border-border sm:col-span-2 sm:border-l sm:border-t-0">
+          <div className="border-t border-border @2xl:col-span-2 @2xl:border-l @2xl:border-t-0">
             <Illustration src={imageUrl} />
           </div>
         )}
