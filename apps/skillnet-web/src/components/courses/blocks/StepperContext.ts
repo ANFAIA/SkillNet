@@ -1,4 +1,4 @@
-import { createContext, useContext } from 'react'
+import { createContext, useContext, useEffect } from 'react'
 import type { Resultado } from '../feedback/ResultGlow'
 
 /**
@@ -33,6 +33,25 @@ export const stepperSolveContext = createContext<(() => void) | null>(null)
 
 export function useStepperSolve(): (() => void) | null {
   return useContext(stepperSolveContext)
+}
+
+/**
+ * Open the step because the exercise is never going to arrive.
+ *
+ * The step is closed by reading the PROGRAM (`kit/solvableSteps.ts`), which is to say
+ * before anyone knows whether the activity can even be loaded. When the chain that mounts
+ * it ends in an error box — the reference is invalid, the adapter is not registered, the
+ * definition could not be fetched — there is nothing to get right, and without this exit
+ * the learner is locked in by an activity that never even painted.
+ *
+ * This is not the same as solving it: it produces no evidence and claims nobody knows
+ * anything. It only stops punishing the learner for a failure that is not theirs.
+ */
+export function useSolveStepWhen(deadEnd: boolean): void {
+  const solve = useStepperSolve()
+  useEffect(() => {
+    if (deadEnd) solve?.()
+  }, [deadEnd, solve])
 }
 
 /**

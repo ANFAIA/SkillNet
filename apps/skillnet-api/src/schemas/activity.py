@@ -120,6 +120,15 @@ class ActivityStateRead(BaseModel):
 class ActivitySubmission(BaseModel):
     model_config = ConfigDict(extra="forbid")
     submission: dict = Field(default_factory=dict)
+    #: Client-minted idempotency key for ``POST /activities/{id}/evaluate``.
+    #:
+    #: Optional, and additive on purpose: the model forbids extra fields, so a client that
+    #: does not send it keeps working unchanged. When it *is* sent, a repeat of the same
+    #: submission replays the first verdict instead of grading again — which matters now
+    #: that grading an ``assessment`` moves mastery, and a double click would otherwise
+    #: count two failures. Reusing one id for a **different** submission is a ``409``,
+    #: exactly as on ``POST /activities/{id}/attempts``.
+    attempt_id: uuid.UUID | None = None
 
 
 class ActivityAction(BaseModel):

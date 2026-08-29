@@ -1,8 +1,12 @@
 import { useEffect, useId, useRef, useState } from 'react'
+import { useIntl } from 'react-intl'
 
+import { ActivityNotEvaluableError } from '../../../lib/didact'
 import type { DidactHostPorts, EvaluationResult } from '../../../lib/didact'
 import { Button } from '../../ui/Button'
 import { evaluateDidactSubmission } from './didact-evaluation-adapter'
+import { WorkedSolution } from './QuizItemHints'
+import { useLessonFeedback, useStepperSolve } from './StepperContext'
 import { usesSecureEvaluationAdapter } from './secure-evaluation-components'
 
 type PublicProps = Readonly<Record<string, unknown>>
@@ -56,17 +60,23 @@ function titleFor(componentId: string, props: PublicProps): string {
   return typeof value === 'string' ? value : ''
 }
 
-function Result({ result }: { result: EvaluationResult }) {
+function Result({ result, closed }: { result: EvaluationResult; closed: boolean }) {
   // A graded miss is a wrong answer, not a broken grader. The previous copy ("la respuesta
   // necesita revisión") read as "the system could not correct this", which is what made a
   // plain failed attempt look like a bug to the learner.
+  //
+  // `closed` changes what a miss is allowed to promise. Once the server has handed over
+  // the solution there is no retry left, so "vuelve a intentarlo" would be a lie printed
+  // directly above the answer.
   const copy = result.outcome === 'correct'
     ? 'Respuesta correcta.'
-    : result.outcome === 'partial'
-      ? 'Respuesta parcialmente correcta. Puedes volver a intentarlo.'
-      : result.outcome === 'unscored'
-        ? 'Respuesta enviada para revisión.'
-        : 'La respuesta no es correcta. Vuelve a intentarlo.'
+    : result.outcome === 'unscored'
+      ? 'Respuesta enviada para revisión.'
+      : closed
+        ? 'La respuesta no es correcta. Aquí tienes la solución.'
+        : result.outcome === 'partial'
+          ? 'Respuesta parcialmente correcta. Puedes volver a intentarlo.'
+          : 'La respuesta no es correcta. Vuelve a intentarlo.'
   return (
     <div className="rounded-lg border border-border bg-bg-subtle p-3 text-sm" role="status" aria-live="polite">
       <p className="font-medium text-text">{copy}</p>
@@ -345,14 +355,25 @@ export function SecureEvaluatedActivity({
   componentProps: PublicProps
   ports: DidactHostPorts
 }) {
+  const intl = useIntl()
   const titleId = useId()
   const groupName = useId()
   const startedEventId = useRef(crypto.randomUUID())
   const title = titleFor(componentId, componentProps)
+  // The step holding this activity is born closed (`kit/solvableSteps.ts`), so this call
+  // is the only thing that opens it. If this block stops calling `useStepperSolve`, or
+  // another one starts, `SOLVABLE_COMPONENTS` has to move with it —
+  // `solvableSteps.test.ts` checks exactly that.
+  const solveStep = useStepperSolve()
+  // Ambient feedback (ResultGlow + mascot). Independent of whether the step opens.
+  const feedback = useLessonFeedback()
   const [answer, setAnswer] = useState<Answer>(() => initialAnswer(componentId, componentProps))
   const [result, setResult] = useState<EvaluationResult>()
   const [pending, setPending] = useState(false)
   const [error, setError] = useState(false)
+  // The third dead end: the server says this activity cannot be graded at all. Separate
+  // from `error`, which is a request that failed and is worth trying again.
+  const [unevaluable, setUnevaluable] = useState(false)
   // Bumped on every explicit learner retry. It keys the interaction so the controls are torn
   // down and rebuilt from scratch: clearing `answer` and `result` already re-enables them,
   // but in a real browser a graded attempt leaves a checked+disabled radio whose reset
@@ -373,7 +394,16 @@ export function SecureEvaluatedActivity({
     }).catch(() => undefined)
   }, [activityId, componentId, ports.events])
 
-  if (!usesSecureEvaluationAdapter(componentId) || !title) {
+  const blocked = !usesSecureEvaluationAdapter(componentId) || !title
+
+  // Nothing here will ever be answered, and the step that contains it is already closed.
+  // Opening it is not a claim that anything was learned — it is refusing to hold the
+  // learner behind an activity that never rendered.
+  useEffect(() => {
+    if (blocked) solveStep?.()
+  }, [blocked, solveStep])
+
+  if (blocked) {
     return <div role="status" data-didact-status="blocked">La actividad no tiene una definición pública válida.</div>
   }
 
@@ -381,9 +411,35 @@ export function SecureEvaluatedActivity({
     setPending(true)
     setError(false)
     try {
-      setResult(await evaluateDidactSubmission(activityId, componentId, ports, answer))
-    } catch {
-      setError(true)
+      const evaluated = await evaluateDidactSubmission(activityId, componentId, ports, answer)
+      setResult(evaluated)
+      // Same three reports as `QuizItemBlock`, so the glow and the mascot behave
+      // identically in both families: a win, a definitive miss (the solution is out and
+      // there is no retry), and a miss with an attempt still left. `unscored` is nobody's
+      // verdict yet, so it reports nothing.
+      //
+      // Both closing branches call `solveStep`. Without the second one the learner who
+      // ran out of attempts is handed the solution and then held in the step by it: the
+      // item never passed, so nothing else would ever open the gate.
+      if (evaluated.outcome === 'correct') {
+        feedback?.report('acierto')
+        solveStep?.()
+      } else if (evaluated.showWorkedSolution === true) {
+        feedback?.report('fallo', { definitivo: true })
+        solveStep?.()
+      } else if (evaluated.outcome !== 'unscored') {
+        feedback?.report('fallo')
+      }
+    } catch (failure) {
+      if (failure instanceof ActivityNotEvaluableError) {
+        // Broken activity: no attempt of it will ever be scored. Say so once and let the
+        // learner out immediately, instead of the "inténtalo de nuevo" that could only
+        // ever be answered by trying again.
+        setUnevaluable(true)
+        solveStep?.()
+      } else {
+        setError(true)
+      }
     } finally {
       setPending(false)
     }
@@ -400,11 +456,18 @@ export function SecureEvaluatedActivity({
     setAttemptNonce((nonce) => nonce + 1)
   }
 
-  // A correct answer is final: re-answering it would only overwrite evidence the learner
-  // already earned. Everything else can be tried again — `partial` because the learner can
-  // still complete it, and `unscored` because nothing was graded, so a second attempt adds
-  // information instead of replacing a verdict.
-  const canRetry = Boolean(result) && result?.outcome !== 'correct'
+  // The same rule as `QuizItemBlock`. A correct answer is final: re-answering it would
+  // only overwrite evidence the learner already earned. So is an item the server just
+  // closed with the worked solution (§7.4 rule 8) — re-answering it with the answer on
+  // screen would record an attempt that measures nothing. Everything else can be tried
+  // again: `partial` because the learner can still complete it, and `unscored` because
+  // nothing was graded, so a second attempt adds information instead of replacing a
+  // verdict.
+  //
+  // `showWorkedSolution` is read from the server's flag and never inferred here. A client
+  // that decided when the solution appears could decide to see it on the first attempt.
+  const closed = result?.outcome === 'correct' || result?.showWorkedSolution === true
+  const canRetry = Boolean(result) && !closed
   // A written gap makes the sentence itself the interaction (see `FillInTheBlank`), so the
   // heading keeps the accessible name and stops repeating the same sentence on screen.
   const sentenceIsInteraction = componentId === 'didact.quiz.fill-in-the-blank' && BLANK_MARKER.test(title)
@@ -421,15 +484,19 @@ export function SecureEvaluatedActivity({
           componentId={componentId}
           props={componentProps}
           answer={answer}
-          disabled={pending || Boolean(result)}
+          disabled={pending || Boolean(result) || unevaluable}
           onChange={setAnswer}
           groupName={`${groupName}:${attemptNonce}`}
         />
       </div>
       <div className="mt-4 space-y-3">
-        {result ? (
+        {unevaluable ? (
+          <p className="text-sm text-text-secondary" role="status">
+            {intl.formatMessage({ id: 'activity.notEvaluable' })}
+          </p>
+        ) : result ? (
           <>
-            <Result result={result} />
+            <Result result={result} closed={closed} />
             {canRetry && (
               <Button type="button" variant="secondary" onClick={retry}>Reintentar</Button>
             )}
@@ -441,6 +508,9 @@ export function SecureEvaluatedActivity({
         )}
         {error && <p className="text-sm text-danger" role="alert">No se pudo evaluar la respuesta. Inténtalo de nuevo.</p>}
       </div>
+      {result?.showWorkedSolution === true ? (
+        <WorkedSolution solution={result.solution ?? null} />
+      ) : null}
     </section>
   )
 }

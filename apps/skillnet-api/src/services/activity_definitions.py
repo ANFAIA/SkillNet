@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import hmac
+import logging
 import math
 import re
 import unicodedata
 import uuid
+from collections.abc import Mapping
 from typing import Any
 
 from src.core.exceptions import ConflictError, NotFoundError, ValidationError
@@ -17,6 +19,8 @@ from src.repositories.activity_definition_repo import (
 )
 from src.schemas.activity import ActivityDefinitionCreate
 from src.services.activity_ports import ActivityPortRegistry, PortDeclined
+
+logger = logging.getLogger(__name__)
 
 BUILTIN_PORTS = frozenset({"assets", "evaluation", "persistence", "progress", "simulation"})
 BUILTIN_EVALUATION_VERSION = "activity-definition-evaluation/1"
@@ -31,6 +35,18 @@ BUILTIN_EVALUATION_MODES = frozenset(
         "keyed_text",
         "numeric",
     }
+)
+
+#: Declines that mean **the activity is defective**, not that the submission was wrong.
+#:
+#: Both are generation defects: the authoring step persisted an activity whose answer key
+#: is missing or written in a mode the built-in scorer does not implement. The learner can
+#: never pass it, and — before this set existed — could never accumulate a countable
+#: failure either, so rule 8 of §7.3 never fired and the node stayed shut. Callers that
+#: serve a learner must treat these as "let them through now", and they are logged because
+#: nothing else makes them visible.
+BROKEN_EVALUATION_REASONS = frozenset(
+    {"missing_evaluation_definition", "unsupported_evaluation_mode"}
 )
 
 
@@ -312,25 +328,36 @@ class ActivityDefinitionService:
 
         config = (activity.private_definition or {}).get("evaluation")
         if not isinstance(config, dict):
-            return PortDeclined("missing_evaluation_definition")
+            return self._broken(activity, "missing_evaluation_definition")
         received = submission.get("answer")
         score = _builtin_evaluation_score(config, received)
         if score is None:
-            return PortDeclined("unsupported_evaluation_mode")
+            return self._broken(activity, "unsupported_evaluation_mode")
         correct = score == 1.0
         outcome = "correct" if correct else "incorrect" if score == 0.0 else "partial"
-        feedback = (activity.public_definition or {}).get("feedback", {})
-        public_feedback = (
-            feedback.get("positive" if correct else "partial" if outcome == "partial" else "negative")
-            if isinstance(feedback, dict)
-            else None
-        )
         return {
             "outcome": outcome,
             "passed": correct,
             "score": score,
-            "feedback": public_feedback,
+            "feedback": public_feedback(activity.public_definition, outcome),
         }
+
+    @staticmethod
+    def _broken(activity: ActivityDefinition, reason: str) -> PortDeclined:
+        """Decline, and say so out loud: this is a generation defect, not a learner error.
+
+        Without the log line an activity that can never be graded is invisible — the
+        learner sees a dead check, the quality bench sees nothing, and the same broken
+        shape is generated again. ``exc_info`` would be noise (there is no exception); the
+        coordinates are what a maintainer needs to find the offending definition.
+        """
+        logger.warning(
+            "activity %s (%s) cannot be evaluated: %s",
+            activity.id,
+            activity.component_id,
+            reason,
+        )
+        return PortDeclined(reason)
 
     async def transition(self, activity: ActivityDefinition, state: dict, action: str) -> dict | PortDeclined:
         decline = self.ensure_ready(activity, "simulation")
@@ -356,6 +383,55 @@ class ActivityDefinitionService:
         if adapter is None:
             return PortDeclined("missing_ports:execution")
         return await adapter.execute(activity.private_definition, submission)  # type: ignore[attr-defined]
+
+
+def public_feedback(public_definition: Mapping[str, Any] | None, outcome: str) -> str | None:
+    """The author's reaction line for one outcome, from the half the client already has.
+
+    Kept as a function rather than inlined in :meth:`ActivityDefinitionService.evaluate`
+    because the idempotent replay of ``POST /activities/{id}/evaluate`` has to reproduce
+    the same line from a stored *outcome* alone. The alternative — storing the sentence
+    with the recorded verdict — would put authored course content into ``learning_events``,
+    which carries bounded telemetry and nothing else.
+    """
+    feedback = (public_definition or {}).get("feedback")
+    if not isinstance(feedback, Mapping):
+        return None
+    key = {"correct": "positive", "partial": "partial"}.get(outcome, "negative")
+    value = feedback.get(key)
+    return value if isinstance(value, str) else None
+
+
+def validated_score(evaluated: Mapping[str, Any]) -> tuple[str, float, bool, str | None]:
+    """Refuse to move a learner's mastery on an evaluation that is not scored evidence.
+
+    An ``evaluation`` port adapter is free to return whatever it likes, so every value
+    that reaches ``MasteryEvidenceService`` is checked first. ``hints_used`` is
+    deliberately **not** read from here: on the ``/evaluate`` path the record of what was
+    actually disclosed to this learner is ``learner_node_states.hints_used``, and a number
+    an adapter reports about itself is not that record.
+
+    Twin of ``ExperienceAttemptService._validated_score``, which does the same job for the
+    ``/attempts`` path and additionally carries the adapter's hint count. The two should
+    collapse into this one the next time that service is touched.
+    """
+    outcome = evaluated.get("outcome")
+    if outcome not in {"correct", "incorrect", "partial"}:
+        raise ValidationError("evaluation did not produce scored evidence")
+    score_value = evaluated.get("score")
+    passed_value = evaluated.get("passed")
+    if isinstance(score_value, bool) or not isinstance(score_value, (int, float)):
+        raise ValidationError("evaluation returned an invalid score")
+    score = float(score_value)
+    if not 0.0 <= score <= 1.0 or not isinstance(passed_value, bool):
+        raise ValidationError("evaluation returned an invalid scoring shape")
+    raw_error = evaluated.get("error_kind")
+    if raw_error is not None and not isinstance(raw_error, str):
+        raise ValidationError("evaluation returned an invalid error_kind")
+    # An adapter may supply a richer, server-owned classification. The neutral bridge must
+    # not infer pedagogy from a concrete component id.
+    error_kind = raw_error or (None if passed_value else f"{outcome}_response")
+    return str(outcome), score, passed_value, error_kind
 
 
 def operation_payload(value: dict | PortDeclined) -> dict[str, Any]:

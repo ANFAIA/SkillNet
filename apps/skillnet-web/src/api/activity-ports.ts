@@ -1,10 +1,12 @@
-import { get, post, put } from './client'
+import { ApiError, get, post, put } from './client'
+import { ActivityNotEvaluableError } from '../lib/didact/host-ports'
 import type {
   DidactHostPorts,
   DidactScope,
   DidactValue,
   AssetReference,
   EvaluationResult,
+  EvaluationSolution,
   ExecutionResult,
   SimulationResult,
 } from '../lib/didact/host-ports'
@@ -58,6 +60,59 @@ function completed(response: OperationResponse): DidactValue {
   return response.result
 }
 
+function record(value: DidactValue | undefined): Record<string, DidactValue> | undefined {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value : undefined
+}
+
+function writtenSolution(value: DidactValue | undefined): EvaluationSolution | undefined {
+  const fields = record(value)
+  if (!fields || typeof fields.solution !== 'string' || !fields.solution) return undefined
+  return {
+    solution: fields.solution,
+    explanation: typeof fields.explanation === 'string' ? fields.explanation : null,
+  }
+}
+
+/**
+ * Everything the server puts in `result` around the grader's own verdict.
+ *
+ * This used to keep `feedback` and drop the rest on the floor, which is how a
+ * `show_worked_solution` the server had already decided on never reached the screen: the
+ * signal arrived in the browser and the client threw it away. Naming each field is
+ * deliberate — the wire is snake_case and `EvaluationResult` is not, and a blind spread
+ * would leave `show_worked_solution` sitting there unread next to a `showWorkedSolution`
+ * nobody set.
+ */
+function evaluationEnvelope(result: DidactValue): Partial<EvaluationResult> {
+  const fields = record(result)
+  if (!fields) return {}
+  const solution = writtenSolution(fields.solution)
+  return {
+    ...(fields.feedback === undefined ? {} : { feedback: fields.feedback }),
+    ...(fields.show_worked_solution === true ? { showWorkedSolution: true } : {}),
+    ...(typeof fields.state === 'string' ? { state: fields.state } : {}),
+    ...(typeof fields.mastery === 'number' ? { mastery: fields.mastery } : {}),
+    ...(solution === undefined ? {} : { solution }),
+  }
+}
+
+/**
+ * The server saying the activity itself cannot be graded, told apart from a request that
+ * merely failed.
+ *
+ * The two evaluation paths word it differently — `/evaluate` declines the operation with
+ * a reason, `/attempts` rejects the submission — so the translation lives here, in one
+ * place, and this is the single function to adapt if the backend settles on an explicit
+ * flag instead.
+ */
+function notEvaluable(error: unknown): boolean {
+  return (
+    error instanceof ApiError
+    && error.status === 422
+    && error.body.detail.toLowerCase().includes('cannot be evaluated')
+  )
+}
+
 /** HTTP implementations remain activity-scoped; no answer data lives in the browser. */
 export function createActivityHostPorts(
   activityId: string,
@@ -104,23 +159,32 @@ export function createActivityHostPorts(
     evaluation: {
       async evaluate(request) {
         if (options.bindingId) {
-          const response = await post<ExperienceAttemptResponse>(`${path}/attempts`, {
-            attempt_id: request.attemptId,
-            binding_id: options.bindingId,
-            submission: request.response,
-          })
-          const result = response.result
-          const feedback = result && typeof result === 'object' && !Array.isArray(result)
-            ? result.feedback
-            : undefined
+          let response: ExperienceAttemptResponse
+          try {
+            response = await post<ExperienceAttemptResponse>(`${path}/attempts`, {
+              attempt_id: request.attemptId,
+              binding_id: options.bindingId,
+              submission: request.response,
+            })
+          } catch (failure) {
+            if (notEvaluable(failure)) {
+              throw new ActivityNotEvaluableError((failure as ApiError).body.detail)
+            }
+            throw failure
+          }
           return {
             outcome: response.outcome,
             ...(response.score === null ? {} : { score: response.score }),
-            ...(feedback === undefined ? {} : { feedback }),
+            ...evaluationEnvelope(response.result),
           }
         }
         const response = await post<OperationResponse>(`${path}/evaluate`, { submission: request.response })
-        return completed(response) as EvaluationResult
+        if (response.status === 'declined') {
+          throw new ActivityNotEvaluableError(response.decline_reason ?? '')
+        }
+        // The verdict (`outcome`, `score`, `maxScore`) is the grader's own and already
+        // camelCase; the envelope on top is the server's, and needs translating.
+        return { ...(response.result as EvaluationResult), ...evaluationEnvelope(response.result) }
       },
     },
     persistence: {

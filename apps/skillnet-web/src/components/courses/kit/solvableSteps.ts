@@ -21,12 +21,16 @@ import type { ElementNode } from '@openuidev/react-lang'
 import { usesSecureEvaluationAdapter } from '../blocks/secure-evaluation-components'
 
 /**
- * Los componentes del kit que cierran el paso hasta acertar.
+ * The kit components that close the step, BY NAME.
  *
- * Es el espejo exacto de quien llama a `useStepperSolve()` en `blocks/`, y
- * `solvableSteps.test.ts` falla si uno de los dos lados se mueve sin el otro. Un nombre
- * de menos aqui = un ejercicio que se puede saltar; uno de mas = un aprendiz atascado
- * en un paso que nadie va a abrir.
+ * Half a list. The other half cannot be recognised by the element name — every experience
+ * is emitted as `LearningExperience` — but by its `implementation_ref`, and that rule
+ * lives in `isEvaluativeExperience` below.
+ *
+ * The two together mirror exactly who calls `useStepperSolve()` in `blocks/`, and
+ * `solvableSteps.test.ts` fails if either side moves without the other. One name missing
+ * here = an exercise that can be skipped; one name too many = a learner stuck in a step
+ * nobody will ever open.
  */
 export const SOLVABLE_COMPONENTS: readonly string[] = ['QuizItem', 'DragOrder']
 
@@ -40,13 +44,47 @@ function isElementNode(value: unknown): value is ElementNode {
 }
 
 /**
- * True si en `value` —un `ElementNode`, una lista de ellos o cualquier prop— hay un
- * ejercicio, a la profundidad que sea: un `QuizItem` dentro de un `Card` dentro de un
- * `Stack` anidado sigue cerrando el paso que lo contiene.
+ * A `LearningExperience` whose implementation is graded against the server.
  *
- * El arbol resuelto es un DAG, no un arbol: el mismo nodo puede colgar de varios sitios
- * y la expansion medida llega a decenas de miles de elementos. De ahi el `seen`, que
- * ademas hace inofensiva cualquier referencia circular que el parser dejara pasar.
+ * Which components evaluate is not decided here: it is asked of
+ * `usesSecureEvaluationAdapter`, which already is the list of the ones graded server-side,
+ * and those are exactly the ones `blocks/SecureEvaluatedActivity.tsx` paints. A supporting
+ * experience — `didact.flashcard`, a glossary — checks nothing and closes no step.
+ */
+function isEvaluativeExperience(node: ElementNode): boolean {
+  if (node.typeName !== 'LearningExperience') return false
+  const ref = (node.props as { implementation_ref?: unknown } | undefined)?.implementation_ref
+  // The ref travels versioned (`...@1`); the list is written without a version.
+  return typeof ref === 'string' && usesSecureEvaluationAdapter(ref.split('@')[0])
+}
+
+/**
+ * True when `value` — an `ElementNode`, a list of them, or any prop — holds something that
+ * CHECKS what was learnt, at any depth: a `QuizItem` inside a `Card` inside a nested
+ * `Stack` still closes the step that contains it.
+ *
+ * ## Why there is no longer a second function
+ *
+ * Until 2026-08-28 this lived next to a wider `hasEvaluation` that did count the didact
+ * experiences. The gap was not a design nuance: for SPLITTING the screen an experience
+ * counted as evaluation, and for CLOSING the step it did not, because the step is opened
+ * by whoever calls `useStepperSolve()` and `SecureEvaluatedActivity` did not call it. It
+ * could not: it had no way out other than getting the answer right, so closing a step with
+ * one of those inside would have locked the learner in.
+ *
+ * Now it has one — the server sends `show_worked_solution`, the activity hands over the
+ * solution and opens the step — so the reason for the distinction is gone and the two
+ * functions merged into this one. Four exits hold that up, and every one of them calls
+ * solve: a correct answer, the solution handed over, an activity that cannot be graded
+ * (`ActivityNotEvaluableError`), and an activity that never even mounted
+ * (`useSolveStepWhen` in `LearningExperience` and `DidactActivityBlock`). Lose any of
+ * them and the locked-in learner is back.
+ *
+ * ## The walk
+ *
+ * The resolved tree is a DAG, not a tree: the same node can hang off several places and
+ * the measured expansion reaches tens of thousands of elements. Hence `seen`, which also
+ * makes harmless any circular reference the parser might let through.
  */
 export function hasSolvableItem(value: unknown, seen: WeakSet<object> = new WeakSet()): boolean {
   if (Array.isArray(value)) {
@@ -58,6 +96,7 @@ export function hasSolvableItem(value: unknown, seen: WeakSet<object> = new Weak
 
   if (isElementNode(value)) {
     if (SOLVABLE_COMPONENTS.includes(value.typeName)) return true
+    if (isEvaluativeExperience(value)) return true
     return hasSolvableItem(value.props, seen)
   }
   return Object.values(value as Record<string, unknown>).some((entry) => hasSolvableItem(entry, seen))
@@ -79,49 +118,6 @@ export function hasSolvableItem(value: unknown, seen: WeakSet<object> = new Weak
  * `Stack` de puro contenido se queda intacto, y un `Card` NUNCA se toca (agrupar con borde
  * es una decision de diseno del generador, no un contenedor accidental).
  */
-/**
- * True si en el subarbol hay algo que COMPRUEBA lo aprendido.
- *
- * Es mas ancho que :func:`hasSolvableItem` a proposito, y la diferencia importa. La
- * evaluacion que de verdad genera el pipeline no suele ser un `QuizItem`: es un
- * `LearningExperience` con un `implementation_ref` de la familia didact
- * (`didact.quiz.multi-select@1` y compania). Para PARTIR la pantalla eso cuenta como
- * evaluacion; para CERRAR el paso no, porque el que cierra el paso es quien llama a
- * `useStepperSolve()` y ese bloque no lo llama — meterlo en `SOLVABLE_COMPONENTS` dejaria
- * al aprendiz encerrado en una pantalla que nadie va a abrir.
- *
- * Que componentes evaluan no se decide aqui: se pregunta a `usesSecureEvaluationAdapter`,
- * que ya es la lista de los que se corrigen contra el servidor.
- */
-function hasEvaluation(value: unknown, seen: WeakSet<object> = new WeakSet()): boolean {
-  if (hasSolvableItem(value)) return true
-  return hasEvaluativeExperience(value, seen)
-}
-
-function hasEvaluativeExperience(value: unknown, seen: WeakSet<object>): boolean {
-  if (Array.isArray(value)) {
-    return value.some((entry) => hasEvaluativeExperience(entry, seen))
-  }
-  if (typeof value !== 'object' || value === null) return false
-  if (seen.has(value)) return false
-  seen.add(value)
-
-  if (isElementNode(value)) {
-    if (value.typeName === 'LearningExperience') {
-      const ref = (value.props as { implementation_ref?: unknown } | undefined)
-        ?.implementation_ref
-      // El ref viaja versionado (`...@1`); la lista esta escrita sin version.
-      if (typeof ref === 'string' && usesSecureEvaluationAdapter(ref.split('@')[0])) {
-        return true
-      }
-    }
-    return hasEvaluativeExperience(value.props, seen)
-  }
-  return Object.values(value as Record<string, unknown>).some((entry) =>
-    hasEvaluativeExperience(entry, seen),
-  )
-}
-
 export function splitMixedScreens(children: unknown[]): unknown[] {
   const out: unknown[] = []
   for (const child of children) {
@@ -141,6 +137,6 @@ function mixedNestedStackChildren(value: unknown): unknown[] | null {
   const raw = (value.props as { children?: unknown } | undefined)?.children
   const kids = (Array.isArray(raw) ? raw : [raw]).flat().filter((kid) => kid != null)
   if (kids.length < 2) return null
-  const evalua = kids.filter((kid) => hasEvaluation(kid)).length
+  const evalua = kids.filter((kid) => hasSolvableItem(kid)).length
   return evalua > 0 && evalua < kids.length ? kids : null
 }

@@ -4,8 +4,13 @@ import type { ComponentType } from 'react'
 import { experienceAdapterRegistry } from '../../../lib/experiences'
 import type { ExperienceAdapterProps } from '../../../lib/experiences'
 import type { LearningExperienceReference } from '../../../types/learning-experience'
+import { useSolveStepWhen } from './StepperContext'
 
 function ExperienceStatus({ kind, children }: { kind: 'loading' | 'failed'; children: string }) {
+  // The step is already closed if this experience evaluates (`kit/solvableSteps.ts`), and
+  // that was decided by reading the program, before knowing whether the adapter even
+  // exists. Nobody is going to open it from an error box, so the exit belongs here.
+  useSolveStepWhen(kind === 'failed')
   return (
     <div
       className="rounded-lg border border-border bg-bg-subtle px-4 py-3 text-sm text-text-secondary"

@@ -50,10 +50,15 @@ REGRESS_STREAK = 2  # consecutive failures -> lower difficulty + `reforzar_con_e
 
 # --- §7.4 scaffolding escalation --------------------------------------------
 
-HINT_LIMIT = 3  # hints per item; the 4th failure after them hands over the solution
-# How many failures of the SAME item, once the hints are spent, buy the worked solution.
-# Named after what it produces and not after a state: it used to be `NEEDS_REVIEW_FAILURES`,
-# and the state it named outlived its own removal in this comment for exactly that reason.
+HINT_LIMIT = 3  # hints per item: a DISCLOSURE BUDGET, not a precondition for the exit
+# How many failures of the SAME item buy the worked solution. Named after what it produces
+# and not after a state: it used to be `NEEDS_REVIEW_FAILURES`, and the state it named
+# outlived its own removal in this comment for exactly that reason.
+#
+# The two constants are deliberately independent. `HINT_LIMIT` caps how much a learner may
+# be told; `WORKED_SOLUTION_FAILURES` is evidence that the item is not working for them.
+# Gating the second on the first said "you get rescued only once you have spent your rescue
+# budget", which is circular, and it punished exactly the learners who never ask.
 WORKED_SOLUTION_FAILURES = 4
 
 # --- §7.1 prior from user_skills --------------------------------------------
@@ -352,9 +357,12 @@ def transition_on_answer(
     """6, 7 and 8. What one graded answer inside the node does to the state.
 
     ``item_failures`` is how many failures the same ``item_id`` already has *before*
-    this answer, so rule 8 fires on the 4th failure of that item once the 3 hints
-    have been spent (§7.4). ``error_kind`` is written to ``last_error_kind`` only on
-    a failure; it feeds the next ``genera_ui``.
+    this answer, so rule 8 fires on the 4th failure of that item (§7.4).
+    ``error_kind`` is written to ``last_error_kind`` only on a failure; it feeds the
+    next ``genera_ui``.
+
+    ``hints_used`` is still taken, still recorded as evidence and still caps disclosure
+    through :func:`may_offer_hint` — but it no longer *governs* rule 8. See that rule.
 
     Requiring ``mastery >= threshold`` *and* a streak of 3 is what defends against
     cognitive offloading: a streak demands repeated generation, not a lucky spike.
@@ -381,14 +389,19 @@ def transition_on_answer(
     if not passed and error_kind is not None:
         changes["last_error_kind"] = _value(error_kind)
 
-    if (
-        not passed
-        and item_failures + 1 >= WORKED_SOLUTION_FAILURES
-        and hints_used >= HINT_LIMIT
-    ):
+    if not passed and item_failures + 1 >= WORKED_SOLUTION_FAILURES:
         # 8. **The emergency exit**, and the only thing that closes an item the learner
-        # is not going to get right. Four failures of the same item with the three hints
-        # already spent: the worked solution is handed over and the learner carries on.
+        # is not going to get right. Four failures of the same item: the worked solution
+        # is handed over and the learner carries on.
+        #
+        # The rule used to demand `hints_used >= HINT_LIMIT` as well, and that made the
+        # exit depend on the learner *asking* for help. Three consequences, all bad and
+        # all measured on the Didact closers, which have no hint ladder at all: a learner
+        # who never asks fails the same item for ever; the learners least likely to ask
+        # are the ones most in need of the exit; and the condition was circular — a
+        # disclosure budget (`HINT_LIMIT`) was being used as the price of a rescue. Four
+        # failures are evidence the item is not working, whatever was or was not asked
+        # for, so the failures alone are the condition now.
         #
         # This branch must never be deleted "because the state it produced is gone". The
         # state was only a label; without the branch the answer falls through to rule 0,

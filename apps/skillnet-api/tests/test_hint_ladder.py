@@ -1,20 +1,21 @@
 """The §7.4 hint ladder, end to end over the HTTP surface — and the exit it unlocks.
 
 Rule 8 of §7.3 is the only thing that closes an item the learner is not going to get
-right: the fourth failure of that item, once the three hints are spent, hands over the
-worked solution. It is reachable only through ``POST /nodes/{id}/hint``, which is what
-moves ``node_attempts.hints_used``, so ``tests/test_mastery.py`` covers the pure rule and
-this file covers the path that reaches it — over HTTP, where a client actually walks it.
+right: the fourth failure of that item hands over the worked solution. ``tests/test_mastery.py``
+covers the pure rule and this file covers the path that reaches it — over HTTP, where a
+client actually walks it.
 
 The two things asserted here are the two the ladder promises:
 
 1. **The third hint exhausts the quota.** Hints 1..3 escalate and are served; the fourth
    request is a ``409``, and the count of record is ``node_attempts.hints_used`` — never
-   the number the client sends.
-2. **The fourth failure after them opens the exit**: ``show_worked_solution: true``, the
-   answer revealed, ``next: "next_item"`` rather than another ``retry``, and a state the
-   learner carries on from. There is no ``needs_review`` any more (migration 0033) and
-   there was never any need for one: the flag is the escape hatch, the state was a label.
+   the number the client sends. That quota is a *disclosure budget* and nothing else.
+2. **The fourth failure opens the exit**, hints asked or not: ``show_worked_solution: true``,
+   ``next: "next_item"`` rather than another ``retry``, and a state the learner carries on
+   from. There is no ``needs_review`` any more (migration 0033) and there was never any need
+   for one: the flag is the escape hatch, the state was a label. Revealing the *answer key*
+   on this route is still gated on ``passed or hints_used >= HINT_LIMIT``, which is a
+   separate decision from whether the item stops being asked.
 
 No database and no network, same technique as ``tests/test_node_routes_authorization.py``:
 the session dependency is a stub and the repositories the routes name are replaced with
@@ -514,17 +515,29 @@ def test_the_fourth_failure_after_three_hints_opens_the_exit(
     assert world.state.state == "learning"
 
 
-def test_a_fourth_failure_without_hints_keeps_retrying(client: TestClient) -> None:
-    """Both halves of the condition are required. Failing four times without ever asking
-    for a hint is a hard item, not an exit: §7.4 wants the scaffolding *spent* first.
+def test_a_fourth_failure_without_hints_also_opens_the_exit(client: TestClient) -> None:
+    """The exit does not depend on asking for help. Four failures are enough on their own.
+
+    Rule 8 used to require the three hints as well, which made the only way out of an item
+    conditional on the learner *requesting* it — and the learners least likely to ask are
+    the ones who need it most. The count of failures is the evidence that the item is not
+    working; ``hints_used`` stays a disclosure budget and stays out of this decision.
 
     Asserted on ``show_worked_solution`` and ``next``, never on ``state``: every failure
     leaves the learner in ``learning`` now, so a state assertion here would hold whether
     or not rule 8 had fired and would be checking nothing.
+
+    And the solution has to actually be *in* the response. The reveal gate next to it
+    read ``passed or hints_used >= HINT_LIMIT``, which covered rule 8 by construction only
+    while rule 8 itself required the hints. Once the exit stopped depending on asking, that
+    gate started answering no to the very case the flag was announcing: "here is your
+    worked solution", with nothing inside it.
     """
     for _ in range(3):
         assert fail(client).status_code == 200
     body = fail(client).json()
-    assert body["show_worked_solution"] is False
-    assert body["next"] == "retry"
-    assert body["correct_answer"] is None
+    assert body["show_worked_solution"] is True
+    assert body["next"] == "next_item"
+    assert body["correct_answer"] is not None, (
+        "the flag promises a solution the payload must carry"
+    )

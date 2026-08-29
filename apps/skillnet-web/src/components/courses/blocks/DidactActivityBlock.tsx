@@ -15,6 +15,7 @@ import {
 import { usesSecureEvaluationAdapter } from './secure-evaluation-components'
 import { AssetBackedDidactActivity } from './AssetBackedDidactActivity'
 import { HostProgressActivity } from './HostProgressActivity'
+import { useSolveStepWhen } from './StepperContext'
 
 const ASSET_BACKED_COMPONENTS = new Set([
   'didact.hotspot',
@@ -48,6 +49,10 @@ function honestPorts(componentId: string, ports: DidactHostPorts): DidactHostPor
 }
 
 function ActivityStatus({ kind, children }: { kind: string; children: string }) {
+  // The same exit as in `LearningExperience`: the step was closed by reading the program,
+  // and a definition that could not be fetched — or that is not valid — is one nobody will
+  // ever solve. `loading` opens nothing; it can still end well.
+  useSolveStepWhen(kind === 'failed' || kind === 'blocked')
   return (
     <div
       className="rounded-lg border border-border bg-bg-subtle px-4 py-3 text-sm text-text-secondary"

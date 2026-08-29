@@ -67,8 +67,43 @@ describe('SOLVABLE_COMPONENTS', () => {
       .filter((file) => readFileSync(join(BLOCKS_DIR, file), 'utf8').includes('useStepperSolve()'))
       .sort()
 
-    expect(conSolve).toEqual(['DragOrderBlock.tsx', 'QuizItemBlock.tsx'])
+    // Three blocks and two names, and that is not a discrepancy: `SecureEvaluatedActivity`
+    // is not a kit component — it is reached through a `LearningExperience`'s
+    // `implementation_ref` — so its half of the list is the `usesSecureEvaluationAdapter`
+    // rule, checked right below.
+    expect(conSolve).toEqual([
+      'DragOrderBlock.tsx',
+      'QuizItemBlock.tsx',
+      'SecureEvaluatedActivity.tsx',
+    ])
     expect([...SOLVABLE_COMPONENTS].sort()).toEqual(['DragOrder', 'QuizItem'])
+  })
+
+  /**
+   * The other half of the mirror.
+   *
+   * `SecureEvaluatedActivity` calls `useStepperSolve()`, so the step holding it has to be
+   * born closed; and the only way to recognise it from the program is the
+   * `implementation_ref`, because every experience is emitted under the same name.
+   */
+  it('cierra el paso de una experiencia que se corrige contra el servidor', () => {
+    const evalua = el('LearningExperience', {
+      experience_id: 'e1',
+      implementation_ref: 'didact.sort@1',
+      definition_ref: 'd1',
+    })
+    const apoyo = el('LearningExperience', {
+      experience_id: 'e2',
+      implementation_ref: 'didact.flashcard@1',
+      definition_ref: 'd2',
+    })
+
+    expect(hasSolvableItem(evalua)).toBe(true)
+    // A supporting experience checks nothing, so it closes nothing: throwing it in would
+    // leave the learner waiting for a correct answer nobody is going to ask them for.
+    expect(hasSolvableItem(apoyo)).toBe(false)
+    // Nested, which is how it actually arrives.
+    expect(hasSolvableItem(el('Card', { title: 'Practica', children: [evalua] }))).toBe(true)
   })
 })
 
@@ -157,12 +192,20 @@ describe('splitMixedScreens y la evaluacion de las experiencias didact', () => {
   })
 
   /**
-   * La linea que no se puede cruzar: partir la pantalla es seguro, cerrarla no. Quien
-   * cierra el paso es quien llama a `useStepperSolve()`, y `LearningExperience` no lo
-   * hace; si esto dejara de ser cierto, el aprendiz se quedaria encerrado.
+   * The line moved, and it is worth saying why.
+   *
+   * Until 2026-08-28 this experience split the screen but did NOT close the step: the only
+   * way out of `SecureEvaluatedActivity` was a correct answer, so closing a step with one
+   * inside meant locking the learner in. There is a way out now — the server sends
+   * `show_worked_solution`, the activity hands over the solution and opens the step — so it
+   * closes the step like any other exercise.
+   *
+   * What still cannot happen is `LearningExperience` entering the list BY NAME: half the
+   * experiences evaluate nothing.
    */
-  it('no convierte la experiencia en un paso que cierra', () => {
-    expect(hasSolvableItem(quizExperiencia)).toBe(false)
+  it('cierra el paso, ahora que la actividad sabe salir de el', () => {
+    expect(hasSolvableItem(quizExperiencia)).toBe(true)
+    expect(hasSolvableItem(apoyo)).toBe(false)
     expect(SOLVABLE_COMPONENTS).not.toContain('LearningExperience')
   })
 })

@@ -457,7 +457,7 @@ def test_transition_7_two_failures_lower_the_difficulty_without_changing_state()
     assert t.lower_difficulty is True
 
 
-def test_transition_8_fourth_failure_after_three_hints_hands_over_the_solution():
+def test_transition_8_fourth_failure_hands_over_the_solution():
     t = transition_on_answer(
         state="learning",
         mastery=0.3,
@@ -476,15 +476,15 @@ def test_transition_8_fourth_failure_after_three_hints_hands_over_the_solution()
     assert t.attempts_delta == 1
 
 
-def test_transition_8_requires_both_the_hints_and_the_fourth_failure():
-    """The negative branches assert ``show_worked_solution``, **not** the state.
+def test_transition_8_fires_without_a_single_hint_asked():
+    """**The reason the rule changed.** Four failures, zero hints, and the exit opens.
 
-    Every branch of ``transition_on_answer`` now returns ``learning`` for a failure, so
-    asserting ``to_state == "learning"`` here would pass whether or not rule 8 fired and
-    would test nothing. The flag is what separates them: it is the escape hatch, and both
-    halves of §7.4 have to be spent to earn it.
+    Rule 8 used to require ``hints_used >= HINT_LIMIT`` as well, which made the escape
+    hatch conditional on the learner *asking* for it. A learner who never asks failed the
+    same item for ever — and the Didact closers, which are the default check of a node,
+    have no hint ladder to ask on at all. The failures alone are the evidence now.
     """
-    without_hints = transition_on_answer(
+    t = transition_on_answer(
         state="learning",
         mastery=0.3,
         consecutive_correct=0,
@@ -493,11 +493,20 @@ def test_transition_8_requires_both_the_hints_and_the_fourth_failure():
         passed=False,
         threshold=0.80,
         hints_used=0,
-        item_failures=3,
+        item_failures=WORKED_SOLUTION_FAILURES - 1,
     )
-    assert without_hints.rule != 8
-    assert without_hints.show_worked_solution is False
+    assert (t.rule, t.to_state) == (8, "learning")
+    assert t.show_worked_solution is True
 
+
+def test_transition_8_still_needs_the_fourth_failure():
+    """The negative branch asserts ``show_worked_solution``, **not** the state.
+
+    Every branch of ``transition_on_answer`` returns ``learning`` for a failure, so
+    asserting ``to_state == "learning"`` here would pass whether or not rule 8 fired and
+    would test nothing. The flag is what separates them, and three failures do not earn it
+    however many hints were spent: the exit is a *count of failures*, not a purchase.
+    """
     too_early = transition_on_answer(
         state="learning",
         mastery=0.3,
@@ -511,6 +520,20 @@ def test_transition_8_requires_both_the_hints_and_the_fourth_failure():
     )
     assert too_early.rule != 8
     assert too_early.show_worked_solution is False
+
+    passing = transition_on_answer(
+        state="learning",
+        mastery=0.3,
+        consecutive_correct=0,
+        consecutive_failed=3,
+        score=1.0,
+        passed=True,
+        threshold=0.80,
+        hints_used=0,
+        item_failures=WORKED_SOLUTION_FAILURES,
+    )
+    assert passing.rule != 8
+    assert passing.show_worked_solution is False
 
 
 def test_the_eight_transitions_are_all_covered():
@@ -570,8 +593,9 @@ def test_attempt_before_hint():
 def test_the_hint_ladder_always_ends_in_an_escape():
     """The reason the ``needs_review`` state could be removed: the exit is the flag.
 
-    Three hints spent and a fourth failure of the same item, from the state the learner is
-    actually in. What has to hold is that the item stops being asked (``show_worked_solution``)
+    A fourth failure of the same item, from the state the learner is actually in (here with
+    the hints spent too, which no longer changes the verdict but is the common path).
+    What has to hold is that the item stops being asked (``show_worked_solution``)
     and that the state left behind is one the learner can carry on from — ``learning``, whose
     every rule is still available to them, and never ``mastered``, which would stamp
     ``mastered_at`` and print an unearned number on a certificate.

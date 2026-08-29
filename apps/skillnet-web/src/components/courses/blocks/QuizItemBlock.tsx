@@ -23,6 +23,22 @@ export interface QuizItemBlockProps {
   bloom_level: BloomLevel
   question: string
   options?: string[]
+  /**
+   * The steps of an `order_steps` item, which are not options — which is why the server
+   * keeps them apart (`services/node_grading.split_v1_content`).
+   *
+   * Only the worked solution uses them: `correct_order` is a list of INDICES, and without
+   * the list they index into, the panel prints its title and nothing else.
+   *
+   * **It does not arrive through the kit today, and that is not an oversight.** `QuizItem`
+   * cannot carry a `steps` prop while the backend's canonical catalogue
+   * (`src/render/kit.py`) does not: `catalog-drift.test.ts` compares name by name AND in
+   * order, and on top of that forbids optional props ("the kit has no optional props").
+   * So the only way to wire it is to add it on both sides at once. Until then an
+   * `order_steps` item carries its steps in `options`, which is where the `??` below
+   * falls back to.
+   */
+  steps?: string[]
   /** Target of `POST /nodes/{nodeId}/answer`. Injected by `UiSpecRenderer`. */
   nodeId: string
   /**
@@ -232,6 +248,7 @@ export function QuizItemBlock({
   item_type,
   question,
   options,
+  steps,
   nodeId,
   renderId,
 }: QuizItemBlockProps) {
@@ -450,7 +467,9 @@ export function QuizItemBlock({
         <WorkedSolution
           itemType={item_type}
           correctAnswer={result?.correct_answer ?? null}
-          options={choices}
+          // `order_steps` indexes into the STEPS, not into the options (which are empty
+          // for that type): without this the panel came out with a title and nothing under it.
+          options={steps ?? choices}
         />
       ) : null}
     </div>

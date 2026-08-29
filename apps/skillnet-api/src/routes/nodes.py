@@ -107,6 +107,7 @@ from src.services.learner_profile_service import (
 )
 from src.services.mastery_service import (
     HINT_LIMIT,
+    WORKED_SOLUTION_FAILURES,
     MASTERED,
     may_offer_hint,
 )
@@ -785,7 +786,22 @@ async def answer_node_item(
             if existing_state is not None
             else "learning"
         )
-        reveal = bool(existing_attempt.passed) or int(existing_attempt.hints_used or 0) >= HINT_LIMIT
+        # A replay has no ``transition`` to ask, so rule 8 is re-derived from the same two
+        # facts that produced it: this item's failures, and that the stored attempt failed.
+        # Without it a client whose first response was lost — the exact case ``attempt_id``
+        # exists for — replays into ``correct_answer: null`` and never sees the solution
+        # that unlocks the step. One extra count on a path that only runs on a duplicate.
+        replayed_worked_solution = not existing_attempt.passed and (
+            await attempts.count_failures_for_item(
+                user_id=user.id, node_id=node.id, item_id=body.item_id
+            )
+            >= WORKED_SOLUTION_FAILURES
+        )
+        reveal = (
+            bool(existing_attempt.passed)
+            or int(existing_attempt.hints_used or 0) >= HINT_LIMIT
+            or replayed_worked_solution
+        )
         return NodeAttemptResult(
             score=float(existing_attempt.score),
             passed=bool(existing_attempt.passed),
@@ -799,8 +815,12 @@ async def answer_node_item(
             consecutive_failed=int(
                 getattr(existing_state, "consecutive_failed", 0) or 0
             ),
-            next=_next_action(passed=bool(existing_attempt.passed), state=state_value),
-            show_worked_solution=False,
+            next=_next_action(
+                passed=bool(existing_attempt.passed),
+                state=state_value,
+                show_worked_solution=replayed_worked_solution,
+            ),
+            show_worked_solution=replayed_worked_solution,
         )
     hints_used = await attempts.hints_used_for_item(
         user_id=user.id, node_id=node.id, item_id=body.item_id
@@ -869,7 +889,12 @@ async def answer_node_item(
             org_id=node.org_id,
         )
 
-    reveal = result.passed or hints_used >= HINT_LIMIT
+    # `show_worked_solution` is the third door, and it has to be here or the panel opens
+    # empty. Rule 8 used to require `hints_used >= HINT_LIMIT`, so the middle condition
+    # covered it by construction; since the exit stopped depending on the learner *asking*
+    # for help, a fourth failure with no hints requested sets the flag while this gate
+    # still says no — "here is the worked solution" with nothing inside it.
+    reveal = result.passed or hints_used >= HINT_LIMIT or transition.show_worked_solution
     state_value = str(getattr(state.state, "value", state.state))
     return NodeAttemptResult(
         score=result.score,

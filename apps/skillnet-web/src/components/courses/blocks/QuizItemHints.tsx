@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useIntl } from 'react-intl'
 import { useMutation } from '@tanstack/react-query'
 import { ApiError, post } from '../../../api/client'
+import type { EvaluationSolution } from '../../../lib/didact/host-ports'
 import type { ExerciseType, NodeHintResult } from '../../../types'
 
 /**
@@ -125,9 +126,19 @@ export function HintLadder({ nodeId, renderId, itemId, disabled = false }: HintL
 // ------------------------------------------------------------------------------- //
 
 export interface WorkedSolutionProps {
-  itemType: ExerciseType
+  /**
+   * A solution the server already wrote out (`EvaluationResult.solution`).
+   *
+   * When it is here it is what gets printed, and the answer-key shapes below are not
+   * consulted at all: the sentences are the server's, and there is nothing to take apart.
+   * This is the Didact families' way in — they have no `ExerciseType` and no
+   * `correct_answer`, so without it the panel had no branch that could ever match.
+   */
+  solution?: EvaluationSolution | null
+  /** v1 item type, which decides how `correctAnswer` is read. */
+  itemType?: ExerciseType
   /** `NodeAttemptResult.correct_answer` — only ever populated by the server. */
-  correctAnswer: Record<string, unknown> | null
+  correctAnswer?: Record<string, unknown> | null
   /** The item's options / steps, so an index can be printed as the text it means. */
   options?: string[]
 }
@@ -135,6 +146,32 @@ export interface WorkedSolutionProps {
 function optionAt(options: string[] | undefined, index: unknown): string | null {
   if (typeof index !== 'number' || !options) return null
   return options[index] ?? null
+}
+
+/** The panel itself, shared by both ways of arriving at a solution. */
+function SolutionPanel({
+  solution,
+  explanation,
+}: {
+  solution: string | null
+  explanation: string | null
+}) {
+  const intl = useIntl()
+  return (
+    <div className="mt-4 rounded-lg border border-border bg-bg-subtle p-4" role="note">
+      <p className="text-sm font-medium text-text">{intl.formatMessage({ id: 'hints.solutionTitle' })}</p>
+      {solution ? (
+        <p className="mt-2 text-sm text-text">
+          <span className="text-text-secondary">{intl.formatMessage({ id: 'hints.correctAnswer' })}</span>
+          {solution}
+        </p>
+      ) : null}
+      {explanation ? <p className="mt-2 text-sm text-text">{explanation}</p> : null}
+      <p className="mt-3 text-xs text-text-muted">
+        {intl.formatMessage({ id: 'hints.closedNote' })}
+      </p>
+    </div>
+  )
 }
 
 /**
@@ -145,8 +182,20 @@ function optionAt(options: string[] | undefined, index: unknown): string | null 
  * line comes out of `correct_answer`, which the server populates from the answer key it
  * kept, and if a field is missing the line is simply not printed.
  */
-export function WorkedSolution({ itemType, correctAnswer, options }: WorkedSolutionProps) {
+export function WorkedSolution({
+  solution: written,
+  itemType,
+  correctAnswer,
+  options,
+}: WorkedSolutionProps) {
   const intl = useIntl()
+
+  // A solution somebody already wrote wins, and short-circuits everything below: nothing
+  // about the item's type is needed to print a finished sentence.
+  if (written) {
+    return <SolutionPanel solution={written.solution} explanation={written.explanation ?? null} />
+  }
+
   if (!correctAnswer) return null
 
   const explanation =
@@ -168,19 +217,5 @@ export function WorkedSolution({ itemType, correctAnswer, options }: WorkedSolut
 
   if (!solution && !explanation) return null
 
-  return (
-    <div className="mt-4 rounded-lg border border-border bg-bg-subtle p-4" role="note">
-      <p className="text-sm font-medium text-text">{intl.formatMessage({ id: 'hints.solutionTitle' })}</p>
-      {solution ? (
-        <p className="mt-2 text-sm text-text">
-          <span className="text-text-secondary">{intl.formatMessage({ id: 'hints.correctAnswer' })}</span>
-          {solution}
-        </p>
-      ) : null}
-      {explanation ? <p className="mt-2 text-sm text-text">{explanation}</p> : null}
-      <p className="mt-3 text-xs text-text-muted">
-        {intl.formatMessage({ id: 'hints.closedNote' })}
-      </p>
-    </div>
-  )
+  return <SolutionPanel solution={solution} explanation={explanation} />
 }

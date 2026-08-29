@@ -23,11 +23,54 @@ export type EvaluationRequest = {
   rubric?: DidactValue
 }
 
+/**
+ * A solution the SERVER already wrote out, ready to print.
+ *
+ * The client never assembles one. Building a solution means reading an answer key, and a
+ * client that could read the answer key would not need to be told the solution — the same
+ * rule the hint ladder lives by (`components/courses/blocks/QuizItemHints.tsx`).
+ */
+export type EvaluationSolution = {
+  solution: string
+  explanation?: string | null
+}
+
 export type EvaluationResult = {
   outcome: 'correct' | 'incorrect' | 'partial' | 'unscored'
   score?: number
   maxScore?: number
   feedback?: DidactValue
+  /**
+   * The server closing the item and handing over the solution (§7.4 rule 8).
+   *
+   * NEVER inferred here: only the server counts attempts, so only the server can decide
+   * the learner has run out of them.
+   */
+  showWorkedSolution?: boolean
+  /** Mastery state as the server keeps it (`learning`, `mastered`…). Display only. */
+  state?: string
+  mastery?: number
+  /** Populated together with `showWorkedSolution`. */
+  solution?: EvaluationSolution | null
+}
+
+/**
+ * The activity cannot be graded at all — a missing answer key, a grader that refuses the
+ * definition.
+ *
+ * It is a different thing from a request that failed, and the difference is the whole
+ * point: a failed request is worth retrying, and this is not. No attempt at this activity
+ * will ever be scored, so the learner is told once and let out instead of being offered a
+ * retry that can only ever be answered by another retry.
+ */
+export class ActivityNotEvaluableError extends Error {
+  readonly reason: string
+
+  constructor(reason: string) {
+    super(reason || 'activity cannot be evaluated')
+    this.name = 'ActivityNotEvaluableError'
+    this.reason = reason
+  }
 }
 
 export interface EvaluationPort {
