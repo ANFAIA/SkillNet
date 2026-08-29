@@ -356,8 +356,15 @@ def transition_on_answer(
 ) -> Transition:
     """6, 7 and 8. What one graded answer inside the node does to the state.
 
-    ``item_failures`` is how many failures the same ``item_id`` already has *before*
-    this answer, so rule 8 fires on the 4th failure of that item (§7.4).
+    ``item_failures`` is how many failures **the one item being answered** already has
+    *before* this answer, so rule 8 fires on the 4th failure of that item (§7.4). "Item"
+    means whatever the caller's path uses to identify a single question: ``item_id`` on
+    ``POST /nodes/{id}/answer``, ``binding_id`` on ``POST /activities/{id}/attempts``. It is
+    **not** a node-wide counter, and the difference is not cosmetic — a node-wide count lets
+    failures on one activity open the answer to the next one, and every one after it, which
+    empties the node's evidence of meaning while looking like it works. A caller that cannot
+    count per item must say so where it calls, not quietly pass the nearest number.
+
     ``error_kind`` is written to ``last_error_kind`` only on a failure; it feeds the
     next ``genera_ui``.
 

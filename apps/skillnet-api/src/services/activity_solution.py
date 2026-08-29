@@ -26,7 +26,10 @@ consulting this module.
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:  # pragma: no cover - annotation only, keeps this module session-free
+    from src.models.activity_definition import ActivityDefinition
 
 #: The two ordered collections whose ids an ``assignments`` key maps between, per
 #: component. Left is the key's *keys*, right is its *values* — the direction differs
@@ -311,4 +314,37 @@ def render_solution(
     return {"solution": text, "explanation": _explanation(evaluation)}
 
 
-__all__ = ["render_solution"]
+def revealed_solution(
+    activity: "ActivityDefinition", *, passed: bool, show_worked_solution: bool
+) -> dict[str, Any] | None:
+    """The worked solution, only once the learner is entitled to see it.
+
+    One function because there is one entitlement. ``POST /activities/{id}/evaluate`` and
+    ``POST /activities/{id}/attempts`` grade the same activities for the same learners, and
+    a second copy of the gate is a second chance to drift: for a while ``/attempts``
+    announced ``show_worked_solution: true`` while sending no ``solution`` at all, which the
+    client reads as "closed, here is the answer" — retry button gone, panel empty, no way
+    back. The gate lives here so both routes cannot disagree about it.
+
+    ``passed or show_worked_solution`` mirrors the gate ``POST /nodes/{id}/answer`` puts in
+    front of ``correct_answer``. It deliberately does **not** include the node's spent hint
+    quota: ``learner_node_states.hints_used`` is a whole-node counter, so reading it here
+    would unlock the answer to every remaining activity in the node the moment three hints
+    were spent anywhere in it.
+
+    Returns ``None`` both when the learner is not entitled *and* when
+    :func:`render_solution` cannot render the mode honestly. Those two are indistinguishable
+    to the caller on purpose — neither is a reason to keep the learner in place — so
+    ``show_worked_solution: true`` alongside ``solution: null`` is a valid, reachable
+    response. A client must decide its copy by looking at ``solution``, not at the flag.
+    """
+    if not (passed or show_worked_solution):
+        return None
+    return render_solution(
+        component_id=activity.component_id,
+        public_definition=activity.public_definition,
+        evaluation=(activity.private_definition or {}).get("evaluation"),
+    )
+
+
+__all__ = ["render_solution", "revealed_solution"]

@@ -871,7 +871,7 @@ async def answer_node_item(
         passed=result.passed,
         error_kind=error_kind,
         hints_used=hints_used,
-        prior_failures=item_failures,
+        item_failures=item_failures,
     )
     state = mastery_result.state
     transition = mastery_result.transition

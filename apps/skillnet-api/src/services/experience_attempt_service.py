@@ -28,6 +28,7 @@ from src.schemas.learning_experience import (
 )
 from src.services.activity_definitions import ActivityDefinitionService
 from src.services.activity_ports import PortDeclined
+from src.services.activity_solution import revealed_solution
 from src.services.course_delivery import resolve_delivery
 from src.services.mastery_evidence_service import MasteryEvidenceService
 
@@ -119,7 +120,7 @@ class ExperienceAttemptService:
             user=user, activity=activity, chain=chain
         )
         if existing is not None:
-            return await self._read(existing)
+            return await self._read(existing, activity=activity)
         evaluated = await self.activities.evaluate(activity, body.submission)
         if isinstance(evaluated, PortDeclined):
             raise ValidationError(
@@ -131,8 +132,11 @@ class ExperienceAttemptService:
         # Different attempt IDs for the same learner/node are serialized as well. This
         # prevents two transitions from reading the same mastery state.
         await self.attempts.lock_learner_node(user_id=user.id, node_id=node.id)
-        prior_failures = await self.attempts.prior_failures(
-            user_id=user.id, node_id=node.id
+        # Per binding, i.e. per activity — never per node. Rule 8 asks how many times *this*
+        # item has been failed, and a node-wide count made a fourth failure anywhere in the
+        # node open the answer to every other activity in it, first try, from then on.
+        item_failures = await self.attempts.failures_for_binding(
+            user_id=user.id, binding_id=chain.binding.id
         )
         mastery = await self.mastery.apply(
             user_id=user.id,
@@ -142,7 +146,7 @@ class ExperienceAttemptService:
             passed=passed,
             error_kind=error_kind,
             hints_used=hints_used,
-            prior_failures=prior_failures,
+            item_failures=item_failures,
         )
 
         state_value = str(getattr(mastery.state.state, "value", mastery.state.state))
@@ -152,6 +156,9 @@ class ExperienceAttemptService:
             "state": state_value,
             "consecutive_correct": int(mastery.state.consecutive_correct or 0),
             "consecutive_failed": int(mastery.state.consecutive_failed or 0),
+            # The flag is stored; the solution it promises is *not* — ``_read`` renders it
+            # onto every response, fresh and identically on the replay path. Do not add a
+            # ``"solution"`` key here: it would freeze an answer key into an immutable row.
             "show_worked_solution": mastery.transition.show_worked_solution,
         }
         attempt = ExperienceAttempt(
@@ -210,7 +217,7 @@ class ExperienceAttemptService:
                 course_id=course.id,
                 org_id=user.org_id,
             )
-        return await self._read(attempt, evidence=[evidence])
+        return await self._read(attempt, evidence=[evidence], activity=activity)
 
     async def _authorize_chain(self, *, user: Any, activity: ActivityDefinition, chain):
         binding = chain.binding
@@ -271,12 +278,22 @@ class ExperienceAttemptService:
         self,
         attempt: ExperienceAttempt,
         *,
+        activity: ActivityDefinition,
         evidence: list[NormalizedEvidence] | None = None,
     ) -> ExperienceAttemptRead:
         rows = (
             evidence
             if evidence is not None
             else list(await self.attempts.evidence_for_attempt(attempt.id))
+        )
+        # Rendered here and never written to ``experience_attempts.result``: the row is
+        # immutable and the answer key is not, so a stored copy would go stale the moment an
+        # author edited the activity. ``/evaluate`` re-derives it for the same reason.
+        result = dict(attempt.result or {})
+        result["solution"] = revealed_solution(
+            activity,
+            passed=bool(attempt.passed),
+            show_worked_solution=bool(result.get("show_worked_solution")),
         )
         return ExperienceAttemptRead(
             attempt_id=attempt.id,
@@ -294,7 +311,7 @@ class ExperienceAttemptService:
             passed=attempt.passed,
             hints_used=attempt.hints_used,
             duration_ms=attempt.duration_ms,
-            result=dict(attempt.result or {}),
+            result=result,
             created_at=attempt.created_at,
             evidence=[NormalizedEvidenceRead.model_validate(row) for row in rows],
         )

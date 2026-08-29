@@ -13,6 +13,7 @@ from src.services.experience_attempt_service import (
     ExperienceAttemptService,
     attempt_request_digest,
 )
+from src.services.mastery_service import WORKED_SOLUTION_FAILURES, transition_on_answer
 
 
 class Session:
@@ -32,8 +33,8 @@ class StatementSession:
 
 
 class Attempts:
-    def __init__(self, chain):
-        self.chain = chain
+    def __init__(self, *chains):
+        self.chains = list(chains)
         self.rows = {}
         self.evidence = {}
         self.locks = []
@@ -50,16 +51,19 @@ class Attempts:
         return self.rows.get(attempt_id)
 
     async def get_binding_chain(self, *, binding_id, org_id):
-        if binding_id != self.chain.binding.id or org_id != self.chain.binding.org_id:
-            return None
-        return self.chain
+        for chain in self.chains:
+            if chain.binding.id == binding_id and chain.binding.org_id == org_id:
+                return chain
+        return None
 
     async def evidence_for_attempt(self, attempt_id):
         return self.evidence.get(attempt_id, [])
 
-    async def prior_failures(self, *, user_id, node_id):
+    async def failures_for_binding(self, *, user_id, binding_id):
         return sum(
-            row.user_id == user_id and row.node_id == node_id and row.passed is False
+            row.user_id == user_id
+            and row.binding_id == binding_id
+            and row.passed is False
             for row in self.rows.values()
         )
 
@@ -76,17 +80,17 @@ class Attempts:
 
 
 class Activities:
-    def __init__(self, activity):
-        self.activity = activity
+    def __init__(self, *activities):
+        self.activities = {activity.id: activity for activity in activities}
         self.evaluations = 0
 
     async def get(self, activity_id, org_id):
-        assert activity_id == self.activity.id
-        assert org_id == self.activity.org_id
-        return self.activity
+        activity = self.activities[activity_id]
+        assert org_id == activity.org_id
+        return activity
 
     async def evaluate(self, activity, submission):
-        assert activity is self.activity
+        assert self.activities[activity.id] is activity
         self.evaluations += 1
         return {
             "outcome": "correct" if submission.get("answer") == "4" else "incorrect",
@@ -131,42 +135,63 @@ class Mastery:
         )
 
 
-def fixture():
-    org_id = uuid.uuid4()
-    course_id = uuid.uuid4()
-    node_id = uuid.uuid4()
-    activity_id = uuid.uuid4()
-    intent_id = uuid.uuid4()
-    variant_id = uuid.uuid4()
-    binding_id = uuid.uuid4()
-    activity = SimpleNamespace(
-        id=activity_id,
+#: The rendered worked solution of every activity built below. ``normalized_any`` is used
+#: because it is the one mode :func:`render_solution` handles without needing a matching
+#: ``public_definition`` collection, so these doubles stay about attempts, not about copy.
+SOLUTION = {"solution": "4", "explanation": "Dos más dos."}
+
+
+def _activity(*, org_id, course_id, node_id):
+    return SimpleNamespace(
+        id=uuid.uuid4(),
         org_id=org_id,
         course_id=course_id,
         node_id=node_id,
         component_id="didact.step-sequencer",
+        public_definition={"prompt": "¿Cuánto es 2 + 2?"},
+        private_definition={
+            "evaluation": {
+                "mode": "normalized_any",
+                "expected": ["4"],
+                "explanation": "Dos más dos.",
+            }
+        },
     )
+
+
+def _chain_for(activity):
+    """One intent/variant/binding triple implementing exactly one activity."""
+    intent_id = uuid.uuid4()
+    variant_id = uuid.uuid4()
     intent = SimpleNamespace(
         id=intent_id,
-        org_id=org_id,
-        course_id=course_id,
-        node_id=node_id,
+        org_id=activity.org_id,
+        course_id=activity.course_id,
+        node_id=activity.node_id,
         objective_id="safe-lifting",
         objective_version=2,
         required_evidence=["selected_response"],
     )
-    variant = SimpleNamespace(id=variant_id, org_id=org_id, intent_id=intent_id)
+    variant = SimpleNamespace(id=variant_id, org_id=activity.org_id, intent_id=intent_id)
     binding = SimpleNamespace(
-        id=binding_id,
-        org_id=org_id,
+        id=uuid.uuid4(),
+        org_id=activity.org_id,
         variant_id=variant_id,
-        activity_definition_id=activity_id,
+        activity_definition_id=activity.id,
         provider="didact",
         implementation_id="step-sequencer",
         implementation_version=3,
         definition_ref="didact:step-sequencer@3:sha256:definition",
     )
-    chain = SimpleNamespace(binding=binding, variant=variant, intent=intent)
+    return SimpleNamespace(binding=binding, variant=variant, intent=intent)
+
+
+def fixture():
+    org_id = uuid.uuid4()
+    course_id = uuid.uuid4()
+    node_id = uuid.uuid4()
+    activity = _activity(org_id=org_id, course_id=course_id, node_id=node_id)
+    chain = _chain_for(activity)
     node = SimpleNamespace(
         id=node_id,
         org_id=org_id,
@@ -340,6 +365,36 @@ def test_error_classification_is_adapter_owned_not_component_owned():
     assert adapted[-1] == "procedural"
 
 
+class CountingSession:
+    """Captures the SQL a repository builds, without a database behind it."""
+
+    def __init__(self):
+        self.statements = []
+
+    async def execute(self, statement):
+        self.statements.append(str(statement))
+        return SimpleNamespace(scalar_one=lambda: 0)
+
+
+@pytest.mark.asyncio
+async def test_the_failure_counter_is_scoped_to_the_binding_and_not_to_the_node():
+    """Pinned in SQL, because the doubles above can only mirror what the query does.
+
+    ``node_id`` in this WHERE clause is the regression itself: it makes one failure budget
+    for every activity in the node.
+    """
+    session = CountingSession()
+    repository = ExperienceAttemptRepository(session)
+
+    assert await repository.failures_for_binding(
+        user_id=uuid.uuid4(), binding_id=uuid.uuid4()
+    ) == 0
+    where = session.statements[0]
+    assert "experience_attempts.binding_id" in where
+    assert "experience_attempts.node_id" not in where
+    assert "experience_attempts.passed IS false" in where
+
+
 @pytest.mark.asyncio
 async def test_repository_uses_transaction_scoped_postgres_locks():
     session = StatementSession()
@@ -404,3 +459,163 @@ async def test_route_does_not_commit_a_failed_transaction(monkeypatch):
         )
 
     assert session.commits == 0
+
+
+# --------------------------------------------------------------------------------------
+# Two activities under one node, and the worked solution `/attempts` promises
+#
+# Everything above this line runs a single activity per node, which is the one shape where
+# "failures of this item", "failures of this node" and "failures of this node ever" are the
+# same number — so it could not see rule 8's counter being read node-wide. These use the
+# real `transition_on_answer`, because the claim under test is what the learner is shown.
+# --------------------------------------------------------------------------------------
+class RuleMastery:
+    """``MasteryEvidenceService`` with the persistence removed and the rule kept.
+
+    Node-scoped streaks, exactly like ``learner_node_states``: two activities in one node
+    share the streak counters and must *not* share the per-item failure count.
+    """
+
+    def __init__(self):
+        self.calls = []
+        self.mastery = 0.4
+        self.consecutive_correct = 0
+        self.consecutive_failed = 0
+
+    async def apply(self, **values):
+        self.calls.append(values)
+        transition = transition_on_answer(
+            state="learning",
+            mastery=self.mastery,
+            consecutive_correct=self.consecutive_correct,
+            consecutive_failed=self.consecutive_failed,
+            score=values["score"],
+            passed=values["passed"],
+            threshold=0.8,
+            hints_used=values.get("hints_used", 0),
+            item_failures=values.get("item_failures", 0),
+            error_kind=values.get("error_kind"),
+        )
+        self.mastery = float(transition.changes.get("mastery", self.mastery))
+        self.consecutive_correct = int(transition.changes.get("consecutive_correct", 0))
+        self.consecutive_failed = int(transition.changes.get("consecutive_failed", 0))
+        return SimpleNamespace(
+            state=SimpleNamespace(
+                state=transition.to_state,
+                mastery=self.mastery,
+                consecutive_correct=self.consecutive_correct,
+                consecutive_failed=self.consecutive_failed,
+            ),
+            transition=transition,
+        )
+
+
+def node_with_two_activities():
+    """One learner, one node, two activities — the case the old fixture could not express."""
+    org_id = uuid.uuid4()
+    course_id = uuid.uuid4()
+    node_id = uuid.uuid4()
+    first = _activity(org_id=org_id, course_id=course_id, node_id=node_id)
+    second = _activity(org_id=org_id, course_id=course_id, node_id=node_id)
+    chains = [_chain_for(first), _chain_for(second)]
+    node = SimpleNamespace(id=node_id, org_id=org_id, course_id=course_id, archived=False)
+    course = SimpleNamespace(
+        id=course_id, org_id=org_id, delivery_mode="dynamic", schema_status="validated"
+    )
+    user = SimpleNamespace(id=uuid.uuid4(), org_id=org_id, role="employee")
+    mastery = RuleMastery()
+    subject = ExperienceAttemptService(
+        Session(),
+        attempts=Attempts(*chains),
+        activities=Activities(first, second),
+        mastery=mastery,
+        nodes=ScopedRepo(node),
+        courses=ScopedRepo(course),
+        enrollments=Enrollments(),
+    )
+
+    async def submit(index, *, answer="wrong", attempt_id=None):
+        return await subject.submit(
+            user=user,
+            activity_id=(first, second)[index].id,
+            body=ExperienceAttemptSubmission(
+                attempt_id=attempt_id or uuid.uuid4(),
+                binding_id=chains[index].binding.id,
+                submission={"answer": answer},
+            ),
+        )
+
+    return submit, mastery
+
+
+@pytest.mark.asyncio
+async def test_failing_one_activity_never_opens_the_next_ones_solution():
+    """Rule 8's counter is per activity. Failing A must leave B untouched.
+
+    The counter used to be ``COUNT(*) WHERE node_id = ...``: every failure the learner had
+    ever recorded anywhere in the node. Once four had piled up, the *next* activity handed
+    over its worked solution on the first attempt, and so did every one after it, for ever —
+    which does not trap anybody but empties the node's evidence of meaning, and that
+    evidence is what accredits a skill.
+    """
+    submit, mastery = node_with_two_activities()
+
+    for _ in range(WORKED_SOLUTION_FAILURES):
+        opened = await submit(0)
+    assert opened.result["show_worked_solution"] is True
+
+    first_failure_on_b = await submit(1)
+
+    assert mastery.calls[-1]["item_failures"] == 0
+    assert first_failure_on_b.result["show_worked_solution"] is False
+    assert first_failure_on_b.result["solution"] is None
+
+
+@pytest.mark.asyncio
+async def test_each_activity_reaches_its_own_exit_on_its_own_fourth_failure():
+    """B is not blocked either: its own four failures still open its own solution."""
+    submit, _mastery = node_with_two_activities()
+
+    for _ in range(WORKED_SOLUTION_FAILURES):
+        await submit(0)
+    for _ in range(WORKED_SOLUTION_FAILURES - 1):
+        interim = await submit(1)
+        assert interim.result["show_worked_solution"] is False
+
+    assert (await submit(1)).result["show_worked_solution"] is True
+
+
+@pytest.mark.asyncio
+async def test_attempts_sends_the_solution_it_promises_to_show():
+    """The promise and the thing promised travel together, or the screen is a dead end.
+
+    ``show_worked_solution: true`` closes the activity in the client and takes the retry
+    button away. Announcing it while sending no ``solution`` leaves an empty panel and no
+    way back — the same cul-de-sac ``/evaluate`` had, one port further along.
+    """
+    submit, _mastery = node_with_two_activities()
+
+    for _ in range(WORKED_SOLUTION_FAILURES - 1):
+        ordinary = await submit(0)
+        assert ordinary.result["show_worked_solution"] is False
+        assert ordinary.result["solution"] is None
+
+    opened = await submit(0)
+
+    assert opened.result["show_worked_solution"] is True
+    assert opened.result["solution"] == SOLUTION
+
+
+@pytest.mark.asyncio
+async def test_a_pass_reveals_the_solution_and_a_replay_reveals_it_again():
+    """Same gate as ``/evaluate``: ``passed or show_worked_solution``, replay included."""
+    submit, _mastery = node_with_two_activities()
+    attempt_id = uuid.uuid4()
+
+    first = await submit(0, answer="4", attempt_id=attempt_id)
+    replay = await submit(0, answer="4", attempt_id=attempt_id)
+
+    assert first.passed is True
+    assert first.result["solution"] == SOLUTION
+    # The row is immutable and holds no answer key; the replay re-renders from the activity.
+    assert replay.result["solution"] == SOLUTION

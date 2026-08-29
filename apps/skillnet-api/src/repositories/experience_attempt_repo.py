@@ -86,12 +86,24 @@ class ExperienceAttemptRepository:
         )
         return (await self.session.execute(query)).scalars().all()
 
-    async def prior_failures(
-        self, *, user_id: uuid.UUID, node_id: uuid.UUID
+    async def failures_for_binding(
+        self, *, user_id: uuid.UUID, binding_id: uuid.UUID
     ) -> int:
+        """Failures this learner already has on **one activity** — rule 8's counter.
+
+        Scoped by ``binding_id`` and not by ``node_id``, because the binding is what the
+        learner is actually looking at: one concrete implementation of one variant of one
+        intent. A node-wide count made every activity in the node share a single failure
+        budget, so four failures spread across the node handed the worked solution to the
+        *next* activity on its first attempt, and to every one after it — the node's
+        evidence, which is what accredits a skill, stopped meaning anything.
+
+        No ``passed IS NULL`` row can slip in: ``passed`` is only null for an ``unscored``
+        outcome, and ``.is_(False)`` excludes null.
+        """
         query = select(func.count()).select_from(ExperienceAttempt).where(
             ExperienceAttempt.user_id == user_id,
-            ExperienceAttempt.node_id == node_id,
+            ExperienceAttempt.binding_id == binding_id,
             ExperienceAttempt.passed.is_(False),
         )
         return int((await self.session.execute(query)).scalar_one())

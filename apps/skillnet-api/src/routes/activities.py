@@ -43,7 +43,7 @@ from src.services.activity_definitions import (
     validated_score,
 )
 from src.services.activity_ports import PortDeclined
-from src.services.activity_solution import render_solution
+from src.services.activity_solution import revealed_solution
 from src.services.media.activity_assets import ActivityAssetResolver
 from src.services.activity_progress import project_activity_progress
 from src.services.experience_attempt_service import ExperienceAttemptService
@@ -315,7 +315,23 @@ async def _evaluate_assessment(
         # node's own record of how much has been disclosed and how many failures are
         # standing. No new column, and no client-supplied number in the rule.
         hints_used=int(getattr(state_row, "hints_used", 0) or 0),
-        prior_failures=int(getattr(state_row, "consecutive_failed", 0) or 0),
+        # KNOWN DEVIATION, stated rather than hidden. ``item_failures`` is contracted as
+        # "failures of *this* activity", and this path cannot produce that number: nothing
+        # durable on it is keyed by ``activity_id``. Activities reached here are
+        # materialized without an ``ImplementationBinding``, so there is no
+        # ``experience_attempts`` row to count, and the one row this path does write —
+        # ``learning_events`` of type ``didact.graded``, whose metadata does carry
+        # ``activity_id`` — is written only when the client sends an ``attempt_id``, which
+        # the SPA does not do on ``/evaluate``. Counting it would therefore count nothing
+        # and shut rule 8 for everyone.
+        #
+        # ``consecutive_failed`` is the least-wrong stand-in and its cost is real: it is
+        # node-wide, so three failures on one activity plus one on the next opens the second
+        # one's answer. It is bounded and self-clearing at least — any pass resets it —
+        # unlike a lifetime count. Closing this properly needs a per-activity failure
+        # counter that does not exist yet (a column, or an unconditional graded event); that
+        # is a decision, not a patch, so it is not made here.
+        item_failures=int(getattr(state_row, "consecutive_failed", 0) or 0),
     )
 
     state_value = str(getattr(result.state.state, "value", result.state.state))
@@ -325,7 +341,7 @@ async def _evaluate_assessment(
         "state": state_value,
         "mastery": float(result.state.mastery or 0.0),
         "show_worked_solution": show_worked_solution,
-        "solution": _revealed_solution(
+        "solution": revealed_solution(
             activity, passed=passed, show_worked_solution=show_worked_solution
         ),
     }
@@ -381,26 +397,6 @@ def _evaluation_digest(*, activity_id: uuid.UUID, body: ActivitySubmission) -> s
         ensure_ascii=False,
     ).encode()
     return hashlib.sha256(canonical).hexdigest()
-
-
-def _revealed_solution(
-    activity: ActivityDefinition, *, passed: bool, show_worked_solution: bool
-) -> dict[str, Any] | None:
-    """The worked solution, only once the learner is entitled to see it.
-
-    ``passed or show_worked_solution`` mirrors the gate ``POST /nodes/{id}/answer`` puts in
-    front of ``correct_answer``. It deliberately does **not** include the node's spent hint
-    quota: on this path ``learner_node_states.hints_used`` is a whole-node counter, so
-    reading it here would unlock the answer to every remaining activity in the node the
-    moment three hints were spent anywhere in it.
-    """
-    if not (passed or show_worked_solution):
-        return None
-    return render_solution(
-        component_id=activity.component_id,
-        public_definition=activity.public_definition,
-        evaluation=(activity.private_definition or {}).get("evaluation"),
-    )
 
 
 def _declined_verdict(
@@ -474,7 +470,7 @@ def _replayed_verdict(
             "state": str(metadata.get("state") or "learning"),
             "mastery": float(metadata.get("mastery") or 0.0),
             "show_worked_solution": show_worked_solution,
-            "solution": _revealed_solution(
+            "solution": revealed_solution(
                 activity, passed=passed, show_worked_solution=show_worked_solution
             ),
         },

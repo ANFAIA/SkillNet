@@ -76,9 +76,19 @@ class MasteryEvidenceService:
         passed: bool,
         error_kind: str | None,
         hints_used: int = 0,
-        prior_failures: int = 0,
+        item_failures: int = 0,
     ) -> MasteryEvidenceResult:
-        """Apply evidence without committing the surrounding transaction."""
+        """Apply evidence without committing the surrounding transaction.
+
+        ``item_failures`` is passed straight through to :func:`transition_on_answer` and
+        carries its contract unchanged: **failures of the one item being answered**, before
+        this answer, not failures of the node. The name used to be ``prior_failures``, and
+        that vagueness cost real behaviour — three callers read the same parameter three
+        different ways (per item, per node, and per node for the learner's whole life) and
+        rule 8 started handing the worked solution to activities nobody had failed. If a
+        caller cannot count per item, that is a defect to report, not a number to
+        approximate: say so at the call site.
+        """
 
         await self.lock_learner_node(user_id=user_id, node_id=node.id)
         skill_level = await self.skills.level_for_skill(
@@ -98,7 +108,7 @@ class MasteryEvidenceService:
             passed=passed,
             threshold=threshold_for(node.criticality, node.mastery_threshold),
             hints_used=hints_used,
-            item_failures=prior_failures,
+            item_failures=item_failures,
             error_kind=error_kind,
         )
         await self.states.apply_transition(state, transition)

@@ -18,7 +18,7 @@ from src.services.activity_authoring_validators import (
     AUTHORING_CONTRACTS,
     EVALUATED_COMPONENT_MODES,
 )
-from src.services.activity_solution import render_solution
+from src.services.activity_solution import render_solution, revealed_solution
 
 
 def _split(component_id: str) -> tuple[dict, dict]:
@@ -215,3 +215,46 @@ def test_the_raw_expected_never_appears_in_the_projection():
     )
     assert "expected" not in rendered
     assert "target-1" not in str(rendered)
+
+
+# --- the entitlement gate, shared by both grading routes ---------------------
+
+
+def _activity(component_id: str = "didact.quiz.single-choice"):
+    from types import SimpleNamespace
+
+    public, evaluation = _split(component_id)
+    return SimpleNamespace(
+        component_id=component_id,
+        public_definition=public,
+        private_definition={"evaluation": evaluation},
+    )
+
+
+@pytest.mark.parametrize("passed, show", [(True, False), (False, True), (True, True)])
+def test_either_half_of_the_gate_reveals_the_solution(passed: bool, show: bool):
+    """One gate for ``/evaluate`` and ``/attempts``: ``passed or show_worked_solution``.
+
+    They used to have one each, and the second one forgot to render anything at all.
+    """
+    assert revealed_solution(
+        _activity(), passed=passed, show_worked_solution=show
+    ) == {"solution": "Opción A", "explanation": None}
+
+
+def test_an_ordinary_failure_is_told_nothing():
+    assert revealed_solution(_activity(), passed=False, show_worked_solution=False) is None
+
+
+def test_an_unrenderable_mode_is_promised_and_not_delivered():
+    """``show_worked_solution: true`` with ``solution: null`` is reachable, by design.
+
+    Unblocking is ``Transition.show_worked_solution``'s job and is decided without ever
+    consulting this module, so a key this module cannot render honestly still lets the
+    learner out — with nothing to read. A client must choose its copy from ``solution``,
+    never from the flag, or it paints an empty "here is the answer" panel.
+    """
+    activity = _activity()
+    activity.private_definition = {"evaluation": {"mode": "provider_specific"}}
+
+    assert revealed_solution(activity, passed=False, show_worked_solution=True) is None
