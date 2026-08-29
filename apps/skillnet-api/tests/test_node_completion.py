@@ -126,6 +126,10 @@ class FakeEnrollment:
     course_id: uuid.UUID = COURSE_ID
 
 
+#: A moment before anything else in these tests: the render was handed to the learner.
+SERVED_AT = datetime(2026, 8, 20, 8, 0, tzinfo=timezone.utc)
+
+
 @dataclass
 class FakeState:
     """The ``learner_node_states`` columns this route reads, writes and echoes.
@@ -138,7 +142,11 @@ class FakeState:
     state: str = "not_started"
     mastery: float = 0.0
     completed_at: datetime | None = None
-    first_seen_at: datetime | None = None
+    #: Stamped by ``GET /nodes/{id}/render`` and by nothing else — never by the
+    #: prefetch. Defaulted to a real moment because every test here but one is about
+    #: a learner who HAS been served the lesson; the route refuses to finish a node
+    #: the server never handed over, and that refusal has its own test below.
+    first_seen_at: datetime | None = SERVED_AT
 
 
 class FakeResult:
@@ -198,7 +206,15 @@ class World:
             FakeNode(id=NODE_IDS[2], position=3, title="Resumen"),
         ]
     )
-    states: dict[uuid.UUID, FakeState] = field(default_factory=dict)
+    #: Pre-populated, because in the real flow a row exists as soon as the lesson was
+    #: served: ``GET /render`` calls ``mark_opened``, which creates it AND stamps
+    #: ``first_seen_at``. A world with no row models a node nobody ever opened, which
+    #: is what ``test_a_node_that_was_never_served_cannot_be_finished`` builds.
+    states: dict[uuid.UUID, FakeState] = field(
+        default_factory=lambda: {
+            node_id: FakeState(node_id=node_id) for node_id in NODE_IDS
+        }
+    )
     #: ``None`` models the admin previewing a course nobody enrolled them in.
     enrollment: FakeEnrollment | None = field(default_factory=FakeEnrollment)
 
@@ -334,6 +350,51 @@ def complete(client: TestClient, node_id: uuid.UUID) -> dict:
     assert response.status_code == 200, response.text
     return response.json()
 
+
+# --------------------------------------------------------------------------------------
+# 0. A node the server never served cannot be finished
+# --------------------------------------------------------------------------------------
+def test_a_node_that_was_never_served_cannot_be_finished(
+    client: TestClient, world: World
+) -> None:
+    """Everything else on this route is asserted by the client, so this is the one check.
+
+    The node ids are handed to the learner by ``GET /courses/{course_id}/nodes``. Without
+    this refusal, POSTing here once per node closes the course — stamped, ``COMPLETED``,
+    skills granted — with no lesson ever rendered. It mattered less while a certificate
+    carried a score and a fabricated pass showed up as a low one; it is the whole claim
+    now that closure is what the certificate asserts.
+
+    409 and not 403 on purpose: the node is not forbidden, it is *not yet* open, and
+    rendering it makes the same call succeed.
+    """
+    never_served = NODE_IDS[0]
+    world.states.pop(never_served)
+
+    response = client.post(f"{PREFIX}/nodes/{never_served}/complete")
+
+    assert response.status_code == 409, response.text
+    assert response.json()["field"] == "node_not_seen"
+    assert never_served not in world.states, "a refusal must not create the row either"
+
+
+def test_a_row_without_a_render_behind_it_is_refused_too(
+    client: TestClient, world: World
+) -> None:
+    """The prefetch creates the row; only a served render stamps it.
+
+    ``NodeRenderService.pin`` reaches ``get_or_create`` for the nodes ahead, so a row with
+    no ``first_seen_at`` is the ordinary state of a lesson the learner has not reached.
+    Asking for the row's existence instead of the stamp would let the prefetch itself
+    authorise finishing three nodes nobody has looked at.
+    """
+    prefetched = NODE_IDS[1]
+    world.states[prefetched].first_seen_at = None
+
+    response = client.post(f"{PREFIX}/nodes/{prefetched}/complete")
+
+    assert response.status_code == 409, response.text
+    assert world.states[prefetched].completed_at is None
 
 # --------------------------------------------------------------------------------------
 # 1. The case the column was added for

@@ -1044,12 +1044,34 @@ async def complete_node(
     reason: finishing the last node of a course can be what completes it, and nothing else
     on this path would notice. It is gated on ``resolve_delivery`` internally, so v1 keeps
     its own rule.
+
+    **A node the server never served cannot be finished** (``node_not_seen``). Everything
+    else on this route is asserted by the client: the ids are handed out by
+    ``GET /courses/{course_id}/nodes``, so without this check a learner could POST here
+    once per node and close the course — stamped, ``COMPLETED``, skills granted — without
+    a single lesson ever being rendered to them. That mattered less when the certificate
+    carried a score and a fabricated pass showed up as a low one; it is the whole claim
+    now that closure is what a certificate asserts.
+
+    ``first_seen_at`` is the right fact to ask for and it already exists: it is stamped by
+    ``GET /nodes/{node_id}/render`` alone — never by the anticipatory prefetch, which is
+    why ``mark_opened`` was deliberately kept out of ``get_or_create`` — and its own
+    docstring already calls it "part of the evidence a certificate is justified with".
+    So this is one more reader of a fact the system was already recording, not a new
+    mechanism. 409 rather than 403: the node is not forbidden, it is *not yet* open, and
+    rendering it makes the same call succeed.
     """
     node, course = await _load_dynamic_node(db, user, node_id)
 
-    state = await LearnerNodeStateRepository(db).mark_completed(
-        user_id=user.id, node_id=node.id
-    )
+    state_repo = LearnerNodeStateRepository(db)
+    seen = await state_repo.get_by_user_and_node(user.id, node.id)
+    if seen is None or seen.first_seen_at is None:
+        raise ConflictError(
+            "This lesson has not been opened yet, so it cannot be marked as finished.",
+            field="node_not_seen",
+        )
+
+    state = await state_repo.mark_completed(user_id=user.id, node_id=node.id)
     _enrollment, completion = await _enrollment_service(db).close_dynamic_if_mastered(
         course=course, user_id=user.id
     )
