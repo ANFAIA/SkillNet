@@ -12,10 +12,13 @@ Two closing rules live here, and they must never mix:
   critical node closes, and it can *reopen* when the creator adds a new critical node.
 
 Which of the two applies is decided by ``resolve_delivery`` — the single decision point
-of §10.1 — everywhere except one place, documented on
-:meth:`recompute_dynamic_closure`, where it cannot be: ``PUT /courses/{id}/schema``
-runs while the course is still ``proposed``, so the course is *by construction* not
-dynamic yet at the moment §7.5 requires the recompute.
+of §10.1 — everywhere except one place, ``CourseSchemaService.recompute_enrollment_closure``,
+where it cannot be: ``PUT /courses/{id}/schema`` runs while the course is still
+``proposed``, so the course is *by construction* not dynamic yet at the moment §7.5
+requires the recompute. The gate that *is* correct there is inside
+:func:`apply_dynamic_closure`: with no node at all the verdict has no opinion, so a pure
+v1 course — which has no ``course_nodes`` — cannot have its enrollments touched by an
+admin editing somebody else's schema.
 
 The rule itself is not written twice. ``mastery_service.evaluate_course_completion`` is
 the pure form (unit-testable with plain dataclasses, no DB) and
@@ -817,65 +820,6 @@ class EnrollmentService:
             completion.total_critical,
         )
         return enrollment, completion
-
-    async def recompute_dynamic_closure(
-        self,
-        *,
-        course: Any,
-        org_id: uuid.UUID,
-        enrollments: Iterable[Any] | None = None,
-        limit: int = 1000,
-    ) -> dict[str, int]:
-        """Re-evaluate §7.5 for **every** enrollment of a course whose schema changed.
-
-        §7.5 makes this mandatory in the same transaction as ``PUT /courses/{id}/schema``
-        and ``POST …/schema/validate``: those calls change the set of critical nodes,
-        which *is* the closing condition. A completed enrollment can reopen (a new
-        critical node appeared) and a stuck one can complete (the node that was missing
-        got archived). Without it, enrollment status would be a function of a schema
-        that no longer exists.
-
-        **The one place ``resolve_delivery`` is not the gate**, and deliberately: a
-        ``PUT`` is only legal while the course is ``proposed`` (a validated schema is
-        ``422 schema_locked``), so at that moment the course is not dynamic yet and a
-        ``resolve_delivery`` gate would make the recompute §7.5 demands dead code. The
-        gate that *is* correct here is inside :func:`apply_dynamic_closure`: with no
-        critical node the function has no opinion, so a pure v1 course — which has no
-        ``course_nodes`` at all — cannot have its enrollments touched by an admin
-        editing somebody else's schema.
-
-        ``enrollments`` is injectable so the caller can pass rows it already loaded.
-        """
-        rows_by_user: dict[uuid.UUID, list[NodeProgressRow]] = {}
-        if enrollments is None:
-            enrollments, _total = await self.enrollment_repo.list_enrollments(
-                org_id=org_id,
-                user_id=None,
-                course_id=course.id,
-                status=None,
-                offset=0,
-                limit=limit,
-            )
-        enrollments = list(enrollments)
-        if not enrollments:
-            return {"completed": 0, "reopened": 0}
-
-        counts = {"completed": 0, "reopened": 0}
-        now = datetime.now(timezone.utc)
-        for enrollment in enrollments:
-            rows = rows_by_user.get(enrollment.user_id)
-            if rows is None:
-                rows = await self.node_progress(
-                    course_id=course.id, user_id=enrollment.user_id
-                )
-                rows_by_user[enrollment.user_id] = rows
-            outcome = apply_dynamic_closure(
-                enrollment, evaluate_course_completion(rows), now=now
-            )
-            if outcome is not None:
-                counts[outcome] += 1
-        await self.enrollment_repo.session.flush()
-        return counts
 
     async def delete(self, *, enrollment_id: uuid.UUID, org_id: uuid.UUID) -> None:
         enrollment = await self.get_scoped(
