@@ -21,25 +21,21 @@ que ese curso cubre.
 El problema que motivó todo —un nodo expositivo terminado dejaba el siguiente cerrado para
 siempre, curso clavado al 33 %— está arreglado y cubierto.
 
-## 1. El candado — la petición original, sin hacer
+## 1. ¿Basta con pasar por la lección, o hay que responder?
 
-> "Es tan simple como: haces la prueba, desbloqueas el siguiente."
+El candado **se hizo** el 2026-08-29: es el modo `sequential` de `navigation_mode`
+(migración 0034), y canda donde debía — en `POST /nodes/{id}/complete`, no dentro del
+predicado, que está escrito dos veces y ya costó un fallo.
 
-Se aplazó **a propósito**, y el motivo importa: cuando se planteó, la familia de
-actividades que cierra la mayoría de los nodos **no tenía ninguna salida**. Candar sin
-salida es el mismo callejón que se acababa de arreglar, con otra puerta.
+Lo que queda es una pregunta que se planteó y nunca se contestó, porque el modo la
+esquivó: hoy `sequential` abre la siguiente lección cuando la anterior está **hecha**, y
+«hecha» incluye haber llegado al final del contenido sin responder nada.
 
-Esa salida ya existe (2026-08-29). Así que el candado ya se puede poner. Lo que falta es
-probarlo con un curso delante antes de decidirlo.
+> Un curso clásico puro se conforma con eso. Si quieres que además haya que **resolver la
+> prueba** cuando el nodo tiene una, es otra regla — más exigente, y ya segura, porque toda
+> actividad tiene salida garantizada desde ese mismo día.
 
-**Cuando se haga, dos cosas que el análisis dejó dichas:**
-
-- **Candar en el escritor, no en el lector.** La comprobación va en `POST /nodes/{id}/complete`,
-  donde se sella `completed_at`, no dentro de `node_is_done`. Dos razones: ese predicado está
-  escrito dos veces (Python y SQL) y ya costó un fallo; y a quien va por el nodo 4 con los tres
-  primeros sellados no se le cierra nada retroactivamente.
-- **`available` ya está en el contrato** (`NodeSummaryRead`) y hoy es siempre `true`. No hay que
-  añadir campo: hay que empezar a moverlo.
+No es urgente y se contesta mirando un curso, no razonando.
 
 ## 2. Las pistas y el contador por actividad — hechos el 2026-08-29
 
