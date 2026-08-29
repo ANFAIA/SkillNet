@@ -322,7 +322,7 @@ export const en: Record<string, string> = {
   'capabilityBanner.title': 'Some features are unavailable on this installation:',
   'capabilityBanner.ai': 'AI is not configured: add an LLM key to generate courses and use the tutor.',
   'capabilityBanner.tts': 'No voice key: the mascot and podcasts will use a basic offline voice. Add an ElevenLabs key for natural voice.',
-  'capabilityBanner.images': 'No image model: infographics, slide decks and video overviews cannot be generated until you add a key.',
+  'capabilityBanner.images': 'No image model: infographics and video overviews cannot be generated until you add a key.',
   'capabilityBanner.envHint': 'Keys go in the deployment .env (LLM_API_KEY for AI, TTS_API_KEY for voice, IMAGE_API_KEY for images) and the container needs a restart after editing it.',
   'capabilityBanner.dismiss': 'Dismiss notice',
 
@@ -720,6 +720,7 @@ export const en: Record<string, string> = {
   'schema.packReadyDesc': 'OpenUI can now adapt this node while preserving its essential content.',
   'schema.packReviewDesc': 'Review these points before using the preparation:',
   'schema.packFailedDesc': 'Preparation failed. The original source will be used in the meantime.',
+  'schema.packSource': 'View learning source',
   'schemaNode.expand': 'Open {title}',
   'schemaNode.collapse': 'Close {title}',
 
@@ -1085,6 +1086,9 @@ export const en: Record<string, string> = {
   'hints.true': 'True',
   'hints.false': 'False',
 
+  // SecureEvaluatedActivity component
+  'activity.notEvaluable': 'This activity cannot be graded, so there is nothing to retry. It is not you: carry on with the lesson.',
+
   // AudioExplanationBlock component
   'audio.loading': 'Loading...',
   'audio.pause': 'Pause',
@@ -1417,6 +1421,4 @@ export const en: Record<string, string> = {
   'groups.assignSkippedInactive': '{count, plural, one {# member has a deactivated account and was not enrolled} other {# members have deactivated accounts and were not enrolled}}.',
   'groups.assignEmptyGroup': 'This group has nobody in it yet.',
 
-  // SecureEvaluatedActivity component
-  'activity.notEvaluable': 'This activity cannot be graded, so there is nothing to retry. It is not you: carry on with the lesson.',
 }

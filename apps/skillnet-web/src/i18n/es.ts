@@ -322,7 +322,7 @@ export const es: Record<string, string> = {
   'capabilityBanner.title': 'Algunas funciones no están disponibles en esta instalación:',
   'capabilityBanner.ai': 'La IA no está configurada: añade una clave de LLM para generar cursos y usar el tutor.',
   'capabilityBanner.tts': 'Sin clave de voz: la mascota y los podcasts usarán una voz básica sin conexión. Añade una clave de ElevenLabs para voz natural.',
-  'capabilityBanner.images': 'Sin modelo de imagen: las infografías, las diapositivas y los vídeos no se pueden generar hasta añadir una clave.',
+  'capabilityBanner.images': 'Sin modelo de imagen: las infografías y los vídeos no se pueden generar hasta añadir una clave.',
   'capabilityBanner.envHint': 'Las claves van en el .env del despliegue (LLM_API_KEY para IA, TTS_API_KEY para voz, IMAGE_API_KEY para imágenes) y hay que reiniciar el contenedor después de editarlo.',
   'capabilityBanner.dismiss': 'Descartar aviso',
 
@@ -720,6 +720,7 @@ export const es: Record<string, string> = {
   'schema.packReadyDesc': 'OpenUI ya puede adaptar este nodo conservando su contenido esencial.',
   'schema.packReviewDesc': 'Conviene revisar estos puntos antes de usar la preparación:',
   'schema.packFailedDesc': 'No se pudo preparar. Mientras tanto se usará la fuente original.',
+  'schema.packSource': 'Ver base pedagógica',
   'schemaNode.expand': 'Abrir {title}',
   'schemaNode.collapse': 'Cerrar {title}',
 
@@ -1085,6 +1086,9 @@ export const es: Record<string, string> = {
   'hints.true': 'Verdadero',
   'hints.false': 'Falso',
 
+  // SecureEvaluatedActivity component
+  'activity.notEvaluable': 'Esta actividad no se puede corregir, así que no hay nada que reintentar. No es cosa tuya: sigue con la lección.',
+
   // AudioExplanationBlock component
   'audio.loading': 'Cargando...',
   'audio.pause': 'Pausar',
@@ -1417,6 +1421,4 @@ export const es: Record<string, string> = {
   'groups.assignSkippedInactive': '{count, plural, one {# persona del grupo tiene la cuenta desactivada y no se ha matriculado} other {# personas del grupo tienen la cuenta desactivada y no se han matriculado}}.',
   'groups.assignEmptyGroup': 'Este grupo no tiene a nadie todavía.',
 
-  // SecureEvaluatedActivity component
-  'activity.notEvaluable': 'Esta actividad no se puede corregir, así que no hay nada que reintentar. No es cosa tuya: sigue con la lección.',
 }

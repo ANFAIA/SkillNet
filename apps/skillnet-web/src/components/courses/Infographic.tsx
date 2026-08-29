@@ -2,13 +2,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useIntl } from 'react-intl'
 import { motion } from 'framer-motion'
 import { INLINE_SURFACE, BLOCK_TITLE } from './blocks/rhythm'
+import { InfographicPoster } from './InfographicPoster'
 import { SourcesDisclosure } from './SourcesDisclosure'
 
 /**
- * Infographic viewer (NotebookLM imitation, roadmap §2d).
+ * Infographic viewer (roadmap §2d).
  *
- * The backend renders the grounded spec as one NotebookLM-style **portrait poster** (the
- * approved gallery look) and serves it as the artifact's main asset. This viewer shows that
+ * The backend renders the grounded spec as one clean editorial **portrait poster** and serves
+ * it as the artifact's main asset. This viewer shows that
  * image as the visual sheet, fetched through the credentialed asset route into a blob URL
  * (a plain `<img src>` cannot send the auth cookie the API needs). If the poster is missing
  * or fails to load, it falls back to the structured stat/section grid drawn from the same
@@ -145,32 +146,18 @@ export function Infographic({
         {/* The sheet — the generated poster when available, else the structured grid */}
         <div className="min-w-0">
           {posterUrl ? (
-            <figure className="rounded-xl border border-border bg-bg overflow-hidden">
-              <motion.img
-                key={posterUrl}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.2 }}
-                src={posterUrl}
-                alt={title}
-                className="block w-full h-auto"
-              />
-            </figure>
+            <InfographicPoster src={posterUrl} title={title} />
           ) : (
           <section
-            className="rounded-xl border border-border bg-bg p-6"
+            className="border border-border bg-bg p-6"
             aria-label={title}
           >
             {/* Sheet header */}
-            <header className="text-center mb-6">
+            <header className="mb-7 border-b border-border pb-5 text-left">
               <h4 className="text-2xl font-bold text-text leading-tight">{title}</h4>
               {subtitle && (
                 <p className="text-sm text-text-muted mt-1.5">{subtitle}</p>
               )}
-              <div
-                className="mx-auto mt-3 h-1 w-16 rounded-full bg-primary"
-                aria-hidden="true"
-              />
             </header>
 
             {/* Stat / section grid */}
@@ -185,7 +172,7 @@ export function Infographic({
                     initial={{ opacity: 0, y: 6 }}
                     animate={{ opacity: dimmed ? 0.4 : 1, y: 0 }}
                     transition={{ duration: 0.2, delay: Math.min(i * 0.04, 0.3) }}
-                    className="rounded-lg border border-border bg-bg-subtle p-4 flex flex-col"
+                    className="flex flex-col border-t border-border pt-4"
                   >
                     {section.stat && (
                       <span className="text-3xl font-bold text-primary leading-none mb-1.5">

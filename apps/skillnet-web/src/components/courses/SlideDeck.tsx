@@ -1,14 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useIntl } from 'react-intl'
 import { motion } from 'framer-motion'
-import {
-  CalloutBlock,
-  ChartBlock,
-  StepSequenceBlock,
-  TableBlock,
-  TextContentBlock,
-} from './blocks'
 import { INLINE_SURFACE, BLOCK_TITLE } from './blocks/rhythm'
+import {
+  SlideCanvas,
+  type SlideCanvasSpec,
+} from './SlideCanvas'
 import { SourcesDisclosure } from './SourcesDisclosure'
 
 /**
@@ -35,25 +32,17 @@ export interface SlideCitation {
   document_id?: string | null
 }
 
-export type SlideBlockSpec =
-  | { type: 'text'; text: string; variant?: 'body' | 'lead' | 'caption' }
-  | { type: 'callout'; tone?: 'info' | 'warn' | 'success'; text: string }
-  | { type: 'steps'; title: string; steps: string[] }
-  | { type: 'table'; headers: string[]; rows: string[][] }
-  | { type: 'chart'; kind?: 'bar' | 'line'; title: string; labels: string[]; values: number[] }
-
-export interface SlideSpec {
-  title: string
-  subtitle?: string | null
-  blocks: SlideBlockSpec[]
+export interface SlideSpec extends SlideCanvasSpec {
   citation_ids: string[]
-  /** Content hash of this slide's generated illustration, served as a sub-asset. */
+  /** Legacy fields retained so previously persisted artifacts still deserialize. */
   image_ref?: string
   image_ext?: string
 }
 
+export type { SlideBlockSpec, SlideComposition } from './SlideCanvas'
+
 export interface SlideDeckProps {
-  /** MediaArtifact id — each illustration is fetched from `/media/artifacts/{id}/asset/{ref}`. */
+  /** MediaArtifact id, retained as part of the stable viewer API. */
   artifactId: string
   slides: SlideSpec[]
   citations?: SlideCitation[]
@@ -62,35 +51,7 @@ export interface SlideDeckProps {
   onJumpToCitation?: (citationId: string) => void
 }
 
-const BASE = '/api/v1'
-
-/** Map one kit-block spec to the matching frozen kit component. Unknown types render null. */
-function SlideBlock({ block }: { block: SlideBlockSpec }) {
-  switch (block.type) {
-    case 'text':
-      return <TextContentBlock text={block.text} variant={block.variant ?? 'body'} />
-    case 'callout':
-      return <CalloutBlock tone={block.tone ?? 'info'} text={block.text} />
-    case 'steps':
-      return <StepSequenceBlock title={block.title} steps={block.steps ?? []} />
-    case 'table':
-      return <TableBlock headers={block.headers ?? []} rows={block.rows ?? []} />
-    case 'chart':
-      return (
-        <ChartBlock
-          kind={block.kind ?? 'bar'}
-          title={block.title}
-          labels={block.labels ?? []}
-          values={block.values ?? []}
-        />
-      )
-    default:
-      return null
-  }
-}
-
 export function SlideDeck({
-  artifactId,
   slides,
   citations = [],
   theme,
@@ -99,44 +60,6 @@ export function SlideDeck({
   const intl = useIntl()
   const [index, setIndex] = useState(0)
   const [activeCitation, setActiveCitation] = useState<string | null>(null)
-  // ref -> blob URL for every slide illustration, filled once on mount.
-  const [imageUrls, setImageUrls] = useState<Record<string, string>>({})
-  const urlsRef = useRef<string[]>([])
-
-  // Fetch every slide illustration through the credentialed sub-asset route into blob URLs.
-  // A plain <img src> cannot send the auth cookie the API needs, so we fetch then object-URL.
-  useEffect(() => {
-    let cancelled = false
-    const refs = Array.from(
-      new Set(slides.map((s) => s.image_ref).filter((r): r is string => !!r)),
-    )
-    if (refs.length === 0) return
-    ;(async () => {
-      const map: Record<string, string> = {}
-      await Promise.all(
-        refs.map(async (ref) => {
-          try {
-            const res = await fetch(`${BASE}/media/artifacts/${artifactId}/asset/${ref}`, {
-              credentials: 'include',
-            })
-            if (!res.ok) return
-            const url = URL.createObjectURL(await res.blob())
-            urlsRef.current.push(url)
-            map[ref] = url
-          } catch {
-            /* a missing illustration falls back to the kit blocks */
-          }
-        }),
-      )
-      if (!cancelled) setImageUrls(map)
-    })()
-    return () => {
-      cancelled = true
-      for (const url of urlsRef.current) URL.revokeObjectURL(url)
-      urlsRef.current = []
-    }
-  }, [artifactId, slides])
-
   const total = slides.length
   const clamp = useCallback(
     (n: number) => Math.max(0, Math.min(total - 1, n)),
@@ -246,44 +169,14 @@ export function SlideDeck({
       <div>
         {/* The slide */}
         <div className="min-w-0">
-          <motion.article
+          <motion.div
             key={index}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.15 }}
-            className="rounded-xl border border-border bg-bg overflow-hidden min-h-[16rem]"
-            aria-label={current.title}
           >
-            {current.image_ref && imageUrls[current.image_ref] ? (
-              // The generated illustration is the slide; the title stays as a caption.
-              <>
-                <img
-                  src={imageUrls[current.image_ref]}
-                  alt={current.title}
-                  className="block w-full h-auto"
-                />
-                <div className="p-5 pt-4">
-                  <h4 className="text-lg font-semibold text-text">{current.title}</h4>
-                  {current.subtitle && (
-                    <p className="text-sm text-text-muted mt-1">{current.subtitle}</p>
-                  )}
-                </div>
-              </>
-            ) : (
-              // No illustration (not generated / failed): fall back to the kit blocks.
-              <div className="p-5">
-                <h4 className="text-lg font-semibold text-text">{current.title}</h4>
-                {current.subtitle && (
-                  <p className="text-sm text-text-muted mt-1">{current.subtitle}</p>
-                )}
-                <div className="mt-4 space-y-4">
-                  {current.blocks.map((block, i) => (
-                    <SlideBlock key={i} block={block} />
-                  ))}
-                </div>
-              </div>
-            )}
-          </motion.article>
+            <SlideCanvas slide={current} />
+          </motion.div>
 
           {/* Footnote citation chips for the current slide */}
           {current.citation_ids.length > 0 && (

@@ -1,16 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useIntl } from 'react-intl'
 import { motion } from 'framer-motion'
-import {
-  CalloutBlock,
-  ChartBlock,
-  StepSequenceBlock,
-  TableBlock,
-  TextContentBlock,
-} from './blocks'
 import { INLINE_SURFACE, BLOCK_TITLE, BLOCK_EYEBROW } from './blocks/rhythm'
 import { SourcesDisclosure } from './SourcesDisclosure'
-import type { SlideBlockSpec, SlideCitation } from './SlideDeck'
+import { SlideCanvas, type SlideCanvasSpec } from './SlideCanvas'
+import type { SlideCitation } from './SlideDeck'
 
 /**
  * Video Overview player (NotebookLM imitation, roadmap §2b).
@@ -35,10 +29,7 @@ import type { SlideBlockSpec, SlideCitation } from './SlideDeck'
  * HTML, honouring the kit's safety discipline.
  */
 
-export interface VideoSlideSpec {
-  title: string
-  subtitle?: string | null
-  blocks: SlideBlockSpec[]
+export interface VideoSlideSpec extends SlideCanvasSpec {
   citation_ids: string[]
   narration: string
   narration_citation_ids: string[]
@@ -61,31 +52,6 @@ export interface VideoOverviewProps {
 }
 
 const BASE = '/api/v1'
-
-/** Map one kit-block spec to the matching frozen kit component. Unknown types render null. */
-function SlideBlock({ block }: { block: SlideBlockSpec }) {
-  switch (block.type) {
-    case 'text':
-      return <TextContentBlock text={block.text} variant={block.variant ?? 'body'} />
-    case 'callout':
-      return <CalloutBlock tone={block.tone ?? 'info'} text={block.text} />
-    case 'steps':
-      return <StepSequenceBlock title={block.title} steps={block.steps ?? []} />
-    case 'table':
-      return <TableBlock headers={block.headers ?? []} rows={block.rows ?? []} />
-    case 'chart':
-      return (
-        <ChartBlock
-          kind={block.kind ?? 'bar'}
-          title={block.title}
-          labels={block.labels ?? []}
-          values={block.values ?? []}
-        />
-      )
-    default:
-      return null
-  }
-}
 
 export function VideoOverview({
   artifactId,
@@ -301,44 +267,14 @@ export function VideoOverview({
       <div>
         <div className="min-w-0">
           {/* The stage: the current slide */}
-          <motion.article
+          <motion.div
             key={index}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.15 }}
-            className="rounded-xl border border-border bg-bg overflow-hidden min-h-[16rem]"
-            aria-label={current.title}
           >
-            {currentImageUrl ? (
-              // The generated illustration is the slide visual; the title stays as a caption.
-              <>
-                <img
-                  src={currentImageUrl}
-                  alt={current.title}
-                  className="block w-full h-auto"
-                />
-                <div className="p-5 pt-4">
-                  <h4 className="text-lg font-semibold text-text">{current.title}</h4>
-                  {current.subtitle && (
-                    <p className="text-sm text-text-muted mt-1">{current.subtitle}</p>
-                  )}
-                </div>
-              </>
-            ) : (
-              // No illustration (not generated / failed): fall back to the kit blocks.
-              <div className="p-5">
-                <h4 className="text-lg font-semibold text-text">{current.title}</h4>
-                {current.subtitle && (
-                  <p className="text-sm text-text-muted mt-1">{current.subtitle}</p>
-                )}
-                <div className="mt-4 space-y-4">
-                  {current.blocks.map((block, i) => (
-                    <SlideBlock key={i} block={block} />
-                  ))}
-                </div>
-              </div>
-            )}
-          </motion.article>
+            <SlideCanvas slide={current} imageUrl={currentImageUrl} />
+          </motion.div>
 
           {/* Hidden audio element for the current clip, keyed so each slide remounts. */}
           {currentUrl && (

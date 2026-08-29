@@ -53,6 +53,7 @@ def _valid_payload() -> dict:
             },
         ],
         "orientation": "landscape",
+        "layout": "comparison",
         "style": "vivo",
         "language": "en",
     }
@@ -76,6 +77,7 @@ def test_parse_infographic_valid() -> None:
     assert info.language == "es"
     assert info.style == "default"
     assert info.orientation == "portrait"
+    assert info.layout == "comparison"
 
 
 def test_parse_infographic_filters_citations() -> None:
@@ -134,6 +136,8 @@ def test_build_prompts_lists_valid_ids_and_injects_context() -> None:
     )
     assert "c1, c2" in system
     assert "JSON" in system
+    assert "8-18 palabras" in system
+    assert "flow" in system
     assert "pasaje c1" in user
 
 
@@ -187,10 +191,14 @@ async def test_generator_persists_sections_citations_and_emits_progress(
     # Rendered as a portrait, from a prompt carrying the extracted facts.
     assert prompts and prompts[0][1] == "1024x1536"
     assert "30 dias" in prompts[0][0]
+    assert "pure white background" in prompts[0][0]
+    assert "no gradients" in prompts[0][0]
+    assert "ONLY this exact supplied copy" in prompts[0][0]
     spec = produced.spec_json
     assert spec["generator"] == "infographic"
     assert spec["grounding_mode"] == "chunks"
     assert spec["has_image"] is True
+    assert spec["layout"] == "comparison"
     # The facts stay in spec_json for the parallel citations panel.
     assert len(spec["sections"]) == 2
     assert spec["sections"][0]["stat"] == "30 dias"

@@ -59,10 +59,11 @@ def test_every_media_kind_declares_its_requirements() -> None:
     assert set(MEDIA_KIND_REQUIREMENTS) == set(MediaKind)
 
 
-def test_infographic_slides_and_video_require_images() -> None:
-    for kind in (MediaKind.INFOGRAPHIC, MediaKind.SLIDES, MediaKind.VIDEO):
+def test_infographic_and_video_require_images() -> None:
+    for kind in (MediaKind.INFOGRAPHIC, MediaKind.VIDEO):
         assert "images" in MEDIA_KIND_REQUIREMENTS[kind], kind
-    assert "images" not in MEDIA_KIND_REQUIREMENTS[MediaKind.PODCAST]
+    for kind in (MediaKind.PODCAST, MediaKind.SLIDES):
+        assert "images" not in MEDIA_KIND_REQUIREMENTS[kind]
 
 
 def test_every_generated_kind_requires_the_llm() -> None:
@@ -78,9 +79,7 @@ def test_every_generated_kind_requires_the_llm() -> None:
 def test_a_degraded_capability_does_not_block() -> None:
     """DEGRADED means "works, on a lesser path" — the offline voice is still a voice."""
     caps = _capabilities(
-        tts=Capability(
-            status=CapabilityStatus.DEGRADED, reason=CapabilityReason.NOT_CONFIGURED
-        )
+        tts=Capability(status=CapabilityStatus.DEGRADED, reason=CapabilityReason.NOT_CONFIGURED)
     )
 
     assert blocking_capability(MediaKind.PODCAST, caps) is None
@@ -195,9 +194,7 @@ def test_a_blocked_kind_is_refused_with_the_typed_code(
     }
 
 
-def test_a_ready_kind_is_still_accepted(
-    client, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_a_ready_kind_is_still_accepted(client, monkeypatch: pytest.MonkeyPatch) -> None:
     from src.routes import media as media_routes
 
     artifact_id = uuid.uuid4()
@@ -243,9 +240,7 @@ def test_a_kind_that_needs_nothing_is_never_refused(
             for name in Capabilities.model_fields
         }
     )
-    monkeypatch.setattr(
-        media_routes, "derive_capabilities", lambda: everything_blocked
-    )
+    monkeypatch.setattr(media_routes, "derive_capabilities", lambda: everything_blocked)
     monkeypatch.setattr(media_routes, "enqueue_artifact", _enqueue)
     monkeypatch.setattr(media_routes, "spawn_media_job", lambda _id: None)
 
@@ -268,9 +263,11 @@ async def test_every_starter_is_gated_not_just_the_studio_route(monkeypatch):
     monkeypatch.setattr(
         jobs_mod,
         "derive_capabilities",
-        lambda **_: _capabilities(images=Capability(
-            status=CapabilityStatus.BLOCKED, reason=CapabilityReason.MISSING_API_KEY
-        )),
+        lambda **_: _capabilities(
+            images=Capability(
+                status=CapabilityStatus.BLOCKED, reason=CapabilityReason.MISSING_API_KEY
+            )
+        ),
     )
 
     class _Course:

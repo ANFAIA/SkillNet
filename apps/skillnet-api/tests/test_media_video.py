@@ -144,15 +144,8 @@ def test_align_narration_truncates_extra_lines() -> None:
 
 
 def test_fallback_narration_prefers_subtitle_then_block_then_title() -> None:
-    assert (
-        fallback_narration(Slide(title="T", subtitle="Sub", blocks=[])) == "Sub"
-    )
-    assert (
-        fallback_narration(
-            Slide(title="T", blocks=[TextBlock(text="Cuerpo")])
-        )
-        == "Cuerpo"
-    )
+    assert fallback_narration(Slide(title="T", subtitle="Sub", blocks=[])) == "Sub"
+    assert fallback_narration(Slide(title="T", blocks=[TextBlock(text="Cuerpo")])) == "Cuerpo"
     assert fallback_narration(Slide(title="Solo titulo", blocks=[])) == "Solo titulo"
 
 
@@ -169,9 +162,7 @@ def test_build_prompts_asks_for_exactly_n_lines_and_lists_ids() -> None:
 
 
 def test_build_prompts_handles_empty_bundle() -> None:
-    system, user = build_prompts(
-        _deck(), GroundedBundle(mode="empty", passages=[]), language="es"
-    )
+    system, user = build_prompts(_deck(), GroundedBundle(mode="empty", passages=[]), language="es")
     assert "No hay fuentes citables" in system
 
 
@@ -220,9 +211,7 @@ async def test_generator_persists_slides_narration_and_stores_clips(
     async def fake_synthesize(text, **kwargs):
         seen_texts.append(text)
         # Distinct bytes per line -> distinct content hashes / audio_refs.
-        return SynthesisResult(
-            data=f"MP3-{text}".encode(), ext="mp3", voice_path="fallback"
-        )
+        return SynthesisResult(data=f"MP3-{text}".encode(), ext="mp3", voice_path="fallback")
 
     image_sizes: list[str] = []
 
@@ -232,12 +221,8 @@ async def test_generator_persists_slides_narration_and_stores_clips(
         return f"PNG-{prompt[:48]}".encode()
 
     monkeypatch.setattr(generator_mod.slides_spec, "generate_deck", fake_generate_deck)
-    monkeypatch.setattr(
-        generator_mod.narration_mod, "generate_narration", fake_generate_narration
-    )
-    monkeypatch.setattr(
-        generator_mod.voice_mod, "synthesize_narration", fake_synthesize
-    )
+    monkeypatch.setattr(generator_mod.narration_mod, "generate_narration", fake_generate_narration)
+    monkeypatch.setattr(generator_mod.voice_mod, "synthesize_narration", fake_synthesize)
     monkeypatch.setattr(generator_mod, "generate_image", fake_image)
 
     steps: list[tuple[str, dict]] = []
@@ -276,8 +261,8 @@ async def test_generator_persists_slides_narration_and_stores_clips(
     # Distinct lines -> distinct clips.
     assert slides[0]["audio_ref"] != slides[1]["audio_ref"]
 
-    # Each slide also references a landscape illustration stored on disk.
-    assert image_sizes == ["1536x1024", "1536x1024"]
+    # Each slide also references a square illustration sized for the side panel.
+    assert image_sizes == ["1024x1024", "1024x1024"]
     for s in slides:
         assert s["image_ext"] == "png"
         assert store.path_for(s["image_ref"], "png").exists()
@@ -315,12 +300,8 @@ async def test_generator_without_progress_reporter_is_silent(
         return b"PNG"
 
     monkeypatch.setattr(generator_mod.slides_spec, "generate_deck", fake_generate_deck)
-    monkeypatch.setattr(
-        generator_mod.narration_mod, "generate_narration", fake_generate_narration
-    )
-    monkeypatch.setattr(
-        generator_mod.voice_mod, "synthesize_narration", fake_synthesize
-    )
+    monkeypatch.setattr(generator_mod.narration_mod, "generate_narration", fake_generate_narration)
+    monkeypatch.setattr(generator_mod.voice_mod, "synthesize_narration", fake_synthesize)
     monkeypatch.setattr(generator_mod, "generate_image", fake_image)
 
     # No progress reporter: emit() must be a no-op, not a crash.

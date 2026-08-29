@@ -35,7 +35,9 @@ logger = get_logger(__name__)
 #: Section bounds: a single sheet, not a report. A floor of one keeps an empty sheet from
 #: validating; a ceiling keeps it a glanceable infographic rather than a document.
 _MIN_SECTIONS = 1
-_MAX_SECTIONS = 8
+_MAX_SECTIONS = 6
+
+InfographicLayout = Literal["auto", "flow", "comparison", "grid", "hierarchy"]
 
 
 class InfographicSection(BaseModel):
@@ -57,10 +59,9 @@ class Infographic(BaseModel):
 
     title: str = Field(min_length=1)
     subtitle: str | None = None
-    sections: list[InfographicSection] = Field(
-        min_length=_MIN_SECTIONS, max_length=_MAX_SECTIONS
-    )
+    sections: list[InfographicSection] = Field(min_length=_MIN_SECTIONS, max_length=_MAX_SECTIONS)
     orientation: Literal["portrait", "landscape"] = "portrait"
+    layout: InfographicLayout = "auto"
     style: str = "default"
     language: str = "es"
 
@@ -90,18 +91,23 @@ def build_prompts(
     system = (
         "Eres un disenador de infografias educativas. Produces UNA hoja infografica en "
         f"{lang_name} a partir del material aportado: un titulo y una serie de secciones "
-        "glanceables.\n\n"
+        "glanceables y una composicion semantica.\n\n"
         "PRINCIPIOS:\n"
         f"- Entre 3 y {max_sections} secciones. Cada seccion es UNA idea.\n"
+        "- El titulo tiene entre 4 y 9 palabras.\n"
         "- 'stat' es la cifra o dato destacado (ej. '30 dias', '3x', '98%'); es opcional, "
         "solo cuando hay un numero o dato corto que destacar.\n"
-        "- 'one_line' es UNA frase de apoyo, corta y concreta.\n"
+        "- 'one_line' es UNA frase de apoyo de 8-18 palabras, concreta y sin relleno.\n"
+        "- Elige layout='flow' para pasos o secuencias; 'comparison' para dos alternativas; "
+        "'grid' para categorias equivalentes; 'hierarchy' para una idea principal con ramas; "
+        "y 'auto' solo si ninguna estructura anterior encaja.\n"
         "- Extrae los datos del material. Las cifras deben salir de las fuentes.\n\n"
         "REGLAS ESTRICTAS:\n"
-        '1. Responde SOLO con JSON valido, sin texto antes ni despues, sin ```.\n'
+        "1. Responde SOLO con JSON valido, sin texto antes ni despues, sin ```.\n"
         "2. Esquema exacto: "
         '{"title":str,"subtitle":str|null,"sections":[{"heading":str,"stat":str|null,'
         '"one_line":str,"citation_ids":[str,...]}],"orientation":"portrait"|"landscape",'
+        '"layout":"auto"|"flow"|"comparison"|"grid"|"hierarchy",'
         '"style":str,"language":str}.\n'
         "3. Los datos y cifras van SIEMPRE como texto en los campos. NUNCA se incrustan en "
         "una imagen: la hoja se dibuja con texto real. Aqui solo se extraen datos.\n"
@@ -149,14 +155,10 @@ def _filter_ids(ids: object, valid_ids: set[str]) -> list[str]:
     return seen
 
 
-def filter_infographic_citations(
-    infographic: Infographic, valid_ids: set[str]
-) -> Infographic:
+def filter_infographic_citations(infographic: Infographic, valid_ids: set[str]) -> Infographic:
     """Drop any ``citation_id`` a section claims that is not in the bundle. Pure."""
     sections = [
-        section.model_copy(
-            update={"citation_ids": _filter_ids(section.citation_ids, valid_ids)}
-        )
+        section.model_copy(update={"citation_ids": _filter_ids(section.citation_ids, valid_ids)})
         for section in infographic.sections
     ]
     return infographic.model_copy(update={"sections": sections})
@@ -189,6 +191,7 @@ def parse_infographic(
                 "subtitle": payload.get("subtitle"),
                 "sections": raw_sections,
                 "orientation": orientation,
+                "layout": payload.get("layout", "auto"),
                 "style": style,
                 "language": language,
             }
@@ -247,6 +250,7 @@ async def generate_infographic(
 
 __all__ = [
     "InfographicSection",
+    "InfographicLayout",
     "Infographic",
     "build_prompts",
     "filter_infographic_citations",

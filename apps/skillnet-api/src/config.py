@@ -8,6 +8,7 @@ from src.personalization.selection_policy import SelectionExecution, SelectionSt
 
 _DEV_SECRET_KEY = "dev-insecure-secret-key-change-me-in-production"
 
+
 #: Where `.env` is looked up, anchored to this file instead of to the working directory.
 #:
 #: A bare ``env_file=".env"`` resolves against the CWD, so the same command behaved
@@ -216,10 +217,11 @@ class Settings(BaseSettings):
 
     # Video Overview generator (roadmap §2b): narrated slides as HTML, NOT a real video
     # model. It reuses the slide deck content stage, then a small strict-JSON litellm call
-    # writes one short narration line per slide (grounded, carrying citation_ids). Defaults
-    # to the cheap gpt-4o-mini, like the other media content agents. The per-slide voice
-    # reuses the podcast TTS path (single host = PODCAST_VOICE_A); no separate voice config.
-    VIDEO_NARRATION_MODEL: str = "gpt-4o-mini"
+    # writes one short narration line per slide (grounded, carrying citation_ids). Blank uses
+    # the app's main LLM_MODEL so custom OpenAI-compatible endpoints stay provider-agnostic;
+    # set it only when the same configured endpoint/key can reach the override. The per-slide
+    # voice reuses the podcast TTS path (single host = PODCAST_VOICE_A).
+    VIDEO_NARRATION_MODEL: str = ""
 
     # File uploads
     UPLOAD_DIR: str = "./uploads"
@@ -313,9 +315,7 @@ class Settings(BaseSettings):
                     'python -c "import secrets; print(secrets.token_urlsafe(32))"'
                 )
             if len(value) < 32:
-                raise ValueError(
-                    "SECRET_KEY must be at least 32 characters in production"
-                )
+                raise ValueError("SECRET_KEY must be at least 32 characters in production")
         return value
 
 

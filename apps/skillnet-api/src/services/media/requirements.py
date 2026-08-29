@@ -10,8 +10,8 @@ The requirements are the ones the generators actually have, verified in code:
 * ``ai`` — every kind with a real generator opens with an LLM content stage that raises
   :class:`~src.core.exceptions.LLMError` without a key (``podcast/script.py``,
   ``slides/spec.py``, ``infographic/spec.py``, ``video/narration.py``).
-* ``images`` — the infographic poster, the slide illustrations and the video's per-slide
-  illustrations all go through ``media.images.generate_image``.
+* ``images`` — the infographic poster and the video's per-slide illustrations go through
+  ``media.images.generate_image``. Presentations use only structured components.
 * ``tts`` — the podcast and the video narration go through the podcast voice chain.
 
 The kinds with no real generator (``mindmap``, ``report``, ``cover_image``) still resolve
@@ -34,7 +34,7 @@ from src.schemas.capabilities import CAPABILITY_NAMES, Capabilities
 #: Media kind -> the capability names it cannot run without.
 MEDIA_KIND_REQUIREMENTS: dict[MediaKind, tuple[str, ...]] = {
     MediaKind.PODCAST: ("ai", "tts"),
-    MediaKind.SLIDES: ("ai", "images"),
+    MediaKind.SLIDES: ("ai",),
     MediaKind.INFOGRAPHIC: ("ai", "images"),
     MediaKind.VIDEO: ("ai", "images", "tts"),
     MediaKind.MINDMAP: (),
@@ -92,9 +92,7 @@ def ensure_kind_is_available(kind: MediaKind, capabilities: Capabilities) -> Non
     if name is None:
         return
     capability = getattr(capabilities, name)
-    explanation = _PUBLIC_EXPLANATION.get(
-        name, f"{name} is not available in this installation."
-    )
+    explanation = _PUBLIC_EXPLANATION.get(name, f"{name} is not available in this installation.")
     raise CapabilityBlockedError(
         capability=name,
         reason=str(capability.reason) if capability.reason else None,

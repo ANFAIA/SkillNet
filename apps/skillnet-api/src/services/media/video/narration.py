@@ -2,7 +2,7 @@
 
 The Video Overview is *narrated slides*, not a real video model (roadmap §2b + §3 trap).
 Its second stage, after the slide deck is written, turns each slide into a short
-**1-2 sentence narration line** the single host speaks over that slide. One ``gpt-4o-mini``
+**1-2 sentence narration line** the single host speaks over that slide. One provider-agnostic
 -via-litellm call writes every line at once (cross-slide coherence, one round trip), held
 to the same strict-JSON discipline as the podcast/slides agents: the model emits JSON, we
 parse it, and Pydantic is the contract.
@@ -154,7 +154,7 @@ def build_prompts(
         "titulo.\n"
         "- Hila las diapositivas: la narracion se escucha seguida.\n\n"
         "REGLAS ESTRICTAS:\n"
-        '1. Responde SOLO con JSON valido, sin texto antes ni despues, sin ```.\n'
+        "1. Responde SOLO con JSON valido, sin texto antes ni despues, sin ```.\n"
         "2. Esquema exacto: "
         '{"lines":[{"text":str,"citation_ids":[str,...]},...],"language":str}.\n'
         "3. Las citas NUNCA van dentro de 'text' (nada de [Fuente c1] locutado). El texto "
@@ -164,8 +164,7 @@ def build_prompts(
     )
 
     summaries = "\n".join(
-        f"[Diapositiva {i}] {_slide_summary(slide)}"
-        for i, slide in enumerate(deck.slides, start=1)
+        f"[Diapositiva {i}] {_slide_summary(slide)}" for i, slide in enumerate(deck.slides, start=1)
     )
     context = bundle.as_prompt_context() or "(No hay material de origen; habla en general.)"
     user_parts = [
@@ -268,8 +267,8 @@ async def generate_narration(
     """Run the narration agent: build prompts, call the model, parse and align.
 
     ``llm`` is injectable for tests; by default it resolves the app's LLM config and forces
-    the small ``VIDEO_NARRATION_MODEL``. json_mode is on; :func:`parse_lines` stays
-    defensive because not every provider honours it.
+    ``VIDEO_NARRATION_MODEL`` when configured, otherwise the app's main model. json_mode is
+    on; :func:`parse_lines` stays defensive because not every provider honours it.
     """
     from src.config import settings
 
@@ -279,7 +278,7 @@ async def generate_narration(
     reply = await service.complete(
         system,
         user,
-        model=settings.VIDEO_NARRATION_MODEL,
+        model=settings.VIDEO_NARRATION_MODEL or None,
         temperature=0.6,
         max_tokens=1536,
         json_mode=True,

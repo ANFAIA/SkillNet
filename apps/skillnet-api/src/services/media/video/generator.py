@@ -45,8 +45,8 @@ from src.services.media.visuals import slide_prompt
 
 logger = get_logger(__name__)
 
-#: Landscape 16:9 for the per-slide illustrations (the approved gallery look).
-_SLIDE_SIZE = "1536x1024"
+#: Square illustration for the side panel used by the shared slide canvas.
+_SLIDE_SIZE = "1024x1024"
 
 
 def _summarize_voice_paths(paths: list[str]) -> str:

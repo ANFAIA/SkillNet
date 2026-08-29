@@ -1,9 +1,7 @@
-"""NotebookLM-style image **prompt builders** shared by the visual generators.
+"""Image **prompt builders** shared by the visual generators.
 
-The approved gallery look (``scripts/render_notebooklm_visuals.py``) is a flat, modern
-editorial vector illustration in a muted professional palette. These are the pure functions
-that compose the per-artifact prompt from an already-grounded spec, so every generator
-speaks the same visual language; the image call itself lives in
+These pure functions compose a restrained enterprise visual brief from an already-grounded
+spec; the image call itself lives in
 :func:`src.services.media.images.generate_image`.
 
 Full-image generation is intended (the gallery look was approved): the whole sheet/slide is
@@ -14,12 +12,25 @@ the visual surface built from that same spec.
 
 from __future__ import annotations
 
-#: The house style shared with the approved gallery visuals (kept in sync with
-#: ``scripts/render_notebooklm_visuals.py``).
-STYLE = (
-    "Flat, modern editorial vector illustration, NotebookLM style. Muted professional palette "
-    "(warm sand, deep teal, soft charcoal), clean line icons, generous whitespace, subtle grain, "
-    "high quality, crisp legible Spanish text, no watermark, no logos."
+#: A clean, generic enterprise poster language. Infographics remain a single generated image,
+#: but no longer imitate NotebookLM or introduce decorative brand-like colour and texture.
+INFOGRAPHIC_STYLE = (
+    "Clean professional enterprise infographic on a pure white background. Black and charcoal "
+    "typography, thin neutral-gray rules, restrained black line icons, precise alignment, "
+    "generous whitespace and a clear editorial grid. Flat print-design finish. No colour accents, "
+    "no gradients, no grain, no shadows, no floating rounded cards, no decorative blobs, no "
+    "watermark and no logos."
+)
+
+#: Slide art is an ingredient inside a layout rendered by SkillNet, not a generated slide.
+#: Keeping this separate lets posters and deck illustrations use different compositions while
+#: retaining the same clean monochrome direction.
+SLIDE_ILLUSTRATION_STYLE = (
+    "Minimal black line illustration on a pure white background. Clean editorial vector "
+    "drawing, restrained geometric forms, consistent thin strokes, generous empty space, "
+    "professional enterprise tone. No colour, no gradients, no texture, no shadow, no "
+    "watermark, no logo, no border. Absolutely no text, letters, words, numbers, labels, "
+    "captions, charts or user-interface elements."
 )
 
 #: Keep prompts bounded — a wall of source text hurts the image, not helps it.
@@ -41,13 +52,24 @@ def infographic_prompt(info) -> str:
     for section in info.sections:
         head = f"{section.stat} — {section.heading}" if section.stat else section.heading
         pieces.append(f"{head}: {section.one_line}")
-    body = _clip(" | ".join(pieces))
+    body = _clip(" | ".join(pieces), 700)
     subtitle = f" Subtitulo: '{info.subtitle}'." if info.subtitle else ""
+    layout = getattr(info, "layout", "auto")
+    layout_instruction = {
+        "flow": "Arrange the sections as one clear vertical sequence connected by thin arrows.",
+        "comparison": "Arrange the sections in two balanced comparison columns.",
+        "grid": "Arrange the sections in a strict, evenly aligned editorial grid.",
+        "hierarchy": "Arrange one leading idea at the top with subordinate branches below.",
+        "auto": "Choose the simplest editorial arrangement that matches the supplied ideas.",
+    }.get(layout, "Choose the simplest editorial arrangement that matches the supplied ideas.")
     return (
-        f"A tall PORTRAIT editorial INFOGRAPHIC poster in Spanish titled '{info.title}'."
-        f"{subtitle} Stacked sections, each with a big bold number or stat and a clean line "
-        "icon, clear visual hierarchy and generous whitespace, vertical layout, "
-        f"training/onboarding aesthetic. Secciones: {body}. " + STYLE
+        f"Create one tall PORTRAIT editorial INFOGRAPHIC poster in Spanish. Exact title: "
+        f"'{info.title}'.{subtitle} Use a disciplined top-to-bottom reading order and 3-6 "
+        f"clearly separated sections. {layout_instruction} Give genuine statistics strong "
+        "typographic emphasis; give "
+        "non-numeric sections a small line icon instead. Render ONLY this exact supplied copy, "
+        "with no invented headings, captions or footer text. Supplied sections: "
+        f"{body}. {INFOGRAPHIC_STYLE} Keep every word large, crisp and legible."
     )
 
 
@@ -64,6 +86,10 @@ def slide_body_text(slide) -> str:
             parts.append(block.text)
         elif kind == "steps":
             parts.append(f"{block.title}: " + "; ".join(block.steps))
+        elif kind == "timeline":
+            parts.append(f"{block.label}: " + "; ".join(block.steps))
+        elif kind == "card":
+            parts.append(f"{block.title}: {block.text}")
         elif kind == "table":
             parts.append(" · ".join(block.headers))
         elif kind == "chart":
@@ -72,19 +98,30 @@ def slide_body_text(slide) -> str:
 
 
 def slide_prompt(slide) -> str:
-    """A 16:9 LANDSCAPE slide-illustration prompt built from a validated ``Slide``.
+    """A supporting illustration prompt built from a validated ``Slide``.
 
-    Composes the slide title, optional subtitle, and a flattened summary of its blocks into
-    one illustration brief. Pure — takes the spec, returns a string.
+    The old prompt asked the image model for a complete slide and repeated its title/body,
+    which invited it to draw misspelled copy. The shared web canvas now owns all typography;
+    this prompt asks only for one text-free visual ingredient.
     """
-    subtitle = f" Subtitulo: '{slide.subtitle}'." if slide.subtitle else ""
-    body = slide_body_text(slide)
-    content = f" Contenido a ilustrar: {body}." if body else ""
+    brief = (getattr(slide, "visual_brief", None) or "").strip()
+    if not brief:
+        # Video decks no longer ask the content model for an image brief. Feeding the whole
+        # body to the image model made it reproduce labels and paragraphs; the title carries
+        # enough semantic direction for one supporting metaphor.
+        brief = slide.title
     return (
-        f"A 16:9 LANDSCAPE slide ILLUSTRATION in Spanish for a training presentation, "
-        f"escena titulada '{slide.title}'.{subtitle}{content} One clear illustrative scene "
-        "with clean line icons, no dense paragraphs, only a short Spanish caption. " + STYLE
+        "Create one isolated supporting illustration for an educational video. Depict one "
+        "simple visual metaphor or scene, not a diagram, infographic, flowchart, chart, "
+        "presentation slide or user interface. "
+        f"Concept to depict visually: {_clip(brief)}. " + SLIDE_ILLUSTRATION_STYLE
     )
 
 
-__all__ = ["STYLE", "infographic_prompt", "slide_body_text", "slide_prompt"]
+__all__ = [
+    "INFOGRAPHIC_STYLE",
+    "SLIDE_ILLUSTRATION_STYLE",
+    "infographic_prompt",
+    "slide_body_text",
+    "slide_prompt",
+]

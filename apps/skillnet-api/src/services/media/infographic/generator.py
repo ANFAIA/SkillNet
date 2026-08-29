@@ -3,12 +3,12 @@
 It implements the spine's ``MediaGenerator`` protocol and wires two stages:
 
     grounded bundle --content agent--> validated infographic (facts as data)
-                    --image model-----> NotebookLM-style portrait poster (PNG)
+                    --image model-----> clean editorial portrait poster (PNG)
 
 The content stage extracts the facts as data and keeps them in ``spec_json`` (title,
 sections with stats and ``citation_ids``, plus the bundle's citation metadata) so the
 frontend can still render the parallel citations panel. The image stage then renders those
-same facts as one NotebookLM-style **portrait poster** (the approved gallery look) and hands
+same facts as one clean editorial **portrait poster** and hands
 the PNG back as the artifact's single main asset, served at ``/artifacts/{id}/asset``.
 
 Image generation is best-effort: if it fails the artifact degrades to spec-only
@@ -34,7 +34,7 @@ from src.services.media.visuals import infographic_prompt
 
 logger = get_logger(__name__)
 
-#: Portrait poster — the approved NotebookLM infographic aspect ratio.
+#: Portrait poster aspect ratio.
 _IMAGE_SIZE = "1024x1536"
 
 
@@ -62,7 +62,7 @@ class InfographicGenerator:
             steering=steering if isinstance(steering, str) else None,
         )
 
-        # Image stage: render the same facts as one NotebookLM-style portrait poster.
+        # Image stage: render the same facts as one clean editorial portrait poster.
         await ctx.emit("imagen")
         image = await self._render_poster(infographic)
 
@@ -82,6 +82,7 @@ class InfographicGenerator:
             "title": infographic.title,
             "subtitle": infographic.subtitle,
             "orientation": infographic.orientation,
+            "layout": infographic.layout,
             "style": infographic.style,
             "language": infographic.language,
             "grounding_mode": ctx.bundle.mode,
@@ -100,14 +101,12 @@ class InfographicGenerator:
         )
 
     async def _render_poster(self, infographic: spec_mod.Infographic) -> bytes | None:
-        """Best-effort NotebookLM portrait poster. A failed image is not a failed job."""
+        """Best-effort editorial portrait poster. A failed image is not a failed job."""
         prompt = infographic_prompt(infographic)
         try:
             return await generate_image(prompt, size=_IMAGE_SIZE)
         except Exception as exc:  # noqa: BLE001 - visual is best-effort; spec still carries facts
-            logger.warning(
-                "Infographic poster generation failed, continuing spec-only: %s", exc
-            )
+            logger.warning("Infographic poster generation failed, continuing spec-only: %s", exc)
             return None
 
 

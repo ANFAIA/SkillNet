@@ -120,6 +120,55 @@
   --lesson-measure: 32rem;
 }
 
+/* Generated presentation cards are exported/shared artifacts, not app chrome. Keep their
+   neutral white-paper appearance stable when the surrounding application uses dark mode or
+   a coloured accent. Descendant blocks continue using the normal token utilities; this
+   scope simply supplies the deck's fixed monochrome palette. */
+.slide-canvas {
+  --color-bg: #ffffff;
+  --color-surface: #ffffff;
+  --color-bg-subtle: #fafafa;
+  --color-bg-muted: #f4f4f5;
+  --color-text: #18181b;
+  --color-text-secondary: #52525b;
+  --color-text-muted: #71717a;
+  --color-border: #e4e4e7;
+  --color-border-strong: #d4d4d8;
+  --color-primary: #18181b;
+  --color-primary-hover: #09090b;
+  --color-primary-subtle: #f4f4f5;
+  --color-accent: #3f3f46;
+  --color-accent-subtle: #f4f4f5;
+  --color-warning: #52525b;
+  --color-warning-subtle: #f4f4f5;
+  color-scheme: light;
+}
+
+/* Didact's shadcn-compatible utilities normally receive HSL channel tokens. The slide
+   canvas intentionally uses SkillNet's fixed hex palette, so bridge the few semantic
+   utilities used by its timeline instead of allowing an invalid colour to inherit from
+   the surrounding dark lesson theater. */
+.slide-canvas .didact-scope .text-muted-foreground {
+  color: var(--color-text-secondary);
+}
+
+.slide-canvas .didact-scope .text-foreground,
+.slide-canvas .didact-scope .text-primary {
+  color: var(--color-text);
+}
+
+.slide-canvas .didact-scope .border-border {
+  border-color: var(--color-border-strong);
+}
+
+.slide-canvas .didact-scope .bg-background {
+  background-color: var(--color-bg);
+}
+
+.slide-canvas .didact-scope .bg-border {
+  background-color: var(--color-border-strong);
+}
+
 /* OpenUI blocks inside a CHAT or EXPLAIN surface read as UI, not as a page.
    The shared TextContent/Table/etc. blocks default to the larger lesson type
    scale above, which made a plain chat answer look oversized and quote-like —

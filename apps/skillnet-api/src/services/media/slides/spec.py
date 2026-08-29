@@ -40,8 +40,23 @@ logger = get_logger(__name__)
 #: the prompt/token budget bounded; a floor of one keeps an empty deck from validating.
 _MIN_SLIDES = 1
 _MAX_SLIDES = 12
-#: How many blocks a single slide may hold — one idea per slide, not a wall of text.
+#: How many blocks a single slide may hold — enough to develop one idea as a compact,
+#: self-contained card without turning it into a document page.
 _MAX_BLOCKS_PER_SLIDE = 4
+
+#: Semantic compositions understood by the shared web renderer. ``auto`` keeps old
+#: artifacts valid and lets the renderer infer a sensible arrangement from their blocks.
+SlideComposition = Literal[
+    "auto",
+    "cover",
+    "statement",
+    "split",
+    "process",
+    "timeline",
+    "grid",
+    "comparison",
+    "data",
+]
 
 
 # --------------------------------------------------------------------------------------
@@ -71,6 +86,23 @@ class StepsBlock(BaseModel):
     steps: list[str] = Field(min_length=1, max_length=8)
 
 
+class TimelineBlock(BaseModel):
+    """A sequence whose stages each carry a short explanation."""
+
+    type: Literal["timeline"] = "timeline"
+    label: str = Field(min_length=1)
+    steps: list[str] = Field(min_length=2, max_length=6)
+    details: list[str] = Field(min_length=2, max_length=6)
+
+
+class CardBlock(BaseModel):
+    """One titled concept module used in a two- or four-column grid."""
+
+    type: Literal["card"] = "card"
+    title: str = Field(min_length=1)
+    text: str = Field(min_length=1)
+
+
 class TableBlock(BaseModel):
     """A small data table, mapping to the kit ``Table`` block."""
 
@@ -96,20 +128,43 @@ class ChartBlock(BaseModel):
 #: The discriminated union the parser resolves against ``type``. Any unknown type fails
 #: validation rather than rendering as an empty box.
 SlideBlock = Annotated[
-    Union[TextBlock, CalloutBlock, StepsBlock, TableBlock, ChartBlock],
+    Union[
+        TextBlock,
+        CalloutBlock,
+        StepsBlock,
+        TimelineBlock,
+        CardBlock,
+        TableBlock,
+        ChartBlock,
+    ],
     Field(discriminator="type"),
 ]
 
 #: The block ``type`` strings the model is allowed to emit — used in the prompt and to
 #: pre-filter obviously-wrong blocks before Pydantic sees them.
-_KNOWN_BLOCK_TYPES = {"text", "callout", "steps", "table", "chart"}
+_KNOWN_BLOCK_TYPES = {
+    "text",
+    "callout",
+    "steps",
+    "timeline",
+    "card",
+    "table",
+    "chart",
+}
 
 
 class Slide(BaseModel):
-    """One slide: a title, an optional subtitle, its kit blocks, and its citations."""
+    """One slide: structured content plus a semantic composition hint.
+
+    ``composition`` is deliberately not a pixel-level template. It says what the card is
+    trying to communicate; the frontend owns spacing and responsive layout. ``visual_brief``
+    is retained only for compatibility with previously persisted artifacts.
+    """
 
     title: str = Field(min_length=1)
     subtitle: str | None = None
+    composition: SlideComposition = "auto"
+    visual_brief: str | None = None
     blocks: list[SlideBlock] = Field(default_factory=list, max_length=_MAX_BLOCKS_PER_SLIDE)
     citation_ids: list[str] = Field(default_factory=list)
 
@@ -153,21 +208,42 @@ def build_prompts(
         "Eres un disenador de presentaciones educativas. Produces una plataforma de "
         f"diapositivas (slide deck) en {lang_name} a partir del material aportado.\n\n"
         "PRINCIPIOS:\n"
-        "- Una idea por diapositiva. Titulos cortos y concretos.\n"
+        "- Una idea central por diapositiva, desarrollada hasta que pueda entenderse sin "
+        "un presentador. Titulos cortos y concretos.\n"
         f"- Entre 3 y {max_slides} diapositivas. La primera es de portada (titulo del tema "
         "y una frase gancho).\n"
-        "- Nada de parrafos largos: usa los bloques del kit para estructurar cada idea.\n\n"
+        "- Excepto portada y statement, cada diapositiva usa 2-4 bloques y contiene "
+        "aproximadamente 60-120 palabras visibles. Evita tanto el muro de texto como la "
+        "tarjeta vacia.\n"
+        "- Todas las diapositivas se renderizan en un marco 16:9 fijo. Prioriza y sintetiza: "
+        "el contenido debe caber sin scroll, sin reducir la tipografia y sin depender de una "
+        "altura variable.\n"
+        "- Cada bloque aporta una funcion distinta: contexto, concepto, ejemplo, dato, "
+        "advertencia o conclusion. No repitas la misma frase con otras palabras.\n"
+        "- Construye una narracion completa: contexto -> ideas esenciales -> aplicacion o cierre.\n"
+        "- Elige la composicion por la funcion de la slide, no para decorar: cover para portada; "
+        "statement para una idea contundente; split para contenido + apoyo visual; process para "
+        "instrucciones breves; timeline para etapas explicadas; grid para 2-4 conceptos paralelos; "
+        "comparison para contrastar; data para tablas o graficos. Usa auto solo si ninguna encaja.\n"
+        "- La presentacion se construye solo con tipografia y componentes. No propongas ni "
+        "describas imagenes decorativas.\n\n"
         "BLOQUES DISPONIBLES (cada bloque es un objeto con un campo 'type'):\n"
         '- {"type":"text","text":str,"variant":"body"|"lead"|"caption"} — un parrafo.\n'
         '- {"type":"callout","tone":"info"|"warn"|"success","text":str} — un aviso.\n'
         '- {"type":"steps","title":str,"steps":[str,...]} — un procedimiento ordenado.\n'
+        '- {"type":"timeline","label":str,"steps":[str,...],"details":[str,...]} — '
+        "etapas con una breve explicacion por etapa.\n"
+        '- {"type":"card","title":str,"text":str} — un concepto titulado; usa 2-4 juntos '
+        'en composition="grid".\n'
         '- {"type":"table","headers":[str,...],"rows":[[str,...],...]} — una tabla pequena.\n'
         '- {"type":"chart","kind":"bar"|"line","title":str,"labels":[str,...],'
         '"values":[num,...]} — un grafico (labels y values del mismo tamano).\n\n'
         "REGLAS ESTRICTAS:\n"
-        '1. Responde SOLO con JSON valido, sin texto antes ni despues, sin ```.\n'
+        "1. Responde SOLO con JSON valido, sin texto antes ni despues, sin ```.\n"
         "2. Esquema exacto: "
-        '{"slides":[{"title":str,"subtitle":str|null,"blocks":[bloque,...],'
+        '{"slides":[{"title":str,"subtitle":str|null,"composition":"auto"|"cover"|'
+        '"statement"|"split"|"process"|"timeline"|"grid"|"comparison"|"data",'
+        '"blocks":[bloque,...],'
         '"citation_ids":[str,...]}],"theme":str,"language":str}.\n'
         "3. Las cifras y los datos van SIEMPRE como texto/numeros dentro de los bloques, "
         "NUNCA incrustados en una imagen. Aqui no se generan imagenes.\n"
@@ -222,9 +298,7 @@ def filter_deck_citations(deck: SlideDeck, valid_ids: set[str]) -> SlideDeck:
     or a framing slide cites nothing).
     """
     slides = [
-        slide.model_copy(
-            update={"citation_ids": _filter_ids(slide.citation_ids, valid_ids)}
-        )
+        slide.model_copy(update={"citation_ids": _filter_ids(slide.citation_ids, valid_ids)})
         for slide in deck.slides
     ]
     return deck.model_copy(update={"slides": slides})
@@ -286,9 +360,7 @@ async def generate_deck(
     """
     from src.config import settings
 
-    system, user = build_prompts(
-        bundle, language=language, theme=theme, steering=steering
-    )
+    system, user = build_prompts(bundle, language=language, theme=theme, steering=steering)
 
     service = llm or LLMService(resolve_llm_config())
     reply = await service.complete(
@@ -302,18 +374,19 @@ async def generate_deck(
     if not reply.strip():
         raise LLMError("Slide deck agent returned an empty completion")
 
-    return parse_deck(
-        reply, valid_ids=bundle.citation_ids(), language=language, theme=theme
-    )
+    return parse_deck(reply, valid_ids=bundle.citation_ids(), language=language, theme=theme)
 
 
 __all__ = [
     "TextBlock",
     "CalloutBlock",
     "StepsBlock",
+    "TimelineBlock",
+    "CardBlock",
     "TableBlock",
     "ChartBlock",
     "SlideBlock",
+    "SlideComposition",
     "Slide",
     "SlideDeck",
     "build_prompts",
