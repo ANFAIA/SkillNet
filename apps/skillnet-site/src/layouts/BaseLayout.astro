@@ -25,6 +25,13 @@ const canonicalUrl = new URL(Astro.url.pathname, site).toString();
 const altUrl = altHref ? new URL(altHref, site).toString() : null;
 const esUrl = lang === "es" ? canonicalUrl : altUrl;
 const enUrl = lang === "en" ? canonicalUrl : altUrl;
+const googleTagManagerId = "GTM-MSFGKTR4";
+
+const googleTagManagerScript = `(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer',${JSON.stringify(googleTagManagerId)});`;
 
 /**
  * Language detection, inline and render-blocking.
@@ -56,6 +63,9 @@ if(want!==cur)location.replace(alt+location.hash);
 <html lang={lang}>
   <head>
     <meta charset="UTF-8" />
+    <!-- Google Tag Manager -->
+    <script is:inline set:html={googleTagManagerScript} />
+    <!-- End Google Tag Manager -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <script is:inline set:html={detectScript} />
     <link rel="icon" type="image/svg+xml" href="/images/brand/skillnet-favicon.svg?v=7" />
@@ -82,6 +92,17 @@ if(want!==cur)location.replace(alt+location.hash);
     <slot name="head" />
   </head>
   <body>
+    <!-- Google Tag Manager (noscript) -->
+    <noscript>
+      <iframe
+        src={`https://www.googletagmanager.com/ns.html?id=${googleTagManagerId}`}
+        height="0"
+        width="0"
+        title="Google Tag Manager"
+        hidden
+      ></iframe>
+    </noscript>
+    <!-- End Google Tag Manager (noscript) -->
     <slot />
   </body>
 </html>
