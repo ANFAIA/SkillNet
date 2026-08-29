@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -103,6 +103,12 @@ interface Scenario {
    * "a failed stamp never blocks the learner" case is set up.
    */
   completeStatus?: number
+  /**
+   * The §7.5 course verdict `POST /nodes/{id}/complete` answers with. Defaults to `true`.
+   * `false` is the learner who jumped to the last lesson from the map and pressed
+   * "Terminar el curso" with most of the course unread.
+   */
+  completeCanComplete?: boolean
 }
 
 function jsonResponse(status: number, body: unknown) {
@@ -188,7 +194,7 @@ function installFetch(scenario: Scenario) {
             state: 'not_started',
             mastery: 0,
             progress_percent: 100,
-            can_complete: true,
+            can_complete: scenario.completeCanComplete ?? true,
           })
         : jsonResponse(status, { detail: 'boom', code: 'SERVER_ERROR' })
     }
@@ -1048,5 +1054,123 @@ describe('NodeView — telling the server the node is finished', () => {
       )
     })
     expect(container).not.toHaveTextContent('boom')
+  })
+})
+
+/**
+ * "¡Curso completado!" con el curso al 40%.
+ *
+ * Reproducible in two minutes: the default progression mode is `free`, so every node comes
+ * back `available`. Jump from the map to the last lesson, reach its last screen, and the
+ * green "Terminar el curso" appears — `StackBlock` only checks that there is no next node —
+ * and the celebration fired unconditionally, because `finishCourse` set it from a
+ * fire-and-forget stamp whose answer it threw away.
+ *
+ * `StackBlock` still offers that button, and deliberately: at the moment it renders, the
+ * only client-side answer available (the node list's `can_complete`) is the one from
+ * *before* this node was stamped, so hiding the button would hide it from the learner who
+ * IS legitimately finishing. The verdict belongs to the one place that asks the server.
+ */
+describe('NodeView — the end of the course belongs to the server', () => {
+  /** A course whose last node is the one on screen, with an earlier one still unread. */
+  function lastNodeOfUnfinishedCourse() {
+    const unread = learningNode({
+      id: NEXT_NODE_ID,
+      title: 'Excepciones',
+      position: 1,
+      state: 'not_started',
+      mastery: 0,
+      done: false,
+    })
+    const current = learningNode({ position: 2 })
+    return {
+      current,
+      list: {
+        course_id: COURSE_ID,
+        delivery_mode: 'dynamic' as const,
+        schema_version: 3,
+        next_node_id: NEXT_NODE_ID,
+        nodes: [unread, current],
+        can_complete: false,
+        blocked_by: [NEXT_NODE_ID],
+        progress_percent: 40,
+      },
+    }
+  }
+
+  it('does not celebrate when the server says the course is not finished', async () => {
+    const { current, list } = lastNodeOfUnfinishedCourse()
+    installFetch({
+      node: current,
+      nodeListOverride: list,
+      renderResponses: [[200, servedRender(PROGRAM, RENDER_ID, 'episode')]],
+      completeCanComplete: false,
+    })
+    const { container } = renderPage()
+
+    await enterLesson()
+    await waitFor(() => {
+      expect(container.querySelector('[data-episode-footer]')).not.toBeNull()
+    })
+
+    // There is no next node, so the footer offers the finish button exactly as before.
+    await userEvent.click(screen.getByRole('button', { name: 'Terminar el curso' }))
+    await waitFor(() => expect(callsTo('/complete', 'POST')).toHaveLength(1))
+
+    // No confetti. What the learner gets instead is what is missing, by name.
+    await waitFor(() => {
+      expect(container.querySelector('[data-course-finish="blocked"]')).not.toBeNull()
+    })
+    expect(screen.queryByText('¡Curso completado!')).toBeNull()
+    expect(container).toHaveTextContent('Para completar el curso te falta: Excepciones.')
+
+    // …and a way to go and read it.
+    await userEvent.click(screen.getByRole('button', { name: 'Siguiente: Excepciones' }))
+    await waitFor(() => {
+      expect(screen.getByTestId('location').dataset.pathname).toBe(
+        `/empleado/curso/${COURSE_ID}/nodo/${NEXT_NODE_ID}`,
+      )
+    })
+  })
+
+  it('asks the node list instead of stamping twice when the same node is finished again', async () => {
+    const { current, list } = lastNodeOfUnfinishedCourse()
+    installFetch({
+      node: current,
+      nodeListOverride: list,
+      renderResponses: [[200, servedRender(PROGRAM, RENDER_ID, 'episode')]],
+      completeCanComplete: false,
+    })
+    const { container } = renderPage()
+
+    await enterLesson()
+    await waitFor(() => {
+      expect(container.querySelector('[data-episode-footer]')).not.toBeNull()
+    })
+
+    await userEvent.click(screen.getByRole('button', { name: 'Terminar el curso' }))
+    await waitFor(() => {
+      expect(container.querySelector('[data-course-finish="blocked"]')).not.toBeNull()
+    })
+
+    // Back to the lesson, and press it again.
+    const blocked = container.querySelector('[data-course-finish]') as HTMLElement
+    await userEvent.click(within(blocked).getByRole('button', { name: 'Cerrar panel' }))
+    await waitFor(() => {
+      expect(container.querySelector('[data-course-finish]')).toBeNull()
+    })
+    const listReads = callsTo(`/courses/${COURSE_ID}/nodes`).length
+    await userEvent.click(screen.getByRole('button', { name: 'Terminar el curso' }))
+
+    // The stamp is not repeated — it is already written — and the verdict is fetched
+    // from the list rather than assumed.
+    await waitFor(() => {
+      expect(callsTo(`/courses/${COURSE_ID}/nodes`).length).toBeGreaterThan(listReads)
+    })
+    expect(callsTo('/complete', 'POST')).toHaveLength(1)
+    await waitFor(() => {
+      expect(container.querySelector('[data-course-finish="blocked"]')).not.toBeNull()
+    })
+    expect(screen.queryByText('¡Curso completado!')).toBeNull()
   })
 })

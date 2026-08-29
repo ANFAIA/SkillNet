@@ -45,7 +45,7 @@ import {
   useRequestRender,
 } from '../../api/nodes'
 import type { LearnerProfileRead } from '../../api/onboarding'
-import type { LearningNode } from '../../types'
+import type { LearningNode, NodeCompletion } from '../../types'
 import type { UiFormat } from '../../types/node-render'
 
 // ── Slide panel types & helpers ─────────────────────────────────
@@ -267,7 +267,83 @@ function openingLineFor(
 const FAST_MS = 1000
 const SLOW_MS = 3000
 
+/**
+ * The bounded wait for a lesson — the only thing that keeps "Preparando lección…" from
+ * being for ever.
+ *
+ * A render is announced over SSE, and that stream can die in ways nobody is told about: a
+ * proxy that buffers `text/event-stream`, a dropped connection, a background tab the
+ * browser throttles. `useNodeRenderStream` reports all three the same way — it stays in
+ * `streaming` and settles nothing — because the graph is still running server-side and
+ * `GET /render` is the source of truth. So somebody has to ask that source again, and
+ * until this existed nobody did: the render query pins its answer (`staleTime: Infinity`,
+ * no refetch on focus) and the effect that arms a request bails out once a `request_id`
+ * exists. The screen was stuck and only a page reload moved it.
+ *
+ * The answer is a poll with an **end**, not a poll:
+ *
+ * - `RENDER_POLL_MS` — how often `GET /render` is asked while nothing is on screen. That
+ *   endpoint recomputes nothing (§5.5) and its `202` path returns before it touches the
+ *   database, so a tick is cheap. 4 s is the cadence the "Preparándose…" recovery already
+ *   used; this generalises it rather than adding a second clock.
+ * - `RENDER_WAIT_LIMIT_MS` — how long that is worth doing. Two minutes is ~30 ticks per
+ *   waiting node, and then it **stops for good** until a person asks again. That ceiling
+ *   is the whole reason polling can be on by default: the failure mode of the obvious fix
+ *   (poll until it works) is a forgotten tab asking a dead render for questions for ever,
+ *   which is exactly why the interval was off in the first place.
+ *
+ * When the budget is spent the learner is not left looking at a disabled button: they are
+ * told there is no lesson and handed a retry, which restarts both the request and this
+ * clock. See `retryLesson`.
+ */
+const RENDER_POLL_MS = 4000
+const RENDER_WAIT_LIMIT_MS = 120_000
+
 type Phase = 'content' | 'mastered'
+
+/**
+ * No lesson, and here is what to do about it.
+ *
+ * Both dead ends this screen can reach — the render that failed with nothing to serve,
+ * and the wait that ran out of budget — end here, because from the learner's side they
+ * are the same situation: there is nothing to read and the screen must not be a wall.
+ * Every instance carries a retry **and** a way out of the node, so neither is a trap.
+ */
+function LessonUnavailable({
+  title,
+  description,
+  onRetry,
+  onBack,
+}: {
+  title: string
+  description: string
+  onRetry: () => void
+  onBack: () => void
+}) {
+  const intl = useIntl()
+  return (
+    <div className="space-y-3" data-testid="lesson-unavailable" role="status">
+      <p className="text-sm font-medium text-text">{title}</p>
+      <p className="text-sm text-text-secondary">{description}</p>
+      <div className="flex flex-wrap items-center gap-3 pt-1">
+        <button
+          type="button"
+          onClick={onRetry}
+          className="bg-primary hover:bg-primary-hover text-white text-sm font-medium px-5 py-3 rounded-md transition-colors"
+        >
+          {intl.formatMessage({ id: 'error.retry' })}
+        </button>
+        <button
+          type="button"
+          onClick={onBack}
+          className="text-sm font-medium text-text-secondary hover:text-text px-4 py-3 rounded-md transition-colors"
+        >
+          {intl.formatMessage({ id: 'node.backToCourse' })}
+        </button>
+      </div>
+    </div>
+  )
+}
 
 export function NodeView() {
   const intl = useIntl()
@@ -302,6 +378,14 @@ export function NodeView() {
   useEffect(() => () => { if (fxTimer.current) window.clearTimeout(fxTimer.current) }, [])
   const lessonFeedback = useMemo(() => ({ report: reportResult }), [reportResult])
 
+  // Server state the whole screen reads. It sits above the callbacks below because
+  // `finishCourse` needs the node list to answer "is the course over?" in the one case
+  // where the stamp has no answer of its own.
+  const nodes = useCourseNodes(courseId)
+  const courseQuery = useCourse(courseId)
+  const { data: profile } = useLearnerProfile()
+  const events = useNodeEvents(nodeId)
+
   /**
    * "He terminado este nodo", dicho al servidor.
    *
@@ -329,14 +413,40 @@ export function NodeView() {
    */
   const { mutate: completeNodeMutation } = useCompleteNode()
   const completedRef = useRef<Set<string>>(new Set())
+  /**
+   * El sello, con su respuesta a mano para quien la necesite.
+   *
+   * `report` recibe el veredicto del servidor —`NodeCompletion`, ya recalculado despues
+   * de sellar— o `null` si la peticion fallo. Nadie lo espera para navegar: es un
+   * `onSuccess`/`onError` de `mutate`, no un `await`, asi que las dos reglas de arriba
+   * siguen valiendo palabra por palabra. Lo unico que cambia es que la respuesta deja de
+   * tirarse a la basura, porque hay UNA decision que no se puede tomar sin ella (si el
+   * curso esta terminado) y ninguna que se pueda tomar mejor sin ella.
+   *
+   * Devuelve si salio una peticion: `false` significa que este nodo ya estaba sellado en
+   * esta sesion, y por tanto que `report` no se va a llamar nunca. Quien necesite un
+   * veredicto tiene que ir a buscarlo por su cuenta en ese caso.
+   */
+  const stampNodeFinished = useCallback(
+    (report?: (completion: NodeCompletion | null) => void) => {
+      const target = nodeId
+      if (!target || completedRef.current.has(target)) return false
+      completedRef.current.add(target)
+      completeNodeMutation(target, {
+        onSuccess: (completion) => report?.(completion),
+        onError: () => {
+          completedRef.current.delete(target)
+          report?.(null)
+        },
+      })
+      return true
+    },
+    [nodeId, completeNodeMutation],
+  )
+  /** Sellar y seguir: lo que hace todo el que solo esta pasando al nodo siguiente. */
   const markNodeFinished = useCallback(() => {
-    const target = nodeId
-    if (!target || completedRef.current.has(target)) return
-    completedRef.current.add(target)
-    completeNodeMutation(target, {
-      onError: () => completedRef.current.delete(target),
-    })
-  }, [nodeId, completeNodeMutation])
+    stampNodeFinished()
+  }, [stampNodeFinished])
 
   // Pantalla de fin de curso: el CTA del ultimo nodo la dispara; se reinicia al
   // cambiar de nodo (por si se vuelve a entrar al curso).
@@ -345,11 +455,80 @@ export function NodeView() {
   // del episodio en el ultimo nodo y `courseFinishContext` (el CTA del stepper legacy).
   // Sellar el nodo aqui cubre los dos armazones sin repetir la deteccion en ninguno.
   const [finished, setFinished] = useState(false)
-  useEffect(() => { setFinished(false) }, [nodeId])
+  /**
+   * Lo que se sabe del cierre del curso mientras se pregunta.
+   *
+   * `idle` no hay nada pedido · `checking` se ha pulsado y falta la respuesta ·
+   * `blocked` el servidor dice que el curso NO esta terminado.
+   */
+  const [finishState, setFinishState] = useState<'idle' | 'checking' | 'blocked'>('idle')
+  useEffect(() => {
+    setFinished(false)
+    setFinishState('idle')
+  }, [nodeId])
+
+  /**
+   * `refetch` de la lista de nodos, en una ref.
+   *
+   * La lista solo hace falta en el camino raro de `finishCourse` (nodo ya sellado), y
+   * meter el objeto de la query en las dependencias de `finishCourse` cambiaria su
+   * identidad en cada render — y `finishCourse` viaja por contexto hasta dentro de la
+   * leccion, asi que eso es re-renderizar el arbol entero por nada.
+   */
+  const nodesRefetchRef = useRef(nodes.refetch)
+  nodesRefetchRef.current = nodes.refetch
+
+  /**
+   * El veredicto, y lo unico que enciende la celebracion.
+   *
+   * `null` = el servidor no contesto. No se celebra a ciegas: decir "¡Curso completado!"
+   * sin haberlo preguntado es exactamente el fallo que esto viene a cerrar, y equivocarse
+   * hacia "todavia te falta algo" es recuperable —el aprendiz vuelve al mapa y lo ve—
+   * mientras que equivocarse hacia la celebracion no lo es.
+   */
+  const settleFinish = useCallback((canComplete: boolean | null) => {
+    if (canComplete) {
+      setFinishState('idle')
+      setFinished(true)
+      return
+    }
+    setFinishState('blocked')
+  }, [])
+
+  /**
+   * "He terminado el curso" — preguntado, no asumido.
+   *
+   * Sellar el nodo y dar el curso por cerrado eran la misma linea, y no son la misma
+   * cosa: con el modo `free` (el de por defecto) todos los nodos estan disponibles, asi
+   * que se puede saltar desde el mapa a la ultima leccion, llegar a su ultimo paso y
+   * pulsar "Terminar el curso" con el 40% sin leer. Salia el confeti igual, porque el
+   * cliente decidia solo.
+   *
+   * Ahora lo decide el servidor, y por el camino mas corto que hay: `POST
+   * /nodes/{id}/complete` responde con `can_complete`, que es el veredicto §7.5 **ya
+   * recalculado despues de este sello**. Ni la lista de nodos vale para esto —dice lo que
+   * decia antes de sellar, o sea que no— ni hace falta una peticion extra: es la misma
+   * que ya salia, leida en vez de tirada.
+   *
+   * Avanzar de nodo sigue sin bloquearse nunca. Esta espera no es la de avanzar: es la de
+   * pintar una pantalla de fin de curso, que o es cierta o no debe existir.
+   */
   const finishCourse = useCallback(() => {
-    markNodeFinished()
-    setFinished(true)
-  }, [markNodeFinished])
+    setFinishState('checking')
+    const asked = stampNodeFinished((completion) =>
+      settleFinish(completion ? completion.can_complete : null),
+    )
+    if (asked) return
+    // Este nodo ya estaba sellado en esta sesion (se entro, se salio y se volvio), asi que
+    // no viene ningun veredicto. La lista de nodos responde la misma pregunta §7.5 y aqui
+    // ya no esta desfasada: el sello que faltaba se puso hace rato.
+    void nodesRefetchRef
+      .current()
+      .then(
+        (result) => settleFinish(result.data?.can_complete ?? null),
+        () => settleFinish(null),
+      )
+  }, [stampNodeFinished, settleFinish])
 
   // Paginación del episodio multipantalla. NodeView es el dueño del índice de pantalla;
   // el StackBlock raíz solo informa del total y pinta la pantalla actual. Al cambiar de
@@ -401,11 +580,6 @@ export function NodeView() {
     () => clearNodePosition(courseId, nodeId),
     [courseId, nodeId],
   )
-
-  const nodes = useCourseNodes(courseId)
-  const courseQuery = useCourse(courseId)
-  const { data: profile } = useLearnerProfile()
-  const events = useNodeEvents(nodeId)
 
   const node: LearningNode | null = useMemo(
     () => nodes.data?.nodes.find((entry) => entry.id === nodeId) ?? null,
@@ -543,11 +717,25 @@ export function NodeView() {
   }, [showPreviewControl])
 
   const [isPreparing, setIsPreparing] = useState(false)
+  /**
+   * Whether `GET /render` is being asked again on a timer, and it is a piece of **state**
+   * rather than an expression for one reason: what decides it (`served`, `notReviewed`)
+   * is derived from this very query, so writing it inline would be a circular reference.
+   * An effect one commit later is the same answer without the knot, and it is the shape
+   * `isPreparing` right above already had.
+   */
+  const [pollLesson, setPollLesson] = useState(false)
+  /** The wait budget of `RENDER_WAIT_LIMIT_MS` is spent and nothing arrived. */
+  const [waitTimedOut, setWaitTimedOut] = useState(false)
+  /** Bumped by `retryLesson`; restarting the clock is the whole of what it means. */
+  const [waitAttempt, setWaitAttempt] = useState(0)
   const render = useNodeRender(nodeId, {
     enabled: phase === 'content',
-    // Poll only while "Preparándose…", so the screen flips to the real episode by itself
-    // once the node's knowledge pack lands and the server drops the fallback pin.
-    refetchInterval: isPreparing ? 4000 : false,
+    // Bounded (`RENDER_WAIT_LIMIT_MS`): on while nothing is on screen, off the moment a
+    // lesson lands or the budget is spent. This is what turns a cut `render/stream` into
+    // a lesson instead of a permanent "Preparando lección…", and it covers the older
+    // "Preparándose…" case (a knowledge pack still baking) without a second clock.
+    refetchInterval: pollLesson ? RENDER_POLL_MS : false,
     // Admin demo preview only; undefined everywhere else = normal per-learner render.
     previewPref: showPreviewControl ? previewPref : undefined,
   })
@@ -563,6 +751,53 @@ export function NodeView() {
     setIsPreparing(!!(rawServed && rawServed.preparing))
   }, [rawServed])
 
+  /**
+   * `409 node_not_reviewed`: an admin has to sign this node off, so no amount of asking
+   * will produce a lesson.
+   *
+   * Read here rather than next to the screen that prints it because the wait below has to
+   * know: polling for a render that is refused by policy is the one loop the whole design
+   * is trying not to write.
+   */
+  const notReviewed = isNodeNotReviewed(render.error) || isNodeNotReviewed(requestRender.error)
+
+  /**
+   * Nothing to read, and reason to believe something is coming.
+   *
+   * Every exclusion here is a case where asking again cannot help: a lesson already
+   * served, a node that needs human review, a render that failed with nothing to serve,
+   * and the admin preview (pre-baked, never generated). What is left is the honest wait —
+   * generating, queued, or a stream that died without saying so.
+   */
+  const awaitingLesson =
+    phase === 'content' &&
+    !!nodeId &&
+    !served &&
+    !notReviewed &&
+    !streamFailure &&
+    !showPreviewControl &&
+    !awaitingDemoCheck
+
+  useEffect(() => {
+    setPollLesson(awaitingLesson && !waitTimedOut)
+  }, [awaitingLesson, waitTimedOut])
+
+  /**
+   * The end of the wait, and the only thing that writes it.
+   *
+   * Re-armed by `nodeId` (a new node deserves its own budget) and by `waitAttempt` (a
+   * retry is a new budget too). Not re-armed by anything else: `waitTimedOut` is
+   * deliberately absent from the deps, so setting it cannot restart the clock it stops.
+   */
+  useEffect(() => {
+    if (!awaitingLesson) {
+      setWaitTimedOut(false)
+      return
+    }
+    setWaitTimedOut(false)
+    const timer = window.setTimeout(() => setWaitTimedOut(true), RENDER_WAIT_LIMIT_MS)
+    return () => window.clearTimeout(timer)
+  }, [awaitingLesson, nodeId, waitAttempt])
 
   /**
    * Las dos unicas transiciones de `shown`, y no hay una tercera.
@@ -588,6 +823,15 @@ export function NodeView() {
     // failure from the (suppressed) normal path must not blank it out.
     if (streamFailure && !showPreviewControl) setShown(null)
   }, [streamFailure, showPreviewControl])
+
+  // The third exit from `shown`, and it is the same one: a wait that ran out is a node
+  // that failed to arrive, and holding the PREVIOUS node's lesson on screen under the new
+  // node's title is the exact lie the `streamFailure` clear above exists to prevent.
+  // Guarded on `awaitingLesson` so a lesson that lands late still wins.
+  useEffect(() => {
+    if (waitTimedOut && awaitingLesson && !showPreviewControl) setShown(null)
+  }, [waitTimedOut, awaitingLesson, showPreviewControl])
+
   const pending = isPendingRender(render.data) ? render.data : null
 
   const reduceMotion = useReducedMotion()
@@ -638,6 +882,30 @@ export function NodeView() {
     },
     [nodeId, requestRender, render, stream],
   )
+
+  /**
+   * "Volver a intentarlo", and the only way back from either dead end.
+   *
+   * It undoes every latch that would otherwise keep the screen where it is — the stream
+   * failure, the spent wait, the `requestedRef` that says "already asked" — and then asks
+   * again. `force: false` on purpose: if a render did land while the learner was staring
+   * at the message, `POST /render` answers `request_id: ''` and `startRender` refetches
+   * straight into it, so a retry that turns out to be unnecessary costs nothing and
+   * regenerates nothing.
+   *
+   * This is also the answer to why the automatic retry the module docstring rules out is
+   * still ruled out. That one loops a machine against a blank screen; this one is a person
+   * deciding, once, that it is worth another two minutes.
+   */
+  const retryLesson = useCallback(() => {
+    setStreamFailure(null)
+    setWaitTimedOut(false)
+    setWaitAttempt((attempt) => attempt + 1)
+    requestedRef.current = false
+    wasPreparingRef.current = false
+    stream.reset()
+    startRender()
+  }, [stream, startRender])
 
   // In the content phase, make sure *something* is on its way: either another tab owns
   // a request we can listen to, or nothing has been asked for yet.
@@ -821,7 +1089,6 @@ export function NodeView() {
     )
   }
 
-  const notReviewed = isNodeNotReviewed(render.error) || isNodeNotReviewed(requestRender.error)
   /**
    * La ultima leccion que estuvo en pantalla.
    *
@@ -838,6 +1105,20 @@ export function NodeView() {
    * fallo— coinciden, porque `shown` es null y se cae al nodo de la URL.
    */
   const headerNode = shown?.node ?? node
+
+  /**
+   * Lo que le falta al curso, en titulos y con un atajo al primero.
+   *
+   * Se lee de la lista de nodos en el momento de pintar, no del veredicto: `POST
+   * /complete` invalida `['nodes']`, asi que para cuando esta pantalla existe la lista ya
+   * se esta refrescando y estos nombres se corrigen solos. El nodo actual se descarta del
+   * atajo — mandar a alguien al sitio donde ya esta no es una salida.
+   */
+  const blockedNodes = (nodes.data?.blocked_by ?? [])
+    .map((id) => ordered.find((entry) => entry.id === id))
+    .filter((entry): entry is LearningNode => !!entry)
+  const blockedTitles = blockedNodes.map((entry) => entry.title)
+  const firstMissingNode = blockedNodes.find((entry) => entry.id !== nodeId) ?? null
   const headerIndex = ordered.findIndex((entry) => entry.id === headerNode.id)
 
   const shownProgram = shown?.program ?? null
@@ -930,12 +1211,14 @@ export function NodeView() {
                   {node.summary && <p className="text-sm text-text-secondary">{node.summary}</p>}
                 </div>
               ) : streamFailure && !shownProgram ? (
-                <div className="space-y-2">
-                  <p className="text-sm font-medium text-text">{streamFailure}</p>
-                  <p className="text-sm text-text-secondary">
-                    {node.summary ?? intl.formatMessage({ id: 'node.renderFailedFallback' })}
-                  </p>
-                </div>
+                // El render fallo sin nada que servir. Antes esto era texto y punto: una
+                // frase y ninguna accion, con la X de la cabecera como unica salida.
+                <LessonUnavailable
+                  title={streamFailure}
+                  description={node.summary ?? intl.formatMessage({ id: 'node.renderFailedFallback' })}
+                  onRetry={retryLesson}
+                  onBack={handleBack}
+                />
               ) : (
                 <div className="flex-1 min-h-0 flex flex-col justify-center">
                   <AnimatePresence mode="wait">
@@ -1158,24 +1441,43 @@ export function NodeView() {
                           boton inhabilitado ("Preparando...") que dice que hay algo en
                           camino; cuando la leccion esta lista pasa a "Empezar" y montar
                           el stepper es una decision del aprendiz, no un salto automatico.
+
+                          "Hay algo en camino" es una afirmacion con fecha de caducidad, y
+                          esa fecha es `RENDER_WAIT_LIMIT_MS`. Pasada, el boton deja de ser
+                          verdad y la rama de arriba lo sustituye por lo que si lo es.
                         */}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEntered(true)
-                            rememberScreen(episodeScreen)
-                          }}
-                          disabled={!shownProgram}
-                          className="bg-primary hover:bg-primary-hover text-white text-sm font-medium px-5 py-3 rounded-md transition-colors disabled:opacity-50 disabled:pointer-events-none"
-                        >
-                          {shownProgram
-                            ? intl.formatMessage({ id: 'node.start' })
-                            : intl.formatMessage({ id: 'node.preparing' })}
-                        </button>
-                        {isPreparing && !shownProgram && (
-                          <p className="text-xs text-text-muted mt-2" role="status">
-                            {intl.formatMessage({ id: 'node.preparingBackground' })}
-                          </p>
+                        {waitTimedOut && awaitingLesson ? (
+                          // Se acabo el presupuesto de espera. "Preparando lección…"
+                          // deshabilitado dejaba de ser informacion hace rato: sin una
+                          // segunda pregunta al servidor ni un boton, esta pantalla era
+                          // definitiva y solo recargar la pagina la movia.
+                          <LessonUnavailable
+                            title={intl.formatMessage({ id: 'node.renderFailed' })}
+                            description={intl.formatMessage({ id: 'node.renderFailedFallback' })}
+                            onRetry={retryLesson}
+                            onBack={handleBack}
+                          />
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEntered(true)
+                                rememberScreen(episodeScreen)
+                              }}
+                              disabled={!shownProgram}
+                              className="bg-primary hover:bg-primary-hover text-white text-sm font-medium px-5 py-3 rounded-md transition-colors disabled:opacity-50 disabled:pointer-events-none"
+                            >
+                              {shownProgram
+                                ? intl.formatMessage({ id: 'node.start' })
+                                : intl.formatMessage({ id: 'node.preparing' })}
+                            </button>
+                            {isPreparing && !shownProgram && (
+                              <p className="text-xs text-text-muted mt-2" role="status">
+                                {intl.formatMessage({ id: 'node.preparingBackground' })}
+                              </p>
+                            )}
+                          </>
                         )}
                       </motion.div>
                     )}
@@ -1230,34 +1532,98 @@ export function NodeView() {
           mostrarEtiqueta={false}
         />
 
-        {/* Pantalla de fin de curso: celebracion + dominio + volver. Antes solo salia
-            un texto plano "Has completado el curso". Sin blur (solo opacidad). */}
+        {/*
+          El final del curso, en sus tres estados y en un solo sitio.
+
+          `checking` se pregunta · `finished` el servidor dijo que si (celebracion) ·
+          `blocked` el servidor dijo que no, y entonces lo que se ensena es QUE FALTA.
+          Un boton que no responde seria peor que la celebracion falsa que esto sustituye:
+          el aprendiz que pulsa "Terminar el curso" con lecciones a medias no se ha
+          equivocado de boton, simplemente no sabia que le faltaban, asi que la respuesta
+          util es la lista y un atajo a la primera.
+        */}
         <AnimatePresence>
-          {finished && (
+          {(finished || finishState !== 'idle') && (
             <motion.div
-              key="course-complete"
+              key="course-finish"
               className="absolute inset-0 z-30 flex items-center justify-center bg-bg px-6"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: duration.normal, ease: ease.base }}
+              data-course-finish={finished ? 'complete' : finishState}
             >
-              <div className="flex flex-col items-center text-center gap-5 max-w-sm">
-                <Mascota expression="happy" size={128} />
-                <h2 className="text-2xl font-semibold text-text">
-                  {intl.formatMessage({ id: 'node.courseCompleteTitle' })}
-                </h2>
-                {courseQuery.data?.title && (
-                  <p className="text-text-secondary">{courseQuery.data.title}</p>
-                )}
-                <button
-                  type="button"
-                  onClick={() => navigate(backToCourse, { state: { fromNode: true } })}
-                  className="mt-1 bg-primary hover:bg-primary-hover text-white text-sm font-medium px-5 py-3 rounded-md transition-colors"
-                >
-                  {intl.formatMessage({ id: 'node.backToCourse' })}
-                </button>
-              </div>
+              {finished ? (
+                <div className="flex flex-col items-center text-center gap-5 max-w-sm">
+                  <Mascota expression="happy" size={128} />
+                  <h2 className="text-2xl font-semibold text-text">
+                    {intl.formatMessage({ id: 'node.courseCompleteTitle' })}
+                  </h2>
+                  {courseQuery.data?.title && (
+                    <p className="text-text-secondary">{courseQuery.data.title}</p>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => navigate(backToCourse, { state: { fromNode: true } })}
+                    className="mt-1 bg-primary hover:bg-primary-hover text-white text-sm font-medium px-5 py-3 rounded-md transition-colors"
+                  >
+                    {intl.formatMessage({ id: 'node.backToCourse' })}
+                  </button>
+                </div>
+              ) : finishState === 'checking' ? (
+                <div className="flex flex-col items-center text-center gap-5 max-w-sm" role="status">
+                  <Mascota size={128} />
+                  <p className="text-text-secondary">
+                    {intl.formatMessage({ id: 'courseview.finalizing' })}
+                  </p>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center text-center gap-5 max-w-sm" role="status">
+                  {/* Volver a la leccion: pulsar "Terminar el curso" sin haberlo
+                      terminado no puede costar el sitio donde se estaba leyendo. */}
+                  <button
+                    type="button"
+                    onClick={() => setFinishState('idle')}
+                    className="absolute top-4 right-4 p-1.5 text-text-muted hover:text-text transition-colors"
+                    aria-label={intl.formatMessage({ id: 'panel.close' })}
+                  >
+                    <CloseIcon />
+                  </button>
+                  <Mascota size={128} />
+                  <h2 className="text-xl font-semibold text-text">
+                    {intl.formatMessage({ id: 'nodelist.completeRequired' })}
+                  </h2>
+                  {blockedTitles.length > 0 && (
+                    <p className="text-text-secondary">
+                      {intl.formatMessage(
+                        { id: 'nodelist.blockedBy' },
+                        { titles: blockedTitles.join(', ') },
+                      )}
+                    </p>
+                  )}
+                  <div className="flex flex-col items-stretch gap-2 w-full">
+                    {firstMissingNode && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFinishState('idle')
+                          navigate(`${backToCourse}/nodo/${firstMissingNode.id}`)
+                        }}
+                        className="bg-primary hover:bg-primary-hover text-white text-sm font-medium px-5 py-3 rounded-md transition-colors"
+                      >
+                        {intl.formatMessage({ id: 'node.nextNode' }, { title: firstMissingNode.title })}
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => navigate(backToCourse, { state: { fromNode: true } })}
+                      className="text-sm font-medium text-text-secondary hover:text-text px-4 py-3 rounded-md transition-colors"
+                    >
+                      {intl.formatMessage({ id: 'node.backToCourse' })}
+                    </button>
+                  </div>
+                </div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>

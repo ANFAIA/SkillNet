@@ -74,31 +74,34 @@ function Result({
   closed: boolean
   solutionShown: boolean
 }) {
-  // A graded miss is a wrong answer, not a broken grader. The previous copy ("la respuesta
-  // necesita revisión") read as "the system could not correct this", which is what made a
+  const intl = useIntl()
+  // A graded miss is a wrong answer, not a broken grader. The previous copy ("the answer
+  // needs review") read as "the system could not correct this", which is what made a
   // plain failed attempt look like a bug to the learner.
   //
   // `closed` changes what a miss is allowed to promise: once the server has closed the
-  // item there is no retry left, so "vuelve a intentarlo" would be a lie printed directly
-  // above the answer.
+  // item there is no retry left, so "try again" would be a lie printed directly above the
+  // answer.
   //
   // `solutionShown` decides which of the two closing sentences it gets, and it is a
   // separate question. `show_worked_solution: true` can arrive with `solution: null` —
   // `render_solution` returns `None` for an evaluation mode it does not know how to write
-  // out — and announcing "aquí tienes la solución" above a panel that then renders nothing
+  // out — and announcing "here is the solution" above a panel that then renders nothing
   // promises something that never comes. The honest line says so and still lets the
   // learner out; the step opens either way, from `submit`.
-  const copy = result.outcome === 'correct'
-    ? 'Respuesta correcta.'
-    : result.outcome === 'unscored'
-      ? 'Respuesta enviada para revisión.'
-      : closed
-        ? solutionShown
-          ? 'La respuesta no es correcta. Aquí tienes la solución.'
-          : 'La respuesta no es correcta. No podemos mostrarte la solución de esta actividad, pero puedes seguir con la lección.'
-        : result.outcome === 'partial'
-          ? 'Respuesta parcialmente correcta. Puedes volver a intentarlo.'
-          : 'La respuesta no es correcta. Vuelve a intentarlo.'
+  const copy = intl.formatMessage({
+    id: result.outcome === 'correct'
+      ? 'activity.result.correct'
+      : result.outcome === 'unscored'
+        ? 'activity.result.unscored'
+        : closed
+          ? solutionShown
+            ? 'activity.result.incorrectWithSolution'
+            : 'activity.result.incorrectNoSolution'
+          : result.outcome === 'partial'
+            ? 'activity.result.partial'
+            : 'activity.result.incorrect',
+  })
   return (
     <div className="rounded-lg border border-border bg-bg-subtle p-3 text-sm" role="status" aria-live="polite">
       <p className="font-medium text-text">{copy}</p>
@@ -128,7 +131,7 @@ function splitOnBlank(sentence: string): { before: string; after: string } | und
  * `didact.quiz.fill-in-the-blank` publishes only the sentence (`question`), never the
  * accepted answers, so the sentence itself is the interaction: the gap is replaced by a real
  * input in the position the author wrote it. Without this the component fell through to the
- * generic "Tu respuesta" field and the gap was nowhere on screen.
+ * generic "your answer" field and the gap was nowhere on screen.
  */
 function FillInTheBlank({
   sentence,
@@ -141,11 +144,13 @@ function FillInTheBlank({
   disabled: boolean
   onChange: (value: string) => void
 }) {
+  const intl = useIntl()
+  const missingWord = intl.formatMessage({ id: 'activity.missingWord' })
   const gap = splitOnBlank(sentence)
   const input = (
     <input
       className="min-w-40 rounded-lg border border-border bg-bg px-3 py-1 text-text"
-      aria-label="Palabra que falta"
+      aria-label={missingWord}
       disabled={disabled}
       value={value}
       onChange={(event) => onChange(event.target.value)}
@@ -156,7 +161,7 @@ function FillInTheBlank({
   if (!gap) {
     return (
       <label className="grid gap-1 text-sm">
-        <span className="font-medium text-text">Palabra que falta</span>
+        <span className="font-medium text-text">{missingWord}</span>
         {input}
       </label>
     )
@@ -183,19 +188,20 @@ function SelectAssignments({
   disabled: boolean
   onChange: (value: Record<string, string>) => void
 }) {
+  const intl = useIntl()
   return (
     <fieldset className="space-y-3" disabled={disabled}>
-      <legend className="sr-only">Asigna cada elemento a una opción</legend>
+      <legend className="sr-only">{intl.formatMessage({ id: 'activity.assign.legend' })}</legend>
       {items.map((item) => (
         <label className="grid gap-1 text-sm" key={item.id}>
           <span className="font-medium text-text">{item.content}</span>
           <select
             className="rounded-lg border border-border bg-bg px-3 py-2 text-text"
-            aria-label={`Asignación para ${item.content}`}
+            aria-label={intl.formatMessage({ id: 'activity.assign.itemLabel' }, { item: item.content })}
             value={value[item.id] ?? ''}
             onChange={(event) => onChange({ ...value, [item.id]: event.target.value })}
           >
-            <option value="">Selecciona una opción</option>
+            <option value="">{intl.formatMessage({ id: 'activity.assign.placeholder' })}</option>
             {destinations.map((destination) => (
               <option key={destination.id} value={destination.id}>{destination.content}</option>
             ))}
@@ -221,6 +227,7 @@ function SecureInteraction({
   onChange: (answer: Answer) => void
   groupName: string
 }) {
+  const intl = useIntl()
   if (componentId === 'didact.matching') {
     return <SelectAssignments items={choices(props.sources)} destinations={choices(props.targets)} value={answer as Record<string, string>} disabled={disabled} onChange={onChange} />
   }
@@ -245,12 +252,12 @@ function SecureInteraction({
       onChange(next)
     }
     return (
-      <ol className="space-y-2" aria-label="Elementos en el orden actual">
+      <ol className="space-y-2" aria-label={intl.formatMessage({ id: 'activity.sort.listLabel' })}>
         {order.map((id, index) => (
           <li className="flex items-center gap-2 rounded-lg border border-border p-2" key={id}>
             <span className="min-w-0 flex-1 text-sm text-text">{itemById.get(id)?.content}</span>
-            <Button type="button" variant="secondary" size="sm" disabled={disabled || index === 0} aria-label={`Subir ${itemById.get(id)?.content}`} onClick={() => move(index, -1)}>↑</Button>
-            <Button type="button" variant="secondary" size="sm" disabled={disabled || index === order.length - 1} aria-label={`Bajar ${itemById.get(id)?.content}`} onClick={() => move(index, 1)}>↓</Button>
+            <Button type="button" variant="secondary" size="sm" disabled={disabled || index === 0} aria-label={intl.formatMessage({ id: 'activity.sort.moveUp' }, { item: itemById.get(id)?.content ?? '' })} onClick={() => move(index, -1)}>↑</Button>
+            <Button type="button" variant="secondary" size="sm" disabled={disabled || index === order.length - 1} aria-label={intl.formatMessage({ id: 'activity.sort.moveDown' }, { item: itemById.get(id)?.content ?? '' })} onClick={() => move(index, 1)}>↓</Button>
           </li>
         ))}
       </ol>
@@ -259,7 +266,7 @@ function SecureInteraction({
   if (componentId === 'didact.quiz.single-choice') {
     return (
       <fieldset disabled={disabled} className="space-y-2">
-        <legend className="sr-only">Elige una respuesta</legend>
+        <legend className="sr-only">{intl.formatMessage({ id: 'activity.legend.singleChoice' })}</legend>
         {options(props.options).map((option) => (
           <label className="flex items-center gap-2 text-sm text-text" key={option.value}>
             <input type="radio" name={groupName} value={option.value} checked={answer === option.value} onChange={() => onChange(option.value)} />
@@ -273,7 +280,7 @@ function SecureInteraction({
     const selected = answer as string[]
     return (
       <fieldset disabled={disabled} className="space-y-2">
-        <legend className="sr-only">Elige todas las respuestas aplicables</legend>
+        <legend className="sr-only">{intl.formatMessage({ id: 'activity.legend.multiSelect' })}</legend>
         {options(props.options).map((option) => (
           <label className="flex items-center gap-2 text-sm text-text" key={option.value}>
             <input
@@ -290,11 +297,11 @@ function SecureInteraction({
   if (componentId === 'didact.quiz.true-false') {
     return (
       <fieldset disabled={disabled} className="space-y-2">
-        <legend className="sr-only">Indica si es verdadero o falso</legend>
-        {[['true', 'Verdadero'], ['false', 'Falso']].map(([value, label]) => (
+        <legend className="sr-only">{intl.formatMessage({ id: 'activity.legend.trueFalse' })}</legend>
+        {[['true', 'hints.true'], ['false', 'hints.false']].map(([value, labelId]) => (
           <label className="flex items-center gap-2 text-sm text-text" key={value}>
             <input type="radio" name={groupName} checked={typeof answer === 'boolean' && answer === (value === 'true')} onChange={() => onChange(value === 'true')} />
-            {label}
+            {intl.formatMessage({ id: labelId })}
           </label>
         ))}
       </fieldset>
@@ -344,7 +351,11 @@ function SecureInteraction({
   )
   return (
     <label className="grid gap-1 text-sm">
-      <span className="font-medium text-text">Tu respuesta{unit?.policy === 'required' ? ` (incluye ${String(unit.symbol)})` : ''}</span>
+      <span className="font-medium text-text">
+        {unit?.policy === 'required'
+          ? intl.formatMessage({ id: 'activity.answerWithUnit' }, { unit: String(unit.symbol) })
+          : intl.formatMessage({ id: 'quiz.yourAnswer' })}
+      </span>
       <span className="flex items-center gap-2">{input}{unit?.policy === 'display' && <span>{String(unit.symbol)}</span>}</span>
     </label>
   )
@@ -442,7 +453,7 @@ export function SecureEvaluatedActivity({
   }, [blocked, solveStep])
 
   if (blocked) {
-    return <div role="status" data-didact-status="blocked">La actividad no tiene una definición pública válida.</div>
+    return <div role="status" data-didact-status="blocked">{intl.formatMessage({ id: 'activity.missingPublicDefinition' })}</div>
   }
 
   const submit = async () => {
@@ -471,8 +482,8 @@ export function SecureEvaluatedActivity({
     } catch (failure) {
       if (failure instanceof ActivityNotEvaluableError) {
         // Broken activity: no attempt of it will ever be scored. Say so once and let the
-        // learner out immediately, instead of the "inténtalo de nuevo" that could only
-        // ever be answered by trying again.
+        // learner out immediately, instead of the "try again" that could only ever be
+        // answered by trying again.
         setUnevaluable(true)
         solveStep?.()
       } else {
@@ -580,11 +591,11 @@ export function SecureEvaluatedActivity({
               <div className="flex flex-wrap items-center gap-2">
                 {result ? (
                   canRetry && (
-                    <Button type="button" variant="secondary" onClick={retry}>Reintentar</Button>
+                    <Button type="button" variant="secondary" onClick={retry}>{intl.formatMessage({ id: 'quiz.retry' })}</Button>
                   )
                 ) : (
                   <Button type="button" disabled={pending || !canSubmit(componentId, componentProps, answer)} onClick={() => void submit()}>
-                    {pending ? 'Comprobando…' : 'Comprobar respuesta'}
+                    {intl.formatMessage({ id: pending ? 'activity.checking' : 'activity.check' })}
                   </Button>
                 )}
                 {/* The way out the owner asked for, next to the automatic one: four
@@ -604,7 +615,11 @@ export function SecureEvaluatedActivity({
             )}
           </>
         )}
-        {error && <p className="text-sm text-danger" role="alert">No se pudo evaluar la respuesta. Inténtalo de nuevo.</p>}
+        {error && (
+          <p className="text-sm text-danger" role="alert">
+            {intl.formatMessage({ id: 'activity.evaluateError' })}
+          </p>
+        )}
       </div>
       {/* The ladder itself is the quiz item's, endpoint and all — only the URL differs
           (`api/activities.activityHintPath`). It stays mounted once the activity closes so
@@ -620,9 +635,8 @@ export function SecureEvaluatedActivity({
       {revealed && !solutionShown && !result ? (
         <p className="mt-4 text-sm text-text-secondary" role="status">
           {/* Deliberately the tail of the sentence `Result` prints when the item closes
-              with nothing to show: one situation, one wording. It is a key and that one
-              is a literal because the rest of this component's copy is still hardcoded
-              Spanish — translating it is its own job, not this one's. */}
+              with nothing to show (`activity.result.incorrectNoSolution`): one situation,
+              one wording. */}
           {intl.formatMessage({ id: 'activity.solutionUnavailable' })}
         </p>
       ) : null}

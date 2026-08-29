@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { ComponentType } from 'react'
+import { useIntl } from 'react-intl'
 
 import { experienceAdapterRegistry } from '../../../lib/experiences'
 import type { ExperienceAdapterProps } from '../../../lib/experiences'
@@ -31,6 +32,7 @@ export function LearningExperience({
   activityId,
   componentId,
 }: LearningExperienceReference) {
+  const intl = useIntl()
   const [Renderer, setRenderer] = useState<ComponentType<ExperienceAdapterProps> | null>(null)
   const [failed, setFailed] = useState(false)
 
@@ -57,12 +59,12 @@ export function LearningExperience({
   }, [implementationRef])
 
   if (!experienceId || !implementationRef || !definitionRef) {
-    return <ExperienceStatus kind="failed">La referencia de esta experiencia no es válida.</ExperienceStatus>
+    return <ExperienceStatus kind="failed">{intl.formatMessage({ id: 'experience.invalidReference' })}</ExperienceStatus>
   }
   if (failed) {
-    return <ExperienceStatus kind="failed">Esta experiencia no está disponible.</ExperienceStatus>
+    return <ExperienceStatus kind="failed">{intl.formatMessage({ id: 'experience.unavailable' })}</ExperienceStatus>
   }
-  if (!Renderer) return <ExperienceStatus kind="loading">Cargando experiencia…</ExperienceStatus>
+  if (!Renderer) return <ExperienceStatus kind="loading">{intl.formatMessage({ id: 'experience.loading' })}</ExperienceStatus>
 
   const reference = {
     experienceId,

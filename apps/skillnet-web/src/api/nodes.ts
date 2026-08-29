@@ -179,9 +179,24 @@ export function useNodeRender(
     retry: false,
     staleTime: Infinity,
     refetchOnWindowFocus: false,
-    // Off by default (a pinned lesson never changes under the learner). Turned on only
-    // while a node is "Preparándose…", so the screen flips to the real episode by itself
-    // the moment its knowledge pack lands and the fallback pin is dropped server-side.
+    /**
+     * Off by default: a pinned lesson never changes under the learner, so once something
+     * is served there is nothing to poll for.
+     *
+     * The caller turns it on for exactly one situation — **nothing is on screen yet** —
+     * and turns it off again the moment a lesson lands or the wait is given up on. That
+     * poll is the only thing standing between a cut `render/stream` and a permanent
+     * "Preparando lección…": the stream reports a dropped connection by staying in
+     * `streaming` and settling nothing, so without a second question to the server
+     * nobody would ever ask again. It must stay **bounded** on the caller's side — see
+     * `RENDER_WAIT_LIMIT_MS` in `NodeView` — because an unbounded retry against a render
+     * that will never arrive is a tab quietly billing the server for ever.
+     *
+     * TanStack does not run the interval in a background tab (`refetchIntervalInBackground`
+     * is left at its `false` default), which is deliberate: a throttled background tab is
+     * one of the ways the stream dies, and the poll resuming on focus is what recovers it
+     * without paying for the minutes nobody was looking.
+     */
     refetchInterval,
   })
 }
@@ -376,7 +391,12 @@ export function useNodeRenderStream(handlers: RenderStreamHandlers = {}) {
         )
         if (!res.ok || !res.body) {
           // No stream to read. The render may still be running server-side, so this is
-          // not a content failure: the caller polls `GET /render`.
+          // not a content failure — but it is not a settled one either: `onSettled` never
+          // fires from here, so nothing will ask `GET /render` again on its own. Staying
+          // in `streaming` is only safe because `NodeView` polls `GET /render` on a
+          // bounded schedule for as long as nothing is served, and hands the learner a
+          // retry when that budget runs out. Before it did, this line was where the
+          // "Preparando lección…" screen became permanent.
           setState((prev) => ({ ...prev, status: 'streaming' }))
           return
         }
@@ -464,7 +484,11 @@ export function useNodeRenderStream(handlers: RenderStreamHandlers = {}) {
         if (controller.signal.aborted) return
         if (err instanceof DOMException && err.name === 'AbortError') return
         // A dropped connection is not a failed render: the graph runs server-side and
-        // `GET /render` is the source of truth. Stay in `streaming` so the caller polls.
+        // `GET /render` is the source of truth. Staying in `streaming` says "no verdict
+        // from here", and it is deliberately NOT a settle — `onSettled` must fire once,
+        // for a real terminal event. What turns that into a lesson on screen is the
+        // caller's bounded poll of `GET /render` (`NodeView`), which is also what stops
+        // and offers a retry when the wait has gone on long enough.
         setState((prev) => (prev.status === 'streaming' ? prev : { ...prev, status: 'streaming' }))
       } finally {
         if (abortRef.current === controller) abortRef.current = null
@@ -535,6 +559,13 @@ export function useSubmitNodeAnswer(nodeId: string | undefined) {
  * - **Its failure is not the learner's problem.** Callers use `mutate` (never
  *   `mutateAsync`) and never await it: a node that could not be stamped is a percentage
  *   that lags, not a lesson that refuses to advance.
+ *
+ * **`NodeCompletion.can_complete` is the one thing worth reading back**, and reading it
+ * does not weaken either property above. It is the §7.5 course verdict *recomputed after
+ * this stamp*, which makes it the only fresh answer to "is the course over?" available at
+ * the moment the learner asks — the node list still says what it said before the stamp.
+ * Navigation never waits for it; only the end-of-course screen does, and that screen has
+ * to be right (`NodeView.finishCourse`).
  *
  * Invalidates `['nodes']` and `['enrollments']` — the same two families
  * `useSubmitNodeAnswer` invalidates, and for the same reason: `useCourseNodes`

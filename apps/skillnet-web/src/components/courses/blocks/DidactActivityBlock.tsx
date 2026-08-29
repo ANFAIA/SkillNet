@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react'
+import { useIntl } from 'react-intl'
 
 import { useActivityDefinition } from '../../../api/activities'
 import { createActivityHostPorts } from '../../../api/activity-ports'
@@ -108,6 +109,7 @@ export function DidactActivityBlock({
   componentId: string
   bindingId?: string
 }) {
+  const intl = useIntl()
   const outerPorts = useOptionalDidactHost()
   const httpPorts = useMemo(
     () => createActivityHostPorts(activityId, { bindingId }),
@@ -117,19 +119,19 @@ export function DidactActivityBlock({
   const definition = useActivityDefinition(activityId)
 
   if (!activityId || !componentId.startsWith('didact.')) {
-    return <ActivityStatus kind="failed">La referencia de esta actividad no es válida.</ActivityStatus>
+    return <ActivityStatus kind="failed">{intl.formatMessage({ id: 'activity.invalidReference' })}</ActivityStatus>
   }
-  if (definition.isPending) return <ActivityStatus kind="loading">Cargando actividad…</ActivityStatus>
+  if (definition.isPending) return <ActivityStatus kind="loading">{intl.formatMessage({ id: 'activity.loading' })}</ActivityStatus>
   if (definition.isError) {
-    return <ActivityStatus kind="failed">No se pudo cargar la actividad.</ActivityStatus>
+    return <ActivityStatus kind="failed">{intl.formatMessage({ id: 'activity.loadError' })}</ActivityStatus>
   }
 
   const validated = validatePublicActivityDefinition(definition.data, activityId, componentId)
   if (!validated.ok) {
     if (validated.reason === 'declined') {
-      return <ActivityStatus kind="blocked">Esta actividad no puede ejecutarse con los datos disponibles.</ActivityStatus>
+      return <ActivityStatus kind="blocked">{intl.formatMessage({ id: 'activity.declined' })}</ActivityStatus>
     }
-    return <ActivityStatus kind="failed">La definición pública de la actividad no es válida.</ActivityStatus>
+    return <ActivityStatus kind="failed">{intl.formatMessage({ id: 'activity.invalidPublicDefinition' })}</ActivityStatus>
   }
 
   if (usesSecureEvaluationAdapter(componentId)) {

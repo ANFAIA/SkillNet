@@ -12,6 +12,8 @@
  * already sent, and because a cache hit is a single `token` with the whole answer.
  */
 
+import { useIntl } from 'react-intl'
+
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ApiError } from './client'
 
@@ -108,7 +110,7 @@ export async function streamExplain(
       detail?: unknown
     }
     const detail =
-      typeof parsed.detail === 'string' ? parsed.detail : 'No se pudo explicar el termino'
+      typeof parsed.detail === 'string' ? parsed.detail : NO_SERVER_DETAIL
     throw new ApiError(res.status, { detail })
   }
   if (!res.body) throw new Error('La respuesta no trae cuerpo')
@@ -158,7 +160,7 @@ export async function streamExplain(
         }
         cached = data.cached === true
       } else if (eventType === 'error') {
-        failure = String(data.detail ?? 'No se pudo explicar el termino')
+        failure = String(data.detail ?? NO_SERVER_DETAIL)
       }
       eventType = ''
     }
@@ -183,7 +185,13 @@ export interface UseExplainResult {
   reset: () => void
 }
 
-const RATE_LIMIT_MESSAGE = 'Demasiadas consultas seguidas'
+/**
+ * Sentinel, never shown. `streamExplain` is a plain async function with no `intl` to
+ * reach, so when the server sends no `detail` of its own it throws this and the hook —
+ * which is a hook, and does have one — turns it into the translated line. Writing the
+ * Spanish sentence here is how the popover stayed half-Spanish in an English session.
+ */
+const NO_SERVER_DETAIL = '__explain_failed__'
 
 /**
  * Drive one explanation request at a time. A new `run` aborts the previous one, so
@@ -191,6 +199,7 @@ const RATE_LIMIT_MESSAGE = 'Demasiadas consultas seguidas'
  * instead of five answers racing to land in the same popover.
  */
 export function useExplain(): UseExplainResult {
+  const intl = useIntl()
   const [status, setStatus] = useState<ExplainStatus>('idle')
   const [text, setText] = useState('')
   const [program, setProgram] = useState<string | null>(null)
@@ -227,16 +236,19 @@ export function useExplain(): UseExplainResult {
       .catch((err: unknown) => {
         if (controller.signal.aborted) return
         if (err instanceof DOMException && err.name === 'AbortError') return
+        // The server's own `detail` is shown when it sent one; ours is a sentinel, so
+        // it never reaches the screen untranslated.
+        const raw = err instanceof Error ? err.message : ''
         const message =
           err instanceof ApiError && err.status === 429
-            ? RATE_LIMIT_MESSAGE
-            : err instanceof Error
-              ? err.message
-              : 'No se pudo explicar el termino'
+            ? intl.formatMessage({ id: 'explain.rateLimit' })
+            : raw && raw !== NO_SERVER_DETAIL
+              ? raw
+              : intl.formatMessage({ id: 'explain.error' })
         setError(message)
         setStatus('error')
       })
-  }, [])
+  }, [intl])
 
   const reset = useCallback(() => {
     abortRef.current?.abort()

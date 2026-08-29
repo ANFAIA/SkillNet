@@ -11,12 +11,12 @@
  * * The glimpse is **plain text**, on purpose. A quick word-click answer is one
  *   sentence, and one sentence needs no kit — rendering it through OpenUI made it read
  *   as an oversized "lead". The richer, block-based explanation is the job of the
- *   "Ver mas" modal (`ExplainModal`), which is where OpenUI belongs. The glimpse is also
+ *   "see more" modal (`ExplainModal`), which is where OpenUI belongs. The glimpse is also
  *   **not** wrapped in a `ClickableSurface`, so a click inside it cannot start another
  *   generation. Explaining the explanation adds nothing and loops cost.
  * * It does carry one action — a next step for someone who did not understand the single
- *   sentence. It used to be **"No lo entiendo"**, which navigated to the v1 chat seeded
- *   with the term and the block text; `2a750f5` made it **"Ver mas"**, which opens
+ *   sentence. It used to be **"I don't get it"**, which navigated to the v1 chat seeded
+ *   with the term and the block text; `2a750f5` made it **"see more"**, which opens
  *   `ExplainModal` over the lesson instead. Same purpose, without leaving the page and
  *   without re-explaining the context to a chat that knows nothing about this node. It
  *   only appears once there *is* an explanation to expand on, so it can never open an
@@ -28,6 +28,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { useIntl } from 'react-intl'
 import { useExplain } from '../../api/explain'
 import type { ExplainSelection } from './ClickableSurface'
 
@@ -44,11 +45,11 @@ export interface ExplainPopoverProps {
   /**
    * Overrides the `.explain-popover` z-index. `null` keeps the stylesheet's base-layer
    * value; `ExplainModal` lifts it above its own card so a word clicked inside the
-   * "Ver mas" panel actually shows a bubble instead of one hidden behind the card.
+   * "see more" panel actually shows a bubble instead of one hidden behind the card.
    */
   zIndex?: number | null
   onClose: () => void
-  /** Called when the learner clicks "Ver mas" to open the full ExplainModal. */
+  /** Called when the learner clicks "see more" to open the full ExplainModal. */
   onVerMas?: (selection: ExplainSelection) => void
 }
 
@@ -72,6 +73,7 @@ export function ExplainPopover({
   onClose,
   onVerMas,
 }: ExplainPopoverProps) {
+  const intl = useIntl()
   const ref = useRef<HTMLDivElement>(null)
   const returnFocusTo = useRef<HTMLElement | null>(null)
   const [position, setPosition] = useState<Position | null>(null)
@@ -164,10 +166,10 @@ export function ExplainPopover({
       <p className="text-sm text-danger">{error}</p>
     ) : text ? (
       // Plain text on purpose: a one-sentence glimpse needs no OpenUI kit. The richer
-      // block-based view is "Ver mas" (ExplainModal).
+      // block-based view is "see more" (ExplainModal).
       <p className="text-sm text-text leading-relaxed">{text}</p>
     ) : (
-      <p className="text-sm text-text-muted">Buscando una explicación...</p>
+      <p className="text-sm text-text-muted">{intl.formatMessage({ id: 'explain.searching' })}</p>
     )
 
   return createPortal(
@@ -175,7 +177,7 @@ export function ExplainPopover({
       ref={ref}
       role="dialog"
       aria-modal="false"
-      aria-label={`Explicación de ${selection.term}`}
+      aria-label={intl.formatMessage({ id: 'explain.popoverLabel' }, { term: selection.term })}
       tabIndex={-1}
       data-no-explain
       data-placement={position?.placement ?? 'bottom'}
@@ -198,7 +200,7 @@ export function ExplainPopover({
           onClick={() => { onClose(); onVerMas(selection) }}
           className="mt-2 text-xs font-medium text-primary hover:underline"
         >
-          Ver más
+          {intl.formatMessage({ id: 'explain.seeMore' })}
         </button>
       )}
     </div>,

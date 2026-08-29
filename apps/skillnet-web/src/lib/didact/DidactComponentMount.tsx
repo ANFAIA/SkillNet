@@ -7,6 +7,8 @@ import {
   type ReactNode,
 } from 'react'
 
+import { useIntl } from 'react-intl'
+
 import { DidactErrorBoundary } from './DidactErrorBoundary'
 import { DidactHostProvider } from './DidactHostContext'
 import { DIDACT_COMPONENT_LOADERS, loadDidactExport } from './generated-loaders'
@@ -20,11 +22,20 @@ type MountMessages = {
   degraded: string
 }
 
-const DEFAULT_MESSAGES: MountMessages = {
-  loading: 'Cargando actividad…',
-  unavailable: 'Esta actividad no está disponible en este entorno.',
-  failed: 'No se pudo mostrar esta actividad.',
-  degraded: 'Algunas funciones de esta actividad no están disponibles.',
+/**
+ * The four status lines every mount can end on. They are the same strings
+ * `DidactActivityBlock` prints for its own dead ends, so they live in the shared
+ * `activity.*` group rather than being duplicated per call site. A host that needs
+ * different wording still overrides them through the `messages` prop.
+ */
+function useDefaultMessages(): MountMessages {
+  const intl = useIntl()
+  return {
+    loading: intl.formatMessage({ id: 'activity.loading' }),
+    unavailable: intl.formatMessage({ id: 'activity.unavailableHere' }),
+    failed: intl.formatMessage({ id: 'activity.mountError' }),
+    degraded: intl.formatMessage({ id: 'activity.degraded' }),
+  }
 }
 
 function StatusMessage({ children, kind }: { children: ReactNode; kind: string }) {
@@ -52,7 +63,8 @@ export function DidactComponentMount({
   messages?: Partial<MountMessages>
   onError?: (error: Error) => void
 }) {
-  const messages = { ...DEFAULT_MESSAGES, ...messageOverrides }
+  const defaults = useDefaultMessages()
+  const messages = { ...defaults, ...messageOverrides }
   const resolution = useMemo(() => resolveDidactMount(componentId, ports), [componentId, ports])
   const [loaded, setLoaded] = useState<ComponentType<Record<string, unknown>> | null>(null)
   const [loadError, setLoadError] = useState<Error | null>(null)

@@ -163,6 +163,63 @@ function optionAt(options: string[] | undefined, index: unknown): string | null 
   return options[index] ?? null
 }
 
+/**
+ * The two halves of a revealed answer key, before either is put into words.
+ *
+ * `answer` stays a value instead of a finished string because `true_false` reveals a
+ * translated word, and this reader has no `intl`: it is a plain function precisely so a
+ * call site can ask **whether there is anything to show** before promising the learner a
+ * solution. `WorkedSolution` renders nothing when there is not, and a caller that gated
+ * its own copy on a different rule would be a second answer to the same question.
+ */
+export interface RevealedSolution {
+  answer: { kind: 'text'; text: string } | { kind: 'boolean'; value: boolean } | null
+  explanation: string | null
+}
+
+/**
+ * Read `NodeAttemptResult.correct_answer` into what the panel prints, or `null` when
+ * there is nothing printable in it.
+ *
+ * Nothing printable is a real outcome and not an error: `_correct_answer`
+ * (`routes/nodes.py`) projects only `correct` / `correct_order` / `blanks` /
+ * `explanation`, so an open item whose key is a rubric arrives with an `explanation` or
+ * with nothing at all — rubrics are deliberately never exposed. An `order_steps` item
+ * arrives as a list of INDICES, so it also comes to nothing when the texts they index
+ * into are missing (see `QuizItemBlockProps.steps`).
+ */
+export function readRevealedSolution(
+  itemType: ExerciseType | undefined,
+  correctAnswer: Record<string, unknown> | null | undefined,
+  options?: string[],
+): RevealedSolution | null {
+  if (!correctAnswer) return null
+
+  const explanation =
+    typeof correctAnswer.explanation === 'string' && correctAnswer.explanation
+      ? correctAnswer.explanation
+      : null
+
+  let answer: RevealedSolution['answer'] = null
+  if (itemType === 'true_false' && typeof correctAnswer.correct === 'boolean') {
+    answer = { kind: 'boolean', value: correctAnswer.correct }
+  } else if (itemType === 'test') {
+    const text = optionAt(options, correctAnswer.correct)
+    answer = text ? { kind: 'text', text } : null
+  } else if (itemType === 'fill_blank' && Array.isArray(correctAnswer.blanks)) {
+    const blanks = correctAnswer.blanks.map((blank) => String(blank)).filter(Boolean)
+    answer = blanks.length > 0 ? { kind: 'text', text: blanks.join(', ') } : null
+  } else if (itemType === 'order_steps' && Array.isArray(correctAnswer.correct_order)) {
+    const steps = correctAnswer.correct_order
+      .map((index) => optionAt(options, index))
+      .filter((step): step is string => Boolean(step))
+    answer = steps.length > 0 ? { kind: 'text', text: steps.join(' -> ') } : null
+  }
+
+  if (!answer && !explanation) return null
+  return { answer, explanation }
+}
+
 /** The panel itself, shared by both ways of arriving at a solution. */
 function SolutionPanel({
   solution,
@@ -190,12 +247,15 @@ function SolutionPanel({
 }
 
 /**
- * What the fourth failure earns: the solution, spelled out.
+ * What the end of the ladder earns: the solution, spelled out.
  *
- * Rendered **only** when the server sets `show_worked_solution`. The component never
- * decides that — see the module docstring. It also never invents the solution: every
- * line comes out of `correct_answer`, which the server populates from the answer key it
- * kept, and if a field is missing the line is simply not printed.
+ * Rendered **only** when the server has already handed the answer over — either by
+ * setting `show_worked_solution` or by sending `correct_answer` back once the hint quota
+ * is spent. The component never decides that, and never invents the solution either:
+ * every line comes out of `correct_answer`, which the server populates from the answer
+ * key it kept, and a missing field is simply not printed. When nothing at all is
+ * printable it renders nothing, so the call site has to ask `readRevealedSolution`
+ * before it announces a solution — see `QuizItemBlock`.
  */
 export function WorkedSolution({
   solution: written,
@@ -211,26 +271,15 @@ export function WorkedSolution({
     return <SolutionPanel solution={written.solution} explanation={written.explanation ?? null} />
   }
 
-  if (!correctAnswer) return null
+  const revealed = readRevealedSolution(itemType, correctAnswer, options)
+  if (!revealed) return null
 
-  const explanation =
-    typeof correctAnswer.explanation === 'string' ? correctAnswer.explanation : null
+  const solution =
+    revealed.answer === null
+      ? null
+      : revealed.answer.kind === 'boolean'
+        ? intl.formatMessage({ id: revealed.answer.value ? 'hints.true' : 'hints.false' })
+        : revealed.answer.text
 
-  let solution: string | null = null
-  if (itemType === 'true_false' && typeof correctAnswer.correct === 'boolean') {
-    solution = correctAnswer.correct ? intl.formatMessage({ id: 'hints.true' }) : intl.formatMessage({ id: 'hints.false' })
-  } else if (itemType === 'test') {
-    solution = optionAt(options, correctAnswer.correct)
-  } else if (itemType === 'fill_blank' && Array.isArray(correctAnswer.blanks)) {
-    solution = correctAnswer.blanks.map((blank) => String(blank)).join(', ')
-  } else if (itemType === 'order_steps' && Array.isArray(correctAnswer.correct_order)) {
-    const steps = correctAnswer.correct_order
-      .map((index) => optionAt(options, index))
-      .filter((step): step is string => step !== null)
-    solution = steps.length > 0 ? steps.join(' -> ') : null
-  }
-
-  if (!solution && !explanation) return null
-
-  return <SolutionPanel solution={solution} explanation={explanation} />
+  return <SolutionPanel solution={solution} explanation={revealed.explanation} />
 }

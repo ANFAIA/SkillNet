@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from 'react'
+import { useIntl } from 'react-intl'
 import { useQuery } from '@tanstack/react-query'
 import { get } from './client'
 import { executeTool } from '../lib/toolRegistry'
@@ -54,6 +55,10 @@ export function useChat(
   firstMessageContext?: ChatContext,
   options?: UseChatOptions,
 ) {
+  // `useChat` is a hook, so the copy it owns is resolved the same way a component's is.
+  // There is no second mechanism for "text from a module under `api/`": whatever needs a
+  // message is either a hook or is handed an `IntlShape` (`lib/capabilityCopy.ts`).
+  const intl = useIntl()
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [isStreaming, setIsStreaming] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
@@ -243,7 +248,7 @@ export function useChat(
                     ...m,
                     content:
                       m.content ||
-                      'Error al conectar con el asistente. Intentalo de nuevo.',
+                      intl.formatMessage({ id: 'chat.connectionError' }),
                     isStreaming: false,
                     isLayingOut: false,
                   }
@@ -260,7 +265,7 @@ export function useChat(
         }
       }
     },
-    [endpoint, firstMessageContext, generativeMode],
+    [endpoint, firstMessageContext, generativeMode, intl],
   )
 
   const cancel = useCallback(() => {

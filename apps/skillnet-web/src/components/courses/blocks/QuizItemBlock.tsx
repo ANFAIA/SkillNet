@@ -4,7 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useIntl } from 'react-intl'
 import { post } from '../../../api/client'
 import { Button } from '../../ui'
-import { HintLadder, WorkedSolution } from './QuizItemHints'
+import { HintLadder, WorkedSolution, readRevealedSolution } from './QuizItemHints'
 import { duration, ease } from '../../../lib/motion'
 import { INLINE_SURFACE } from './rhythm'
 import { useNodeRenderTarget } from '../kit/NodeRenderContext'
@@ -287,6 +287,16 @@ export function QuizItemBlock({
   // unconditional instead of derived, which is what the RTL harness could not surface.
   const [attemptNonce, setAttemptNonce] = useState(0)
 
+  const isSingleChoice = SINGLE_CHOICE_TYPES.includes(item_type)
+  const choices =
+    item_type === 'true_false' && (!options || options.length === 0)
+      ? TRUE_FALSE_OPTIONS
+      : (options ?? [])
+  // The texts a revealed key indexes into. `order_steps` numbers the STEPS, not the
+  // options (which are empty for that type), so the steps win when they are there —
+  // and today they never are, see `QuizItemBlockProps.steps`.
+  const revealTexts = steps ?? choices
+
   const submit = useMutation({
     mutationFn: (body: NodeAnswerRequest) =>
       post<NodeAttemptResult>(`/nodes/${nodeId}/answer`, body),
@@ -325,18 +335,20 @@ export function QuizItemBlock({
         // Se acabaron los intentos: fallo sin reintento -> rojo reservado + mascota ups.
         feedback?.report('fallo', { definitivo: true })
         solveStep?.()
+      } else if (readRevealedSolution(item_type, result.correct_answer, revealTexts)) {
+        // The OTHER door the server opens: once the hint quota is spent it sends the key
+        // back on every answer, `show_worked_solution` or not. The answer is on screen
+        // from here on, so there is nothing left to retry — and the step, which is born
+        // closed because this block is in it, has to be opened by somebody or the learner
+        // is shut in with the solution they were just given.
+        feedback?.report('fallo', { definitivo: true })
+        solveStep?.()
       } else {
         // Fallo con reintento: ambar "todavia no", no rojo.
         feedback?.report('fallo')
       }
     },
   })
-
-  const isSingleChoice = SINGLE_CHOICE_TYPES.includes(item_type)
-  const choices =
-    item_type === 'true_false' && (!options || options.length === 0)
-      ? TRUE_FALSE_OPTIONS
-      : (options ?? [])
 
   // A passed item is final. So is one the server just closed with the worked solution
   // (§7.4 rule 8): the item is done with — the learner has the solution and moves on, and
@@ -347,7 +359,28 @@ export function QuizItemBlock({
   // `QuizItemHints`: a client that decided when the solution appears could decide to see
   // it on the first attempt.
   const workedSolution = result?.show_worked_solution === true
-  const locked = result?.passed === true || workedSolution
+  // What the server actually revealed, which is a **wider** question than that flag.
+  // `routes/nodes.py` sends `correct_answer` in three cases — the item passed, the hint
+  // quota is spent, or the worked solution closes it — and only the third sets the flag.
+  // Gating this panel on the flag alone threw the second one away: the learner spent the
+  // three hints, was told "si sigues sin dar con ello, te enseñaremos la solución",
+  // failed, and the answer arrived and was dropped on the floor. A passed item is the
+  // one reveal not printed: repeating the answer to whoever just gave it is noise.
+  const revealed =
+    result && !result.passed
+      ? readRevealedSolution(item_type, result.correct_answer, revealTexts)
+      : null
+  // Being closed and having something to SHOW are two questions, and the second one can
+  // come out empty on its own: an open item's key is a rubric, which is rightly never
+  // exposed, so `practical_case` and `dialogue` reach the end of the ladder with nothing
+  // but an `explanation` the generator may not have written. Same split as
+  // `SecureEvaluatedActivity`: the panel is gated on there being a solution, the closing
+  // sentence on the item being closed.
+  const solutionShown = revealed !== null
+  // A revealed answer closes the item too, and that is the one closing this client is
+  // allowed to decide: it did not decide the answer was earned, it only knows the answer
+  // is now on screen — and a "Reintentar" under it would score a copy.
+  const locked = result?.passed === true || workedSolution || solutionShown
   // Once the server has graded an attempt, freeze its controls until the learner
   // explicitly starts a new attempt. Previously a failed result left the radios and
   // "Comprobar" enabled: choosing another option reused the old idempotency key, the
@@ -462,14 +495,22 @@ export function QuizItemBlock({
 
       {result ? <ResultPanel result={result} onRetry={locked ? undefined : retry} /> : null}
 
-      {workedSolution ? (
+      {solutionShown ? (
         <WorkedSolution
           itemType={item_type}
           correctAnswer={result?.correct_answer ?? null}
           // `order_steps` indexes into the STEPS, not into the options (which are empty
           // for that type): without this the panel came out with a title and nothing under it.
-          options={steps ?? choices}
+          options={revealTexts}
         />
+      ) : workedSolution && result?.passed !== true ? (
+        // Closed, and there was nothing to write out. Said plainly rather than left as
+        // silence after a ladder that promised the solution — the same wording, and the
+        // same situation, as `SecureEvaluatedActivity`. The step is already open (see
+        // `onSuccess`), so the learner is not held here by it.
+        <p className="mt-4 text-sm text-text-secondary" role="status">
+          {intl.formatMessage({ id: 'activity.solutionUnavailable' })}
+        </p>
       ) : null}
     </div>
   )

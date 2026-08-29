@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useIntl } from 'react-intl'
 
 import {
   DidactComponentMount,
@@ -20,16 +21,17 @@ function EmbeddedCheckpoint({
   authoring: Record<string, unknown>
   complete: () => void
 }) {
+  const intl = useIntl()
   const prompt = typeof authoring.prompt === 'string'
     ? authoring.prompt
     : typeof authoring.question === 'string'
       ? authoring.question
-      : 'Revisa este punto de aprendizaje.'
+      : intl.formatMessage({ id: 'activity.checkpoint.prompt' })
   return (
     <div className="space-y-3">
       <p>{prompt}</p>
       <button type="button" className="rounded-lg border border-border px-3 py-2" onClick={complete}>
-        Marcar como revisado
+        {intl.formatMessage({ id: 'activity.checkpoint.markReviewed' })}
       </button>
     </div>
   )
@@ -46,6 +48,7 @@ export function AssetBackedDidactActivity({
   componentProps: Props
   ports: DidactHostPorts
 }) {
+  const intl = useIntl()
   const assetRef = typeof componentProps.assetRef === 'string' ? componentProps.assetRef : ''
   const [asset, setAsset] = useState<AssetReference>()
   const [failed, setFailed] = useState(false)
@@ -153,16 +156,16 @@ export function AssetBackedDidactActivity({
     }
   }, [activityId, asset, componentId, componentProps, ports.evaluation, ports.persistence, state])
 
-  if (failed) return <Status kind="failed">No se pudo resolver el recurso de esta actividad.</Status>
-  if (!asset) return <Status kind="loading">Cargando recurso accesible…</Status>
+  if (failed) return <Status kind="failed">{intl.formatMessage({ id: 'activity.asset.resolveError' })}</Status>
+  if (!asset) return <Status kind="loading">{intl.formatMessage({ id: 'activity.asset.loading' })}</Status>
   if (componentId === 'didact.interactive-media') {
     const definition = mountedProps.definition as Record<string, unknown>
     const media = definition.media as Record<string, unknown>
     if (media.kind === 'audio' && !asset.transcript?.length) {
-      return <Status kind="blocked">El audio no tiene una transcripción accesible.</Status>
+      return <Status kind="blocked">{intl.formatMessage({ id: 'activity.asset.audioNoTranscript' })}</Status>
     }
     if (media.kind === 'video' && media.noSpeech !== true && !asset.captions?.length) {
-      return <Status kind="blocked">El vídeo con voz no tiene subtítulos.</Status>
+      return <Status kind="blocked">{intl.formatMessage({ id: 'activity.asset.videoNoCaptions' })}</Status>
     }
   }
   return <DidactComponentMount componentId={componentId} componentProps={mountedProps} ports={ports} />
