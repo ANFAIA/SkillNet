@@ -13,6 +13,11 @@ import {
 export default function SiteFooter({ lang = "es" }: { lang?: Locale }) {
   const copy = t(lang);
   const contactHref = lang === "en" ? "/en/#contacto" : "/#contacto";
+  const cookieSettingsLabel = lang === "en" ? "Cookie settings" : "Configurar cookies";
+  const openCookieSettings = () => {
+    window.dispatchEvent(new CustomEvent("skillnet:open-cookie-settings"));
+  };
+
   return <motion.footer data-nav-theme="light" initial={false} className="w-full bg-white px-6 pb-10 pt-16 sm:px-10 sm:pt-24">
     <div className="mx-auto w-full max-w-[80%] pt-10">
       <div className="footer-main">
@@ -35,7 +40,13 @@ export default function SiteFooter({ lang = "es" }: { lang?: Locale }) {
           </a>
         </span>
       </div>
-      <div className="footer-meta"><span>© 2026 SkillNet</span><a href={contactHref}>{copy.footer.contact}</a></div>
+      <div className="footer-meta">
+        <span>© 2026 SkillNet</span>
+        <div className="footer-meta__links">
+          <button type="button" onClick={openCookieSettings}>{cookieSettingsLabel}</button>
+          <a href={contactHref}>{copy.footer.contact}</a>
+        </div>
+      </div>
     </div>
   </motion.footer>;
 }

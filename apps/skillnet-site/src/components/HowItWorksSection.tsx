@@ -11,6 +11,7 @@ import {
 import { motion, useReducedMotion } from "framer-motion";
 import type { Locale } from "../i18n/config";
 import { t, type Copy } from "../i18n/ui";
+import { trackEvent } from "../lib/analytics";
 import { revealGroup, revealItem, useEntrance } from "./useEntrance";
 
 const MODE_KEYS = ["texto", "imagen", "video", "audio"] as const;
@@ -85,6 +86,8 @@ function VideoFrame({ position }: { position: number }) {
  */
 function VideoCell({ copy, lang, reduced }: { copy: Copy["howItWorks"]; lang: Locale; reduced: boolean }) {
   const audioRef = useRef<HTMLAudioElement>(null);
+  const startedRef = useRef(false);
+  const completedRef = useRef(false);
   const [playing, setPlaying] = useState(false);
   const [time, setTime] = useState(0);
 
@@ -149,10 +152,24 @@ function VideoCell({ copy, lang, reduced }: { copy: Copy["howItWorks"]; lang: Lo
       ref={audioRef}
       src={`/audio/landing/how-it-works-video-${lang}.mp3`}
       preload="none"
-      onPlay={() => setPlaying(true)}
+      onPlay={() => {
+        setPlaying(true);
+        if (!startedRef.current) {
+          startedRef.current = trackEvent("media_start", lang, {
+            media_type: "video",
+            media_name: "how_it_works",
+          });
+        }
+      }}
       onPause={() => setPlaying(false)}
       onTimeUpdate={(event) => setTime(event.currentTarget.currentTime)}
       onEnded={(event) => {
+        if (!completedRef.current) {
+          completedRef.current = trackEvent("media_complete", lang, {
+            media_type: "video",
+            media_name: "how_it_works",
+          });
+        }
         releaseSolo(event.currentTarget);
         event.currentTarget.currentTime = 0;
         setTime(0);
@@ -169,6 +186,8 @@ function VideoCell({ copy, lang, reduced }: { copy: Copy["howItWorks"]; lang: Lo
  */
 function AudioCell({ copy, lang }: { copy: Copy["howItWorks"]; lang: Locale }) {
   const audioRef = useRef<HTMLAudioElement>(null);
+  const startedRef = useRef(false);
+  const completedRef = useRef(false);
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
 
@@ -202,13 +221,27 @@ function AudioCell({ copy, lang }: { copy: Copy["howItWorks"]; lang: Locale }) {
       ref={audioRef}
       src={`/audio/landing/how-it-works-audio-${lang}.mp3`}
       preload="none"
-      onPlay={() => setPlaying(true)}
+      onPlay={() => {
+        setPlaying(true);
+        if (!startedRef.current) {
+          startedRef.current = trackEvent("media_start", lang, {
+            media_type: "audio",
+            media_name: "how_it_works",
+          });
+        }
+      }}
       onPause={() => setPlaying(false)}
       onTimeUpdate={(event) => {
         const audio = event.currentTarget;
         setProgress(audio.duration ? audio.currentTime / audio.duration : 0);
       }}
       onEnded={(event) => {
+        if (!completedRef.current) {
+          completedRef.current = trackEvent("media_complete", lang, {
+            media_type: "audio",
+            media_name: "how_it_works",
+          });
+        }
         releaseSolo(event.currentTarget);
         setProgress(0);
       }}

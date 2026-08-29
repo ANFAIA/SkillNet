@@ -1,6 +1,7 @@
 import type { Locale } from "../i18n/config";
 import { t } from "../i18n/ui";
 import { GITHUB_URL } from "../data/links";
+import { trackCta } from "../lib/analytics";
 
 const BACKGROUND_URL = "/images/landing/skillnet-learning-commons-background-v1.webp";
 
@@ -45,6 +46,7 @@ export default function Hero({ lang = "es" }: { lang?: Locale }) {
             href={GITHUB_URL}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={() => trackCta("github_open", "hero", lang)}
             className="type-ui rounded-lg bg-white px-6 py-3 text-[var(--color-text)] transition-opacity duration-200 ease-out hover:opacity-90"
           >
             {COPY.github}

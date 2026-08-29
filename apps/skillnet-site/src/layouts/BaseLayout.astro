@@ -29,27 +29,30 @@ const enUrl = lang === "en" ? canonicalUrl : altUrl;
 const googleTagManagerId = "GTM-MSFGKTR4";
 const analyticsConsentStorageKey = "skillnet:analytics-consent";
 
-const googleConsentScript = `(function(w){
-w.dataLayer=w.dataLayer||[];
-w.gtag=w.gtag||function(){w.dataLayer.push(arguments);};
-var saved=null;try{saved=localStorage.getItem(${JSON.stringify(analyticsConsentStorageKey)});}catch(e){}
-var analytics=saved==="granted"?"granted":"denied";
-var defaults={
+const googleAnalyticsBootstrapScript = `(function(w,d,s,l,i,key,locale){
+var loaded=false;
+function load(){
+if(loaded)return;loaded=true;
+w[l]=w[l]||[];
+w.gtag=w.gtag||function(){w[l].push(arguments);};
+w.gtag("consent","default",{
 ad_storage:"denied",
 ad_user_data:"denied",
 ad_personalization:"denied",
-analytics_storage:analytics
-};
-if(saved!=="granted"&&saved!=="denied")defaults.wait_for_update=500;
-w.gtag("consent","default",defaults);
+analytics_storage:"granted"
+});
 w.gtag("set","ads_data_redaction",true);
-})(window);`;
-
-const googleTagManagerScript = `(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
-new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
-'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-})(window,document,'script','dataLayer',${JSON.stringify(googleTagManagerId)});`;
+w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});
+var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';
+j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;
+f.parentNode.insertBefore(j,f);
+if(/\\/docs\\/quickstart\\/?$/.test(location.pathname)){
+w.gtag("event","quickstart_open",{site_language:locale});
+}
+}
+w.skillnetLoadAnalytics=load;
+try{if(localStorage.getItem(key)==="granted")load();}catch(e){}
+})(window,document,'script','dataLayer',${JSON.stringify(googleTagManagerId)},${JSON.stringify(analyticsConsentStorageKey)},${JSON.stringify(lang)});`;
 
 /**
  * Language detection, inline and render-blocking.
@@ -81,11 +84,8 @@ if(want!==cur)location.replace(alt+location.search+location.hash);
 <html lang={lang}>
   <head>
     <meta charset="UTF-8" />
-    <!-- Consent Mode defaults must run before Google Tag Manager. -->
-    <script is:inline set:html={googleConsentScript} />
-    <!-- Google Tag Manager -->
-    <script is:inline set:html={googleTagManagerScript} />
-    <!-- End Google Tag Manager -->
+    <!-- Analytics is loaded only after explicit consent. -->
+    <script is:inline set:html={googleAnalyticsBootstrapScript} />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <script is:inline set:html={detectScript} />
     <link rel="icon" type="image/svg+xml" href="/images/brand/skillnet-favicon.svg?v=7" />
@@ -112,17 +112,6 @@ if(want!==cur)location.replace(alt+location.search+location.hash);
     <slot name="head" />
   </head>
   <body>
-    <!-- Google Tag Manager (noscript) -->
-    <noscript>
-      <iframe
-        src={`https://www.googletagmanager.com/ns.html?id=${googleTagManagerId}`}
-        height="0"
-        width="0"
-        title="Google Tag Manager"
-        hidden
-      ></iframe>
-    </noscript>
-    <!-- End Google Tag Manager (noscript) -->
     <slot />
     <CookieConsent lang={lang} />
   </body>

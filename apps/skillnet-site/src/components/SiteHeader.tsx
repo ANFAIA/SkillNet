@@ -8,6 +8,7 @@ import { LANG_STORAGE_KEY, type Locale } from "../i18n/config";
 import { t } from "../i18n/ui";
 import { GITHUB_URL } from "../data/links";
 import type { DocsFileTreeNode } from "../data/docsNav";
+import { trackCta } from "../lib/analytics";
 
 const TRANSITION = { type: "tween", duration: 0.52, ease: [0.22, 1, 0.36, 1] } as const;
 /** Tailwind's `2xl` breakpoint: above it the desktop nav replaces the mobile menu. */
@@ -36,6 +37,12 @@ interface Props {
   currentDocSlug?: string;
 }
 
+interface HeaderLink {
+  href: string;
+  label: string;
+  eventName?: string;
+}
+
 export default function SiteHeader({
   variant = "landing",
   locale = "es",
@@ -61,14 +68,14 @@ export default function SiteHeader({
   const copy = t(locale);
   const home = locale === "en" ? "/en/" : "/";
   const docsHome = locale === "en" ? "/en/docs" : "/docs";
-  const LINKS = variant === "docs"
+  const LINKS: HeaderLink[] = variant === "docs"
     ? [{ href: home, label: copy.nav.backHome }]
     : [
-        { href: "#que-es-skillnet", label: copy.nav.what },
-        { href: "#como-funciona", label: copy.nav.how },
-        { href: "#para-quien", label: copy.nav.who },
-        { href: "#contacto", label: copy.nav.contact },
-        { href: docsHome, label: copy.nav.docs },
+        { href: "#que-es-skillnet", label: copy.nav.what, eventName: undefined },
+        { href: "#como-funciona", label: copy.nav.how, eventName: undefined },
+        { href: "#para-quien", label: copy.nav.who, eventName: undefined },
+        { href: "#contacto", label: copy.nav.contact, eventName: undefined },
+        { href: docsHome, label: copy.nav.docs, eventName: "docs_open" },
       ];
   const logoHref = variant === "docs" ? home : "#";
   const otherLocale: Locale = locale === "en" ? "es" : "en";
@@ -191,8 +198,8 @@ export default function SiteHeader({
               being stretched by it. Without this the links keep their FINAL layout box
               from frame one and the parent's scale distorts their glyph boxes. */}
           <motion.nav layout className="hidden items-center gap-6 2xl:flex" aria-label={copy.nav.main}>
-            {LINKS.map(({ href, label }) => <motion.a layout key={href} href={href} className={`type-ui whitespace-nowrap transition-[color,opacity] duration-300 ease-[cubic-bezier(0.38,0.49,0,1)] ${scrolled ? linkClass : "text-white/85 hover:text-white"}`}>{label}</motion.a>)}
-            <motion.a layout href={GITHUB_URL} target="_blank" rel="noopener noreferrer" className={`type-ui flex items-center gap-1.5 whitespace-nowrap transition-[color,opacity] duration-300 ease-[cubic-bezier(0.38,0.49,0,1)] ${scrolled ? linkClass : "text-white/85 hover:text-white"}`}><FaGithub size={17} /><span>GitHub</span></motion.a>
+            {LINKS.map(({ href, label, eventName }) => <motion.a layout key={href} href={href} onClick={() => eventName && trackCta(eventName, "header", locale)} className={`type-ui whitespace-nowrap transition-[color,opacity] duration-300 ease-[cubic-bezier(0.38,0.49,0,1)] ${scrolled ? linkClass : "text-white/85 hover:text-white"}`}>{label}</motion.a>)}
+            <motion.a layout href={GITHUB_URL} target="_blank" rel="noopener noreferrer" onClick={() => trackCta("github_open", "header", locale)} className={`type-ui flex items-center gap-1.5 whitespace-nowrap transition-[color,opacity] duration-300 ease-[cubic-bezier(0.38,0.49,0,1)] ${scrolled ? linkClass : "text-white/85 hover:text-white"}`}><FaGithub size={17} /><span>GitHub</span></motion.a>
             {altHref && (
               <motion.a layout href={altHref} onClick={() => rememberLocale(otherLocale)} lang={otherLocale} aria-label={langToggleAriaLabel} className={`type-ui flex items-center gap-1.5 whitespace-nowrap transition-[color,opacity] duration-300 ease-[cubic-bezier(0.38,0.49,0,1)] ${scrolled ? linkClass : "text-white/85 hover:text-white"}`}>
                 <Languages size={15} />{otherLocaleName}
@@ -218,8 +225,8 @@ export default function SiteHeader({
             className="relative z-10 mt-2 max-h-[calc(100dvh-6rem)] w-full overflow-y-auto overscroll-contain 2xl:hidden"
           >
             <nav aria-label={copy.nav.menu} className="flex w-full flex-col">
-              {LINKS.map(({ href, label }) => <a key={href} href={href} onClick={() => setPanel(null)} className={`type-ui rounded-xl px-3 py-3 transition-colors duration-200 ${menuLinkClass}`}>{label}</a>)}
-              <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer" onClick={() => setPanel(null)} className={`type-ui flex items-center gap-2 rounded-xl px-3 py-3 transition-colors duration-200 ${menuLinkClass}`}><FaGithub size={17} />GitHub</a>
+              {LINKS.map(({ href, label, eventName }) => <a key={href} href={href} onClick={() => { if (eventName) trackCta(eventName, "mobile_menu", locale); setPanel(null); }} className={`type-ui rounded-xl px-3 py-3 transition-colors duration-200 ${menuLinkClass}`}>{label}</a>)}
+              <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer" onClick={() => { trackCta("github_open", "mobile_menu", locale); setPanel(null); }} className={`type-ui flex items-center gap-2 rounded-xl px-3 py-3 transition-colors duration-200 ${menuLinkClass}`}><FaGithub size={17} />GitHub</a>
               {altHref && (
                 <a href={altHref} onClick={() => { rememberLocale(otherLocale); setPanel(null); }} lang={otherLocale} aria-label={langToggleAriaLabel} className={`type-ui flex items-center gap-2 rounded-xl px-3 py-3 transition-colors duration-200 ${menuLinkClass}`}>
                   <Languages size={17} />{otherLocaleName}

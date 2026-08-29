@@ -15,6 +15,7 @@ import {
   GITHUB_URL,
   LINKEDIN_URL,
 } from "../data/links";
+import { trackCta } from "../lib/analytics";
 
 export default function ContactSection({ lang = "es" }: { lang?: Locale }) {
   const copy = t(lang);
@@ -41,9 +42,9 @@ export default function ContactSection({ lang = "es" }: { lang?: Locale }) {
           </motion.p>
         </motion.div>
         <motion.div variants={revealGroup} className="contact-actions">
-          <motion.a variants={revealItem} href={EMAIL_URL} className="contact-card contact-card--mail"><Mail size={22} /><span>{copy.contact.mail}</span><ArrowUpRight className="contact-card__arrow" size={18} /></motion.a>
-          <motion.a variants={revealItem} href={GITHUB_URL} target="_blank" rel="noopener noreferrer" className="contact-card contact-card--github"><FaGithub size={22} /><span>GitHub</span><ArrowUpRight className="contact-card__arrow" size={18} /></motion.a>
-          <motion.a variants={revealItem} href={LINKEDIN_URL} target="_blank" rel="noopener noreferrer" className="contact-card contact-card--linkedin"><FaLinkedin size={22} /><span>LinkedIn</span><ArrowUpRight className="contact-card__arrow" size={18} /></motion.a>
+          <motion.a variants={revealItem} href={EMAIL_URL} onClick={() => trackCta("generate_lead", "contact_email", lang)} className="site-outline-control contact-card contact-card--mail"><Mail size={22} /><span>{copy.contact.mail}</span><ArrowUpRight className="contact-card__arrow" size={18} /></motion.a>
+          <motion.a variants={revealItem} href={GITHUB_URL} target="_blank" rel="noopener noreferrer" onClick={() => trackCta("github_open", "contact", lang)} className="site-outline-control contact-card contact-card--github"><FaGithub size={22} /><span>GitHub</span><ArrowUpRight className="contact-card__arrow" size={18} /></motion.a>
+          <motion.a variants={revealItem} href={LINKEDIN_URL} target="_blank" rel="noopener noreferrer" className="site-outline-control contact-card contact-card--linkedin"><FaLinkedin size={22} /><span>LinkedIn</span><ArrowUpRight className="contact-card__arrow" size={18} /></motion.a>
         </motion.div>
       </div>
     </motion.div>
