@@ -66,6 +66,22 @@ segundo sigue cerrado. El curso se queda en 33 % para siempre, y no hay ninguna 
 lo desbloquee: el nodo 1 no tiene nada que responder, así que su `state` no se moverá de
 `not_started` nunca.
 
+### Una cifra que el commit `422c1cc` da por buena y no lo es
+
+Ese mensaje de commit justifica la urgencia con "7 de 20 nodos acaban sin ninguna
+evaluación, y otros 4 con interacción sin evidencia calificada". **La medición era sobre una
+imagen obsoleta.** El contenedor llevaba días corriendo código anterior a `8e0f420`, que es
+el commit que arregló el anclaje de refs de `LearningExperience`; sobre código al día la
+misma pasada da **20 de 20 con evaluación y cero fallbacks**.
+
+Se anota aquí porque el número sigue escrito en la historia y alguien lo leerá.
+
+Y no cambia nada de lo que sigue, que es el punto: la frecuencia era un argumento de
+*urgencia*, nunca de diseño. Un nodo expositivo escrito a propósito —un resumen, un ejemplo
+resuelto— existe con tasa de avería cero, y un predicado que vive en un solo sitio es
+correcto a cualquier tasa, incluida esa. La reproducción de arriba se hizo contra el árbol
+de trabajo, no contra la imagen, así que se sostiene entera.
+
 ## 2. Por qué hoy esto no es un curso por dominio
 
 El beneficio de una formación por maestría es que la formación se mueve: te salta lo que ya
