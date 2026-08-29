@@ -49,6 +49,7 @@ from src.services.media.requirements import ensure_kind_is_available
 from src.services import provider_health
 from src.services.media.assets import AssetStore
 from src.services.media.grounding import GroundedBundle, build_grounding_bundle
+from src.services.media.subject import MediaContextError, MediaSubject, subject_from
 
 logger = get_logger(__name__)
 
@@ -71,6 +72,10 @@ ERROR_PROVIDER_QUOTA = "provider_quota"
 ERROR_PROVIDER_DOWN = "provider_down"
 ERROR_CANCELLED = "cancelled"
 ERROR_INTERNAL = "internal_error"
+#: Nothing to generate from: no source passages *and* no course/node identity. Not a
+#: provider failure and not a bug — the course itself has nothing to say yet, and a retry
+#: against the same course would produce the same nothing.
+ERROR_NO_CONTEXT = "no_context"
 #: The one code no generation ever produces: it is recorded *afterwards*, when a row that
 #: says ``done`` turns out to have no file behind it (``services/media/integrity.py``).
 ERROR_ASSET_MISSING = "asset_missing"
@@ -80,6 +85,10 @@ _ERROR_MESSAGES: dict[str, str] = {
     ERROR_PROVIDER_QUOTA: "The provider is out of quota. Try again later.",
     ERROR_PROVIDER_DOWN: "The provider is unavailable right now. Try again later.",
     ERROR_CANCELLED: "The generation was cancelled.",
+    ERROR_NO_CONTEXT: (
+        "This course has no material to generate from. Add a source document or write the "
+        "lesson content first."
+    ),
     ERROR_INTERNAL: "This generation failed. The details are in the server log.",
     ERROR_ASSET_MISSING: (
         "The generated file is no longer stored on this server. Generate it again."
@@ -104,6 +113,10 @@ def classify_failure(exc: BaseException) -> tuple[str, str]:
     The full exception, with its traceback, is logged at the point of failure — the
     operator keeps everything, the user gets a code and a sentence.
     """
+    # Checked before the provider buckets: an empty subject is not the provider's fault,
+    # and telling the owner "try again later" for it would be a lie.
+    if isinstance(exc, MediaContextError):
+        return ERROR_NO_CONTEXT, _ERROR_MESSAGES[ERROR_NO_CONTEXT]
     kind = provider_health.failure_kind(exc)
     if kind == "quota":
         return ERROR_PROVIDER_QUOTA, _ERROR_MESSAGES[ERROR_PROVIDER_QUOTA]
@@ -146,6 +159,16 @@ class MediaJobContext:
     #: ``None`` off the hot path (unit tests, the echo default) — use :meth:`emit`, which
     #: is a no-op when it is unset, rather than calling this directly.
     progress: ProgressFn | None = None
+
+    def subject(self) -> MediaSubject:
+        """Who this artifact is about — the identity that must reach the prompt.
+
+        The course and the node have always been here; before this existed every generator
+        read them only to label ``scope``, so a boxing course produced an artifact that had
+        never been told the word "boxing". Every family now asks for this and passes it to
+        its prompt builder.
+        """
+        return subject_from(self.course, self.node)
 
     async def emit(self, step: str, **extra: object) -> None:
         """Publish one intermediate progress step, or do nothing if unwired.
@@ -456,6 +479,7 @@ __all__ = [
     "ERROR_CANCELLED",
     "ERROR_INTERNAL",
     "ERROR_LLM_FAILED",
+    "ERROR_NO_CONTEXT",
     "ERROR_PROVIDER_DOWN",
     "ERROR_PROVIDER_QUOTA",
     "classify_failure",

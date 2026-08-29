@@ -83,14 +83,15 @@ class VideoGenerator:
 
         # Stage 1: the slide deck (reuse the slides content stage verbatim).
         await ctx.emit("diapositivas", theme=theme)
+        subject = ctx.subject()
         deck = await slides_spec.generate_deck(
-            ctx.bundle, language=language, theme=theme, steering=steering
+            ctx.bundle, subject=subject, language=language, theme=theme, steering=steering
         )
 
         # Stage 2: one narration line per slide (grounded, carrying citation_ids).
         await ctx.emit("narracion", slides=len(deck.slides))
         narration = await narration_mod.generate_narration(
-            deck, ctx.bundle, language=language, steering=steering
+            deck, ctx.bundle, subject=subject, language=language, steering=steering
         )
 
         # Stage 3: one mp3 clip per slide via the podcast TTS path, stored + cached, plus one

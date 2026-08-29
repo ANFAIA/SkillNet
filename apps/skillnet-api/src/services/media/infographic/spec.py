@@ -29,6 +29,7 @@ from src.core.exceptions import LLMError
 from src.core.logging import get_logger
 from src.llm.client import LLMService, resolve_llm_config
 from src.services.media.grounding import GroundedBundle
+from src.services.media.subject import MediaSubject, build_user_context, topic_rule
 
 logger = get_logger(__name__)
 
@@ -72,13 +73,21 @@ class Infographic(BaseModel):
 def build_prompts(
     bundle: GroundedBundle,
     *,
+    subject: MediaSubject | None,
     language: str,
     style: str,
     orientation: str,
     steering: str | None = None,
     max_sections: int = _MAX_SECTIONS,
 ) -> tuple[str, str]:
-    """Assemble the (system, user) prompt pair for one infographic. Pure — no I/O."""
+    """Assemble the (system, user) prompt pair for one infographic. Pure — no I/O.
+
+    ``subject`` (which course, which lesson) is keyword-only and has no default so that no
+    call site can forget it by omission. Passing ``None`` is allowed but is then a
+    deliberate statement, and it makes an empty bundle fatal
+    (:class:`~src.services.media.subject.MediaContextError`) rather than yielding a sheet
+    about whatever the model felt like.
+    """
     lang_name = "espanol" if language.startswith("es") else language
 
     valid_ids = bundle.citation_ids()
@@ -92,6 +101,7 @@ def build_prompts(
         "Eres un disenador de infografias educativas. Produces UNA hoja infografica en "
         f"{lang_name} a partir del material aportado: un titulo y una serie de secciones "
         "glanceables y una composicion semantica.\n\n"
+        f"{topic_rule(subject)}"
         "PRINCIPIOS:\n"
         f"- Entre 3 y {max_sections} secciones. Cada seccion es UNA idea.\n"
         "- El titulo tiene entre 4 y 9 palabras.\n"
@@ -117,11 +127,7 @@ def build_prompts(
         f'6. Devuelve language="{language}", style="{style}", orientation="{orientation}".'
     )
 
-    context = bundle.as_prompt_context() or "(No hay material de origen; habla en general.)"
-    user_parts = [
-        "MATERIAL DE ORIGEN (cada bloque empieza con su marcador [Fuente cN: ...]):",
-        context,
-    ]
+    user_parts = [build_user_context(bundle, subject)]
     if steering:
         user_parts.append(f"\nINDICACION ADICIONAL DEL USUARIO:\n{steering.strip()}")
     user_parts.append("\nGenera ahora la infografia en JSON.")
@@ -205,6 +211,7 @@ def parse_infographic(
 async def generate_infographic(
     bundle: GroundedBundle,
     *,
+    subject: MediaSubject | None = None,
     language: str = "es",
     style: str = "default",
     orientation: str = "portrait",
@@ -221,6 +228,7 @@ async def generate_infographic(
 
     system, user = build_prompts(
         bundle,
+        subject=subject,
         language=language,
         style=style,
         orientation=orientation,

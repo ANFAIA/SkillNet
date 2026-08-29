@@ -14,6 +14,7 @@ from src.services.media.grounding import GroundedBundle, GroundedPassage
 from src.services.media.infographic import generator as generator_mod
 from src.services.media.infographic import spec as spec_mod
 from src.services.media.infographic.generator import InfographicGenerator
+from src.services.media.subject import MediaContextError, MediaSubject
 from src.services.media.infographic.spec import (
     Infographic,
     InfographicSection,
@@ -130,9 +131,22 @@ def test_filter_infographic_citations_dedupes_and_drops() -> None:
 # --------------------------------------------------------------------------------------
 # build_prompts
 # --------------------------------------------------------------------------------------
+def _subject() -> MediaSubject:
+    """The identity the job runner always has — a boxing course, the bug that started this."""
+    return MediaSubject(
+        course_title="Boxeo para principiantes",
+        node_title="La guardia",
+        node_objective="Mantener las manos altas sin bajar la barbilla",
+    )
+
+
 def test_build_prompts_lists_valid_ids_and_injects_context() -> None:
     system, user = build_prompts(
-        _bundle("c1", "c2"), language="es", style="default", orientation="portrait"
+        _bundle("c1", "c2"),
+        subject=_subject(),
+        language="es",
+        style="default",
+        orientation="portrait",
     )
     assert "c1, c2" in system
     assert "JSON" in system
@@ -141,15 +155,43 @@ def test_build_prompts_lists_valid_ids_and_injects_context() -> None:
     assert "pasaje c1" in user
 
 
-def test_build_prompts_handles_empty_bundle() -> None:
+def test_build_prompts_carries_the_course_and_node_identity() -> None:
+    """A sheet for a boxing course must be told it is about boxing, bundle or no bundle."""
+    system, user = build_prompts(
+        _bundle("c1"),
+        subject=_subject(),
+        language="es",
+        style="default",
+        orientation="portrait",
+    )
+    assert "Boxeo para principiantes" in system
+    assert "Boxeo para principiantes" in user
+    assert "La guardia" in user
+    assert "Mantener las manos altas sin bajar la barbilla" in user
+
+
+def test_build_prompts_without_passages_stays_on_the_subject() -> None:
     system, user = build_prompts(
         GroundedBundle(mode="empty", passages=[]),
+        subject=_subject(),
         language="es",
         style="default",
         orientation="portrait",
     )
     assert "No hay fuentes citables" in system
-    assert "general" in user.lower()
+    assert "habla en general" not in user
+    assert "Boxeo para principiantes" in user
+
+
+def test_build_prompts_refuses_when_there_is_no_context_at_all() -> None:
+    with pytest.raises(MediaContextError):
+        build_prompts(
+            GroundedBundle(mode="empty", passages=[]),
+            subject=None,
+            language="es",
+            style="default",
+            orientation="portrait",
+        )
 
 
 # --------------------------------------------------------------------------------------

@@ -25,6 +25,7 @@ from src.services.media.slides.spec import (
 )
 from src.services.media.video import generator as generator_mod
 from src.services.media.video.generator import VideoGenerator, _summarize_voice_paths
+from src.services.media.subject import MediaContextError, MediaSubject
 from src.services.media.video.narration import (
     NarrationLine,
     NarrationScript,
@@ -152,8 +153,19 @@ def test_fallback_narration_prefers_subtitle_then_block_then_title() -> None:
 # --------------------------------------------------------------------------------------
 # build_prompts
 # --------------------------------------------------------------------------------------
+def _subject() -> MediaSubject:
+    """The identity the job runner always has — a boxing course, the bug that started this."""
+    return MediaSubject(
+        course_title="Boxeo para principiantes",
+        node_title="La guardia",
+        node_objective="Mantener las manos altas sin bajar la barbilla",
+    )
+
+
 def test_build_prompts_asks_for_exactly_n_lines_and_lists_ids() -> None:
-    system, user = build_prompts(_deck(), _bundle("c1", "c2"), language="es")
+    system, user = build_prompts(
+        _deck(), _bundle("c1", "c2"), subject=_subject(), language="es"
+    )
     assert "EXACTAMENTE 2 lineas" in system
     assert "c1, c2" in system
     # Slide summaries carry the on-slide text into the user prompt.
@@ -161,9 +173,34 @@ def test_build_prompts_asks_for_exactly_n_lines_and_lists_ids() -> None:
     assert "pasaje c1" in user
 
 
-def test_build_prompts_handles_empty_bundle() -> None:
-    system, user = build_prompts(_deck(), GroundedBundle(mode="empty", passages=[]), language="es")
+def test_build_prompts_carries_the_course_and_node_identity() -> None:
+    """The narrator must know the course is about boxing before it opens its mouth."""
+    system, user = build_prompts(
+        _deck(), _bundle("c1"), subject=_subject(), language="es"
+    )
+    assert "Boxeo para principiantes" in system
+    assert "Boxeo para principiantes" in user
+    assert "La guardia" in user
+    assert "Mantener las manos altas sin bajar la barbilla" in user
+
+
+def test_build_prompts_without_passages_stays_on_the_subject() -> None:
+    system, user = build_prompts(
+        _deck(),
+        GroundedBundle(mode="empty", passages=[]),
+        subject=_subject(),
+        language="es",
+    )
     assert "No hay fuentes citables" in system
+    assert "habla en general" not in user
+    assert "Boxeo para principiantes" in user
+
+
+def test_build_prompts_refuses_when_there_is_no_context_at_all() -> None:
+    with pytest.raises(MediaContextError):
+        build_prompts(
+            _deck(), GroundedBundle(mode="empty", passages=[]), subject=None, language="es"
+        )
 
 
 # --------------------------------------------------------------------------------------

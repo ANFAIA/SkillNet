@@ -10,6 +10,7 @@ import json
 import pytest
 
 from src.services.media.grounding import GroundedBundle, GroundedPassage
+from src.services.media.subject import MediaContextError, MediaSubject
 from src.services.media.podcast.script import (
     PODCAST_FORMATS,
     PodcastFormat,
@@ -170,10 +171,23 @@ def test_parse_script_rejects_invalid_speaker() -> None:
 # --------------------------------------------------------------------------------------
 # build_prompts
 # --------------------------------------------------------------------------------------
+def _subject() -> MediaSubject:
+    """The identity the job runner always has — a boxing course, the bug that started this."""
+    return MediaSubject(
+        course_title="Boxeo para principiantes",
+        node_title="La guardia",
+        node_objective="Mantener las manos altas sin bajar la barbilla",
+    )
+
+
 def test_build_prompts_lists_valid_ids_and_injects_context() -> None:
     bundle = _bundle("c1", "c2")
     system, user = build_prompts(
-        bundle, fmt=PodcastFormat.DEEP_DIVE, language="es", target_seconds=200
+        bundle,
+        subject=_subject(),
+        fmt=PodcastFormat.DEEP_DIVE,
+        language="es",
+        target_seconds=200,
     )
 
     assert "c1, c2" in system
@@ -182,20 +196,49 @@ def test_build_prompts_lists_valid_ids_and_injects_context() -> None:
     assert "Manual" in user
 
 
-def test_build_prompts_handles_empty_bundle() -> None:
+def test_build_prompts_carries_the_course_and_node_identity() -> None:
+    """An episode for a boxing course must be told it is about boxing."""
+    system, user = build_prompts(
+        _bundle("c1"),
+        subject=_subject(),
+        fmt=PodcastFormat.DEEP_DIVE,
+        language="es",
+        target_seconds=200,
+    )
+    assert "Boxeo para principiantes" in system
+    assert "Boxeo para principiantes" in user
+    assert "La guardia" in user
+    assert "Mantener las manos altas sin bajar la barbilla" in user
+
+
+def test_build_prompts_without_passages_stays_on_the_subject() -> None:
     system, user = build_prompts(
         GroundedBundle(mode="empty", passages=[]),
+        subject=_subject(),
         fmt=PodcastFormat.THE_BRIEF,
         language="es",
         target_seconds=90,
     )
     assert "No hay fuentes citables" in system
-    assert "general" in user.lower()
+    assert "habla en general" not in user
+    assert "Boxeo para principiantes" in user
+
+
+def test_build_prompts_refuses_when_there_is_no_context_at_all() -> None:
+    with pytest.raises(MediaContextError):
+        build_prompts(
+            GroundedBundle(mode="empty", passages=[]),
+            subject=None,
+            fmt=PodcastFormat.DEEP_DIVE,
+            language="es",
+            target_seconds=200,
+        )
 
 
 def test_build_prompts_includes_steering_when_present() -> None:
     _system, user = build_prompts(
         _bundle("c1"),
+        subject=_subject(),
         fmt=PodcastFormat.DEBATE,
         language="es",
         target_seconds=200,

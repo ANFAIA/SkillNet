@@ -26,6 +26,20 @@ _DIMENSIONS_SQL = text(
 )
 
 
+def _selects_no_document(document_ids: Sequence[uuid.UUID] | None) -> bool:
+    """Tell "no filter" apart from "a filter that matches nothing".
+
+    ``None`` means *the whole organization*; an **empty sequence** means *these zero
+    documents*, and the honest answer to that is zero rows. The distinction is not
+    academic: ``services/media/grounding`` asks for the documents behind one course, and a
+    course created from an idea has none. Read as a falsy "no filter", the ``WHERE`` was
+    dropped and the search silently widened to every document in the org — so an
+    infographic for a boxing course came back citing somebody else's manual. A leak
+    between courses with citations attached is worse than no grounding at all.
+    """
+    return document_ids is not None and len(document_ids) == 0
+
+
 class DocumentChunkRepository(BaseRepository[DocumentChunk]):
     def __init__(self, session: AsyncSession) -> None:
         super().__init__(session, DocumentChunk)
@@ -132,7 +146,7 @@ class DocumentChunkRepository(BaseRepository[DocumentChunk]):
         ``ts_rank_cd`` value (typically well under 0.5) into ``similarity`` would feed it
         to a cosine threshold of 0.25 and filter away almost every row.
         """
-        if not terms:
+        if not terms or _selects_no_document(document_ids):
             return []
 
         tsquery = func.websearch_to_tsquery("spanish", " or ".join(terms))
@@ -177,7 +191,12 @@ class DocumentChunkRepository(BaseRepository[DocumentChunk]):
         top_k: int = 5,
         document_ids: Sequence[uuid.UUID] | None = None,
     ) -> list[dict]:
-        """Org-scoped cosine similarity search over chunks."""
+        """Org-scoped cosine similarity search over chunks.
+
+        ``document_ids=[]`` returns nothing (see :func:`_selects_no_document`).
+        """
+        if _selects_no_document(document_ids):
+            return []
         distance = DocumentChunk.embedding.cosine_distance(query_embedding)
         query = (
             select(
@@ -225,7 +244,11 @@ class DocumentChunkRepository(BaseRepository[DocumentChunk]):
         not. With ``headings`` empty the behaviour is identical to
         :meth:`similarity_search` with ``top_k=8``, which is also the documented retry
         when the heading filter returns nothing.
+
+        ``document_ids=[]`` returns nothing (see :func:`_selects_no_document`).
         """
+        if _selects_no_document(document_ids):
+            return []
         distance = DocumentChunk.embedding.cosine_distance(query_embedding)
         query = (
             select(

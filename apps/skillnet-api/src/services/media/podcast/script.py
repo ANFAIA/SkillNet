@@ -35,6 +35,7 @@ from src.core.exceptions import LLMError
 from src.core.logging import get_logger
 from src.llm.client import LLMService, resolve_llm_config
 from src.services.media.grounding import GroundedBundle
+from src.services.media.subject import MediaSubject, build_user_context, topic_rule
 
 logger = get_logger(__name__)
 
@@ -159,6 +160,7 @@ def coerce_format(value: object) -> PodcastFormat:
 def build_prompts(
     bundle: GroundedBundle,
     *,
+    subject: MediaSubject | None,
     fmt: PodcastFormat,
     language: str,
     target_seconds: int,
@@ -168,7 +170,13 @@ def build_prompts(
 
     The system prompt fixes the personas, the show format, the language, and the two hard
     rules (strict JSON only; citations in ``citation_ids``, never in ``text``). The user
-    prompt carries the grounded context block and the caller's optional steering note.
+    prompt carries the subject (which course, which lesson), the grounded context block and
+    the caller's optional steering note.
+
+    ``subject`` is keyword-only and has no default so that no call site can forget it by
+    omission; passing ``None`` is allowed but is then a deliberate statement, and it makes
+    an empty bundle fatal (:class:`~src.services.media.subject.MediaContextError`) instead
+    of yielding an episode about whatever the model felt like.
     """
     preset = PODCAST_FORMATS[fmt]
     word_budget = int(target_seconds * _WORDS_PER_SECOND)
@@ -185,6 +193,7 @@ def build_prompts(
     system = (
         "Eres un guionista de podcasts educativos al nivel de NotebookLM. Produces el guion "
         f"de un episodio en {lang_name} a partir del material aportado.\n\n"
+        f"{topic_rule(subject)}"
         f"{preset.guidance}\n\n"
         "CALIDAD DEL DIALOGO (haz que suene a conversacion real, no a locucion):\n"
         "- Arranca con un gancho concreto (una situacion, una pregunta, un dato que sorprende), "
@@ -211,11 +220,7 @@ def build_prompts(
         f"target_seconds={target_seconds}."
     )
 
-    context = bundle.as_prompt_context() or "(No hay material de origen; habla en general.)"
-    user_parts = [
-        "MATERIAL DE ORIGEN (cada bloque empieza con su marcador [Fuente cN: ...]):",
-        context,
-    ]
+    user_parts = [build_user_context(bundle, subject)]
     if steering:
         user_parts.append(f"\nINDICACION ADICIONAL DEL USUARIO:\n{steering.strip()}")
     user_parts.append("\nGenera ahora el guion en JSON.")
@@ -302,6 +307,7 @@ def parse_script(
 async def generate_script(
     bundle: GroundedBundle,
     *,
+    subject: MediaSubject | None = None,
     fmt: PodcastFormat = _DEFAULT_FORMAT,
     language: str = "es",
     target_seconds: int | None = None,
@@ -319,7 +325,12 @@ async def generate_script(
     preset = PODCAST_FORMATS[fmt]
     seconds = target_seconds or preset.target_seconds
     system, user = build_prompts(
-        bundle, fmt=fmt, language=language, target_seconds=seconds, steering=steering
+        bundle,
+        subject=subject,
+        fmt=fmt,
+        language=language,
+        target_seconds=seconds,
+        steering=steering,
     )
 
     service = llm or LLMService(resolve_llm_config())

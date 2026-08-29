@@ -40,6 +40,7 @@ class SlidesGenerator:
         await ctx.emit("guion", theme=theme)
         deck = await spec_mod.generate_deck(
             ctx.bundle,
+            subject=ctx.subject(),
             language=language,
             theme=theme,
             steering=steering if isinstance(steering, str) else None,

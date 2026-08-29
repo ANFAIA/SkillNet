@@ -31,6 +31,7 @@ from src.core.logging import get_logger
 from src.llm.client import LLMService, resolve_llm_config
 from src.services.media.grounding import GroundedBundle
 from src.services.media.slides.spec import Slide, SlideDeck
+from src.services.media.subject import MediaSubject, build_user_context, topic_rule
 
 logger = get_logger(__name__)
 
@@ -123,6 +124,7 @@ def build_prompts(
     deck: SlideDeck,
     bundle: GroundedBundle,
     *,
+    subject: MediaSubject | None,
     language: str,
     steering: str | None = None,
 ) -> tuple[str, str]:
@@ -130,8 +132,13 @@ def build_prompts(
 
     The system prompt fixes the one-line-per-slide discipline, the single-host tone, the
     language, and the two hard rules (strict JSON only; citations in ``citation_ids``, never
-    in the spoken text). The user prompt carries the slide summaries in order plus the
-    grounded context block and the caller's optional steering note.
+    in the spoken text). The user prompt carries the subject (which course, which lesson),
+    the slide summaries in order, the grounded context block and the caller's optional
+    steering note.
+
+    ``subject`` is keyword-only and has no default so that no call site can forget it by
+    omission; passing ``None`` is allowed but is then a deliberate statement, and it makes
+    an empty bundle fatal (:class:`~src.services.media.subject.MediaContextError`).
     """
     lang_name = "espanol" if language.startswith("es") else language
     n = len(deck.slides)
@@ -146,6 +153,7 @@ def build_prompts(
     system = (
         "Eres el narrador de un video-resumen educativo (diapositivas narradas). Un unico "
         f"presentador locuta en {lang_name}, una frase por diapositiva.\n\n"
+        f"{topic_rule(subject)}"
         "PRINCIPIOS:\n"
         f"- Escribe EXACTAMENTE {n} lineas de narracion, una por diapositiva y en el mismo "
         "orden.\n"
@@ -166,12 +174,10 @@ def build_prompts(
     summaries = "\n".join(
         f"[Diapositiva {i}] {_slide_summary(slide)}" for i, slide in enumerate(deck.slides, start=1)
     )
-    context = bundle.as_prompt_context() or "(No hay material de origen; habla en general.)"
     user_parts = [
-        f"DIAPOSITIVAS ({n}, en orden):",
-        summaries,
-        "\nMATERIAL DE ORIGEN (cada bloque empieza con su marcador [Fuente cN: ...]):",
-        context,
+        build_user_context(
+            bundle, subject, sections=[f"DIAPOSITIVAS ({n}, en orden):\n{summaries}"]
+        )
     ]
     if steering:
         user_parts.append(f"\nINDICACION ADICIONAL DEL USUARIO:\n{steering.strip()}")
@@ -260,6 +266,7 @@ async def generate_narration(
     deck: SlideDeck,
     bundle: GroundedBundle,
     *,
+    subject: MediaSubject | None = None,
     language: str = "es",
     steering: str | None = None,
     llm: LLMService | None = None,
@@ -272,7 +279,9 @@ async def generate_narration(
     """
     from src.config import settings
 
-    system, user = build_prompts(deck, bundle, language=language, steering=steering)
+    system, user = build_prompts(
+        deck, bundle, subject=subject, language=language, steering=steering
+    )
 
     service = llm or LLMService(resolve_llm_config())
     reply = await service.complete(

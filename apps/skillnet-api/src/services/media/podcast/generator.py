@@ -55,6 +55,7 @@ class PodcastGenerator:
         await ctx.emit("guion", format=fmt.value)
         script = await script_mod.generate_script(
             ctx.bundle,
+            subject=ctx.subject(),
             fmt=fmt,
             language=language,
             target_seconds=target_seconds,

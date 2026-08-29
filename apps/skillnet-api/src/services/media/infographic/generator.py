@@ -56,6 +56,7 @@ class InfographicGenerator:
         await ctx.emit("datos", style=style)
         infographic = await spec_mod.generate_infographic(
             ctx.bundle,
+            subject=ctx.subject(),
             language=language,
             style=style,
             orientation=orientation,

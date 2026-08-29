@@ -33,6 +33,7 @@ from src.core.exceptions import LLMError
 from src.core.logging import get_logger
 from src.llm.client import LLMService, resolve_llm_config
 from src.services.media.grounding import GroundedBundle
+from src.services.media.subject import MediaSubject, build_user_context, topic_rule
 
 logger = get_logger(__name__)
 
@@ -183,6 +184,7 @@ class SlideDeck(BaseModel):
 def build_prompts(
     bundle: GroundedBundle,
     *,
+    subject: MediaSubject | None,
     language: str,
     theme: str,
     steering: str | None = None,
@@ -192,8 +194,13 @@ def build_prompts(
 
     The system prompt fixes the deck discipline (one idea per slide), the block vocabulary,
     the language, and the two hard rules (strict JSON only; citations in ``citation_ids``,
-    never in visible text). The user prompt carries the grounded context block and the
-    caller's optional steering note.
+    never in visible text). The user prompt carries the subject (which course, which
+    lesson), the grounded context block and the caller's optional steering note.
+
+    ``subject`` is keyword-only and has no default so that no call site can forget it by
+    omission; passing ``None`` is allowed but is then a deliberate statement, and it makes
+    an empty bundle fatal (:class:`~src.services.media.subject.MediaContextError`) instead
+    of yielding a deck about whatever the model felt like.
     """
     lang_name = "espanol" if language.startswith("es") else language
 
@@ -207,6 +214,7 @@ def build_prompts(
     system = (
         "Eres un disenador de presentaciones educativas. Produces una plataforma de "
         f"diapositivas (slide deck) en {lang_name} a partir del material aportado.\n\n"
+        f"{topic_rule(subject)}"
         "PRINCIPIOS:\n"
         "- Una idea central por diapositiva, desarrollada hasta que pueda entenderse sin "
         "un presentador. Titulos cortos y concretos.\n"
@@ -253,11 +261,7 @@ def build_prompts(
         f'6. Devuelve language="{language}", theme="{theme}".'
     )
 
-    context = bundle.as_prompt_context() or "(No hay material de origen; habla en general.)"
-    user_parts = [
-        "MATERIAL DE ORIGEN (cada bloque empieza con su marcador [Fuente cN: ...]):",
-        context,
-    ]
+    user_parts = [build_user_context(bundle, subject)]
     if steering:
         user_parts.append(f"\nINDICACION ADICIONAL DEL USUARIO:\n{steering.strip()}")
     user_parts.append("\nGenera ahora la plataforma de diapositivas en JSON.")
@@ -347,6 +351,7 @@ def parse_deck(
 async def generate_deck(
     bundle: GroundedBundle,
     *,
+    subject: MediaSubject | None = None,
     language: str = "es",
     theme: str = "default",
     steering: str | None = None,
@@ -360,7 +365,9 @@ async def generate_deck(
     """
     from src.config import settings
 
-    system, user = build_prompts(bundle, language=language, theme=theme, steering=steering)
+    system, user = build_prompts(
+        bundle, subject=subject, language=language, theme=theme, steering=steering
+    )
 
     service = llm or LLMService(resolve_llm_config())
     reply = await service.complete(
