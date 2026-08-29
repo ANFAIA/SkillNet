@@ -52,7 +52,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.logging import get_logger
@@ -132,7 +132,9 @@ class EnrolmentFact:
     course_title: str
     status: str
     #: ``done``/``total`` in whatever unit the course is delivered in, or ``None`` when
-    #: the course has no units at all to count.
+    #: the course has no units at all to count. On a node course "done" is
+    #: ``mastery_service.node_is_done``, the same rule the learner's own progress bar
+    #: uses, so the two screens cannot disagree about the same person.
     done: int | None = None
     total: int | None = None
     #: "lecciones" or "nodos". Printed, because 3/5 lessons and 3/5 nodes are not the
@@ -170,7 +172,11 @@ class EmployeeFact:
     enrolments: tuple[EnrolmentFact, ...] = ()
     #: ``(skill name, level)``, level being low/medium/high as stored.
     skills: tuple[tuple[str, str], ...] = ()
-    #: Nodes this person has taken to ``mastered``, across every course.
+    #: Nodes this person has taken to ``mastered``, across every course. Deliberately
+    #: **not** the same count as the ``done``/``total`` of :class:`EnrolmentFact`: that
+    #: one asks how far through the course the person is (``mastery_service.node_is_done``,
+    #: which an expository node satisfies by being worked through), this one asks what
+    #: was demonstrated. A learner can be at 100% with zero nodes mastered.
     nodes_mastered: int = 0
 
     def needs_attention(self, today: date) -> bool:
@@ -237,7 +243,7 @@ async def build_org_snapshot(
     lesson_totals, lessons_done = await _lesson_counts(
         db, course_ids=course_ids, user_ids=user_ids
     )
-    node_totals, nodes_done = await _node_counts(
+    node_totals, nodes_done, nodes_mastered = await _node_counts(
         db, org_id=org_id, course_ids=course_ids, user_ids=user_ids
     )
     skills = await _skill_rows(db, org_id=org_id, user_ids=user_ids)
@@ -290,9 +296,12 @@ async def build_org_snapshot(
             hired_on=hired_at,
             enrolments=tuple(per_user.get(user_id, ())),
             skills=tuple(skills.get(user_id, ())[:MAX_SKILLS_PER_EMPLOYEE]),
+            # Mastery, not traversal: this line is the evidence the person produced, so
+            # it counts from the mastered tally and never from the done one, which is
+            # wider by every node that was worked through without a graded item.
             nodes_mastered=sum(
                 count
-                for (uid, _cid), count in nodes_done.items()
+                for (uid, _cid), count in nodes_mastered.items()
                 if uid == user_id
             ),
         )
@@ -455,21 +464,67 @@ async def _lesson_counts(
     return totals, done
 
 
+def _node_progress_query(
+    *,
+    org_id: uuid.UUID,
+    course_ids: Sequence[uuid.UUID],
+    user_ids: Sequence[uuid.UUID],
+):
+    """Per ``(user, course)``: nodes **done**, and of those, nodes **mastered**.
+
+    Two counts because they answer two different questions, and answering both with
+    ``mastered`` is the defect this function was extracted to fix. *Done* is traversal —
+    how far through the course this person is, the number behind ``40% (2/5 nodos)``.
+    *Mastered* is evidence — what the person demonstrated, the number behind "nodos
+    dominados". A course of expository nodes can be 100% done with nothing mastered, and
+    both statements are true at once.
+
+    **"Done" has a second home here, in SQL, and that is deliberate.** The definition
+    lives in ``mastery_service.node_is_done``: ``mastered`` **or** worked through to the
+    end (``completed_at``, migration 0029). That is a Python predicate over one row, and
+    an aggregate cannot import it — so the rule is written twice, in two languages, on
+    purpose. Whoever changes one has to change the other, or the admin will again be told
+    ``0/5`` about a learner the learner's own screen shows at 100%.
+
+    Archived nodes are excluded, matching ``EnrollmentService.node_progress``: a node
+    that is no longer served cannot be finished, so counting it would make every course
+    permanently incomplete.
+    """
+    mastered = LearnerNodeState.state == NodeState.MASTERED
+    return (
+        select(
+            LearnerNodeState.user_id,
+            CourseNode.course_id,
+            func.count(),
+            func.count().filter(mastered),
+        )
+        .join(CourseNode, CourseNode.id == LearnerNodeState.node_id)
+        .where(
+            CourseNode.org_id == org_id,
+            CourseNode.course_id.in_(course_ids),
+            CourseNode.archived.is_(False),
+            LearnerNodeState.user_id.in_(user_ids),
+            or_(mastered, LearnerNodeState.completed_at.is_not(None)),
+        )
+        .group_by(LearnerNodeState.user_id, CourseNode.course_id)
+    )
+
+
 async def _node_counts(
     db: AsyncSession,
     *,
     org_id: uuid.UUID,
     course_ids: Sequence[uuid.UUID],
     user_ids: Sequence[uuid.UUID],
-) -> tuple[dict[uuid.UUID, int], dict[tuple[uuid.UUID, uuid.UUID], int]]:
-    """``(live nodes per course, nodes mastered per (user, course))``.
-
-    Archived nodes are excluded on both sides, matching ``EnrollmentService.node_progress``:
-    a learner cannot master a node that is no longer served, so counting it would make
-    every course permanently incomplete.
-    """
+) -> tuple[
+    dict[uuid.UUID, int],
+    dict[tuple[uuid.UUID, uuid.UUID], int],
+    dict[tuple[uuid.UUID, uuid.UUID], int],
+]:
+    """``(live nodes per course, nodes done, nodes mastered)``, the last two per
+    ``(user, course)``. See :func:`_node_progress_query` for why the last two differ."""
     if not course_ids:
-        return {}, {}
+        return {}, {}, {}
     totals_query = (
         select(CourseNode.course_id, func.count())
         .where(
@@ -481,23 +536,17 @@ async def _node_counts(
     )
     totals = {row[0]: int(row[1]) for row in (await db.execute(totals_query)).all()}
     if not user_ids:
-        return totals, {}
-    done_query = (
-        select(LearnerNodeState.user_id, CourseNode.course_id, func.count())
-        .join(CourseNode, CourseNode.id == LearnerNodeState.node_id)
-        .where(
-            CourseNode.org_id == org_id,
-            CourseNode.course_id.in_(course_ids),
-            CourseNode.archived.is_(False),
-            LearnerNodeState.user_id.in_(user_ids),
-            LearnerNodeState.state == NodeState.MASTERED,
+        return totals, {}, {}
+    rows = (
+        await db.execute(
+            _node_progress_query(
+                org_id=org_id, course_ids=course_ids, user_ids=user_ids
+            )
         )
-        .group_by(LearnerNodeState.user_id, CourseNode.course_id)
-    )
-    done = {
-        (row[0], row[1]): int(row[2]) for row in (await db.execute(done_query)).all()
-    }
-    return totals, done
+    ).all()
+    done = {(row[0], row[1]): int(row[2]) for row in rows}
+    mastered = {(row[0], row[1]): int(row[3]) for row in rows}
+    return totals, done, mastered
 
 
 async def _skill_rows(

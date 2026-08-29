@@ -15,10 +15,12 @@ from __future__ import annotations
 
 import ast
 import inspect
+import uuid
 from datetime import date, datetime, timezone
 from types import SimpleNamespace
 
 import pytest
+from sqlalchemy.dialects import postgresql
 
 from src.services import org_snapshot as snapshot_module
 from src.services.org_snapshot import (
@@ -122,6 +124,145 @@ def test_needs_attention_is_overdue_or_never_opened() -> None:
         EnrolmentFact("C", "in_progress", deadline=date(2020, 1, 1)).needs_attention(TODAY)
         is True
     )
+
+
+# -- done and mastered, which are two different questions -----------------------------
+ORG_ID = uuid.UUID("aaaaaaaa-0000-0000-0000-000000000001")
+COURSE_ID = uuid.UUID("aaaaaaaa-0000-0000-0000-000000000002")
+USER_ID = uuid.UUID("aaaaaaaa-0000-0000-0000-000000000003")
+
+
+def _node_progress_sql() -> str:
+    """The statement as PostgreSQL will read it. There is no database here (§12.2)."""
+    query = snapshot_module._node_progress_query(
+        org_id=ORG_ID, course_ids=[COURSE_ID], user_ids=[USER_ID]
+    )
+    return str(
+        query.compile(
+            dialect=postgresql.dialect(), compile_kwargs={"literal_binds": True}
+        )
+    )
+
+
+def test_a_node_worked_through_to_the_end_counts_as_done_without_being_mastered() -> None:
+    """The rule is ``mastery_service.node_is_done``, spelled a second time in SQL.
+
+    An expository node has no graded item, so it can never be ``mastered`` however
+    completely it was read. Filtering on ``mastered`` alone showed the admin ``0/5`` for
+    a learner whose own screen said 100%, which is the whole bug.
+    """
+    _, _, where = _node_progress_sql().partition("WHERE ")
+
+    assert (
+        "(learner_node_states.state = 'mastered' "
+        "OR learner_node_states.completed_at IS NOT NULL)" in where
+    )
+
+
+def test_the_mastered_tally_is_filtered_back_down_to_evidence() -> None:
+    """The wider predicate must not leak into the count of what was demonstrated."""
+    sql = _node_progress_sql()
+
+    assert "count(*) FILTER (WHERE learner_node_states.state = 'mastered')" in sql
+    filtered = sql.partition("FILTER (WHERE ")[2].partition(")")[0]
+    assert "completed_at" not in filtered
+
+
+def test_archived_nodes_are_left_out_of_both_counts() -> None:
+    """A node that is no longer served cannot be finished, so it cannot be counted."""
+    assert "course_nodes.archived IS false" in _node_progress_sql()
+
+
+class _FakeResult:
+    def __init__(self, rows: list) -> None:
+        self._rows = list(rows)
+
+    def all(self) -> list:
+        return list(self._rows)
+
+    def scalar_one_or_none(self):
+        return self._rows[0][0] if self._rows else None
+
+
+class _FakeSession:
+    """Answers each assembly query by the table it reads, never by its turn.
+
+    Dispatching on call order would keep passing after the queries were reordered, and
+    would then be asserting about whichever statement happened to land in that slot.
+    """
+
+    def __init__(self, routes: list[tuple[str, list]]) -> None:
+        self._routes = routes
+
+    async def execute(self, query):
+        sql = str(query)
+        for marker, rows in self._routes:
+            if marker in sql:
+                return _FakeResult(rows)
+        return _FakeResult([])
+
+
+async def _snapshot_of_one_learner(*, done: int, mastered: int) -> EmployeeFact:
+    """One learner, one five-node dynamic course, and the two counts the query returns."""
+    db = _FakeSession(
+        [
+            ("organizations", [("La Espiga",)]),
+            ("learner_profiles", [(USER_ID, "Lucia Fernandez Vila", "Dependiente", True, None)]),
+            (
+                "courses.delivery_mode",
+                [
+                    SimpleNamespace(
+                        id=COURSE_ID,
+                        title="Alergenos",
+                        status="published",
+                        delivery_mode="dynamic",
+                        schema_status="validated",
+                    )
+                ],
+            ),
+            (
+                "enrollments",
+                [
+                    SimpleNamespace(
+                        user_id=USER_ID,
+                        course_id=COURSE_ID,
+                        status="in_progress",
+                        deadline=None,
+                        completed_at=None,
+                    )
+                ],
+            ),
+            ("learner_node_states", [(USER_ID, COURSE_ID, done, mastered)]),
+            ("course_nodes", [(COURSE_ID, 5)]),
+        ]
+    )
+    snapshot = await snapshot_module.build_org_snapshot(db, org_id=ORG_ID, now=NOW)
+    return snapshot.employees[0]
+
+
+async def test_progress_counts_the_nodes_that_are_done_not_the_ones_mastered() -> None:
+    """Three expository nodes read to the end are 3/5 to the admin, as to the learner."""
+    employee = await _snapshot_of_one_learner(done=3, mastered=0)
+
+    assert employee.enrolments[0].done == 3
+    assert employee.enrolments[0].percent == 60
+
+
+async def test_nodes_mastered_still_reports_only_what_was_demonstrated() -> None:
+    """The neighbouring figure asks a different question and must not move with the fix.
+
+    "Nodos dominados" is evidence produced, not ground covered; widening it to match
+    progress would tell an employer somebody demonstrated three competences they never
+    were graded on.
+    """
+    employee = await _snapshot_of_one_learner(done=3, mastered=1)
+
+    assert employee.enrolments[0].done == 3
+    assert employee.nodes_mastered == 1
+
+    text = render_snapshot(_snapshot(employees=(employee,)))
+    assert "60% (3/5 nodos)" in text
+    assert "nodos dominados: 1" in text
 
 
 # -- the privacy allowlist ----------------------------------------------------------
