@@ -32,7 +32,24 @@ class EmbeddingConfig:
 
 
 def resolve_embedding_config(org_settings: dict[str, Any] | None = None) -> EmbeddingConfig:
-    """Resolve embedding config; embeddings fall back to the LLM provider."""
+    """Resolve embedding config; embeddings fall back to the LLM **provider**.
+
+    "Provider" is the word that matters, and it used to be a lie. The fallback was resolved
+    field by field, so setting only ``EMBEDDING_API_KEY`` — the obvious thing to do when the
+    chat model has no embeddings endpoint — kept the LLM's ``api_base`` and sent an OpenAI
+    key to, say, ``api.deepseek.com``. The provider answers ``401 ... your api key is
+    invalid``, which is the one message guaranteed to send whoever set it to regenerate a
+    perfectly good key.
+
+    So the key and the base URL travel **together**: either both come from the embedding
+    settings or both are inherited from the LLM, never one of each. Declaring an embedding
+    key with no base URL now means "the provider's default endpoint", which is what anyone
+    writing that line meant.
+
+    The model keeps its own fallback on purpose: it is a name, not a credential, and a
+    deployment that names an embedding model without a key is asking to use the LLM's
+    provider for it.
+    """
     org_settings = org_settings or {}
     model = (
         org_settings.get("embedding_model")
@@ -40,22 +57,17 @@ def resolve_embedding_config(org_settings: dict[str, Any] | None = None) -> Embe
         or org_settings.get("llm_model")
         or settings.LLM_MODEL
     )
-    api_base = (
-        org_settings.get("embedding_base_url")
-        or settings.EMBEDDING_BASE_URL
-        or org_settings.get("llm_base_url")
-        or settings.LLM_BASE_URL
-        or None
-    )
     # Both org-stored keys go through `unseal`: they are encrypted at rest
     # (src/core/secrets.py), and it is a no-op on the environment defaults.
-    api_key = (
-        unseal(org_settings.get("embedding_api_key"))
-        or settings.EMBEDDING_API_KEY
-        or unseal(org_settings.get("llm_api_key"))
-        or settings.LLM_API_KEY
-        or None
-    )
+    propia_key = unseal(org_settings.get("embedding_api_key")) or settings.EMBEDDING_API_KEY
+    propia_base = org_settings.get("embedding_base_url") or settings.EMBEDDING_BASE_URL
+
+    if propia_key or propia_base:
+        api_key = propia_key or None
+        api_base = propia_base or None
+    else:
+        api_key = unseal(org_settings.get("llm_api_key")) or settings.LLM_API_KEY or None
+        api_base = org_settings.get("llm_base_url") or settings.LLM_BASE_URL or None
     return EmbeddingConfig(
         model=model,
         api_base=api_base,

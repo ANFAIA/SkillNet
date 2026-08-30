@@ -78,6 +78,12 @@ def test_resolve_llm_config_reads_both_forms(monkeypatch: pytest.MonkeyPatch):
 
 
 def test_resolve_embedding_config_reads_both_forms(monkeypatch: pytest.MonkeyPatch):
+    # `EMBEDDING_BASE_URL` is cleared because this test is about `unseal` reading sealed and
+    # plain keys, not about which provider wins: an embedding base URL of its own now means
+    # the embedding provider is declared, and a declared provider does not borrow the chat
+    # model's key. See `tests/test_embedding_provider_pairing.py`. Without this line the
+    # assertion passes or fails depending on what the developer happens to have in `.env`.
+    monkeypatch.setattr(app_settings, "EMBEDDING_BASE_URL", "")
     monkeypatch.setattr(app_settings, "EMBEDDING_API_KEY", "")
     monkeypatch.setattr(app_settings, "LLM_API_KEY", "env-key")
     assert resolve_embedding_config({"embedding_api_key": seal(KEY)}).api_key == KEY
