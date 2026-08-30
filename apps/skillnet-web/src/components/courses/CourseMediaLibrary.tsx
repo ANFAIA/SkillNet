@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { useIntl } from 'react-intl'
 import { Card, EmptyState, Modal } from '../ui'
 import { useCourseArtifacts, type MediaArtifactRead } from '../../api/media'
+import { mediaErrorMessageId } from '../../lib/mediaErrors'
 import { useCourseNodes } from '../../api/nodes'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
 import { CourseArtifactView } from './CourseArtifactView'
@@ -76,7 +77,7 @@ export function CourseMediaLibrary({ courseId, operational = false }: CourseMedi
                         </span>
                       )}
                     </span>
-                    {operational && artifact.status === 'error' && artifact.error && <p className="mt-0.5 truncate text-xs text-danger">{artifact.error}</p>}
+                    {operational && artifact.status === 'error' && <p className="mt-0.5 truncate text-xs text-danger">{intl.formatMessage({ id: mediaErrorMessageId(artifact.error_code) })}</p>}
                     {!operational && (
                       <>
                         <p className="mt-0.5 text-xs text-text-muted">

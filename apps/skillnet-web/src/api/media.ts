@@ -47,6 +47,11 @@ export interface MediaArtifactRead {
   spec_json: Record<string, unknown>
   has_asset: boolean
   content_hash: string | null
+  /**
+   * The server's stable failure code (`services/media/jobs.py`). What the UI keys its
+   * message off — `error` is the English fallback sentence beside it, not copy.
+   */
+  error_code: string | null
   error: string | null
   created_at: string
   updated_at: string
@@ -160,14 +165,15 @@ export interface MediaStreamState {
   step: string | null
   /** The artifact this stream is following, from `media_done`. */
   artifactId: string | null
-  error: string | null
+  /** The failure code from `media_error`. The wording is the UI's — see `lib/mediaErrors`. */
+  errorCode: string | null
 }
 
 const IDLE_STREAM: MediaStreamState = {
   status: 'idle',
   step: null,
   artifactId: null,
-  error: null,
+  errorCode: null,
 }
 
 /** Events after which the server closes the stream. */
@@ -270,11 +276,10 @@ export function useMediaStream(handlers: MediaStreamHandlers = {}) {
             settle('done', id)
             terminal = true
           } else if (type === 'media_error') {
-            const message =
-              typeof data.message === 'string' && data.message.trim()
-                ? data.message
-                : 'No se pudo generar.'
-            setState((prev) => ({ ...prev, status: 'error', error: message }))
+            // `message` also rides on this event; it is the server's English fallback and
+            // deliberately not read here.
+            const code = typeof data.code === 'string' && data.code.trim() ? data.code : null
+            setState((prev) => ({ ...prev, status: 'error', errorCode: code }))
             settle('error', null)
             terminal = true
           }

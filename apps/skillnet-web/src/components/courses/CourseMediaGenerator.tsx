@@ -20,6 +20,7 @@ import {
 import { ApiError } from '../../api/client'
 import { Gated } from '../Gated'
 import { capabilityReduced } from '../../lib/capabilityCopy'
+import { mediaErrorMessageId } from '../../lib/mediaErrors'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
 import { CourseArtifactView } from './CourseArtifactView'
 import { CourseMediaIcon } from './CourseMediaIcon'
@@ -299,8 +300,8 @@ export function CourseMediaGenerator({ courseId }: { courseId: string }) {
       {blockedError && (
         <p className="mb-3 text-sm text-danger" role="alert">{blockedError}</p>
       )}
-      {stream.status === 'error' && stream.error && (
-        <p className="mb-3 text-sm text-danger" role="alert">{intl.formatMessage({ id: 'overviews.error' })}: {stream.error}</p>
+      {stream.status === 'error' && (
+        <p className="mb-3 text-sm text-danger" role="alert">{intl.formatMessage({ id: 'overviews.error' })}: {intl.formatMessage({ id: mediaErrorMessageId(stream.errorCode) })}</p>
       )}
 
       {/* Inline preview of the just-generated artefact — plays/shows it here regardless of

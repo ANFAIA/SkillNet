@@ -9,6 +9,7 @@ import {
 } from '../../api/media'
 import { useCourseNodes } from '../../api/nodes'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
+import { mediaErrorMessageId } from '../../lib/mediaErrors'
 import { CourseArtifactView } from './CourseArtifactView'
 import { CourseMediaIcon } from './CourseMediaIcon'
 
@@ -197,9 +198,9 @@ export function NodeMediaDialog({
           </span>
         </div>
       )}
-      {stream.status === 'error' && stream.error && (
+      {stream.status === 'error' && (
         <p className="mt-3 text-sm text-danger" role="alert">
-          {intl.formatMessage({ id: 'overviews.error' })}: {stream.error}
+          {intl.formatMessage({ id: 'overviews.error' })}: {intl.formatMessage({ id: mediaErrorMessageId(stream.errorCode) })}
         </p>
       )}
 
