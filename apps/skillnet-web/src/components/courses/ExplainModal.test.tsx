@@ -312,7 +312,7 @@ describe('ExplainModal', () => {
   })
 
   describe('the follow-up thread', () => {
-    it('blocks the composer until the initial done event provides a session', async () => {
+    it('hides the composer until the initial done event provides a session', async () => {
       const delayed = chatProseWithDelayedDone(PANEL, 'delayed-session')
       let chatRequest = 0
       mockFetch.mockImplementation((url: string) => {
@@ -325,9 +325,8 @@ describe('ExplainModal', () => {
       renderModal()
       await waitFor(() => expect(chatCalls()).toHaveLength(1))
 
-      const waitingComposer = screen.getByPlaceholderText('Generando explicación')
-      expect(waitingComposer).toBeDisabled()
-      await userEvent.type(waitingComposer, 'Esto no debe enviarse{Enter}')
+      expect(screen.queryByPlaceholderText('Generando explicación')).not.toBeInTheDocument()
+      expect(screen.queryByPlaceholderText('Pregunta algo más...')).not.toBeInTheDocument()
       expect(chatCalls()).toHaveLength(1)
 
       delayed.releaseDone()

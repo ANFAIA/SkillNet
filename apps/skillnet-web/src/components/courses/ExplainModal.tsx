@@ -569,11 +569,9 @@ function FollowUpMessages({ messages }: { messages: FollowUpMessage[] }) {
 function FollowUpInput({
   onSend,
   isStreaming,
-  ready,
 }: {
   onSend: (text: string) => void
   isStreaming?: boolean
-  ready: boolean
 }) {
   const intl = useIntl()
   const [input, setInput] = useState('')
@@ -592,10 +590,7 @@ function FollowUpInput({
         onChange={setInput}
         onSend={handleSend}
         isStreaming={isStreaming}
-        disabled={!ready}
-        placeholder={intl.formatMessage({
-          id: ready ? 'explain.followUpPlaceholder' : 'explain.generating',
-        })}
+        placeholder={intl.formatMessage({ id: 'explain.followUpPlaceholder' })}
         size="sm"
       />
     </form>
@@ -844,12 +839,14 @@ export function ExplainModal({
             </ClickableSurface>
           </div>
 
-          {/* Composer — outside scroll, sticky at bottom */}
-          <FollowUpInput
-            onSend={followUpState.send}
-            isStreaming={followUpState.isStreaming}
-            ready={Boolean(sessionId)}
-          />
+          {/* The composer only exists once the initial generation has completed. A
+              disabled input during loading looked like a broken attempt to type. */}
+          {sessionId && (
+            <FollowUpInput
+              onSend={followUpState.send}
+              isStreaming={followUpState.isStreaming}
+            />
+          )}
         </div>
       </div>
     </ExplainLayer>,
