@@ -65,9 +65,10 @@ export default function Hero({ lang = "es" }: { lang?: Locale }) {
         <a
           href={DEMO_URL}
           onClick={() => trackCta("demo_open", "hero", lang)}
-          className="hero-rise hero-rise--delay-2 type-ui mt-6 text-white/75 underline underline-offset-4 transition-colors duration-200 ease-out hover:text-white"
+          className="hero-rise hero-rise--delay-2 type-ui mt-6 inline-flex items-center gap-1.5 text-white/90 underline underline-offset-4 transition-colors duration-200 ease-out hover:text-white"
         >
           {COPY.demoCta}
+          <span aria-hidden="true">→</span>
         </a>
       </div>
     </section>

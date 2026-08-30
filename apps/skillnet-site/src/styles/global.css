@@ -551,7 +551,10 @@ a {
   line-height: 1.75;
 }
 
-.vision-shell { max-width: min(1120px, 80%); }
+/* El mismo ancho que el resto de secciones, que usan `max-w-[80%]` sin tope en pixeles.
+   Llevaba ademas un techo de 1120px —el unico de toda la hoja— y eso hacia que a partir de
+   unos 1400px de pantalla Vision se quedara estrecha mientras el resto seguia creciendo. */
+.vision-shell { max-width: 80%; }
 .vision-intro { margin-top: 2rem; width: 100%; }
 .vision-block { margin-top: clamp(3rem, 7vw, 6.5rem); }
 .vision-block--full { margin-top: 2.5rem; }
