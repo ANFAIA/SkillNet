@@ -470,7 +470,10 @@ a {
 .open-source-copy {
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  /* Centrado, como la tarjeta que tiene al lado. Con `space-between` la etiqueta se pegaba
+     arriba y el parrafo abajo, dejando un hueco en medio de los 280px de alto: los dos
+     cuadros de la pareja se veian maquetados con criterios distintos. */
+  justify-content: center;
   gap: 32px;
   border: 1px solid var(--color-border-strong);
   background: #fff;
