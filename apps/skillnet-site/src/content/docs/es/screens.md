@@ -327,7 +327,7 @@ Vista general de todo el contenido (cursos + manuales).
 - **Lista de contenido** — título, tipo (curso/manual), estado (borrador/publicado/archivado), fecha de creación, documento fuente
 - **Filtro** — por tipo, por estado
 - Botón **Crear nuevo** -> `/admin/crear-curso`
-- Botón **Esquema** por curso -> `/admin/curso/:id/esquema`
+- Botón **Esquema** por curso -> `/admin/curso/:id/ajustes`
 
 **Datos:**
 - `GET /api/v1/courses` — todos los cursos
@@ -447,6 +447,7 @@ de `App.tsx` y los `Link`, sin efecto en la API.
 |-------|--------|------|
 | `/` | Redirección según rol | público |
 | `/login` | Login | público |
+| `/setup` | Asistente de puesta en marcha | público |
 | `/onboarding` | Asistente de perfil del aprendiz (v2) | empleado |
 | `/empleado/ajustes` | Preferencias de aprendizaje y accesibilidad | empleado |
 | `/empleado` | Dashboard del Empleado | empleado |
@@ -456,19 +457,36 @@ de `App.tsx` y los `Link`, sin efecto en la API.
 | `/empleado/skillmap` | Mapa de Skills | empleado |
 | `/empleado/chat` | Chat Tutor | empleado |
 | `/admin` | Dashboard de Admin | admin |
+| `/admin/demo` | Lección escaparate | admin |
 | `/admin/empleados` | Empleados (invitar vive dentro) | admin |
+| `/admin/talento` | Talento | admin |
 | `/admin/contenido` | Gestión de Contenido | admin |
 | `/admin/crear-curso` | Creación de Contenido (los 5 pasos, una ruta) | admin |
 | `/admin/curso/:id` | Vista Previa de Curso | admin |
-| `/admin/curso/:id/esquema` | Esquema de Curso (v2) | admin |
+| `/admin/curso/:id/ajustes` | Esquema de Curso (v2) | admin |
+| `/admin/curso/:id/esquema` | Redirige a `/admin/curso/:id/ajustes` | admin |
+| `/admin/curso/:id/estudio` | Redirige a `/admin/probar-curso/:id` | admin |
+| `/admin/probar-curso/:id` | Vista de Curso — la prueba del admin | admin |
+| `/admin/probar-curso/:id/nodo/:nodeId` | Vista de Nodo — la prueba del admin | admin |
 | `/admin/chat` | Chat de Admin | admin |
 | `/admin/ajustes` | Ajustes de Admin | admin |
 | `/dev/motion` | Demo de animación (solo desarrollo) | público |
+| `/dev/didact` | Laboratorio de componentes Didact (solo desarrollo) | admin |
 
 Tres de estas pertenecen a v2: `/onboarding`, `/empleado/curso/:id/nodo/:nodeId` y
-`/admin/curso/:id/esquema`. Siempre están montadas; que muestren contenido v2 depende del
+`/admin/curso/:id/ajustes`. Siempre están montadas; que muestren contenido v2 depende del
 curso, no de ningún ajuste global — un curso que no es `dynamic`+`validated` se sirve en
 su formato v1 (`resolve_delivery`, ver `v2-dynamic-courses.md` §10).
+
+**Un curso se lee desde dos de estas rutas, no desde una.** `/admin/probar-curso/:id` monta
+los mismos componentes que usa el aprendiz — `CourseView` y `NodeView` — dentro de
+`AdminLayout`, para que el admin pruebe el curso sin salir de su contexto. Así que todo lo que
+vive dentro de un curso tiene que funcionar bajo los dos prefijos, y nada de lo que hay dentro
+debe reconstruir la URL del curso recortando la actual: `src/lib/courseRoutes.ts` es el dueño de
+esa forma y la contesta a cualquier profundidad. Queda escrito porque el código hacía ese
+recorte en cuatro sitios, y la copia del mapa del curso producía `/…/curso/A/nodo/B/nodo/C` al
+abrirse desde dentro de una lección — no casaba ninguna ruta, el comodín mandaba al aprendiz a
+su inicio, y pulsar una lección parecía pulsar Inicio.
 
 No existe una página de ajustes de empleado ni una página de visor de manual; ambas están
 especificadas arriba pero no construidas.

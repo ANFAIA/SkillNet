@@ -327,7 +327,7 @@ Overview of all content (courses + manuals).
 - **Content list** — title, type (course/manual), status (draft/published/archived), creation date, source document
 - **Filter** — by type, by status
 - **Create new** button -> `/admin/crear-curso`
-- **Esquema** button per course -> `/admin/curso/:id/esquema`
+- **Esquema** button per course -> `/admin/curso/:id/ajustes`
 
 **Data:**
 - `GET /api/v1/courses` — all courses
@@ -447,6 +447,7 @@ rename of `App.tsx` and the `Link`s, with no effect on the API.
 |-------|--------|------|
 | `/` | Redirect by role | public |
 | `/login` | Login | public |
+| `/setup` | First-run setup wizard | public |
 | `/onboarding` | Learner profile wizard (v2) | employee |
 | `/empleado/ajustes` | Preferencias de aprendizaje y accesibilidad | employee |
 | `/empleado` | Employee Dashboard | employee |
@@ -456,19 +457,35 @@ rename of `App.tsx` and the `Link`s, with no effect on the API.
 | `/empleado/skillmap` | Skill Map | employee |
 | `/empleado/chat` | Chat Tutor | employee |
 | `/admin` | Admin Dashboard | admin |
+| `/admin/demo` | Showcase lesson | admin |
 | `/admin/empleados` | Employees (invite lives inside) | admin |
+| `/admin/talento` | Talent | admin |
 | `/admin/contenido` | Content Management | admin |
 | `/admin/crear-curso` | Content Creation (all 5 steps, one route) | admin |
 | `/admin/curso/:id` | Course Preview | admin |
-| `/admin/curso/:id/esquema` | Course Schema (v2) | admin |
+| `/admin/curso/:id/ajustes` | Course Schema (v2) | admin |
+| `/admin/curso/:id/esquema` | Redirects to `/admin/curso/:id/ajustes` | admin |
+| `/admin/curso/:id/estudio` | Redirects to `/admin/probar-curso/:id` | admin |
+| `/admin/probar-curso/:id` | Course View — the admin's test drive | admin |
+| `/admin/probar-curso/:id/nodo/:nodeId` | Node View — the admin's test drive | admin |
 | `/admin/chat` | Admin Chat | admin |
 | `/admin/ajustes` | Admin Settings | admin |
 | `/dev/motion` | Motion demo (development only) | public |
+| `/dev/didact` | Didact component lab (development only) | admin |
 
 Three of these belong to v2: `/onboarding`, `/empleado/curso/:id/nodo/:nodeId` and
-`/admin/curso/:id/esquema`. They are always mounted; whether they show v2 content depends on
+`/admin/curso/:id/ajustes`. They are always mounted; whether they show v2 content depends on
 the course, not on any global setting — a course that is not `dynamic`+`validated` is served in
 its v1 format instead (`resolve_delivery`, see `v2-dynamic-courses.md` §10).
+
+**A course is read from two of these, not one.** `/admin/probar-curso/:id` mounts the very
+components the learner uses — `CourseView` and `NodeView` — inside `AdminLayout`, so the admin
+tries the course without leaving their context. Anything inside a course therefore has to work
+under both prefixes, and nothing inside one should rebuild the course URL by trimming the
+current one: `src/lib/courseRoutes.ts` owns that shape and answers it from any depth. Written
+down because the code did the trimming in four places, and the copy in the course map produced
+`/…/curso/A/nodo/B/nodo/C` when it was opened from inside a lesson — no route matched, the
+catch-all sent the learner to their dashboard, and clicking a lesson looked like clicking Home.
 
 There is no employee settings page and no manual viewer page; both are specified above but
 unbuilt.
