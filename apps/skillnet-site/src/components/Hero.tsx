@@ -1,6 +1,6 @@
 import type { Locale } from "../i18n/config";
 import { t } from "../i18n/ui";
-import { GITHUB_URL } from "../data/links";
+import { DEMO_URL, GITHUB_URL } from "../data/links";
 import { trackCta } from "../lib/analytics";
 
 const BACKGROUND_URL = "/images/landing/skillnet-learning-commons-background-v1.webp";
@@ -59,6 +59,16 @@ export default function Hero({ lang = "es" }: { lang?: Locale }) {
             {COPY.moreCta}
           </a>
         </div>
+
+        {/* La demo, deliberadamente por debajo de los dos botones: es una invitación, no
+            una tercera decisión que tomar en el mismo golpe de vista. */}
+        <a
+          href={DEMO_URL}
+          onClick={() => trackCta("demo_open", "hero", lang)}
+          className="hero-rise hero-rise--delay-2 type-ui mt-6 text-white/75 underline underline-offset-4 transition-colors duration-200 ease-out hover:text-white"
+        >
+          {COPY.demoCta}
+        </a>
       </div>
     </section>
   );

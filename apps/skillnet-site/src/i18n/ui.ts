@@ -36,6 +36,7 @@ const es = {
       "SkillNet convierte una idea o fuente en un curso que puede adaptar sus explicaciones, actividades e interfaz a cada persona.",
     github: "Explorar en GitHub",
     moreCta: "Saber más",
+    demoCta: "O pruébalo ahora, sin registrarte",
   },
   whatWeDo: {
     title: "Qué es SkillNet",
@@ -210,6 +211,7 @@ const en: typeof es = {
       "SkillNet turns an idea or a source into a course that can adapt its explanations, activities and interface to each person.",
     github: "Explore on GitHub",
     moreCta: "Learn more",
+    demoCta: "Or try it now, no sign-up",
   },
   whatWeDo: {
     title: "What SkillNet is",

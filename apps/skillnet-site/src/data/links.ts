@@ -1,5 +1,7 @@
 /** External destinations used across the landing, in one place. */
 export const GITHUB_URL = "https://github.com/ANFAIA/SkillNet";
+/** La demo pública: se entra por `/entrar`, que es quien crea el espacio de la visita. */
+export const DEMO_URL = "https://demo.skillnet.es/entrar";
 export const LINKEDIN_URL = "https://www.linkedin.com/in/jose-est%C3%A9vez-b9b761388";
 export const EMAIL_URL = "mailto:jose@skillnet.es";
 export const ANFAIA_URL = "https://anfaia.org";
