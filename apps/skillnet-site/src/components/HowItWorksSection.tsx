@@ -11,7 +11,8 @@ import {
 import { motion, useReducedMotion } from "framer-motion";
 import type { Locale } from "../i18n/config";
 import { t, type Copy } from "../i18n/ui";
-import { trackEvent } from "../lib/analytics";
+import { trackCta, trackEvent } from "../lib/analytics";
+import { DEMO_URL } from "../data/links";
 import { revealGroup, revealItem, useEntrance } from "./useEntrance";
 
 const MODE_KEYS = ["texto", "imagen", "video", "audio"] as const;
@@ -275,6 +276,21 @@ export default function HowItWorksSection({ lang = "es" }: { lang?: Locale }) {
         })}
       </motion.div>
       <motion.p variants={revealItem} className="type-caption mt-4 text-[var(--color-text-secondary)]">{copy.caption}</motion.p>
+
+      {/* La demo cierra esta seccion y no otra: aqui acaba de explicarse el mecanismo, y
+          quien se lo ha creido tiene exactamente una pregunta siguiente. Una prueba va
+          pegada a la afirmacion que demuestra. */}
+      <motion.a
+        variants={revealItem}
+        href={DEMO_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={() => trackCta("demo_open", "how_it_works", lang)}
+        className="type-ui mt-10 inline-flex items-center gap-2 rounded-lg border border-[var(--color-border-strong)] px-5 py-3 text-[var(--color-primary-deep)] transition-colors duration-200 ease-out hover:border-[var(--color-primary)]"
+      >
+        {copy.demoCta}
+        <span aria-hidden="true">&rarr;</span>
+      </motion.a>
     </motion.div>
   </section>;
 }

@@ -6,7 +6,7 @@ import Logo from "./Logo";
 import DocsTree from "./docs/DocsTree";
 import { LANG_STORAGE_KEY, type Locale } from "../i18n/config";
 import { t } from "../i18n/ui";
-import { GITHUB_URL } from "../data/links";
+import { DEMO_URL, GITHUB_URL } from "../data/links";
 import type { DocsFileTreeNode } from "../data/docsNav";
 import { trackCta } from "../lib/analytics";
 
@@ -74,6 +74,9 @@ export default function SiteHeader({
         { href: "#que-es-skillnet", label: copy.nav.what, eventName: undefined },
         { href: "#como-funciona", label: copy.nav.how, eventName: undefined },
         { href: "#para-quien", label: copy.nav.who, eventName: undefined },
+        // La demo tambien en el menu: quien decide a mitad de pagina no deberia tener que
+        // volver a buscarla. Abre en pestana nueva para no sacar a nadie de la web.
+        { href: DEMO_URL, label: copy.nav.demo, eventName: "demo_open" as const },
         { href: "#contacto", label: copy.nav.contact, eventName: undefined },
         { href: docsHome, label: copy.nav.docs, eventName: "docs_open" },
       ];
