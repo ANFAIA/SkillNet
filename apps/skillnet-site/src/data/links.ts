@@ -2,6 +2,20 @@
 export const GITHUB_URL = "https://github.com/ANFAIA/SkillNet";
 /** La demo pública: se entra por `/entrar`, que es quien crea el espacio de la visita. */
 export const DEMO_URL = "https://demo.skillnet.es/entrar";
+
+/**
+ * The demo door, told which language to open in.
+ *
+ * The demo picks its own language from `Accept-Language`, which is the right answer for
+ * anyone arriving cold. It is the wrong one for anyone arriving from here: this page
+ * already knows better, because the reader either let the browser choose (same answer) or
+ * explicitly picked a language on the site — a choice `Accept-Language` does not carry.
+ * Passing it makes the two ends agree in the one case where they otherwise would not: a
+ * Spanish browser reading the English site.
+ */
+export function demoUrl(locale: "es" | "en"): string {
+  return `${DEMO_URL}?lang=${locale}`;
+}
 export const LINKEDIN_URL = "https://www.linkedin.com/in/jose-est%C3%A9vez-b9b761388";
 export const EMAIL_URL = "mailto:jose@skillnet.es";
 export const ANFAIA_URL = "https://anfaia.org";

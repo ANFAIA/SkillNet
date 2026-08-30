@@ -12,7 +12,7 @@ import { motion, useReducedMotion } from "framer-motion";
 import type { Locale } from "../i18n/config";
 import { t, type Copy } from "../i18n/ui";
 import { trackCta, trackEvent } from "../lib/analytics";
-import { DEMO_URL } from "../data/links";
+import { demoUrl } from "../data/links";
 import { revealGroup, revealItem, useEntrance } from "./useEntrance";
 
 const MODE_KEYS = ["texto", "imagen", "video", "audio"] as const;
@@ -282,7 +282,7 @@ export default function HowItWorksSection({ lang = "es" }: { lang?: Locale }) {
           pegada a la afirmacion que demuestra. */}
       <motion.a
         variants={revealItem}
-        href={DEMO_URL}
+        href={demoUrl(lang)}
         target="_blank"
         rel="noopener noreferrer"
         onClick={() => trackCta("demo_open", "how_it_works", lang)}
