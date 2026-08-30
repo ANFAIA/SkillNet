@@ -97,8 +97,6 @@ const es = {
     status: "Versión en desarrollo",
     body1:
       "SkillNet se construye en abierto: el código puede revisarse, ejecutarse y mejorarse públicamente. Es self-hosted, con el proveedor de IA que elijas o con modelos locales, y su API, el servicio A2A y el servidor MCP permiten usarlo desde otras herramientas. Licencia Apache 2.0.",
-    body2:
-      "La instancia y sus datos quedan bajo tu control; si eliges un proveedor externo, el tratamiento del contenido dependerá de su configuración.",
     cardTitle: "Explorar SkillNet en GitHub",
     cardDetail:
       "Revisa el código, pruébalo o deja una estrella para seguir su evolución.",
@@ -270,8 +268,6 @@ const en: typeof es = {
     status: "Version in development",
     body1:
       "SkillNet is built in the open: the code can be reviewed, run and improved publicly. It is self-hosted, with the AI provider you choose or with local models, and its API, the A2A service and the MCP server let you use it from other tools. Apache 2.0 licence.",
-    body2:
-      "The instance and its data stay under your control; if you pick an external provider, how the content is handled will depend on their configuration.",
     cardTitle: "Explore SkillNet on GitHub",
     cardDetail:
       "Review the code, try it out, or leave a star to follow how it evolves.",
