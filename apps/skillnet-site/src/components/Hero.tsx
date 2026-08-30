@@ -64,6 +64,8 @@ export default function Hero({ lang = "es" }: { lang?: Locale }) {
             una tercera decisión que tomar en el mismo golpe de vista. */}
         <a
           href={DEMO_URL}
+          target="_blank"
+          rel="noopener noreferrer"
           onClick={() => trackCta("demo_open", "hero", lang)}
           className="hero-rise hero-rise--delay-2 type-ui mt-6 inline-flex items-center gap-1.5 text-white/90 underline underline-offset-4 transition-colors duration-200 ease-out hover:text-white"
         >
