@@ -20,7 +20,14 @@ export const LINKEDIN_URL = "https://www.linkedin.com/in/jose-est%C3%A9vez-b9b76
 export const EMAIL_URL = "mailto:jose@skillnet.es";
 export const ANFAIA_URL = "https://anfaia.org";
 export const GESTION_TICKETS_URL = "https://gestiontickets.online/";
-export const CURIO_URL = "https://github.com/JoseEstevez520/curio";
+/**
+ * Curio's own page, not its repository. Someone reading "built with" on a landing page is
+ * asking what the thing IS, and a repository answers a different question: it opens on a
+ * file tree and a README, which is the right destination for whoever has already decided
+ * to use it and the wrong one for everybody else. Didact still points at its repository
+ * because it has no page yet.
+ */
+export const CURIO_URL = "https://curio-landing-phi.vercel.app";
 export const DIDACT_URL = "https://github.com/JoseEstevez520/Didact";
 
 /**
