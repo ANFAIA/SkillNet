@@ -7,6 +7,7 @@ import { CourseMediaGenerator } from './CourseMediaGenerator'
 import { CourseMediaLibrary } from './CourseMediaLibrary'
 import { CourseChatPanel } from './CourseChatPanel'
 import { hasStartedCourse, selectResumeNode } from '../../features/resume/selectResumeNode'
+import { useCoursePath, nodePath } from '../../lib/courseRoutes'
 import type { CourseDetail, NodeList } from '../../types'
 
 interface CourseOverviewProps {
@@ -17,7 +18,7 @@ interface CourseOverviewProps {
 export function CourseOverview({ course, nodes }: CourseOverviewProps) {
   const intl = useIntl()
   const navigate = useNavigate()
-  const { pathname, state: routeState } = useLocation()
+  const { state: routeState } = useLocation()
   const [chatOpen, setChatOpen] = useState(false)
   const orderedNodes = useMemo(
     () => [...nodes.nodes].sort((a, b) => a.position - b.position),
@@ -35,7 +36,8 @@ export function CourseOverview({ course, nodes }: CourseOverviewProps) {
     () => selectResumeNode(orderedNodes, nodes.next_node_id),
     [orderedNodes, nodes.next_node_id],
   )
-  const nodeHref = target ? `${pathname.replace(/\/$/, '')}/nodo/${target.id}` : null
+  const courseBasePath = useCoursePath(course.id)
+  const nodeHref = target ? nodePath(courseBasePath, target.id) : null
 
   /**
    * "Continuar donde lo dejaste" elsewhere in the app navigates here with

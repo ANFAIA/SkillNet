@@ -22,6 +22,7 @@ import { transition, duration, ease } from '../../lib/motion'
 import { useLearnerProfile } from '../../api/onboarding'
 import { post } from '../../api/client'
 import { useNodeMorph } from '../../stores/nodeMorph'
+import { isAdminPreviewPath, useCoursePath, nodePath } from '../../lib/courseRoutes'
 import { hasStartedCourse } from '../../features/resume/selectResumeNode'
 import {
   clearCoursePositions,
@@ -693,7 +694,7 @@ export function NodeView() {
   // node the backend actually bakes variants for). Everywhere else this stays off and the
   // render behaves exactly as it does for a real learner.
   const { pathname } = useLocation()
-  const isAdminPreview = pathname.includes('/admin/probar-curso/')
+  const isAdminPreview = isAdminPreviewPath(pathname)
   const isShowcaseNode = index === 0
   /**
    * Synchronous route intent: on the admin preview showcase node we *might* show the
@@ -1051,9 +1052,8 @@ export function NodeView() {
   // --- frame ------------------------------------------------------------------
 
   const openingLine = openingLineFor(profile, intl)
-  // Derive base from current URL so links work for both /empleado/curso/:id
-  // and /admin/probar-curso/:id
-  const backToCourse = pathname.replace(/\/nodo\/[^/]+$/, '')
+  // `courseId` is always there under both node routes; the fallback is only for the type.
+  const backToCourse = useCoursePath(courseId ?? '')
 
   if (nodes.isLoading) {
     return (
@@ -1278,7 +1278,7 @@ export function NodeView() {
                                       pie del episodio, asi que el sello tiene que estar en
                                       los dos: es el mismo hecho ("he salido de este nodo
                                       hacia delante") contado por dos armazones distintos. */}
-                                  <nextNodeContext.Provider value={nextNode ? { navigate: () => { markNodeFinished(); navigate(`${backToCourse}/nodo/${nextNode.id}`) }, title: nextNode.title } : null}>
+                                  <nextNodeContext.Provider value={nextNode ? { navigate: () => { markNodeFinished(); navigate(nodePath(backToCourse, nextNode.id)) }, title: nextNode.title } : null}>
                                     <coursePositionContext.Provider value={{ nodeCount: ordered.length, currentNodeIndex: headerIndex }}>
                                       <stepperContext.Provider value={shownShellMode === 'legacy_stepper'}>
                                         <lessonFeedbackContext.Provider value={lessonFeedback}>
@@ -1332,7 +1332,7 @@ export function NodeView() {
                               setEpisodeScreen(target)
                               rememberScreen(target)
                             } else if (previousNode) {
-                              navigate(`${backToCourse}/nodo/${previousNode.id}`)
+                              navigate(nodePath(backToCourse, previousNode.id))
                             }
                           }
                           const goNext = () => {
@@ -1346,7 +1346,7 @@ export function NodeView() {
                               // el sello va en el mismo sitio y no en uno nuevo.
                               markNodeFinished()
                               forgetNode()
-                              navigate(`${backToCourse}/nodo/${nextNode.id}`)
+                              navigate(nodePath(backToCourse, nextNode.id))
                             } else {
                               clearCoursePositions(courseId)
                               finishCourse()
@@ -1607,7 +1607,7 @@ export function NodeView() {
                         type="button"
                         onClick={() => {
                           setFinishState('idle')
-                          navigate(`${backToCourse}/nodo/${firstMissingNode.id}`)
+                          navigate(nodePath(backToCourse, firstMissingNode.id))
                         }}
                         className="bg-primary hover:bg-primary-hover text-white text-sm font-medium px-5 py-3 rounded-md transition-colors"
                       >

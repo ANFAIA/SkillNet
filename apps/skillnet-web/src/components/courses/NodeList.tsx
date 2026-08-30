@@ -1,4 +1,4 @@
-import { Link, useLocation } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { useIntl } from 'react-intl'
 import { motion } from 'framer-motion'
 import type { MouseEvent } from 'react'
@@ -6,6 +6,7 @@ import { Card, ProgressBar } from '../ui'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
 import { staggerContainer, staggerItem } from '../../lib/motion'
 import { useNodeMorph } from '../../stores/nodeMorph'
+import { useCoursePath, nodePath } from '../../lib/courseRoutes'
 import {
   NODE_STATUS_CLASS,
   NODE_STATUS_LABEL_ID,
@@ -50,7 +51,7 @@ function NodeRow({
   node: LearningNode
   /** Off under reduced motion, and off for the parent that is not staggering. */
   animated: boolean
-  /** Base path to the course view, derived from current location. */
+  /** The course URL for the screen in hand — see `lib/courseRoutes`. */
   courseBasePath: string
 }) {
   const intl = useIntl()
@@ -108,7 +109,7 @@ function NodeRow({
   return (
     <motion.li variants={variants}>
       <Link
-        to={`${courseBasePath}/nodo/${node.id}`}
+        to={nodePath(courseBasePath, node.id)}
         onClick={captureOrigin}
         className="block px-4 py-3 border-b border-border last:border-b-0 hover:bg-bg-subtle transition-colors"
       >
@@ -121,9 +122,7 @@ function NodeRow({
 export function NodeList({ data }: NodeListProps) {
   const intl = useIntl()
   const reduceMotion = useReducedMotion()
-  const { pathname } = useLocation()
-  // Works for /empleado/curso/:id and /admin/probar-curso/:id
-  const courseBasePath = pathname.replace(/\/$/, '')
+  const courseBasePath = useCoursePath(data.course_id)
   /**
    * The map is the last thing the learner sees before a node opens, so it is half of
    * the course → node transition. Rows resolving 60 ms apart give the list a reading

@@ -35,7 +35,7 @@ function node(overrides: Partial<LearningNode> = {}): LearningNode {
   }
 }
 
-function renderList(nodes: LearningNode[]) {
+function renderList(nodes: LearningNode[], at = '/empleado/curso/c1') {
   const data: NodeListRead = {
     course_id: 'c1',
     delivery_mode: 'dynamic',
@@ -47,7 +47,7 @@ function renderList(nodes: LearningNode[]) {
     progress_percent: 50,
   }
   return render(
-    <MemoryRouter initialEntries={['/empleado/curso/c1']}>
+    <MemoryRouter initialEntries={[at]}>
       <NodeList data={data} />
     </MemoryRouter>,
   )
@@ -89,5 +89,51 @@ describe('<NodeList> and `available`', () => {
 
     expect(screen.getAllByRole('link')).toHaveLength(1)
     expect(screen.queryByText(es['nodelist.unavailable'])).not.toBeInTheDocument()
+  })
+})
+
+/**
+ * The map is the same component on the course screen and inside a lesson, and it used to
+ * build its links by trimming the current URL — which is the course only on the first of
+ * those two. From a lesson every row pointed at `.../nodo/<open>/nodo/<wanted>`, no route
+ * matched, and the catch-all took the learner to their dashboard.
+ */
+describe('<NodeList> links, from wherever it is opened', () => {
+  const two = [
+    node({ id: 'n1', title: 'Primera', position: 1, done: true }),
+    node({ id: 'n2', title: 'Segunda', position: 2 }),
+  ]
+
+  it('points at the lesson from the course screen', () => {
+    renderList(two)
+
+    expect(screen.getAllByRole('link').map((a) => a.getAttribute('href'))).toEqual([
+      '/empleado/curso/c1/nodo/n1',
+      '/empleado/curso/c1/nodo/n2',
+    ])
+  })
+
+  it('points at the lesson from inside another lesson', () => {
+    renderList(two, '/empleado/curso/c1/nodo/n1')
+
+    expect(screen.getAllByRole('link').map((a) => a.getAttribute('href'))).toEqual([
+      '/empleado/curso/c1/nodo/n1',
+      '/empleado/curso/c1/nodo/n2',
+    ])
+  })
+
+  it('stays on the admin test drive, from the course and from inside a lesson', () => {
+    const { unmount } = renderList(two, '/admin/probar-curso/c1')
+    expect(screen.getAllByRole('link')[1]).toHaveAttribute(
+      'href',
+      '/admin/probar-curso/c1/nodo/n2',
+    )
+    unmount()
+
+    renderList(two, '/admin/probar-curso/c1/nodo/n1')
+    expect(screen.getAllByRole('link')[1]).toHaveAttribute(
+      'href',
+      '/admin/probar-curso/c1/nodo/n2',
+    )
   })
 })
