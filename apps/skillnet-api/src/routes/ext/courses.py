@@ -14,6 +14,7 @@ import uuid
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
+from src.core.language import Language
 from src.routes.ext.auth import RequireCoursesWrite
 from src.services.course_orchestration import create_course_end_to_end
 
@@ -38,6 +39,12 @@ class FullCourseRequest(BaseModel):
         "['podcast', 'infographic'].",
     )
     artifact_node_limit: int = Field(default=1, ge=0, le=10)
+    language: Language | None = Field(
+        default=None,
+        description="Language the course is written in ('es' or 'en'). Omit to use the "
+        "organization's default. Only meaningful without a document: with one, the "
+        "material decides unless this overrides it.",
+    )
 
 
 @router.post("/full", status_code=201)
@@ -48,6 +55,10 @@ async def create_full_course(api_key: RequireCoursesWrite, body: FullCourseReque
     course is created and validated under that identity. Returns partial success
     honestly (``packs_ready``, ``validated``, ``warnings``) rather than failing when
     a flaky provider leaves a node short.
+
+    ``language`` is the hook the public demo needs: it generates from a title, with no
+    document to infer a language from, so without an explicit request every course it
+    creates comes out in the prompts' own language regardless of who is reading.
     """
     result = await create_course_end_to_end(
         body.title,
@@ -60,5 +71,6 @@ async def create_full_course(api_key: RequireCoursesWrite, body: FullCourseReque
         enroll_user_id=body.enroll_user_id,
         generate_artifacts=body.generate_artifacts,
         artifact_node_limit=body.artifact_node_limit,
+        language=body.language,
     )
     return result.to_dict()

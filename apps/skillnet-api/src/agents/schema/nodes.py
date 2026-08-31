@@ -28,6 +28,7 @@ from src.agents.content.helpers import (
 from src.agents.schema.errors import schema_node_error_wrapper, sse_channel
 from src.agents.schema.state import SchemaState
 from src.core import sse
+from src.core.language import Language, normalize_language
 from src.core.logging import get_logger
 from src.core.tasks import task_registry
 from src.deps.db import async_session_factory
@@ -35,6 +36,7 @@ from src.llm.client import LLMService, resolve_llm_config
 from src.llm.fixtures import maybe_fixture_llm
 from src.llm.parsing import parse_json_response
 from src.llm.prompts import THEME_EXTRACTOR_SYSTEM, build_extraction_prompt
+from src.llm.prompts.language import with_language
 from src.llm.prompts.schema import SCHEMA_DESIGNER_SYSTEM, build_schema_prompt
 from src.models import (
     Course,
@@ -50,6 +52,7 @@ from src.models import (
 from src.repositories.course_node_repo import CourseNodeRepository
 from src.repositories.document_chunk_repo import DocumentChunkRepository
 from src.repositories.generation_job_repo import GenerationJobRepository
+from src.services.language_policy import language_for_course
 from src.services.course_schema_service import (
     coerce_criticality,
     coerce_ui_format,
@@ -85,6 +88,29 @@ async def _make_llm(org_id: uuid.UUID) -> LLMService:
     async with async_session_factory() as db:
         org_settings = await _org_settings(db, org_id)
     return maybe_fixture_llm(resolve_llm_config(org_settings, purpose="generation"))
+
+
+def _language(state: SchemaState) -> Language | None:
+    """The run's output language, re-normalized because the state is checkpointed.
+
+    Whatever JSON came back from the checkpointer is turned into a supported language
+    or into ``None``, which is the value that leaves every prompt untouched.
+    """
+    return normalize_language(state.get("language"))
+
+
+async def _course_language(course_id: Any) -> Language | None:
+    """What the course asks its material to be written in, or ``None``.
+
+    Read from the course rather than threaded through ``propose()`` because the job
+    row has no language column and every entry point into this graph — the HTTP
+    route, the one-call orchestrator, a re-proposal — already has a course.
+    """
+    if not course_id:
+        return None
+    async with async_session_factory() as db:
+        course = await db.get(Course, uuid.UUID(str(course_id)))
+    return None if course is None else language_for_course(course)
 
 
 async def _run_knowledge_pack_shadow(
@@ -286,8 +312,12 @@ async def load_source(state: SchemaState) -> dict:
     await _set_job(job_id, status=GenerationStep.SCHEMA_PROPOSING)
     await _publish_step(job_id, "loading_source", "Leyendo el material de origen...")
 
+    # Once per run, so the extractor and the designer cannot disagree about it.
+    language = _language(state) or await _course_language(state.get("course_id"))
+
     return {
         "rag_mode": rag_mode,
+        "language": language,
         "full_texts": {str(doc.id): (doc.full_text or "") for doc in documents},
         "source_metadata": {
             "total_pages": total_pages,
@@ -338,7 +368,7 @@ async def extract_themes_schema(state: SchemaState) -> dict:
     if context.strip():
         llm = await _make_llm(org_id)
         response = await llm.complete(
-            THEME_EXTRACTOR_SYSTEM,
+            with_language(THEME_EXTRACTOR_SYSTEM, _language(state)),
             build_extraction_prompt(context),
             temperature=EXTRACT_TEMPERATURE,
             max_tokens=EXTRACT_MAX_TOKENS,
@@ -378,9 +408,10 @@ async def design_schema(state: SchemaState) -> dict:
         intent_density=int(state.get("intent_density") or 3),
         course_title=course_title,
         course_outcome=course_outcome,
+        language=_language(state),
     )
     response = await llm.complete(
-        SCHEMA_DESIGNER_SYSTEM,
+        with_language(SCHEMA_DESIGNER_SYSTEM, _language(state)),
         prompt,
         temperature=SCHEMA_TEMPERATURE,
         max_tokens=SCHEMA_MAX_TOKENS,

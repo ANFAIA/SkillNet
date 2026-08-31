@@ -10,6 +10,7 @@ from __future__ import annotations
 import hashlib
 
 from src.agents.runtime.shape import analyze_shape
+from src.core.language import Language
 from src.knowledge_pack.generator import (
     EXTRACTOR_MAX_TOKENS,
     REVIEWER_MAX_TOKENS,
@@ -20,9 +21,11 @@ from src.knowledge_pack.generator import (
     generate_knowledge_pack,
 )
 from src.knowledge_pack.node_source import draft_is_usable, seed_node_source
+from src.llm.prompts.language import with_language
 from src.models import Course, CourseNode
 from src.personalization.plan import CognitiveMission, LearningObjective, SourceFunction
 from src.render.kit import ContentFunction
+from src.services.language_policy import language_for_course
 from src.services.node_knowledge_pack_service import (
     CompletedKnowledgePack,
     KnowledgePackSnapshot,
@@ -62,12 +65,19 @@ class ConfiguredKnowledgePackGenerator:
         *,
         extractor_max_tokens: int = EXTRACTOR_MAX_TOKENS,
         reviewer_max_tokens: int = REVIEWER_MAX_TOKENS,
+        language: Language | None = None,
     ) -> None:
         self.llm = llm
         self.extractor_max_tokens = extractor_max_tokens
         self.reviewer_max_tokens = reviewer_max_tokens
+        # Set by a caller that knows the request's language before the course row does
+        # (the one-call orchestrator). ``draft_source`` falls back to the course itself,
+        # which is what every background runner has.
+        self.language = language
 
-    async def draft_source(self, *, course: Course, node: CourseNode) -> str:
+    async def draft_source(
+        self, *, course: Course, node: CourseNode, language: Language | None = None
+    ) -> str:
         """Write a short reference brief for one node when no uploaded excerpt exists."""
 
         from src.llm.prompts.source import (
@@ -76,8 +86,9 @@ class ConfiguredKnowledgePackGenerator:
         )
         from src.services.document_service import _strip_code_fence
 
+        requested = language_for_course(course, explicit=language or self.language)
         text, _usage = await self.llm.complete_with_usage(
-            NODE_SOURCE_WRITER_SYSTEM,
+            with_language(NODE_SOURCE_WRITER_SYSTEM, requested),
             build_node_source_prompt(
                 course_title=getattr(course, "title", "") or "",
                 course_idea=(
@@ -88,6 +99,7 @@ class ConfiguredKnowledgePackGenerator:
                 node_title=node.title,
                 summary=getattr(node, "summary", None) or "",
                 outcome=getattr(node, "outcome", None) or "",
+                language=requested,
             ),
             temperature=0.6,
             max_tokens=1_200,
@@ -95,7 +107,7 @@ class ConfiguredKnowledgePackGenerator:
         text = _strip_code_fence(text.strip())
         if draft_is_usable(text):
             return text
-        return seed_node_source(course=course, node=node)
+        return seed_node_source(course=course, node=node, language=requested)
 
     async def generate(
         self,

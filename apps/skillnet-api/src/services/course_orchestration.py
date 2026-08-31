@@ -24,6 +24,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from src.core.exceptions import CapabilityBlockedError
+from src.core.language import Language
 from src.core.logging import get_logger
 from src.deps.db import async_session_factory
 from src.knowledge_pack.configured_generator import (
@@ -187,6 +188,7 @@ async def create_course_end_to_end(
     intent_density: int = 3,
     description: str | None = None,
     outcome: str | None = None,
+    language: Language | None = None,
     enroll_user_id: uuid.UUID | None = None,
     generate_artifacts: list[str] | None = None,
     artifact_node_limit: int = 1,
@@ -203,6 +205,16 @@ async def create_course_end_to_end(
     on partial success — a course whose packs never all converge still comes back
     validated (if the graph is valid) with an honest ``packs_ready`` count and a
     warning.
+
+    ``language`` is what the caller wants the material written in, and it wins over
+    whatever the course row says. ``None`` means nobody asked and changes nothing: the
+    course keeps the language it is created with and every prompt stays exactly as it
+    was, fixture keys included.
+
+    It reaches the designer and the pack drafters through the course row rather than
+    as an argument, because both run as background tasks reached through
+    ``propose()``/``spawn_packs_for_schema`` and neither the schema job nor the pack
+    record carries a language. The row is the one thing all three already share.
     """
     # --- 1. create the (draft) course -------------------------------------------
     async with async_session_factory() as db:
@@ -216,6 +228,11 @@ async def create_course_end_to_end(
             outcome=outcome,
             source_document_id=document_id,
         )
+        if language is not None:
+            # Stored on the row, not just used for this run: every later generation for
+            # this course (screens, tutor, grading) reads it back, and by then the source
+            # material that would have implied it is long gone.
+            course.language = language
         await db.commit()
         course_id = course.id
         logger.info("orchestrator: created course %s (%s)", course_id, title)
@@ -294,7 +311,10 @@ async def create_course_end_to_end(
         org_id,
         schema_version,
         dependencies=KnowledgePackRunnerDependencies(
-            generator=ConfiguredKnowledgePackGenerator(llm),
+            # ``language`` as well as the row: the drafters read the course, and this
+            # call knows the request even on a deployment where the column is not
+            # there yet.
+            generator=ConfiguredKnowledgePackGenerator(llm, language=language),
             max_attempts=pack_max_attempts,
         ),
     )

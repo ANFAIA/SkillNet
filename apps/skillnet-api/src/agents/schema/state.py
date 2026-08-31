@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from typing import Literal, TypedDict
 
+from src.core.language import Language
+
 
 class SchemaState(TypedDict, total=False):
     # --- Identity ---
@@ -19,6 +21,11 @@ class SchemaState(TypedDict, total=False):
     source_document_ids: list[str]
     course_id: str
     intent_density: int
+    # What the proposed titles, summaries and outcomes have to be written in, or
+    # ``None`` for "nobody asked", which leaves the designer's prompt exactly as it
+    # was. The generation job carries no language of its own, so ``load_source`` reads
+    # it off the course row — the one thing every entry point into this graph shares.
+    language: Language | None
 
     # --- Derived from the source (same shape as v1, computed by the new nodes) ---
     rag_mode: Literal["full_text", "chunked"]

@@ -19,6 +19,8 @@ from __future__ import annotations
 
 import json
 
+from src.core.language import Language
+from src.llm.prompts.language import language_name
 from src.models import NodeCriticality, UiFormat
 
 _CRITICALITY_VALUES = ", ".join(m.value for m in NodeCriticality)
@@ -123,6 +125,7 @@ def build_schema_prompt(
     intent_density: int = 3,
     course_title: str | None = None,
     course_outcome: str | None = None,
+    language: Language | None = None,
 ) -> str:
     """User prompt for the schema designer.
 
@@ -130,6 +133,12 @@ def build_schema_prompt(
     refers to: the real, distinct ``chunk_metadata->>'heading'`` values of the
     source document. It is rendered as an explicit enumeration (not prose) so the
     model has no room to paraphrase.
+
+    ``language`` is named here as well as in the directive appended to the system
+    prompt, because rule 6 up there is unusually absolute ("Nunca traduzcas ni cambies
+    de idioma") and cannot be reworded — the recorded fixtures are keyed on it. So the
+    override is repeated in the user turn, which the model reads last, and it says
+    which rule it replaces. ``None`` adds nothing.
     """
     density = _DENSITY_GUIDANCE.get(
         intent_density, _DENSITY_GUIDANCE[3]
@@ -170,10 +179,20 @@ def build_schema_prompt(
             "source_headings sera [] en todos los nodos.\n\n"
         )
 
+    language_block = ""
+    if language is not None:
+        language_block = (
+            "=== IDIOMA DE SALIDA ===\n"
+            f"Escribe title, summary y outcome en {language_name(language)}, aunque "
+            "el material de origen este en otro idioma: traducelo. Esta instruccion "
+            "sustituye la regla 6.\n\n"
+        )
+
     return (
         "Propon el esquema de nodos de este curso.\n\n"
         f"{course_block}"
         f"{topic_note}"
+        f"{language_block}"
         f"=== DENSIDAD PEDIDA (intent_density={intent_density}) ===\n"
         f"{density}\n\n"
         "=== METADATOS DE ORIGEN ===\n"

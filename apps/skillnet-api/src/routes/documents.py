@@ -4,10 +4,11 @@ import uuid
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, File, Query, Response, UploadFile
-from pydantic import BaseModel, ConfigDict, Field
+from fastapi import APIRouter, File, Query, Request, Response, UploadFile
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from src.core.exceptions import AppError, NotFoundError, ValidationError
+from src.core.language import Language, accept_language, normalize_language
 from src.core.logging import get_logger
 from src.core.tasks import task_registry
 from src.deps.auth import AdminUser, CurrentUser
@@ -18,6 +19,7 @@ from src.repositories.document_repo import DocumentRepository
 from src.repositories.source_image_repo import SourceImageRepository
 from src.schemas.common import PaginatedResponse
 from src.schemas.document import DocumentRead, SourceImageRead
+from src.services.language_policy import ambient_language
 from src.services.document_service import DocumentService, run_document_ingestion
 from src.services.source_images import IMAGE_EXTENSIONS, SourceImageStore
 
@@ -162,11 +164,31 @@ class SourceFromIdeaRequest(BaseModel):
     #: What the creator wants covered. Optional — a title alone is a thin but legitimate
     #: brief, and the prompt says so explicitly rather than guessing at an empty string.
     idea: str = Field(default="", max_length=4000)
+    #: What the document — and therefore the whole course built from it — comes out in.
+    #: ``None`` means nobody chose, and the route falls back to ``Accept-Language``.
+    language: Language | None = None
+
+    @field_validator("language", mode="before")
+    @classmethod
+    def _normalize_language(cls, value: object) -> object:
+        """Accept a locale tag where the field declares a language.
+
+        A client sends what it has, and what a browser has is ``en-US``. Rejecting it
+        with a 422 that names two valid values would push every caller into writing
+        this line instead. An unrecognised tag becomes ``None`` rather than an error,
+        for the reason ``normalize_language`` gives: a language nobody supports is
+        indistinguishable from a language nobody asked for.
+        """
+        return normalize_language(value) if isinstance(value, str) else value
 
 
 @router.post("/from-idea", response_model=DocumentRead, status_code=201)
 async def create_document_from_idea(
-    admin: AdminUser, db: DBSession, llm: LLMDep, body: SourceFromIdeaRequest
+    admin: AdminUser,
+    db: DBSession,
+    llm: LLMDep,
+    body: SourceFromIdeaRequest,
+    request: Request,
 ) -> DocumentRead:
     """Write a source document from an idea, then ingest it like any upload.
 
@@ -176,7 +198,17 @@ async def create_document_from_idea(
     downstream branches on where the text came from — only the UI does, and only to say
     so. Declared **above** ``/{document_id}`` because ``from-idea`` would otherwise be
     parsed as a UUID path parameter and 422.
+
+    The language cascade ends at the request headers on purpose. The body field is the
+    creator's choice and wins; ``Accept-Language`` is only what the browser happens to
+    be set to, so it goes through ``ambient_language`` and Spanish — the language every
+    prompt already writes unprompted — reads as "nothing to say" rather than as an
+    instruction. That is what keeps the existing path unchanged for the clients that
+    have never heard of this field.
     """
+    language = body.language or ambient_language(
+        accept_language(request.headers.get("accept-language"))
+    )
     service = _service(db)
     doc = await service.create_from_idea(
         org_id=admin.org_id,
@@ -184,6 +216,7 @@ async def create_document_from_idea(
         title=body.title,
         idea=body.idea,
         llm=llm,
+        language=language,
     )
     doc = await service.repo.update(doc, status=DocumentStatus.PROCESSING)
     await db.commit()

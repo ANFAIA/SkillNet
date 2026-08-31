@@ -16,6 +16,9 @@ usually gets it right on the first try, but the validator is what actually holds
 
 from __future__ import annotations
 
+from src.core.language import Language
+from src.llm.prompts.language import language_name
+
 PROBE_PROMPT_VERSION = "probe/1"
 
 # Budgets, kept next to the prompt they belong to (§7.1).
@@ -78,6 +81,7 @@ def build_probe_prompt(
     criticality: str = "recommended",
     source_context: str = "",
     include_tiebreak: bool = True,
+    language: Language | None = None,
 ) -> str:
     """Assemble the user prompt for one node.
 
@@ -85,6 +89,12 @@ def build_probe_prompt(
     where ``mastered`` can never come out of selected-response items (§7.2 rule 3);
     elsewhere item ``c`` is only *served* when the verdict falls in the doubt band, but
     generating it up front costs nothing extra and avoids a second LLM call mid-probe.
+
+    ``language`` overrides the "same language as the source material" line in the
+    system prompt, which is wrong for a course whose material was written in one
+    language and is taught in another. The caller pairs it with
+    ``with_language(PROBE_GENERATOR_SYSTEM, language)``: a probe asked in the wrong
+    language is a wrong answer, because the learner is judged on their reply.
     """
     parts = [
         f"NODO: {title}",
@@ -109,6 +119,13 @@ def build_probe_prompt(
         parts.append(
             "No hay extracto del material de origen disponible: limitate a lo que el "
             "resumen del nodo afirma y no anadas datos nuevos."
+        )
+
+    if language is not None:
+        parts.append(
+            f"Escribe los enunciados, las opciones y las explicaciones en "
+            f"{language_name(language)}, aunque el material de origen este en otro "
+            f"idioma."
         )
 
     parts.append("Responde solo con el JSON especificado.")

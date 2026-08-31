@@ -19,9 +19,21 @@ by comparing the output against a document. Three consequences shape the prompt:
 The output is Markdown with `##` headings on purpose: `chunk_sections` keys chunks on
 headings, and the v2 schema designer chooses node sources from the heading list, so the
 headings here become the spine of the course.
+
+A fourth consequence, and the reason both builders take a `language`: on the demo's
+default path (a course from a title) this document is the *only* source, so every stage
+after it follows its language. Asking the modules or the schema designer for English
+while this text comes out Spanish loses that argument here, not there. So the directive
+goes on the system prompt at the call site, and the user prompt names the language again
+in its closing line — the last thing the model reads before it starts writing, and the
+tie-breaker against the "En espanol claro" the prompt body cannot stop saying (editing
+it would invalidate every recorded fixture; see `src/llm/prompts/language.py`).
 """
 
 from __future__ import annotations
+
+from src.core.language import Language
+from src.llm.prompts.language import language_name
 
 SOURCE_WRITER_SYSTEM = """Eres redactor de material de referencia sobre el tema que se te da. Ensena la materia por si misma; usa un encuadre laboral solo si el propio tema lo pide.
 
@@ -42,12 +54,17 @@ Lo que NO puedes hacer:
 Responde UNICAMENTE con el documento en Markdown. Sin preambulo, sin explicar lo que vas a hacer, sin bloque de codigo envolvente."""
 
 
-def build_source_prompt(*, title: str, idea: str) -> str:
+def build_source_prompt(
+    *, title: str, idea: str, language: Language | None = None
+) -> str:
     """The creator's two inputs, and nothing else.
 
     ``idea`` may be empty — the wizard asks for it but a title alone is a legitimate,
     if thin, request. Saying so explicitly beats sending an empty section the model has
     to guess the meaning of.
+
+    ``language`` only ever *adds* the closing language, so ``None`` returns the exact
+    string it always returned: the fixture key hashes the user prompt too.
     """
     described = idea.strip()
     detail = (
@@ -56,11 +73,12 @@ def build_source_prompt(*, title: str, idea: str) -> str:
         else "El creador no ha dado mas detalle que el titulo. Cubre lo que "
         "razonablemente esperaria encontrar quien busca material sobre ese tema."
     )
-    return (
-        f"TEMA DEL DOCUMENTO: {title.strip()}\n\n"
-        f"{detail}\n\n"
+    closing = (
         "Escribe el documento fuente."
+        if language is None
+        else f"Escribe el documento fuente en {language_name(language)}."
     )
+    return f"TEMA DEL DOCUMENTO: {title.strip()}\n\n{detail}\n\n{closing}"
 
 
 NODE_SOURCE_WRITER_SYSTEM = """Eres redactor de material de referencia sobre UN punto de aprendizaje concreto. Ensena la materia por si misma; usa un encuadre laboral solo si el propio tema lo pide.
@@ -86,6 +104,7 @@ def build_node_source_prompt(
     node_title: str,
     summary: str,
     outcome: str,
+    language: Language | None = None,
 ) -> str:
     """One node, after the schema exists: the brief the pack generator will ground on."""
 
@@ -97,13 +116,19 @@ def build_node_source_prompt(
     )
     result = outcome.strip() or summary.strip() or node_title.strip()
     covers = summary.strip() or result
+    closing = (
+        "Escribe el documento fuente de este punto."
+        if language is None
+        else "Escribe el documento fuente de este punto en "
+        f"{language_name(language)}."
+    )
     return (
         f"CURSO: {course_title.strip() or node_title.strip()}\n"
         f"{course_line}\n\n"
         f"PUNTO: {node_title.strip()}\n"
         f"Resultado que el empleado debe dominar: {result}\n"
         f"Que cubre este punto: {covers}\n\n"
-        "Escribe el documento fuente de este punto."
+        f"{closing}"
     )
 
 

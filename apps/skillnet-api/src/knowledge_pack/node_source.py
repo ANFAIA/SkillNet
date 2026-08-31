@@ -10,17 +10,46 @@ from __future__ import annotations
 
 from typing import Any
 
+from src.core.language import DEFAULT_LANGUAGE, Language
 from src.models import Course, CourseNode, DocumentStatus
 from src.repositories.document_repo import DocumentRepository
+from src.services.language_policy import language_for_course
 from src.services.document_service import DocumentService
 
 _MIN_DRAFT_CHARS = 120
 
+#: The four fixed strings this module writes. A table, not an i18n framework: this is
+#: the whole inventory of learner-visible prose the backend produces without a model,
+#: and two columns of four rows need no catalogues, extraction step or workflow to stay
+#: correct. If a third language ever arrives, this table is where it is missed.
+_LABELS: dict[Language, dict[str, str]] = {
+    "es": {
+        "node": "Punto",
+        "outcome": "Resultado",
+        "covers": "Que cubre",
+        "course": "Curso",
+    },
+    "en": {
+        "node": "Point",
+        "outcome": "Outcome",
+        "covers": "What it covers",
+        "course": "Course",
+    },
+}
 
-def seed_node_source(*, course: Course, node: CourseNode) -> str:
-    """Deterministic briefing from the schema when no document and no model draft."""
 
-    title = (getattr(node, "title", None) or "").strip() or "Punto"
+def seed_node_source(
+    *, course: Course, node: CourseNode, language: Language | None = None
+) -> str:
+    """Deterministic briefing from the schema when no document and no model draft.
+
+    Worth translating even though it is a fallback: it is what the pack generator reads
+    whenever the drafting call fails or comes back thin, so on a bad provider day these
+    headings are the only source an English course has.
+    """
+
+    labels = _LABELS[language_for_course(course, explicit=language) or DEFAULT_LANGUAGE]
+    title = (getattr(node, "title", None) or "").strip() or labels["node"]
     summary = (getattr(node, "summary", None) or "").strip()
     outcome = (getattr(node, "outcome", None) or "").strip()
     course_title = (getattr(course, "title", None) or "").strip()
@@ -30,11 +59,11 @@ def seed_node_source(*, course: Course, node: CourseNode) -> str:
 
     parts = [f"# {title}", ""]
     if outcome:
-        parts.extend(["## Resultado", outcome, ""])
+        parts.extend([f"## {labels['outcome']}", outcome, ""])
     if summary:
-        parts.extend(["## Que cubre", summary, ""])
+        parts.extend([f"## {labels['covers']}", summary, ""])
     if course_title or course_idea:
-        parts.append("## Curso")
+        parts.append(f"## {labels['course']}")
         if course_title:
             parts.append(course_title)
         if course_idea:

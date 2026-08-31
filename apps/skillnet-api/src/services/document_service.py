@@ -5,9 +5,11 @@ from pathlib import Path
 
 from src.config import settings
 from src.core.exceptions import AppError, NotFoundError, ValidationError
+from src.core.language import Language
 from src.core.logging import get_logger
 from src.deps.db import async_session_factory
 from src.llm.client import LLMService
+from src.llm.prompts.language import with_language
 from src.llm.prompts.source import SOURCE_WRITER_SYSTEM, build_source_prompt
 from src.models import Document, DocumentOrigin, DocumentStatus
 from src.repositories.document_repo import DocumentRepository
@@ -91,6 +93,7 @@ class DocumentService:
         title: str,
         idea: str,
         llm: LLMService,
+        language: Language | None = None,
     ) -> Document:
         """Write a source document from a one-line idea, then hand it to normal ingestion.
 
@@ -109,6 +112,11 @@ class DocumentService:
 
         Status is ``PENDING`` on return: the caller commits and then spawns ingestion,
         the same two steps ``POST /documents/{id}/process`` performs.
+
+        ``language`` decides what the whole course will end up in, not just this text:
+        every later stage is told to follow the source material, and on this path this
+        text *is* the source material. ``None`` leaves the prompts byte for byte as they
+        were, fixture keys included.
         """
         clean_title = title.strip()
         if not clean_title:
@@ -116,8 +124,8 @@ class DocumentService:
 
         text = (
             await llm.complete(
-                SOURCE_WRITER_SYSTEM,
-                build_source_prompt(title=clean_title, idea=idea),
+                with_language(SOURCE_WRITER_SYSTEM, language),
+                build_source_prompt(title=clean_title, idea=idea, language=language),
                 max_tokens=SOURCE_MAX_TOKENS,
                 # Higher than the pipeline's 0.3: this call is writing prose from a
                 # one-line brief rather than restructuring a document, and at 0.3 the

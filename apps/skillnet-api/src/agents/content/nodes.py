@@ -29,6 +29,7 @@ from src.agents.content.helpers import (
 from src.agents.content.state import GenerationState
 from src.core import sse
 from src.core.exceptions import LLMError
+from src.core.language import Language, normalize_language
 from src.core.logging import get_logger
 from src.deps.db import async_session_factory
 from src.llm.client import LLMService, resolve_llm_config
@@ -47,6 +48,7 @@ from src.llm.prompts import (
     build_review_prompt,
     build_structure_prompt,
 )
+from src.llm.prompts.language import with_language
 from src.models import (
     Course,
     CourseSkill,
@@ -62,6 +64,7 @@ from src.models import (
 from src.repositories.document_chunk_repo import DocumentChunkRepository
 from src.repositories.generation_job_repo import GenerationJobRepository
 from src.repositories.skill_repo import SkillRepository
+from src.services.language_policy import language_for_course
 
 logger = get_logger(__name__)
 
@@ -119,6 +122,31 @@ def _uuids(values: list[str] | None) -> list[uuid.UUID]:
     return out
 
 
+def _language(state: GenerationState) -> Language | None:
+    """The run's output language, re-normalized because state crosses a checkpointer.
+
+    LangGraph persists the state, so what comes back is whatever JSON was written —
+    ``normalize_language`` turns a resumed ``"EN"`` or ``"en-GB"`` back into ``"en"``
+    and anything unusable into ``None``, which is the value that leaves the prompts
+    untouched.
+    """
+    return normalize_language(state.get("language"))
+
+
+async def _course_language(course_id: Any) -> Language | None:
+    """The language the course row asks for, if there is a course row yet.
+
+    v1 generation creates the course in ``publish``, so on a first run there is
+    nothing to read and the answer is ``None`` — the same answer as a Spanish course,
+    and the same prompts as before this existed.
+    """
+    if not course_id:
+        return None
+    async with async_session_factory() as db:
+        course = await db.get(Course, uuid.UUID(str(course_id)))
+    return None if course is None else language_for_course(course)
+
+
 # ``estimate_pages``, ``strip_chunk_prefix``, ``assemble_chunk_text`` and
 # ``themes_list`` now live in ``src/agents/content/helpers.py`` (shared with the v2
 # schema graph) and are imported above under their original private names.
@@ -157,10 +185,15 @@ async def prepare_context(state: GenerationState) -> dict:
     await _set_job(job_id, status=GenerationStep.EXTRACTING)
     await _publish_step(job_id, "extracting", "Analizando el material de origen...")
 
+    # Resolved here, once, so the four model-facing nodes downstream read one value
+    # instead of each deciding for itself and drifting apart mid-course.
+    language = _language(state) or await _course_language(state.get("course_id"))
+
     return {
         "rag_mode": rag_mode,
         "full_texts": full_texts,
         "source_metadata": source_metadata,
+        "language": language,
         "current_step": "extracting",
     }
 
@@ -184,7 +217,7 @@ async def extract_themes(state: GenerationState) -> dict:
     prompt = build_extraction_prompt(context)
 
     response = await llm.complete(
-        THEME_EXTRACTOR_SYSTEM,
+        with_language(THEME_EXTRACTOR_SYSTEM, _language(state)),
         prompt,
         temperature=GEN_TEMPERATURE,
         max_tokens=GEN_MAX_TOKENS,
@@ -221,7 +254,7 @@ async def design_structure(state: GenerationState) -> dict:
         state.get("extracted_themes", []), state.get("source_metadata", {})
     )
     response = await llm.complete(
-        STRUCTURE_DESIGNER_SYSTEM,
+        with_language(STRUCTURE_DESIGNER_SYSTEM, _language(state)),
         prompt,
         temperature=GEN_TEMPERATURE,
         max_tokens=GEN_MAX_TOKENS,
@@ -290,6 +323,7 @@ async def generate_modules(state: GenerationState) -> dict:
     total = len(modules)
 
     llm = await _make_llm(org_id)
+    language = _language(state)
     has_full_text = any(
         v.strip() for v in (state.get("full_texts") or {}).values()
     )
@@ -318,7 +352,7 @@ async def generate_modules(state: GenerationState) -> dict:
             )
             context = await _module_context(state, spec, embeddings)
             response = await llm.complete(
-                MODULE_GENERATOR_SYSTEM,
+                with_language(MODULE_GENERATOR_SYSTEM, language),
                 build_module_prompt(spec, context),
                 temperature=GEN_TEMPERATURE,
                 max_tokens=GEN_MAX_TOKENS,
@@ -396,7 +430,7 @@ async def review_quality(state: GenerationState) -> dict:
     # the log, so the unreadable answer is still diagnosable.
     try:
         response = await llm.complete(
-            QUALITY_REVIEWER_SYSTEM,
+            with_language(QUALITY_REVIEWER_SYSTEM, _language(state)),
             build_review_prompt(source, generated),
             temperature=REVIEW_TEMPERATURE,
             max_tokens=GEN_MAX_TOKENS,
@@ -453,7 +487,7 @@ async def refine_content(state: GenerationState) -> dict:
     for index, issues in issues_by_module.items():
         module = modules[index]
         response = await llm.complete(
-            CONTENT_REFINER_SYSTEM,
+            with_language(CONTENT_REFINER_SYSTEM, _language(state)),
             build_refine_prompt(
                 json.dumps(issues, ensure_ascii=False),
                 source,
