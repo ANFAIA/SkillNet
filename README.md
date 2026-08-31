@@ -24,78 +24,96 @@
   <strong>English</strong> · <a href="README.es.md">Español</a>
 </p>
 
-SkillNet is an open-source adaptive learning system. Start with a topic or existing material and it
-builds a structured course that can present the same knowledge differently to each learner.
-
-It can run as a shared space for an organization or class, or as an individual learning workspace.
-It is self-hosted and licensed under Apache 2.0.
+SkillNet is an open-source system for turning knowledge into training that can change shape for the
+person learning. It can run as a shared workspace for an organization or class, or as an individual
+learning workspace. It is self-hosted and licensed under Apache 2.0.
 
 **[Start here: run SkillNet locally →](RUNNING.md)**
 
-## From ideas and sources to courses
+## Why SkillNet exists
 
-You can begin by describing what you want to teach or learn, or by uploading the material that
-already contains that knowledge. SkillNet turns it into a course. Uploaded material remains the
-grounding source; when you start from an idea, SkillNet creates a generated source, records that
-provenance and builds the course from it.
+In many small and medium organizations, training depends on the people who already know how things
+work. Every new hire makes someone stop their regular work to explain the same processes again.
+Documentation may exist, but it is rarely a complete learning experience, and the organization has
+little traceability over who knows what, where the gaps are, or who could help someone else.
 
-SkillNet builds that path:
+SkillNet creates another channel for that knowledge. It turns an idea or existing source material
+into a structured course, a tutor grounded in the same sources, learning activities and a record of
+progress and skills.
+
+## One source, a complete learning path
+
+You can describe what you want to teach or upload PDF, DOCX, Markdown or TXT material. Uploaded
+material remains the grounding source. When a course starts from an idea, SkillNet records the
+generated source and its provenance before building the course.
 
 ```text
 idea or source material
-        → structured course knowledge
-        → course and lesson generation
-        → exercises, explanations and practice
-        → a learning experience for each learner
+        → grounded course knowledge
+        → structure, lessons and exercises
+        → tutor and learning media
+        → attempts, progress and skills
 ```
 
-The result is not limited to a single fixed presentation. The same course can support different
-explanations, activities, media and interfaces while preserving its knowledge and objectives.
+The tutor answers from the course material instead of acting as a generic chatbot. The learning
+surface can combine text with components such as worked examples, diagrams, flashcards, practice
+activities, audio and generated media when the corresponding provider is configured.
 
-## The same knowledge and objective, a different experience
+## The same knowledge, a different path
 
-The knowledge and objectives can remain stable while the parts around them change for the person
-learning:
+SkillNet separates what must remain stable from what can change for the learner:
 
-| What stays stable | What can change |
+| Stable contract | Adaptive experience |
 | --- | --- |
-| knowledge, objectives, evidence and criteria | explanation, example, activity, support and interface |
+| knowledge, objectives, evidence and evaluation criteria | explanation, example, activity, support, medium and interface |
 
-In a dynamic course, the shared knowledge and objectives stay stable while the explanation,
-activity, support and interface can adapt using the learner's declared preferences, role, level and
-progress. These signals shape the experience without being treated as fixed learning styles.
+A dynamic course can use the learner's role, declared preferences, current intent, level, attempts
+and progress to choose a more suitable experience. These signals are revisable evidence, not fixed
+"learning styles" and not a claim that the system already knows the person perfectly.
+
+This distinction matters: responding to what someone asks now is not the same as knowing what has
+helped them over time. SkillNet keeps those two concerns separate so that immediate context can
+shape the current screen while accumulated evidence can support longer-term personalization.
 
 ## How it works
 
 ```mermaid
 graph LR
-    docs["Idea or source material"] --> agents["SkillNet agents"]
-    agents --> knowledge["Course knowledge"]
-    knowledge --> openui["OpenUI interface description"]
-    openui --> didact["Didact learning components"]
-    didact --> learner["Learner"]
-    learner -->|questions · attempts · progress| agents
+    sources["Idea · documents · existing knowledge"] --> course["Grounded course"]
+    course --> tutor["Tutor with sources"]
+    course --> runtime["OpenUI + Didact"]
+    runtime --> learner["Learning experience"]
+    learner --> evidence["Attempts · progress · skills"]
+    evidence --> runtime
+    evidence --> talent["Talent view"]
 ```
 
-SkillNet combines a knowledge layer, specialised agents and learning surfaces. The current
-generated-interface path uses [OpenUI](https://github.com/thesysdev/openui). [Didact](https://github.com/JoseEstevez520/Didact)
-provides the educational components: flashcards, worked examples, diagrams, practice activities and
-other interactions designed for learning.
+[OpenUI](https://github.com/thesysdev/openui) lets the model describe an interface through a
+controlled language instead of inventing the application from scratch. [Didact](https://github.com/JoseEstevez520/Didact)
+provides the educational components that SkillNet can compose. Most experiences should stay fast,
+predictable and component-based; more open generation is reserved for cases where the controlled
+catalog cannot express the learning task.
 
-## What is available
+## What is available now
 
 - Create a course from a topic or from PDF, DOCX, Markdown or TXT material.
-- Generate its structure, lessons and exercises.
-- Support static and dynamic course paths.
-- Ask questions grounded in course material.
-- Record learning activity, attempts and progress.
+- Generate a course structure, grounded lessons, exercises and practice.
+- Deliver static courses and opt individual courses into the dynamic path.
+- Ask questions through a tutor grounded in the course sources.
+- Compose learning screens with OpenUI and the Didact component catalog.
+- Generate and attach supported media artifacts such as podcasts and infographics.
+- Record enrollments, attempts, progress, mastery and skills.
+- Explore people, courses and recorded skills through the talent surfaces.
 - Choose an organization or individual workspace at first setup.
-- Create a complete course through the UI, external API, A2A service or MCP server.
-- Run the system locally or self-host it with Docker.
+- Create courses and query skills through the UI, external REST API, A2A service or MCP server.
+- Run locally or self-host with Docker and an OpenAI-compatible model provider.
 
-The project is still in development. Some adaptive directions are documented and being tested, but
-they should not be read as promises about learning outcomes or as a claim that the system already
-knows how every person learns.
+## What is still being validated
+
+The runtime can already produce different experiences from the same course, but educational
+effectiveness, the quality of each adaptation and the right balance between immediate intent and
+long-term memory still need evidence. Proactive adaptation, automatic synchronization with changed
+sources and fully open-ended generated interfaces remain later directions, not current promises.
 
 ## Ecosystem
 
@@ -129,6 +147,8 @@ experiments; see [`RUNNING.md`](RUNNING.md) for the available options.
 
 ## Explore the project
 
+- [`docs/ROADMAP.md`](docs/ROADMAP.md) — current baseline, active priorities and later horizons.
+- [`docs/releases/2026-09-01-anfaia.md`](docs/releases/2026-09-01-anfaia.md) — the ANFAIA product snapshot behind this version.
 - [`docs/design/vision.md`](docs/design/vision.md) — the ideas behind the product.
 - [`docs/design/product.md`](docs/design/product.md) — current scope and product direction.
 - [`docs/design/openui-adoption.md`](docs/design/openui-adoption.md) — how generated interfaces are evaluated and integrated.

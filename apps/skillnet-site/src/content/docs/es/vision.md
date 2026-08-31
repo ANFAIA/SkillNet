@@ -6,73 +6,81 @@ section: "start"
 
 # Visión
 
-> **Estado: Borrador.** El fundamento filosófico de SkillNet. Explica por qué está construido así y en qué cree, no qué hace.
+> **Estado: dirección de producto.** Estas son las ideas que deben sobrevivir a cambios de modelo,
+> interfaz e implementación.
 
----
+## El problema estructural
 
-## El problema del software de formación actual
+Las organizaciones ya contienen el conocimiento que necesita su gente, pero a menudo ese
+conocimiento no tiene un canal fiable. Vive en documentos, conversaciones y la cabeza de unas pocas
+personas con experiencia. Cuando llega alguien nuevo, otra persona tiene que detener su trabajo y
+reconstruir la formación.
 
-La mayoría de las plataformas de formación están construidas de la misma manera: un admin crea cursos, los empleados los hacen, todo el mundo ve lo mismo. La plataforma no cambia entre el primer empleado y el centésimo. El contenido es estático. La experiencia es fija.
+SkillNet separa tres cosas que el software de cursos tradicional suele unir:
 
-Estas plataformas han añadido una capa de IA, como un chatbot que responde preguntas o un generador de cuestionarios, sin cambiar su estructura. El curso sigue siendo el mismo para todos, el panel se ve idéntico y el camino está predeterminado.
-
-**Añadir IA a un sistema estático no lo hace inteligente. Lo convierte en un sistema estático con un chatbot.**
+- el **conocimiento y el objetivo** pueden ser compartidos;
+- la **forma de explicarlo, practicarlo y experimentarlo** puede cambiar;
+- la **evidencia necesaria para demostrar comprensión** debe seguir siendo trazable.
 
 ## En qué cree SkillNet
 
-### 1. La aplicación debe aprender del usuario, no al revés
+### El conocimiento debe poder enseñar
 
-Las plataformas actuales exigen que los empleados se adapten al sistema: aprender la interfaz, seguir el camino, completar los módulos. SkillNet debe adaptarse al empleado: su nivel, su ritmo, sus lagunas, sus preguntas.
+El objetivo no es eliminar a las personas que saben, sino darle otro canal a su conocimiento. Una
+fuente puede convertirse en curso, tutor fundamentado, práctica y materiales reutilizables sin
+perder su procedencia.
 
-Las opciones de personalización no bastan. El sistema debe observar cómo trabaja cada persona y ajustarse sin que haya que indicárselo en cada paso.
+### El mismo conocimiento no exige la misma experiencia
 
-### 2. La inteligencia vive en la arquitectura, no en el modelo
+Una persona puede necesitar fundamentos y otra un ejemplo, una simulación o un caso difícil. El
+objetivo y el nivel de evidencia pueden permanecer estables mientras cambian explicación, actividad,
+medio e interfaz. La variación solo se convierte en personalización cuando está fundamentada, encaja
+con la persona y ayuda al objetivo de aprendizaje.
 
-Un LLM potente es un componente más. La inteligencia del sistema depende de cómo se combinan estas piezas:
+### La intención no es la memoria
 
-- **Memoria** — qué recuerda el sistema de cada persona y de cada empresa
-- **Contexto** — qué información está disponible en cada momento
-- **Herramientas** — qué puede hacer el sistema, no solo qué puede decir
-- **Bucles de retroalimentación** — cómo aprende el sistema de sus propios errores
+Entender qué pide alguien ahora es distinto de conocer qué le ha ayudado a lo largo del tiempo. El
+contexto actual puede dar forma a la siguiente pantalla; la memoria del aprendiz puede acumular
+preferencias declaradas y resultados observados entre sesiones. Esa memoria debe poder inspeccionarse,
+corregirse y revisarse.
 
-El modelo es sustituible. La arquitectura es el producto.
+### La tecnología debe adaptarse a las personas
 
-### 3. La formación debe construirse a partir de conocimiento vivo, no de cursos estáticos
+El software ha pedido tradicionalmente que la gente aprenda sus pantallas fijas. Las interfaces
+generativas permiten componer una superficie para la tarea actual, pero generar más no es
+automáticamente mejor:
 
-La documentación de la empresa cambia. Las políticas se actualizan, los procedimientos se revisan, aparecen nuevas normativas. La formación que era correcta el mes pasado puede ser errónea hoy.
+1. **Estructura fija y contenido variable** para trabajo predecible.
+2. **Composición controlada** desde componentes aprobados para la mayoría de experiencias.
+3. **Generación abierta** solo cuando hace falta una simulación nueva y puede validarse en calidad,
+   latencia, coste y seguridad.
 
-SkillNet trata los documentos fuente como la única fuente de verdad. Los cursos y manuales se derivan de ellos, no son artefactos independientes. Cuando la fuente cambia, la formación se adapta.
+### Los componentes forman parte de la pedagogía
 
-### 4. El mismo conocimiento debe producir experiencias distintas para personas distintas
+Un curso no es texto dentro de tarjetas. Los ejemplos resueltos, diagramas, actividades prácticas,
+audio y simulaciones permiten acciones distintas. Didact aporta componentes educativos; OpenUI da
+al modelo un lenguaje controlado para componerlos sin reescribir la aplicación.
 
-Dos empleados que leen el mismo manual no deberían hacer el mismo curso. Uno es nuevo y necesita fundamentos. El otro tiene cinco años de experiencia y necesita casos límite. El manual es el mismo — la formación no debería serlo.
+### Aprender debe dejar evidencia
 
-La adaptación debe ser el comportamiento por defecto de un sistema que entiende quién está aprendiendo, no una característica opcional.
+Finalización, dominio y habilidad son afirmaciones distintas. Intentos, progreso, experiencias
+servidas y procedencia de las fuentes hacen trazables los datos de talento y permiten comprobar si
+una adaptación realmente ayudó.
 
-## Cómo esto moldea las decisiones técnicas
+### El conocimiento debe permanecer vivo y ser portable
 
-| Decisión | Por qué |
-|----------|-----|
-| **Pipeline de LangGraph con puntos de control humanos** | La generación de contenido es demasiado importante para automatizarla del todo. El admin es responsable de lo que aprenden los empleados. El sistema propone, el humano decide. |
-| **Tres niveles de UI (estático, declarativo, generativo)** | La mayor parte de la app debe ser rápida y predecible (Nivel 1). Donde el contenido varía según el usuario, se usan specs (Nivel 2). Solo se genera HTML completo cuando nada prefabricado encaja (Nivel 3). |
-| **RAG condicional (los documentos pequeños van enteros, los grandes se trocean)** | No sobre-ingenierizar problemas que no existen. Una política de 3 páginas no necesita un vector store. El sistema debe ser inteligente sobre cuándo complicarse. |
-| **Patrón PageIndex para la recuperación del tutor** | El contenido del curso ya está estructurado (módulos > lecciones). Usar esa estructura en lugar de vectorizarlo todo. Dos consultas SQL + una llamada corta al LLM supera a la búsqueda semántica para preguntas dentro del curso. |
-| **Capa de LLM agnóstica de proveedor** | El modelo cambiará. La arquitectura no debe depender de ningún proveedor concreto. Cualquier API compatible con OpenAI funciona. |
-| **Autoalojado, una instancia por empresa** | Los datos de formación de la empresa son sensibles. El multi-tenant añade complejidad y riesgo. Una instancia por empresa es más simple y más fiable. |
-| **Intentos de ejercicio y eventos de aprendizaje registrados** | No para analítica vanidosa. Sostienen el futuro bucle de aprendizaje: separar preferencia, compromiso y eficacia. La repetición espaciada no está en la hoja de ruta actual; ver [adaptive-learning.md](/docs/adaptive-learning). |
+Las fuentes cambian, así que los cursos no deberían convertirse en copias separadas que envejecen en
+silencio. El conocimiento y los datos de talento también deben estar disponibles mediante interfaces
+abiertas en lugar de quedar atrapados en una superaplicación cerrada.
 
-## Qué significa esto para la hoja de ruta
+## Límites
 
-**MVP (ahora):** Generar cursos a partir de documentos. Los empleados los hacen. El admin ve el progreso. El sistema es estático pero está bien diseñado para adaptarse.
-
-**Fase 2:** Agente tutor que se adapta a cada empleado. Estrategias de aprendizaje mixtas que respetan las preferencias de presentación explícitas. Niveles de habilidad que reflejan capacidad real, no solo finalización.
-
-**Fase 3:** Regeneración adaptativa — el sistema identifica módulos débiles a partir de datos reales y los regenera. Contenido vivo que se mantiene sincronizado con la documentación de la empresa.
-
-**Fase 4:** Coordinación multiagente dentro de una empresa. Distintos agentes para distintos roles, compartiendo conocimiento a través de compartimentos estructurados.
-
-Cada fase se apoya en las decisiones de arquitectura de la anterior y mantiene el mismo fundamento.
+SkillNet no afirma que un modelo pueda inferir la forma ideal de aprender de una persona a partir de
+unos pocos clics. No convierte preferencias en etiquetas fijas y no presupone que una interfaz más
+rica produzca mejor aprendizaje. El sistema se adapta dentro de contratos explícitos y las personas
+conservan autoridad sobre fuentes, objetivos y memoria.
 
 ## La tesis en una frase
 
-> SkillNet no es una plataforma que entrega formación. Es un sistema que construye la formación adecuada para cada persona, a partir del conocimiento que ya existe en su empresa.
+> SkillNet convierte conocimiento compartido en aprendizaje fundamentado y trazable que puede tomar
+> una forma distinta para cada persona.

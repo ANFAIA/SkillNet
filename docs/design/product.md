@@ -1,6 +1,7 @@
 # Product
 
-> **Status: Draft.** This document defines what SkillNet is, who it's for, and what it does.
+> **Status: current product baseline and direction.** This document defines what SkillNet is, who
+> it is for and which boundaries separate implemented behavior from later work.
 >
 > The current company-first product remains the implemented baseline. The future
 > audience model for organization and individual deployments is defined in
@@ -10,15 +11,19 @@
 
 ## What is SkillNet
 
-SkillNet is a learning system that builds the right training experience for each person, from the knowledge that already exists in their company.
+SkillNet turns an idea or existing knowledge into grounded, traceable training that can take a
+different form for each person.
 
-Not a course catalog. Not a static LMS with AI bolted on. A system that reads what a company knows — manuals, procedures, protocols — and turns it into training that adapts to who is learning, not just what is being taught.
+It is not only a course catalog or a static LMS with a chatbot attached. It reads manuals,
+procedures, protocols or a generated source, builds a course and keeps the learner experience
+separate from the knowledge and objective that must remain stable.
 
-Open source, self-hosted, one instance per company. Not multi-tenant — by design.
+It is open source and self-hosted. A deployment can begin as an organization workspace or an
+individual workspace; [audience-modes.md](audience-modes.md) defines the longer-term audience model.
 
-It doesn't compete with enterprise offerings. It exists for the companies that those offerings don't serve.
-
-**The core idea:** the same company knowledge should produce different training experiences for different people. Not because an admin configured it that way — because the system understands each person's role, level, and progress, and builds accordingly.
+**The core idea:** the same source and objective can produce different explanations, activities,
+media and interfaces. The system uses current context and revisable learner evidence; it does not
+claim to know a person's fixed learning style.
 
 ## Roles
 
@@ -37,17 +42,18 @@ It doesn't compete with enterprise offerings. It exists for the companies that t
 
 ## Content generation
 
-The primary way to create content:
+Current creation paths:
 
-- **From documents** — Upload a PDF, manual, or protocol. A team of AI agents extracts themes, designs a structure, generates modules and exercises, reviews quality, and produces a course + manual. The admin reviews at two checkpoints before anything reaches employees.
+- **From documents** — upload PDF, DOCX, Markdown or TXT material and generate a course grounded in
+  that source.
+- **From an idea** — describe a topic; SkillNet creates a generated source with provenance and then
+  builds the course from it.
+- **From external clients** — the web UI, `/ext/v1`, A2A and MCP converge on the same course authoring
+  services.
 
-The generation pipeline is a LangGraph state machine with 10 nodes, 7 specialized agents, and 2 mandatory human checkpoints. See [content-generation.md](content-generation.md).
-
-Future generation methods (not in MVP):
-
-- From conversation — tell the AI what you know, it structures the course
-- From scratch — give it a topic and level, it generates original content
-- From living docs — when source documents change, affected courses are flagged for regeneration
+The static v1 pipeline and dynamic v2 schema path coexist. `course_delivery.resolve_delivery` is the
+single selector. See [v1-scope.md](v1-scope.md), [v2-dynamic-courses.md](v2-dynamic-courses.md) and
+[ai-course-design.md](ai-course-design.md).
 
 ## Exercises
 
@@ -57,71 +63,67 @@ Every exercise includes an explanation citing the source material. Answers are e
 
 ## Tracking
 
-Employees complete courses. The system records what they know how to do:
+Learners complete courses. The system records the evidence it can actually observe:
 
-- Exercise attempts with scores and timestamps
-- Skill levels that increase when exercises are passed
-- Spaced repetition scheduling for review
-- Deadlines and enrollment status
+- Enrollments and course progress
+- Node completion and mastery
+- Exercise and activity attempts
+- Learning events and the rendered experience seen by the learner
+- Skills recorded through course work
 
-The admin sees team progress, skill gaps, and alerts. How exactly this is presented is open — the data model supports multiple views.
+The admin talent surfaces expose people, assigned courses, progress and recorded skills. Completion,
+mastery and skill are kept as different claims. They should not be collapsed into one unexplained
+score.
 
 ## Adaptation
 
-SkillNet adapts at two levels:
+SkillNet separates the stable course contract from the experience served to one learner.
 
-**Level 1 — Content generation (offline, expensive):** The course is generated once from company documents. But the generation process already considers the target audience: the admin specifies who the course is for, and agents adjust Bloom levels, exercise difficulty, and examples accordingly.
+**Static delivery:** generated Markdown and exercises remain the compatibility path.
 
-**Level 2 — Experience adaptation (real-time, cheap):** Each employee sees the same course differently based on their profile:
+**Dynamic delivery:** a validated course schema can produce per-node episodes using course
+knowledge, learner profile, current state and an approved component catalog. The runtime may adapt
+the explanation, example, activity, support, medium and interface without changing the objective or
+evidence requirement.
 
-- A beginner gets more theory lessons and guided examples
-- An experienced employee skips to exercises and gets harder practical cases
-- The tutor agent adjusts its explanations based on conversation history and past performance
-- Spaced repetition schedules exercises for review at the optimal moment
+**Longer-term adaptation:** learner memory may use declared preferences and observed outcomes across
+sessions. This is distinct from immediate intent. Any retained hypothesis must be inspectable,
+correctable and evaluated before it is treated as useful.
 
-**Level 3 — Adaptive regeneration (future, data-driven):** After a course has been taken by enough employees, the system identifies patterns: which modules have low pass rates, which exercises are too easy or too hard, which topics generate the most tutor questions. This data feeds back into the generation pipeline to regenerate weak modules automatically.
-
-| Signal | What it tells us | Action |
-|--------|-----------------|--------|
-| Low pass rate on a module | Content is unclear or too difficult | Regenerate module with simpler explanations |
-| High tutor questions on a topic | Employees don't understand from the course alone | Add examples or a dedicated lesson |
-| Fast completion + high scores | Content is too easy | Increase exercise difficulty or add advanced module |
-| Abandoned course at a specific point | Friction or disengagement | Investigate and adjust that section |
-| Spaced repetition failures | Retention is poor | Adjust FSRS parameters or add reinforcement |
-
-How adaptation works in practice is open. The data model already captures all the signals needed (exercise_attempts with scores, timestamps, tutor chat logs, spaced_repetition table). No schema changes required — just the logic to act on the data.
+**Adaptive regeneration:** detecting weak content across many learners and proposing a grounded
+revision remains future work.
 
 ## Learning Loop
 
-The system learns from every interaction:
+The implemented loop records evidence from each interaction:
 
 ```
-Employee takes course
+Learner takes course
     |
     v
-Exercise attempts recorded (score, time, answer)
+Experience and attempts recorded
     |
     v
-Skill levels updated
+Progress, mastery and skills updated through their own rules
     |
     v
-Spaced repetition schedules next review
+Tutor and explain flows use grounded course context
     |
     v
-Tutor chat logs questions and confusions
+Admin sees progress and recorded skills
     |
     v
-Admin sees patterns: skill gaps, struggling employees, weak modules
-    |
-    v
-(Future) System flags content for regeneration based on real data
+(Future) evidence supports reviewed changes to experience or content
 ```
 
-This is not a feature of the MVP. It is the direction the product moves in. Every table in the data model already supports it — the learning loop is a design constraint, not an afterthought.
+Recording events is implemented. Proving that an adaptation improves learning and automatically
+changing the course from aggregate evidence are separate roadmap outcomes.
 
 ## Living Content
 
-Company documentation changes. Policies are updated, procedures are revised, new regulations appear. SkillNet treats source documents as living, not static:
+Company documentation changes. Policies are updated, procedures are revised and new regulations
+appear. SkillNet is designed to treat source documents as living rather than static. The following
+behavior is a product horizon, not a description of the current end-to-end workflow:
 
 - When a document is re-uploaded, the system detects what changed
 - Affected courses and manuals are flagged for review

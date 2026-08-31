@@ -24,80 +24,101 @@
   <a href="README.md">English</a> · <strong>Español</strong>
 </p>
 
-SkillNet es un sistema de aprendizaje adaptativo de código abierto. Se empieza por un tema o por
-material que ya existe, y construye un curso estructurado capaz de presentar el mismo conocimiento
-de forma distinta a cada persona.
-
-Puede funcionar como espacio compartido de una organización o una clase, o como espacio de
-aprendizaje individual. Es autoalojado y se distribuye con licencia Apache 2.0.
+SkillNet es un sistema de código abierto que convierte conocimiento en formación capaz de cambiar de
+forma para la persona que aprende. Puede funcionar como espacio compartido de una organización o una
+clase, o como espacio de aprendizaje individual. Es autoalojado y se distribuye con licencia Apache
+2.0.
 
 **[Empieza aquí: ejecutar SkillNet en local →](RUNNING.md)**
 
-## De ideas y materiales a cursos
+## Por qué existe SkillNet
 
-Puedes empezar describiendo lo que quieres enseñar o aprender, o subiendo el material que ya
-contiene ese conocimiento. SkillNet lo convierte en un curso. El material que subes sigue siendo la
-fuente que lo fundamenta; cuando partes de una idea, SkillNet crea una fuente generada, registra esa
-procedencia y construye el curso a partir de ella.
+En muchas organizaciones pequeñas y medianas, formar depende de las personas que ya saben cómo
+funciona todo. Cada incorporación obliga a alguien a detener su trabajo para volver a explicar los
+mismos procesos. Puede existir documentación, pero rara vez constituye una experiencia completa de
+aprendizaje, y la organización apenas tiene trazabilidad sobre quién sabe qué, dónde están los gaps o
+quién podría ayudar a otra persona.
 
-SkillNet construye ese camino:
+SkillNet crea otro canal para ese conocimiento. Convierte una idea o un material existente en un
+curso estructurado, un tutor fundamentado en las mismas fuentes, actividades de aprendizaje y un
+registro de progreso y habilidades.
+
+## Una fuente, un recorrido completo de aprendizaje
+
+Puedes describir lo que quieres enseñar o subir material en PDF, DOCX, Markdown o TXT. El material
+subido sigue siendo la fuente que fundamenta el curso. Cuando se parte de una idea, SkillNet registra
+la fuente generada y su procedencia antes de construirlo.
 
 ```text
 idea o material de origen
-        → conocimiento estructurado del curso
-        → generación del curso y de las lecciones
-        → ejercicios, explicaciones y práctica
-        → una experiencia de aprendizaje para cada persona
+        → conocimiento fundamentado del curso
+        → estructura, lecciones y ejercicios
+        → tutor y medios de aprendizaje
+        → intentos, progreso y habilidades
 ```
 
-El resultado no se limita a una única presentación fija. El mismo curso puede admitir distintas
-explicaciones, actividades, medios e interfaces conservando su conocimiento y sus objetivos.
+El tutor responde desde el material del curso en lugar de comportarse como un chatbot genérico. La
+superficie de aprendizaje puede combinar texto con ejemplos resueltos, diagramas, tarjetas,
+actividades prácticas, audio y medios generados cuando está configurado el proveedor correspondiente.
 
-## El mismo conocimiento y objetivo, otra experiencia
+## El mismo conocimiento, un camino distinto
 
-El conocimiento y los objetivos pueden mantenerse estables mientras cambia lo que los rodea para la
-persona que aprende:
+SkillNet separa lo que debe permanecer estable de lo que puede cambiar para quien aprende:
 
-| Lo que se mantiene estable | Lo que puede cambiar |
+| Contrato estable | Experiencia adaptable |
 | --- | --- |
-| conocimiento, objetivos, evidencias y criterios | explicación, ejemplo, actividad, apoyo e interfaz |
+| conocimiento, objetivos, evidencias y criterios de evaluación | explicación, ejemplo, actividad, apoyo, medio e interfaz |
 
-En un curso dinámico, el conocimiento y los objetivos compartidos se mantienen estables mientras la
-explicación, la actividad, el apoyo y la interfaz pueden adaptarse usando las preferencias
-declaradas de quien aprende, su puesto, su nivel y su progreso. Esas señales dan forma a la
-experiencia sin tratarse como estilos de aprendizaje fijos.
+Un curso dinámico puede usar el puesto, las preferencias declaradas, la intención del momento, el
+nivel, los intentos y el progreso para escoger una experiencia más adecuada. Esas señales son
+evidencias revisables, no «estilos de aprendizaje» fijos ni una afirmación de que el sistema ya
+conoce perfectamente a la persona.
+
+La diferencia importa: responder a lo que alguien pide ahora no es lo mismo que conocer qué le ha
+ayudado a lo largo del tiempo. SkillNet mantiene separadas ambas cosas para que el contexto inmediato
+dé forma a la pantalla actual y la evidencia acumulada pueda sostener una personalización más
+profunda.
 
 ## Cómo funciona
 
 ```mermaid
 graph LR
-    docs["Idea o material de origen"] --> agents["Agentes de SkillNet"]
-    agents --> knowledge["Conocimiento del curso"]
-    knowledge --> openui["Descripción de interfaz OpenUI"]
-    openui --> didact["Componentes de aprendizaje Didact"]
-    didact --> learner["Quien aprende"]
-    learner -->|preguntas · intentos · progreso| agents
+    sources["Idea · documentos · conocimiento existente"] --> course["Curso fundamentado"]
+    course --> tutor["Tutor con fuentes"]
+    course --> runtime["OpenUI + Didact"]
+    runtime --> learner["Experiencia de aprendizaje"]
+    learner --> evidence["Intentos · progreso · habilidades"]
+    evidence --> runtime
+    evidence --> talent["Vista de talento"]
 ```
 
-SkillNet combina una capa de conocimiento, agentes especializados y superficies de aprendizaje. El
-camino actual de interfaz generada usa [OpenUI](https://github.com/thesysdev/openui).
-[Didact](https://github.com/JoseEstevez520/Didact) aporta los componentes educativos: tarjetas,
-ejemplos resueltos, diagramas, actividades de práctica y otras interacciones pensadas para aprender.
+[OpenUI](https://github.com/thesysdev/openui) permite al modelo describir una interfaz mediante un
+lenguaje controlado en lugar de inventar la aplicación desde cero. [Didact](https://github.com/JoseEstevez520/Didact)
+aporta los componentes educativos que SkillNet puede componer. La mayoría de experiencias deben ser
+rápidas, predecibles y basadas en componentes; la generación más abierta se reserva para los casos en
+los que el catálogo controlado no puede expresar la tarea de aprendizaje.
 
-## Qué hay disponible
+## Qué está disponible ahora
 
 - Crear un curso desde un tema o desde material en PDF, DOCX, Markdown o TXT.
-- Generar su estructura, sus lecciones y sus ejercicios.
-- Admitir cursos por el camino estático y por el dinámico.
-- Preguntar con las respuestas fundamentadas en el material del curso.
-- Registrar la actividad de aprendizaje, los intentos y el progreso.
+- Generar estructura, lecciones fundamentadas, ejercicios y práctica.
+- Servir cursos estáticos y activar individualmente el camino dinámico.
+- Preguntar mediante un tutor fundamentado en las fuentes del curso.
+- Componer pantallas de aprendizaje con OpenUI y el catálogo de Didact.
+- Generar y adjuntar artefactos compatibles como podcasts e infografías.
+- Registrar matrículas, intentos, progreso, dominio y habilidades.
+- Explorar personas, cursos y habilidades registradas desde las superficies de talento.
 - Elegir espacio de organización o individual en la primera configuración.
-- Crear un curso completo desde la interfaz, la API externa, el servicio A2A o el servidor MCP.
-- Ejecutar el sistema en local o autoalojarlo con Docker.
+- Crear cursos y consultar habilidades desde la interfaz, la API REST externa, A2A o MCP.
+- Ejecutar el sistema en local o autoalojarlo con Docker y un proveedor compatible con OpenAI.
 
-El proyecto sigue en desarrollo. Algunas direcciones adaptativas están documentadas y en pruebas,
-pero no deben leerse como promesas sobre resultados de aprendizaje ni como una afirmación de que el
-sistema ya sabe cómo aprende cada persona.
+## Qué sigue en validación
+
+El runtime ya puede producir experiencias distintas desde un mismo curso, pero todavía necesitan
+evidencia la eficacia educativa, la calidad de cada adaptación y el equilibrio entre intención
+inmediata y memoria a largo plazo. La adaptación proactiva, la sincronización automática cuando
+cambian las fuentes y las interfaces completamente abiertas son direcciones posteriores, no promesas
+actuales.
 
 ## Ecosistema
 
@@ -132,6 +153,8 @@ para experimentar en local; las opciones están en [`RUNNING.md`](RUNNING.md).
 
 ## Explorar el proyecto
 
+- [`docs/ROADMAP.md`](docs/ROADMAP.md) — base actual, prioridades activas y horizontes posteriores.
+- [`docs/releases/2026-09-01-anfaia.md`](docs/releases/2026-09-01-anfaia.md) — snapshot de producto de ANFAIA que fija esta versión.
 - [`docs/design/vision.md`](docs/design/vision.md) — las ideas detrás del producto.
 - [`docs/design/product.md`](docs/design/product.md) — alcance actual y dirección de producto.
 - [`docs/design/openui-adoption.md`](docs/design/openui-adoption.md) — cómo se evalúan e integran las interfaces generadas.

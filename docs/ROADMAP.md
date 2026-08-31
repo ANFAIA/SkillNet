@@ -1,111 +1,156 @@
 # Roadmap
 
-> Actualizado: 2026-08-07. Organizado en slices paralelizables. Todos pueden ir a la vez.
+> Updated: 2026-08-31. This roadmap separates the implemented baseline from active validation and
+> later product directions. It describes outcomes, not a promise of dates.
 
----
+SkillNet's direction is simple: turn existing knowledge into grounded, traceable training, then let
+the experience change shape for the person learning without changing the knowledge or the standard
+they must meet.
 
-## Slice 1 — Calidad del contenido generado
+## Baseline available in the repository
 
-Testeable autonomamente: subir PDFs reales, generar cursos, comparar output contra
-el documento fuente.
+### Knowledge to course
 
-- [ ] Subir PDFs reales de un partner (manual operativo, ecosistema) como fuente
-- [ ] Generar cursos desde esos documentos con el pipeline multi-agente
-- [ ] Verificar fidelidad: datos coinciden con el PDF, no inventa, no falta nada
-- [ ] Verificar componentes: procedimiento -> StepByStepReveal, lista -> Table, etc.
-- [ ] Verificar leads: no copian el summary, enganchan
-- [ ] Verificar quizzes: preguntas respondibles con info del documento, caso concreto
-- [ ] Iterar prompts de Blueprint, Content Writer e Interaction Designer
-- [ ] Correr quality_bench con LLM real
+- Create a course from a topic or from PDF, DOCX, Markdown and TXT sources.
+- Keep provenance and source grounding through structure, lesson and exercise generation.
+- Generate courses through the web UI and the external course-creation path.
+- Preserve the static v1 path while opting individual validated courses into dynamic delivery.
 
-## Slice 2A — UX del stepper y visualizacion
+### Learning experience
 
-- [ ] Transicion al entrar en un nodo: morph con framer-motion (no salto brusco)
-- [ ] Transicion al salir del nodo: morph inverso (no desaparicion)
-- [ ] Centrado vertical testeado con todos los tipos de bloque
-- [ ] Responsive: pantallas pequenas, tablets
-- [ ] Spider buddy: posicion en diferentes resoluciones
-- [ ] Intro del curso: titulo + outcomes en una pantalla
-- [ ] Componentes visuales: animaciones de entrada, feedback de quiz, charts
+- Deliver grounded lessons, exercises and pre-assessment nodes.
+- Answer course questions through a tutor that retrieves from the enrolled material.
+- Compose controlled generated interfaces with OpenUI and the Didact catalog.
+- Support click-to-explain and contextual exploration without leaving the learning flow.
+- Generate supported media artifacts asynchronously and place eligible media inside an episode.
 
-Normas de diseno (ver `design-system.md` y `motion-system.md`):
-- Morph desde el trigger con layoutId (nunca aparicion de la nada)
-- Opacity + scale, NUNCA blur
-- Secuencial: cada elemento espera al anterior
-- Chevrones, no flechas
-- Sin spinners: shimmer o pasos con nombre
-- Todo fluye: paso a paso, nodo a nodo, curso a leccion
+### Traceability and talent
 
-## Slice 2B — Chat del tutor en las lecciones
+- Record enrollments, attempts, node completion, mastery and learning events.
+- Record skills earned through course work.
+- Provide admin talent views for people, courses, progress and recorded skills.
+- Expose skill queries and complete course creation through `/ext/v1`.
 
-- [ ] Testear end-to-end: contexto del nodo llega, respuestas relevantes
-- [ ] Tono: companero cercano, no bot formal
-- [ ] Funciona con auth de empleado (no admin)
-- [ ] Reaccion a aciertos/errores del quiz (futuro: como Koji)
+### Deployment and interoperability
 
-## Slice 2C — Idiomas (i18n)
+- Run as an organization or individual workspace.
+- Self-host with Docker and an OpenAI-compatible model provider.
+- Use SkillNet through the web application, REST API, A2A service and MCP server.
+- Keep English and Spanish product surfaces in the same codebase.
 
-La infraestructura esta montada (react-intl + catalogos es/en + agent tool set_locale).
+The baseline being implemented does not mean every path has equal product maturity. The static path
+is the compatibility floor. Dynamic episodes, generated media and adaptive behavior require more
+validation under realistic sources, learners and model configurations.
 
-- [ ] Migrar sidebar, node view, stepper a useIntl() / FormattedMessage
-- [ ] Migrar create course, course view
-- [ ] Migrar componentes de bloque (quiz, drag, etc.)
-- [ ] El contenido de los cursos se genera en el idioma del admin
+## Active priorities
 
----
+### 1. Make generated training trustworthy
 
-## Slice 3 — Despues de slice 2
+- [ ] Evaluate course fidelity against representative company documents.
+- [ ] Measure unsupported claims, missing critical knowledge and citation quality.
+- [ ] Improve knowledge packs and component selection from the actual shape of each source.
+- [ ] Keep deterministic fallbacks when generation or validation fails.
+- [ ] Publish a small, repeatable quality benchmark with expected outputs.
 
-### 3A — Temas visuales predefinidos
+### 2. Prove the complete workflow
 
-- [ ] Disenar 3-5 sets de CSS variables (corporate, warm, minimal, dark...)
-- [ ] Tool set_theme en el agent para cambiar entre ellos
-- [ ] Persistencia en preferencias del usuario
+- [ ] Make `idea/source → course → learner → progress → talent` reliable as one end-to-end path.
+- [ ] Reduce unnecessary steps between creating, reviewing, publishing and taking a course.
+- [ ] Keep generation progress understandable without exposing internal agent noise.
+- [ ] Maintain a seeded demonstration that works without private data.
+- [ ] Verify organization and individual setup paths from a clean installation.
 
-### 3B — Flujo de crear curso
+### 3. Validate adaptation instead of merely generating variation
 
-- [ ] Eliminar clicks innecesarios entre crear y probar
-- [ ] UX de la creacion: progreso, feedback, preview
-- [ ] Chat del admin con tools para modificar esquema (futuro)
+- [ ] Compare two experiences built from the same knowledge and objective.
+- [ ] Separate declared preference, immediate intent, engagement and measured effectiveness.
+- [ ] Test whether an adaptation improves comprehension or completion before retaining it.
+- [ ] Let learners inspect, correct and reset the memory used for personalization.
+- [ ] Avoid fixed learning-style labels; treat every preference as a revisable hypothesis.
 
----
+### 4. Stabilize the learning surface
 
-## Slice 4 — Futuro
+- [ ] Validate every supported Didact family in real course episodes.
+- [ ] Keep titles, content density, transitions and responsive layout consistent.
+- [ ] Make audio, podcast, infographic, slide and video states honest when providers are unavailable.
+- [ ] Test tutor, explain and media flows with employee permissions, not only admin access.
+- [ ] Preserve accessible keyboard, focus and reduced-motion behavior.
 
-Ver `docs/design/generative-ui-personalization.md` para el diseno completo.
+### 5. Harden traceability and interoperability
 
-### Nivel 2 — Widgets anclables
-- [ ] El chat genera artefactos OpenUI que el usuario puede anclar en su dashboard
-- [ ] Tabla `user_dashboard_widgets` con programas OpenUI persistidos
-- [ ] El dashboard renderiza widgets con el mismo `<Renderer>` de las lecciones
+- [ ] Verify that skill evidence can be traced back to attempts, rendered material and source.
+- [ ] Clarify the difference between completion, mastery and a recorded skill in every surface.
+- [ ] Harden API keys, rate limits, errors and timeouts on `/ext/v1`.
+- [ ] Keep MCP and A2A as thin clients of the external API rather than parallel business logic.
+- [ ] Document backup, upgrade and model-change procedures for self-hosted deployments.
 
-### Nivel 3 — Agente proactivo
-- [ ] Cron que analiza patrones de uso (learning_events, llm_usage_log)
-- [ ] Propone widgets, ajustes de sidebar, contenido adicional
+## Next product horizon
 
-### Traduccion de contenido on-demand
-- [ ] Regenerar lecciones en el idioma del empleado
+These directions build on the active priorities. They are not committed releases.
 
----
+### Living knowledge
 
-## Paralelismo
+- Detect when a source changes and identify affected course nodes.
+- Propose grounded updates while preserving a human decision point.
+- Show learners which version of the knowledge their training used.
 
-```
-Slice 1 (calidad) ──────────────────┐
-Slice 2A (stepper UX, transiciones) ├── todos en paralelo
-Slice 2B (chat tutor) ──────────────┤
-Slice 2C (i18n) ────────────────────┘
-                                     │
-                            Slice 3A (temas) ── depende de 2C
-                            Slice 3B (crear curso)
-                                     │
-                            Slice 4 (gen-ui, proactivo, traduccion)
-```
+### Richer sources and outputs
 
-## Principios
+- Accept more source modalities, including useful audio and video ingestion.
+- Improve podcast and visual-material quality from grounded content.
+- Make generated media part of the learning mission, not a detached content gallery.
 
-1. **Calidad primero.** No anades features sobre una base rota.
-2. **El usuario no configura.** La app aprende de el.
-3. **OpenUI Lang es el motor.** Lecciones, widgets, dashboards — todo son programas OpenUI.
-4. **El agente tiene tools, no opiniones.** Solo actua cuando se lo piden o cuando los datos lo justifican.
-5. **Transiciones morph.** Todo fluye, nada salta. Framer-motion layout animations.
+### Better talent understanding
+
+- Move from a list of completions to evidence-backed capability profiles.
+- Surface gaps and possible peer mentors without pretending that a score captures a whole person.
+- Make talent data portable through open interfaces instead of trapping it in the application.
+
+### Personalization over time
+
+- Build learner memory from explicit preferences and observed outcomes.
+- Distinguish what the learner wants now from what has helped across sessions.
+- Suggest adaptations under user control instead of silently locking the person into a profile.
+
+## Research horizon
+
+### Three levels of generated interface
+
+1. **Fixed screen:** the structure is fixed and the content changes.
+2. **Controlled composition:** the model chooses from approved components through a compact,
+   validated interface language. This is the practical center of SkillNet today.
+3. **Open generation:** the model can build a new simulation or interaction when no approved
+   component fits. Use only where quality, latency, cost and reliability justify it.
+
+As models improve, the boundary between these levels will move. The roadmap does not assume that
+the most generative level is automatically the best one.
+
+### Software that accompanies the learner
+
+- Agents that can act across longer learning journeys with explicit permission.
+- Interfaces that reorganize around the current task without hiding their reasoning or controls.
+- Learning experiences that travel through external chats and agents instead of requiring one
+  closed super-application.
+
+## Principles
+
+1. **Grounding before generation.** A richer interface cannot compensate for unsupported content.
+2. **Quality before breadth.** Do not add a modality or component until its failure mode is honest.
+3. **Same knowledge, different path.** Adapt the experience without moving the objective or evidence bar.
+4. **Intent is not memory.** Reacting to a request now is different from knowing what helps over time.
+5. **Personalization is a hypothesis.** Learners can inspect and correct it; the system never defines them.
+6. **Controlled generation first.** Components and schemas are the reliable default; open generation earns its place.
+7. **Traceability is part of learning.** Progress and skills must point back to evidence.
+8. **Open and self-hosted by design.** Organizations control their knowledge, models and data.
+
+## Design records
+
+- [v1 scope and compatibility](design/v1-scope.md)
+- [v2 dynamic courses](design/v2-dynamic-courses.md)
+- [Learning experience architecture](design/learning-experience-architecture.md)
+- [Personalization architecture](design/personalization-architecture.md)
+- [Didact integration](design/didact-integration.md)
+- [Media artifacts](design/media-artifacts.md)
+- [Admin library and talent](design/admin-library-and-talent.md)
+- [External API and MCP](design/mcp-external-api.md)
+- [Vision](design/vision.md)

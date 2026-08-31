@@ -6,73 +6,78 @@ section: "start"
 
 # Vision
 
-> **Status: Draft.** The philosophical foundation of SkillNet. This document explains why SkillNet is built the way it is — not what it does, but what it believes.
+> **Status: product direction.** These are the ideas that should survive model, interface and
+> implementation changes.
 
----
+## The structural problem
 
-## The Problem with Current Training Software
+Organizations already contain the knowledge their people need, but it often has no reliable
+channel. It lives in documents, conversations and the heads of a few experienced people. When
+someone new arrives, another person has to stop their work and reconstruct the training.
 
-Most training platforms are built the same way: an admin creates courses, employees take them, everyone sees the same thing. The platform doesn't change between the first employee and the hundredth. The content is static. The experience is fixed.
+SkillNet separates three things that traditional course software tends to bind together:
 
-AI has been added to these platforms as a layer on top — a chatbot that answers questions, a generator that creates quizzes. But the underlying structure hasn't changed. The course is still the same for everyone. The dashboard looks identical. The path is predetermined.
+- the **knowledge and objective** can be shared;
+- the **way that knowledge is explained, practised and experienced** can change;
+- the **evidence required to show understanding** must remain traceable.
 
-Adding a chatbot or quiz generator does not change the static structure of the underlying system.
+## What SkillNet believes
 
-## What SkillNet Believes
+### Knowledge should be able to teach
 
-### 1. The application should learn from the user, not the other way around
+The goal is not to remove the people who know. It is to give their knowledge another channel. A
+source can become a course, a grounded tutor, practice and reusable learning material while keeping
+its provenance visible.
 
-Current platforms require employees to adapt to the system: learn the interface, follow the path, complete the modules. SkillNet should adapt to the employee: their level, their pace, their gaps, their questions.
+### The same knowledge does not require the same experience
 
-The system should observe how each person works and adjust without requiring them to configure those changes.
+One person may need foundations; another may need an example, a simulation or a difficult case. The
+objective and evidence bar can stay stable while explanation, activity, medium and interface change.
+Variation only becomes personalization when it is grounded, appropriate and useful for the learning
+objective.
 
-### 2. Intelligence lives in the architecture, not the model
+### Intent is not memory
 
-A powerful LLM is one component. The system's behavior also depends on its structure:
+Understanding what someone asks for now is different from knowing what has helped over time.
+Current context can shape the next screen; learner memory can accumulate declared preferences and
+observed outcomes across sessions. That memory must remain inspectable, correctable and revisable.
 
-- **Memory** — what the system remembers about each person and each company
-- **Context** — what information is available at each moment
-- **Tools** — what the system can do, not just say
-- **Feedback loops** — how the system learns from its own mistakes
+### Technology should adapt to people
 
-The model is replaceable. The architecture, rather than any particular model, defines the product.
+Software traditionally asks people to learn its fixed screens. Generative interfaces allow the
+application to compose a surface for the current task, but more generation is not automatically
+better:
 
-### 3. Training should be built from living knowledge, not static courses
+1. **Fixed structure, changing content** for predictable work.
+2. **Controlled composition** from approved components for most adaptive experiences.
+3. **Open generation** only when a new simulation is necessary and can be validated for quality,
+   latency, cost and safety.
 
-Company documentation changes. Policies are updated, procedures are revised, new regulations appear. Training that was correct last month may be wrong today.
+### Components are part of the pedagogy
 
-SkillNet treats source documents as the single source of truth. Courses and manuals are derived from them, not independent artifacts. When the source changes, the training adapts.
+A course is not text inside cards. Worked examples, diagrams, practice activities, audio and
+simulations make different actions possible. Didact provides educational components; OpenUI gives
+the model a controlled language for composing them instead of rewriting the application.
 
-### 4. The same knowledge should produce different experiences for different people
+### Learning must leave evidence
 
-Two employees reading the same manual should not take the same course. One is new and needs foundations. The other has five years of experience and needs edge cases. The manual is the same — the training should not be.
+Completion, mastery and skill are different claims. Attempts, progress, rendered experiences and
+source provenance make talent data traceable and let the system test whether an adaptation helped.
 
-This kind of personalization is the default behavior of a system that understands who is learning.
+### Knowledge should remain alive and portable
 
-## How This Shapes Technical Decisions
+Sources change, so courses should not become detached copies that silently age. Knowledge and
+talent data should also remain available through open interfaces rather than being trapped inside a
+closed super-application.
 
-| Decision | Why |
-|----------|-----|
-| **LangGraph pipeline with human checkpoints** | Content generation is too important to fully automate. The admin is accountable for what employees learn. The system proposes, the human decides. |
-| **Three UI levels (static, declarative, generative)** | Most of the app should be fast and predictable (Level 1). Where content varies by user, use specs (Level 2). Only generate full HTML when nothing pre-built fits (Level 3). |
-| **Conditional RAG (small docs go whole, large docs get chunked)** | Don't over-engineer for problems that don't exist. A 3-page policy doesn't need a vector store. The system should be smart about when to be complex. |
-| **PageIndex pattern for tutor retrieval** | Course content is already structured (modules > lessons). Use that structure instead of embedding everything. Two SQL queries + one short LLM call beats semantic search for in-course questions. |
-| **Provider-agnostic LLM layer** | The model will change. The architecture shouldn't depend on any specific provider. Any OpenAI-compatible API works. |
-| **Self-hosted, one instance per company** | Company training data is sensitive. Multi-tenancy adds complexity and risk. One instance per company is simpler and more trustworthy. |
-| **Exercise attempts and learning events tracked** | Not for vanity analytics. They support the future learning loop: separate preference, engagement and effectiveness. Spaced repetition is not on the current roadmap; see [adaptive-learning.md](/en/docs/adaptive-learning). |
+## Boundaries
 
-## What This Means for the Roadmap
+SkillNet does not claim that a model can infer a person's ideal way of learning from a few clicks.
+It does not turn preferences into fixed learning-style labels, and it does not assume that a richer
+interface produces better learning. The system adapts within explicit contracts while people retain
+authority over sources, objectives and learner memory.
 
-**MVP (now):** Generate courses from documents. Employees take them. Admin sees progress. The system is static but well-architected for adaptation.
+## The thesis in one sentence
 
-**Phase 2:** Tutor agent that adapts to each employee. Mixed learning strategies that respect explicit presentation preferences. Skill levels that reflect real ability, not just completion.
-
-**Phase 3:** Adaptive regeneration — the system identifies weak modules from real data and regenerates them. Living content that stays in sync with company documentation.
-
-**Phase 4:** Multi-agent coordination within a company. Different agents for different roles, sharing knowledge through structured compartments.
-
-Each phase builds on the architecture decisions made in the previous one and follows the same foundation.
-
-## The Thesis in One Sentence
-
-> SkillNet is not a platform that delivers training. It's a system that builds the right training for each person, from the knowledge that already exists in their company.
+> SkillNet turns shared knowledge into grounded, traceable learning that can take a different form
+> for each person.
