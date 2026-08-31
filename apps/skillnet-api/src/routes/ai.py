@@ -10,8 +10,9 @@ from __future__ import annotations
 import asyncio
 import json
 from collections.abc import AsyncIterator
+from typing import Annotated
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Header
 from fastapi.responses import StreamingResponse
 
 from src.agents.content.helpers import themes_list
@@ -23,14 +24,17 @@ from src.agents.schema.nodes import (
     SCHEMA_TEMPERATURE,
     _nodes_from_response,
 )
+from src.core.language import Language
 from src.core.logging import get_logger
 from src.deps.auth import AdminUser
 from src.deps.llm import LLMDep
 from src.llm.client import LLMService
 from src.llm.parsing import parse_json_response
 from src.llm.prompts import THEME_EXTRACTOR_SYSTEM, build_extraction_prompt
+from src.llm.prompts.language import with_language
 from src.llm.prompts.schema import SCHEMA_DESIGNER_SYSTEM, build_schema_prompt
 from src.schemas.ai import ProposedNode, SchemaProposalRequest, SchemaProposalResponse
+from src.services.language_policy import prompt_language, resolve_language
 
 logger = get_logger(__name__)
 
@@ -53,6 +57,15 @@ def _format_sse(event_type: str, data: dict) -> str:
 
 
 # ── Phase 1 (structure) prompt ─────────────────────────────────
+
+# The two prompts in this module are the only ones outside ``src/llm/prompts/``, and they
+# are also the two that already handled a second language best: rules 4 and 6 below tie the
+# output to the language of the course title, which is right most of the time and is why
+# nobody reported them. What they cannot do is decide when the title is ambiguous — a
+# one-word title, a product name, an acronym — and that is exactly the shape of title
+# somebody types into the public demo. ``with_language`` settles it when the caller knows
+# the answer, and stays out of the way (``None``) when nobody asked, so the title rule
+# keeps deciding by itself and no recorded fixture moves.
 
 _STRUCTURE_SYSTEM = """\
 You are an instructional designer. Teach the subject on its own terms; reach
@@ -187,11 +200,12 @@ async def _enrich_node(
     index: int,
     node_title: str,
     course_title: str,
+    language: Language | None = None,
 ) -> dict:
     """Run a single Phase 2 enrichment call for one node."""
     try:
         response = await llm.complete(
-            _ENRICH_SYSTEM,
+            with_language(_ENRICH_SYSTEM, language),
             _build_enrich_prompt(node_title, course_title),
             temperature=0.3,
             max_tokens=512,
@@ -219,6 +233,7 @@ async def schema_propose_stream(
     body: SchemaProposalRequest,
     _admin: AdminUser,
     llm: LLMDep,
+    accept_language: Annotated[str | None, Header()] = None,
 ) -> StreamingResponse:
     """Two-phase streaming schema proposal.
 
@@ -229,7 +244,12 @@ async def schema_propose_stream(
     estimated minutes, and format. Each result is sent as ``event: node_detail``.
 
     Final ``event: done`` when all enrichments complete; ``event: error`` on failure.
+
+    There is no course yet, so nothing stronger than the admin's own browser is available
+    to name the language: this endpoint is stateless by design and runs before the row that
+    would carry ``courses.language`` exists.
     """
+    pinned = prompt_language(resolve_language(accept_language_header=accept_language))
 
     async def event_stream() -> AsyncIterator[str]:
         try:
@@ -240,7 +260,7 @@ async def schema_propose_stream(
                 body.intent_density,
             )
             structure_response = await llm.complete(
-                _STRUCTURE_SYSTEM,
+                with_language(_STRUCTURE_SYSTEM, pinned),
                 prompt,
                 temperature=0.2,
                 max_tokens=2048,
@@ -274,7 +294,7 @@ async def schema_propose_stream(
 
             # --- Phase 2: Enrich each node in parallel ---
             tasks = [
-                _enrich_node(llm, idx, node["title"], body.title)
+                _enrich_node(llm, idx, node["title"], body.title, pinned)
                 for idx, node in enumerate(structure_nodes)
             ]
             # Fire all in parallel; yield each as it completes
@@ -303,12 +323,18 @@ async def schema_propose(
     body: SchemaProposalRequest,
     _admin: AdminUser,
     llm: LLMDep,
+    accept_language: Annotated[str | None, Header()] = None,
 ) -> SchemaProposalResponse:
     """Propose a course schema from a title, description, and density.
 
     Stateless: nothing is persisted. The admin reviews the proposal in the UI
     and commits it explicitly.
+
+    ``THEME_EXTRACTOR_SYSTEM`` and ``SCHEMA_DESIGNER_SYSTEM`` live in
+    ``src/llm/prompts/`` and belong to another batch, so this route pins the language on
+    the calls rather than in the prompts: same effect, no edit to a file two agents share.
     """
+    pinned = prompt_language(resolve_language(accept_language_header=accept_language))
     # Build context from the title and description (no document).
     parts = [body.title]
     if body.description:
@@ -317,7 +343,7 @@ async def schema_propose(
 
     # Step 1: extract themes.
     theme_response = await llm.complete(
-        THEME_EXTRACTOR_SYSTEM,
+        with_language(THEME_EXTRACTOR_SYSTEM, pinned),
         build_extraction_prompt(context),
         temperature=EXTRACT_TEMPERATURE,
         max_tokens=EXTRACT_MAX_TOKENS,
@@ -340,7 +366,7 @@ async def schema_propose(
         course_outcome=None,
     )
     design_response = await llm.complete(
-        SCHEMA_DESIGNER_SYSTEM,
+        with_language(SCHEMA_DESIGNER_SYSTEM, pinned),
         prompt,
         temperature=SCHEMA_TEMPERATURE,
         max_tokens=SCHEMA_MAX_TOKENS,

@@ -19,6 +19,12 @@ class _DB:
     async def rollback(self) -> None:
         return None
 
+    async def execute(self, _statement):
+        # The turn reads the course in ``context`` once, for its ``tutor_style`` and its
+        # ``language``. There is no course row in this stub's world, which is the case
+        # these tests are about: retrieval policy, not personalization.
+        return SimpleNamespace(scalar_one_or_none=lambda: None)
+
 
 class _Repo:
     def __init__(self) -> None:

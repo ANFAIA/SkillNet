@@ -16,11 +16,12 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from src.core.language import Language
 from src.core.logging import get_logger
 from src.llm.parsing import parse_json_response
 from src.llm.prompts.runtime import (
-    EPISODE_CRITIC_SYSTEM,
     build_episode_critic_prompt,
+    episode_critic_system,
 )
 
 log = get_logger(__name__)
@@ -51,6 +52,7 @@ async def run_episode_critic(
     screen_count: int,
     assessment_mode: str,
     llm: Any,
+    language: Language | None = None,
 ) -> CriticVerdict:
     """Review the pedagogy of a valid episode. Fail-open to "no revision" on any error.
 
@@ -68,7 +70,7 @@ async def run_episode_critic(
     )
     try:
         raw, _usage = await llm.complete_with_usage(
-            EPISODE_CRITIC_SYSTEM,
+            episode_critic_system(language),
             user_prompt,
             temperature=0.2,
             max_tokens=512,

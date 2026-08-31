@@ -46,6 +46,7 @@ import asyncio
 import enum
 import time
 import uuid
+from collections.abc import Mapping
 from dataclasses import asdict, dataclass
 from types import SimpleNamespace
 from typing import Any, Literal
@@ -54,6 +55,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.config import settings
+from src.core.language import Language
 from src.deps.db import async_session_factory
 from src.core.exceptions import ConflictError
 from src.core.logging import get_logger
@@ -86,6 +88,7 @@ from src.services.cache_key import (
     effective_density,
     role_bucket,
 )
+from src.services.language_policy import resolve_language
 from src.services.learner_profile_service import CALIBRATION_NODES, vector_bucket
 
 logger = get_logger(__name__)
@@ -254,6 +257,11 @@ class RenderKey:
     selection_execution: str
     longitudinal_decision_digest: str
     longitudinal_history: LongitudinalHistoryProjection
+    #: The language every generation for this render has to come out in. Resolved here and
+    #: carried, rather than re-read downstream, so the key and the prompts cannot disagree
+    #: about it — a render cached under one language and generated in another is the exact
+    #: failure this whole field exists to prevent.
+    language: Language
 
 
 def build_render_key(
@@ -273,6 +281,7 @@ def build_render_key(
     media_offer_fingerprint: str = "",
     source_image_fingerprint: str = "",
     learning_note_fingerprint: str = "",
+    org_settings: Mapping[str, Any] | None = None,
 ) -> RenderKey:
     """Compose the ``cache_key`` of §3.4 from a loaded context.
 
@@ -287,7 +296,15 @@ def build_render_key(
       different keys; ``scaffold_band`` is frozen when the probe closes.
     * ``vector_bucket`` is ``""`` during the calibration period, so the first three nodes of
       a new learner share a key with everybody else in the same declared bucket (§6.4).
+
+    The language is resolved **here** and nowhere else on this path, because this function
+    already has both call sites (the pre-graph lookup in :meth:`NodeRenderService.
+    render_key_for` and the in-graph recompute in ``load_context``) and they must not be
+    able to answer the question differently. ``cache_key_material`` only appends it when it
+    is not the default, which is what keeps every Spanish render already in the table
+    valid; the resolved value travels on :class:`RenderKey` for the prompts to use.
     """
+    language = resolve_language(course=course, org_settings=org_settings)
     nodes_completed = int(getattr(profile, "nodes_completed", 0) or 0)
     bucket = vector_bucket(getattr(profile, "format_vector", None), nodes_completed)
     band = _plain(getattr(node_state, "scaffold_band", None) or "neutral")
@@ -360,6 +377,7 @@ def build_render_key(
         selection_policy_key=selection_policy_key,
         generation_policy_key=generation_key,
         longitudinal_decision_digest=history.decision_digest,
+        language=language,
     )
     key = f"{current_render_safety_prefix()}{key}"
     if is_preview:
@@ -389,6 +407,7 @@ def build_render_key(
         selection_execution=_plain(selection_execution),
         longitudinal_decision_digest=history.decision_digest,
         longitudinal_history=history,
+        language=language,
     )
 
 
@@ -964,6 +983,11 @@ class NodeRenderService:
                 **asdict(key.longitudinal_history),
                 "support_level": key.longitudinal_history.support_level.value,
             },
+            # Carried on the state so every prompt the graph builds reads the same value
+            # the key was computed from. ``load_context`` recomputes it from the course and
+            # would land on the same answer; carrying it makes that a fact rather than a
+            # coincidence two functions have to keep agreeing on.
+            "language": key.language,
             "retry_count": 0,
             "validation_errors": [],
             "answer_key": {},
@@ -1064,6 +1088,7 @@ class NodeRenderService:
             media_offer_fingerprint=media_fingerprint,
             source_image_fingerprint=decision_fingerprint(image_decision),
             learning_note_fingerprint=note_fingerprint,
+            org_settings=org_settings,
         )
 
     # -- anticipatory warm-up (creation-time pre-render) -------------------------

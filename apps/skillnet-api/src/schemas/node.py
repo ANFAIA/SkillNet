@@ -26,6 +26,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from src.core.language import Language
+
 # --- node list ---------------------------------------------------------------------
 
 
@@ -142,7 +144,12 @@ class NodeModalityRequest(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    language: Literal["es", "en"] = "es"
+    #: ``None`` means "nobody asked", which is what the field has to be able to say. It
+    #: defaulted to ``"es"``, so an English course narrated its podcast in Spanish unless
+    #: the client thought to override it — and the client that opens the node player never
+    #: does. The route resolves the real language from the course
+    #: (``src/services/language_policy.py``).
+    language: Language | None = None
 
 
 class NodeRenderRead(BaseModel):

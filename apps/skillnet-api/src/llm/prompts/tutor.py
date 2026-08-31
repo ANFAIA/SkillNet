@@ -28,8 +28,10 @@ untouched, so no cached render is invalidated by anything in this file.
 
 from __future__ import annotations
 
+from src.core.language import Language
 from src.llm.prompts.admin import ADMIN_PERSONA, admin_system_prompt, load_chat_spec
 from src.llm.prompts.grounding import Grounding
+from src.llm.prompts.language import with_language
 from src.llm.prompts.tools import FRONTEND_TOOLS_BLOCK
 from src.render.prompt import render_prompt
 
@@ -133,18 +135,39 @@ DEFAULT_TUTOR_STYLE = "socratic"
 
 
 def tutor_system_prompt(
-    grounding: Grounding, tutor_style: str = DEFAULT_TUTOR_STYLE
+    grounding: Grounding,
+    tutor_style: str = DEFAULT_TUTOR_STYLE,
+    *,
+    language: Language | None = None,
 ) -> str:
-    """The employee tutor's system prompt for a turn with this grounding and style."""
+    """The employee tutor's system prompt for a turn with this grounding and style.
+
+    ``language`` is what makes :data:`TUTOR_PERSONA`'s "en el idioma de la pregunta; por
+    defecto, espanol" configurable. The default did not move — it is still Spanish, and
+    the line that says so is untouched, because editing it would invalidate every recorded
+    fixture keyed on this prompt. What is new is that an English course now states its
+    language outright instead of hoping the question is written in it.
+
+    Two things in the persona are deliberately **not** unpinned. "Tuteas" is a decision
+    about register, not about language: an English tutor is still informal, and English
+    does not have the distinction to make. "una pequena empresa espanola" is who the
+    tutor works for; a Galician food company does not stop being one because a reviewer
+    reads English. Both would also mean rewriting the persona text, which the fixture keys
+    forbid.
+    """
     style_block = _STYLE_BLOCKS.get(tutor_style, _STYLE_BLOCKS[DEFAULT_TUTOR_STYLE])
-    return (
+    return with_language(
         f"{TUTOR_PERSONA}\n\n{style_block}\n\n{FRONTEND_TOOLS_BLOCK}\n\n"
-        f"{_GROUNDING_BLOCKS[_block_key(grounding)]}"
+        f"{_GROUNDING_BLOCKS[_block_key(grounding)]}",
+        language,
     )
 
 
 def tutor_genui_system_prompt(
-    grounding: Grounding, tutor_style: str = DEFAULT_TUTOR_STYLE
+    grounding: Grounding,
+    tutor_style: str = DEFAULT_TUTOR_STYLE,
+    *,
+    language: Language | None = None,
 ) -> str:
     """Single-phase GenUI prompt for the tutor: persona + style + chat spec + grounding.
 
@@ -156,14 +179,17 @@ def tutor_genui_system_prompt(
     valid program degrades to the prose it streamed, exactly as the admin does.
     """
     style_block = _STYLE_BLOCKS.get(tutor_style, _STYLE_BLOCKS[DEFAULT_TUTOR_STYLE])
-    return "\n\n".join(
-        [
-            TUTOR_PERSONA,
-            style_block,
-            FRONTEND_TOOLS_BLOCK,
-            load_chat_spec(),
-            _GROUNDING_BLOCKS[_block_key(grounding)],
-        ]
+    return with_language(
+        "\n\n".join(
+            [
+                TUTOR_PERSONA,
+                style_block,
+                FRONTEND_TOOLS_BLOCK,
+                load_chat_spec(),
+                _GROUNDING_BLOCKS[_block_key(grounding)],
+            ]
+        ),
+        language,
     )
 
 

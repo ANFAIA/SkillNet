@@ -28,6 +28,9 @@ from __future__ import annotations
 import re
 from hashlib import sha256
 
+from src.core.language import Language
+from src.llm.prompts.language import with_language
+
 # Sampling for the runtime_fast tier (§8.4). A glimpse, not an essay.
 EXPLAIN_TEMPERATURE = 0.2
 EXPLAIN_MAX_TOKENS = 80
@@ -192,14 +195,25 @@ def build_explain_messages(
     *,
     node_title: str | None = None,
     node_summary: str | None = None,
+    language: Language | None = None,
 ) -> list[dict[str, str]]:
     """Message list for ``LLMService.stream()``.
 
     Two messages, system first, so ``FixtureLLMService`` folds them into exactly the
     ``(system, user)`` pair its key is computed from.
+
+    ``language`` closes the hole that made ``POST /explain`` worse than useless in a
+    second language: the field was already part of the row's unique key
+    (``uq_term_explanations_lookup``) and already came back in the response, but it never
+    reached the model, so asking for English minted a *separate* cache entry, filled it
+    with the Spanish answer :data:`EXPLAIN_SYSTEM` produces by following the surrounding
+    text, and served that forever. Only the system prompt carries the rule — the user
+    turn is scaffolding around fenced study material and says nothing about language, and
+    the directive states outright that it overrides the "answer in the language of the
+    text" sentence above it.
     """
     return [
-        {"role": "system", "content": EXPLAIN_SYSTEM},
+        {"role": "system", "content": with_language(EXPLAIN_SYSTEM, language)},
         {
             "role": "user",
             "content": build_explain_prompt(

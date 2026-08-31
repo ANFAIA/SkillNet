@@ -19,7 +19,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from src.core.language import Language
 from src.llm.prompts.grounding import Grounding
+from src.llm.prompts.language import with_language
 from src.llm.prompts.tools import FRONTEND_TOOLS_BLOCK
 
 #: Bumped when anything here changes in a way that changes an answer. Persisted on every
@@ -176,7 +178,12 @@ def _block_key(grounding: Grounding) -> str:
     return "chunks" if grounding == "chunks_fts" else grounding
 
 
-def admin_genui_system_prompt(grounding: Grounding, *, org_data: bool = False) -> str:
+def admin_genui_system_prompt(
+    grounding: Grounding,
+    *,
+    org_data: bool = False,
+    language: Language | None = None,
+) -> str:
     """Single-phase GenUI prompt: persona + data-block + chat OpenUI spec + grounding.
 
     Uses a chat-specific prompt with only 8 components (TextContent, Callout,
@@ -192,19 +199,36 @@ def admin_genui_system_prompt(grounding: Grounding, *, org_data: bool = False) -
     sections.append(chat_spec)
     grounding_table = _GROUNDING_BLOCKS if org_data else _STANDALONE_GROUNDING_BLOCKS
     sections.append(grounding_table[_block_key(grounding)])
-    return "\n\n".join(sections)
+    return with_language("\n\n".join(sections), language)
 
 
-def admin_system_prompt(grounding: Grounding, *, org_data: bool = False) -> str:
+def admin_system_prompt(
+    grounding: Grounding,
+    *,
+    org_data: bool = False,
+    language: Language | None = None,
+) -> str:
     """The admin assistant's system prompt for a turn with this grounding.
 
     ``org_data`` defaults to ``False`` so every pre-existing caller — and the assertion in
     ``tests/test_tutor_grounding.py`` that no prompt can produce the old refusal — keeps
     reading the prompt it read before.
+
+    ``language`` parameterises the persona's "por defecto, espanol" without editing it. The
+    default is still Spanish and the line still says so; what changes is that an explicit
+    request now outranks it instead of competing with it. Nothing else in the persona is
+    unpinned: it is the assistant of a small Spanish company because that is who it is, and
+    that is a fact about the deployment rather than about the reader's locale.
     """
     if not org_data:
-        return f"{ADMIN_PERSONA}\n\n{FRONTEND_TOOLS_BLOCK}\n\n{_STANDALONE_GROUNDING_BLOCKS[_block_key(grounding)]}"
-    return f"{ADMIN_PERSONA}\n\n{ADMIN_DATA_BLOCK}\n\n{FRONTEND_TOOLS_BLOCK}\n\n{_GROUNDING_BLOCKS[_block_key(grounding)]}"
+        return with_language(
+            f"{ADMIN_PERSONA}\n\n{FRONTEND_TOOLS_BLOCK}\n\n{_STANDALONE_GROUNDING_BLOCKS[_block_key(grounding)]}",
+            language,
+        )
+    return with_language(
+        f"{ADMIN_PERSONA}\n\n{ADMIN_DATA_BLOCK}\n\n{FRONTEND_TOOLS_BLOCK}\n\n{_GROUNDING_BLOCKS[_block_key(grounding)]}",
+        language,
+    )
 
 
 def build_admin_turn(

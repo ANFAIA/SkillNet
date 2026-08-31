@@ -77,6 +77,15 @@ class FakeNode:
     archived: bool = False
 
 
+@dataclass
+class FakeCourse:
+    """Only what the hint route reads: the language the lesson is written in."""
+
+    id: uuid.UUID = COURSE_ID
+    org_id: uuid.UUID = ORG_ID
+    language: str = "es"
+
+
 def _public() -> dict:
     return {
         "question": "¿Cuando caduca el plazo?",
@@ -134,6 +143,7 @@ class StubSession:
 @dataclass
 class World:
     node: FakeNode | None = field(default_factory=FakeNode)
+    course: FakeCourse | None = field(default_factory=FakeCourse)
     activity: FakeActivity = field(default_factory=FakeActivity)
     other_activity: FakeActivity = field(
         default_factory=lambda: FakeActivity(id=ACTIVITY_B_ID)
@@ -185,6 +195,18 @@ def _install(monkeypatch: pytest.MonkeyPatch, world: World) -> None:
                 return None
             return node
 
+    class FakeCourseRepo:
+        """The hint's language comes from the course, so the route reads one."""
+
+        def __init__(self, _db: Any) -> None:
+            pass
+
+        async def get_scoped(self, course_id: uuid.UUID, org_id: uuid.UUID):
+            course = world.course
+            if course is None or course.id != course_id or course.org_id != org_id:
+                return None
+            return course
+
     class FakeCounterRepo:
         def __init__(self, _db: Any) -> None:
             pass
@@ -215,6 +237,7 @@ def _install(monkeypatch: pytest.MonkeyPatch, world: World) -> None:
     monkeypatch.setattr(activity_routes, "ActivityDefinitionRepository", FakeActivityRepo)
     monkeypatch.setattr(activity_routes, "ActivityStateRepository", FakeActivityStateRepo)
     monkeypatch.setattr(activity_routes, "CourseNodeRepository", FakeNodeRepo)
+    monkeypatch.setattr(activity_routes, "CourseRepository", FakeCourseRepo)
     monkeypatch.setattr(
         activity_routes, "LearnerActivityStateRepository", FakeCounterRepo
     )

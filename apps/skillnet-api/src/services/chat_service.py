@@ -79,7 +79,8 @@ from __future__ import annotations
 import json
 import re
 import uuid
-from collections.abc import AsyncIterator, Sequence
+from collections.abc import AsyncIterator, Mapping, Sequence
+from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -119,6 +120,7 @@ from src.render.gate import canonicalize
 from src.render.prompt import catalog_version
 from src.repositories.chat_repo import ChatRepository
 from src.services.chat_retrieval_policy import course_retrieval_required
+from src.services.language_policy import prompt_language, resolve_language
 from src.services.org_snapshot import build_org_snapshot, render_snapshot
 from src.services.course_access import is_admin, is_archived
 from src.services.retrieval import GroundedContext, ground_question
@@ -880,6 +882,9 @@ class ChatService:
         message: str,
         session_id: uuid.UUID | None,
         context: dict | None,
+        *,
+        accept_language: str | None = None,
+        org_settings: Mapping[str, Any] | None = None,
     ) -> AsyncIterator[str]:
         async for event in self._stream(
             user,
@@ -888,6 +893,8 @@ class ChatService:
             context,
             agent_type="tutor",
             whole_documents="enrolled",
+            accept_language=accept_language,
+            org_settings=org_settings,
         ):
             yield event
 
@@ -897,6 +904,9 @@ class ChatService:
         message: str,
         session_id: uuid.UUID | None,
         context: dict | None,
+        *,
+        accept_language: str | None = None,
+        org_settings: Mapping[str, Any] | None = None,
     ) -> AsyncIterator[str]:
         """The admin assistant. Same stream as the tutor, one thing more.
 
@@ -912,6 +922,8 @@ class ChatService:
             context,
             agent_type="admin",
             whole_documents="org",
+            accept_language=accept_language,
+            org_settings=org_settings,
         ):
             yield event
 
@@ -955,6 +967,8 @@ class ChatService:
         *,
         agent_type: str,
         whole_documents: str,
+        accept_language: str | None = None,
+        org_settings: Mapping[str, Any] | None = None,
     ) -> AsyncIterator[str]:
         grounded = GroundedContext("general")
         parts: list[str] = []
@@ -984,8 +998,13 @@ class ChatService:
             # canned reply is chosen per audience (the admin lists admin capabilities, the
             # tutor lists learning help) and carries no program, so the greeting stays an
             # instant plain bubble.
+            # Resolved before the canned reply, because the canned reply is one of the
+            # things that needs it: a greeting answered in Spanish on an English course is
+            # the first sentence the visitor reads.
+            course = await self._resolve_course(user, context)
+            language = self._language_of(course, org_settings, accept_language)
             audience = "tutor" if agent_type == "tutor" else "admin"
-            canned = small_talk_reply(message, audience=audience)
+            canned = small_talk_reply(message, audience=audience, language=language)
             if canned is not None:
                 prompt_version = (
                     TUTOR_PROMPT_VERSION if agent_type == "tutor" else ADMIN_PROMPT_VERSION
@@ -1052,7 +1071,7 @@ class ChatService:
             llm_question = "\n\n".join([*preamble, message])
 
             tutor_style = (
-                await self._resolve_tutor_style(user, context)
+                self._tutor_style_of(course)
                 if agent_type == "tutor"
                 else DEFAULT_TUTOR_STYLE
             )
@@ -1063,6 +1082,7 @@ class ChatService:
                 agent_type,
                 snapshot_block,
                 tutor_style,
+                language=language,
             )
             visible_filter = _VisibleAnswerFilter()
             async for piece in self.tutor_llm.stream(messages):
@@ -1265,24 +1285,50 @@ class ChatService:
             course_id=_context_course_id(context),
         )
 
-    async def _resolve_tutor_style(
-        self, user: User, context: dict | None
-    ) -> str:
-        """The enrolled course's ``tutor_style``, or the default with no course in context.
+    async def _resolve_course(self, user: User, context: dict | None) -> Any | None:
+        """The course the turn is about, or ``None``.
 
-        Best-effort like the rest of this file's context helpers: a stale or
-        cross-org course id degrades to :data:`DEFAULT_TUTOR_STYLE` rather than
-        raising mid-turn.
+        Best-effort like the rest of this file's context helpers: a stale or cross-org
+        course id degrades to ``None`` rather than raising mid-turn. Read **once** per turn
+        and handed to both readers below — ``tutor_style`` and ``language`` are two columns
+        of the same row, and two lookups for one row is two chances to disagree about it.
         """
         course_id = _context_course_id(context)
         if course_id is None:
-            return DEFAULT_TUTOR_STYLE
+            return None
         from src.repositories.course_repo import CourseRepository
 
-        course = await CourseRepository(self.db).get_scoped(course_id, user.org_id)
+        return await CourseRepository(self.db).get_scoped(course_id, user.org_id)
+
+    @staticmethod
+    def _tutor_style_of(course: Any | None) -> str:
+        """The course's ``tutor_style``, or the default with no course in context."""
         if course is None:
             return DEFAULT_TUTOR_STYLE
         return str(getattr(course.tutor_style, "value", course.tutor_style))
+
+    @staticmethod
+    def _language_of(
+        course: Any | None,
+        org_settings: Mapping[str, Any] | None,
+        accept_language: str | None,
+    ) -> str:
+        """The language this turn answers in. The order is in ``language_policy``.
+
+        ``org_settings`` comes from the route, which already loaded that row to decide
+        whether generative UI is on: resolving the language must not cost a second query
+        for a value the caller is holding.
+
+        There is deliberately no read of ``context["language"]``. That field is Curio's
+        note about the language of the *selected text* (see ``_curio_context_block``), not
+        a request about the answer, and treating a client-supplied string as an explicit
+        request would let the weakest signal in the order outrank the course.
+        """
+        return resolve_language(
+            course=course,
+            org_settings=org_settings,
+            accept_language_header=accept_language,
+        )
 
     def _build_messages(
         self,
@@ -1292,6 +1338,8 @@ class ChatService:
         agent_type: str,
         snapshot_block: str = "",
         tutor_style: str = DEFAULT_TUTOR_STYLE,
+        *,
+        language: str | None = None,
     ) -> list[dict[str, str]]:
         """Persona, the last N turns, and one final turn carrying everything found.
 
@@ -1306,16 +1354,23 @@ class ChatService:
         """
         grounding: Grounding = grounded.grounding
         is_admin = agent_type == "admin"
+        # ``None`` for the default language, so the Spanish prompt every recorded fixture
+        # was keyed on stays byte-identical (``src/services/language_policy.py``).
+        pinned = prompt_language(language)
         if is_admin and self.generative_ui:
-            system = admin_genui_system_prompt(grounding, org_data=bool(snapshot_block))
+            system = admin_genui_system_prompt(
+                grounding, org_data=bool(snapshot_block), language=pinned
+            )
         elif is_admin:
-            system = admin_system_prompt(grounding, org_data=bool(snapshot_block))
+            system = admin_system_prompt(
+                grounding, org_data=bool(snapshot_block), language=pinned
+            )
         elif self.generative_ui:
             # Tutor, single-phase GenUI: taught the chat dialect up front, exactly like the
             # admin, so its streamed answer *is* the program (no second layout call).
-            system = tutor_genui_system_prompt(grounding, tutor_style)
+            system = tutor_genui_system_prompt(grounding, tutor_style, language=pinned)
         else:
-            system = tutor_system_prompt(grounding, tutor_style)
+            system = tutor_system_prompt(grounding, tutor_style, language=pinned)
         messages: list[dict[str, str]] = [{"role": "system", "content": system}]
         for msg in history:
             if msg.role in ("user", "assistant"):

@@ -42,7 +42,7 @@ def test_grade_open_answer_fallback() -> None:
     flipped ``passed`` to ``True`` and added "manual" to the feedback. The distinction the
     two halves of this suite keep is worth stating: this is ``grade``'s deterministic
     fallback, which lets a learner past an exercise nobody has read yet. The *LLM* grader's
-    pending result (``src/services/llm_grading._PENDING``) still has ``passed=False`` and
+    pending result (``src/services/llm_grading._pending``) still has ``passed=False`` and
     the shorter message — it is a grading attempt that failed, not a submission accepted on
     trust. ``tests/test_generation_pipeline.py`` pins that one.
     """

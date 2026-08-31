@@ -55,11 +55,14 @@ from src.llm.prompts.explain import (
 from src.models import (
     TERM_CACHEABLE_MAX_LENGTH,
     TERM_CACHEABLE_MAX_TOKENS,
+    Course,
     CourseNode,
+    Organization,
     User,
 )
 from src.repositories.term_explanation_repo import TermExplanationRepository
 from src.schemas.explain import CONTEXT_MAX_CHARS, ExplainRequest, ExplainResult
+from src.services.language_policy import prompt_language, resolve_language
 
 logger = get_logger(__name__)
 
@@ -248,17 +251,36 @@ class ExplainService:
         # here needs real SQL to be worth testing.
         self.repo = repo if repo is not None else TermExplanationRepository(db)
 
-    async def stream(self, user: User, request: ExplainRequest) -> AsyncIterator[str]:
-        """SSE for one term. Always terminates with ``done`` or ``error``."""
-        language = request.language
+    async def stream(
+        self,
+        user: User,
+        request: ExplainRequest,
+        *,
+        accept_language: str | None = None,
+    ) -> AsyncIterator[str]:
+        """SSE for one term. Always terminates with ``done`` or ``error``.
+
+        ``accept_language`` is the browser's header, the weakest step of the order in
+        ``src/services/language_policy.py``: it only decides when neither the request nor
+        the lesson's own course says anything.
+        """
         term_normalized = normalize_term(request.term)
         context = center_context(request.context, request.term)
         digest = context_hash(context)
         cacheable = is_cacheable(term_normalized)
 
         try:
-            node_id, node_title, node_summary = await self._node_context(
+            node_id, node_title, node_summary, course = await self._node_context(
                 user, request.node_id
+            )
+            # Resolved before the cache lookup, because the resolved value *is* part of
+            # the row's unique key: looking up under the requested tag and writing under
+            # the resolved one is how the two would drift apart.
+            language = resolve_language(
+                requested=request.language,
+                course=course,
+                org_settings=await self._org_settings(user),
+                accept_language_header=accept_language,
             )
 
             hit = await self.repo.find(
@@ -292,6 +314,7 @@ class ExplainService:
                 context,
                 node_title=node_title,
                 node_summary=node_summary,
+                language=prompt_language(language),
             )
             accumulated = ""
             emitted = ""
@@ -351,17 +374,22 @@ class ExplainService:
 
     async def _node_context(
         self, user: User, node_id: uuid.UUID | None
-    ) -> tuple[uuid.UUID | None, str | None, str | None]:
-        """Resolve ``node_id`` to its title and summary, scoped to the caller's org.
+    ) -> tuple[uuid.UUID | None, str | None, str | None, Course | None]:
+        """Resolve ``node_id`` to its title, summary and course, scoped to the caller's org.
 
         A node from another organization is dropped entirely — not 404'd. The node is
         only prompt colour and a nullable FK; refusing to explain a word because a
         stale id came along would be a worse outcome than explaining it without the
         lesson title. A read of ``course_nodes`` rather than a repository call
         because ``course_node_repo`` belongs to another batch.
+
+        The course comes back because it carries the language of the material the term
+        was clicked in, which outranks anything the browser guesses. A missing course is
+        not an error for the same reason a missing node is not: the word still gets
+        explained, one step further down the resolution order.
         """
         if node_id is None:
-            return None, None, None
+            return None, None, None, None
         result = await self.db.execute(
             select(CourseNode).where(
                 CourseNode.id == node_id, CourseNode.org_id == user.org_id
@@ -370,8 +398,29 @@ class ExplainService:
         node = result.scalar_one_or_none()
         if node is None:
             logger.info("Explain got an unknown node_id %s; ignoring it", node_id)
-            return None, None, None
-        return node.id, node.title, node.summary
+            return None, None, None, None
+        course_id = getattr(node, "course_id", None)
+        course = None
+        if course_id is not None:
+            found = await self.db.execute(select(Course).where(Course.id == course_id))
+            course = found.scalar_one_or_none()
+        return node.id, node.title, node.summary, course
+
+    async def _org_settings(self, user: User) -> dict:
+        """The caller's organization settings, or ``{}`` when there are none.
+
+        One step of a chain that always has an answer below it, so "no settings" and "no
+        language in the settings" are the same non-event and neither is worth an error.
+        """
+        org_id = getattr(user, "org_id", None)
+        if org_id is None or self.db is None:
+            return {}
+        found = await self.db.execute(
+            select(Organization).where(Organization.id == org_id)
+        )
+        org = found.scalar_one_or_none()
+        settings = getattr(org, "settings", None)
+        return dict(settings) if settings else {}
 
     async def _commit(self) -> None:
         if self.db is not None:

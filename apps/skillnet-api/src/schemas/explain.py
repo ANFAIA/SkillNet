@@ -6,6 +6,7 @@ import uuid
 
 from pydantic import BaseModel, Field, field_validator
 
+from src.core.language import Language, normalize_language
 from src.models import TERM_MAX_LENGTH
 
 # Block context is normalized and clamped to 600 characters CENTERED on the term
@@ -16,8 +17,6 @@ CONTEXT_MAX_CHARS = 600
 # anyway, and rejecting a whole page of prose outright is friendlier than silently
 # hashing something enormous.
 _CONTEXT_HARD_LIMIT = 20_000
-
-_DEFAULT_LANGUAGE = "es"
 
 
 class ExplainRequest(BaseModel):
@@ -33,9 +32,13 @@ class ExplainRequest(BaseModel):
     term: str = Field(min_length=1)
     context: str = Field(default="", max_length=_CONTEXT_HARD_LIMIT)
     node_id: uuid.UUID | None = None
-    # Optional on the wire (§11.3), never ``None`` once parsed: the normalizer below
-    # folds a missing, blank or explicit-null value into the column default.
-    language: str = Field(default=_DEFAULT_LANGUAGE, max_length=8)
+    # ``None`` means "nobody asked", and it has to stay distinguishable from "asked for
+    # Spanish". This field used to default to ``"es"``, so the server could not tell the
+    # two apart and every request looked like an explicit Spanish one — which short-
+    # circuits the whole resolution order in ``src/services/language_policy.py`` and
+    # leaves an English course explaining its terms in Spanish. Resolving the real
+    # language is ``ExplainService``'s job, because it is the one that knows the node.
+    language: Language | None = None
 
     @field_validator("term")
     @classmethod
@@ -57,15 +60,17 @@ class ExplainRequest(BaseModel):
 
     @field_validator("language", mode="before")
     @classmethod
-    def _normalize_language(cls, value: object) -> str:
-        """Lower-cased tag; ``null``, ``""`` and whitespace all mean the default.
+    def _normalize_language(cls, value: object) -> Language | None:
+        """A locale tag folded to a supported language, or ``None``.
 
-        ``mode="before"`` so an explicit ``"language": null`` in the JSON body is a
-        default rather than a 422 — the client sends the field either way.
+        ``mode="before"`` so ``"language": null``, ``""`` and an unsupported locale are
+        all "no request" rather than a 422 — the client sends the field either way, and a
+        422 on a locale the deployment does not speak would refuse to explain a word over
+        a preference. Folding through ``normalize_language`` also means ``en-US`` and
+        ``en`` land on the same cached row instead of two, which the old
+        ``.strip().lower()`` did not: it wrote ``en-us`` straight into the unique key.
         """
-        if value is None or not str(value).strip():
-            return _DEFAULT_LANGUAGE
-        return str(value).strip().lower()
+        return normalize_language(None if value is None else str(value))
 
 
 class ExplainResult(BaseModel):

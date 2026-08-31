@@ -30,7 +30,7 @@ import json
 from collections.abc import AsyncIterator
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, Query, Response
+from fastapi import APIRouter, Depends, Header, Query, Response
 from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy import select
 
@@ -96,9 +96,18 @@ from src.schemas.node import (
     UIKitRead,
 )
 from src.schemas.probe import ProbeSessionRead
+from src.services.activity_hints import (
+    back_to_node,
+    discard_options,
+    first_step,
+    generic_explanation,
+    generic_structure,
+    missing_text,
+)
 from src.services.course_access import assert_learner_can_open, is_admin
 from src.services.course_delivery import resolve_delivery
 from src.services.enrollment_service import EnrollmentService
+from src.services.language_policy import resolve_language
 from src.services.learner_profile_service import LearnerProfileService
 from src.services.mastery_service import (
     HINT_LIMIT,
@@ -536,6 +545,7 @@ async def request_node_modality(
     node_id: uuid.UUID,
     modality: RuntimeModality,
     body: NodeModalityRequest | None = None,
+    accept_language: Annotated[str | None, Header()] = None,
 ) -> MediaArtifactAccepted:
     """Prepare audio or video when the learner activates it in the node player.
 
@@ -550,7 +560,14 @@ async def request_node_modality(
         course=course,
         node=node,
         modality=modality,
-        language=payload.language,
+        # ``payload.language`` used to default to ``"es"``, which meant an English course
+        # narrated its podcast in Spanish unless the client thought to say otherwise. It is
+        # optional now, and the course answers when nobody asked.
+        language=resolve_language(
+            requested=payload.language,
+            course=course,
+            accept_language_header=accept_language,
+        ),
     )
     return MediaArtifactAccepted(
         artifact_id=artifact.id,
@@ -751,6 +768,7 @@ async def answer_node_item(
     node_id: uuid.UUID,
     body: NodeAnswerRequest,
     open_llm: OptionalEvalLLMDep,
+    accept_language: Annotated[str | None, Header()] = None,
 ) -> NodeAttemptResult:
     """Grade one item of a served render and move the learner state (§7.3, §7.4).
 
@@ -836,7 +854,15 @@ async def answer_node_item(
         from src.services.llm_grading import grade_open_answer
 
         result = await grade_open_answer(
-            open_llm, item_type, content_for(item_props, key_entry), body.answer
+            open_llm,
+            item_type,
+            content_for(item_props, key_entry),
+            body.answer,
+            # The feedback is text the learner reads, so it follows the course, not the
+            # language the grader prompt happens to be written in.
+            language=resolve_language(
+                course=course, accept_language_header=accept_language
+            ),
         )
     else:
         result = grade_item(item_props, key_entry, body.answer)
@@ -918,7 +944,11 @@ async def answer_node_item(
 
 @router.post("/{node_id}/hint", response_model=NodeHintResult)
 async def get_hint(
-    user: CurrentUser, db: DBSession, node_id: uuid.UUID, body: NodeHintRequest
+    user: CurrentUser,
+    db: DBSession,
+    node_id: uuid.UUID,
+    body: NodeHintRequest,
+    accept_language: Annotated[str | None, Header()] = None,
 ) -> NodeHintResult:
     """One hint, escalating, with ``attempt-before-hint`` and a hard cap of 3 (§7.4).
 
@@ -930,7 +960,7 @@ async def get_hint(
     a disclosure decision, and the amount disclosed at each step has to be reviewable rather
     than sampled.
     """
-    node, _course = await _load_dynamic_node(db, user, node_id)
+    node, course = await _load_dynamic_node(db, user, node_id)
     _render, item_props, key_entry = await _resolve_item(
         db, user, node, body.render_id, body.item_id
     )
@@ -952,7 +982,15 @@ async def get_hint(
         )
 
     level = hints_used + 1
-    hint = _hint_for(level, node=node, item_props=item_props, key_entry=key_entry)
+    hint = _hint_for(
+        level,
+        node=node,
+        item_props=item_props,
+        key_entry=key_entry,
+        language=resolve_language(
+            course=course, accept_language_header=accept_language
+        ),
+    )
 
     latest = await attempts.latest_for_item(
         user_id=user.id, node_id=node.id, item_id=body.item_id
@@ -1250,9 +1288,14 @@ def _next_action(*, passed: bool, state: str, show_worked_solution: bool = False
 
 
 def _hint_for(
-    level: int, *, node: CourseNode, item_props: dict, key_entry: dict | None
+    level: int,
+    *,
+    node: CourseNode,
+    item_props: dict,
+    key_entry: dict | None,
+    language: str | None = None,
 ) -> str:
-    """Three escalating hints, and nothing beyond them (§7.4).
+    """Three escalating hints for a ``QuizItem``, and nothing beyond them (§7.4).
 
     1. Point back at the idea of the node. No item-specific information at all.
     2. A structural nudge that depends on the item type: two distractors ruled out for a
@@ -1261,10 +1304,18 @@ def _hint_for(
     3. The worked explanation from the key. At this point ``correct_answer`` is revealed on
        the next answer anyway (``hints_used >= 3``), so withholding the reasoning while
        handing over the answer would be the worse of the two.
+
+    **What this function decides and what it does not.** It decides *how much* of the key
+    a ``QuizItem`` discloses at each rung; the sentences themselves come from
+    ``src/services/activity_hints.py``, which is also the Didact ladder. The two used to
+    hold separate copies of the same six sentences and had already drifted apart in
+    wording and in accents — a learner met a different rule depending on which kind of
+    question was on screen. Only the traversal is item-shaped: a ``QuizItem`` addresses
+    its options by index and a Didact activity by id, so the walking stays here.
     """
     key = key_entry or {}
     if level <= 1:
-        return f"Vuelve a la idea del nodo: {node.summary}"
+        return back_to_node(node.summary, language)
 
     if level == 2:
         item_type = item_type_of(item_props)
@@ -1273,31 +1324,20 @@ def _hint_for(
             wrong = [
                 index for index in range(len(options)) if index != key["correct"]
             ][:2]
-            listed = " y ".join(f'"{options[index]}"' for index in wrong)
-            return f"Puedes descartar {listed}."
+            return discard_options([options[index] for index in wrong], language)
         if item_type == "order_steps":
             order = list(key.get("correct_order") or [])
             steps = list(item_props.get("steps") or options)
             if order and 0 <= int(order[0]) < len(steps):
-                return f'El primer paso es "{steps[int(order[0])]}".'
+                return first_step(steps[int(order[0])], language)
         if item_type == "fill_blank":
             blanks = [str(value) for value in (key.get("blanks") or [])]
-            if blanks:
-                shape = ", ".join(
-                    f"{len(blank)} caracteres, empieza por '{blank[:1]}'"
-                    for blank in blanks
-                    if blank
-                )
-                return f"Lo que falta: {shape}."
-        return (
-            "Relee el enunciado y quedate solo con el dato que decide la respuesta; "
-            "lo demas es contexto."
-        )
+            parts = [(len(blank), blank[:1]) for blank in blanks if blank]
+            if parts:
+                return missing_text(parts, language)
+        return generic_structure(language)
 
     explanation = key.get("explanation")
     if isinstance(explanation, str) and explanation.strip():
         return explanation.strip()
-    return (
-        "Es la opcion que se sigue directamente de la regla del nodo; comparala con el "
-        "resumen y decide."
-    )
+    return generic_explanation(language)

@@ -11,6 +11,7 @@ from src.repositories.course_repo import CourseRepository
 from src.repositories.enrollment_repo import EnrollmentRepository
 from src.repositories.exercise_repo import ExerciseRepository
 from src.schemas.exercise import AttemptResult, CorrectResult
+from src.services.language_policy import resolve_language
 
 _OPEN_TYPES = {"practical_case", "dialogue"}
 
@@ -139,7 +140,12 @@ class ExerciseService:
             from src.services.llm_grading import grade_open_answer
 
             result = await grade_open_answer(
-                llm, exercise_type, exercise.content, answer
+                llm,
+                exercise_type,
+                exercise.content,
+                answer,
+                # The feedback is text the learner reads, so it follows the course.
+                language=resolve_language(course=course),
             )
         else:
             result = grade(exercise_type, exercise.content, answer)

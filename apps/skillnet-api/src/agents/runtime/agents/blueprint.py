@@ -12,7 +12,9 @@ from typing import Any
 
 from pydantic import ValidationError
 
+from src.core.language import Language
 from src.core.logging import get_logger
+from src.llm.prompts.language import with_language
 from src.llm.parsing import parse_json_response
 
 from src.agents.runtime.assessment import AssessmentPlan
@@ -305,8 +307,15 @@ async def run_blueprint(
     presentation_preference: str = "balanced",
     detail_preference: str = "standard",
     image_preference: str = "when_useful",
+    language: Language | None = None,
 ) -> Blueprint:
-    """Return the screen structure. A planned scheme is the structure; no LLM invents it."""
+    """Return the screen structure. A planned scheme is the structure; no LLM invents it.
+
+    ``language`` reaches this agent even though it writes no prose: the blueprint's
+    ``intent`` and block choices are enum-shaped, but the model also echoes the node's
+    title and summary into the JSON it returns, and a Spanish system prompt is what
+    decides which language those come back in.
+    """
 
     if scheme is not None:
         return blueprint_from_scheme(scheme, ui_format, target_bloom)
@@ -332,7 +341,7 @@ async def run_blueprint(
     )
 
     raw, _usage = await llm.complete_with_usage(
-        BLUEPRINT_SYSTEM,
+        with_language(BLUEPRINT_SYSTEM, language),
         user_prompt,
         temperature=0.2,
         # 512 truncaba el JSON cuando el modelo colaba contenido en los bloques (medido

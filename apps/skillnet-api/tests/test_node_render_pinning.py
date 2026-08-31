@@ -286,6 +286,7 @@ async def test_request_render_regenerates_over_a_pinned_fallback(monkeypatch) ->
             generation_policy_key="screen-scheme/v1",
             longitudinal_decision_digest="d",
             longitudinal_history=project_longitudinal_history([], nodes_completed=0),
+            language="es",
         )
     )
     service.renders = SimpleNamespace(find_cached=AsyncMock(return_value=None))
@@ -333,6 +334,7 @@ def _unpinned_service(*, spent_row, key: str):
             generation_policy_key="screen-scheme/v1",
             longitudinal_decision_digest="d",
             longitudinal_history=project_longitudinal_history([], nodes_completed=0),
+            language="es",
         )
     )
     service.renders = SimpleNamespace(

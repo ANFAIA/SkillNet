@@ -10,9 +10,9 @@ exactly the tokens it cost yesterday.
 from __future__ import annotations
 
 import uuid
-from typing import Any
+from typing import Annotated, Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Header
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 
@@ -53,12 +53,27 @@ async def chat(
     db: DBSession,
     tutor_llm: TutorLLMDep,
     embeddings: EmbeddingDep,
+    accept_language: Annotated[str | None, Header()] = None,
 ) -> StreamingResponse:
+    """The employee tutor.
+
+    The header is the *last* step of the language order in
+    ``src/services/language_policy.py``: the course in ``request.context`` and the
+    organization's own default both outrank it. It is read here because a route is the only
+    place a header exists.
+    """
     org_settings = await _org_settings(db, getattr(user, "org_id", None))
     generative_ui = chat_generative_ui_enabled(org_settings)
     service = ChatService(db, tutor_llm, embeddings, generative_ui=generative_ui)
     stream = service.stream_tutor(
-        user, request.message, request.session_id, request.context
+        user,
+        request.message,
+        request.session_id,
+        request.context,
+        accept_language=accept_language,
+        # Already loaded for ``chat_generative_ui_enabled``; handed over so resolving the
+        # organization's default language does not cost a second read of the same row.
+        org_settings=org_settings,
     )
     return StreamingResponse(
         stream, media_type="text/event-stream", headers=_SSE_HEADERS
@@ -72,12 +87,18 @@ async def admin_chat(
     db: DBSession,
     llm: LLMDep,
     embeddings: EmbeddingDep,
+    accept_language: Annotated[str | None, Header()] = None,
 ) -> StreamingResponse:
     org_settings = await _org_settings(db, getattr(user, "org_id", None))
     generative_ui = chat_generative_ui_enabled(org_settings)
     service = ChatService(db, llm, embeddings, generative_ui=generative_ui)
     stream = service.stream_admin(
-        user, request.message, request.session_id, request.context
+        user,
+        request.message,
+        request.session_id,
+        request.context,
+        accept_language=accept_language,
+        org_settings=org_settings,
     )
     return StreamingResponse(
         stream, media_type="text/event-stream", headers=_SSE_HEADERS

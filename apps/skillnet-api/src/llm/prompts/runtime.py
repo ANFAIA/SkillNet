@@ -39,6 +39,8 @@ from collections.abc import Mapping, Sequence
 from functools import cache
 from typing import Any
 
+from src.core.language import Language
+from src.llm.prompts.language import with_language
 from src.render.prompt import render_prompt
 from src.render.spec import FORMATS_REQUIRING_LEAD
 from src.schemas.episode_contracts import EpisodeBrief
@@ -1139,7 +1141,9 @@ con el programa (y su clave si lleva algun QuizItem).
 
 
 @cache
-def episode_ui_generator_system(component_prompt: str | None = None) -> str:
+def episode_ui_generator_system(
+    component_prompt: str | None = None, *, language: Language | None = None
+) -> str:
     """Dialect and safety rules for formula-free runtime episodes.
 
     Structured per prompt-engineering best-practice: role + grammar (from the artefact),
@@ -1147,10 +1151,16 @@ def episode_ui_generator_system(component_prompt: str | None = None) -> str:
     first section, then the output-format (dialect syntax + answer-key protocol), then the
     worked EXAMPLES last, and finally a one-line repeat of the single most important
     instruction. All examples are DOMAIN-ABSTRACT so they do not bias the model's topic.
+
+    ``language`` is appended after the closing reminder, which is the one place in this
+    prompt where a tie between two instructions gets broken — and it has to win, because
+    every rule and every worked example here is written in Spanish and a model reads that
+    as the language to answer in. ``None`` leaves the text byte-identical, so the Spanish
+    path keeps its recorded fixtures and its cached renders.
     """
 
     grammar = _episode_component_grammar(component_prompt or render_prompt())
-    return (
+    return with_language(
         grammar
         + "\n\n"
         # --- hard constraints first (the rubric + contract + validator limits) ---
@@ -1167,7 +1177,8 @@ def episode_ui_generator_system(component_prompt: str | None = None) -> str:
         + _EPISODE_DIDACT_EXAMPLES
         + _EPISODE_MULTISCREEN
         # --- repeat the single most important instruction at the very END ---
-        + _EPISODE_CLOSING_REMINDER
+        + _EPISODE_CLOSING_REMINDER,
+        language,
     )
 
 
@@ -1180,10 +1191,20 @@ Las reglas del dialecto y del contrato episodico que siguen permanecen vigentes.
 
 
 @cache
-def episode_ui_repair_system(component_prompt: str | None = None) -> str:
-    """Repair system prompt for the same neutral episode contract and dialect."""
+def episode_ui_repair_system(
+    component_prompt: str | None = None, *, language: Language | None = None
+) -> str:
+    """Repair system prompt for the same neutral episode contract and dialect.
 
-    return _EPISODE_REPAIR_HEADER + "\n" + episode_ui_generator_system(component_prompt)
+    The language rule is not appended a second time here: it rides in on the generator
+    prompt, which is concatenated last, so it stays the final thing the model reads.
+    """
+
+    return (
+        _EPISODE_REPAIR_HEADER
+        + "\n"
+        + episode_ui_generator_system(component_prompt, language=language)
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -1263,10 +1284,30 @@ responde solo con el programa (y su clave si lleva QuizItem).
 
 
 @cache
-def episode_ui_revise_system(component_prompt: str | None = None) -> str:
+def episode_ui_revise_system(
+    component_prompt: str | None = None, *, language: Language | None = None
+) -> str:
     """Revision system prompt: same episode dialect, plus 'apply the critic's notes'."""
 
-    return _EPISODE_REVISE_HEADER + "\n" + episode_ui_generator_system(component_prompt)
+    return (
+        _EPISODE_REVISE_HEADER
+        + "\n"
+        + episode_ui_generator_system(component_prompt, language=language)
+    )
+
+
+@cache
+def episode_critic_system(language: Language | None = None) -> str:
+    """The pedagogy critic's system prompt, in the language the episode is written in.
+
+    A wrapper rather than a second constant, so :data:`EPISODE_CRITIC_SYSTEM` stays the
+    text and this stays the policy. The critic's notes are not read by a person, they are
+    read by the reviser on the one call that rewrites the screen — and a Spanish note
+    handed to a model writing English is exactly the nudge that produces a bilingual
+    lesson. Its own rule against changing the episode's language is unaffected: the
+    directive pins what the *critic* writes, and the reviser gets its own.
+    """
+    return with_language(EPISODE_CRITIC_SYSTEM, language)
 
 
 def build_episode_critic_prompt(
@@ -1339,18 +1380,22 @@ def build_episode_revise_prompt(
 
 @cache
 def ui_generator_system(
-    component_prompt: str | None = None, *, didact_verification: bool = False
+    component_prompt: str | None = None,
+    *,
+    didact_verification: bool = False,
+    language: Language | None = None,
 ) -> str:
     """``library.prompt()`` (the artefact) plus the answer-key protocol.
 
     Cached: the artefact is immutable at runtime and this string is hashed on every
-    fixture lookup. ``didact_verification`` is part of the cache key so the live
-    Didact closer does not share a prompt with the legacy QuizItem path.
+    fixture lookup. ``didact_verification`` and ``language`` are both part of the cache
+    key, so the live Didact closer does not share a prompt with the legacy QuizItem path
+    and neither language shares one with the other.
     """
     text = (component_prompt or render_prompt()).rstrip("\n") + _UI_GENERATOR_TAIL
     if didact_verification:
-        return text + _DIDACT_VERIFICATION_OVERRIDE
-    return text
+        text += _DIDACT_VERIFICATION_OVERRIDE
+    return with_language(text, language)
 
 
 #: The repair header. The MAL/BIEN block is not decoration: a paired counterexample is the
@@ -1409,19 +1454,27 @@ Reglas del dialecto y catalogo de bloques: los mismos de abajo, sin excepciones.
 
 @cache
 def ui_repair_system(
-    component_prompt: str | None = None, *, didact_verification: bool = False
+    component_prompt: str | None = None,
+    *,
+    didact_verification: bool = False,
+    language: Language | None = None,
 ) -> str:
     """The repair system prompt: the same dialect, plus "you were rejected, emit again".
 
     A separate system prompt rather than an extra user turn, because the model has to be
     told that its previous output is not a starting point to patch but something to
     re-emit whole: the parser is line-oriented and a half-fixed program fails again.
+
+    A repair must not change the language of the program it is re-emitting, so the rule
+    comes from the same builder the generator used rather than from a second copy of it.
     """
     return (
         _UI_REPAIR_HEADER
         + "\n"
         + ui_generator_system(
-            component_prompt, didact_verification=didact_verification
+            component_prompt,
+            didact_verification=didact_verification,
+            language=language,
         )
     )
 
@@ -2067,6 +2120,7 @@ __all__ = [
     "build_repair_prompt",
     "build_ui_prompt",
     "clip_source",
+    "episode_critic_system",
     "episode_ui_generator_system",
     "episode_ui_repair_system",
     "episode_ui_revise_system",

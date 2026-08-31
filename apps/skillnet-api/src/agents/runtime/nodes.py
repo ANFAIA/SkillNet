@@ -79,11 +79,13 @@ from src.agents.runtime.shape import (
 )
 from src.agents.runtime.state import NodeRuntimeState
 from src.core import sse
+from src.core.language import DEFAULT_LANGUAGE, Language
 from src.core.logging import get_logger
 from src.deps.db import async_session_factory
 from src.llm.embedding import resolve_embedding_config
 from src.llm.fixtures import maybe_fixture_embedder
 from src.llm.parsing import parse_json_response
+from src.llm.prompts.language import with_language
 from src.llm.prompts.runtime import (
     ANSWER_KEY_SENTINEL,
     DECIDE_MAX_TOKENS,
@@ -152,6 +154,7 @@ from src.services.activity_authoring import (
     materialize_authored_activity,
 )
 from src.services.activity_definitions import ActivityDefinitionService
+from src.services.language_policy import prompt_language, resolve_language
 from src.services.learner_profile_service import is_calibrating
 from src.services.mastery_service import target_bloom, threshold_for
 from src.services.node_render_service import (
@@ -396,19 +399,62 @@ def _ensure_support_interaction(prompt_ids: list[str]) -> list[str]:
         return prompt_ids
     return [*prompt_ids, _SUPPORT_INTERACTIVE_FALLBACK[0]]
 
-STEP_MESSAGES: dict[str, str] = {
-    "load_context": "Preparando el nodo...",
-    "probe_gate": "Comprobando lo que ya dominas...",
-    "direct_episode": "Preparando una experiencia adaptada...",
-    "decide_formato": "Eligiendo la forma de la leccion...",
-    "author_activity": "Preparando la actividad interactiva...",
-    "genera_ui": "Escribiendo la leccion...",
-    "validate_ui": "Revisando la leccion...",
-    "critic_episode": "Afinando la pedagogia...",
-    "persist_render": "Guardando la leccion...",
-    "fallback_seed": "Sirviendo la version de respaldo...",
-    "skip_node": "Ya dominas este nodo.",
+#: What the learner reads while the screen is being written, per language. This is text a
+#: person sees, so it needs the second language as much as the lesson does — an English
+#: course that spends four seconds saying "Escribiendo la leccion..." has already told the
+#: visitor what language it really thinks in.
+#:
+#: A dict per language and nothing more. Eleven strings do not earn an i18n framework in
+#: the backend, and the alternative worth ruling out is sending only the step key and
+#: letting the SPA translate: that would move a server-owned vocabulary into the client and
+#: make a new graph step a two-repository change. The two ``genera_ui_*`` keys are the
+#: multi-agent pipeline's sub-steps, which used to be spelled inline at their call sites.
+_STEP_MESSAGES: dict[Language, dict[str, str]] = {
+    "es": {
+        "load_context": "Preparando el nodo...",
+        "probe_gate": "Comprobando lo que ya dominas...",
+        "direct_episode": "Preparando una experiencia adaptada...",
+        "decide_formato": "Eligiendo la forma de la leccion...",
+        "author_activity": "Preparando la actividad interactiva...",
+        "genera_ui": "Escribiendo la leccion...",
+        "genera_ui_structure": "Disenando la estructura...",
+        "genera_ui_writing": "Escribiendo el contenido...",
+        "validate_ui": "Revisando la leccion...",
+        "critic_episode": "Afinando la pedagogia...",
+        "persist_render": "Guardando la leccion...",
+        "fallback_seed": "Sirviendo la version de respaldo...",
+        "skip_node": "Ya dominas este nodo.",
+    },
+    "en": {
+        "load_context": "Getting the lesson ready...",
+        "probe_gate": "Checking what you already know...",
+        "direct_episode": "Preparing an adapted experience...",
+        "decide_formato": "Choosing the shape of the lesson...",
+        "author_activity": "Preparing the interactive activity...",
+        "genera_ui": "Writing the lesson...",
+        "genera_ui_structure": "Designing the structure...",
+        "genera_ui_writing": "Writing the content...",
+        "validate_ui": "Reviewing the lesson...",
+        "critic_episode": "Fine-tuning the teaching...",
+        "persist_render": "Saving the lesson...",
+        "fallback_seed": "Serving the backup version...",
+        "skip_node": "You already know this one.",
+    },
 }
+
+#: The default-language table, kept under its old name because callers outside this module
+#: read it by key and none of them has a language to offer.
+STEP_MESSAGES: dict[str, str] = _STEP_MESSAGES[DEFAULT_LANGUAGE]
+
+
+def step_message(step: str, language: str | None = None) -> str:
+    """The progress line for one graph step, in the render's own language.
+
+    Takes the language rather than the state because the first caller does not have a
+    state yet — ``load_context`` publishes its step while it is still assembling one.
+    """
+    table = _STEP_MESSAGES[resolve_language(requested=language)]
+    return table.get(step, STEP_MESSAGES.get(step, step))
 
 
 # --------------------------------------------------------------------------- #
@@ -1079,6 +1125,7 @@ async def load_context(state: NodeRuntimeState) -> dict:
             learning_note_fingerprint=learning_note_fingerprint(
                 getattr(profile, "learning_note", None)
             ),
+            org_settings=org_settings,
         )
         cache_key = str(state.get("cache_key") or key.cache_key)
 
@@ -1180,7 +1227,9 @@ async def load_context(state: NodeRuntimeState) -> dict:
         }
         await db.commit()
 
-    await publish_step(request_id, "load_context", STEP_MESSAGES["load_context"])
+    await publish_step(
+        request_id, "load_context", step_message("load_context", key.language)
+    )
     if already_served:
         # Another request finished this exact key between the service's cache check and this
         # claim. The graph keeps going and ``persist_render`` will rewrite the row with an
@@ -1230,6 +1279,10 @@ async def load_context(state: NodeRuntimeState) -> dict:
         "scaffold_band": key.scaffold_band,
         "longitudinal_decision_digest": history.decision_digest,
         "longitudinal_history": profile_payload["longitudinal_history"],
+        # The same value the cache key was built from, so the prompts below cannot drift
+        # from the row they will be stored in. ``load_context`` recomputes the key rather
+        # than trusting the service's, and the language rides along for that reason.
+        "language": key.language,
         "cache_key": cache_key,
         "generation_policy_key": key.generation_policy_key,
         "render_id": render_id,
@@ -1246,6 +1299,16 @@ def _plain_or_none(value: object) -> str | None:
     if value is None:
         return None
     return str(getattr(value, "value", value))
+
+
+def _prompt_language(state: NodeRuntimeState | dict) -> Language | None:
+    """The language to hand to a system prompt, or ``None`` to leave it untouched.
+
+    One reader for the whole graph. ``prompt_language`` folds the default away, so a
+    Spanish render keeps the byte-identical prompt its recorded fixture and its cached row
+    were produced with; only a departure from the default is spelled out to the model.
+    """
+    return prompt_language(state.get("language"))
 
 
 def _history_support_level(state: NodeRuntimeState | dict) -> str:
@@ -1299,7 +1362,9 @@ async def probe_gate(state: NodeRuntimeState) -> dict:
     #   mastered = str(node_state.get("state")) == MASTERED
     mastered = False
     await publish_step(
-        str(state["request_id"]), "probe_gate", STEP_MESSAGES["probe_gate"]
+        str(state["request_id"]),
+        "probe_gate",
+        step_message("probe_gate", state.get("language")),
     )
     return {"mastered": mastered, "current_step": "probe_gate"}
 
@@ -1498,7 +1563,9 @@ async def direct_episode(state: NodeRuntimeState) -> dict:
         "mastery_blocked": support_only,
     }
     request_id = str(state["request_id"])
-    await publish_step(request_id, "direct_episode", STEP_MESSAGES["direct_episode"])
+    await publish_step(
+        request_id, "direct_episode", step_message("direct_episode", state.get("language"))
+    )
     await sse.publish(
         node_channel(request_id), "ui_format", {"format": ui_format, "tier": tier}
     )
@@ -1765,7 +1832,9 @@ async def decide_formato(state: NodeRuntimeState) -> dict:
         else []
     )
 
-    await publish_step(request_id, "decide_formato", STEP_MESSAGES["decide_formato"])
+    await publish_step(
+        request_id, "decide_formato", step_message("decide_formato", state.get("language"))
+    )
     await sse.publish(
         node_channel(request_id), "ui_format", {"format": ui_format, "tier": tier}
     )
@@ -2175,7 +2244,9 @@ async def author_activity(state: NodeRuntimeState) -> dict:
     # Keep selection and the server-side allow-list identical so a completion cannot switch
     # to a candidate whose contract it was never shown.
     request_id = str(state["request_id"])
-    await publish_step(request_id, "author_activity", STEP_MESSAGES["author_activity"])
+    await publish_step(
+        request_id, "author_activity", step_message("author_activity", state.get("language"))
+    )
     usage = None
     started = time.monotonic()
     try:
@@ -2237,6 +2308,12 @@ async def author_activity(state: NodeRuntimeState) -> dict:
             source_context=str(state.get("source_context") or ""),
             allowed_source_refs=allowed_refs,
         )
+        # This agent writes the *content* of the interactive activity — the items, the
+        # options, the categories a learner drags — so it needs the language rule as much
+        # as the screen generator does. Pinned at the call site rather than inside
+        # ``build_activity_authoring_prompts``, which belongs to another batch: same
+        # effect, no edit to a file two agents share.
+        system = with_language(system, _prompt_language(state))
         # Activity definition is small structured work; it always uses the fast tier even
         # when the eventual screen needs the heavy presentation tier.
         llm = await _make_llm(org_id, "fast")
@@ -2807,8 +2884,10 @@ async def genera_ui(state: NodeRuntimeState) -> dict:
         or assessment_block in _DIRECT_DIDACT_CLOSERS
     )
 
+    language = _prompt_language(state)
+
     if retry and adaptive_episode:
-        system = episode_ui_repair_system(scoped_prompt)
+        system = episode_ui_repair_system(scoped_prompt, language=language)
         user_prompt = build_episode_repair_prompt(
             episode=episode_payload,
             source_context=_source_with_authored_activity(state),
@@ -2818,7 +2897,11 @@ async def genera_ui(state: NodeRuntimeState) -> dict:
             **_episode_node_context(state),
         )
     elif retry:
-        system = ui_repair_system(scoped_prompt, didact_verification=didact_verification)
+        system = ui_repair_system(
+            scoped_prompt,
+            didact_verification=didact_verification,
+            language=language,
+        )
         user_prompt = build_repair_prompt(
             previous=str(state.get("raw_dsl") or ""),
             errors=list(state.get("validation_errors") or []),
@@ -2827,7 +2910,7 @@ async def genera_ui(state: NodeRuntimeState) -> dict:
             screen_scheme=_effective_screen_scheme(state, assessment_required),
         )
     elif adaptive_episode:
-        system = episode_ui_generator_system(scoped_prompt)
+        system = episode_ui_generator_system(scoped_prompt, language=language)
         user_prompt = build_episode_ui_prompt(
             episode=episode_payload,
             source_context=_source_with_authored_activity(state),
@@ -2842,7 +2925,9 @@ async def genera_ui(state: NodeRuntimeState) -> dict:
         user_prompt = _with_source_images(user_prompt, state)
     else:
         system = ui_generator_system(
-            scoped_prompt, didact_verification=didact_verification
+            scoped_prompt,
+            didact_verification=didact_verification,
+            language=language,
         )
         preferences = normalize_learning_preferences(profile.get("learning_preferences"))
         user_prompt = build_ui_prompt(
@@ -2879,7 +2964,9 @@ async def genera_ui(state: NodeRuntimeState) -> dict:
     # `load_context` recorded a widening.
     user_prompt = _with_source_scope(user_prompt, state)
 
-    await publish_step(request_id, "genera_ui", STEP_MESSAGES["genera_ui"])
+    await publish_step(
+        request_id, "genera_ui", step_message("genera_ui", state.get("language"))
+    )
     started = time.monotonic()
     usage_out: dict[str, Any] = {}
     raw = await _stream_program(
@@ -3031,8 +3118,11 @@ async def genera_ui_multi(state: NodeRuntimeState) -> dict:
         node.get("criticality") or "recommended", node.get("mastery_threshold")
     )
 
-    await publish_step(request_id, "genera_ui", "Disenando la estructura...")
+    await publish_step(
+        request_id, "genera_ui", step_message("genera_ui_structure", state.get("language"))
+    )
     started = time.monotonic()
+    language = _prompt_language(state)
 
     # El plan de evaluacion (decidido en decide_formato) se reconstruye aqui para imponerlo
     # en el blueprint. Reconstruir desde el estado en vez de recalcular mantiene una sola
@@ -3073,9 +3163,12 @@ async def genera_ui_multi(state: NodeRuntimeState) -> dict:
         presentation_preference=preferences.presentation.value,
         detail_preference=preferences.detail.value,
         image_preference=preferences.images.value,
+        language=language,
     )
 
-    await publish_step(request_id, "genera_ui", "Escribiendo el contenido...")
+    await publish_step(
+        request_id, "genera_ui", step_message("genera_ui_writing", state.get("language"))
+    )
 
     # The scope warning travels on the source itself here, because the source is the only
     # channel these two agents share with the caller — they build their own prompts. Kept in
@@ -3100,6 +3193,7 @@ async def genera_ui_multi(state: NodeRuntimeState) -> dict:
         criticality=str(node.get("criticality") or "recommended"),
         siblings=list(state.get("siblings") or ()),
         llm=llm,
+        language=language,
     )
 
     interaction_coro = None
@@ -3117,6 +3211,7 @@ async def genera_ui_multi(state: NodeRuntimeState) -> dict:
             scaffold_band=_effective_scaffold_band(state),
             siblings=list(state.get("siblings") or ()),
             llm=llm,
+            language=language,
         )
 
     # Execute in parallel
@@ -3211,7 +3306,9 @@ async def validate_ui(state: NodeRuntimeState) -> dict:
     ui_format = coerce_ui_format(state.get("ui_format"))
     backend_name = str(state.get("backend") or "openui")
     await publish_step(
-        str(state["request_id"]), "validate_ui", STEP_MESSAGES["validate_ui"]
+        str(state["request_id"]),
+        "validate_ui",
+        step_message("validate_ui", state.get("language")),
     )
 
     program_text, answer_key = split_answer_key(raw)
@@ -3411,7 +3508,9 @@ async def critic_episode(state: NodeRuntimeState) -> dict:
     program = str(state.get("program") or "")
     assessment_mode = "none" if not state.get("assessment_block") else "evidence"
 
-    await publish_step(request_id, "critic_episode", STEP_MESSAGES["critic_episode"])
+    await publish_step(
+        request_id, "critic_episode", step_message("critic_episode", state.get("language"))
+    )
 
     trace = dict(state.get("plan_trace") or {})
     started = time.monotonic()
@@ -3425,6 +3524,7 @@ async def critic_episode(state: NodeRuntimeState) -> dict:
             screen_count=screen_count,
             assessment_mode=assessment_mode,
             llm=llm,
+            language=_prompt_language(state),
         )
     except Exception:  # noqa: BLE001 - critic is optional
         logger.info("critic_episode_unavailable", exc_info=True)
@@ -3449,7 +3549,9 @@ async def critic_episode(state: NodeRuntimeState) -> dict:
         )
         scoped_prompt = _with_media_offers(scoped_prompt, state)
         scoped_prompt = _with_source_images(scoped_prompt, state)
-        system = episode_ui_revise_system(scoped_prompt)
+        system = episode_ui_revise_system(
+            scoped_prompt, language=_prompt_language(state)
+        )
         user_prompt = build_episode_revise_prompt(
             episode=episode_payload,
             source_context=_source_with_authored_activity(state),
@@ -3720,7 +3822,9 @@ async def fallback_seed(state: NodeRuntimeState) -> dict:
     # without a debugger: which branch of the graph arrived, with which validator
     # complaints, at which retry, and whether there was any seed lesson to fall back on.
     logger.warning("fallback_seed reached %s", _fallback_diagnostics(state))
-    await publish_step(request_id, "fallback_seed", STEP_MESSAGES["fallback_seed"])
+    await publish_step(
+        request_id, "fallback_seed", step_message("fallback_seed", state.get("language"))
+    )
     return await _serve_fallback(state, step="fallback_seed")
 
 
@@ -4010,7 +4114,7 @@ async def _persist(
         await db.commit()
 
     if step == "persist_render":
-        await publish_step(request_id, step, STEP_MESSAGES[step])
+        await publish_step(request_id, step, step_message(step, state.get("language")))
     await sse.publish(
         node_channel(request_id),
         "ui_done",

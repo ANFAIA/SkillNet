@@ -251,9 +251,24 @@ def test_term_is_measured_after_trimming():
     assert request.term == "mercurio"
 
 
-def test_language_defaults_to_spanish_and_is_lowercased():
-    assert ExplainRequest(term="x", context="y").language == "es"
+def test_language_is_absent_until_somebody_asks_for_one():
+    """``None`` and ``"es"`` are different requests, and the schema keeps them apart.
+
+    The field used to default to ``"es"``, so every request looked like an explicit
+    Spanish one and the resolution order in ``src/services/language_policy.py`` could
+    never get past its first step — an English course explained its own terms in Spanish.
+    """
+    assert ExplainRequest(term="x", context="y").language is None
+    assert ExplainRequest(term="x", context="y", language=None).language is None
+    assert ExplainRequest(term="x", context="y", language="  ").language is None
     assert ExplainRequest(term="x", context="y", language=" EN ").language == "en"
+    # A locale tag folds to its language, so `en-US` and `en` share one cached row rather
+    # than minting `en-us` as a third value of a column that is part of a unique key.
+    assert ExplainRequest(term="x", context="y", language="en-US").language == "en"
+    assert ExplainRequest(term="x", context="y", language="es_ES").language == "es"
+    # A language this deployment does not speak is "nobody asked", not a 422: refusing to
+    # explain a word over a locale preference would be the worse failure.
+    assert ExplainRequest(term="x", context="y", language="fr").language is None
 
 
 # ------------------------------------------------------------------------ rate limit
@@ -593,7 +608,8 @@ async def test_same_term_in_a_different_context_is_a_different_row():
 
 async def test_language_is_part_of_the_key():
     store, session, user = FakeStore(), FakeSession(), _user()
-    service = ExplainService(session, _fixture_llm(), repo=store)
+    llm = ScriptedLLM(["Un elemento quimico."])
+    service = ExplainService(session, llm, repo=store)
 
     await _run(service, user, term="Mercurio", context=CHEMISTRY_CONTEXT, language="es")
     events = await _run(
@@ -602,6 +618,29 @@ async def test_language_is_part_of_the_key():
 
     assert events[-1][1]["cached"] is False
     assert len(store.rows) == 2
+
+
+async def test_the_requested_language_reaches_the_model():
+    """The bug this whole field had: it keyed the cache and never left the server.
+
+    Asking for English used to mint a second row, fill it with the Spanish sentence
+    :data:`EXPLAIN_SYSTEM` produces by following the surrounding text, and serve that
+    forever — a cache poisoned by design. The default stays byte-identical, because that
+    is what keeps the recorded fixtures and their offline tests valid.
+    """
+    store, session, user = FakeStore(), FakeSession(), _user()
+    llm = ScriptedLLM(["Mercury is a chemical element."])
+    service = ExplainService(session, llm, repo=store)
+
+    await _run(service, user, term="Mercurio", context=CHEMISTRY_CONTEXT, language="en")
+    english_system = llm.seen[0]["content"]
+    assert "ENGLISH" in english_system
+
+    await _run(service, user, term="Plutonio", context=CHEMISTRY_CONTEXT, language="es")
+    assert llm.seen[0]["content"] == EXPLAIN_SYSTEM
+
+    await _run(service, user, term="Uranio", context=CHEMISTRY_CONTEXT)
+    assert llm.seen[0]["content"] == EXPLAIN_SYSTEM
 
 
 async def test_a_long_selection_is_explained_but_never_persisted():

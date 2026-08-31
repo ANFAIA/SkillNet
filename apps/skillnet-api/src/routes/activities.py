@@ -3,9 +3,9 @@
 import hashlib
 import json
 import uuid
-from typing import Any
+from typing import Annotated, Any
 
-from fastapi import APIRouter, Response
+from fastapi import APIRouter, Header, Response
 
 from src.core.exceptions import ConflictError, NotFoundError, ValidationError
 from src.deps.auth import AdminUser, CurrentUser
@@ -45,6 +45,7 @@ from src.services.activity_definitions import (
     validated_score,
 )
 from src.services.activity_hints import activity_hint
+from src.services.language_policy import resolve_language
 from src.services.activity_ports import PortDeclined
 from src.services.activity_solution import render_solution, revealed_solution
 from src.services.media.activity_assets import ActivityAssetResolver
@@ -492,7 +493,10 @@ def _replayed_verdict(
 # --------------------------------------------------------------------------------------
 @router.post("/{activity_id}/hint", response_model=NodeHintResult)
 async def get_activity_hint(
-    user: CurrentUser, db: DBSession, activity_id: uuid.UUID
+    user: CurrentUser,
+    db: DBSession,
+    activity_id: uuid.UUID,
+    accept_language: Annotated[str | None, Header()] = None,
 ) -> NodeHintResult:
     """One hint for one activity, escalating, with ``attempt-before-hint`` and a cap of 3.
 
@@ -528,6 +532,14 @@ async def get_activity_hint(
     # The node is read for the first rung only, and its absence is not an error: an
     # archived node still has activities, and a learner in front of one still gets a hint.
     node = await CourseNodeRepository(db).get_scoped(activity.node_id, user.org_id)
+    # The hint is read by the learner, so it comes out in the language of the course the
+    # activity belongs to. Loaded from the node rather than from the request: a client that
+    # could name the language of its own hints could disagree with the lesson beside it.
+    course = (
+        await CourseRepository(db).get_scoped(node.course_id, user.org_id)
+        if node is not None
+        else None
+    )
     level = hints_used + 1
     hint = activity_hint(
         level,
@@ -535,6 +547,9 @@ async def get_activity_hint(
         public_definition=activity.public_definition,
         evaluation=(activity.private_definition or {}).get("evaluation"),
         node_summary=getattr(node, "summary", None),
+        language=resolve_language(
+            course=course, accept_language_header=accept_language
+        ),
     )
     await counters.record_hint(activity=activity, user_id=user.id, level=level)
     await db.commit()

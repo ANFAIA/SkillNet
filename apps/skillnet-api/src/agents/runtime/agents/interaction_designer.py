@@ -22,8 +22,10 @@ from functools import cache
 from typing import Any
 
 from src.agents.runtime.agents.types import Blueprint, InteractionOutput, scaffold_rule
+from src.core.language import Language
 from src.core.logging import get_logger
 from src.llm.parsing import parse_json_response
+from src.llm.prompts.language import with_language
 from src.llm.prompts.runtime import ANSWER_KEY_SENTINEL, clip_source
 from src.render.prompt import render_prompt
 
@@ -33,13 +35,15 @@ logger = get_logger(__name__)
 
 
 @cache
-def interaction_designer_system() -> str:
+def interaction_designer_system(language: Language | None = None) -> str:
     """The system prompt for the interaction designer agent.
 
     Combines the generated OpenUI dialect prompt with interaction-specific
-    instructions.  Cached: the artefact is immutable at runtime.
+    instructions.  Cached: the artefact is immutable at runtime, and ``language`` joins
+    the key so the two languages do not share one cached string.
     """
-    return render_prompt().rstrip("\n") + f"""
+    return with_language(
+        render_prompt().rstrip("\n") + f"""
 
 ## SkillNet Interaction Designer: tu tarea especifica
 
@@ -147,7 +151,9 @@ acertarse, asi que se rechaza. Para ordenar usa DragOrder, que lleva su solucion
   No escribas JSON ni llaves dentro de las declaraciones del programa.
 
 Responde con las declaraciones y su clave. Nada mas.
-"""
+""",
+        language,
+    )
 
 
 # ── user prompt ───────────────────────────────────────────────────────────────
@@ -265,6 +271,7 @@ async def run_interaction_designer(
     scaffold_band: str,
     llm: Any,
     siblings: Sequence[str] = (),
+    language: Language | None = None,
 ) -> InteractionOutput:
     """Run the Interaction Designer agent.
 
@@ -289,7 +296,7 @@ async def run_interaction_designer(
         logger.debug("interaction_designer: no interaction blocks in blueprint, skipping")
         return InteractionOutput(declarations="", answer_key={})
 
-    system = interaction_designer_system()
+    system = interaction_designer_system(language)
     raw, _usage = await llm.complete_with_usage(
         system, user_prompt, temperature=0.3, max_tokens=600
     )

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Header
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 
@@ -63,16 +63,21 @@ async def explain(
     user: CurrentUser,
     db: DBSession,
     llm: RuntimeFastLLMDep,
+    accept_language: Annotated[str | None, Header()] = None,
 ) -> StreamingResponse:
     """Stream a one-sentence, context-aware explanation of the selected term.
 
     ``CurrentUser`` rather than ``EmployeeUser``: an admin reviewing a node sees the
     same clickable prose, and the rate limit is per user either way.
+
+    The header is read here and nowhere else on this route because it is the last resort
+    of the order in ``src/services/language_policy.py``: the body's own ``language`` and
+    the clicked node's course both outrank it.
     """
     check_rate_limit(user.id)
     service = ExplainService(db, llm)
     return StreamingResponse(
-        service.stream(user, request),
+        service.stream(user, request, accept_language=accept_language),
         media_type="text/event-stream",
         headers=_SSE_HEADERS,
     )

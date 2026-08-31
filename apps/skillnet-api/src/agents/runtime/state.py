@@ -16,6 +16,8 @@ from __future__ import annotations
 
 from typing import Literal, TypedDict
 
+from src.core.language import Language
+
 
 class NodeRuntimeState(TypedDict, total=False):
     # --- Identity ---
@@ -114,6 +116,11 @@ class NodeRuntimeState(TypedDict, total=False):
     screen_scheme: str  # el bloque de prompt ya redactado
 
     # --- Generation ---
+    #: The language every prompt in this graph writes in. Resolved once by
+    #: ``build_render_key`` (course -> org default -> the platform default) and carried,
+    #: not re-derived: it is part of the render's cache key, so a node that answered the
+    #: question differently would generate content the key does not describe.
+    language: Language
     backend: str  # "openui" (the only dialect in this PR)
     effective_density: int  # course.intent_density, capped by short_blocks (§3.1)
     scaffold_band: str  # novice|neutral|advanced, frozen when the probe closed

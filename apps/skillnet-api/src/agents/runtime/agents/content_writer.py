@@ -12,7 +12,9 @@ from src.agents.runtime.agents.types import (
     criticality_rule,
     scaffold_rule,
 )
+from src.core.language import Language
 from src.core.logging import get_logger
+from src.llm.prompts.language import with_language
 from src.llm.prompts.runtime import clip_source
 from src.render.prompt import render_prompt
 
@@ -22,8 +24,8 @@ logger = get_logger(__name__)
 
 
 @cache
-def content_writer_system() -> str:
-    return (
+def content_writer_system(language: Language | None = None) -> str:
+    return with_language(
         render_prompt().rstrip("\n")
         + """
 
@@ -124,7 +126,8 @@ Reglas del dialecto: las de arriba, sin excepciones.
 - SkillNet 17: a la derecha del = va siempre una llamada a bloque.
 
 Responde SOLO con las declaraciones, una por linea. Nada mas.
-"""
+""",
+        language,
     )
 
 
@@ -209,8 +212,14 @@ async def run_content_writer(
     criticality: str,
     llm: Any,
     siblings: Sequence[str] = (),
+    language: Language | None = None,
 ) -> ContentOutput:
-    """Generate OpenUI Lang declarations for content blocks."""
+    """Generate OpenUI Lang declarations for content blocks.
+
+    This is the agent whose whole output a learner reads, so it is the one where a
+    Spanish default is most visible: every lead, every table cell and every callout on
+    the screen comes from here.
+    """
 
     content_blocks = [
         b for b in blueprint.blocks if b.type not in ("QuizItem", "DragOrder")
@@ -219,7 +228,7 @@ async def run_content_writer(
         logger.debug("content_writer: no content blocks in blueprint — returning empty")
         return ContentOutput(declarations="")
 
-    system = content_writer_system()
+    system = content_writer_system(language)
     user = build_content_prompt(
         blueprint=blueprint,
         title=title,
