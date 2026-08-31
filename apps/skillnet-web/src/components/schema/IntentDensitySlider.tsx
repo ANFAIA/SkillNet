@@ -1,3 +1,5 @@
+import { useIntl } from 'react-intl'
+
 /**
  * `intent_density` (1..5) — how finely the designer cuts the source document into
  * nodes (§11.1). It is read by `POST /schema/propose` when the designer runs, so
@@ -5,12 +7,13 @@
  * of letting the creator believe the existing nodes will move.
  */
 
-export const INTENT_DENSITY_LABELS: Record<number, string> = {
-  1: 'Muy pocos nodos, cada uno muy amplio',
-  2: 'Pocos nodos, tramos largos',
-  3: 'Equilibrado',
-  4: 'Muchos nodos, tramos cortos',
-  5: 'Maxima granularidad, casi una idea por nodo',
+/** Module-level table, so it holds message ids and the component formats them. */
+export const INTENT_DENSITY_LABEL_KEYS: Record<number, string> = {
+  1: 'schema.density.level1',
+  2: 'schema.density.level2',
+  3: 'schema.density.level3',
+  4: 'schema.density.level4',
+  5: 'schema.density.level5',
 }
 
 export function IntentDensitySlider({
@@ -24,13 +27,17 @@ export function IntentDensitySlider({
   disabled?: boolean
   className?: string
 }) {
+  const intl = useIntl()
+
   return (
     <div className={className}>
       <div className="flex items-baseline justify-between gap-3">
         <label htmlFor="intent-density" className="text-sm font-medium text-text">
-          Densidad de intencion
+          {intl.formatMessage({ id: 'schema.density.label' })}
         </label>
-        <span className="text-xs text-text-muted shrink-0">{value} de 5</span>
+        <span className="text-xs text-text-muted shrink-0">
+          {intl.formatMessage({ id: 'schema.density.value' }, { value })}
+        </span>
       </div>
       <input
         id="intent-density"
@@ -43,9 +50,11 @@ export function IntentDensitySlider({
         onChange={(e) => onChange(Number(e.target.value))}
         className="w-full mt-2 accent-primary disabled:opacity-50 disabled:cursor-not-allowed"
       />
-      <p className="text-xs text-text-secondary mt-1">{INTENT_DENSITY_LABELS[value]}</p>
+      <p className="text-xs text-text-secondary mt-1">
+        {intl.formatMessage({ id: INTENT_DENSITY_LABEL_KEYS[value] })}
+      </p>
       <p className="text-xs text-text-muted mt-1">
-        Solo afecta a la proxima propuesta. Los nodos que ya existen no se mueven.
+        {intl.formatMessage({ id: 'schema.density.hint' })}
       </p>
     </div>
   )

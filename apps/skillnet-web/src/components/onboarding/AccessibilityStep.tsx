@@ -1,3 +1,4 @@
+import { useIntl } from 'react-intl'
 import { isAccessibilityKey } from '../../api/onboarding'
 import type { AccessibilityKey, AccessibilitySettings, OnboardingQuestion } from '../../api/onboarding'
 
@@ -22,6 +23,7 @@ export interface AccessibilityStepProps {
  * product cannot honour cannot appear here even if a future response lists one.
  */
 export function AccessibilityStep({ question, value, onToggle }: AccessibilityStepProps) {
+  const intl = useIntl()
   const options = (question.options ?? []).filter((option) => isAccessibilityKey(option.value))
 
   return (
@@ -49,7 +51,7 @@ export function AccessibilityStep({ question, value, onToggle }: AccessibilitySt
       </div>
 
       <p className="text-xs text-text-secondary">
-        Opcional. Puedes cambiarlo cuando quieras desde Ajustes.
+        {intl.formatMessage({ id: 'onboarding.accessibility.optionalNote' })}
       </p>
     </div>
   )

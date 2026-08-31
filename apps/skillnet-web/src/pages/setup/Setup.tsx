@@ -4,7 +4,7 @@ import { useIntl } from 'react-intl'
 import { motion, AnimatePresence, LayoutGroup, useInstantLayoutTransition } from 'framer-motion'
 import { Button, Input } from '../../components/ui'
 import { Mascota } from '../../features/mascot'
-import { ApiError } from '../../api/client'
+import { apiErrorMessage } from '../../lib/apiErrors'
 import { isAvailable, useCapabilities, useSubmitSetup } from '../../api/setup'
 import { useTourStore } from '../../features/onboarding/useTourStore'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
@@ -94,12 +94,7 @@ export function Setup() {
   }
 
   const submitError = submit.error
-  const errorText =
-    submitError instanceof ApiError
-      ? submitError.body.detail
-      : submitError
-        ? intl.formatMessage({ id: 'setup.submitError' })
-        : null
+  const errorText = submitError ? apiErrorMessage(intl, submitError, 'setup.submitError') : null
 
   function ownerForm() {
     return (

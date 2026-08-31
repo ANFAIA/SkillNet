@@ -240,14 +240,14 @@ export function SortableTreeNode({
                   key={f.value}
                   type="button"
                   onClick={() => onChange({ default_ui_format: f.value })}
-                  title={f.hint}
+                  title={intl.formatMessage({ id: f.hintKey })}
                   className={`text-xs px-2.5 py-0.5 rounded-full border transition-colors ${
                     node.default_ui_format === f.value
                       ? 'bg-primary-subtle text-primary border-primary'
                       : 'border-border text-text-muted hover:border-primary'
                   }`}
                 >
-                  {f.label}
+                  {intl.formatMessage({ id: f.labelKey })}
                 </button>
               ))}
             </div>

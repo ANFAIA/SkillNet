@@ -6,7 +6,7 @@ import { LearningPreferencesSection } from '../../components/settings/LearningPr
 import { AccountSection } from '../../components/settings/AccountSection'
 import { useWorkspaceMode } from '../../hooks/useAuth'
 import { useSettings, useUpdateFeatures } from '../../api/settings'
-import { ApiError } from '../../api/client'
+import { apiErrorMessage } from '../../lib/apiErrors'
 import { usePreferences } from '../../stores/preferences'
 import type { Locale } from '../../stores/preferences'
 import type { OrgSettings } from '../../types'
@@ -123,9 +123,7 @@ function SettingsBody({
 
       {features.isError && (
         <p className="text-sm text-danger mt-3">
-          {features.error instanceof ApiError
-            ? features.error.body.detail
-            : intl.formatMessage({ id: 'settings.saveError' })}
+          {apiErrorMessage(intl, features.error, 'settings.saveError')}
         </p>
       )}
 

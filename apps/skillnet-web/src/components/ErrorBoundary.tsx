@@ -1,5 +1,7 @@
 import { Component } from 'react'
 import type { ErrorInfo, ReactNode } from 'react'
+import { useIntl } from 'react-intl'
+import { IntlProvider } from '../i18n/IntlProvider'
 
 interface Props {
   children: ReactNode
@@ -9,6 +11,34 @@ interface Props {
 
 interface State {
   error: Error | null
+}
+
+/**
+ * Default fallback — minimal, matches the app's dark theme.
+ *
+ * A function component so it can call `useIntl()`: the boundary itself has to stay
+ * a class (`getDerivedStateFromError` has no hook equivalent).
+ */
+function DefaultErrorFallback({ error }: { error: Error }) {
+  const intl = useIntl()
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-bg p-6">
+      <div className="max-w-md text-center space-y-4">
+        <h1 className="text-xl font-semibold text-text">{intl.formatMessage({ id: 'error.title' })}</h1>
+        <p className="text-sm text-text-secondary">{intl.formatMessage({ id: 'error.unexpected' })}</p>
+        <pre className="text-xs text-text-muted bg-bg-subtle rounded-lg p-3 overflow-x-auto text-left">
+          {error.message}
+        </pre>
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          className="px-4 py-2 text-sm font-medium rounded-lg bg-primary text-white hover:opacity-90 transition-opacity"
+        >
+          {intl.formatMessage({ id: 'error.reload' })}
+        </button>
+      </div>
+    </div>
+  )
 }
 
 /**
@@ -40,26 +70,16 @@ export class ErrorBoundary extends Component<Props, State> {
       return this.props.fallback(error, this.reset)
     }
 
-    // Default fallback — minimal, matches the app's dark theme.
+    // The fallback carries its own IntlProvider on purpose. The top-level boundary in
+    // main.tsx is mounted *outside* the provider that App.tsx renders, so without this
+    // the default fallback — the only UI left when the whole app has crashed — would
+    // itself throw "Could not find required `intl` object". Every other ErrorBoundary
+    // already sits inside the app provider, and nesting a second one there is a no-op.
+    // Do not "simplify" this away.
     return (
-      <div className="flex min-h-screen items-center justify-center bg-bg p-6">
-        <div className="max-w-md text-center space-y-4">
-          <h1 className="text-xl font-semibold text-text">Algo salió mal</h1>
-          <p className="text-sm text-text-secondary">
-            Ocurrió un error inesperado. Intenta recargar la página.
-          </p>
-          <pre className="text-xs text-text-muted bg-bg-subtle rounded-lg p-3 overflow-x-auto text-left">
-            {error.message}
-          </pre>
-          <button
-            type="button"
-            onClick={() => window.location.reload()}
-            className="px-4 py-2 text-sm font-medium rounded-lg bg-primary text-white hover:opacity-90 transition-opacity"
-          >
-            Recargar página
-          </button>
-        </div>
-      </div>
+      <IntlProvider>
+        <DefaultErrorFallback error={error} />
+      </IntlProvider>
     )
   }
 }

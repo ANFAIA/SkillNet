@@ -248,9 +248,11 @@ const BeforeAfter = defineComponent({
   }>) => (
     <BeforeAfterBlock
       title={readString(props.title)}
-      beforeLabel={readString(props.beforeLabel, 'Antes')}
+      // No default label here: an empty label makes `BeforeAfterBlock` fall back to
+      // `beforeafter.before` / `beforeafter.after`, which are translated.
+      beforeLabel={readString(props.beforeLabel)}
       beforeContent={readString(props.beforeContent)}
-      afterLabel={readString(props.afterLabel, 'Después')}
+      afterLabel={readString(props.afterLabel)}
       afterContent={readString(props.afterContent)}
     />
   ),

@@ -1,3 +1,5 @@
+import { useIntl } from 'react-intl'
+
 import { InlineMarkdown } from './InlineMarkdown'
 import { ClickableText } from '../ClickableText'
 
@@ -16,6 +18,7 @@ export interface TableBlockProps {
  * sends its own cell as context and not the whole grid.
  */
 export function TableBlock({ headers, rows }: TableBlockProps) {
+  const intl = useIntl()
   const head = Array.isArray(headers) ? headers : []
   const body = Array.isArray(rows) ? rows : []
 
@@ -32,7 +35,7 @@ export function TableBlock({ headers, rows }: TableBlockProps) {
           mitad derecha de la tabla fuera del alcance de quien navega con teclado
           (axe `scrollable-region-focusable`). Antes no saltaba porque `overflow-hidden`
           impedia el scroll del todo — la tabla ancha se recortaba en vez de desplazarse. */}
-      <div className="w-full overflow-x-auto [scrollbar-gutter:auto]" tabIndex={0} role="group" aria-label="Tabla">
+      <div className="w-full overflow-x-auto [scrollbar-gutter:auto]" tabIndex={0} role="group" aria-label={intl.formatMessage({ id: 'table.ariaLabel' })}>
         {/* `w-full`, y el ancho lo resuelve el salto de linea de las celdas. Una palabra
             que no se puede partir (una URL entera) empuja la tabla mas alla de su caja;
             se arregla dejando que esa palabra se rompa (`overflow-wrap:anywhere`), no

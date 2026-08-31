@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useIntl } from 'react-intl'
 
 import {
   DidactComponentMount,
@@ -22,6 +23,7 @@ export function HostProgressActivity({
   componentProps: Readonly<Record<string, unknown>>
   ports: DidactHostPorts
 }) {
+  const intl = useIntl()
   const [snapshot, setSnapshot] = useState<ProgressSnapshot>()
   const [failed, setFailed] = useState(false)
 
@@ -56,14 +58,14 @@ export function HostProgressActivity({
   if (failed) {
     return (
       <div role="alert" data-didact-progress-status="failed">
-        No se pudo leer el progreso de esta lección.
+        {intl.formatMessage({ id: 'activity.progressReadError' })}
       </div>
     )
   }
   if (!snapshot) {
     return (
       <div role="status" data-didact-progress-status="loading">
-        Cargando progreso…
+        {intl.formatMessage({ id: 'activity.progressLoading' })}
       </div>
     )
   }

@@ -24,6 +24,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useIntl } from 'react-intl'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ApiError, get, post } from './client'
 import type {
@@ -346,6 +347,7 @@ export interface RenderStreamHandlers {
  * line instead of failing the stream.
  */
 export function useNodeRenderStream(handlers: RenderStreamHandlers = {}) {
+  const intl = useIntl()
   const [state, setState] = useState<RenderStreamState>(IDLE_STREAM)
   const abortRef = useRef<AbortController | null>(null)
   const settledRef = useRef(false)
@@ -460,10 +462,12 @@ export function useNodeRenderStream(handlers: RenderStreamHandlers = {}) {
               terminal = { reason: 'skipped' }
             } else if (type === 'error') {
               const fallback = data.fallback === true
+              // The server's own sentence when it sent one; otherwise the catalogue's,
+              // which is the same text the node error screen already shows.
               const message =
                 typeof data.message === 'string' && data.message.trim()
                   ? data.message
-                  : 'No se pudo preparar esta lección.'
+                  : intl.formatMessage({ id: 'node.renderFailed' })
               setState((prev) => ({
                 ...prev,
                 status: 'error',
@@ -493,7 +497,7 @@ export function useNodeRenderStream(handlers: RenderStreamHandlers = {}) {
         if (abortRef.current === controller) abortRef.current = null
       }
     },
-    [],
+    [intl],
   )
 
   const reset = useCallback(() => {

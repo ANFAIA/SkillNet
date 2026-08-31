@@ -11,7 +11,7 @@ import { useCourses } from '../../api/courses'
 import { useDeleteEnrollment } from '../../api/enrollments'
 import { useUsers } from '../../api/users'
 import { useUserGroups, type UserGroup } from '../../api/user-groups'
-import { ApiError } from '../../api/client'
+import { apiErrorMessage } from '../../lib/apiErrors'
 import type { EnrollmentRead, User } from '../../types'
 import { Button, Input, Modal, Pager, SearchField } from '../ui'
 import { ShimmerSkeleton } from '../ui/ShimmerSkeleton'
@@ -421,10 +421,7 @@ export function FolderAssignmentDialog({ folder, onClose }: FolderAssignmentDial
         failures.push({
           personName: removal.personName,
           courseTitle: removal.courseTitle,
-          detail:
-            cause instanceof ApiError
-              ? cause.body.detail
-              : intl.formatMessage({ id: 'content.assignFolderRemoveFailedUnknown' }),
+          detail: apiErrorMessage(intl, cause, 'content.assignFolderRemoveFailedUnknown'),
         })
       }
     }
@@ -442,10 +439,7 @@ export function FolderAssignmentDialog({ folder, onClose }: FolderAssignmentDial
           deadline,
         })
       } catch (cause) {
-        assignError =
-          cause instanceof ApiError
-            ? cause.body.detail
-            : intl.formatMessage({ id: 'content.assignFolderError' })
+        assignError = apiErrorMessage(intl, cause, 'content.assignFolderError')
       }
     }
 

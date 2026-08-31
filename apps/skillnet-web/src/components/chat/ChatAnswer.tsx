@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { useIntl } from 'react-intl'
 import { UiSpecRenderer } from '../courses/UiSpecRenderer'
 import { ClickableSurface } from '../courses/ClickableSurface'
 import { gateProgram } from '../courses/kit'
@@ -17,6 +18,7 @@ export interface ChatAnswerProps {
  * rendering — partial OpenUI Lang parses out of order and reads as janky.
  */
 export function ChatAnswer({ message }: ChatAnswerProps) {
+  const intl = useIntl()
   const gate = useMemo(() => gateProgram(message.program), [message.program])
   const showBlocks = Boolean(message.program) && !gate.blocked && !gate.empty
 
@@ -63,7 +65,7 @@ export function ChatAnswer({ message }: ChatAnswerProps) {
     }
 
     return (
-      <span className="typing-dots" role="status" aria-label="Generando respuesta">
+      <span className="typing-dots" role="status" aria-label={intl.formatMessage({ id: 'chat.generatingAnswer' })}>
         <span /><span /><span />
       </span>
     )
@@ -72,7 +74,7 @@ export function ChatAnswer({ message }: ChatAnswerProps) {
   // Two-phase layout in flight (tutor path).
   if (message.isLayingOut) {
     return (
-      <span className="typing-dots" role="status" aria-label="Preparando formato">
+      <span className="typing-dots" role="status" aria-label={intl.formatMessage({ id: 'chat.preparingLayout' })}>
         <span /><span /><span />
       </span>
     )
@@ -90,7 +92,7 @@ export function ChatAnswer({ message }: ChatAnswerProps) {
     <ClickableSurface nodeId={null}>
       <ChatMarkdown content={message.content} isStreaming={message.isStreaming} />
       {message.isStreaming && !message.content && (
-        <span className="typing-dots" role="status" aria-label="Escribiendo">
+        <span className="typing-dots" role="status" aria-label={intl.formatMessage({ id: 'chat.writing' })}>
           <span /><span /><span />
         </span>
       )}

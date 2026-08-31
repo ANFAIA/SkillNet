@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useIntl } from 'react-intl'
 
 export interface SkillOption {
   id?: string
@@ -22,6 +23,7 @@ export function CourseSkillsEditor({
   onChange,
   disabled = false,
 }: CourseSkillsEditorProps) {
+  const intl = useIntl()
   const [draft, setDraft] = useState('')
   const selectedNames = useMemo(
     () => new Set(skills.map((skill) => skill.name.toLocaleLowerCase())),
@@ -67,10 +69,10 @@ export function CourseSkillsEditor({
       <div className="flex items-start justify-between gap-4">
         <div>
           <h3 id="course-skills-heading" className="text-sm font-medium text-text">
-            Habilidades que otorga este curso
+            {intl.formatMessage({ id: 'schema.skills.title' })}
           </h3>
           <p className="text-xs text-text-muted mt-1">
-            Se registrarán al completar el curso. Revisa que describan capacidades concretas.
+            {intl.formatMessage({ id: 'schema.skills.description' })}
           </p>
         </div>
         <span className="text-xs text-text-muted shrink-0">{skills.length}</span>
@@ -88,7 +90,7 @@ export function CourseSkillsEditor({
                   if (event.key === 'Enter') event.currentTarget.blur()
                 }}
                 disabled={disabled}
-                aria-label={`Habilidad ${index + 1}`}
+                aria-label={intl.formatMessage({ id: 'schema.skills.itemLabel' }, { index: index + 1 })}
                 className="min-w-0 flex-1 rounded-md border border-border bg-bg px-3 py-2 text-sm text-text focus:outline-none focus:border-primary disabled:opacity-60"
               />
               <button
@@ -96,16 +98,16 @@ export function CourseSkillsEditor({
                 disabled={disabled}
                 onClick={() => onChange(skills.filter((_, current) => current !== index))}
                 className="px-2 py-2 text-xs text-text-muted hover:text-danger disabled:opacity-60"
-                aria-label={`Eliminar ${skill.name}`}
+                aria-label={intl.formatMessage({ id: 'schema.skills.removeLabel' }, { name: skill.name })}
               >
-                Eliminar
+                {intl.formatMessage({ id: 'schema.skills.remove' })}
               </button>
             </div>
           ))}
         </div>
       ) : (
         <p className="text-sm text-text-muted mt-4">
-          Este curso no otorgará habilidades. Puedes añadirlas ahora o dejarlo así.
+          {intl.formatMessage({ id: 'schema.skills.empty' })}
         </p>
       )}
 
@@ -120,8 +122,8 @@ export function CourseSkillsEditor({
             }
           }}
           disabled={disabled}
-          placeholder="Ej. Resolver incidencias de acceso"
-          aria-label="Nueva habilidad"
+          placeholder={intl.formatMessage({ id: 'schema.skills.newPlaceholder' })}
+          aria-label={intl.formatMessage({ id: 'schema.skills.newLabel' })}
           className="min-w-0 flex-1 rounded-md border border-border bg-bg px-3 py-2 text-sm text-text placeholder:text-text-muted focus:outline-none focus:border-primary disabled:opacity-60"
         />
         <button
@@ -130,13 +132,15 @@ export function CourseSkillsEditor({
           disabled={disabled || !normalizeSkillName(draft)}
           className="rounded-md border border-border px-3 py-2 text-sm font-medium text-text hover:border-primary hover:text-primary disabled:opacity-50"
         >
-          Añadir
+          {intl.formatMessage({ id: 'schema.skills.add' })}
         </button>
       </div>
 
       {suggestions.length > 0 && (
         <div className="mt-3">
-          <p className="text-xs text-text-muted mb-2">Usar una habilidad existente</p>
+          <p className="text-xs text-text-muted mb-2">
+            {intl.formatMessage({ id: 'schema.skills.suggestions' })}
+          </p>
           <div className="flex flex-wrap gap-2">
             {suggestions.slice(0, 8).map((skill) => (
               <button

@@ -1,3 +1,5 @@
+import { useIntl } from 'react-intl'
+
 import { ShimmerSkeleton, ShimmerSkeletonText } from '../ui/ShimmerSkeleton'
 import type { UiFormat } from '../../types/node-render'
 
@@ -104,6 +106,7 @@ function shapeFor(format: UiFormat | null | undefined) {
 }
 
 export function NodeSkeleton({ format = null, message = null, blocksReady = 0 }: NodeSkeletonProps) {
+  const intl = useIntl()
   const ready = Math.min(blocksReady, TYPICAL_BLOCKS)
 
   return (
@@ -116,10 +119,12 @@ export function NodeSkeleton({ format = null, message = null, blocksReady = 0 }:
       aria-busy="true"
       aria-live="polite"
     >
-      <p className="text-sm text-text-secondary">{message ?? 'Preparando esta lección...'}</p>
+      <p className="text-sm text-text-secondary">
+        {message ?? intl.formatMessage({ id: 'node.skeletonPreparing' })}
+      </p>
       {blocksReady > 0 && (
         <p className="text-xs text-text-muted tabular-nums">
-          {ready} {ready === 1 ? 'bloque' : 'bloques'} listo{ready === 1 ? '' : 's'}
+          {intl.formatMessage({ id: 'node.skeletonBlocksReady' }, { count: ready })}
         </p>
       )}
       {shapeFor(format)}

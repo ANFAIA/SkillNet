@@ -19,6 +19,7 @@ import {
 } from 'react'
 import { createPortal } from 'react-dom'
 import { useIntl } from 'react-intl'
+import type { IntlShape } from 'react-intl'
 import { ClickableSurface } from './ClickableSurface'
 import { ExplainLayer } from './explainLayer'
 import { EXPLAIN_LAYER_MODAL } from './explainLayers'
@@ -213,6 +214,7 @@ function BackIcon() {
  * message-list state, which is page-level.
  */
 async function streamFollowUp(
+  intl: IntlShape,
   message: string,
   context: Record<string, unknown>,
   sessionId: string | null,
@@ -273,7 +275,9 @@ async function streamFollowUp(
             onSessionId(nextSessionId)
           }
         } else if (eventType === 'error') {
-          throw new Error(String(data.detail ?? 'Error en la conversación'))
+          throw new Error(
+            String(data.detail ?? intl.formatMessage({ id: 'explain.chatError' })),
+          )
         }
         eventType = ''
       }
@@ -485,6 +489,7 @@ function useFollowUp(
 
       try {
         await streamFollowUp(
+          intl,
           seeded,
           curioChatContext(term, selectionContext, nodeId, language),
           sessionIdRef.current,

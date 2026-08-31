@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useIntl } from 'react-intl'
 import { DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { ease, duration } from '../../lib/motion'
@@ -84,6 +85,7 @@ export function SchemaContent({
   enrichedNodes,
   streamPhase = 'idle',
 }: SchemaContentProps) {
+  const intl = useIntl()
   const [expandedNodes, setExpandedNodes] = useState<Set<number>>(new Set())
   const [hasInteracted, setHasInteracted] = useState(false)
   const hasEverHadNodes = useRef(false)
@@ -196,21 +198,25 @@ export function SchemaContent({
     return (
       <div className="text-center py-12">
         <p className="text-sm text-text">
-          {hasEverHadNodes.current ? 'Has eliminado todos los nodos' : 'No se generaron nodos'}
+          {intl.formatMessage({
+            id: hasEverHadNodes.current ? 'schema.emptyAllRemoved' : 'schema.emptyNoneGenerated',
+          })}
         </p>
         <p className="text-xs text-text-muted mt-1">
-          {hasEverHadNodes.current
-            ? 'Puedes reproponer el esquema o añadir nodos manualmente'
-            : 'Prueba a cambiar la densidad o el título del curso'}
+          {intl.formatMessage({
+            id: hasEverHadNodes.current
+              ? 'schema.emptyAllRemovedHint'
+              : 'schema.emptyNoneGeneratedHint',
+          })}
         </p>
         <div className="flex items-center justify-center gap-3 mt-4">
           {hasEverHadNodes.current && (
             <Button variant="secondary" size="sm" onClick={() => onDensityChange(density)}>
-              Reproponer
+              {intl.formatMessage({ id: 'schema.reproposeAction' })}
             </Button>
           )}
           <button type="button" onClick={onNodeAdd} className="text-sm text-primary hover:underline">
-            Añadir nodo
+            {intl.formatMessage({ id: 'schema.addNode' })}
           </button>
         </div>
       </div>
@@ -224,7 +230,7 @@ export function SchemaContent({
         <div className="space-y-5">
           <div>
             <label className="block text-xs font-medium text-text-muted uppercase tracking-wide mb-2">
-              Densidad
+              {intl.formatMessage({ id: 'schema.densityLabel' })}
             </label>
             <input
               type="range"
@@ -243,27 +249,29 @@ export function SchemaContent({
               className="w-full accent-primary"
             />
             <div className="flex justify-between text-xs text-text-muted mt-1">
-              <span>Breve</span>
+              <span>{intl.formatMessage({ id: 'schema.densityBrief' })}</span>
               <span>{pendingDensity ?? density}</span>
-              <span>Detallado</span>
+              <span>{intl.formatMessage({ id: 'schema.densityDetailed' })}</span>
             </div>
             {pendingDensity !== null && (
               <div className="mt-2">
-                <p className="text-xs text-warning">Esto reemplazara tus cambios</p>
+                <p className="text-xs text-warning">
+                  {intl.formatMessage({ id: 'schema.densityReplaceWarning' })}
+                </p>
                 <div className="flex gap-2 mt-1.5">
                   <button
                     type="button"
                     onClick={() => { setHasInteracted(false); onDensityChange(pendingDensity); setPendingDensity(null) }}
                     className="text-xs text-primary hover:underline"
                   >
-                    Reproponer
+                    {intl.formatMessage({ id: 'schema.reproposeAction' })}
                   </button>
                   <button
                     type="button"
                     onClick={() => setPendingDensity(null)}
                     className="text-xs text-text-muted hover:underline"
                   >
-                    Cancelar
+                    {intl.formatMessage({ id: 'create.cancel' })}
                   </button>
                 </div>
               </div>
@@ -272,11 +280,11 @@ export function SchemaContent({
 
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
-              <span className="text-text-muted">Nodos</span>
+              <span className="text-text-muted">{intl.formatMessage({ id: 'schema.nodesLabel' })}</span>
               <span className="text-text font-medium">{nodes.length}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-text-muted">Imprescindibles</span>
+              <span className="text-text-muted">{intl.formatMessage({ id: 'schema.criticalLabel' })}</span>
               <span className="text-text font-medium">{criticalCount}</span>
             </div>
           </div>
@@ -284,7 +292,7 @@ export function SchemaContent({
           {startError && <p className="text-xs text-danger">{startError}</p>}
 
           <Button variant="primary" className="w-full" onClick={onCreateCourse} disabled={creating || nodes.length === 0}>
-            {creating ? 'Creando...' : 'Crear curso'}
+            {intl.formatMessage({ id: creating ? 'create.creating' : 'schema.createCourse' })}
           </Button>
         </div>
       </div>
@@ -300,7 +308,9 @@ export function SchemaContent({
               exit={{ opacity: 0, transition: { duration: duration.fast } }}
               className="border-l-4 border-accent bg-accent-subtle px-4 py-2.5 rounded-r-md mb-4"
             >
-              <p className="text-sm text-text">La IA propone {nodes.length} nodos. Revisalos y ajustalos antes de crear el curso.</p>
+              <p className="text-sm text-text">
+                {intl.formatMessage({ id: 'schema.aiProposal' }, { count: nodes.length })}
+              </p>
             </motion.div>
           )}
         </AnimatePresence>
@@ -315,8 +325,13 @@ export function SchemaContent({
               className="border-l-4 border-primary bg-primary-subtle px-4 py-2.5 rounded-r-md mb-4"
             >
               <p className="text-sm text-text">
-                {streamPhase === 'structure' && 'Estructura lista. Enriqueciendo nodos...'}
-                {streamPhase === 'enriching' && `Completando detalles... (${enrichedNodes?.size ?? 0}/${nodes.length})`}
+                {streamPhase === 'structure' &&
+                  intl.formatMessage({ id: 'schema.streamStructureReady' })}
+                {streamPhase === 'enriching' &&
+                  intl.formatMessage(
+                    { id: 'schema.streamEnriching' },
+                    { done: enrichedNodes?.size ?? 0, total: nodes.length },
+                  )}
               </p>
             </motion.div>
           )}
@@ -403,7 +418,7 @@ export function SchemaContent({
             className="w-full mt-2 px-2 py-1.5 rounded-md text-sm text-text-muted hover:text-primary hover:bg-bg-muted transition-colors flex items-center gap-2"
           >
             <PlusIcon size={14} />
-            Añadir nodo
+            {intl.formatMessage({ id: 'schema.addNode' })}
           </button>
         )}
       </div>

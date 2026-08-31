@@ -1,3 +1,4 @@
+import { useIntl } from 'react-intl'
 import { Input } from '../ui'
 import type { OnboardingQuestion } from '../../api/onboarding'
 
@@ -23,6 +24,7 @@ export interface RoleStepProps {
  * the LLM provider is typed in.
  */
 export function RoleStep({ question, notice, value, onChange }: RoleStepProps) {
+  const intl = useIntl()
   const suggestions = question.suggestions ?? []
 
   return (
@@ -33,7 +35,7 @@ export function RoleStep({ question, notice, value, onChange }: RoleStepProps) {
         <Input
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          placeholder="Escribe tu puesto"
+          placeholder={intl.formatMessage({ id: 'onboarding.role.placeholder' })}
           maxLength={120}
           autoComplete="organization-title"
           aria-label={question.prompt}

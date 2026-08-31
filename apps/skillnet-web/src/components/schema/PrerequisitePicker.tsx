@@ -1,3 +1,5 @@
+import { useIntl } from 'react-intl'
+
 /**
  * Which nodes must be mastered before this one (`course_node_prerequisites`, §3.2).
  *
@@ -34,6 +36,7 @@ export function PrerequisitePicker({
   onChange: (next: string[]) => void
   disabled?: boolean
 }) {
+  const intl = useIntl()
   const selectable = options.filter((option) => option.id !== null)
   const unsaved = options.length - selectable.length
 
@@ -43,14 +46,16 @@ export function PrerequisitePicker({
 
   return (
     <fieldset className="min-w-0" disabled={disabled}>
-      <legend className="text-sm font-medium text-text">Prerrequisitos</legend>
+      <legend className="text-sm font-medium text-text">
+        {intl.formatMessage({ id: 'schema.prerequisites.title' })}
+      </legend>
       <p className="text-xs text-text-muted mt-0.5 mb-2">
-        El aprendiz no ve este nodo hasta dominar los que marques.
+        {intl.formatMessage({ id: 'schema.prerequisites.description' })}
       </p>
 
       {selectable.length === 0 ? (
         <p className="text-xs text-text-muted border border-border rounded-lg px-3 py-2.5">
-          No hay otros nodos guardados que puedan ser prerrequisito.
+          {intl.formatMessage({ id: 'schema.prerequisites.none' })}
         </p>
       ) : (
         <div className="border border-border rounded-lg max-h-48 overflow-y-auto">
@@ -72,7 +77,7 @@ export function PrerequisitePicker({
                 {option.position}.
               </span>
               <span className="text-sm text-text-secondary truncate min-w-0">
-                {option.title || 'Sin título'}
+                {option.title || intl.formatMessage({ id: 'schema.prerequisites.untitled' })}
               </span>
             </label>
           ))}
@@ -80,14 +85,12 @@ export function PrerequisitePicker({
       )}
 
       <p className="text-xs text-text-muted mt-1">
-        {selected.length === 0 ? 'Ninguno seleccionado' : `${selected.length} seleccionados`}
+        {intl.formatMessage({ id: 'schema.prerequisites.selectedCount' }, { count: selected.length })}
       </p>
 
       {unsaved > 0 && (
         <p className="text-xs text-warning mt-1">
-          {unsaved === 1
-            ? 'Hay 1 nodo sin guardar: guarda el esquema para poder usarlo como prerrequisito.'
-            : `Hay ${unsaved} nodos sin guardar: guarda el esquema para poder usarlos como prerrequisito.`}
+          {intl.formatMessage({ id: 'schema.prerequisites.unsavedNodes' }, { count: unsaved })}
         </p>
       )}
     </fieldset>

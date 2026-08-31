@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useIntl } from 'react-intl'
-import { ApiError } from '../../api/client'
+import { apiErrorMessage } from '../../lib/apiErrors'
 import { useUpdateUserGroupMembers, type UserGroup } from '../../api/user-groups'
 import type { User } from '../../types'
 import { Button, Modal } from '../ui'
@@ -62,7 +62,7 @@ export function GroupMembersDialog({ group, onClose }: GroupMembersDialogProps) 
       setRemove([])
       setSaved({ added: result.added_count, removed: result.removed_count, members: result.member_count })
     } catch (reason) {
-      setError(reason instanceof ApiError ? reason.body.detail : intl.formatMessage({ id: 'groups.membersSaveError' }))
+      setError(apiErrorMessage(intl, reason, 'groups.membersSaveError'))
     }
   }
 

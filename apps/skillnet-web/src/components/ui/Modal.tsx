@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { useIntl } from 'react-intl'
 import { motion, useAnimationControls } from 'framer-motion'
 import { duration, ease } from '../../lib/motion'
 
@@ -50,6 +51,7 @@ function flipToOrigin(panel: DOMRect, origin: DOMRect | null | undefined) {
  * `document.body` so it escapes the page-transition transform.
  */
 export function Modal({ open, onClose, children, size = 'md', origin, hideClose = false }: ModalProps) {
+  const intl = useIntl()
   const [mounted, setMounted] = useState(open)
   const panelRef = useRef<HTMLDivElement>(null)
   const panel = useAnimationControls()
@@ -138,7 +140,7 @@ export function Modal({ open, onClose, children, size = 'md', origin, hideClose 
           <button
             type="button"
             onClick={onClose}
-            aria-label="Cerrar"
+            aria-label={intl.formatMessage({ id: 'modal.close' })}
             className="absolute top-4 right-4 z-10 w-8 h-8 flex items-center justify-center rounded-full text-text-muted hover:text-text hover:bg-bg-muted transition-colors cursor-pointer"
           >
             <CloseIcon />

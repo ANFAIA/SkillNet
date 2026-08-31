@@ -15,6 +15,7 @@ import { stepSlideVariants, transition } from '../../lib/motion'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
 import { useAuth } from '../../hooks/useAuth'
 import { ApiError } from '../../api/client'
+import { apiErrorMessage } from '../../lib/apiErrors'
 import {
   NO_ACCESSIBILITY,
   useOnboardingQuestions,
@@ -360,9 +361,7 @@ export function Onboarding() {
 
         {submit.isError && (
           <p className="text-sm text-danger mt-4">
-            {submit.error instanceof ApiError
-              ? submit.error.body.detail
-              : intl.formatMessage({ id: 'onboarding.submitError' })}
+            {apiErrorMessage(intl, submit.error, 'onboarding.submitError')}
           </p>
         )}
         {skip.isError && (

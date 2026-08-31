@@ -1,6 +1,6 @@
 import { useRef, useState, type FormEvent } from 'react'
 import { useIntl } from 'react-intl'
-import { ApiError } from '../../api/client'
+import { apiErrorMessage } from '../../lib/apiErrors'
 import { useCreateCourseFolder } from '../../api/course-folders'
 import { Button, Input } from '../ui'
 
@@ -112,7 +112,7 @@ export function CourseFolderPicker({ courseTitle, folderId, folderName, folders,
     } catch (reason) {
       // 409 when a folder with that name already exists — the index is case-insensitive,
       // so "Operaciones" and "operaciones" collide. The server's own wording says which.
-      setError(reason instanceof ApiError ? reason.body.detail : intl.formatMessage({ id: 'content.folderSaveError' }))
+      setError(apiErrorMessage(intl, reason, 'content.folderSaveError'))
     } finally {
       submitting.current = false
     }

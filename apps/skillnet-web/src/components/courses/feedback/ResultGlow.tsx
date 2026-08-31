@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
+import { useIntl } from 'react-intl'
 import { AnimatePresence, motion } from 'framer-motion'
 import { duration, ease } from '../../../lib/motion'
 import { useReducedMotion } from '../../../hooks/useReducedMotion'
@@ -139,7 +140,11 @@ interface Tono {
   color: string
   /** Clase Tailwind del mismo token, para el texto y el icono de la etiqueta. */
   claseTexto: string
-  palabra: string
+  /**
+   * Clave del catalogo, no el texto: `TONOS` vive en el modulo, fuera de cualquier
+   * componente, asi que no puede pedir `useIntl`. Se formatea al pintar la etiqueta.
+   */
+  palabraId: string
   alpha: number
   factorAltura: number
 }
@@ -148,7 +153,7 @@ const TONOS: Record<ClaveTono, Tono> = {
   acierto: {
     color: 'var(--color-accent)',
     claseTexto: 'text-accent',
-    palabra: 'Correcto',
+    palabraId: 'quiz.correct',
     alpha: 1,
     factorAltura: 1,
   },
@@ -157,7 +162,7 @@ const TONOS: Record<ClaveTono, Tono> = {
   parcial: {
     color: 'var(--color-accent)',
     claseTexto: 'text-accent',
-    palabra: 'Casi',
+    palabraId: 'quiz.almost',
     alpha: 0.5,
     factorAltura: 0.7,
   },
@@ -165,7 +170,7 @@ const TONOS: Record<ClaveTono, Tono> = {
   fallo: {
     color: 'var(--color-warning)',
     claseTexto: 'text-warning',
-    palabra: 'Todavía no',
+    palabraId: 'quiz.notYet',
     alpha: 0.85,
     factorAltura: 0.9,
   },
@@ -173,7 +178,7 @@ const TONOS: Record<ClaveTono, Tono> = {
   definitivo: {
     color: 'var(--color-danger)',
     claseTexto: 'text-danger',
-    palabra: 'Incorrecto',
+    palabraId: 'quiz.incorrect',
     alpha: 1,
     factorAltura: 1,
   },
@@ -309,6 +314,7 @@ export function ResultGlow({
   onFin,
   className,
 }: ResultGlowProps) {
+  const intl = useIntl()
   const sinMovimiento = useReducedMotion()
   const [visible, setVisible] = useState(false)
 
@@ -401,7 +407,7 @@ export function ResultGlow({
               ].join(' ')}
             >
               {icono ?? <IconoTono clave={clave} />}
-              {etiqueta ?? tono.palabra}
+              {etiqueta ?? intl.formatMessage({ id: tono.palabraId })}
             </p>
           )}
         </motion.div>

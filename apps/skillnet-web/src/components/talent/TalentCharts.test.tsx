@@ -4,9 +4,16 @@ import { describe, expect, it } from 'vitest'
 import { IntlProvider } from 'react-intl'
 import { EnrollmentDistributionChart } from './EnrollmentDistributionChart'
 import { CourseProgressChart } from './CourseProgressChart'
+import { es as messages } from '../../i18n/es'
 
+// The catalogue, not a bare provider: the charts read their series names and their
+// accessible descriptions from it, so without `messages` this asserts on message ids.
 function renderChart(component: ReactNode) {
-  return render(<IntlProvider locale="es">{component}</IntlProvider>)
+  return render(
+    <IntlProvider locale="es" messages={messages}>
+      {component}
+    </IntlProvider>,
+  )
 }
 
 describe('talent charts', () => {

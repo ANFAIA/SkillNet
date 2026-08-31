@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useIntl } from 'react-intl'
-import { ApiError } from '../../api/client'
+import { apiErrorMessage } from '../../lib/apiErrors'
 import { useMe } from '../../api/auth'
 import {
   ACCESSIBILITY_KEYS,
@@ -373,9 +373,7 @@ export function LearningPreferencesSection({
 
       {saveError && (
         <p className="mt-4 text-sm text-danger" role="alert">
-          {saveError instanceof ApiError
-            ? saveError.body.detail
-            : intl.formatMessage({ id: 'learningPreferences.saveError' })}
+          {apiErrorMessage(intl, saveError, 'learningPreferences.saveError')}
         </p>
       )}
     </>

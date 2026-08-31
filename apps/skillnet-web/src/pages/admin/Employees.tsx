@@ -12,6 +12,7 @@ import { useCourses } from '../../api/courses'
 import { useCourseFolders } from '../../api/course-folders'
 import { useAssignCourse, useAssignFolder, useDeleteEnrollment, useEnrollments } from '../../api/enrollments'
 import { ApiError } from '../../api/client'
+import { apiErrorMessage } from '../../lib/apiErrors'
 import { staggerContainer, staggerItem } from '../../lib/motion'
 import type { EnrollmentRead, User, UserGroupBrief } from '../../types'
 
@@ -88,7 +89,7 @@ function CreateEmployeeForm({ onDone }: { onDone: () => void }) {
       )}
       {create.isError && (
         <p className="text-sm text-danger mt-2">
-          {create.error instanceof ApiError ? create.error.body.detail : intl.formatMessage({ id: 'employees.createError' })}
+          {apiErrorMessage(intl, create.error, 'employees.createError')}
         </p>
       )}
       <div className="flex gap-2 mt-4">
@@ -212,7 +213,7 @@ function AssignSingleCourse({ user }: { user: User }) {
       <Input label={intl.formatMessage({ id: 'employees.deadlineLabel' })} type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
       {assign.isError && (
         <p className="text-sm text-danger">
-          {assign.error instanceof ApiError ? assign.error.body.detail : intl.formatMessage({ id: 'employees.assignError' })}
+          {apiErrorMessage(intl, assign.error, 'employees.assignError')}
         </p>
       )}
       {assign.isSuccess && <p className="text-sm text-accent">{intl.formatMessage({ id: 'employees.assignSuccess' })}</p>}
@@ -299,7 +300,7 @@ function AssignFolder({ user }: { user: User }) {
       <Input label={intl.formatMessage({ id: 'employees.deadlineLabel' })} type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
       {assign.isError && (
         <p className="text-sm text-danger">
-          {assign.error instanceof ApiError ? assign.error.body.detail : intl.formatMessage({ id: 'content.assignFolderError' })}
+          {apiErrorMessage(intl, assign.error, 'content.assignFolderError')}
         </p>
       )}
       {result && (
@@ -376,7 +377,7 @@ function ResetPasswordForm({ employee, onDone }: { employee: User; onDone: () =>
       )}
       {reset.isError && (
         <p className="text-sm text-danger mt-2">
-          {reset.error instanceof ApiError ? reset.error.body.detail : intl.formatMessage({ id: 'employees.resetError' })}
+          {apiErrorMessage(intl, reset.error, 'employees.resetError')}
         </p>
       )}
       <div className="flex gap-2 mt-4 justify-end">

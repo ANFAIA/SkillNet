@@ -1,15 +1,10 @@
 import { useState, type FormEvent } from 'react'
 import { useIntl } from 'react-intl'
 import { Button, Card, CardTitle, Input } from '../ui'
-import { ApiError } from '../../api/client'
 import { useChangeEmail, useChangePassword, useDeleteAccount } from '../../api/users'
 import { useLogout } from '../../api/auth'
 import { useAuth, useWorkspaceMode } from '../../hooks/useAuth'
-
-function errorMessage(err: unknown, intl: ReturnType<typeof useIntl>, fallbackId: string): string {
-  if (err instanceof ApiError) return err.body.detail
-  return intl.formatMessage({ id: fallbackId })
-}
+import { apiErrorMessage } from '../../lib/apiErrors'
 
 /**
  * Self-service account management: change password, change email, and (in an
@@ -83,7 +78,7 @@ function ChangePasswordCard() {
         </div>
         {mutation.isError && (
           <p className="text-sm text-danger" role="alert">
-            {errorMessage(mutation.error, intl, 'account.password.error')}
+            {apiErrorMessage(intl, mutation.error, 'account.password.error')}
           </p>
         )}
         {mutation.isSuccess && (
@@ -143,7 +138,7 @@ function ChangeEmailCard() {
         />
         {mutation.isError && (
           <p className="text-sm text-danger" role="alert">
-            {errorMessage(mutation.error, intl, 'account.email.error')}
+            {apiErrorMessage(intl, mutation.error, 'account.email.error')}
           </p>
         )}
         {mutation.isSuccess && (
@@ -202,7 +197,7 @@ function DeleteAccountCard() {
         />
         {mutation.isError && (
           <p className="text-sm text-danger" role="alert">
-            {errorMessage(mutation.error, intl, 'account.delete.error')}
+            {apiErrorMessage(intl, mutation.error, 'account.delete.error')}
           </p>
         )}
         <Button type="submit" variant="danger" disabled={!password || mutation.isPending}>

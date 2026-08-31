@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useIntl } from 'react-intl'
 import { ChoiceList } from './ChoiceList'
 import type { OnboardingQuestion } from '../../api/onboarding'
 
@@ -21,6 +22,7 @@ export interface GoalStepProps {
  * row is active is derived from whether the value matches a known option.
  */
 export function GoalStep({ question, value, onChange }: GoalStepProps) {
+  const intl = useIntl()
   const options = question.options ?? []
   const matchesOption = options.some((option) => option.value === value)
   const [otherActive, setOtherActive] = useState(!matchesOption && value !== '')
@@ -53,7 +55,7 @@ export function GoalStep({ question, value, onChange }: GoalStepProps) {
                 }}
                 className="mt-0.5 accent-primary shrink-0"
               />
-              <span className="block text-sm font-medium text-text">Otro</span>
+              <span className="block text-sm font-medium text-text">{intl.formatMessage({ id: 'onboarding.goal.other' })}</span>
             </label>
 
             {otherActive && (
@@ -61,9 +63,9 @@ export function GoalStep({ question, value, onChange }: GoalStepProps) {
                 type="text"
                 value={value}
                 onChange={(event) => onChange(event.target.value)}
-                placeholder="Cuéntanoslo en una línea"
+                placeholder={intl.formatMessage({ id: 'onboarding.goal.otherPlaceholder' })}
                 maxLength={200}
-                aria-label="Otro objetivo"
+                aria-label={intl.formatMessage({ id: 'onboarding.goal.otherAriaLabel' })}
                 className="w-full px-3 py-2 text-sm text-text border border-border rounded-lg bg-bg placeholder:text-text-muted focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-colors duration-150"
               />
             )}

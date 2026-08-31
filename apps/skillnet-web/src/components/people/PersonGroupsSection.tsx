@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useIntl } from 'react-intl'
-import { ApiError } from '../../api/client'
+import { apiErrorMessage } from '../../lib/apiErrors'
 import { useGroupsOfPerson, useUpdateUserGroupMembers } from '../../api/user-groups'
 import type { User } from '../../types'
 import { Button } from '../ui'
@@ -48,7 +48,7 @@ export function PersonGroupsSection({ person }: PersonGroupsSectionProps) {
         remove: action === 'remove' ? [person.id] : [],
       })
     } catch (reason) {
-      setError(reason instanceof ApiError ? reason.body.detail : intl.formatMessage({ id: 'groups.membersSaveError' }))
+      setError(apiErrorMessage(intl, reason, 'groups.membersSaveError'))
     }
   }
 

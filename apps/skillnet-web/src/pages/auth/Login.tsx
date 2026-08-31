@@ -7,6 +7,7 @@ import { useLogin } from '../../api/auth'
 import { isAvailable, useCapability } from '../../api/setup'
 import { useAuth } from '../../hooks/useAuth'
 import { ApiError } from '../../api/client'
+import { apiErrorMessage } from '../../lib/apiErrors'
 import { GoogleSignInButton } from './GoogleSignInButton'
 
 /**
@@ -63,14 +64,12 @@ export function Login() {
     ? intl.formatMessage({ id: GOOGLE_ERROR_IDS[googleError] ?? 'login.googleGenericError' })
     : null
 
-  const errorMessage =
-    login.error instanceof ApiError
-      ? login.error.status === 400 || login.error.status === 401
-        ? intl.formatMessage({ id: 'login.wrongCredentials' })
-        : login.error.body.detail
-      : login.error
-        ? intl.formatMessage({ id: 'login.genericError' })
-        : null
+  const errorMessage = !login.error
+    ? null
+    : login.error instanceof ApiError
+      && (login.error.status === 400 || login.error.status === 401)
+      ? intl.formatMessage({ id: 'login.wrongCredentials' })
+      : apiErrorMessage(intl, login.error, 'login.genericError')
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4">

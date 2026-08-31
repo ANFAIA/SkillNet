@@ -202,7 +202,10 @@ export function CourseSchema() {
       if (!labels[node.id]) labels[node.id] = `${node.position}. ${node.title}`
     }
     return labels
-  }, [draft, server])
+    // ``intl`` belongs here: without it the memo keeps the placeholder label it built
+    // under the previous locale, so switching language relabels every node except the
+    // untitled ones.
+  }, [draft, server, intl])
 
   const ruleErrors = useMemo(
     () => [...schemaRuleErrors(validateSchema.error), ...schemaRuleErrors(updateSchema.error)],

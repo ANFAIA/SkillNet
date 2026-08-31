@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import type { ChangeEvent, DragEvent, ReactNode } from 'react'
+import { useIntl } from 'react-intl'
 
 export interface FileUploadZoneProps {
   accept: string // e.g. '.pdf,.docx'
@@ -26,6 +27,7 @@ export function FileUploadZone({
   onFilesSelected,
   children,
 }: FileUploadZoneProps) {
+  const intl = useIntl()
   const [isDragOver, setIsDragOver] = useState(false)
   const [errors, setErrors] = useState<string[]>([])
   const inputRef = useRef<HTMLInputElement>(null)
@@ -36,7 +38,7 @@ export function FileUploadZone({
     const fileArray = Array.from(files)
 
     if (fileArray.length > maxFiles) {
-      newErrors.push(`Maximo ${maxFiles} archivo${maxFiles > 1 ? 's' : ''}`)
+      newErrors.push(intl.formatMessage({ id: 'upload.tooManyFiles' }, { count: maxFiles }))
       setErrors(newErrors)
       return []
     }
@@ -46,11 +48,13 @@ export function FileUploadZone({
     for (const file of fileArray) {
       const ext = '.' + (file.name.split('.').pop()?.toLowerCase() ?? '')
       if (!allowed.includes(ext)) {
-        newErrors.push(`${file.name}: tipo de archivo no soportado`)
+        newErrors.push(intl.formatMessage({ id: 'upload.unsupportedType' }, { name: file.name }))
         continue
       }
       if (file.size > maxSizeMB * 1024 * 1024) {
-        newErrors.push(`${file.name}: supera el límite de ${maxSizeMB}MB`)
+        newErrors.push(
+          intl.formatMessage({ id: 'upload.tooLarge' }, { name: file.name, size: maxSizeMB }),
+        )
         continue
       }
       valid.push(file)
@@ -94,10 +98,22 @@ export function FileUploadZone({
               <UploadIcon />
             </span>
             <p className="text-sm text-text-secondary">
-              Arrastra archivos aquí o <span className="text-primary font-medium">selecciona</span>
+              {intl.formatMessage(
+                { id: 'upload.dropPrompt' },
+                {
+                  browse: (
+                    <span key="browse" className="text-primary font-medium">
+                      {intl.formatMessage({ id: 'upload.browse' })}
+                    </span>
+                  ),
+                },
+              )}
             </p>
             <p className="text-xs text-text-muted">
-              {accept.replace(/\./g, '').toUpperCase()} hasta {maxSizeMB}MB
+              {intl.formatMessage(
+                { id: 'upload.limits' },
+                { formats: accept.replace(/\./g, '').toUpperCase(), size: maxSizeMB },
+              )}
             </p>
           </div>
         )}

@@ -123,9 +123,9 @@ export function PronunciationExerciseBlock({ targetText, language }: Pronunciati
       })
     } catch {
       setState('idle')
-      setError('Audio no disponible')
+      setError(intl.formatMessage({ id: 'pronunciation.audioError' }))
     }
-  }, [safeText, safeLang, targetWs])
+  }, [intl, safeText, safeLang, targetWs])
 
   const handleRecord = useCallback(async () => {
     setMicError(null)
@@ -165,7 +165,7 @@ export function PronunciationExerciseBlock({ targetText, language }: Pronunciati
       setMicError(intl.formatMessage({ id: 'pronunciation.micError' }))
       setState('idle')
     }
-  }, [userWs])
+  }, [intl, userWs])
 
   const handleStopRecording = useCallback(() => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {

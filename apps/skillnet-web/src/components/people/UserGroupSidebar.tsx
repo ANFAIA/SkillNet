@@ -1,6 +1,6 @@
 import { useDeferredValue, useEffect, useState, type FormEvent } from 'react'
 import { useIntl } from 'react-intl'
-import { ApiError } from '../../api/client'
+import { apiErrorMessage } from '../../lib/apiErrors'
 import {
   useCreateUserGroup,
   useDeleteUserGroup,
@@ -159,7 +159,7 @@ export function UserGroupSidebar({
       setCreating(false)
     } catch (reason) {
       // A duplicate name is a 409 whose message is the useful one.
-      setError(reason instanceof ApiError ? reason.body.detail : intl.formatMessage({ id: 'groups.saveError' }))
+      setError(apiErrorMessage(intl, reason, 'groups.saveError'))
     }
   }
 
@@ -175,7 +175,7 @@ export function UserGroupSidebar({
       setPinned((current) => (current && current.id === id ? { ...current, name } : current))
       setEditingId(null)
     } catch (reason) {
-      setError(reason instanceof ApiError ? reason.body.detail : intl.formatMessage({ id: 'groups.saveError' }))
+      setError(apiErrorMessage(intl, reason, 'groups.saveError'))
     }
   }
 
@@ -192,7 +192,7 @@ export function UserGroupSidebar({
       // that no longer exists, showing nothing and blaming the search.
       if (groups.length === 1 && offset > 0) setOffset(Math.max(0, offset - GROUPS_RAIL_PAGE_SIZE))
     } catch (reason) {
-      setError(reason instanceof ApiError ? reason.body.detail : intl.formatMessage({ id: 'groups.deleteError' }))
+      setError(apiErrorMessage(intl, reason, 'groups.deleteError'))
     }
   }
 

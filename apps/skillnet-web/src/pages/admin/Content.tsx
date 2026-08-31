@@ -20,6 +20,7 @@ import { useCourseDeletion } from '../../components/courses/useCourseDeletion'
 import { useCourseFolders, type CourseFolder } from '../../api/course-folders'
 import { useArchiveCourse, useCourses, usePublishCourse, useUnarchiveCourse, useUpdateCourse } from '../../api/courses'
 import { ApiError, post } from '../../api/client'
+import { apiErrorMessage } from '../../lib/apiErrors'
 import { startCourseFinalization } from '../../api/schema'
 import { useAuth } from '../../hooks/useAuth'
 import { canDeleteCourse } from '../../lib/canDeleteCourse'
@@ -545,7 +546,7 @@ export function Content() {
 
           <div className="mt-2">
             {coursesQuery.isLoading ? <LibrarySkeleton /> : coursesQuery.error ? (
-              <Card><EmptyState title={intl.formatMessage({ id: 'content.loadError' })} description={coursesQuery.error instanceof ApiError ? coursesQuery.error.body.detail : intl.formatMessage({ id: 'content.loadErrorRetry' })} /></Card>
+              <Card><EmptyState title={intl.formatMessage({ id: 'content.loadError' })} description={apiErrorMessage(intl, coursesQuery.error, 'content.loadErrorRetry')} /></Card>
             ) : courses.length === 0 ? (
               <Card><EmptyState title={intl.formatMessage({ id: emptyState.title })} description={intl.formatMessage({ id: emptyState.description })} action={emptyState.action} /></Card>
             ) : (

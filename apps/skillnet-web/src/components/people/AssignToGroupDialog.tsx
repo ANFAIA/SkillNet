@@ -1,6 +1,6 @@
 import { useDeferredValue, useState } from 'react'
 import { useIntl } from 'react-intl'
-import { ApiError } from '../../api/client'
+import { apiErrorMessage } from '../../lib/apiErrors'
 import { useCourseFolders } from '../../api/course-folders'
 import { useCourses } from '../../api/courses'
 import {
@@ -80,7 +80,7 @@ export function AssignToGroupDialog({ group, onClose }: AssignToGroupDialogProps
         }),
       )
     } catch (reason) {
-      setError(reason instanceof ApiError ? reason.body.detail : intl.formatMessage({ id: 'groups.assignError' }))
+      setError(apiErrorMessage(intl, reason, 'groups.assignError'))
     }
   }
 

@@ -31,10 +31,13 @@ export interface DraftNode {
  * reserved and never emitted (§1.3 — a `Simulation` component needs data binding the
  * IR does not have). Offering it would let a creator pin a node to a format the
  * renderer cannot produce.
+ *
+ * The table is module-level, outside any component, so it stores message ids and the
+ * consumer formats them at render time.
  */
-export const SELECTABLE_UI_FORMATS: { value: UiFormat; label: string; hint: string }[] = [
-  { value: 'explanation', label: 'Explicación', hint: 'Texto y ejemplos' },
-  { value: 'exercise', label: 'Ejercicio', hint: 'Práctica con corrección' },
-  { value: 'chart', label: 'Gráfico', hint: 'Datos o comparativa visual' },
-  { value: 'mixed', label: 'Mixto', hint: 'Explicación y práctica en el mismo nodo' },
+export const SELECTABLE_UI_FORMATS: { value: UiFormat; labelKey: string; hintKey: string }[] = [
+  { value: 'explanation', labelKey: 'schemaNode.format.explanation', hintKey: 'schemaNode.format.explanationHint' },
+  { value: 'exercise', labelKey: 'schemaNode.format.exercise', hintKey: 'schemaNode.format.exerciseHint' },
+  { value: 'chart', labelKey: 'schemaNode.format.chart', hintKey: 'schemaNode.format.chartHint' },
+  { value: 'mixed', labelKey: 'schemaNode.format.mixed', hintKey: 'schemaNode.format.mixedHint' },
 ]

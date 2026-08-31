@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useIntl } from 'react-intl'
-import { ApiError } from '../../api/client'
+import { apiErrorMessage } from '../../lib/apiErrors'
 import {
   useCreateCourseFolder,
   useDeleteCourseFolder,
@@ -65,7 +65,7 @@ export function CourseFolderSidebar({ folders, selected, totalCount, unorganized
       setNewName('')
       setCreating(false)
     } catch (reason) {
-      setError(reason instanceof ApiError ? reason.body.detail : intl.formatMessage({ id: 'content.folderSaveError' }))
+      setError(apiErrorMessage(intl, reason, 'content.folderSaveError'))
     }
   }
 
@@ -78,7 +78,7 @@ export function CourseFolderSidebar({ folders, selected, totalCount, unorganized
       await renameFolder.mutateAsync({ id, name })
       setEditingId(null)
     } catch (reason) {
-      setError(reason instanceof ApiError ? reason.body.detail : intl.formatMessage({ id: 'content.folderSaveError' }))
+      setError(apiErrorMessage(intl, reason, 'content.folderSaveError'))
     }
   }
 
@@ -89,7 +89,7 @@ export function CourseFolderSidebar({ folders, selected, totalCount, unorganized
       await deleteFolder.mutateAsync(folder.id)
       if (selected === folder.id) onSelect('all')
     } catch (reason) {
-      setError(reason instanceof ApiError ? reason.body.detail : intl.formatMessage({ id: 'content.folderDeleteError' }))
+      setError(apiErrorMessage(intl, reason, 'content.folderDeleteError'))
     }
   }
 

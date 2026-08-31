@@ -95,7 +95,8 @@ async function api<T>(path: string, options?: ApiOptions): Promise<T> {
     return (await res.json()) as T
   } catch {
     throw new ApiError(res.status, {
-      detail: 'La respuesta del servidor no es valida (no es JSON)',
+      detail: 'The server response is not valid JSON.',
+      code: 'INVALID_RESPONSE',
     })
   }
 }

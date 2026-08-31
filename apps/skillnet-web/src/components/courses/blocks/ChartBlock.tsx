@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useIntl } from 'react-intl'
 import { BLOCK_TITLE } from './rhythm'
 import { ClickableText } from '../ClickableText'
 import type { ChartKind } from '../kit/schemas'
@@ -20,8 +21,9 @@ const PAD_X = 4
 const PAD_Y = 16
 const GRID_LINES = 4
 
-function formatValue(value: number): string {
-  return Number.isFinite(value) ? value.toLocaleString('es-ES') : '-'
+/** `locale` is threaded in: this runs outside a component, so it cannot ask `useIntl`. */
+function formatValue(value: number, locale: string): string {
+  return Number.isFinite(value) ? value.toLocaleString(locale) : '-'
 }
 
 /** Pairs labels with values, dropping the tail of whichever array is longer. */
@@ -47,6 +49,7 @@ function toPoints(labels: unknown, values: unknown): Array<{ label: string; valu
  * primary to primary/70 for depth.
  */
 function BarChart({ points }: { points: Array<{ label: string; value: number }> }) {
+  const intl = useIntl()
   const maxAbs = points.reduce((acc, p) => Math.max(acc, Math.abs(p.value)), 0)
   const [mounted, setMounted] = useState(false)
 
@@ -64,7 +67,7 @@ function BarChart({ points }: { points: Array<{ label: string; value: number }> 
             <div className="flex items-baseline justify-between gap-3 mb-1.5">
               <span className="text-xs text-text-secondary truncate">{point.label}</span>
               <span className="text-xs font-semibold text-text tabular-nums shrink-0">
-                {formatValue(point.value)}
+                {formatValue(point.value, intl.locale)}
               </span>
             </div>
             <div className="h-2.5 w-full rounded-full bg-bg-muted overflow-hidden">
@@ -98,6 +101,7 @@ function LineChart({
   points: Array<{ label: string; value: number }>
   title: string
 }) {
+  const intl = useIntl()
   const [dashOffset, setDashOffset] = useState<number | null>(null)
 
   useEffect(() => {
@@ -119,7 +123,7 @@ function LineChart({
   })
 
   const polyline = coords.map(({ x, y }) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ')
-  const summary = points.map((p) => `${p.label}: ${formatValue(p.value)}`).join('; ')
+  const summary = points.map((p) => `${p.label}: ${formatValue(p.value, intl.locale)}`).join('; ')
 
   // Total polyline length for stroke-dasharray draw animation
   const totalLength = coords.reduce((acc, c, i) => {
@@ -217,7 +221,7 @@ function LineChart({
             className="fill-text-secondary"
             style={{ fontSize: '8px', fontWeight: 500 }}
           >
-            {formatValue(points[idx].value)}
+            {formatValue(points[idx].value, intl.locale)}
           </text>
         ))}
       </svg>
@@ -230,7 +234,7 @@ function LineChart({
       </div>
       <ul className="sr-only">
         {points.map((point, idx) => (
-          <li key={idx}>{`${point.label}: ${formatValue(point.value)}`}</li>
+          <li key={idx}>{`${point.label}: ${formatValue(point.value, intl.locale)}`}</li>
         ))}
       </ul>
     </div>
@@ -238,6 +242,7 @@ function LineChart({
 }
 
 export function ChartBlock({ kind, title, labels, values }: ChartBlockProps) {
+  const intl = useIntl()
   const points = toPoints(labels, values)
 
   return (
@@ -246,7 +251,7 @@ export function ChartBlock({ kind, title, labels, values }: ChartBlockProps) {
         <ClickableText as="p" className={BLOCK_TITLE}>{title}</ClickableText>
       ) : null}
       {points.length === 0 ? (
-        <p className="text-xs text-text-muted">Sin datos para representar.</p>
+        <p className="text-xs text-text-muted">{intl.formatMessage({ id: 'chart.noData' })}</p>
       ) : kind === 'line' ? (
         <LineChart points={points} title={title} />
       ) : (

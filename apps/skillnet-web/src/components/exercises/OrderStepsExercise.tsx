@@ -56,7 +56,7 @@ export function OrderStepsExercise({ exercise }: { exercise: Exercise }) {
               <span className="flex flex-col shrink-0">
                 <button
                   type="button"
-                  aria-label="Subir"
+                  aria-label={intl.formatMessage({ id: 'exercise.moveUp' })}
                   disabled={pos === 0}
                   onClick={() => move(pos, -1)}
                   className="text-text-muted hover:text-text disabled:opacity-30 cursor-pointer"
@@ -65,7 +65,7 @@ export function OrderStepsExercise({ exercise }: { exercise: Exercise }) {
                 </button>
                 <button
                   type="button"
-                  aria-label="Bajar"
+                  aria-label={intl.formatMessage({ id: 'exercise.moveDown' })}
                   disabled={pos === order.length - 1}
                   onClick={() => move(pos, 1)}
                   className="text-text-muted hover:text-text disabled:opacity-30 cursor-pointer"

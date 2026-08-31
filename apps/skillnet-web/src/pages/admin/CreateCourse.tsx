@@ -23,6 +23,7 @@ import { useReplaceCourseSkills, useSkills } from '../../api/skills'
 import { useUsers } from '../../api/users'
 import { useAssignCourse } from '../../api/enrollments'
 import { ApiError, get, post, put } from '../../api/client'
+import { apiErrorMessage } from '../../lib/apiErrors'
 import { useAuth, useWorkspaceMode } from '../../hooks/useAuth'
 import type { GenerationProgress as GenProgress, User, Lesson, Exercise, ExerciseContent } from '../../types'
 import type { ProposedNode, Phase, SourceType, DeliveryChoice } from './createCourseTypes'
@@ -736,10 +737,10 @@ export function CreateCourse() {
   }, [])
 
   // Error helper
-  function failMsg(err: unknown, fallback: string): string {
-    if (err instanceof ApiError) return err.body.detail
+  function failMsg(err: unknown, fallbackId: string): string {
+    if (err instanceof ApiError) return apiErrorMessage(intl, err, fallbackId)
     if (err instanceof Error && err.message) return err.message
-    return fallback
+    return intl.formatMessage({ id: fallbackId })
   }
 
   async function ensureSourceDocument(): Promise<string | undefined> {
@@ -784,7 +785,7 @@ export function CreateCourse() {
       setJobId(job.job_id)
       setPhase('generating')
     } catch (err) {
-      setStartError(failMsg(err, intl.formatMessage({ id: 'create.courseError' })))
+      setStartError(failMsg(err, 'create.courseError'))
     }
   }
 
@@ -844,7 +845,7 @@ export function CreateCourse() {
     resumeKicked.current = true
     startCourseFinalization(courseId)
       .then(() => finalization.refetch())
-      .catch((err) => setStartError(failMsg(err, intl.formatMessage({ id: 'create.courseError' }))))
+      .catch((err) => setStartError(failMsg(err, 'create.courseError')))
   }, [phase, runState, courseId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   /**
@@ -957,7 +958,7 @@ export function CreateCourse() {
       setCreatingStep(HANDOFF_STEP)
       await startCourseFinalization(id)
     } catch (err) {
-      setStartError(failMsg(err, intl.formatMessage({ id: 'create.courseError' })))
+      setStartError(failMsg(err, 'create.courseError'))
       setPhase('schema') // go back to schema on error
     }
   }
@@ -971,7 +972,7 @@ export function CreateCourse() {
       await startCourseFinalization(courseId)
       await finalization.refetch()
     } catch (err) {
-      setStartError(failMsg(err, intl.formatMessage({ id: 'create.courseError' })))
+      setStartError(failMsg(err, 'create.courseError'))
     }
   }
 
