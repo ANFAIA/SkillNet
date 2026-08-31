@@ -39,13 +39,15 @@ the course, appropriate to the current person and useful for the learning object
 ### 3. Intent is not memory
 
 Understanding what someone asks for in the current moment is different from knowing what has helped
-them over time. SkillNet treats them as separate inputs:
+them over time. SkillNet treats them as separate concerns:
 
-- **Context and intent** shape what should happen now.
-- **Learner memory** accumulates declared preferences and observed outcomes across sessions.
+- **Context and intent** shape tutor and contextual-explain interactions.
+- **Editable learner memory** accumulates declared preferences and curated observations from tutor
+  and media interactions, and currently personalizes the tutor.
 
-Memory must remain inspectable and correctable. A system should form revisable hypotheses about a
-person, not turn a preference into a permanent label.
+Lesson generation currently uses declared preferences, learner state and bounded event projections;
+free-form memory does not steer shared renders. Memory must remain inspectable and correctable. A
+system should form revisable hypotheses about a person, not turn a preference into a permanent label.
 
 ### 4. Technology should adapt to people, not make every person adapt to one interface
 
@@ -53,7 +55,8 @@ Software traditionally asks users to learn its fixed screens and workflows. Gene
 make another direction possible: the application can compose the surface needed for the current
 task from a controlled set of capabilities.
 
-This does not mean generating arbitrary code for every screen. SkillNet uses three levels:
+This does not mean generating arbitrary code for every screen. SkillNet frames the design space in
+three levels; the first two are implemented and the third remains research:
 
 1. **Fixed structure, changing content** for common and predictable work.
 2. **Controlled composition** from approved components for most adaptive learning experiences.
@@ -65,8 +68,8 @@ The boundary will move as models improve. More generation is not automatically b
 ### 5. Components are part of the pedagogy
 
 A course is not text placed inside cards. A worked example, comparison, diagram, practice activity,
-audio explanation and simulation each make different actions possible. Didact provides a language
-of educational components; OpenUI gives the model a controlled way to compose them.
+audio explanation and simulation each make different actions possible. SkillNet uses OpenUI to
+compose a supported, version-pinned subset of Didact's educational components.
 
 The model should speak the language of the interface rather than rewrite the application from
 scratch.
@@ -74,8 +77,8 @@ scratch.
 ### 6. Learning must leave evidence
 
 Completion, mastery and skill are different claims. SkillNet records attempts, progress, rendered
-experiences and source provenance so that a talent view can point back to evidence rather than reduce
-a person to an unexplained score.
+experiences and source provenance. Talent surfaces currently show recorded skills with their source
+courses; complete lineage from skill to attempt, render and source remains active work.
 
 Traceability is not only an admin feature. It is what makes adaptation testable: the system can ask
 whether a different explanation actually helped instead of assuming that it did.
@@ -96,7 +99,7 @@ tools people already use.
 | Grounding before generation | Sources, knowledge packs, provenance and deterministic fallbacks precede interface generation. |
 | Same knowledge, different path | The course contract stays separate from the per-learner episode. |
 | Intent is not memory | Current request context and accumulated learner evidence have separate contracts and controls. |
-| Controlled generation first | OpenUI programs are validated against an approved catalog; open HTML is an exception. |
+| Controlled generation first | OpenUI programs are validated against an approved catalog; open HTML is not part of the current runtime. |
 | Components carry pedagogy | Didact components expose learning actions, not just visual decoration. |
 | Evidence over labels | Attempts, mastery and skills remain distinct and auditable. |
 | Models will change | The LLM layer stays provider-agnostic and the architecture owns product behavior. |
@@ -108,10 +111,12 @@ SkillNet does not claim that a model can infer a person's ideal way of learning 
 It does not treat popular learning-style categories as identities. It does not assume that a richer
 interface produces better learning. Those are questions to evaluate with evidence.
 
-The system proposes and adapts within explicit contracts. People keep authority over sources,
-course objectives, memory and the adaptations that affect them.
+The system proposes and adapts within explicit contracts. Admins retain authority over sources and
+course objectives. The self-service API supports inspecting, editing and clearing retained memory;
+learner-facing controls remain roadmap work. Generated screens remain constrained and validated by
+the runtime.
 
 ## The thesis in one sentence
 
-> SkillNet turns shared knowledge into grounded, traceable learning that can take a different form
-> for each person.
+> SkillNet turns shared knowledge into grounded, traceable learning that can take different forms
+> for different learner profiles and states.

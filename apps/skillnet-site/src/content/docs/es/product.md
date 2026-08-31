@@ -9,16 +9,15 @@ section: "start"
 > **Estado: base actual y dirección de producto.** Este documento separa el comportamiento
 > implementado del trabajo posterior.
 >
-> El actual producto orientado a empresa sigue siendo la base implementada. El futuro
-> modelo de audiencia para despliegues de organización e individual se define en
-> [audience-modes.md](/docs/audience-modes).
+> La configuración admite espacios de organización e individuales. Sus límites de producto y
+> evolución futura se definen en [audience-modes.md](/docs/audience-modes).
 
 ---
 
 ## Qué es SkillNet
 
 SkillNet convierte una idea o conocimiento existente en formación fundamentada y trazable que puede
-tomar una forma distinta para cada persona.
+tomar formas distintas según el perfil y el estado de quien aprende.
 
 No es solo un catálogo de cursos ni un LMS estático con un chatbot. Lee manuales, procedimientos,
 protocolos o una fuente generada, construye el curso y mantiene separada la experiencia del aprendiz
@@ -36,33 +35,40 @@ persona; no afirma conocer un estilo de aprendizaje fijo.
 | Rol | Qué hace |
 |------|-------------|
 | **Admin** | Sube documentos, revisa el contenido generado, asigna formación, ve el progreso del equipo |
-| **Empleado** | Aprende, practica, pregunta. La experiencia se adapta a su nivel y ritmo |
+| **Empleado** | Aprende, practica y pregunta. La experiencia puede responder a su perfil, estado actual y necesidades de apoyo |
 
-## Tipos de contenido
+## Superficies actuales de aprendizaje
 
-| Tipo | Propósito |
+| Superficie | Propósito |
 |------|-----------|
 | **Curso** | Módulos + ejercicios + evaluación. Camino de aprendizaje estructurado, generado a partir de documentos de empresa |
-| **Manual** | Material de referencia. Los empleados lo consultan cuando lo necesitan. Organizado para consulta, no para aprendizaje |
-| **Chatbot** | Chatbot por contenido. Los empleados preguntan sobre el material y obtienen respuestas fundamentadas en él |
+| **Tutor del curso** | Tutor asociado a un curso o matrícula. Recupera material para preguntas específicas y puede responder preguntas generales sin citas del curso |
+| **Medios generados** | Podcasts, infografías, presentaciones y vídeos narrados de diapositivas cuando están configurados los proveedores necesarios |
 
 ## Generación de contenido
 
 Vías actuales de creación:
 
 - **Desde documentos** — sube PDF, DOCX, Markdown o TXT y genera un curso fundamentado.
-- **Desde una idea** — SkillNet crea una fuente generada con procedencia y construye desde ella.
-- **Desde clientes externos** — la web, `/ext/v1`, A2A y MCP usan los mismos servicios de creación.
+- **Desde una idea** — SkillNet crea una fuente generada por el modelo, claramente marcada y con
+  procedencia, y construye desde ella. No equivale a fundamentarse en material de empresa subido.
+- **Desde clientes externos** — la web y `/ext/v1` usan los mismos servicios. Los adaptadores
+  opcionales A2A y MCP llaman a `/ext/v1` cuando se habilitan sus perfiles de Compose.
 
-El pipeline estático v1 y el esquema dinámico v2 conviven, y la entrega se decide por curso. Ver
-[alcance v1](/docs/course-scope), [cursos dinámicos](/docs/dynamic-courses) y
-[diseño de cursos con IA](/docs/ai-course-design).
+El pipeline estático v1 y el esquema dinámico v2 conviven, y la entrega se decide por curso. Los
+esquemas dinámicos pasan por propuesta, revisión de nodos y validación antes de llegar al aprendiz.
+Ver [alcance v1](/docs/course-scope), [cursos dinámicos](/docs/dynamic-courses) y [diseño de cursos
+con IA](/docs/ai-course-design).
 
 ## Ejercicios
 
-Múltiples tipos, definidos por el propio contenido. Ejemplos incluyen tests, casos prácticos, tareas del mundo real ("haz esto y dime si funcionó"), y otros por determinar según evolucione el producto.
+El propio contenido define distintos tipos, como tests, casos prácticos y tareas del mundo real
+("haz esto y dime si funcionó").
 
-Todo ejercicio incluye una explicación que cita el material fuente. Las respuestas se evalúan de forma determinista (test, verdadero/falso, rellenar hueco) o mediante un LLM con rúbrica (caso práctico, diálogo).
+A los ejercicios cerrados generados se les pide una explicación. Las actividades dinámicas de
+Didact conservan referencias de fuente controladas por el servidor. La cobertura de citas todavía
+no es universal en los ejercicios v1. Las respuestas se evalúan de forma determinista (test,
+verdadero/falso, rellenar hueco) o mediante un LLM con rúbrica (caso práctico, diálogo).
 
 ## Seguimiento
 
@@ -72,10 +78,11 @@ Las personas completan cursos. El sistema registra la evidencia que realmente pu
 - Finalización y dominio de nodos
 - Intentos de ejercicios y actividades
 - Eventos de aprendizaje y la experiencia que vio la persona
-- Habilidades registradas mediante el trabajo del curso
+- Niveles de habilidad registrados desde el dominio del curso o mediante verificación explícita
 
-Las superficies de talento muestran personas, cursos asignados, progreso y habilidades registradas.
-Finalización, dominio y habilidad permanecen como afirmaciones distintas.
+Las superficies de talento muestran personas, cursos asignados, progreso y habilidades registradas
+con sus cursos de origen. Finalización, dominio y habilidad permanecen como afirmaciones distintas.
+El linaje completo desde una habilidad hasta intento, material renderizado y fuente sigue en curso.
 
 ## Adaptación
 
@@ -84,13 +91,14 @@ SkillNet separa el contrato estable del curso de la experiencia que recibe una p
 **Entrega estática:** el Markdown generado y los ejercicios siguen siendo el camino de compatibilidad.
 
 **Entrega dinámica:** un esquema validado puede producir episodios por nodo usando conocimiento
-fundamentado, perfil, estado actual y un catálogo aprobado de componentes. El runtime puede adaptar
-explicación, ejemplo, actividad, apoyo, medio e interfaz sin cambiar el objetivo ni la evidencia
-exigida.
+fundamentado, perfil, estado actual y un catálogo aprobado de componentes. El runtime controlado
+puede variar explicación, ejemplo, actividad, apoyo, medio e interfaz sin cambiar el objetivo ni la
+evidencia exigida. Entradas equivalentes pueden compartir un render; los episodios adaptativos y la
+revisión multiagente son opcionales y están desactivados por defecto.
 
-**Adaptación a largo plazo:** la memoria puede usar preferencias declaradas y resultados observados
-entre sesiones. Es distinta de la intención inmediata y toda hipótesis conservada debe poder
-inspeccionarse y corregirse.
+**Memoria del aprendiz:** la memoria editable personaliza hoy el tutor. La generación de lecciones
+usa preferencias declaradas, estado y proyecciones acotadas de eventos. Usar la memoria libre para
+dirigir renders compartidos sigue siendo trabajo futuro. Es algo distinto de la intención inmediata.
 
 **Regeneración adaptativa:** detectar contenido débil entre muchas personas y proponer una revisión
 fundamentada sigue siendo trabajo futuro.
@@ -109,7 +117,7 @@ Se registran la experiencia y los intentos
 Progreso, dominio y habilidades se actualizan con reglas separadas
     |
     v
-Tutor y explicaciones usan el contexto fundamentado del curso
+Tutor y explicaciones específicas recuperan contexto del curso
     |
     v
 El admin ve progreso y habilidades registradas
@@ -127,7 +135,7 @@ La documentación de la empresa cambia. SkillNet está diseñado para tratar las
 El siguiente comportamiento es un horizonte de producto, no el flujo completo disponible hoy:
 
 - Cuando se vuelve a subir un documento, el sistema detecta qué ha cambiado
-- Los cursos y manuales afectados se marcan para revisión
+- Los cursos afectados se marcan para revisión
 - El admin decide si regenerar o mantener la versión actual
 - Los empleados ven un indicador de versión para saber si su formación está al día
 

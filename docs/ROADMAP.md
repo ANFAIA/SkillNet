@@ -12,30 +12,37 @@ they must meet.
 ### Knowledge to course
 
 - Create a course from a topic or from PDF, DOCX, Markdown and TXT sources.
-- Keep provenance and source grounding through structure, lesson and exercise generation.
+- Keep source grounding through course generation and preserve explicit source references where the
+  activity contract supports them.
 - Generate courses through the web UI and the external course-creation path.
 - Preserve the static v1 path while opting individual validated courses into dynamic delivery.
 
 ### Learning experience
 
-- Deliver grounded lessons, exercises and pre-assessment nodes.
-- Answer course questions through a tutor that retrieves from the enrolled material.
-- Compose controlled generated interfaces with OpenUI and the Didact catalog.
+- Deliver grounded lessons and exercises. Probe contracts and routes exist, but pre-assessment is
+  currently bypassed in learner delivery.
+- Retrieve enrolled material and return provenance for course-specific tutor questions; answer
+  general questions without forcing course citations.
+- Compose controlled generated interfaces with OpenUI and a supported, version-pinned subset of
+  Didact.
 - Support click-to-explain and contextual exploration without leaving the learning flow.
-- Generate supported media artifacts asynchronously and place eligible media inside an episode.
+- Generate supported media artifacts asynchronously and place eligible media inside an episode
+  when the required AI, image and TTS providers are configured.
 
 ### Traceability and talent
 
 - Record enrollments, attempts, node completion, mastery and learning events.
-- Record skills earned through course work.
+- Record skill levels from course mastery or explicit verification.
 - Provide admin talent views for people, courses, progress and recorded skills.
+- Provide programmatic skill, `who-knows`, gap and manual-verification APIs.
 - Expose skill queries and complete course creation through `/ext/v1`.
 
 ### Deployment and interoperability
 
 - Run as an organization or individual workspace.
 - Self-host with Docker and an OpenAI-compatible model provider.
-- Use SkillNet through the web application, REST API, A2A service and MCP server.
+- Use SkillNet through the web application and REST API. Optional A2A and MCP adapters call the
+  external API and start through their Compose profiles.
 - Keep English and Spanish product surfaces in the same codebase.
 
 The baseline being implemented does not mean every path has equal product maturity. The static path
@@ -59,13 +66,16 @@ validation under realistic sources, learners and model configurations.
 - [ ] Keep generation progress understandable without exposing internal agent noise.
 - [ ] Maintain a seeded demonstration that works without private data.
 - [ ] Verify organization and individual setup paths from a clean installation.
+- [ ] Decide whether and how to reactivate pre-assessment in learner delivery.
 
 ### 3. Validate adaptation instead of merely generating variation
 
 - [ ] Compare two experiences built from the same knowledge and objective.
 - [ ] Separate declared preference, immediate intent, engagement and measured effectiveness.
 - [ ] Test whether an adaptation improves comprehension or completion before retaining it.
-- [ ] Let learners inspect, correct and reset the memory used for personalization.
+- [ ] Surface the existing inspect, edit and clear memory controls in the learner product.
+- [ ] Extend retained memory beyond tutor personalization without letting free-form memory steer
+  shared lesson renders unsafely.
 - [ ] Avoid fixed learning-style labels; treat every preference as a revisable hypothesis.
 
 ### 4. Stabilize the learning surface
@@ -103,12 +113,13 @@ These directions build on the active priorities. They are not committed releases
 ### Better talent understanding
 
 - Move from a list of completions to evidence-backed capability profiles.
-- Surface gaps and possible peer mentors without pretending that a score captures a whole person.
+- Turn the existing programmatic gap and `who-knows` capabilities into richer admin experiences
+  without pretending that a score captures a whole person.
 - Make talent data portable through open interfaces instead of trapping it in the application.
 
 ### Personalization over time
 
-- Build learner memory from explicit preferences and observed outcomes.
+- Extend the existing editable learner memory from tutor use into evaluated learning experiences.
 - Distinguish what the learner wants now from what has helped across sessions.
 - Suggest adaptations under user control instead of silently locking the person into a profile.
 
@@ -138,7 +149,7 @@ the most generative level is automatically the best one.
 2. **Quality before breadth.** Do not add a modality or component until its failure mode is honest.
 3. **Same knowledge, different path.** Adapt the experience without moving the objective or evidence bar.
 4. **Intent is not memory.** Reacting to a request now is different from knowing what helps over time.
-5. **Personalization is a hypothesis.** Learners can inspect and correct it; the system never defines them.
+5. **Personalization is a hypothesis.** Learners must be able to inspect and correct it; the system never defines them.
 6. **Controlled generation first.** Components and schemas are the reliable default; open generation earns its place.
 7. **Traceability is part of learning.** Progress and skills must point back to evidence.
 8. **Open and self-hosted by design.** Organizations control their knowledge, models and data.

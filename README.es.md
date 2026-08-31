@@ -5,7 +5,7 @@
 <h1 align="center">SkillNet</h1>
 
 <p align="center">
-  <strong>SkillNet convierte una idea o un material en un curso cuyas explicaciones, actividades e interfaz pueden adaptarse a cada persona.</strong>
+  <strong>SkillNet convierte una idea o un material en un curso cuyas explicaciones, actividades e interfaz pueden cambiar con el perfil y el estado de quien aprende.</strong>
 </p>
 
 <p align="center">
@@ -25,9 +25,9 @@
 </p>
 
 SkillNet es un sistema de código abierto que convierte conocimiento en formación capaz de cambiar de
-forma para la persona que aprende. Puede funcionar como espacio compartido de una organización o una
-clase, o como espacio de aprendizaje individual. Es autoalojado y se distribuye con licencia Apache
-2.0.
+forma según el perfil y el estado de quien aprende. Puede funcionar como espacio compartido de una
+organización, que puede usar un equipo o una clase, o como espacio individual. Es autoalojado y se
+distribuye con licencia Apache 2.0.
 
 **[Empieza aquí: ejecutar SkillNet en local →](RUNNING.md)**
 
@@ -40,14 +40,15 @@ aprendizaje, y la organización apenas tiene trazabilidad sobre quién sabe qué
 quién podría ayudar a otra persona.
 
 SkillNet crea otro canal para ese conocimiento. Convierte una idea o un material existente en un
-curso estructurado, un tutor fundamentado en las mismas fuentes, actividades de aprendizaje y un
-registro de progreso y habilidades.
+curso estructurado, un tutor asociado al curso que puede recuperar esas fuentes, actividades de
+aprendizaje y un registro de progreso y habilidades.
 
 ## Una fuente, un recorrido completo de aprendizaje
 
 Puedes describir lo que quieres enseñar o subir material en PDF, DOCX, Markdown o TXT. El material
 subido sigue siendo la fuente que fundamenta el curso. Cuando se parte de una idea, SkillNet registra
-la fuente generada y su procedencia antes de construirlo.
+una fuente generada por el modelo, claramente marcada, y su procedencia antes de construirlo. Esa vía
+no equivale a fundamentarse en material de empresa subido.
 
 ```text
 idea o material de origen
@@ -57,9 +58,10 @@ idea o material de origen
         → intentos, progreso y habilidades
 ```
 
-El tutor responde desde el material del curso en lugar de comportarse como un chatbot genérico. La
-superficie de aprendizaje puede combinar texto con ejemplos resueltos, diagramas, tarjetas,
-actividades prácticas, audio y medios generados cuando está configurado el proveedor correspondiente.
+Para preguntas específicas del curso o de sus fuentes, el tutor recupera material matriculado y
+devuelve procedencia. Las preguntas generales pueden responderse en modo general, sin citas del
+curso. La superficie de aprendizaje puede combinar texto con ejemplos resueltos, diagramas,
+tarjetas, actividades prácticas, audio y medios generados cuando está configurado el proveedor.
 
 ## El mismo conocimiento, un camino distinto
 
@@ -69,15 +71,16 @@ SkillNet separa lo que debe permanecer estable de lo que puede cambiar para quie
 | --- | --- |
 | conocimiento, objetivos, evidencias y criterios de evaluación | explicación, ejemplo, actividad, apoyo, medio e interfaz |
 
-Un curso dinámico puede usar el puesto, las preferencias declaradas, la intención del momento, el
-nivel, los intentos y el progreso para escoger una experiencia más adecuada. Esas señales son
+Un curso dinámico validado puede usar el puesto, las preferencias declaradas, el nivel de
+experiencia, el estado actual del nodo y señales longitudinales acotadas para escoger una
+experiencia. Personas con entradas equivalentes pueden compartir un render. Esas señales son
 evidencias revisables, no «estilos de aprendizaje» fijos ni una afirmación de que el sistema ya
 conoce perfectamente a la persona.
 
 La diferencia importa: responder a lo que alguien pide ahora no es lo mismo que conocer qué le ha
-ayudado a lo largo del tiempo. SkillNet mantiene separadas ambas cosas para que el contexto inmediato
-dé forma a la pantalla actual y la evidencia acumulada pueda sostener una personalización más
-profunda.
+ayudado a lo largo del tiempo. La memoria editable personaliza hoy principalmente el tutor. La
+generación de lecciones usa preferencias declaradas, estado y proyecciones acotadas de eventos;
+dejar que la memoria libre dirija renders compartidos sigue siendo trabajo futuro.
 
 ## Cómo funciona
 
@@ -94,31 +97,34 @@ graph LR
 
 [OpenUI](https://github.com/thesysdev/openui) permite al modelo describir una interfaz mediante un
 lenguaje controlado en lugar de inventar la aplicación desde cero. [Didact](https://github.com/JoseEstevez520/Didact)
-aporta los componentes educativos que SkillNet puede componer. La mayoría de experiencias deben ser
-rápidas, predecibles y basadas en componentes; la generación más abierta se reserva para los casos en
-los que el catálogo controlado no puede expresar la tarea de aprendizaje.
+aporta los componentes educativos que SkillNet puede componer. El runtime actual usa un subconjunto
+compatible y versionado de Didact. La generación abierta de interfaces sigue siendo investigación.
 
 ## Qué está disponible ahora
 
 - Crear un curso desde un tema o desde material en PDF, DOCX, Markdown o TXT.
 - Generar estructura, lecciones fundamentadas, ejercicios y práctica.
 - Servir cursos estáticos y activar individualmente el camino dinámico.
-- Preguntar mediante un tutor fundamentado en las fuentes del curso.
-- Componer pantallas de aprendizaje con OpenUI y el catálogo de Didact.
-- Generar y adjuntar artefactos compatibles como podcasts e infografías.
-- Registrar matrículas, intentos, progreso, dominio y habilidades.
+- Revisar y validar los esquemas dinámicos antes de entregarlos a quien aprende.
+- Hacer preguntas específicas del curso a un tutor que recupera fuentes y devuelve procedencia.
+- Componer pantallas de aprendizaje con OpenUI y un subconjunto compatible de Didact.
+- Generar podcasts, infografías, presentaciones y vídeos narrados de diapositivas de forma asíncrona
+  cuando están configurados los proveedores de IA, imágenes y TTS necesarios.
+- Registrar matrículas, intentos, progreso y dominio, además de niveles de habilidad procedentes del
+  dominio del curso o de verificación explícita.
 - Explorar personas, cursos y habilidades registradas desde las superficies de talento.
 - Elegir espacio de organización o individual en la primera configuración.
-- Crear cursos y consultar habilidades desde la interfaz, la API REST externa, A2A o MCP.
+- Crear cursos y consultar habilidades desde la interfaz y la API REST externa; los adaptadores
+  opcionales A2A y MCP usan esa API y arrancan mediante sus perfiles de Compose.
 - Ejecutar el sistema en local o autoalojarlo con Docker y un proveedor compatible con OpenAI.
 
 ## Qué sigue en validación
 
-El runtime ya puede producir experiencias distintas desde un mismo curso, pero todavía necesitan
-evidencia la eficacia educativa, la calidad de cada adaptación y el equilibrio entre intención
-inmediata y memoria a largo plazo. La adaptación proactiva, la sincronización automática cuando
-cambian las fuentes y las interfaces completamente abiertas son direcciones posteriores, no promesas
-actuales.
+El runtime controlado ya puede producir experiencias distintas para perfiles y estados diferentes,
+pero todavía necesitan evidencia la eficacia educativa y la calidad de cada adaptación. Usar la
+memoria libre en la generación de lecciones, la adaptación proactiva, la sincronización automática
+cuando cambian las fuentes y las interfaces completamente abiertas son direcciones posteriores, no
+promesas actuales.
 
 ## Ecosistema
 

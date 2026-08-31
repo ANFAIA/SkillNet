@@ -5,7 +5,7 @@
 <h1 align="center">SkillNet</h1>
 
 <p align="center">
-  <strong>SkillNet turns an idea or source into a course whose explanations, activities and interface can adapt to each person.</strong>
+  <strong>SkillNet turns an idea or source into a course whose explanations, activities and interface can change with the learner's profile and state.</strong>
 </p>
 
 <p align="center">
@@ -25,8 +25,8 @@
 </p>
 
 SkillNet is an open-source system for turning knowledge into training that can change shape for the
-person learning. It can run as a shared workspace for an organization or class, or as an individual
-learning workspace. It is self-hosted and licensed under Apache 2.0.
+person learning. It can run as a shared organization workspace, which can be used by a team or
+class, or as an individual learning workspace. It is self-hosted and licensed under Apache 2.0.
 
 **[Start here: run SkillNet locally →](RUNNING.md)**
 
@@ -38,14 +38,15 @@ Documentation may exist, but it is rarely a complete learning experience, and th
 little traceability over who knows what, where the gaps are, or who could help someone else.
 
 SkillNet creates another channel for that knowledge. It turns an idea or existing source material
-into a structured course, a tutor grounded in the same sources, learning activities and a record of
-progress and skills.
+into a structured course, a course-scoped tutor that can retrieve from those sources, learning
+activities and a record of progress and skills.
 
 ## One source, a complete learning path
 
 You can describe what you want to teach or upload PDF, DOCX, Markdown or TXT material. Uploaded
-material remains the grounding source. When a course starts from an idea, SkillNet records the
-generated source and its provenance before building the course.
+material remains the grounding source. When a course starts from an idea, SkillNet records a
+clearly marked model-generated source and its provenance before building the course. That path is
+not equivalent to grounding in uploaded organization material.
 
 ```text
 idea or source material
@@ -55,9 +56,10 @@ idea or source material
         → attempts, progress and skills
 ```
 
-The tutor answers from the course material instead of acting as a generic chatbot. The learning
-surface can combine text with components such as worked examples, diagrams, flashcards, practice
-activities, audio and generated media when the corresponding provider is configured.
+For course- or source-specific questions, the tutor retrieves from enrolled material and returns
+provenance. General questions can be answered in general mode without course citations. The
+learning surface can combine text with components such as worked examples, diagrams, flashcards,
+practice activities, audio and generated media when the corresponding provider is configured.
 
 ## The same knowledge, a different path
 
@@ -67,13 +69,15 @@ SkillNet separates what must remain stable from what can change for the learner:
 | --- | --- |
 | knowledge, objectives, evidence and evaluation criteria | explanation, example, activity, support, medium and interface |
 
-A dynamic course can use the learner's role, declared preferences, current intent, level, attempts
-and progress to choose a more suitable experience. These signals are revisable evidence, not fixed
+A validated dynamic course can use the learner's role, declared preferences, experience level,
+current node state and bounded longitudinal interaction signals to choose an experience. Learners
+with equivalent inputs may share a render. These signals are revisable evidence, not fixed
 "learning styles" and not a claim that the system already knows the person perfectly.
 
 This distinction matters: responding to what someone asks now is not the same as knowing what has
-helped them over time. SkillNet keeps those two concerns separate so that immediate context can
-shape the current screen while accumulated evidence can support longer-term personalization.
+helped them over time. Editable learner memory currently personalizes the tutor. Lesson generation
+uses declared preferences, learner state and bounded event projections; using free-form memory to
+steer shared lesson renders remains future work.
 
 ## How it works
 
@@ -90,30 +94,34 @@ graph LR
 
 [OpenUI](https://github.com/thesysdev/openui) lets the model describe an interface through a
 controlled language instead of inventing the application from scratch. [Didact](https://github.com/JoseEstevez520/Didact)
-provides the educational components that SkillNet can compose. Most experiences should stay fast,
-predictable and component-based; more open generation is reserved for cases where the controlled
-catalog cannot express the learning task.
+provides the educational components that SkillNet can compose. The current runtime uses a supported,
+version-pinned subset of Didact. Open-ended interface generation remains research.
 
 ## What is available now
 
 - Create a course from a topic or from PDF, DOCX, Markdown or TXT material.
 - Generate a course structure, grounded lessons, exercises and practice.
 - Deliver static courses and opt individual courses into the dynamic path.
-- Ask questions through a tutor grounded in the course sources.
-- Compose learning screens with OpenUI and the Didact component catalog.
-- Generate and attach supported media artifacts such as podcasts and infographics.
-- Record enrollments, attempts, progress, mastery and skills.
+- Review and validate dynamic course schemas before learner delivery.
+- Ask course-specific questions through a tutor that retrieves sources and returns provenance.
+- Compose learning screens with OpenUI and a supported subset of the Didact catalog.
+- Generate podcasts, infographics, slide decks and narrated slide videos asynchronously when the
+  required AI, image and TTS providers are configured.
+- Record enrollments, attempts, progress and mastery, plus skill levels from course mastery or
+  explicit verification.
 - Explore people, courses and recorded skills through the talent surfaces.
 - Choose an organization or individual workspace at first setup.
-- Create courses and query skills through the UI, external REST API, A2A service or MCP server.
+- Create courses and query skills through the UI and external REST API; optional A2A and MCP
+  adapters use the same API and start through their Compose profiles.
 - Run locally or self-host with Docker and an OpenAI-compatible model provider.
 
 ## What is still being validated
 
-The runtime can already produce different experiences from the same course, but educational
-effectiveness, the quality of each adaptation and the right balance between immediate intent and
-long-term memory still need evidence. Proactive adaptation, automatic synchronization with changed
-sources and fully open-ended generated interfaces remain later directions, not current promises.
+The controlled runtime can already produce different experiences for different learner profiles
+and states, but educational effectiveness and the quality of each adaptation still need evidence.
+Using free-form learner memory in lesson generation, proactive adaptation, automatic synchronization
+with changed sources and fully open-ended generated interfaces remain later directions, not current
+promises.
 
 ## Ecosystem
 

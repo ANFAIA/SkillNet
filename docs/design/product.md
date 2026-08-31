@@ -3,16 +3,15 @@
 > **Status: current product baseline and direction.** This document defines what SkillNet is, who
 > it is for and which boundaries separate implemented behavior from later work.
 >
-> The current company-first product remains the implemented baseline. The future
-> audience model for organization and individual deployments is defined in
-> [audience-modes.md](audience-modes.md).
+> Setup supports organization and individual workspaces. Their product boundaries and future
+> evolution are defined in [audience-modes.md](audience-modes.md).
 
 ---
 
 ## What is SkillNet
 
 SkillNet turns an idea or existing knowledge into grounded, traceable training that can take a
-different form for each person.
+different form for different learner profiles and states.
 
 It is not only a course catalog or a static LMS with a chatbot attached. It reads manuals,
 procedures, protocols or a generated source, builds a course and keeps the learner experience
@@ -30,15 +29,15 @@ claim to know a person's fixed learning style.
 | Role | What they do |
 |------|-------------|
 | **Admin** | Uploads documents, reviews generated content, assigns training, sees team progress |
-| **Employee** | Learns, practices, asks questions. The experience adapts to their level and pace |
+| **Employee** | Learns, practices and asks questions. The experience can respond to their profile, current state and support needs |
 
-## Content types
+## Current learning surfaces
 
-| Type | Purpose |
+| Surface | Purpose |
 |------|---------|
 | **Course** | Modules + exercises + evaluation. Structured learning path, generated from company documents |
-| **Manual** | Reference material. Employees consult when they need it. Organized for lookup, not learning |
-| **Chatbot** | Per-content chatbot. Employees ask questions about the material and get answers grounded in it |
+| **Course tutor** | Tutor attached to a course or enrollment. It retrieves course material for source-specific questions and can answer general questions without course citations |
+| **Generated media** | Podcasts, infographics, slide decks and narrated slide videos when the required providers are configured |
 
 ## Content generation
 
@@ -46,20 +45,26 @@ Current creation paths:
 
 - **From documents** — upload PDF, DOCX, Markdown or TXT material and generate a course grounded in
   that source.
-- **From an idea** — describe a topic; SkillNet creates a generated source with provenance and then
-  builds the course from it.
-- **From external clients** — the web UI, `/ext/v1`, A2A and MCP converge on the same course authoring
-  services.
+- **From an idea** — describe a topic; SkillNet creates a clearly marked model-generated source with
+  provenance and then builds the course from it. This is not equivalent to grounding in uploaded
+  company material.
+- **From external clients** — the web UI and `/ext/v1` converge on the same authoring services.
+  Optional A2A and MCP adapters call `/ext/v1` when their Compose profiles are enabled.
 
 The static v1 pipeline and dynamic v2 schema path coexist. `course_delivery.resolve_delivery` is the
-single selector. See [v1-scope.md](v1-scope.md), [v2-dynamic-courses.md](v2-dynamic-courses.md) and
+single selector. Dynamic schemas pass through proposal, node review and validation before learner
+delivery. See [v1-scope.md](v1-scope.md), [v2-dynamic-courses.md](v2-dynamic-courses.md) and
 [ai-course-design.md](ai-course-design.md).
 
 ## Exercises
 
-Multiple types, defined by the content itself. Examples include tests, practical cases, real-world tasks ("do this and tell me if it worked"), and others to be determined as the product evolves.
+Multiple types are defined by the content itself. Examples include tests, practical cases and
+real-world tasks ("do this and tell me if it worked").
 
-Every exercise includes an explanation citing the source material. Answers are evaluated either deterministically (test, true/false, fill_blank) or by an LLM with a rubric (practical_case, dialogue).
+Closed generated exercises are prompted to include an explanation. Dynamic Didact activities
+preserve server-owned source references. Citation coverage is not yet universal across v1
+exercises. Answers are evaluated either deterministically (test, true/false, fill_blank) or by an
+LLM with a rubric (practical_case, dialogue).
 
 ## Tracking
 
@@ -69,11 +74,11 @@ Learners complete courses. The system records the evidence it can actually obser
 - Node completion and mastery
 - Exercise and activity attempts
 - Learning events and the rendered experience seen by the learner
-- Skills recorded through course work
+- Skill levels recorded from course mastery or explicit verification
 
-The admin talent surfaces expose people, assigned courses, progress and recorded skills. Completion,
-mastery and skill are kept as different claims. They should not be collapsed into one unexplained
-score.
+The admin talent surfaces expose people, assigned courses, progress and recorded skills with their
+source courses. Completion, mastery and skill are kept as different claims. End-to-end lineage from
+a skill to an attempt, rendered material and source remains active work.
 
 ## Adaptation
 
@@ -82,13 +87,14 @@ SkillNet separates the stable course contract from the experience served to one 
 **Static delivery:** generated Markdown and exercises remain the compatibility path.
 
 **Dynamic delivery:** a validated course schema can produce per-node episodes using course
-knowledge, learner profile, current state and an approved component catalog. The runtime may adapt
-the explanation, example, activity, support, medium and interface without changing the objective or
-evidence requirement.
+knowledge, learner profile, current state and an approved component catalog. The controlled runtime
+can vary the explanation, example, activity, support, medium and interface without changing the
+objective or evidence requirement. Equivalent learner inputs may share a render; adaptive episodes
+and multi-agent review are optional features and are disabled by default.
 
-**Longer-term adaptation:** learner memory may use declared preferences and observed outcomes across
-sessions. This is distinct from immediate intent. Any retained hypothesis must be inspectable,
-correctable and evaluated before it is treated as useful.
+**Learner memory:** editable memory currently personalizes the tutor. Lesson generation uses
+declared preferences, learner state and bounded event projections. Using free-form memory to steer
+shared lesson renders remains future work. This is distinct from immediate intent.
 
 **Adaptive regeneration:** detecting weak content across many learners and proposing a grounded
 revision remains future work.
@@ -107,7 +113,7 @@ Experience and attempts recorded
 Progress, mastery and skills updated through their own rules
     |
     v
-Tutor and explain flows use grounded course context
+Course-specific tutor and explain flows retrieve course context
     |
     v
 Admin sees progress and recorded skills
@@ -126,7 +132,7 @@ appear. SkillNet is designed to treat source documents as living rather than sta
 behavior is a product horizon, not a description of the current end-to-end workflow:
 
 - When a document is re-uploaded, the system detects what changed
-- Affected courses and manuals are flagged for review
+- Affected courses are flagged for review
 - The admin decides whether to regenerate or keep the current version
 - Employees see a version indicator so they know if their training is current
 

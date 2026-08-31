@@ -40,15 +40,18 @@ con la persona y ayuda al objetivo de aprendizaje.
 ### La intención no es la memoria
 
 Entender qué pide alguien ahora es distinto de conocer qué le ha ayudado a lo largo del tiempo. El
-contexto actual puede dar forma a la siguiente pantalla; la memoria del aprendiz puede acumular
-preferencias declaradas y resultados observados entre sesiones. Esa memoria debe poder inspeccionarse,
-corregirse y revisarse.
+contexto y la intención dan forma al tutor y a las explicaciones contextuales. La memoria editable
+acumula preferencias declaradas y observaciones curadas desde el tutor y los medios, y hoy
+personaliza el tutor. La generación de lecciones usa preferencias declaradas, estado y proyecciones
+acotadas de eventos; la memoria libre no dirige renders compartidos. Esa memoria debe poder
+inspeccionarse, corregirse y revisarse.
 
 ### La tecnología debe adaptarse a las personas
 
 El software ha pedido tradicionalmente que la gente aprenda sus pantallas fijas. Las interfaces
 generativas permiten componer una superficie para la tarea actual, pero generar más no es
-automáticamente mejor:
+automáticamente mejor. Los dos primeros niveles están implementados; el tercero sigue siendo
+investigación:
 
 1. **Estructura fija y contenido variable** para trabajo predecible.
 2. **Composición controlada** desde componentes aprobados para la mayoría de experiencias.
@@ -58,14 +61,14 @@ automáticamente mejor:
 ### Los componentes forman parte de la pedagogía
 
 Un curso no es texto dentro de tarjetas. Los ejemplos resueltos, diagramas, actividades prácticas,
-audio y simulaciones permiten acciones distintas. Didact aporta componentes educativos; OpenUI da
-al modelo un lenguaje controlado para componerlos sin reescribir la aplicación.
+audio y simulaciones permiten acciones distintas. SkillNet usa OpenUI para componer un subconjunto
+compatible y versionado de los componentes educativos de Didact sin reescribir la aplicación.
 
 ### Aprender debe dejar evidencia
 
-Finalización, dominio y habilidad son afirmaciones distintas. Intentos, progreso, experiencias
-servidas y procedencia de las fuentes hacen trazables los datos de talento y permiten comprobar si
-una adaptación realmente ayudó.
+Finalización, dominio y habilidad son afirmaciones distintas. SkillNet registra intentos, progreso,
+experiencias servidas y procedencia de fuentes. Las superficies de talento muestran habilidades con
+sus cursos de origen; el linaje completo hasta intento, render y fuente sigue en curso.
 
 ### El conocimiento debe permanecer vivo y ser portable
 
@@ -77,10 +80,11 @@ abiertas en lugar de quedar atrapados en una superaplicación cerrada.
 
 SkillNet no afirma que un modelo pueda inferir la forma ideal de aprender de una persona a partir de
 unos pocos clics. No convierte preferencias en etiquetas fijas y no presupone que una interfaz más
-rica produzca mejor aprendizaje. El sistema se adapta dentro de contratos explícitos y las personas
-conservan autoridad sobre fuentes, objetivos y memoria.
+rica produzca mejor aprendizaje. Los admins conservan autoridad sobre fuentes y objetivos. La API
+de autoservicio permite inspeccionar, editar y borrar la memoria retenida; los controles visibles
+para el aprendiz siguen en el roadmap. Las pantallas generadas siguen limitadas y validadas.
 
 ## La tesis en una frase
 
 > SkillNet convierte conocimiento compartido en aprendizaje fundamentado y trazable que puede tomar
-> una forma distinta para cada persona.
+> formas distintas según el perfil y el estado de quien aprende.
