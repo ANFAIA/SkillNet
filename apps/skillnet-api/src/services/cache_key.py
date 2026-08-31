@@ -23,6 +23,8 @@ import uuid
 from collections.abc import Mapping
 from typing import Any
 
+from src.core.language import DEFAULT_LANGUAGE, normalize_language
+
 #: ``role_bucket`` is truncated to this many characters (§3.4).
 ROLE_BUCKET_MAX_LENGTH = 24
 
@@ -130,6 +132,7 @@ def cache_key_material(
     selection_policy_key: str = "",
     generation_policy_key: str = "",
     longitudinal_decision_digest: str = "",
+    language: str | None = None,
 ) -> str:
     """The exact pipe-joined string that gets hashed. Exposed for debugging."""
     parts = (
@@ -156,6 +159,16 @@ def cache_key_material(
         parts = (*parts, generation_policy_key)
     if longitudinal_decision_digest:
         parts = (*parts, longitudinal_decision_digest)
+    # Language joins the key only when it is not the default, for the same reason the
+    # legacy keys above are conditional: a render in the default language is produced by
+    # a byte-identical prompt (``with_language`` appends nothing for it), so adding a
+    # part for it would invalidate every cached screen in existence to describe input
+    # that did not change. A non-default language does change the prompt, and therefore
+    # has to get its own keyspace — without this, an English course serves the Spanish
+    # screen already cached for the same node.
+    explicit_language = normalize_language(language)
+    if explicit_language is not None and explicit_language != DEFAULT_LANGUAGE:
+        parts = (*parts, f"lang:{explicit_language}")
     return "|".join(parts)
 
 
@@ -179,6 +192,7 @@ def build_cache_key(
     selection_policy_key: str = "",
     generation_policy_key: str = "",
     longitudinal_decision_digest: str = "",
+    language: str | None = None,
 ) -> str:
     """``sha256`` of :func:`cache_key_material`, hex.
 
@@ -205,5 +219,6 @@ def build_cache_key(
         selection_policy_key=selection_policy_key,
         generation_policy_key=generation_policy_key,
         longitudinal_decision_digest=longitudinal_decision_digest,
+        language=language,
     )
     return hashlib.sha256(material.encode("utf-8")).hexdigest()

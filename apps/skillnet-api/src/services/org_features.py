@@ -14,6 +14,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from src.core.language import Language, normalize_language
+
 #: Key in ``organizations.settings``. Absent means "never chosen", which is not the same
 #: as ``False`` and is why the default lives here rather than in a column default.
 CHAT_GENERATIVE_UI = "chat_generative_ui"
@@ -37,4 +39,32 @@ def chat_generative_ui_enabled(org_settings: dict[str, Any] | None) -> bool:
     return org_settings.get(CHAT_GENERATIVE_UI) is not False
 
 
-__all__ = ["CHAT_GENERATIVE_UI", "chat_generative_ui_enabled"]
+#: Key in ``organizations.settings``. Absent means "never chosen", so the fallback in
+#: ``src.core.language`` decides — which is what every organization created before this
+#: existed gets, unchanged.
+ORG_LANGUAGE = "language"
+
+
+def org_language(org_settings: dict[str, Any] | None) -> Language | None:
+    """The language this organization generates in by default, if it chose one.
+
+    ``None`` rather than ``DEFAULT_LANGUAGE`` on purpose: the callers need to tell "this
+    organization asked for Spanish" from "nobody ever asked", because only the first one
+    should win over a language inferred from the source material. Collapsing the two here
+    would make every course built from an English document come out in Spanish.
+
+    An unrecognised value reads as "never chosen" instead of raising. This is a JSONB
+    column that a future admin form will write into, and a typo there should cost the
+    default, not a 500 on every generation.
+    """
+    if not org_settings:
+        return None
+    return normalize_language(org_settings.get(ORG_LANGUAGE))
+
+
+__all__ = [
+    "CHAT_GENERATIVE_UI",
+    "ORG_LANGUAGE",
+    "chat_generative_ui_enabled",
+    "org_language",
+]

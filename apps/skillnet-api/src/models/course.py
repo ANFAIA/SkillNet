@@ -19,6 +19,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from src.core.language import DEFAULT_LANGUAGE
 from src.models.base import Base, TimestampMixin, UUIDMixin
 
 if TYPE_CHECKING:
@@ -244,6 +245,17 @@ class Course(UUIDMixin, TimestampMixin, Base):
         nullable=False,
         server_default=CourseNavigationMode.FREE.value,
         default=CourseNavigationMode.FREE,
+    )
+    # What language this course is written in, and therefore the language every later
+    # generation for it has to come out in (migration 0037). It is stored and not
+    # inferred because the source material is only at hand while the course is being
+    # created: rendering a screen or answering as the tutor happens days later, and
+    # re-deriving the language from whatever text is nearby is exactly how an English
+    # course starts answering in Spanish halfway through. ``Text`` rather than an enum,
+    # like ``term_explanations.language``: a third language should not need an
+    # ``ALTER TYPE``.
+    language: Mapped[str] = mapped_column(
+        Text, nullable=False, server_default=DEFAULT_LANGUAGE, default=DEFAULT_LANGUAGE
     )
     # What this course does with the images embedded in its source document
     # (migration 0028). ``auto`` is the rule; the two overrides are policy escapes.

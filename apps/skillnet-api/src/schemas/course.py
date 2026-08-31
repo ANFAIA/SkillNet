@@ -6,6 +6,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from src.core.language import DEFAULT_LANGUAGE, Language
 from src.schemas.exercise import ExerciseRead
 
 
@@ -68,6 +69,13 @@ class CourseRead(BaseModel):
     #: opens a lesson once the previous one is finished; the per-node answer is
     #: ``NodeSummaryRead.available``, which is what a client should actually render.
     navigation_mode: Literal["free", "sequential"] = "free"
+    #: What language this course is written in, and therefore the language its later
+    #: generations come out in — screens, tutor answers, grading feedback. Chosen at
+    #: creation and editable afterwards, like ``tutor_style``; a client that offers the
+    #: choice should show this value and not the interface locale, because the two are
+    #: allowed to differ (reading an English course with a Spanish interface is a
+    #: legitimate thing to want).
+    language: Language = DEFAULT_LANGUAGE
     #: What this course does with the images embedded in its source document.
     #: ``auto`` is the rule (diagrams get rebuilt, screenshots get kept); the two
     #: overrides are policy escapes. Never asked at creation, edited afterwards.
@@ -92,6 +100,10 @@ class CourseCreate(BaseModel):
     source_document_id: uuid.UUID | None = None
     document_ids: list[uuid.UUID] | None = None
     folder_id: uuid.UUID | None = None
+    #: ``None`` means nobody asked, which is not the same as asking for Spanish: the
+    #: organization's default decides, and only then the fallback. Kept nullable for
+    #: exactly that reason — a required field with a default would erase the difference.
+    language: Language | None = None
 
     @field_validator("title")
     @classmethod
@@ -112,6 +124,10 @@ class CourseUpdate(BaseModel):
     tutor_style: Literal["socratic", "direct"] | None = None
     navigation_mode: Literal["free", "sequential"] | None = None
     image_source_policy: Literal["auto", "keep_original", "rebuild"] | None = None
+    #: Changing this does not retranslate what is already written: it decides the
+    #: language of what gets generated from now on. Retranslating a published course is
+    #: a different feature and would need its own run.
+    language: Language | None = None
 
     @field_validator("title")
     @classmethod
