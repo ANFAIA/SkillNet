@@ -7,6 +7,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from src.core.exceptions import ConflictError, NotFoundError, ValidationError
+from src.core.language import DEFAULT_LANGUAGE, Language
 from src.core.logging import get_logger
 from src.models import (
     ArtifactGeneratePolicy,
@@ -40,6 +41,7 @@ class CourseService:
         outcome: str | None = None,
         source_document_id: uuid.UUID | None = None,
         folder_id: uuid.UUID | None = None,
+        language: Language | None = None,
     ) -> Course:
         if folder_id is not None:
             folder = await CourseFolderRepository(self.repo.session).get_scoped(
@@ -55,6 +57,10 @@ class CourseService:
             outcome=outcome,
             source_document_id=source_document_id,
             folder_id=folder_id,
+            # ``None`` means the caller did not choose, and the column default answers.
+            # An explicit value is taken as written, ``'es'`` included: somebody who picks
+            # Spanish for a course built from an English document means it.
+            language=language or DEFAULT_LANGUAGE,
             status=ContentStatus.DRAFT,
         )
 
