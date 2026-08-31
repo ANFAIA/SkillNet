@@ -131,6 +131,22 @@ keys, set `LLM_MODEL=fixture/local` and `EMBEDDING_MODEL=fixture/local` in `.env
 - **State:** TanStack Query for server data. `useState` for local UI state. No global store unless explicitly needed
 - **API calls:** All through TanStack Query hooks. No raw fetch in components
 
+### Human languages
+
+Code, comments, `README.md`, `RUNNING.md` and `.env.example` are written in **English**.
+
+Two things are deliberately not:
+
+- **`README.es.md`** is the Spanish translation of the README, and the only translated
+  document in the repo. If you change one README, change the other: they link to each
+  other, and a translation that has drifted is worse than no translation.
+- **What the product generates** follows the *learner*, not the repo. The language of a
+  course is stored on the course (`courses.language`) and resolved in one place,
+  `src/services/language_policy.py`. Never hardcode a language into a prompt, and read
+  `src/llm/prompts/language.py` before touching one — the recorded LLM fixtures are
+  keyed on the hash of the prompt text, so an innocent edit invalidates the offline test
+  suite.
+
 ## Git workflow
 
 - Branch from `main`

@@ -20,6 +20,10 @@
   <a href="https://github.com/ANFAIA/SkillNet">GitHub</a>
 </p>
 
+<p align="center">
+  <strong>English</strong> · <a href="README.es.md">Español</a>
+</p>
+
 SkillNet is an open-source adaptive learning system. Start with a topic or existing material and it
 builds a structured course that can present the same knowledge differently to each learner.
 
