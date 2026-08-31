@@ -32,6 +32,7 @@ from src.llm.client import LLMService, resolve_llm_config
 from src.services.media.grounding import GroundedBundle
 from src.services.media.slides.spec import Slide, SlideDeck
 from src.services.media.subject import MediaSubject, build_user_context, topic_rule
+from src.llm.prompts.language import language_name
 
 logger = get_logger(__name__)
 
@@ -140,7 +141,7 @@ def build_prompts(
     omission; passing ``None`` is allowed but is then a deliberate statement, and it makes
     an empty bundle fatal (:class:`~src.services.media.subject.MediaContextError`).
     """
-    lang_name = "espanol" if language.startswith("es") else language
+    lang_name = language_name(language)
     n = len(deck.slides)
 
     valid_ids = bundle.citation_ids()

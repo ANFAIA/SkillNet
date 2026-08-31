@@ -34,6 +34,7 @@ from src.core.logging import get_logger
 from src.llm.client import LLMService, resolve_llm_config
 from src.services.media.grounding import GroundedBundle
 from src.services.media.subject import MediaSubject, build_user_context, topic_rule
+from src.llm.prompts.language import language_name
 
 logger = get_logger(__name__)
 
@@ -202,7 +203,7 @@ def build_prompts(
     an empty bundle fatal (:class:`~src.services.media.subject.MediaContextError`) instead
     of yielding a deck about whatever the model felt like.
     """
-    lang_name = "espanol" if language.startswith("es") else language
+    lang_name = language_name(language)
 
     valid_ids = bundle.citation_ids()
     ids_line = (
