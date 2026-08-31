@@ -21,7 +21,22 @@ from src.models import Organization
 
 
 async def _org_settings(db: DBSession) -> dict[str, Any]:
-    result = await db.execute(select(Organization).limit(1))
+    """The deployment's organization settings, for resolving the LLM provider.
+
+    Unscoped on purpose: these dependencies exist to answer "which provider does this
+    deployment use", and the provider is a property of the deployment (see
+    ``services/settings_service.py``), not of whoever is asking. What is *not* on purpose
+    is picking an arbitrary row when more than one organization exists — the public demo
+    mints one per visit. ``created_at`` makes the pick deterministic and lands it on the
+    organization ``bootstrap.py`` created, which is the one that actually holds the
+    deployment's configuration.
+
+    Anything genuinely per-organization must not be read here. It needs the caller's
+    ``org_id``, the way ``course_orchestration._org_settings`` takes one.
+    """
+    result = await db.execute(
+        select(Organization).order_by(Organization.created_at, Organization.id).limit(1)
+    )
     org = result.scalar_one_or_none()
     return dict(org.settings) if org and org.settings else {}
 

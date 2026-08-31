@@ -164,18 +164,28 @@ def _node_to_payload(node: Any, prerequisites: list[uuid.UUID]) -> dict[str, Any
     }
 
 
-async def _org_settings(db: Any) -> dict[str, Any]:
+async def _org_settings(db: Any, org_id: uuid.UUID) -> dict[str, Any]:
+    """This organization's settings — the one creating the course, not just any one.
+
+    It used to be ``select(Organization).limit(1)``, which is correct exactly as long as
+    the deployment has one organization, and ``bootstrap.py`` does create exactly one. The
+    public demo does not: it mints an ephemeral organization per visit, so an unfiltered
+    ``limit(1)`` with no ``ORDER BY`` returns whichever row Postgres feels like. That was
+    harmless while these settings only carried the LLM provider — every visit resolves the
+    same provider from the environment — and stops being harmless the moment they carry
+    anything per-organization, such as the language. Two simultaneous visits could swap it.
+    """
     from sqlalchemy import select
 
-    result = await db.execute(select(Organization).limit(1))
+    result = await db.execute(select(Organization).where(Organization.id == org_id))
     org = result.scalar_one_or_none()
     return dict(org.settings) if org and org.settings else {}
 
 
-async def _generation_llm(db: Any):
+async def _generation_llm(db: Any, org_id: uuid.UUID):
     """The generation-purpose LLM, resolved from org settings exactly like the dep."""
     return maybe_fixture_llm(
-        resolve_llm_config(await _org_settings(db), purpose="generation")
+        resolve_llm_config(await _org_settings(db, org_id), purpose="generation")
     )
 
 
@@ -302,7 +312,7 @@ async def create_course_end_to_end(
         result.schema_version = schema_version
         result.node_count = len(nodes)
         result.warnings.extend(snapshot.warnings)
-        llm = await _generation_llm(db)
+        llm = await _generation_llm(db, org_id)
 
     # Reuse the runner's retry/supersede: max_attempts>1 so a flaky-DeepSeek node
     # is retried instead of being left as a permanent surprise on the course.
