@@ -6,8 +6,9 @@ import {
   type AccentColor,
 } from '../lib/accent-themes'
 import { DEFAULT_UI_PRESET, type UiPreset } from '../lib/ui-presets'
+import { type Locale, localeFromUrl, resolveInitialLocale } from '../i18n/locale'
 
-export type Locale = 'es' | 'en'
+export type { Locale }
 export type Theme = 'light' | 'dark' | 'system'
 
 interface PreferencesState {
@@ -50,7 +51,7 @@ interface PreferencesState {
 export const usePreferences = create<PreferencesState>()(
   persist(
     (set) => ({
-      locale: 'es',
+      locale: resolveInitialLocale(),
       theme: 'system',
       accentColor: DEFAULT_ACCENT_COLOR,
       customAccent: DEFAULT_CUSTOM_ACCENT,
@@ -70,6 +71,19 @@ export const usePreferences = create<PreferencesState>()(
       setMascotaEnabled: (enabled) => set({ mascotaEnabled: enabled }),
       setMascotaSpeaks: (speaks) => set({ mascotaSpeaks: speaks }),
     }),
-    { name: 'skillnet-preferences' },
+    {
+      name: 'skillnet-preferences',
+      // Locale is the one preference a URL may override. `persist` normally hands the
+      // stored value the last word, which is right for every other key here — but it
+      // would make the landing site's `?lang=en` link into the demo a no-op for anyone
+      // who has ever loaded the app before, and that link is the only way an English
+      // reviewer gets an English demo. So: defaults, then what was stored, then an
+      // explicit `?lang=` on top. Full cascade documented in `i18n/locale.ts`.
+      merge: (persisted, current) => {
+        const merged = { ...current, ...(persisted as Partial<PreferencesState> | undefined) }
+        const requested = localeFromUrl()
+        return requested ? { ...merged, locale: requested } : merged
+      },
+    },
   ),
 )
