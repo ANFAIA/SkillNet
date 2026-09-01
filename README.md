@@ -15,8 +15,6 @@
 <p align="center">
   <a href="https://skillnet.es"><img src="https://img.shields.io/badge/Website-SkillNet.es-16a34a" alt="SkillNet website"></a>
   <a href="https://skillnet.es/docs/"><img src="https://img.shields.io/badge/Docs-Read-2563eb" alt="SkillNet documentation"></a>
-  <a href="https://github.com/ANFAIA/SkillNet/actions/workflows/ci.yml"><img src="https://github.com/ANFAIA/SkillNet/actions/workflows/ci.yml/badge.svg?branch=main&amp;event=push" alt="CI status"></a>
-  <a href="https://github.com/ANFAIA/SkillNet/actions/workflows/docker.yml"><img src="https://github.com/ANFAIA/SkillNet/actions/workflows/docker.yml/badge.svg?branch=main&amp;event=push" alt="Docker boot status"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-2f6fed" alt="Apache 2.0 license"></a>
 </p>
 
