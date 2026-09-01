@@ -27,6 +27,21 @@
   <img src="assets/readme/skillnet-learning-flow.png" alt="An idea or source becomes a structured SkillNet course and different learning experiences" width="100%">
 </p>
 
+<h2 align="center">Try it yourself</h2>
+
+<p align="center">
+  Turn an idea or your own sources into a course and explore the learning experience.
+</p>
+
+<p align="center">
+  <a href="https://demo.skillnet.es/entrar?lang=en"><img src="https://img.shields.io/badge/Open_the_live_demo-1c8853?style=for-the-badge&amp;logo=googlechrome&amp;logoColor=white" alt="Open the SkillNet live demo"></a>
+  <a href="RUNNING.md"><img src="https://img.shields.io/badge/Run_SkillNet_locally-2563eb?style=for-the-badge&amp;logo=docker&amp;logoColor=white" alt="Run SkillNet locally"></a>
+</p>
+
+<p align="center">
+  <a href="https://skillnet.es/docs/">Read the documentation</a>
+</p>
+
 ## Start with an idea or bring your sources
 
 Learning does not always begin inside an organization or an existing document. Sometimes it starts
