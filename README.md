@@ -25,7 +25,7 @@
 </p>
 
 <p align="center">
-  <img src="assets/readme/skillnet-two-experiences.png" alt="The same SkillNet lesson presented through two learning experiences" width="100%">
+  <img src="assets/readme/skillnet-learning-flow.png" alt="An idea or source becomes a structured SkillNet course and different learning experiences" width="100%">
 </p>
 
 ## Start with an idea or bring your sources
