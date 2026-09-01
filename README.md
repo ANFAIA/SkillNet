@@ -24,10 +24,6 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-2f6fed.svg" alt="Apache 2.0"></a>
 </p>
 
-<p align="center">
-  <img src="assets/readme/learning-flow.svg" alt="An idea or source becomes a course, grounded tutor and adaptive learning experience" width="100%">
-</p>
-
 ## Start with an idea — or bring your sources
 
 Learning does not always begin inside an organization or an existing document. Sometimes it starts
