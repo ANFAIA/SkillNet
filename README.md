@@ -27,7 +27,7 @@
   <img src="assets/readme/skillnet-learning-flow.png" alt="An idea or source becomes a structured SkillNet course and different learning experiences" width="100%">
 </p>
 
-## Start with an idea or bring your sources
+## What is SkillNet?
 
 Learning does not always begin inside an organization or an existing document. Sometimes it starts
 with a topic you want to understand. Sometimes the knowledge already lives in PDFs, manuals, notes
@@ -38,7 +38,7 @@ Markdown and TXT material. It then builds a structured course with lessons, exer
 learning media. Uploaded material remains the grounding source. Courses that begin from an idea
 preserve the provenance of their generated source instead of presenting it as uploaded evidence.
 
-## One foundation, different ways to learn
+## How it works
 
 The knowledge, objectives and evaluation criteria stay stable. The explanation, example, activity,
 medium and interface can change with the learner's preferences, experience, current state and
@@ -54,7 +54,7 @@ Responding to a request in the moment is not the same as learning what has helpe
 time. SkillNet treats those signals as revisable evidence, not fixed “learning styles” and not a
 claim that the system already knows the learner perfectly.
 
-## What SkillNet does today
+## What you can do today
 
 - **Creates complete courses** from a topic or PDF, DOCX, Markdown and TXT sources.
 - **Answers with a course tutor** that retrieves enrolled sources and returns provenance.
@@ -77,8 +77,6 @@ claim that the system already knows the learner perfectly.
 <p align="center">
   <a href="assets/readme/skillnet-product-demo-en.mp4">Watch the full 46 second walkthrough</a>
 </p>
-
-<h2 align="center">Try it yourself</h2>
 
 <p align="center">
   Turn an idea or your own sources into a course and explore the learning experience.
@@ -104,7 +102,7 @@ docker compose exec api python -m src.seed_learning_demo   # optional public dem
 Open <http://localhost:3000>. The full [running guide](RUNNING.md) covers provider configuration,
 keyless fixtures, demo data and troubleshooting.
 
-## Explore
+## Documentation
 
 - [Vision](docs/design/vision.md): why learning software should adapt to people.
 - [Product](docs/design/product.md): current scope and product direction.

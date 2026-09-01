@@ -27,7 +27,7 @@
   <img src="assets/readme/skillnet-learning-flow.png" alt="Una idea o fuente se convierte en un curso estructurado de SkillNet y distintas experiencias de aprendizaje" width="100%">
 </p>
 
-## Empieza con una idea o aporta tus fuentes
+## Qué es SkillNet
 
 El aprendizaje no siempre comienza dentro de una organización ni en un documento existente. A veces
 empieza con un tema que quieres comprender. Otras veces, el conocimiento ya vive en PDF, manuales,
@@ -39,7 +39,7 @@ tutor y medios de aprendizaje. El material subido permanece como fuente fundamen
 que nacen de una idea conservan la procedencia generada por el modelo y no la presentan como
 evidencia aportada.
 
-## Una base, distintas formas de aprender
+## Cómo funciona
 
 El conocimiento, los objetivos y los criterios de evaluación permanecen estables. La explicación,
 el ejemplo, la actividad, el medio y la interfaz pueden cambiar según las preferencias, experiencia,
@@ -55,7 +55,7 @@ Responder a una petición del momento no es lo mismo que aprender qué le ha ayu
 lo largo del tiempo. SkillNet trata esas señales como evidencia revisable, no como «estilos de
 aprendizaje» fijos ni como afirmación de que el sistema ya conoce perfectamente a la persona.
 
-## Qué hace SkillNet hoy
+## Qué puedes hacer hoy
 
 - **Crea cursos completos** desde un tema o fuentes PDF, DOCX, Markdown y TXT.
 - **Responde mediante un tutor del curso** que recupera las fuentes matriculadas y devuelve
@@ -81,8 +81,6 @@ aprendizaje» fijos ni como afirmación de que el sistema ya conoce perfectament
   <a href="assets/readme/skillnet-product-demo-es.mp4">Ver el recorrido completo de 46 segundos</a>
 </p>
 
-<h2 align="center">Pruébalo tú mismo</h2>
-
 <p align="center">
   Convierte una idea o tus propias fuentes en un curso y explora la experiencia de aprendizaje.
 </p>
@@ -107,7 +105,7 @@ docker compose exec api python -m src.seed_learning_demo   # demo pública opcio
 Abre <http://localhost:3000>. La [guía de arranque](RUNNING.md) explica la configuración de
 proveedores, los fixtures sin clave, los datos de demostración y la resolución de problemas.
 
-## Explorar
+## Documentación
 
 - [Visión](docs/design/vision.md): por qué el software de aprendizaje debería adaptarse a las personas.
 - [Producto](docs/design/product.md): alcance actual y dirección del producto.
