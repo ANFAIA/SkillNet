@@ -27,31 +27,6 @@
   <img src="assets/readme/skillnet-learning-flow.png" alt="An idea or source becomes a structured SkillNet course and different learning experiences" width="100%">
 </p>
 
-<h2 align="center">See SkillNet in action</h2>
-
-<p align="center">
-  <a href="assets/readme/skillnet-product-demo-en.mp4"><img src="assets/readme/skillnet-product-preview-en.gif" alt="SkillNet product walkthrough showing course creation, practice, Curio, learning materials and progress" width="100%"></a>
-</p>
-
-<p align="center">
-  <a href="assets/readme/skillnet-product-demo-en.mp4">Watch the full 46 second walkthrough</a>
-</p>
-
-<h2 align="center">Try it yourself</h2>
-
-<p align="center">
-  Turn an idea or your own sources into a course and explore the learning experience.
-</p>
-
-<p align="center">
-  <a href="https://demo.skillnet.es/entrar?lang=en"><img src="https://img.shields.io/badge/Open_the_live_demo-1c8853?style=for-the-badge&amp;logo=googlechrome&amp;logoColor=white" alt="Open the SkillNet live demo"></a>
-  <a href="RUNNING.md"><img src="https://img.shields.io/badge/Run_SkillNet_locally-2563eb?style=for-the-badge&amp;logo=docker&amp;logoColor=white" alt="Run SkillNet locally"></a>
-</p>
-
-<p align="center">
-  <a href="https://skillnet.es/docs/">Read the documentation</a>
-</p>
-
 ## Start with an idea or bring your sources
 
 Learning does not always begin inside an organization or an existing document. Sometimes it starts
@@ -92,6 +67,31 @@ claim that the system already knows the learner perfectly.
   to classes, teams and larger deployments.
 - **Connects to other tools** through its REST API and optional A2A and MCP adapters.
 - **Runs on your infrastructure** with Docker and an OpenAI-compatible model provider.
+
+<h2 align="center">See SkillNet in action</h2>
+
+<p align="center">
+  <a href="assets/readme/skillnet-product-demo-en.mp4"><img src="assets/readme/skillnet-product-preview-en.gif" alt="SkillNet product walkthrough showing course creation, practice, Curio, learning materials and progress" width="100%"></a>
+</p>
+
+<p align="center">
+  <a href="assets/readme/skillnet-product-demo-en.mp4">Watch the full 46 second walkthrough</a>
+</p>
+
+<h2 align="center">Try it yourself</h2>
+
+<p align="center">
+  Turn an idea or your own sources into a course and explore the learning experience.
+</p>
+
+<p align="center">
+  <a href="https://demo.skillnet.es/entrar?lang=en"><img src="https://img.shields.io/badge/Open_the_live_demo-1c8853?style=for-the-badge&amp;logo=googlechrome&amp;logoColor=white" alt="Open the SkillNet live demo"></a>
+  <a href="RUNNING.md"><img src="https://img.shields.io/badge/Run_SkillNet_locally-2563eb?style=for-the-badge&amp;logo=docker&amp;logoColor=white" alt="Run SkillNet locally"></a>
+</p>
+
+<p align="center">
+  <a href="https://skillnet.es/docs/">Read the documentation</a>
+</p>
 
 ## Run it locally
 

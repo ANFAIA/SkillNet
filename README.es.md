@@ -27,31 +27,6 @@
   <img src="assets/readme/skillnet-learning-flow.png" alt="Una idea o fuente se convierte en un curso estructurado de SkillNet y distintas experiencias de aprendizaje" width="100%">
 </p>
 
-<h2 align="center">Mira SkillNet en acción</h2>
-
-<p align="center">
-  <a href="assets/readme/skillnet-product-demo-es.mp4"><img src="assets/readme/skillnet-product-preview-es.gif" alt="Recorrido de SkillNet mostrando la creación del curso, práctica, Curio, materiales y progreso" width="100%"></a>
-</p>
-
-<p align="center">
-  <a href="assets/readme/skillnet-product-demo-es.mp4">Ver el recorrido completo de 46 segundos</a>
-</p>
-
-<h2 align="center">Pruébalo tú mismo</h2>
-
-<p align="center">
-  Convierte una idea o tus propias fuentes en un curso y explora la experiencia de aprendizaje.
-</p>
-
-<p align="center">
-  <a href="https://demo.skillnet.es/entrar?lang=es"><img src="https://img.shields.io/badge/Abrir_la_demo-1c8853?style=for-the-badge&amp;logo=googlechrome&amp;logoColor=white" alt="Abrir la demo de SkillNet"></a>
-  <a href="RUNNING.md"><img src="https://img.shields.io/badge/Ejecutar_SkillNet_en_local-2563eb?style=for-the-badge&amp;logo=docker&amp;logoColor=white" alt="Ejecutar SkillNet en local"></a>
-</p>
-
-<p align="center">
-  <a href="https://skillnet.es/docs/">Leer la documentación</a>
-</p>
-
 ## Empieza con una idea o aporta tus fuentes
 
 El aprendizaje no siempre comienza dentro de una organización ni en un documento existente. A veces
@@ -95,6 +70,31 @@ aprendizaje» fijos ni como afirmación de que el sistema ya conoce perfectament
   personal hasta clases, equipos y despliegues mayores.
 - **Se conecta con otras herramientas** mediante su API REST y adaptadores opcionales A2A y MCP.
 - **Se ejecuta en tu infraestructura** con Docker y un proveedor compatible con OpenAI.
+
+<h2 align="center">Mira SkillNet en acción</h2>
+
+<p align="center">
+  <a href="assets/readme/skillnet-product-demo-es.mp4"><img src="assets/readme/skillnet-product-preview-es.gif" alt="Recorrido de SkillNet mostrando la creación del curso, práctica, Curio, materiales y progreso" width="100%"></a>
+</p>
+
+<p align="center">
+  <a href="assets/readme/skillnet-product-demo-es.mp4">Ver el recorrido completo de 46 segundos</a>
+</p>
+
+<h2 align="center">Pruébalo tú mismo</h2>
+
+<p align="center">
+  Convierte una idea o tus propias fuentes en un curso y explora la experiencia de aprendizaje.
+</p>
+
+<p align="center">
+  <a href="https://demo.skillnet.es/entrar?lang=es"><img src="https://img.shields.io/badge/Abrir_la_demo-1c8853?style=for-the-badge&amp;logo=googlechrome&amp;logoColor=white" alt="Abrir la demo de SkillNet"></a>
+  <a href="RUNNING.md"><img src="https://img.shields.io/badge/Ejecutar_SkillNet_en_local-2563eb?style=for-the-badge&amp;logo=docker&amp;logoColor=white" alt="Ejecutar SkillNet en local"></a>
+</p>
+
+<p align="center">
+  <a href="https://skillnet.es/docs/">Leer la documentación</a>
+</p>
 
 ## Ejecutar en local
 
