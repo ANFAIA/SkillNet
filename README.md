@@ -27,6 +27,16 @@
   <img src="assets/readme/skillnet-learning-flow.png" alt="An idea or source becomes a structured SkillNet course and different learning experiences" width="100%">
 </p>
 
+<h2 align="center">See SkillNet in action</h2>
+
+<p align="center">
+  <a href="assets/readme/skillnet-product-demo-en.mp4"><img src="assets/readme/skillnet-product-preview-en.gif" alt="SkillNet product walkthrough showing course creation, practice, Curio, learning materials and progress" width="100%"></a>
+</p>
+
+<p align="center">
+  <a href="assets/readme/skillnet-product-demo-en.mp4">Watch the full 46 second walkthrough</a>
+</p>
+
 <h2 align="center">Try it yourself</h2>
 
 <p align="center">
