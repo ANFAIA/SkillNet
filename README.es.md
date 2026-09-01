@@ -77,22 +77,8 @@ aprendizaje» fijos ni como afirmación de que el sistema ya conoce perfectament
   <a href="assets/readme/skillnet-product-demo-es.mp4"><img src="assets/readme/skillnet-product-preview-es.gif" alt="Recorrido de SkillNet mostrando la creación del curso, práctica, Curio, materiales y progreso" width="100%"></a>
 </p>
 
-<p align="center">
-  <a href="assets/readme/skillnet-product-demo-es.mp4">Ver el recorrido completo de 46 segundos</a>
-</p>
-
-<p align="center">
-  Convierte una idea o tus propias fuentes en un curso y explora la experiencia de aprendizaje.
-</p>
-
-<p align="center">
-  <a href="https://demo.skillnet.es/entrar?lang=es"><img src="https://img.shields.io/badge/Abrir_la_demo-1c8853?style=for-the-badge&amp;logo=googlechrome&amp;logoColor=white" alt="Abrir la demo de SkillNet"></a>
-  <a href="RUNNING.md"><img src="https://img.shields.io/badge/Ejecutar_SkillNet_en_local-2563eb?style=for-the-badge&amp;logo=docker&amp;logoColor=white" alt="Ejecutar SkillNet en local"></a>
-</p>
-
-<p align="center">
-  <a href="https://skillnet.es/docs/">Leer la documentación</a>
-</p>
+Prueba SkillNet en la [demo pública](https://demo.skillnet.es/entrar?lang=es),
+[ejecútalo en local](RUNNING.md) o [consulta la documentación](https://skillnet.es/docs/).
 
 ## Ejecutar en local
 
