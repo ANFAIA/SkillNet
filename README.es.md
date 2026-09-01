@@ -15,7 +15,7 @@
 <p align="center">
   <a href="https://skillnet.es"><img src="https://img.shields.io/badge/Web-SkillNet.es-1c8853?style=flat-square&amp;logo=googlechrome&amp;logoColor=white" alt="Web de SkillNet"></a>
   <a href="https://skillnet.es/docs/"><img src="https://img.shields.io/badge/Documentación-Leer-2563eb?style=flat-square&amp;logo=readthedocs&amp;logoColor=white" alt="Documentación de SkillNet"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/Licencia-Apache%202.0-173f5f?style=flat-square&amp;logo=apache&amp;logoColor=white" alt="Licencia Apache 2.0"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/Licencia-Apache%202.0-1c8853?style=flat-square&amp;logo=apache&amp;logoColor=white" alt="Licencia Apache 2.0"></a>
 </p>
 
 <p align="center">
