@@ -1,175 +1,118 @@
 <p align="center">
-  <img src="assets/logo.png" alt="SkillNet" width="160">
+  <img src="assets/logo.png" alt="SkillNet" width="104">
 </p>
 
-<h1 align="center">SkillNet</h1>
+<h1 align="center">Learning experiences, generated on the fly</h1>
 
 <p align="center">
-  <strong>SkillNet turns an idea or source into a course whose explanations, activities and interface can change with the learner's profile and state.</strong>
+  <strong>SkillNet turns an idea or source into a course, a grounded tutor and an adaptive learning interface.</strong>
+</p>
+
+<p align="center">
+  For one learner, a class, a team or an organization.
+</p>
+
+<p align="center">
+  <a href="https://skillnet.es"><strong>Website</strong></a> ·
+  <a href="https://skillnet.es/docs/">Documentation</a> ·
+  <a href="RUNNING.md">Run locally</a> ·
+  <a href="README.es.md">Español</a>
 </p>
 
 <p align="center">
   <a href="https://github.com/ANFAIA/SkillNet/actions/workflows/ci.yml"><img src="https://github.com/ANFAIA/SkillNet/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-blue.svg" alt="License: Apache 2.0"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-2f6fed.svg" alt="Apache 2.0"></a>
 </p>
 
 <p align="center">
-  <a href="https://skillnet.es">Website</a> ·
-  <a href="https://skillnet.es/docs/">Documentation</a> ·
-  <a href="RUNNING.md">Quick start</a> ·
-  <a href="https://github.com/ANFAIA/SkillNet">GitHub</a>
+  <img src="assets/readme/learning-flow.svg" alt="An idea or source becomes a course, grounded tutor and adaptive learning experience" width="100%">
 </p>
 
-<p align="center">
-  <strong>English</strong> · <a href="README.es.md">Español</a>
-</p>
+## Start with an idea — or bring your sources
 
-SkillNet is an open-source system for turning knowledge into training that can change shape for the
-person learning. It can run as a shared organization workspace, which can be used by a team or
-class, or as an individual learning workspace. It is self-hosted and licensed under Apache 2.0.
+Learning does not always begin inside an organization or an existing document. Sometimes it starts
+with a topic you want to understand. Sometimes the knowledge already lives in PDFs, manuals, notes
+or conversations.
 
-**[Start here: run SkillNet locally →](RUNNING.md)**
+SkillNet supports both paths. Describe what you want to learn or teach, or upload PDF, DOCX,
+Markdown and TXT material. It then builds a structured course with lessons, exercises, a tutor and
+learning media. Uploaded material remains the grounding source; idea-based courses preserve their
+model-generated provenance instead of presenting it as uploaded evidence.
 
-## Why SkillNet exists
+## One foundation, different ways to learn
 
-In many small and medium organizations, training depends on the people who already know how things
-work. Every new hire makes someone stop their regular work to explain the same processes again.
-Documentation may exist, but it is rarely a complete learning experience, and the organization has
-little traceability over who knows what, where the gaps are, or who could help someone else.
+The knowledge, objectives and evaluation criteria stay stable. The explanation, example, activity,
+medium and interface can change with the learner's preferences, experience, current state and
+bounded interaction signals.
 
-SkillNet creates another channel for that knowledge. It turns an idea or existing source material
-into a structured course, a course-scoped tutor that can retrieve from those sources, learning
-activities and a record of progress and skills.
-
-## One source, a complete learning path
-
-You can describe what you want to teach or upload PDF, DOCX, Markdown or TXT material. Uploaded
-material remains the grounding source. When a course starts from an idea, SkillNet records a
-clearly marked model-generated source and its provenance before building the course. That path is
-not equivalent to grounding in uploaded organization material.
-
-```text
-idea or source material
-        → grounded course knowledge
-        → structure, lessons and exercises
-        → tutor and learning media
-        → attempts, progress and skills
-```
-
-For course- or source-specific questions, the tutor retrieves from enrolled material and returns
-provenance. General questions can be answered in general mode without course citations. The
-learning surface can combine text with components such as worked examples, diagrams, flashcards,
-practice activities, audio and generated media when the corresponding provider is configured.
-
-## The same knowledge, a different path
-
-SkillNet separates what must remain stable from what can change for the learner:
-
-| Stable contract | Adaptive experience |
+| The learning contract | The experience can adapt |
 | --- | --- |
-| knowledge, objectives, evidence and evaluation criteria | explanation, example, activity, support, medium and interface |
+| Knowledge and sources | Explanations and examples |
+| Objectives and evidence | Practice and support |
+| Evaluation criteria | Medium, sequence and interface |
 
-A validated dynamic course can use the learner's role, declared preferences, experience level,
-current node state and bounded longitudinal interaction signals to choose an experience. Learners
-with equivalent inputs may share a render. These signals are revisable evidence, not fixed
-"learning styles" and not a claim that the system already knows the person perfectly.
+Responding to a request in the moment is not the same as learning what has helped a person over
+time. SkillNet treats those signals as revisable evidence—not fixed “learning styles” and not a
+claim that the system already knows the learner perfectly.
 
-This distinction matters: responding to what someone asks now is not the same as knowing what has
-helped them over time. Editable learner memory currently personalizes the tutor. Lesson generation
-uses declared preferences, learner state and bounded event projections; using free-form memory to
-steer shared lesson renders remains future work.
+## What SkillNet does today
 
-## How it works
+- **Creates complete courses** from a topic or PDF, DOCX, Markdown and TXT sources.
+- **Answers with a course tutor** that retrieves enrolled sources and returns provenance.
+- **Composes learning experiences** with [OpenUI](https://github.com/thesysdev/openui) and a
+  supported, version-pinned subset of [Didact](https://github.com/JoseEstevez520/Didact).
+- **Generates learning media** such as podcasts, infographics, slide decks and narrated videos when
+  the corresponding providers are configured.
+- **Records progress and skills** through enrollments, attempts, mastery and explicit verification.
+- **Works at different scales** through individual and organization workspaces, from personal study
+  to classes, teams and larger deployments.
+- **Connects to other tools** through its REST API and optional A2A and MCP adapters.
+- **Runs on your infrastructure** with Docker and an OpenAI-compatible model provider.
 
-```mermaid
-graph LR
-    sources["Idea · documents · existing knowledge"] --> course["Grounded course"]
-    course --> tutor["Tutor with sources"]
-    course --> runtime["OpenUI + Didact"]
-    runtime --> learner["Learning experience"]
-    learner --> evidence["Attempts · progress · skills"]
-    evidence --> runtime
-    evidence --> talent["Talent view"]
-```
-
-[OpenUI](https://github.com/thesysdev/openui) lets the model describe an interface through a
-controlled language instead of inventing the application from scratch. [Didact](https://github.com/JoseEstevez520/Didact)
-provides the educational components that SkillNet can compose. The current runtime uses a supported,
-version-pinned subset of Didact. Open-ended interface generation remains research.
-
-## What is available now
-
-- Create a course from a topic or from PDF, DOCX, Markdown or TXT material.
-- Generate a course structure, grounded lessons, exercises and practice.
-- Deliver static courses and opt individual courses into the dynamic path.
-- Review and validate dynamic course schemas before learner delivery.
-- Ask course-specific questions through a tutor that retrieves sources and returns provenance.
-- Compose learning screens with OpenUI and a supported subset of the Didact catalog.
-- Generate podcasts, infographics, slide decks and narrated slide videos asynchronously when the
-  required AI, image and TTS providers are configured.
-- Record enrollments, attempts, progress and mastery, plus skill levels from course mastery or
-  explicit verification.
-- Explore people, courses and recorded skills through the talent surfaces.
-- Choose an organization or individual workspace at first setup.
-- Create courses and query skills through the UI and external REST API; optional A2A and MCP
-  adapters use the same API and start through their Compose profiles.
-- Run locally or self-host with Docker and an OpenAI-compatible model provider.
-
-## What is still being validated
+<details>
+<summary><strong>Current boundaries</strong></summary>
 
 The controlled runtime can already produce different experiences for different learner profiles
-and states, but educational effectiveness and the quality of each adaptation still need evidence.
-Using free-form learner memory in lesson generation, proactive adaptation, automatic synchronization
-with changed sources and fully open-ended generated interfaces remain later directions, not current
+and states. Educational effectiveness and the quality of each adaptation still need more evidence.
+Free-form memory steering shared lesson renders, proactive adaptation, automatic synchronization
+when sources change and fully open-ended generated interfaces remain later directions—not current
 promises.
+
+</details>
+
+## Run it locally
+
+```bash
+cp .env.example .env
+docker compose up -d --build
+docker compose exec api python -m src.seed_learning_demo   # optional public demo
+```
+
+Open <http://localhost:3000>. The full [running guide](RUNNING.md) covers provider configuration,
+keyless fixtures, demo data and troubleshooting.
+
+## Explore
+
+- [Vision](docs/design/vision.md) — why learning software should adapt to people.
+- [Product](docs/design/product.md) — current scope and product direction.
+- [Roadmap](docs/ROADMAP.md) — the next four priorities.
+- [ANFAIA release snapshot](docs/releases/2026-09-01-anfaia.md) — what this version contains.
+- [OpenUI adoption](docs/design/openui-adoption.md) — the controlled GenUI runtime.
+- [Didact integration](docs/design/didact-integration.md) — how learning components enter SkillNet.
+- [Contributing](CONTRIBUTING.md) — development setup, checks and conventions.
 
 ## Ecosystem
 
-SkillNet is the main project. The surrounding repositories explore parts of the same direction:
-
-- [Didact](https://github.com/JoseEstevez520/Didact) — educational components used by SkillNet.
-- [OpenUI](https://github.com/thesysdev/openui) — the current generated-interface layer.
-- [mcp-md-reader](https://github.com/JoseEstevez520/mcp-md-reader) — structural Markdown reading for agent workflows.
-- [SkillNet MCP](packages/skillnet-mcp/) — use SkillNet from MCP-compatible chats and agents.
-- [A2TL-Web](https://github.com/JoseEstevez520/a2tl-web) — earlier research into compact generated interfaces.
-- [A2TL-Video](https://github.com/JoseEstevez520/a2tl-video) — related work for agent-generated video.
-- [Curio](https://github.com/JoseEstevez520/curio) — contextual reading and explanation research.
-- [DBP](https://github.com/JoseEstevez520/DBP) — related work on data boundaries between agents.
-
-These projects are related at different levels. They are not all dependencies of the current
-SkillNet runtime.
-
-## Start here
-
-The complete [running guide](RUNNING.md) covers setup, demo data, configuration, keyless fixtures
-and troubleshooting.
-
-```bash
-cp .env.example .env                      # set the two secrets, then choose API, local model or fixtures
-docker compose up -d --build
-docker compose exec api python -m src.seed_learning_demo   # optional: loads the public demo
-```
-
-Then open <http://localhost:3000>. The repository also includes a keyless fixture mode for local
-experiments; see [`RUNNING.md`](RUNNING.md) for the available options.
-
-## Explore the project
-
-- [`docs/ROADMAP.md`](docs/ROADMAP.md) — current baseline, active priorities and later horizons.
-- [`docs/releases/2026-09-01-anfaia.md`](docs/releases/2026-09-01-anfaia.md) — the ANFAIA product snapshot behind this version.
-- [`docs/design/vision.md`](docs/design/vision.md) — the ideas behind the product.
-- [`docs/design/product.md`](docs/design/product.md) — current scope and product direction.
-- [`docs/design/openui-adoption.md`](docs/design/openui-adoption.md) — how generated interfaces are evaluated and integrated.
-- [`docs/design/didact-integration.md`](docs/design/didact-integration.md) — how Didact components enter SkillNet.
-- [`docs/research/generative-ui/`](docs/research/generative-ui/) — experiments with generated interfaces.
-- [`docs/research/post-markdown/`](docs/research/post-markdown/) — how agents read existing documentation.
-
-## Contributing
-
-[`CONTRIBUTING.md`](CONTRIBUTING.md) covers the development setup, the checks CI runs, and the
-conventions in [`AGENTS.md`](AGENTS.md). Security issues go through
-[`SECURITY.md`](SECURITY.md), never a public issue.
+SkillNet is the main project. [Didact](https://github.com/JoseEstevez520/Didact),
+[OpenUI](https://github.com/thesysdev/openui),
+[mcp-md-reader](https://github.com/JoseEstevez520/mcp-md-reader),
+[A2TL-Web](https://github.com/JoseEstevez520/a2tl-web),
+[A2TL-Video](https://github.com/JoseEstevez520/a2tl-video),
+[Curio](https://github.com/JoseEstevez520/curio) and
+[DBP](https://github.com/JoseEstevez520/DBP) explore related parts of the same direction at different
+levels; they are not all dependencies of the current runtime.
 
 ## License
 
-Distributed under the [Apache 2.0](LICENSE) license.
+SkillNet is open source under the [Apache 2.0 license](LICENSE). Security issues should follow
+[SECURITY.md](SECURITY.md), never a public issue.

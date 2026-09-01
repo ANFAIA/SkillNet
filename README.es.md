@@ -1,183 +1,121 @@
 <p align="center">
-  <img src="assets/logo.png" alt="SkillNet" width="160">
+  <img src="assets/logo.png" alt="SkillNet" width="104">
 </p>
 
-<h1 align="center">SkillNet</h1>
+<h1 align="center">Experiencias de aprendizaje generadas al momento</h1>
 
 <p align="center">
-  <strong>SkillNet convierte una idea o un material en un curso cuyas explicaciones, actividades e interfaz pueden cambiar con el perfil y el estado de quien aprende.</strong>
+  <strong>SkillNet convierte una idea o fuente en un curso, un tutor fundamentado y una interfaz de aprendizaje adaptativa.</strong>
+</p>
+
+<p align="center">
+  Para una persona, una clase, un equipo o una organización.
+</p>
+
+<p align="center">
+  <a href="https://skillnet.es"><strong>Web</strong></a> ·
+  <a href="https://skillnet.es/docs/">Documentación</a> ·
+  <a href="RUNNING.md">Ejecutar en local</a> ·
+  <a href="README.md">English</a>
 </p>
 
 <p align="center">
   <a href="https://github.com/ANFAIA/SkillNet/actions/workflows/ci.yml"><img src="https://github.com/ANFAIA/SkillNet/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-blue.svg" alt="License: Apache 2.0"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-2f6fed.svg" alt="Apache 2.0"></a>
 </p>
 
 <p align="center">
-  <a href="https://skillnet.es">Web</a> ·
-  <a href="https://skillnet.es/docs/">Documentación</a> ·
-  <a href="RUNNING.md">Arranque rápido</a> ·
-  <a href="https://github.com/ANFAIA/SkillNet">GitHub</a>
+  <img src="assets/readme/learning-flow.svg" alt="Una idea o fuente se convierte en curso, tutor fundamentado y experiencia adaptativa" width="100%">
 </p>
 
-<p align="center">
-  <a href="README.md">English</a> · <strong>Español</strong>
-</p>
+## Empieza con una idea — o aporta tus fuentes
 
-SkillNet es un sistema de código abierto que convierte conocimiento en formación capaz de cambiar de
-forma según el perfil y el estado de quien aprende. Puede funcionar como espacio compartido de una
-organización, que puede usar un equipo o una clase, o como espacio individual. Es autoalojado y se
-distribuye con licencia Apache 2.0.
+El aprendizaje no siempre comienza dentro de una organización ni en un documento existente. A veces
+empieza con un tema que quieres comprender. Otras veces, el conocimiento ya vive en PDF, manuales,
+notas o conversaciones.
 
-**[Empieza aquí: ejecutar SkillNet en local →](RUNNING.md)**
+SkillNet admite ambos caminos. Describe lo que quieres aprender o enseñar, o sube material PDF,
+DOCX, Markdown y TXT. A partir de ahí construye un curso estructurado con lecciones, ejercicios,
+tutor y medios de aprendizaje. El material subido permanece como fuente fundamentadora; los cursos
+que nacen de una idea conservan la procedencia generada por el modelo y no la presentan como
+evidencia aportada.
 
-## Por qué existe SkillNet
+## Una base, distintas formas de aprender
 
-En muchas organizaciones pequeñas y medianas, formar depende de las personas que ya saben cómo
-funciona todo. Cada incorporación obliga a alguien a detener su trabajo para volver a explicar los
-mismos procesos. Puede existir documentación, pero rara vez constituye una experiencia completa de
-aprendizaje, y la organización apenas tiene trazabilidad sobre quién sabe qué, dónde están los gaps o
-quién podría ayudar a otra persona.
+El conocimiento, los objetivos y los criterios de evaluación permanecen estables. La explicación,
+el ejemplo, la actividad, el medio y la interfaz pueden cambiar según las preferencias, experiencia,
+estado actual y señales de interacción acotadas de quien aprende.
 
-SkillNet crea otro canal para ese conocimiento. Convierte una idea o un material existente en un
-curso estructurado, un tutor asociado al curso que puede recuperar esas fuentes, actividades de
-aprendizaje y un registro de progreso y habilidades.
-
-## Una fuente, un recorrido completo de aprendizaje
-
-Puedes describir lo que quieres enseñar o subir material en PDF, DOCX, Markdown o TXT. El material
-subido sigue siendo la fuente que fundamenta el curso. Cuando se parte de una idea, SkillNet registra
-una fuente generada por el modelo, claramente marcada, y su procedencia antes de construirlo. Esa vía
-no equivale a fundamentarse en material de empresa subido.
-
-```text
-idea o material de origen
-        → conocimiento fundamentado del curso
-        → estructura, lecciones y ejercicios
-        → tutor y medios de aprendizaje
-        → intentos, progreso y habilidades
-```
-
-Para preguntas específicas del curso o de sus fuentes, el tutor recupera material matriculado y
-devuelve procedencia. Las preguntas generales pueden responderse en modo general, sin citas del
-curso. La superficie de aprendizaje puede combinar texto con ejemplos resueltos, diagramas,
-tarjetas, actividades prácticas, audio y medios generados cuando está configurado el proveedor.
-
-## El mismo conocimiento, un camino distinto
-
-SkillNet separa lo que debe permanecer estable de lo que puede cambiar para quien aprende:
-
-| Contrato estable | Experiencia adaptable |
+| El contrato de aprendizaje | La experiencia puede adaptarse |
 | --- | --- |
-| conocimiento, objetivos, evidencias y criterios de evaluación | explicación, ejemplo, actividad, apoyo, medio e interfaz |
+| Conocimiento y fuentes | Explicaciones y ejemplos |
+| Objetivos y evidencias | Práctica y apoyo |
+| Criterios de evaluación | Medio, secuencia e interfaz |
 
-Un curso dinámico validado puede usar el puesto, las preferencias declaradas, el nivel de
-experiencia, el estado actual del nodo y señales longitudinales acotadas para escoger una
-experiencia. Personas con entradas equivalentes pueden compartir un render. Esas señales son
-evidencias revisables, no «estilos de aprendizaje» fijos ni una afirmación de que el sistema ya
-conoce perfectamente a la persona.
+Responder a una petición del momento no es lo mismo que aprender qué le ha ayudado a una persona a
+lo largo del tiempo. SkillNet trata esas señales como evidencia revisable, no como «estilos de
+aprendizaje» fijos ni como afirmación de que el sistema ya conoce perfectamente a la persona.
 
-La diferencia importa: responder a lo que alguien pide ahora no es lo mismo que conocer qué le ha
-ayudado a lo largo del tiempo. La memoria editable personaliza hoy principalmente el tutor. La
-generación de lecciones usa preferencias declaradas, estado y proyecciones acotadas de eventos;
-dejar que la memoria libre dirija renders compartidos sigue siendo trabajo futuro.
+## Qué hace SkillNet hoy
 
-## Cómo funciona
+- **Crea cursos completos** desde un tema o fuentes PDF, DOCX, Markdown y TXT.
+- **Responde mediante un tutor del curso** que recupera las fuentes matriculadas y devuelve
+  procedencia.
+- **Compone experiencias de aprendizaje** con [OpenUI](https://github.com/thesysdev/openui) y un
+  subconjunto compatible y versionado de [Didact](https://github.com/JoseEstevez520/Didact).
+- **Genera medios educativos** como podcasts, infografías, presentaciones y vídeos narrados cuando
+  están configurados los proveedores correspondientes.
+- **Registra progreso y habilidades** mediante matrículas, intentos, dominio y verificación
+  explícita.
+- **Funciona a distintas escalas** con espacios individuales y de organización: desde estudio
+  personal hasta clases, equipos y despliegues mayores.
+- **Se conecta con otras herramientas** mediante su API REST y adaptadores opcionales A2A y MCP.
+- **Se ejecuta en tu infraestructura** con Docker y un proveedor compatible con OpenAI.
 
-```mermaid
-graph LR
-    sources["Idea · documentos · conocimiento existente"] --> course["Curso fundamentado"]
-    course --> tutor["Tutor con fuentes"]
-    course --> runtime["OpenUI + Didact"]
-    runtime --> learner["Experiencia de aprendizaje"]
-    learner --> evidence["Intentos · progreso · habilidades"]
-    evidence --> runtime
-    evidence --> talent["Vista de talento"]
+<details>
+<summary><strong>Límites actuales</strong></summary>
+
+El runtime controlado ya puede producir experiencias diferentes para perfiles y estados distintos.
+La eficacia educativa y la calidad de cada adaptación todavía necesitan más evidencia. Que la
+memoria libre dirija renders compartidos, la adaptación proactiva, la sincronización automática al
+cambiar una fuente y las interfaces generadas completamente abiertas siguen siendo direcciones
+posteriores, no promesas actuales.
+
+</details>
+
+## Ejecutar en local
+
+```bash
+cp .env.example .env
+docker compose up -d --build
+docker compose exec api python -m src.seed_learning_demo   # demo pública opcional
 ```
 
-[OpenUI](https://github.com/thesysdev/openui) permite al modelo describir una interfaz mediante un
-lenguaje controlado en lugar de inventar la aplicación desde cero. [Didact](https://github.com/JoseEstevez520/Didact)
-aporta los componentes educativos que SkillNet puede componer. El runtime actual usa un subconjunto
-compatible y versionado de Didact. La generación abierta de interfaces sigue siendo investigación.
+Abre <http://localhost:3000>. La [guía de arranque](RUNNING.md) explica la configuración de
+proveedores, los fixtures sin clave, los datos de demostración y la resolución de problemas.
 
-## Qué está disponible ahora
+## Explorar
 
-- Crear un curso desde un tema o desde material en PDF, DOCX, Markdown o TXT.
-- Generar estructura, lecciones fundamentadas, ejercicios y práctica.
-- Servir cursos estáticos y activar individualmente el camino dinámico.
-- Revisar y validar los esquemas dinámicos antes de entregarlos a quien aprende.
-- Hacer preguntas específicas del curso a un tutor que recupera fuentes y devuelve procedencia.
-- Componer pantallas de aprendizaje con OpenUI y un subconjunto compatible de Didact.
-- Generar podcasts, infografías, presentaciones y vídeos narrados de diapositivas de forma asíncrona
-  cuando están configurados los proveedores de IA, imágenes y TTS necesarios.
-- Registrar matrículas, intentos, progreso y dominio, además de niveles de habilidad procedentes del
-  dominio del curso o de verificación explícita.
-- Explorar personas, cursos y habilidades registradas desde las superficies de talento.
-- Elegir espacio de organización o individual en la primera configuración.
-- Crear cursos y consultar habilidades desde la interfaz y la API REST externa; los adaptadores
-  opcionales A2A y MCP usan esa API y arrancan mediante sus perfiles de Compose.
-- Ejecutar el sistema en local o autoalojarlo con Docker y un proveedor compatible con OpenAI.
-
-## Qué sigue en validación
-
-El runtime controlado ya puede producir experiencias distintas para perfiles y estados diferentes,
-pero todavía necesitan evidencia la eficacia educativa y la calidad de cada adaptación. Usar la
-memoria libre en la generación de lecciones, la adaptación proactiva, la sincronización automática
-cuando cambian las fuentes y las interfaces completamente abiertas son direcciones posteriores, no
-promesas actuales.
+- [Visión](docs/design/vision.md) — por qué el software de aprendizaje debería adaptarse a las personas.
+- [Producto](docs/design/product.md) — alcance actual y dirección del producto.
+- [Roadmap](docs/ROADMAP.md) — las cuatro prioridades siguientes.
+- [Snapshot ANFAIA](docs/releases/2026-09-01-anfaia.md) — qué contiene esta versión.
+- [Adopción de OpenUI](docs/design/openui-adoption.md) — el runtime GenUI controlado.
+- [Integración de Didact](docs/design/didact-integration.md) — cómo entran los componentes educativos.
+- [Contribuir](CONTRIBUTING.md) — entorno de desarrollo, comprobaciones y convenciones.
 
 ## Ecosistema
 
-SkillNet es el proyecto principal. Los repositorios de alrededor exploran partes de la misma
-dirección:
-
-- [Didact](https://github.com/JoseEstevez520/Didact) — los componentes educativos que usa SkillNet.
-- [OpenUI](https://github.com/thesysdev/openui) — la capa actual de interfaz generada.
-- [mcp-md-reader](https://github.com/JoseEstevez520/mcp-md-reader) — lectura estructural de Markdown para flujos con agentes.
-- [SkillNet MCP](packages/skillnet-mcp/) — usar SkillNet desde chats y agentes compatibles con MCP.
-- [A2TL-Web](https://github.com/JoseEstevez520/a2tl-web) — investigación anterior sobre interfaces generadas compactas.
-- [A2TL-Video](https://github.com/JoseEstevez520/a2tl-video) — trabajo relacionado para vídeo generado por agentes.
-- [Curio](https://github.com/JoseEstevez520/curio) — investigación sobre lectura y explicación en contexto.
-- [DBP](https://github.com/JoseEstevez520/DBP) — trabajo relacionado sobre fronteras de datos entre agentes.
-
-Son proyectos relacionados a distintos niveles. No todos son dependencias de lo que SkillNet
-ejecuta hoy.
-
-## Empieza aquí
-
-La [guía de arranque](RUNNING.md) completa cubre la instalación, los datos de demostración, la
-configuración, el modo con fixtures sin clave y la resolución de problemas.
-
-```bash
-cp .env.example .env                      # pon los dos secretos y elige API, modelo local o fixtures
-docker compose up -d --build
-docker compose exec api python -m src.seed_learning_demo   # opcional: carga la demo publica
-```
-
-Después abre <http://localhost:3000>. El repositorio incluye además un modo con fixtures y sin clave
-para experimentar en local; las opciones están en [`RUNNING.md`](RUNNING.md).
-
-## Explorar el proyecto
-
-- [`docs/ROADMAP.md`](docs/ROADMAP.md) — base actual, prioridades activas y horizontes posteriores.
-- [`docs/releases/2026-09-01-anfaia.md`](docs/releases/2026-09-01-anfaia.md) — snapshot de producto de ANFAIA que fija esta versión.
-- [`docs/design/vision.md`](docs/design/vision.md) — las ideas detrás del producto.
-- [`docs/design/product.md`](docs/design/product.md) — alcance actual y dirección de producto.
-- [`docs/design/openui-adoption.md`](docs/design/openui-adoption.md) — cómo se evalúan e integran las interfaces generadas.
-- [`docs/design/didact-integration.md`](docs/design/didact-integration.md) — cómo entran los componentes de Didact en SkillNet.
-- [`docs/research/generative-ui/`](docs/research/generative-ui/) — experimentos con interfaces generadas.
-- [`docs/research/post-markdown/`](docs/research/post-markdown/) — cómo leen los agentes la documentación existente.
-
-## Contribuir
-
-[`CONTRIBUTING.md`](CONTRIBUTING.md) cubre la preparación del entorno, las comprobaciones que corre
-CI y las convenciones de [`AGENTS.md`](AGENTS.md). Los problemas de seguridad van por
-[`SECURITY.md`](SECURITY.md), nunca por una incidencia pública.
-
-> La documentación de desarrollo (`AGENTS.md`, `CONTRIBUTING.md`, `RUNNING.md` y `docs/`) está en
-> inglés, que es el idioma de trabajo del repositorio. Este README es la puerta de entrada en
-> español; si al leerlo echas en falta algo traducido, abre una incidencia y se traduce.
+SkillNet es el proyecto principal. [Didact](https://github.com/JoseEstevez520/Didact),
+[OpenUI](https://github.com/thesysdev/openui),
+[mcp-md-reader](https://github.com/JoseEstevez520/mcp-md-reader),
+[A2TL-Web](https://github.com/JoseEstevez520/a2tl-web),
+[A2TL-Video](https://github.com/JoseEstevez520/a2tl-video),
+[Curio](https://github.com/JoseEstevez520/curio) y
+[DBP](https://github.com/JoseEstevez520/DBP) exploran a distintos niveles partes relacionadas de la
+misma dirección; no todos son dependencias del runtime actual.
 
 ## Licencia
 
-Se distribuye con licencia [Apache 2.0](LICENSE).
+SkillNet es open source bajo la [licencia Apache 2.0](LICENSE). Los problemas de seguridad deben
+seguir [SECURITY.md](SECURITY.md), nunca una incidencia pública.
