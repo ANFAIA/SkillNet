@@ -24,10 +24,6 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-2f6fed.svg" alt="Apache 2.0"></a>
 </p>
 
-<p align="center">
-  <img src="assets/readme/skillnet-learning-system-v2.png" alt="Una idea o fuente se convierte en diferentes experiencias de aprendizaje mediante SkillNet" width="100%">
-</p>
-
 ## Empieza con una idea o aporta tus fuentes
 
 El aprendizaje no siempre comienza dentro de una organización ni en un documento existente. A veces
