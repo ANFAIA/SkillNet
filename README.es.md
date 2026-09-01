@@ -24,6 +24,10 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-2f6fed.svg" alt="Apache 2.0"></a>
 </p>
 
+<p align="center">
+  <img src="assets/readme/skillnet-two-experiences.png" alt="La misma lección de SkillNet presentada mediante dos experiencias de aprendizaje" width="100%">
+</p>
+
 ## Empieza con una idea o aporta tus fuentes
 
 El aprendizaje no siempre comienza dentro de una organización ni en un documento existente. A veces
