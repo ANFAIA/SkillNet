@@ -2,10 +2,10 @@
   <img src="assets/logo.png" alt="SkillNet" width="104">
 </p>
 
-<h1 align="center">Experiencias de aprendizaje generadas al momento</h1>
+<h1 align="center">Aprender no tiene por qué ser igual para todos</h1>
 
 <p align="center">
-  <strong>SkillNet convierte una idea o fuente en un curso, un tutor fundamentado y una interfaz de aprendizaje adaptativa.</strong>
+  <strong>SkillNet convierte lo que quieres enseñar en cursos, tutores fundamentados, materiales de aprendizaje e interfaces adaptativas.</strong>
 </p>
 
 <p align="center">

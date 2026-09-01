@@ -2,10 +2,10 @@
   <img src="assets/logo.png" alt="SkillNet" width="104">
 </p>
 
-<h1 align="center">Learning experiences, generated on the fly</h1>
+<h1 align="center">Learning does not have to be the same for everyone</h1>
 
 <p align="center">
-  <strong>SkillNet turns an idea or source into a course, a grounded tutor and an adaptive learning interface.</strong>
+  <strong>SkillNet turns what you want to teach into courses, grounded tutors, learning materials and adaptive interfaces.</strong>
 </p>
 
 <p align="center">
