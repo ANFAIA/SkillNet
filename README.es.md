@@ -72,17 +72,6 @@ aprendizaje» fijos ni como afirmación de que el sistema ya conoce perfectament
 - **Se conecta con otras herramientas** mediante su API REST y adaptadores opcionales A2A y MCP.
 - **Se ejecuta en tu infraestructura** con Docker y un proveedor compatible con OpenAI.
 
-<details>
-<summary><strong>Límites actuales</strong></summary>
-
-El runtime controlado ya puede producir experiencias diferentes para perfiles y estados distintos.
-La eficacia educativa y la calidad de cada adaptación todavía necesitan más evidencia. Que la
-memoria libre dirija renders compartidos, la adaptación proactiva, la sincronización automática al
-cambiar una fuente y las interfaces generadas completamente abiertas siguen siendo direcciones
-posteriores, no promesas actuales.
-
-</details>
-
 ## Ejecutar en local
 
 ```bash

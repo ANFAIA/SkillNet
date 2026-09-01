@@ -69,17 +69,6 @@ claim that the system already knows the learner perfectly.
 - **Connects to other tools** through its REST API and optional A2A and MCP adapters.
 - **Runs on your infrastructure** with Docker and an OpenAI-compatible model provider.
 
-<details>
-<summary><strong>Current boundaries</strong></summary>
-
-The controlled runtime can already produce different experiences for different learner profiles
-and states. Educational effectiveness and the quality of each adaptation still need more evidence.
-Unrestricted memory steering shared lesson renders, proactive adaptation, automatic synchronization
-when sources change and fully generated open interfaces remain later directions, not current
-promises.
-
-</details>
-
 ## Run it locally
 
 ```bash
