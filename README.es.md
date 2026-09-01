@@ -28,7 +28,7 @@
   <img src="assets/readme/skillnet-learning-system-v2.png" alt="Una idea o fuente se convierte en diferentes experiencias de aprendizaje mediante SkillNet" width="100%">
 </p>
 
-## Empieza con una idea — o aporta tus fuentes
+## Empieza con una idea o aporta tus fuentes
 
 El aprendizaje no siempre comienza dentro de una organización ni en un documento existente. A veces
 empieza con un tema que quieres comprender. Otras veces, el conocimiento ya vive en PDF, manuales,
@@ -96,13 +96,13 @@ proveedores, los fixtures sin clave, los datos de demostración y la resolución
 
 ## Explorar
 
-- [Visión](docs/design/vision.md) — por qué el software de aprendizaje debería adaptarse a las personas.
-- [Producto](docs/design/product.md) — alcance actual y dirección del producto.
-- [Roadmap](docs/ROADMAP.md) — las cuatro prioridades siguientes.
-- [Snapshot ANFAIA](docs/releases/2026-09-01-anfaia.md) — qué contiene esta versión.
-- [Adopción de OpenUI](docs/design/openui-adoption.md) — el runtime GenUI controlado.
-- [Integración de Didact](docs/design/didact-integration.md) — cómo entran los componentes educativos.
-- [Contribuir](CONTRIBUTING.md) — entorno de desarrollo, comprobaciones y convenciones.
+- [Visión](docs/design/vision.md): por qué el software de aprendizaje debería adaptarse a las personas.
+- [Producto](docs/design/product.md): alcance actual y dirección del producto.
+- [Roadmap](docs/ROADMAP.md): las cuatro prioridades siguientes.
+- [Snapshot ANFAIA](docs/releases/2026-09-01-anfaia.md): qué contiene esta versión.
+- [Adopción de OpenUI](docs/design/openui-adoption.md): el runtime GenUI controlado.
+- [Integración de Didact](docs/design/didact-integration.md): cómo entran los componentes educativos.
+- [Contribuir](CONTRIBUTING.md): entorno de desarrollo, comprobaciones y convenciones.
 
 ## Ecosistema
 

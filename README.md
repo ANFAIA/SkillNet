@@ -28,7 +28,7 @@
   <img src="assets/readme/skillnet-learning-system-v2.png" alt="An idea or source becomes different learning experiences through SkillNet" width="100%">
 </p>
 
-## Start with an idea — or bring your sources
+## Start with an idea or bring your sources
 
 Learning does not always begin inside an organization or an existing document. Sometimes it starts
 with a topic you want to understand. Sometimes the knowledge already lives in PDFs, manuals, notes
@@ -36,8 +36,8 @@ or conversations.
 
 SkillNet supports both paths. Describe what you want to learn or teach, or upload PDF, DOCX,
 Markdown and TXT material. It then builds a structured course with lessons, exercises, a tutor and
-learning media. Uploaded material remains the grounding source; idea-based courses preserve their
-model-generated provenance instead of presenting it as uploaded evidence.
+learning media. Uploaded material remains the grounding source. Courses that begin from an idea
+preserve the provenance of their generated source instead of presenting it as uploaded evidence.
 
 ## One foundation, different ways to learn
 
@@ -52,7 +52,7 @@ bounded interaction signals.
 | Evaluation criteria | Medium, sequence and interface |
 
 Responding to a request in the moment is not the same as learning what has helped a person over
-time. SkillNet treats those signals as revisable evidence—not fixed “learning styles” and not a
+time. SkillNet treats those signals as revisable evidence, not fixed “learning styles” and not a
 claim that the system already knows the learner perfectly.
 
 ## What SkillNet does today
@@ -60,7 +60,7 @@ claim that the system already knows the learner perfectly.
 - **Creates complete courses** from a topic or PDF, DOCX, Markdown and TXT sources.
 - **Answers with a course tutor** that retrieves enrolled sources and returns provenance.
 - **Composes learning experiences** with [OpenUI](https://github.com/thesysdev/openui) and a
-  supported, version-pinned subset of [Didact](https://github.com/JoseEstevez520/Didact).
+  supported subset of [Didact](https://github.com/JoseEstevez520/Didact) with a pinned version.
 - **Generates learning media** such as podcasts, infographics, slide decks and narrated videos when
   the corresponding providers are configured.
 - **Records progress and skills** through enrollments, attempts, mastery and explicit verification.
@@ -74,8 +74,8 @@ claim that the system already knows the learner perfectly.
 
 The controlled runtime can already produce different experiences for different learner profiles
 and states. Educational effectiveness and the quality of each adaptation still need more evidence.
-Free-form memory steering shared lesson renders, proactive adaptation, automatic synchronization
-when sources change and fully open-ended generated interfaces remain later directions—not current
+Unrestricted memory steering shared lesson renders, proactive adaptation, automatic synchronization
+when sources change and fully generated open interfaces remain later directions, not current
 promises.
 
 </details>
@@ -93,13 +93,13 @@ keyless fixtures, demo data and troubleshooting.
 
 ## Explore
 
-- [Vision](docs/design/vision.md) — why learning software should adapt to people.
-- [Product](docs/design/product.md) — current scope and product direction.
-- [Roadmap](docs/ROADMAP.md) — the next four priorities.
-- [ANFAIA release snapshot](docs/releases/2026-09-01-anfaia.md) — what this version contains.
-- [OpenUI adoption](docs/design/openui-adoption.md) — the controlled GenUI runtime.
-- [Didact integration](docs/design/didact-integration.md) — how learning components enter SkillNet.
-- [Contributing](CONTRIBUTING.md) — development setup, checks and conventions.
+- [Vision](docs/design/vision.md): why learning software should adapt to people.
+- [Product](docs/design/product.md): current scope and product direction.
+- [Roadmap](docs/ROADMAP.md): the next four priorities.
+- [ANFAIA release snapshot](docs/releases/2026-09-01-anfaia.md): what this version contains.
+- [OpenUI adoption](docs/design/openui-adoption.md): the controlled GenUI runtime.
+- [Didact integration](docs/design/didact-integration.md): how learning components enter SkillNet.
+- [Contributing](CONTRIBUTING.md): development setup, checks and conventions.
 
 ## Ecosystem
 
