@@ -149,7 +149,7 @@ Two things are deliberately not:
 
 ## Git workflow
 
-- `main` is the latest public release and must remain deployable
+- `main` is the stable, deployable line
 - `develop` integrates the next version
 - Branch normal work from `develop` using `feat/`, `fix/`, `docs/`, `refactor/`, `test/` or `chore/`
 - Open normal pull requests into `develop`

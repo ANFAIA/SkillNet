@@ -31,8 +31,8 @@ only to check the real production bundle.
 
 ## Branching and releases
 
-`main` represents the latest public release and must remain deployable. Normal development is
-integrated in `develop` before it reaches `main`.
+`main` is the stable, deployable line. Normal development is integrated in `develop` before it
+reaches `main`.
 
 For regular work, branch from `develop` and open a pull request back into `develop`. Use a name that
 describes the change:
