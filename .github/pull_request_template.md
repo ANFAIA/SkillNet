@@ -1,4 +1,5 @@
 <!-- Keep it short. The diff says what changed; this says why. -->
+<!-- Normal work targets `develop`. Use `main` only for a version promotion, an urgent hotfix or a correction to public repository governance. -->
 
 ## What and why
 
