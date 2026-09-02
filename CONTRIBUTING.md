@@ -29,6 +29,33 @@ pnpm --dir apps/skillnet-web dev        # http://localhost:5173, hot reload
 Open **5173**, not 3000. Vite proxies `/api` to the dockerized API. Rebuild the `web` container
 only to check the real production bundle.
 
+## Branching and releases
+
+`main` represents the latest public release and must remain deployable. Normal development is
+integrated in `develop` before it reaches `main`.
+
+For regular work, branch from `develop` and open a pull request back into `develop`. Use a name that
+describes the change:
+
+* `feat/course-quality-evaluation`
+* `fix/course-generation-timeout`
+* `docs/deployment-guide`
+* `refactor/media-pipeline`
+* `test/dynamic-course-delivery`
+* `chore/dependency-update`
+
+Keep each branch focused and short lived. A roadmap theme is not a branch: split it into changes that
+can be reviewed and merged independently.
+
+When `develop` contains a coherent, tested version, open a pull request from `develop` into `main`.
+After it is merged, create the version tag and GitHub Release from `main`.
+
+An urgent correction to the public version is the exception. Branch `hotfix/description` from
+`main`, open the pull request into `main`, publish a patch version, then bring the same correction
+back into `develop`.
+
+Do not push or force push directly to `main`.
+
 ## Before you open a pull request
 
 Run what CI runs. Neither command needs a database or an API key:
@@ -55,7 +82,7 @@ to a 384 column. Re-run the seed afterwards.
 boundaries of what not to touch. The short version:
 
 - Commit format: `type: description` — `feat`, `fix`, `docs`, `refactor`, `test`, `chore`.
-- Branch from `main`, PR into `main`, no force push to `main`.
+- Follow the branching and release flow above. Normal pull requests target `develop`.
 - TypeScript on the frontend, Python on the backend. Ruff for Python, Prettier for TS.
 - All LLM calls go through litellm. Never hardcode a provider.
 - Tailwind utilities and the tokens in `docs/design/design-system.md`. No inline styles.

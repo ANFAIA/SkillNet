@@ -149,10 +149,15 @@ Two things are deliberately not:
 
 ## Git workflow
 
-- Branch from `main`
+- `main` is the latest public release and must remain deployable
+- `develop` integrates the next version
+- Branch normal work from `develop` using `feat/`, `fix/`, `docs/`, `refactor/`, `test/` or `chore/`
+- Open normal pull requests into `develop`
+- When a version is ready, open a pull request from `develop` into `main`, then tag and release it
+- Branch urgent public fixes from `main` as `hotfix/description`, merge them into `main`, publish a
+  patch version and bring the correction back into `develop`
 - Commit format: `type: description` (types: feat, fix, docs, refactor, test, chore)
-- PR into `main`
-- No force push to `main`
+- Do not push or force push directly to `main`
 
 ## Boundaries
 
