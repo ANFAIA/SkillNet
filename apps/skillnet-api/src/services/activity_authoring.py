@@ -300,6 +300,7 @@ def assert_grounded_activity_draft(draft: ActivityAuthoringDraft) -> None:
     """
 
     _reject_unsubstituted_example(draft.component_id, draft.definition)
+    _reject_unsubstituted_expected(draft.component_id, draft.definition)
 
 
 def _reject_unsubstituted_example(component_id: str, definition: Mapping[str, Any]) -> None:
@@ -330,6 +331,77 @@ def _reject_unsubstituted_example(component_id: str, definition: Mapping[str, An
     if len(echoed) >= 2:
         raise ValueError(
             "activity content not grounded: contract example placeholders were not "
+            f"substituted ({sorted(echoed)})"
+        )
+
+
+#: Components whose ``evaluation.expected`` holds free-text answer content (not
+#: structural ids/refs like matching pairs, option values or step ids). For these,
+#: the example's placeholder answers ("respuesta", "la respuesta con fundamento"...)
+#: are graded text, not decoration — see ``_reject_unsubstituted_expected``.
+_FREE_TEXT_EXPECTED_COMPONENTS = frozenset(
+    {
+        "didact.quiz.fill-in-the-blank",
+        "didact.quiz.short-answer",
+        "didact.completion-problem",
+    }
+)
+
+
+def _expected_texts(value: Any) -> list[str]:
+    """Flatten a ``keyed_text``/``normalized_any`` ``expected`` value into text leaves."""
+
+    if isinstance(value, str):
+        text = value.strip()
+        return [text] if text else []
+    if isinstance(value, Mapping):
+        out: list[str] = []
+        for child in value.values():
+            out.extend(_expected_texts(child))
+        return out
+    if isinstance(value, (list, tuple)):
+        out = []
+        for item in value:
+            out.extend(_expected_texts(item))
+        return out
+    return []
+
+
+def _reject_unsubstituted_expected(component_id: str, definition: Mapping[str, Any]) -> None:
+    """Reject a free-text answer key that is still the contract's example placeholder.
+
+    ``evaluation``/``expected`` is deliberately excluded from ``_content_texts`` above:
+    for most components it holds structural ids (matching pairs, option values, step
+    ids), never content worth grounding. But for the three ``keyed_text``/
+    ``normalized_any`` components in ``_FREE_TEXT_EXPECTED_COMPONENTS`` the expected
+    values ARE the graded answer text. A model that leaves them as the example's
+    placeholder produces a fill-in-the-blank (or short-answer) whose question looks
+    grounded but whose correct answer is literally the word "respuesta" — the exact bug
+    reported by users. Unlike a stray content leaf, a single echoed answer is enough to
+    reject: it is exactly what grading compares against, so any overlap makes the
+    exercise unanswerable regardless of how much else was grounded correctly.
+    """
+
+    if component_id not in _FREE_TEXT_EXPECTED_COMPONENTS:
+        return
+    try:
+        contract = authoring_definition_contract(component_id)
+    except Exception:  # noqa: BLE001 - a missing contract is handled by shape validation
+        return
+    example_expected = {
+        text.casefold()
+        for text in _expected_texts(contract.get("evaluation", {}).get("expected"))
+    }
+    if not example_expected:
+        return
+    given_expected = {
+        text.casefold()
+        for text in _expected_texts(definition.get("evaluation", {}).get("expected"))
+    }
+    echoed = given_expected & example_expected
+    if echoed:
+        raise ValueError(
+            "activity content not grounded: contract example answer key was not "
             f"substituted ({sorted(echoed)})"
         )
 
