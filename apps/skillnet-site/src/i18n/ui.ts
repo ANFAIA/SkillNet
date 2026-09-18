@@ -20,7 +20,6 @@ const es = {
     what: "Qué es SkillNet",
     how: "Cómo funciona",
     who: "Para quién",
-    demo: "Probar",
     contact: "Contacto",
     docs: "Documentación",
     docsIndex: "Índice",
@@ -52,7 +51,6 @@ const es = {
     lead: "El curso parte de un conocimiento y unos objetivos comunes. A partir de ahí, las preferencias declaradas, el rol, el nivel y el progreso de cada persona sirven como señales para decidir qué explicación, actividad, apoyo o interfaz mostrar. Son hipótesis que pueden cambiar, no etiquetas fijas sobre cómo aprende alguien.",
     idea: "Cambian lo que ya sabemos, el contexto, el ritmo y el apoyo que necesitamos. La misma idea puede necesitar otra explicación, otro ejemplo o una forma diferente de practicarla.",
     modes: { texto: "Texto", imagen: "Imagen", video: "Vídeo", audio: "Audio" },
-    demoCta: "Pruébalo tú mismo en la demo",
     mediaHeading: "Todos aprendemos de forma distinta.",
     imageAlt: "Infografía: todos aprendemos de forma distinta",
     videoCaptions: [
@@ -196,7 +194,6 @@ const en: typeof es = {
     what: "What SkillNet is",
     how: "How it works",
     who: "Who it is for",
-    demo: "Try it",
     contact: "Contact",
     docs: "Documentation",
     docsIndex: "Index",
@@ -228,7 +225,6 @@ const en: typeof es = {
     lead: "A course starts from shared knowledge and shared objectives. From there, each person's declared preferences, role, level and progress act as signals for deciding which explanation, activity, support or interface to show. They are hypotheses that can change, not fixed labels about how someone learns.",
     idea: "What changes is what we already know, the context, the pace and the support we need. The same idea may need another explanation, another example, or a different way to practise it.",
     modes: { texto: "Text", imagen: "Image", video: "Video", audio: "Audio" },
-    demoCta: "Try it yourself in the demo",
     mediaHeading: "We all learn differently.",
     imageAlt: "Infographic: we all learn differently",
     videoCaptions: [
