@@ -208,3 +208,83 @@ def review_report(parsed: Any) -> dict:
         return parsed
     issues = _dict_items(parsed)
     return {"passed": False, "overall_score": 0.0, "issues": issues}
+
+
+# --------------------------------------------------------------------------- #
+# Exercise content: the answer key's shape, checked before it is published
+# --------------------------------------------------------------------------- #
+#: A run of underscores is a blank in a ``fill_blank`` template, whatever its length
+#: (the generator prompt writes three, the runtime prompt four). Two is the floor so a
+#: lone ``_`` used as a character is not mistaken for a hole.
+_BLANK_RUN_RE = re.compile(r"_{2,}")
+
+
+def exercise_content_problems(exercise_type: str, content: Any) -> list[str]:
+    """Why an exercise's ``content`` cannot be graded, or ``[]`` when it can.
+
+    ``_EXERCISE_SHAPES`` in the prompt module states the exact jsonb of every exercise and
+    nothing downstream checked it. A ``test`` whose ``correct`` points past the end of its
+    options, or a ``fill_blank`` with fewer answers than holes, grades every learner 0.0
+    forever: an exercise nobody can pass, which blocks the course. The pipeline's only
+    defence was the quality reviewer, and the reviewer is best-effort (it is skipped when
+    the provider fails) and reads prose, not shapes.
+
+    Returns human-readable reasons, empty when the content is usable. ``publish`` drops an
+    exercise with problems instead of shipping one that cannot be answered.
+    """
+    if not isinstance(content, dict):
+        return ["content is not an object"]
+
+    problems: list[str] = []
+    if exercise_type == "test":
+        options = content.get("options")
+        correct = content.get("correct")
+        if not isinstance(options, list) or len(options) < 2:
+            problems.append("test needs at least two options")
+        elif isinstance(correct, bool) or not isinstance(correct, int):
+            problems.append("test 'correct' must be an option index")
+        elif not 0 <= correct < len(options):
+            problems.append(
+                f"test 'correct' {correct} is outside its {len(options)} options"
+            )
+    elif exercise_type == "true_false":
+        if not isinstance(content.get("correct"), bool):
+            problems.append("true_false 'correct' must be a boolean")
+    elif exercise_type == "fill_blank":
+        template = content.get("template")
+        blanks = content.get("blanks")
+        holes = len(_BLANK_RUN_RE.findall(template)) if isinstance(template, str) else 0
+        if holes == 0:
+            problems.append("fill_blank template has no blank (___)")
+        if not isinstance(blanks, list) or not all(isinstance(b, str) for b in blanks):
+            problems.append("fill_blank 'blanks' must be a list of strings")
+        elif holes and len(blanks) != holes:
+            problems.append(
+                f"fill_blank has {holes} hole(s) but {len(blanks)} blank answer(s)"
+            )
+    elif exercise_type == "order_steps":
+        steps = content.get("steps")
+        order = content.get("correct_order")
+        if not isinstance(steps, list) or len(steps) < 2:
+            problems.append("order_steps needs at least two steps")
+        elif not isinstance(order, list) or sorted(order) != list(range(len(steps))):
+            problems.append(
+                "order_steps 'correct_order' must be a permutation of the steps"
+            )
+    elif exercise_type == "practical_case":
+        if not str(content.get("context") or "").strip():
+            problems.append("practical_case needs a context")
+        if not str(content.get("question") or "").strip():
+            problems.append("practical_case needs a question")
+        if not isinstance(content.get("rubric"), list) or not content.get("rubric"):
+            problems.append("practical_case needs a non-empty rubric")
+    elif exercise_type == "dialogue":
+        if not str(content.get("system_prompt") or "").strip():
+            problems.append("dialogue needs a system_prompt")
+        turns = content.get("max_turns")
+        if isinstance(turns, bool) or not isinstance(turns, int) or turns < 1:
+            problems.append("dialogue 'max_turns' must be a positive integer")
+    else:
+        problems.append(f"unknown exercise type {exercise_type!r}")
+    return problems
+
