@@ -112,6 +112,14 @@ Reglas:
    material educativo independiente, sin revelar la procedencia interna del texto.
 6. Escribe en el mismo idioma que el material de origen.
 7. Formatea el contenido de las lecciones como Markdown.
+8. ALINEACION PREGUNTA-LECCION: cada ejercicio se responde con lo que ensenan las
+   lecciones de ESTE modulo. Antes de escribir una pregunta, comprueba que el dato, el
+   plazo, la regla o el paso que la resuelve aparece en alguna de las lecciones que acabas
+   de escribir para este modulo. Si no aparece, anadelo primero a una leccion o cambia la
+   pregunta. No preguntes algo que el modulo no ha explicado, aunque si este en el material
+   de origen: preguntar lo que no se explico no mide aprendizaje.
+9. La "explanation" de un ejercicio cerrado cita el hecho concreto de la leccion que lo
+   justifica, no una afirmacion generica ni una copia literal del enunciado.
 
 """ + _EXERCISE_SHAPES + """
 Responde en JSON valido con la forma:
@@ -144,10 +152,17 @@ Criterios de revision:
    si el curso es demasiado teorico.
 6. LENGUAJE: contenido claro, profesional y en el idioma de la fuente.
 7. CONSISTENCIA: los modulos no deben contradecirse entre si.
+8. ALINEACION PREGUNTA-LECCION: cada ejercicio debe poder responderse con lo que ensenan
+   las lecciones del MISMO modulo, no con un hecho del material de origen que la leccion no
+   llego a explicar. Recorre las lecciones del modulo y despues lee sus ejercicios: el dato,
+   el plazo, la regla o el paso que resuelve cada pregunta tiene que aparecer en una de esas
+   lecciones. Si la respuesta solo se justifica por la fuente y no por lo ensenado, marcalo
+   como "critical": es una pregunta que no se explico. Comprueba tambien que la
+   "explanation" corresponda al hecho concreto que la leccion ensena.
 
 Para cada problema encontrado especifica:
-- severity: "critical" (error factual, respuesta erronea), "major" (omision
-  significativa, artefactos de cita) o "minor" (estilo, claridad)
+- severity: "critical" (error factual, respuesta erronea, pregunta que no se explico),
+  "major" (omision significativa, artefactos de cita) o "minor" (estilo, claridad)
 - module_index: indice del modulo (null para problema a nivel de curso)
 - description: que esta mal
 - suggestion: como corregirlo
