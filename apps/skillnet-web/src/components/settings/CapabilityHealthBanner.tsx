@@ -3,11 +3,26 @@ import { useIntl } from 'react-intl'
 import { isReady, useCapabilities, type CapabilityName } from '../../api/setup'
 import { capabilityTag } from '../../lib/capabilityCopy'
 
+/**
+ * Where "I saw it, stop telling me" is remembered, in this browser. It stores *which*
+ * capabilities were missing when the notice was dismissed, not just that it was: if a different
+ * set is degraded later, that is news and the notice comes back.
+ */
+const DISMISSED_KEY = 'skillnet:capability-banner-dismissed'
+
+function readDismissed(): string | null {
+  try {
+    return window.localStorage.getItem(DISMISSED_KEY)
+  } catch {
+    return null
+  }
+}
+
 /** Watched in severity order: `ai` first (nothing AI works without it), then voice, then images. */
 const WATCHED: CapabilityName[] = ['ai', 'tts', 'images']
 
 /**
- * Consolidated, dismissible "what is degraded" notice for the admin surface
+ * Consolidated, dismissible "what is degraded" notice, and it stays dismissed for the admin surface
  * (docs/design/degraded-mode-ux.md §1). SkillNet keeps working when external keys
  * are missing — it just degrades in concrete, invisible ways (robotic offline voice,
  * infographics without a poster, no AI at all). This banner makes those states
@@ -28,7 +43,7 @@ const WATCHED: CapabilityName[] = ['ai', 'tts', 'images']
 export function CapabilityHealthBanner() {
   const intl = useIntl()
   const capabilities = useCapabilities()
-  const [dismissed, setDismissed] = useState(false)
+  const [dismissedFor, setDismissedFor] = useState<string | null>(readDismissed)
 
   const lines = WATCHED.filter((name) => !isReady(capabilities[name])).map((name) => ({
     name,
@@ -37,7 +52,8 @@ export function CapabilityHealthBanner() {
     hint: capabilities[name].hint ?? null,
   }))
 
-  if (lines.length === 0 || dismissed) return null
+  const signature = lines.map((line) => line.name).join(',')
+  if (lines.length === 0 || dismissedFor === signature) return null
 
   return (
     <div
@@ -65,7 +81,14 @@ export function CapabilityHealthBanner() {
       </p>
       <button
         type="button"
-        onClick={() => setDismissed(true)}
+        onClick={() => {
+          try {
+            window.localStorage.setItem(DISMISSED_KEY, signature)
+          } catch {
+            // Private window or blocked storage: it stays dismissed until the page reloads.
+          }
+          setDismissedFor(signature)
+        }}
         aria-label={intl.formatMessage({ id: 'capabilityBanner.dismiss' })}
         className="absolute right-2 top-2 grid size-7 place-items-center rounded-full text-text-muted transition-colors hover:text-text focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 cursor-pointer"
       >
