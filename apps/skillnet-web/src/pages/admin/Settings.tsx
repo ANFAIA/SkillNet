@@ -4,6 +4,8 @@ import { AppearanceSettings } from '../../components/settings/AppearanceSettings
 import { CapabilityHealthBanner } from '../../components/settings/CapabilityHealthBanner'
 import { LearningPreferencesSection } from '../../components/settings/LearningPreferencesSection'
 import { AccountSection } from '../../components/settings/AccountSection'
+import { BugReportEntry, BugReportsAdminEntry } from '../../components/settings/BugReportEntry'
+import { SettingRow } from '../../components/settings/SettingRow'
 import { useWorkspaceMode } from '../../hooks/useAuth'
 import { useSettings, useUpdateFeatures } from '../../api/settings'
 import { apiErrorMessage } from '../../lib/apiErrors'
@@ -25,26 +27,6 @@ import type { OrgSettings } from '../../types'
  * admin something they could not otherwise find out — nothing works, and nothing else
  * explains why.
  */
-
-function SettingRow({
-  title,
-  description,
-  children,
-}: {
-  title: string
-  description: string
-  children: React.ReactNode
-}) {
-  return (
-    <div className="flex items-start justify-between gap-6 py-5 border-b border-border">
-      <div className="min-w-0">
-        <p className="text-sm font-medium text-text">{title}</p>
-        <p className="text-sm text-text-secondary mt-1">{description}</p>
-      </div>
-      {children}
-    </div>
-  )
-}
 
 export function Settings() {
   const intl = useIntl()
@@ -119,6 +101,28 @@ function SettingsBody({
             label={intl.formatMessage({ id: 'settings.chatGenUi' })}
           />
         </SettingRow>
+
+        {/* Share bug reports with the SkillNet team. Off by default: a report leaves this
+            deployment only because the admin chose it. */}
+        <SettingRow
+          title={intl.formatMessage({ id: 'settings.shareBugs' })}
+          description={intl.formatMessage({ id: 'settings.shareBugsDesc' })}
+        >
+          <Switch
+            checked={settings.share_bug_reports}
+            disabled={features.isPending}
+            onCheckedChange={(next) =>
+              features.mutate({
+                chat_generative_ui: settings.chat_generative_ui,
+                share_bug_reports: next,
+              })
+            }
+            label={intl.formatMessage({ id: 'settings.shareBugs' })}
+          />
+        </SettingRow>
+
+        <BugReportEntry />
+        <BugReportsAdminEntry />
       </div>
 
       {features.isError && (

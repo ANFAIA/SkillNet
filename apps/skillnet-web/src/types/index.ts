@@ -450,6 +450,34 @@ export interface OrgSettings {
    * turns it off here.
    */
   chat_generative_ui: boolean
+  /** Whether bug reports are also sent to the SkillNet team. Off unless the admin turns it on. */
+  share_bug_reports: boolean
+}
+
+export type BugReportStatus = 'pending' | 'issue' | 'discarded' | 'failed'
+
+export interface BugReport {
+  id: string
+  title: string
+  status: BugReportStatus
+  severity: 'low' | 'medium' | 'high' | null
+  reason: string | null
+  issue_url: string | null
+  page_path: string | null
+  environment: string | null
+  created_at: string
+}
+
+/** What an admin sees: the same plus the text the person wrote. */
+export interface BugReportAdmin extends BugReport {
+  body: string
+}
+
+export interface BugReportCreate {
+  title: string
+  body: string
+  page_path?: string
+  environment?: string
 }
 
 export interface LlmTestResult {

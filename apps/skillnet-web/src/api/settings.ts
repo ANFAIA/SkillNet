@@ -21,7 +21,7 @@ export function useSettings() {
 export function useUpdateFeatures() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (payload: { chat_generative_ui: boolean }) =>
+    mutationFn: (payload: { chat_generative_ui: boolean; share_bug_reports?: boolean }) =>
       put<OrgSettings>('/settings/features', payload),
     onSuccess: (data) => {
       // Write the server's answer straight into the cache as well as invalidating: the
