@@ -194,6 +194,12 @@ services:
       GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-}
       GOOGLE_POST_LOGIN_PATH: ${GOOGLE_POST_LOGIN_PATH:-/}
       GOOGLE_LOGIN_ERROR_PATH: ${GOOGLE_LOGIN_ERROR_PATH:-/login}
+      # Bug reports (optional). Without a token and a repo they are judged and kept for the
+      # admin; nothing leaves the deployment unless an admin turns on sharing in Settings.
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      GITHUB_REPO: ${GITHUB_REPO:-}
+      BUG_REPORT_DAILY_LIMIT: ${BUG_REPORT_DAILY_LIMIT:-5}
+      UPSTREAM_REPORTS_URL: ${UPSTREAM_REPORTS_URL:-https://reports.skillnet.es}
       A2A_INTERNAL_API_KEY: ${A2A_INTERNAL_API_KEY:-}
       # TTS + Vision follow the same rule as the models above: `.env` is dockerignored,
       # no service declares `env_file`, so a key only reaches the container if it is
