@@ -45,7 +45,7 @@ export function CourseChatPanel({ open, onClose, courseId, courseTitle }: Course
           <motion.button
             type="button"
             aria-label={intl.formatMessage({ id: 'panel.close' })}
-            className="absolute inset-0 h-full w-full bg-slate-950/25 backdrop-blur-sm"
+            className="absolute inset-0 h-full w-full bg-black/40"
             {...backdrop}
             onClick={onClose}
           />
