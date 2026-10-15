@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { IntlProvider } from 'react-intl'
 import type { ReactNode } from 'react'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 
 import { CapabilityHealthBanner } from './CapabilityHealthBanner'
 import { es } from '../../i18n/es'
@@ -27,6 +27,8 @@ function renderWith(capabilities?: Partial<Capabilities>) {
 }
 
 describe('<CapabilityHealthBanner>', () => {
+  afterEach(() => window.localStorage.clear())
+
   it('shows nothing when every capability is present', () => {
     const { container } = renderWith(caps())
     expect(container).toBeEmptyDOMElement()
@@ -76,5 +78,25 @@ describe('<CapabilityHealthBanner>', () => {
     expect(screen.getByText(es['capabilityBanner.ai'])).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: es['capabilityBanner.dismiss'] }))
     expect(screen.queryByText(es['capabilityBanner.ai'])).not.toBeInTheDocument()
+  })
+
+  it('stays dismissed on the next visit', async () => {
+    const user = userEvent.setup()
+    const first = renderWith(caps({ ai: blocked(), generation: blocked(), tutor: blocked() }))
+    await user.click(screen.getByRole('button', { name: es['capabilityBanner.dismiss'] }))
+    first.unmount()
+
+    const second = renderWith(caps({ ai: blocked(), generation: blocked(), tutor: blocked() }))
+    expect(second.container).toBeEmptyDOMElement()
+  })
+
+  it('comes back when a different capability is missing', async () => {
+    const user = userEvent.setup()
+    const first = renderWith(caps({ ai: blocked(), generation: blocked(), tutor: blocked() }))
+    await user.click(screen.getByRole('button', { name: es['capabilityBanner.dismiss'] }))
+    first.unmount()
+
+    renderWith(caps({ tts: degraded('provider_quota') }))
+    expect(screen.getByRole('status')).toBeInTheDocument()
   })
 })

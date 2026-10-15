@@ -34,7 +34,7 @@ export function Settings() {
   const features = useUpdateFeatures()
 
   return (
-    <div>
+    <div className="mx-auto max-w-3xl">
       <PageHeader title={intl.formatMessage({ id: 'settings.title' })} />
 
       {isLoading ? (
@@ -69,13 +69,13 @@ function SettingsBody({
           the `!ai` line covers the "no model configured" case and adds voice / images. */}
       <CapabilityHealthBanner />
 
-      <AppearanceSettings className="mt-4" />
+      <div className="mt-4 space-y-8">
+        <AppearanceSettings />
 
-      <div className="mt-6 border-t border-border">
+        <div>
         {/* Language selector */}
         <SettingRow
           title={intl.formatMessage({ id: 'settings.language' })}
-          description={intl.formatMessage({ id: 'settings.languageDesc' })}
         >
           <Select
             label={intl.formatMessage({ id: 'settings.language' })}
@@ -92,7 +92,6 @@ function SettingsBody({
         {/* Generative UI toggle */}
         <SettingRow
           title={intl.formatMessage({ id: 'settings.chatGenUi' })}
-          description={intl.formatMessage({ id: 'settings.chatGenUiDesc' })}
         >
           <Switch
             checked={settings.chat_generative_ui}
@@ -106,7 +105,7 @@ function SettingsBody({
             deployment only because the admin chose it. */}
         <SettingRow
           title={intl.formatMessage({ id: 'settings.shareBugs' })}
-          description={intl.formatMessage({ id: 'settings.shareBugsDesc' })}
+          info={intl.formatMessage({ id: 'settings.shareBugsDesc' })}
         >
           <Switch
             checked={settings.share_bug_reports}
@@ -123,6 +122,14 @@ function SettingsBody({
 
         <BugReportEntry />
         <BugReportsAdminEntry />
+        </div>
+
+        <div>
+          <h2 className="text-sm font-semibold text-text mb-1">
+            {intl.formatMessage({ id: 'account.title' })}
+          </h2>
+          <AccountSection />
+        </div>
       </div>
 
       {features.isError && (
@@ -143,12 +150,6 @@ function SettingsBody({
         </div>
       )}
 
-      <div className="mt-8 border-t border-border pt-6">
-        <h2 className="text-base font-semibold text-text mb-4">
-          {intl.formatMessage({ id: 'account.title' })}
-        </h2>
-        <AccountSection />
-      </div>
     </>
   )
 }

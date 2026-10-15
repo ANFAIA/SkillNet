@@ -105,10 +105,12 @@ function renderSection() {
   )
 }
 
-/** The card is the `<h3>` title's grandparent (Card > div > h3). */
-async function findCard(title: string) {
-  const heading = await screen.findByRole('heading', { name: title })
-  return heading.parentElement as HTMLElement
+/** Each row opens its form in a window: press the row's button and work inside the dialog. */
+async function openWindow(title: string) {
+  const name = await screen.findByText(title)
+  const row = name.parentElement!.parentElement as HTMLElement
+  await userEvent.click(within(row).getByRole('button'))
+  return screen.findByRole('dialog')
 }
 
 beforeEach(() => {
@@ -124,7 +126,7 @@ describe('AccountSection — change password', () => {
   it('submits current and new password to the change-password endpoint', async () => {
     installFetch()
     renderSection()
-    const card = await findCard('Contraseña')
+    const card = await openWindow('Contraseña')
 
     await userEvent.type(within(card).getByLabelText('Contraseña actual'), 'old-password')
     await userEvent.type(within(card).getByLabelText('Contraseña nueva'), 'new-password-123')
@@ -143,7 +145,7 @@ describe('AccountSection — change password', () => {
   it('shows the field-level validation hint for a too-short new password', async () => {
     installFetch()
     renderSection()
-    const card = await findCard('Contraseña')
+    const card = await openWindow('Contraseña')
 
     await userEvent.type(within(card).getByLabelText('Contraseña nueva'), 'short')
     await userEvent.tab()
@@ -154,7 +156,7 @@ describe('AccountSection — change password', () => {
   it('surfaces the server error when the current password is wrong', async () => {
     installFetch({ changePasswordStatus: 422 })
     renderSection()
-    const card = await findCard('Contraseña')
+    const card = await openWindow('Contraseña')
 
     await userEvent.type(within(card).getByLabelText('Contraseña actual'), 'wrong')
     await userEvent.type(within(card).getByLabelText('Contraseña nueva'), 'new-password-123')
@@ -168,7 +170,7 @@ describe('AccountSection — change email', () => {
   it('submits the new email and current password', async () => {
     installFetch()
     renderSection()
-    const card = await findCard('Correo electrónico')
+    const card = await openWindow('Correo electrónico')
 
     const emailInput = within(card).getByLabelText('Correo nuevo')
     await userEvent.clear(emailInput)
@@ -189,7 +191,7 @@ describe('AccountSection — change email', () => {
   it('surfaces the conflict when the email is already taken', async () => {
     installFetch({ changeEmailStatus: 409 })
     renderSection()
-    const card = await findCard('Correo electrónico')
+    const card = await openWindow('Correo electrónico')
 
     const emailInput = within(card).getByLabelText('Correo nuevo')
     await userEvent.clear(emailInput)
@@ -202,20 +204,20 @@ describe('AccountSection — change email', () => {
 })
 
 describe('AccountSection — delete account (workspace gating)', () => {
-  it('hides the delete-account card in an organization workspace', async () => {
+  it('hides the delete-account row in an organization workspace', async () => {
     installFetch({ workspaceMode: 'organization' })
     renderSection()
 
     // Wait for /auth/me to resolve before asserting absence.
-    await screen.findByRole('heading', { name: 'Contraseña' })
-    expect(screen.queryByRole('heading', { name: 'Borrar cuenta' })).toBeNull()
+    await screen.findByText('Contraseña')
+    expect(screen.queryByText('Borrar cuenta')).toBeNull()
   })
 
-  it('shows the delete-account card in an individual workspace and submits it', async () => {
+  it('shows the delete-account row in an individual workspace and submits it', async () => {
     installFetch({ workspaceMode: 'individual' })
     vi.spyOn(window, 'confirm').mockReturnValue(true)
     renderSection()
-    const card = await findCard('Borrar cuenta')
+    const card = await openWindow('Borrar cuenta')
 
     await userEvent.type(within(card).getByLabelText('Contraseña actual'), 'my-password')
     await userEvent.click(within(card).getByRole('button', { name: 'Borrar mi cuenta' }))
@@ -234,7 +236,7 @@ describe('AccountSection — delete account (workspace gating)', () => {
     installFetch({ workspaceMode: 'individual' })
     vi.spyOn(window, 'confirm').mockReturnValue(false)
     renderSection()
-    const card = await findCard('Borrar cuenta')
+    const card = await openWindow('Borrar cuenta')
 
     await userEvent.type(within(card).getByLabelText('Contraseña actual'), 'my-password')
     await userEvent.click(within(card).getByRole('button', { name: 'Borrar mi cuenta' }))

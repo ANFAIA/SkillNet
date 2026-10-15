@@ -1,8 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useIntl } from 'react-intl'
-import { motion, useAnimationControls } from 'framer-motion'
+import { animate, motion, useAnimationControls, useMotionValue, useTransform } from 'framer-motion'
 import { duration, ease } from '../../lib/motion'
+import { useReducedMotion } from '../../hooks/useReducedMotion'
 
 type ModalSize = 'sm' | 'md' | 'lg'
 
@@ -17,7 +18,7 @@ export interface ModalProps {
   onClose: () => void
   children: React.ReactNode
   size?: ModalSize
-  /** Rect of the control that opened the modal — the panel grows from / shrinks to it (FLIP). */
+  /** Rect of the control that opened the modal. The box grows from it and folds back into it. */
   origin?: DOMRect | null
   /** Hide the top-right close button (e.g. when the content provides its own). */
   hideClose?: boolean
@@ -32,31 +33,98 @@ function CloseIcon() {
   )
 }
 
-/** Delta transform that maps the panel's current box onto the origin control's box. */
-function flipToOrigin(panel: DOMRect, origin: DOMRect | null | undefined) {
-  const o = origin && origin.width ? origin : new DOMRect(panel.left + panel.width / 2 - 24, panel.top + panel.height / 2 - 24, 48, 48)
-  const scale = Math.min(Math.max(o.width / panel.width, 0.08), 1)
+interface Box {
+  left: number
+  top: number
+  width: number
+  height: number
+}
+
+const boxOf = (r: DOMRect): Box => ({ left: r.left, top: r.top, width: r.width, height: r.height })
+
+/** Content comes in once the box is mostly there, and leaves before it folds back (seconds). */
+const CONTENT_IN_DELAY = 0.3
+const CONTENT_IN = 0.22
+const CONTENT_OUT = 0.16
+/** How far out of focus the content starts. */
+const BLUR_PX = 6
+
+/** Corner radius of a control, and of the panel it grows into. */
+const ORIGIN_RADIUS = 8
+const PANEL_RADIUS = 16
+
+/** Where the box starts: the control that opened it, or a small box in the middle of the panel. */
+function startBox(origin: DOMRect | null | undefined, final: Box): Box {
+  if (origin && origin.width) return boxOf(origin)
   return {
-    x: o.left + o.width / 2 - (panel.left + panel.width / 2),
-    y: o.top + o.height / 2 - (panel.top + panel.height / 2),
-    scale,
+    left: final.left + final.width / 2 - 24,
+    top: final.top + final.height / 2 - 24,
+    width: 48,
+    height: 48,
   }
 }
 
+const lerp = (from: number, to: number, t: number) => from + (to - from) * t
+
 /**
- * Clean, native-feeling modal — modeled on stepbro.site's `<window>`:
- * a borderless surface with a large radius and deep soft shadow that **grows
- * from the trigger control** (FLIP zoom-from-origin) over the signature ease,
- * while the content **fades in** once the box has settled. Portaled to
- * `document.body` so it escapes the page-transition transform.
+ * Calm modal: a box that grows out of the control that opened it.
+ *
+ * Modeled on elastic-ui's rules (DECISIONS.md, "Motion rules"):
+ *
+ * - **The text never scales.** The panel is laid out at its final size from the first frame and
+ *   a clip uncovers it, so nothing is stretched. The box behind it changes its real size.
+ * - **It starts exactly on the control** that was pressed, and folds back into it.
+ * - **Closing is faster than opening**, and the content leaves first, before the box folds.
+ * - **The content fades in** once the box has nearly arrived, coming into focus rather than
+ *   switching on, and leaves in a blink before the box folds.
+ * - **Depth from tones, not shadows.** The box is a raised surface with a hairline round it and
+ *   only a soft shadow under it. The page behind is dimmed, never blurred.
+ * - With reduced motion (system or declared) it just appears and disappears.
+ *
+ * Portaled to `document.body` so it escapes the page-transition transform.
  */
 export function Modal({ open, onClose, children, size = 'md', origin, hideClose = false }: ModalProps) {
   const intl = useIntl()
+  const reduceMotion = useReducedMotion()
   const [mounted, setMounted] = useState(open)
-  const panelRef = useRef<HTMLDivElement>(null)
-  const panel = useAnimationControls()
-  const scrim = useAnimationControls()
+  // Once the box has landed it follows the panel's own size (the content may grow).
+  const [settled, setSettled] = useState(false)
+  const wrapRef = useRef<HTMLDivElement>(null)
   const closingRef = useRef(false)
+  const geo = useRef<{ final: Box; start: Box } | null>(null)
+  const scrim = useAnimationControls()
+
+  // 0 = the box is the control, 1 = the box is the panel.
+  const t = useMotionValue(0)
+  const content = useMotionValue(0)
+  // `none` once it is in focus: any filter, even blur(0px), would become the containing block of
+  // what is positioned inside it.
+  const contentBlur = useTransform(content, (v) => (v >= 1 ? 'none' : `blur(${(1 - v) * BLUR_PX}px)`))
+
+  // Positions are relative to the wrapper, which is where the panel and its box live.
+  const rel = (v: number) => {
+    const g = geo.current
+    if (!g) return null
+    const left = lerp(g.start.left - g.final.left, 0, v)
+    const top = lerp(g.start.top - g.final.top, 0, v)
+    const width = lerp(g.start.width, g.final.width, v)
+    const height = lerp(g.start.height, g.final.height, v)
+    return { left, top, width, height, right: g.final.width - left - width, bottom: g.final.height - top - height }
+  }
+  const radius = (v: number) => lerp(ORIGIN_RADIUS, PANEL_RADIUS, v)
+
+  const boxLeft = useTransform(t, (v) => rel(v)?.left ?? 0)
+  const boxTop = useTransform(t, (v) => rel(v)?.top ?? 0)
+  const boxWidth = useTransform(t, (v) => rel(v)?.width ?? 0)
+  const boxHeight = useTransform(t, (v) => rel(v)?.height ?? 0)
+  const boxRadius = useTransform(t, radius)
+  const clipPath = useTransform(t, (v) => {
+    const r = rel(v)
+    // Until the box has been measured nothing shows, so there is no flash at the wrong size.
+    if (!r) return 'inset(50% 50% 50% 50%)'
+    if (v >= 1) return 'none'
+    return `inset(${r.top}px ${r.right}px ${r.bottom}px ${r.left}px round ${radius(v)}px)`
+  })
 
   // Mount as soon as it opens; unmount only after the close animation finishes.
   useEffect(() => {
@@ -66,33 +134,76 @@ export function Modal({ open, onClose, children, size = 'md', origin, hideClose 
     }
   }, [open])
 
-  // Enter — grow from the origin control.
+  // Enter: measure the panel at its final size, then grow the box from the control.
   useLayoutEffect(() => {
     if (!open || !mounted) return
-    const el = panelRef.current
-    if (!el) return
-    const from = flipToOrigin(el.getBoundingClientRect(), origin)
-    panel.set({ x: from.x, y: from.y, scale: from.scale, opacity: 0 })
-    panel.start({ x: 0, y: 0, scale: 1, opacity: 1, transition: { duration: duration.slow, ease: ease.base } })
+    const wrap = wrapRef.current
+    if (!wrap) return
+    const final = boxOf(wrap.getBoundingClientRect())
+    geo.current = { final, start: startBox(origin, final) }
+
+    if (reduceMotion) {
+      t.set(1)
+      content.set(1)
+      scrim.set({ opacity: 1 })
+      setSettled(true)
+      return
+    }
+
+    setSettled(false)
+    t.set(0.0001) // wakes the transforms now that the box is measured
+    content.set(0)
     scrim.set({ opacity: 0 })
-    scrim.start({ opacity: 1, transition: { duration: duration.fast } })
+    scrim.start({ opacity: 1, transition: { duration: duration.normal, ease: 'linear' } })
+    const grow = animate(t, 1, {
+      duration: duration.medium,
+      ease: [...ease.base],
+      onComplete: () => setSettled(true),
+    })
+    const fade = animate(content, 1, {
+      delay: CONTENT_IN_DELAY,
+      duration: CONTENT_IN,
+      ease: 'linear',
+    })
+    // Content that arrives while the box is still growing (a list that loads) changes the panel's
+    // size: keep the target current so the box lands on the real size, not the first measure.
+    const watcher =
+      typeof ResizeObserver === 'undefined'
+        ? null
+        : new ResizeObserver(() => {
+            if (!geo.current || !wrapRef.current) return
+            geo.current = { ...geo.current, final: boxOf(wrapRef.current.getBoundingClientRect()) }
+          })
+    watcher?.observe(wrap)
+    return () => {
+      grow.stop()
+      fade.stop()
+      watcher?.disconnect()
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, mounted])
 
-  // Exit — shrink back toward the origin control, then unmount.
+  // Exit: the content leaves at once, then the box folds back into the control, faster than it
+  // opened.
   useEffect(() => {
     if (open || !mounted || closingRef.current) return
     closingRef.current = true
-    const el = panelRef.current
-    if (!el) {
+    const wrap = wrapRef.current
+    if (reduceMotion || !wrap) {
       setMounted(false)
       return
     }
-    const to = flipToOrigin(el.getBoundingClientRect(), origin)
-    scrim.start({ opacity: 0, transition: { duration: duration.normal } })
-    panel
-      .start({ x: to.x, y: to.y, scale: to.scale, opacity: 0, transition: { duration: duration.normal, ease: ease.base } })
-      .then(() => setMounted(false))
+    const final = boxOf(wrap.getBoundingClientRect())
+    geo.current = { final, start: startBox(origin, final) }
+    setSettled(false)
+    scrim.start({ opacity: 0, transition: { duration: duration.normal, ease: 'linear' } })
+    animate(content, 0, { duration: CONTENT_OUT, ease: 'linear' })
+    animate(t, 0, {
+      delay: CONTENT_OUT,
+      duration: duration.normal,
+      ease: [...ease.base],
+      onComplete: () => setMounted(false),
+    })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, mounted])
 
@@ -116,45 +227,52 @@ export function Modal({ open, onClose, children, size = 'md', origin, hideClose 
   return createPortal(
     <div className="fixed inset-0 z-[100] flex items-start sm:items-center justify-center p-4 sm:p-6">
       <motion.div
-        className="absolute inset-0 bg-slate-900/25 backdrop-blur-md"
+        className="absolute inset-0 bg-black/40"
         initial={false}
         animate={scrim}
         onClick={onClose}
       />
-      <motion.div
-        ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        initial={false}
-        animate={panel}
-        style={{
-          borderRadius: 28,
-          transformOrigin: origin
-            ? `${origin.left + origin.width / 2}px ${origin.top + origin.height / 2}px`
-            : 'center',
-          willChange: 'transform',
-        }}
-        className={`relative z-10 w-full ${sizeClasses[size]} max-h-[calc(100vh-2rem)] overflow-y-auto bg-surface border border-border shadow-[0_32px_80px_-24px_rgba(15,23,42,0.45)] p-6 sm:p-7`}
-      >
-        {!hideClose && (
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label={intl.formatMessage({ id: 'modal.close' })}
-            className="absolute top-4 right-4 z-10 w-8 h-8 flex items-center justify-center rounded-full text-text-muted hover:text-text hover:bg-bg-muted transition-colors cursor-pointer"
-          >
-            <CloseIcon />
-          </button>
+      <div ref={wrapRef} className={`relative z-10 w-full ${sizeClasses[size]}`}>
+        {/* The box. While it grows it changes its real size, from the control to the panel. Once it
+            has landed it is a fresh element that simply fills the panel: the animation leaves
+            inline sizes behind, and reusing the element would pin the box to the size the panel
+            had when it opened (a list that loads late would overflow it). */}
+        {settled ? (
+          <div
+            key="settled"
+            aria-hidden="true"
+            className="absolute inset-0 rounded-2xl bg-surface border border-border shadow-[0_6px_20px_-8px_rgba(0,0,0,0.12)]"
+          />
+        ) : (
+          <motion.div
+            key="growing"
+            aria-hidden="true"
+            className="absolute bg-surface border border-border shadow-[0_6px_20px_-8px_rgba(0,0,0,0.12)]"
+            style={{ left: boxLeft, top: boxTop, width: boxWidth, height: boxHeight, borderRadius: boxRadius }}
+          />
         )}
-        {/* Content fades in once the box has grown. */}
+        {/* The panel: laid out at its final size, uncovered by the clip. */}
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.18, duration: duration.normal, ease: ease.base }}
+          role="dialog"
+          aria-modal="true"
+          style={{ clipPath }}
+          className="relative max-h-[calc(100vh-2rem)] overflow-y-auto rounded-2xl p-6"
         >
-          {children}
+          {/* Outside the filtered wrapper, so it stays pinned to the panel's corner. */}
+          {!hideClose && (
+            <motion.button
+              type="button"
+              onClick={onClose}
+              aria-label={intl.formatMessage({ id: 'modal.close' })}
+              style={{ opacity: content }}
+              className="absolute top-4 right-4 z-10 w-8 h-8 flex items-center justify-center rounded-full text-text-muted hover:text-text hover:bg-bg-muted transition-colors cursor-pointer"
+            >
+              <CloseIcon />
+            </motion.button>
+          )}
+          <motion.div style={{ opacity: content, filter: contentBlur }}>{children}</motion.div>
         </motion.div>
-      </motion.div>
+      </div>
     </div>,
     document.body,
   )
