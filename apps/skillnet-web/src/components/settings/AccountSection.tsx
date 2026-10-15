@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { useIntl } from 'react-intl'
-import { Button, Card, CardTitle, Input } from '../ui'
+import { Button, Input } from '../ui'
+import { SettingsWindowRow } from './SettingsWindowRow'
 import { useChangeEmail, useChangePassword, useDeleteAccount } from '../../api/users'
 import { useLogout } from '../../api/auth'
 import { useAuth, useWorkspaceMode } from '../../hooks/useAuth'
@@ -9,20 +10,46 @@ import { apiErrorMessage } from '../../lib/apiErrors'
 /**
  * Self-service account management: change password, change email, and (in an
  * individual workspace only) delete the account. Shared between admin Settings
- * and the employee Learning Preferences page — same forms either way, there is
+ * and the employee Learning Preferences page — same rows either way, there is
  * nothing role-specific about "what is my password".
+ *
+ * Each one is a quiet row; the form lives in a window that opens from its button, so the page
+ * is not six open fields that almost nobody needs.
  */
 export function AccountSection() {
+  const intl = useIntl()
+  const workspaceMode = useWorkspaceMode()
   return (
-    <div className="space-y-4">
-      <ChangePasswordCard />
-      <ChangeEmailCard />
-      <DeleteAccountCard />
+    <div>
+      <SettingsWindowRow
+        title={intl.formatMessage({ id: 'account.password.title' })}
+        action={intl.formatMessage({ id: 'account.change' })}
+        windowTitle={intl.formatMessage({ id: 'account.password.title' })}
+      >
+        <ChangePasswordForm />
+      </SettingsWindowRow>
+      <SettingsWindowRow
+        title={intl.formatMessage({ id: 'account.email.title' })}
+        action={intl.formatMessage({ id: 'account.change' })}
+        windowTitle={intl.formatMessage({ id: 'account.email.title' })}
+      >
+        <ChangeEmailForm />
+      </SettingsWindowRow>
+      {workspaceMode === 'individual' && (
+        <SettingsWindowRow
+          title={intl.formatMessage({ id: 'account.delete.title' })}
+          action={intl.formatMessage({ id: 'account.delete.action' })}
+          windowTitle={intl.formatMessage({ id: 'account.delete.title' })}
+          tone="danger"
+        >
+          <DeleteAccountForm />
+        </SettingsWindowRow>
+      )}
     </div>
   )
 }
 
-function ChangePasswordCard() {
+function ChangePasswordForm() {
   const intl = useIntl()
   const mutation = useChangePassword()
   const [currentPassword, setCurrentPassword] = useState('')
@@ -45,12 +72,8 @@ function ChangePasswordCard() {
   }
 
   return (
-    <Card>
-      <CardTitle>{intl.formatMessage({ id: 'account.password.title' })}</CardTitle>
-      <p className="mt-1 text-sm text-text-secondary">
-        {intl.formatMessage({ id: 'account.password.description' })}
-      </p>
-      <form onSubmit={handleSubmit} className="mt-4 space-y-3 max-w-sm">
+    <>
+      <form onSubmit={handleSubmit} className="space-y-3">
         <Input
           label={intl.formatMessage({ id: 'account.password.current' })}
           type="password"
@@ -93,11 +116,11 @@ function ChangePasswordCard() {
             : intl.formatMessage({ id: 'account.password.submit' })}
         </Button>
       </form>
-    </Card>
+    </>
   )
 }
 
-function ChangeEmailCard() {
+function ChangeEmailForm() {
   const intl = useIntl()
   const { user } = useAuth()
   const mutation = useChangeEmail()
@@ -116,12 +139,8 @@ function ChangeEmailCard() {
   }
 
   return (
-    <Card>
-      <CardTitle>{intl.formatMessage({ id: 'account.email.title' })}</CardTitle>
-      <p className="mt-1 text-sm text-text-secondary">
-        {intl.formatMessage({ id: 'account.email.description' })}
-      </p>
-      <form onSubmit={handleSubmit} className="mt-4 space-y-3 max-w-sm">
+    <>
+      <form onSubmit={handleSubmit} className="space-y-3">
         <Input
           label={intl.formatMessage({ id: 'account.email.new' })}
           type="email"
@@ -150,7 +169,7 @@ function ChangeEmailCard() {
             : intl.formatMessage({ id: 'account.email.submit' })}
         </Button>
       </form>
-    </Card>
+    </>
   )
 }
 
@@ -160,14 +179,11 @@ function ChangeEmailCard() {
  * them would orphan the org, which needs an explicit ownership-transfer flow that
  * does not exist yet. Hidden here is UX; the 404 is the real guard.
  */
-function DeleteAccountCard() {
+function DeleteAccountForm() {
   const intl = useIntl()
-  const workspaceMode = useWorkspaceMode()
   const mutation = useDeleteAccount()
   const logout = useLogout()
   const [password, setPassword] = useState('')
-
-  if (workspaceMode !== 'individual') return null
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -182,12 +198,11 @@ function DeleteAccountCard() {
   }
 
   return (
-    <Card className="border-danger/30">
-      <CardTitle>{intl.formatMessage({ id: 'account.delete.title' })}</CardTitle>
-      <p className="mt-1 text-sm text-text-secondary">
+    <>
+      <p className="mb-3 text-sm text-text-secondary">
         {intl.formatMessage({ id: 'account.delete.description' })}
       </p>
-      <form onSubmit={handleSubmit} className="mt-4 space-y-3 max-w-sm">
+      <form onSubmit={handleSubmit} className="space-y-3">
         <Input
           label={intl.formatMessage({ id: 'account.password.current' })}
           type="password"
@@ -206,6 +221,6 @@ function DeleteAccountCard() {
             : intl.formatMessage({ id: 'account.delete.submit' })}
         </Button>
       </form>
-    </Card>
+    </>
   )
 }

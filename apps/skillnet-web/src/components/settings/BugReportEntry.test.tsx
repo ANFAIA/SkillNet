@@ -38,7 +38,7 @@ describe('BugReportEntry', () => {
   it('shows only a row until the button is pressed, then the form', async () => {
     renderEntry(<BugReportEntry />)
     expect(screen.queryByLabelText('Título')).not.toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: 'Reportar un problema' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Reportar' }))
     expect(await screen.findByLabelText('Título')).toBeInTheDocument()
   })
 })
