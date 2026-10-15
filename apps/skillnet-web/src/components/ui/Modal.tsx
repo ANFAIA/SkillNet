@@ -165,9 +165,17 @@ export function Modal({ open, onClose, children, size = 'md', origin, hideClose 
       duration: CONTENT_IN,
       ease: 'linear',
     })
+    // Content that arrives while the box is still growing (a list that loads) changes the panel's
+    // size: keep the target current so the box lands on the real size, not the first measure.
+    const watcher = new ResizeObserver(() => {
+      if (!geo.current || !wrapRef.current) return
+      geo.current = { ...geo.current, final: boxOf(wrapRef.current.getBoundingClientRect()) }
+    })
+    watcher.observe(wrap)
     return () => {
       grow.stop()
       fade.stop()
+      watcher.disconnect()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, mounted])
@@ -222,18 +230,24 @@ export function Modal({ open, onClose, children, size = 'md', origin, hideClose 
         onClick={onClose}
       />
       <div ref={wrapRef} className={`relative z-10 w-full ${sizeClasses[size]}`}>
-        {/* The box: it changes its real size, from the control to the panel. */}
-        <motion.div
-          aria-hidden="true"
-          className={`absolute bg-surface border border-border shadow-[0_6px_20px_-8px_rgba(0,0,0,0.12)] ${
-            settled ? 'inset-0 rounded-2xl' : ''
-          }`}
-          style={
-            settled
-              ? undefined
-              : { left: boxLeft, top: boxTop, width: boxWidth, height: boxHeight, borderRadius: boxRadius }
-          }
-        />
+        {/* The box. While it grows it changes its real size, from the control to the panel. Once it
+            has landed it is a fresh element that simply fills the panel: the animation leaves
+            inline sizes behind, and reusing the element would pin the box to the size the panel
+            had when it opened (a list that loads late would overflow it). */}
+        {settled ? (
+          <div
+            key="settled"
+            aria-hidden="true"
+            className="absolute inset-0 rounded-2xl bg-surface border border-border shadow-[0_6px_20px_-8px_rgba(0,0,0,0.12)]"
+          />
+        ) : (
+          <motion.div
+            key="growing"
+            aria-hidden="true"
+            className="absolute bg-surface border border-border shadow-[0_6px_20px_-8px_rgba(0,0,0,0.12)]"
+            style={{ left: boxLeft, top: boxTop, width: boxWidth, height: boxHeight, borderRadius: boxRadius }}
+          />
+        )}
         {/* The panel: laid out at its final size, uncovered by the clip. */}
         <motion.div
           role="dialog"

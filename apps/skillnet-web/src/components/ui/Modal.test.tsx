@@ -71,4 +71,11 @@ describe('Modal', () => {
     renderModal({ origin: new DOMRect(10, 10, 120, 36), size: 'lg' })
     expect(screen.getByRole('dialog')).toBeInTheDocument()
   })
+
+  it('keeps its box on the panel once settled, so content that arrives late fits', () => {
+    renderModal()
+    const box = screen.getByRole('dialog').previousElementSibling as HTMLElement
+    expect(box).toHaveClass('inset-0')
+    expect(box.getAttribute('style')).toBeNull()
+  })
 })
