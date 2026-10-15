@@ -42,9 +42,16 @@ interface Box {
 
 const boxOf = (r: DOMRect): Box => ({ left: r.left, top: r.top, width: r.width, height: r.height })
 
+/** Content comes in once the box is mostly there, and leaves before it folds back (seconds). */
+const CONTENT_IN_DELAY = 0.3
+const CONTENT_IN = 0.22
+const CONTENT_OUT = 0.16
+/** How far out of focus the content starts. */
+const BLUR_PX = 6
+
 /** Corner radius of a control, and of the panel it grows into. */
 const ORIGIN_RADIUS = 8
-const PANEL_RADIUS = 28
+const PANEL_RADIUS = 16
 
 /** Where the box starts: the control that opened it, or a small box in the middle of the panel. */
 function startBox(origin: DOMRect | null | undefined, final: Box): Box {
@@ -68,7 +75,10 @@ const lerp = (from: number, to: number, t: number) => from + (to - from) * t
  *   a clip uncovers it, so nothing is stretched. The box behind it changes its real size.
  * - **It starts exactly on the control** that was pressed, and folds back into it.
  * - **Closing is faster than opening**, and the content leaves first, before the box folds.
- * - **The content fades in** once the box has nearly arrived.
+ * - **The content fades in** once the box has nearly arrived, coming into focus rather than
+ *   switching on, and leaves in a blink before the box folds.
+ * - **Depth from tones, not shadows.** The box is a raised surface with a hairline round it and
+ *   only a soft shadow under it. The page behind is dimmed, never blurred.
  * - With reduced motion (system or declared) it just appears and disappears.
  *
  * Portaled to `document.body` so it escapes the page-transition transform.
@@ -87,6 +97,9 @@ export function Modal({ open, onClose, children, size = 'md', origin, hideClose 
   // 0 = the box is the control, 1 = the box is the panel.
   const t = useMotionValue(0)
   const content = useMotionValue(0)
+  // `none` once it is in focus: any filter, even blur(0px), would become the containing block of
+  // what is positioned inside it.
+  const contentBlur = useTransform(content, (v) => (v >= 1 ? 'none' : `blur(${(1 - v) * BLUR_PX}px)`))
 
   // Positions are relative to the wrapper, which is where the panel and its box live.
   const rel = (v: number) => {
@@ -141,16 +154,16 @@ export function Modal({ open, onClose, children, size = 'md', origin, hideClose 
     t.set(0.0001) // wakes the transforms now that the box is measured
     content.set(0)
     scrim.set({ opacity: 0 })
-    scrim.start({ opacity: 1, transition: { duration: duration.fast } })
+    scrim.start({ opacity: 1, transition: { duration: duration.normal, ease: 'linear' } })
     const grow = animate(t, 1, {
       duration: duration.medium,
       ease: [...ease.base],
       onComplete: () => setSettled(true),
     })
     const fade = animate(content, 1, {
-      delay: duration.medium * 0.55,
-      duration: duration.normal,
-      ease: [...ease.base],
+      delay: CONTENT_IN_DELAY,
+      duration: CONTENT_IN,
+      ease: 'linear',
     })
     return () => {
       grow.stop()
@@ -172,10 +185,10 @@ export function Modal({ open, onClose, children, size = 'md', origin, hideClose 
     const final = boxOf(wrap.getBoundingClientRect())
     geo.current = { final, start: startBox(origin, final) }
     setSettled(false)
-    scrim.start({ opacity: 0, transition: { duration: duration.normal } })
-    animate(content, 0, { duration: duration.instant, ease: [...ease.base] })
+    scrim.start({ opacity: 0, transition: { duration: duration.normal, ease: 'linear' } })
+    animate(content, 0, { duration: CONTENT_OUT, ease: 'linear' })
     animate(t, 0, {
-      delay: duration.instant,
+      delay: CONTENT_OUT,
       duration: duration.normal,
       ease: [...ease.base],
       onComplete: () => setMounted(false),
@@ -203,7 +216,7 @@ export function Modal({ open, onClose, children, size = 'md', origin, hideClose 
   return createPortal(
     <div className="fixed inset-0 z-[100] flex items-start sm:items-center justify-center p-4 sm:p-6">
       <motion.div
-        className="absolute inset-0 bg-slate-900/25 backdrop-blur-md"
+        className="absolute inset-0 bg-black/40"
         initial={false}
         animate={scrim}
         onClick={onClose}
@@ -212,8 +225,8 @@ export function Modal({ open, onClose, children, size = 'md', origin, hideClose 
         {/* The box: it changes its real size, from the control to the panel. */}
         <motion.div
           aria-hidden="true"
-          className={`absolute bg-surface border border-border shadow-[0_32px_80px_-24px_rgba(15,23,42,0.45)] ${
-            settled ? 'inset-0 rounded-[28px]' : ''
+          className={`absolute bg-surface border border-border shadow-[0_6px_20px_-8px_rgba(0,0,0,0.12)] ${
+            settled ? 'inset-0 rounded-2xl' : ''
           }`}
           style={
             settled
@@ -226,21 +239,21 @@ export function Modal({ open, onClose, children, size = 'md', origin, hideClose 
           role="dialog"
           aria-modal="true"
           style={{ clipPath }}
-          className="relative max-h-[calc(100vh-2rem)] overflow-y-auto rounded-[28px] p-6 sm:p-7"
+          className="relative max-h-[calc(100vh-2rem)] overflow-y-auto rounded-2xl p-6"
         >
-          <motion.div style={{ opacity: content }}>
-            {!hideClose && (
-              <button
-                type="button"
-                onClick={onClose}
-                aria-label={intl.formatMessage({ id: 'modal.close' })}
-                className="absolute top-4 right-4 z-10 w-8 h-8 flex items-center justify-center rounded-full text-text-muted hover:text-text hover:bg-bg-muted transition-colors cursor-pointer"
-              >
-                <CloseIcon />
-              </button>
-            )}
-            {children}
-          </motion.div>
+          {/* Outside the filtered wrapper, so it stays pinned to the panel's corner. */}
+          {!hideClose && (
+            <motion.button
+              type="button"
+              onClick={onClose}
+              aria-label={intl.formatMessage({ id: 'modal.close' })}
+              style={{ opacity: content }}
+              className="absolute top-4 right-4 z-10 w-8 h-8 flex items-center justify-center rounded-full text-text-muted hover:text-text hover:bg-bg-muted transition-colors cursor-pointer"
+            >
+              <CloseIcon />
+            </motion.button>
+          )}
+          <motion.div style={{ opacity: content, filter: contentBlur }}>{children}</motion.div>
         </motion.div>
       </div>
     </div>,
