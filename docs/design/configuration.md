@@ -129,6 +129,23 @@ in `.env` therefore wins over all three overlays, including a `false` you copied
 example and forgot. That is why `.env.example` ships the line commented out: leave it that
 way unless you specifically mean to override an overlay.
 
+## Bug reports
+
+Anyone can report a problem from Settings. A model reads the report, throws out spam, rewrites
+it without personal details and checks the open issues for a duplicate. With nothing below
+set, reports are judged and kept for the admin, and nothing leaves the deployment.
+
+| Variable | Default | What it does | Reachable in Docker |
+|---|---|---|---|
+| `GITHUB_TOKEN` | empty | Fine-grained token with Issues: read and write on one repository. With it, a genuine report becomes an issue on `GITHUB_REPO`. | Yes |
+| `GITHUB_REPO` | empty | `owner/name` of the repository that receives the issues. Empty keeps reports inside the deployment. | Yes |
+| `BUG_REPORT_DAILY_LIMIT` | `5` | Reports one person may send per day. Admins have no cap. | Yes |
+| `UPSTREAM_REPORTS_URL` | `https://reports.skillnet.es` | Where reports go when an admin turns on "Share bugs with the SkillNet team" in Settings. That switch is off by default. | Yes |
+
+Sharing sends the title, the text, the page and the browser. It never sends a name, an email
+or an organization. The relay that receives it lives in `apps/skillnet-relay`, and the issues
+it opens are public if the repository is.
+
 ## Sign in with Google
 
 | Variable | Default | What it does | Reachable in Docker |
