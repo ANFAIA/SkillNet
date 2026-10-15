@@ -1,4 +1,4 @@
-import type { TextareaHTMLAttributes } from 'react'
+import { useId, type TextareaHTMLAttributes } from 'react'
 
 export interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
   label?: string
@@ -18,12 +18,22 @@ export function Textarea({
   error,
   className = '',
   rows = 5,
+  id,
   ...props
 }: TextareaProps) {
+  // Same pairing `Input` has: without it the label is next to the field but not tied to it.
+  const generatedId = useId()
+  const textareaId = id ?? generatedId
+
   return (
     <div className="space-y-1 max-w-full">
-      {label && <label className="block text-sm font-medium text-text">{label}</label>}
+      {label && (
+        <label htmlFor={textareaId} className="block text-sm font-medium text-text">
+          {label}
+        </label>
+      )}
       <textarea
+        id={textareaId}
         rows={rows}
         className={`
           w-full px-3 py-2 text-sm text-text

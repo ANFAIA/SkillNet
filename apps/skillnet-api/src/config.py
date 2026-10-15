@@ -79,6 +79,14 @@ class Settings(BaseSettings):
     GOOGLE_LOGIN_ERROR_PATH: str = "/login"
 
     # LLM (defaults, overridable per org)
+    # Bug reports: a judged report becomes a GitHub issue on this repo ("owner/name").
+    # Without a token the reports are still judged and kept, for an admin to file by hand.
+    GITHUB_TOKEN: str = ""
+    GITHUB_REPO: str = ""
+    BUG_REPORT_DAILY_LIMIT: int = 5
+    # Where a report goes when the admin turned on "share bug reports with the SkillNet team".
+    UPSTREAM_REPORTS_URL: str = "https://reports.skillnet.es"
+
     LLM_BASE_URL: str = "https://api.openai.com/v1"
     LLM_API_KEY: str = ""
     LLM_MODEL: str = "gpt-4o-mini"

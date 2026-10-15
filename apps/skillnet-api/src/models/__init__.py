@@ -3,6 +3,7 @@
 from src.models.access_token import AccessToken
 from src.models.api_key import ApiKey
 from src.models.audit_log import AUDIT_ACTIONS, AuditLog
+from src.models.bug_report import BUG_REPORT_STATUSES, BugReport
 from src.models.activity_definition import ActivityDefinition, ActivityFamily, ActivityState
 from src.models.base import Base, TimestampMixin, UUIDMixin
 from src.models.chat_message import ChatMessage
@@ -169,6 +170,8 @@ __all__ = [
     "LlmUsageLog",
     "USE_CASES",
     "AuditLog",
+    "BugReport",
+    "BUG_REPORT_STATUSES",
     "AUDIT_ACTIONS",
     "ActivityDefinition",
     "ActivityFamily",

@@ -25,6 +25,8 @@ class OrgSettingsRead(BaseModel):
     #: is no source material to infer it from. ``None`` means the organization never
     #: chose, and the product default applies.
     language: Language | None = None
+    #: Whether bug reports are also sent to the SkillNet team's relay. Off by default.
+    share_bug_reports: bool = False
 
 
 class FeaturesUpdate(BaseModel):
@@ -42,6 +44,8 @@ class FeaturesUpdate(BaseModel):
 
     chat_generative_ui: bool
     language: Language | None = None
+    #: ``None`` leaves it as it is, like ``language``.
+    share_bug_reports: bool | None = None
 
 
 class LLMTestResult(BaseModel):

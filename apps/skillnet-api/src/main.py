@@ -26,6 +26,7 @@ from src.routes import (
     ai,
     auth,
     auth_google,
+    bug_reports,
     chat,
     course_folders,
     course_schema,
@@ -226,6 +227,7 @@ def create_app() -> FastAPI:
     app.include_router(chat.router, prefix=prefix, tags=["Chat"])
     app.include_router(stats.router, prefix=prefix, dependencies=org_only)
     app.include_router(settings_routes.router, prefix=prefix)
+    app.include_router(bug_reports.router, prefix=prefix)
     app.include_router(tts.router, prefix=prefix)
     # Rich-media artifacts (NotebookLM spine). Additive, own /media prefix.
     app.include_router(media.router, prefix=prefix)
