@@ -9,7 +9,6 @@ export function BugReportEntry() {
   return (
     <SettingsWindowRow
       title={intl.formatMessage({ id: 'bugReport.title' })}
-      description={intl.formatMessage({ id: 'bugReport.hint' })}
       action={intl.formatMessage({ id: 'bugReport.action' })}
       windowTitle={intl.formatMessage({ id: 'bugReport.title' })}
       size="md"
@@ -25,7 +24,6 @@ export function BugReportsAdminEntry() {
   return (
     <SettingsWindowRow
       title={intl.formatMessage({ id: 'bugReport.admin.title' })}
-      description={intl.formatMessage({ id: 'bugReport.admin.hint' })}
       action={intl.formatMessage({ id: 'bugReport.admin.open' })}
       windowTitle={intl.formatMessage({ id: 'bugReport.admin.title' })}
       size="lg"

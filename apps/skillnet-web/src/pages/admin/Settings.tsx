@@ -92,7 +92,6 @@ function SettingsBody({
         {/* Generative UI toggle */}
         <SettingRow
           title={intl.formatMessage({ id: 'settings.chatGenUi' })}
-          description={intl.formatMessage({ id: 'settings.chatGenUiDesc' })}
         >
           <Switch
             checked={settings.chat_generative_ui}
@@ -106,7 +105,7 @@ function SettingsBody({
             deployment only because the admin chose it. */}
         <SettingRow
           title={intl.formatMessage({ id: 'settings.shareBugs' })}
-          description={intl.formatMessage({ id: 'settings.shareBugsDesc' })}
+          info={intl.formatMessage({ id: 'settings.shareBugsDesc' })}
         >
           <Switch
             checked={settings.share_bug_reports}
