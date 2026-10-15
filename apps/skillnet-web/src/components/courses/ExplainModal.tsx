@@ -760,7 +760,7 @@ export function ExplainModal({
     // opened inside the card paints above it instead of behind it.
     <ExplainLayer zIndex={EXPLAIN_LAYER_MODAL}>
       {/* Scrim */}
-      <div className="fixed inset-0 z-[100] bg-slate-900/25 backdrop-blur-sm" onClick={onClose} />
+      <div className="fixed inset-0 z-[100] bg-black/40" onClick={onClose} />
 
       {/* Card */}
       <div className="fixed inset-0 z-[101] flex items-center justify-center p-5 pointer-events-none">

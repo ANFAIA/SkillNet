@@ -339,7 +339,7 @@ export function Sidebar({ role = 'employee' }: { role?: SidebarRole }) {
             <motion.div
               {...backdrop}
               style={{ opacity: backdropOpacity }}
-              className="fixed inset-0 z-30 bg-black/10 backdrop-blur-sm md:hidden"
+              className="fixed inset-0 z-30 bg-black/40 md:hidden"
               onClick={closeMobile}
             />
             <motion.aside
