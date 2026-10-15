@@ -84,6 +84,8 @@ class Settings(BaseSettings):
     GITHUB_TOKEN: str = ""
     GITHUB_REPO: str = ""
     BUG_REPORT_DAILY_LIMIT: int = 5
+    # Where a report goes when the admin turned on "share bug reports with the SkillNet team".
+    UPSTREAM_REPORTS_URL: str = "https://reports.skillnet.es"
 
     LLM_BASE_URL: str = "https://api.openai.com/v1"
     LLM_API_KEY: str = ""

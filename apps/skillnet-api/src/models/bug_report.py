@@ -40,6 +40,8 @@ class BugReport(UUIDMixin, Base):
     # {genuine, severity, kind, title, body, reason, duplicate_of}, or {error}.
     verdict: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     issue_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # The receipt the SkillNet relay gave when this report was shared with the team.
+    upstream_receipt: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=text("now()")
     )

@@ -15,6 +15,8 @@ that let a web form write it.
 
 from __future__ import annotations
 
+import uuid
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -27,10 +29,13 @@ from src.llm.fixtures import maybe_fixture_llm
 from src.models import Organization
 from src.schemas.settings import LLMTestResult, OrgSettingsRead
 from src.services.org_features import (
+    BUG_REPORT_INSTANCE_ID,
     CHAT_GENERATIVE_UI,
     ORG_LANGUAGE,
+    SHARE_BUG_REPORTS,
     chat_generative_ui_enabled,
     org_language,
+    share_bug_reports_enabled,
 )
 
 logger = get_logger(__name__)
@@ -63,10 +68,15 @@ class SettingsService:
             llm_base_url=llm.api_base,
             chat_generative_ui=chat_generative_ui_enabled(org_settings),
             language=org_language(org_settings),
+            share_bug_reports=share_bug_reports_enabled(org_settings),
         )
 
     async def update_features(
-        self, *, chat_generative_ui: bool, language: Language | None = None
+        self,
+        *,
+        chat_generative_ui: bool,
+        language: Language | None = None,
+        share_bug_reports: bool | None = None,
     ) -> OrgSettingsRead:
         org = await self._get_org()
         new_settings = dict(org.settings or {})
@@ -77,6 +87,10 @@ class SettingsService:
         # wanted it needs an explicit sentinel, not the absence of a field.
         if language is not None:
             new_settings[ORG_LANGUAGE] = language
+        if share_bug_reports is not None:
+            new_settings[SHARE_BUG_REPORTS] = share_bug_reports
+            if share_bug_reports and not new_settings.get(BUG_REPORT_INSTANCE_ID):
+                new_settings[BUG_REPORT_INSTANCE_ID] = str(uuid.uuid4())
         # Reassign so SQLAlchemy detects the JSONB change.
         org.settings = new_settings
         await self.db.flush()

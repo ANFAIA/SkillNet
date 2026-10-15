@@ -62,7 +62,33 @@ def org_language(org_settings: dict[str, Any] | None) -> Language | None:
     return normalize_language(org_settings.get(ORG_LANGUAGE))
 
 
+#: Keys in ``organizations.settings`` for sharing bug reports with the SkillNet team.
+#: Off unless the admin turns it on: a report leaves the deployment only by their choice.
+SHARE_BUG_REPORTS = "share_bug_reports"
+#: A random id this deployment makes up the first time sharing is turned on. It lets the
+#: relay count repeats; it identifies nobody.
+BUG_REPORT_INSTANCE_ID = "bug_report_instance_id"
+
+
+def share_bug_reports_enabled(org_settings: dict[str, Any] | None) -> bool:
+    """Only an explicit ``True`` counts. Anything else, including a malformed value, is off."""
+    if not org_settings:
+        return False
+    return org_settings.get(SHARE_BUG_REPORTS) is True
+
+
+def bug_report_instance_id(org_settings: dict[str, Any] | None) -> str | None:
+    if not org_settings:
+        return None
+    value = org_settings.get(BUG_REPORT_INSTANCE_ID)
+    return value if isinstance(value, str) and value else None
+
+
 __all__ = [
+    "BUG_REPORT_INSTANCE_ID",
+    "SHARE_BUG_REPORTS",
+    "bug_report_instance_id",
+    "share_bug_reports_enabled",
     "CHAT_GENERATIVE_UI",
     "ORG_LANGUAGE",
     "chat_generative_ui_enabled",

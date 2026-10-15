@@ -66,7 +66,9 @@ async def update_features(
 ) -> OrgSettingsRead:
     service = SettingsService(db)
     result = await service.update_features(
-        chat_generative_ui=body.chat_generative_ui, language=body.language
+        chat_generative_ui=body.chat_generative_ui,
+        language=body.language,
+        share_bug_reports=body.share_bug_reports,
     )
     await db.commit()
     return result

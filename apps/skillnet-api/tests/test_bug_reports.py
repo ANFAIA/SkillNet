@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 import uuid
 
+import httpx
 import pytest
 
 from src.config import settings
@@ -209,3 +210,153 @@ async def test_process_report_never_raises_even_when_the_database_does():
     await svc.process_report(
         uuid.uuid4(), FakeLLM(GENUINE), session_factory=BrokenSession
     )
+
+
+# -- sharing with the SkillNet team ------------------------------------------------------
+
+
+class FakeSession:
+    """Just enough of an AsyncSession for ``process_report``: one row, a commit."""
+
+    def __init__(self, row: BugReport) -> None:
+        self.row = row
+        self.commits = 0
+
+    async def get(self, model, id):
+        return self.row
+
+    async def commit(self) -> None:
+        self.commits += 1
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *exc):
+        return False
+
+
+class RelayHTTP:
+    """The relay on one side and GitHub on the other, told apart by URL."""
+
+    def __init__(self, relay_post=201, relay_status=None, github: FakeHTTP | None = None):
+        self.relay_post = relay_post
+        self.relay_status = relay_status or {"status": "queued"}
+        self.github = github or FakeHTTP()
+        self.relay_posts: list[dict] = []
+
+    async def post(self, url, json=None, **kwargs):
+        if "reports.skillnet.es" in url:
+            if self.relay_post == "down":
+                raise httpx.ConnectError("unreachable")
+            self.relay_posts.append(json)
+            return FakeResponse(self.relay_post, {"receipt": "rcpt1"})
+        return await self.github.post(url, json=json, **kwargs)
+
+    async def get(self, url, **kwargs):
+        if "reports.skillnet.es" in url:
+            return FakeResponse(200, self.relay_status)
+        return await self.github.get(url, **kwargs)
+
+
+async def _run(row, http, *, share=True, llm=None):
+    await svc.process_report(
+        row.id,
+        llm or FakeLLM(GENUINE),
+        http=http,
+        session_factory=lambda: FakeSession(row),
+        instance_id="inst-1" if share else None,
+        poll_delay=0,
+    )
+
+
+async def test_a_shared_report_is_judged_by_the_relay_and_not_here(github):
+    row = _row()
+    http = RelayHTTP(
+        relay_status={
+            "status": "issue",
+            "severity": "high",
+            "reason": "Real.",
+            "issue_url": "https://github.com/o/r/issues/7",
+        }
+    )
+    llm = FakeLLM(RuntimeError("must not be called"))
+    await _run(row, http, llm=llm)
+    assert row.status == "issue"
+    assert row.issue_url == "https://github.com/o/r/issues/7"
+    assert row.upstream_receipt == "rcpt1"
+    assert row.verdict["reason"] == "Real."
+    assert llm.calls == []
+    assert http.github.posts == []
+
+
+async def test_only_what_the_person_wrote_leaves_the_instance(github):
+    row = _row()
+    row.user_id = uuid.uuid4()
+    http = RelayHTTP(relay_status={"status": "discarded"})
+    await _run(row, http)
+    assert set(http.relay_posts[0]) == {
+        "instance_id",
+        "title",
+        "body",
+        "page_path",
+        "environment",
+    }
+    assert str(row.user_id) not in json.dumps(http.relay_posts[0])
+    assert str(row.org_id) not in json.dumps(http.relay_posts[0])
+
+
+async def test_a_report_still_with_the_relay_stays_pending_with_its_receipt(github):
+    row = _row()
+    await _run(row, RelayHTTP(relay_status={"status": "queued"}))
+    assert row.status == "pending"
+    assert row.upstream_receipt == "rcpt1"
+
+
+async def test_a_later_refresh_picks_up_the_relays_answer(github):
+    row = _row()
+    row.upstream_receipt = "rcpt1"
+    row.status = "pending"
+    http = RelayHTTP(relay_status={"status": "discarded", "reason": "Spam."})
+    await svc.refresh_from_relay(row, http)
+    assert row.status == "discarded"
+    assert row.verdict["reason"] == "Spam."
+
+
+async def test_when_the_relay_is_down_the_report_is_judged_here(github):
+    row = _row()
+    http = RelayHTTP(relay_post="down")
+    await _run(row, http)
+    assert row.status == "issue"
+    assert row.upstream_receipt is None
+    assert len(http.github.posts) == 1
+
+
+async def test_when_the_relay_refuses_the_report_is_judged_here(no_github):
+    row = _row()
+    await _run(row, RelayHTTP(relay_post=429))
+    assert row.status == "pending"
+    assert row.verdict["title"] == GENUINE["title"]
+    assert row.upstream_receipt is None
+
+
+async def test_without_sharing_nothing_goes_to_the_relay(github):
+    row = _row()
+    http = RelayHTTP()
+    await _run(row, http, share=False)
+    assert http.relay_posts == []
+    assert row.status == "issue"
+
+
+def test_sharing_is_off_unless_an_admin_turned_it_on():
+    from src.services.org_features import (
+        SHARE_BUG_REPORTS,
+        bug_report_instance_id,
+        share_bug_reports_enabled,
+    )
+
+    assert share_bug_reports_enabled(None) is False
+    assert share_bug_reports_enabled({}) is False
+    assert share_bug_reports_enabled({SHARE_BUG_REPORTS: "yes"}) is False
+    assert share_bug_reports_enabled({SHARE_BUG_REPORTS: True}) is True
+    assert bug_report_instance_id({}) is None
+    assert bug_report_instance_id({"bug_report_instance_id": "abc"}) == "abc"

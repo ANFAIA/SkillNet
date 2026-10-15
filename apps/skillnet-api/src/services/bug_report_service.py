@@ -11,6 +11,7 @@ through ``LLMService`` and ``httpx.AsyncClient``.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import uuid
 from collections.abc import Callable
@@ -216,16 +217,93 @@ async def publish(
     return await create_issue(http, verdict, page_path, environment)
 
 
+#: Statuses the relay will not change again.
+RELAY_FINAL = ("issue", "discarded", "failed")
+#: How long a freshly shared report is followed before it is left for the next page load.
+POLL_ATTEMPTS = 8
+POLL_DELAY = 3.0
+
+
+def _relay_url(path: str) -> str:
+    return settings.UPSTREAM_REPORTS_URL.rstrip("/") + path
+
+
+async def share_with_team(row: BugReport, instance_id: str, http: Any) -> str:
+    """Send the report to the SkillNet relay and return its receipt. Raises when it refuses.
+
+    Only what the person wrote goes: title, text, page and browser. No user, no email, no
+    organization. The relay reads and rewrites it, and files the issue with its own token.
+    """
+    response = await http.post(
+        _relay_url("/v1/reports"),
+        json={
+            "instance_id": instance_id,
+            "title": row.title,
+            "body": row.body,
+            "page_path": row.page_path,
+            "environment": row.environment,
+        },
+    )
+    if response.status_code >= 300:
+        raise RuntimeError(f"The relay answered {response.status_code}")
+    return str(response.json()["receipt"])
+
+
+def apply_relay_status(row: BugReport, data: dict[str, Any]) -> None:
+    """Copy the relay's outcome onto the row. The relay says ``queued`` while it is judging,
+    which is ``pending`` here."""
+    status = data.get("status")
+    if status in RELAY_FINAL:
+        row.status = status
+    row.issue_url = data.get("issue_url") or row.issue_url
+    if data.get("severity") or data.get("reason"):
+        row.verdict = {
+            **(row.verdict or {}),
+            "severity": data.get("severity"),
+            "reason": data.get("reason"),
+        }
+
+
+async def refresh_from_relay(row: BugReport, http: Any) -> None:
+    """Ask the relay how a shared report ended up. Silent when it cannot be reached."""
+    if not row.upstream_receipt or row.status in RELAY_FINAL:
+        return
+    try:
+        response = await http.get(_relay_url(f"/v1/reports/{row.upstream_receipt}"))
+        if response.status_code < 300:
+            apply_relay_status(row, response.json())
+    except Exception as exc:
+        log.warning("could not refresh bug report %s: %s", row.id, type(exc).__name__)
+
+
+async def _share_and_follow(
+    row: BugReport, instance_id: str, http: Any, poll_delay: float
+) -> None:
+    row.upstream_receipt = await share_with_team(row, instance_id, http)
+    row.status = "pending"
+    for _ in range(POLL_ATTEMPTS):
+        await asyncio.sleep(poll_delay)
+        await refresh_from_relay(row, http)
+        if row.status in RELAY_FINAL:
+            return
+
+
 async def process_report(
     report_id: uuid.UUID,
     llm: LLMService,
     *,
     http: Any = None,
     session_factory: Callable[[], Any] = async_session_factory,
+    instance_id: str | None = None,
+    poll_delay: float = POLL_DELAY,
 ) -> None:
     """Judge a report and, if genuine, file it; never raises. The outcome is on the row.
 
     Runs after the response, so it opens its own session instead of borrowing the request's.
+
+    With an ``instance_id`` the admin chose to share reports with the SkillNet team: the report
+    goes to the relay, which judges it and files it. If the relay cannot be reached the report
+    is judged here instead, so sharing never costs a report.
     """
     try:
         async with session_factory() as db:
@@ -236,7 +314,17 @@ async def process_report(
             owns_http = http is None
             client = http or httpx.AsyncClient(timeout=15)
             try:
-                await _process(repo, row, llm, client)
+                if instance_id:
+                    try:
+                        await _share_and_follow(row, instance_id, client, poll_delay)
+                    except Exception as exc:
+                        log.warning(
+                            "could not share bug report %s: %s", report_id, type(exc).__name__
+                        )
+                        row.upstream_receipt = None
+                        await _process(repo, row, llm, client)
+                else:
+                    await _process(repo, row, llm, client)
             finally:
                 if owns_http:
                     await client.aclose()

@@ -46,6 +46,7 @@ def upgrade() -> None:
         sa.Column("status", sa.Text(), nullable=False, server_default="pending"),
         sa.Column("verdict", postgresql.JSONB(), nullable=True),
         sa.Column("issue_url", sa.Text(), nullable=True),
+        sa.Column("upstream_receipt", sa.Text(), nullable=True),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),

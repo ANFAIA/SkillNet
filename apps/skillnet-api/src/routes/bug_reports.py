@@ -7,6 +7,7 @@ files it on GitHub. ``GET /bugs/mine`` shows where it ended up.
 import uuid
 from datetime import datetime, timedelta, timezone
 
+import httpx
 from fastapi import APIRouter, BackgroundTasks
 from fastapi import status as http_status
 
@@ -15,7 +16,7 @@ from src.core.exceptions import AppError, ConflictError, NotFoundError
 from src.deps.auth import AdminUser, CurrentUser, _role_value
 from src.deps.db import DBSession
 from src.deps.llm import LLMDep
-from src.models import BugReport, UserRole
+from src.models import BugReport, Organization, UserRole
 from src.repositories.bug_report_repo import BugReportRepository
 from src.schemas.bug_report import (
     BugReportAdminRead,
@@ -28,7 +29,9 @@ from src.services.bug_report_service import (
     file_by_admin,
     github_configured,
     process_report,
+    refresh_from_relay,
 )
+from src.services.org_features import bug_report_instance_id, share_bug_reports_enabled
 
 router = APIRouter(prefix="/bugs", tags=["Bug reports"])
 
@@ -88,13 +91,27 @@ async def report_bug(
     )
     db.add(row)
     await db.commit()
-    background.add_task(process_report, row.id, llm)
+    org = await db.get(Organization, user.org_id)
+    org_settings = dict(org.settings or {}) if org else {}
+    instance_id = (
+        bug_report_instance_id(org_settings)
+        if share_bug_reports_enabled(org_settings)
+        else None
+    )
+    background.add_task(process_report, row.id, llm, instance_id=instance_id)
     return BugReportQueued(id=row.id)
 
 
 @router.get("/mine", response_model=list[BugReportRead])
 async def my_bug_reports(user: CurrentUser, db: DBSession) -> list[BugReportRead]:
     rows = await BugReportRepository(db).list_for_user(user.id)
+    waiting = [r for r in rows if r.upstream_receipt and r.status == "pending"]
+    if waiting:
+        # A report shared with the team can still be with the relay: ask how it ended up.
+        async with httpx.AsyncClient(timeout=10) as http:
+            for row in waiting:
+                await refresh_from_relay(row, http)
+        await db.commit()
     return [_read(r) for r in rows]
 
 
