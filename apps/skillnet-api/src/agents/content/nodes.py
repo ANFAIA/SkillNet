@@ -20,6 +20,7 @@ from src.agents.content.helpers import (
     assemble_chunk_text as _assemble_chunk_text,
     describe_payload as _describe_payload,
     estimate_pages as _estimate_pages,
+    exercise_content_problems as _exercise_content_problems,
     module_payload as _module_payload,
     outline_dict as _outline_dict,
     review_report as _review_report,
@@ -272,25 +273,28 @@ async def design_structure(state: GenerationState) -> dict:
 async def _module_context(
     state: GenerationState, spec: dict, embeddings: EmbeddingService | None
 ) -> str:
+    """The source material that belongs to one module.
+
+    A short document (``full_text``) goes in whole: there is nothing to scope and every
+    module can see the material it needs. A long one is retrieved **for this module**, on
+    its title and summary, so a module is not handed a fact from a section it never
+    teaches. Before 2026-09-30 this function loaded *every* chunk and then ran a
+    similarity search that could add nothing (each hit was already in the map), so every
+    module received the whole document and a question could be written about any part of
+    it — the "pregunta que no va con el temario" the testers reported. The retrieval now
+    does what it says, and the whole document is only the fallback for when embeddings are
+    unavailable.
+    """
     context = "\n\n".join((state.get("full_texts") or {}).values())
     if context.strip():
         return context
 
     org_id = uuid.UUID(state["org_id"])
     doc_ids = _uuids(state.get("source_document_ids"))
-    items: dict[uuid.UUID, dict] = {}
+    query_text = f"{spec.get('title', '')} {spec.get('summary', '')}".strip()
 
     async with async_session_factory() as db:
         repo = DocumentChunkRepository(db)
-        all_chunks = list(await repo.list_for_documents_ordered(doc_ids))
-        for chunk in all_chunks:
-            items[chunk.id] = {
-                "doc": str(chunk.document_id),
-                "idx": chunk.chunk_index,
-                "content": chunk.content,
-            }
-
-        query_text = f"{spec.get('title', '')} {spec.get('summary', '')}".strip()
         if embeddings is not None and query_text:
             try:
                 vector = await embeddings.embed_query(query_text)
@@ -300,18 +304,20 @@ async def _module_context(
                     top_k=SEMANTIC_TOP_K,
                     document_ids=doc_ids,
                 )
-                for hit in hits:
-                    if hit["chunk_id"] not in items:
-                        items[hit["chunk_id"]] = {
-                            "doc": str(hit["document_id"]),
-                            "idx": 10**9,
-                            "content": hit["content"],
-                        }
             except LLMError:
-                logger.warning("Semantic supplement skipped (embedding unavailable)")
+                hits = []
+                logger.warning(
+                    "Semantic retrieval skipped for module %r (embedding unavailable); "
+                    "falling back to the whole document",
+                    spec.get("title", ""),
+                )
+            if hits:
+                return "\n\n".join(
+                    _strip_chunk_prefix(hit["content"]) for hit in hits
+                )
 
-    ordered = sorted(items.values(), key=lambda it: (it["doc"], it["idx"]))
-    return "\n\n".join(_strip_chunk_prefix(it["content"]) for it in ordered)
+        chunks = list(await repo.list_for_documents_ordered(doc_ids))
+        return _assemble_chunk_text(chunks) if chunks else ""
 
 
 @node_error_wrapper("generate_modules")
@@ -660,11 +666,25 @@ async def publish(state: GenerationState) -> dict:
                     etype = ExerciseType(gen_exercise.get("type"))
                 except ValueError:
                     continue
+                content = gen_exercise.get("content", {})
+                problems = _exercise_content_problems(etype.value, content)
+                if problems:
+                    # An exercise whose key cannot be graded is unpassable, and an
+                    # unpassable exercise blocks the whole course. Dropping it is the
+                    # lesser failure, and the warning is how it stops being silent.
+                    logger.warning(
+                        "Dropping ungradeable %s exercise from module %r for job %s: %s",
+                        etype.value,
+                        spec.get("title", ""),
+                        job_id,
+                        "; ".join(problems),
+                    )
+                    continue
                 db.add(
                     Exercise(
                         lesson_id=last_lesson.id,
                         type=etype,
-                        content=gen_exercise.get("content", {}),
+                        content=content,
                         position=gen_exercise.get("position", position),
                     )
                 )
