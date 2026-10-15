@@ -167,15 +167,18 @@ export function Modal({ open, onClose, children, size = 'md', origin, hideClose 
     })
     // Content that arrives while the box is still growing (a list that loads) changes the panel's
     // size: keep the target current so the box lands on the real size, not the first measure.
-    const watcher = new ResizeObserver(() => {
-      if (!geo.current || !wrapRef.current) return
-      geo.current = { ...geo.current, final: boxOf(wrapRef.current.getBoundingClientRect()) }
-    })
-    watcher.observe(wrap)
+    const watcher =
+      typeof ResizeObserver === 'undefined'
+        ? null
+        : new ResizeObserver(() => {
+            if (!geo.current || !wrapRef.current) return
+            geo.current = { ...geo.current, final: boxOf(wrapRef.current.getBoundingClientRect()) }
+          })
+    watcher?.observe(wrap)
     return () => {
       grow.stop()
       fade.stop()
-      watcher.disconnect()
+      watcher?.disconnect()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, mounted])
