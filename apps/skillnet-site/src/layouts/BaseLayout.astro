@@ -110,9 +110,9 @@ if(want!==cur)location.replace(alt+location.search+location.hash);
     <meta property="og:url" content={canonicalUrl} />
     <meta property="og:type" content="website" />
     <slot name="head" />
-      <!-- Visits, counted in a self-hosted Umami (stats.kolmi.es): no cookies, no personal data. -->
+    <!-- Visits, counted with Umami: no cookies, no personal data. -->
     <script is:inline defer src="https://stats.kolmi.es/script.js" data-website-id="d8ca6a40-0152-4e35-a1e6-f59ce8827785"></script>
-</head>
+  </head>
   <body>
     <slot />
     <CookieConsent lang={lang} />
