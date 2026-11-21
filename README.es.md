@@ -77,8 +77,7 @@ aprendizaje» fijos ni como afirmación de que el sistema ya conoce perfectament
   <a href="assets/readme/skillnet-product-demo-es.mp4"><img src="assets/readme/skillnet-product-preview-es.gif" alt="Recorrido de SkillNet mostrando la creación del curso, práctica, Curio, materiales y progreso" width="100%"></a>
 </p>
 
-Prueba SkillNet en la [demo pública](https://demo.skillnet.es/entrar?lang=es),
-[ejecútalo en local](RUNNING.md) o [consulta la documentación](https://skillnet.es/docs/).
+[Ejecuta SkillNet en local](RUNNING.md) o [consulta la documentación](https://skillnet.es/docs/).
 
 ## Ejecutar en local
 

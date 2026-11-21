@@ -74,8 +74,7 @@ claim that the system already knows the learner perfectly.
   <a href="assets/readme/skillnet-product-demo-en.mp4"><img src="assets/readme/skillnet-product-preview-en.gif" alt="SkillNet product walkthrough showing course creation, practice, Curio, learning materials and progress" width="100%"></a>
 </p>
 
-Try SkillNet in the [live demo](https://demo.skillnet.es/entrar?lang=en),
-[run it locally](RUNNING.md) or [read the documentation](https://skillnet.es/docs/).
+[Run SkillNet locally](RUNNING.md) or [read the documentation](https://skillnet.es/docs/).
 
 ## Run it locally
 

@@ -108,6 +108,34 @@ def test_grounding_gate_accepts_source_substituted_content():
     assert_grounded_activity_draft(draft)  # does not raise
 
 
+def test_grounding_gate_rejects_a_fill_blank_whose_answer_is_still_the_placeholder():
+    # The question itself is genuinely grounded (not an echoed example leaf), but the
+    # model left `evaluation.expected` as the contract's literal placeholder answer.
+    # This is the reported bug: a fill-in-the-blank whose correct answer is "respuesta".
+    draft = ActivityAuthoringDraft(
+        component_id="didact.quiz.fill-in-the-blank",
+        definition={
+            "question": "El proceso que convierte glucosa en energia se llama ___.",
+            "evaluation": {"mode": "normalized_any", "expected": ["respuesta"]},
+        },
+        source_refs=["atom-1"],
+    )
+    with pytest.raises(ValueError, match="answer key was not"):
+        assert_grounded_activity_draft(draft)
+
+
+def test_grounding_gate_accepts_a_fill_blank_with_a_real_answer():
+    draft = ActivityAuthoringDraft(
+        component_id="didact.quiz.fill-in-the-blank",
+        definition={
+            "question": "El proceso que convierte glucosa en energia se llama ___.",
+            "evaluation": {"mode": "normalized_any", "expected": ["respiracion celular"]},
+        },
+        source_refs=["atom-1"],
+    )
+    assert_grounded_activity_draft(draft)  # does not raise
+
+
 def test_server_refs_replace_model_invented_reference_objects_before_validation():
     draft = authoring_draft_with_server_refs(
         _model_authoring_payload(
